@@ -351,13 +351,13 @@ CONTAINS
 
       IF (qs_ot_env%settings%ot_method .EQ. "DIIS" .OR. &
           qs_ot_env%settings%ot_method .EQ. "BROY") THEN
-         ALLOCATE (qs_ot_env%ls_diis(m_diis+1, m_diis+1))
+         ALLOCATE (qs_ot_env%ls_diis(m_diis + 1, m_diis + 1))
          qs_ot_env%ls_diis = 0.0_dp
-         ALLOCATE (qs_ot_env%lss_diis(m_diis+1, m_diis+1))
-         ALLOCATE (qs_ot_env%c_diis(m_diis+1))
+         ALLOCATE (qs_ot_env%lss_diis(m_diis + 1, m_diis + 1))
+         ALLOCATE (qs_ot_env%c_diis(m_diis + 1))
          ALLOCATE (qs_ot_env%c_broy(m_diis))
          ALLOCATE (qs_ot_env%energy_h(m_diis))
-         ALLOCATE (qs_ot_env%ipivot(m_diis+1))
+         ALLOCATE (qs_ot_env%ipivot(m_diis + 1))
       ENDIF
 
       ALLOCATE (qs_ot_env%evals(k))

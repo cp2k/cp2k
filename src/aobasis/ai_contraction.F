@@ -430,21 +430,21 @@ CONTAINS
 
       IF (dir == "IN" .OR. dir == "in") THEN
          !  QAB(block) <= SAB
-         ja = ia+na-1
-         jb = ib+nb-1
+         ja = ia + na - 1
+         jb = ib + nb - 1
          IF (my_trans) THEN
-            qab(ib:jb, ia:ja) = qab(ib:jb, ia:ja)+sab(1:nb, 1:na)
+            qab(ib:jb, ia:ja) = qab(ib:jb, ia:ja) + sab(1:nb, 1:na)
          ELSE
-            qab(ia:ja, ib:jb) = qab(ia:ja, ib:jb)+sab(1:na, 1:nb)
+            qab(ia:ja, ib:jb) = qab(ia:ja, ib:jb) + sab(1:na, 1:nb)
          END IF
       ELSEIF (dir == "OUT" .OR. dir == "out") THEN
          !  SAB <= QAB(block)
-         ja = ia+na-1
-         jb = ib+nb-1
+         ja = ia + na - 1
+         jb = ib + nb - 1
          IF (my_trans) THEN
-            sab(1:nb, 1:na) = sab(1:nb, 1:na)+qab(ib:jb, ia:ja)
+            sab(1:nb, 1:na) = sab(1:nb, 1:na) + qab(ib:jb, ia:ja)
          ELSE
-            sab(1:na, 1:nb) = sab(1:na, 1:nb)+qab(ia:ja, ib:jb)
+            sab(1:na, 1:nb) = sab(1:na, 1:nb) + qab(ia:ja, ib:jb)
          END IF
       ELSE
          CPABORT("")

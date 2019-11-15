@@ -110,15 +110,15 @@ CONTAINS
                   CPABORT("GLE: Too many elements in A_LIST")
                END IF
                gle%a_mat(j, k) = list(i)
-               k = k+1
+               k = k + 1
                IF (k > gle%ndim) THEN
                   k = 1
-                  j = j+1
+                  j = j + 1
                END IF
             END DO
          END IF
       END DO ! ir
-      IF (j < gle%ndim+1) THEN
+      IF (j < gle%ndim + 1) THEN
          CPABORT("GLE: Too few elements in A_LIST")
       END IF
       gle%a_mat = gle%a_mat*a_scale
@@ -138,15 +138,15 @@ CONTAINS
                      CPABORT("GLE: Too many elements in C_LIST")
                   END IF
                   gle%c_mat(j, k) = list(i)
-                  k = k+1
+                  k = k + 1
                   IF (k > gle%ndim) THEN
                      k = 1
-                     j = j+1
+                     j = j + 1
                   END IF
                END DO
             END IF
          END DO ! ir
-         IF (j < gle%ndim+1) THEN
+         IF (j < gle%ndim + 1) THEN
             CPABORT("GLE: Too few elements in C_LIST")
          END IF
       ELSE
@@ -196,7 +196,7 @@ CONTAINS
 
       seed(:, :, 1) = initial_seed
       DO ithermo = 2, gle%glob_num_gle
-         seed(:, :, ithermo) = next_rng_seed(seed(:, :, ithermo-1))
+         seed(:, :, ithermo) = next_rng_seed(seed(:, :, ithermo - 1))
       END DO
 
       ! Update initial seed

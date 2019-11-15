@@ -265,15 +265,15 @@ CONTAINS
 
             IF (contact_natoms .LE. 0) CPABORT("Number of atoms in contact region needs to be defined.")
 
-            transport_env%contacts_data((i-1)*stride_contacts+1) = contact_bandwidth
-            transport_env%contacts_data((i-1)*stride_contacts+2) = contact_start-1 ! C indexing
-            transport_env%contacts_data((i-1)*stride_contacts+3) = contact_natoms
-            transport_env%contacts_data((i-1)*stride_contacts+4) = contact_injsign
+            transport_env%contacts_data((i - 1)*stride_contacts + 1) = contact_bandwidth
+            transport_env%contacts_data((i - 1)*stride_contacts + 2) = contact_start - 1 ! C indexing
+            transport_env%contacts_data((i - 1)*stride_contacts + 3) = contact_natoms
+            transport_env%contacts_data((i - 1)*stride_contacts + 4) = contact_injsign
 
             IF (injecting_contact) THEN
-               transport_env%contacts_data((i-1)*stride_contacts+5) = 1
+               transport_env%contacts_data((i - 1)*stride_contacts + 5) = 1
             ELSE
-               transport_env%contacts_data((i-1)*stride_contacts+5) = 0
+               transport_env%contacts_data((i - 1)*stride_contacts + 5) = 0
             END IF
          END DO
          transport_env%params%contacts_data = C_LOC(transport_env%contacts_data(1))
@@ -501,14 +501,14 @@ CONTAINS
          csr_interop_mat%nzvals_local = C_LOC(nzvals_local(1))
       END IF
 
-      ALLOCATE (nrows_local_all(0:num_pe-1), first_row_all(0:num_pe-1))
+      ALLOCATE (nrows_local_all(0:num_pe - 1), first_row_all(0:num_pe - 1))
       CALL mp_allgather(csr_mat%nrows_local, nrows_local_all, mp_group)
       CALL cumsum_i(nrows_local_all, first_row_all)
 
       IF (mepos .EQ. 0) THEN
          csr_interop_mat%first_row = 0
       ELSE
-         csr_interop_mat%first_row = first_row_all(mepos-1)
+         csr_interop_mat%first_row = first_row_all(mepos - 1)
       END IF
       csr_interop_mat%nrows_total = csr_mat%nrows_total
       csr_interop_mat%ncols_total = csr_mat%ncols_total
@@ -536,7 +536,7 @@ CONTAINS
 
          cumsum(1) = arr(1)
          DO i = 2, SIZE(arr)
-            cumsum(i) = cumsum(i-1)+arr(i)
+            cumsum(i) = cumsum(i - 1) + arr(i)
          END DO
       END SUBROUTINE cumsum_i
 

@@ -88,19 +88,19 @@ CONTAINS
          IF (overwrite) THEN
             particles_mix%els(jparticle)%f(:) = factor*global_forces(iforce_eval)%forces(:, iparticle)
          ELSE
-            particles_mix%els(jparticle)%f(:) = particles_mix%els(jparticle)%f(:)+ &
+            particles_mix%els(jparticle)%f(:) = particles_mix%els(jparticle)%f(:) + &
                                                 factor*global_forces(iforce_eval)%forces(:, iparticle)
          END IF
       END DO
       ! Mixing Virial
       IF (virial_mix%pv_availability) THEN
          IF (overwrite) CALL zero_virial(virial_mix, reset=.FALSE.)
-         virial_mix%pv_total = virial_mix%pv_total+factor*virials(iforce_eval)%virial%pv_total
-         virial_mix%pv_kinetic = virial_mix%pv_kinetic+factor*virials(iforce_eval)%virial%pv_kinetic
-         virial_mix%pv_virial = virial_mix%pv_virial+factor*virials(iforce_eval)%virial%pv_virial
-         virial_mix%pv_xc = virial_mix%pv_xc+factor*virials(iforce_eval)%virial%pv_xc
-         virial_mix%pv_fock_4c = virial_mix%pv_fock_4c+factor*virials(iforce_eval)%virial%pv_fock_4c
-         virial_mix%pv_constraint = virial_mix%pv_constraint+factor*virials(iforce_eval)%virial%pv_constraint
+         virial_mix%pv_total = virial_mix%pv_total + factor*virials(iforce_eval)%virial%pv_total
+         virial_mix%pv_kinetic = virial_mix%pv_kinetic + factor*virials(iforce_eval)%virial%pv_kinetic
+         virial_mix%pv_virial = virial_mix%pv_virial + factor*virials(iforce_eval)%virial%pv_virial
+         virial_mix%pv_xc = virial_mix%pv_xc + factor*virials(iforce_eval)%virial%pv_xc
+         virial_mix%pv_fock_4c = virial_mix%pv_fock_4c + factor*virials(iforce_eval)%virial%pv_fock_4c
+         virial_mix%pv_constraint = virial_mix%pv_constraint + factor*virials(iforce_eval)%virial%pv_constraint
       END IF
       ! Deallocate map_index array
       IF (ASSOCIATED(map_index)) THEN
@@ -120,7 +120,7 @@ CONTAINS
          CALL get_results(results=results(iforce_eval)%results, description=description, n_rep=nres)
          CALL get_results(results=results(iforce_eval)%results, description=description, &
                           values=dip_tmp, nval=nres)
-         dip_mix = dip_mix+factor*dip_tmp
+         dip_mix = dip_mix + factor*dip_tmp
          CALL cp_results_erase(results=results_mix, description=description)
          CALL put_results(results=results_mix, description=description, values=dip_mix)
       END IF
@@ -204,10 +204,10 @@ CONTAINS
                   IF (tmp == jval) EXIT
                END DO
                CALL section_vals_val_get(fragments_sys, "_DEFAULT_KEYWORD_", i_rep_section=j, i_vals=index_glo)
-               DO k = 0, index_glo(2)-index_glo(1)
-                  iatom = iatom+1
+               DO k = 0, index_glo(2) - index_glo(1)
+                  iatom = iatom + 1
                   CPASSERT(iatom <= natom)
-                  map_index(iatom) = index_glo(1)+k
+                  map_index(iatom) = index_glo(1) + k
                END DO
             END DO
             check = (iatom == natom)
@@ -226,11 +226,11 @@ CONTAINS
                CPASSERT(j <= n_rep_sys)
                CALL section_vals_val_get(fragments_loc, "_DEFAULT_KEYWORD_", i_rep_section=i, i_vals=index_loc)
                CALL section_vals_val_get(fragments_sys, "_DEFAULT_KEYWORD_", i_rep_section=j, i_vals=index_glo)
-               check = ((index_loc(2)-index_loc(1)) == (index_glo(2)-index_glo(1)))
+               check = ((index_loc(2) - index_loc(1)) == (index_glo(2) - index_glo(1)))
                CPASSERT(check)
                ! Now let's build the real mapping
-               DO k = 0, index_loc(2)-index_loc(1)
-                  map_index(index_loc(1)+k) = index_glo(1)+k
+               DO k = 0, index_loc(2) - index_loc(1)
+                  map_index(index_loc(1) + k) = index_glo(1) + k
                END DO
             END DO
          END IF

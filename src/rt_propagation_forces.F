@@ -127,7 +127,7 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
 
       DO ispin = 1, SIZE(SinvH)
-         re = 2*ispin-1
+         re = 2*ispin - 1
          im = 2*ispin
          alpha = mos(ispin)%mo_set%maxocc
 
@@ -243,7 +243,7 @@ CONTAINS
       CALL get_rtp(rtp=rtp, rho_new=rho_new, S_minus_half=S_minus_half)
 
       DO ispin = 1, SIZE(SinvH)
-         re = 2*ispin-1
+         re = 2*ispin - 1
          im = 2*ispin
          CALL dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_new(re)%matrix, zero, tmp, &
                              filter_eps=rtp%filter_eps)
@@ -308,7 +308,7 @@ CONTAINS
                kind_atom = atom_of_kind(col_atom)
                !The block_values are in a vector format,
                ! so the dot_product is the sum over all elements of the hamand product, that I need
-               force(ikind)%ehrenfest(i, kind_atom) = force(ikind)%ehrenfest(i, kind_atom)+ &
+               force(ikind)%ehrenfest(i, kind_atom) = force(ikind)%ehrenfest(i, kind_atom) + &
                                                       2.0_dp*DOT_PRODUCT(block_values, block_values2)
             ENDIF
          END DO
@@ -325,7 +325,7 @@ CONTAINS
                kind_atom = atom_of_kind(col_atom)
                !The block_values are in a vector format, so the dot_product is
                ! the sum over all elements of the hamand product, that I need
-               force(ikind)%ehrenfest(i, kind_atom) = force(ikind)%ehrenfest(i, kind_atom)+ &
+               force(ikind)%ehrenfest(i, kind_atom) = force(ikind)%ehrenfest(i, kind_atom) + &
                                                       2.0_dp*DOT_PRODUCT(block_values, block_values2)
             ENDIF
          END DO
@@ -416,7 +416,7 @@ CONTAINS
                       "W MATRIX AUX Q")
 
       DO ispin = 1, SIZE(KS_aux_re)
-         re = 2*ispin-1; im = 2*ispin
+         re = 2*ispin - 1; im = 2*ispin
          naux = admm_env%nao_aux_fit; nmo = admm_env%nmo(ispin); nao = admm_env%nao_orb
 
          ALLOCATE (tmp_aux_aux(2), tmp_aux_nao(2), tmp_aux_mo(2), tmp_aux_mo1(2))

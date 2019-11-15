@@ -188,18 +188,18 @@ CONTAINS
                CASE ("B_VECTOR")
                   kspecial(1:3, ip) = kpptr(1:3)
                CASE ("CART_ANGSTROM")
-                  kspecial(1:3, ip) = (kpptr(1)*cell%hmat(1, 1:3)+ &
-                                       kpptr(2)*cell%hmat(2, 1:3)+ &
+                  kspecial(1:3, ip) = (kpptr(1)*cell%hmat(1, 1:3) + &
+                                       kpptr(2)*cell%hmat(2, 1:3) + &
                                        kpptr(3)*cell%hmat(3, 1:3))/twopi*angstrom
                CASE ("CART_BOHR")
-                  kspecial(1:3, ip) = (kpptr(1)*cell%hmat(1, 1:3)+ &
-                                       kpptr(2)*cell%hmat(2, 1:3)+ &
+                  kspecial(1:3, ip) = (kpptr(1)*cell%hmat(1, 1:3) + &
+                                       kpptr(2)*cell%hmat(2, 1:3) + &
                                        kpptr(3)*cell%hmat(3, 1:3))/twopi
                CASE DEFAULT
                   CPABORT("Unknown Unit for kpoint definition")
                END SELECT
             END DO
-            npoints = (n_ptr-1)*npline+1
+            npoints = (n_ptr - 1)*npline + 1
             !
             CPASSERT(npoints >= 1)
             IF (unit_nr > 0) THEN
@@ -223,10 +223,10 @@ CONTAINS
             ikk = 1
             DO ik = 2, n_ptr
                DO ip = 1, npline
-                  ikk = ikk+1
-                  kpgeneral(1:3, ikk) = kspecial(1:3, ik-1)+ &
+                  ikk = ikk + 1
+                  kpgeneral(1:3, ikk) = kspecial(1:3, ik - 1) + &
                                         REAL(ip, KIND=dp)/REAL(npline, KIND=dp)* &
-                                        (kspecial(1:3, ik)-kspecial(1:3, ik-1))
+                                        (kspecial(1:3, ik) - kspecial(1:3, ik - 1))
                END DO
             END DO
             NULLIFY (kpoint)
@@ -243,7 +243,7 @@ CONTAINS
                my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
                DO ispin = 1, nspins
                   IF (my_kpgrp) THEN
-                     ikpgr = ik-kp_range(1)+1
+                     ikpgr = ik - kp_range(1) + 1
                      kp => kpoint%kp_env(ikpgr)%kpoint_env
                      CALL get_mo_set(kp%mos(1, ispin)%mo_set, eigenvalues=eigenvalues)
                      eigval(1:nmo) = eigenvalues(1:nmo)
@@ -266,7 +266,7 @@ CONTAINS
             CALL kpoint_release(kpoint)
             t2 = m_walltime()
             IF (unit_nr > 0) THEN
-               WRITE (unit_nr, FMT="(T2,A,T67,F14.3)") "KPOINTS| Time for K-Point Line ", t2-t1
+               WRITE (unit_nr, FMT="(T2,A,T67,F14.3)") "KPOINTS| Time for K-Point Line ", t2 - t1
             END IF
          END DO
          ! close output file
@@ -359,10 +359,10 @@ CONTAINS
          DO ix = 1, mp_grid(1)
             DO iy = 1, mp_grid(2)
                DO iz = 1, mp_grid(3)
-                  i = i+1
-                  kpt_latt(1) = REAL(2*ix-mp_grid(1)-1, KIND=dp)/(2._dp*REAL(mp_grid(1), KIND=dp))
-                  kpt_latt(2) = REAL(2*iy-mp_grid(2)-1, KIND=dp)/(2._dp*REAL(mp_grid(2), KIND=dp))
-                  kpt_latt(3) = REAL(2*iz-mp_grid(3)-1, KIND=dp)/(2._dp*REAL(mp_grid(3), KIND=dp))
+                  i = i + 1
+                  kpt_latt(1) = REAL(2*ix - mp_grid(1) - 1, KIND=dp)/(2._dp*REAL(mp_grid(1), KIND=dp))
+                  kpt_latt(2) = REAL(2*iy - mp_grid(2) - 1, KIND=dp)/(2._dp*REAL(mp_grid(2), KIND=dp))
+                  kpt_latt(3) = REAL(2*iz - mp_grid(3) - 1, KIND=dp)/(2._dp*REAL(mp_grid(3), KIND=dp))
                   kpoint%xkp(1:3, i) = MATMUL(TRANSPOSE(h_inv), kpt_latt(:))
                END DO
             END DO
@@ -403,7 +403,7 @@ CONTAINS
       DO ik = 1, SIZE(kpoint%kp_env)
          CALL mpools_get(kpoint%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
          mos => kpoint%kp_env(ik)%kpoint_env%mos
-         ikk = kpoint%kp_range(1)+ik-1
+         ikk = kpoint%kp_range(1) + ik - 1
          CPASSERT(ASSOCIATED(mos))
          DO ispin = 1, SIZE(mos, 2)
             DO ic = 1, SIZE(mos, 1)

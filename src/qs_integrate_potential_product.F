@@ -207,7 +207,7 @@ CONTAINS
 
       NULLIFY (pw_env, rs_descs, tasks, dist_ab, admm_env)
 
-      debug_count = debug_count+1
+      debug_count = debug_count + 1
 
       offs_dv = 0
 
@@ -618,15 +618,15 @@ CONTAINS
             rab(2) = dist_ab(2, itask)
             rab(3) = dist_ab(3, itask)
             rab2 = DOT_PRODUCT(rab, rab)
-            rb(1) = ra(1)+rab(1)
-            rb(2) = ra(2)+rab(2)
-            rb(3) = ra(3)+rab(3)
-            zetp = zeta(ipgf, iset)+zetb(jpgf, jset)
+            rb(1) = ra(1) + rab(1)
+            rb(2) = ra(2) + rab(2)
+            rb(3) = ra(3) + rab(3)
+            zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
             dab = SQRT(rab2)
 
-            na1 = (ipgf-1)*ncoset(la_max(iset))+1
+            na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
             na2 = ipgf*ncoset(la_max(iset))
-            nb1 = (jpgf-1)*ncoset(lb_max(jset))+1
+            nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
             nb2 = jpgf*ncoset(lb_max(jset))
 
             ! check whether we need to use fawzi's generalised collocation scheme
@@ -648,7 +648,7 @@ CONTAINS
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
                      cube_info(igrid_level), &
-                     hab, pab=pab, o1=na1-1, o2=nb1-1, &
+                     hab, pab=pab, o1=na1 - 1, o2=nb1 - 1, &
                      eps_gvg_rspace=eps_gvg_rspace, &
                      calculate_forces=calculate_forces, &
                      force_a=force_a, force_b=force_b, &
@@ -662,7 +662,7 @@ CONTAINS
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      rb, rab_inv, rab2, rs_v(igrid_level)%rs_grid, cell, &
                      cube_info(igrid_level), &
-                     hab, pab=pab, o1=nb1-1, o2=na1-1, &
+                     hab, pab=pab, o1=nb1 - 1, o2=na1 - 1, &
                      eps_gvg_rspace=eps_gvg_rspace, &
                      calculate_forces=calculate_forces, &
                      force_a=force_b, force_b=force_a, &
@@ -677,7 +677,7 @@ CONTAINS
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
                      cube_info(igrid_level), &
-                     hab, o1=na1-1, o2=nb1-1, &
+                     hab, o1=na1 - 1, o2=nb1 - 1, &
                      eps_gvg_rspace=eps_gvg_rspace, &
                      calculate_forces=calculate_forces, &
                      force_a=force_a, force_b=force_b, &
@@ -690,7 +690,7 @@ CONTAINS
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      rb, rab_inv, rab2, rs_v(igrid_level)%rs_grid, cell, &
                      cube_info(igrid_level), &
-                     hab, o1=nb1-1, o2=na1-1, &
+                     hab, o1=nb1 - 1, o2=na1 - 1, &
                      eps_gvg_rspace=eps_gvg_rspace, &
                      calculate_forces=calculate_forces, &
                      force_a=force_b, force_b=force_a, &
@@ -702,7 +702,7 @@ CONTAINS
             new_set_pair_coming = .FALSE.
             atom_pair_done = .FALSE.
             IF (itask < task_list%taskstop(ipair, igrid_level)) THEN
-               CALL int2pair(tasks(3, itask+1), ilevel, img, iatom, jatom, iset_new, jset_new, ipgf_new, jpgf_new, &
+               CALL int2pair(tasks(3, itask + 1), ilevel, img, iatom, jatom, iset_new, jset_new, ipgf_new, jpgf_new, &
                              nimages, natom, maxset, maxpgf)
                IF (iset_new .NE. iset .OR. jset_new .NE. jset) THEN
                   new_set_pair_coming = .TRUE.
@@ -745,14 +745,14 @@ CONTAINS
                END IF
                IF (calculate_forces) THEN
                   force(ikind)%rho_elec(:, atom_a) = &
-                     force(ikind)%rho_elec(:, atom_a)+scalef*admm_scal_fac*force_a(:)
+                     force(ikind)%rho_elec(:, atom_a) + scalef*admm_scal_fac*force_a(:)
                   force(jkind)%rho_elec(:, atom_b) = &
-                     force(jkind)%rho_elec(:, atom_b)+scalef*admm_scal_fac*force_b(:)
+                     force(jkind)%rho_elec(:, atom_b) + scalef*admm_scal_fac*force_b(:)
                ENDIF
                IF (use_virial) THEN
                   IF (use_virial .AND. calculate_forces) THEN
-                     virial%pv_virial = virial%pv_virial+scalef*admm_scal_fac*my_virial_a
-                     virial%pv_virial = virial%pv_virial+scalef*admm_scal_fac*my_virial_b
+                     virial%pv_virial = virial%pv_virial + scalef*admm_scal_fac*my_virial_a
+                     virial%pv_virial = virial%pv_virial + scalef*admm_scal_fac*my_virial_b
                   END IF
                END IF
 !$OMP END CRITICAL (force_critical)

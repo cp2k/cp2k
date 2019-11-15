@@ -214,8 +214,8 @@ CONTAINS
          CALL reallocate(grid_atom%cos_pol, 1, na)
          CALL reallocate(grid_atom%sin_pol, 1, na)
          CALL reallocate(grid_atom%usin_azi, 1, na)
-         CALL reallocate(grid_atom%rad2l, 1, nr, 0, llmax+1)
-         CALL reallocate(grid_atom%oorad2l, 1, nr, 0, llmax+1)
+         CALL reallocate(grid_atom%rad2l, 1, nr, 0, llmax + 1)
+         CALL reallocate(grid_atom%oorad2l, 1, nr, 0, llmax + 1)
 
          ! Calculate the radial grid for this kind
          rad => grid_atom%rad
@@ -227,9 +227,9 @@ CONTAINS
 
          grid_atom%rad2l(:, 0) = 1._dp
          grid_atom%oorad2l(:, 0) = 1._dp
-         DO l = 1, llmax+1
-            grid_atom%rad2l(:, l) = grid_atom%rad2l(:, l-1)*rad(:)
-            grid_atom%oorad2l(:, l) = grid_atom%oorad2l(:, l-1)/rad(:)
+         DO l = 1, llmax + 1
+            grid_atom%rad2l(:, l) = grid_atom%rad2l(:, l - 1)*rad(:)
+            grid_atom%oorad2l(:, l) = grid_atom%oorad2l(:, l - 1)/rad(:)
          ENDDO
 
          IF (ll > 0) THEN
@@ -328,8 +328,8 @@ CONTAINS
       ! store grid points always in ascending order
       IF (rad(1) > rad(nr)) THEN
          DO ir = nr, 1, -1
-            igr%rr(nr-ir+1) = rad(ir)
-            igr%wr(nr-ir+1) = wr(ir)
+            igr%rr(nr - ir + 1) = rad(ir)
+            igr%wr(nr - ir + 1) = wr(ir)
          END DO
       ELSE
          igr%rr(1:nr) = rad(1:nr)
@@ -339,7 +339,7 @@ CONTAINS
       np = 0
       DO ir = 1, nr
          IF (igr%rr(ir) < rmax) THEN
-            np = np+1
+            np = np + 1
             rad(np) = igr%rr(ir)
             wr(np) = igr%wr(ir)
          END IF
@@ -366,32 +366,32 @@ CONTAINS
       ig = 0
       DO ir = 1, igr%np
          DO ia = 1, igr%na
-            ig = ig+1
+            ig = ig + 1
             rco(1:3, ig) = rang(1:3, ia)*rad(ir)
             wc(ig) = wa(ia)*wr(ir)
          END DO
       END DO
       ! grid for batches, odd number of cells
       ng = NINT((REAL(ntot, dp)/32._dp)**0.33333_dp)
-      ng = ng+MOD(ng+1, 2)
+      ng = ng + MOD(ng + 1, 2)
       ! avarage number of points along radial grid
       dco = 0.0_dp
       ag = REAL(igr%np, dp)/ng
-      CPASSERT(SIZE(dco) >= (ng+1)/2)
+      CPASSERT(SIZE(dco) >= (ng + 1)/2)
       DO ig = 1, ng, 2
          ir = MIN(NINT(ag)*ig, igr%np)
-         ia = (ig+1)/2
+         ia = (ig + 1)/2
          dco(ia) = rad(ir)
       END DO
       ! batches
       ALLOCATE (icell(ntot))
       icell = 0
-      nx = (ng-1)/2
+      nx = (ng - 1)/2
       DO ig = 1, ntot
-         ix = grid_coord(rco(1, ig), dco, nx+1)+nx
-         iy = grid_coord(rco(2, ig), dco, nx+1)+nx
-         iz = grid_coord(rco(3, ig), dco, nx+1)+nx
-         icell(ig) = iz*ng*ng+iy*ng+ix+1
+         ix = grid_coord(rco(1, ig), dco, nx + 1) + nx
+         iy = grid_coord(rco(2, ig), dco, nx + 1) + nx
+         iz = grid_coord(rco(3, ig), dco, nx + 1) + nx
+         icell(ig) = iz*ng*ng + iy*ng + ix + 1
       END DO
       !
       igr%nbatch = ng*ng*ng
@@ -399,7 +399,7 @@ CONTAINS
       igr%batch(:)%np = 0
       DO ig = 1, ntot
          ia = icell(ig)
-         igr%batch(ia)%np = igr%batch(ia)%np+1
+         igr%batch(ia)%np = igr%batch(ia)%np + 1
       END DO
       DO ig = 1, igr%nbatch
          np = igr%batch(ig)%np
@@ -408,7 +408,7 @@ CONTAINS
       END DO
       DO ig = 1, ntot
          ia = icell(ig)
-         igr%batch(ia)%np = igr%batch(ia)%np+1
+         igr%batch(ia)%np = igr%batch(ia)%np + 1
          np = igr%batch(ia)%np
          igr%batch(ia)%rco(1:3, np) = rco(1:3, ig)
          igr%batch(ia)%weight(np) = wc(ig)
@@ -436,10 +436,10 @@ CONTAINS
             ! empty batch
          ELSE IF (igr%batch(ig)%np <= 48) THEN
             ! single batch
-            nbatch = nbatch+1
+            nbatch = nbatch + 1
          ELSE
             ! multiple batches
-            nbatch = nbatch+NINT(igr%batch(ig)%np/32._dp)
+            nbatch = nbatch + NINT(igr%batch(ig)%np/32._dp)
          END IF
       END DO
       int_grid%nbatch = nbatch
@@ -451,7 +451,7 @@ CONTAINS
             ! empty batch
          ELSE IF (igr%batch(ig)%np <= 48) THEN
             ! single batch
-            n1 = n1+1
+            n1 = n1 + 1
             np = igr%batch(ig)%np
             ALLOCATE (int_grid%batch(n1)%rco(3, np), int_grid%batch(n1)%weight(np))
             int_grid%batch(n1)%np = np
@@ -461,17 +461,17 @@ CONTAINS
             ! multiple batches
             n2 = NINT(igr%batch(ig)%np/32._dp)
             n3 = igr%batch(ig)%np/n2
-            DO ia = n1+1, n1+n2
-               nu = (ia-n1-1)*n3+1
-               no = nu+n3-1
-               IF (ia == n1+n2) no = igr%batch(ig)%np
-               np = no-nu+1
+            DO ia = n1 + 1, n1 + n2
+               nu = (ia - n1 - 1)*n3 + 1
+               no = nu + n3 - 1
+               IF (ia == n1 + n2) no = igr%batch(ig)%np
+               np = no - nu + 1
                ALLOCATE (int_grid%batch(ia)%rco(3, np), int_grid%batch(ia)%weight(np))
                int_grid%batch(ia)%np = np
                int_grid%batch(ia)%rco(1:3, 1:np) = igr%batch(ig)%rco(1:3, nu:no)
                int_grid%batch(ia)%weight(1:np) = igr%batch(ig)%weight(nu:no)
             END DO
-            n1 = n1+n2
+            n1 = n1 + n2
          END IF
       END DO
       CPASSERT(nbatch == n1)
@@ -487,7 +487,7 @@ CONTAINS
          int_grid%batch(ig)%rcenter(1:3) = rm(1:3)
          dmax = 0.0_dp
          DO ia = 1, np
-            dd = SUM((int_grid%batch(ig)%rco(1:3, ia)-rm(1:3))**2)
+            dd = SUM((int_grid%batch(ig)%rco(1:3, ia) - rm(1:3))**2)
             dmax = MAX(dd, dmax)
          END DO
          int_grid%batch(ig)%rad = SQRT(dmax)
@@ -519,7 +519,7 @@ CONTAINS
             DO ig = 1, int_grid%nbatch
                r1 = MIN(r1, int_grid%batch(ig)%rad)
                r2 = MAX(r2, int_grid%batch(ig)%rad)
-               r3 = r3+int_grid%batch(ig)%rad
+               r3 = r3 + int_grid%batch(ig)%rad
             END DO
             r3 = r3/REAL(ng*ng*ng, KIND=dp)
             WRITE (iunit, "(A,T51,3F10.2)") "    Batch radius (bohr) [min,max,ave]", r1, r2, r3
@@ -549,7 +549,7 @@ CONTAINS
       igrid = ng
       DO ig = 1, ng
          IF (xval <= dco(ig)) THEN
-            igrid = ig-1
+            igrid = ig - 1
             EXIT
          END IF
       END DO
@@ -614,7 +614,7 @@ CONTAINS
       INTEGER                                            :: i
       REAL(dp)                                           :: cost, f, sint, sint2, t, w, x
 
-      f = pi/REAL(n+1, dp)
+      f = pi/REAL(n + 1, dp)
 
       SELECT CASE (radial_quadrature)
 
@@ -627,10 +627,10 @@ CONTAINS
             t = REAL(i, dp)*f
             x = COS(t)
             w = f*SIN(t)**2
-            r(i) = (1.0_dp+x)/(1.0_dp-x)
+            r(i) = (1.0_dp + x)/(1.0_dp - x)
             r2(i) = r(i)**2
-            wr(i) = w/SQRT(1.0_dp-x**2)
-            wr(i) = 2.0_dp*wr(i)*r2(i)/(1.0_dp-x)**2
+            wr(i) = w/SQRT(1.0_dp - x**2)
+            wr(i) = 2.0_dp*wr(i)*r2(i)/(1.0_dp - x)**2
          END DO
 
       CASE (do_gapw_gct)
@@ -643,12 +643,12 @@ CONTAINS
             cost = COS(t)
             sint = SIN(t)
             sint2 = sint**2
-            x = REAL(2*i-n-1, dp)/REAL(n+1, dp)- &
-                2.0_dp*(1.0_dp+2.0_dp*sint2/3.0_dp)*cost*sint/pi
-            w = 16.0_dp*sint2**2/REAL(3*(n+1), dp)
-            r(n+1-i) = (1.0_dp+x)/(1.0_dp-x)
-            r2(n+1-i) = r(n+1-i)**2
-            wr(n+1-i) = 2.0_dp*w*r2(n+1-i)/(1.0_dp-x)**2
+            x = REAL(2*i - n - 1, dp)/REAL(n + 1, dp) - &
+                2.0_dp*(1.0_dp + 2.0_dp*sint2/3.0_dp)*cost*sint/pi
+            w = 16.0_dp*sint2**2/REAL(3*(n + 1), dp)
+            r(n + 1 - i) = (1.0_dp + x)/(1.0_dp - x)
+            r2(n + 1 - i) = r(n + 1 - i)**2
+            wr(n + 1 - i) = 2.0_dp*w*r2(n + 1 - i)/(1.0_dp - x)**2
          END DO
 
       CASE (do_gapw_log)
@@ -661,12 +661,12 @@ CONTAINS
             cost = COS(t)
             sint = SIN(t)
             sint2 = sint**2
-            x = REAL(2*i-n-1, dp)/REAL(n+1, dp)- &
-                2.0_dp*(1.0_dp+2.0_dp*sint2/3.0_dp)*cost*sint/pi
-            w = 16.0_dp*sint2**2/REAL(3*(n+1), dp)
-            r(n+1-i) = LOG(2.0_dp/(1.0_dp-x))/LOG(2.0_dp)
-            r2(n+1-i) = r(n+1-i)**2
-            wr(n+1-i) = w*r2(n+1-i)/(LOG(2.0_dp)*(1.0_dp-x))
+            x = REAL(2*i - n - 1, dp)/REAL(n + 1, dp) - &
+                2.0_dp*(1.0_dp + 2.0_dp*sint2/3.0_dp)*cost*sint/pi
+            w = 16.0_dp*sint2**2/REAL(3*(n + 1), dp)
+            r(n + 1 - i) = LOG(2.0_dp/(1.0_dp - x))/LOG(2.0_dp)
+            r2(n + 1 - i) = r(n + 1 - i)**2
+            wr(n + 1 - i) = w*r2(n + 1 - i)/(LOG(2.0_dp)*(1.0_dp - x))
          END DO
 
       CASE DEFAULT

@@ -114,11 +114,11 @@ CONTAINS
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       nspins = dft_control%nspins
-      zwfc = 3.0_dp-REAL(nspins, KIND=dp)
+      zwfc = 3.0_dp - REAL(nspins, KIND=dp)
 
       CALL section_vals_val_get(loc_print_key, "MOLECULAR_MOMENTS%ORDER", i_val=norder)
       CPASSERT(norder >= 0)
-      nm = ncoset(norder)-1
+      nm = ncoset(norder) - 1
 
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell)
       particle_set => qs_loc_env%particle_set
@@ -139,7 +139,7 @@ CONTAINS
             ! Get reference point for this molecule
             CALL get_reference_point(rcc, qs_env=qs_env, reference=use_mom_ref_com, &
                                      ref_point=ref_point, ifirst=first_atom, &
-                                     ilast=first_atom+natom-1)
+                                     ilast=first_atom + natom - 1)
             ALLOCATE (moments(nm))
             DO i = 1, nm
                ALLOCATE (moments(i)%matrix)
@@ -184,7 +184,7 @@ CONTAINS
                DO i = 1, nm
                   CALL cp_dbcsr_sm_fm_multiply(moments(i)%matrix, mvector, omvector, ns)
                   CALL cp_fm_schur_product(mvector, omvector, momv)
-                  moment_set(i, imol) = moment_set(i, imol)-zwfc*SUM(momv%local_data)
+                  moment_set(i, imol) = moment_set(i, imol) - zwfc*SUM(momv%local_data)
                END DO
                !
                CALL cp_fm_release(mvector)
@@ -209,41 +209,41 @@ CONTAINS
             ! Get reference point for this molecule
             CALL get_reference_point(rcc, qs_env=qs_env, reference=use_mom_ref_com, &
                                      ref_point=ref_point, ifirst=first_atom, &
-                                     ilast=first_atom+natom-1)
+                                     ilast=first_atom + natom - 1)
             ! charge
             DO iatom = 1, natom
-               i = first_atom+iatom-1
+               i = first_atom + iatom - 1
                atomic_kind => particle_set(i)%atomic_kind
                CALL get_atomic_kind(atomic_kind, kind_number=akind)
                CALL get_qs_kind(qs_kind_set(akind), ghost=ghost, floating=floating)
                IF (.NOT. ghost .AND. .NOT. floating) THEN
                   CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
-                  charge_set(imol_now) = charge_set(imol_now)+zeff
+                  charge_set(imol_now) = charge_set(imol_now) + zeff
                END IF
             END DO
             DO ispin = 1, nspins
                IF (ASSOCIATED(molecule_set(imol_now)%lmi(ispin)%states)) THEN
                   ns = SIZE(molecule_set(imol_now)%lmi(ispin)%states)
-                  charge_set(imol_now) = charge_set(imol_now)-zwfc*ns
+                  charge_set(imol_now) = charge_set(imol_now) - zwfc*ns
                END IF
             ENDDO
             !
             IF (norder > 0) THEN
                ! nuclear contribution
                DO i = 1, nm
-                  lx = indco(1, i+1)
-                  ly = indco(2, i+1)
-                  lz = indco(3, i+1)
+                  lx = indco(1, i + 1)
+                  ly = indco(2, i + 1)
+                  lz = indco(3, i + 1)
                   DO iatom = 1, natom
-                     j = first_atom+iatom-1
+                     j = first_atom + iatom - 1
                      atomic_kind => particle_set(j)%atomic_kind
                      CALL get_atomic_kind(atomic_kind, kind_number=akind)
                      CALL get_qs_kind(qs_kind_set(akind), ghost=ghost, floating=floating)
                      IF (.NOT. ghost .AND. .NOT. floating) THEN
                         CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
-                        ria = particle_set(j)%r-rcc
+                        ria = particle_set(j)%r - rcc
                         ria = pbc(ria, cell)
-                        moment_set(i, imol_now) = moment_set(i, imol_now)+ &
+                        moment_set(i, imol_now) = moment_set(i, imol_now) + &
                                                   zeff*ria(1)**lx*ria(2)**ly*ria(3)**lz
                      END IF
                   END DO
@@ -260,8 +260,8 @@ CONTAINS
          DO i = 1, SIZE(charge_set)
             WRITE (UNIT=iounit, FMT='(A,I6,A,F12.6)') "  # molecule nr:", i, "      Charge:", charge_set(I)
             DO n = 1, norder
-               n1 = ncoset(n-1)
-               n2 = ncoset(n)-1
+               n1 = ncoset(n - 1)
+               n2 = ncoset(n) - 1
                WRITE (UNIT=iounit, FMT='(T4,A,I2,10(T16,6F12.6))') "Order:", n, moment_set(n1:n2, i)
             END DO
          ENDDO

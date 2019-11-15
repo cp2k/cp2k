@@ -49,7 +49,7 @@ CONTAINS
       my_link = .FALSE.
       DO WHILE (INDEX(id1, "_QM_") /= 0)
          my_link = qmmm_ff_precond_only_link(id1) .OR. my_link
-         my_index = INDEX(id1, "_QM_")+LEN_TRIM("_QM_")
+         my_index = INDEX(id1, "_QM_") + LEN_TRIM("_QM_")
          only_qm = .TRUE.
          tmp = TRIM(id1(my_index:))
          clean_string_1: DO j = 1, default_string_length
@@ -62,7 +62,7 @@ CONTAINS
          IF (INDEX(id2, "_QM_") == 0) only_qm = .FALSE.
          DO WHILE (INDEX(id2, "_QM_") /= 0)
             my_link = qmmm_ff_precond_only_link(id2) .OR. my_link
-            my_index = INDEX(id2, "_QM_")+LEN_TRIM("_QM_")
+            my_index = INDEX(id2, "_QM_") + LEN_TRIM("_QM_")
             tmp = TRIM(id2(my_index:))
             clean_string_2: DO j = 1, default_string_length
                id2(j:j) = " "
@@ -75,7 +75,7 @@ CONTAINS
          IF (INDEX(id3, "_QM_") == 0) only_qm = .FALSE.
          DO WHILE (INDEX(id3, "_QM_") /= 0)
             my_link = qmmm_ff_precond_only_link(id3) .OR. my_link
-            my_index = INDEX(id3, "_QM_")+LEN_TRIM("_QM_")
+            my_index = INDEX(id3, "_QM_") + LEN_TRIM("_QM_")
             tmp = TRIM(id3(my_index:))
             clean_string_3: DO j = 1, default_string_length
                id3(j:j) = " "
@@ -88,7 +88,7 @@ CONTAINS
          IF (INDEX(id4, "_QM_") == 0) only_qm = .FALSE.
          DO WHILE (INDEX(id4, "_QM_") /= 0)
             my_link = qmmm_ff_precond_only_link(id4) .OR. my_link
-            my_index = INDEX(id4, "_QM_")+LEN_TRIM("_QM_")
+            my_index = INDEX(id4, "_QM_") + LEN_TRIM("_QM_")
             tmp = TRIM(id4(my_index:))
             clean_string_4: DO j = 1, default_string_length
                id4(j:j) = " "
@@ -116,8 +116,8 @@ CONTAINS
 
       is_link = .FALSE.
       DO WHILE (INDEX(id1, "_LNK") /= 0)
-         my_index = INDEX(id1, "_LNK")+1
-         my_index = INDEX(id1(my_index:), "_QM_")+my_index-1
+         my_index = INDEX(id1, "_LNK") + 1
+         my_index = INDEX(id1(my_index:), "_QM_") + my_index - 1
          is_link = .TRUE.
          tmp = TRIM(id1(my_index:))
          clean_string_1: DO j = 1, default_string_length

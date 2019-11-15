@@ -303,9 +303,9 @@ CONTAINS
          IF (DATA(iloc) == radix_in) THEN
             radix_out = DATA(iloc)
          ELSE
-            IF (ABS(DATA(iloc-1)-radix_in) <= &
-                ABS(DATA(iloc)-radix_in)) THEN
-               radix_out = DATA(iloc-1)
+            IF (ABS(DATA(iloc - 1) - radix_in) <= &
+                ABS(DATA(iloc) - radix_in)) THEN
+               radix_out = DATA(iloc - 1)
             ELSE
                radix_out = DATA(iloc)
             END IF
@@ -578,20 +578,20 @@ CONTAINS
       ELSE
          mmax = mg
       END IF
-      lmax = MAX(lg, (nx*ny*nz)/mmax+1)
+      lmax = MAX(lg, (nx*ny*nz)/mmax + 1)
 
-      ALLOCATE (p2p(0:numtask-1))
+      ALLOCATE (p2p(0:numtask - 1))
 
       CALL mp_rank_compare(gs_group, rs_group, p2p)
 
       rp = p2p(g_pos)
-      mx1 = bo(2, 1, rp, 1)-bo(1, 1, rp, 1)+1
-      my1 = bo(2, 2, rp, 1)-bo(1, 2, rp, 1)+1
-      mx2 = bo(2, 1, rp, 2)-bo(1, 1, rp, 2)+1
-      mz2 = bo(2, 3, rp, 2)-bo(1, 3, rp, 2)+1
+      mx1 = bo(2, 1, rp, 1) - bo(1, 1, rp, 1) + 1
+      my1 = bo(2, 2, rp, 1) - bo(1, 2, rp, 1) + 1
+      mx2 = bo(2, 1, rp, 2) - bo(1, 1, rp, 2) + 1
+      mz2 = bo(2, 3, rp, 2) - bo(1, 3, rp, 2) + 1
 
-      n1 = MAXVAL(bo(2, 1, :, 1)-bo(1, 1, :, 1)+1)
-      n2 = MAXVAL(bo(2, 2, :, 1)-bo(1, 2, :, 1)+1)
+      n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
+      n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
       nmax = MAX((2*n2)/numtask, 2)*mx2*mz2
       nmax = MAX(nmax, n1*MAXVAL(nyzray))
       n1 = MAXVAL(bo(2, 1, :, 2))
@@ -610,9 +610,9 @@ CONTAINS
       fft_scratch_size%mg = mg
       fft_scratch_size%nbx = n1
       fft_scratch_size%nbz = n2
-      mcz1 = MAXVAL(bo(2, 3, :, 1)-bo(1, 3, :, 1)+1)
-      mcx2 = MAXVAL(bo(2, 1, :, 2)-bo(1, 1, :, 2)+1)
-      mcz2 = MAXVAL(bo(2, 3, :, 2)-bo(1, 3, :, 2)+1)
+      mcz1 = MAXVAL(bo(2, 3, :, 1) - bo(1, 3, :, 1) + 1)
+      mcx2 = MAXVAL(bo(2, 1, :, 2) - bo(1, 1, :, 2) + 1)
+      mcz2 = MAXVAL(bo(2, 3, :, 2) - bo(1, 3, :, 2) + 1)
       fft_scratch_size%mcz1 = mcz1
       fft_scratch_size%mcx2 = mcx2
       fft_scratch_size%mcz2 = mcz2
@@ -1037,15 +1037,15 @@ CONTAINS
          END IF
       END IF
 
-      mx1 = bo(2, 1, my_pos, 1)-bo(1, 1, my_pos, 1)+1
-      my1 = bo(2, 2, my_pos, 1)-bo(1, 2, my_pos, 1)+1
-      mz1 = bo(2, 3, my_pos, 1)-bo(1, 3, my_pos, 1)+1
-      mx2 = bo(2, 1, my_pos, 2)-bo(1, 1, my_pos, 2)+1
-      my2 = bo(2, 2, my_pos, 2)-bo(1, 2, my_pos, 2)+1
-      mz2 = bo(2, 3, my_pos, 2)-bo(1, 3, my_pos, 2)+1
-      mx3 = bo(2, 1, my_pos, 3)-bo(1, 1, my_pos, 3)+1
-      my3 = bo(2, 2, my_pos, 3)-bo(1, 2, my_pos, 3)+1
-      mz3 = bo(2, 3, my_pos, 3)-bo(1, 3, my_pos, 3)+1
+      mx1 = bo(2, 1, my_pos, 1) - bo(1, 1, my_pos, 1) + 1
+      my1 = bo(2, 2, my_pos, 1) - bo(1, 2, my_pos, 1) + 1
+      mz1 = bo(2, 3, my_pos, 1) - bo(1, 3, my_pos, 1) + 1
+      mx2 = bo(2, 1, my_pos, 2) - bo(1, 1, my_pos, 2) + 1
+      my2 = bo(2, 2, my_pos, 2) - bo(1, 2, my_pos, 2) + 1
+      mz2 = bo(2, 3, my_pos, 2) - bo(1, 3, my_pos, 2) + 1
+      mx3 = bo(2, 1, my_pos, 3) - bo(1, 1, my_pos, 3) + 1
+      my3 = bo(2, 2, my_pos, 3) - bo(1, 2, my_pos, 3) + 1
+      mz3 = bo(2, 3, my_pos, 3) - bo(1, 3, my_pos, 3) + 1
       fft_scratch_size%mx1 = mx1
       fft_scratch_size%mx2 = mx2
       fft_scratch_size%mx3 = mx3
@@ -1055,10 +1055,10 @@ CONTAINS
       fft_scratch_size%mz1 = mz1
       fft_scratch_size%mz2 = mz2
       fft_scratch_size%mz3 = mz3
-      mcz1 = MAXVAL(bo(2, 3, :, 1)-bo(1, 3, :, 1)+1)
-      mcx2 = MAXVAL(bo(2, 1, :, 2)-bo(1, 1, :, 2)+1)
-      mcz2 = MAXVAL(bo(2, 3, :, 2)-bo(1, 3, :, 2)+1)
-      mcy3 = MAXVAL(bo(2, 2, :, 3)-bo(1, 2, :, 3)+1)
+      mcz1 = MAXVAL(bo(2, 3, :, 1) - bo(1, 3, :, 1) + 1)
+      mcx2 = MAXVAL(bo(2, 1, :, 2) - bo(1, 1, :, 2) + 1)
+      mcz2 = MAXVAL(bo(2, 3, :, 2) - bo(1, 3, :, 2) + 1)
+      mcy3 = MAXVAL(bo(2, 2, :, 3) - bo(1, 2, :, 3) + 1)
       fft_scratch_size%mcz1 = mcz1
       fft_scratch_size%mcx2 = mcx2
       fft_scratch_size%mcz2 = mcz2
@@ -1423,23 +1423,23 @@ CONTAINS
       END IF
 
       mpr = p2p(my_pos)
-      nm = MAXVAL(nray(0:np-1))
+      nm = MAXVAL(nray(0:np - 1))
       nr = nray(my_pos)
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ix,nx), &
 !$OMP             SHARED(np,p2p,bo,nr,scount,sdispl)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          ix = p2p(ip)
-         nx = bo(2, 1, ix)-bo(1, 1, ix)+1
+         nx = bo(2, 1, ix) - bo(1, 1, ix) + 1
          scount(ip) = nr*nx
-         sdispl(ip) = nr*(bo(1, 1, ix)-1)
+         sdispl(ip) = nr*(bo(1, 1, ix) - 1)
       END DO
 !$OMP END PARALLEL DO
-      nx = bo(2, 1, mpr)-bo(1, 1, mpr)+1
+      nx = bo(2, 1, mpr) - bo(1, 1, mpr) + 1
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(nr), &
 !$OMP             SHARED(np,nray,nx,rcount,rdispl,nm)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          nr = nray(ip)
          rcount(ip) = nr*nx
          rdispl(ip) = nm*nx*ip
@@ -1451,24 +1451,24 @@ CONTAINS
          CALL mp_alltoall(sb, scount, sdispl, rr, rcount, rdispl, group)
       END IF
 
-      nx = bo(2, 1, mpr)-bo(1, 1, mpr)+1
+      nx = bo(2, 1, mpr) - bo(1, 1, mpr) + 1
 !$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) &
 !$OMP             PRIVATE(ixx,ir,iy,iz,ix) &
 !$OMP             SHARED(np,nray,nx,alltoall_sgl,yzp,tt,rr,tb)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          DO ix = 1, nx
-            ixx = nray(ip)*(ix-1)
+            ixx = nray(ip)*(ix - 1)
             IF (alltoall_sgl) THEN
                DO ir = 1, nray(ip)
                   iy = yzp(1, ir, ip)
                   iz = yzp(2, ir, ip)
-                  tb(iy, iz, ix) = tt(ir+ixx, ip)
+                  tb(iy, iz, ix) = tt(ir + ixx, ip)
                END DO
             ELSE
                DO ir = 1, nray(ip)
                   iy = yzp(1, ir, ip)
                   iz = yzp(2, ir, ip)
-                  tb(iy, iz, ix) = rr(ir+ixx, ip)
+                  tb(iy, iz, ix) = rr(ir + ixx, ip)
                END DO
             END IF
          END DO
@@ -1531,46 +1531,46 @@ CONTAINS
          rr => fft_scratch%rr
       END IF
 
-      nx = bo(2, 1, mpr)-bo(1, 1, mpr)+1
+      nx = bo(2, 1, mpr) - bo(1, 1, mpr) + 1
 !$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) &
 !$OMP             PRIVATE(ip, ixx, ir, iy, iz, ix) &
 !$OMP             SHARED(np,nray,nx,alltoall_sgl,yzp,tb,tt,rr)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          DO ix = 1, nx
-            ixx = nray(ip)*(ix-1)
+            ixx = nray(ip)*(ix - 1)
             IF (alltoall_sgl) THEN
                DO ir = 1, nray(ip)
                   iy = yzp(1, ir, ip)
                   iz = yzp(2, ir, ip)
-                  tt(ir+ixx, ip) = CMPLX(tb(iy, iz, ix), KIND=sp)
+                  tt(ir + ixx, ip) = CMPLX(tb(iy, iz, ix), KIND=sp)
                END DO
             ELSE
                DO ir = 1, nray(ip)
                   iy = yzp(1, ir, ip)
                   iz = yzp(2, ir, ip)
-                  rr(ir+ixx, ip) = tb(iy, iz, ix)
+                  rr(ir + ixx, ip) = tb(iy, iz, ix)
                END DO
             END IF
          END DO
       END DO
 !$OMP END PARALLEL DO
-      nm = MAXVAL(nray(0:np-1))
+      nm = MAXVAL(nray(0:np - 1))
       nr = nray(my_pos)
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ix,nx), &
 !$OMP             SHARED(np,p2p,bo,rcount,rdispl,nr)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          ix = p2p(ip)
-         nx = bo(2, 1, ix)-bo(1, 1, ix)+1
+         nx = bo(2, 1, ix) - bo(1, 1, ix) + 1
          rcount(ip) = nr*nx
-         rdispl(ip) = nr*(bo(1, 1, ix)-1)
+         rdispl(ip) = nr*(bo(1, 1, ix) - 1)
       END DO
 !$OMP END PARALLEL DO
-      nx = bo(2, 1, mpr)-bo(1, 1, mpr)+1
+      nx = bo(2, 1, mpr) - bo(1, 1, mpr) + 1
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(nr), &
 !$OMP             SHARED(np,nray,scount,sdispl,nx,nm)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          nr = nray(ip)
          scount(ip) = nr*nx
          sdispl(ip) = nm*nx*ip
@@ -1660,11 +1660,11 @@ CONTAINS
 
          scount = 0
 
-         DO ix = 0, npx-1
+         DO ix = 0, npx - 1
             ip = pgrid(ix, 0)
             xcor(bo(1, 1, ip):bo(2, 1, ip)) = ix
          END DO
-         DO iz = 0, npz-1
+         DO iz = 0, npz - 1
             ip = pgrid(0, iz)
             zcor(bo(1, 3, ip):bo(2, 3, ip)) = iz
          END DO
@@ -1674,14 +1674,14 @@ CONTAINS
                   jy = yzp(1, ir, my_pos)
                   jz = yzp(2, ir, my_pos)
                   ip = pgrid(xcor(jx), zcor(jz))
-                  scount(ip) = scount(ip)+1
+                  scount(ip) = scount(ip) + 1
                END DO
             ELSE
                DO ir = 1, nray(my_pos)
                   jy = yzp(1, ir, my_pos)
                   jz = yzp(2, ir, my_pos)
                   ip = pgrid(xcor(jx), zcor(jz))
-                  scount(ip) = scount(ip)+1
+                  scount(ip) = scount(ip) + 1
                END DO
             END IF
          END DO
@@ -1693,18 +1693,18 @@ CONTAINS
          ! Work out the correct displacements in the buffers
          sdispl(0) = 0
          rdispl(0) = 0
-         DO ip = 1, np-1
-            sdispl(ip) = sdispl(ip-1)+scount(ip-1)
-            rdispl(ip) = rdispl(ip-1)+rcount(ip-1)
+         DO ip = 1, np - 1
+            sdispl(ip) = sdispl(ip - 1) + scount(ip - 1)
+            rdispl(ip) = rdispl(ip - 1) + rcount(ip - 1)
          END DO
 
          fft_scratch%yzdispl = sdispl
          fft_scratch%xzdispl = rdispl
 
          icrs = 0
-         DO ip = 0, np-1
-            IF (scount(ip) /= 0) icrs = icrs+1
-            IF (rcount(ip) /= 0) icrs = icrs+1
+         DO ip = 0, np - 1
+            IF (scount(ip) /= 0) icrs = icrs + 1
+            IF (rcount(ip) /= 0) icrs = icrs + 1
          END DO
          CALL mp_sum(icrs, group)
          fft_scratch%rsratio = REAL(icrs, KIND=dp)/(REAL(2*np, KIND=dp)*REAL(np, KIND=dp))
@@ -1723,23 +1723,23 @@ CONTAINS
 !$OMP             SHARED(np,p2p,pzcoord,bo,nray,yzp,zcor),&
 !$OMP             SHARED(yzbuf,sb,scount,sdispl,my_pos),&
 !$OMP             SHARED(yzbuf_sgl,alltoall_sgl)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          IF (scount(ip) == 0) CYCLE
          ipl = p2p(ip)
          jj = 0
-         nx = bo(2, 1, ipl)-bo(1, 1, ipl)+1
+         nx = bo(2, 1, ipl) - bo(1, 1, ipl) + 1
          DO ir = 1, nray(my_pos)
             jz = yzp(2, ir, my_pos)
             IF (zcor(jz) == pzcoord(ipl)) THEN
-               jj = jj+1
+               jj = jj + 1
                jy = yzp(1, ir, my_pos)
                IF (alltoall_sgl) THEN
-                  DO jx = 0, nx-1
-                     yzbuf_sgl(sdispl(ip)+jj+jx*scount(ip)/nx) = CMPLX(sb(ir, jx+bo(1, 1, ipl)), KIND=sp)
+                  DO jx = 0, nx - 1
+                     yzbuf_sgl(sdispl(ip) + jj + jx*scount(ip)/nx) = CMPLX(sb(ir, jx + bo(1, 1, ipl)), KIND=sp)
                   END DO
                ELSE
-                  DO jx = 0, nx-1
-                     yzbuf(sdispl(ip)+jj+jx*scount(ip)/nx) = sb(ir, jx+bo(1, 1, ipl))
+                  DO jx = 0, nx - 1
+                     yzbuf(sdispl(ip) + jj + jx*scount(ip)/nx) = sb(ir, jx + bo(1, 1, ipl))
                   END DO
                END IF
             END IF
@@ -1759,32 +1759,32 @@ CONTAINS
 
       myx = fft_scratch%sizes%r_pos(1)
       myz = fft_scratch%sizes%r_pos(2)
-      nz = bo(2, 3, rs_pos)-bo(1, 3, rs_pos)+1
+      nz = bo(2, 3, rs_pos) - bo(1, 3, rs_pos) + 1
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ipr,jj,ir,jx,jy,jz),&
 !$OMP             SHARED(tb,np,p2p,bo,rs_pos,nray),&
 !$OMP             SHARED(yzp,alltoall_sgl,zcor,myz),&
 !$OMP             SHARED(xzbuf,xzbuf_sgl,nz,rdispl)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          ipr = p2p(ip)
          jj = 0
-         DO jx = 0, bo(2, 1, rs_pos)-bo(1, 1, rs_pos)
+         DO jx = 0, bo(2, 1, rs_pos) - bo(1, 1, rs_pos)
             DO ir = 1, nray(ip)
                jz = yzp(2, ir, ip)
                IF (alltoall_sgl) THEN
                   IF (zcor(jz) == myz) THEN
-                     jj = jj+1
+                     jj = jj + 1
                      jy = yzp(1, ir, ip)
-                     jz = jz-bo(1, 3, rs_pos)+1
-                     tb(jy, jz+jx*nz) = xzbuf_sgl(jj+rdispl(ipr))
+                     jz = jz - bo(1, 3, rs_pos) + 1
+                     tb(jy, jz + jx*nz) = xzbuf_sgl(jj + rdispl(ipr))
                   END IF
                ELSE
                   IF (zcor(jz) == myz) THEN
-                     jj = jj+1
+                     jj = jj + 1
                      jy = yzp(1, ir, ip)
-                     jz = jz-bo(1, 3, rs_pos)+1
-                     tb(jy, jz+jx*nz) = xzbuf(jj+rdispl(ipr))
+                     jz = jz - bo(1, 3, rs_pos) + 1
+                     tb(jy, jz + jx*nz) = xzbuf(jj + rdispl(ipr))
                   END IF
                END IF
             END DO
@@ -1865,11 +1865,11 @@ CONTAINS
          rcount = 0
          nx = MAXVAL(bo(2, 1, :))
 
-         DO ix = 0, npx-1
+         DO ix = 0, npx - 1
             ip = pgrid(ix, 0)
             xcor(bo(1, 1, ip):bo(2, 1, ip)) = ix
          END DO
-         DO iz = 0, npz-1
+         DO iz = 0, npz - 1
             ip = pgrid(0, iz)
             zcor(bo(1, 3, ip):bo(2, 3, ip)) = iz
          END DO
@@ -1878,7 +1878,7 @@ CONTAINS
                jy = yzp(1, ir, my_pos)
                jz = yzp(2, ir, my_pos)
                ip = pgrid(xcor(jx), zcor(jz))
-               rcount(ip) = rcount(ip)+1
+               rcount(ip) = rcount(ip) + 1
             END DO
          END DO
 
@@ -1889,18 +1889,18 @@ CONTAINS
          ! Work out the correct displacements in the buffers
          sdispl(0) = 0
          rdispl(0) = 0
-         DO ip = 1, np-1
-            sdispl(ip) = sdispl(ip-1)+scount(ip-1)
-            rdispl(ip) = rdispl(ip-1)+rcount(ip-1)
+         DO ip = 1, np - 1
+            sdispl(ip) = sdispl(ip - 1) + scount(ip - 1)
+            rdispl(ip) = rdispl(ip - 1) + rcount(ip - 1)
          END DO
 
          fft_scratch%xzdispl = sdispl
          fft_scratch%yzdispl = rdispl
 
          icrs = 0
-         DO ip = 0, np-1
-            IF (scount(ip) /= 0) icrs = icrs+1
-            IF (rcount(ip) /= 0) icrs = icrs+1
+         DO ip = 0, np - 1
+            IF (scount(ip) /= 0) icrs = icrs + 1
+            IF (rcount(ip) /= 0) icrs = icrs + 1
          END DO
          CALL mp_sum(icrs, group)
          fft_scratch%rsratio = REAL(icrs, KIND=dp)/(REAL(2*np, KIND=dp)*REAL(np, KIND=dp))
@@ -1917,32 +1917,32 @@ CONTAINS
       myx = fft_scratch%sizes%r_pos(1)
       myz = fft_scratch%sizes%r_pos(2)
       mp = p2p(my_pos)
-      nz = bo(2, 3, mp)-bo(1, 3, mp)+1
-      nx = bo(2, 1, mp)-bo(1, 1, mp)+1
+      nz = bo(2, 3, mp) - bo(1, 3, mp) + 1
+      nx = bo(2, 1, mp) - bo(1, 1, mp) + 1
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(jj,ipl,ir,jx,jy,jz,ixx),&
 !$OMP             SHARED(np,p2p,nray,yzp,zcor,myz,bo,mp),&
 !$OMP             SHARED(alltoall_sgl,nx,scount,sdispl),&
 !$OMP             SHARED(xzbuf,xzbuf_sgl,sb,nz)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          jj = 0
          ipl = p2p(ip)
          DO ir = 1, nray(ip)
             jz = yzp(2, ir, ip)
             IF (zcor(jz) == myz) THEN
-               jj = jj+1
+               jj = jj + 1
                jy = yzp(1, ir, ip)
-               jz = yzp(2, ir, ip)-bo(1, 3, mp)+1
+               jz = yzp(2, ir, ip) - bo(1, 3, mp) + 1
                IF (alltoall_sgl) THEN
-                  DO jx = 0, nx-1
-                     ixx = jj+jx*scount(ipl)/nx
-                     xzbuf_sgl(ixx+sdispl(ipl)) = CMPLX(sb(jy, jz+jx*nz), KIND=sp)
+                  DO jx = 0, nx - 1
+                     ixx = jj + jx*scount(ipl)/nx
+                     xzbuf_sgl(ixx + sdispl(ipl)) = CMPLX(sb(jy, jz + jx*nz), KIND=sp)
                   END DO
                ELSE
-                  DO jx = 0, nx-1
-                     ixx = jj+jx*scount(ipl)/nx
-                     xzbuf(ixx+sdispl(ipl)) = sb(jy, jz+jx*nz)
+                  DO jx = 0, nx - 1
+                     ixx = jj + jx*scount(ipl)/nx
+                     xzbuf(ixx + sdispl(ipl)) = sb(jy, jz + jx*nz)
                   END DO
                END IF
             END IF
@@ -1965,23 +1965,23 @@ CONTAINS
 !$OMP             SHARED(p2p,pzcoord,bo,nray,my_pos,yzp),&
 !$OMP             SHARED(rcount,rdispl,tb,yzbuf,zcor),&
 !$OMP             SHARED(yzbuf_sgl,alltoall_sgl,np)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          IF (rcount(ip) == 0) CYCLE
          ipl = p2p(ip)
          jj = 0
-         nx = bo(2, 1, ipl)-bo(1, 1, ipl)+1
+         nx = bo(2, 1, ipl) - bo(1, 1, ipl) + 1
          DO ir = 1, nray(my_pos)
             jz = yzp(2, ir, my_pos)
             IF (zcor(jz) == pzcoord(ipl)) THEN
-               jj = jj+1
+               jj = jj + 1
                jy = yzp(1, ir, my_pos)
                IF (alltoall_sgl) THEN
-                  DO jx = 0, nx-1
-                     tb(ir, jx+bo(1, 1, ipl)) = yzbuf_sgl(rdispl(ip)+jj+jx*rcount(ip)/nx)
+                  DO jx = 0, nx - 1
+                     tb(ir, jx + bo(1, 1, ipl)) = yzbuf_sgl(rdispl(ip) + jj + jx*rcount(ip)/nx)
                   END DO
                ELSE
-                  DO jx = 0, nx-1
-                     tb(ir, jx+bo(1, 1, ipl)) = yzbuf(rdispl(ip)+jj+jx*rcount(ip)/nx)
+                  DO jx = 0, nx - 1
+                     tb(ir, jx + bo(1, 1, ipl)) = yzbuf(rdispl(ip) + jj + jx*rcount(ip)/nx)
                   END DO
                END IF
             END IF
@@ -2034,27 +2034,27 @@ CONTAINS
       pgrid => fft_scratch%pgcube
       np = DIM(2)
 
-      nx = boin(2, 1, mip)-boin(1, 1, mip)+1
-      nz = boin(2, 3, mip)-boin(1, 3, mip)+1
+      nx = boin(2, 1, mip) - boin(1, 1, mip) + 1
+      nz = boin(2, 3, mip) - boin(1, 3, mip) + 1
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ipl,ny), &
 !$OMP             SHARED(np,pgrid,boout,scount,sdispl,nx,nz)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          ipl = pgrid(ip, 2)
-         ny = boout(2, 2, ipl)-boout(1, 2, ipl)+1
+         ny = boout(2, 2, ipl) - boout(1, 2, ipl) + 1
          scount(ip) = nx*nz*ny
-         sdispl(ip) = nx*nz*(boout(1, 2, ipl)-1)
+         sdispl(ip) = nx*nz*(boout(1, 2, ipl) - 1)
       END DO
 !$OMP END PARALLEL DO
-      ny = boout(2, 2, mip)-boout(1, 2, mip)+1
-      mz = MAXVAL(boin(2, 3, :)-boin(1, 3, :)+1)
+      ny = boout(2, 2, mip) - boout(1, 2, mip) + 1
+      mz = MAXVAL(boin(2, 3, :) - boin(1, 3, :) + 1)
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ipl,nz), &
 !$OMP             SHARED(np,pgrid,boin,nx,ny,rcount,rdispl,mz)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          ipl = pgrid(ip, 2)
-         nz = boin(2, 3, ipl)-boin(1, 3, ipl)+1
+         nz = boin(2, 3, ipl) - boin(1, 3, ipl) + 1
          rcount(ip) = nx*nz*ny
          rdispl(ip) = nx*ny*mz*ip
       END DO
@@ -2068,12 +2068,12 @@ CONTAINS
 !$OMP             PRIVATE(ip,ipl,nz,iz,is,ir) &
 !$OMP             SHARED(nx,ny,np,pgrid,boin,sout,rbuf)
       DO ixy = 1, nx*ny
-         DO ip = 0, np-1
+         DO ip = 0, np - 1
             ipl = pgrid(ip, 2)
-            nz = boin(2, 3, ipl)-boin(1, 3, ipl)+1
+            nz = boin(2, 3, ipl) - boin(1, 3, ipl) + 1
             DO iz = 1, nz
-               is = boin(1, 3, ipl)+iz-1
-               ir = iz+nz*(ixy-1)
+               is = boin(1, 3, ipl) + iz - 1
+               ir = iz + nz*(ixy - 1)
                sout(is, ixy) = rbuf(ir, ip)
             END DO
          END DO
@@ -2122,9 +2122,9 @@ CONTAINS
       pgrid => fft_scratch%pgcube
       np = DIM(2)
 
-      nx = boin(2, 1, mip)-boin(1, 1, mip)+1
-      ny = boin(2, 2, mip)-boin(1, 2, mip)+1
-      mz = MAXVAL(boout(2, 3, :)-boout(1, 3, :)+1)
+      nx = boin(2, 1, mip) - boin(1, 1, mip) + 1
+      ny = boin(2, 2, mip) - boin(1, 2, mip) + 1
+      mz = MAXVAL(boout(2, 3, :) - boout(1, 3, :) + 1)
 
       rbuf => fft_scratch%rbuf2
 
@@ -2133,34 +2133,34 @@ CONTAINS
 !$OMP          SHARED(nx,ny,np,pgrid,boout,rbuf,cin,scount,sdispl,mz)
 !$OMP DO COLLAPSE(2)
       DO ixy = 1, nx*ny
-         DO ip = 0, np-1
+         DO ip = 0, np - 1
             ipl = pgrid(ip, 2)
-            nz = boout(2, 3, ipl)-boout(1, 3, ipl)+1
+            nz = boout(2, 3, ipl) - boout(1, 3, ipl) + 1
             DO iz = boout(1, 3, ipl), boout(2, 3, ipl)
-               ir = iz-boout(1, 3, ipl)+1+(ixy-1)*nz
+               ir = iz - boout(1, 3, ipl) + 1 + (ixy - 1)*nz
                rbuf(ir, ip) = cin(iz, ixy)
             END DO
          END DO
       END DO
 !$OMP END DO
 !$OMP DO
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          ipl = pgrid(ip, 2)
-         nz = boout(2, 3, ipl)-boout(1, 3, ipl)+1
+         nz = boout(2, 3, ipl) - boout(1, 3, ipl) + 1
          scount(ip) = nx*ny*nz
          sdispl(ip) = nx*ny*mz*ip
       END DO
 !$OMP END DO
 !$OMP END PARALLEL
-      nz = boout(2, 3, mip)-boout(1, 3, mip)+1
+      nz = boout(2, 3, mip) - boout(1, 3, mip) + 1
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ipl,ny), &
 !$OMP             SHARED(np,pgrid,boin,nx,nz,rcount,rdispl)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          ipl = pgrid(ip, 2)
-         ny = boin(2, 2, ipl)-boin(1, 2, ipl)+1
+         ny = boin(2, 2, ipl) - boin(1, 2, ipl) + 1
          rcount(ip) = nx*ny*nz
-         rdispl(ip) = nx*nz*(boin(1, 2, ipl)-1)
+         rdispl(ip) = nx*nz*(boin(1, 2, ipl) - 1)
       END DO
 !$OMP END PARALLEL DO
 
@@ -2209,26 +2209,26 @@ CONTAINS
       rdispl => fft_scratch%rdispl
       pgrid => fft_scratch%pgcube
 
-      ny = boin(2, 2, mip)-boin(1, 2, mip)+1
-      nz = boin(2, 3, mip)-boin(1, 3, mip)+1
+      ny = boin(2, 2, mip) - boin(1, 2, mip) + 1
+      nz = boin(2, 3, mip) - boin(1, 3, mip) + 1
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ipl, nx), &
 !$OMP             SHARED(np,pgrid,boout,ny,nz,scount,sdispl)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          ipl = pgrid(ip, 1)
-         nx = boout(2, 1, ipl)-boout(1, 1, ipl)+1
+         nx = boout(2, 1, ipl) - boout(1, 1, ipl) + 1
          scount(ip) = nx*nz*ny
-         sdispl(ip) = ny*nz*(boout(1, 1, ipl)-1)
+         sdispl(ip) = ny*nz*(boout(1, 1, ipl) - 1)
       END DO
 !$OMP END PARALLEL DO
-      nx = boout(2, 1, mip)-boout(1, 1, mip)+1
-      my = MAXVAL(boin(2, 2, :)-boin(1, 2, :)+1)
+      nx = boout(2, 1, mip) - boout(1, 1, mip) + 1
+      my = MAXVAL(boin(2, 2, :) - boin(1, 2, :) + 1)
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ipl, ny), &
 !$OMP             SHARED(np,pgrid,boin,nx,nz,my,rcount,rdispl)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          ipl = pgrid(ip, 1)
-         ny = boin(2, 2, ipl)-boin(1, 2, ipl)+1
+         ny = boin(2, 2, ipl) - boin(1, 2, ipl) + 1
          rcount(ip) = nx*nz*ny
          rdispl(ip) = nx*my*nz*ip
       END DO
@@ -2244,7 +2244,7 @@ CONTAINS
 !$    my_id = omp_get_thread_num()
       IF (my_id < num_threads) THEN
          lb = (SIZE(rbuf, 2)*my_id)/num_threads
-         ub = (SIZE(rbuf, 2)*(my_id+1))/num_threads-1
+         ub = (SIZE(rbuf, 2)*(my_id + 1))/num_threads - 1
          rbuf(:, lb:ub) = 0.0_dp
       END IF
 !$OMP END PARALLEL
@@ -2255,12 +2255,12 @@ CONTAINS
 !$OMP             PRIVATE(ip,ipl,ny,iy,is,ir) &
 !$OMP             SHARED(nx,nz,np,pgrid,boin,rbuf,sout)
       DO ixz = 1, nx*nz
-         DO ip = 0, np-1
+         DO ip = 0, np - 1
             ipl = pgrid(ip, 1)
-            ny = boin(2, 2, ipl)-boin(1, 2, ipl)+1
+            ny = boin(2, 2, ipl) - boin(1, 2, ipl) + 1
             DO iy = 1, ny
-               is = boin(1, 2, ipl)+iy-1
-               ir = iy+ny*(ixz-1)
+               is = boin(1, 2, ipl) + iy - 1
+               ir = iy + ny*(ixz - 1)
                sout(is, ixz) = rbuf(ir, ip)
             END DO
          END DO
@@ -2310,9 +2310,9 @@ CONTAINS
       rdispl => fft_scratch%rdispl
       pgrid => fft_scratch%pgcube
 
-      nx = boin(2, 1, mip)-boin(1, 1, mip)+1
-      nz = boin(2, 3, mip)-boin(1, 3, mip)+1
-      my = MAXVAL(boout(2, 2, :)-boout(1, 2, :)+1)
+      nx = boin(2, 1, mip) - boin(1, 1, mip) + 1
+      nz = boin(2, 3, mip) - boin(1, 3, mip) + 1
+      my = MAXVAL(boout(2, 2, :) - boout(1, 2, :) + 1)
 
       rbuf => fft_scratch%rbuf4
       num_threads = 1
@@ -2324,41 +2324,41 @@ CONTAINS
 !$    my_id = omp_get_thread_num()
       IF (my_id < num_threads) THEN
          lb = (SIZE(rbuf, 2)*my_id)/num_threads
-         ub = (SIZE(rbuf, 2)*(my_id+1))/num_threads-1
+         ub = (SIZE(rbuf, 2)*(my_id + 1))/num_threads - 1
          rbuf(:, lb:ub) = 0.0_dp
       END IF
 !$OMP BARRIER
 
 !$OMP DO COLLAPSE(2)
       DO izx = 1, nz*nx
-         DO ip = 0, np-1
+         DO ip = 0, np - 1
             ipl = pgrid(ip, 1)
-            ny = boout(2, 2, ipl)-boout(1, 2, ipl)+1
+            ny = boout(2, 2, ipl) - boout(1, 2, ipl) + 1
             DO iy = boout(1, 2, ipl), boout(2, 2, ipl)
-               ir = iy-boout(1, 2, ipl)+1+(izx-1)*ny
+               ir = iy - boout(1, 2, ipl) + 1 + (izx - 1)*ny
                rbuf(ir, ip) = cin(iy, izx)
             END DO
          END DO
       END DO
 !$OMP END DO
 !$OMP DO
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          ipl = pgrid(ip, 1)
-         ny = boout(2, 2, ipl)-boout(1, 2, ipl)+1
+         ny = boout(2, 2, ipl) - boout(1, 2, ipl) + 1
          scount(ip) = nx*ny*nz
          sdispl(ip) = nx*nz*my*ip
       END DO
 !$OMP END DO
 !$OMP END PARALLEL
-      ny = boout(2, 2, mip)-boout(1, 2, mip)+1
+      ny = boout(2, 2, mip) - boout(1, 2, mip) + 1
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ipl,nx), &
 !$OMP             SHARED(np,pgrid,boin,rcount,rdispl,ny,nz)
-      DO ip = 0, np-1
+      DO ip = 0, np - 1
          ipl = pgrid(ip, 1)
-         nx = boin(2, 1, ipl)-boin(1, 1, ipl)+1
+         nx = boin(2, 1, ipl) - boin(1, 1, ipl) + 1
          rcount(ip) = nx*ny*nz
-         rdispl(ip) = ny*nz*(boin(1, 1, ipl)-1)
+         rdispl(ip) = ny*nz*(boin(1, 1, ipl) - 1)
       END DO
 !$OMP END PARALLEL DO
 
@@ -2403,24 +2403,24 @@ CONTAINS
       sdispl => fft_scratch%sdispl
       rdispl => fft_scratch%rdispl
 
-      ny = boin(2, 2, mip)-boin(1, 2, mip)+1
-      nz = boin(2, 3, mip)-boin(1, 3, mip)+1
+      ny = boin(2, 2, mip) - boin(1, 2, mip) + 1
+      nz = boin(2, 3, mip) - boin(1, 3, mip) + 1
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(nx), &
 !$OMP             SHARED(np,boout,ny,nz,scount,sdispl)
-      DO ip = 0, np-1
-         nx = boout(2, 1, ip)-boout(1, 1, ip)+1
+      DO ip = 0, np - 1
+         nx = boout(2, 1, ip) - boout(1, 1, ip) + 1
          scount(ip) = nx*nz*ny
-         sdispl(ip) = ny*nz*(boout(1, 1, ip)-1)
+         sdispl(ip) = ny*nz*(boout(1, 1, ip) - 1)
       END DO
 !$OMP END PARALLEL DO
-      nx = boout(2, 1, mip)-boout(1, 1, mip)+1
-      my = MAXVAL(boin(2, 2, :)-boin(1, 2, :)+1)
+      nx = boout(2, 1, mip) - boout(1, 1, mip) + 1
+      my = MAXVAL(boin(2, 2, :) - boin(1, 2, :) + 1)
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ny), &
 !$OMP             SHARED(np,boin,nx,nz,rcount,rdispl,my)
-      DO ip = 0, np-1
-         ny = boin(2, 2, ip)-boin(1, 2, ip)+1
+      DO ip = 0, np - 1
+         ny = boin(2, 2, ip) - boin(1, 2, ip) + 1
          rcount(ip) = nx*nz*ny
          rdispl(ip) = nx*my*nz*ip
       END DO
@@ -2436,7 +2436,7 @@ CONTAINS
 !$    my_id = omp_get_thread_num()
       IF (my_id < num_threads) THEN
          lb = (SIZE(rbuf, 2)*my_id)/num_threads
-         ub = (SIZE(rbuf, 2)*(my_id+1))/num_threads-1
+         ub = (SIZE(rbuf, 2)*(my_id + 1))/num_threads - 1
          rbuf(:, lb:ub) = 0.0_dp
       END IF
 !$OMP END PARALLEL
@@ -2447,11 +2447,11 @@ CONTAINS
 !$OMP             PRIVATE(ip,ny,iy,is,ir) &
 !$OMP             SHARED(nx,nz,np,boin,sout,rbuf)
       DO ixz = 1, nx*nz
-         DO ip = 0, np-1
-            ny = boin(2, 2, ip)-boin(1, 2, ip)+1
+         DO ip = 0, np - 1
+            ny = boin(2, 2, ip) - boin(1, 2, ip) + 1
             DO iy = 1, ny
-               is = boin(1, 2, ip)+iy-1
-               ir = iy+ny*(ixz-1)
+               is = boin(1, 2, ip) + iy - 1
+               ir = iy + ny*(ixz - 1)
                sout(is, ixz) = rbuf(ir, ip)
             END DO
          END DO
@@ -2496,9 +2496,9 @@ CONTAINS
       sdispl => fft_scratch%sdispl
       rdispl => fft_scratch%rdispl
 
-      nx = boin(2, 1, mip)-boin(1, 1, mip)+1
-      nz = boin(2, 3, mip)-boin(1, 3, mip)+1
-      my = MAXVAL(boout(2, 2, :)-boout(1, 2, :)+1)
+      nx = boin(2, 1, mip) - boin(1, 1, mip) + 1
+      nz = boin(2, 3, mip) - boin(1, 3, mip) + 1
+      my = MAXVAL(boout(2, 2, :) - boout(1, 2, :) + 1)
 
       rbuf => fft_scratch%rbuf5
       num_threads = 1
@@ -2510,38 +2510,38 @@ CONTAINS
 !$    my_id = omp_get_thread_num()
       IF (my_id < num_threads) THEN
          lb = (SIZE(rbuf, 2)*my_id)/num_threads
-         ub = (SIZE(rbuf, 2)*(my_id+1))/num_threads-1
+         ub = (SIZE(rbuf, 2)*(my_id + 1))/num_threads - 1
          rbuf(:, lb:ub) = 0.0_dp
       END IF
 !$OMP BARRIER
 
 !$OMP DO COLLAPSE(2)
       DO izx = 1, nz*nx
-         DO ip = 0, np-1
-            ny = boout(2, 2, ip)-boout(1, 2, ip)+1
+         DO ip = 0, np - 1
+            ny = boout(2, 2, ip) - boout(1, 2, ip) + 1
             DO iy = boout(1, 2, ip), boout(2, 2, ip)
-               ir = iy-boout(1, 2, ip)+1+(izx-1)*ny
+               ir = iy - boout(1, 2, ip) + 1 + (izx - 1)*ny
                rbuf(ir, ip) = cin(iy, izx)
             END DO
          END DO
       END DO
 !$OMP END DO
 !$OMP DO
-      DO ip = 0, np-1
-         ny = boout(2, 2, ip)-boout(1, 2, ip)+1
+      DO ip = 0, np - 1
+         ny = boout(2, 2, ip) - boout(1, 2, ip) + 1
          scount(ip) = nx*ny*nz
          sdispl(ip) = nx*nz*my*ip
       END DO
 !$OMP END DO
 !$OMP END PARALLEL
-      ny = boout(2, 2, mip)-boout(1, 2, mip)+1
+      ny = boout(2, 2, mip) - boout(1, 2, mip) + 1
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(nx), &
 !$OMP             SHARED(np,boin,rcount,rdispl,nz,ny)
-      DO ip = 0, np-1
-         nx = boin(2, 1, ip)-boin(1, 1, ip)+1
+      DO ip = 0, np - 1
+         nx = boin(2, 1, ip) - boin(1, 1, ip) + 1
          rcount(ip) = nx*ny*nz
-         rdispl(ip) = ny*nz*(boin(1, 1, ip)-1)
+         rdispl(ip) = ny*nz*(boin(1, 1, ip) - 1)
       END DO
 !$OMP END PARALLEL DO
 
@@ -2611,7 +2611,7 @@ CONTAINS
       ! this is a very special scratch, it seems, we always keep it 'most - recent' so we will never delete it
       fft_scratch_first%fft_scratch%last_tick = HUGE(fft_scratch_first%fft_scratch%last_tick)
 
-      init_fft_pool = init_fft_pool+1
+      init_fft_pool = init_fft_pool + 1
 
    END SUBROUTINE init_fft_scratch_pool
 
@@ -2851,7 +2851,7 @@ CONTAINS
       fft_scratch_current => fft_scratch_first
       DO
          IF (ASSOCIATED(fft_scratch_current)) THEN
-            nscratch = nscratch+1
+            nscratch = nscratch + 1
             ! is this a candidate for deletion (i.e. least recently used, and not in use)
             IF (.NOT. fft_scratch_current%fft_scratch%in_use) THEN
                IF (fft_scratch_current%fft_scratch%last_tick < last_tick) THEN
@@ -2937,7 +2937,7 @@ CONTAINS
       CALL resize_fft_scratch_pool()
 
       ! get the required scratch
-      tick_fft_pool = tick_fft_pool+1
+      tick_fft_pool = tick_fft_pool + 1
       fft_scratch_current => fft_scratch_first
       DO
          IF (ASSOCIATED(fft_scratch_current)) THEN
@@ -3023,9 +3023,9 @@ CONTAINS
             IF (tf_type .NE. 400) THEN
                fft_scratch_new%fft_scratch%sizes = fft_sizes
                np = fft_sizes%numtask
-               ALLOCATE (fft_scratch_new%fft_scratch%scount(0:np-1), fft_scratch_new%fft_scratch%rcount(0:np-1), &
-                         fft_scratch_new%fft_scratch%sdispl(0:np-1), fft_scratch_new%fft_scratch%rdispl(0:np-1), &
-                         fft_scratch_new%fft_scratch%pgcube(0:np-1, 2))
+               ALLOCATE (fft_scratch_new%fft_scratch%scount(0:np - 1), fft_scratch_new%fft_scratch%rcount(0:np - 1), &
+                         fft_scratch_new%fft_scratch%sdispl(0:np - 1), fft_scratch_new%fft_scratch%rdispl(0:np - 1), &
+                         fft_scratch_new%fft_scratch%pgcube(0:np - 1, 2))
             END IF
 
             SELECT CASE (tf_type)
@@ -3054,10 +3054,10 @@ CONTAINS
                mcx2 = fft_sizes%mcx2
                mcz2 = fft_sizes%mcz2
                mcy3 = fft_sizes%mcy3
-               ALLOCATE (fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2, 0:DIM(2)-1))
-               ALLOCATE (fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2, 0:DIM(2)-1))
-               ALLOCATE (fft_scratch_new%fft_scratch%rbuf3(mx2*mz3*mcy3, 0:DIM(1)-1))
-               ALLOCATE (fft_scratch_new%fft_scratch%rbuf4(mx2*mz2*mcy3, 0:DIM(1)-1))
+               ALLOCATE (fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2, 0:DIM(2) - 1))
+               ALLOCATE (fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2, 0:DIM(2) - 1))
+               ALLOCATE (fft_scratch_new%fft_scratch%rbuf3(mx2*mz3*mcy3, 0:DIM(1) - 1))
+               ALLOCATE (fft_scratch_new%fft_scratch%rbuf4(mx2*mz2*mcy3, 0:DIM(1) - 1))
 
                dims = (/.TRUE., .FALSE./)
                CALL mp_cart_sub(fft_sizes%rs_group, dims, fft_scratch_new%fft_scratch%cart_sub_comm(1))
@@ -3065,11 +3065,11 @@ CONTAINS
                CALL mp_cart_sub(fft_sizes%rs_group, dims, fft_scratch_new%fft_scratch%cart_sub_comm(2))
 
                !initialise pgcube
-               DO i = 0, DIM(1)-1
+               DO i = 0, DIM(1) - 1
                   coord = (/i, pos(2)/)
                   CALL mp_cart_rank(fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgcube(i, 1))
                END DO
-               DO i = 0, DIM(2)-1
+               DO i = 0, DIM(2) - 1
                   coord = (/pos(1), i/)
                   CALL mp_cart_rank(fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgcube(i, 2))
                END DO
@@ -3107,8 +3107,8 @@ CONTAINS
                fft_scratch_new%fft_scratch%dim = dim
                fft_scratch_new%fft_scratch%pos = pos
                mcy3 = fft_sizes%mcy3
-               ALLOCATE (fft_scratch_new%fft_scratch%rbuf5(mx1*mz3*mcy3, 0:DIM(1)-1))
-               ALLOCATE (fft_scratch_new%fft_scratch%rbuf6(mx1*mz1*mcy3, 0:DIM(1)-1))
+               ALLOCATE (fft_scratch_new%fft_scratch%rbuf5(mx1*mz3*mcy3, 0:DIM(1) - 1))
+               ALLOCATE (fft_scratch_new%fft_scratch%rbuf6(mx1*mz1*mcy3, 0:DIM(1) - 1))
 
                !set up fft plans
                CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), mx1*my1, &
@@ -3154,9 +3154,9 @@ CONTAINS
                nm = nmray*mx2
                IF (alltoall_sgl) THEN
                   ALLOCATE (fft_scratch_new%fft_scratch%ss(mmax, lmax))
-                  ALLOCATE (fft_scratch_new%fft_scratch%tt(nm, 0:np-1))
+                  ALLOCATE (fft_scratch_new%fft_scratch%tt(nm, 0:np - 1))
                ELSE
-                  ALLOCATE (fft_scratch_new%fft_scratch%rr(nm, 0:np-1))
+                  ALLOCATE (fft_scratch_new%fft_scratch%rr(nm, 0:np - 1))
                END IF
 
                !set up fft plans
@@ -3225,14 +3225,14 @@ CONTAINS
                   ALLOCATE (fft_scratch_new%fft_scratch%yzbuf(mg*lg))
                   ALLOCATE (fft_scratch_new%fft_scratch%xzbuf(n(2)*mx2*mz2))
                END IF
-               ALLOCATE (fft_scratch_new%fft_scratch%pgrid(0:m1-1, 0:m2-1))
+               ALLOCATE (fft_scratch_new%fft_scratch%pgrid(0:m1 - 1, 0:m2 - 1))
                ALLOCATE (fft_scratch_new%fft_scratch%xcor(nbx))
                ALLOCATE (fft_scratch_new%fft_scratch%zcor(nbz))
-               ALLOCATE (fft_scratch_new%fft_scratch%pzcoord(0:np-1))
-               ALLOCATE (fft_scratch_new%fft_scratch%xzcount(0:np-1), &
-                         fft_scratch_new%fft_scratch%yzcount(0:np-1))
-               ALLOCATE (fft_scratch_new%fft_scratch%xzdispl(0:np-1), &
-                         fft_scratch_new%fft_scratch%yzdispl(0:np-1))
+               ALLOCATE (fft_scratch_new%fft_scratch%pzcoord(0:np - 1))
+               ALLOCATE (fft_scratch_new%fft_scratch%xzcount(0:np - 1), &
+                         fft_scratch_new%fft_scratch%yzcount(0:np - 1))
+               ALLOCATE (fft_scratch_new%fft_scratch%xzdispl(0:np - 1), &
+                         fft_scratch_new%fft_scratch%yzdispl(0:np - 1))
                fft_scratch_new%fft_scratch%in = 0
                fft_scratch_new%fft_scratch%rsratio = 1._dp
                fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
@@ -3243,28 +3243,28 @@ CONTAINS
                fft_scratch_new%fft_scratch%pos = pos
                mcz1 = fft_sizes%mcz1
                mcz2 = fft_sizes%mcz2
-               ALLOCATE (fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2, 0:DIM(2)-1))
-               ALLOCATE (fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2, 0:DIM(2)-1))
+               ALLOCATE (fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2, 0:DIM(2) - 1))
+               ALLOCATE (fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2, 0:DIM(2) - 1))
 
                dims = (/.FALSE., .TRUE./)
                CALL mp_cart_sub(fft_sizes%rs_group, dims, fft_scratch_new%fft_scratch%cart_sub_comm(2))
 
                !initialise pgcube
-               DO i = 0, DIM(2)-1
+               DO i = 0, DIM(2) - 1
                   coord = (/pos(1), i/)
                   CALL mp_cart_rank(fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgcube(i, 2))
                END DO
 
                !initialise pgrid
-               DO ix = 0, m1-1
-                  DO iz = 0, m2-1
+               DO ix = 0, m1 - 1
+                  DO iz = 0, m2 - 1
                      coord = (/ix, iz/)
                      CALL mp_cart_rank(fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgrid(ix, iz))
                   END DO
                END DO
 
                !initialise pzcoord
-               DO i = 0, np-1
+               DO i = 0, np - 1
                   CALL mp_cart_coords(fft_sizes%rs_group, i, pcoord)
                   fft_scratch_new%fft_scratch%pzcoord(i) = pcoord(2)
                END DO
@@ -3303,7 +3303,7 @@ CONTAINS
 
             NULLIFY (fft_scratch_new%fft_scratch_next)
             fft_scratch_new%fft_scratch%fft_scratch_id = &
-               fft_scratch_last%fft_scratch%fft_scratch_id+1
+               fft_scratch_last%fft_scratch%fft_scratch_id + 1
             fft_scratch_new%fft_scratch%in_use = .TRUE.
             fft_scratch_new%fft_scratch%nfft = n
             fft_scratch_last%fft_scratch_next => fft_scratch_new
@@ -3377,32 +3377,32 @@ CONTAINS
 
       CALL mp_sync(group)
       CALL mp_environ(n, pos, group)
-      ALLOCATE (sreq(0:n-1))
-      ALLOCATE (rreq(0:n-1))
+      ALLOCATE (sreq(0:n - 1))
+      ALLOCATE (rreq(0:n - 1))
       nr = 0
-      DO ip = 0, n-1
+      DO ip = 0, n - 1
          IF (rcount(ip) == 0) CYCLE
          IF (ip == pos) CYCLE
-         msgout => rq(rdispl(ip)+1:rdispl(ip)+rcount(ip))
+         msgout => rq(rdispl(ip) + 1:rdispl(ip) + rcount(ip))
          CALL mp_irecv(msgout, ip, group, rn)
-         nr = nr+1
-         rreq(nr-1) = rn
+         nr = nr + 1
+         rreq(nr - 1) = rn
       END DO
       ns = 0
-      DO ip = 0, n-1
+      DO ip = 0, n - 1
          IF (scount(ip) == 0) CYCLE
          IF (ip == pos) CYCLE
-         msgin => rs(sdispl(ip)+1:sdispl(ip)+scount(ip))
+         msgin => rs(sdispl(ip) + 1:sdispl(ip) + scount(ip))
          CALL mp_isend(msgin, ip, group, sn)
-         ns = ns+1
-         sreq(ns-1) = sn
+         ns = ns + 1
+         sreq(ns - 1) = sn
       END DO
       IF (rcount(pos) /= 0) THEN
          IF (rcount(pos) /= scount(pos)) CPABORT("")
-         rq(rdispl(pos)+1:rdispl(pos)+rcount(pos)) = rs(sdispl(pos)+1:sdispl(pos)+scount(pos))
+         rq(rdispl(pos) + 1:rdispl(pos) + rcount(pos)) = rs(sdispl(pos) + 1:sdispl(pos) + scount(pos))
       END IF
-      CALL mp_waitall(sreq(0:ns-1))
-      CALL mp_waitall(rreq(0:nr-1))
+      CALL mp_waitall(sreq(0:ns - 1))
+      CALL mp_waitall(rreq(0:nr - 1))
       DEALLOCATE (sreq)
       DEALLOCATE (rreq)
       CALL mp_sync(group)

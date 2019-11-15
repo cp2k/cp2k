@@ -673,13 +673,13 @@ CONTAINS
       root_section => input_file
       CALL section_vals_retain(root_section)
 
-      IF (n_f_envs+1 > SIZE(f_envs)) THEN
+      IF (n_f_envs + 1 > SIZE(f_envs)) THEN
          f_envs_old => f_envs
-         ALLOCATE (f_envs(n_f_envs+10))
+         ALLOCATE (f_envs(n_f_envs + 10))
          DO i = 1, n_f_envs
             f_envs(i)%f_env => f_envs_old(i)%f_env
          END DO
-         DO i = n_f_envs+1, SIZE(f_envs)
+         DO i = n_f_envs + 1, SIZE(f_envs)
             NULLIFY (f_envs(i)%f_env)
          END DO
          DEALLOCATE (f_envs_old)
@@ -689,7 +689,7 @@ CONTAINS
 
       CALL cp2k_setup(root_section, para_env, globenv)
       ! Group Distribution
-      ALLOCATE (group_distribution(0:para_env%num_pe-1))
+      ALLOCATE (group_distribution(0:para_env%num_pe - 1))
       group_distribution = 0
       lgroup_distribution => group_distribution
       ! Setup all possible force_env
@@ -705,7 +705,7 @@ CONTAINS
             CALL section_vals_remove_values(wrk_section)
          END DO
       END IF
-      nsubforce_size = nforce_eval-1
+      nsubforce_size = nforce_eval - 1
       use_multiple_para_env = .FALSE.
       use_motion_section = .TRUE.
       DO iforce_eval = 1, nforce_eval
@@ -731,11 +731,11 @@ CONTAINS
                CPASSERT(check)
                ngroups = force_env%mixed_env%ngroups
                my_group = lgroup_distribution(para_env%mepos)
-               isubforce_eval = iforce_eval-1
+               isubforce_eval = iforce_eval - 1
                ! If task not allocated on this procs skip setup..
-               IF (MODULO(isubforce_eval-1, ngroups) /= my_group) CYCLE
-               my_para_env => force_env%mixed_env%sub_para_env(my_group+1)%para_env
-               my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
+               IF (MODULO(isubforce_eval - 1, ngroups) /= my_group) CYCLE
+               my_para_env => force_env%mixed_env%sub_para_env(my_group + 1)%para_env
+               my_logger => force_env%mixed_env%sub_logger(my_group + 1)%p
                CALL cp_rm_default_logger()
                CALL cp_add_default_logger(my_logger)
             ENDIF
@@ -744,11 +744,11 @@ CONTAINS
                CPASSERT(check)
                ngroups = force_env%embed_env%ngroups
                my_group = lgroup_distribution(para_env%mepos)
-               isubforce_eval = iforce_eval-1
+               isubforce_eval = iforce_eval - 1
                ! If task not allocated on this procs skip setup..
-               IF (MODULO(isubforce_eval-1, ngroups) /= my_group) CYCLE
-               my_para_env => force_env%embed_env%sub_para_env(my_group+1)%para_env
-               my_logger => force_env%embed_env%sub_logger(my_group+1)%p
+               IF (MODULO(isubforce_eval - 1, ngroups) /= my_group) CYCLE
+               my_para_env => force_env%embed_env%sub_para_env(my_group + 1)%para_env
+               my_logger => force_env%embed_env%sub_logger(my_group + 1)%p
                CALL cp_rm_default_logger()
                CALL cp_add_default_logger(my_logger)
             ENDIF
@@ -882,7 +882,7 @@ CONTAINS
          IF (iforce_eval == 1) THEN
             force_env => my_force_env
          ELSE
-            force_env%sub_force_env(iforce_eval-1)%force_env => my_force_env
+            force_env%sub_force_env(iforce_eval - 1)%force_env => my_force_env
          END IF
          ! Multiple para env for sub_force_eval
          IF (.NOT. use_multiple_para_env) THEN
@@ -898,9 +898,9 @@ CONTAINS
       timer_env => get_timer_env()
       mp_perf_env => get_mp_perf_env()
       CALL mp_max(last_f_env_id, para_env%group)
-      last_f_env_id = last_f_env_id+1
+      last_f_env_id = last_f_env_id + 1
       new_env_id = last_f_env_id
-      n_f_envs = n_f_envs+1
+      n_f_envs = n_f_envs + 1
       CALL f_env_create(f_envs(n_f_envs)%f_env, logger=logger, &
                         timer_env=timer_env, mp_perf_env=mp_perf_env, force_env=force_env, &
                         id_nr=last_f_env_id, old_dir=old_dir)
@@ -943,11 +943,11 @@ CONTAINS
       NULLIFY (f_env)
       CALL f_env_add_defaults(env_id, f_env)
       env_pos = get_pos_of_env(env_id)
-      n_f_envs = n_f_envs-1
+      n_f_envs = n_f_envs - 1
       DO i = env_pos, n_f_envs
-         f_envs(i)%f_env => f_envs(i+1)%f_env
+         f_envs(i)%f_env => f_envs(i + 1)%f_env
       END DO
-      NULLIFY (f_envs(n_f_envs+1)%f_env)
+      NULLIFY (f_envs(n_f_envs + 1)%f_env)
 
       CALL force_env_get(f_env%force_env, globenv=globenv, &
                          root_section=root_section, para_env=para_env)

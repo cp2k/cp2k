@@ -89,7 +89,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(mpools))
       CPASSERT(mpools%ref_count > 0)
-      mpools%ref_count = mpools%ref_count+1
+      mpools%ref_count = mpools%ref_count + 1
    END SUBROUTINE mpools_retain
 
 ! **************************************************************************************************
@@ -106,7 +106,7 @@ CONTAINS
 
       IF (ASSOCIATED(mpools)) THEN
          CPASSERT(mpools%ref_count > 0)
-         mpools%ref_count = mpools%ref_count-1
+         mpools%ref_count = mpools%ref_count - 1
          IF (mpools%ref_count == 0) THEN
             CALL fm_pools_dealloc(mpools%ao_mo_fm_pools)
             CALL fm_pools_dealloc(mpools%ao_ao_fm_pools)
@@ -198,7 +198,7 @@ CONTAINS
                mpools%mo_mo_fm_pools, mpools%ao_mosub_fm_pools, &
                mpools%mosub_mosub_fm_pools)
       mpools%ref_count = 1
-      last_mpools_id = last_mpools_id+1
+      last_mpools_id = last_mpools_id + 1
       mpools%id_nr = last_mpools_id
    END SUBROUTINE mpools_create
 

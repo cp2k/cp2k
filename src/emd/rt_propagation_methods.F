@@ -186,18 +186,18 @@ CONTAINS
             CALL dbcsr_create(ks_mix_im(i)%matrix, template=matrix_ks(1)%matrix)
          ENDDO
          DO i = 1, SIZE(matrix_ks)
-            re = 2*i-1
+            re = 2*i - 1
             im = 2*i
             CALL dbcsr_add(ks_mix(i)%matrix, matrix_ks(i)%matrix, 0.0_dp, rtp%mixing_factor)
-            CALL dbcsr_add(ks_mix(i)%matrix, H_last_iter(re)%matrix, 1.0_dp, 1.0_dp-rtp%mixing_factor)
+            CALL dbcsr_add(ks_mix(i)%matrix, H_last_iter(re)%matrix, 1.0_dp, 1.0_dp - rtp%mixing_factor)
             IF (rtp%do_hfx) THEN
                CALL dbcsr_add(ks_mix_im(i)%matrix, matrix_ks_im(i)%matrix, 0.0_dp, rtp%mixing_factor)
-               CALL dbcsr_add(ks_mix_im(i)%matrix, H_last_iter(im)%matrix, 1.0_dp, 1.0_dp-rtp%mixing_factor)
+               CALL dbcsr_add(ks_mix_im(i)%matrix, H_last_iter(im)%matrix, 1.0_dp, 1.0_dp - rtp%mixing_factor)
             ENDIF
          ENDDO
          CALL calc_SinvH(rtp, ks_mix, ks_mix_im, rtp_control)
          DO i = 1, SIZE(matrix_ks)
-            re = 2*i-1
+            re = 2*i - 1
             im = 2*i
             CALL dbcsr_copy(H_last_iter(re)%matrix, ks_mix(i)%matrix)
             IF (rtp%do_hfx) THEN
@@ -209,7 +209,7 @@ CONTAINS
       ELSE
          CALL calc_SinvH(rtp, matrix_ks, matrix_ks_im, rtp_control)
          DO i = 1, SIZE(matrix_ks)
-            re = 2*i-1
+            re = 2*i - 1
             im = 2*i
             CALL dbcsr_copy(H_last_iter(re)%matrix, matrix_ks(i)%matrix)
             IF (rtp%do_hfx) THEN
@@ -291,7 +291,7 @@ CONTAINS
 
          !It would be better to redo the current step with mixixng,
          !but currently the decision is made to use mixing from the next step on
-         IF (rtp_control%sc_check_start .LT. rtp%iter+1) THEN
+         IF (rtp_control%sc_check_start .LT. rtp%iter + 1) THEN
             IF (rtp%delta_iter/rtp%delta_iter_old > 0.9) THEN
                rtp%mixing_factor = MAX(rtp%mixing_factor/2.0_dp, 0.125_dp)
                rtp%mixing = .TRUE.
@@ -319,7 +319,7 @@ CONTAINS
          DO i = 1, SIZE(exp_H_new)
             CALL dbcsr_copy(exp_H_old(i)%matrix, exp_H_new(i)%matrix)
          END DO
-         ihist = MOD(rtp%istep, rtp_control%aspc_order)+1
+         ihist = MOD(rtp%istep, rtp_control%aspc_order) + 1
          IF (rtp_control%fixed_ions) THEN
             CALL put_data_to_history(rtp, rho=rho_new, mos=mos_new, ihist=ihist)
          ELSE
@@ -394,7 +394,7 @@ CONTAINS
       CALL get_rtp(rtp=rtp, S_inv=S_inv, S_minus_half=S_minus_half, exp_H_new=exp_H, dt=t)
       CALL dbcsr_create(matrix_ks_nosym, template=matrix_ks(1)%matrix, matrix_type="N")
       DO ispin = 1, SIZE(matrix_ks)
-         re = ispin*2-1
+         re = ispin*2 - 1
          im = ispin*2
          CALL dbcsr_desymmetrize(matrix_ks(ispin)%matrix, matrix_ks_nosym)
          CALL dbcsr_multiply("N", "N", one, S_inv, matrix_ks_nosym, zero, exp_H(im)%matrix, &
@@ -408,7 +408,7 @@ CONTAINS
          CALL get_rtp(rtp=rtp, B_mat=B_mat, SinvB=SinvB)
          IF (rtp%do_hfx) THEN
             DO ispin = 1, SIZE(matrix_ks)
-               re = ispin*2-1
+               re = ispin*2 - 1
                im = ispin*2
                CALL dbcsr_set(matrix_ks_nosym, 0.0_dp)
                CALL dbcsr_desymmetrize(matrix_ks_im(ispin)%matrix, matrix_ks_nosym)
@@ -435,7 +435,7 @@ CONTAINS
       ELSE
          !set real part to zero
          DO ispin = 1, SIZE(exp_H)/2
-            re = ispin*2-1
+            re = ispin*2 - 1
             im = ispin*2
             CALL dbcsr_set(exp_H(re)%matrix, zero)
          ENDDO
@@ -527,7 +527,7 @@ CONTAINS
          ENDIF
          CALL dbcsr_get_block_p(mat_im, row_atom, col_atom, block_values2, found=found)
          IF (found) THEN
-            block_values = block_values+block_values2*block_values2
+            block_values = block_values + block_values2*block_values2
          ENDIF
          block_values = SQRT(block_values)
       END DO
@@ -593,7 +593,7 @@ CONTAINS
          CALL dbcsr_scale(P(2)%matrix, one/2)
       ENDIF
       DO ispin = 1, SIZE(P)/2
-         re = 2*ispin-1
+         re = 2*ispin - 1
          im = 2*ispin
          imax = MAX(max_iter, 1) !if max_iter is 0 then only the deviation from idempotency needs to be calculated
          DO i = 1, imax
@@ -690,9 +690,9 @@ CONTAINS
          rho_hist => rtp%history%rho_history
          DO imat = 1, nmat
             DO iaspc = 1, naspc
-               alpha = (-1.0_dp)**(iaspc+1)*REAL(iaspc, KIND=dp)* &
-                       binomial(2*naspc, naspc-iaspc)/binomial(2*naspc-2, naspc-1)
-               ihist = MOD(rtp%istep-iaspc, aspc_order)+1
+               alpha = (-1.0_dp)**(iaspc + 1)*REAL(iaspc, KIND=dp)* &
+                       binomial(2*naspc, naspc - iaspc)/binomial(2*naspc - 2, naspc - 1)
+               ihist = MOD(rtp%istep - iaspc, aspc_order) + 1
                IF (iaspc == 1) THEN
                   CALL dbcsr_add(rho_new(imat)%matrix, rho_hist(imat, ihist)%matrix, zero, alpha)
                ELSE
@@ -705,9 +705,9 @@ CONTAINS
          nmat = SIZE(mos_new)
          DO imat = 1, nmat
             DO iaspc = 1, naspc
-               alpha = (-1.0_dp)**(iaspc+1)*REAL(iaspc, KIND=dp)* &
-                       binomial(2*naspc, naspc-iaspc)/binomial(2*naspc-2, naspc-1)
-               ihist = MOD(rtp%istep-iaspc, aspc_order)+1
+               alpha = (-1.0_dp)**(iaspc + 1)*REAL(iaspc, KIND=dp)* &
+                       binomial(2*naspc, naspc - iaspc)/binomial(2*naspc - 2, naspc - 1)
+               ihist = MOD(rtp%istep - iaspc, aspc_order) + 1
                IF (iaspc == 1) THEN
                   CALL cp_fm_scale_and_add(zero, mos_new(imat)%matrix, alpha, mo_hist(imat, ihist)%matrix)
                ELSE
@@ -754,23 +754,23 @@ CONTAINS
 ! reorthogonalize vectors
 
             DO icol_local = 1, ncol_local
-               fm_tmp%local_data(:, icol_local) = mos_new(2*i-1)%matrix%local_data(:, icol_local)
-               fm_tmp%local_data(:, icol_local+ncol_local) = mos_new(2*i)%matrix%local_data(:, icol_local)
+               fm_tmp%local_data(:, icol_local) = mos_new(2*i - 1)%matrix%local_data(:, icol_local)
+               fm_tmp%local_data(:, icol_local + ncol_local) = mos_new(2*i)%matrix%local_data(:, icol_local)
             END DO
 
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, fm_tmp, fm_tmp1, kdbl)
 
             DO icol_local = 1, ncol_local
                cfm_tmp%local_data(:, icol_local) = CMPLX(fm_tmp1%local_data(:, icol_local), &
-                                                         fm_tmp1%local_data(:, icol_local+ncol_local), dp)
-               cfm_tmp1%local_data(:, icol_local) = CMPLX(mos_new(2*i-1)%matrix%local_data(:, icol_local), &
+                                                         fm_tmp1%local_data(:, icol_local + ncol_local), dp)
+               cfm_tmp1%local_data(:, icol_local) = CMPLX(mos_new(2*i - 1)%matrix%local_data(:, icol_local), &
                                                           mos_new(2*i)%matrix%local_data(:, icol_local), dp)
             END DO
             CALL cp_cfm_gemm('C', 'N', k, k, n, cone, cfm_tmp1, cfm_tmp, czero, csc)
             CALL cp_cfm_cholesky_decompose(csc)
             CALL cp_cfm_triangular_multiply(csc, cfm_tmp1, n_cols=k, side='R', invert_tr=.TRUE.)
             DO icol_local = 1, ncol_local
-               mos_new(2*i-1)%matrix%local_data(:, icol_local) = REAL(cfm_tmp1%local_data(:, icol_local), dp)
+               mos_new(2*i - 1)%matrix%local_data(:, icol_local) = REAL(cfm_tmp1%local_data(:, icol_local), dp)
                mos_new(2*i)%matrix%local_data(:, icol_local) = AIMAG(cfm_tmp1%local_data(:, icol_local))
             END DO
 

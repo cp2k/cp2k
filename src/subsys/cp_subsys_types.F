@@ -141,7 +141,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(subsys))
       CPASSERT(subsys%ref_count > 0)
-      subsys%ref_count = subsys%ref_count+1
+      subsys%ref_count = subsys%ref_count + 1
    END SUBROUTINE cp_subsys_retain
 
 ! **************************************************************************************************
@@ -159,7 +159,7 @@ CONTAINS
 
       IF (ASSOCIATED(subsys)) THEN
          CPASSERT(subsys%ref_count > 0)
-         subsys%ref_count = subsys%ref_count-1
+         subsys%ref_count = subsys%ref_count - 1
          IF (subsys%ref_count == 0) THEN
             CALL atomic_kind_list_release(subsys%atomic_kinds)
             CALL particle_list_release(subsys%particles)
@@ -427,7 +427,7 @@ CONTAINS
             n_shell = 0
          END IF
          IF (PRESENT(natom)) natom = n_atom
-         IF (PRESENT(nparticle)) nparticle = n_atom+n_shell
+         IF (PRESENT(nparticle)) nparticle = n_atom + n_shell
          IF (PRESENT(ncore)) ncore = n_core
          IF (PRESENT(nshell)) nshell = n_shell
       END IF
@@ -492,17 +492,17 @@ CONTAINS
             shell_index = particles%els(iatom)%shell_index
             IF (shell_index == 0) THEN
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   f(j) = particles%els(iatom)%f(i)
                END DO
             ELSE
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   f(j) = core_particles%els(shell_index)%f(i)
                END DO
-               k = 3*(natom+shell_index-1)
+               k = 3*(natom + shell_index - 1)
                DO i = 1, 3
-                  f(k+i) = shell_particles%els(shell_index)%f(i)
+                  f(k + i) = shell_particles%els(shell_index)%f(i)
                END DO
             END IF
          END DO
@@ -518,17 +518,17 @@ CONTAINS
             shell_index = particles%els(iatom)%shell_index
             IF (shell_index == 0) THEN
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   r(j) = particles%els(iatom)%r(i)
                END DO
             ELSE
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   r(j) = core_particles%els(shell_index)%r(i)
                END DO
-               k = 3*(natom+shell_index-1)
+               k = 3*(natom + shell_index - 1)
                DO i = 1, 3
-                  r(k+i) = shell_particles%els(shell_index)%r(i)
+                  r(k + i) = shell_particles%els(shell_index)%r(i)
                END DO
             END IF
          END DO
@@ -545,19 +545,19 @@ CONTAINS
             IF (shell_index == 0) THEN
                CALL real_to_scaled(rs, particles%els(iatom)%r, cell)
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   s(j) = rs(i)
                END DO
             ELSE
                CALL real_to_scaled(rs, core_particles%els(shell_index)%r, cell)
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   s(j) = rs(i)
                END DO
                CALL real_to_scaled(rs, shell_particles%els(shell_index)%r, cell)
-               k = 3*(natom+shell_index-1)
+               k = 3*(natom + shell_index - 1)
                DO i = 1, 3
-                  s(k+i) = rs(i)
+                  s(k + i) = rs(i)
                END DO
             END IF
          END DO
@@ -572,17 +572,17 @@ CONTAINS
             shell_index = particles%els(iatom)%shell_index
             IF (shell_index == 0) THEN
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   v(j) = particles%els(iatom)%v(i)
                END DO
             ELSE
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   v(j) = core_particles%els(shell_index)%v(i)
                END DO
-               k = 3*(natom+shell_index-1)
+               k = 3*(natom + shell_index - 1)
                DO i = 1, 3
-                  v(k+i) = shell_particles%els(shell_index)%v(i)
+                  v(k + i) = shell_particles%els(shell_index)%v(i)
                END DO
             END IF
          END DO
@@ -649,17 +649,17 @@ CONTAINS
             shell_index = particles%els(iatom)%shell_index
             IF (shell_index == 0) THEN
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   particles%els(iatom)%f(i) = my_fscale*f(j)
                END DO
             ELSE
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   core_particles%els(shell_index)%f(i) = my_fscale*f(j)
                END DO
-               k = 3*(natom+shell_index-1)
+               k = 3*(natom + shell_index - 1)
                DO i = 1, 3
-                  shell_particles%els(shell_index)%f(i) = my_fscale*f(k+i)
+                  shell_particles%els(shell_index)%f(i) = my_fscale*f(k + i)
                END DO
             END IF
          END DO
@@ -674,23 +674,23 @@ CONTAINS
             shell_index = particles%els(iatom)%shell_index
             IF (shell_index == 0) THEN
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   particles%els(iatom)%r(i) = r(j)
                END DO
             ELSE
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   core_particles%els(shell_index)%r(i) = r(j)
                END DO
-               k = 3*(natom+shell_index-1)
+               k = 3*(natom + shell_index - 1)
                DO i = 1, 3
-                  shell_particles%els(shell_index)%r(i) = r(k+i)
+                  shell_particles%els(shell_index)%r(i) = r(k + i)
                END DO
                ! Update atomic position due to core and shell motion
                mass = particles%els(iatom)%atomic_kind%mass
                fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
                fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
-               particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3)+ &
+               particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3) + &
                                              fs*shell_particles%els(shell_index)%r(1:3)
             END IF
          END DO
@@ -706,26 +706,26 @@ CONTAINS
             shell_index = particles%els(iatom)%shell_index
             IF (shell_index == 0) THEN
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   rs(i) = s(j)
                END DO
                CALL scaled_to_real(particles%els(iatom)%r, rs, cell)
             ELSE
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   rs(i) = s(j)
                END DO
                CALL scaled_to_real(core_particles%els(shell_index)%r, rs, cell)
-               k = 3*(natom+shell_index-1)
+               k = 3*(natom + shell_index - 1)
                DO i = 1, 3
-                  rs(i) = s(k+i)
+                  rs(i) = s(k + i)
                END DO
                CALL scaled_to_real(shell_particles%els(shell_index)%r, rs, cell)
                ! Update atomic position due to core and shell motion
                mass = particles%els(iatom)%atomic_kind%mass
                fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
                fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
-               particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3)+ &
+               particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3) + &
                                              fs*shell_particles%els(shell_index)%r(1:3)
             END IF
          END DO
@@ -740,23 +740,23 @@ CONTAINS
             shell_index = particles%els(iatom)%shell_index
             IF (shell_index == 0) THEN
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   particles%els(iatom)%v(i) = v(j)
                END DO
             ELSE
                DO i = 1, 3
-                  j = j+1
+                  j = j + 1
                   core_particles%els(shell_index)%v(i) = v(j)
                END DO
-               k = 3*(natom+shell_index-1)
+               k = 3*(natom + shell_index - 1)
                DO i = 1, 3
-                  shell_particles%els(shell_index)%v(i) = v(k+i)
+                  shell_particles%els(shell_index)%v(i) = v(k + i)
                END DO
                ! Update atomic velocity due to core and shell motion
                mass = particles%els(iatom)%atomic_kind%mass
                fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
                fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
-               particles%els(iatom)%v(1:3) = fc*core_particles%els(shell_index)%v(1:3)+ &
+               particles%els(iatom)%v(1:3) = fc*core_particles%els(shell_index)%v(1:3) + &
                                              fs*shell_particles%els(shell_index)%v(1:3)
             END IF
          END DO

@@ -131,11 +131,11 @@ CONTAINS
       END IF
 
       R_transf = SQRT(L_b/Rc)
-      R_transf = SQRT(R_transf)*(SQRT(U_b/(U_b-L_b))-SQRT(Rc/(U_b-L_b)))
+      R_transf = SQRT(R_transf)*(SQRT(U_b/(U_b - L_b)) - SQRT(Rc/(U_b - L_b)))
       DO kkk = 1, 2*k
          aw(kkk) = fit_coef(1, kkk)
          DO icoef = 1, 12
-            aw(kkk) = aw(kkk)+fit_coef(icoef+1, kkk)*(R_transf**icoef)
+            aw(kkk) = aw(kkk) + fit_coef(icoef + 1, kkk)*(R_transf**icoef)
          END DO
       END DO
 

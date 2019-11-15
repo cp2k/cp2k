@@ -171,8 +171,8 @@ CONTAINS
                iorb = occ_orb_set(norbs)
             ENDIF
 
-            IF (iorb-nmo > 1) THEN
-               CALL integer_to_string(iorb-nmo, str_iorb)
+            IF (iorb - nmo > 1) THEN
+               CALL integer_to_string(iorb - nmo, str_iorb)
                str_prefix = 's'
             ELSE
                str_iorb = 'an'

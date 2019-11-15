@@ -103,7 +103,7 @@ CONTAINS
                CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE.)
                ! add MP2 energy if necessary
                IF (ASSOCIATED(qs_env%mp2_env)) THEN
-                  energy%total = energy%total+energy%mp2
+                  energy%total = energy%total + energy%mp2
                END IF
             END IF
          END IF

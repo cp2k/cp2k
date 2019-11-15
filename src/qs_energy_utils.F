@@ -387,8 +387,8 @@ CONTAINS
             mult = 1.0_dp
          ENDIF
          btr = factor*mult*SUM(a_block*b_block)
-         atrace(iblock_row) = atrace(iblock_row)+btr
-         atrace(iblock_col) = atrace(iblock_col)+btr
+         atrace(iblock_row) = atrace(iblock_row) + btr
+         atrace(iblock_col) = atrace(iblock_col) + btr
 
       ENDDO
       CALL dbcsr_iterator_stop(iter)

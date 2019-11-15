@@ -179,7 +179,7 @@ CONTAINS
                '    E_n after ic corr'
 
             DO n_level_gw = 1, gw_corr_lev_tot
-               n_level_gw_ref = n_level_gw+homo-gw_corr_lev_occ
+               n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
                IF (n_level_gw <= gw_corr_lev_occ) THEN
                   occ_virt = 'occ'
                ELSE
@@ -190,27 +190,27 @@ CONTAINS
                   n_level_gw_ref, ' ( ', occ_virt, ')  ', &
                   Eigenval(n_level_gw_ref)*evolt, &
                   Delta_Sigma_Neaton(n_level_gw)*evolt, &
-                  (Eigenval(n_level_gw_ref)+Delta_Sigma_Neaton(n_level_gw))*evolt
+                  (Eigenval(n_level_gw_ref) + Delta_Sigma_Neaton(n_level_gw))*evolt
 
             END DO
 
             IF (do_closed_shell) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F57.2)') 'IC HOMO-LUMO gap (eV)', (Eigenval(homo+1)+ &
-                                                                         Delta_Sigma_Neaton(gw_corr_lev_occ+1)- &
-                                                                         Eigenval(homo)- &
+               WRITE (unit_nr, '(T3,A,F57.2)') 'IC HOMO-LUMO gap (eV)', (Eigenval(homo + 1) + &
+                                                                         Delta_Sigma_Neaton(gw_corr_lev_occ + 1) - &
+                                                                         Eigenval(homo) - &
                                                                          Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
             ELSE IF (my_do_alpha) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F51.2)') 'Alpha IC HOMO-LUMO gap (eV)', (Eigenval(homo+1)+ &
-                                                                               Delta_Sigma_Neaton(gw_corr_lev_occ+1)- &
-                                                                               Eigenval(homo)- &
+               WRITE (unit_nr, '(T3,A,F51.2)') 'Alpha IC HOMO-LUMO gap (eV)', (Eigenval(homo + 1) + &
+                                                                               Delta_Sigma_Neaton(gw_corr_lev_occ + 1) - &
+                                                                               Eigenval(homo) - &
                                                                                Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
             ELSE IF (my_do_beta) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F52.2)') 'Beta IC HOMO-LUMO gap (eV)', (Eigenval(homo+1)+ &
-                                                                              Delta_Sigma_Neaton(gw_corr_lev_occ+1)- &
-                                                                              Eigenval(homo)- &
+               WRITE (unit_nr, '(T3,A,F52.2)') 'Beta IC HOMO-LUMO gap (eV)', (Eigenval(homo + 1) + &
+                                                                              Delta_Sigma_Neaton(gw_corr_lev_occ + 1) - &
+                                                                              Eigenval(homo) - &
                                                                               Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
             END IF
 
@@ -225,9 +225,9 @@ CONTAINS
 
          END IF
 
-         Eigenval(homo-gw_corr_lev_occ+1:homo+gw_corr_lev_virt) = Eigenval(homo-gw_corr_lev_occ+1: &
-                                                                           homo+gw_corr_lev_virt) &
-                                                                  +Delta_Sigma_Neaton(1:gw_corr_lev_tot)
+         Eigenval(homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt) = Eigenval(homo - gw_corr_lev_occ + 1: &
+                                                                                 homo + gw_corr_lev_virt) &
+                                                                        + Delta_Sigma_Neaton(1:gw_corr_lev_tot)
 
       END IF
 
@@ -237,7 +237,7 @@ CONTAINS
 
             CPASSERT(SIZE(mp2_env%ri_g0w0%gw_eigenvalues) == gw_corr_lev_tot)
 
-            Eigenval(homo-gw_corr_lev_occ+1:homo+gw_corr_lev_virt) = mp2_env%ri_g0w0%gw_eigenvalues(1:gw_corr_lev_tot)
+            Eigenval(homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt) = mp2_env%ri_g0w0%gw_eigenvalues(1:gw_corr_lev_tot)
 
          END IF
 
@@ -246,7 +246,7 @@ CONTAINS
          ! initial guess
          coeff_homo(homo) = 1.0_dp
 
-         ALLOCATE (coeff_lumo(nmo-homo))
+         ALLOCATE (coeff_lumo(nmo - homo))
          coeff_lumo = 0.0_dp
          ! initial guess
          coeff_lumo(1) = 1.0_dp
@@ -375,7 +375,7 @@ CONTAINS
             ! build vec_P_occ
             DO n_level_gw = 1, gw_corr_lev_occ
 
-               n_level_gw_ref = n_level_gw+homo-gw_corr_lev_occ
+               n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
 
                CALL dbcsr_multiply("N", "N", 1.0_dp, mat_B_nm_P(n_level_gw)%matrix, &
                                    coeff_homo_dbcsr, 0.0_dp, temp_RI_vector)
@@ -406,7 +406,7 @@ CONTAINS
                '   HOMO with IC (eV): ', &
                -Eigenval_M_occ(1)*evolt
 
-            IF (ABS(old_energy+Eigenval_M_occ(1)) < 1.0E-5) EXIT
+            IF (ABS(old_energy + Eigenval_M_occ(1)) < 1.0E-5) EXIT
 
             old_energy = -Eigenval_M_occ(1)
 
@@ -414,7 +414,7 @@ CONTAINS
 
          END DO
 
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T40,F41.2)') 'Gas phase LUMO (eV): ', Eigenval(homo+1)*evolt
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T40,F41.2)') 'Gas phase LUMO (eV): ', Eigenval(homo + 1)*evolt
 
          DO sc_iter = 1, 20
 
@@ -423,21 +423,21 @@ CONTAINS
             CALL dbcsr_set(vec_P_virt_dbcsr, 0.0_dp)
 
             ! build vec_P_virt
-            DO n_level_gw = gw_corr_lev_occ+1, gw_corr_lev_tot
+            DO n_level_gw = gw_corr_lev_occ + 1, gw_corr_lev_tot
 
-               n_level_gw_ref = n_level_gw+homo-gw_corr_lev_occ
+               n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
 
                CALL dbcsr_multiply("N", "N", 1.0_dp, mat_B_nm_P(n_level_gw)%matrix, &
                                    coeff_lumo_dbcsr, 0.0_dp, temp_RI_vector)
 
-               CALL dbcsr_add(vec_P_virt_dbcsr, temp_RI_vector, 1.0_dp, coeff_lumo(n_level_gw_ref-homo))
+               CALL dbcsr_add(vec_P_virt_dbcsr, temp_RI_vector, 1.0_dp, coeff_lumo(n_level_gw_ref - homo))
 
             END DO
 
             ! build N matrix
             DO n_level_gw = 1, gw_corr_lev_virt
 
-               CALL dbcsr_multiply("T", "N", 1.0_dp, mat_3c_overl_nnP_ic_reflected(n_level_gw+gw_corr_lev_occ)%matrix, &
+               CALL dbcsr_multiply("T", "N", 1.0_dp, mat_3c_overl_nnP_ic_reflected(n_level_gw + gw_corr_lev_occ)%matrix, &
                                    vec_P_virt_dbcsr, 0.0_dp, mat_N_virt_dbcsr(n_level_gw)%matrix)
 
             END DO
@@ -454,11 +454,11 @@ CONTAINS
                '   LUMO with IC (eV): ', &
                Eigenval_M_virt(1)*evolt
 
-            IF (ABS(old_energy-Eigenval_M_virt(1)) < 1.0E-5) EXIT
+            IF (ABS(old_energy - Eigenval_M_virt(1)) < 1.0E-5) EXIT
 
             old_energy = Eigenval_M_virt(1)
 
-            CALL update_coeff_homo(coeff_lumo, fm_mat_U_virt, para_env, nmo-homo, &
+            CALL update_coeff_homo(coeff_lumo, fm_mat_U_virt, para_env, nmo - homo, &
                                    gw_corr_lev_virt, do_lumo=.TRUE.)
 
          END DO
@@ -607,7 +607,7 @@ CONTAINS
 
             IF (my_do_homo) THEN
 
-               coeff_homo_update(i_global+homo-gw_corr_lev_occ) = fm_mat_U_occ%local_data(iiB, jjB)
+               coeff_homo_update(i_global + homo - gw_corr_lev_occ) = fm_mat_U_occ%local_data(iiB, jjB)
 
             ELSE
 
@@ -692,7 +692,7 @@ CONTAINS
          DO row_block = 1, nblkrows_total
 
             IF (row_index >= row_blk_offset(row_block) .AND. &
-                row_index <= row_blk_offset(row_block)+row_blk_sizes(row_block)-1) THEN
+                row_index <= row_blk_offset(row_block) + row_blk_sizes(row_block) - 1) THEN
 
                blk_from_indx(row_index) = row_block
 
@@ -702,9 +702,9 @@ CONTAINS
 
       END DO
 
-      ALLOCATE (num_entries_send(0:para_env%num_pe-1))
+      ALLOCATE (num_entries_send(0:para_env%num_pe - 1))
       num_entries_send = 0
-      ALLOCATE (num_entries_rec(0:para_env%num_pe-1))
+      ALLOCATE (num_entries_rec(0:para_env%num_pe - 1))
       num_entries_rec = 0
 
       DO n_level_gw = 1, gw_corr_lev_virt
@@ -717,7 +717,7 @@ CONTAINS
 
             DO i_row = 1, row_size
 
-               m_level_gw = row_offset-1+i_row-homo
+               m_level_gw = row_offset - 1 + i_row - homo
 
                IF (m_level_gw < 1) CYCLE
 
@@ -726,7 +726,7 @@ CONTAINS
                CALL dbcsr_get_stored_coordinates(matrix_tmp, blk_from_indx(m_level_gw), &
                                                  blk_from_indx(n_level_gw), imepos)
 
-               num_entries_send(imepos) = num_entries_send(imepos)+1
+               num_entries_send(imepos) = num_entries_send(imepos) + 1
 
             END DO
 
@@ -738,11 +738,11 @@ CONTAINS
 
       CALL mp_alltoall(num_entries_send, num_entries_rec, 1, para_env%group)
 
-      ALLOCATE (buffer_rec(0:para_env%num_pe-1))
-      ALLOCATE (buffer_send(0:para_env%num_pe-1))
+      ALLOCATE (buffer_rec(0:para_env%num_pe - 1))
+      ALLOCATE (buffer_send(0:para_env%num_pe - 1))
 
       ! allocate data message and corresponding indices
-      DO imepos = 0, para_env%num_pe-1
+      DO imepos = 0, para_env%num_pe - 1
 
          ALLOCATE (buffer_rec(imepos)%msg(num_entries_rec(imepos)))
          buffer_rec(imepos)%msg = 0.0_dp
@@ -758,7 +758,7 @@ CONTAINS
 
       END DO
 
-      ALLOCATE (entry_counter(0:para_env%num_pe-1))
+      ALLOCATE (entry_counter(0:para_env%num_pe - 1))
       entry_counter(:) = 1
 
       DO n_level_gw = 1, gw_corr_lev_virt
@@ -771,7 +771,7 @@ CONTAINS
 
             DO i_row = 1, row_size
 
-               m_level_gw = row_offset-1+i_row-homo
+               m_level_gw = row_offset - 1 + i_row - homo
 
                IF (m_level_gw < 1) CYCLE
 
@@ -786,7 +786,7 @@ CONTAINS
                buffer_send(imepos)%indx(offset, 1) = m_level_gw
                buffer_send(imepos)%indx(offset, 2) = n_level_gw
 
-               entry_counter(imepos) = entry_counter(imepos)+1
+               entry_counter(imepos) = entry_counter(imepos) + 1
 
             END DO
 
@@ -809,17 +809,17 @@ CONTAINS
                                         row_offset=row_offset, row_size=row_size, &
                                         col_offset=col_offset, col_size=col_size)
 
-         DO imepos = 0, para_env%num_pe-1
+         DO imepos = 0, para_env%num_pe - 1
 
             DO i_index = 1, num_entries_rec(imepos)
 
                IF (buffer_rec(imepos)%indx(i_index, 1) >= row_offset .AND. &
-                   buffer_rec(imepos)%indx(i_index, 1) <= row_offset+row_size-1 .AND. &
+                   buffer_rec(imepos)%indx(i_index, 1) <= row_offset + row_size - 1 .AND. &
                    buffer_rec(imepos)%indx(i_index, 2) >= col_offset .AND. &
-                   buffer_rec(imepos)%indx(i_index, 2) <= col_offset+col_size-1) THEN
+                   buffer_rec(imepos)%indx(i_index, 2) <= col_offset + col_size - 1) THEN
 
-                  i_row = buffer_rec(imepos)%indx(i_index, 1)-row_offset+1
-                  i_col = buffer_rec(imepos)%indx(i_index, 2)-col_offset+1
+                  i_row = buffer_rec(imepos)%indx(i_index, 1) - row_offset + 1
+                  i_col = buffer_rec(imepos)%indx(i_index, 2) - col_offset + 1
 
                   data_block(i_row, i_col) = buffer_rec(imepos)%msg(i_index)
 
@@ -851,13 +851,13 @@ CONTAINS
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
             IF (j_global == i_global) THEN
-               fm_mat_M_virt%local_data(iiB, jjB) = fm_mat_M_virt%local_data(iiB, jjB)+ &
-                                                    Eigenval(i_global+homo)
+               fm_mat_M_virt%local_data(iiB, jjB) = fm_mat_M_virt%local_data(iiB, jjB) + &
+                                                    Eigenval(i_global + homo)
             END IF
          END DO
       END DO
 
-      DO imepos = 0, para_env%num_pe-1
+      DO imepos = 0, para_env%num_pe - 1
          DEALLOCATE (buffer_rec(imepos)%msg)
          DEALLOCATE (buffer_rec(imepos)%indx)
          DEALLOCATE (buffer_send(imepos)%msg)
@@ -929,7 +929,7 @@ CONTAINS
          DO row_block = 1, nblkrows_total
 
             IF (row_index >= row_blk_offset(row_block) .AND. &
-                row_index <= row_blk_offset(row_block)+row_blk_sizes(row_block)-1) THEN
+                row_index <= row_blk_offset(row_block) + row_blk_sizes(row_block) - 1) THEN
 
                blk_from_indx(row_index) = row_block
 
@@ -939,9 +939,9 @@ CONTAINS
 
       END DO
 
-      ALLOCATE (num_entries_send(0:para_env%num_pe-1))
+      ALLOCATE (num_entries_send(0:para_env%num_pe - 1))
       num_entries_send = 0
-      ALLOCATE (num_entries_rec(0:para_env%num_pe-1))
+      ALLOCATE (num_entries_rec(0:para_env%num_pe - 1))
       num_entries_rec = 0
 
       DO n_level_gw = 1, gw_corr_lev_occ
@@ -952,31 +952,31 @@ CONTAINS
             CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
                                            row_offset=row_offset, row_size=row_size)
 
-            IF (row_offset+row_size-1 <= homo) THEN
+            IF (row_offset + row_size - 1 <= homo) THEN
 
                DO i_row = 1, row_size
 
-                  m_level_gw = row_offset-1+i_row-(homo-gw_corr_lev_occ)
+                  m_level_gw = row_offset - 1 + i_row - (homo - gw_corr_lev_occ)
 
                   IF (m_level_gw < 1) CYCLE
 
                   CALL dbcsr_get_stored_coordinates(matrix_tmp, blk_from_indx(m_level_gw), &
                                                     blk_from_indx(n_level_gw), imepos)
 
-                  num_entries_send(imepos) = num_entries_send(imepos)+1
+                  num_entries_send(imepos) = num_entries_send(imepos) + 1
 
                END DO
 
             ELSE IF (row_offset <= homo) THEN
 
-               DO m_level_gw = row_offset-(homo-gw_corr_lev_occ), gw_corr_lev_occ
+               DO m_level_gw = row_offset - (homo - gw_corr_lev_occ), gw_corr_lev_occ
 
                   IF (m_level_gw < 1) CYCLE
 
                   CALL dbcsr_get_stored_coordinates(matrix_tmp, blk_from_indx(m_level_gw), &
                                                     blk_from_indx(n_level_gw), imepos)
 
-                  num_entries_send(imepos) = num_entries_send(imepos)+1
+                  num_entries_send(imepos) = num_entries_send(imepos) + 1
 
                END DO
 
@@ -990,11 +990,11 @@ CONTAINS
 
       CALL mp_alltoall(num_entries_send, num_entries_rec, 1, para_env%group)
 
-      ALLOCATE (buffer_rec(0:para_env%num_pe-1))
-      ALLOCATE (buffer_send(0:para_env%num_pe-1))
+      ALLOCATE (buffer_rec(0:para_env%num_pe - 1))
+      ALLOCATE (buffer_send(0:para_env%num_pe - 1))
 
       ! allocate data message and corresponding indices
-      DO imepos = 0, para_env%num_pe-1
+      DO imepos = 0, para_env%num_pe - 1
 
          ALLOCATE (buffer_rec(imepos)%msg(num_entries_rec(imepos)))
          buffer_rec(imepos)%msg = 0.0_dp
@@ -1010,7 +1010,7 @@ CONTAINS
 
       END DO
 
-      ALLOCATE (entry_counter(0:para_env%num_pe-1))
+      ALLOCATE (entry_counter(0:para_env%num_pe - 1))
       entry_counter(:) = 1
 
       DO n_level_gw = 1, gw_corr_lev_occ
@@ -1021,11 +1021,11 @@ CONTAINS
             CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
                                            row_offset=row_offset, row_size=row_size)
 
-            IF (row_offset+row_size-1 <= homo) THEN
+            IF (row_offset + row_size - 1 <= homo) THEN
 
                DO i_row = 1, row_size
 
-                  m_level_gw = row_offset-1+i_row-(homo-gw_corr_lev_occ)
+                  m_level_gw = row_offset - 1 + i_row - (homo - gw_corr_lev_occ)
 
                   IF (m_level_gw < 1) CYCLE
 
@@ -1038,13 +1038,13 @@ CONTAINS
                   buffer_send(imepos)%indx(offset, 1) = m_level_gw
                   buffer_send(imepos)%indx(offset, 2) = n_level_gw
 
-                  entry_counter(imepos) = entry_counter(imepos)+1
+                  entry_counter(imepos) = entry_counter(imepos) + 1
 
                END DO
 
             ELSE IF (row_offset <= homo) THEN
 
-               DO m_level_gw = row_offset-(homo-gw_corr_lev_occ), gw_corr_lev_occ
+               DO m_level_gw = row_offset - (homo - gw_corr_lev_occ), gw_corr_lev_occ
 
                   IF (m_level_gw < 1) CYCLE
 
@@ -1053,13 +1053,13 @@ CONTAINS
 
                   offset = entry_counter(imepos)
 
-                  i_row = m_level_gw+(homo-gw_corr_lev_occ)-row_offset+1
+                  i_row = m_level_gw + (homo - gw_corr_lev_occ) - row_offset + 1
 
                   buffer_send(imepos)%msg(offset) = data_block(i_row, 1)
                   buffer_send(imepos)%indx(offset, 1) = m_level_gw
                   buffer_send(imepos)%indx(offset, 2) = n_level_gw
 
-                  entry_counter(imepos) = entry_counter(imepos)+1
+                  entry_counter(imepos) = entry_counter(imepos) + 1
 
                END DO
 
@@ -1084,17 +1084,17 @@ CONTAINS
                                         row_offset=row_offset, row_size=row_size, &
                                         col_offset=col_offset, col_size=col_size)
 
-         DO imepos = 0, para_env%num_pe-1
+         DO imepos = 0, para_env%num_pe - 1
 
             DO i_index = 1, num_entries_rec(imepos)
 
                IF (buffer_rec(imepos)%indx(i_index, 1) >= row_offset .AND. &
-                   buffer_rec(imepos)%indx(i_index, 1) <= row_offset+row_size-1 .AND. &
+                   buffer_rec(imepos)%indx(i_index, 1) <= row_offset + row_size - 1 .AND. &
                    buffer_rec(imepos)%indx(i_index, 2) >= col_offset .AND. &
-                   buffer_rec(imepos)%indx(i_index, 2) <= col_offset+col_size-1) THEN
+                   buffer_rec(imepos)%indx(i_index, 2) <= col_offset + col_size - 1) THEN
 
-                  i_row = buffer_rec(imepos)%indx(i_index, 1)-row_offset+1
-                  i_col = buffer_rec(imepos)%indx(i_index, 2)-col_offset+1
+                  i_row = buffer_rec(imepos)%indx(i_index, 1) - row_offset + 1
+                  i_col = buffer_rec(imepos)%indx(i_index, 2) - col_offset + 1
 
                   data_block(i_row, i_col) = buffer_rec(imepos)%msg(i_index)
 
@@ -1122,13 +1122,13 @@ CONTAINS
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
             IF (j_global == i_global) THEN
-               fm_mat_M_occ%local_data(iiB, jjB) = fm_mat_M_occ%local_data(iiB, jjB)+ &
-                                                   Eigenval(i_global+homo-gw_corr_lev_occ)
+               fm_mat_M_occ%local_data(iiB, jjB) = fm_mat_M_occ%local_data(iiB, jjB) + &
+                                                   Eigenval(i_global + homo - gw_corr_lev_occ)
             END IF
          END DO
       END DO
 
-      DO imepos = 0, para_env%num_pe-1
+      DO imepos = 0, para_env%num_pe - 1
          DEALLOCATE (buffer_rec(imepos)%msg)
          DEALLOCATE (buffer_rec(imepos)%indx)
          DEALLOCATE (buffer_send(imepos)%msg)
@@ -1169,15 +1169,15 @@ CONTAINS
          CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
                                         row_offset=row_offset, row_size=row_size)
 
-         IF (row_offset+row_size-1 <= homo) THEN
+         IF (row_offset + row_size - 1 <= homo) THEN
 
-            data_block(1:row_size, 1) = coeff(row_offset:row_offset+row_size-1)
+            data_block(1:row_size, 1) = coeff(row_offset:row_offset + row_size - 1)
 
          ELSE IF (row_offset <= homo) THEN
 
-            end_data_block = homo-row_offset+1
+            end_data_block = homo - row_offset + 1
 
-            data_block(1:end_data_block, 1) = coeff(row_offset:row_offset+end_data_block-1)
+            data_block(1:end_data_block, 1) = coeff(row_offset:row_offset + end_data_block - 1)
 
          END IF
 
@@ -1218,13 +1218,13 @@ CONTAINS
 
          IF (row_offset > homo) THEN
 
-            data_block(1:row_size, 1) = coeff(row_offset-homo:row_offset+row_size-homo-1)
+            data_block(1:row_size, 1) = coeff(row_offset - homo:row_offset + row_size - homo - 1)
 
-         ELSE IF (row_offset+row_size-1 > homo) THEN
+         ELSE IF (row_offset + row_size - 1 > homo) THEN
 
-            start_data_block = homo-row_offset+1
+            start_data_block = homo - row_offset + 1
 
-            data_block(start_data_block:row_size, 1) = coeff(1:row_offset+row_size-homo)
+            data_block(start_data_block:row_size, 1) = coeff(1:row_offset + row_size - homo)
 
          END IF
 

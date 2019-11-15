@@ -125,8 +125,8 @@ CONTAINS
       ALLOCATE (matrix(N, N), work(N, N))
       DO i = 1, N
          matrix(i, i) = 1.0
-         DO j = i+1, N
-            d = pos(3*i-2:3*i)-pos(3*j-2:3*j)
+         DO j = i + 1, N
+            d = pos(3*i - 2:3*i) - pos(3*j - 2:3*j)
             d2 = SUM(d**2)
             t = EXP(-0.5*d2)
             matrix(i, j) = t
@@ -153,7 +153,7 @@ CONTAINS
       TYPE(history_fingerprint_type), INTENT(IN)         :: fp1, fp2
       LOGICAL                                            :: res
 
-      res = (ABS(fp1%Epot-fp2%Epot) < history%E_precision) .AND. &
+      res = (ABS(fp1%Epot - fp2%Epot) < history%E_precision) .AND. &
             (fingerprint_distance(fp1, fp2) < history%fp_precision)
 
    END FUNCTION history_fingerprint_match
@@ -170,7 +170,7 @@ CONTAINS
       TYPE(history_fingerprint_type), INTENT(IN)         :: fp1, fp2
       REAL(KIND=dp)                                      :: res
 
-      res = SQRT(SUM((fp1%goedecker-fp2%goedecker)**2)/SIZE(fp1%goedecker))
+      res = SQRT(SUM((fp1%goedecker - fp2%goedecker)**2)/SIZE(fp1%goedecker))
    END FUNCTION fingerprint_distance
 
 ! **************************************************************************************************
@@ -195,10 +195,10 @@ CONTAINS
       IF (n == history%length) THEN
          ! grow history%entries array
          tmp => history%entries
-         ALLOCATE (history%entries(n+history_grow_unit))
+         ALLOCATE (history%entries(n + history_grow_unit))
          history%entries(1:n) = tmp(:)
          DEALLOCATE (tmp)
-         n = n+history_grow_unit
+         n = n + history_grow_unit
       ENDIF
 
       k = interpolation_search(history, fingerprint%Epot)
@@ -206,22 +206,22 @@ CONTAINS
       !history%entries(k+1:) = history%entries(k:n-1)
       !Workaround for an XLF bug - pointer array copy does
       !not work correctly
-      DO i = n, k+1, -1
-         history%entries(i) = history%entries(i-1)
+      DO i = n, k + 1, -1
+         history%entries(i) = history%entries(i - 1)
       END DO
 
       ALLOCATE (history%entries(k)%p)
       history%entries(k)%p = fingerprint
       IF (PRESENT(id)) &
          history%entries(k)%id = id
-      history%length = history%length+1
+      history%length = history%length + 1
 
       IF (debug) THEN
          ! check history for correct order
          DO k = 1, history%length
             !WRITE(*,*) "history: ", k, "Epot",history%entries(k)%p%Epot
             IF (k > 1) THEN
-               IF (history%entries(k-1)%p%Epot > history%entries(k)%p%Epot) &
+               IF (history%entries(k - 1)%p%Epot > history%entries(k)%p%Epot) &
                   CPABORT("history_add: history in wrong order")
             END IF
          END DO
@@ -257,16 +257,16 @@ CONTAINS
          Epot = fingerprint%Epot
          k = interpolation_search(history, fingerprint%Epot)
 
-         DO k_min = k-1, 1, -1
-            IF (history%entries(k_min)%p%Epot < Epot-history%E_precision) EXIT
+         DO k_min = k - 1, 1, -1
+            IF (history%entries(k_min)%p%Epot < Epot - history%E_precision) EXIT
          ENDDO
 
          DO k_max = k, history%length
-            IF (history%entries(k_max)%p%Epot > Epot+history%E_precision) EXIT
+            IF (history%entries(k_max)%p%Epot > Epot + history%E_precision) EXIT
          ENDDO
 
-         k_min = MAX(k_min+1, 1)
-         k_max = MIN(k_max-1, history%length)
+         k_min = MAX(k_min + 1, 1)
+         k_max = MIN(k_max - 1, history%length)
 
          IF (debug) found_i = -1
 
@@ -308,19 +308,19 @@ CONTAINS
 
       DO WHILE (low < high)
          !linear interpolation
-         slope = REAL(high-low, KIND=dp)/(history%entries(high)%p%Epot-history%entries(low)%p%Epot)
-         mid = low+INT(slope*(Efind-history%entries(low)%p%Epot))
+         slope = REAL(high - low, KIND=dp)/(history%entries(high)%p%Epot - history%entries(low)%p%Epot)
+         mid = low + INT(slope*(Efind - history%entries(low)%p%Epot))
          mid = MIN(MAX(mid, low), high)
 
          IF (history%entries(mid)%p%Epot < Efind) THEN
-            low = mid+1
+            low = mid + 1
          ELSE
-            high = mid-1
+            high = mid - 1
          END IF
       END DO
 
       IF (0 < low .AND. low <= history%length) THEN
-         IF (Efind > history%entries(low)%p%Epot) low = low+1
+         IF (Efind > history%entries(low)%p%Epot) low = low + 1
       END IF
 
       res = low
@@ -345,7 +345,7 @@ CONTAINS
       best_fp_match = HUGE(1.0_dp)
 
       DO i = 1, history%length
-         Epot_dist = ABS(fingerprint%Epot-history%entries(i)%p%Epot)
+         Epot_dist = ABS(fingerprint%Epot - history%entries(i)%p%Epot)
          IF (Epot_dist > history%E_precision) CYCLE
          fp_dist = fingerprint_distance(fingerprint, history%entries(i)%p)
          !WRITE(*,*) "entry ", i, " dist: ",dist

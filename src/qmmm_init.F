@@ -236,7 +236,7 @@ CONTAINS
          DO I = 1, SIZE(mm_atom_index)
             IndMM = mm_atom_index(I)
             qi = mm_atom_chrg(I)
-            qtot = qtot+qi
+            qtot = qtot + qi
             ri = mm_el_pot_radius(I)
             rc = mm_el_pot_radius_corr(I)
             IF (nocompatibility) THEN
@@ -254,7 +254,7 @@ CONTAINS
             DO I = 1, SIZE(added_charges%mm_atom_index)
                IndMM = added_charges%mm_atom_index(I)
                qi = added_charges%mm_atom_chrg(I)
-               qtot = qtot+qi
+               qtot = qtot + qi
                ri = added_charges%mm_el_pot_radius(I)
                ind1 = added_charges%add_env(I)%Index1
                ind2 = added_charges%add_env(I)%Index2
@@ -277,7 +277,7 @@ CONTAINS
             DO I = 1, SIZE(added_shells%mm_core_index)
                IndMM = added_shells%mm_core_index(I)
                qi = added_shells%mm_core_chrg(I)
-               qtot = qtot+qi
+               qtot = qtot + qi
                ri = added_shells%mm_el_pot_radius(I)
                IF (nocompatibility) THEN
                   WRITE (iw, '(7X,A,I5,A8,F12.6,A8,F12.6,3F12.6)') 'SHELL:', IndMM, ' RADIUS:', ri, &
@@ -695,7 +695,7 @@ CONTAINS
             qmmm_env%spherical_cutoff(2) = 0.0_dp
          ELSE
             IF (qmmm_env%spherical_cutoff(2) <= 0.0_dp) qmmm_env%spherical_cutoff(2) = EPSILON(0.0_dp)
-            tmp_radius = qmmm_env%spherical_cutoff(1)-20.0_dp*qmmm_env%spherical_cutoff(2)
+            tmp_radius = qmmm_env%spherical_cutoff(1) - 20.0_dp*qmmm_env%spherical_cutoff(2)
             IF (tmp_radius <= 0.0_dp) &
                CALL cp_abort(__LOCATION__, &
                              "SPHERICAL_CUTOFF(1) > 20*SPHERICAL_CUTOFF(1)! Please correct parameters for "// &
@@ -780,8 +780,8 @@ CONTAINS
       !
       ! Build MM atoms list
       !
-      size_mm_system = SIZE(subsys_mm%particles%els)-SIZE(qm_atom_index)
-      IF (qmmm_link .AND. ASSOCIATED(mm_link_atoms)) size_mm_system = size_mm_system+SIZE(mm_link_atoms)
+      size_mm_system = SIZE(subsys_mm%particles%els) - SIZE(qm_atom_index)
+      IF (qmmm_link .AND. ASSOCIATED(mm_link_atoms)) size_mm_system = size_mm_system + SIZE(mm_link_atoms)
       ALLOCATE (mm_atom_index(size_mm_system))
       icount = 0
 
@@ -794,7 +794,7 @@ CONTAINS
             IF (ANY(mm_link_atoms == i) .AND. qmmm_link) is_mm = .TRUE.
          END IF
          IF (is_mm) THEN
-            icount = icount+1
+            icount = icount + 1
             IF (icount <= size_mm_system) mm_atom_index(icount) = i
          END IF
       END DO
@@ -942,22 +942,22 @@ CONTAINS
          CALL read_lj_section(inp_info%nonbonded, lj_section, start=0)
       END IF
       CALL section_vals_get(wl_section, n_repetition=n_wl)
-      np = n_lj+n_wl
+      np = n_lj + n_wl
       IF (n_wl /= 0) THEN
          CALL pair_potential_reallocate(inp_info%nonbonded, 1, np, williams=.TRUE.)
          CALL read_wl_section(inp_info%nonbonded, wl_section, start=n_lj)
       END IF
       CALL section_vals_get(gd_section, n_repetition=n_gd)
-      np = n_lj+n_wl+n_gd
+      np = n_lj + n_wl + n_gd
       IF (n_gd /= 0) THEN
          CALL pair_potential_reallocate(inp_info%nonbonded, 1, np, goodwin=.TRUE.)
-         CALL read_gd_section(inp_info%nonbonded, gd_section, start=n_lj+n_wl)
+         CALL read_gd_section(inp_info%nonbonded, gd_section, start=n_lj + n_wl)
       END IF
       CALL section_vals_get(gp_section, n_repetition=n_gp)
-      np = n_lj+n_wl+n_gd+n_gp
+      np = n_lj + n_wl + n_gd + n_gp
       IF (n_gp /= 0) THEN
          CALL pair_potential_reallocate(inp_info%nonbonded, 1, np, gp=.TRUE.)
-         CALL read_gp_section(inp_info%nonbonded, gp_section, start=n_lj+n_wl+n_gd)
+         CALL read_gp_section(inp_info%nonbonded, gp_section, start=n_lj + n_wl + n_gd)
       END IF
       !
       ! NONBONDED14
@@ -973,22 +973,22 @@ CONTAINS
          CALL read_lj_section(inp_info%nonbonded14, lj_section, start=0)
       END IF
       CALL section_vals_get(wl_section, n_repetition=n_wl)
-      np = n_lj+n_wl
+      np = n_lj + n_wl
       IF (n_wl /= 0) THEN
          CALL pair_potential_reallocate(inp_info%nonbonded14, 1, np, williams=.TRUE.)
          CALL read_wl_section(inp_info%nonbonded14, wl_section, start=n_lj)
       END IF
       CALL section_vals_get(gd_section, n_repetition=n_gd)
-      np = n_lj+n_wl+n_gd
+      np = n_lj + n_wl + n_gd
       IF (n_gd /= 0) THEN
          CALL pair_potential_reallocate(inp_info%nonbonded14, 1, np, goodwin=.TRUE.)
-         CALL read_gd_section(inp_info%nonbonded14, gd_section, start=n_lj+n_wl)
+         CALL read_gd_section(inp_info%nonbonded14, gd_section, start=n_lj + n_wl)
       END IF
       CALL section_vals_get(gp_section, n_repetition=n_gp)
-      np = n_lj+n_wl+n_gd+n_gp
+      np = n_lj + n_wl + n_gd + n_gp
       IF (n_gp /= 0) THEN
          CALL pair_potential_reallocate(inp_info%nonbonded14, 1, np, gp=.TRUE.)
-         CALL read_gp_section(inp_info%nonbonded14, gp_section, start=n_lj+n_wl+n_gd)
+         CALL read_gp_section(inp_info%nonbonded14, gp_section, start=n_lj + n_wl + n_gd)
       END IF
 
    END SUBROUTINE read_qmmm_ff_section
@@ -1042,7 +1042,7 @@ CONTAINS
          DO k = 1, n_var
             CALL section_vals_val_get(qm_kinds, "MM_INDEX", i_rep_section=ikind, i_rep_val=k, &
                                       i_vals=mm_indexes)
-            num_qm_atom_tot = num_qm_atom_tot+SIZE(mm_indexes)
+            num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
          END DO
       END DO
       !
@@ -1059,10 +1059,10 @@ CONTAINS
                                       i_val=link_type)
             SELECT CASE (link_type)
             CASE (do_qmmm_link_imomm)
-               num_qm_atom_tot = num_qm_atom_tot+1
-               link_involv_mm = link_involv_mm+1
+               num_qm_atom_tot = num_qm_atom_tot + 1
+               link_involv_mm = link_involv_mm + 1
             CASE (do_qmmm_link_pseudo)
-               num_qm_atom_tot = num_qm_atom_tot+1
+               num_qm_atom_tot = num_qm_atom_tot + 1
             CASE (do_qmmm_link_gho)
                ! do nothing for the moment
             CASE DEFAULT
@@ -1087,14 +1087,14 @@ CONTAINS
             CALL section_vals_val_get(qm_kinds, "MM_INDEX", i_rep_section=ikind, i_rep_val=k, &
                                       i_vals=mm_indexes)
             IF (PRESENT(qm_atom_index)) THEN
-               qm_atom_index(num_qm_atom_tot:num_qm_atom_tot+SIZE(mm_indexes)-1) = mm_indexes(:)
+               qm_atom_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes) - 1) = mm_indexes(:)
             END IF
             IF (PRESENT(qm_atom_type)) THEN
                CALL section_vals_val_get(qm_kinds, "_SECTION_PARAMETERS_", i_rep_section=ikind, &
                                          c_val=qm_atom_kind)
-               qm_atom_type(num_qm_atom_tot:num_qm_atom_tot+SIZE(mm_indexes)-1) = qm_atom_kind
+               qm_atom_type(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes) - 1) = qm_atom_kind
             END IF
-            num_qm_atom_tot = num_qm_atom_tot+SIZE(mm_indexes)
+            num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
          END DO
       END DO
       IF (PRESENT(mm_link_scale_factor) .AND. (link_involv_mm /= 0)) mm_link_scale_factor = 0.0_dp
@@ -1110,7 +1110,7 @@ CONTAINS
                CALL section_vals_val_get(qmmm_links, "MM_INDEX", i_rep_section=ikind, i_val=mm_index)
                CPASSERT(ALL(qm_atom_index /= mm_index))
                qm_atom_index(num_qm_atom_tot:num_qm_atom_tot) = mm_index
-               num_qm_atom_tot = num_qm_atom_tot+1
+               num_qm_atom_tot = num_qm_atom_tot + 1
             END IF
             IF (PRESENT(mm_link_atoms) .AND. (link_involv_mm /= 0)) THEN
                CALL section_vals_val_get(qmmm_links, "MM_INDEX", i_rep_section=ikind, i_val=mm_index)
@@ -1126,7 +1126,7 @@ CONTAINS
             END IF
          END DO
       END IF
-      CPASSERT(num_qm_atom_tot-1 == SIZE(qm_atom_index))
+      CPASSERT(num_qm_atom_tot - 1 == SIZE(qm_atom_index))
 
    END SUBROUTINE setup_qm_atom_list
 
@@ -1169,11 +1169,11 @@ CONTAINS
       CPASSERT(nlinks /= 0)
       DO ikind = 1, nlinks
          CALL section_vals_val_get(qmmm_link_section, "LINK_TYPE", i_rep_section=ikind, i_val=link_type)
-         IF (link_type == do_qmmm_link_imomm) n_imomm = n_imomm+1
-         IF (link_type == do_qmmm_link_gho) n_gho = n_gho+1
-         IF (link_type == do_qmmm_link_pseudo) n_pseudo = n_pseudo+1
+         IF (link_type == do_qmmm_link_imomm) n_imomm = n_imomm + 1
+         IF (link_type == do_qmmm_link_gho) n_gho = n_gho + 1
+         IF (link_type == do_qmmm_link_pseudo) n_pseudo = n_pseudo + 1
       END DO
-      n_tot = n_imomm+n_gho+n_pseudo
+      n_tot = n_imomm + n_gho + n_pseudo
       CPASSERT(n_tot /= 0)
       ALLOCATE (qmmm_links)
       NULLIFY (qmmm_links%imomm, &
@@ -1190,7 +1190,7 @@ CONTAINS
          DO ikind = 1, nlinks
             CALL section_vals_val_get(qmmm_link_section, "LINK_TYPE", i_rep_section=ikind, i_val=link_type)
             IF (link_type == do_qmmm_link_imomm) THEN
-               n_imomm = n_imomm+1
+               n_imomm = n_imomm + 1
                CALL section_vals_val_get(qmmm_link_section, "QM_INDEX", i_rep_section=ikind, i_val=qm_index)
                CALL section_vals_val_get(qmmm_link_section, "MM_INDEX", i_rep_section=ikind, i_val=mm_index)
                CALL section_vals_val_get(qmmm_link_section, "ALPHA_IMOMM", i_rep_section=ikind, r_val=alpha)
@@ -1234,7 +1234,7 @@ CONTAINS
          DO ikind = 1, nlinks
             CALL section_vals_val_get(qmmm_link_section, "LINK_TYPE", i_rep_section=ikind, i_val=link_type)
             IF (link_type == do_qmmm_link_pseudo) THEN
-               n_pseudo = n_pseudo+1
+               n_pseudo = n_pseudo + 1
                CALL section_vals_val_get(qmmm_link_section, "QM_INDEX", i_rep_section=ikind, i_val=qm_index)
                CALL section_vals_val_get(qmmm_link_section, "MM_INDEX", i_rep_section=ikind, i_val=mm_index)
                qmmm_links%pseudo(n_pseudo)%link%qm_index = qm_index
@@ -1302,10 +1302,10 @@ CONTAINS
          add_section => section_vals_get_subs_vals(qmmm_link_section, "ADD_MM_CHARGE", &
                                                    i_rep_section=ikind)
          CALL section_vals_get(add_section, n_repetition=n_adds)
-         n_move_tot = n_move_tot+n_moves
-         n_add_tot = n_add_tot+n_adds
+         n_move_tot = n_move_tot + n_moves
+         n_add_tot = n_add_tot + n_adds
       END DO
-      icount = n_move_tot+n_add_tot
+      icount = n_move_tot + n_add_tot
       IF (n_add_tot /= 0) add_mm_charges = .TRUE.
       IF (n_move_tot /= 0) move_mm_charges = .TRUE.
       !
@@ -1325,7 +1325,7 @@ CONTAINS
          !
          IF (explicit) THEN
             DO i_add = 1, n_moves
-               icount = icount+1
+               icount = icount + 1
                CALL section_vals_val_get(move_section, "ATOM_INDEX_1", i_val=Index1, i_rep_section=i_add)
                CALL section_vals_val_get(move_section, "ATOM_INDEX_2", i_val=Index2, i_rep_section=i_add)
                CALL section_vals_val_get(move_section, "ALPHA", r_val=alpha, i_rep_section=i_add)
@@ -1351,7 +1351,7 @@ CONTAINS
          !
          IF (explicit) THEN
             DO i_add = 1, n_adds
-               icount = icount+1
+               icount = icount + 1
                CALL section_vals_val_get(add_section, "ATOM_INDEX_1", i_val=Index1, i_rep_section=i_add)
                CALL section_vals_val_get(add_section, "ATOM_INDEX_2", i_val=Index2, i_rep_section=i_add)
                CALL section_vals_val_get(add_section, "ALPHA", r_val=alpha, i_rep_section=i_add)
@@ -1418,7 +1418,7 @@ CONTAINS
       i = 1
       GetId: DO WHILE (i <= SIZE(mm_atom_index))
          IF (Index1 == mm_atom_index(i)) EXIT GetId
-         i = i+1
+         i = i + 1
       END DO GetId
       IF (PRESENT(ind1)) ind1 = i
       CPASSERT(i <= SIZE(mm_atom_index))
@@ -1518,7 +1518,7 @@ CONTAINS
       DO i = 1, n_var
          CALL section_vals_val_get(image_charge_section, "MM_ATOM_LIST", &
                                    i_rep_val=i, i_vals=mm_indexes)
-         num_image_mm_atom = num_image_mm_atom+SIZE(mm_indexes)
+         num_image_mm_atom = num_image_mm_atom + SIZE(mm_indexes)
       END DO
 
       ALLOCATE (qmmm_env%image_charge_pot%image_mm_list(num_image_mm_atom))
@@ -1530,12 +1530,12 @@ CONTAINS
          CALL section_vals_val_get(image_charge_section, "MM_ATOM_LIST", &
                                    i_rep_val=i, i_vals=mm_indexes)
          qmmm_env%image_charge_pot%image_mm_list(num_image_mm_atom:num_image_mm_atom &
-                                                 +SIZE(mm_indexes)-1) = mm_indexes(:)
-         num_image_mm_atom = num_image_mm_atom+SIZE(mm_indexes)
+                                                 + SIZE(mm_indexes) - 1) = mm_indexes(:)
+         num_image_mm_atom = num_image_mm_atom + SIZE(mm_indexes)
       END DO
 
       ! checking, if in range, if list contains QM atoms or any atoms doubled
-      num_image_mm_atom = num_image_mm_atom-1
+      num_image_mm_atom = num_image_mm_atom - 1
 
       max_index = SIZE(subsys_mm%particles%els)
 
@@ -1549,7 +1549,7 @@ CONTAINS
          IF (ANY(qm_atom_index == atom_a)) THEN
             CPABORT("Image atom list must only contain MM atoms")
          ENDIF
-         DO j = i+1, num_image_mm_atom
+         DO j = i + 1, num_image_mm_atom
             atom_b = qmmm_env%image_charge_pot%image_mm_list(j)
             IF (atom_a == atom_b) &
                CPABORT("There are atoms doubled in image list.")
@@ -1570,7 +1570,7 @@ CONTAINS
                   DO k = 1, num_image_mm_atom
                      atom_a = qmmm_env%image_charge_pot%image_mm_list(k)
                      IF (atom_a == molecule_kind(i)%fixd_list(j)%fixd) THEN
-                        num_const_atom = num_const_atom+1
+                        num_const_atom = num_const_atom + 1
                         IF (molecule_kind(i)%fixd_list(j)%itype /= use_perd_xyz) THEN
                            fix_xyz = .FALSE.
                            EXIT

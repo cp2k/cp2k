@@ -140,7 +140,7 @@ CONTAINS
          CALL get_molecule(molecule, molecule_kind=molecule_kind, &
                            first_atom=first_atom, last_atom=last_atom)
          IF (ANY(qm_atom_index >= first_atom .AND. qm_atom_index <= last_atom)) &
-            qm_mol_num = qm_mol_num+1
+            qm_mol_num = qm_mol_num + 1
       END DO
       !
       ALLOCATE (qm_molecule_index(qm_mol_num))
@@ -150,9 +150,9 @@ CONTAINS
          molecule => molecule_set(imolecule)
          CALL get_molecule(molecule, molecule_kind=molecule_kind, &
                            first_atom=first_atom, last_atom=last_atom)
-         natom = last_atom-first_atom+1
+         natom = last_atom - first_atom + 1
          IF (ANY(qm_atom_index >= first_atom .AND. qm_atom_index <= last_atom)) THEN
-            qm_mol_num = qm_mol_num+1
+            qm_mol_num = qm_mol_num + 1
             !
             ! Check if all atoms of the molecule are QM or if a QM/MM link scheme
             ! need to be used...

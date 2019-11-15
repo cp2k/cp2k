@@ -64,10 +64,10 @@ CONTAINS
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
 
-               iocc = MAX(1, i_global-1)/virtual+1
-               avirt = i_global-(iocc-1)*virtual
+               iocc = MAX(1, i_global - 1)/virtual + 1
+               avirt = i_global - (iocc - 1)*virtual
 
-               laplace_transf = EXP(Eigenval(iocc)*ajquad)*EXP(-Eigenval(avirt+homo)*ajquad)
+               laplace_transf = EXP(Eigenval(iocc)*ajquad)*EXP(-Eigenval(avirt + homo)*ajquad)
                laplace_transf = SQRT(laplace_transf)
 
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)*laplace_transf
@@ -79,10 +79,10 @@ CONTAINS
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
 
-               iocc = MAX(1, i_global-1)/virtual+1
-               avirt = i_global-(iocc-1)*virtual
+               iocc = MAX(1, i_global - 1)/virtual + 1
+               avirt = i_global - (iocc - 1)*virtual
 
-               laplace_transf = EXP(Eigenval(iocc)*(ajquad-alpha_old))*EXP(-Eigenval(avirt+homo)*(ajquad-alpha_old))
+               laplace_transf = EXP(Eigenval(iocc)*(ajquad - alpha_old))*EXP(-Eigenval(avirt + homo)*(ajquad - alpha_old))
                laplace_transf = SQRT(laplace_transf)
 
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)*laplace_transf
@@ -128,14 +128,14 @@ CONTAINS
       trace_XX = 0.0_dp
       IF (my_open_shell) THEN
          DO jjB = 1, ncol_local
-            trace_XX = trace_XX+DOT_PRODUCT(fm_mat_Q%local_data(:, jjB), fm_mat_Q_beta%local_data(:, jjB))
+            trace_XX = trace_XX + DOT_PRODUCT(fm_mat_Q%local_data(:, jjB), fm_mat_Q_beta%local_data(:, jjB))
          END DO
       ELSE
          trace_XX = NORM2(fm_mat_Q%local_data)
          trace_XX = trace_XX*trace_XX
       END IF
 
-      Erpa = Erpa-trace_XX*tau_wjquad
+      Erpa = Erpa - trace_XX*tau_wjquad
 
       CALL timestop(handle)
 

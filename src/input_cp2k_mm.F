@@ -177,7 +177,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "FF_PARAMETER_FILE", description= &
                                        "Controls the printing of Force Field parameter file", &
-                                       print_level=debug_print_level+1, filename="", common_iter_levels=2)
+                                       print_level=debug_print_level + 1, filename="", common_iter_levels=2)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

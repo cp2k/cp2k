@@ -168,7 +168,7 @@ CONTAINS
       meta_env%metadyn_section => metadyn_section
       meta_env%ref_count = 1
       meta_env%restart = .TRUE.
-      last_meta_env_id = last_meta_env_id+1
+      last_meta_env_id = last_meta_env_id + 1
       meta_env%id_nr = last_meta_env_id
       meta_env%n_colvar = n_colvar
       meta_env%para_env => para_env
@@ -266,7 +266,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(meta_env))
       CPASSERT(meta_env%ref_count > 0)
-      meta_env%ref_count = meta_env%ref_count+1
+      meta_env%ref_count = meta_env%ref_count + 1
    END SUBROUTINE meta_env_retain
 
 ! **************************************************************************************************
@@ -284,7 +284,7 @@ CONTAINS
 
       IF (ASSOCIATED(meta_env)) THEN
          CPASSERT(meta_env%ref_count > 0)
-         meta_env%ref_count = meta_env%ref_count-1
+         meta_env%ref_count = meta_env%ref_count - 1
          IF (meta_env%ref_count == 0) THEN
             CALL cp_para_env_release(meta_env%para_env)
             IF (ASSOCIATED(meta_env%metavar)) THEN

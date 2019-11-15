@@ -81,7 +81,7 @@ CONTAINS
          qs_ot_env(1)%gradient = 0.0_dp
          DO ispin = 1, nspin
             IF (do_ks) THEN
-               SELECT CASE (qs_ot_env (1)%settings%ot_algorithm)
+               SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
                CASE ("TOD")
                   CALL qs_ot_get_derivative(matrix_hc(ispin)%matrix, qs_ot_env(ispin)%matrix_x, &
                                             qs_ot_env(ispin)%matrix_sx, &
@@ -98,34 +98,34 @@ CONTAINS
             IF (qs_ot_env(1)%use_dx) THEN
                IF (do_ks) THEN
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
-                  qs_ot_env(1)%gradient = qs_ot_env(1)%gradient+tmp
+                  qs_ot_env(1)%gradient = qs_ot_env(1)%gradient + tmp
                   IF (qs_ot_env(1)%settings%do_rotation) THEN
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
-                     qs_ot_env(1)%gradient = qs_ot_env(1)%gradient+0.5_dp*tmp
+                     qs_ot_env(1)%gradient = qs_ot_env(1)%gradient + 0.5_dp*tmp
                   ENDIF
                END IF
                IF (do_ener) THEN
                   tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, qs_ot_env(ispin)%ener_dx)
-                  qs_ot_env(1)%gradient = qs_ot_env(1)%gradient+tmp
+                  qs_ot_env(1)%gradient = qs_ot_env(1)%gradient + tmp
                ENDIF
             ELSE
                IF (do_ks) THEN
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
-                  qs_ot_env(1)%gradient = qs_ot_env(1)%gradient-tmp
+                  qs_ot_env(1)%gradient = qs_ot_env(1)%gradient - tmp
                   IF (qs_ot_env(1)%settings%do_rotation) THEN
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
-                     qs_ot_env(1)%gradient = qs_ot_env(1)%gradient-0.5_dp*tmp
+                     qs_ot_env(1)%gradient = qs_ot_env(1)%gradient - 0.5_dp*tmp
                   ENDIF
                ENDIF
                IF (do_ener) THEN
                   tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, qs_ot_env(ispin)%ener_gx)
-                  qs_ot_env(1)%gradient = qs_ot_env(1)%gradient-tmp
+                  qs_ot_env(1)%gradient = qs_ot_env(1)%gradient - tmp
                ENDIF
             ENDIF
          ENDDO
       ENDIF
 
-      SELECT CASE (qs_ot_env (1)%settings%OT_METHOD)
+      SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
       CASE ("CG")
          IF (current_point_is_fine(qs_ot_env)) THEN
             qs_ot_env(1)%OT_METHOD_FULL = "OT CG"
@@ -204,7 +204,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search', routineP = moduleN//':'//routineN
 
-      SELECT CASE (qs_ot_env (1)%settings%line_search_method)
+      SELECT CASE (qs_ot_env(1)%settings%line_search_method)
       CASE ("GOLD")
          CALL do_line_search_gold(qs_ot_env)
       CASE ("3PNT")
@@ -256,7 +256,7 @@ CONTAINS
          END IF
          IF (do_ener) THEN
             DO ispin = 1, nspin
-               qs_ot_env(ispin)%ener_x = qs_ot_env(ispin)%ener_x+ds*qs_ot_env(ispin)%ener_dx
+               qs_ot_env(ispin)%ener_x = qs_ot_env(ispin)%ener_x + ds*qs_ot_env(ispin)%ener_dx
             ENDDO
          ENDIF
       ELSE
@@ -272,7 +272,7 @@ CONTAINS
          ENDIF
          IF (do_ener) THEN
             DO ispin = 1, nspin
-               qs_ot_env(ispin)%ener_x = qs_ot_env(ispin)%ener_x-ds*qs_ot_env(ispin)%ener_gx
+               qs_ot_env(ispin)%ener_x = qs_ot_env(ispin)%ener_x - ds*qs_ot_env(ispin)%ener_gx
             ENDDO
          ENDIF
       ENDIF
@@ -297,12 +297,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      qs_ot_env(1)%line_search_count = qs_ot_env(1)%line_search_count+1
+      qs_ot_env(1)%line_search_count = qs_ot_env(1)%line_search_count + 1
       count = qs_ot_env(1)%line_search_count
       qs_ot_env(1)%line_search_might_be_done = .FALSE.
       qs_ot_env(1)%energy_only = .TRUE.
 
-      IF (count+1 .GT. SIZE(qs_ot_env(1)%OT_pos)) THEN
+      IF (count + 1 .GT. SIZE(qs_ot_env(1)%OT_pos)) THEN
          ! should not happen, we pass with a warning first
          ! you can increase the size of OT_pos and the like in qs_ot_env
          CPABORT("MAX ITER EXCEEDED : FATAL")
@@ -321,15 +321,15 @@ CONTAINS
          ! keep left on the left, keep (bring) right on the right
          ! and mid in between these two
          IF (qs_ot_env(1)%line_search_right .EQ. 0) THEN ! we do not yet have the right bracket
-            IF (qs_ot_env(1)%ot_energy(count-1) .LT. qs_ot_env(1)%ot_energy(count)) THEN
+            IF (qs_ot_env(1)%ot_energy(count - 1) .LT. qs_ot_env(1)%ot_energy(count)) THEN
                qs_ot_env(1)%line_search_right = count
-               qs_ot_env(1)%ot_pos(count+1) = qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)+ &
-                                              (qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_right)- &
-                                               qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid))*gold_sec
+               qs_ot_env(1)%ot_pos(count + 1) = qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid) + &
+                                                (qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_right) - &
+                                                 qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid))*gold_sec
             ELSE
                qs_ot_env(1)%line_search_left = qs_ot_env(1)%line_search_mid
                qs_ot_env(1)%line_search_mid = count
-               qs_ot_env(1)%ot_pos(count+1) = qs_ot_env(1)%ot_pos(count)/gold_sec ! expand
+               qs_ot_env(1)%ot_pos(count + 1) = qs_ot_env(1)%ot_pos(count)/gold_sec ! expand
             ENDIF
          ELSE
             ! first determine where we are and construct the new triplet
@@ -350,33 +350,33 @@ CONTAINS
             ENDIF
             ! now find the new point in the largest section
             IF ((qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_right) &
-                 -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)) .GT. &
+                 - qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)) .GT. &
                 (qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid) &
-                 -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left))) THEN
-               qs_ot_env(1)%ot_pos(count+1) = &
-                  qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)+ &
+                 - qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left))) THEN
+               qs_ot_env(1)%ot_pos(count + 1) = &
+                  qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid) + &
                   gold_sec*(qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_right) &
-                            -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid))
+                            - qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid))
             ELSE
-               qs_ot_env(1)%ot_pos(count+1) = &
-                  qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left)+ &
+               qs_ot_env(1)%ot_pos(count + 1) = &
+                  qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left) + &
                   gold_sec*(qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid) &
-                            -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left))
+                            - qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left))
             ENDIF
             ! check for termination
             IF (((qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_right) &
-                  -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)) .LT. &
+                  - qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)) .LT. &
                  qs_ot_env(1)%ds_min*qs_ot_env(1)%settings%gold_target) .AND. &
                 ((qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid) &
-                  -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left)) .LT. &
+                  - qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left)) .LT. &
                  qs_ot_env(1)%ds_min*qs_ot_env(1)%settings%gold_target)) THEN
                qs_ot_env(1)%energy_only = .FALSE.
                qs_ot_env(1)%line_search_might_be_done = .TRUE.
             ENDIF
          ENDIF
       ENDIF
-      ds = qs_ot_env(1)%OT_pos(count+1)-qs_ot_env(1)%OT_pos(count)
-      qs_ot_env(1)%ds_min = qs_ot_env(1)%OT_pos(count+1)
+      ds = qs_ot_env(1)%OT_pos(count + 1) - qs_ot_env(1)%OT_pos(count)
+      qs_ot_env(1)%ds_min = qs_ot_env(1)%OT_pos(count + 1)
 
       CALL take_step(ds, qs_ot_env)
 
@@ -405,18 +405,18 @@ CONTAINS
       qs_ot_env(1)%energy_only = .TRUE.
 
       ! a three point interpolation based on the energy
-      qs_ot_env(1)%line_search_count = qs_ot_env(1)%line_search_count+1
+      qs_ot_env(1)%line_search_count = qs_ot_env(1)%line_search_count + 1
       count = qs_ot_env(1)%line_search_count
       qs_ot_env(1)%ot_energy(count) = qs_ot_env(1)%etotal
       SELECT CASE (count)
       CASE (1)
          qs_ot_env(1)%ot_pos(count) = 0.0_dp
-         qs_ot_env(1)%ot_pos(count+1) = qs_ot_env(1)%ds_min*0.8_dp
+         qs_ot_env(1)%ot_pos(count + 1) = qs_ot_env(1)%ds_min*0.8_dp
       CASE (2)
-         IF (qs_ot_env(1)%OT_energy(count) .GT. qs_ot_env(1)%OT_energy(count-1)) THEN
-            qs_ot_env(1)%OT_pos(count+1) = qs_ot_env(1)%ds_min*0.5_dp
+         IF (qs_ot_env(1)%OT_energy(count) .GT. qs_ot_env(1)%OT_energy(count - 1)) THEN
+            qs_ot_env(1)%OT_pos(count + 1) = qs_ot_env(1)%ds_min*0.5_dp
          ELSE
-            qs_ot_env(1)%OT_pos(count+1) = qs_ot_env(1)%ds_min*1.4_dp
+            qs_ot_env(1)%OT_pos(count + 1) = qs_ot_env(1)%ds_min*1.4_dp
          ENDIF
       CASE (3)
          xa = qs_ot_env(1)%OT_pos(1)
@@ -425,30 +425,30 @@ CONTAINS
          fa = qs_ot_env(1)%OT_energy(1)
          fb = qs_ot_env(1)%OT_energy(2)
          fc = qs_ot_env(1)%OT_energy(3)
-         nom = (xb-xa)**2*(fb-fc)-(xb-xc)**2*(fb-fa)
-         denom = (xb-xa)*(fb-fc)-(xb-xc)*(fb-fa)
-         IF (ABS(denom) .LE. 1.0E-18_dp*MAX(ABS(fb-fc), ABS(fb-fa))) THEN
+         nom = (xb - xa)**2*(fb - fc) - (xb - xc)**2*(fb - fa)
+         denom = (xb - xa)*(fb - fc) - (xb - xc)*(fb - fa)
+         IF (ABS(denom) .LE. 1.0E-18_dp*MAX(ABS(fb - fc), ABS(fb - fa))) THEN
             pos = xb
          ELSE
-            pos = xb-0.5_dp*nom/denom ! position of the stationary point
+            pos = xb - 0.5_dp*nom/denom ! position of the stationary point
          ENDIF
-         val = (pos-xa)*(pos-xb)*fc/((xc-xa)*(xc-xb))+ &
-               (pos-xb)*(pos-xc)*fa/((xa-xb)*(xa-xc))+ &
-               (pos-xc)*(pos-xa)*fb/((xb-xc)*(xb-xa))
+         val = (pos - xa)*(pos - xb)*fc/((xc - xa)*(xc - xb)) + &
+               (pos - xb)*(pos - xc)*fa/((xa - xb)*(xa - xc)) + &
+               (pos - xc)*(pos - xa)*fb/((xb - xc)*(xb - xa))
          IF (val .LT. fa .AND. val .LE. fb .AND. val .LE. fc) THEN ! OK, we go to a minimum
             ! we take a guard against too large steps
-            qs_ot_env(1)%OT_pos(count+1) = MAX(MAXVAL(qs_ot_env(1)%OT_pos(1:3))*0.01_dp, &
-                                               MIN(pos, MAXVAL(qs_ot_env(1)%OT_pos(1:3))*4.0_dp))
+            qs_ot_env(1)%OT_pos(count + 1) = MAX(MAXVAL(qs_ot_env(1)%OT_pos(1:3))*0.01_dp, &
+                                                 MIN(pos, MAXVAL(qs_ot_env(1)%OT_pos(1:3))*4.0_dp))
          ELSE ! just take an extended step
-            qs_ot_env(1)%OT_pos(count+1) = MAXVAL(qs_ot_env(1)%OT_pos(1:3))*2.0_dp
+            qs_ot_env(1)%OT_pos(count + 1) = MAXVAL(qs_ot_env(1)%OT_pos(1:3))*2.0_dp
          ENDIF
          qs_ot_env(1)%energy_only = .FALSE.
          qs_ot_env(1)%line_search_might_be_done = .TRUE.
       CASE DEFAULT
          CPABORT("NYI")
       END SELECT
-      ds = qs_ot_env(1)%OT_pos(count+1)-qs_ot_env(1)%OT_pos(count)
-      qs_ot_env(1)%ds_min = qs_ot_env(1)%OT_pos(count+1)
+      ds = qs_ot_env(1)%OT_pos(count + 1) - qs_ot_env(1)%OT_pos(count)
+      qs_ot_env(1)%ds_min = qs_ot_env(1)%OT_pos(count + 1)
 
       CALL take_step(ds, qs_ot_env)
 
@@ -476,38 +476,38 @@ CONTAINS
       qs_ot_env(1)%energy_only = .TRUE.
 
       ! a three point interpolation based on the energy
-      qs_ot_env(1)%line_search_count = qs_ot_env(1)%line_search_count+1
+      qs_ot_env(1)%line_search_count = qs_ot_env(1)%line_search_count + 1
       count = qs_ot_env(1)%line_search_count
       qs_ot_env(1)%ot_energy(count) = qs_ot_env(1)%etotal
       SELECT CASE (count)
       CASE (1)
          qs_ot_env(1)%ot_pos(count) = 0.0_dp
          qs_ot_env(1)%ot_grad(count) = qs_ot_env(1)%gradient
-         qs_ot_env(1)%ot_pos(count+1) = qs_ot_env(1)%ds_min*1.0_dp
+         qs_ot_env(1)%ot_pos(count + 1) = qs_ot_env(1)%ds_min*1.0_dp
       CASE (2)
          x0 = 0.0_dp
          c = qs_ot_env(1)%ot_energy(1)
          b = qs_ot_env(1)%ot_grad(1)
          x1 = qs_ot_env(1)%ot_pos(2)
-         a = (qs_ot_env(1)%ot_energy(2)-b*x1-c)/(x1**2)
+         a = (qs_ot_env(1)%ot_energy(2) - b*x1 - c)/(x1**2)
          IF (a .LE. 0.0_dp) a = 1.0E-15_dp
          pos = -b/(2.0_dp*a)
-         val = a*pos**2+b*pos+c
+         val = a*pos**2 + b*pos + c
          qs_ot_env(1)%energy_only = .FALSE.
          qs_ot_env(1)%line_search_might_be_done = .TRUE.
          IF (val .LT. qs_ot_env(1)%ot_energy(1) .AND. val .LE. qs_ot_env(1)%ot_energy(2)) THEN
             ! we go to a minimum, but ...
             ! we take a guard against too large steps
-            qs_ot_env(1)%OT_pos(count+1) = MAX(MAXVAL(qs_ot_env(1)%OT_pos(1:2))*0.01_dp, &
-                                               MIN(pos, MAXVAL(qs_ot_env(1)%OT_pos(1:2))*4.0_dp))
+            qs_ot_env(1)%OT_pos(count + 1) = MAX(MAXVAL(qs_ot_env(1)%OT_pos(1:2))*0.01_dp, &
+                                                 MIN(pos, MAXVAL(qs_ot_env(1)%OT_pos(1:2))*4.0_dp))
          ELSE ! just take an extended step
-            qs_ot_env(1)%OT_pos(count+1) = MAXVAL(qs_ot_env(1)%OT_pos(1:2))*2.0_dp
+            qs_ot_env(1)%OT_pos(count + 1) = MAXVAL(qs_ot_env(1)%OT_pos(1:2))*2.0_dp
          ENDIF
       CASE DEFAULT
          CPABORT("NYI")
       END SELECT
-      ds = qs_ot_env(1)%OT_pos(count+1)-qs_ot_env(1)%OT_pos(count)
-      qs_ot_env(1)%ds_min = qs_ot_env(1)%OT_pos(count+1)
+      ds = qs_ot_env(1)%OT_pos(count + 1) - qs_ot_env(1)%OT_pos(count)
+      qs_ot_env(1)%ds_min = qs_ot_env(1)%OT_pos(count + 1)
 
       CALL take_step(ds, qs_ot_env)
 
@@ -563,7 +563,7 @@ CONTAINS
                CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
                                          qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx)
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
-               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
             ENDDO
             IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
                logger => cp_get_default_logger()
@@ -578,7 +578,7 @@ CONTAINS
                   CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx)
                   CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
                   ! added 0.5, because we have (antisymmetry) only half the number of variables
-                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
+                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + 0.5_dp*tmp
                ENDDO
                DO ispin = 1, nspin
                   CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, -1.0_dp)
@@ -589,7 +589,7 @@ CONTAINS
             DO ispin = 1, nspin
                qs_ot_env(ispin)%ener_dx = qs_ot_env(ispin)%ener_gx
                tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_dx, qs_ot_env(ispin)%ener_gx)
-               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
                qs_ot_env(ispin)%ener_dx = -qs_ot_env(ispin)%ener_dx
             ENDDO
          ENDIF
@@ -598,20 +598,20 @@ CONTAINS
          IF (do_ks) THEN
             DO ispin = 1, nspin
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
-               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
             ENDDO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
                   CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
                   ! added 0.5, because we have (antisymmetry) only half the number of variables
-                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
+                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + 0.5_dp*tmp
                ENDDO
             ENDIF
          ENDIF
          IF (do_ener) THEN
             DO ispin = 1, nspin
                tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, qs_ot_env(ispin)%ener_gx)
-               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
             ENDDO
          ENDIF
       ENDIF
@@ -623,17 +623,17 @@ CONTAINS
          CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
          DO ispin = 1, nspin
             CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
-            k = k+itmp
+            k = k + itmp
          ENDDO
       ENDIF
       IF (do_ener) THEN
          DO ispin = 1, nspin
-            nener = nener+SIZE(qs_ot_env(ispin)%ener_x)
+            nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
          ENDDO
       ENDIF
       ! Handling the case of no free variables to optimize
-      IF (INT(n, KIND=int_8)*INT(k, KIND=int_8)+nener /= 0) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n, KIND=int_8)*INT(k, KIND=int_8)+nener))
+      IF (INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener /= 0) THEN
+         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener))
          qs_ot_env(1)%gradient = -qs_ot_env(1)%gnorm
       ELSE
          qs_ot_env(1)%delta = 0.0_dp
@@ -676,20 +676,20 @@ CONTAINS
       IF (do_ks) THEN
          DO ispin = 1, nspin
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old, tmp)
-            gnorm_cross = gnorm_cross+tmp
+            gnorm_cross = gnorm_cross + tmp
          ENDDO
          IF (qs_ot_env(1)%settings%do_rotation) THEN
             DO ispin = 1, nspin
                CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx_old, tmp)
                ! added 0.5, because we have (antisymmetry) only half the number of variables
-               gnorm_cross = gnorm_cross+0.5_dp*tmp
+               gnorm_cross = gnorm_cross + 0.5_dp*tmp
             ENDDO
          ENDIF
       END IF
       IF (do_ener) THEN
          DO ispin = 1, nspin
             tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, qs_ot_env(ispin)%ener_gx_old)
-            gnorm_cross = gnorm_cross+tmp
+            gnorm_cross = gnorm_cross + tmp
          ENDDO
       END IF
 
@@ -703,7 +703,7 @@ CONTAINS
          IF (do_ks) THEN
             DO ispin = 1, nspin
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old, tmp)
-               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
             ENDDO
             IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
                WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
@@ -717,7 +717,7 @@ CONTAINS
                   CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx_old, qs_ot_env(ispin)%rot_mat_gx)
                   CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx_old, tmp)
                   ! added 0.5, because we have (antisymmetry) only half the number of variables
-                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
+                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + 0.5_dp*tmp
                ENDDO
                DO ispin = 1, nspin
                   CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx_old)
@@ -728,7 +728,7 @@ CONTAINS
             DO ispin = 1, nspin
                qs_ot_env(ispin)%ener_gx_old = qs_ot_env(ispin)%ener_gx
                tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, qs_ot_env(ispin)%ener_gx_old)
-               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
                qs_ot_env(ispin)%ener_gx = qs_ot_env(ispin)%ener_gx_old
             ENDDO
          END IF
@@ -737,14 +737,14 @@ CONTAINS
             qs_ot_env(1)%gnorm = 0.0_dp
             DO ispin = 1, nspin
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
-               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
                CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx_old, qs_ot_env(ispin)%matrix_gx)
             ENDDO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
                   CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
                   ! added 0.5, because we have (antisymmetry) only half the number of variables
-                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
+                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + 0.5_dp*tmp
                   CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx_old, qs_ot_env(ispin)%rot_mat_gx)
                ENDDO
             ENDIF
@@ -752,7 +752,7 @@ CONTAINS
          IF (do_ener) THEN
             DO ispin = 1, nspin
                tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, qs_ot_env(ispin)%ener_gx)
-               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
                qs_ot_env(ispin)%ener_gx_old = qs_ot_env(ispin)%ener_gx
             ENDDO
          ENDIF
@@ -765,18 +765,18 @@ CONTAINS
          CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
          DO ispin = 1, nspin
             CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
-            k = k+itmp
+            k = k + itmp
          ENDDO
       END IF
       IF (do_ener) THEN
          DO ispin = 1, nspin
-            nener = nener+SIZE(qs_ot_env(ispin)%ener_x)
+            nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
          ENDDO
       ENDIF
       ! Handling the case of no free variables to optimize
-      IF (INT(n, KIND=int_8)*INT(k, KIND=int_8)+nener /= 0) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n, KIND=int_8)*INT(k, KIND=int_8)+nener))
-         beta_pr = (qs_ot_env(1)%gnorm-gnorm_cross)/qs_ot_env(1)%gnorm_old
+      IF (INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener /= 0) THEN
+         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener))
+         beta_pr = (qs_ot_env(1)%gnorm - gnorm_cross)/qs_ot_env(1)%gnorm_old
       ELSE
          qs_ot_env(1)%delta = 0.0_dp
          beta_pr = 0.0_dp
@@ -789,20 +789,20 @@ CONTAINS
             CALL dbcsr_add(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx, &
                            alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
-            test_down = test_down+tmp
+            test_down = test_down + tmp
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx, &
                               alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
                CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
-               test_down = test_down+0.5_dp*tmp
+               test_down = test_down + 0.5_dp*tmp
             ENDIF
          ENDDO
       END IF
       IF (do_ener) THEN
          DO ispin = 1, nspin
-            qs_ot_env(ispin)%ener_dx = beta_pr*qs_ot_env(ispin)%ener_dx-qs_ot_env(ispin)%ener_gx
+            qs_ot_env(ispin)%ener_dx = beta_pr*qs_ot_env(ispin)%ener_dx - qs_ot_env(ispin)%ener_gx
             tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, qs_ot_env(ispin)%ener_dx)
-            test_down = test_down+tmp
+            test_down = test_down + tmp
          ENDDO
       ENDIF
 
@@ -820,12 +820,12 @@ CONTAINS
          END IF
          IF (do_ener) THEN
             DO ispin = 1, nspin
-               qs_ot_env(ispin)%ener_dx = beta_pr*qs_ot_env(ispin)%ener_dx-qs_ot_env(ispin)%ener_gx
+               qs_ot_env(ispin)%ener_dx = beta_pr*qs_ot_env(ispin)%ener_dx - qs_ot_env(ispin)%ener_gx
             ENDDO
          ENDIF
       ENDIF
       ! since we change the direction we have to adjust the gradient
-      qs_ot_env(1)%gradient = beta_pr*qs_ot_env(1)%gradient-qs_ot_env(1)%gnorm
+      qs_ot_env(1)%gradient = beta_pr*qs_ot_env(1)%gradient - qs_ot_env(1)%gnorm
       qs_ot_env(1)%gnorm_old = qs_ot_env(1)%gnorm
 
       CALL timestop(handle)
@@ -858,12 +858,12 @@ CONTAINS
       diis_m = qs_ot_env(1)%settings%diis_m
 
       IF (qs_ot_env(1)%diis_iter .LT. diis_m) THEN
-         diis_bound = qs_ot_env(1)%diis_iter+1
+         diis_bound = qs_ot_env(1)%diis_iter + 1
       ELSE
          diis_bound = diis_m
       ENDIF
 
-      j = MOD(qs_ot_env(1)%diis_iter, diis_m)+1 ! index in the circular array
+      j = MOD(qs_ot_env(1)%diis_iter, diis_m) + 1 ! index in the circular array
 
       ! copy the position and the error vector in the diis buffers
 
@@ -888,7 +888,7 @@ CONTAINS
                                          qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix)
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
                               tmp)
-               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
             ENDDO
             IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
                WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
@@ -901,7 +901,7 @@ CONTAINS
                   CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, qs_ot_env(ispin)%rot_mat_gx)
                   CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
                                  tmp)
-                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
+                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + 0.5_dp*tmp
                ENDDO
                DO ispin = 1, nspin
                   CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, -qs_ot_env(1)%ds_min)
@@ -912,7 +912,7 @@ CONTAINS
             DO ispin = 1, nspin
                qs_ot_env(ispin)%ener_h_e(j, :) = qs_ot_env(ispin)%ener_gx(:)
                tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_h_e(j, :), qs_ot_env(ispin)%ener_gx(:))
-               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
                qs_ot_env(ispin)%ener_h_e(j, :) = -qs_ot_env(1)%ds_min*qs_ot_env(ispin)%ener_h_e(j, :)
             ENDDO
          ENDIF
@@ -921,14 +921,14 @@ CONTAINS
          IF (do_ks) THEN
             DO ispin = 1, nspin
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
-               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
                CALL dbcsr_add(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
                               qs_ot_env(ispin)%matrix_gx, alpha_scalar=0.0_dp, beta_scalar=-qs_ot_env(1)%ds_min)
             ENDDO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
                   CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
-                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
+                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + 0.5_dp*tmp
                   CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
                                  qs_ot_env(ispin)%rot_mat_gx, alpha_scalar=0.0_dp, beta_scalar=-qs_ot_env(1)%ds_min)
                ENDDO
@@ -937,7 +937,7 @@ CONTAINS
          IF (do_ener) THEN
             DO ispin = 1, nspin
                tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx(:), qs_ot_env(ispin)%ener_gx(:))
-               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+               qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
                qs_ot_env(ispin)%ener_h_e(j, :) = -qs_ot_env(1)%ds_min*qs_ot_env(ispin)%ener_gx(:)
             ENDDO
          END IF
@@ -949,17 +949,17 @@ CONTAINS
          CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
          DO ispin = 1, nspin
             CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
-            k = k+itmp
+            k = k + itmp
          ENDDO
       END IF
       IF (do_ener) THEN
          DO ispin = 1, nspin
-            nener = nener+SIZE(qs_ot_env(ispin)%ener_x)
+            nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
          ENDDO
       ENDIF
       ! Handling the case of no free variables to optimize
-      IF (INT(n, KIND=int_8)*INT(k, KIND=int_8)+nener /= 0) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n, KIND=int_8)*INT(k, KIND=int_8)+nener))
+      IF (INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener /= 0) THEN
+         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener))
          qs_ot_env(1)%gradient = -qs_ot_env(1)%gnorm
       ELSE
          qs_ot_env(1)%delta = 0.0_dp
@@ -979,19 +979,19 @@ CONTAINS
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
                                  qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
                                  tmp)
-                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)+tmp
+                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) + tmp
                   IF (qs_ot_env(ispin)%settings%do_rotation) THEN
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
                                     qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
                                     tmp)
-                     qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)+0.5_dp*tmp
+                     qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) + 0.5_dp*tmp
                   ENDIF
                ENDDO
             END IF
             IF (do_ener) THEN
                DO ispin = 1, nspin
                   tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_h_e(j, :), qs_ot_env(ispin)%ener_h_e(i, :))
-                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)+tmp
+                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) + tmp
                ENDDO
             END IF
          ELSE
@@ -1001,34 +1001,34 @@ CONTAINS
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
                                  qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
                                  tmp)
-                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)-qs_ot_env(1)%ds_min*tmp
+                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*tmp
                   IF (qs_ot_env(ispin)%settings%do_rotation) THEN
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, &
                                     qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
                                     tmp)
-                     qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)-qs_ot_env(1)%ds_min*0.5_dp*tmp
+                     qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*0.5_dp*tmp
                   ENDIF
                ENDDO
             END IF
             IF (do_ener) THEN
                DO ispin = 1, nspin
                   tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx(:), qs_ot_env(ispin)%ener_h_e(i, :))
-                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)-qs_ot_env(1)%ds_min*tmp
+                  qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j) - qs_ot_env(1)%ds_min*tmp
                ENDDO
             END IF
          ENDIF
          qs_ot_env(1)%ls_diis(j, i) = qs_ot_env(1)%ls_diis(i, j)
-         qs_ot_env(1)%ls_diis(i, diis_bound+1) = 1.0_dp
-         qs_ot_env(1)%ls_diis(diis_bound+1, i) = 1.0_dp
+         qs_ot_env(1)%ls_diis(i, diis_bound + 1) = 1.0_dp
+         qs_ot_env(1)%ls_diis(diis_bound + 1, i) = 1.0_dp
          qs_ot_env(1)%c_diis(i) = 0.0_dp
       ENDDO
-      qs_ot_env(1)%ls_diis(diis_bound+1, diis_bound+1) = 0.0_dp
-      qs_ot_env(1)%c_diis(diis_bound+1) = 1.0_dp
+      qs_ot_env(1)%ls_diis(diis_bound + 1, diis_bound + 1) = 0.0_dp
+      qs_ot_env(1)%c_diis(diis_bound + 1) = 1.0_dp
       ! put in buffer, dgesv destroys
       qs_ot_env(1)%lss_diis = qs_ot_env(1)%ls_diis
 
-      CALL DGESV(diis_bound+1, 1, qs_ot_env(1)%lss_diis, diis_m+1, qs_ot_env(1)%ipivot, &
-                 qs_ot_env(1)%c_diis, diis_m+1, info)
+      CALL DGESV(diis_bound + 1, 1, qs_ot_env(1)%lss_diis, diis_m + 1, qs_ot_env(1)%ipivot, &
+                 qs_ot_env(1)%c_diis, diis_m + 1, info)
 
       IF (info .NE. 0) THEN
          do_ot_sd = .TRUE.
@@ -1069,15 +1069,15 @@ CONTAINS
                qs_ot_env(ispin)%ener_x(:) = 0.0_dp
                DO i = 1, diis_bound
                   qs_ot_env(ispin)%ener_x(:) = qs_ot_env(ispin)%ener_x(:) &
-                                               +qs_ot_env(1)%c_diis(i)*qs_ot_env(ispin)%ener_h_e(i, :)
+                                               + qs_ot_env(1)%c_diis(i)*qs_ot_env(ispin)%ener_h_e(i, :)
                END DO
                DO i = 1, diis_bound
                   qs_ot_env(ispin)%ener_x(:) = qs_ot_env(ispin)%ener_x(:) &
-                                               +qs_ot_env(1)%c_diis(i)*qs_ot_env(ispin)%ener_h_x(i, :)
+                                               + qs_ot_env(1)%c_diis(i)*qs_ot_env(ispin)%ener_h_x(i, :)
                END DO
             ENDDO
          END IF
-         qs_ot_env(1)%diis_iter = qs_ot_env(1)%diis_iter+1
+         qs_ot_env(1)%diis_iter = qs_ot_env(1)%diis_iter + 1
          IF (qs_ot_env(1)%settings%safer_diis) THEN
             ! now, final check, is the step in fact in the direction of the -gradient ?
             ! if not we're walking towards a sadle point, and should avoid that
@@ -1088,29 +1088,29 @@ CONTAINS
                DO ispin = 1, nspin
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
                                  qs_ot_env(ispin)%matrix_gx, tmp)
-                  tr_xold_gx = tr_xold_gx+tmp
+                  tr_xold_gx = tr_xold_gx + tmp
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_x, &
                                  qs_ot_env(ispin)%matrix_gx, tmp)
-                  tr_xnew_gx = tr_xnew_gx+tmp
+                  tr_xnew_gx = tr_xnew_gx + tmp
                   IF (qs_ot_env(ispin)%settings%do_rotation) THEN
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
                                     qs_ot_env(ispin)%rot_mat_gx, tmp)
-                     tr_xold_gx = tr_xold_gx+0.5_dp*tmp
+                     tr_xold_gx = tr_xold_gx + 0.5_dp*tmp
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_x, &
                                     qs_ot_env(ispin)%rot_mat_gx, tmp)
-                     tr_xnew_gx = tr_xnew_gx+0.5_dp*tmp
+                     tr_xnew_gx = tr_xnew_gx + 0.5_dp*tmp
                   ENDIF
                ENDDO
             END IF
             IF (do_ener) THEN
                DO ispin = 1, nspin
                   tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_h_x(j, :), qs_ot_env(ispin)%ener_gx(:))
-                  tr_xold_gx = tr_xold_gx+tmp
+                  tr_xold_gx = tr_xold_gx + tmp
                   tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_x(:), qs_ot_env(ispin)%ener_gx(:))
-                  tr_xnew_gx = tr_xnew_gx+tmp
+                  tr_xnew_gx = tr_xnew_gx + tmp
                ENDDO
             END IF
-            overlap = (tr_xnew_gx-tr_xold_gx)
+            overlap = (tr_xnew_gx - tr_xold_gx)
             ! OK, bad luck, take a SD step along the preconditioned gradient
             IF (overlap .GT. 0.0_dp) THEN
                do_ot_sd = .TRUE.
@@ -1143,8 +1143,8 @@ CONTAINS
          IF (do_ener) THEN
             DO ispin = 1, nspin
                qs_ot_env(ispin)%ener_x(:) = 0._dp
-               qs_ot_env(ispin)%ener_x(:) = qs_ot_env(ispin)%ener_x(:)+qs_ot_env(ispin)%ener_h_e(j, :)
-               qs_ot_env(ispin)%ener_x(:) = qs_ot_env(ispin)%ener_x(:)+qs_ot_env(ispin)%ener_h_x(j, :)
+               qs_ot_env(ispin)%ener_x(:) = qs_ot_env(ispin)%ener_x(:) + qs_ot_env(ispin)%ener_h_e(j, :)
+               qs_ot_env(ispin)%ener_x(:) = qs_ot_env(ispin)%ener_x(:) + qs_ot_env(ispin)%ener_h_x(j, :)
             ENDDO
          END IF
       ENDIF
@@ -1208,13 +1208,13 @@ CONTAINS
       diis_m = qs_ot_env(1)%settings%diis_m
 
       IF (qs_ot_env(1)%diis_iter .LT. diis_m) THEN
-         diis_bound = qs_ot_env(1)%diis_iter+1
+         diis_bound = qs_ot_env(1)%diis_iter + 1
       ELSE
          diis_bound = diis_m
       ENDIF
 
       ! We want x:s, f:s and one random vector
-      k = 2*diis_bound+1
+      k = 2*diis_bound + 1
       ALLOCATE (S(k, k))
       ALLOCATE (G(k, k))
       ALLOCATE (f(k))
@@ -1226,7 +1226,7 @@ CONTAINS
       ENDDO
       S = 0.0
 
-      j = MOD(qs_ot_env(1)%diis_iter, diis_m)+1 ! index in the circular array
+      j = MOD(qs_ot_env(1)%diis_iter, diis_m) + 1 ! index in the circular array
 
       DO ispin = 1, nspin
          CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(j)%matrix, qs_ot_env(ispin)%matrix_x)
@@ -1239,7 +1239,7 @@ CONTAINS
                                       qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix)
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
                            tmp)
-            qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+            qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
          ENDDO
          IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
             WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
@@ -1251,7 +1251,7 @@ CONTAINS
          qs_ot_env(1)%gnorm = 0.0_dp
          DO ispin = 1, nspin
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
-            qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
+            qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
             CALL dbcsr_add(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
                            qs_ot_env(ispin)%matrix_gx, alpha_scalar=0.0_dp, beta_scalar=-1.0_dp)
          ENDDO
@@ -1262,7 +1262,7 @@ CONTAINS
       CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
       DO ispin = 1, nspin
          CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
-         k = k+itmp
+         k = k + itmp
       ENDDO
 
       ! Handling the case of no free variables to optimize
@@ -1276,7 +1276,7 @@ CONTAINS
 
       IF (diis_bound == diis_m) THEN
          DO i = 1, diis_bound
-            circ_index(i) = MOD(j+i-1, diis_m)+1
+            circ_index(i) = MOD(j + i - 1, diis_m) + 1
          ENDDO
       ELSE
          DO i = 1, diis_bound
@@ -1291,49 +1291,49 @@ CONTAINS
             CALL dbcsr_dot( &
                qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
                qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, tmp)
-            S(i, i) = S(i, i)+tmp
+            S(i, i) = S(i, i) + tmp
             CALL dbcsr_dot( &
                qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
                qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, tmp)
-            S(i+diis_bound, i+diis_bound) = S(i+diis_bound, i+diis_bound)+tmp
+            S(i + diis_bound, i + diis_bound) = S(i + diis_bound, i + diis_bound) + tmp
             CALL dbcsr_dot( &
                qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
                qs_ot_env(ispin)%matrix_x, tmp)
-            S(i, 2*diis_bound+1) = S(i, 2*diis_bound+1)+tmp
-            S(i, 2*diis_bound+1) = S(2*diis_bound+1, i)
+            S(i, 2*diis_bound + 1) = S(i, 2*diis_bound + 1) + tmp
+            S(i, 2*diis_bound + 1) = S(2*diis_bound + 1, i)
             CALL dbcsr_dot( &
                qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
                qs_ot_env(ispin)%matrix_x, tmp)
-            S(i+diis_bound, 2*diis_bound+1) = S(i+diis_bound, 2*diis_bound+1)+tmp
-            S(i+diis_bound, 2*diis_bound+1) = S(2*diis_bound+1, diis_bound+i)
-            DO k = (i+1), diis_bound
+            S(i + diis_bound, 2*diis_bound + 1) = S(i + diis_bound, 2*diis_bound + 1) + tmp
+            S(i + diis_bound, 2*diis_bound + 1) = S(2*diis_bound + 1, diis_bound + i)
+            DO k = (i + 1), diis_bound
                CALL dbcsr_dot( &
                   qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
                   qs_ot_env(ispin)%matrix_h_x(circ_index(k))%matrix, &
                   tmp)
-               S(i, k) = S(i, k)+tmp
+               S(i, k) = S(i, k) + tmp
                S(k, i) = S(i, k)
                CALL dbcsr_dot( &
                   qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
                   qs_ot_env(ispin)%matrix_h_e(circ_index(k))%matrix, &
                   tmp)
-               S(diis_bound+i, diis_bound+k) = S(diis_bound+i, diis_bound+k)+tmp
-               S(diis_bound+k, diis_bound+i) = S(diis_bound+i, diis_bound+k)
+               S(diis_bound + i, diis_bound + k) = S(diis_bound + i, diis_bound + k) + tmp
+               S(diis_bound + k, diis_bound + i) = S(diis_bound + i, diis_bound + k)
             ENDDO
             DO k = 1, diis_bound
                CALL dbcsr_dot( &
                   qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
                   qs_ot_env(ispin)%matrix_h_e(circ_index(k))%matrix, tmp)
-               S(i, k+diis_bound) = S(i, k+diis_bound)+tmp
-               S(k+diis_bound, i) = S(i, k+diis_bound)
+               S(i, k + diis_bound) = S(i, k + diis_bound) + tmp
+               S(k + diis_bound, i) = S(i, k + diis_bound)
             ENDDO
          ENDDO
          CALL dbcsr_dot(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_x, tmp)
-         S(2*diis_bound+1, 2*diis_bound+1) = S(2*diis_bound+1, 2*diis_bound+1)+tmp
+         S(2*diis_bound + 1, 2*diis_bound + 1) = S(2*diis_bound + 1, 2*diis_bound + 1) + tmp
       ENDDO
 
       ! normalize
-      k = 2*diis_bound+1
+      k = 2*diis_bound + 1
       tmp = SQRT(S(k, k))
       S(k, :) = S(k, :)/tmp
       S(:, k) = S(:, k)/tmp
@@ -1348,24 +1348,24 @@ CONTAINS
                qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
                qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
                tmp)
-            tmp2 = tmp2+tmp
+            tmp2 = tmp2 + tmp
             CALL dbcsr_dot( &
-               qs_ot_env(ispin)%matrix_h_x(circ_index(i-1))%matrix, &
+               qs_ot_env(ispin)%matrix_h_x(circ_index(i - 1))%matrix, &
                qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
                tmp)
-            tmp2 = tmp2-tmp
+            tmp2 = tmp2 - tmp
             CALL dbcsr_dot( &
                qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
-               qs_ot_env(ispin)%matrix_h_e(circ_index(i-1))%matrix, &
+               qs_ot_env(ispin)%matrix_h_e(circ_index(i - 1))%matrix, &
                tmp)
-            tmp2 = tmp2-tmp
+            tmp2 = tmp2 - tmp
             CALL dbcsr_dot( &
-               qs_ot_env(ispin)%matrix_h_x(circ_index(i-1))%matrix, &
-               qs_ot_env(ispin)%matrix_h_e(circ_index(i-1))%matrix, &
+               qs_ot_env(ispin)%matrix_h_x(circ_index(i - 1))%matrix, &
+               qs_ot_env(ispin)%matrix_h_e(circ_index(i - 1))%matrix, &
                tmp)
-            tmp2 = tmp2+tmp
+            tmp2 = tmp2 + tmp
          ENDDO
-         qs_ot_env(1)%c_broy(i-1) = tmp2
+         qs_ot_env(1)%c_broy(i - 1) = tmp2
       ENDIF
 
       qs_ot_env(1)%energy_h(j) = qs_ot_env(1)%etotal
@@ -1379,7 +1379,7 @@ CONTAINS
             CALL dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
             CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
                            qs_ot_env(ispin)%matrix_h_x(i)%matrix, &
-                           alpha_scalar=1.0_dp, beta_scalar=(1.0_dp-gamma))
+                           alpha_scalar=1.0_dp, beta_scalar=(1.0_dp - gamma))
             CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
                            qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix, &
                            alpha_scalar=1.0_dp, beta_scalar=gamma)
@@ -1391,28 +1391,28 @@ CONTAINS
             x = 0.0
             ! f is df_i
             x(i) = 1.0
-            x(i-1) = -1.0
+            x(i - 1) = -1.0
             ! x is dx_i
-            f(diis_bound+i) = 1.0
-            f(diis_bound+i-1) = -1.0
+            f(diis_bound + i) = 1.0
+            f(diis_bound + i - 1) = -1.0
             tmp = 1.0_dp
             ! We want a pos def Hessian
             IF (enable_flip) THEN
-               IF (qs_ot_env(1)%c_broy(i-1) .GT. 0) THEN
+               IF (qs_ot_env(1)%c_broy(i - 1) .GT. 0) THEN
                   !qs_ot_env(1)%OT_METHOD_FULL="OT FLIP"
                   tmp = -1.0_dp
                ENDIF
             ENDIF
 
             ! get dx-Gdf
-            x(:) = tmp*x-MATMUL(G, f)
+            x(:) = tmp*x - MATMUL(G, f)
             ! dfSdf
             ! we calculate matmul(S, f) twice. They're small...
             tmp = DOT_PRODUCT(f, MATMUL(S, f))
             ! NOTE THAT S IS SYMMETRIC !!!
             f(:) = MATMUL(S, f)/tmp
             ! the spread is an outer vector product
-            G(:, :) = G+SPREAD(x, dim=2, ncopies=SIZE(f))*SPREAD(f, dim=1, ncopies=SIZE(x))
+            G(:, :) = G + SPREAD(x, dim=2, ncopies=SIZE(f))*SPREAD(f, dim=1, ncopies=SIZE(x))
          ENDDO
          f = 0.0_dp
          f(2*diis_bound) = 1.0_dp
@@ -1424,7 +1424,7 @@ CONTAINS
             DO i = 1, diis_bound
                CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
                               qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
-                              alpha_scalar=1.0_dp, beta_scalar=-x(i+diis_bound))
+                              alpha_scalar=1.0_dp, beta_scalar=-x(i + diis_bound))
             ENDDO
             DO i = 1, diis_bound
                CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
@@ -1446,7 +1446,7 @@ CONTAINS
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
                            qs_ot_env(ispin)%matrix_x, &
                            tmp2)
-            tmp = tmp+tmp2
+            tmp = tmp + tmp2
          ENDDO
 
          DO ispin = 1, nspin
@@ -1473,7 +1473,7 @@ CONTAINS
       DEALLOCATE (S, G, f, x, circ_index)
 
       ! update for next round
-      qs_ot_env(1)%diis_iter = qs_ot_env(1)%diis_iter+1
+      qs_ot_env(1)%diis_iter = qs_ot_env(1)%diis_iter + 1
       qs_ot_env(1)%broyden_adaptive_sigma = MAX(sigma, sigma_min)
 
    END SUBROUTINE ot_broyden_step
@@ -1512,7 +1512,7 @@ CONTAINS
          sigma = SUM(ABS(eigv))/MAX(1, SIZE(eigv))
       CASE (3)
          ! Estimator based on induced 2-norm
-         sigma = (MAXVAL(ABS(eigv))+MINVAL(ABS(eigv)))*0.5_dp
+         sigma = (MAXVAL(ABS(eigv)) + MINVAL(ABS(eigv)))*0.5_dp
       END SELECT
 
       DEALLOCATE (H, eigv)
@@ -1555,7 +1555,7 @@ CONTAINS
          v(:) = MATMUL(G, Q(:, i))
          DO j = 1, i
             H(j, i) = DOT_PRODUCT(Q(:, j), MATMUL(S, v))
-            v(:) = v-H(j, i)*Q(:, j)
+            v(:) = v - H(j, i)*Q(:, j)
          ENDDO
          IF (i .LT. k) THEN
             tmp = DOT_PRODUCT(v, MATMUL(S, v))
@@ -1569,8 +1569,8 @@ CONTAINS
                n = i
                EXIT
             ENDIF
-            H(i+1, i) = tmp
-            Q(:, i+1) = v/H(i+1, i)
+            H(i + 1, i) = tmp
+            Q(:, i + 1) = v/H(i + 1, i)
          ENDIF
       ENDDO
 

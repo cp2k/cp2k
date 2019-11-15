@@ -195,7 +195,7 @@ CONTAINS
       IF (dft_control%nspins == 1) THEN
          admm_env%gsi(3) = admm_env%gsi(1)
       ELSE
-         admm_env%gsi(3) = (admm_env%gsi(1)+admm_env%gsi(2))/2.0_dp
+         admm_env%gsi(3) = (admm_env%gsi(1) + admm_env%gsi(2))/2.0_dp
       END IF
 
       CALL qs_rho_set(rho_aux_fit, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
@@ -657,7 +657,7 @@ CONTAINS
       CALL cp_fm_set_all(admm_env%M_purify(ispin)%matrix, 0.0_dp)
       pole = 0.0_dp
       DO i = 1, nao_aux_fit
-         pole = Heaviside(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i)-0.5_dp)
+         pole = Heaviside(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i) - 0.5_dp)
          CALL cp_fm_set_element(admm_env%M_purify(ispin)%matrix, i, i, pole)
       END DO
       CALL cp_fm_upper_to_full(admm_env%M_purify(ispin)%matrix, admm_env%work_aux_aux)
@@ -762,17 +762,17 @@ CONTAINS
          pole = 0.0_dp
          DO i = 1, nao_aux_fit
             DO j = i, nao_aux_fit
-               eig_diff = (admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i)- &
+               eig_diff = (admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i) - &
                            admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(j))
                ! *** two eigenvalues could be the degenerated. In that case use 2nd order formula for the poles
                IF (ABS(eig_diff) == 0.0_dp) THEN
-                  pole = delta(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i)-0.5_dp)
+                  pole = delta(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i) - 0.5_dp)
                   CALL cp_fm_set_element(admm_env%M_purify(ispin)%matrix, i, j, pole)
                ELSE
-                  pole = 1.0_dp/(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i)- &
+                  pole = 1.0_dp/(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i) - &
                                  admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(j))
-                  tmp = Heaviside(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i)-0.5_dp)
-                  tmp = tmp-Heaviside(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(j)-0.5_dp)
+                  tmp = Heaviside(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i) - 0.5_dp)
+                  tmp = tmp - Heaviside(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(j) - 0.5_dp)
                   pole = tmp*pole
                   CALL cp_fm_set_element(admm_env%M_purify(ispin)%matrix, i, j, pole)
                END IF
@@ -1053,7 +1053,7 @@ CONTAINS
       pole = 0.0_dp
       DO i = 1, nmo
          DO j = i, nmo
-            eig_diff = (admm_env%eigvals_lambda(ispin)%eigvals%data(i)- &
+            eig_diff = (admm_env%eigvals_lambda(ispin)%eigvals%data(i) - &
                         admm_env%eigvals_lambda(ispin)%eigvals%data(j))
             ! *** two eigenvalues could be the degenerated. In that case use 2nd order formula for the poles
             IF (ABS(eig_diff) < 0.0001_dp) THEN
@@ -1062,12 +1062,12 @@ CONTAINS
                tmp72 = tmp52/admm_env%eigvals_lambda(ispin)%eigvals%data(j)*eig_diff
                tmp92 = tmp72/admm_env%eigvals_lambda(ispin)%eigvals%data(j)*eig_diff
 
-               pole = -0.5_dp*tmp32+3.0_dp/8.0_dp*tmp52-5.0_dp/16.0_dp*tmp72+35.0_dp/128.0_dp*tmp92
+               pole = -0.5_dp*tmp32 + 3.0_dp/8.0_dp*tmp52 - 5.0_dp/16.0_dp*tmp72 + 35.0_dp/128.0_dp*tmp92
                CALL cp_fm_set_element(admm_env%M(ispin)%matrix, i, j, pole)
             ELSE
                pole = 1.0_dp/SQRT(admm_env%eigvals_lambda(ispin)%eigvals%data(i))
-               pole = pole-1.0_dp/SQRT(admm_env%eigvals_lambda(ispin)%eigvals%data(j))
-               pole = pole/(admm_env%eigvals_lambda(ispin)%eigvals%data(i)- &
+               pole = pole - 1.0_dp/SQRT(admm_env%eigvals_lambda(ispin)%eigvals%data(j))
+               pole = pole/(admm_env%eigvals_lambda(ispin)%eigvals%data(i) - &
                             admm_env%eigvals_lambda(ispin)%eigvals%data(j))
                CALL cp_fm_set_element(admm_env%M(ispin)%matrix, i, j, pole)
             END IF
@@ -1279,11 +1279,11 @@ CONTAINS
                   CALL calc_spin_dep_aux_exch_ener(qs_env=qs_env, admm_env=admm_env, ener_k_ispin=ener_k(ispin), &
                                                    ener_x_ispin=ener_x(ispin), ispin=ispin)
                   admm_env%lambda_merlot(ispin) = 2.0_dp*(admm_env%gsi(ispin))**2* &
-                                                  (ener_k(ispin)+ener_x(ispin))/(admm_env%n_large_basis(ispin))
+                                                  (ener_k(ispin) + ener_x(ispin))/(admm_env%n_large_basis(ispin))
 
                ELSE
                   admm_env%lambda_merlot(ispin) = 2.0_dp*(admm_env%gsi(ispin))**2* &
-                                                  (energy%ex+energy%exc_aux_fit)/(admm_env%n_large_basis(ispin))
+                                                  (energy%ex + energy%exc_aux_fit)/(admm_env%n_large_basis(ispin))
                ENDIF
 
             ELSE IF (admm_env%charge_constrain .AND. &
@@ -1295,12 +1295,12 @@ CONTAINS
                   CALL calc_spin_dep_aux_exch_ener(qs_env=qs_env, admm_env=admm_env, ener_k_ispin=ener_k(ispin), &
                                                    ener_x_ispin=ener_x(ispin), ispin=ispin)
                   admm_env%lambda_merlot(ispin) = &
-                     (trace_tmp+2.0_dp/3.0_dp*((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))*ener_x(ispin)- &
+                     (trace_tmp + 2.0_dp/3.0_dp*((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))*ener_x(ispin) - &
                       ((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))*trace_tmp_two)/(admm_env%n_large_basis(ispin))
 
                ELSE
-                  admm_env%lambda_merlot(ispin) = (trace_tmp+(admm_env%gsi(ispin))**(2.0_dp/3.0_dp)* &
-                                                   (2.0_dp/3.0_dp*energy%exc_aux_fit-trace_tmp_two))/ &
+                  admm_env%lambda_merlot(ispin) = (trace_tmp + (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)* &
+                                                   (2.0_dp/3.0_dp*energy%exc_aux_fit - trace_tmp_two))/ &
                                                   (admm_env%n_large_basis(ispin))
                END IF
             END IF
@@ -1363,8 +1363,8 @@ CONTAINS
                energy%exc_aux_fit = 0.0_dp
                energy%ex = 0.0_dp
                DO ispin = 1, dft_control%nspins
-                  energy%exc_aux_fit = energy%exc_aux_fit+(admm_env%gsi(ispin))**2.0_dp*ener_x(ispin)
-                  energy%ex = energy%ex+(admm_env%gsi(ispin))**2.0_dp*ener_k(ispin)
+                  energy%exc_aux_fit = energy%exc_aux_fit + (admm_env%gsi(ispin))**2.0_dp*ener_x(ispin)
+                  energy%ex = energy%ex + (admm_env%gsi(ispin))**2.0_dp*ener_k(ispin)
                END DO
             ELSE
                energy%exc_aux_fit = (admm_env%gsi(1))**2.0_dp*energy%exc_aux_fit
@@ -1375,7 +1375,7 @@ CONTAINS
             IF (dft_control%nspins == 2) THEN
                energy%exc_aux_fit = 0.0_dp
                DO ispin = 1, dft_control%nspins
-                  energy%exc_aux_fit = energy%exc_aux_fit+(admm_env%gsi(ispin))**(2.0_dp/3.0_dp)*ener_x(ispin)
+                  energy%exc_aux_fit = energy%exc_aux_fit + (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)*ener_x(ispin)
                END DO
             ELSE
                energy%exc_aux_fit = (admm_env%gsi(1))**(2.0_dp/3.0_dp)*energy%exc_aux_fit
@@ -2071,7 +2071,7 @@ CONTAINS
          ! Calculate number of electrons in the original density matrix, transposing doesn't matter
          ! since both matrices are symmetric
          CALL dbcsr_dot(density_matrix_large, overlap_matrix_large, admm_env%n_large_basis(ispin))
-         admm_env%n_large_basis(3) = admm_env%n_large_basis(3)+admm_env%n_large_basis(ispin)
+         admm_env%n_large_basis(3) = admm_env%n_large_basis(3) + admm_env%n_large_basis(ispin)
          ! Calculate number of electrons in the auxiliary density matrix
          CALL dbcsr_dot(density_matrix, overlap_matrix, nel_tmp_aux)
          admm_env%gsi(ispin) = admm_env%n_large_basis(ispin)/nel_tmp_aux

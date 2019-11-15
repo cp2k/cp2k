@@ -69,7 +69,7 @@ CONTAINS
          CALL cp_gemm('N', 'T', naux, naux, norb, 1.0_dp, tmp, QS_inv, 0.0_dp, tmp1)
          CALL cp_gemm('N', 'T', naux, naux, nmo, 1.0_dp, mo_coeff, mo_coeff, 0.0_dp, tmp2)
          CALL cp_fm_trace(tmp1, tmp2, tmp_energy)
-         energy = energy+tmp_energy*(3.0_dp-REAL(SIZE(matrix_ks), dp))
+         energy = energy + tmp_energy*(3.0_dp - REAL(SIZE(matrix_ks), dp))
 
       END DO
 
@@ -119,7 +119,7 @@ CONTAINS
          CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, -2.0_dp, admm_env%Q, mo_coeff, &
                       0.0_dp, admm_env%work_aux_nmo(ispin)%matrix)
          CALL cp_fm_trace(mo_coeff_aux_fit, admm_env%work_aux_nmo(ispin)%matrix, trace)
-         fval = fval+trace+2.0_dp*nmo
+         fval = fval + trace + 2.0_dp*nmo
       END DO
 
       ALLOCATE (eigenvalues(nao_aux_fit))

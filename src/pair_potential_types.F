@@ -316,7 +316,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(pot2%set))
       DO i = 1, SIZE(pot1%type)
          mycompare = .FALSE.
-         SELECT CASE (pot1%type (i))
+         SELECT CASE (pot1%type(i))
          CASE (lj_type, lj_charmm_type)
             IF ((pot1%set(i)%lj%epsilon == pot2%set(i)%lj%epsilon) .AND. &
                 (pot1%set(i)%lj%sigma6 == pot2%set(i)%lj%sigma6) .AND. &
@@ -337,14 +337,14 @@ CONTAINS
                IF ((pot1%set(i)%eam%drar == pot2%set(i)%eam%drar) .AND. &
                    (pot1%set(i)%eam%drhoar == pot2%set(i)%eam%drhoar) .AND. &
                    (pot1%set(i)%eam%acutal == pot2%set(i)%eam%acutal) .AND. &
-                   (SUM(ABS(pot1%set(i)%eam%rho-pot2%set(i)%eam%rho)) == 0.0_dp) .AND. &
-                   (SUM(ABS(pot1%set(i)%eam%phi-pot2%set(i)%eam%phi)) == 0.0_dp) .AND. &
-                   (SUM(ABS(pot1%set(i)%eam%frho-pot2%set(i)%eam%frho)) == 0.0_dp) .AND. &
-                   (SUM(ABS(pot1%set(i)%eam%rhoval-pot2%set(i)%eam%rhoval)) == 0.0_dp) .AND. &
-                   (SUM(ABS(pot1%set(i)%eam%rval-pot2%set(i)%eam%rval)) == 0.0_dp) .AND. &
-                   (SUM(ABS(pot1%set(i)%eam%rhop-pot2%set(i)%eam%rhop)) == 0.0_dp) .AND. &
-                   (SUM(ABS(pot1%set(i)%eam%phip-pot2%set(i)%eam%phip)) == 0.0_dp) .AND. &
-                   (SUM(ABS(pot1%set(i)%eam%frhop-pot2%set(i)%eam%frhop)) == 0.0_dp)) mycompare = .TRUE.
+                   (SUM(ABS(pot1%set(i)%eam%rho - pot2%set(i)%eam%rho)) == 0.0_dp) .AND. &
+                   (SUM(ABS(pot1%set(i)%eam%phi - pot2%set(i)%eam%phi)) == 0.0_dp) .AND. &
+                   (SUM(ABS(pot1%set(i)%eam%frho - pot2%set(i)%eam%frho)) == 0.0_dp) .AND. &
+                   (SUM(ABS(pot1%set(i)%eam%rhoval - pot2%set(i)%eam%rhoval)) == 0.0_dp) .AND. &
+                   (SUM(ABS(pot1%set(i)%eam%rval - pot2%set(i)%eam%rval)) == 0.0_dp) .AND. &
+                   (SUM(ABS(pot1%set(i)%eam%rhop - pot2%set(i)%eam%rhop)) == 0.0_dp) .AND. &
+                   (SUM(ABS(pot1%set(i)%eam%phip - pot2%set(i)%eam%phip)) == 0.0_dp) .AND. &
+                   (SUM(ABS(pot1%set(i)%eam%frhop - pot2%set(i)%eam%frhop)) == 0.0_dp)) mycompare = .TRUE.
             END IF
          CASE (quip_type)
             IF ((pot1%set(i)%quip%quip_file_name == pot2%set(i)%quip%quip_file_name) .AND. &
@@ -362,7 +362,7 @@ CONTAINS
                 (pot1%set(i)%ftd%D == pot2%set(i)%ftd%D) .AND. &
                 (pot1%set(i)%ftd%BD == pot2%set(i)%ftd%BD)) mycompare = .TRUE.
          CASE (ip_type)
-            IF ((SUM(ABS(pot1%set(i)%ipbv%a-pot2%set(i)%ipbv%a)) == 0.0_dp) .AND. &
+            IF ((SUM(ABS(pot1%set(i)%ipbv%a - pot2%set(i)%ipbv%a)) == 0.0_dp) .AND. &
                 (pot1%set(i)%ipbv%rcore == pot2%set(i)%ipbv%rcore) .AND. &
                 (pot1%set(i)%ipbv%m == pot2%set(i)%ipbv%m) .AND. &
                 (pot1%set(i)%ipbv%b == pot2%set(i)%ipbv%b)) mycompare = .TRUE.
@@ -613,7 +613,7 @@ CONTAINS
          NULLIFY (potparm_tmp)
          CALL pair_potential_single_copy(potparm_dest, potparm_tmp)
          CALL pair_potential_single_release(potparm_dest)
-         CALL pair_potential_single_create(potparm_dest, size_dest+size_source)
+         CALL pair_potential_single_create(potparm_dest, size_dest + size_source)
          ! Copy back original informations..
          potparm_dest%shell_type = potparm_tmp%shell_type
          potparm_dest%undef = potparm_tmp%undef
@@ -652,8 +652,8 @@ CONTAINS
               (potparm_dest%rcutsq == potparm_source%rcutsq)
       CPASSERT(check)
       ! Now copy the new pair_potential type
-      DO i = size_dest+1, size_dest+size_source
-         j = i-size_dest
+      DO i = size_dest + 1, size_dest + size_source
+         j = i - size_dest
          potparm_dest%type(i) = potparm_source%type(j)
          potparm_dest%set(i)%rmin = potparm_source%set(j)%rmin
          potparm_dest%set(i)%rmax = potparm_source%set(j)%rmax
@@ -1030,7 +1030,7 @@ CONTAINS
          CALL pair_potential_p_copy(work, p, istart=lb1_old, iend=ub1_old)
       END IF
       std_dim = 1
-      DO i = ub1_old+1, ub1_new
+      DO i = ub1_old + 1, ub1_new
          check = (SIZE(p%pot(i)%pot%type) == std_dim) .AND. (SIZE(p%pot(i)%pot%type) == std_dim)
          CPASSERT(check)
          p%pot(i)%pot%type = nn_type

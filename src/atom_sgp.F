@@ -140,11 +140,11 @@ CONTAINS
       error = 0.0_dp
       IF (sgp_pot%has_local) THEN
          n = MIN(3, UBOUND(core%op, 3))
-         error(1) = MAXVAL(ABS(core%op(:, :, 0:n)-score%op(:, :, 0:n)))
+         error(1) = MAXVAL(ABS(core%op(:, :, 0:n) - score%op(:, :, 0:n)))
       END IF
       IF (sgp_pot%has_nonlocal) THEN
          n = MIN(3, UBOUND(hnl%op, 3))
-         error(2) = MAXVAL(ABS(hnl%op(:, :, 0:n)-shnl%op(:, :, 0:n)))
+         error(2) = MAXVAL(ABS(hnl%op(:, :, 0:n) - shnl%op(:, :, 0:n)))
       END IF
       IF (sgp_pot%has_nlcc) THEN
          IF (is_upf) THEN
@@ -152,9 +152,9 @@ CONTAINS
             ALLOCATE (cgauss(n))
             cgauss = 0.0_dp
             DO i = 1, sgp_pot%n_nlcc
-               cgauss(:) = cgauss(:)+sgp_pot%c_nlcc(i)*EXP(-sgp_pot%a_nlcc(i)*upf_pot%r(:)**2)
+               cgauss(:) = cgauss(:) + sgp_pot%c_nlcc(i)*EXP(-sgp_pot%a_nlcc(i)*upf_pot%r(:)**2)
             END DO
-            errcc = SUM((cgauss(:)-upf_pot%rho_nlcc(:))**2*upf_pot%r(:)**2*upf_pot%rab(:))
+            errcc = SUM((cgauss(:) - upf_pot%rho_nlcc(:))**2*upf_pot%r(:)**2*upf_pot%rab(:))
             errcc = SQRT(errcc/REAL(n, KIND=dp))
             DEALLOCATE (cgauss)
          ELSE
@@ -280,7 +280,7 @@ CONTAINS
          !
          IF (sgp_pot%has_local) THEN
             n = MIN(3, UBOUND(core%op, 3))
-            errcc = MAXVAL(ABS(core%op(:, :, 0:n)-score%op(:, :, 0:n)))
+            errcc = MAXVAL(ABS(core%op(:, :, 0:n) - score%op(:, :, 0:n)))
             IF (iw > 0) THEN
                WRITE (iw, '(" Local part of pseudopotential")')
                WRITE (iw, '(" Number of basis functions ",T77,i4)') sgp_pot%n_local
@@ -288,7 +288,7 @@ CONTAINS
             END IF
          END IF
          IF (sgp_pot%has_nonlocal) THEN
-            errcc = MAXVAL(ABS(hnl%op-shnl%op))
+            errcc = MAXVAL(ABS(hnl%op - shnl%op))
             IF (iw > 0) THEN
                WRITE (iw, '(" Nonlocal part of pseudopotential")')
                WRITE (iw, '(" Max. l-quantum number",T77,i4)') sgp_pot%lmax
@@ -302,9 +302,9 @@ CONTAINS
                ALLOCATE (cgauss(n))
                cgauss = 0.0_dp
                DO i = 1, sgp_pot%n_nlcc
-                  cgauss(:) = cgauss(:)+sgp_pot%c_nlcc(i)*EXP(-sgp_pot%a_nlcc(i)*upf_pot%r(:)**2)
+                  cgauss(:) = cgauss(:) + sgp_pot%c_nlcc(i)*EXP(-sgp_pot%a_nlcc(i)*upf_pot%r(:)**2)
                END DO
-               errcc = SUM((cgauss(:)-upf_pot%rho_nlcc(:))**2*upf_pot%r(:)**2*upf_pot%rab(:))
+               errcc = SUM((cgauss(:) - upf_pot%rho_nlcc(:))**2*upf_pot%r(:)**2*upf_pot%rab(:))
                errcc = SQRT(errcc/REAL(n, KIND=dp))
                DEALLOCATE (cgauss)
             ELSE
@@ -377,7 +377,7 @@ CONTAINS
       ALLOCATE (tmat(nl, nl), cmat(nl, nl))
       al = 0.0_dp
       DO ir = 1, nl
-         al(ir) = 80.0_dp*0.60_dp**(ir-1)
+         al(ir) = 80.0_dp*0.60_dp**(ir - 1)
       END DO
       !
       sgp_pot%a_nonlocal(1:nl) = al(1:nl)
@@ -392,7 +392,7 @@ CONTAINS
          DO k = 1, ecp_pot%npot(l)
             n = ecp_pot%nrpot(k, l)
             alpha = ecp_pot%bpot(k, l)
-            cpot(:) = cpot+ecp_pot%apot(k, l)*rad**(n-2)*EXP(-alpha*rad**2)
+            cpot(:) = cpot + ecp_pot%apot(k, l)*rad**(n - 2)*EXP(-alpha*rad**2)
          END DO
          DO i = 1, na
             DO j = i, na
@@ -403,7 +403,7 @@ CONTAINS
          ! overlap basis with projectors
          DO i = 1, nl
             pgauss(:) = EXP(-al(i)*rad(:)**2)*rad(:)**l
-            eee = rootpi/(2._dp**(l+2)*dfac(2*l+1))/(2._dp*al(i))**(l+1.5_dp)
+            eee = rootpi/(2._dp**(l + 2)*dfac(2*l + 1))/(2._dp*al(i))**(l + 1.5_dp)
             pgauss(:) = pgauss(:)/SQRT(eee)
             DO ia = 1, na
                qmat(ia, i) = SUM(basis%bf(:, ia, l)*pgauss(:)*basis%grid%wr(:))
@@ -414,12 +414,12 @@ CONTAINS
          smat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), qmat(1:na, 1:nl))
          CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-10_dp)
          cmat(1:nl, 1:nl) = MATMUL(sinv(1:nl, 1:nl), MATMUL(tmat(1:nl, 1:nl), sinv(1:nl, 1:nl)))
-         cmat(1:nl, 1:nl) = (cmat(1:nl, 1:nl)+TRANSPOSE(cmat(1:nl, 1:nl)))*0.5_dp
+         cmat(1:nl, 1:nl) = (cmat(1:nl, 1:nl) + TRANSPOSE(cmat(1:nl, 1:nl)))*0.5_dp
          CALL diamat_all(cmat(1:nl, 1:nl), cl(1:nl), .TRUE.)
          !
          ! get back unnormalized Gaussians
          DO i = 1, nl
-            ei = rootpi/(2._dp**(l+2)*dfac(2*l+1))/(2._dp*al(i))**(l+1.5_dp)
+            ei = rootpi/(2._dp**(l + 2)*dfac(2*l + 1))/(2._dp*al(i))**(l + 1.5_dp)
             cmat(i, 1:nl) = cmat(i, 1:nl)/SQRT(ei)
          END DO
          sgp_pot%h_nonlocal(1:nl, l) = cl(1:nl)
@@ -492,7 +492,7 @@ CONTAINS
             vgauss(ir) = -zval/upf_pot%r(ir)*erf(rc)
          END IF
       END DO
-      vloc(:) = upf_pot%vlocal(:)-vgauss(:)
+      vloc(:) = upf_pot%vlocal(:) - vgauss(:)
       !
       CALL atom_basis_gridrep(basis, gbasis, upf_pot%r, upf_pot%rab)
       !
@@ -511,7 +511,7 @@ CONTAINS
       DO
          IF (ostate%state == 2) THEN
             DO ir = 1, nl
-               al(ir) = x(1)*x(2)**(ir-1)
+               al(ir) = x(1)*x(2)**(ir - 1)
             END DO
             CALL pplocal_error(nl, al, cl, vloc, vgauss, gbasis, upf_pot%r, ww, 1, ostate%f)
          END IF
@@ -521,7 +521,7 @@ CONTAINS
       ostate%state = 8
       CALL powell_optimize(ostate%nvar, x, ostate)
       DO ir = 1, nl
-         al(ir) = x(1)*x(2)**(ir-1)
+         al(ir) = x(1)*x(2)**(ir - 1)
       END DO
       CALL pplocal_error(nl, al, cl, vloc, vgauss, gbasis, upf_pot%r, ww, 1, errloc)
       !
@@ -567,7 +567,7 @@ CONTAINS
             ALLOCATE (tmat(nl, nl), cmat(nl, nl))
             al = 0.0_dp
             DO ir = 1, nl
-               al(ir) = 10.0_dp*0.60_dp**(ir-1)
+               al(ir) = 10.0_dp*0.60_dp**(ir - 1)
             END DO
             !
             sgp_pot%a_nonlocal(1:nl) = al(1:nl)
@@ -580,7 +580,7 @@ CONTAINS
                na = gbasis%nbas(la)
                ALLOCATE (score(na, na), qmat(na, nl))
                ! Reference matrix
-               vloc(:) = upf_pot%vsemi(:, la+1)-upf_pot%vlocal(:)
+               vloc(:) = upf_pot%vsemi(:, la + 1) - upf_pot%vlocal(:)
                DO ia = 1, na
                   DO ib = ia, na
                      score(ia, ib) = SUM(vloc(:)*gbasis%bf(:, ia, la)*gbasis%bf(:, ib, la)*ww(:))
@@ -590,7 +590,7 @@ CONTAINS
                ! overlap basis with projectors
                DO ir = 1, nl
                   pgauss(:) = EXP(-al(ir)*upf_pot%r(:)**2)*upf_pot%r(:)**la
-                  eee = rootpi/(2._dp**(la+2)*dfac(2*la+1))/(2._dp*al(ir))**(la+1.5_dp)
+                  eee = rootpi/(2._dp**(la + 2)*dfac(2*la + 1))/(2._dp*al(ir))**(la + 1.5_dp)
                   pgauss(:) = pgauss(:)/SQRT(eee)
                   DO ia = 1, na
                      qmat(ia, ir) = SUM(gbasis%bf(:, ia, la)*pgauss(:)*ww)
@@ -601,12 +601,12 @@ CONTAINS
                smat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), qmat(1:na, 1:nl))
                CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-10_dp)
                cmat(1:nl, 1:nl) = MATMUL(sinv(1:nl, 1:nl), MATMUL(tmat(1:nl, 1:nl), sinv(1:nl, 1:nl)))
-               cmat(1:nl, 1:nl) = (cmat(1:nl, 1:nl)+TRANSPOSE(cmat(1:nl, 1:nl)))*0.5_dp
+               cmat(1:nl, 1:nl) = (cmat(1:nl, 1:nl) + TRANSPOSE(cmat(1:nl, 1:nl)))*0.5_dp
                CALL diamat_all(cmat(1:nl, 1:nl), cl(1:nl), .TRUE.)
                !
                ! get back unnormalized Gaussians
                DO ir = 1, nl
-                  ei = rootpi/(2._dp**(la+2)*dfac(2*la+1))/(2._dp*al(ir))**(la+1.5_dp)
+                  ei = rootpi/(2._dp**(la + 2)*dfac(2*la + 1))/(2._dp*al(ir))**(la + 1.5_dp)
                   cmat(ir, 1:nl) = cmat(ir, 1:nl)/SQRT(ei)
                END DO
                sgp_pot%h_nonlocal(1:nl, la) = cl(1:nl)
@@ -631,7 +631,7 @@ CONTAINS
             al = 0.0_dp
             cl = 0.0_dp
             DO ir = 1, nl
-               al(ir) = 10.0_dp*0.60_dp**(ir-1)
+               al(ir) = 10.0_dp*0.60_dp**(ir - 1)
             END DO
             !
             sgp_pot%lmax = MAXVAL(upf_pot%lbeta(:))
@@ -662,7 +662,7 @@ CONTAINS
                         cpa = SUM(pproa(:)*gbasis%bf(:, ia, la)*ww(:))
                         DO ib = ia, na
                            cpb = SUM(pprob(:)*gbasis%bf(:, ib, la)*ww(:))
-                           score(ia, ib) = score(ia, ib)+cpa*eee*cpb
+                           score(ia, ib) = score(ia, ib) + cpa*eee*cpb
                            score(ib, ia) = score(ia, ib)
                         END DO
                      END DO
@@ -671,7 +671,7 @@ CONTAINS
                ! overlap basis with projectors
                DO ir = 1, nl
                   pgauss(:) = EXP(-al(ir)*upf_pot%r(:)**2)*upf_pot%r(:)**la
-                  eee = rootpi/(2._dp**(la+2)*dfac(2*la+1))/(2._dp*al(ir))**(la+1.5_dp)
+                  eee = rootpi/(2._dp**(la + 2)*dfac(2*la + 1))/(2._dp*al(ir))**(la + 1.5_dp)
                   pgauss(:) = pgauss(:)/SQRT(eee)
                   DO ia = 1, na
                      qmat(ia, ir) = SUM(gbasis%bf(:, ia, la)*pgauss(:)*ww)
@@ -682,12 +682,12 @@ CONTAINS
                smat(1:nl, 1:nl) = MATMUL(TRANSPOSE(qmat(1:na, 1:nl)), qmat(1:na, 1:nl))
                CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-10_dp)
                cmat(1:nl, 1:nl) = MATMUL(sinv(1:nl, 1:nl), MATMUL(tmat(1:nl, 1:nl), sinv(1:nl, 1:nl)))
-               cmat(1:nl, 1:nl) = (cmat(1:nl, 1:nl)+TRANSPOSE(cmat(1:nl, 1:nl)))*0.5_dp
+               cmat(1:nl, 1:nl) = (cmat(1:nl, 1:nl) + TRANSPOSE(cmat(1:nl, 1:nl)))*0.5_dp
                CALL diamat_all(cmat(1:nl, 1:nl), cl(1:nl), .TRUE.)
                !
                ! get back unnormalized Gaussians
                DO ir = 1, nl
-                  ei = rootpi/(2._dp**(la+2)*dfac(2*la+1))/(2._dp*al(ir))**(la+1.5_dp)
+                  ei = rootpi/(2._dp**(la + 2)*dfac(2*la + 1))/(2._dp*al(ir))**(la + 1.5_dp)
                   cmat(ir, 1:nl) = cmat(ir, 1:nl)/SQRT(ei)
                END DO
                sgp_pot%h_nonlocal(1:nl, la) = cl(1:nl)
@@ -720,7 +720,7 @@ CONTAINS
          al = 0.0_dp
          cl = 0.0_dp
          DO ir = 1, nl
-            al(ir) = 10.0_dp*0.6_dp**(ir-1)
+            al(ir) = 10.0_dp*0.6_dp**(ir - 1)
          END DO
          ! calculate integrals
          smat = 0.0_dp
@@ -735,9 +735,9 @@ CONTAINS
          cl(1:nl) = MATMUL(sinv(1:nl, 1:nl), tv(1:nl))
          cgauss = 0.0_dp
          DO ir = 1, nl
-            cgauss(:) = cgauss(:)+cl(ir)*EXP(-al(ir)*upf_pot%r(:)**2)
+            cgauss(:) = cgauss(:) + cl(ir)*EXP(-al(ir)*upf_pot%r(:)**2)
          END DO
-         errcc = SUM((cgauss-ccharge)**2*ww)
+         errcc = SUM((cgauss - ccharge)**2*ww)
          ALLOCATE (sgp_pot%a_local(nl), sgp_pot%c_local(nl))
          sgp_pot%n_nlcc = nl
          sgp_pot%a_nlcc(1:nl) = al(1:nl)
@@ -809,10 +809,10 @@ CONTAINS
       zval = upf_pot%zion
       DO i = 1, n
          IF (upf_pot%r(i) < 1.e-12_dp) THEN
-            spot(i) = spot(i)+sqrt2*zval/rootpi/ac_local
+            spot(i) = spot(i) + sqrt2*zval/rootpi/ac_local
          ELSE
             rc = upf_pot%r(i)/ac_local/sqrt2
-            spot(i) = spot(i)+zval/upf_pot%r(i)*erf(rc)
+            spot(i) = spot(i) + zval/upf_pot%r(i)*erf(rc)
          END IF
       END DO
       spot(:) = spot(:)*cutpotu(:)
@@ -841,7 +841,7 @@ CONTAINS
                IF (la == lb) THEN
                   DO k1 = 1, gbasis%nbas(la)
                      DO k2 = 1, gbasis%nbas(la)
-                        hnl(k1, k2, la) = hnl(k1, k2, la)+spmat(k1, i)*upf_pot%dion(i, j)*spmat(k2, j)
+                        hnl(k1, k2, la) = hnl(k1, k2, la) + spmat(k1, i)*upf_pot%dion(i, j)*spmat(k2, j)
                      END DO
                   END DO
                END IF
@@ -852,14 +852,14 @@ CONTAINS
          ! semi local pseudopotential
          DO la = 0, upf_pot%l_max
             IF (la == upf_pot%l_local) CYCLE
-            m = SIZE(upf_pot%vsemi(:, la+1))
+            m = SIZE(upf_pot%vsemi(:, la + 1))
             ALLOCATE (spot(m))
-            spot(:) = upf_pot%vsemi(:, la+1)-upf_pot%vlocal(:)
+            spot(:) = upf_pot%vsemi(:, la + 1) - upf_pot%vlocal(:)
             spot(:) = spot(:)*cutpotu(:)
             n = basis%nbas(la)
             DO i = 1, n
                DO j = i, n
-                  hnl(i, j, la) = hnl(i, j, la)+ &
+                  hnl(i, j, la) = hnl(i, j, la) + &
                                   integrate_grid(spot(:), &
                                                  gbasis%bf(:, i, la), gbasis%bf(:, j, la), gbasis%grid)
                   hnl(j, i, la) = hnl(i, j, la)
@@ -905,7 +905,7 @@ CONTAINS
          DO k = 1, ecp_pot%npot(l)
             n = ecp_pot%nrpot(k, l)
             alpha = ecp_pot%bpot(k, l)
-            cpot(:) = cpot(:)+ecp_pot%apot(k, l)*rad(:)**(n-2)*EXP(-alpha*rad(:)**2)
+            cpot(:) = cpot(:) + ecp_pot%apot(k, l)*rad(:)**(n - 2)*EXP(-alpha*rad(:)**2)
          END DO
          DO i = 1, basis%nbas(l)
             DO j = i, basis%nbas(l)
@@ -950,7 +950,7 @@ CONTAINS
          core = 0._dp
          cpot = 0.0_dp
          DO i = 1, sgp_pot%n_local
-            cpot(:) = cpot(:)+sgp_pot%c_local(i)*EXP(-sgp_pot%a_local(i)*rad(:)**2)
+            cpot(:) = cpot(:) + sgp_pot%c_local(i)*EXP(-sgp_pot%a_local(i)*rad(:)**2)
          END DO
          cpot(:) = cpot(:)*cutpots(:)
          CALL numpot_matrix(core, cpot, basis, 0)
@@ -974,7 +974,7 @@ CONTAINS
                DO j = 1, n
                   a = sgp_pot%a_nonlocal(j)
                   c = sgp_pot%c_nonlocal(j, i, l)
-                  pgauss(:) = pgauss(:)+c*EXP(-a*rad(:)**2)*rad(:)**l
+                  pgauss(:) = pgauss(:) + c*EXP(-a*rad(:)**2)*rad(:)**l
                END DO
                pgauss(:) = pgauss(:)*cutpots(:)
                DO ia = 1, na
@@ -985,7 +985,7 @@ CONTAINS
             DO i = 1, na
                DO j = i, na
                   DO ia = 1, n
-                     hnl(i, j, l) = hnl(i, j, l)+qmat(i, ia)*qmat(j, ia)*sgp_pot%h_nonlocal(ia, l)
+                     hnl(i, j, l) = hnl(i, j, l) + qmat(i, ia)*qmat(j, ia)*sgp_pot%h_nonlocal(ia, l)
                   END DO
                   hnl(j, i, l) = hnl(i, j, l)
                END DO
@@ -1021,8 +1021,8 @@ CONTAINS
       CPASSERT(SIZE(vlocal) == m)
       IF (r(1) > r(m)) THEN
          DO i = 1, m
-            vpot(m-i+1) = vlocal(i)
-            rval(m-i+1) = r(i)
+            vpot(m - i + 1) = vlocal(i)
+            rval(m - i + 1) = r(i)
          END DO
       ELSE
          vpot(1:m) = vlocal(1:m)
@@ -1041,10 +1041,10 @@ CONTAINS
       e2 = 1.e20_dp
       epot = 0.0_dp
       DO i = 0, 20
-         an = a1+i*0.025_dp
+         an = a1 + i*0.025_dp
          rc = 1._dp/(an*SQRT(2.0_dp))
          DO j = m1, m
-            epot(j) = vpot(j)+z/rval(j)*erf(rval(j)*rc)
+            epot(j) = vpot(j) + z/rval(j)*erf(rval(j)*rc)
          END DO
          en = SUM(ABS(epot(m1:m)*rval(m1:m)**2))
          IF (en < e2) THEN
@@ -1125,9 +1125,9 @@ CONTAINS
                END DO
             END DO
             DO ir = 1, nl
-               tv(ir) = tv(ir)+accurate_dot_product(rmat, gmat(:, :, ir))
+               tv(ir) = tv(ir) + accurate_dot_product(rmat, gmat(:, :, ir))
                DO ix = ir, nl
-                  smat(ir, ix) = smat(ir, ix)+accurate_dot_product(gmat(:, :, ix), gmat(:, :, ir))
+                  smat(ir, ix) = smat(ir, ix) + accurate_dot_product(gmat(:, :, ix), gmat(:, :, ir))
                   smat(ix, ir) = smat(ir, ix)
                END DO
             END DO
@@ -1140,9 +1140,9 @@ CONTAINS
       !
       vgauss = 0.0_dp
       DO ir = 1, nl
-         vgauss(:) = vgauss(:)+cl(ir)*EXP(-al(ir)*rad(:)**2)
+         vgauss(:) = vgauss(:) + cl(ir)*EXP(-al(ir)*rad(:)**2)
       END DO
-      errloc = SUM((vgauss-vloc)**2*ww)
+      errloc = SUM((vgauss - vloc)**2*ww)
       !
       DEALLOCATE (tv, smat, sinv)
       !
@@ -1171,10 +1171,10 @@ CONTAINS
          rab = r(i)
          IF (rab > rcut) THEN
             pot(i) = 0.0_dp
-         ELSE IF (rab > rcut-rsmooth) THEN
-            rx = rab-(rcut-rsmooth)
+         ELSE IF (rab > rcut - rsmooth) THEN
+            rx = rab - (rcut - rsmooth)
             x = rx/rsmooth
-            pot(i) = -6._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
+            pot(i) = -6._dp*x**5 + 15._dp*x**4 - 10._dp*x**3 + 1._dp
          END IF
       END DO
 

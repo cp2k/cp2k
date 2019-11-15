@@ -64,7 +64,7 @@ CONTAINS
          DO ip = 1, SIZE(qm_atom_index)
             IF (qm_atom_index(ip) == qm_index) EXIT
          END DO
-         IF (ip == SIZE(qm_atom_index)+1) &
+         IF (ip == SIZE(qm_atom_index) + 1) &
             CALL cp_abort(__LOCATION__, &
                           "QM atom index ("//cp_to_string(qm_index)//") specified in the LINK section nr.("// &
                           cp_to_string(ilink)//") is not defined as a QM atom! Please inspect your QM_KIND sections. ")
@@ -72,12 +72,12 @@ CONTAINS
          DO ip = 1, SIZE(qm_atom_index)
             IF (qm_atom_index(ip) == mm_index) EXIT
          END DO
-         IF (ip == SIZE(qm_atom_index)+1) &
+         IF (ip == SIZE(qm_atom_index) + 1) &
             CALL cp_abort(__LOCATION__, &
                           "Error in setting up the MM atom index ("//cp_to_string(mm_index)// &
                           ") specified in the LINK section nr.("//cp_to_string(ilink)//"). Please report this bug! ")
          ip_mm = ip
-         particles(ip_mm)%r = alpha*particles(ip_mm)%r+(1.0_dp-alpha)*particles(ip_qm)%r
+         particles(ip_mm)%r = alpha*particles(ip_mm)%r + (1.0_dp - alpha)*particles(ip_qm)%r
       END DO
 
    END SUBROUTINE qmmm_link_Imomm_coord
@@ -114,7 +114,7 @@ CONTAINS
          DO ip = 1, SIZE(qm_atom_index)
             IF (qm_atom_index(ip) == qm_index) EXIT
          END DO
-         IF (ip == SIZE(qm_atom_index)+1) &
+         IF (ip == SIZE(qm_atom_index) + 1) &
             CALL cp_abort(__LOCATION__, &
                           "QM atom index ("//cp_to_string(qm_index)//") specified in the LINK section nr.("// &
                           cp_to_string(ilink)//") is not defined as a QM atom! Please inspect your QM_KIND sections. ")
@@ -122,12 +122,12 @@ CONTAINS
          DO ip = 1, SIZE(qm_atom_index)
             IF (qm_atom_index(ip) == mm_index) EXIT
          END DO
-         IF (ip == SIZE(qm_atom_index)+1) &
+         IF (ip == SIZE(qm_atom_index) + 1) &
             CALL cp_abort(__LOCATION__, &
                           "Error in setting up the MM atom index ("//cp_to_string(mm_index)// &
                           ") specified in the LINK section nr.("//cp_to_string(ilink)//"). Please report this bug! ")
          ip_mm = ip
-         particles_qm(ip_qm)%f = particles_qm(ip_qm)%f+particles_qm(ip_mm)%f*(1.0_dp-alpha)
+         particles_qm(ip_qm)%f = particles_qm(ip_qm)%f + particles_qm(ip_mm)%f*(1.0_dp - alpha)
          particles_qm(ip_mm)%f = particles_qm(ip_mm)%f*alpha
       END DO
 
@@ -158,7 +158,7 @@ CONTAINS
          Index1 = added_charges%add_env(i)%Index1
          Index2 = added_charges%add_env(i)%Index1
          alpha = added_charges%add_env(i)%alpha
-         added_charges%added_particles(i)%r = alpha*particles(Index1)%r+(1.0_dp-alpha)*particles(Index2)%r
+         added_charges%added_particles(i)%r = alpha*particles(Index1)%r + (1.0_dp - alpha)*particles(Index2)%r
       END DO
 
    END SUBROUTINE qmmm_added_chrg_coord
@@ -188,8 +188,8 @@ CONTAINS
          Index1 = added_charges%add_env(i)%Index1
          Index2 = added_charges%add_env(i)%Index1
          alpha = added_charges%add_env(i)%alpha
-         particles(Index1)%f = particles(Index1)%f+alpha*added_charges%added_particles(i)%f
-         particles(Index2)%f = particles(Index2)%f+(1.0_dp-alpha)*added_charges%added_particles(i)%f
+         particles(Index1)%f = particles(Index1)%f + alpha*added_charges%added_particles(i)%f
+         particles(Index2)%f = particles(Index2)%f + (1.0_dp - alpha)*added_charges%added_particles(i)%f
       END DO
 
    END SUBROUTINE qmmm_added_chrg_forces

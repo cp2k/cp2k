@@ -95,7 +95,7 @@ CONTAINS
       is_split = negf_control%nprocs > 0 .AND. negf_control%nprocs*2 <= para_env_global%num_pe
 
       IF (is_split) THEN
-         ALLOCATE (sub_env%group_distribution(0:para_env_global%num_pe-1))
+         ALLOCATE (sub_env%group_distribution(0:para_env_global%num_pe - 1))
 
          CALL mp_comm_split(comm=para_env_global%group, sub_comm=sub_env%mpi_comm, ngroups=sub_env%ngroups, &
                             group_distribution=sub_env%group_distribution, subgroup_min_size=negf_control%nprocs)
@@ -111,7 +111,7 @@ CONTAINS
          sub_env%mpi_comm = para_env_global%group
          sub_env%ngroups = 1
 
-         ALLOCATE (sub_env%group_distribution(0:para_env_global%num_pe-1))
+         ALLOCATE (sub_env%group_distribution(0:para_env_global%num_pe - 1))
          sub_env%group_distribution(:) = 0
 
          sub_env%blacs_env => blacs_env_global

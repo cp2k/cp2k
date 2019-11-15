@@ -137,10 +137,10 @@ CONTAINS
          nparticle_local = local_particles%n_el(iparticle_kind)
          DO iparticle_local = 1, nparticle_local
             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-            ekin = ekin+0.5_dp*mass* &
+            ekin = ekin + 0.5_dp*mass* &
                    (particle_set(iparticle)%v(1)*particle_set(iparticle)%v(1) &
-                    +particle_set(iparticle)%v(2)*particle_set(iparticle)%v(2) &
-                    +particle_set(iparticle)%v(3)*particle_set(iparticle)%v(3))
+                    + particle_set(iparticle)%v(2)*particle_set(iparticle)%v(2) &
+                    + particle_set(iparticle)%v(3)*particle_set(iparticle)%v(3))
          END DO
       END DO
 
@@ -150,7 +150,7 @@ CONTAINS
       eip_env%eip_kinetic_energy = ekin
 
       eip_env%eip_potential_energy = ener/evolt
-      eip_env%eip_energy = eip_env%eip_kinetic_energy+eip_env%eip_potential_energy
+      eip_env%eip_energy = eip_env%eip_kinetic_energy + eip_env%eip_potential_energy
       eip_env%eip_energy_var = ener_var/evolt
 
       DO i = 1, natom
@@ -303,10 +303,10 @@ CONTAINS
          nparticle_local = local_particles%n_el(iparticle_kind)
          DO iparticle_local = 1, nparticle_local
             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-            ekin = ekin+0.5_dp*mass* &
+            ekin = ekin + 0.5_dp*mass* &
                    (particle_set(iparticle)%v(1)*particle_set(iparticle)%v(1) &
-                    +particle_set(iparticle)%v(2)*particle_set(iparticle)%v(2) &
-                    +particle_set(iparticle)%v(3)*particle_set(iparticle)%v(3))
+                    + particle_set(iparticle)%v(2)*particle_set(iparticle)%v(2) &
+                    + particle_set(iparticle)%v(3)*particle_set(iparticle)%v(3))
          END DO
       END DO
 
@@ -316,7 +316,7 @@ CONTAINS
       eip_env%eip_kinetic_energy = ekin
 
       eip_env%eip_potential_energy = ener/evolt
-      eip_env%eip_energy = eip_env%eip_kinetic_energy+eip_env%eip_potential_energy
+      eip_env%eip_energy = eip_env%eip_kinetic_energy + eip_env%eip_potential_energy
       eip_env%eip_energy_var = ener_var/evolt
 
       DO i = 1, natom
@@ -643,10 +643,10 @@ CONTAINS
                        l1, myspaceout, ncx, nn, nnbrx, npr
 
 !        cut=par_a
-      cut = 3.1213820e0_dp+1.e-14_dp
+      cut = 3.1213820e0_dp + 1.e-14_dp
 
       IF (count .EQ. 0) OPEN (unit=10, file='bazant.mon', status='unknown')
-      count = count+1.e0_dp
+      count = count + 1.e0_dp
 
 ! linear scaling calculation of verlet list
       ll1 = INT(alat(1)/cut)
@@ -685,7 +685,7 @@ CONTAINS
                l3 = INT(rxyz0(3, iat)*rlc3i)
 
                ii = icell(0, l1, l2, l3)
-               ii = ii+1
+               ii = ii + 1
                icell(0, l1, l2, l3) = ii
                IF (ii .GT. ncx) THEN
                   WRITE (10, *) count, 'NCX too small', ncx
@@ -725,7 +725,7 @@ CONTAINS
                l2 = INT(rxyz0(2, iat)*rlc2i)
                l3 = INT(rxyz0(3, iat)*rlc3i)
                ii = icell(0, l1, l2, l3)
-               ii = ii+1
+               ii = ii + 1
                icell(0, l1, l2, l3) = ii
                IF (ii .GT. ncx) THEN
                   WRITE (10, *) count, 'NCX too small', ncx
@@ -741,8 +741,8 @@ CONTAINS
       ENDIF
 
 ! duplicate all atoms within boundary layer
-      laymx = ncx*(2*ll1*ll2+2*ll1*ll3+2*ll2*ll3+4*ll1+4*ll2+4*ll3+8)
-      nn = nat+laymx
+      laymx = ncx*(2*ll1*ll2 + 2*ll1*ll3 + 2*ll2*ll3 + 4*ll1 + 4*ll2 + 4*ll3 + 8)
+      nn = nat + laymx
       ALLOCATE (rxyz(3, nn), lay(nn))
       DO iat = 1, nat
          lay(iat) = iat
@@ -752,64 +752,64 @@ CONTAINS
       ENDDO
       il = nat
 ! xy plane
-      DO l2 = 0, ll2-1
-      DO l1 = 0, ll1-1
+      DO l2 = 0, ll2 - 1
+      DO l1 = 0, ll1 - 1
 
          in = icell(0, l1, l2, 0)
          icell(0, l1, l2, ll3) = in
          DO ii = 1, in
             i = icell(ii, l1, l2, 0)
-            il = il+1
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, l2, ll3) = il
             rxyz(1, il) = rxyz(1, i)
             rxyz(2, il) = rxyz(2, i)
-            rxyz(3, il) = rxyz(3, i)+alat(3)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
          ENDDO
 
-         in = icell(0, l1, l2, ll3-1)
+         in = icell(0, l1, l2, ll3 - 1)
          icell(0, l1, l2, -1) = in
          DO ii = 1, in
-            i = icell(ii, l1, l2, ll3-1)
-            il = il+1
+            i = icell(ii, l1, l2, ll3 - 1)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, l2, -1) = il
             rxyz(1, il) = rxyz(1, i)
             rxyz(2, il) = rxyz(2, i)
-            rxyz(3, il) = rxyz(3, i)-alat(3)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
          ENDDO
 
       ENDDO
       ENDDO
 
 ! yz plane
-      DO l3 = 0, ll3-1
-      DO l2 = 0, ll2-1
+      DO l3 = 0, ll3 - 1
+      DO l2 = 0, ll2 - 1
 
          in = icell(0, 0, l2, l3)
          icell(0, ll1, l2, l3) = in
          DO ii = 1, in
             i = icell(ii, 0, l2, l3)
-            il = il+1
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, ll1, l2, l3) = il
-            rxyz(1, il) = rxyz(1, i)+alat(1)
+            rxyz(1, il) = rxyz(1, i) + alat(1)
             rxyz(2, il) = rxyz(2, i)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
-         in = icell(0, ll1-1, l2, l3)
+         in = icell(0, ll1 - 1, l2, l3)
          icell(0, -1, l2, l3) = in
          DO ii = 1, in
-            i = icell(ii, ll1-1, l2, l3)
-            il = il+1
+            i = icell(ii, ll1 - 1, l2, l3)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, -1, l2, l3) = il
-            rxyz(1, il) = rxyz(1, i)-alat(1)
+            rxyz(1, il) = rxyz(1, i) - alat(1)
             rxyz(2, il) = rxyz(2, i)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
@@ -818,32 +818,32 @@ CONTAINS
       ENDDO
 
 ! xz plane
-      DO l3 = 0, ll3-1
-      DO l1 = 0, ll1-1
+      DO l3 = 0, ll3 - 1
+      DO l1 = 0, ll1 - 1
 
          in = icell(0, l1, 0, l3)
          icell(0, l1, ll2, l3) = in
          DO ii = 1, in
             i = icell(ii, l1, 0, l3)
-            il = il+1
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, ll2, l3) = il
             rxyz(1, il) = rxyz(1, i)
-            rxyz(2, il) = rxyz(2, i)+alat(2)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
-         in = icell(0, l1, ll2-1, l3)
+         in = icell(0, l1, ll2 - 1, l3)
          icell(0, l1, -1, l3) = in
          DO ii = 1, in
-            i = icell(ii, l1, ll2-1, l3)
-            il = il+1
+            i = icell(ii, l1, ll2 - 1, l3)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, -1, l3) = il
             rxyz(1, il) = rxyz(1, i)
-            rxyz(2, il) = rxyz(2, i)-alat(2)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
@@ -851,171 +851,171 @@ CONTAINS
       ENDDO
 
 ! x axis
-      DO l1 = 0, ll1-1
+      DO l1 = 0, ll1 - 1
 
          in = icell(0, l1, 0, 0)
          icell(0, l1, ll2, ll3) = in
          DO ii = 1, in
             i = icell(ii, l1, 0, 0)
-            il = il+1
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, ll2, ll3) = il
             rxyz(1, il) = rxyz(1, i)
-            rxyz(2, il) = rxyz(2, i)+alat(2)
-            rxyz(3, il) = rxyz(3, i)+alat(3)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
          ENDDO
 
-         in = icell(0, l1, 0, ll3-1)
+         in = icell(0, l1, 0, ll3 - 1)
          icell(0, l1, ll2, -1) = in
          DO ii = 1, in
-            i = icell(ii, l1, 0, ll3-1)
-            il = il+1
+            i = icell(ii, l1, 0, ll3 - 1)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, ll2, -1) = il
             rxyz(1, il) = rxyz(1, i)
-            rxyz(2, il) = rxyz(2, i)+alat(2)
-            rxyz(3, il) = rxyz(3, i)-alat(3)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
          ENDDO
 
-         in = icell(0, l1, ll2-1, 0)
+         in = icell(0, l1, ll2 - 1, 0)
          icell(0, l1, -1, ll3) = in
          DO ii = 1, in
-            i = icell(ii, l1, ll2-1, 0)
-            il = il+1
+            i = icell(ii, l1, ll2 - 1, 0)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, -1, ll3) = il
             rxyz(1, il) = rxyz(1, i)
-            rxyz(2, il) = rxyz(2, i)-alat(2)
-            rxyz(3, il) = rxyz(3, i)+alat(3)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
          ENDDO
 
-         in = icell(0, l1, ll2-1, ll3-1)
+         in = icell(0, l1, ll2 - 1, ll3 - 1)
          icell(0, l1, -1, -1) = in
          DO ii = 1, in
-            i = icell(ii, l1, ll2-1, ll3-1)
-            il = il+1
+            i = icell(ii, l1, ll2 - 1, ll3 - 1)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, -1, -1) = il
             rxyz(1, il) = rxyz(1, i)
-            rxyz(2, il) = rxyz(2, i)-alat(2)
-            rxyz(3, il) = rxyz(3, i)-alat(3)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
          ENDDO
 
       ENDDO
 
 ! y axis
-      DO l2 = 0, ll2-1
+      DO l2 = 0, ll2 - 1
 
          in = icell(0, 0, l2, 0)
          icell(0, ll1, l2, ll3) = in
          DO ii = 1, in
             i = icell(ii, 0, l2, 0)
-            il = il+1
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, ll1, l2, ll3) = il
-            rxyz(1, il) = rxyz(1, i)+alat(1)
+            rxyz(1, il) = rxyz(1, i) + alat(1)
             rxyz(2, il) = rxyz(2, i)
-            rxyz(3, il) = rxyz(3, i)+alat(3)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
          ENDDO
 
-         in = icell(0, 0, l2, ll3-1)
+         in = icell(0, 0, l2, ll3 - 1)
          icell(0, ll1, l2, -1) = in
          DO ii = 1, in
-            i = icell(ii, 0, l2, ll3-1)
-            il = il+1
+            i = icell(ii, 0, l2, ll3 - 1)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, ll1, l2, -1) = il
-            rxyz(1, il) = rxyz(1, i)+alat(1)
+            rxyz(1, il) = rxyz(1, i) + alat(1)
             rxyz(2, il) = rxyz(2, i)
-            rxyz(3, il) = rxyz(3, i)-alat(3)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
          ENDDO
 
-         in = icell(0, ll1-1, l2, 0)
+         in = icell(0, ll1 - 1, l2, 0)
          icell(0, -1, l2, ll3) = in
          DO ii = 1, in
-            i = icell(ii, ll1-1, l2, 0)
-            il = il+1
+            i = icell(ii, ll1 - 1, l2, 0)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, -1, l2, ll3) = il
-            rxyz(1, il) = rxyz(1, i)-alat(1)
+            rxyz(1, il) = rxyz(1, i) - alat(1)
             rxyz(2, il) = rxyz(2, i)
-            rxyz(3, il) = rxyz(3, i)+alat(3)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
          ENDDO
 
-         in = icell(0, ll1-1, l2, ll3-1)
+         in = icell(0, ll1 - 1, l2, ll3 - 1)
          icell(0, -1, l2, -1) = in
          DO ii = 1, in
-            i = icell(ii, ll1-1, l2, ll3-1)
-            il = il+1
+            i = icell(ii, ll1 - 1, l2, ll3 - 1)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, -1, l2, -1) = il
-            rxyz(1, il) = rxyz(1, i)-alat(1)
+            rxyz(1, il) = rxyz(1, i) - alat(1)
             rxyz(2, il) = rxyz(2, i)
-            rxyz(3, il) = rxyz(3, i)-alat(3)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
          ENDDO
 
       ENDDO
 
 ! z axis
-      DO l3 = 0, ll3-1
+      DO l3 = 0, ll3 - 1
 
          in = icell(0, 0, 0, l3)
          icell(0, ll1, ll2, l3) = in
          DO ii = 1, in
             i = icell(ii, 0, 0, l3)
-            il = il+1
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, ll1, ll2, l3) = il
-            rxyz(1, il) = rxyz(1, i)+alat(1)
-            rxyz(2, il) = rxyz(2, i)+alat(2)
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
-         in = icell(0, ll1-1, 0, l3)
+         in = icell(0, ll1 - 1, 0, l3)
          icell(0, -1, ll2, l3) = in
          DO ii = 1, in
-            i = icell(ii, ll1-1, 0, l3)
-            il = il+1
+            i = icell(ii, ll1 - 1, 0, l3)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, -1, ll2, l3) = il
-            rxyz(1, il) = rxyz(1, i)-alat(1)
-            rxyz(2, il) = rxyz(2, i)+alat(2)
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
-         in = icell(0, 0, ll2-1, l3)
+         in = icell(0, 0, ll2 - 1, l3)
          icell(0, ll1, -1, l3) = in
          DO ii = 1, in
-            i = icell(ii, 0, ll2-1, l3)
-            il = il+1
+            i = icell(ii, 0, ll2 - 1, l3)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, ll1, -1, l3) = il
-            rxyz(1, il) = rxyz(1, i)+alat(1)
-            rxyz(2, il) = rxyz(2, i)-alat(2)
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
-         in = icell(0, ll1-1, ll2-1, l3)
+         in = icell(0, ll1 - 1, ll2 - 1, l3)
          icell(0, -1, -1, l3) = in
          DO ii = 1, in
-            i = icell(ii, ll1-1, ll2-1, l3)
-            il = il+1
+            i = icell(ii, ll1 - 1, ll2 - 1, l3)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, -1, -1, l3) = il
-            rxyz(1, il) = rxyz(1, i)-alat(1)
-            rxyz(2, il) = rxyz(2, i)-alat(2)
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
@@ -1026,104 +1026,104 @@ CONTAINS
       icell(0, ll1, ll2, ll3) = in
       DO ii = 1, in
          i = icell(ii, 0, 0, 0)
-         il = il+1
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, ll1, ll2, ll3) = il
-         rxyz(1, il) = rxyz(1, i)+alat(1)
-         rxyz(2, il) = rxyz(2, i)+alat(2)
-         rxyz(3, il) = rxyz(3, i)+alat(3)
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
       ENDDO
 
-      in = icell(0, ll1-1, 0, 0)
+      in = icell(0, ll1 - 1, 0, 0)
       icell(0, -1, ll2, ll3) = in
       DO ii = 1, in
-         i = icell(ii, ll1-1, 0, 0)
-         il = il+1
+         i = icell(ii, ll1 - 1, 0, 0)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, -1, ll2, ll3) = il
-         rxyz(1, il) = rxyz(1, i)-alat(1)
-         rxyz(2, il) = rxyz(2, i)+alat(2)
-         rxyz(3, il) = rxyz(3, i)+alat(3)
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
       ENDDO
 
-      in = icell(0, 0, ll2-1, 0)
+      in = icell(0, 0, ll2 - 1, 0)
       icell(0, ll1, -1, ll3) = in
       DO ii = 1, in
-         i = icell(ii, 0, ll2-1, 0)
-         il = il+1
+         i = icell(ii, 0, ll2 - 1, 0)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, ll1, -1, ll3) = il
-         rxyz(1, il) = rxyz(1, i)+alat(1)
-         rxyz(2, il) = rxyz(2, i)-alat(2)
-         rxyz(3, il) = rxyz(3, i)+alat(3)
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
       ENDDO
 
-      in = icell(0, ll1-1, ll2-1, 0)
+      in = icell(0, ll1 - 1, ll2 - 1, 0)
       icell(0, -1, -1, ll3) = in
       DO ii = 1, in
-         i = icell(ii, ll1-1, ll2-1, 0)
-         il = il+1
+         i = icell(ii, ll1 - 1, ll2 - 1, 0)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, -1, -1, ll3) = il
-         rxyz(1, il) = rxyz(1, i)-alat(1)
-         rxyz(2, il) = rxyz(2, i)-alat(2)
-         rxyz(3, il) = rxyz(3, i)+alat(3)
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
       ENDDO
 
-      in = icell(0, 0, 0, ll3-1)
+      in = icell(0, 0, 0, ll3 - 1)
       icell(0, ll1, ll2, -1) = in
       DO ii = 1, in
-         i = icell(ii, 0, 0, ll3-1)
-         il = il+1
+         i = icell(ii, 0, 0, ll3 - 1)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, ll1, ll2, -1) = il
-         rxyz(1, il) = rxyz(1, i)+alat(1)
-         rxyz(2, il) = rxyz(2, i)+alat(2)
-         rxyz(3, il) = rxyz(3, i)-alat(3)
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
       ENDDO
 
-      in = icell(0, ll1-1, 0, ll3-1)
+      in = icell(0, ll1 - 1, 0, ll3 - 1)
       icell(0, -1, ll2, -1) = in
       DO ii = 1, in
-         i = icell(ii, ll1-1, 0, ll3-1)
-         il = il+1
+         i = icell(ii, ll1 - 1, 0, ll3 - 1)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, -1, ll2, -1) = il
-         rxyz(1, il) = rxyz(1, i)-alat(1)
-         rxyz(2, il) = rxyz(2, i)+alat(2)
-         rxyz(3, il) = rxyz(3, i)-alat(3)
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
       ENDDO
 
-      in = icell(0, 0, ll2-1, ll3-1)
+      in = icell(0, 0, ll2 - 1, ll3 - 1)
       icell(0, ll1, -1, -1) = in
       DO ii = 1, in
-         i = icell(ii, 0, ll2-1, ll3-1)
-         il = il+1
+         i = icell(ii, 0, ll2 - 1, ll3 - 1)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, ll1, -1, -1) = il
-         rxyz(1, il) = rxyz(1, i)+alat(1)
-         rxyz(2, il) = rxyz(2, i)-alat(2)
-         rxyz(3, il) = rxyz(3, i)-alat(3)
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
       ENDDO
 
-      in = icell(0, ll1-1, ll2-1, ll3-1)
+      in = icell(0, ll1 - 1, ll2 - 1, ll3 - 1)
       icell(0, -1, -1, -1) = in
       DO ii = 1, in
-         i = icell(ii, ll1-1, ll2-1, ll3-1)
-         il = il+1
+         i = icell(ii, ll1 - 1, ll2 - 1, ll3 - 1)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, -1, -1, -1) = il
-         rxyz(1, il) = rxyz(1, i)-alat(1)
-         rxyz(2, il) = rxyz(2, i)-alat(2)
-         rxyz(3, il) = rxyz(3, i)-alat(3)
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
       ENDDO
 
       ALLOCATE (lsta(2, nat))
@@ -1149,18 +1149,18 @@ CONTAINS
          IF (iam .EQ. 0) myspaceout = myspace
 ! Verlet list, relative positions
          indlst = 0
-         loop_l3: DO l3 = 0, ll3-1
-            loop_l2: DO l2 = 0, ll2-1
-               loop_l1: DO l1 = 0, ll1-1
+         loop_l3: DO l3 = 0, ll3 - 1
+            loop_l2: DO l2 = 0, ll2 - 1
+               loop_l1: DO l1 = 0, ll1 - 1
                   loop_ii: DO ii = 1, icell(0, l1, l2, l3)
                      iat = icell(ii, l1, l2, l3)
-                     IF (((iat-1)*npr)/nat .EQ. iam) THEN
+                     IF (((iat - 1)*npr)/nat .EQ. iam) THEN
 !                          write(*,*) 'sublstiat:iam,iat',iam,iat
-                        lsta(1, iat) = iam*myspace+indlst+1
+                        lsta(1, iat) = iam*myspace + indlst + 1
                         CALL sublstiat_b(iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, &
-                                         rxyz, icell, lstb(iam*myspace+1), lay, &
-                                         rel(1, iam*myspace+1), cut2, indlst)
-                        lsta(2, iat) = iam*myspace+indlst
+                                         rxyz, icell, lstb(iam*myspace + 1), lay, &
+                                         rel(1, iam*myspace + 1), cut2, indlst)
+                        lsta(2, iat) = iam*myspace + indlst
 !                          write(*,'(a,4(x,i3),100(x,i2))') &
 !                           'iam,iat,lsta',iam,iat,lsta(1,iat),lsta(2,iat), &
 !                           (lstb(j),j=lsta(1,iat),lsta(2,iat))
@@ -1220,9 +1220,9 @@ CONTAINS
 !$OMP BARRIER
 
 ! Each thread treats at most lot atoms
-         lot = INT(REAL(nat, KIND=dp)/REAL(npr, KIND=dp)+.999999999999e0_dp)
-         iat1 = iam*lot+1
-         iat2 = MIN((iam+1)*lot, nat)
+         lot = INT(REAL(nat, KIND=dp)/REAL(npr, KIND=dp) + .999999999999e0_dp)
+         iat1 = iam*lot + 1
+         iat2 = MIN((iam + 1)*lot, nat)
 !       write(*,*) 'subfeniat:iat1,iat2,iam',iat1,iat2,iam
          CALL subfeniat_b(iat1, iat2, nat, lsta, lstb, rel, tener, tener2, &
                           tcoord, tcoord2, nnbrx, txyz, max_nbrs, istop, &
@@ -1231,15 +1231,15 @@ CONTAINS
                           num3, sz(1, 1), sz(1, 2), sz(1, 3), sz(1, 4), sz(1, 5), sz(1, 6), numz)
 
 !$OMP CRITICAL
-         ener = ener+tener
-         ener2 = ener2+tener2
-         coord = coord+tcoord
-         coord2 = coord2+tcoord2
-         istopg = istopg+istop
+         ener = ener + tener
+         ener2 = ener2 + tener2
+         coord = coord + tcoord
+         coord2 = coord2 + tcoord2
+         istopg = istopg + istop
          DO iat = 1, nat
-            fxyz(1, iat) = fxyz(1, iat)+txyz(1, iat)
-            fxyz(2, iat) = fxyz(2, iat)+txyz(2, iat)
-            fxyz(3, iat) = fxyz(3, iat)+txyz(3, iat)
+            fxyz(1, iat) = fxyz(1, iat) + txyz(1, iat)
+            fxyz(2, iat) = fxyz(2, iat) + txyz(2, iat)
+            fxyz(3, iat) = fxyz(3, iat) + txyz(3, iat)
          END DO
          DEALLOCATE (txyz, s2, s3, sz, num2, num3, numz)
 !$OMP END CRITICAL
@@ -1263,9 +1263,9 @@ CONTAINS
 !         write(*,*) 'ener,norm force', &
 !                    ener,DNRM2(3*nat,fxyz,1)
       IF (istopg .GT. 0) CPABORT("DIMENSION ERROR (see WARNING above)")
-      ener_var = ener2/nat-(ener/nat)**2
+      ener_var = ener2/nat - (ener/nat)**2
       coord = coord/nat
-      coord_var = coord2/nat-coord**2
+      coord_var = coord2/nat - coord**2
 
       DEALLOCATE (rxyz, icell, lay, lsta, lstb, rel)
 
@@ -1402,8 +1402,8 @@ CONTAINS
       Qort = SQRT(par_Qo)
       muhalf = par_mu*0.5e0_dp
       u5 = u2*u4
-      bmc = par_b-par_c
-      cmbinv = 1.0e0_dp/(par_c-par_b)
+      bmc = par_b - par_c
+      cmbinv = 1.0e0_dp/(par_c - par_b)
 
 !  --- LEVEL 1: OUTER LOOP OVER ATOMS ---
 
@@ -1431,7 +1431,7 @@ CONTAINS
             dz = -rel(3, n)
             r = rel(4, n)
             rinv = rel(5, n)
-            rmainv = 1.e0_dp/(r-par_a)
+            rmainv = 1.e0_dp/(r - par_a)
             s2_t0(n2) = par_cap_A*EXP(par_sig*rmainv)
             s2_t1(n2) = (par_cap_B*rinv)**par_rh
             s2_t2(n2) = par_rh*rinv
@@ -1440,7 +1440,7 @@ CONTAINS
             s2_dy(n2) = dy
             s2_dz(n2) = dz
             s2_r(n2) = r
-            n2 = n2+1
+            n2 = n2 + 1
             IF (n2 .GT. max_nbrs) THEN
                WRITE (*, *) 'WARNING enlarge max_nbrs'
                istop = 1
@@ -1450,11 +1450,11 @@ CONTAINS
 ! coordination number calculated with soft cutoff between first
 ! nearest neighbor and midpoint of first and second nearest neighbor
             IF (r .LE. 2.36e0_dp) THEN
-               coord_iat = coord_iat+1.e0_dp
+               coord_iat = coord_iat + 1.e0_dp
             ELSE IF (r .GE. 3.12e0_dp) THEN
             ELSE
-               xarg = (r-2.36e0_dp)*(1.e0_dp/(3.12e0_dp-2.36e0_dp))
-               coord_iat = coord_iat+(2*xarg+1.e0_dp)*(xarg-1.e0_dp)**2
+               xarg = (r - 2.36e0_dp)*(1.e0_dp/(3.12e0_dp - 2.36e0_dp))
+               coord_iat = coord_iat + (2*xarg + 1.e0_dp)*(xarg - 1.e0_dp)**2
             ENDIF
 
 !   RADIAL PARTS OF THREE-BODY INTERACTION r<par_b
@@ -1462,7 +1462,7 @@ CONTAINS
             IF (r .LT. par_bg) THEN
 
                num3(n3) = j
-               rmbinv = 1.e0_dp/(r-par_bg)
+               rmbinv = 1.e0_dp/(r - par_bg)
                temp1 = par_gam*rmbinv
                temp0 = EXP(temp1)
                s3_g(n3) = temp0
@@ -1472,7 +1472,7 @@ CONTAINS
                s3_dz(n3) = dz
                s3_rinv(n3) = rinv
                s3_r(n3) = r
-               n3 = n3+1
+               n3 = n3 + 1
                IF (n3 .GT. max_nbrs) THEN
                   WRITE (*, *) 'WARNING enlarge max_nbrs'
                   istop = 1
@@ -1483,14 +1483,14 @@ CONTAINS
 
                IF (r .LT. par_b) THEN
                   IF (r .LT. par_c) THEN
-                     Z = Z+1.e0_dp
+                     Z = Z + 1.e0_dp
                   ELSE
-                     xinv = bmc/(r-par_c)
+                     xinv = bmc/(r - par_c)
                      xinv3 = xinv*xinv*xinv
-                     den = 1.e0_dp/(1-xinv3)
+                     den = 1.e0_dp/(1 - xinv3)
                      temp1 = par_alp*den
                      fZ = EXP(temp1)
-                     Z = Z+fZ
+                     Z = Z + fZ
                      numz(nz) = j
                      sz_df(nz) = fZ*temp1*den*3.e0_dp*xinv3*xinv*cmbinv
 !   df/dr
@@ -1498,7 +1498,7 @@ CONTAINS
                      sz_dy(nz) = dy
                      sz_dz(nz) = dz
                      sz_r(nz) = r
-                     nz = nz+1
+                     nz = nz + 1
                      IF (nz .GT. max_nbrs) THEN
                         WRITE (*, *) 'WARNING enlarge max_nbrs'
                         istop = 1
@@ -1514,7 +1514,7 @@ CONTAINS
 
 !   ZERO ACCUMULATION ARRAY FOR ENVIRONMENT FORCES
 
-         DO nl = 1, nz-1
+         DO nl = 1, nz - 1
             sz_sum(nl) = 0.e0_dp
          END DO
 
@@ -1528,34 +1528,34 @@ CONTAINS
 
 !  --- LEVEL 2: LOOP FOR PAIR INTERACTIONS ---
 
-         DO nj = 1, n2-1
+         DO nj = 1, n2 - 1
 
-            temp0 = s2_t1(nj)-pZ
+            temp0 = s2_t1(nj) - pZ
 
 !   two-body energy V2(rij,Z)
 
-            ener_iat = ener_iat+temp0*s2_t0(nj)
+            ener_iat = ener_iat + temp0*s2_t0(nj)
 
 !   two-body forces
 
-            dV2j = -s2_t0(nj)*(s2_t1(nj)*s2_t2(nj)+temp0*s2_t3(nj))
+            dV2j = -s2_t0(nj)*(s2_t1(nj)*s2_t2(nj) + temp0*s2_t3(nj))
 !   dV2/dr
             dV2ijx = dV2j*s2_dx(nj)
             dV2ijy = dV2j*s2_dy(nj)
             dV2ijz = dV2j*s2_dz(nj)
-            ff(1, i) = ff(1, i)+dV2ijx
-            ff(2, i) = ff(2, i)+dV2ijy
-            ff(3, i) = ff(3, i)+dV2ijz
+            ff(1, i) = ff(1, i) + dV2ijx
+            ff(2, i) = ff(2, i) + dV2ijy
+            ff(3, i) = ff(3, i) + dV2ijz
             j = num2(nj)
-            ff(1, j) = ff(1, j)-dV2ijx
-            ff(2, j) = ff(2, j)-dV2ijy
-            ff(3, j) = ff(3, j)-dV2ijz
+            ff(1, j) = ff(1, j) - dV2ijx
+            ff(2, j) = ff(2, j) - dV2ijy
+            ff(3, j) = ff(3, j) - dV2ijz
 
 !  --- LEVEL 3: LOOP FOR PAIR COORDINATION FORCES ---
 
             dV2dZ = -dp1*s2_t0(nj)
-            DO nl = 1, nz-1
-               sz_sum(nl) = sz_sum(nl)+dV2dZ
+            DO nl = 1, nz - 1
+               sz_sum(nl) = sz_sum(nl) + dV2dZ
             END DO
 
          END DO
@@ -1567,38 +1567,38 @@ CONTAINS
          dwinv = -muhalf*winv
 !   its derivative
          temp0 = EXP(-u4*Z)
-         tau = u1+u2*temp0*(u3-temp0)
+         tau = u1 + u2*temp0*(u3 - temp0)
 !   -cosine of angular minimum
-         dtau = u5*temp0*(2*temp0-u3)
+         dtau = u5*temp0*(2*temp0 - u3)
 !   its derivative
 
 !  --- LEVEL 2: FIRST LOOP FOR THREE-BODY INTERACTIONS ---
 
-         DO nj = 1, n3-2
+         DO nj = 1, n3 - 2
 
             j = num3(nj)
 
 !  --- LEVEL 3: SECOND LOOP FOR THREE-BODY INTERACTIONS ---
 
-            DO nk = nj+1, n3-1
+            DO nk = nj + 1, n3 - 1
 
                k = num3(nk)
 
 !   angular function h(l,Z)
 
-               lcos = s3_dx(nj)*s3_dx(nk)+s3_dy(nj)*s3_dy(nk)+s3_dz(nj)*s3_dz(nk)
-               x = (lcos+tau)*winv
+               lcos = s3_dx(nj)*s3_dx(nk) + s3_dy(nj)*s3_dy(nk) + s3_dz(nj)*s3_dz(nk)
+               x = (lcos + tau)*winv
                temp0 = EXP(-x*x)
 
-               H = par_lam*(1-temp0+par_eta*x*x)
-               dHdx = 2*par_lam*x*(temp0+par_eta)
+               H = par_lam*(1 - temp0 + par_eta*x*x)
+               dHdx = 2*par_lam*x*(temp0 + par_eta)
 
                dhdl = dHdx*winv
 
 !   three-body energy
 
                temp1 = s3_g(nj)*s3_g(nk)
-               ener_iat = ener_iat+temp1*H
+               ener_iat = ener_iat + temp1*H
 
 !   (-) radial force on atom j
 
@@ -1623,68 +1623,68 @@ CONTAINS
 !   (-) angular force on j
 
                dV3l = temp1*dhdl
-               dV3ljx = dV3l*(s3_dx(nk)-lcos*s3_dx(nj))*s3_rinv(nj)
-               dV3ljy = dV3l*(s3_dy(nk)-lcos*s3_dy(nj))*s3_rinv(nj)
-               dV3ljz = dV3l*(s3_dz(nk)-lcos*s3_dz(nj))*s3_rinv(nj)
-               fjx = fjx+dV3ljx
-               fjy = fjy+dV3ljy
-               fjz = fjz+dV3ljz
+               dV3ljx = dV3l*(s3_dx(nk) - lcos*s3_dx(nj))*s3_rinv(nj)
+               dV3ljy = dV3l*(s3_dy(nk) - lcos*s3_dy(nj))*s3_rinv(nj)
+               dV3ljz = dV3l*(s3_dz(nk) - lcos*s3_dz(nj))*s3_rinv(nj)
+               fjx = fjx + dV3ljx
+               fjy = fjy + dV3ljy
+               fjz = fjz + dV3ljz
 
 !   (-) angular force on k
 
-               dV3lkx = dV3l*(s3_dx(nj)-lcos*s3_dx(nk))*s3_rinv(nk)
-               dV3lky = dV3l*(s3_dy(nj)-lcos*s3_dy(nk))*s3_rinv(nk)
-               dV3lkz = dV3l*(s3_dz(nj)-lcos*s3_dz(nk))*s3_rinv(nk)
-               fkx = fkx+dV3lkx
-               fky = fky+dV3lky
-               fkz = fkz+dV3lkz
+               dV3lkx = dV3l*(s3_dx(nj) - lcos*s3_dx(nk))*s3_rinv(nk)
+               dV3lky = dV3l*(s3_dy(nj) - lcos*s3_dy(nk))*s3_rinv(nk)
+               dV3lkz = dV3l*(s3_dz(nj) - lcos*s3_dz(nk))*s3_rinv(nk)
+               fkx = fkx + dV3lkx
+               fky = fky + dV3lky
+               fkz = fkz + dV3lkz
 
 !   apply radial + angular forces to i, j, k
 
-               ff(1, j) = ff(1, j)-fjx
-               ff(2, j) = ff(2, j)-fjy
-               ff(3, j) = ff(3, j)-fjz
-               ff(1, k) = ff(1, k)-fkx
-               ff(2, k) = ff(2, k)-fky
-               ff(3, k) = ff(3, k)-fkz
-               ff(1, i) = ff(1, i)+fjx+fkx
-               ff(2, i) = ff(2, i)+fjy+fky
-               ff(3, i) = ff(3, i)+fjz+fkz
+               ff(1, j) = ff(1, j) - fjx
+               ff(2, j) = ff(2, j) - fjy
+               ff(3, j) = ff(3, j) - fjz
+               ff(1, k) = ff(1, k) - fkx
+               ff(2, k) = ff(2, k) - fky
+               ff(3, k) = ff(3, k) - fkz
+               ff(1, i) = ff(1, i) + fjx + fkx
+               ff(2, i) = ff(2, i) + fjy + fky
+               ff(3, i) = ff(3, i) + fjz + fkz
 
 !   prefactor for 4-body forces from coordination
-               dxdZ = dwinv*(lcos+tau)+winv*dtau
+               dxdZ = dwinv*(lcos + tau) + winv*dtau
                dV3dZ = temp1*dHdx*dxdZ
 
 !  --- LEVEL 4: LOOP FOR THREE-BODY COORDINATION FORCES ---
 
-               DO nl = 1, nz-1
-                  sz_sum(nl) = sz_sum(nl)+dV3dZ
+               DO nl = 1, nz - 1
+                  sz_sum(nl) = sz_sum(nl) + dV3dZ
                END DO
             END DO
          END DO
 
 !  --- LEVEL 2: LOOP TO APPLY COORDINATION FORCES ---
 
-         DO nl = 1, nz-1
+         DO nl = 1, nz - 1
 
             dEdrl = sz_sum(nl)*sz_df(nl)
             dEdrlx = dEdrl*sz_dx(nl)
             dEdrly = dEdrl*sz_dy(nl)
             dEdrlz = dEdrl*sz_dz(nl)
-            ff(1, i) = ff(1, i)+dEdrlx
-            ff(2, i) = ff(2, i)+dEdrly
-            ff(3, i) = ff(3, i)+dEdrlz
+            ff(1, i) = ff(1, i) + dEdrlx
+            ff(2, i) = ff(2, i) + dEdrly
+            ff(3, i) = ff(3, i) + dEdrlz
             l = numz(nl)
-            ff(1, l) = ff(1, l)-dEdrlx
-            ff(2, l) = ff(2, l)-dEdrly
-            ff(3, l) = ff(3, l)-dEdrlz
+            ff(1, l) = ff(1, l) - dEdrlx
+            ff(2, l) = ff(2, l) - dEdrly
+            ff(3, l) = ff(3, l) - dEdrlz
 
          END DO
 
-         coord = coord+coord_iat
-         coord2 = coord2+coord_iat**2
-         ener = ener+ener_iat
-         ener2 = ener2+ener_iat**2
+         coord = coord + coord_iat
+         coord2 = coord2 + coord_iat**2
+         ener = ener + ener_iat
+         ener2 = ener2 + ener_iat**2
 
       END DO atoms
 
@@ -1723,23 +1723,23 @@ CONTAINS
       INTEGER                                            :: indlst
 
       DIMENSION rxyz(3, nn), lay(nn), icell(0:ncx, -1:ll1, -1:ll2, -1:ll3), &
-         lstb(0:myspace-1), rel(5, 0:myspace-1)
+         lstb(0:myspace - 1), rel(5, 0:myspace - 1)
 
       INTEGER       :: jat, k1, k2, k3, jj
       REAL(KIND=dp) :: rr2, tt, tti, xrel, yrel, zrel
 
-      DO k3 = l3-1, l3+1
-      DO k2 = l2-1, l2+1
-      DO k1 = l1-1, l1+1
+      DO k3 = l3 - 1, l3 + 1
+      DO k2 = l2 - 1, l2 + 1
+      DO k1 = l1 - 1, l1 + 1
       DO jj = 1, icell(0, k1, k2, k3)
          jat = icell(jj, k1, k2, k3)
          IF (jat .EQ. iat) CYCLE
-         xrel = rxyz(1, iat)-rxyz(1, jat)
-         yrel = rxyz(2, iat)-rxyz(2, jat)
-         zrel = rxyz(3, iat)-rxyz(3, jat)
-         rr2 = xrel**2+yrel**2+zrel**2
+         xrel = rxyz(1, iat) - rxyz(1, jat)
+         yrel = rxyz(2, iat) - rxyz(2, jat)
+         zrel = rxyz(3, iat) - rxyz(3, jat)
+         rr2 = xrel**2 + yrel**2 + zrel**2
          IF (rr2 .LE. cut2) THEN
-            indlst = MIN(indlst, myspace-1)
+            indlst = MIN(indlst, myspace - 1)
             lstb(indlst) = lay(jat)
 !        write(*,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
             tt = SQRT(rr2)
@@ -1749,7 +1749,7 @@ CONTAINS
             rel(3, indlst) = zrel*tti
             rel(4, indlst) = tt
             rel(5, indlst) = tti
-            indlst = indlst+1
+            indlst = indlst + 1
          ENDIF
       END DO
       END DO
@@ -1812,7 +1812,7 @@ CONTAINS
       cut = 0.4500000e+01_dp
 
       IF (count .EQ. 0) OPEN (unit=10, file='lenosky.mon', status='unknown')
-      count = count+1.e0_dp
+      count = count + 1.e0_dp
 
 ! linear scaling calculation of verlet list
       ll1 = INT(alat(1)/cut)
@@ -1851,7 +1851,7 @@ CONTAINS
                l3 = INT(rxyz0(3, iat)*rlc3i)
 
                ii = icell(0, l1, l2, l3)
-               ii = ii+1
+               ii = ii + 1
                icell(0, l1, l2, l3) = ii
                IF (ii .GT. ncx) THEN
                   WRITE (10, *) count, 'NCX too small', ncx
@@ -1890,7 +1890,7 @@ CONTAINS
                l2 = INT(rxyz0(2, iat)*rlc2i)
                l3 = INT(rxyz0(3, iat)*rlc3i)
                ii = icell(0, l1, l2, l3)
-               ii = ii+1
+               ii = ii + 1
                icell(0, l1, l2, l3) = ii
                IF (ii .GT. ncx) THEN
                   WRITE (10, *) count, 'NCX too small', ncx
@@ -1906,8 +1906,8 @@ CONTAINS
       ENDIF
 
 ! duplicate all atoms within boundary layer
-      laymx = ncx*(2*ll1*ll2+2*ll1*ll3+2*ll2*ll3+4*ll1+4*ll2+4*ll3+8)
-      nn = nat+laymx
+      laymx = ncx*(2*ll1*ll2 + 2*ll1*ll3 + 2*ll2*ll3 + 4*ll1 + 4*ll2 + 4*ll3 + 8)
+      nn = nat + laymx
       ALLOCATE (rxyz(3, nn), lay(nn))
       DO iat = 1, nat
          lay(iat) = iat
@@ -1917,64 +1917,64 @@ CONTAINS
       ENDDO
       il = nat
 ! xy plane
-      DO l2 = 0, ll2-1
-      DO l1 = 0, ll1-1
+      DO l2 = 0, ll2 - 1
+      DO l1 = 0, ll1 - 1
 
          in = icell(0, l1, l2, 0)
          icell(0, l1, l2, ll3) = in
          DO ii = 1, in
             i = icell(ii, l1, l2, 0)
-            il = il+1
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, l2, ll3) = il
             rxyz(1, il) = rxyz(1, i)
             rxyz(2, il) = rxyz(2, i)
-            rxyz(3, il) = rxyz(3, i)+alat(3)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
          ENDDO
 
-         in = icell(0, l1, l2, ll3-1)
+         in = icell(0, l1, l2, ll3 - 1)
          icell(0, l1, l2, -1) = in
          DO ii = 1, in
-            i = icell(ii, l1, l2, ll3-1)
-            il = il+1
+            i = icell(ii, l1, l2, ll3 - 1)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, l2, -1) = il
             rxyz(1, il) = rxyz(1, i)
             rxyz(2, il) = rxyz(2, i)
-            rxyz(3, il) = rxyz(3, i)-alat(3)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
          ENDDO
 
       ENDDO
       ENDDO
 
 ! yz plane
-      DO l3 = 0, ll3-1
-      DO l2 = 0, ll2-1
+      DO l3 = 0, ll3 - 1
+      DO l2 = 0, ll2 - 1
 
          in = icell(0, 0, l2, l3)
          icell(0, ll1, l2, l3) = in
          DO ii = 1, in
             i = icell(ii, 0, l2, l3)
-            il = il+1
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, ll1, l2, l3) = il
-            rxyz(1, il) = rxyz(1, i)+alat(1)
+            rxyz(1, il) = rxyz(1, i) + alat(1)
             rxyz(2, il) = rxyz(2, i)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
-         in = icell(0, ll1-1, l2, l3)
+         in = icell(0, ll1 - 1, l2, l3)
          icell(0, -1, l2, l3) = in
          DO ii = 1, in
-            i = icell(ii, ll1-1, l2, l3)
-            il = il+1
+            i = icell(ii, ll1 - 1, l2, l3)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, -1, l2, l3) = il
-            rxyz(1, il) = rxyz(1, i)-alat(1)
+            rxyz(1, il) = rxyz(1, i) - alat(1)
             rxyz(2, il) = rxyz(2, i)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
@@ -1983,32 +1983,32 @@ CONTAINS
       ENDDO
 
 ! xz plane
-      DO l3 = 0, ll3-1
-      DO l1 = 0, ll1-1
+      DO l3 = 0, ll3 - 1
+      DO l1 = 0, ll1 - 1
 
          in = icell(0, l1, 0, l3)
          icell(0, l1, ll2, l3) = in
          DO ii = 1, in
             i = icell(ii, l1, 0, l3)
-            il = il+1
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, ll2, l3) = il
             rxyz(1, il) = rxyz(1, i)
-            rxyz(2, il) = rxyz(2, i)+alat(2)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
-         in = icell(0, l1, ll2-1, l3)
+         in = icell(0, l1, ll2 - 1, l3)
          icell(0, l1, -1, l3) = in
          DO ii = 1, in
-            i = icell(ii, l1, ll2-1, l3)
-            il = il+1
+            i = icell(ii, l1, ll2 - 1, l3)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, -1, l3) = il
             rxyz(1, il) = rxyz(1, i)
-            rxyz(2, il) = rxyz(2, i)-alat(2)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
@@ -2016,171 +2016,171 @@ CONTAINS
       ENDDO
 
 ! x axis
-      DO l1 = 0, ll1-1
+      DO l1 = 0, ll1 - 1
 
          in = icell(0, l1, 0, 0)
          icell(0, l1, ll2, ll3) = in
          DO ii = 1, in
             i = icell(ii, l1, 0, 0)
-            il = il+1
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, ll2, ll3) = il
             rxyz(1, il) = rxyz(1, i)
-            rxyz(2, il) = rxyz(2, i)+alat(2)
-            rxyz(3, il) = rxyz(3, i)+alat(3)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
          ENDDO
 
-         in = icell(0, l1, 0, ll3-1)
+         in = icell(0, l1, 0, ll3 - 1)
          icell(0, l1, ll2, -1) = in
          DO ii = 1, in
-            i = icell(ii, l1, 0, ll3-1)
-            il = il+1
+            i = icell(ii, l1, 0, ll3 - 1)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, ll2, -1) = il
             rxyz(1, il) = rxyz(1, i)
-            rxyz(2, il) = rxyz(2, i)+alat(2)
-            rxyz(3, il) = rxyz(3, i)-alat(3)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
          ENDDO
 
-         in = icell(0, l1, ll2-1, 0)
+         in = icell(0, l1, ll2 - 1, 0)
          icell(0, l1, -1, ll3) = in
          DO ii = 1, in
-            i = icell(ii, l1, ll2-1, 0)
-            il = il+1
+            i = icell(ii, l1, ll2 - 1, 0)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, -1, ll3) = il
             rxyz(1, il) = rxyz(1, i)
-            rxyz(2, il) = rxyz(2, i)-alat(2)
-            rxyz(3, il) = rxyz(3, i)+alat(3)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
          ENDDO
 
-         in = icell(0, l1, ll2-1, ll3-1)
+         in = icell(0, l1, ll2 - 1, ll3 - 1)
          icell(0, l1, -1, -1) = in
          DO ii = 1, in
-            i = icell(ii, l1, ll2-1, ll3-1)
-            il = il+1
+            i = icell(ii, l1, ll2 - 1, ll3 - 1)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, l1, -1, -1) = il
             rxyz(1, il) = rxyz(1, i)
-            rxyz(2, il) = rxyz(2, i)-alat(2)
-            rxyz(3, il) = rxyz(3, i)-alat(3)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
          ENDDO
 
       ENDDO
 
 ! y axis
-      DO l2 = 0, ll2-1
+      DO l2 = 0, ll2 - 1
 
          in = icell(0, 0, l2, 0)
          icell(0, ll1, l2, ll3) = in
          DO ii = 1, in
             i = icell(ii, 0, l2, 0)
-            il = il+1
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, ll1, l2, ll3) = il
-            rxyz(1, il) = rxyz(1, i)+alat(1)
+            rxyz(1, il) = rxyz(1, i) + alat(1)
             rxyz(2, il) = rxyz(2, i)
-            rxyz(3, il) = rxyz(3, i)+alat(3)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
          ENDDO
 
-         in = icell(0, 0, l2, ll3-1)
+         in = icell(0, 0, l2, ll3 - 1)
          icell(0, ll1, l2, -1) = in
          DO ii = 1, in
-            i = icell(ii, 0, l2, ll3-1)
-            il = il+1
+            i = icell(ii, 0, l2, ll3 - 1)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, ll1, l2, -1) = il
-            rxyz(1, il) = rxyz(1, i)+alat(1)
+            rxyz(1, il) = rxyz(1, i) + alat(1)
             rxyz(2, il) = rxyz(2, i)
-            rxyz(3, il) = rxyz(3, i)-alat(3)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
          ENDDO
 
-         in = icell(0, ll1-1, l2, 0)
+         in = icell(0, ll1 - 1, l2, 0)
          icell(0, -1, l2, ll3) = in
          DO ii = 1, in
-            i = icell(ii, ll1-1, l2, 0)
-            il = il+1
+            i = icell(ii, ll1 - 1, l2, 0)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, -1, l2, ll3) = il
-            rxyz(1, il) = rxyz(1, i)-alat(1)
+            rxyz(1, il) = rxyz(1, i) - alat(1)
             rxyz(2, il) = rxyz(2, i)
-            rxyz(3, il) = rxyz(3, i)+alat(3)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
          ENDDO
 
-         in = icell(0, ll1-1, l2, ll3-1)
+         in = icell(0, ll1 - 1, l2, ll3 - 1)
          icell(0, -1, l2, -1) = in
          DO ii = 1, in
-            i = icell(ii, ll1-1, l2, ll3-1)
-            il = il+1
+            i = icell(ii, ll1 - 1, l2, ll3 - 1)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, -1, l2, -1) = il
-            rxyz(1, il) = rxyz(1, i)-alat(1)
+            rxyz(1, il) = rxyz(1, i) - alat(1)
             rxyz(2, il) = rxyz(2, i)
-            rxyz(3, il) = rxyz(3, i)-alat(3)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
          ENDDO
 
       ENDDO
 
 ! z axis
-      DO l3 = 0, ll3-1
+      DO l3 = 0, ll3 - 1
 
          in = icell(0, 0, 0, l3)
          icell(0, ll1, ll2, l3) = in
          DO ii = 1, in
             i = icell(ii, 0, 0, l3)
-            il = il+1
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, ll1, ll2, l3) = il
-            rxyz(1, il) = rxyz(1, i)+alat(1)
-            rxyz(2, il) = rxyz(2, i)+alat(2)
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
-         in = icell(0, ll1-1, 0, l3)
+         in = icell(0, ll1 - 1, 0, l3)
          icell(0, -1, ll2, l3) = in
          DO ii = 1, in
-            i = icell(ii, ll1-1, 0, l3)
-            il = il+1
+            i = icell(ii, ll1 - 1, 0, l3)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, -1, ll2, l3) = il
-            rxyz(1, il) = rxyz(1, i)-alat(1)
-            rxyz(2, il) = rxyz(2, i)+alat(2)
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
-         in = icell(0, 0, ll2-1, l3)
+         in = icell(0, 0, ll2 - 1, l3)
          icell(0, ll1, -1, l3) = in
          DO ii = 1, in
-            i = icell(ii, 0, ll2-1, l3)
-            il = il+1
+            i = icell(ii, 0, ll2 - 1, l3)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, ll1, -1, l3) = il
-            rxyz(1, il) = rxyz(1, i)+alat(1)
-            rxyz(2, il) = rxyz(2, i)-alat(2)
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
-         in = icell(0, ll1-1, ll2-1, l3)
+         in = icell(0, ll1 - 1, ll2 - 1, l3)
          icell(0, -1, -1, l3) = in
          DO ii = 1, in
-            i = icell(ii, ll1-1, ll2-1, l3)
-            il = il+1
+            i = icell(ii, ll1 - 1, ll2 - 1, l3)
+            il = il + 1
             IF (il .GT. nn) CPABORT("enlarge laymx")
             lay(il) = i
             icell(ii, -1, -1, l3) = il
-            rxyz(1, il) = rxyz(1, i)-alat(1)
-            rxyz(2, il) = rxyz(2, i)-alat(2)
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
             rxyz(3, il) = rxyz(3, i)
          ENDDO
 
@@ -2191,104 +2191,104 @@ CONTAINS
       icell(0, ll1, ll2, ll3) = in
       DO ii = 1, in
          i = icell(ii, 0, 0, 0)
-         il = il+1
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, ll1, ll2, ll3) = il
-         rxyz(1, il) = rxyz(1, i)+alat(1)
-         rxyz(2, il) = rxyz(2, i)+alat(2)
-         rxyz(3, il) = rxyz(3, i)+alat(3)
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
       ENDDO
 
-      in = icell(0, ll1-1, 0, 0)
+      in = icell(0, ll1 - 1, 0, 0)
       icell(0, -1, ll2, ll3) = in
       DO ii = 1, in
-         i = icell(ii, ll1-1, 0, 0)
-         il = il+1
+         i = icell(ii, ll1 - 1, 0, 0)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, -1, ll2, ll3) = il
-         rxyz(1, il) = rxyz(1, i)-alat(1)
-         rxyz(2, il) = rxyz(2, i)+alat(2)
-         rxyz(3, il) = rxyz(3, i)+alat(3)
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
       ENDDO
 
-      in = icell(0, 0, ll2-1, 0)
+      in = icell(0, 0, ll2 - 1, 0)
       icell(0, ll1, -1, ll3) = in
       DO ii = 1, in
-         i = icell(ii, 0, ll2-1, 0)
-         il = il+1
+         i = icell(ii, 0, ll2 - 1, 0)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, ll1, -1, ll3) = il
-         rxyz(1, il) = rxyz(1, i)+alat(1)
-         rxyz(2, il) = rxyz(2, i)-alat(2)
-         rxyz(3, il) = rxyz(3, i)+alat(3)
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
       ENDDO
 
-      in = icell(0, ll1-1, ll2-1, 0)
+      in = icell(0, ll1 - 1, ll2 - 1, 0)
       icell(0, -1, -1, ll3) = in
       DO ii = 1, in
-         i = icell(ii, ll1-1, ll2-1, 0)
-         il = il+1
+         i = icell(ii, ll1 - 1, ll2 - 1, 0)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, -1, -1, ll3) = il
-         rxyz(1, il) = rxyz(1, i)-alat(1)
-         rxyz(2, il) = rxyz(2, i)-alat(2)
-         rxyz(3, il) = rxyz(3, i)+alat(3)
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
       ENDDO
 
-      in = icell(0, 0, 0, ll3-1)
+      in = icell(0, 0, 0, ll3 - 1)
       icell(0, ll1, ll2, -1) = in
       DO ii = 1, in
-         i = icell(ii, 0, 0, ll3-1)
-         il = il+1
+         i = icell(ii, 0, 0, ll3 - 1)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, ll1, ll2, -1) = il
-         rxyz(1, il) = rxyz(1, i)+alat(1)
-         rxyz(2, il) = rxyz(2, i)+alat(2)
-         rxyz(3, il) = rxyz(3, i)-alat(3)
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
       ENDDO
 
-      in = icell(0, ll1-1, 0, ll3-1)
+      in = icell(0, ll1 - 1, 0, ll3 - 1)
       icell(0, -1, ll2, -1) = in
       DO ii = 1, in
-         i = icell(ii, ll1-1, 0, ll3-1)
-         il = il+1
+         i = icell(ii, ll1 - 1, 0, ll3 - 1)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, -1, ll2, -1) = il
-         rxyz(1, il) = rxyz(1, i)-alat(1)
-         rxyz(2, il) = rxyz(2, i)+alat(2)
-         rxyz(3, il) = rxyz(3, i)-alat(3)
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
       ENDDO
 
-      in = icell(0, 0, ll2-1, ll3-1)
+      in = icell(0, 0, ll2 - 1, ll3 - 1)
       icell(0, ll1, -1, -1) = in
       DO ii = 1, in
-         i = icell(ii, 0, ll2-1, ll3-1)
-         il = il+1
+         i = icell(ii, 0, ll2 - 1, ll3 - 1)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, ll1, -1, -1) = il
-         rxyz(1, il) = rxyz(1, i)+alat(1)
-         rxyz(2, il) = rxyz(2, i)-alat(2)
-         rxyz(3, il) = rxyz(3, i)-alat(3)
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
       ENDDO
 
-      in = icell(0, ll1-1, ll2-1, ll3-1)
+      in = icell(0, ll1 - 1, ll2 - 1, ll3 - 1)
       icell(0, -1, -1, -1) = in
       DO ii = 1, in
-         i = icell(ii, ll1-1, ll2-1, ll3-1)
-         il = il+1
+         i = icell(ii, ll1 - 1, ll2 - 1, ll3 - 1)
+         il = il + 1
          IF (il .GT. nn) CPABORT("enlarge laymx")
          lay(il) = i
          icell(ii, -1, -1, -1) = il
-         rxyz(1, il) = rxyz(1, i)-alat(1)
-         rxyz(2, il) = rxyz(2, i)-alat(2)
-         rxyz(3, il) = rxyz(3, i)-alat(3)
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
       ENDDO
 
       ALLOCATE (lsta(2, nat))
@@ -2314,18 +2314,18 @@ CONTAINS
          IF (iam .EQ. 0) myspaceout = myspace
 ! Verlet list, relative positions
          indlst = 0
-         loop_l3: DO l3 = 0, ll3-1
-            loop_l2: DO l2 = 0, ll2-1
-               loop_l1: DO l1 = 0, ll1-1
+         loop_l3: DO l3 = 0, ll3 - 1
+            loop_l2: DO l2 = 0, ll2 - 1
+               loop_l1: DO l1 = 0, ll1 - 1
                   loop_ii: DO ii = 1, icell(0, l1, l2, l3)
                      iat = icell(ii, l1, l2, l3)
-                     IF (((iat-1)*npr)/nat .EQ. iam) THEN
+                     IF (((iat - 1)*npr)/nat .EQ. iam) THEN
 !                          write(*,*) 'sublstiat:iam,iat',iam,iat
-                        lsta(1, iat) = iam*myspace+indlst+1
+                        lsta(1, iat) = iam*myspace + indlst + 1
                         CALL sublstiat_l(iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, &
-                                         rxyz, icell, lstb(iam*myspace+1), lay, &
-                                         rel(1, iam*myspace+1), cut2, indlst)
-                        lsta(2, iat) = iam*myspace+indlst
+                                         rxyz, icell, lstb(iam*myspace + 1), lay, &
+                                         rel(1, iam*myspace + 1), cut2, indlst)
+                        lsta(2, iat) = iam*myspace + indlst
 !                          write(*,'(a,4(x,i3),100(x,i2))') &
 !                                'iam,iat,lsta',iam,iat,lsta(1,iat),lsta(2,iat), &
 !                                (lstb(j),j=lsta(1,iat),lsta(2,iat))
@@ -2384,22 +2384,22 @@ CONTAINS
 !$OMP BARRIER
 
 ! Each thread treats at most lot atoms
-         lot = INT(REAL(nat, KIND=dp)/REAL(npr, KIND=dp)+.999999999999e0_dp)
-         iat1 = iam*lot+1
-         iat2 = MIN((iam+1)*lot, nat)
+         lot = INT(REAL(nat, KIND=dp)/REAL(npr, KIND=dp) + .999999999999e0_dp)
+         iat1 = iam*lot + 1
+         iat2 = MIN((iam + 1)*lot, nat)
 !       write(*,*) 'subfeniat:iat1,iat2,iam',iat1,iat2,iam
          CALL subfeniat_l(iat1, iat2, nat, lsta, lstb, rel, tener, tener2, &
                           tcoord, tcoord2, nnbrx, txyz, f2ij, npjx, f3ij, npjkx, f3ik, istop)
 !$OMP CRITICAL
-         ener = ener+tener
-         ener2 = ener2+tener2
-         coord = coord+tcoord
-         coord2 = coord2+tcoord2
-         istopg = istopg+istop
+         ener = ener + tener
+         ener2 = ener2 + tener2
+         coord = coord + tcoord
+         coord2 = coord2 + tcoord2
+         istopg = istopg + istop
          DO iat = 1, nat
-            fxyz(1, iat) = fxyz(1, iat)+txyz(1, iat)
-            fxyz(2, iat) = fxyz(2, iat)+txyz(2, iat)
-            fxyz(3, iat) = fxyz(3, iat)+txyz(3, iat)
+            fxyz(1, iat) = fxyz(1, iat) + txyz(1, iat)
+            fxyz(2, iat) = fxyz(2, iat) + txyz(2, iat)
+            fxyz(3, iat) = fxyz(3, iat) + txyz(3, iat)
          END DO
          DEALLOCATE (txyz, f2ij, f3ij, f3ik)
 !$OMP END CRITICAL
@@ -2419,9 +2419,9 @@ CONTAINS
 !         write(*,*) 'ener,norm force', &
 !                    ener,DNRM2(3*nat,fxyz,1)
       IF (istopg .GT. 0) CPABORT("DIMENSION ERROR (see WARNING above)")
-      ener_var = ener2/nat-(ener/nat)**2
+      ener_var = ener2/nat - (ener/nat)**2
       coord = coord/nat
-      coord_var = coord2/nat-coord**2
+      coord_var = coord2/nat - coord**2
 
       DEALLOCATE (rxyz, icell, lay, lsta, lstb, rel)
 
@@ -2590,7 +2590,7 @@ CONTAINS
          ener_iat = 0.e0_dp
          calculate: DO jbr = lsta(1, iat), lsta(2, iat)
             jat = lstb(jbr)
-            jcnt = jcnt+1
+            jcnt = jcnt + 1
             IF (jcnt .GT. npjx) THEN
                WRITE (*, *) 'WARNING: enlarge npjx'
                istop = 1
@@ -2606,28 +2606,28 @@ CONTAINS
 ! coordination number calculated with soft cutoff between first
 ! nearest neighbor and midpoint of first and second nearest neighbor
             IF (rij .LE. 2.36e0_dp) THEN
-               coord_iat = coord_iat+1.e0_dp
+               coord_iat = coord_iat + 1.e0_dp
             ELSE IF (rij .GE. 3.12e0_dp) THEN
             ELSE
-               xarg = (rij-2.36e0_dp)*(1.e0_dp/(3.12e0_dp-2.36e0_dp))
-               coord_iat = coord_iat+(2*xarg+1.e0_dp)*(xarg-1.e0_dp)**2
+               xarg = (rij - 2.36e0_dp)*(1.e0_dp/(3.12e0_dp - 2.36e0_dp))
+               coord_iat = coord_iat + (2*xarg + 1.e0_dp)*(xarg - 1.e0_dp)**2
             ENDIF
 
 ! pairpotential term
             CALL splint(cof_phi, dof_phi, tmin_phi, tmax_phi, &
                         hsixth_phi, h2sixth_phi, hi_phi, 10, rij, e_phi, ep_phi)
-            ener_iat = ener_iat+(e_phi*.5e0_dp)
-            txyz(1, iat) = txyz(1, iat)-fxij*(ep_phi*.5e0_dp)
-            txyz(2, iat) = txyz(2, iat)-fyij*(ep_phi*.5e0_dp)
-            txyz(3, iat) = txyz(3, iat)-fzij*(ep_phi*.5e0_dp)
-            txyz(1, jat) = txyz(1, jat)+fxij*(ep_phi*.5e0_dp)
-            txyz(2, jat) = txyz(2, jat)+fyij*(ep_phi*.5e0_dp)
-            txyz(3, jat) = txyz(3, jat)+fzij*(ep_phi*.5e0_dp)
+            ener_iat = ener_iat + (e_phi*.5e0_dp)
+            txyz(1, iat) = txyz(1, iat) - fxij*(ep_phi*.5e0_dp)
+            txyz(2, iat) = txyz(2, iat) - fyij*(ep_phi*.5e0_dp)
+            txyz(3, iat) = txyz(3, iat) - fzij*(ep_phi*.5e0_dp)
+            txyz(1, jat) = txyz(1, jat) + fxij*(ep_phi*.5e0_dp)
+            txyz(2, jat) = txyz(2, jat) + fyij*(ep_phi*.5e0_dp)
+            txyz(3, jat) = txyz(3, jat) + fzij*(ep_phi*.5e0_dp)
 
 ! 2 body embedding term
             CALL splint(cof_rho, dof_rho, tmin_rho, tmax_rho, &
                         hsixth_rho, h2sixth_rho, hi_rho, 11, rij, rho, rhop)
-            dens2 = dens2+rho
+            dens2 = dens2 + rho
             f2ij(1, jcnt) = fxij*rhop
             f2ij(2, jcnt) = fyij*rhop
             f2ij(3, jcnt) = fzij*rhop
@@ -2639,7 +2639,7 @@ CONTAINS
             embed_3body: DO kbr = lsta(1, iat), lsta(2, iat)
                kat = lstb(kbr)
                IF (kat .LT. jat) THEN
-                  jkcnt = jkcnt+1
+                  jkcnt = jkcnt + 1
                   IF (jkcnt .GT. npjkx) THEN
                      WRITE (*, *) 'WARNING: enlarge npjkx', npjkx
                      istop = 1
@@ -2670,101 +2670,101 @@ CONTAINS
                      fxik = rel(1, kbr)
                      fyik = rel(2, kbr)
                      fzik = rel(3, kbr)
-                     costheta = fxij*fxik+fyij*fyik+fzij*fzik
+                     costheta = fxij*fxik + fyij*fyik + fzij*fzik
                      sik = rel(5, kbr)
-                     fikp = hi_fff*(cof_fff(1)-cof_fff(0))- &
-                            (dof_fff(1)+2.e0_dp*dof_fff(0))*hsixth_fff
-                     fik = cof_fff(0)+(rik-tmin_fff)*fikp
-                     tt_ggg = (costheta-tmin_ggg)*hi_ggg
+                     fikp = hi_fff*(cof_fff(1) - cof_fff(0)) - &
+                            (dof_fff(1) + 2.e0_dp*dof_fff(0))*hsixth_fff
+                     fik = cof_fff(0) + (rik - tmin_fff)*fikp
+                     tt_ggg = (costheta - tmin_ggg)*hi_ggg
                      IF (costheta .GT. tmax_ggg) THEN
-                        gjikp = hi_ggg*(cof_ggg(8-1)-cof_ggg(8-2))+ &
-                                (2.e0_dp*dof_ggg(8-1)+dof_ggg(8-2))*hsixth_ggg
-                        gjik = cof_ggg(8-1)+(costheta-tmax_ggg)*gjikp
+                        gjikp = hi_ggg*(cof_ggg(8 - 1) - cof_ggg(8 - 2)) + &
+                                (2.e0_dp*dof_ggg(8 - 1) + dof_ggg(8 - 2))*hsixth_ggg
+                        gjik = cof_ggg(8 - 1) + (costheta - tmax_ggg)*gjikp
                      ELSE
                         klo_ggg = INT(tt_ggg)
-                        khi_ggg = klo_ggg+1
+                        khi_ggg = klo_ggg + 1
                         cof_ggg_klo = cof_ggg(klo_ggg)
                         dof_ggg_klo = dof_ggg(klo_ggg)
-                        b_ggg = tt_ggg-klo_ggg
-                        a_ggg = 1.e0_dp-b_ggg
+                        b_ggg = tt_ggg - klo_ggg
+                        a_ggg = 1.e0_dp - b_ggg
                         cof_ggg_khi = cof_ggg(khi_ggg)
                         dof_ggg_khi = dof_ggg(khi_ggg)
                         b2_ggg = b_ggg*b_ggg
                         gjik = a_ggg*cof_ggg_klo
-                        gjikp = cof_ggg_khi-cof_ggg_klo
+                        gjikp = cof_ggg_khi - cof_ggg_klo
                         a2_ggg = a_ggg*a_ggg
-                        cof1_ggg = a2_ggg-1.e0_dp
-                        cof2_ggg = b2_ggg-1.e0_dp
-                        gjik = gjik+b_ggg*cof_ggg_khi
+                        cof1_ggg = a2_ggg - 1.e0_dp
+                        cof2_ggg = b2_ggg - 1.e0_dp
+                        gjik = gjik + b_ggg*cof_ggg_khi
                         gjikp = hi_ggg*gjikp
                         cof3_ggg = 3.e0_dp*b2_ggg
                         cof4_ggg = 3.e0_dp*a2_ggg
                         cof1_ggg = a_ggg*cof1_ggg
                         cof2_ggg = b_ggg*cof2_ggg
-                        cof3_ggg = cof3_ggg-1.e0_dp
-                        cof4_ggg = cof4_ggg-1.e0_dp
+                        cof3_ggg = cof3_ggg - 1.e0_dp
+                        cof4_ggg = cof4_ggg - 1.e0_dp
                         yt1_ggg = cof1_ggg*dof_ggg_klo
                         yt2_ggg = cof2_ggg*dof_ggg_khi
                         ypt1_ggg = cof3_ggg*dof_ggg_khi
                         ypt2_ggg = cof4_ggg*dof_ggg_klo
-                        gjik = gjik+(yt1_ggg+yt2_ggg)*h2sixth_ggg
-                        gjikp = gjikp+(ypt1_ggg-ypt2_ggg)*hsixth_ggg
+                        gjik = gjik + (yt1_ggg + yt2_ggg)*h2sixth_ggg
+                        gjikp = gjikp + (ypt1_ggg - ypt2_ggg)*hsixth_ggg
                      ENDIF
                   ELSE
                      fxik = rel(1, kbr)
-                     tt_fff = rik-tmin_fff
+                     tt_fff = rik - tmin_fff
                      costheta = fxij*fxik
                      fyik = rel(2, kbr)
                      tt_fff = tt_fff*hi_fff
-                     costheta = costheta+fyij*fyik
+                     costheta = costheta + fyij*fyik
                      fzik = rel(3, kbr)
                      klo_fff = INT(tt_fff)
-                     costheta = costheta+fzij*fzik
+                     costheta = costheta + fzij*fzik
                      sik = rel(5, kbr)
-                     tt_ggg = (costheta-tmin_ggg)*hi_ggg
+                     tt_ggg = (costheta - tmin_ggg)*hi_ggg
                      IF (costheta .GT. tmax_ggg) THEN
-                        gjikp = hi_ggg*(cof_ggg(8-1)-cof_ggg(8-2))+ &
-                                (2.e0_dp*dof_ggg(8-1)+dof_ggg(8-2))*hsixth_ggg
-                        gjik = cof_ggg(8-1)+(costheta-tmax_ggg)*gjikp
-                        khi_fff = klo_fff+1
+                        gjikp = hi_ggg*(cof_ggg(8 - 1) - cof_ggg(8 - 2)) + &
+                                (2.e0_dp*dof_ggg(8 - 1) + dof_ggg(8 - 2))*hsixth_ggg
+                        gjik = cof_ggg(8 - 1) + (costheta - tmax_ggg)*gjikp
+                        khi_fff = klo_fff + 1
                         cof_fff_klo = cof_fff(klo_fff)
                         dof_fff_klo = dof_fff(klo_fff)
-                        b_fff = tt_fff-klo_fff
-                        a_fff = 1.e0_dp-b_fff
+                        b_fff = tt_fff - klo_fff
+                        a_fff = 1.e0_dp - b_fff
                         cof_fff_khi = cof_fff(khi_fff)
                         dof_fff_khi = dof_fff(khi_fff)
                         b2_fff = b_fff*b_fff
                         fik = a_fff*cof_fff_klo
-                        fikp = cof_fff_khi-cof_fff_klo
+                        fikp = cof_fff_khi - cof_fff_klo
                         a2_fff = a_fff*a_fff
-                        cof1_fff = a2_fff-1.e0_dp
-                        cof2_fff = b2_fff-1.e0_dp
-                        fik = fik+b_fff*cof_fff_khi
+                        cof1_fff = a2_fff - 1.e0_dp
+                        cof2_fff = b2_fff - 1.e0_dp
+                        fik = fik + b_fff*cof_fff_khi
                         fikp = hi_fff*fikp
                         cof3_fff = 3.e0_dp*b2_fff
                         cof4_fff = 3.e0_dp*a2_fff
                         cof1_fff = a_fff*cof1_fff
                         cof2_fff = b_fff*cof2_fff
-                        cof3_fff = cof3_fff-1.e0_dp
-                        cof4_fff = cof4_fff-1.e0_dp
+                        cof3_fff = cof3_fff - 1.e0_dp
+                        cof4_fff = cof4_fff - 1.e0_dp
                         yt1_fff = cof1_fff*dof_fff_klo
                         yt2_fff = cof2_fff*dof_fff_khi
                         ypt1_fff = cof3_fff*dof_fff_khi
                         ypt2_fff = cof4_fff*dof_fff_klo
-                        fik = fik+(yt1_fff+yt2_fff)*h2sixth_fff
-                        fikp = fikp+(ypt1_fff-ypt2_fff)*hsixth_fff
+                        fik = fik + (yt1_fff + yt2_fff)*h2sixth_fff
+                        fikp = fikp + (ypt1_fff - ypt2_fff)*hsixth_fff
                      ELSE
                         klo_ggg = INT(tt_ggg)
-                        khi_ggg = klo_ggg+1
-                        khi_fff = klo_fff+1
+                        khi_ggg = klo_ggg + 1
+                        khi_fff = klo_fff + 1
                         cof_ggg_klo = cof_ggg(klo_ggg)
                         cof_fff_klo = cof_fff(klo_fff)
                         dof_ggg_klo = dof_ggg(klo_ggg)
                         dof_fff_klo = dof_fff(klo_fff)
-                        b_ggg = tt_ggg-klo_ggg
-                        b_fff = tt_fff-klo_fff
-                        a_ggg = 1.e0_dp-b_ggg
-                        a_fff = 1.e0_dp-b_fff
+                        b_ggg = tt_ggg - klo_ggg
+                        b_fff = tt_fff - klo_fff
+                        a_ggg = 1.e0_dp - b_ggg
+                        a_fff = 1.e0_dp - b_fff
                         cof_ggg_khi = cof_ggg(khi_ggg)
                         cof_fff_khi = cof_fff(khi_fff)
                         dof_ggg_khi = dof_ggg(khi_ggg)
@@ -2773,16 +2773,16 @@ CONTAINS
                         b2_fff = b_fff*b_fff
                         gjik = a_ggg*cof_ggg_klo
                         fik = a_fff*cof_fff_klo
-                        gjikp = cof_ggg_khi-cof_ggg_klo
-                        fikp = cof_fff_khi-cof_fff_klo
+                        gjikp = cof_ggg_khi - cof_ggg_klo
+                        fikp = cof_fff_khi - cof_fff_klo
                         a2_ggg = a_ggg*a_ggg
                         a2_fff = a_fff*a_fff
-                        cof1_ggg = a2_ggg-1.e0_dp
-                        cof1_fff = a2_fff-1.e0_dp
-                        cof2_ggg = b2_ggg-1.e0_dp
-                        cof2_fff = b2_fff-1.e0_dp
-                        gjik = gjik+b_ggg*cof_ggg_khi
-                        fik = fik+b_fff*cof_fff_khi
+                        cof1_ggg = a2_ggg - 1.e0_dp
+                        cof1_fff = a2_fff - 1.e0_dp
+                        cof2_ggg = b2_ggg - 1.e0_dp
+                        cof2_fff = b2_fff - 1.e0_dp
+                        gjik = gjik + b_ggg*cof_ggg_khi
+                        fik = fik + b_fff*cof_fff_khi
                         gjikp = hi_ggg*gjikp
                         fikp = hi_fff*fikp
                         cof3_ggg = 3.e0_dp*b2_ggg
@@ -2793,10 +2793,10 @@ CONTAINS
                         cof1_fff = a_fff*cof1_fff
                         cof2_ggg = b_ggg*cof2_ggg
                         cof2_fff = b_fff*cof2_fff
-                        cof3_ggg = cof3_ggg-1.e0_dp
-                        cof3_fff = cof3_fff-1.e0_dp
-                        cof4_ggg = cof4_ggg-1.e0_dp
-                        cof4_fff = cof4_fff-1.e0_dp
+                        cof3_ggg = cof3_ggg - 1.e0_dp
+                        cof3_fff = cof3_fff - 1.e0_dp
+                        cof4_ggg = cof4_ggg - 1.e0_dp
+                        cof4_fff = cof4_fff - 1.e0_dp
                         yt1_ggg = cof1_ggg*dof_ggg_klo
                         yt1_fff = cof1_fff*dof_fff_klo
                         yt2_ggg = cof2_ggg*dof_ggg_khi
@@ -2805,66 +2805,66 @@ CONTAINS
                         ypt1_fff = cof3_fff*dof_fff_khi
                         ypt2_ggg = cof4_ggg*dof_ggg_klo
                         ypt2_fff = cof4_fff*dof_fff_klo
-                        gjik = gjik+(yt1_ggg+yt2_ggg)*h2sixth_ggg
-                        fik = fik+(yt1_fff+yt2_fff)*h2sixth_fff
-                        gjikp = gjikp+(ypt1_ggg-ypt2_ggg)*hsixth_ggg
-                        fikp = fikp+(ypt1_fff-ypt2_fff)*hsixth_fff
+                        gjik = gjik + (yt1_ggg + yt2_ggg)*h2sixth_ggg
+                        fik = fik + (yt1_fff + yt2_fff)*h2sixth_fff
+                        gjikp = gjikp + (ypt1_ggg - ypt2_ggg)*hsixth_ggg
+                        fikp = fikp + (ypt1_fff - ypt2_fff)*hsixth_fff
                      ENDIF
                   ENDIF
 ! end optimized version
 
                   tt = fij*fik
-                  dens3 = dens3+tt*gjik
+                  dens3 = dens3 + tt*gjik
 
                   t1 = fijp*fik*gjik
                   t2 = sij*(tt*gjikp)
-                  f3ij(1, jkcnt) = fxij*t1+(fxik-fxij*costheta)*t2
-                  f3ij(2, jkcnt) = fyij*t1+(fyik-fyij*costheta)*t2
-                  f3ij(3, jkcnt) = fzij*t1+(fzik-fzij*costheta)*t2
+                  f3ij(1, jkcnt) = fxij*t1 + (fxik - fxij*costheta)*t2
+                  f3ij(2, jkcnt) = fyij*t1 + (fyik - fyij*costheta)*t2
+                  f3ij(3, jkcnt) = fzij*t1 + (fzik - fzij*costheta)*t2
 
                   t3 = fikp*fij*gjik
                   t4 = sik*(tt*gjikp)
-                  f3ik(1, jkcnt) = fxik*t3+(fxij-fxik*costheta)*t4
-                  f3ik(2, jkcnt) = fyik*t3+(fyij-fyik*costheta)*t4
-                  f3ik(3, jkcnt) = fzik*t3+(fzij-fzik*costheta)*t4
+                  f3ik(1, jkcnt) = fxik*t3 + (fxij - fxik*costheta)*t4
+                  f3ik(2, jkcnt) = fyik*t3 + (fyij - fyik*costheta)*t4
+                  f3ik(3, jkcnt) = fzik*t3 + (fzij - fzik*costheta)*t4
                ENDIF
 
             END DO embed_3body
          END DO calculate
 
-         dens = dens2+dens3
+         dens = dens2 + dens3
          CALL splint(cof_uuu, dof_uuu, tmin_uuu, tmax_uuu, &
                      hsixth_uuu, h2sixth_uuu, hi_uuu, 8, dens, e_uuu, ep_uuu)
-         ener_iat = ener_iat+e_uuu
+         ener_iat = ener_iat + e_uuu
 
 ! Only now ep_uu is known and the forces can be calculated, lets loop again
          jcnt = 0
          jkcnt = 0
          loop_again: DO jbr = lsta(1, iat), lsta(2, iat)
             jat = lstb(jbr)
-            jcnt = jcnt+1
-            txyz(1, iat) = txyz(1, iat)-ep_uuu*f2ij(1, jcnt)
-            txyz(2, iat) = txyz(2, iat)-ep_uuu*f2ij(2, jcnt)
-            txyz(3, iat) = txyz(3, iat)-ep_uuu*f2ij(3, jcnt)
-            txyz(1, jat) = txyz(1, jat)+ep_uuu*f2ij(1, jcnt)
-            txyz(2, jat) = txyz(2, jat)+ep_uuu*f2ij(2, jcnt)
-            txyz(3, jat) = txyz(3, jat)+ep_uuu*f2ij(3, jcnt)
+            jcnt = jcnt + 1
+            txyz(1, iat) = txyz(1, iat) - ep_uuu*f2ij(1, jcnt)
+            txyz(2, iat) = txyz(2, iat) - ep_uuu*f2ij(2, jcnt)
+            txyz(3, iat) = txyz(3, iat) - ep_uuu*f2ij(3, jcnt)
+            txyz(1, jat) = txyz(1, jat) + ep_uuu*f2ij(1, jcnt)
+            txyz(2, jat) = txyz(2, jat) + ep_uuu*f2ij(2, jcnt)
+            txyz(3, jat) = txyz(3, jat) + ep_uuu*f2ij(3, jcnt)
 
 ! 3 body embedding term
             DO kbr = lsta(1, iat), lsta(2, iat)
                kat = lstb(kbr)
                IF (kat .LT. jat) THEN
-                  jkcnt = jkcnt+1
+                  jkcnt = jkcnt + 1
 
-                  txyz(1, iat) = txyz(1, iat)-ep_uuu*(f3ij(1, jkcnt)+f3ik(1, jkcnt))
-                  txyz(2, iat) = txyz(2, iat)-ep_uuu*(f3ij(2, jkcnt)+f3ik(2, jkcnt))
-                  txyz(3, iat) = txyz(3, iat)-ep_uuu*(f3ij(3, jkcnt)+f3ik(3, jkcnt))
-                  txyz(1, jat) = txyz(1, jat)+ep_uuu*f3ij(1, jkcnt)
-                  txyz(2, jat) = txyz(2, jat)+ep_uuu*f3ij(2, jkcnt)
-                  txyz(3, jat) = txyz(3, jat)+ep_uuu*f3ij(3, jkcnt)
-                  txyz(1, kat) = txyz(1, kat)+ep_uuu*f3ik(1, jkcnt)
-                  txyz(2, kat) = txyz(2, kat)+ep_uuu*f3ik(2, jkcnt)
-                  txyz(3, kat) = txyz(3, kat)+ep_uuu*f3ik(3, jkcnt)
+                  txyz(1, iat) = txyz(1, iat) - ep_uuu*(f3ij(1, jkcnt) + f3ik(1, jkcnt))
+                  txyz(2, iat) = txyz(2, iat) - ep_uuu*(f3ij(2, jkcnt) + f3ik(2, jkcnt))
+                  txyz(3, iat) = txyz(3, iat) - ep_uuu*(f3ij(3, jkcnt) + f3ik(3, jkcnt))
+                  txyz(1, jat) = txyz(1, jat) + ep_uuu*f3ij(1, jkcnt)
+                  txyz(2, jat) = txyz(2, jat) + ep_uuu*f3ij(2, jkcnt)
+                  txyz(3, jat) = txyz(3, jat) + ep_uuu*f3ij(3, jkcnt)
+                  txyz(1, kat) = txyz(1, kat) + ep_uuu*f3ik(1, jkcnt)
+                  txyz(2, kat) = txyz(2, kat) + ep_uuu*f3ik(2, jkcnt)
+                  txyz(3, kat) = txyz(3, kat) + ep_uuu*f3ik(3, jkcnt)
                ENDIF
             END DO
 
@@ -2872,10 +2872,10 @@ CONTAINS
 
 !        write(*,'(a,i4,x,e19.12,x,e10.3)') 'iat,ener_iat,coord_iat', &
 !                                       iat,ener_iat,coord_iat
-         tener = tener+ener_iat
-         tener2 = tener2+ener_iat**2
-         tcoord = tcoord+coord_iat
-         tcoord2 = tcoord2+coord_iat**2
+         tener = tener + ener_iat
+         tener2 = tener2 + ener_iat**2
+         tcoord = tcoord + coord_iat
+         tcoord2 = tcoord2 + coord_iat**2
 
       END DO forces_and_energy
 
@@ -2913,23 +2913,23 @@ CONTAINS
       INTEGER                                            :: indlst
 
       DIMENSION rxyz(3, nn), lay(nn), icell(0:ncx, -1:ll1, -1:ll2, -1:ll3), &
-         lstb(0:myspace-1), rel(5, 0:myspace-1)
+         lstb(0:myspace - 1), rel(5, 0:myspace - 1)
 
       INTEGER       :: jat, jj, k1, k2, k3
       REAL(KIND=dp) :: rr2, tt, xrel, yrel, zrel, tti
 
-      loop_k3: DO k3 = l3-1, l3+1
-         loop_k2: DO k2 = l2-1, l2+1
-            loop_k1: DO k1 = l1-1, l1+1
+      loop_k3: DO k3 = l3 - 1, l3 + 1
+         loop_k2: DO k2 = l2 - 1, l2 + 1
+            loop_k1: DO k1 = l1 - 1, l1 + 1
                loop_jj: DO jj = 1, icell(0, k1, k2, k3)
                   jat = icell(jj, k1, k2, k3)
                   IF (jat .EQ. iat) CYCLE loop_k3
-                  xrel = rxyz(1, iat)-rxyz(1, jat)
-                  yrel = rxyz(2, iat)-rxyz(2, jat)
-                  zrel = rxyz(3, iat)-rxyz(3, jat)
-                  rr2 = xrel**2+yrel**2+zrel**2
+                  xrel = rxyz(1, iat) - rxyz(1, jat)
+                  yrel = rxyz(2, iat) - rxyz(2, jat)
+                  zrel = rxyz(3, iat) - rxyz(3, jat)
+                  rr2 = xrel**2 + yrel**2 + zrel**2
                   IF (rr2 .LE. cut2) THEN
-                     indlst = MIN(indlst, myspace-1)
+                     indlst = MIN(indlst, myspace - 1)
                      lstb(indlst) = lay(jat)
 !                       write(*,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
                      tt = SQRT(rr2)
@@ -2939,7 +2939,7 @@ CONTAINS
                      rel(3, indlst) = zrel*tti
                      rel(4, indlst) = tt
                      rel(5, indlst) = tti
-                     indlst = indlst+1
+                     indlst = indlst + 1
                   END IF
                END DO loop_jj
             END DO loop_k1
@@ -2968,51 +2968,51 @@ CONTAINS
       INTEGER                                            :: n
       REAL(KIND=dp)                                      :: x, y, yp
 
-      DIMENSION y2a(0:n-1), ya(0:n-1)
+      DIMENSION y2a(0:n - 1), ya(0:n - 1)
       REAL(KIND=dp) :: a, a2, b, b2, cof1, cof2, cof3, cof4, tt, &
                        y2a_khi, ya_klo, y2a_klo, ya_khi, ypt1, ypt2, yt1, yt2
       INTEGER :: klo, khi
 
 ! interpolate if the argument is outside the cubic spline interval [tmin,tmax]
-      tt = (x-tmin)*hi
+      tt = (x - tmin)*hi
       IF (x .LT. tmin) THEN
-         yp = hi*(ya(1)-ya(0))- &
-              (y2a(1)+2.e0_dp*y2a(0))*hsixth
-         y = ya(0)+(x-tmin)*yp
+         yp = hi*(ya(1) - ya(0)) - &
+              (y2a(1) + 2.e0_dp*y2a(0))*hsixth
+         y = ya(0) + (x - tmin)*yp
       ELSE IF (x .GT. tmax) THEN
-         yp = hi*(ya(n-1)-ya(n-2))+ &
-              (2.e0_dp*y2a(n-1)+y2a(n-2))*hsixth
-         y = ya(n-1)+(x-tmax)*yp
+         yp = hi*(ya(n - 1) - ya(n - 2)) + &
+              (2.e0_dp*y2a(n - 1) + y2a(n - 2))*hsixth
+         y = ya(n - 1) + (x - tmax)*yp
 ! otherwise evaluate cubic spline
       ELSE
          klo = INT(tt)
-         khi = klo+1
+         khi = klo + 1
          ya_klo = ya(klo)
          y2a_klo = y2a(klo)
-         b = tt-klo
-         a = 1.e0_dp-b
+         b = tt - klo
+         a = 1.e0_dp - b
          ya_khi = ya(khi)
          y2a_khi = y2a(khi)
          b2 = b*b
          y = a*ya_klo
-         yp = ya_khi-ya_klo
+         yp = ya_khi - ya_klo
          a2 = a*a
-         cof1 = a2-1.e0_dp
-         cof2 = b2-1.e0_dp
-         y = y+b*ya_khi
+         cof1 = a2 - 1.e0_dp
+         cof2 = b2 - 1.e0_dp
+         y = y + b*ya_khi
          yp = hi*yp
          cof3 = 3.e0_dp*b2
          cof4 = 3.e0_dp*a2
          cof1 = a*cof1
          cof2 = b*cof2
-         cof3 = cof3-1.e0_dp
-         cof4 = cof4-1.e0_dp
+         cof3 = cof3 - 1.e0_dp
+         cof4 = cof4 - 1.e0_dp
          yt1 = cof1*y2a_klo
          yt2 = cof2*y2a_khi
          ypt1 = cof3*y2a_khi
          ypt2 = cof4*y2a_klo
-         y = y+(yt1+yt2)*h2sixth
-         yp = yp+(ypt1-ypt2)*hsixth
+         y = y + (yt1 + yt2)*h2sixth
+         yp = yp + (ypt1 - ypt2)*hsixth
       ENDIF
       RETURN
    END SUBROUTINE splint

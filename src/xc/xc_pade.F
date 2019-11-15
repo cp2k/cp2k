@@ -152,7 +152,7 @@ CONTAINS
       IF (order >= 0) calc(0:order) = .TRUE.
       IF (order < 0) calc(-order) = .TRUE.
 
-      n = PRODUCT(rho_set%local_bounds(2, :)-rho_set%local_bounds(1, :)+(/1, 1, 1/))
+      n = PRODUCT(rho_set%local_bounds(2, :) - rho_set%local_bounds(1, :) + (/1, 1, 1/))
       ALLOCATE (rs(n))
 
       CALL calc_rs_pw(rho_set%rho, rs, n)
@@ -264,7 +264,7 @@ CONTAINS
 
                rhoa = rho_set%rhoa(i, j, k)
                rhob = rho_set%rhob(i, j, k)
-               fx(1) = rhoa+rhob
+               fx(1) = rhoa + rhob
 
                CALL calc_rs(fx(1), rs)
                CALL calc_fx(rhoa, rhob, fx, ABS(order))
@@ -312,10 +312,10 @@ CONTAINS
 !$OMP SHARED(n,rho,eps_rho,pot,rs)
       DO ip = 1, n
          IF (rho(ip) > eps_rho) THEN
-            p = a0+(a1+(a2+a3*rs(ip))*rs(ip))*rs(ip)
-            q = (b1+(b2+(b3+b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+            p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
+            q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
             epade = -p/q
-            pot(ip) = pot(ip)+epade*rho(ip)
+            pot(ip) = pot(ip) + epade*rho(ip)
          END IF
       END DO
 
@@ -343,15 +343,15 @@ CONTAINS
       DO ip = 1, n
          IF (rho(ip) > eps_rho) THEN
 
-            p = a0+(a1+(a2+a3*rs(ip))*rs(ip))*rs(ip)
-            q = (b1+(b2+(b3+b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+            p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
+            q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
             epade = -p/q
 
-            dpv = a1+(2.0_dp*a2+3.0_dp*a3*rs(ip))*rs(ip)
-            dq = b1+(2.0_dp*b2+(3.0_dp*b3+4.0_dp*b4*rs(ip))*rs(ip))*rs(ip)
-            depade = f13*rs(ip)*(dpv*q-p*dq)/(q*q)
+            dpv = a1 + (2.0_dp*a2 + 3.0_dp*a3*rs(ip))*rs(ip)
+            dq = b1 + (2.0_dp*b2 + (3.0_dp*b3 + 4.0_dp*b4*rs(ip))*rs(ip))*rs(ip)
+            depade = f13*rs(ip)*(dpv*q - p*dq)/(q*q)
 
-            pot(ip) = pot(ip)+epade+depade
+            pot(ip) = pot(ip) + epade + depade
 
          END IF
       END DO
@@ -381,16 +381,16 @@ CONTAINS
       DO ip = 1, n
          IF (rho(ip) > eps_rho) THEN
 
-            p = a0+(a1+(a2+a3*rs(ip))*rs(ip))*rs(ip)
-            q = (b1+(b2+(b3+b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+            p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
+            q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
             epade = -p/q
 
-            dpv = a1+(2.0_dp*a2+3.0_dp*a3*rs(ip))*rs(ip)
-            dq = b1+(2.0_dp*b2+(3.0_dp*b3+4.0_dp*b4*rs(ip))*rs(ip))*rs(ip)
-            depade = f13*rs(ip)*(dpv*q-p*dq)/(q*q)
+            dpv = a1 + (2.0_dp*a2 + 3.0_dp*a3*rs(ip))*rs(ip)
+            dq = b1 + (2.0_dp*b2 + (3.0_dp*b3 + 4.0_dp*b4*rs(ip))*rs(ip))*rs(ip)
+            depade = f13*rs(ip)*(dpv*q - p*dq)/(q*q)
 
-            pot0(ip) = pot0(ip)+epade*rho(ip)
-            pot1(ip) = pot1(ip)+epade+depade
+            pot0(ip) = pot0(ip) + epade*rho(ip)
+            pot1(ip) = pot1(ip) + epade + depade
 
          END IF
       END DO
@@ -419,21 +419,21 @@ CONTAINS
       DO ip = 1, n
          IF (rho(ip) > eps_rho) THEN
 
-            p = a0+(a1+(a2+a3*rs(ip))*rs(ip))*rs(ip)
-            q = (b1+(b2+(b3+b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+            p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
+            q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
 
-            dpv = a1+(2.0_dp*a2+3.0_dp*a3*rs(ip))*rs(ip)
-            dq = b1+(2.0_dp*b2+(3.0_dp*b3+4.0_dp*b4*rs(ip))*rs(ip))*rs(ip)
+            dpv = a1 + (2.0_dp*a2 + 3.0_dp*a3*rs(ip))*rs(ip)
+            dq = b1 + (2.0_dp*b2 + (3.0_dp*b3 + 4.0_dp*b4*rs(ip))*rs(ip))*rs(ip)
 
-            d2p = 2.0_dp*a2+6.0_dp*a3*rs(ip)
-            d2q = 2.0_dp*b2+(6.0_dp*b3+12.0_dp*b4*rs(ip))*rs(ip)
+            d2p = 2.0_dp*a2 + 6.0_dp*a3*rs(ip)
+            d2q = 2.0_dp*b2 + (6.0_dp*b3 + 12.0_dp*b4*rs(ip))*rs(ip)
 
             rsr = rs(ip)/rho(ip)
-            t1 = (p*dq-dpv*q)/(q*q)
-            t2 = (d2p*q-p*d2q)/(q*q)
-            t3 = (p*dq*dq-dpv*q*dq)/(q*q*q)
+            t1 = (p*dq - dpv*q)/(q*q)
+            t2 = (d2p*q - p*d2q)/(q*q)
+            t3 = (p*dq*dq - dpv*q*dq)/(q*q*q)
 
-            pot(ip) = pot(ip)-f13*(f23*t1+f13*t2*rs(ip)+f23*t3*rs(ip))*rsr
+            pot(ip) = pot(ip) - f13*(f23*t1 + f13*t2*rs(ip) + f23*t3*rs(ip))*rsr
 
          END IF
       END DO
@@ -463,27 +463,27 @@ CONTAINS
       DO ip = 1, n
          IF (rho(ip) > eps_rho) THEN
 
-            p = a0+(a1+(a2+a3*rs(ip))*rs(ip))*rs(ip)
-            q = (b1+(b2+(b3+b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+            p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
+            q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
 
-            dpv = a1+(2.0_dp*a2+3.0_dp*a3*rs(ip))*rs(ip)
-            dq = b1+(2.0_dp*b2+(3.0_dp*b3+4.0_dp*b4*rs(ip))*rs(ip))*rs(ip)
+            dpv = a1 + (2.0_dp*a2 + 3.0_dp*a3*rs(ip))*rs(ip)
+            dq = b1 + (2.0_dp*b2 + (3.0_dp*b3 + 4.0_dp*b4*rs(ip))*rs(ip))*rs(ip)
 
-            d2p = 2.0_dp*a2+6.0_dp*a3*rs(ip)
-            d2q = 2.0_dp*b2+(6.0_dp*b3+12.0_dp*b4*rs(ip))*rs(ip)
+            d2p = 2.0_dp*a2 + 6.0_dp*a3*rs(ip)
+            d2q = 2.0_dp*b2 + (6.0_dp*b3 + 12.0_dp*b4*rs(ip))*rs(ip)
 
             d3p = 6.0_dp*a3
-            d3q = 6.0_dp*b3+24.0_dp*b4*rs(ip)
+            d3q = 6.0_dp*b3 + 24.0_dp*b4*rs(ip)
 
-            ab1 = (dpv*q-p*dq)/(q*q)
-            ab2 = (d2p*q*q-p*q*d2q-2.0_dp*dpv*q*dq+2.0_dp*p*dq*dq)/(q*q*q)
-            ab3 = (d3p*q*q-p*q*d3q-3.0_dp*dpv*q*d2q+3.0_dp*p*dq*d2q)/(q*q*q)
-            ab3 = ab3-3.0_dp*ab2*dq/q
+            ab1 = (dpv*q - p*dq)/(q*q)
+            ab2 = (d2p*q*q - p*q*d2q - 2.0_dp*dpv*q*dq + 2.0_dp*p*dq*dq)/(q*q*q)
+            ab3 = (d3p*q*q - p*q*d3q - 3.0_dp*dpv*q*d2q + 3.0_dp*p*dq*d2q)/(q*q*q)
+            ab3 = ab3 - 3.0_dp*ab2*dq/q
             rsr1 = rs(ip)/(rho(ip)*rho(ip))
             rsr2 = f13*f13*rs(ip)*rsr1
             rsr3 = f13*rs(ip)*rsr2
             rsr1 = -f23*f23*f23*rsr1
-            pot(ip) = pot(ip)+rsr1*ab1+rsr2*ab2+rsr3*ab3
+            pot(ip) = pot(ip) + rsr1*ab1 + rsr2*ab2 + rsr3*ab3
 
          END IF
       END DO
@@ -507,23 +507,23 @@ CONTAINS
       REAL(KIND=dp)                                      :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4, &
                                                             p, q, rhoab
 
-      rhoab = rhoa+rhob
+      rhoab = rhoa + rhob
 
       IF (rhoab > eps_rho) THEN
 
-         fa0 = a0+fx(1)*da0
-         fa1 = a1+fx(1)*da1
-         fa2 = a2+fx(1)*da2
-         fa3 = a3+fx(1)*da3
-         fb1 = b1+fx(1)*db1
-         fb2 = b2+fx(1)*db2
-         fb3 = b3+fx(1)*db3
-         fb4 = b4+fx(1)*db4
+         fa0 = a0 + fx(1)*da0
+         fa1 = a1 + fx(1)*da1
+         fa2 = a2 + fx(1)*da2
+         fa3 = a3 + fx(1)*da3
+         fb1 = b1 + fx(1)*db1
+         fb2 = b2 + fx(1)*db2
+         fb3 = b3 + fx(1)*db3
+         fb4 = b4 + fx(1)*db4
 
-         p = fa0+(fa1+(fa2+fa3*rs)*rs)*rs
-         q = (fb1+(fb2+(fb3+fb4*rs)*rs)*rs)*rs
+         p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
+         q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
 
-         pot0 = pot0-p/q*rhoab
+         pot0 = pot0 - p/q*rhoab
 
       END IF
 
@@ -547,33 +547,33 @@ CONTAINS
       REAL(KIND=dp)                                      :: dc, dpv, dq, dr, dx, fa0, fa1, fa2, fa3, &
                                                             fb1, fb2, fb3, fb4, p, q, rhoab, xp, xq
 
-      rhoab = rhoa+rhob
+      rhoab = rhoa + rhob
 
       IF (rhoab > eps_rho) THEN
 
-         fa0 = a0+fx(1)*da0
-         fa1 = a1+fx(1)*da1
-         fa2 = a2+fx(1)*da2
-         fa3 = a3+fx(1)*da3
-         fb1 = b1+fx(1)*db1
-         fb2 = b2+fx(1)*db2
-         fb3 = b3+fx(1)*db3
-         fb4 = b4+fx(1)*db4
+         fa0 = a0 + fx(1)*da0
+         fa1 = a1 + fx(1)*da1
+         fa2 = a2 + fx(1)*da2
+         fa3 = a3 + fx(1)*da3
+         fb1 = b1 + fx(1)*db1
+         fb2 = b2 + fx(1)*db2
+         fb3 = b3 + fx(1)*db3
+         fb4 = b4 + fx(1)*db4
 
-         p = fa0+(fa1+(fa2+fa3*rs)*rs)*rs
-         q = (fb1+(fb2+(fb3+fb4*rs)*rs)*rs)*rs
-         dpv = fa1+(2.0_dp*fa2+3.0_dp*fa3*rs)*rs
-         dq = fb1+(2.0_dp*fb2+(3.0_dp*fb3+ &
-                               4.0_dp*fb4*rs)*rs)*rs
-         xp = da0+(da1+(da2+da3*rs)*rs)*rs
-         xq = (db1+(db2+(db3+db4*rs)*rs)*rs)*rs
+         p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
+         q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
+         dpv = fa1 + (2.0_dp*fa2 + 3.0_dp*fa3*rs)*rs
+         dq = fb1 + (2.0_dp*fb2 + (3.0_dp*fb3 + &
+                                   4.0_dp*fb4*rs)*rs)*rs
+         xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
+         xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
-         dr = (dpv*q-p*dq)/(q*q)
-         dx = 2.0_dp*(xp*q-p*xq)/(q*q)*fx(2)/rhoab
-         dc = f13*rs*dr-p/q
+         dr = (dpv*q - p*dq)/(q*q)
+         dx = 2.0_dp*(xp*q - p*xq)/(q*q)*fx(2)/rhoab
+         dc = f13*rs*dr - p/q
 
-         pota = pota+dc-dx*rhob
-         potb = potb+dc+dx*rhoa
+         pota = pota + dc - dx*rhob
+         potb = potb + dc + dx*rhoa
 
       END IF
 
@@ -598,34 +598,34 @@ CONTAINS
       REAL(KIND=dp)                                      :: dc, dpv, dq, dr, dx, fa0, fa1, fa2, fa3, &
                                                             fb1, fb2, fb3, fb4, p, q, rhoab, xp, xq
 
-      rhoab = rhoa+rhob
+      rhoab = rhoa + rhob
 
       IF (rhoab > eps_rho) THEN
 
-         fa0 = a0+fx(1)*da0
-         fa1 = a1+fx(1)*da1
-         fa2 = a2+fx(1)*da2
-         fa3 = a3+fx(1)*da3
-         fb1 = b1+fx(1)*db1
-         fb2 = b2+fx(1)*db2
-         fb3 = b3+fx(1)*db3
-         fb4 = b4+fx(1)*db4
+         fa0 = a0 + fx(1)*da0
+         fa1 = a1 + fx(1)*da1
+         fa2 = a2 + fx(1)*da2
+         fa3 = a3 + fx(1)*da3
+         fb1 = b1 + fx(1)*db1
+         fb2 = b2 + fx(1)*db2
+         fb3 = b3 + fx(1)*db3
+         fb4 = b4 + fx(1)*db4
 
-         p = fa0+(fa1+(fa2+fa3*rs)*rs)*rs
-         q = (fb1+(fb2+(fb3+fb4*rs)*rs)*rs)*rs
-         dpv = fa1+(2.0_dp*fa2+3.0_dp*fa3*rs)*rs
-         dq = fb1+(2.0_dp*fb2+(3.0_dp*fb3+ &
-                               4.0_dp*fb4*rs)*rs)*rs
-         xp = da0+(da1+(da2+da3*rs)*rs)*rs
-         xq = (db1+(db2+(db3+db4*rs)*rs)*rs)*rs
+         p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
+         q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
+         dpv = fa1 + (2.0_dp*fa2 + 3.0_dp*fa3*rs)*rs
+         dq = fb1 + (2.0_dp*fb2 + (3.0_dp*fb3 + &
+                                   4.0_dp*fb4*rs)*rs)*rs
+         xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
+         xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
-         dr = (dpv*q-p*dq)/(q*q)
-         dx = 2.0_dp*(xp*q-p*xq)/(q*q)*fx(2)/rhoab
-         dc = f13*rs*dr-p/q
+         dr = (dpv*q - p*dq)/(q*q)
+         dx = 2.0_dp*(xp*q - p*xq)/(q*q)*fx(2)/rhoab
+         dc = f13*rs*dr - p/q
 
-         pot0 = pot0-p/q*rhoab
-         pota = pota+dc-dx*rhob
-         potb = potb+dc+dx*rhoa
+         pot0 = pot0 - p/q*rhoab
+         pota = pota + dc - dx*rhob
+         potb = potb + dc + dx*rhoa
 
       END IF
 
@@ -652,58 +652,58 @@ CONTAINS
                                                             fb1, fb2, fb3, fb4, or, p, q, rhoab, &
                                                             xp, xq, xt, yt
 
-      rhoab = rhoa+rhob
+      rhoab = rhoa + rhob
 
       IF (rhoab > eps_rho) THEN
 
-         fa0 = a0+fx(1)*da0
-         fa1 = a1+fx(1)*da1
-         fa2 = a2+fx(1)*da2
-         fa3 = a3+fx(1)*da3
-         fb1 = b1+fx(1)*db1
-         fb2 = b2+fx(1)*db2
-         fb3 = b3+fx(1)*db3
-         fb4 = b4+fx(1)*db4
+         fa0 = a0 + fx(1)*da0
+         fa1 = a1 + fx(1)*da1
+         fa2 = a2 + fx(1)*da2
+         fa3 = a3 + fx(1)*da3
+         fb1 = b1 + fx(1)*db1
+         fb2 = b2 + fx(1)*db2
+         fb3 = b3 + fx(1)*db3
+         fb4 = b4 + fx(1)*db4
 
-         p = fa0+(fa1+(fa2+fa3*rs)*rs)*rs
-         q = (fb1+(fb2+(fb3+fb4*rs)*rs)*rs)*rs
+         p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
+         q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
 
-         dpv = fa1+(2.0_dp*fa2+3.0_dp*fa3*rs)*rs
-         dq = fb1+(2.0_dp*fb2+(3.0_dp*fb3+ &
-                               4.0_dp*fb4*rs)*rs)*rs
+         dpv = fa1 + (2.0_dp*fa2 + 3.0_dp*fa3*rs)*rs
+         dq = fb1 + (2.0_dp*fb2 + (3.0_dp*fb3 + &
+                                   4.0_dp*fb4*rs)*rs)*rs
 
-         d2p = 2.0_dp*fa2+6.0_dp*fa3*rs
-         d2q = 2.0_dp*fb2+(6.0_dp*fb3+12.0_dp*fb4*rs)*rs
+         d2p = 2.0_dp*fa2 + 6.0_dp*fa3*rs
+         d2q = 2.0_dp*fb2 + (6.0_dp*fb3 + 12.0_dp*fb4*rs)*rs
 
-         xp = da0+(da1+(da2+da3*rs)*rs)*rs
-         xq = (db1+(db2+(db3+db4*rs)*rs)*rs)*rs
+         xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
+         xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
-         dxp = da1+(2.0_dp*da2+3.0_dp*da3*rs)*rs
-         dxq = db1+(2.0_dp*db2+(3.0_dp*db3+ &
-                                4.0_dp*db4*rs)*rs)*rs
+         dxp = da1 + (2.0_dp*da2 + 3.0_dp*da3*rs)*rs
+         dxq = db1 + (2.0_dp*db2 + (3.0_dp*db3 + &
+                                    4.0_dp*db4*rs)*rs)*rs
 
-         dr = (dpv*q-p*dq)/(q*q)
-         drr = (d2p*q*q-p*q*d2q-2.0_dp*dpv*q*dq+2.0_dp*p*dq*dq)/(q*q*q)
-         dx = (xp*q-p*xq)/(q*q)
-         dxx = 2.0_dp*xq*(p*xq-xp*q)/(q*q*q)
-         dxr = (dxp*q*q+dpv*xq*q-xp*dq*q-p*dxq*q-2.0_dp*dpv*q*xq+2.0_dp*p*dq*xq)/(q*q*q)
+         dr = (dpv*q - p*dq)/(q*q)
+         drr = (d2p*q*q - p*q*d2q - 2.0_dp*dpv*q*dq + 2.0_dp*p*dq*dq)/(q*q*q)
+         dx = (xp*q - p*xq)/(q*q)
+         dxx = 2.0_dp*xq*(p*xq - xp*q)/(q*q*q)
+         dxr = (dxp*q*q + dpv*xq*q - xp*dq*q - p*dxq*q - 2.0_dp*dpv*q*xq + 2.0_dp*p*dq*xq)/(q*q*q)
 
          or = 1.0_dp/rhoab
          yt = rhob*or
          xt = rhoa*or
 
-         potaa = potaa+f23*f13*dr*rs*or-f13*f13*drr*rs*rs*or &
-                 +f43*rs*fx(2)*dxr*yt*or &
-                 -4.0_dp*fx(2)*fx(2)*dxx*yt*yt*or &
-                 -4.0_dp*dx*fx(3)*yt*yt*or
-         potab = potab+f23*f13*dr*rs*or-f13*f13*drr*rs*rs*or &
-                 +f23*rs*fx(2)*dxr*(yt-xt)*or &
-                 +4.0_dp*fx(2)*fx(2)*dxx*xt*yt*or &
-                 +4.0_dp*dx*fx(3)*xt*yt*or
-         potbb = potbb+f23*f13*dr*rs*or-f13*f13*drr*rs*rs*or &
-                 -f43*rs*fx(2)*dxr*xt*or &
-                 -4.0_dp*fx(2)*fx(2)*dxx*xt*xt*or &
-                 -4.0_dp*dx*fx(3)*xt*xt*or
+         potaa = potaa + f23*f13*dr*rs*or - f13*f13*drr*rs*rs*or &
+                 + f43*rs*fx(2)*dxr*yt*or &
+                 - 4.0_dp*fx(2)*fx(2)*dxx*yt*yt*or &
+                 - 4.0_dp*dx*fx(3)*yt*yt*or
+         potab = potab + f23*f13*dr*rs*or - f13*f13*drr*rs*rs*or &
+                 + f23*rs*fx(2)*dxr*(yt - xt)*or &
+                 + 4.0_dp*fx(2)*fx(2)*dxx*xt*yt*or &
+                 + 4.0_dp*dx*fx(3)*xt*yt*or
+         potbb = potbb + f23*f13*dr*rs*or - f13*f13*drr*rs*rs*or &
+                 - f43*rs*fx(2)*dxr*xt*or &
+                 - 4.0_dp*fx(2)*fx(2)*dxx*xt*xt*or &
+                 - 4.0_dp*dx*fx(3)*xt*xt*or
 
       END IF
 
@@ -734,67 +734,67 @@ CONTAINS
 
       IF (.NOT. debug_flag) CPABORT("Routine not tested")
 
-      rhoab = rhoa+rhob
+      rhoab = rhoa + rhob
 
       IF (rhoab > eps_rho) THEN
 
-         fa0 = a0+fx(1)*da0
-         fa1 = a1+fx(1)*da1
-         fa2 = a2+fx(1)*da2
-         fa3 = a3+fx(1)*da3
-         fb1 = b1+fx(1)*db1
-         fb2 = b2+fx(1)*db2
-         fb3 = b3+fx(1)*db3
-         fb4 = b4+fx(1)*db4
+         fa0 = a0 + fx(1)*da0
+         fa1 = a1 + fx(1)*da1
+         fa2 = a2 + fx(1)*da2
+         fa3 = a3 + fx(1)*da3
+         fb1 = b1 + fx(1)*db1
+         fb2 = b2 + fx(1)*db2
+         fb3 = b3 + fx(1)*db3
+         fb4 = b4 + fx(1)*db4
 
-         p = fa0+(fa1+(fa2+fa3*rs)*rs)*rs
-         q = (fb1+(fb2+(fb3+fb4*rs)*rs)*rs)*rs
+         p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
+         q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
 
-         dpv = fa1+(2.0_dp*fa2+3.0_dp*fa3*rs)*rs
-         dq = fb1+(2.0_dp*fb2+(3.0_dp*fb3+ &
-                               4.0_dp*fb4*rs)*rs)*rs
+         dpv = fa1 + (2.0_dp*fa2 + 3.0_dp*fa3*rs)*rs
+         dq = fb1 + (2.0_dp*fb2 + (3.0_dp*fb3 + &
+                                   4.0_dp*fb4*rs)*rs)*rs
 
-         d2p = 2.0_dp*fa2+6.0_dp*fa3*rs
-         d2q = 2.0_dp*fb2+(6.0_dp*fb3+12.0_dp*fb4*rs)*rs
+         d2p = 2.0_dp*fa2 + 6.0_dp*fa3*rs
+         d2q = 2.0_dp*fb2 + (6.0_dp*fb3 + 12.0_dp*fb4*rs)*rs
 
          d3p = 6.0_dp*fa3
-         d3q = 6.0_dp*fb3+24.0_dp*fb4*rs
+         d3q = 6.0_dp*fb3 + 24.0_dp*fb4*rs
 
-         xp = da0+(da1+(da2+da3*rs)*rs)*rs
-         xq = (db1+(db2+(db3+db4*rs)*rs)*rs)*rs
+         xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
+         xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
-         dxp = da1+(2.0_dp*da2+3.0_dp*da3*rs)*rs
-         dxq = db1+(2.0_dp*db2+(3.0_dp*db3+ &
-                                4.0_dp*db4*rs)*rs)*rs
+         dxp = da1 + (2.0_dp*da2 + 3.0_dp*da3*rs)*rs
+         dxq = db1 + (2.0_dp*db2 + (3.0_dp*db3 + &
+                                    4.0_dp*db4*rs)*rs)*rs
 
-         d2xp = 2.0_dp*da2+6.0_dp*da3*rs
-         d2xq = 2.0_dp*db2+(6.0_dp*db3+12.0_dp*db4*rs)*rs
+         d2xp = 2.0_dp*da2 + 6.0_dp*da3*rs
+         d2xq = 2.0_dp*db2 + (6.0_dp*db3 + 12.0_dp*db4*rs)*rs
 
-         dr = (dpv*q-p*dq)/(q*q)
-         drr = (d2p*q*q-p*q*d2q-2.0_dp*dpv*q*dq+2.0_dp*p*dq*dq)/(q*q*q)
-         drrr = (d3p*q*q*q-3.0_dp*d2p*dq*q*q+6.0_dp*dpv*dq*dq*q-3.0_dp*dpv*d2q*q*q- &
-                 6.0_dp*p*dq*dq*dq+6.0_dp*p*dq*d2q*q-p*d3q*q*q)/(q*q*q*q)
-         dx = (xp*q-p*xq)/(q*q)
-         dxx = 2.0_dp*xq*(p*xq-xp*q)/(q*q*q)
-         dxxx = 6.0_dp*xq*(q*xp*xq-p*xq*xq)/(q*q*q*q)
-         dxr = (dxp*q*q+dpv*xq*q-xp*dq*q-p*dxq*q-2.0_dp*dpv*q*xq+2.0_dp*p*dq*xq)/(q*q*q)
-         dxxr = 2.0_dp*(2.0_dp*dxq*q*p*xq-dxq*q*q*xp+xq*xq*q*dpv-xq*q*q*dxp+ &
-                        2.0_dp*xq*q*xp*dq-3.0_dp*xq*xq*dq*p)/(q*q*q*q)
-         dxrr = (q*q*q*d2xp-2.0_dp*q*q*dxp*dq-q*q*xp*d2q-q*q*d2p*xq- &
-                 2.0_dp*q*q*dpv*dxq-q*q*p*d2xq+4.0_dp*dq*q*dpv*xq+4.0_dp*dq*q*p*dxq+ &
-                 2.0_dp*dq*dq*q*xp-6.0_dp*dq*dq*p*xq+2.0_dp*d2q*q*p*xq)/(q*q*q*q)
+         dr = (dpv*q - p*dq)/(q*q)
+         drr = (d2p*q*q - p*q*d2q - 2.0_dp*dpv*q*dq + 2.0_dp*p*dq*dq)/(q*q*q)
+         drrr = (d3p*q*q*q - 3.0_dp*d2p*dq*q*q + 6.0_dp*dpv*dq*dq*q - 3.0_dp*dpv*d2q*q*q - &
+                 6.0_dp*p*dq*dq*dq + 6.0_dp*p*dq*d2q*q - p*d3q*q*q)/(q*q*q*q)
+         dx = (xp*q - p*xq)/(q*q)
+         dxx = 2.0_dp*xq*(p*xq - xp*q)/(q*q*q)
+         dxxx = 6.0_dp*xq*(q*xp*xq - p*xq*xq)/(q*q*q*q)
+         dxr = (dxp*q*q + dpv*xq*q - xp*dq*q - p*dxq*q - 2.0_dp*dpv*q*xq + 2.0_dp*p*dq*xq)/(q*q*q)
+         dxxr = 2.0_dp*(2.0_dp*dxq*q*p*xq - dxq*q*q*xp + xq*xq*q*dpv - xq*q*q*dxp + &
+                        2.0_dp*xq*q*xp*dq - 3.0_dp*xq*xq*dq*p)/(q*q*q*q)
+         dxrr = (q*q*q*d2xp - 2.0_dp*q*q*dxp*dq - q*q*xp*d2q - q*q*d2p*xq - &
+                 2.0_dp*q*q*dpv*dxq - q*q*p*d2xq + 4.0_dp*dq*q*dpv*xq + 4.0_dp*dq*q*p*dxq + &
+                 2.0_dp*dq*dq*q*xp - 6.0_dp*dq*dq*p*xq + 2.0_dp*d2q*q*p*xq)/(q*q*q*q)
 
          or = 1.0_dp/rhoab
          yt = rhob*or
          xt = rhoa*or
 
-         potaaa = potaaa+8.0_dp/27.0_dp*dr*rs*or*or+ &
-                  1.0_dp/9.0_dp*drr*rs*rs*or*or+ &
-                  1.0_dp/27.0_dp*drrr*rs**3*or*or+ &
-                  dxr*or*or*yt*rs*(-8.0_dp/3.0_dp*fx(2)+4.0_dp*fx(3)*yt)
-         potaab = potaab+0.0_dp
-         potabb = potabb+0.0_dp
-         potbbb = potbbb+0.0_dp
+         potaaa = potaaa + 8.0_dp/27.0_dp*dr*rs*or*or + &
+                  1.0_dp/9.0_dp*drr*rs*rs*or*or + &
+                  1.0_dp/27.0_dp*drrr*rs**3*or*or + &
+                  dxr*or*or*yt*rs*(-8.0_dp/3.0_dp*fx(2) + 4.0_dp*fx(3)*yt)
+         potaab = potaab + 0.0_dp
+         potabb = potabb + 0.0_dp
+         potbbb = potbbb + 0.0_dp
 
       END IF
 

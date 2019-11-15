@@ -91,7 +91,7 @@ CONTAINS
       DO ig = s_dim, e_dim
          g2 = rho_tot_g%pw_grid%gsq(ig)
          IF (g2 > gcut2) EXIT
-         w(ig) = fourpi*(g2-gcut2)**2/(g2*gcut2)
+         w(ig) = fourpi*(g2 - gcut2)**2/(g2*gcut2)
       END DO
       CALL timestop(handle)
    END SUBROUTINE ddapc_eval_gfunc
@@ -151,7 +151,7 @@ CONTAINS
                my_bv(ig) = w(ig)*REAL(CONJG(rho_tot_g%cc(ig))*phase, KIND=dp)
             END DO
             DO igauss = 1, SIZE(radii)
-               idim = (iparticle-1)*SIZE(radii)+igauss
+               idim = (iparticle - 1)*SIZE(radii) + igauss
                DO ig = s_dim, igmax
                   my_bvw(ig) = my_bv(ig)*gfunc(ig, igauss)
                END DO
@@ -163,7 +163,7 @@ CONTAINS
       ELSE
          DO iparticle = 1, SIZE(particle_set)
             DO igauss = 1, SIZE(radii)
-               idim = (iparticle-1)*SIZE(radii)+igauss
+               idim = (iparticle - 1)*SIZE(radii) + igauss
                bv(idim) = 0.0_dp
             END DO
          END DO
@@ -233,15 +233,15 @@ CONTAINS
             DO iparticle2 = iparticle1, SIZE(particle_set)
                DO ig = s_dim, igmax
                   !NB replace explicit dot product and cosine with cos(A+B) formula - much faster
-                  my_Am(ig) = (g_dot_rvec_cos(ig-s_dim+1, iparticle1)*g_dot_rvec_cos(ig-s_dim+1, iparticle2)+ &
-                               g_dot_rvec_sin(ig-s_dim+1, iparticle1)*g_dot_rvec_sin(ig-s_dim+1, iparticle2))
+                  my_Am(ig) = (g_dot_rvec_cos(ig - s_dim + 1, iparticle1)*g_dot_rvec_cos(ig - s_dim + 1, iparticle2) + &
+                               g_dot_rvec_sin(ig - s_dim + 1, iparticle1)*g_dot_rvec_sin(ig - s_dim + 1, iparticle2))
                END DO
                DO igauss1 = 1, SIZE(radii)
-                  idim1 = (iparticle1-1)*SIZE(radii)+igauss1
+                  idim1 = (iparticle1 - 1)*SIZE(radii) + igauss1
                   istart_g = 1
                   IF (iparticle2 == iparticle1) istart_g = igauss1
                   DO igauss2 = istart_g, SIZE(radii)
-                     idim2 = (iparticle2-1)*SIZE(radii)+igauss2
+                     idim2 = (iparticle2 - 1)*SIZE(radii) + igauss2
                      my_Amw(s_dim:igmax) = my_Am(s_dim:igmax)*gfunc_sq(s_dim:igmax, igauss1, igauss2)
                      !NB no loss of accuracy in my test cases
                      !tmp = accurate_sum(my_Amw)
@@ -317,7 +317,7 @@ CONTAINS
                my_dbv(:, ig) = w(ig)*REAL(CONJG(rho_tot_g%cc(ig))*dphase, KIND=dp)*gvec(:)
             END DO
             DO igauss = 1, SIZE(radii)
-               idim = (iparticle-1)*SIZE(radii)+igauss
+               idim = (iparticle - 1)*SIZE(radii) + igauss
                DO ig = s_dim, igmax
                   my_dbvw(ig) = my_dbv(1, ig)*gfunc(ig, igauss)
                END DO
@@ -338,7 +338,7 @@ CONTAINS
          DO iparticle = 1, SIZE(particle_set)
             IF (iparticle /= iparticle0) CYCLE
             DO igauss = 1, SIZE(radii)
-               idim = (iparticle-1)*SIZE(radii)+igauss
+               idim = (iparticle - 1)*SIZE(radii) + igauss
                dbv(idim, 1:3) = 0.0_dp
             END DO
          END DO
@@ -404,7 +404,7 @@ CONTAINS
 
       Nr = SIZE(radii)
       Np = SIZE(particle_set)
-      Ng = igmax-s_dim+1
+      Ng = igmax - s_dim + 1
       IF (igmax .GE. s_dim) THEN
          ALLOCATE (lhs(nparticles*Nr, Ng))
          ALLOCATE (rhs(Ng, Np*Nr))
@@ -413,26 +413,26 @@ CONTAINS
          ! rhs has all parts that depend on iparticle2
          DO iparticle2 = 1, Np
             DO igauss2 = 1, Nr
-               rhs(1:Ng, (iparticle2-1)*Nr+igauss2) = g_dot_rvec_sin(1:Ng, iparticle2)*gfunc(s_dim:igmax, igauss2)
+               rhs(1:Ng, (iparticle2 - 1)*Nr + igauss2) = g_dot_rvec_sin(1:Ng, iparticle2)*gfunc(s_dim:igmax, igauss2)
             END DO
          END DO
          DO icomp = 1, 3
             ! create lhs, which has all parts that depend on iparticle1
             DO ipp = 1, nparticles
-               iparticle1 = iparticle0+ipp-1
+               iparticle1 = iparticle0 + ipp - 1
                DO ig = s_dim, igmax
-                  lhs((ipp-1)*Nr+1:(ipp-1)*Nr+Nr, ig-s_dim+1) = w(ig)*rho_tot_g%pw_grid%g(icomp, ig)* &
-                                                                gfunc(ig, 1:Nr)*g_dot_rvec_cos(ig-s_dim+1, iparticle1)
+                  lhs((ipp - 1)*Nr + 1:(ipp - 1)*Nr + Nr, ig - s_dim + 1) = w(ig)*rho_tot_g%pw_grid%g(icomp, ig)* &
+                                                                          gfunc(ig, 1:Nr)*g_dot_rvec_cos(ig - s_dim + 1, iparticle1)
                END DO
             END DO ! ipp
             ! do main multiply
             CALL DGEMM('N', 'N', nparticles*Nr, Np*Nr, Ng, 1.0D0, lhs(1, 1), nparticles*Nr, rhs(1, 1), &
-                       Ng, 0.0D0, dAm((iparticle0-1)*Nr+1, 1, icomp), Np*Nr)
+                       Ng, 0.0D0, dAm((iparticle0 - 1)*Nr + 1, 1, icomp), Np*Nr)
             ! do extra multiplies to compensate for missing factor of 2
             DO ipp = 1, nparticles
-               iparticle1 = iparticle0+ipp-1
-               CALL DGEMM('N', 'N', Nr, Nr, Ng, 1.0D0, lhs((ipp-1)*Nr+1, 1), nparticles*Nr, rhs(1, (iparticle1-1)*Nr+1), &
-                          Ng, 1.0D0, dAm((iparticle1-1)*Nr+1, (iparticle1-1)*Nr+1, icomp), Np*Nr)
+               iparticle1 = iparticle0 + ipp - 1
+               CALL DGEMM('N', 'N', Nr, Nr, Ng, 1.0D0, lhs((ipp - 1)*Nr + 1, 1), nparticles*Nr, rhs(1, (iparticle1 - 1)*Nr + 1), &
+                          Ng, 1.0D0, dAm((iparticle1 - 1)*Nr + 1, (iparticle1 - 1)*Nr + 1, icomp), Np*Nr)
             END DO
             ! now extra columns to account for factor of 2 in some rhs columns
          END DO ! icomp
@@ -441,26 +441,26 @@ CONTAINS
          ! rhs has all parts that depend on iparticle2
          DO iparticle2 = 1, Np
             DO igauss2 = 1, Nr
-               rhs(1:Ng, (iparticle2-1)*Nr+igauss2) = -g_dot_rvec_cos(1:Ng, iparticle2)*gfunc(s_dim:igmax, igauss2)
+               rhs(1:Ng, (iparticle2 - 1)*Nr + igauss2) = -g_dot_rvec_cos(1:Ng, iparticle2)*gfunc(s_dim:igmax, igauss2)
             END DO
          END DO
          DO icomp = 1, 3
             ! create lhs, which has all parts that depend on iparticle1
             DO ipp = 1, nparticles
-               iparticle1 = iparticle0+ipp-1
+               iparticle1 = iparticle0 + ipp - 1
                DO ig = s_dim, igmax
-                  lhs((ipp-1)*Nr+1:(ipp-1)*Nr+Nr, ig-s_dim+1) = w(ig)*rho_tot_g%pw_grid%g(icomp, ig)*gfunc(ig, 1:Nr)* &
-                                                                g_dot_rvec_sin(ig-s_dim+1, iparticle1)
+                  lhs((ipp - 1)*Nr + 1:(ipp - 1)*Nr + Nr, ig - s_dim + 1) = w(ig)*rho_tot_g%pw_grid%g(icomp, ig)*gfunc(ig, 1:Nr)* &
+                                                                            g_dot_rvec_sin(ig - s_dim + 1, iparticle1)
                END DO
             ENDDO
             ! do main multiply
             CALL DGEMM('N', 'N', nparticles*Nr, Np*Nr, Ng, 1.0D0, lhs(1, 1), nparticles*Nr, rhs(1, 1), &
-                       Ng, 1.0D0, dAm((iparticle0-1)*Nr+1, 1, icomp), Np*Nr)
+                       Ng, 1.0D0, dAm((iparticle0 - 1)*Nr + 1, 1, icomp), Np*Nr)
             ! do extra multiples to compensate for missing factor of 2
             DO ipp = 1, nparticles
-               iparticle1 = iparticle0+ipp-1
-               CALL DGEMM('N', 'N', Nr, Nr, Ng, 1.0D0, lhs((ipp-1)*Nr+1, 1), nparticles*Nr, rhs(1, (iparticle1-1)*Nr+1), &
-                          Ng, 1.0D0, dAm((iparticle1-1)*Nr+1, (iparticle1-1)*Nr+1, icomp), Np*Nr)
+               iparticle1 = iparticle0 + ipp - 1
+               CALL DGEMM('N', 'N', Nr, Nr, Ng, 1.0D0, lhs((ipp - 1)*Nr + 1, 1), nparticles*Nr, rhs(1, (iparticle1 - 1)*Nr + 1), &
+                          Ng, 1.0D0, dAm((iparticle1 - 1)*Nr + 1, (iparticle1 - 1)*Nr + 1, icomp), Np*Nr)
             END DO
          END DO
 
@@ -516,15 +516,15 @@ CONTAINS
       ENDDO
 
       IF (igmax .GE. s_dim) THEN
-         ALLOCATE (g_dot_rvec_sin(1:igmax-s_dim+1, SIZE(particle_set)))
-         ALLOCATE (g_dot_rvec_cos(1:igmax-s_dim+1, SIZE(particle_set)))
+         ALLOCATE (g_dot_rvec_sin(1:igmax - s_dim + 1, SIZE(particle_set)))
+         ALLOCATE (g_dot_rvec_cos(1:igmax - s_dim + 1, SIZE(particle_set)))
 
          DO iparticle = 1, SIZE(particle_set)
             rvec = particle_set(iparticle)%r
             DO ig = s_dim, igmax
                g_dot_rvec = DOT_PRODUCT(rho_tot_g%pw_grid%g(:, ig), rvec)
-               g_dot_rvec_sin(ig-s_dim+1, iparticle) = SIN(g_dot_rvec)
-               g_dot_rvec_cos(ig-s_dim+1, iparticle) = COS(g_dot_rvec)
+               g_dot_rvec_sin(ig - s_dim + 1, iparticle) = SIN(g_dot_rvec)
+               g_dot_rvec_cos(ig - s_dim + 1, iparticle) = COS(g_dot_rvec)
             END DO
          END DO
       END IF
@@ -672,9 +672,9 @@ CONTAINS
       alpha = SQRT(ABS(LOG(eps*rcut*tol)))/rcut
       galpha = 1.0_dp/(4.0_dp*alpha*alpha)
       tol1 = SQRT(-LOG(eps*rcut*(2.0_dp*tol*alpha)**2))
-      nmax1 = NINT(0.25_dp+cell%hmat(1, 1)*alpha*tol1/pi)
-      nmax2 = NINT(0.25_dp+cell%hmat(2, 2)*alpha*tol1/pi)
-      nmax3 = NINT(0.25_dp+cell%hmat(3, 3)*alpha*tol1/pi)
+      nmax1 = NINT(0.25_dp + cell%hmat(1, 1)*alpha*tol1/pi)
+      nmax2 = NINT(0.25_dp + cell%hmat(2, 2)*alpha*tol1/pi)
+      nmax3 = NINT(0.25_dp + cell%hmat(3, 3)*alpha*tol1/pi)
 
       rmax1 = CEILING(rcut/cell%hmat(1, 1))
       rmax2 = CEILING(rcut/cell%hmat(2, 2))
@@ -684,7 +684,7 @@ CONTAINS
       fvec = twopi/(/cell%hmat(1, 1), cell%hmat(2, 2), cell%hmat(3, 3)/)
       ew_neut = -fac*pi/alpha**2
       !
-      ewmdim = SIZE(particle_set)*(SIZE(particle_set)+1)/2
+      ewmdim = SIZE(particle_set)*(SIZE(particle_set) + 1)/2
       ndim = SIZE(particle_set)*SIZE(radii)
       ALLOCATE (EwM(ewmdim))
       ALLOCATE (M(ndim, ndim))
@@ -694,20 +694,20 @@ CONTAINS
       !NB zero EwM so mp_sum(EwM) will give right answer
       EwM = 0.0_dp
       DO iparticle1 = 1, SIZE(particle_set)
-         ip1 = (iparticle1-1)*SIZE(radii)
+         ip1 = (iparticle1 - 1)*SIZE(radii)
          DO iparticle2 = 1, iparticle1
             ij_fac = 1.0_dp
             IF (iparticle1 == iparticle2) ij_fac = 0.5_dp
 
-            ip2 = (iparticle2-1)*SIZE(radii)
-            idim = idim+1
+            ip2 = (iparticle2 - 1)*SIZE(radii)
+            idim = idim + 1
             !NB parallelization, done here so indexing is right
             IF (MOD(iparticle1, cp_para_env%num_pe) /= cp_para_env%mepos) CYCLE
             !
             ! Real-Space Contribution
             !
             my_val = 0.0_dp
-            rvec = particle_set(iparticle1)%r-particle_set(iparticle2)%r
+            rvec = particle_set(iparticle1)%r - particle_set(iparticle2)%r
             r_ewald = 0.0_dp
             IF (iparticle1 /= iparticle2) THEN
                ra = rvec
@@ -722,14 +722,14 @@ CONTAINS
                DO r2 = -rmax2, rmax2
                   DO r3 = -rmax3, rmax3
                      IF ((r1 == 0) .AND. (r2 == 0) .AND. (r3 == 0)) CYCLE
-                     ra(1) = rvec(1)+cell%hmat(1, 1)*r1
-                     ra(2) = rvec(2)+cell%hmat(2, 2)*r2
-                     ra(3) = rvec(3)+cell%hmat(3, 3)*r3
+                     ra(1) = rvec(1) + cell%hmat(1, 1)*r1
+                     ra(2) = rvec(2) + cell%hmat(2, 2)*r2
+                     ra(3) = rvec(3) + cell%hmat(3, 3)*r3
                      r2tmp = DOT_PRODUCT(ra, ra)
                      IF (r2tmp <= rcut2) THEN
                         r = SQRT(r2tmp)
                         t1 = erfc(alpha*r)/r
-                        r_ewald = r_ewald+t1*ij_fac
+                        r_ewald = r_ewald + t1*ij_fac
                      END IF
                   END DO
                END DO
@@ -748,7 +748,7 @@ CONTAINS
                         gsq = DOT_PRODUCT(gvec, gvec)
                         gsqi = fs/gsq
                         t1 = fac*gsqi*EXP(-galpha*gsq)
-                        g_ewald = g_ewald+t1*COS(DOT_PRODUCT(gvec, rvec))
+                        g_ewald = g_ewald + t1*COS(DOT_PRODUCT(gvec, rvec))
                      END DO
                   END DO
                END DO
@@ -758,12 +758,12 @@ CONTAINS
             !
             ! G-EWALD, R-EWALD
             !
-            g_ewald = r_ewald+fourpi*g_ewald
+            g_ewald = r_ewald + fourpi*g_ewald
             !
             ! Self Contribution
             !
             IF (iparticle1 == iparticle2) THEN
-               g_ewald = g_ewald-2.0_dp*alpha*oorootpi
+               g_ewald = g_ewald - 2.0_dp*alpha*oorootpi
             END IF
             !
             IF (iparticle1 /= iparticle2) THEN
@@ -771,30 +771,30 @@ CONTAINS
                r = SQRT(DOT_PRODUCT(ra, ra))
                my_val = factor/r
             END IF
-            EwM(idim) = my_val-factor*g_ewald
+            EwM(idim) = my_val - factor*g_ewald
          END DO ! iparticle2
       END DO ! iparticle1
       !NB sum over parallelized contributions of different nodes
       CALL mp_sum(EwM, cp_para_env%group)
       idim = 0
       DO iparticle2 = 1, SIZE(particle_set)
-         ip2 = (iparticle2-1)*SIZE(radii)
-         idimo = (iparticle2-1)
-         idimo = idimo*(idimo+1)/2
+         ip2 = (iparticle2 - 1)*SIZE(radii)
+         idimo = (iparticle2 - 1)
+         idimo = idimo*(idimo + 1)/2
          DO igauss2 = 1, SIZE(radii)
-            idim2 = ip2+igauss2
+            idim2 = ip2 + igauss2
             rc2 = radii(igauss2)
             rc22 = rc2*rc2
             DO iparticle1 = 1, iparticle2
-               ip1 = (iparticle1-1)*SIZE(radii)
-               idim = idimo+iparticle1
+               ip1 = (iparticle1 - 1)*SIZE(radii)
+               idim = idimo + iparticle1
                istart_g = 1
                IF (iparticle1 == iparticle2) istart_g = igauss2
                DO igauss1 = istart_g, SIZE(radii)
-                  idim1 = ip1+igauss1
+                  idim1 = ip1 + igauss1
                   rc1 = radii(igauss1)
                   rc12 = rc1*rc1
-                  M(idim1, idim2) = EwM(idim)-factor*ew_neut-factor*fac3*(rc12+rc22)
+                  M(idim1, idim2) = EwM(idim) - factor*ew_neut - factor*fac3*(rc12 + rc22)
                   M(idim2, idim1) = M(idim1, idim2)
                END DO
             END DO
@@ -857,15 +857,15 @@ CONTAINS
             CASE (weight_type_unit)
                R0 = 0.0_dp
                DO i = 1, SIZE(list)
-                  R0 = R0+particle_set(list(i))%r
+                  R0 = R0 + particle_set(list(i))%r
                END DO
                R0 = R0/REAL(SIZE(list), KIND=dp)
             CASE (weight_type_mass)
                R0 = 0.0_dp
                mass = 0.0_dp
                DO i = 1, SIZE(list)
-                  R0 = R0+particle_set(list(i))%r*particle_set(list(i))%atomic_kind%mass
-                  mass = mass+particle_set(list(i))%atomic_kind%mass
+                  R0 = R0 + particle_set(list(i))%r*particle_set(list(i))%atomic_kind%mass
+                  mass = mass + particle_set(list(i))%atomic_kind%mass
                END DO
                R0 = R0/mass
             END SELECT
@@ -886,7 +886,7 @@ CONTAINS
       ALLOCATE (cost(SIZE(particle_set), SIZE(particle_set)))
       ! Determining the single atomic contribution to the dielectric dipole
       DO i = 1, SIZE(particle_set)
-         rvec = particle_set(i)%r-center
+         rvec = particle_set(i)%r - center
          r2 = DOT_PRODUCT(rvec, rvec)
          r1 = SQRT(r2)
          IF (r1 >= Rs) THEN
@@ -899,12 +899,12 @@ CONTAINS
          LocP(:, i) = 0.0_dp
          IF (r1 /= 0.0_dp) THEN
             DO l = 0, lmax
-               LocP(l, i) = (r1**l*REAL(l+1, KIND=dp)*(eps_in-eps_out))/ &
-                            (Rs**(2*l+1)*eps_in*(REAL(l, KIND=dp)*eps_in+REAL(l+1, KIND=dp)*eps_out))
+               LocP(l, i) = (r1**l*REAL(l + 1, KIND=dp)*(eps_in - eps_out))/ &
+                            (Rs**(2*l + 1)*eps_in*(REAL(l, KIND=dp)*eps_in + REAL(l + 1, KIND=dp)*eps_out))
             END DO
          ELSE
             ! limit for r->0
-            LocP(0, i) = (eps_in-eps_out)/(Rs*eps_in*eps_out)
+            LocP(0, i) = (eps_in - eps_out)/(Rs*eps_in*eps_out)
          END IF
          pos(i) = r1
       END DO
@@ -914,10 +914,10 @@ CONTAINS
          DO j = 1, i
             factor = 0.0_dp
             IF (pos(i)*pos(j) /= 0.0_dp) THEN
-               mycos = DOT_PRODUCT(particle_set(i)%r-center, particle_set(j)%r-center)/(pos(i)*pos(j))
+               mycos = DOT_PRODUCT(particle_set(i)%r - center, particle_set(j)%r - center)/(pos(i)*pos(j))
                IF (ABS(mycos) > 1.0_dp) mycos = SIGN(1.0_dp, mycos)
                DO l = 0, lmax
-                  factor = factor+LocP(l, i)*pos(j)**l*legendre(mycos, l, 0)
+                  factor = factor + LocP(l, i)*pos(j)**l*legendre(mycos, l, 0)
                END DO
             ELSE
                factor = LocP(0, i)
@@ -929,15 +929,15 @@ CONTAINS
       ! Computes the full potential energy matrix
       idim = 0
       DO iparticle2 = 1, SIZE(particle_set)
-         ip2 = (iparticle2-1)*SIZE(radii)
+         ip2 = (iparticle2 - 1)*SIZE(radii)
          DO igauss2 = 1, SIZE(radii)
-            idim2 = ip2+igauss2
+            idim2 = ip2 + igauss2
             DO iparticle1 = 1, iparticle2
-               ip1 = (iparticle1-1)*SIZE(radii)
+               ip1 = (iparticle1 - 1)*SIZE(radii)
                istart_g = 1
                IF (iparticle1 == iparticle2) istart_g = igauss2
                DO igauss1 = istart_g, SIZE(radii)
-                  idim1 = ip1+igauss1
+                  idim1 = ip1 + igauss1
                   M(idim1, idim2) = cost(iparticle1, iparticle2)
                   M(idim2, idim1) = M(idim1, idim2)
                END DO

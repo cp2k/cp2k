@@ -129,7 +129,7 @@ CONTAINS
 
       NULLIFY (derivative_set%derivs)
       derivative_set%ref_count = 1
-      derivative_set_last_id_nr = derivative_set_last_id_nr+1
+      derivative_set_last_id_nr = derivative_set_last_id_nr + 1
       derivative_set%id_nr = derivative_set_last_id_nr
       IF (PRESENT(pw_pool)) THEN
          derivative_set%pw_pool => pw_pool
@@ -168,7 +168,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(derivative_set))
       CPASSERT(derivative_set%ref_count > 0)
 
-      derivative_set%ref_count = derivative_set%ref_count-1
+      derivative_set%ref_count = derivative_set%ref_count - 1
       IF (derivative_set%ref_count == 0) THEN
          pos => derivative_set%derivs
          DO WHILE (cp_sll_xc_deriv_next(pos, el_att=deriv_att))
@@ -197,7 +197,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(deriv_set))
       CPASSERT(deriv_set%ref_count > 0)
-      deriv_set%ref_count = deriv_set%ref_count+1
+      deriv_set%ref_count = deriv_set%ref_count + 1
    END SUBROUTINE xc_dset_retain
 
 ! **************************************************************************************************

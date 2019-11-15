@@ -258,7 +258,7 @@ CONTAINS
       fieldpol = -fieldpol*dft_control%period_efield%strength
       hmat = cell%hmat(:, :)/twopi
       DO idir = 1, 3
-         fpolvec(idir) = fieldpol(1)*hmat(1, idir)+fieldpol(2)*hmat(2, idir)+fieldpol(3)*hmat(3, idir)
+         fpolvec(idir) = fieldpol(1)*hmat(1, idir) + fieldpol(2)*hmat(2, idir) + fieldpol(3)*hmat(3, idir)
       END DO
 
       ! nuclear contribution
@@ -284,7 +284,7 @@ CONTAINS
             IF (para_env%mepos == 0) THEN
                iatom = atom_of_kind(ia)
                forcea(:) = fieldpol(:)*charge
-               force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom)+forcea(:)
+               force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom) + forcea(:)
             END IF
          END IF
          IF (use_virial) THEN
@@ -478,8 +478,8 @@ CONTAINS
                   ldsa = SIZE(sphi_a, 1)
                   ldsb = SIZE(sphi_b, 1)
                   ra(:) = pbc(particle_set(iatom)%r(:), cell)
-                  rb(:) = ra+rab
-                  dab = SQRT(rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3))
+                  rb(:) = ra + rab
+                  dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
 
                   IF (iatom <= jatom) THEN
                      irow = iatom
@@ -506,7 +506,7 @@ CONTAINS
                      ncoa = npgfa(iset)*ncoset(la_max(iset))
                      sgfa = first_sgfa(1, iset)
                      DO jset = 1, nsetb
-                        IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+                        IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
                         ncob = npgfb(jset)*ncoset(lb_max(jset))
                         sgfb = first_sgfb(1, jset)
                         ! Calculate the primitive integrals (da|b)
@@ -551,22 +551,22 @@ CONTAINS
                      CPASSERT(lsab >= n2)
                      IF (iatom <= jatom) THEN
                         DO i = 1, 3
-                           forcea(i) = forcea(i)+SUM(rblock(1:n1, 1:n2)*dsint(i, 1)%block(1:n1, 1:n2)) &
-                                       -SUM(iblock(1:n1, 1:n2)*dcost(i, 1)%block(1:n1, 1:n2))
-                           forceb(i) = forceb(i)+SUM(rblock(1:n1, 1:n2)*dsint(i, 2)%block(1:n1, 1:n2)) &
-                                       -SUM(iblock(1:n1, 1:n2)*dcost(i, 2)%block(1:n1, 1:n2))
+                           forcea(i) = forcea(i) + SUM(rblock(1:n1, 1:n2)*dsint(i, 1)%block(1:n1, 1:n2)) &
+                                       - SUM(iblock(1:n1, 1:n2)*dcost(i, 1)%block(1:n1, 1:n2))
+                           forceb(i) = forceb(i) + SUM(rblock(1:n1, 1:n2)*dsint(i, 2)%block(1:n1, 1:n2)) &
+                                       - SUM(iblock(1:n1, 1:n2)*dcost(i, 2)%block(1:n1, 1:n2))
                         END DO
                      ELSE
                         DO i = 1, 3
-                           forcea(i) = forcea(i)+SUM(TRANSPOSE(rblock(1:n1, 1:n2))*dsint(i, 1)%block(1:n2, 1:n1)) &
-                                       -SUM(TRANSPOSE(iblock(1:n1, 1:n2))*dcost(i, 1)%block(1:n2, 1:n1))
-                           forceb(i) = forceb(i)+SUM(TRANSPOSE(rblock(1:n1, 1:n2))*dsint(i, 2)%block(1:n2, 1:n1)) &
-                                       -SUM(TRANSPOSE(iblock(1:n1, 1:n2))*dcost(i, 2)%block(1:n2, 1:n1))
+                           forcea(i) = forcea(i) + SUM(TRANSPOSE(rblock(1:n1, 1:n2))*dsint(i, 1)%block(1:n2, 1:n1)) &
+                                       - SUM(TRANSPOSE(iblock(1:n1, 1:n2))*dcost(i, 1)%block(1:n2, 1:n1))
+                           forceb(i) = forceb(i) + SUM(TRANSPOSE(rblock(1:n1, 1:n2))*dsint(i, 2)%block(1:n2, 1:n1)) &
+                                       - SUM(TRANSPOSE(iblock(1:n1, 1:n2))*dcost(i, 2)%block(1:n2, 1:n1))
                         END DO
                      END IF
                   END DO
-                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)-fab*fpolvec(idir)*forcea(1:3)
-                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)-fab*fpolvec(idir)*forceb(1:3)
+                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) - fab*fpolvec(idir)*forcea(1:3)
+                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) - fab*fpolvec(idir)*forceb(1:3)
                   IF (use_virial) THEN
                      f0 = -fab*fpolvec(idir)
                      CALL virial_pair_force(virial%pv_virial, f0, forcea, ra)
@@ -586,24 +586,24 @@ CONTAINS
       ti = 0.0_dp
       DO idir = 1, 3
          ! make sure the total normalized polarization is within [-1:1]
-         cqi(idir) = qi(idir)+ci(idir)
-         IF (cqi(idir) > pi) cqi(idir) = cqi(idir)-twopi
-         IF (cqi(idir) < -pi) cqi(idir) = cqi(idir)+twopi
+         cqi(idir) = qi(idir) + ci(idir)
+         IF (cqi(idir) > pi) cqi(idir) = cqi(idir) - twopi
+         IF (cqi(idir) < -pi) cqi(idir) = cqi(idir) + twopi
          ! now check for log branch
-         IF (ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
-            ti(idir) = (efield%polarisation(idir)-cqi(idir))/pi
+         IF (ABS(efield%polarisation(idir) - cqi(idir)) > pi) THEN
+            ti(idir) = (efield%polarisation(idir) - cqi(idir))/pi
             DO i = 1, 10
-               cqi(idir) = cqi(idir)+SIGN(1.0_dp, ti(idir))*twopi
-               IF (ABS(efield%polarisation(idir)-cqi(idir)) < pi) EXIT
+               cqi(idir) = cqi(idir) + SIGN(1.0_dp, ti(idir))*twopi
+               IF (ABS(efield%polarisation(idir) - cqi(idir)) < pi) EXIT
             END DO
          END IF
-         ener_field = ener_field+fpolvec(idir)*cqi(idir)
+         ener_field = ener_field + fpolvec(idir)*cqi(idir)
       END DO
 
       ! update the references
       IF (calculate_forces) THEN
          ! check for smoothness of energy surface
-         IF (ABS(efield%field_energy-ener_field) > pi*ABS(SUM(fpolvec))) THEN
+         IF (ABS(efield%field_energy - ener_field) > pi*ABS(SUM(fpolvec))) THEN
             CPWARN("Large change of e-field energy detected. Correct for non-smooth energy surface")
          END IF
          efield%field_energy = ener_field
@@ -620,12 +620,12 @@ CONTAINS
             ti = 0.0_dp
             DO i = 1, 3
                DO j = 1, 3
-                  ti(j) = ti(j)+hmat(j, i)*cqi(i)
+                  ti(j) = ti(j) + hmat(j, i)*cqi(i)
                END DO
             END DO
             DO i = 1, 3
                DO j = 1, 3
-                  virial%pv_virial(i, j) = virial%pv_virial(i, j)-fieldpol(i)*ti(j)
+                  virial%pv_virial(i, j) = virial%pv_virial(i, j) - fieldpol(i)*ti(j)
                END DO
             END DO
          END IF
@@ -771,7 +771,7 @@ CONTAINS
          IF (calculate_forces) THEN
             IF (para_env%mepos == 0) THEN
                DO i = 1, 3
-                  force_tmp(ia, i, i) = force_tmp(ia, i, i)+charge/omega
+                  force_tmp(ia, i, i) = force_tmp(ia, i, i) + charge/omega
                END DO
             END IF
          END IF
@@ -961,8 +961,8 @@ CONTAINS
                ldsa = SIZE(sphi_a, 1)
                ldsb = SIZE(sphi_b, 1)
                ra(:) = pbc(particle_set(iatom)%r(:), cell)
-               rb(:) = ra+rab
-               dab = SQRT(rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3))
+               rb(:) = ra + rab
+               dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
 
                IF (iatom <= jatom) THEN
                   irow = iatom
@@ -989,7 +989,7 @@ CONTAINS
                   ncoa = npgfa(iset)*ncoset(la_max(iset))
                   sgfa = first_sgfa(1, iset)
                   DO jset = 1, nsetb
-                     IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+                     IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
                      ncob = npgfb(jset)*ncoset(lb_max(jset))
                      sgfb = first_sgfb(1, jset)
                      ! Calculate the primitive integrals (da|b)
@@ -1034,23 +1034,23 @@ CONTAINS
                   CPASSERT(lsab >= n2)
                   IF (iatom <= jatom) THEN
                      DO i = 1, 3
-                        forcea(i) = forcea(i)+SUM(rblock(1:n1, 1:n2)*dsint(i, 1)%block(1:n1, 1:n2)) &
-                                    -SUM(iblock(1:n1, 1:n2)*dcost(i, 1)%block(1:n1, 1:n2))
-                        forceb(i) = forceb(i)+SUM(rblock(1:n1, 1:n2)*dsint(i, 2)%block(1:n1, 1:n2)) &
-                                    -SUM(iblock(1:n1, 1:n2)*dcost(i, 2)%block(1:n1, 1:n2))
+                        forcea(i) = forcea(i) + SUM(rblock(1:n1, 1:n2)*dsint(i, 1)%block(1:n1, 1:n2)) &
+                                    - SUM(iblock(1:n1, 1:n2)*dcost(i, 1)%block(1:n1, 1:n2))
+                        forceb(i) = forceb(i) + SUM(rblock(1:n1, 1:n2)*dsint(i, 2)%block(1:n1, 1:n2)) &
+                                    - SUM(iblock(1:n1, 1:n2)*dcost(i, 2)%block(1:n1, 1:n2))
                      END DO
                   ELSE
                      DO i = 1, 3
-                        forcea(i) = forcea(i)+SUM(TRANSPOSE(rblock(1:n1, 1:n2))*dsint(i, 1)%block(1:n2, 1:n1)) &
-                                    -SUM(TRANSPOSE(iblock(1:n1, 1:n2))*dcost(i, 1)%block(1:n2, 1:n1))
-                        forceb(i) = forceb(i)+SUM(TRANSPOSE(rblock(1:n1, 1:n2))*dsint(i, 2)%block(1:n2, 1:n1)) &
-                                    -SUM(TRANSPOSE(iblock(1:n1, 1:n2))*dcost(i, 2)%block(1:n2, 1:n1))
+                        forcea(i) = forcea(i) + SUM(TRANSPOSE(rblock(1:n1, 1:n2))*dsint(i, 1)%block(1:n2, 1:n1)) &
+                                    - SUM(TRANSPOSE(iblock(1:n1, 1:n2))*dcost(i, 1)%block(1:n2, 1:n1))
+                        forceb(i) = forceb(i) + SUM(TRANSPOSE(rblock(1:n1, 1:n2))*dsint(i, 2)%block(1:n2, 1:n1)) &
+                                    - SUM(TRANSPOSE(iblock(1:n1, 1:n2))*dcost(i, 2)%block(1:n2, 1:n1))
                      END DO
                   END IF
                END DO
                DO i = 1, 3
-                  force_tmp(iatom, :, i) = force_tmp(iatom, :, i)-fab*hmat(i, idir)*forcea(:)
-                  force_tmp(jatom, :, i) = force_tmp(jatom, :, i)-fab*hmat(i, idir)*forceb(:)
+                  force_tmp(iatom, :, i) = force_tmp(iatom, :, i) - fab*hmat(i, idir)*forcea(:)
+                  force_tmp(jatom, :, i) = force_tmp(jatom, :, i) - fab*hmat(i, idir)*forceb(:)
                END DO
             END DO
             CALL neighbor_list_iterator_release(nl_iterator)
@@ -1060,16 +1060,16 @@ CONTAINS
 
       ! make sure the total normalized polarization is within [-1:1]
       DO idir = 1, 3
-         cqi(idir) = rlog(idir)+zlog(idir)
-         IF (cqi(idir) > pi) cqi(idir) = cqi(idir)-twopi
-         IF (cqi(idir) < -pi) cqi(idir) = cqi(idir)+twopi
+         cqi(idir) = rlog(idir) + zlog(idir)
+         IF (cqi(idir) > pi) cqi(idir) = cqi(idir) - twopi
+         IF (cqi(idir) < -pi) cqi(idir) = cqi(idir) + twopi
          ! now check for log branch
          IF (calculate_forces) THEN
-            IF (ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
-               di(idir) = (efield%polarisation(idir)-cqi(idir))/pi
+            IF (ABS(efield%polarisation(idir) - cqi(idir)) > pi) THEN
+               di(idir) = (efield%polarisation(idir) - cqi(idir))/pi
                DO i = 1, 10
-                  cqi(idir) = cqi(idir)+SIGN(1.0_dp, di(idir))*twopi
-                  IF (ABS(efield%polarisation(idir)-cqi(idir)) < pi) EXIT
+                  cqi(idir) = cqi(idir) + SIGN(1.0_dp, di(idir))*twopi
+                  IF (ABS(efield%polarisation(idir) - cqi(idir)) < pi) EXIT
                END DO
             END IF
          END IF
@@ -1078,7 +1078,7 @@ CONTAINS
          qi(idir) = 0.0_dp
          ci(idir) = 0.0_dp
          DO i = 1, 3
-            ci(idir) = ci(idir)+hmat(idir, i)*cqi(i)
+            ci(idir) = ci(idir) + hmat(idir, i)*cqi(i)
          END DO
       END DO
 
@@ -1086,7 +1086,7 @@ CONTAINS
       IF (calculate_forces) THEN
          ener_field = SUM(ci)
          ! check for smoothness of energy surface
-         IF (ABS(efield%field_energy-ener_field) > pi*ABS(SUM(hmat))) THEN
+         IF (ABS(efield%field_energy - ener_field) > pi*ABS(SUM(hmat))) THEN
             CPWARN("Large change of e-field energy detected. Correct for non-smooth energy surface")
          END IF
          efield%field_energy = ener_field
@@ -1096,13 +1096,13 @@ CONTAINS
       ! Energy
       ener_field = 0.0_dp
       DO i = 1, 3
-         ener_field = ener_field+dfilter(i)*(fieldpol(i)-2._dp*twopi*ci(i))**2
+         ener_field = ener_field + dfilter(i)*(fieldpol(i) - 2._dp*twopi*ci(i))**2
       END DO
       energy%efield = 0.25_dp*omega/twopi*ener_field
 
       IF (.NOT. just_energy) THEN
          DO i = 1, 3
-            di(i) = -omega*(fieldpol(i)-2._dp*twopi*ci(i))*dfilter(i)
+            di(i) = -omega*(fieldpol(i) - 2._dp*twopi*ci(i))*dfilter(i)
          END DO
          ! Add the result to mo_derivativs
          DO ispin = 1, dft_control%nspins
@@ -1122,7 +1122,7 @@ CONTAINS
             DO ia = 1, natom
                CALL get_atomic_kind(particle_set(ia)%atomic_kind, kind_number=ikind)
                iatom = atom_of_kind(ia)
-               force(ikind)%efield(1:3, iatom) = force(ikind)%efield(1:3, iatom)+di(i)*force_tmp(ia, 1:3, i)
+               force(ikind)%efield(1:3, iatom) = force(ikind)%efield(1:3, iatom) + di(i)*force_tmp(ia, 1:3, i)
             END DO
          END DO
       END IF

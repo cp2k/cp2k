@@ -221,7 +221,7 @@ CONTAINS
             this%worker_state(wid)%fp_hop = report_fp
          ENDIF
 
-         IF (this%worker_state(wid)%Epot_hop-this%worker_state(wid)%Epot < this%worker_state(wid)%Eaccept) THEN
+         IF (this%worker_state(wid)%Epot_hop - this%worker_state(wid)%Epot < this%worker_state(wid)%Eaccept) THEN
             ! accept
             IF (this%iw > 0) WRITE (this%iw, '(A)') " MINHOP| Accept"
             this%worker_state(wid)%Epot = this%worker_state(wid)%Epot_hop
@@ -230,12 +230,12 @@ CONTAINS
             this%worker_state(wid)%Epot_hop = HUGE(1.0)
 
             this%worker_state(wid)%Eaccept = this%worker_state(wid)%Eaccept*this%alpha1 !decreasing Eaccept
-            this%n_accepted = this%n_accepted+1
+            this%n_accepted = this%n_accepted + 1
          ELSE
             ! not accept
             IF (this%iw > 0) WRITE (this%iw, '(A)') " MINHOP| Reject"
             this%worker_state(wid)%Eaccept = this%worker_state(wid)%Eaccept*this%alpha2 !increasing Eaccept
-            this%n_rejected = this%n_rejected+1
+            this%n_rejected = this%n_rejected + 1
          ENDIF
       END IF
 

@@ -283,11 +283,11 @@ CONTAINS
                                          block=pblock, found=found)
                   IF (found) THEN
                      DO j = 1, natorb
-                        tcharge(i) = tcharge(i)+pblock(j, j)
+                        tcharge(i) = tcharge(i) + pblock(j, j)
                      END DO
                   END IF
                END DO
-               ncharge(iat) = zeff-SUM(tcharge)
+               ncharge(iat) = zeff - SUM(tcharge)
             END DO
          END DO
          ! Contributions from net atomic charges
@@ -303,7 +303,7 @@ CONTAINS
             zphase = CMPLX(COS(ria), SIN(ria), dp)**charge_tot
 
             dria = twopi*MATMUL(cell%h_inv, drcc)
-            dzphase = charge_tot*CMPLX(-SIN(ria), COS(ria), dp)**(charge_tot-1.0_dp)*dria
+            dzphase = charge_tot*CMPLX(-SIN(ria), COS(ria), dp)**(charge_tot - 1.0_dp)*dria
 
             ggamma = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
             dggamma = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
@@ -320,19 +320,19 @@ CONTAINS
                      theta = SUM(ria(:)*gvec(:))
                      dtheta = SUM(via(:)*gvec(:))
                      zeta = CMPLX(COS(theta), SIN(theta), KIND=dp)**(-q)
-                     dzeta = -q*CMPLX(-SIN(theta), COS(theta), KIND=dp)**(-q-1.0_dp)*dtheta
-                     dggamma(j) = dggamma(j)*zeta+ggamma(j)*dzeta
+                     dzeta = -q*CMPLX(-SIN(theta), COS(theta), KIND=dp)**(-q - 1.0_dp)*dtheta
+                     dggamma(j) = dggamma(j)*zeta + ggamma(j)*dzeta
                      ggamma(j) = ggamma(j)*zeta
                   END DO
                ENDDO
             END DO
-            dggamma = dggamma*zphase+ggamma*dzphase
+            dggamma = dggamma*zphase + ggamma*dzphase
             ggamma = ggamma*zphase
             IF (ALL(REAL(ggamma, KIND=dp) /= 0.0_dp)) THEN
                tmp = AIMAG(ggamma)/REAL(ggamma, KIND=dp)
                ci = ATAN(tmp)
-               dci = (1.0_dp/(1.0_dp+tmp**2))* &
-                     (AIMAG(dggamma)*REAL(ggamma, KIND=dp)-AIMAG(ggamma)* &
+               dci = (1.0_dp/(1.0_dp + tmp**2))* &
+                     (AIMAG(dggamma)*REAL(ggamma, KIND=dp) - AIMAG(ggamma)* &
                       REAL(dggamma, KIND=dp))/(REAL(ggamma, KIND=dp))**2
                dipole = MATMUL(cell%hmat, ci)/twopi
                dipole_deriv = MATMUL(cell%hmat, dci)/twopi
@@ -343,8 +343,8 @@ CONTAINS
                ! no pbc(particle_set(i)%r(:),cell) so that the total dipole is the sum of the molecular dipoles
                ria = particle_set(i)%r(:)
                q = ncharge(i)
-               dipole = dipole-q*(ria-rcc)
-               dipole_deriv(:) = dipole_deriv(:)-q*(particle_set(i)%v(:)-drcc)
+               dipole = dipole - q*(ria - rcc)
+               dipole_deriv(:) = dipole_deriv(:) - q*(particle_set(i)%v(:) - drcc)
             END DO
          END IF
          ! Contributions from atomic polarization
@@ -364,12 +364,12 @@ CONTAINS
                                          block=pblock, found=found)
                   IF (found) THEN
                      CPASSERT(natorb == SIZE(pblock, 1))
-                     ix = coset(1, 0, 0)-1
-                     dipole(1) = dipole(1)+SUM(pblock*mom(:, :, ix))
-                     ix = coset(0, 1, 0)-1
-                     dipole(2) = dipole(2)+SUM(pblock*mom(:, :, ix))
-                     ix = coset(0, 0, 1)-1
-                     dipole(3) = dipole(3)+SUM(pblock*mom(:, :, ix))
+                     ix = coset(1, 0, 0) - 1
+                     dipole(1) = dipole(1) + SUM(pblock*mom(:, :, ix))
+                     ix = coset(0, 1, 0) - 1
+                     dipole(2) = dipole(2) + SUM(pblock*mom(:, :, ix))
+                     ix = coset(0, 0, 1) - 1
+                     dipole(3) = dipole(3) + SUM(pblock*mom(:, :, ix))
                   END IF
                END DO
             END DO
@@ -515,11 +515,11 @@ CONTAINS
                                          block=pblock, found=found)
                   IF (found) THEN
                      DO j = 1, natorb
-                        charges(iat, i) = charges(iat, i)+pblock(j, j)
+                        charges(iat, i) = charges(iat, i) + pblock(j, j)
                      END DO
                   END IF
                END DO
-               mcharge(iat) = zeff-SUM(charges(iat, 1:nspin))
+               mcharge(iat) = zeff - SUM(charges(iat, 1:nspin))
             END DO
          END DO
          !
@@ -558,7 +558,7 @@ CONTAINS
                      iat = atomic_kind_set(ikind)%atom_list(iatom)
                      WRITE (UNIT=unit_nr, &
                             FMT="(T2,I6,5X,A2,2X,I6,T29,4(1X,F12.6))") &
-                        iat, ana, ikind, charges(iat, 1:2), mcharge(iat), charges(iat, 1)-charges(iat, 2)
+                        iat, ana, ikind, charges(iat, 1:2), mcharge(iat), charges(iat, 1) - charges(iat, 2)
                   END DO
                END DO
                WRITE (UNIT=unit_nr, &

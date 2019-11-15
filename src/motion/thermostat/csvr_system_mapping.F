@@ -144,7 +144,7 @@ CONTAINS
          map_info%s_kin = 0.0_dp
          DO i = 1, 3
             DO j = 1, natoms_local
-               map_info%p_kin(i, j)%point = map_info%p_kin(i, j)%point+1
+               map_info%p_kin(i, j)%point = map_info%p_kin(i, j)%point + 1
             END DO
          END DO
 
@@ -154,7 +154,7 @@ CONTAINS
 
          ! We know the total number of system thermostats.
          IF ((sum_of_thermostats == 1) .AND. (map_info%dis_type /= do_thermo_no_communication)) THEN
-            fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
+            fac = map_info%s_kin(1) - deg_of_freedom(1) - simpar%nfree_rot_transl
             IF (fac == 0.0_dp) THEN
                CPABORT('Zero degrees of freedom. Nothing to thermalize!')
             END IF
@@ -163,7 +163,7 @@ CONTAINS
          ELSE
             DO i = 1, csvr%loc_num_csvr
                imap = map_info%map_index(i)
-               fac = (map_info%s_kin(imap)-deg_of_freedom(i))
+               fac = (map_info%s_kin(imap) - deg_of_freedom(i))
                csvr%nvt(i)%nkt = simpar%temp_ext*fac
                csvr%nvt(i)%degrees_of_freedom = FLOOR(fac)
             END DO
@@ -290,7 +290,7 @@ CONTAINS
          map_info%s_kin = 0.0_dp
          DO j = 1, nshell_local
             DO i = 1, 3
-               map_info%p_kin(i, j)%point = map_info%p_kin(i, j)%point+1
+               map_info%p_kin(i, j)%point = map_info%p_kin(i, j)%point + 1
             END DO
          END DO
 

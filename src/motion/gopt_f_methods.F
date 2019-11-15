@@ -122,12 +122,12 @@ CONTAINS
             IF (gopt_env%force_env%in_use == use_qmmmx) &
                CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
             nparticle = force_env_get_nparticle(gopt_env%force_env)
-            ALLOCATE (x0(3*nparticle+6))
+            ALLOCATE (x0(3*nparticle + 6))
             CALL pack_subsys_particles(subsys=subsys, r=x0)
             idg = 3*nparticle
             DO i = 1, 3
                DO j = 1, i
-                  idg = idg+1
+                  idg = idg + 1
                   x0(idg) = cell%hmat(j, i)
                END DO
             END DO
@@ -137,7 +137,7 @@ CONTAINS
             idg = 0
             DO i = 1, 3
                DO j = 1, i
-                  idg = idg+1
+                  idg = idg + 1
                   x0(idg) = cell%hmat(j, i)
                END DO
             END DO
@@ -265,7 +265,7 @@ CONTAINS
          IF (.NOT. gopt_env%dimer_rotation) THEN
             CALL geo_opt_io(force_env=force_env, root_section=root_section, &
                             motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy)
-            CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy-eold, &
+            CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy - eold, &
                                    pred=pred, rat=rat, step=step, rad=rad, emin=emin, wildcard=wildcard, used_time=used_time)
             ! Possibly check convergence
             IF (PRESENT(conv)) THEN
@@ -277,7 +277,7 @@ CONTAINS
          ELSE
             CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section)
             CALL write_restart(force_env=force_env, root_section=root_section)
-            CALL write_rot_cycle_infos(output_unit, its, opt_energy, opt_energy-eold, emin, gopt_env%dimer_env, &
+            CALL write_rot_cycle_infos(output_unit, its, opt_energy, opt_energy - eold, emin, gopt_env%dimer_env, &
                                        used_time=used_time, wildcard=wildcard)
             ! Possibly check convergence
             IF (PRESENT(conv)) THEN
@@ -287,12 +287,12 @@ CONTAINS
          END IF
       CASE (default_cell_method_id)
          ! Cell Optimization
-         pres_diff = gopt_env%cell_env%pres_int-gopt_env%cell_env%pres_ext
+         pres_diff = gopt_env%cell_env%pres_int - gopt_env%cell_env%pres_ext
          pres_int = gopt_env%cell_env%pres_int
          pres_tol = gopt_env%cell_env%pres_tol
          CALL geo_opt_io(force_env=force_env, root_section=root_section, &
                          motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy)
-         CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy-eold, &
+         CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy - eold, &
                                 pred=pred, rat=rat, step=step, rad=rad, emin=emin, pres_int=pres_int, wildcard=wildcard, &
                                 used_time=used_time)
          ! Possibly check convergence
@@ -303,7 +303,7 @@ CONTAINS
             CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, pres_diff, pres_tol)
          END IF
       CASE (default_shellcore_method_id)
-         CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy-eold, &
+         CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy - eold, &
                                 pred=pred, rat=rat, step=step, rad=rad, emin=emin, wildcard=wildcard, used_time=used_time)
          ! Possibly check convergence
          IF (PRESENT(conv)) THEN
@@ -531,7 +531,7 @@ CONTAINS
       dumm = 0.0_dp
       DO indf = 1, ndf
          IF (indf == 1) maxdum(1) = ABS(dr(indf))
-         dumm = dumm+dr(indf)**2
+         dumm = dumm + dr(indf)**2
          IF (ABS(dr(indf)) > dxcon) conv_dx = .FALSE.
          IF (ABS(dr(indf)) > maxdum(1)) maxdum(1) = ABS(dr(indf))
       END DO
@@ -542,7 +542,7 @@ CONTAINS
       dumm = 0.0_dp
       DO indf = 1, ndf
          IF (indf == 1) maxdum(3) = ABS(g(indf))
-         dumm = dumm+g(indf)**2
+         dumm = dumm + g(indf)**2
          IF (ABS(g(indf)) > gcon) conv_g = .FALSE.
          IF (ABS(g(indf)) > maxdum(3)) maxdum(3) = ABS(g(indf))
       END DO
@@ -725,7 +725,7 @@ CONTAINS
       CALL cp_subsys_get(subsys=subsys, particles=particles)
       particle_set => particles%els
       IF (conv) THEN
-         it = it+1
+         it = it + 1
          CALL write_structure_data(particle_set, cell, motion_section)
          CALL write_restart(force_env=force_env, root_section=root_section)
 
@@ -830,13 +830,13 @@ CONTAINS
             my_label = "STARTING "//gopt_env%tag(1:8)//" OPTIMIZATION"
          END IF
 
-         ix = (80-7-LEN_TRIM(my_label))/2
-         ix = ix+5
+         ix = (80 - 7 - LEN_TRIM(my_label))/2
+         ix = ix + 5
          my_format = "(T2,A,T"//cp_to_string(ix)//",A,T78,A)"
          WRITE (UNIT=output_unit, FMT=TRIM(my_format)) "***", TRIM(my_label), "***"
 
-         ix = (80-7-LEN_TRIM(label))/2
-         ix = ix+5
+         ix = (80 - 7 - LEN_TRIM(label))/2
+         ix = ix + 5
          my_format = "(T2,A,T"//cp_to_string(ix)//",A,T78,A)"
          WRITE (UNIT=output_unit, FMT=TRIM(my_format)) "***", TRIM(label), "***"
 
@@ -983,16 +983,16 @@ CONTAINS
       CASE (default_cell_geo_opt_id, default_cell_md_id)
          idg = 0
       END SELECT
-      CPASSERT((SIZE(x) == idg+6))
+      CPASSERT((SIZE(x) == idg + 6))
 
       IF (update_forces) THEN
 
          ! Transform particle forces back to reference cell
          idg = 1
          DO iatom = 1, natom
-            CALL real_to_scaled(s, x(idg:idg+2), cell)
-            CALL scaled_to_real(x(idg:idg+2), s, cell_ref)
-            idg = idg+3
+            CALL real_to_scaled(s, x(idg:idg + 2), cell)
+            CALL scaled_to_real(x(idg:idg + 2), s, cell_ref)
+            idg = idg + 3
          END DO
 
       ELSE
@@ -1000,7 +1000,7 @@ CONTAINS
          ! Update cell
          DO i = 1, 3
             DO j = 1, i
-               idg = idg+1
+               idg = idg + 1
                cell%hmat(j, i) = x(idg)
             END DO
          END DO
@@ -1012,23 +1012,23 @@ CONTAINS
          CASE (default_cell_direct_id)
             idg = 1
             DO iatom = 1, natom
-               CALL real_to_scaled(s, x(idg:idg+2), cell_ref)
+               CALL real_to_scaled(s, x(idg:idg + 2), cell_ref)
                shell_index = particles%els(iatom)%shell_index
                IF (shell_index == 0) THEN
                   CALL scaled_to_real(particles%els(iatom)%r, s, cell)
                ELSE
                   CALL scaled_to_real(core_particles%els(shell_index)%r, s, cell)
-                  i = 3*(natom+shell_index-1)+1
-                  CALL real_to_scaled(s, x(i:i+2), cell_ref)
+                  i = 3*(natom + shell_index - 1) + 1
+                  CALL real_to_scaled(s, x(i:i + 2), cell_ref)
                   CALL scaled_to_real(shell_particles%els(shell_index)%r, s, cell)
                   ! Update atomic position due to core and shell motion
                   mass = particles%els(iatom)%atomic_kind%mass
                   fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
                   fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
-                  particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3)+ &
+                  particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3) + &
                                                 fs*shell_particles%els(shell_index)%r(1:3)
                END IF
-               idg = idg+3
+               idg = idg + 3
             END DO
          CASE (default_cell_geo_opt_id, default_cell_md_id)
             DO iatom = 1, natom
@@ -1039,14 +1039,14 @@ CONTAINS
                ELSE
                   CALL real_to_scaled(s, core_particles%els(shell_index)%r, cell_ref)
                   CALL scaled_to_real(core_particles%els(shell_index)%r, s, cell)
-                  i = 3*(natom+shell_index-1)+1
+                  i = 3*(natom + shell_index - 1) + 1
                   CALL real_to_scaled(s, shell_particles%els(shell_index)%r, cell_ref)
                   CALL scaled_to_real(shell_particles%els(shell_index)%r, s, cell)
                   ! Update atomic position due to core and shell motion
                   mass = particles%els(iatom)%atomic_kind%mass
                   fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
                   fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
-                  particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3)+ &
+                  particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3) + &
                                                 fs*shell_particles%els(shell_index)%r(1:3)
                END IF
             END DO

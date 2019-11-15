@@ -120,9 +120,9 @@ CONTAINS
       ALLOCATE (dvec_sc(3*nshell))
       ALLOCATE (dvec_sc_0(3*nshell))
       DO i = 1, nshell
-         dvec_sc(1+3*(i-1)) = core_particle_set(i)%r(1)-shell_particle_set(i)%r(1)
-         dvec_sc(2+3*(i-1)) = core_particle_set(i)%r(2)-shell_particle_set(i)%r(2)
-         dvec_sc(3+3*(i-1)) = core_particle_set(i)%r(3)-shell_particle_set(i)%r(3)
+         dvec_sc(1 + 3*(i - 1)) = core_particle_set(i)%r(1) - shell_particle_set(i)%r(1)
+         dvec_sc(2 + 3*(i - 1)) = core_particle_set(i)%r(2) - shell_particle_set(i)%r(2)
+         dvec_sc(3 + 3*(i - 1)) = core_particle_set(i)%r(3) - shell_particle_set(i)%r(3)
       END DO
       dvec_sc_0 = dvec_sc
 
@@ -136,9 +136,9 @@ CONTAINS
                      geo_section, gopt_env, dvec_sc, do_update=do_update)
       IF (.NOT. do_update) THEN
          DO i = 1, nshell
-            shell_particle_set(i)%r(1) = -dvec_sc_0(1+3*(i-1))+core_particle_set(i)%r(1)
-            shell_particle_set(i)%r(2) = -dvec_sc_0(2+3*(i-1))+core_particle_set(i)%r(2)
-            shell_particle_set(i)%r(3) = -dvec_sc_0(3+3*(i-1))+core_particle_set(i)%r(3)
+            shell_particle_set(i)%r(1) = -dvec_sc_0(1 + 3*(i - 1)) + core_particle_set(i)%r(1)
+            shell_particle_set(i)%r(2) = -dvec_sc_0(2 + 3*(i - 1)) + core_particle_set(i)%r(2)
+            shell_particle_set(i)%r(3) = -dvec_sc_0(3 + 3*(i - 1)) + core_particle_set(i)%r(3)
          END DO
       END IF
       CALL cp_rm_iter_level(logger%iter_info, "SHELL_OPT")
@@ -216,7 +216,7 @@ CONTAINS
 
                   rc(:) = core_particle_set(shell_index)%r(:)
                   rs(:) = shell_particle_set(shell_index)%r(:)
-                  dsc = SQRT((rc(1)-rs(1))**2+(rc(2)-rs(2))**2+(rc(3)-rs(3))**2)
+                  dsc = SQRT((rc(1) - rs(1))**2 + (rc(2) - rs(2))**2 + (rc(3) - rs(3))**2)
                   IF (dsc > shell%max_dist) THEN
                      itest = 1
                   END IF

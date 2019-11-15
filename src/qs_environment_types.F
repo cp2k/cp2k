@@ -928,7 +928,7 @@ CONTAINS
       CALL local_rho_set_create(qs_env%local_rho_set)
       CALL hartree_local_create(qs_env%hartree_local)
       qs_env%ref_count = 1
-      last_qs_env_id_nr = last_qs_env_id_nr+1
+      last_qs_env_id_nr = last_qs_env_id_nr + 1
       qs_env%id_nr = last_qs_env_id_nr
       qs_env%run_rtp = .FALSE.
       qs_env%linres_run = .FALSE.
@@ -1332,7 +1332,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(qs_env))
       CPASSERT(qs_env%ref_count > 0)
-      qs_env%ref_count = qs_env%ref_count+1
+      qs_env%ref_count = qs_env%ref_count + 1
    END SUBROUTINE qs_env_retain
 
 ! **************************************************************************************************
@@ -1352,7 +1352,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env)) THEN
          CPASSERT(qs_env%ref_count > 0)
-         qs_env%ref_count = qs_env%ref_count-1
+         qs_env%ref_count = qs_env%ref_count - 1
          IF (qs_env%ref_count < 1) THEN
             CALL cell_release(qs_env%super_cell)
             IF (ASSOCIATED(qs_env%mos)) THEN

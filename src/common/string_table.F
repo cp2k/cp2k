@@ -73,7 +73,7 @@ CONTAINS
       INTEGER                                            :: index, ipos
       TYPE(hash_element_type), POINTER                   :: this
 
-      inserted_strings = inserted_strings+1
+      inserted_strings = inserted_strings + 1
       ! index is the index in the array, ipos is the Nth element of the linked list
       index = joaat_hash(str)
       ipos = 0
@@ -83,7 +83,7 @@ CONTAINS
             ! str was not in the linked list, add it now
             ALLOCATE (this%str)
             this%str = str
-            actual_strings = actual_strings+1
+            actual_strings = actual_strings + 1
             EXIT
          ELSE
             IF (this%str == str) THEN
@@ -91,7 +91,7 @@ CONTAINS
                EXIT
             ELSE
                IF (.NOT. ASSOCIATED(this%next)) ALLOCATE (this%next)
-               ipos = ipos+1
+               ipos = ipos + 1
                this => this%next
             ENDIF
          ENDIF
@@ -116,7 +116,7 @@ CONTAINS
       INTEGER                                            :: i, index, ipos
       TYPE(hash_element_type), POINTER                   :: this
 
-      index = IAND(id, 2**Nbit-1)
+      index = IAND(id, 2**Nbit - 1)
       ipos = ISHFT(id, -Nbit)
       this => hash_table(index)
       DO i = 1, ipos
@@ -151,7 +151,7 @@ CONTAINS
 !>      of other procedures of this module. The scope of this table is global
 ! **************************************************************************************************
    SUBROUTINE string_table_allocate()
-      ALLOCATE (hash_table(0:hash_table_size-1))
+      ALLOCATE (hash_table(0:hash_table_size - 1))
       actual_strings = 0
       inserted_strings = 0
    END SUBROUTINE string_table_allocate
@@ -174,15 +174,15 @@ CONTAINS
 
       ipos_max = 0
       ilist = 0
-      DO i = 0, hash_table_size-1
+      DO i = 0, hash_table_size - 1
          ipos = 1
          IF (ASSOCIATED(hash_table(i)%str)) THEN
             DEALLOCATE (hash_table(i)%str)
-            ilist = ilist+1
+            ilist = ilist + 1
          ENDIF
          this => hash_table(i)%next
          DO WHILE (ASSOCIATED(this))
-            ipos = ipos+1
+            ipos = ipos + 1
             next => this%next
             IF (ASSOCIATED(this%str)) DEALLOCATE (this%str)
             DEALLOCATE (this)
@@ -218,20 +218,20 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: key
       INTEGER                                            :: hash_index
 
-      INTEGER(KIND=int_8), PARAMETER                     :: b32 = 2_int_8**32-1_int_8
+      INTEGER(KIND=int_8), PARAMETER                     :: b32 = 2_int_8**32 - 1_int_8
 
       INTEGER                                            :: i
       INTEGER(KIND=int_8)                                :: hash
 
       hash = 0_int_8
       DO i = 1, LEN(key)
-         hash = IAND(hash+ICHAR(key(i:i)), b32)
-         hash = IAND(hash+IAND(ISHFT(hash, 10), b32), b32)
+         hash = IAND(hash + ICHAR(key(i:i)), b32)
+         hash = IAND(hash + IAND(ISHFT(hash, 10), b32), b32)
          hash = IAND(IEOR(hash, IAND(ISHFT(hash, -6), b32)), b32)
       ENDDO
-      hash = IAND(hash+IAND(ISHFT(hash, 3), b32), b32)
+      hash = IAND(hash + IAND(ISHFT(hash, 3), b32), b32)
       hash = IAND(IEOR(hash, IAND(ISHFT(hash, -11), b32)), b32)
-      hash = IAND(hash+IAND(ISHFT(hash, 15), b32), b32)
+      hash = IAND(hash + IAND(ISHFT(hash, 15), b32), b32)
       ! hash is the real 32bit hash value of the string,
       ! hash_index is an index in the hash_table
       hash_index = INT(MOD(hash, INT(hash_table_size, KIND=int_8)))

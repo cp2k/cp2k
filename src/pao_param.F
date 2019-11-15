@@ -330,7 +330,7 @@ CONTAINS
          tmp1 = block_test(:, 1:M)
          tmp2 = MATMUL(TRANSPOSE(tmp1), tmp1)
          DO i = 1, M
-            tmp2(i, i) = tmp2(i, i)-1.0_dp
+            tmp2(i, i) = tmp2(i, i) - 1.0_dp
          ENDDO
 
 !$OMP ATOMIC

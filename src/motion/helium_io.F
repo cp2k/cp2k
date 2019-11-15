@@ -143,7 +143,7 @@ CONTAINS
       Frames: DO
          ! Atom number
          CALL parser_get_object(parser, natom)
-         frame = frame+1
+         frame = frame + 1
          IF (frame == 1) THEN
             ALLOCATE (coords(3*natom))
          ELSE
@@ -158,12 +158,12 @@ CONTAINS
          DO j = 1, natom
             ! Atom coordinates
             READ (parser%input_line, *) strtmp, &
-               coords(3*(j-1)+1), &
-               coords(3*(j-1)+2), &
-               coords(3*(j-1)+3)
-            coords(3*(j-1)+1) = cp_unit_to_cp2k(coords(3*(j-1)+1), "angstrom")
-            coords(3*(j-1)+2) = cp_unit_to_cp2k(coords(3*(j-1)+2), "angstrom")
-            coords(3*(j-1)+3) = cp_unit_to_cp2k(coords(3*(j-1)+3), "angstrom")
+               coords(3*(j - 1) + 1), &
+               coords(3*(j - 1) + 2), &
+               coords(3*(j - 1) + 3)
+            coords(3*(j - 1) + 1) = cp_unit_to_cp2k(coords(3*(j - 1) + 1), "angstrom")
+            coords(3*(j - 1) + 2) = cp_unit_to_cp2k(coords(3*(j - 1) + 2), "angstrom")
+            coords(3*(j - 1) + 3) = cp_unit_to_cp2k(coords(3*(j - 1) + 3), "angstrom")
             ! If there's a white line or end of file exit.. otherwise go on
             CALL parser_get_next_line(parser, 1, at_end=my_end)
             my_end = my_end .OR. (LEN_TRIM(parser%input_line) == 0)
@@ -253,7 +253,7 @@ CONTAINS
 
          ! first step gets incremented during first iteration
          WRITE (unit_nr, '(T2,A,1X,I0)') TRIM(my_label)// &
-            " First MC step                      :", helium%first_step+1
+            " First MC step                      :", helium%first_step + 1
          WRITE (unit_nr, '(T2,A,1X,I0)') TRIM(my_label)// &
             " Last MC step                       :", helium%last_step
          WRITE (unit_nr, '(T2,A,1X,I0)') TRIM(my_label)// &
@@ -504,16 +504,16 @@ CONTAINS
          IF (cepsample) THEN
             ntot = 0.0_dp
             DO k = 1, SIZE(helium_env)
-               ntot = ntot+helium_env(1)%helium%iter_norot*helium_env(1)%helium%iter_rot
+               ntot = ntot + helium_env(1)%helium%iter_norot*helium_env(1)%helium%iter_rot
                DO m = 1, helium_env(k)%helium%maxcycle
-                  naccptd = naccptd+helium_env(k)%helium%num_accepted(helium_env(k)%helium%bisctlog2+2, m)
+                  naccptd = naccptd + helium_env(k)%helium%num_accepted(helium_env(k)%helium%bisctlog2 + 2, m)
                END DO
             END DO
          ELSE !(wormsample)
             ntot = 0.0_dp
             DO k = 1, SIZE(helium_env)
-               naccptd = naccptd+helium_env(k)%helium%num_accepted(1, 1)
-               ntot = ntot+helium_env(k)%helium%num_accepted(2, 1)
+               naccptd = naccptd + helium_env(k)%helium%num_accepted(1, 1)
+               ntot = ntot + helium_env(k)%helium%num_accepted(2, 1)
             END DO
          END IF
          CALL mp_sum(naccptd, helium_env(1)%comm)
@@ -633,8 +633,8 @@ CONTAINS
          ! average data over all processors and environments
          avg_data(:) = 0.0_dp
          msglen = SIZE(avg_data)
-         DO i = 0, SIZE(helium_env)-1
-            avg_data(:) = avg_data(:)+DATA(msglen*i+1:msglen*(i+1))
+         DO i = 0, SIZE(helium_env) - 1
+            avg_data(:) = avg_data(:) + DATA(msglen*i + 1:msglen*(i + 1))
          END DO
          CALL mp_sum(avg_data, helium_env(1)%comm)
          nenv = helium_env(1)%helium%num_env
@@ -643,13 +643,13 @@ CONTAINS
          ! gather data from all processors
          offset = 0
          DO i = 1, logger%para_env%mepos
-            offset = offset+helium_env(1)%env_all(i)
+            offset = offset + helium_env(1)%env_all(i)
          END DO
 
          helium_env(1)%helium%rtmp_3_np_1d = 0.0_dp
          msglen = SIZE(avg_data)
-         DO i = 0, SIZE(helium_env)-1
-            helium_env(1)%helium%rtmp_3_np_1d(msglen*(offset+i)+1:msglen*(offset+i+1)) = DATA(msglen*i+1:msglen*(i+1))
+         DO i = 0, SIZE(helium_env) - 1
+            helium_env(1)%helium%rtmp_3_np_1d(msglen*(offset + i) + 1:msglen*(offset + i + 1)) = DATA(msglen*i + 1:msglen*(i + 1))
          END DO
          CALL mp_sum(helium_env(1)%helium%rtmp_3_np_1d, &
                      helium_env(1)%comm)
@@ -691,8 +691,8 @@ CONTAINS
             DO irank = 1, helium_env(1)%helium%num_env
                ! unpack data (actually point to the right fragment only)
                msglen = SIZE(avg_data)
-               offset = (irank-1)*msglen
-               data_p => helium_env(1)%helium%rtmp_3_np_1d(offset+1:offset+msglen)
+               offset = (irank - 1)*msglen
+               data_p => helium_env(1)%helium%rtmp_3_np_1d(offset + 1:offset + msglen)
                ! write out the data
                DO i = 1, 3
                   WRITE (unit_nr, '(E27.20)', ADVANCE='NO') uconv*data_p(i)
@@ -767,7 +767,7 @@ CONTAINS
 
             DO i = 1, helium_env(1)%helium%maxcycle
                WRITE (unit_nr, '(I3)', ADVANCE='NO') i
-               DO j = 1, helium_env(1)%helium%bisctlog2+2
+               DO j = 1, helium_env(1)%helium%bisctlog2 + 2
                   WRITE (unit_nr, '(1X,F20.2)', ADVANCE='NO') helium_env(1)%helium%num_accepted(j, i)
                END DO
                WRITE (unit_nr, '(A)') ""
@@ -817,7 +817,7 @@ CONTAINS
       ! determine offset for arrays
       offset = 0
       DO i = 1, logger%para_env%mepos
-         offset = offset+helium_env(1)%env_all(i)
+         offset = offset + helium_env(1)%env_all(i)
       END DO
 
       print_key => section_vals_get_subs_vals(helium_env(1)%helium%input, &
@@ -838,7 +838,7 @@ CONTAINS
          helium_env(1)%helium%rtmp_3_atoms_beads_np_1d = 0.0_dp
          j = SIZE(helium_env(1)%helium%rtmp_3_atoms_beads_1d)
          DO i = 1, SIZE(helium_env)
-            helium_env(1)%helium%rtmp_3_atoms_beads_np_1d(j*(offset+i-1)+1:j*(offset+i)) = &
+            helium_env(1)%helium%rtmp_3_atoms_beads_np_1d(j*(offset + i - 1) + 1:j*(offset + i)) = &
                PACK(helium_env(i)%helium%pos(:, :, 1:helium_env(1)%helium%beads), .TRUE.)
          END DO
          CALL mp_sum(helium_env(1)%helium%rtmp_3_atoms_beads_np_1d, &
@@ -851,7 +851,7 @@ CONTAINS
       helium_env(1)%helium%itmp_atoms_np_1d(:) = 0
       msglen = SIZE(helium_env(1)%helium%permutation)
       DO i = 1, SIZE(helium_env)
-         helium_env(1)%helium%itmp_atoms_np_1d(msglen*(offset+i-1)+1:msglen*(offset+i)) = helium_env(i)%helium%permutation
+         helium_env(1)%helium%itmp_atoms_np_1d(msglen*(offset + i - 1) + 1:msglen*(offset + i)) = helium_env(i)%helium%permutation
       END DO
 
       CALL mp_sum(helium_env(1)%helium%itmp_atoms_np_1d, &
@@ -873,7 +873,7 @@ CONTAINS
                       extension=".dat")
 
             ! unpack permutation state (actually point to the right section only)
-            lb = (irank-1)*helium_env(1)%helium%atoms+1
+            lb = (irank - 1)*helium_env(1)%helium%atoms + 1
             ub = irank*helium_env(1)%helium%atoms
             my_perm => helium_env(1)%helium%itmp_atoms_np_1d(lb:ub)
 
@@ -884,9 +884,9 @@ CONTAINS
 
                ! unpack coordinates (necessary only for winding path delimiters)
                msglen = SIZE(helium_env(1)%helium%rtmp_3_atoms_beads_1d)
-               offset = (irank-1)*msglen
+               offset = (irank - 1)*msglen
                helium_env(1)%helium%work(:, :, 1:helium_env(1)%helium%beads) = &
-                  UNPACK(helium_env(1)%helium%rtmp_3_atoms_beads_np_1d(offset+1:offset+msglen), &
+                  UNPACK(helium_env(1)%helium%rtmp_3_atoms_beads_np_1d(offset + 1:offset + msglen), &
                          MASK=helium_env(1)%helium%ltmp_3_atoms_beads_3d, FIELD=0.0_dp)
 
                curat = 1
@@ -898,9 +898,9 @@ CONTAINS
                   my_cycle => helium_cycle_of(curat, my_perm)
 
                   ! include the current cycle in the pool of "used" indices
-                  nused = nused+SIZE(my_cycle)
+                  nused = nused + SIZE(my_cycle)
                   CALL reallocate(used_indices, 1, nused)
-                  used_indices(nused-SIZE(my_cycle)+1:nused) = my_cycle(1:SIZE(my_cycle))
+                  used_indices(nused - SIZE(my_cycle) + 1:nused) = my_cycle(1:SIZE(my_cycle))
 
                   ! select delimiters accoring to the cycle's winding state
                   IF (helium_is_winding(helium_env(1)%helium, curat, helium_env(1)%helium%work, my_perm)) THEN
@@ -937,7 +937,7 @@ CONTAINS
 
                   ! try to increment the current atom index
                   DO WHILE (ANY(used_indices .EQ. curat))
-                     curat = curat+1
+                     curat = curat + 1
                   END DO
 
                END DO
@@ -1013,7 +1013,7 @@ CONTAINS
       ! determine offset for arrays
       offset = 0
       DO i = 1, logger%para_env%mepos
-         offset = offset+helium_env(1)%env_all(i)
+         offset = offset + helium_env(1)%env_all(i)
       END DO
 
       print_key => section_vals_get_subs_vals(helium_env(1)%helium%input, &
@@ -1044,9 +1044,9 @@ CONTAINS
       tmp_inter_action(:) = 0.0_dp
       ! gather Action from all processors to logger%para_env%source
       DO k = 1, SIZE(helium_env)
-         tmp_link_action(offset+k) = helium_env(k)%helium%link_action
-         tmp_pair_action(offset+k) = helium_env(k)%helium%pair_action
-         tmp_inter_action(offset+k) = helium_env(k)%helium%inter_action
+         tmp_link_action(offset + k) = helium_env(k)%helium%link_action
+         tmp_pair_action(offset + k) = helium_env(k)%helium%pair_action
+         tmp_inter_action(offset + k) = helium_env(k)%helium%inter_action
       END DO
       CALL mp_sum(tmp_link_action, helium_env(1)%comm)
       CALL mp_sum(tmp_pair_action, helium_env(1)%comm)
@@ -1136,7 +1136,7 @@ CONTAINS
       ! determine offset for arrays
       offset = 0
       DO i = 1, logger%para_env%mepos
-         offset = offset+helium_env(1)%env_all(i)
+         offset = offset + helium_env(1)%env_all(i)
       END DO
 
       print_key => section_vals_get_subs_vals(helium_env(1)%helium%input, &
@@ -1155,18 +1155,18 @@ CONTAINS
          r0(:) = helium_env(k)%helium%center(:)
          DO ia = 1, helium_env(k)%helium%atoms
             DO ib = 1, helium_env(k)%helium%beads
-               r1(:) = helium_env(k)%helium%pos(:, ia, ib)-r0(:)
-               r2(:) = helium_env(k)%helium%pos(:, ia, ib)-r0(:)
+               r1(:) = helium_env(k)%helium%pos(:, ia, ib) - r0(:)
+               r2(:) = helium_env(k)%helium%pos(:, ia, ib) - r0(:)
                CALL helium_pbc(helium_env(k)%helium, r2)
                ltmp = .FALSE.
                DO ic = 1, 3
-                  IF (ABS(r1(ic)-r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp)) THEN
+                  IF (ABS(r1(ic) - r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp)) THEN
                      ltmp = .TRUE.
                      CYCLE
                   END IF
                END DO
                IF (ltmp) THEN
-                  helium_env(k)%helium%work(:, ia, ib) = r0(:)+r2(:)
+                  helium_env(k)%helium%work(:, ia, ib) = r0(:) + r2(:)
                ELSE
                   helium_env(k)%helium%work(:, ia, ib) = helium_env(k)%helium%pos(:, ia, ib)
                END IF
@@ -1178,7 +1178,7 @@ CONTAINS
       helium_env(1)%helium%rtmp_3_atoms_beads_np_1d = 0.0_dp
       j = SIZE(helium_env(1)%helium%rtmp_3_atoms_beads_1d)
       DO i = 1, SIZE(helium_env)
-         helium_env(1)%helium%rtmp_3_atoms_beads_np_1d(j*(offset+i-1)+1:j*(offset+i)) = &
+         helium_env(1)%helium%rtmp_3_atoms_beads_np_1d(j*(offset + i - 1) + 1:j*(offset + i)) = &
             PACK(helium_env(i)%helium%pos(:, :, 1:helium_env(1)%helium%beads), .TRUE.)
       END DO
       CALL mp_sum(helium_env(1)%helium%rtmp_3_atoms_beads_np_1d, &
@@ -1188,7 +1188,7 @@ CONTAINS
       helium_env(1)%helium%itmp_atoms_np_1d(:) = 0
       j = SIZE(helium_env(1)%helium%permutation)
       DO i = 1, SIZE(helium_env)
-         helium_env(1)%helium%itmp_atoms_np_1d(j*(offset+i-1)+1:j*(offset+i)) = helium_env(i)%helium%permutation
+         helium_env(1)%helium%itmp_atoms_np_1d(j*(offset + i - 1) + 1:j*(offset + i)) = helium_env(i)%helium%permutation
       END DO
 
       CALL mp_sum(helium_env(1)%helium%itmp_atoms_np_1d, &
@@ -1216,7 +1216,7 @@ CONTAINS
             fmt_string = "(A6,3F9.3,3F7.2,1X,A11,1X,I3)"
             xtmp = helium_env(1)%helium%cell_size
             xtmp = cp_unit_from_cp2k(xtmp, "angstrom")
-            SELECT CASE (helium_env (1)%helium%cell_shape)
+            SELECT CASE (helium_env(1)%helium%cell_shape)
             CASE (helium_cell_shape_cube)
                stmp = "C          "
             CASE (helium_cell_shape_octahedron)
@@ -1231,15 +1231,15 @@ CONTAINS
 
             ! unpack coordinates
             msglen = SIZE(helium_env(1)%helium%rtmp_3_atoms_beads_1d)
-            offset = (irank-1)*msglen
+            offset = (irank - 1)*msglen
             helium_env(1)%helium%work(:, :, 1:helium_env(1)%helium%beads) = &
-               UNPACK(helium_env(1)%helium%rtmp_3_atoms_beads_np_1d(offset+1:offset+msglen), &
+               UNPACK(helium_env(1)%helium%rtmp_3_atoms_beads_np_1d(offset + 1:offset + msglen), &
                       MASK=helium_env(1)%helium%ltmp_3_atoms_beads_3d, FIELD=0.0_dp)
 
             ! unpack permutation state (actually point to the right section only)
             msglen = SIZE(helium_env(1)%helium%permutation)
-            offset = (irank-1)*msglen
-            my_perm => helium_env(1)%helium%itmp_atoms_np_1d(offset+1:offset+msglen)
+            offset = (irank - 1)*msglen
+            my_perm => helium_env(1)%helium%itmp_atoms_np_1d(offset + 1:offset + msglen)
 
             ! write out coordinates
             fmt_string = &
@@ -1260,7 +1260,7 @@ CONTAINS
                   ztmp = helium_env(1)%helium%work(3, ia, ib)
                   ztmp = cp_unit_from_cp2k(ztmp, "angstrom")
                   WRITE (unit_nr, fmt_string) "ATOM  ", &
-                     (ia-1)*helium_env(1)%helium%beads+ib, &
+                     (ia - 1)*helium_env(1)%helium%beads + ib, &
                      " He ", " ", resName, "X", &
                      icycle, &
                      " ", &
@@ -1278,14 +1278,14 @@ CONTAINS
                   CYCLE
                END IF
 
-               DO ib = 1, helium_env(1)%helium%beads-1
+               DO ib = 1, helium_env(1)%helium%beads - 1
                   ! check wheather the consecutive beads belong to the same box
-                  r1(:) = helium_env(1)%helium%work(:, ia, ib)-helium_env(1)%helium%work(:, ia, ib+1)
+                  r1(:) = helium_env(1)%helium%work(:, ia, ib) - helium_env(1)%helium%work(:, ia, ib + 1)
                   r2(:) = r1(:)
                   CALL helium_pbc(helium_env(1)%helium, r2)
                   are_connected = .TRUE.
                   DO ic = 1, 3
-                     IF (ABS(r1(ic)-r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp)) THEN
+                     IF (ABS(r1(ic) - r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp)) THEN
                         ! if the distance betw ib and ib+1 changes upon applying
                         ! PBC do not connect them
                         are_connected = .FALSE.
@@ -1293,8 +1293,8 @@ CONTAINS
                      END IF
                   END DO
                   IF (are_connected) THEN
-                     tmp1 = (ia-1)*helium_env(1)%helium%beads+ib
-                     tmp2 = (ia-1)*helium_env(1)%helium%beads+ib+1
+                     tmp1 = (ia - 1)*helium_env(1)%helium%beads + ib
+                     tmp2 = (ia - 1)*helium_env(1)%helium%beads + ib + 1
                      ! smaller value has to go first
                      IF (tmp1 .LT. tmp2) THEN
                         ib1 = tmp1
@@ -1309,12 +1309,12 @@ CONTAINS
 
                ! last bead of atom <ia> connects to the first bead
                ! of the next atom in the permutation cycle
-               r1(:) = helium_env(1)%helium%work(:, ia, helium_env(1)%helium%beads)-helium_env(1)%helium%work(:, my_perm(ia), 1)
+               r1(:) = helium_env(1)%helium%work(:, ia, helium_env(1)%helium%beads) - helium_env(1)%helium%work(:, my_perm(ia), 1)
                r2(:) = r1(:)
                CALL helium_pbc(helium_env(1)%helium, r2)
                are_connected = .TRUE.
                DO ic = 1, 3
-                  IF (ABS(r1(ic)-r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp)) THEN
+                  IF (ABS(r1(ic) - r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp)) THEN
                      ! if the distance betw ib and ib+1 changes upon applying
                      ! PBC do not connect them
                      are_connected = .FALSE.
@@ -1323,7 +1323,7 @@ CONTAINS
                END DO
                IF (are_connected) THEN
                   tmp1 = ia*helium_env(1)%helium%beads
-                  tmp2 = (my_perm(ia)-1)*helium_env(1)%helium%beads+1
+                  tmp2 = (my_perm(ia) - 1)*helium_env(1)%helium%beads + 1
                   IF (tmp1 .LT. tmp2) THEN
                      ib1 = tmp1
                      ib2 = tmp2
@@ -1391,7 +1391,7 @@ CONTAINS
          ! save accumulated data of different env on same core in first temp
          helium_env(1)%helium%rdf_inst(:, :) = 0.0_dp
          DO k = 1, SIZE(helium_env)
-            helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)+ &
+            helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :) + &
                                                   helium_env(k)%helium%rdf_accu(:, :)
          END DO
 
@@ -1404,15 +1404,15 @@ CONTAINS
          helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)*inv_norm
 
          ! average over steps performed so far in this run
-         nsteps = helium_env(1)%helium%current_step-helium_env(1)%helium%first_step
+         nsteps = helium_env(1)%helium%current_step - helium_env(1)%helium%first_step
          inv_norm = 1.0_dp/REAL(nsteps, dp)
          helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)*inv_norm
 
          iweight = helium_env(1)%helium%rdf_iweight
          ! average over the old and the current density (observe the weights!)
-         helium_env(1)%helium%rdf_inst(:, :) = nsteps*helium_env(1)%helium%rdf_inst(:, :)+ &
+         helium_env(1)%helium%rdf_inst(:, :) = nsteps*helium_env(1)%helium%rdf_inst(:, :) + &
                                                iweight*helium_env(1)%helium%rdf_rstr(:, :)
-         helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)/REAL(nsteps+iweight, dp)
+         helium_env(1)%helium%rdf_inst(:, :) = helium_env(1)%helium%rdf_inst(:, :)/REAL(nsteps + iweight, dp)
 
          IF (logger%para_env%ionode) THEN
 
@@ -1438,7 +1438,7 @@ CONTAINS
                          do_backup=.FALSE.)
 
                DO ic = 1, helium_env(1)%helium%rdf_nbin
-                  WRITE (unit_nr, '(F20.10)', ADVANCE='NO') (REAL(ic, dp)-0.5_dp)*helium_env(1)%helium%rdf_delr*rtmp
+                  WRITE (unit_nr, '(F20.10)', ADVANCE='NO') (REAL(ic, dp) - 0.5_dp)*helium_env(1)%helium%rdf_delr*rtmp
                   WRITE (unit_nr, '(F20.10)', ADVANCE='NO') helium_env(1)%helium%rdf_inst(ia, ic)*rtmp2
                   WRITE (unit_nr, *)
                END DO
@@ -1460,8 +1460,8 @@ CONTAINS
                          do_backup=.FALSE.)
 
                DO ic = 1, helium_env(1)%helium%rdf_nbin
-                  WRITE (unit_nr, '(F20.10)', ADVANCE='NO') (REAL(ic, dp)-0.5_dp)*helium_env(1)%helium%rdf_delr*rtmp
-                  DO id = 1+ia, helium_env(1)%helium%rdf_num
+                  WRITE (unit_nr, '(F20.10)', ADVANCE='NO') (REAL(ic, dp) - 0.5_dp)*helium_env(1)%helium%rdf_delr*rtmp
+                  DO id = 1 + ia, helium_env(1)%helium%rdf_num
                      WRITE (unit_nr, '(F20.10)', ADVANCE='NO') helium_env(1)%helium%rdf_inst(id, ic)*rtmp2
                   END DO
                   WRITE (unit_nr, *)
@@ -1525,7 +1525,7 @@ CONTAINS
       ! save accumulated data of different env on same core in first temp
       helium_env(1)%helium%rho_inst(:, :, :, :) = 0.0_dp
       DO k = 1, SIZE(helium_env)
-         helium_env(1)%helium%rho_inst(:, :, :, :) = helium_env(1)%helium%rho_inst(:, :, :, :)+ &
+         helium_env(1)%helium%rho_inst(:, :, :, :) = helium_env(1)%helium%rho_inst(:, :, :, :) + &
                                                      helium_env(k)%helium%rho_accu(:, :, :, :)
       END DO
 
@@ -1536,15 +1536,15 @@ CONTAINS
       helium_env(1)%helium%rho_inst(:, :, :, :) = helium_env(1)%helium%rho_inst(:, :, :, :)*invproc
 
       ! average over steps performed so far in this run
-      nsteps = helium_env(1)%helium%current_step-helium_env(1)%helium%first_step
+      nsteps = helium_env(1)%helium%current_step - helium_env(1)%helium%first_step
       inv_norm = 1.0_dp/REAL(nsteps, dp)
       helium_env(1)%helium%rho_inst(:, :, :, :) = helium_env(1)%helium%rho_inst(:, :, :, :)*inv_norm
 
       iweight = helium_env(1)%helium%rho_iweight
       ! average over the old and the current density (observe the weights!)
-      helium_env(1)%helium%rho_inst(:, :, :, :) = nsteps*helium_env(1)%helium%rho_inst(:, :, :, :)+ &
+      helium_env(1)%helium%rho_inst(:, :, :, :) = nsteps*helium_env(1)%helium%rho_inst(:, :, :, :) + &
                                                   iweight*helium_env(1)%helium%rho_rstr(:, :, :, :)
-      helium_env(1)%helium%rho_inst(:, :, :, :) = helium_env(1)%helium%rho_inst(:, :, :, :)/REAL(nsteps+iweight, dp)
+      helium_env(1)%helium%rho_inst(:, :, :, :) = helium_env(1)%helium%rho_inst(:, :, :, :)/REAL(nsteps + iweight, dp)
 
       ! set center of the cubefile
       IF (helium_env(1)%helium%solute_present) THEN
@@ -1589,7 +1589,7 @@ CONTAINS
                CALL helium_write_cubefile( &
                   unit_nr, &
                   comment, &
-                  center-0.5_dp*(helium_env(1)%helium%rho_maxr-helium_env(1)%helium%rho_delr), &
+                  center - 0.5_dp*(helium_env(1)%helium%rho_maxr - helium_env(1)%helium%rho_delr), &
                   helium_env(1)%helium%rho_delr, &
                   helium_env(1)%helium%rho_nbin, &
                   cubdata)
@@ -1654,7 +1654,7 @@ CONTAINS
          DO iy = 1, ndim
             DO iz = 1, ndim
                WRITE (unit, '(1X,E13.5)', ADVANCE='NO') inva3*DATA(ix, iy, iz)
-               nw = nw+1
+               nw = nw + 1
                IF (MOD(nw, 6) .EQ. 0) THEN
                   nw = 0
                   WRITE (unit, *)
@@ -1792,7 +1792,7 @@ CONTAINS
             idim = 0
             DO ia = 1, helium_env(1)%helium%solute_atoms
                DO ic = 1, 3
-                  idim = idim+1
+                  idim = idim + 1
                   WRITE (unit_nr, '(F20.10)', ADVANCE='NO') helium_env(1)%helium%force_avrg(ib, idim)
                END DO
             END DO
@@ -1878,13 +1878,13 @@ CONTAINS
                          extension=".dat")
 
                ! unpack and actually print the forces - all components in one line
-               offset = (irank-1)*SIZE(helium%rtmp_p_ndim_1d)
+               offset = (irank - 1)*SIZE(helium%rtmp_p_ndim_1d)
                idim = 0
                DO ib = 1, helium%solute_beads
                   DO ia = 1, helium%solute_atoms
                      DO ic = 1, 3
-                        idim = idim+1
-                        WRITE (unit_nr, '(F20.10)', ADVANCE='NO') helium%rtmp_p_ndim_np_1d(offset+idim)
+                        idim = idim + 1
+                        WRITE (unit_nr, '(F20.10)', ADVANCE='NO') helium%rtmp_p_ndim_np_1d(offset + idim)
                      END DO
                   END DO
                END DO

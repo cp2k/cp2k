@@ -80,7 +80,7 @@ CONTAINS
 
       IF (ASSOCIATED(thermal_regions)) THEN
          CPASSERT(thermal_regions%ref_count > 0)
-         thermal_regions%ref_count = thermal_regions%ref_count+1
+         thermal_regions%ref_count = thermal_regions%ref_count + 1
       END IF
 
    END SUBROUTINE retain_thermal_regions
@@ -104,7 +104,7 @@ CONTAINS
       IF (check) THEN
          check = thermal_regions%ref_count > 0
          CPASSERT(check)
-         thermal_regions%ref_count = thermal_regions%ref_count-1
+         thermal_regions%ref_count = thermal_regions%ref_count - 1
          IF (thermal_regions%ref_count < 1) THEN
             IF (ASSOCIATED(thermal_regions%thermal_region)) THEN
                DO ireg = 1, SIZE(thermal_regions%thermal_region)

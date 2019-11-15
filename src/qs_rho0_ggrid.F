@@ -204,11 +204,11 @@ CONTAINS
             IF (rs_grid%desc%parallel .AND. .NOT. rs_grid%desc%distributed) THEN
                ! replicated realspace grid, split the atoms up between procs
                IF (MODULO(nat, rs_grid%desc%group_size) == rs_grid%desc%my_pos) THEN
-                  npme = npme+1
+                  npme = npme + 1
                   cores(npme) = iat
                ENDIF
             ELSE
-               npme = npme+1
+               npme = npme + 1
                cores(npme) = iat
             ENDIF
 
@@ -562,7 +562,7 @@ CONTAINS
 
          num_pe = para_env%num_pe
          mepos = para_env%mepos
-         DO j = 0, num_pe-1
+         DO j = 0, num_pe - 1
             bo = get_limit(nat, num_pe, j)
             IF (.NOT. grid_distributed .AND. j /= mepos) CYCLE
 
@@ -596,37 +596,37 @@ CONTAINS
                ! Convert from cartesian to spherical
                DO lshell = 0, l0_ikind
                   DO is = 1, nso(lshell)
-                     iso = is+nsoset(lshell-1)
+                     iso = is + nsoset(lshell - 1)
                      hab_sph(iso) = 0.0_dp
                      hdab_sph(1:3, iso) = 0.0_dp
                      a_hdab_sph(1:3, 1:3, iso) = 0.0_dp
                      DO ic = 1, nco(lshell)
-                        ico = ic+ncoset(lshell-1)
+                        ico = ic + ncoset(lshell - 1)
                         lx = indco(1, ico)
                         ly = indco(2, ico)
                         lz = indco(3, ico)
 
-                        hab_sph(iso) = hab_sph(iso)+ &
+                        hab_sph(iso) = hab_sph(iso) + &
                                        orbtramat(lshell)%c2s(is, ic)*hab(ico, 1)* &
                                        norm_l(lshell)/ &
-                                       SQRT(c4pi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/ &
-                                            dfac(2*lshell+1))
+                                       SQRT(c4pi*dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1)/ &
+                                            dfac(2*lshell + 1))
 
                         IF (calculate_forces) THEN
-                           hdab_sph(1:3, iso) = hdab_sph(1:3, iso)+ &
+                           hdab_sph(1:3, iso) = hdab_sph(1:3, iso) + &
                                                 orbtramat(lshell)%c2s(is, ic)*hdab(1:3, ico, 1)* &
                                                 norm_l(lshell)/ &
-                                                SQRT(c4pi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/ &
-                                                     dfac(2*lshell+1))
+                                                SQRT(c4pi*dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1)/ &
+                                                     dfac(2*lshell + 1))
                         END IF
                         IF (use_virial) THEN
                            DO ii = 1, 3
                            DO i = 1, 3
-                              a_hdab_sph(i, ii, iso) = a_hdab_sph(i, ii, iso)+ &
+                              a_hdab_sph(i, ii, iso) = a_hdab_sph(i, ii, iso) + &
                                                        orbtramat(lshell)%c2s(is, ic)*a_hdab(i, ii, ico, 1)* &
                                                        norm_l(lshell)/ &
-                                                       SQRT(c4pi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/ &
-                                                            dfac(2*lshell+1))
+                                                       SQRT(c4pi*dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1)/ &
+                                                            dfac(2*lshell + 1))
                            END DO
                            END DO
                         END IF
@@ -652,19 +652,19 @@ CONTAINS
                                  iso1 = cg_list(1, icg, iso)
                                  iso2 = cg_list(2, icg, iso)
 
-                                 ig1 = iso1+n1*(ipgf1-1)+m1
-                                 ig2 = iso2+n2*(ipgf2-1)+m2
+                                 ig1 = iso1 + n1*(ipgf1 - 1) + m1
+                                 ig2 = iso2 + n2*(ipgf2 - 1) + m2
 
-                                 intloc(ig1, ig2) = intloc(ig1, ig2)+Qlm_gg(ig1, ig2, iso)*hab_sph(iso)
+                                 intloc(ig1, ig2) = intloc(ig1, ig2) + Qlm_gg(ig1, ig2, iso)*hab_sph(iso)
 
                               END DO ! icg
                            END DO ! iso
 
                         END DO ! ipgf2
                      END DO ! ipgf1
-                     m2 = m2+maxso
+                     m2 = m2 + maxso
                   END DO ! iset2
-                  m1 = m1+maxso
+                  m1 = m1 + maxso
                END DO ! iset1
 
                IF (grid_distributed) THEN
@@ -676,26 +676,26 @@ CONTAINS
                   rho_atom => rho_atom_set(iatom)
                   CALL get_rho_atom(rho_atom=rho_atom, ga_Vlocal_gb_h=int_local_h, ga_Vlocal_gb_s=int_local_s)
                   DO ispin = 1, nspins
-                     int_local_h(ispin)%r_coef = int_local_h(ispin)%r_coef+intloc
-                     int_local_s(ispin)%r_coef = int_local_s(ispin)%r_coef+intloc
+                     int_local_h(ispin)%r_coef = int_local_h(ispin)%r_coef + intloc
+                     int_local_s(ispin)%r_coef = int_local_s(ispin)%r_coef + intloc
                   END DO
                END IF
 
                IF (calculate_forces) THEN
                   force_tmp(1:3) = 0.0_dp
                   DO iso = 1, nsoset(l0_ikind)
-                     force_tmp(1) = force_tmp(1)+Qlm(iso)*hdab_sph(1, iso)
-                     force_tmp(2) = force_tmp(2)+Qlm(iso)*hdab_sph(2, iso)
-                     force_tmp(3) = force_tmp(3)+Qlm(iso)*hdab_sph(3, iso)
+                     force_tmp(1) = force_tmp(1) + Qlm(iso)*hdab_sph(1, iso)
+                     force_tmp(2) = force_tmp(2) + Qlm(iso)*hdab_sph(2, iso)
+                     force_tmp(3) = force_tmp(3) + Qlm(iso)*hdab_sph(3, iso)
                   END DO
-                  force(ikind)%g0s_Vh_elec(1:3, iat) = force(ikind)%g0s_Vh_elec(1:3, iat)+force_tmp(1:3)
+                  force(ikind)%g0s_Vh_elec(1:3, iat) = force(ikind)%g0s_Vh_elec(1:3, iat) + force_tmp(1:3)
                END IF
                IF (use_virial) THEN
                   my_virial_a = 0.0_dp
                   DO iso = 1, nsoset(l0_ikind)
                      DO ii = 1, 3
                      DO i = 1, 3
-                        virial%pv_virial(i, ii) = virial%pv_virial(i, ii)+Qlm(iso)*a_hdab_sph(i, ii, iso)
+                        virial%pv_virial(i, ii) = virial%pv_virial(i, ii) + Qlm(iso)*a_hdab_sph(i, ii, iso)
                      END DO
                      END DO
                   END DO

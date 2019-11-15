@@ -57,9 +57,9 @@ CONTAINS
       DO ia = 1, pint_env%ndim/3
          DO ib = 1, pint_env%p
             DO ic = 1, 3
-               com_r(ic) = com_r(ic)+ &
-                           pint_env%x(ib, (ia-1)*3+ic)*pint_env%mass((ia-1)*3+ic)
-               tmass = tmass+pint_env%mass((ia-1)*3+ic)
+               com_r(ic) = com_r(ic) + &
+                           pint_env%x(ib, (ia - 1)*3 + ic)*pint_env%mass((ia - 1)*3 + ic)
+               tmass = tmass + pint_env%mass((ia - 1)*3 + ic)
             END DO
          END DO
       END DO
@@ -94,7 +94,7 @@ CONTAINS
       DO ia = 1, natoms
          DO ib = 1, pint_env%p
             DO ic = 1, 3
-               cntrd_r(ic) = cntrd_r(ic)+pint_env%x(ib, (ia-1)*3+ic)
+               cntrd_r(ic) = cntrd_r(ic) + pint_env%x(ib, (ia - 1)*3 + ic)
             END DO
          END DO
       END DO
@@ -143,7 +143,7 @@ CONTAINS
       ! if number of beads is not a power of 2 return
       nlevels = NINT(LOG(REAL(n, KIND=dp))/LOG(2.0_dp))
       rtmp = 2**nlevels
-      tcheck = ABS(REAL(n, KIND=dp)-rtmp)
+      tcheck = ABS(REAL(n, KIND=dp) - rtmp)
       IF (tcheck > 100.0_dp*EPSILON(0.0_dp)) THEN
          RETURN
       END IF
@@ -156,32 +156,32 @@ CONTAINS
 
       ! loop over Levy levels
       vrnc = 2.0_dp*t
-      DO il = 0, nlevels-1
+      DO il = 0, nlevels - 1
 
          np = 2**il ! number of points to be generated at this level
          dl = n/(2*np) ! interval betw points (in index numbers)
          vrnc = vrnc/2.0_dp; ! variance at this level (=t at level 0)
 
          ! loop over points added in this level
-         DO ip = 0, np-1
+         DO ip = 0, np - 1
 
-            j = (2*ip+1)*dl ! index of currently generated point
+            j = (2*ip + 1)*dl ! index of currently generated point
 
             ! indices of two points betw which to generate a new point
             i1 = 2*dl*ip
-            i2 = 2*dl*(ip+1)
+            i2 = 2*dl*(ip + 1)
             IF (i2 .EQ. n) THEN
                i2 = 0
             END IF
 
             ! generate new point and save it under j
             DO ic = 1, 3
-               xc = (x(3*i1+ic)+x(3*i2+ic))/2.0
-               xc = xc+next_random_number(rng_stream=rng_gaussian, &
-                                          variance=vrnc)
-               x(3*j+ic) = xc
+               xc = (x(3*i1 + ic) + x(3*i2 + ic))/2.0
+               xc = xc + next_random_number(rng_stream=rng_gaussian, &
+                                            variance=vrnc)
+               x(3*j + ic) = xc
             END DO
-            nout = nout+1
+            nout = nout + 1
 
          END DO
       END DO
@@ -190,13 +190,13 @@ CONTAINS
       cntrd_r(:) = 0.0_dp
       DO ib = 1, n
          DO ic = 1, 3
-            cntrd_r(ic) = cntrd_r(ic)+x((ib-1)*3+ic)
+            cntrd_r(ic) = cntrd_r(ic) + x((ib - 1)*3 + ic)
          END DO
       END DO
       cntrd_r(:) = cntrd_r(:)/REAL(n, dp)
       DO ib = 1, n
          DO ic = 1, 3
-            x((ib-1)*3+ic) = x((ib-1)*3+ic)-cntrd_r(ic)
+            x((ib - 1)*3 + ic) = x((ib - 1)*3 + ic) - cntrd_r(ic)
          END DO
       END DO
 
@@ -231,20 +231,20 @@ CONTAINS
       x(1) = x0(1)
       x(2) = x0(2)
       x(3) = x0(3)
-      DO ib = 1, n-1
+      DO ib = 1, n - 1
          DO ic = 1, 3
             r = next_random_number(rng_stream=rng_gaussian, &
                                    variance=1.0_dp)
-            tau_i = (REAL(ib, dp)-1.0_dp)/REAL(n, dp)
-            tau_i1 = (REAL(ib+1, dp)-1.0_dp)/REAL(n, dp)
-            x(ib*3+ic) = (x((ib-1)*3+ic)*(1.0_dp-tau_i1)+ &
-                          x(ic)*(tau_i1-tau_i))/ &
-                         (1.0_dp-tau_i)+ &
-                         r*v*SQRT( &
-                         (tau_i1-tau_i)* &
-                         (1.0_dp-tau_i1)/ &
-                         (1.0_dp-tau_i) &
-                         )
+            tau_i = (REAL(ib, dp) - 1.0_dp)/REAL(n, dp)
+            tau_i1 = (REAL(ib + 1, dp) - 1.0_dp)/REAL(n, dp)
+            x(ib*3 + ic) = (x((ib - 1)*3 + ic)*(1.0_dp - tau_i1) + &
+                            x(ic)*(tau_i1 - tau_i))/ &
+                           (1.0_dp - tau_i) + &
+                           r*v*SQRT( &
+                           (tau_i1 - tau_i)* &
+                           (1.0_dp - tau_i1)/ &
+                           (1.0_dp - tau_i) &
+                           )
          END DO
       END DO
 
@@ -252,13 +252,13 @@ CONTAINS
       cntrd_r(:) = 0.0_dp
       DO ib = 1, n
          DO ic = 1, 3
-            cntrd_r(ic) = cntrd_r(ic)+x((ib-1)*3+ic)
+            cntrd_r(ic) = cntrd_r(ic) + x((ib - 1)*3 + ic)
          END DO
       END DO
       cntrd_r(:) = cntrd_r(:)/REAL(n, dp)
       DO ib = 1, n
          DO ic = 1, 3
-            x((ib-1)*3+ic) = x((ib-1)*3+ic)-cntrd_r(ic)
+            x((ib - 1)*3 + ic) = x((ib - 1)*3 + ic) - cntrd_r(ic)
          END DO
       END DO
 
@@ -289,7 +289,7 @@ CONTAINS
       pint_env%centroid(:) = 0.0_dp
       DO ia = 1, pint_env%ndim
          DO ib = 1, pint_env%p
-            pint_env%centroid(ia) = pint_env%centroid(ia)+pint_env%x(ib, ia)
+            pint_env%centroid(ia) = pint_env%centroid(ia) + pint_env%x(ib, ia)
          END DO
          pint_env%centroid(ia) = pint_env%centroid(ia)*invp
       END DO

@@ -92,7 +92,7 @@ CONTAINS
       DO ispin = 1, nspin
          etr = 0.0_dp
          CALL dbcsr_dot(hmat(1)%matrix, pmat(ispin)%matrix, etr)
-         ecore = ecore+etr
+         ecore = ecore + etr
       END DO
 
       CALL timestop(handle)
@@ -132,7 +132,7 @@ CONTAINS
          DO ic = 1, nc
             etr = 0.0_dp
             CALL dbcsr_dot(hmat(1, ic)%matrix, pmat(ispin, ic)%matrix, etr)
-            ecore = ecore+etr
+            ecore = ecore + etr
          END DO
       END DO
 
@@ -286,10 +286,10 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rab)
          zab = zeff(ikind)*zeff(jkind)
-         aab = alpha(ikind)*alpha(jkind)/(alpha(ikind)+alpha(jkind))
+         aab = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
          rootaab = SQRT(aab)
          fab = 2.0_dp*oorootpi*zab*rootaab
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          IF (rab2 > 1.e-8_dp) THEN
             IF (ikind == jkind .AND. iatom == jatom) THEN
                f = 0.5_dp
@@ -298,17 +298,17 @@ CONTAINS
             END IF
             dab = SQRT(rab2)
             eab = zab*erfc(rootaab*dab)/dab
-            ecore_overlap = ecore_overlap+f*eab
+            ecore_overlap = ecore_overlap + f*eab
             IF (atenergy) THEN
-               atprop%atecc(iatom) = atprop%atecc(iatom)+0.5_dp*f*eab
-               atprop%atecc(jatom) = atprop%atecc(jatom)+0.5_dp*f*eab
+               atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*f*eab
+               atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*f*eab
             END IF
             IF (calculate_forces) THEN
-               deab(:) = rab(:)*f*(eab+fab*EXP(-aab*rab2))/rab2
+               deab(:) = rab(:)*f*(eab + fab*EXP(-aab*rab2))/rab2
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)
-               force(ikind)%core_overlap(:, atom_a) = force(ikind)%core_overlap(:, atom_a)+deab(:)
-               force(jkind)%core_overlap(:, atom_b) = force(jkind)%core_overlap(:, atom_b)-deab(:)
+               force(ikind)%core_overlap(:, atom_a) = force(ikind)%core_overlap(:, atom_a) + deab(:)
+               force(jkind)%core_overlap(:, atom_b) = force(jkind)%core_overlap(:, atom_b) - deab(:)
                IF (use_virial) THEN
                   CALL virial_pair_force(pv_loc, 1._dp, deab, rab)
                END IF
@@ -322,8 +322,8 @@ CONTAINS
          DEALLOCATE (atom_of_kind)
       END IF
       IF (calculate_forces .AND. use_virial) THEN
-         virial%pv_virial = virial%pv_virial+pv_loc
-         virial%pv_hartree = virial%pv_hartree+pv_loc
+         virial%pv_virial = virial%pv_virial + pv_loc
+         virial%pv_hartree = virial%pv_hartree + pv_loc
       END IF
 
       CALL mp_sum(ecore_overlap, group)
@@ -376,7 +376,7 @@ CONTAINS
       DO ikind = 1, SIZE(atomic_kind_set)
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
          CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, alpha_core_charge=alpha_core_charge)
-         ecore_self = ecore_self-REAL(natom, dp)*zeff**2*SQRT(alpha_core_charge)
+         ecore_self = ecore_self - REAL(natom, dp)*zeff**2*SQRT(alpha_core_charge)
       END DO
 
       energy%core_self = ecore_self/SQRT(twopi)
@@ -398,7 +398,7 @@ CONTAINS
                es = zeff**2*SQRT(alpha_core_charge)/SQRT(twopi)
                DO iparticle_local = 1, nparticle_local
                   iatom = local_particles%list(ikind)%array(iparticle_local)
-                  atprop%ateself(iatom) = atprop%ateself(iatom)-es
+                  atprop%ateself(iatom) = atprop%ateself(iatom) - es
                END DO
             END DO
          END IF

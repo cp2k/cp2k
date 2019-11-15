@@ -95,18 +95,18 @@ CONTAINS
       zz = 0.0_dp
       mtot = 0.0_dp
       DO i = 1, natom
-         mtot = mtot+particle_set(i)%atomic_kind%mass
-         xx = xx+r((i-1)*3+1)*particle_set(i)%atomic_kind%mass
-         yy = yy+r((i-1)*3+2)*particle_set(i)%atomic_kind%mass
-         zz = zz+r((i-1)*3+3)*particle_set(i)%atomic_kind%mass
+         mtot = mtot + particle_set(i)%atomic_kind%mass
+         xx = xx + r((i - 1)*3 + 1)*particle_set(i)%atomic_kind%mass
+         yy = yy + r((i - 1)*3 + 2)*particle_set(i)%atomic_kind%mass
+         zz = zz + r((i - 1)*3 + 3)*particle_set(i)%atomic_kind%mass
       END DO
       xx = xx/mtot
       yy = yy/mtot
       zz = zz/mtot
       DO i = 1, natom
-         rp(1, i) = r((i-1)*3+1)-xx
-         rp(2, i) = r((i-1)*3+2)-yy
-         rp(3, i) = r((i-1)*3+3)-zz
+         rp(1, i) = r((i - 1)*3 + 1) - xx
+         rp(2, i) = r((i - 1)*3 + 2) - yy
+         rp(3, i) = r((i - 1)*3 + 3) - zz
       END DO
       IF (PRESENT(transl)) THEN
          transl(1) = xx
@@ -119,26 +119,26 @@ CONTAINS
       yy = 0.0_dp
       zz = 0.0_dp
       DO i = 1, natom
-         xx = xx+r0((i-1)*3+1)*particle_set(i)%atomic_kind%mass
-         yy = yy+r0((i-1)*3+2)*particle_set(i)%atomic_kind%mass
-         zz = zz+r0((i-1)*3+3)*particle_set(i)%atomic_kind%mass
+         xx = xx + r0((i - 1)*3 + 1)*particle_set(i)%atomic_kind%mass
+         yy = yy + r0((i - 1)*3 + 2)*particle_set(i)%atomic_kind%mass
+         zz = zz + r0((i - 1)*3 + 3)*particle_set(i)%atomic_kind%mass
       END DO
       xx = xx/mtot
       yy = yy/mtot
       zz = zz/mtot
       DO i = 1, natom
-         r0p(1, i) = r0((i-1)*3+1)-xx
-         r0p(2, i) = r0((i-1)*3+2)-yy
-         r0p(3, i) = r0((i-1)*3+3)-zz
+         r0p(1, i) = r0((i - 1)*3 + 1) - xx
+         r0p(2, i) = r0((i - 1)*3 + 2) - yy
+         r0p(3, i) = r0((i - 1)*3 + 3) - zz
       END DO
       loc_tr(1) = xx
       loc_tr(2) = yy
       loc_tr(3) = zz
       ! Give back the translational vector
       IF (PRESENT(transl)) THEN
-         transl(1) = transl(1)-xx
-         transl(2) = transl(2)-yy
-         transl(3) = transl(3)-zz
+         transl(1) = transl(1) - xx
+         transl(2) = transl(2) - yy
+         transl(3) = transl(3) - zz
       END IF
       M = 0.0_dp
       !
@@ -150,20 +150,20 @@ CONTAINS
          rr0(1) = r0p(1, I)
          rr0(2) = r0p(2, I)
          rr0(3) = r0p(3, I)
-         rrsq = w(I)*(rr0(1)**2+rr0(2)**2+rr0(3)**2+rr(1)**2+rr(2)**2+rr(3)**2)
+         rrsq = w(I)*(rr0(1)**2 + rr0(2)**2 + rr0(3)**2 + rr(1)**2 + rr(2)**2 + rr(3)**2)
          rr0(1) = w(I)*rr0(1)
          rr0(2) = w(I)*rr0(2)
          rr0(3) = w(I)*rr0(3)
-         M(1, 1) = M(1, 1)+rrsq+2.0_dp*(-rr0(1)*rr(1)-rr0(2)*rr(2)-rr0(3)*rr(3))
-         M(2, 2) = M(2, 2)+rrsq+2.0_dp*(-rr0(1)*rr(1)+rr0(2)*rr(2)+rr0(3)*rr(3))
-         M(3, 3) = M(3, 3)+rrsq+2.0_dp*(rr0(1)*rr(1)-rr0(2)*rr(2)+rr0(3)*rr(3))
-         M(4, 4) = M(4, 4)+rrsq+2.0_dp*(rr0(1)*rr(1)+rr0(2)*rr(2)-rr0(3)*rr(3))
-         M(1, 2) = M(1, 2)+2.0_dp*(-rr0(2)*rr(3)+rr0(3)*rr(2))
-         M(1, 3) = M(1, 3)+2.0_dp*(rr0(1)*rr(3)-rr0(3)*rr(1))
-         M(1, 4) = M(1, 4)+2.0_dp*(-rr0(1)*rr(2)+rr0(2)*rr(1))
-         M(2, 3) = M(2, 3)-2.0_dp*(rr0(1)*rr(2)+rr0(2)*rr(1))
-         M(2, 4) = M(2, 4)-2.0_dp*(rr0(1)*rr(3)+rr0(3)*rr(1))
-         M(3, 4) = M(3, 4)-2.0_dp*(rr0(2)*rr(3)+rr0(3)*rr(2))
+         M(1, 1) = M(1, 1) + rrsq + 2.0_dp*(-rr0(1)*rr(1) - rr0(2)*rr(2) - rr0(3)*rr(3))
+         M(2, 2) = M(2, 2) + rrsq + 2.0_dp*(-rr0(1)*rr(1) + rr0(2)*rr(2) + rr0(3)*rr(3))
+         M(3, 3) = M(3, 3) + rrsq + 2.0_dp*(rr0(1)*rr(1) - rr0(2)*rr(2) + rr0(3)*rr(3))
+         M(4, 4) = M(4, 4) + rrsq + 2.0_dp*(rr0(1)*rr(1) + rr0(2)*rr(2) - rr0(3)*rr(3))
+         M(1, 2) = M(1, 2) + 2.0_dp*(-rr0(2)*rr(3) + rr0(3)*rr(2))
+         M(1, 3) = M(1, 3) + 2.0_dp*(rr0(1)*rr(3) - rr0(3)*rr(1))
+         M(1, 4) = M(1, 4) + 2.0_dp*(-rr0(1)*rr(2) + rr0(2)*rr(1))
+         M(2, 3) = M(2, 3) - 2.0_dp*(rr0(1)*rr(2) + rr0(2)*rr(1))
+         M(2, 4) = M(2, 4) - 2.0_dp*(rr0(1)*rr(3) + rr0(3)*rr(1))
+         M(3, 4) = M(3, 4) - 2.0_dp*(rr0(2)*rr(3) + rr0(3)*rr(2))
       END DO
       ! Symmetrize
       M(2, 1) = M(1, 2)
@@ -189,7 +189,7 @@ CONTAINS
             my_val = lambda(1)/REAL(natom, KIND=dp)
          ENDIF
       END IF
-      IF (ABS(lambda(1)-lambda(2)) < epsi) THEN
+      IF (ABS(lambda(1) - lambda(2)) < epsi) THEN
          IF (output_unit > 0) WRITE (output_unit, FMT='(T2,"RMSD3|",A)') &
             'NORMAL EXECUTION, NON-UNIQUE SOLUTION'
       END IF
@@ -204,9 +204,9 @@ CONTAINS
             rr0(2) = W(I)*2.0_dp*r0p(2, I)
             rr0(3) = W(I)*2.0_dp*r0p(3, I)
 
-            dm_r(1, 1, 1) = (rr(1)-rr0(1))
-            dm_r(1, 1, 2) = (rr(2)-rr0(2))
-            dm_r(1, 1, 3) = (rr(3)-rr0(3))
+            dm_r(1, 1, 1) = (rr(1) - rr0(1))
+            dm_r(1, 1, 2) = (rr(2) - rr0(2))
+            dm_r(1, 1, 3) = (rr(3) - rr0(3))
 
             dm_r(1, 2, 1) = 0.0_dp
             dm_r(1, 2, 2) = rr0(3)
@@ -220,9 +220,9 @@ CONTAINS
             dm_r(1, 4, 2) = -rr0(1)
             dm_r(1, 4, 3) = 0.0_dp
 
-            dm_r(2, 2, 1) = (rr(1)-rr0(1))
-            dm_r(2, 2, 2) = (rr(2)+rr0(2))
-            dm_r(2, 2, 3) = (rr(3)+rr0(3))
+            dm_r(2, 2, 1) = (rr(1) - rr0(1))
+            dm_r(2, 2, 2) = (rr(2) + rr0(2))
+            dm_r(2, 2, 3) = (rr(3) + rr0(3))
 
             dm_r(2, 3, 1) = -rr0(2)
             dm_r(2, 3, 2) = -rr0(1)
@@ -232,17 +232,17 @@ CONTAINS
             dm_r(2, 4, 2) = 0.0_dp
             dm_r(2, 4, 3) = -rr0(1)
 
-            dm_r(3, 3, 1) = (rr(1)+rr0(1))
-            dm_r(3, 3, 2) = (rr(2)-rr0(2))
-            dm_r(3, 3, 3) = (rr(3)+rr0(3))
+            dm_r(3, 3, 1) = (rr(1) + rr0(1))
+            dm_r(3, 3, 2) = (rr(2) - rr0(2))
+            dm_r(3, 3, 3) = (rr(3) + rr0(3))
 
             dm_r(3, 4, 1) = 0.0_dp
             dm_r(3, 4, 2) = -rr0(3)
             dm_r(3, 4, 3) = -rr0(2)
 
-            dm_r(4, 4, 1) = (rr(1)+rr0(1))
-            dm_r(4, 4, 2) = (rr(2)+rr0(2))
-            dm_r(4, 4, 3) = (rr(3)-rr0(3))
+            dm_r(4, 4, 1) = (rr(1) + rr0(1))
+            dm_r(4, 4, 2) = (rr(2) + rr0(2))
+            dm_r(4, 4, 3) = (rr(3) - rr0(3))
 
             DO ix = 1, 3
                dm_r(2, 1, ix) = dm_r(1, 2, ix)
@@ -257,7 +257,7 @@ CONTAINS
                drmsd3(ix, I) = 0.0_dp
                DO k = 1, 4
                   DO j = 1, 4
-                     drmsd3(ix, i) = drmsd3(ix, i)+Q(K-1)*Q(j-1)*dm_r(j, k, ix)
+                     drmsd3(ix, i) = drmsd3(ix, i) + Q(K - 1)*Q(j - 1)*dm_r(j, k, ix)
                   END DO
                END DO
                drmsd3(ix, I) = drmsd3(ix, I)/REAL(natom, KIND=dp)
@@ -265,21 +265,21 @@ CONTAINS
          END DO
       END IF
       ! Computes the rotation matrix in terms of quaternions
-      my_rot(1, 1) = -2.0_dp*Q(2)**2-2.0_dp*Q(3)**2+1.0_dp
-      my_rot(1, 2) = 2.0_dp*(-Q(0)*Q(3)+Q(1)*Q(2))
-      my_rot(1, 3) = 2.0_dp*(Q(0)*Q(2)+Q(1)*Q(3))
-      my_rot(2, 1) = 2.0_dp*(Q(0)*Q(3)+Q(1)*Q(2))
-      my_rot(2, 2) = -2.0_dp*Q(1)**2-2.0_dp*Q(3)**2+1.0_dp
-      my_rot(2, 3) = 2.0_dp*(-Q(0)*Q(1)+Q(2)*Q(3))
-      my_rot(3, 1) = 2.0_dp*(-Q(0)*Q(2)+Q(1)*Q(3))
-      my_rot(3, 2) = 2.0_dp*(Q(0)*Q(1)+Q(2)*Q(3))
-      my_rot(3, 3) = -2.0_dp*Q(1)**2-2.0_dp*Q(2)**2+1.0_dp
+      my_rot(1, 1) = -2.0_dp*Q(2)**2 - 2.0_dp*Q(3)**2 + 1.0_dp
+      my_rot(1, 2) = 2.0_dp*(-Q(0)*Q(3) + Q(1)*Q(2))
+      my_rot(1, 3) = 2.0_dp*(Q(0)*Q(2) + Q(1)*Q(3))
+      my_rot(2, 1) = 2.0_dp*(Q(0)*Q(3) + Q(1)*Q(2))
+      my_rot(2, 2) = -2.0_dp*Q(1)**2 - 2.0_dp*Q(3)**2 + 1.0_dp
+      my_rot(2, 3) = 2.0_dp*(-Q(0)*Q(1) + Q(2)*Q(3))
+      my_rot(3, 1) = 2.0_dp*(-Q(0)*Q(2) + Q(1)*Q(3))
+      my_rot(3, 2) = 2.0_dp*(Q(0)*Q(1) + Q(2)*Q(3))
+      my_rot(3, 3) = -2.0_dp*Q(1)**2 - 2.0_dp*Q(2)**2 + 1.0_dp
       IF (PRESENT(rot)) rot = my_rot
       ! Give back coordinates rotated in order to minimize the RMSD
       IF (my_rotate) THEN
          DO i = 1, natom
-            CALL matvec_3x3(r((i-1)*3+1:(i-1)*3+3), TRANSPOSE(my_rot), rp(:, i))
-            r((i-1)*3+1:(i-1)*3+3) = r((i-1)*3+1:(i-1)*3+3)+loc_tr
+            CALL matvec_3x3(r((i - 1)*3 + 1:(i - 1)*3 + 3), TRANSPOSE(my_rot), rp(:, i))
+            r((i - 1)*3 + 1:(i - 1)*3 + 3) = r((i - 1)*3 + 1:(i - 1)*3 + 3) + loc_tr
          END DO
       END IF
       DEALLOCATE (w)

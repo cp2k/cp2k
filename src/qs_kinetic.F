@@ -303,20 +303,20 @@ CONTAINS
             END IF
          END IF
 
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          tab = SQRT(rab2)
          trans = do_symmetric .AND. (iatom > jatom)
 
          DO iset = 1, nseta
 
-            ncoa = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+            ncoa = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
             sgfa = first_sgfa(1, iset)
 
             DO jset = 1, nsetb
 
-               IF (set_radius_a(iset)+set_radius_b(jset) < tab) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < tab) CYCLE
 
-               ncob = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+               ncob = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
                sgfb = first_sgfb(1, jset)
 
                IF (do_forces .AND. ASSOCIATED(p_block) .AND. ((iatom /= jatom) .OR. use_virial)) THEN
@@ -331,8 +331,8 @@ CONTAINS
                                rab, kab, dab)
                   CALL force_trace(force_a, dab, pab, ncoa, ncob, 3)
 !$OMP CRITICAL(forceupate)
-                  force(ikind)%kinetic(:, atom_a) = force(ikind)%kinetic(:, atom_a)+ff*force_a(:)
-                  force(jkind)%kinetic(:, atom_b) = force(jkind)%kinetic(:, atom_b)-ff*force_a(:)
+                  force(ikind)%kinetic(:, atom_a) = force(ikind)%kinetic(:, atom_a) + ff*force_a(:)
+                  force(jkind)%kinetic(:, atom_b) = force(jkind)%kinetic(:, atom_b) - ff*force_a(:)
                   IF (use_virial) THEN
                      CALL virial_pair_force(virial%pv_virial, f0, force_a, rab)
                   END IF
@@ -361,7 +361,7 @@ CONTAINS
       CALL neighbor_list_iterator_release(nl_iterator)
 
       IF (do_forces .AND. use_virial) THEN
-         virial%pv_ekin = virial%pv_virial-pv_loc
+         virial%pv_ekin = virial%pv_virial - pv_loc
       END IF
 
       IF (dokp) THEN

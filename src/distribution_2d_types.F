@@ -124,7 +124,7 @@ CONTAINS
 
       ALLOCATE (distribution_2d)
       distribution_2d%ref_count = 1
-      last_distribution_2d_id = last_distribution_2d_id+1
+      last_distribution_2d_id = last_distribution_2d_id + 1
       distribution_2d%id_nr = last_distribution_2d_id
 
       NULLIFY (distribution_2d%col_distribution, distribution_2d%row_distribution, &
@@ -230,7 +230,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(distribution_2d))
       CPASSERT(distribution_2d%ref_count > 0)
-      distribution_2d%ref_count = distribution_2d%ref_count+1
+      distribution_2d%ref_count = distribution_2d%ref_count + 1
    END SUBROUTINE distribution_2d_retain
 
 ! **************************************************************************************************
@@ -247,7 +247,7 @@ CONTAINS
 
       IF (ASSOCIATED(distribution_2d)) THEN
          CPASSERT(distribution_2d%ref_count > 0)
-         distribution_2d%ref_count = distribution_2d%ref_count-1
+         distribution_2d%ref_count = distribution_2d%ref_count - 1
          IF (distribution_2d%ref_count == 0) THEN
             CALL cp_blacs_env_release(distribution_2d%blacs_env)
             IF (ASSOCIATED(distribution_2d%col_distribution)) THEN
@@ -544,7 +544,7 @@ CONTAINS
                CPASSERT(ikind_min > 0)
                distribution_2d%flat_local_rows(iblock_atomic) = &
                   distribution_2d%local_rows(ikind_min)%array(multiindex(ikind_min))
-               multiindex(ikind_min) = multiindex(ikind_min)+1
+               multiindex(ikind_min) = multiindex(ikind_min) + 1
             END DO
             DEALLOCATE (multiindex)
          END IF
@@ -570,7 +570,7 @@ CONTAINS
                CPASSERT(ikind_min > 0)
                distribution_2d%flat_local_cols(iblock_atomic) = &
                   distribution_2d%local_cols(ikind_min)%array(multiindex(ikind_min))
-               multiindex(ikind_min) = multiindex(ikind_min)+1
+               multiindex(ikind_min) = multiindex(ikind_min) + 1
             END DO
             DEALLOCATE (multiindex)
          END IF

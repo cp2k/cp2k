@@ -242,8 +242,8 @@ CONTAINS
       energy%efermi = 0.0_dp
       CALL get_qs_env(qs_env, mos=mos)
       DO ispin = 1, SIZE(mos)
-         energy%kTS = energy%kTS+mos(ispin)%mo_set%kTS
-         energy%efermi = energy%efermi+mos(ispin)%mo_set%mu
+         energy%kTS = energy%kTS + mos(ispin)%mo_set%kTS
+         energy%efermi = energy%efermi + mos(ispin)%mo_set%mu
       ENDDO
       energy%efermi = energy%efermi/REAL(SIZE(mos), KIND=dp)
 
@@ -326,8 +326,8 @@ CONTAINS
       energy%efermi = 0.0_dp
       mos => kpoints%kp_env(1)%kpoint_env%mos
       DO ispin = 1, SIZE(mos, 2)
-         energy%kTS = energy%kTS+mos(1, ispin)%mo_set%kTS
-         energy%efermi = energy%efermi+mos(1, ispin)%mo_set%mu
+         energy%kTS = energy%kTS + mos(1, ispin)%mo_set%kTS
+         energy%efermi = energy%efermi + mos(1, ispin)%mo_set%mu
       ENDDO
       energy%efermi = energy%efermi/REAL(SIZE(mos, 2), KIND=dp)
 
@@ -475,7 +475,7 @@ CONTAINS
       outer_loop_converged = .TRUE.
       IF (scf_control%outer_scf%have_scf) THEN
          ! We have an outer SCF loop...
-         scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count+1
+         scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count + 1
          outer_loop_converged = .FALSE.
 
          CALL outer_loop_gradient(qs_env, scf_env)

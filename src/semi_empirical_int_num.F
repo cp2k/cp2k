@@ -139,27 +139,27 @@ CONTAINS
                               ! (SS/)
                               i = 1
                               j = 1
-                              iw_loc = (indexb(i, j)-1)*limkl+kl
+                              iw_loc = (indexb(i, j) - 1)*limkl + kl
                               ww(iw_loc) = wrepp
                            CASE (2)
                               ! (SP/)
                               j = 1
                               DO i = 1, 3
-                                 iw_loc = (indexb(i+1, j)-1)*limkl+kl
-                                 ww(iw_loc) = ww(iw_loc)+ij_matrix%sp(i1-1, i)*wrepp
+                                 iw_loc = (indexb(i + 1, j) - 1)*limkl + kl
+                                 ww(iw_loc) = ww(iw_loc) + ij_matrix%sp(i1 - 1, i)*wrepp
                               END DO
                            CASE (3)
                               ! (PP/)
                               DO i = 1, 3
-                                 cc = ij_matrix%pp(i, i1-1, j1-1)
-                                 iw_loc = (indexb(i+1, i+1)-1)*limkl+kl
-                                 ww(iw_loc) = ww(iw_loc)+cc*wrepp
-                                 iminus = i-1
+                                 cc = ij_matrix%pp(i, i1 - 1, j1 - 1)
+                                 iw_loc = (indexb(i + 1, i + 1) - 1)*limkl + kl
+                                 ww(iw_loc) = ww(iw_loc) + cc*wrepp
+                                 iminus = i - 1
                                  IF (iminus /= 0) THEN
                                     DO j = 1, iminus
-                                       cc = ij_matrix%pp(1+i+j, i1-1, j1-1)
-                                       iw_loc = (indexb(i+1, j+1)-1)*limkl+kl
-                                       ww(iw_loc) = ww(iw_loc)+cc*wrepp
+                                       cc = ij_matrix%pp(1 + i + j, i1 - 1, j1 - 1)
+                                       iw_loc = (indexb(i + 1, j + 1) - 1)*limkl + kl
+                                       ww(iw_loc) = ww(iw_loc) + cc*wrepp
                                     END DO
                                  END IF
                               END DO
@@ -167,31 +167,31 @@ CONTAINS
                               ! (SD/)
                               j = 1
                               DO i = 1, 5
-                                 iw_loc = (indexb(i+4, j)-1)*limkl+kl
-                                 ww(iw_loc) = ww(iw_loc)+ij_matrix%sd(i1-4, i)*wrepp
+                                 iw_loc = (indexb(i + 4, j) - 1)*limkl + kl
+                                 ww(iw_loc) = ww(iw_loc) + ij_matrix%sd(i1 - 4, i)*wrepp
                               END DO
                            CASE (5)
                               ! (DP/)
                               DO i = 1, 5
                                  DO j = 1, 3
-                                    iw_loc = (indexb(i+4, j+1)-1)*limkl+kl
-                                    ij1 = 3*(i-1)+j
-                                    ww(iw_loc) = ww(iw_loc)+ij_matrix%pd(ij1, i1-4, j1-1)*wrepp
+                                    iw_loc = (indexb(i + 4, j + 1) - 1)*limkl + kl
+                                    ij1 = 3*(i - 1) + j
+                                    ww(iw_loc) = ww(iw_loc) + ij_matrix%pd(ij1, i1 - 4, j1 - 1)*wrepp
                                  END DO
                               END DO
                            CASE (6)
                               ! (DD/)
                               DO i = 1, 5
-                                 cc = ij_matrix%dd(i, i1-4, j1-4)
-                                 iw_loc = (indexb(i+4, i+4)-1)*limkl+kl
-                                 ww(iw_loc) = ww(iw_loc)+cc*wrepp
-                                 iminus = i-1
+                                 cc = ij_matrix%dd(i, i1 - 4, j1 - 4)
+                                 iw_loc = (indexb(i + 4, i + 4) - 1)*limkl + kl
+                                 ww(iw_loc) = ww(iw_loc) + cc*wrepp
+                                 iminus = i - 1
                                  IF (iminus /= 0) THEN
                                     DO j = 1, iminus
                                        ij1 = inddd(i, j)
-                                       cc = ij_matrix%dd(ij1, i1-4, j1-4)
-                                       iw_loc = (indexb(i+4, j+4)-1)*limkl+kl
-                                       ww(iw_loc) = ww(iw_loc)+cc*wrepp
+                                       cc = ij_matrix%dd(ij1, i1 - 4, j1 - 4)
+                                       iw_loc = (indexb(i + 4, j + 4) - 1)*limkl + kl
+                                       ww(iw_loc) = ww(iw_loc) + cc*wrepp
                                     END DO
                                  END IF
                               END DO
@@ -438,10 +438,10 @@ CONTAINS
          DO n = 1, 2
             IF (.NOT. task(n)) CYCLE
             DO i = 1, last_orbital(n)
-               ind1 = i-1
+               ind1 = i - 1
                DO j = 1, i
-                  ind2 = j-1
-                  m = (i*(i-1))/2+j
+                  ind2 = j - 1
+                  m = (i*(i - 1))/2 + j
                   ! Perform Rotations ...
                   IF (ind2 == 0) THEN
                      IF (ind1 == 0) THEN
@@ -452,26 +452,26 @@ CONTAINS
                         tmp(m) = ij_matrix%sp(1, ind1)*core(2, n)
                      ELSE
                         ! Type of Integral (SD/)
-                        tmp(m) = ij_matrix%sd(1, ind1-3)*core(5, n)
+                        tmp(m) = ij_matrix%sd(1, ind1 - 3)*core(5, n)
                      END IF
                   ELSE IF (ind2 < 4) THEN
                      IF (ind1 < 4) THEN
                         ! Type of Integral (PP/)
                         ipp = indpp(ind1, ind2)
-                        tmp(m) = core(3, n)*ij_matrix%pp(ipp, 1, 1)+ &
-                                 core(4, n)*(ij_matrix%pp(ipp, 2, 2)+ij_matrix%pp(ipp, 3, 3))
+                        tmp(m) = core(3, n)*ij_matrix%pp(ipp, 1, 1) + &
+                                 core(4, n)*(ij_matrix%pp(ipp, 2, 2) + ij_matrix%pp(ipp, 3, 3))
                      ELSE
                         ! Type of Integral (PD/)
-                        idp = inddp(ind1-3, ind2)
-                        tmp(m) = core(6, n)*ij_matrix%pd(idp, 1, 1)+ &
-                                 core(8, n)*(ij_matrix%pd(idp, 2, 2)+ij_matrix%pd(idp, 3, 3))
+                        idp = inddp(ind1 - 3, ind2)
+                        tmp(m) = core(6, n)*ij_matrix%pd(idp, 1, 1) + &
+                                 core(8, n)*(ij_matrix%pd(idp, 2, 2) + ij_matrix%pd(idp, 3, 3))
                      END IF
                   ELSE
                      ! Type of Integral (DD/)
-                     idd = inddd(ind1-3, ind2-3)
-                     tmp(m) = core(7, n)*ij_matrix%dd(idd, 1, 1)+ &
-                              core(9, n)*(ij_matrix%dd(idd, 2, 2)+ij_matrix%dd(idd, 3, 3))+ &
-                              core(10, n)*(ij_matrix%dd(idd, 4, 4)+ij_matrix%dd(idd, 5, 5))
+                     idd = inddd(ind1 - 3, ind2 - 3)
+                     tmp(m) = core(7, n)*ij_matrix%dd(idd, 1, 1) + &
+                              core(9, n)*(ij_matrix%dd(idd, 2, 2) + ij_matrix%dd(idd, 3, 3)) + &
+                              core(10, n)*(ij_matrix%dd(idd, 4, 4) + ij_matrix%dd(idd, 5, 5))
                   END IF
                END DO
             END DO
@@ -546,12 +546,12 @@ CONTAINS
          IF (itype /= do_method_pm6 .AND. itype /= do_method_pm6fm) THEN
             alpi = sepi%alp
             alpj = sepj%alp
-            scale = EXP(-alpi*rij)+EXP(-alpj*rij)
+            scale = EXP(-alpi*rij) + EXP(-alpj*rij)
 
-            nt = sepi%z+sepj%z
+            nt = sepi%z + sepj%z
             IF (nt == 8 .OR. nt == 9) THEN
-               IF (sepi%z == 7 .OR. sepi%z == 8) scale = scale+(angstrom*rij-1._dp)*EXP(-alpi*rij)
-               IF (sepj%z == 7 .OR. sepj%z == 8) scale = scale+(angstrom*rij-1._dp)*EXP(-alpj*rij)
+               IF (sepi%z == 7 .OR. sepi%z == 8) scale = scale + (angstrom*rij - 1._dp)*EXP(-alpi*rij)
+               IF (sepj%z == 7 .OR. sepj%z == 8) scale = scale + (angstrom*rij - 1._dp)*EXP(-alpj*rij)
             ENDIF
             scale = ABS(scale*zz*ssss)
             zz = zz/rij
@@ -599,15 +599,15 @@ CONTAINS
                ! AM1/PM3/PDG correction to nuclear repulsion
                DO ig = 1, SIZE(fni1)
                   IF (ABS(fni1(ig)) > 0._dp) THEN
-                     ax = fni2(ig)*(rij-fni3(ig))**2
+                     ax = fni2(ig)*(rij - fni3(ig))**2
                      IF (ax <= 25._dp) THEN
-                        scale = scale+zz*fni1(ig)*EXP(-ax)
+                        scale = scale + zz*fni1(ig)*EXP(-ax)
                      ENDIF
                   ENDIF
                   IF (ABS(fnj1(ig)) > 0._dp) THEN
-                     ax = fnj2(ig)*(rij-fnj3(ig))**2
+                     ax = fnj2(ig)*(rij - fnj3(ig))**2
                      IF (ax <= 25._dp) THEN
-                        scale = scale+zz*fnj1(ig)*EXP(-ax)
+                        scale = scale + zz*fnj1(ig)*EXP(-ax)
                      ENDIF
                   ENDIF
                END DO
@@ -626,10 +626,10 @@ CONTAINS
                dbj = sepj%d(2)
                apdg = 10._dp*angstrom**2
                qcorr = &
-                  (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)+ &
-                  (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)+ &
-                  (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)+ &
-                  (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)
+                  (zaf*pai + zbf*paj)*EXP(-apdg*(rij - dai - daj)**2) + &
+                  (zaf*pai + zbf*pbj)*EXP(-apdg*(rij - dai - dbj)**2) + &
+                  (zaf*pbi + zbf*paj)*EXP(-apdg*(rij - dbi - daj)**2) + &
+                  (zaf*pbi + zbf*pbj)*EXP(-apdg*(rij - dbi - dbj)**2)
             ELSEIF (itype == do_method_pchg) THEN
                qcorr = 0.0_dp
                scale = 0.0_dp
@@ -648,24 +648,24 @@ CONTAINS
                scale = scale*(2._dp*xab*EXP(-aab*rija*rija))
             ELSEIF (sepi%z == 6 .AND. sepj%z == 6) THEN
                ! Special Case C-C
-               scale = scale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))+9.28_dp*EXP(-5.98_dp*rija))
+               scale = scale*(2._dp*xab*EXP(-aab*(rija + 0.0003_dp*rija**6)) + 9.28_dp*EXP(-5.98_dp*rija))
             ELSEIF ((sepi%z == 8 .AND. sepj%z == 14) .OR. &
                     (sepj%z == 8 .AND. sepi%z == 14)) THEN
                ! Special Case Si-O
-               scale = scale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2))
+               scale = scale*(2._dp*xab*EXP(-aab*(rija + 0.0003_dp*rija**6)) - 0.0007_dp*EXP(-(rija - 2.9_dp)**2))
             ELSE
                ! General Case
                ! Factor of 2 found by experiment
-               scale = scale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
+               scale = scale*(2._dp*xab*EXP(-aab*(rija + 0.0003_dp*rija**6)))
             END IF
             ! General correction term a*exp(-b*(rij-c)^2)
-            qcorr = (sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij+ &
-                    (sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij
+            qcorr = (sepi%a*EXP(-sepi%b*(rij - sepi%c)**2))*sepi%zeff*sepj%zeff/rij + &
+                    (sepj%a*EXP(-sepj%b*(rij - sepj%c)**2))*sepi%zeff*sepj%zeff/rij
             ! Hard core repulsion
-            tmp = (REAL(sepi%z, dp)**(1._dp/3._dp)+REAL(sepj%z, dp)**(1._dp/3._dp))
-            qcorr = qcorr+1.e-8_dp/evolt*(tmp/rija)**12
+            tmp = (REAL(sepi%z, dp)**(1._dp/3._dp) + REAL(sepj%z, dp)**(1._dp/3._dp))
+            qcorr = qcorr + 1.e-8_dp/evolt*(tmp/rija)**12
          END IF
-         enuc = enuc+scale+qcorr
+         enuc = enuc + scale + qcorr
       END IF
    END SUBROUTINE corecore_num
 
@@ -1027,12 +1027,12 @@ CONTAINS
       nsize = sepi%atm_int_size*sepj%atm_int_size
       DO i = 1, 3
          rr = r
-         rr(i) = rr(i)+delta
+         rr(i) = rr(i) + delta
          CALL rotint_num(sepi, sepj, rr, wp, se_int_control, se_taper=se_taper)
-         rr(i) = rr(i)-2._dp*delta
+         rr(i) = rr(i) - 2._dp*delta
          CALL rotint_num(sepi, sepj, rr, wm, se_int_control, se_taper=se_taper)
          DO j = 1, nsize
-            dw(i, j) = od*(wp(j)-wm(j))
+            dw(i, j) = od*(wp(j) - wm(j))
          END DO
       END DO
 
@@ -1073,18 +1073,18 @@ CONTAINS
       od = 0.5_dp/delta
       DO i = 1, 3
          rr = r
-         rr(i) = rr(i)+delta
+         rr(i) = rr(i) + delta
          CALL rotnuc_num(sepi, sepj, rr, e1p, e2p, itype, se_int_control, se_taper=se_taper)
-         rr(i) = rr(i)-2._dp*delta
+         rr(i) = rr(i) - 2._dp*delta
          CALL rotnuc_num(sepi, sepj, rr, e1m, e2m, itype, se_int_control, se_taper=se_taper)
          IF (l_de1b) THEN
             DO j = 1, sepi%atm_int_size
-               de1b(i, j) = od*(e1p(j)-e1m(j))
+               de1b(i, j) = od*(e1p(j) - e1m(j))
             END DO
          END IF
          IF (l_de2a) THEN
             DO j = 1, sepj%atm_int_size
-               de2a(i, j) = od*(e2p(j)-e2m(j))
+               de2a(i, j) = od*(e2p(j) - e2m(j))
             END DO
          END IF
       END DO
@@ -1119,11 +1119,11 @@ CONTAINS
       od = 0.5_dp/delta
       DO i = 1, 3
          rr = r
-         rr(i) = rr(i)+delta
+         rr(i) = rr(i) + delta
          CALL corecore_num(sepi, sepj, rr, enucp, itype, se_int_control, se_taper=se_taper)
-         rr(i) = rr(i)-2._dp*delta
+         rr(i) = rr(i) - 2._dp*delta
          CALL corecore_num(sepi, sepj, rr, enucm, itype, se_int_control, se_taper=se_taper)
-         denuc(i) = od*(enucp-enucm)
+         denuc(i) = od*(enucp - enucm)
       END DO
    END SUBROUTINE dcorecore_num
 
@@ -1157,11 +1157,11 @@ CONTAINS
       od = 0.5_dp/delta
       DO i = 1, 3
          rr = r
-         rr(i) = rr(i)+delta
+         rr(i) = rr(i) + delta
          CALL corecore_el_num(sepi, sepj, rr, enucp, itype, se_int_control, se_taper=se_taper)
-         rr(i) = rr(i)-2._dp*delta
+         rr(i) = rr(i) - 2._dp*delta
          CALL corecore_el_num(sepi, sepj, rr, enucm, itype, se_int_control, se_taper=se_taper)
-         denuc(i) = od*(enucp-enucm)
+         denuc(i) = od*(enucp - enucm)
       END DO
    END SUBROUTINE dcorecore_el_num
 

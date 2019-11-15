@@ -72,7 +72,7 @@ CONTAINS
          ! for conventional QM/MM, and force-mixing knows to put relevant energy there.
          CALL fist_env_get(qmmm_env%fist_env, thermo=thermo)
          CALL get_qs_env(qmmm_env%qs_env, energy=qs_energy)
-         potential_energy = thermo%pot+qs_energy%total
+         potential_energy = thermo%pot + qs_energy%total
       ENDIF
    END SUBROUTINE qmmm_env_get
 
@@ -89,7 +89,7 @@ CONTAINS
 
       IF (ASSOCIATED(qmmm_env)) THEN
          CPASSERT(qmmm_env%ref_count > 0)
-         qmmm_env%ref_count = qmmm_env%ref_count-1
+         qmmm_env%ref_count = qmmm_env%ref_count - 1
          IF (qmmm_env%ref_count == 0) THEN
             CALL qs_env_release(qmmm_env%qs_env)
             CALL qmmm_env_qm_release(qmmm_env%qm)
@@ -113,7 +113,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(qmmm_env))
       CPASSERT(qmmm_env%ref_count > 0)
-      qmmm_env%ref_count = qmmm_env%ref_count+1
+      qmmm_env%ref_count = qmmm_env%ref_count + 1
    END SUBROUTINE qmmm_env_retain
 
 END MODULE qmmm_types

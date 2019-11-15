@@ -246,7 +246,7 @@ CONTAINS
                ELSE
                   ! Skip compression
                   CALL reallocate(store_int_env%uncompressed_container, 1, &
-                                  store_int_env%memory_parameter%actual_memory_usage-1)
+                                  store_int_env%memory_parameter%actual_memory_usage - 1)
                END IF
             END IF
             IF (store_int_env%compress) THEN

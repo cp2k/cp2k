@@ -251,7 +251,7 @@ CONTAINS
 
       ALLOCATE (ewald_env)
       ewald_env%ref_count = 1
-      last_ewald_env_id_nr = last_ewald_env_id_nr+1
+      last_ewald_env_id_nr = last_ewald_env_id_nr + 1
       ewald_env%id_nr = last_ewald_env_id_nr
       NULLIFY (ewald_env%poisson_section)
       CALL cp_para_env_retain(para_env)
@@ -274,7 +274,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(ewald_env))
       CPASSERT(ewald_env%ref_count > 0)
-      ewald_env%ref_count = ewald_env%ref_count+1
+      ewald_env%ref_count = ewald_env%ref_count + 1
    END SUBROUTINE ewald_env_retain
 
 ! **************************************************************************************************
@@ -292,7 +292,7 @@ CONTAINS
 
       IF (ASSOCIATED(ewald_env)) THEN
          CPASSERT(ewald_env%ref_count > 0)
-         ewald_env%ref_count = ewald_env%ref_count-1
+         ewald_env%ref_count = ewald_env%ref_count - 1
          IF (ewald_env%ref_count < 1) THEN
             CALL cp_para_env_release(ewald_env%para_env)
             CALL section_vals_release(ewald_env%poisson_section)
@@ -348,7 +348,7 @@ CONTAINS
       SELECT CASE (ewald_env%ewald_type)
       CASE (do_ewald_ewald, do_ewald_spme)
          CALL section_vals_val_get(ewald_section, "GMAX", i_vals=gmax_read)
-         SELECT CASE (SIZE (gmax_read, 1))
+         SELECT CASE (SIZE(gmax_read, 1))
          CASE (1)
             ewald_env%gmax = gmax_read(1)
          CASE (3)
@@ -499,7 +499,7 @@ CONTAINS
       CALL section_vals_val_get(ewald_section, "GMAX", explicit=explicit)
       IF (explicit) THEN
          CALL section_vals_val_get(ewald_section, "GMAX", i_vals=gmax_read)
-         SELECT CASE (SIZE (gmax_read, 1))
+         SELECT CASE (SIZE(gmax_read, 1))
          CASE (1)
             ewald_env%gmax = gmax_read(1)
          CASE (3)
@@ -513,7 +513,7 @@ CONTAINS
          DO i = 1, 3
             alat = SUM(hmat(:, i)**2)
             CPASSERT(alat /= 0._dp)
-            ewald_env%gmax(i) = 2*FLOOR(SQRT(2.0_dp*cutoff*alat)/twopi)+1
+            ewald_env%gmax(i) = 2*FLOOR(SQRT(2.0_dp*cutoff*alat)/twopi) + 1
          ENDDO
       ENDIF
       n = ewald_env%gmax
@@ -555,22 +555,22 @@ CONTAINS
       REAL(KIND=dp)                                      :: func, func1, func2, s, s1, s2
 
       s = 0.1_dp
-      func = EXP(-s**2)/s**2-precs
+      func = EXP(-s**2)/s**2 - precs
       CPASSERT(func > 0.0_dp)
       DO WHILE (func > 0.0_dp)
-         s = s+0.1_dp
-         func = EXP(-s**2)/s**2-precs
+         s = s + 0.1_dp
+         func = EXP(-s**2)/s**2 - precs
       END DO
       s2 = s
-      s1 = s-0.1_dp
+      s1 = s - 0.1_dp
       ! Start bisection
       DO WHILE (.TRUE.)
-         func2 = EXP(-s2**2)/s2**2-precs
-         func1 = EXP(-s1**2)/s1**2-precs
+         func2 = EXP(-s2**2)/s2**2 - precs
+         func1 = EXP(-s1**2)/s1**2 - precs
          CPASSERT(func1 >= 0)
          CPASSERT(func2 <= 0)
-         s = 0.5_dp*(s1+s2)
-         func = EXP(-s**2)/s**2-precs
+         s = 0.5_dp*(s1 + s2)
+         func = EXP(-s**2)/s**2 - precs
          IF (func > 0.0_dp) THEN
             s1 = s
          ELSE IF (func < 0.0_dp) THEN

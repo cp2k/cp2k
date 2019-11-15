@@ -187,13 +187,13 @@ CONTAINS
             gcp_env%gcp_kind(ikind)%za = za
             gcp_env%gcp_kind(ikind)%asto = gcp_env%eta*SUM(sexp(1:4, za))/REAL(nll(za), KIND=dp)
             gcp_env%gcp_kind(ikind)%nq = nshell(za)
-            gcp_env%gcp_kind(ikind)%rcsto = ((nshell(za)-1)*2.5_dp-LOG(epsc))/gcp_env%gcp_kind(ikind)%asto
+            gcp_env%gcp_kind(ikind)%rcsto = ((nshell(za) - 1)*2.5_dp - LOG(epsc))/gcp_env%gcp_kind(ikind)%asto
             ! basis
             NULLIFY (orb_basis)
             CALL get_qs_kind(qs_kind, basis_set=orb_basis, basis_type="ORB")
             CALL get_gto_basis_set(gto_basis_set=orb_basis, nsgf=nbas)
             nel = SUM(qs_kind%elec_conf)
-            gcp_env%gcp_kind(ikind)%nbvirt = REAL(nbas, KIND=dp)-0.5_dp*REAL(nel, KIND=dp)
+            gcp_env%gcp_kind(ikind)%nbvirt = REAL(nbas, KIND=dp) - 0.5_dp*REAL(nel, KIND=dp)
             ! STO-nG
             nsto = SIZE(gcp_env%gcp_kind(ikind)%al)
             CALL get_sto_ng(gcp_env%gcp_kind(ikind)%asto, nsto, nshell(za), 0, al, cl)

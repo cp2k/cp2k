@@ -69,9 +69,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: zmpi1
 
-      IF (nd1 .LT. n1/2+1) CPABORT("Parallel convolution:ERROR:nd1")
-      IF (nd2 .LT. n2/2+1) CPABORT("Parallel convolution:ERROR:nd2")
-      IF (nd3 .LT. n3/2+1) CPABORT("Parallel convolution:ERROR:nd3")
+      IF (nd1 .LT. n1/2 + 1) CPABORT("Parallel convolution:ERROR:nd1")
+      IF (nd2 .LT. n2/2 + 1) CPABORT("Parallel convolution:ERROR:nd2")
+      IF (nd3 .LT. n3/2 + 1) CPABORT("Parallel convolution:ERROR:nd3")
       IF (md1 .LT. n1) CPABORT("Parallel convolution:ERROR:md1")
       IF (md2 .LT. n2) CPABORT("Parallel convolution:ERROR:md2")
       IF (md3 .LT. n3) CPABORT("Parallel convolution:ERROR:md3")
@@ -83,8 +83,8 @@ CONTAINS
       IF (ncache <= MAX(n1, n2, n3)*4) ncache = MAX(n1, n2, n3)*4
 
       lzt = n2
-      IF (MOD(n2, 2) .EQ. 0) lzt = lzt+1
-      IF (MOD(n2, 4) .EQ. 0) lzt = lzt+1 !maybe this is useless
+      IF (MOD(n2, 2) .EQ. 0) lzt = lzt + 1
+      IF (MOD(n2, 4) .EQ. 0) lzt = lzt + 1 !maybe this is useless
 
       !Allocations
       ALLOCATE (btrig1(2, ctrig_length))
@@ -135,11 +135,11 @@ CONTAINS
       ENDIF
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(md2/nproc)+j2 .LE. n2) THEN
+         IF (iproc*(md2/nproc) + j2 .LE. n2) THEN
             DO i1 = 1, n1, lot
                ma = i1
-               mb = MIN(i1+(lot-1), n1)
-               nfft = mb-ma+1
+               mb = MIN(i1 + (lot - 1), n1)
+               nfft = mb - ma + 1
                !inserting real data into complex array of half lenght
                CALL P_fill_upcorn(md1, md3, lot, nfft, n3, zf(i1, 1, j2), zw(1, 1, 1))
 
@@ -147,9 +147,9 @@ CONTAINS
                !input: I1,I3,J2,(Jp2)
                inzee = 1
                DO i = 1, ic3
-                  CALL fftstp(lot, nfft, n3, lot, n3, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n3, lot, n3, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig3, after3(i), now3(i), before3(i), 1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
 
                !output: I1,i3,J2,(Jp2)
@@ -172,7 +172,7 @@ CONTAINS
       !now each process perform complete convolution of its planes
       DO j3 = 1, nd3/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(nd3/nproc)+j3 .LE. n3/2+1) THEN
+         IF (iproc*(nd3/nproc) + j3 .LE. n3/2 + 1) THEN
             Jp2stb = 1
             J2stb = 1
             Jp2stf = 1
@@ -190,8 +190,8 @@ CONTAINS
 
             DO j = 1, n2, lot
                ma = j
-               mb = MIN(j+(lot-1), n2)
-               nfft = mb-ma+1
+               mb = MIN(j + (lot - 1), n2)
+               nfft = mb - ma + 1
 
                !reverse index ordering, leaving the planes to be transformed at the end
                !input: I1,J2,j3,Jp2,(jp3)
@@ -205,10 +205,10 @@ CONTAINS
                !performing FFT
                !input: I2,I1,j3,(jp3)
                inzee = 1
-               DO i = 1, ic1-1
-                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+               DO i = 1, ic1 - 1
+                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig1, after1(i), now1(i), before1(i), 1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
 
                !storing the last step into zt array
@@ -230,8 +230,8 @@ CONTAINS
 
             DO j = 1, n1, lot
                ma = j
-               mb = MIN(j+(lot-1), n1)
-               nfft = mb-ma+1
+               mb = MIN(j + (lot - 1), n1)
+               nfft = mb - ma + 1
 
                !reverse ordering
                !input: I2,i1,j3,(jp3)
@@ -242,14 +242,14 @@ CONTAINS
                !input: i1,I2,j3,(jp3)
                inzee = 1
                DO i = 1, ic2
-                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig2, after2(i), now2(i), before2(i), 1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
                !output: i1,i2,j3,(jp3)
 
                !Multiply with kernel in fourier space
-               i3 = iproc*(nd3/nproc)+j3
+               i3 = iproc*(nd3/nproc) + j3
                CALL P_multkernel(n1, n2, n3, lot, nfft, j, i3, zw(1, 1, inzee), hx, hy, hz)
 
                !TRANSFORM BACK IN REAL SPACE
@@ -257,9 +257,9 @@ CONTAINS
                !transform along y axis
                !input: i1,i2,j3,(jp3)
                DO i = 1, ic2
-                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig2, after2(i), now2(i), before2(i), -1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
 
                !reverse ordering
@@ -273,8 +273,8 @@ CONTAINS
             lot = ncache/(4*n1)
             DO j = 1, n2, lot
                ma = j
-               mb = MIN(j+(lot-1), n2)
-               nfft = mb-ma+1
+               mb = MIN(j + (lot - 1), n2)
+               nfft = mb - ma + 1
 
                !performing FFT
                i = 1
@@ -283,9 +283,9 @@ CONTAINS
 
                inzee = 1
                DO i = 2, ic1
-                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig1, after1(i), now1(i), before1(i), -1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
                !output: I2,I1,j3,(jp3)
 
@@ -313,11 +313,11 @@ CONTAINS
       lot = ncache/(4*n3)
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(md2/nproc)+j2 .LE. n2) THEN
+         IF (iproc*(md2/nproc) + j2 .LE. n2) THEN
             DO i1 = 1, n1, lot
                ma = i1
-               mb = MIN(i1+(lot-1), n1)
-               nfft = mb-ma+1
+               mb = MIN(i1 + (lot - 1), n1)
+               nfft = mb - ma + 1
 
                !reverse ordering
                !input: I1,J2,i3,(Jp2)
@@ -328,9 +328,9 @@ CONTAINS
                !input: I1,i3,J2,(Jp2)
                inzee = 1
                DO i = 1, ic3
-                  CALL fftstp(lot, nfft, n3, lot, n3, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n3, lot, n3, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig3, after3(i), now3(i), before3(i), -1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
                !output: I1,I3,J2,(Jp2)
 
@@ -393,7 +393,7 @@ CONTAINS
       mfft = 0
       DO Jp2 = Jp2stb, nproc
          DO J2 = J2stb, md2/nproc
-            mfft = mfft+1
+            mfft = mfft + 1
             IF (mfft .GT. nfft) THEN
                Jp2stb = Jp2
                J2stb = J2
@@ -490,7 +490,7 @@ CONTAINS
       mfft = 0
       DO Jp2 = Jp2stf, nproc
          DO J2 = J2stf, md2/nproc
-            mfft = mfft+1
+            mfft = mfft + 1
             IF (mfft .GT. nfft) THEN
                Jp2stf = Jp2
                J2stf = J2
@@ -608,10 +608,10 @@ CONTAINS
 
       INTEGER                                            :: i, i3
 
-      DO i3 = 1, n3/2+1
-         DO i = 0, nfft-1
-            zmpi2(1, i1+i, j2, i3) = zw(1, i+1, i3)
-            zmpi2(2, i1+i, j2, i3) = zw(2, i+1, i3)
+      DO i3 = 1, n3/2 + 1
+         DO i = 0, nfft - 1
+            zmpi2(1, i1 + i, j2, i3) = zw(1, i + 1, i3)
+            zmpi2(2, i1 + i, j2, i3) = zw(2, i + 1, i3)
          END DO
       END DO
 
@@ -653,18 +653,18 @@ CONTAINS
       INTEGER                                            :: i, i3, j3
 
       i3 = 1
-      DO i = 0, nfft-1
-         zw(1, i+1, i3) = zmpi2(1, i1+i, j2, i3)
-         zw(2, i+1, i3) = zmpi2(2, i1+i, j2, i3)
+      DO i = 0, nfft - 1
+         zw(1, i + 1, i3) = zmpi2(1, i1 + i, j2, i3)
+         zw(2, i + 1, i3) = zmpi2(2, i1 + i, j2, i3)
       END DO
 
-      DO i3 = 2, n3/2+1
-         j3 = n3+2-i3
-         DO i = 0, nfft-1
-            zw(1, i+1, j3) = zmpi2(1, i1+i, j2, i3)
-            zw(2, i+1, j3) = -zmpi2(2, i1+i, j2, i3)
-            zw(1, i+1, i3) = zmpi2(1, i1+i, j2, i3)
-            zw(2, i+1, i3) = zmpi2(2, i1+i, j2, i3)
+      DO i3 = 2, n3/2 + 1
+         j3 = n3 + 2 - i3
+         DO i = 0, nfft - 1
+            zw(1, i + 1, j3) = zmpi2(1, i1 + i, j2, i3)
+            zw(2, i + 1, j3) = -zmpi2(2, i1 + i, j2, i3)
+            zw(1, i + 1, i3) = zmpi2(1, i1 + i, j2, i3)
+            zw(2, i + 1, i3) = zmpi2(2, i1 + i, j2, i3)
          END DO
       END DO
 
@@ -711,18 +711,18 @@ CONTAINS
       pi = 4._dp*ATAN(1._dp)
       fourpi2 = 4._dp*pi**2
       j3 = i3 !n3/2+1-abs(n3/2+2-i3)
-      mu3 = REAL(j3-1, KIND=dp)/REAL(n3, KIND=dp)
+      mu3 = REAL(j3 - 1, KIND=dp)/REAL(n3, KIND=dp)
       mu3 = (mu3/hy)**2 !beware of the exchanged dimension
       !Body
       !generic case
       DO i2 = 1, n2
          DO i1 = 1, nfft
-            j1 = i1+jS-1
-            j1 = j1-(j1/(n1/2+2))*n1 !n1/2+1-abs(n1/2+2-jS-i1)
-            j2 = i2-(i2/(n2/2+2))*n2 !n2/2+1-abs(n2/2+1-i2)
-            p1 = REAL(j1-1, KIND=dp)/REAL(n1, KIND=dp)
-            p2 = REAL(j2-1, KIND=dp)/REAL(n2, KIND=dp)
-            ker = -fourpi2*((p1/hx)**2+(p2/hz)**2+mu3) !beware of the exchanged dimension
+            j1 = i1 + jS - 1
+            j1 = j1 - (j1/(n1/2 + 2))*n1 !n1/2+1-abs(n1/2+2-jS-i1)
+            j2 = i2 - (i2/(n2/2 + 2))*n2 !n2/2+1-abs(n2/2+1-i2)
+            p1 = REAL(j1 - 1, KIND=dp)/REAL(n1, KIND=dp)
+            p2 = REAL(j2 - 1, KIND=dp)/REAL(n2, KIND=dp)
+            ker = -fourpi2*((p1/hx)**2 + (p2/hz)**2 + mu3) !beware of the exchanged dimension
             IF (ker /= 0._dp) ker = 1._dp/ker
             zw(1, i1, i2) = zw(1, i1, i2)*ker
             zw(2, i1, i2) = zw(2, i1, i2)*ker
@@ -767,8 +767,8 @@ CONTAINS
       INTEGER                                            :: i2, j, j1, j2
 
       DO j = 1, nfft
-         j1 = j+jS-1
-         j1 = j1+(j1/(n1/2+2))*(n1+2-2*j1)
+         j1 = j + jS - 1
+         j1 = j1 + (j1/(n1/2 + 2))*(n1 + 2 - 2*j1)
          zw(1, j, 1) = zw(1, j, 1)*pot(j1, 1)
          zw(2, j, 1) = zw(2, j, 1)*pot(j1, 1)
       END DO
@@ -776,9 +776,9 @@ CONTAINS
       !generic case
       DO i2 = 2, n2/2
          DO j = 1, nfft
-            j1 = j+jS-1
-            j1 = j1+(j1/(n1/2+2))*(n1+2-2*j1)
-            j2 = n2+2-i2
+            j1 = j + jS - 1
+            j1 = j1 + (j1/(n1/2 + 2))*(n1 + 2 - 2*j1)
+            j2 = n2 + 2 - i2
             zw(1, j, i2) = zw(1, j, i2)*pot(j1, i2)
             zw(2, j, i2) = zw(2, j, i2)*pot(j1, i2)
             zw(1, j, j2) = zw(1, j, j2)*pot(j1, i2)
@@ -788,9 +788,9 @@ CONTAINS
 
       !case i2=n2/2+1
       DO j = 1, nfft
-         j1 = j+jS-1
-         j1 = j1+(j1/(n1/2+2))*(n1+2-2*j1)
-         j2 = n2/2+1
+         j1 = j + jS - 1
+         j1 = j1 + (j1/(n1/2 + 2))*(n1 + 2 - 2*j1)
+         j2 = n2/2 + 1
          zw(1, j, j2) = zw(1, j, j2)*pot(j1, j2)
          zw(2, j, j2) = zw(2, j, j2)*pot(j1, j2)
       END DO
@@ -867,9 +867,9 @@ CONTAINS
       CALL timeset(routineN, handle)
       ! check input
       IF (MOD(n3, 2) .NE. 0) CPABORT("Parallel convolution:ERROR:n3")
-      IF (nd1 .LT. n1/2+1) CPABORT("Parallel convolution:ERROR:nd1")
-      IF (nd2 .LT. n2/2+1) CPABORT("Parallel convolution:ERROR:nd2")
-      IF (nd3 .LT. n3/2+1) CPABORT("Parallel convolution:ERROR:nd3")
+      IF (nd1 .LT. n1/2 + 1) CPABORT("Parallel convolution:ERROR:nd1")
+      IF (nd2 .LT. n2/2 + 1) CPABORT("Parallel convolution:ERROR:nd2")
+      IF (nd3 .LT. n3/2 + 1) CPABORT("Parallel convolution:ERROR:nd3")
       IF (md1 .LT. n1) CPABORT("Parallel convolution:ERROR:md1")
       IF (md2 .LT. n2) CPABORT("Parallel convolution:ERROR:md2")
       IF (md3 .LT. n3/2) CPABORT("Parallel convolution:ERROR:md3")
@@ -883,8 +883,8 @@ CONTAINS
       !  if (timing_flag == 1 .and. iproc ==0) print *,'parallel ncache=',ncache
 
       lzt = n2
-      IF (MOD(n2, 2) .EQ. 0) lzt = lzt+1
-      IF (MOD(n2, 4) .EQ. 0) lzt = lzt+1 !maybe this is useless
+      IF (MOD(n2, 2) .EQ. 0) lzt = lzt + 1
+      IF (MOD(n2, 4) .EQ. 0) lzt = lzt + 1 !maybe this is useless
 
       !Allocations
       ALLOCATE (btrig1(2, ctrig_length))
@@ -934,8 +934,8 @@ CONTAINS
       !Calculating array of phases for HalFFT decoding
       twopion = 8._dp*ATAN(1._dp)/REAL(n3, KIND=dp)
       DO i3 = 1, n3/2
-         cosinarr(1, i3) = COS(twopion*(i3-1))
-         cosinarr(2, i3) = -SIN(twopion*(i3-1))
+         cosinarr(1, i3) = COS(twopion*(i3 - 1))
+         cosinarr(2, i3) = -SIN(twopion*(i3 - 1))
       END DO
 
       !initializing integral
@@ -953,11 +953,11 @@ CONTAINS
 
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(md2/nproc)+j2 .LE. n2) THEN
+         IF (iproc*(md2/nproc) + j2 .LE. n2) THEN
             DO i1 = 1, n1, lot
                ma = i1
-               mb = MIN(i1+(lot-1), n1)
-               nfft = mb-ma+1
+               mb = MIN(i1 + (lot - 1), n1)
+               nfft = mb - ma + 1
 
                !inserting real data into complex array of half lenght
                CALL halfill_upcorn(md1, md3, lot, nfft, n3, zf(i1, 1, j2), zw(1, 1, 1))
@@ -966,9 +966,9 @@ CONTAINS
                !input: I1,I3,J2,(Jp2)
                inzee = 1
                DO i = 1, ic3
-                  CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig3, after3(i), now3(i), before3(i), 1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
                !output: I1,i3,J2,(Jp2)
                !unpacking FFT in order to restore correct result,
@@ -989,7 +989,7 @@ CONTAINS
       !now each process perform complete convolution of its planes
       DO j3 = 1, nd3/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(nd3/nproc)+j3 .LE. n3/2+1) THEN
+         IF (iproc*(nd3/nproc) + j3 .LE. n3/2 + 1) THEN
             Jp2stb = 1
             J2stb = 1
             Jp2stf = 1
@@ -1007,8 +1007,8 @@ CONTAINS
 
             DO j = 1, n2, lot
                ma = j
-               mb = MIN(j+(lot-1), n2)
-               nfft = mb-ma+1
+               mb = MIN(j + (lot - 1), n2)
+               nfft = mb - ma + 1
 
                !reverse index ordering, leaving the planes to be transformed at the end
                !input: I1,J2,j3,Jp2,(jp3)
@@ -1022,10 +1022,10 @@ CONTAINS
                !performing FFT
                !input: I2,I1,j3,(jp3)
                inzee = 1
-               DO i = 1, ic1-1
-                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+               DO i = 1, ic1 - 1
+                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig1, after1(i), now1(i), before1(i), 1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
 
                !storing the last step into zt array
@@ -1047,8 +1047,8 @@ CONTAINS
 
             DO j = 1, n1, lot
                ma = j
-               mb = MIN(j+(lot-1), n1)
-               nfft = mb-ma+1
+               mb = MIN(j + (lot - 1), n1)
+               nfft = mb - ma + 1
 
                !reverse ordering
                !input: I2,i1,j3,(jp3)
@@ -1059,9 +1059,9 @@ CONTAINS
                !input: i1,I2,j3,(jp3)
                inzee = 1
                DO i = 1, ic2
-                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig2, after2(i), now2(i), before2(i), 1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
                !output: i1,i2,j3,(jp3)
 
@@ -1073,9 +1073,9 @@ CONTAINS
                !transform along y axis
                !input: i1,i2,j3,(jp3)
                DO i = 1, ic2
-                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig2, after2(i), now2(i), before2(i), -1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
 
                !reverse ordering
@@ -1089,8 +1089,8 @@ CONTAINS
             lot = ncache/(4*n1)
             DO j = 1, n2, lot
                ma = j
-               mb = MIN(j+(lot-1), n2)
-               nfft = mb-ma+1
+               mb = MIN(j + (lot - 1), n2)
+               nfft = mb - ma + 1
 
                !performing FFT
                i = 1
@@ -1099,9 +1099,9 @@ CONTAINS
 
                inzee = 1
                DO i = 2, ic1
-                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig1, after1(i), now1(i), before1(i), -1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
                !output: I2,I1,j3,(jp3)
 
@@ -1131,11 +1131,11 @@ CONTAINS
       lot = ncache/(2*n3)
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(md2/nproc)+j2 .LE. n2) THEN
+         IF (iproc*(md2/nproc) + j2 .LE. n2) THEN
             DO i1 = 1, n1, lot
                ma = i1
-               mb = MIN(i1+(lot-1), n1)
-               nfft = mb-ma+1
+               mb = MIN(i1 + (lot - 1), n1)
+               nfft = mb - ma + 1
 
                !reverse ordering and repack the FFT data in order to be backward HalFFT transformed
                !input: I1,J2,i3,(Jp2)
@@ -1146,9 +1146,9 @@ CONTAINS
                !input: I1,i3,J2,(Jp2)
                inzee = 1
                DO i = 1, ic3
-                  CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig3, after3(i), now3(i), before3(i), -1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
                !output: I1,I3,J2,(Jp2)
 
@@ -1217,7 +1217,7 @@ CONTAINS
       mfft = 0
       DO Jp2 = Jp2stb, nproc
          DO J2 = J2stb, md2/nproc
-            mfft = mfft+1
+            mfft = mfft + 1
             IF (mfft .GT. nfft) THEN
                Jp2stb = Jp2
                J2stb = J2
@@ -1312,7 +1312,7 @@ CONTAINS
       mfft = 0
       DO Jp2 = Jp2stf, nproc
          DO J2 = J2stf, md2/nproc
-            mfft = mfft+1
+            mfft = mfft + 1
             IF (mfft .GT. nfft) THEN
                Jp2stf = Jp2
                J2stf = J2
@@ -1365,7 +1365,7 @@ CONTAINS
          DO i1 = 1, nfft
             pot1 = scal*zw(1, i1, i3)
             !ehartreetmp =ehartreetmp + pot1* zf(i1,2*i3-1)
-            zf(i1, 2*i3-1) = pot1
+            zf(i1, 2*i3 - 1) = pot1
             pot1 = scal*zw(2, i1, i3)
             !ehartreetmp =ehartreetmp + pot1* zf(i1,2*i3)
             zf(i1, 2*i3) = pot1
@@ -1398,10 +1398,10 @@ CONTAINS
             zw(2, i1, i3) = 0._dp
          END DO
       END DO
-      DO i3 = n3/4+1, n3/2
+      DO i3 = n3/4 + 1, n3/2
          DO i1 = 1, nfft
-            zw(1, i1, i3) = zf(i1, 2*i3-1-n3/2)
-            zw(2, i1, i3) = zf(i1, 2*i3-n3/2)
+            zw(1, i1, i3) = zf(i1, 2*i3 - 1 - n3/2)
+            zw(2, i1, i3) = zf(i1, 2*i3 - n3/2)
          ENDDO
       END DO
 
@@ -1449,33 +1449,33 @@ CONTAINS
 
 !case i3=1 and i3=n3/2+1
 
-      DO i = 0, nfft-1
-         a = zw(1, i+1, 1)
-         b = zw(2, i+1, 1)
-         zmpi2(1, i1+i, j2, 1) = a+b
-         zmpi2(2, i1+i, j2, 1) = 0._dp
-         zmpi2(1, i1+i, j2, n3/2+1) = a-b
-         zmpi2(2, i1+i, j2, n3/2+1) = 0._dp
+      DO i = 0, nfft - 1
+         a = zw(1, i + 1, 1)
+         b = zw(2, i + 1, 1)
+         zmpi2(1, i1 + i, j2, 1) = a + b
+         zmpi2(2, i1 + i, j2, 1) = 0._dp
+         zmpi2(1, i1 + i, j2, n3/2 + 1) = a - b
+         zmpi2(2, i1 + i, j2, n3/2 + 1) = 0._dp
       END DO
       !case 2<=i3<=n3/2
       DO i3 = 2, n3/2
          ind1 = i3
-         ind2 = n3/2-i3+2
+         ind2 = n3/2 - i3 + 2
          cp = cosinarr(1, i3)
          sp = cosinarr(2, i3)
-         DO i = 0, nfft-1
-            a = zw(1, i+1, ind1)
-            b = zw(2, i+1, ind1)
-            c = zw(1, i+1, ind2)
-            d = zw(2, i+1, ind2)
-            feR = .5_dp*(a+c)
-            feI = .5_dp*(b-d)
-            foR = .5_dp*(a-c)
-            foI = .5_dp*(b+d)
-            fR = feR+cp*foI-sp*foR
-            fI = feI-cp*foR-sp*foI
-            zmpi2(1, i1+i, j2, ind1) = fR
-            zmpi2(2, i1+i, j2, ind1) = fI
+         DO i = 0, nfft - 1
+            a = zw(1, i + 1, ind1)
+            b = zw(2, i + 1, ind1)
+            c = zw(1, i + 1, ind2)
+            d = zw(2, i + 1, ind2)
+            feR = .5_dp*(a + c)
+            feI = .5_dp*(b - d)
+            foR = .5_dp*(a - c)
+            foI = .5_dp*(b + d)
+            fR = feR + cp*foI - sp*foR
+            fI = feI - cp*foR - sp*foI
+            zmpi2(1, i1 + i, j2, ind1) = fR
+            zmpi2(2, i1 + i, j2, ind1) = fI
          END DO
       END DO
 
@@ -1524,22 +1524,22 @@ CONTAINS
 
       DO i3 = 1, n3/2
          indA = i3
-         indB = n3/2+2-i3
+         indB = n3/2 + 2 - i3
          cp = cosinarr(1, i3)
          sp = cosinarr(2, i3)
-         DO i = 0, nfft-1
-            a = zmpi2(1, i1+i, j2, indA)
-            b = zmpi2(2, i1+i, j2, indA)
-            c = zmpi2(1, i1+i, j2, indB)
-            d = -zmpi2(2, i1+i, j2, indB)
-            re = (a+c)
-            ie = (b+d)
-            ro = (a-c)*cp-(b-d)*sp
-            io = (a-c)*sp+(b-d)*cp
-            rh = re-io
-            ih = ie+ro
-            zw(1, i+1, indA) = rh
-            zw(2, i+1, indA) = ih
+         DO i = 0, nfft - 1
+            a = zmpi2(1, i1 + i, j2, indA)
+            b = zmpi2(2, i1 + i, j2, indA)
+            c = zmpi2(1, i1 + i, j2, indB)
+            d = -zmpi2(2, i1 + i, j2, indB)
+            re = (a + c)
+            ie = (b + d)
+            ro = (a - c)*cp - (b - d)*sp
+            io = (a - c)*sp + (b - d)*cp
+            rh = re - io
+            ih = ie + ro
+            zw(1, i + 1, indA) = rh
+            zw(2, i + 1, indA) = ih
          END DO
       END DO
 
@@ -1612,9 +1612,9 @@ CONTAINS
       IF (MOD(n1, 2) .NE. 0) CPABORT("Parallel convolution:ERROR:n1")
       IF (MOD(n2, 2) .NE. 0) CPABORT("Parallel convolution:ERROR:n2")
       IF (MOD(n3, 2) .NE. 0) CPABORT("Parallel convolution:ERROR:n3")
-      IF (nd1 .LT. n1/2+1) CPABORT("Parallel convolution:ERROR:nd1")
-      IF (nd2 .LT. n2/2+1) CPABORT("Parallel convolution:ERROR:nd2")
-      IF (nd3 .LT. n3/2+1) CPABORT("Parallel convolution:ERROR:nd3")
+      IF (nd1 .LT. n1/2 + 1) CPABORT("Parallel convolution:ERROR:nd1")
+      IF (nd2 .LT. n2/2 + 1) CPABORT("Parallel convolution:ERROR:nd2")
+      IF (nd3 .LT. n3/2 + 1) CPABORT("Parallel convolution:ERROR:nd3")
       IF (md1 .LT. n1/2) CPABORT("Parallel convolution:ERROR:md1")
       IF (md2 .LT. n2/2) CPABORT("Parallel convolution:ERROR:md2")
       IF (md3 .LT. n3/2) CPABORT("Parallel convolution:ERROR:md3")
@@ -1626,8 +1626,8 @@ CONTAINS
       ncache = ncache_optimal
       IF (ncache <= MAX(n1, n2, n3/2)*4) ncache = MAX(n1, n2, n3/2)*4
       lzt = n2/2
-      IF (MOD(n2/2, 2) .EQ. 0) lzt = lzt+1
-      IF (MOD(n2/2, 4) .EQ. 0) lzt = lzt+1
+      IF (MOD(n2/2, 2) .EQ. 0) lzt = lzt + 1
+      IF (MOD(n2/2, 4) .EQ. 0) lzt = lzt + 1
 
       !Allocations
       ALLOCATE (btrig1(2, ctrig_length))
@@ -1672,8 +1672,8 @@ CONTAINS
       !Calculating array of phases for HalFFT decoding
       twopion = 8._dp*ATAN(1._dp)/REAL(n3, KIND=dp)
       DO i3 = 1, n3/2
-         cosinarr(1, i3) = COS(twopion*(i3-1))
-         cosinarr(2, i3) = -SIN(twopion*(i3-1))
+         cosinarr(1, i3) = COS(twopion*(i3 - 1))
+         cosinarr(2, i3) = -SIN(twopion*(i3 - 1))
       END DO
 
       ! transform along z axis
@@ -1688,11 +1688,11 @@ CONTAINS
 
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(md2/nproc)+j2 .LE. n2/2) THEN
+         IF (iproc*(md2/nproc) + j2 .LE. n2/2) THEN
             DO i1 = 1, (n1/2), lot
                ma = i1
-               mb = MIN(i1+(lot-1), (n1/2))
-               nfft = mb-ma+1
+               mb = MIN(i1 + (lot - 1), (n1/2))
+               nfft = mb - ma + 1
 
                !inserting real data into complex array of half lenght
                CALL halfill_upcorn(md1, md3, lot, nfft, n3, zf(i1, 1, j2), zw(1, 1, 1))
@@ -1701,9 +1701,9 @@ CONTAINS
                !input: I1,I3,J2,(Jp2)
                inzee = 1
                DO i = 1, ic3
-                  CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig3, after3(i), now3(i), before3(i), 1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
                !output: I1,i3,J2,(Jp2)
 
@@ -1727,7 +1727,7 @@ CONTAINS
       !now each process perform complete convolution of its planes
       DO j3 = 1, nd3/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(nd3/nproc)+j3 .LE. n3/2+1) THEN
+         IF (iproc*(nd3/nproc) + j3 .LE. n3/2 + 1) THEN
             Jp2stb = 1
             J2stb = 1
             Jp2stf = 1
@@ -1745,8 +1745,8 @@ CONTAINS
 
             DO j = 1, n2/2, lot
                ma = j
-               mb = MIN(j+(lot-1), n2/2)
-               nfft = mb-ma+1
+               mb = MIN(j + (lot - 1), n2/2)
+               nfft = mb - ma + 1
 
                !reverse index ordering, leaving the planes to be transformed at the end
                !input: I1,J2,j3,Jp2,(jp3)
@@ -1760,10 +1760,10 @@ CONTAINS
                !performing FFT
                !input: I2,I1,j3,(jp3)
                inzee = 1
-               DO i = 1, ic1-1
-                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+               DO i = 1, ic1 - 1
+                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig1, after1(i), now1(i), before1(i), 1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
 
                !storing the last step into zt array
@@ -1785,8 +1785,8 @@ CONTAINS
 
             DO j = 1, n1, lot
                ma = j
-               mb = MIN(j+(lot-1), n1)
-               nfft = mb-ma+1
+               mb = MIN(j + (lot - 1), n1)
+               nfft = mb - ma + 1
 
                !reverse ordering
                !input: I2,i1,j3,(jp3)
@@ -1797,9 +1797,9 @@ CONTAINS
                !input: i1,I2,j3,(jp3)
                inzee = 1
                DO i = 1, ic2
-                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig2, after2(i), now2(i), before2(i), 1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
                !output: i1,i2,j3,(jp3)
 
@@ -1811,9 +1811,9 @@ CONTAINS
                !transform along y axis
                !input: i1,i2,j3,(jp3)
                DO i = 1, ic2
-                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig2, after2(i), now2(i), before2(i), -1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
 
                !reverse ordering
@@ -1827,8 +1827,8 @@ CONTAINS
             lot = ncache/(4*n1)
             DO j = 1, n2/2, lot
                ma = j
-               mb = MIN(j+(lot-1), n2/2)
-               nfft = mb-ma+1
+               mb = MIN(j + (lot - 1), n2/2)
+               nfft = mb - ma + 1
 
                !performing FFT
                i = 1
@@ -1837,9 +1837,9 @@ CONTAINS
 
                inzee = 1
                DO i = 2, ic1
-                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig1, after1(i), now1(i), before1(i), -1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
                !output: I2,I1,j3,(jp3)
 
@@ -1868,11 +1868,11 @@ CONTAINS
       lot = ncache/(2*n3)
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(md2/nproc)+j2 .LE. n2/2) THEN
+         IF (iproc*(md2/nproc) + j2 .LE. n2/2) THEN
             DO i1 = 1, (n1/2), lot
                ma = i1
-               mb = MIN(i1+(lot-1), (n1/2))
-               nfft = mb-ma+1
+               mb = MIN(i1 + (lot - 1), (n1/2))
+               nfft = mb - ma + 1
 
                !reverse ordering and repack the FFT data in order to be backward HalFFT transformed
                !input: I1,J2,i3,(Jp2)
@@ -1883,9 +1883,9 @@ CONTAINS
                !input: I1,i3,J2,(Jp2)
                inzee = 1
                DO i = 1, ic3
-                  CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3-inzee), &
+                  CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig3, after3(i), now3(i), before3(i), -1)
-                  inzee = 3-inzee
+                  inzee = 3 - inzee
                ENDDO
                !output: I1,I3,J2,(Jp2)
 
@@ -1944,9 +1944,9 @@ CONTAINS
 ! Low frequencies
 
       DO j = 1, nfft
-         DO i = n2/2+1, n2
-            zw(1, j, i) = zt(1, i-n2/2, j)
-            zw(2, j, i) = zt(2, i-n2/2, j)
+         DO i = n2/2 + 1, n2
+            zw(1, j, i) = zt(1, i - n2/2, j)
+            zw(2, j, i) = zt(2, i - n2/2, j)
          END DO
       END DO
       ! High frequencies
@@ -1985,7 +1985,7 @@ CONTAINS
       mfft = 0
       Main: DO Jp2 = Jp2stb, nproc
          DO J2 = J2stb, md2/nproc
-            mfft = mfft+1
+            mfft = mfft + 1
             IF (mfft .GT. nfft) THEN
                Jp2stb = Jp2
                J2stb = J2
@@ -1995,9 +1995,9 @@ CONTAINS
                zw(1, mfft, I1) = 0._dp
                zw(2, mfft, I1) = 0._dp
             END DO
-            DO I1 = n1/2+1, n1
-               zw(1, mfft, I1) = zmpi1(1, I1-n1/2, J2, j3, Jp2)
-               zw(2, mfft, I1) = zmpi1(2, I1-n1/2, J2, j3, Jp2)
+            DO I1 = n1/2 + 1, n1
+               zw(1, mfft, I1) = zmpi1(1, I1 - n1/2, J2, j3, Jp2)
+               zw(2, mfft, I1) = zmpi1(2, I1 - n1/2, J2, j3, Jp2)
             END DO
          END DO
          J2stb = 1
@@ -2060,7 +2060,7 @@ CONTAINS
       mfft = 0
       Main: DO Jp2 = Jp2stf, nproc
          DO J2 = J2stf, md2/nproc
-            mfft = mfft+1
+            mfft = mfft + 1
             IF (mfft .GT. nfft) THEN
                Jp2stf = Jp2
                J2stf = J2
@@ -2115,10 +2115,10 @@ CONTAINS
       DO i3 = 1, n3/4
          DO i1 = 1, nfft
             pot1 = scal*zw(1, i1, i3)
-            ehartreetmp = ehartreetmp+pot1*zf(i1, 2*i3-1)
-            zf(i1, 2*i3-1) = pot1
+            ehartreetmp = ehartreetmp + pot1*zf(i1, 2*i3 - 1)
+            zf(i1, 2*i3 - 1) = pot1
             pot1 = scal*zw(2, i1, i3)
-            ehartreetmp = ehartreetmp+pot1*zf(i1, 2*i3)
+            ehartreetmp = ehartreetmp + pot1*zf(i1, 2*i3)
             zf(i1, 2*i3) = pot1
          ENDDO
       END DO

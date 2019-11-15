@@ -135,7 +135,7 @@ CONTAINS
       max_sigma = -1.0E+10_dp
       Shake_Inter_Loop: DO WHILE ((ABS(max_sigma) >= shake_tol) .AND. (ishake_ext <= Max_Shake_Iter))
          max_sigma = 0.0_dp
-         ishake_ext = ishake_ext+1
+         ishake_ext = ishake_ext + 1
          ! Intramolecular Constraints
          MOL: DO ikind = 1, nkind
             nmol_per_kind = local_molecules%n_el(ikind)
@@ -151,7 +151,7 @@ CONTAINS
                int_max_sigma = -1.0E+10_dp
                Shake_Intra_Loop: DO WHILE ((ABS(int_max_sigma) >= shake_tol) .AND. (ishake_int <= Max_Shake_Iter))
                   int_max_sigma = 0.0_dp
-                  ishake_int = ishake_int+1
+                  ishake_int = ishake_int + 1
                   ! 3x3
                   IF (n3x3con /= 0) &
                      CALL shake_3x3_int(molecule, particle_set, pos, vel, dt, ishake_int, &
@@ -261,7 +261,7 @@ CONTAINS
       max_sigma = -1.0E+10_dp
       Rattle_Inter_Loop: DO WHILE (ABS(max_sigma) >= rattle_tol)
          max_sigma = 0.0_dp
-         irattle_ext = irattle_ext+1
+         irattle_ext = irattle_ext + 1
          ! Intramolecular Constraints
          MOL: DO ikind = 1, nkind
             nmol_per_kind = local_molecules%n_el(ikind)
@@ -276,7 +276,7 @@ CONTAINS
                int_max_sigma = -1.0E+10_dp
                Rattle_Intra_Loop: DO WHILE (ABS(int_max_sigma) >= rattle_tol)
                   int_max_sigma = 0.0_dp
-                  irattle_int = irattle_int+1
+                  irattle_int = irattle_int + 1
                   ! 3x3
                   IF (n3x3con /= 0) &
                      CALL rattle_3x3_int(molecule, particle_set, vel, dt)
@@ -394,7 +394,7 @@ CONTAINS
       max_sigma = -1.0E+10_dp
       Shake_Inter_Loop: DO WHILE (ABS(max_sigma) >= shake_tol)
          max_sigma = 0.0_dp
-         ishake_ext = ishake_ext+1
+         ishake_ext = ishake_ext + 1
          ! Intramolecular Constraints
          MOL: DO ikind = 1, nkind
             nmol_per_kind = local_molecules%n_el(ikind)
@@ -410,7 +410,7 @@ CONTAINS
                int_max_sigma = -1.0E+10_dp
                Shake_Roll_Intra_Loop: DO WHILE (ABS(int_max_sigma) >= shake_tol)
                   int_max_sigma = 0.0_dp
-                  ishake_int = ishake_int+1
+                  ishake_int = ishake_int + 1
                   ! 3x3
                   IF (n3x3con /= 0) &
                      CALL shake_roll_3x3_int(molecule, particle_set, pos, vel, r_shake, &
@@ -542,7 +542,7 @@ CONTAINS
       max_sigma = -1.0E+10_dp
       Rattle_Inter_Loop: DO WHILE (ABS(max_sigma) >= rattle_tol)
          max_sigma = 0.0_dp
-         irattle_ext = irattle_ext+1
+         irattle_ext = irattle_ext + 1
          ! Intramolecular Constraints
          MOL: DO ikind = 1, nkind
             nmol_per_kind = local_molecules%n_el(ikind)
@@ -558,7 +558,7 @@ CONTAINS
                irattle_int = 0
                Rattle_Roll_Intramolecular: DO WHILE (ABS(int_max_sigma) >= rattle_tol)
                   int_max_sigma = 0.0_dp
-                  irattle_int = irattle_int+1
+                  irattle_int = irattle_int + 1
                   ! 3x3
                   IF (n3x3con /= 0) &
                      CALL rattle_roll_3x3_int(molecule, particle_set, vel, r_rattle, dt, &
@@ -662,21 +662,21 @@ CONTAINS
                      molecule => molecule_set(i)
                      ! Collective Variables
                      DO j = 1, ncolv%ntot
-                        lagr(my_index+1) = molecule%lci%lcolv(j)%lambda
-                        my_index = my_index+1
+                        lagr(my_index + 1) = molecule%lci%lcolv(j)%lambda
+                        my_index = my_index + 1
                      END DO
                      ! 3x3
                      DO j = 1, n3x3con
-                        lagr(my_index+1:my_index+3) = molecule%lci%lg3x3(j)%lambda(:)
-                        my_index = my_index+3
+                        lagr(my_index + 1:my_index + 3) = molecule%lci%lg3x3(j)%lambda(:)
+                        my_index = my_index + 3
                      END DO
                      ! 4x6
                      DO j = 1, n4x6con
-                        lagr(my_index+1:my_index+6) = molecule%lci%lg4x6(j)%lambda(:)
-                        my_index = my_index+6
+                        lagr(my_index + 1:my_index + 6) = molecule%lci%lg4x6(j)%lambda(:)
+                        my_index = my_index + 6
                      END DO
                   ELSE
-                     my_index = my_index+ncolv%ntot+3*n3x3con+6*n4x6con
+                     my_index = my_index + ncolv%ntot + 3*n3x3con + 6*n4x6con
                   END IF
                END DO
             END DO MOL
@@ -684,21 +684,21 @@ CONTAINS
          END IF
          ! Intermolecular constraints
          IF (do_ext_constraint) THEN
-            CALL reallocate(lagr, 1, SIZE(lagr)+gci%ntot)
+            CALL reallocate(lagr, 1, SIZE(lagr) + gci%ntot)
             ! Collective Variables
             DO j = 1, gci%ncolv%ntot
-               lagr(my_index+1) = gci%lcolv(j)%lambda
-               my_index = my_index+1
+               lagr(my_index + 1) = gci%lcolv(j)%lambda
+               my_index = my_index + 1
             END DO
             ! 3x3
             DO j = 1, gci%ng3x3
-               lagr(my_index+1:my_index+3) = gci%lg3x3(j)%lambda(:)
-               my_index = my_index+3
+               lagr(my_index + 1:my_index + 3) = gci%lg3x3(j)%lambda(:)
+               my_index = my_index + 3
             END DO
             ! 4x6
             DO j = 1, gci%ng4x6
-               lagr(my_index+1:my_index+6) = gci%lg4x6(j)%lambda(:)
-               my_index = my_index+6
+               lagr(my_index + 1:my_index + 6) = gci%lg4x6(j)%lambda(:)
+               my_index = my_index + 6
             END DO
          END IF
          IF (log_unit > 0) THEN
@@ -711,7 +711,7 @@ CONTAINS
             END IF
             WRITE (log_unit, FMT='(A,T40,4F15.9)') TRIM(label), lagr(1:MIN(4, SIZE(lagr)))
             DO j = 5, SIZE(lagr), 4
-               WRITE (log_unit, FMT='(T40,4F15.9)') lagr(j:MIN(j+3, SIZE(lagr)))
+               WRITE (log_unit, FMT='(T40,4F15.9)') lagr(j:MIN(j + 3, SIZE(lagr)))
             END DO
          END IF
          DEALLOCATE (lagr)

@@ -81,13 +81,13 @@ CONTAINS
                       occupation_numbers=occ_a)
       CALL get_mo_set(mo_set=mo_array(2)%mo_set, nmo=nmo_b, eigenvalues=eigval_b, &
                       occupation_numbers=occ_b)
-      all_nmo = nmo_a+nmo_b
+      all_nmo = nmo_a + nmo_b
       ALLOCATE (all_eigval(all_nmo))
       ALLOCATE (all_occ(all_nmo))
       ALLOCATE (all_index(all_nmo))
 
       all_eigval(1:nmo_a) = eigval_a(1:nmo_a)
-      all_eigval(nmo_a+1:all_nmo) = eigval_b(1:nmo_b)
+      all_eigval(nmo_a + 1:all_nmo) = eigval_b(1:nmo_b)
 
       CALL sort(all_eigval, all_nmo, all_index)
 
@@ -99,20 +99,20 @@ CONTAINS
       all_nelec = 0.0_dp
       nelec_a = accurate_sum(occ_a(:))
       nelec_b = accurate_sum(occ_b(:))
-      all_nelec = nelec_a+nelec_b
+      all_nelec = nelec_a + nelec_b
 
       DO i = 1, all_nmo
          IF (all_index(i) <= nmo_a) THEN
             all_occ(i) = occ_a(all_index(i))
          ELSE
-            all_occ(i) = occ_b(all_index(i)-nmo_a)
+            all_occ(i) = occ_b(all_index(i) - nmo_a)
          END IF
       END DO
 
       CALL FermiFixed(all_occ, mu, kTS, all_eigval, all_nelec, &
                       smear%electronic_temperature, 1._dp, xas_estate, occ_estate)
 
-      is_large = ABS(MAXVAL(all_occ)-1.0_dp) > smear%eps_fermi_dirac
+      is_large = ABS(MAXVAL(all_occ) - 1.0_dp) > smear%eps_fermi_dirac
       ! this is not a real problem, but the temperature might be a bit large
       IF (is_large) &
          CPWARN("Fermi-Dirac smearing includes the first MO")
@@ -124,7 +124,7 @@ CONTAINS
                       "Add more MOs for proper smearing.")
 
       ! check that the total electron count is accurate
-      is_large = (ABS(all_nelec-accurate_sum(all_occ(:))) > smear%eps_fermi_dirac*all_nelec)
+      is_large = (ABS(all_nelec - accurate_sum(all_occ(:))) > smear%eps_fermi_dirac*all_nelec)
       IF (is_large) &
          CPWARN("Total number of electrons is not accurate")
 
@@ -133,8 +133,8 @@ CONTAINS
             occ_a(all_index(i)) = all_occ(i)
             eigval_a(all_index(i)) = all_eigval(i)
          ELSE
-            occ_b(all_index(i)-nmo_a) = all_occ(i)
-            eigval_b(all_index(i)-nmo_a) = all_eigval(i)
+            occ_b(all_index(i) - nmo_a) = all_occ(i)
+            eigval_b(all_index(i) - nmo_a) = all_eigval(i)
          END IF
       END DO
 
@@ -153,14 +153,14 @@ CONTAINS
             EXIT
          END IF
       END DO
-      homo_a = lfomo_a-1
+      homo_a = lfomo_a - 1
       DO i = nmo_a, lfomo_a, -1
          IF (occ_a(i) > smear%eps_fermi_dirac) THEN
             homo_a = i
             EXIT
          END IF
       END DO
-      homo_b = lfomo_b-1
+      homo_b = lfomo_b - 1
       DO i = nmo_b, lfomo_b, -1
          IF (occ_b(i) > smear%eps_fermi_dirac) THEN
             homo_b = i
@@ -230,10 +230,10 @@ CONTAINS
                RETURN
             END IF
          ELSE
-            nelec_f = mo_set_a%n_el_f+mo_set_b%n_el_f
-            IF (ABS((mo_set_a%n_el_f-mo_set_b%n_el_f)-smear%fixed_mag_mom) > smear%eps_fermi_dirac*nelec_f) THEN
-               mo_set_a%n_el_f = nelec_f/2.0_dp+smear%fixed_mag_mom/2.0_dp
-               mo_set_b%n_el_f = nelec_f/2.0_dp-smear%fixed_mag_mom/2.0_dp
+            nelec_f = mo_set_a%n_el_f + mo_set_b%n_el_f
+            IF (ABS((mo_set_a%n_el_f - mo_set_b%n_el_f) - smear%fixed_mag_mom) > smear%eps_fermi_dirac*nelec_f) THEN
+               mo_set_a%n_el_f = nelec_f/2.0_dp + smear%fixed_mag_mom/2.0_dp
+               mo_set_b%n_el_f = nelec_f/2.0_dp - smear%fixed_mag_mom/2.0_dp
             END IF
             CPASSERT(.NOT. (PRESENT(eval_deriv)))
             CALL set_mo_occupation_1(mo_set_a, smear=smear)
@@ -254,9 +254,9 @@ CONTAINS
          RETURN
       END IF
 
-      nelec = mo_set_a%nelectron+mo_set_b%nelectron
+      nelec = mo_set_a%nelectron + mo_set_b%nelectron
 
-      multiplicity_old = mo_set_a%nelectron-mo_set_b%nelectron+1
+      multiplicity_old = mo_set_a%nelectron - mo_set_b%nelectron + 1
 
       IF (mo_set_a%nelectron >= mo_set_a%nmo) &
          CALL cp_warn(__LOCATION__, &
@@ -277,10 +277,10 @@ CONTAINS
          ! Threshold is needed to ensure a preference for alpha occupation in the case
          ! of degeneracy
          threshold = MAX(mo_set_a%flexible_electron_count, mo_set_b%flexible_electron_count)
-         IF ((eigval_a(lumo_a)-threshold) < eigval_b(lumo_b)) THEN
-            lumo_a = lumo_a+1
+         IF ((eigval_a(lumo_a) - threshold) < eigval_b(lumo_b)) THEN
+            lumo_a = lumo_a + 1
          ELSE
-            lumo_b = lumo_b+1
+            lumo_b = lumo_b + 1
          END IF
          IF (lumo_a > mo_set_a%nmo) THEN
             IF (i /= nelec) &
@@ -288,8 +288,8 @@ CONTAINS
                             "All alpha MOs are occupied. Add more alpha MOs to "// &
                             "allow for a higher multiplicity")
             IF (i < nelec) THEN
-               lumo_a = lumo_a-1
-               lumo_b = lumo_b+1
+               lumo_a = lumo_a - 1
+               lumo_b = lumo_b + 1
             END IF
          END IF
          IF (lumo_b > mo_set_b%nmo) THEN
@@ -298,14 +298,14 @@ CONTAINS
                             "All beta MOs are occupied. Add more beta MOs to "// &
                             "allow for a lower multiplicity")
             IF (i < nelec) THEN
-               lumo_a = lumo_a+1
-               lumo_b = lumo_b-1
+               lumo_a = lumo_a + 1
+               lumo_b = lumo_b - 1
             END IF
          END IF
       END DO
 
-      mo_set_a%homo = lumo_a-1
-      mo_set_b%homo = lumo_b-1
+      mo_set_a%homo = lumo_a - 1
+      mo_set_b%homo = lumo_b - 1
 
       IF (mo_set_b%homo > mo_set_a%homo) THEN
          CALL cp_warn(__LOCATION__, &
@@ -314,13 +314,13 @@ CONTAINS
                       ") than alpha ("// &
                       TRIM(ADJUSTL(cp_to_string(mo_set_a%homo)))// &
                       ") MOs are occupied. Resorting to low spin state")
-         mo_set_a%homo = nelec/2+MODULO(nelec, 2)
+         mo_set_a%homo = nelec/2 + MODULO(nelec, 2)
          mo_set_b%homo = nelec/2
       END IF
 
       mo_set_a%nelectron = mo_set_a%homo
       mo_set_b%nelectron = mo_set_b%homo
-      multiplicity_new = mo_set_a%nelectron-mo_set_b%nelectron+1
+      multiplicity_new = mo_set_a%nelectron - mo_set_b%nelectron + 1
 
       IF (multiplicity_new /= multiplicity_old) &
          CALL cp_warn(__LOCATION__, &
@@ -386,15 +386,15 @@ CONTAINS
       occ_estate = 0.0_dp
       IF (PRESENT(xas_env)) THEN
          CALL get_xas_env(xas_env=xas_env, xas_nelectron=xas_nelectron, occ_estate=occ_estate, xas_estate=xas_estate)
-         nomo = INT(xas_nelectron+1-occ_estate)
-         IF (MOD(xas_nelectron+1-occ_estate, 1.0_dp) > EPSILON(0.0_dp)) nomo = nomo+1
+         nomo = INT(xas_nelectron + 1 - occ_estate)
+         IF (MOD(xas_nelectron + 1 - occ_estate, 1.0_dp) > EPSILON(0.0_dp)) nomo = nomo + 1
 
          mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
          IF (xas_estate > 0) mo_set%occupation_numbers(xas_estate) = occ_estate
          el_count = SUM(mo_set%occupation_numbers(1:nomo))
-         IF (el_count > xas_nelectron) mo_set%occupation_numbers(nomo) = mo_set%occupation_numbers(nomo)-(el_count-xas_nelectron)
+        IF (el_count > xas_nelectron) mo_set%occupation_numbers(nomo) = mo_set%occupation_numbers(nomo) - (el_count - xas_nelectron)
          el_count = SUM(mo_set%occupation_numbers(1:nomo))
-         is_large = ABS(el_count-xas_nelectron) > xas_nelectron*EPSILON(el_count)
+         is_large = ABS(el_count - xas_nelectron) > xas_nelectron*EPSILON(el_count)
          CPASSERT(.NOT. is_large)
       ELSE
          IF (MODULO(mo_set%nelectron, INT(mo_set%maxocc)) == 0) THEN
@@ -402,10 +402,10 @@ CONTAINS
             ! Initialize MO occupations
             mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
          ELSE
-            nomo = INT(mo_set%nelectron/mo_set%maxocc)+1
+            nomo = INT(mo_set%nelectron/mo_set%maxocc) + 1
             ! Initialize MO occupations
-            mo_set%occupation_numbers(1:nomo-1) = mo_set%maxocc
-            mo_set%occupation_numbers(nomo) = mo_set%nelectron-(nomo-1)*mo_set%maxocc
+            mo_set%occupation_numbers(1:nomo - 1) = mo_set%maxocc
+            mo_set%occupation_numbers(nomo) = mo_set%nelectron - (nomo - 1)*mo_set%maxocc
          END IF
       END IF
       nmo = SIZE(mo_set%eigenvalues)
@@ -414,7 +414,7 @@ CONTAINS
       CPASSERT((SIZE(mo_set%occupation_numbers) == nmo))
 
       mo_set%homo = nomo
-      mo_set%lfomo = nomo+1
+      mo_set%lfomo = nomo + 1
       mo_set%mu = mo_set%eigenvalues(nomo)
 
       ! Check consistency of the array lengths
@@ -446,7 +446,7 @@ CONTAINS
       ! Perform smearing
       IF (smear%do_smear) THEN
          IF (PRESENT(xas_env)) THEN
-            i_first = xas_estate+1
+            i_first = xas_estate + 1
             nelec = xas_nelectron
          ELSE
             i_first = 1
@@ -472,7 +472,7 @@ CONTAINS
                                     smear%electronic_temperature, mo_set%maxocc, lengthscale, xas_estate, occ_estate)
 
                ! deriv of E_{KS}-kT*S wrt to f_i
-               eval_deriv = eval_deriv-mo_set%eigenvalues+mo_set%mu
+               eval_deriv = eval_deriv - mo_set%eigenvalues + mo_set%mu
                ! correspondingly the deriv of  E_{KS}-kT*S wrt to e_i
                eval_deriv = MATMUL(TRANSPOSE(dfde), eval_deriv)
 
@@ -486,7 +486,7 @@ CONTAINS
                   EXIT
                END IF
             END DO
-            is_large = ABS(MAXVAL(mo_set%occupation_numbers)-mo_set%maxocc) > smear%eps_fermi_dirac
+            is_large = ABS(MAXVAL(mo_set%occupation_numbers) - mo_set%maxocc) > smear%eps_fermi_dirac
             ! this is not a real problem, but the temperature might be a bit large
             IF (is_large) &
                CPWARN("Fermi-Dirac smearing includes the first MO")
@@ -505,7 +505,7 @@ CONTAINS
                             "Add more MOs for proper smearing.")
 
             ! check that the total electron count is accurate
-            is_large = (ABS(nelec-accurate_sum(mo_set%occupation_numbers(:))) > smear%eps_fermi_dirac*nelec)
+            is_large = (ABS(nelec - accurate_sum(mo_set%occupation_numbers(:))) > smear%eps_fermi_dirac*nelec)
             IF (is_large) &
                CPWARN("Total number of electrons is not accurate")
 
@@ -514,11 +514,11 @@ CONTAINS
             CPASSERT(.NOT. PRESENT(eval_deriv))
 
             ! Define the energy window for the eigenvalues
-            e1 = mo_set%eigenvalues(mo_set%homo)-0.5_dp*smear%window_size
+            e1 = mo_set%eigenvalues(mo_set%homo) - 0.5_dp*smear%window_size
             IF (e1 <= mo_set%eigenvalues(1)) &
                CPWARN("Energy window for smearing includes the first MO")
 
-            e2 = mo_set%eigenvalues(mo_set%homo)+0.5_dp*smear%window_size
+            e2 = mo_set%eigenvalues(mo_set%homo) + 0.5_dp*smear%window_size
             IF (e2 >= mo_set%eigenvalues(nmo)) &
                CALL cp_warn(__LOCATION__, &
                             "Energy window for smearing includes the last MO => "// &
@@ -545,16 +545,16 @@ CONTAINS
             nelec = 0.0_dp
 
             DO imo = mo_set%lfomo, mo_set%homo
-               nelec = nelec+mo_set%occupation_numbers(imo)
-               edist = edist+ABS(e2-mo_set%eigenvalues(imo))
+               nelec = nelec + mo_set%occupation_numbers(imo)
+               edist = edist + ABS(e2 - mo_set%eigenvalues(imo))
             END DO
 
             ! Smear electrons inside the energy window
             DO imo = mo_set%lfomo, mo_set%homo
-               edelta = ABS(e2-mo_set%eigenvalues(imo))
+               edelta = ABS(e2 - mo_set%eigenvalues(imo))
                mo_set%occupation_numbers(imo) = MIN(mo_set%maxocc, nelec*edelta/edist)
-               nelec = nelec-mo_set%occupation_numbers(imo)
-               edist = edist-edelta
+               nelec = nelec - mo_set%occupation_numbers(imo)
+               edist = edist - edelta
             END DO
 
          CASE (smear_list)
@@ -573,7 +573,7 @@ CONTAINS
          ! Check, if the smearing involves more than one MO
          IF (mo_set%lfomo == mo_set%homo) THEN
             mo_set%homo = nomo
-            mo_set%lfomo = nomo+1
+            mo_set%lfomo = nomo + 1
          ELSE
             mo_set%uniform_occupation = .FALSE.
          END IF

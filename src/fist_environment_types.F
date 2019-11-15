@@ -260,7 +260,7 @@ CONTAINS
       CALL cp_para_env_retain(para_env)
       fist_env%para_env => para_env
       fist_env%ref_count = 1
-      last_fist_env_id_nr = last_fist_env_id_nr+1
+      last_fist_env_id_nr = last_fist_env_id_nr + 1
       fist_env%id_nr = last_fist_env_id_nr
 
    END SUBROUTINE init_fist_env
@@ -444,7 +444,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(fist_env))
       CPASSERT(fist_env%ref_count > 0)
-      fist_env%ref_count = fist_env%ref_count+1
+      fist_env%ref_count = fist_env%ref_count + 1
    END SUBROUTINE fist_env_retain
 
 ! **************************************************************************************************
@@ -462,7 +462,7 @@ CONTAINS
 
       IF (ASSOCIATED(fist_env)) THEN
          CPASSERT(fist_env%ref_count > 0)
-         fist_env%ref_count = fist_env%ref_count-1
+         fist_env%ref_count = fist_env%ref_count - 1
          IF (fist_env%ref_count < 1) THEN
             CALL qmmm_env_mm_release(fist_env%qmmm_env)
             CALL cell_release(fist_env%cell_ref)

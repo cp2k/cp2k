@@ -161,27 +161,27 @@ CONTAINS
          IF (iw > 0) WRITE (iw, *) "boundaries of molecules (first, last) ::", first, last
          DO j = 1, natom
             IF (.NOT. ANY(id_work(1:counter) .EQ. atom_list(j)%id_name)) THEN
-               counter = counter+1
+               counter = counter + 1
                id_work(counter) = atom_list(j)%id_name
-               mass(counter) = atom_info%atm_mass(first+j-1)
-               id_element(counter) = atom_info%id_element(first+j-1)
-               charge(counter) = atom_info%atm_charge(first+j-1)
+               mass(counter) = atom_info%atm_mass(first + j - 1)
+               id_element(counter) = atom_info%id_element(first + j - 1)
+               charge(counter) = atom_info%atm_charge(first + j - 1)
                IF (iw > 0) WRITE (iw, '(7X,A,1X,A5,F10.5,5X,A2,5X,F10.5)') &
                   "NEW ATOMIC KIND", id2str(id_work(counter)), mass(counter), id2str(id_element(counter)), charge(counter)
             ELSE
                found = .FALSE.
                DO k = 1, counter
-                  IF ((id_work(k) == atom_list(j)%id_name) .AND. (charge(k) == atom_info%atm_charge(first+j-1))) THEN
+                  IF ((id_work(k) == atom_list(j)%id_name) .AND. (charge(k) == atom_info%atm_charge(first + j - 1))) THEN
                      found = .TRUE.
                      EXIT
                   END IF
                END DO
                IF (.NOT. found) THEN
-                  counter = counter+1
+                  counter = counter + 1
                   id_work(counter) = atom_list(j)%id_name
-                  mass(counter) = atom_info%atm_mass(first+j-1)
-                  id_element(counter) = atom_info%id_element(first+j-1)
-                  charge(counter) = atom_info%atm_charge(first+j-1)
+                  mass(counter) = atom_info%atm_mass(first + j - 1)
+                  id_element(counter) = atom_info%id_element(first + j - 1)
+                  charge(counter) = atom_info%atm_charge(first + j - 1)
                   IF (iw > 0) WRITE (iw, '(7X,A,1X,A5,F10.5,5X,A2,5X,F10.5)') &
                      "NEW ATOMIC KIND", id2str(id_work(counter)), mass(counter), id2str(id_element(counter)), charge(counter)
                END IF
@@ -252,7 +252,7 @@ CONTAINS
       DO i = 1, topology%natom_type
          DO j = 1, topology%natoms
             IF ((atom_info%id_atom_names(i) == atom_info%id_atmname(j)) .AND. (charge(i) == atom_info%atm_charge(j))) THEN
-               natom_of_kind(i) = natom_of_kind(i)+1
+               natom_of_kind(i) = natom_of_kind(i) + 1
                IF (kind_of(j) == 0) kind_of(j) = i
             END IF
          END DO
@@ -280,7 +280,7 @@ CONTAINS
          counter = 0
          DO j = 1, topology%natoms
             IF (kind_of(j) == i) THEN
-               counter = counter+1
+               counter = counter + 1
                iatomlist(counter) = j
             END IF
          END DO
@@ -318,7 +318,7 @@ CONTAINS
       bounds(1, 3) = MINVAL(atom_info%r(3, :))
       bounds(2, 3) = MAXVAL(atom_info%r(3, :))
 
-      dims = bounds(2, :)-bounds(1, :)
+      dims = bounds(2, :) - bounds(1, :)
       cdims(1) = topology%cell%hmat(1, 1)
       cdims(2) = topology%cell%hmat(2, 2)
       cdims(3) = topology%cell%hmat(3, 3)
@@ -347,7 +347,7 @@ CONTAINS
          ELSE
             vec = cdims/2.0_dp
          END IF
-         dims = (bounds(2, :)+bounds(1, :))/2.0_dp-vec
+         dims = (bounds(2, :) + bounds(1, :))/2.0_dp - vec
       ELSE
          dims = 0.0_dp
       END IF
@@ -359,7 +359,7 @@ CONTAINS
             WRITE (iw, *) "atom number :: ", i, "kind number ::", ikind
          END IF
          particle_set(i)%atomic_kind => atomic_kind_set(ikind)
-         particle_set(i)%r(:) = atom_info%r(:, i)-dims
+         particle_set(i)%r(:) = atom_info%r(:, i) - dims
          particle_set(i)%atom_index = i
       END DO
       CALL timestop(handle2)
@@ -445,7 +445,7 @@ CONTAINS
                DO i = 1, SIZE(ex_bond_list(iatom)%array1)
                   ! a neighboring atom of iatom:
                   atom_i = ex_bond_list(iatom)%array1(i)
-                  DO j = 1, i-1
+                  DO j = 1, i - 1
                      ! another neighboring atom of iatom
                      atom_j = ex_bond_list(iatom)%array1(j)
                      ! It is only a true bend if there is no shorter path.
@@ -460,9 +460,9 @@ CONTAINS
                      END DO
                      IF (check) CYCLE
                      ! Add the genuine 1-3 pair
-                     N = N+1
+                     N = N + 1
                      IF (SIZE(pairs, dim=1) <= N) THEN
-                        CALL reallocate(pairs, 1, N+5, 1, 2)
+                        CALL reallocate(pairs, 1, N + 5, 1, 2)
                      END IF
                      pairs(N, 1) = atom_i
                      pairs(N, 2) = atom_j
@@ -517,9 +517,9 @@ CONTAINS
                      END DO
                      IF (check) CYCLE
                      ! Add the true onfo.
-                     N = N+1
+                     N = N + 1
                      IF (SIZE(pairs, dim=1) <= N) THEN
-                        CALL reallocate(pairs, 1, N+5, 1, 2)
+                        CALL reallocate(pairs, 1, N + 5, 1, 2)
                      END IF
                      pairs(N, 1) = atom_i
                      pairs(N, 2) = atom_j
@@ -544,34 +544,34 @@ CONTAINS
             IF (topology%exclude_vdw == do_skip_12 .OR. &
                 topology%exclude_vdw == do_skip_13 .OR. &
                 topology%exclude_vdw == do_skip_14) dim1 = SIZE(ex_bond_list_vdw(iatom)%array1)
-            dim1 = dim1+dim0
+            dim1 = dim1 + dim0
             dim2 = 0
             IF (topology%exclude_vdw == do_skip_13 .OR. &
                 topology%exclude_vdw == do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
-            dim2 = dim1+dim2
+            dim2 = dim1 + dim2
             dim3 = 0
             IF (topology%exclude_vdw == do_skip_14) dim3 = SIZE(ex_onfo_list(iatom)%array1)
-            dim3 = dim2+dim3
+            dim3 = dim2 + dim3
             IF (dim3 /= 0) THEN
                NULLIFY (list, wlist)
                ALLOCATE (wlist(dim3))
                wlist(dim0:dim0) = iatom
-               IF (dim1 > dim0) wlist(dim0+1:dim1) = ex_bond_list_vdw(iatom)%array1
-               IF (dim2 > dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
-               IF (dim3 > dim2) wlist(dim2+1:dim3) = ex_onfo_list(iatom)%array1
+               IF (dim1 > dim0) wlist(dim0 + 1:dim1) = ex_bond_list_vdw(iatom)%array1
+               IF (dim2 > dim1) wlist(dim1 + 1:dim2) = ex_bend_list(iatom)%array1
+               IF (dim3 > dim2) wlist(dim2 + 1:dim3) = ex_onfo_list(iatom)%array1
                ! Get a unique list
-               DO i = 1, SIZE(wlist)-1
+               DO i = 1, SIZE(wlist) - 1
                   IF (wlist(i) == 0) CYCLE
-                  DO j = i+1, SIZE(wlist)
+                  DO j = i + 1, SIZE(wlist)
                      IF (wlist(j) == wlist(i)) wlist(j) = 0
                   END DO
                END DO
-               dim3 = SIZE(wlist)-COUNT(wlist == 0)
+               dim3 = SIZE(wlist) - COUNT(wlist == 0)
                ALLOCATE (list(dim3))
                j = 0
                DO i = 1, SIZE(wlist)
                   IF (wlist(i) == 0) CYCLE
-                  j = j+1
+                  j = j + 1
                   list(j) = wlist(i)
                END DO
                DEALLOCATE (wlist)
@@ -588,34 +588,34 @@ CONTAINS
                   IF (topology%exclude_ei == do_skip_12 .OR. &
                       topology%exclude_ei == do_skip_13 .OR. &
                       topology%exclude_ei == do_skip_14) dim1 = SIZE(ex_bond_list_ei(iatom)%array1)
-                  dim1 = dim1+dim0
+                  dim1 = dim1 + dim0
                   dim2 = 0
                   IF (topology%exclude_ei == do_skip_13 .OR. &
                       topology%exclude_ei == do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
-                  dim2 = dim1+dim2
+                  dim2 = dim1 + dim2
                   dim3 = 0
                   IF (topology%exclude_ei == do_skip_14) dim3 = SIZE(ex_onfo_list(iatom)%array1)
-                  dim3 = dim2+dim3
+                  dim3 = dim2 + dim3
 
                   IF (dim3 /= 0) THEN
                      ALLOCATE (wlist(dim3))
                      wlist(dim0:dim0) = iatom
-                     IF (dim1 > dim0) wlist(dim0+1:dim1) = ex_bond_list_ei(iatom)%array1
-                     IF (dim2 > dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
-                     IF (dim3 > dim2) wlist(dim2+1:dim3) = ex_onfo_list(iatom)%array1
+                     IF (dim1 > dim0) wlist(dim0 + 1:dim1) = ex_bond_list_ei(iatom)%array1
+                     IF (dim2 > dim1) wlist(dim1 + 1:dim2) = ex_bend_list(iatom)%array1
+                     IF (dim3 > dim2) wlist(dim2 + 1:dim3) = ex_onfo_list(iatom)%array1
                      ! Get a unique list
-                     DO i = 1, SIZE(wlist)-1
+                     DO i = 1, SIZE(wlist) - 1
                         IF (wlist(i) == 0) CYCLE
-                        DO j = i+1, SIZE(wlist)
+                        DO j = i + 1, SIZE(wlist)
                            IF (wlist(j) == wlist(i)) wlist(j) = 0
                         END DO
                      END DO
-                     dim3 = SIZE(wlist)-COUNT(wlist == 0)
+                     dim3 = SIZE(wlist) - COUNT(wlist == 0)
                      ALLOCATE (list2(dim3))
                      j = 0
                      DO i = 1, SIZE(wlist)
                         IF (wlist(i) == 0) CYCLE
-                        j = j+1
+                        j = j + 1
                         list2(j) = wlist(i)
                      END DO
                      DEALLOCATE (wlist)
@@ -720,7 +720,7 @@ CONTAINS
                IF (method_name_id == do_fist) THEN
                   CALL get_atomic_kind(atomic_kind=atomic_kind, fist_potential=fist_potential)
                   CALL get_potential(potential=fist_potential, qeff=qeff)
-                  IF ((id2str(atom_list(j)%id_name) == atmname) .AND. (qeff == atom_info%atm_charge(first+j-1))) THEN
+                  IF ((id2str(atom_list(j)%id_name) == atmname) .AND. (qeff == atom_info%atm_charge(first + j - 1))) THEN
                      atom_list(j)%atomic_kind => atomic_kind_set(k)
                      EXIT
                   END IF
@@ -789,7 +789,7 @@ CONTAINS
                                             c_vals=names)
                   IF (((TRIM(names(1)) == TRIM(flag1)) .AND. (TRIM(names(2)) == TRIM(flag2))) .OR. &
                       ((TRIM(names(1)) == TRIM(flag2)) .AND. (TRIM(names(2)) == TRIM(flag1)))) THEN
-                     l = l+1
+                     l = l + 1
                      ex_bond_list_w(j)%array1(l) = ind
                   END IF
                END DO

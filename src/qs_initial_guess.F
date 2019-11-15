@@ -293,10 +293,10 @@ CONTAINS
          CALL mp_bcast(exist, para_env%source, para_env%group)
          CALL mp_bcast(file_name, para_env%source, para_env%group)
          nvec = qs_env%wf_history%memory_depth
-         not_read = nvec+1
+         not_read = nvec + 1
          ! At this level we read the saved backup RESTART files..
          DO i = 1, nvec
-            j = i-1
+            j = i - 1
             filename = TRIM(file_name)
             IF (j /= 0) filename = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(j))
             IF (para_env%ionode) &
@@ -322,7 +322,7 @@ CONTAINS
                density_guess = safe_density_guess
             END IF
          END IF
-         last_read = not_read-1
+         last_read = not_read - 1
       END IF
 
       did_guess = .FALSE.
@@ -395,7 +395,7 @@ CONTAINS
       IF (density_guess == history_guess) THEN
          IF (not_read > 1) THEN
             DO i = 1, last_read
-               j = last_read-i
+               j = last_read - i
                CALL read_mo_set(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
                                 id_nr=j, multiplicity=dft_control%multiplicity, &
                                 dft_section=dft_section)
@@ -704,10 +704,10 @@ CONTAINS
                ikind = kind_of(irow)
                IF (icol .EQ. irow) THEN
                   IF (ispin == 1) THEN
-                     pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale+ &
+                     pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale + &
                                    pmat(ikind)%mat(:, :, 2)*rscale
                   ELSE
-                     pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale- &
+                     pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale - &
                                    pmat(ikind)%mat(:, :, 2)*rscale
                   END IF
                END IF
@@ -744,7 +744,7 @@ CONTAINS
                                nmo=nmo, nao=nao, homo=homo)
                CALL cp_fm_set_all(mo_coeff, 0.0_dp)
 
-               n = MAXVAL(last_sgf-first_sgf)+1
+               n = MAXVAL(last_sgf - first_sgf) + 1
                size_atomic_kind_set = SIZE(atomic_kind_set)
 
                ALLOCATE (buff(n, n), sort_kind(size_atomic_kind_set), &
@@ -778,14 +778,14 @@ CONTAINS
                      !
                      atom_a = atom_list(iatom)
                      istart_row = first_sgf(atom_a)
-                     n_rows = last_sgf(atom_a)-first_sgf(atom_a)+1
+                     n_rows = last_sgf(atom_a) - first_sgf(atom_a) + 1
                      !
                      ! compute the "potential" nbr of states for this atom
                      n_cols = MAX(INT(REAL(nmo_tmp, dp)/REAL(natoms_tmp, dp)), 1)
                      IF (n_cols .GT. n_rows) n_cols = n_rows
                      !
-                     nmo_tmp = nmo_tmp-n_cols
-                     natoms_tmp = natoms_tmp-1
+                     nmo_tmp = nmo_tmp - n_cols
+                     natoms_tmp = natoms_tmp - 1
                      IF (nmo_tmp .LT. 0 .OR. natoms_tmp .LT. 0) THEN
                         CPABORT("Wrong1!")
                      END IF
@@ -794,7 +794,7 @@ CONTAINS
                      ENDDO
                      CALL cp_fm_set_submatrix(mo_coeff, buff, istart_row, istart_col, &
                                               n_rows, n_cols)
-                     istart_col = istart_col+n_cols
+                     istart_col = istart_col + n_cols
                   ENDDO
                ENDDO
 
@@ -813,11 +813,11 @@ CONTAINS
                      ENDIF
                      length = SQRT(DOT_PRODUCT(buff(:, 1), buff(:, 1)))
                      buff(:, :) = buff(:, :)/length
-                     DO j = i+1, nmo
+                     DO j = i + 1, nmo
                         CALL cp_fm_get_submatrix(mo_coeff, buff2, 1, j, nao, 1)
                         length = SQRT(DOT_PRODUCT(buff2(:, 1), buff2(:, 1)))
                         buff2(:, :) = buff2(:, :)/length
-                        IF (ABS(DOT_PRODUCT(buff(:, 1), buff2(:, 1))-1.0_dp) .LT. 1E-10_dp) THEN
+                        IF (ABS(DOT_PRODUCT(buff(:, 1), buff2(:, 1)) - 1.0_dp) .LT. 1E-10_dp) THEN
                            WRITE (*, *) 'wrong2', i, j, DOT_PRODUCT(buff(:, 1), buff2(:, 1))
                            DO ikind = 1, nao
                               IF (ABS(mo_coeff%local_data(ikind, i)) .GT. 1e-10_dp) THEN
@@ -1055,13 +1055,13 @@ CONTAINS
             ikind = kind_of(irow)
             IF (icol .EQ. irow) THEN
                IF (ispin == 1) THEN
-                  pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale+ &
+                  pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale + &
                                 pmat(ikind)%mat(:, :, 2)*rscale
                ELSE
-                  pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale- &
+                  pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale - &
                                 pmat(ikind)%mat(:, :, 2)*rscale
                END IF
-               nocc(ispin) = nocc(ispin)+nok(ispin, ikind)
+               nocc(ispin) = nocc(ispin) + nok(ispin, ikind)
             END IF
          ENDDO
          CALL dbcsr_iterator_stop(iter)
@@ -1092,7 +1092,7 @@ CONTAINS
             IF (nelectron_spin(ispin) > nocc(ispin)) THEN
                rds = 0.99_dp
                CALL dbcsr_scale(matrix_p, rds)
-               rds = (1.0_dp-rds)*nelectron_spin(ispin)
+               rds = (1.0_dp - rds)*nelectron_spin(ispin)
                CALL dbcsr_get_info(matrix_p, nfullcols_total=nc)
                rds = rds/REAL(nc, KIND=dp)
                CALL dbcsr_add_on_diag(matrix_p, rds)
@@ -1300,7 +1300,7 @@ CONTAINS
             ELSEIF (has_pot) THEN
                CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
                CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff)
-               maxll = MIN(SIZE(elec_conf)-1, maxl)
+               maxll = MIN(SIZE(elec_conf) - 1, maxl)
                econf(:) = 0.0_dp
                econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll), dp)
             ELSE
@@ -1317,23 +1317,23 @@ CONTAINS
                      CASE (0)
                         pdiag(isgfa) = econf(0)
                      CASE (1)
-                        pdiag(isgfa+1) = econf(1)/3._dp
-                        pdiag(isgfa+2) = econf(1)/3._dp
-                        pdiag(isgfa+3) = econf(1)/3._dp
+                        pdiag(isgfa + 1) = econf(1)/3._dp
+                        pdiag(isgfa + 2) = econf(1)/3._dp
+                        pdiag(isgfa + 3) = econf(1)/3._dp
                      CASE (2)
-                        pdiag(isgfa+4) = econf(2)/5._dp
-                        pdiag(isgfa+5) = econf(2)/5._dp
-                        pdiag(isgfa+6) = econf(2)/5._dp
-                        pdiag(isgfa+7) = econf(2)/5._dp
-                        pdiag(isgfa+8) = econf(2)/5._dp
+                        pdiag(isgfa + 4) = econf(2)/5._dp
+                        pdiag(isgfa + 5) = econf(2)/5._dp
+                        pdiag(isgfa + 6) = econf(2)/5._dp
+                        pdiag(isgfa + 7) = econf(2)/5._dp
+                        pdiag(isgfa + 8) = econf(2)/5._dp
                      CASE (3)
-                        pdiag(isgfa+9) = econf(3)/7._dp
-                        pdiag(isgfa+10) = econf(3)/7._dp
-                        pdiag(isgfa+11) = econf(3)/7._dp
-                        pdiag(isgfa+12) = econf(3)/7._dp
-                        pdiag(isgfa+13) = econf(3)/7._dp
-                        pdiag(isgfa+14) = econf(3)/7._dp
-                        pdiag(isgfa+15) = econf(3)/7._dp
+                        pdiag(isgfa + 9) = econf(3)/7._dp
+                        pdiag(isgfa + 10) = econf(3)/7._dp
+                        pdiag(isgfa + 11) = econf(3)/7._dp
+                        pdiag(isgfa + 12) = econf(3)/7._dp
+                        pdiag(isgfa + 13) = econf(3)/7._dp
+                        pdiag(isgfa + 14) = econf(3)/7._dp
+                        pdiag(isgfa + 15) = econf(3)/7._dp
                      CASE DEFAULT
                         CPABORT("")
                      END SELECT
@@ -1346,8 +1346,8 @@ CONTAINS
                   DO isgf = 1, nsgf
                      na = naox(isgf)
                      la = laox(isgf)
-                     occ = REAL(occupation(na), dp)/REAL(2*la+1, dp)
-                     pdiag(isgfa+isgf-1) = occ
+                     occ = REAL(occupation(na), dp)/REAL(2*la + 1, dp)
+                     pdiag(isgfa + isgf - 1) = occ
                   END DO
                END DO
             ELSEIF (dft_control%qs_control%semi_empirical) THEN
@@ -1357,49 +1357,49 @@ CONTAINS
                   isgfa = first_sgf(atom_a)
                   SELECT CASE (nsgf)
                   CASE (1) ! s-basis
-                     pdiag(isgfa) = (zeff-yy)*0.5_dp*maxocc
+                     pdiag(isgfa) = (zeff - yy)*0.5_dp*maxocc
                   CASE (4) ! sp-basis
                      IF (z == 1) THEN
                         ! special case: hydrogen with sp basis
-                        pdiag(isgfa) = (zeff-yy)*0.5_dp*maxocc
-                        pdiag(isgfa+1) = 0._dp
-                        pdiag(isgfa+2) = 0._dp
-                        pdiag(isgfa+3) = 0._dp
+                        pdiag(isgfa) = (zeff - yy)*0.5_dp*maxocc
+                        pdiag(isgfa + 1) = 0._dp
+                        pdiag(isgfa + 2) = 0._dp
+                        pdiag(isgfa + 3) = 0._dp
                      ELSE
-                        pdiag(isgfa) = (zeff*0.25_dp-yy)*0.5_dp*maxocc
-                        pdiag(isgfa+1) = (zeff*0.25_dp-yy)*0.5_dp*maxocc
-                        pdiag(isgfa+2) = (zeff*0.25_dp-yy)*0.5_dp*maxocc
-                        pdiag(isgfa+3) = (zeff*0.25_dp-yy)*0.5_dp*maxocc
+                        pdiag(isgfa) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                        pdiag(isgfa + 1) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                        pdiag(isgfa + 2) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                        pdiag(isgfa + 3) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
                      END IF
                   CASE (9) ! spd-basis
                      IF (z < 21 .OR. z > 30 .AND. z < 39 .OR. z > 48 .AND. z < 57) THEN
                         !   Main Group Element:  The "d" shell is formally empty.
-                        pdiag(isgfa) = (zeff*0.25_dp-yy)*0.5_dp*maxocc
-                        pdiag(isgfa+1) = (zeff*0.25_dp-yy)*0.5_dp*maxocc
-                        pdiag(isgfa+2) = (zeff*0.25_dp-yy)*0.5_dp*maxocc
-                        pdiag(isgfa+3) = (zeff*0.25_dp-yy)*0.5_dp*maxocc
-                        pdiag(isgfa+4) = (-yy)*0.5_dp*maxocc
-                        pdiag(isgfa+5) = (-yy)*0.5_dp*maxocc
-                        pdiag(isgfa+6) = (-yy)*0.5_dp*maxocc
-                        pdiag(isgfa+7) = (-yy)*0.5_dp*maxocc
-                        pdiag(isgfa+8) = (-yy)*0.5_dp*maxocc
+                        pdiag(isgfa) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                        pdiag(isgfa + 1) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                        pdiag(isgfa + 2) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                        pdiag(isgfa + 3) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                        pdiag(isgfa + 4) = (-yy)*0.5_dp*maxocc
+                        pdiag(isgfa + 5) = (-yy)*0.5_dp*maxocc
+                        pdiag(isgfa + 6) = (-yy)*0.5_dp*maxocc
+                        pdiag(isgfa + 7) = (-yy)*0.5_dp*maxocc
+                        pdiag(isgfa + 8) = (-yy)*0.5_dp*maxocc
                      ELSE IF (z < 99) THEN
-                        my_sum = zeff-9.0_dp*yy
+                        my_sum = zeff - 9.0_dp*yy
                         !   First, put 2 electrons in the 's' shell
                         pdiag(isgfa) = (MAX(0.0_dp, MIN(my_sum, 2.0_dp)))*0.5_dp*maxocc
-                        my_sum = my_sum-2.0_dp
+                        my_sum = my_sum - 2.0_dp
                         IF (my_sum > 0.0_dp) THEN
                            !   Now put as many electrons as possible into the 'd' shell
-                           pdiag(isgfa+4) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                           pdiag(isgfa+5) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                           pdiag(isgfa+6) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                           pdiag(isgfa+7) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                           pdiag(isgfa+8) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                           my_sum = MAX(0.0_dp, my_sum-10.0_dp)
+                           pdiag(isgfa + 4) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                           pdiag(isgfa + 5) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                           pdiag(isgfa + 6) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                           pdiag(isgfa + 7) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                           pdiag(isgfa + 8) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                           my_sum = MAX(0.0_dp, my_sum - 10.0_dp)
                            !   Put the remaining electrons in the 'p' shell
-                           pdiag(isgfa+1) = (my_sum/3.0_dp)*0.5_dp*maxocc
-                           pdiag(isgfa+2) = (my_sum/3.0_dp)*0.5_dp*maxocc
-                           pdiag(isgfa+3) = (my_sum/3.0_dp)*0.5_dp*maxocc
+                           pdiag(isgfa + 1) = (my_sum/3.0_dp)*0.5_dp*maxocc
+                           pdiag(isgfa + 2) = (my_sum/3.0_dp)*0.5_dp*maxocc
+                           pdiag(isgfa + 3) = (my_sum/3.0_dp)*0.5_dp*maxocc
                         END IF
                      END IF
                   CASE DEFAULT
@@ -1417,25 +1417,25 @@ CONTAINS
                DO iset = 1, nset
                   DO ishell = 1, nshell(iset)
                      la = l(ishell, iset)
-                     nelec = maxocc*REAL(2*la+1, dp)
+                     nelec = maxocc*REAL(2*la + 1, dp)
                      IF (econf(la) > 0.0_dp) THEN
                         IF (econf(la) >= nelec) THEN
                            paa = maxocc
-                           econf(la) = econf(la)-nelec
+                           econf(la) = econf(la) - nelec
                         ELSE
                            paa = maxocc*econf(la)/nelec
                            econf(la) = 0.0_dp
-                           ncount = ncount+NINT(nelec/maxocc)
+                           ncount = ncount + NINT(nelec/maxocc)
                         END IF
                         DO isgfa = first_sgfa(ishell, iset), last_sgfa(ishell, iset)
                            DO iatom = 1, natom
                               atom_a = atom_list(iatom)
-                              isgf = first_sgf(atom_a)+isgfa-1
+                              isgf = first_sgf(atom_a) + isgfa - 1
                               pdiag(isgf) = paa
                               IF (paa == maxocc) THEN
-                                 trps1 = trps1+paa*sdiag(isgf)
+                                 trps1 = trps1 + paa*sdiag(isgf)
                               ELSE
-                                 trps2 = trps2+paa*sdiag(isgf)
+                                 trps2 = trps2 + paa*sdiag(isgf)
                               END IF
                            END DO
                         END DO
@@ -1458,7 +1458,7 @@ CONTAINS
          ELSE
             DO ispin = 1, nspin
                IF (nelectron_spin(ispin) /= 0) THEN
-                  rscale = (REAL(nelectron_spin(ispin), dp)-trps1)/trps2
+                  rscale = (REAL(nelectron_spin(ispin), dp) - trps1)/trps2
                   DO isgf = 1, nao
                      IF (pdiag(isgf) < maxocc) pdiag(isgf) = rscale*pdiag(isgf)
                   END DO

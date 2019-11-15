@@ -170,7 +170,7 @@ CONTAINS
          charge = mcharge(ia)
          ria = particle_set(ia)%r
          ria = pbc(ria, cell)
-         ci(:) = ci(:)+charge*ria(:)
+         ci(:) = ci(:) + charge*ria(:)
       END DO
       energy%efield = -SUM(ci(:)*fieldpol(:))
 
@@ -209,11 +209,11 @@ CONTAINS
             ria = pbc(ria, cell)
             rib = particle_set(icol)%r
             rib = pbc(rib, cell)
-            fdir = 0.5_dp*SUM(fieldpol(1:3)*(ria(1:3)+rib(1:3)))
+            fdir = 0.5_dp*SUM(fieldpol(1:3)*(ria(1:3) + rib(1:3)))
             DO ispin = 1, nspin
                CALL dbcsr_get_block_p(matrix=ks_matrix(ispin, 1)%matrix, &
                                       row=irow, col=icol, BLOCK=ks_block, found=found)
-               ks_block = ks_block+fdir*s_block
+               ks_block = ks_block + fdir*s_block
                CPASSERT(found)
             END DO
             IF (calculate_forces) THEN
@@ -227,18 +227,18 @@ CONTAINS
                                          row=irow, col=icol, BLOCK=p_block, found=found)
                   CPASSERT(found)
                   DO idir = 1, 3
-                     CALL dbcsr_get_block_p(matrix=matrix_s(idir+1)%matrix, &
+                     CALL dbcsr_get_block_p(matrix=matrix_s(idir + 1)%matrix, &
                                             row=irow, col=icol, BLOCK=ds_block, found=found)
                      CPASSERT(found)
-                     fij(idir) = fij(idir)+SUM(p_block*ds_block)
+                     fij(idir) = fij(idir) + SUM(p_block*ds_block)
                   END DO
                END DO
                fdir = SUM(ria(1:3)*fieldpol(1:3))
-               force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)+fdir*fij(1:3)
-               force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)-fdir*fij(1:3)
+               force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) + fdir*fij(1:3)
+               force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) - fdir*fij(1:3)
                fdir = SUM(rib(1:3)*fieldpol(1:3))
-               force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)+fdir*fij(1:3)
-               force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)-fdir*fij(1:3)
+               force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) + fdir*fij(1:3)
+               force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) - fdir*fij(1:3)
             END IF
          ENDDO
          CALL dbcsr_iterator_stop(iter)
@@ -329,7 +329,7 @@ CONTAINS
       fieldpol = -fieldpol*dft_control%period_efield%strength
       hmat = cell%hmat(:, :)/twopi
       DO idir = 1, 3
-         fpolvec(idir) = fieldpol(1)*hmat(1, idir)+fieldpol(2)*hmat(2, idir)+fieldpol(3)*hmat(3, idir)
+         fpolvec(idir) = fieldpol(1)*hmat(1, idir) + fieldpol(2)*hmat(2, idir) + fieldpol(3)*hmat(3, idir)
       END DO
 
       natom = SIZE(particle_set)
@@ -399,10 +399,10 @@ CONTAINS
                   kvec(:) = twopi*cell%h_inv(idir, :)
                   dd = SUM(kvec(:)*ria(:))
                   zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
-                  fdir = fdir+fpolvec(idir)*AIMAG(LOG(zdeta))
+                  fdir = fdir + fpolvec(idir)*AIMAG(LOG(zdeta))
                   dd = SUM(kvec(:)*rib(:))
                   zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
-                  fdir = fdir+fpolvec(idir)*AIMAG(LOG(zdeta))
+                  fdir = fdir + fpolvec(idir)*AIMAG(LOG(zdeta))
                END DO
 
                DO is = 1, nspin
@@ -410,7 +410,7 @@ CONTAINS
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
                                          row=irow, col=icol, block=ks_block, found=found)
                   CPASSERT(found)
-                  ks_block = ks_block+0.5_dp*fdir*s_block
+                  ks_block = ks_block + 0.5_dp*fdir*s_block
                END DO
                IF (calculate_forces) THEN
                   ikind = kind_of(irow)
@@ -423,14 +423,14 @@ CONTAINS
                                             row=irow, col=icol, BLOCK=p_block, found=found)
                      CPASSERT(found)
                      DO idir = 1, 3
-                        CALL dbcsr_get_block_p(matrix=matrix_s(idir+1, 1)%matrix, &
+                        CALL dbcsr_get_block_p(matrix=matrix_s(idir + 1, 1)%matrix, &
                                                row=irow, col=icol, BLOCK=ds_block, found=found)
                         CPASSERT(found)
-                        fij(idir) = fij(idir)+SUM(p_block*ds_block)
+                        fij(idir) = fij(idir) + SUM(p_block*ds_block)
                      END DO
                   END DO
-                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)+fdir*fij(1:3)
-                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)-fdir*fij(1:3)
+                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) + fdir*fij(1:3)
+                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) - fdir*fij(1:3)
                END IF
 
             ENDDO
@@ -454,10 +454,10 @@ CONTAINS
                   kvec(:) = twopi*cell%h_inv(idir, :)
                   dd = SUM(kvec(:)*ria(:))
                   zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
-                  fdir = fdir+fpolvec(idir)*AIMAG(LOG(zdeta))
+                  fdir = fdir + fpolvec(idir)*AIMAG(LOG(zdeta))
                   dd = SUM(kvec(:)*rib(:))
                   zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
-                  fdir = fdir+fpolvec(idir)*AIMAG(LOG(zdeta))
+                  fdir = fdir + fpolvec(idir)*AIMAG(LOG(zdeta))
                END DO
 
                NULLIFY (s_block)
@@ -469,7 +469,7 @@ CONTAINS
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
                                          row=irow, col=icol, block=ks_block, found=found)
                   CPASSERT(found)
-                  ks_block = ks_block+0.5_dp*fdir*s_block
+                  ks_block = ks_block + 0.5_dp*fdir*s_block
                END DO
                IF (calculate_forces) THEN
                   atom_a = atom_of_kind(iatom)
@@ -480,15 +480,15 @@ CONTAINS
                                             row=irow, col=icol, BLOCK=p_block, found=found)
                      CPASSERT(found)
                      DO idir = 1, 3
-                        CALL dbcsr_get_block_p(matrix=matrix_s(idir+1, ic)%matrix, &
+                        CALL dbcsr_get_block_p(matrix=matrix_s(idir + 1, ic)%matrix, &
                                                row=irow, col=icol, BLOCK=ds_block, found=found)
                         CPASSERT(found)
-                        fij(idir) = fij(idir)+SUM(p_block*ds_block)
+                        fij(idir) = fij(idir) + SUM(p_block*ds_block)
                      END DO
                   END DO
                   IF (irow == iatom) fij = -fij
-                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)-fdir*fij(1:3)
-                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)+fdir*fij(1:3)
+                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) - fdir*fij(1:3)
+                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) + fdir*fij(1:3)
                END IF
 
             END DO
@@ -610,15 +610,15 @@ CONTAINS
       ! make sure the total normalized polarization is within [-1:1]
       DO idir = 1, 3
          cqi(idir) = qi(idir)/omega
-         IF (cqi(idir) > pi) cqi(idir) = cqi(idir)-twopi
-         IF (cqi(idir) < -pi) cqi(idir) = cqi(idir)+twopi
+         IF (cqi(idir) > pi) cqi(idir) = cqi(idir) - twopi
+         IF (cqi(idir) < -pi) cqi(idir) = cqi(idir) + twopi
          ! now check for log branch
          IF (calculate_forces) THEN
-            IF (ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
-               di(idir) = (efield%polarisation(idir)-cqi(idir))/pi
+            IF (ABS(efield%polarisation(idir) - cqi(idir)) > pi) THEN
+               di(idir) = (efield%polarisation(idir) - cqi(idir))/pi
                DO i = 1, 10
-                  cqi(idir) = cqi(idir)+SIGN(1.0_dp, di(idir))*twopi
-                  IF (ABS(efield%polarisation(idir)-cqi(idir)) < pi) EXIT
+                  cqi(idir) = cqi(idir) + SIGN(1.0_dp, di(idir))*twopi
+                  IF (ABS(efield%polarisation(idir) - cqi(idir)) < pi) EXIT
                END DO
             END IF
          END IF
@@ -627,14 +627,14 @@ CONTAINS
       DO idir = 1, 3
          ci(idir) = 0.0_dp
          DO i = 1, 3
-            ci(idir) = ci(idir)+hmat(idir, i)*cqi(i)
+            ci(idir) = ci(idir) + hmat(idir, i)*cqi(i)
          END DO
       END DO
       ! update the references
       IF (calculate_forces) THEN
          ener_field = SUM(ci)
          ! check for smoothness of energy surface
-         IF (ABS(efield%field_energy-ener_field) > pi*ABS(SUM(hmat))) THEN
+         IF (ABS(efield%field_energy - ener_field) > pi*ABS(SUM(hmat))) THEN
             CPWARN("Large change of e-field energy detected. Correct for non-smooth energy surface")
          END IF
          efield%field_energy = ener_field
@@ -644,12 +644,12 @@ CONTAINS
       ! Energy
       ener_field = 0.0_dp
       DO idir = 1, 3
-         ener_field = ener_field+dfilter(idir)*(fieldpol(idir)-2._dp*twopi/omega*ci(idir))**2
+         ener_field = ener_field + dfilter(idir)*(fieldpol(idir) - 2._dp*twopi/omega*ci(idir))**2
       END DO
       energy%efield = 0.25_dp/twopi*ener_field
 
       IF (.NOT. just_energy) THEN
-         di(:) = -(fieldpol(:)-2._dp*twopi/omega*ci(:))*dfilter(:)/omega
+         di(:) = -(fieldpol(:) - 2._dp*twopi/omega*ci(:))*dfilter(:)/omega
 
          CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s)
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
@@ -671,7 +671,7 @@ CONTAINS
                   charge = mcharge(ia)
                   iatom = atom_of_kind(ia)
                   ikind = kind_of(ia)
-                  force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom)+di(:)*charge
+                  force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom) + di(:)*charge
                   IF (use_virial) THEN
                      ria = particle_set(ia)%r
                      ria = pbc(ria, cell)
@@ -697,10 +697,10 @@ CONTAINS
                   kvec(:) = twopi*cell%h_inv(idir, :)
                   dd = SUM(kvec(:)*ria(:))
                   zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
-                  fdir = fdir+hdi(idir)*AIMAG(LOG(zdeta))
+                  fdir = fdir + hdi(idir)*AIMAG(LOG(zdeta))
                   dd = SUM(kvec(:)*rib(:))
                   zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
-                  fdir = fdir+hdi(idir)*AIMAG(LOG(zdeta))
+                  fdir = fdir + hdi(idir)*AIMAG(LOG(zdeta))
                END DO
 
                DO is = 1, nspin
@@ -708,7 +708,7 @@ CONTAINS
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
                                          row=irow, col=icol, block=ks_block, found=found)
                   CPASSERT(found)
-                  ks_block = ks_block+0.5_dp*fdir*s_block
+                  ks_block = ks_block + 0.5_dp*fdir*s_block
                END DO
                IF (calculate_forces) THEN
                   ikind = kind_of(irow)
@@ -721,14 +721,14 @@ CONTAINS
                                             row=irow, col=icol, BLOCK=p_block, found=found)
                      CPASSERT(found)
                      DO idir = 1, 3
-                        CALL dbcsr_get_block_p(matrix=matrix_s(idir+1, 1)%matrix, &
+                        CALL dbcsr_get_block_p(matrix=matrix_s(idir + 1, 1)%matrix, &
                                                row=irow, col=icol, BLOCK=ds_block, found=found)
                         CPASSERT(found)
-                        fij(idir) = fij(idir)+SUM(p_block*ds_block)
+                        fij(idir) = fij(idir) + SUM(p_block*ds_block)
                      END DO
                   END DO
-                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)+fdir*fij(1:3)
-                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)-fdir*fij(1:3)
+                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) + fdir*fij(1:3)
+                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) - fdir*fij(1:3)
                END IF
 
             ENDDO
@@ -755,10 +755,10 @@ CONTAINS
                   kvec(:) = twopi*cell%h_inv(idir, :)
                   dd = SUM(kvec(:)*ria(:))
                   zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
-                  fdir = fdir+hdi(idir)*AIMAG(LOG(zdeta))
+                  fdir = fdir + hdi(idir)*AIMAG(LOG(zdeta))
                   dd = SUM(kvec(:)*rib(:))
                   zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
-                  fdir = fdir+hdi(idir)*AIMAG(LOG(zdeta))
+                  fdir = fdir + hdi(idir)*AIMAG(LOG(zdeta))
                END DO
 
                NULLIFY (s_block)
@@ -770,7 +770,7 @@ CONTAINS
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
                                          row=irow, col=icol, block=ks_block, found=found)
                   CPASSERT(found)
-                  ks_block = ks_block+0.5_dp*fdir*s_block
+                  ks_block = ks_block + 0.5_dp*fdir*s_block
                END DO
                IF (calculate_forces) THEN
                   atom_a = atom_of_kind(iatom)
@@ -781,15 +781,15 @@ CONTAINS
                                             row=irow, col=icol, BLOCK=p_block, found=found)
                      CPASSERT(found)
                      DO idir = 1, 3
-                        CALL dbcsr_get_block_p(matrix=matrix_s(idir+1, ic)%matrix, &
+                        CALL dbcsr_get_block_p(matrix=matrix_s(idir + 1, ic)%matrix, &
                                                row=irow, col=icol, BLOCK=ds_block, found=found)
                         CPASSERT(found)
-                        fij(idir) = fij(idir)+SUM(p_block*ds_block)
+                        fij(idir) = fij(idir) + SUM(p_block*ds_block)
                      END DO
                   END DO
                   IF (irow == iatom) fij = -fij
-                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a)-fdir*fij(1:3)
-                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b)+fdir*fij(1:3)
+                  force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) - fdir*fij(1:3)
+                  force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) + fdir*fij(1:3)
                END IF
 
             END DO

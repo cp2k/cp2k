@@ -169,10 +169,10 @@ CONTAINS
          inotconv = 0
          DO imo = 1, nmo
             IF (vnorm(imo) <= bdav_env%eps_iter) THEN
-               nmo_converged = nmo_converged+1
+               nmo_converged = nmo_converged + 1
                iconv(nmo_converged) = imo
             ELSE
-               nmo_not_converged = nmo_not_converged+1
+               nmo_not_converged = nmo_not_converged + 1
                inotconv(nmo_not_converged) = imo
             END IF
          END DO
@@ -185,12 +185,12 @@ CONTAINS
             DO j = 1, nmo_converged
                imo = iconv(j)
 
-               IF (imo == i_last+1) THEN
+               IF (imo == i_last + 1) THEN
                   i_last = imo
                   iconv_set(nset, 2) = imo
                ELSE
                   i_last = imo
-                  nset = nset+1
+                  nset = nset + 1
                   iconv_set(nset, 1) = imo
                   iconv_set(nset, 2) = imo
                END IF
@@ -202,12 +202,12 @@ CONTAINS
             DO j = 1, nmo_not_converged
                imo = inotconv(j)
 
-               IF (imo == i_last+1) THEN
+               IF (imo == i_last + 1) THEN
                   i_last = imo
                   inotconv_set(nset, 2) = imo
                ELSE
                   i_last = imo
-                  nset = nset+1
+                  nset = nset + 1
                   inotconv_set(nset, 1) = imo
                   inotconv_set(nset, 2) = imo
                END IF
@@ -225,7 +225,7 @@ CONTAINS
             t2 = m_walltime()
             IF (output_unit > 0) THEN
                WRITE (output_unit, '(T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)') &
-                  iter, nmo_converged, max_norm, min_norm, t2-t1
+                  iter, nmo_converged, max_norm, min_norm, t2 - t1
 
                WRITE (output_unit, *) " Reached convergence in ", iter, &
                   " Davidson iterations"
@@ -286,9 +286,9 @@ CONTAINS
             DO j = 1, nset_conv
                i_first = iconv_set(j, 1)
                i_last = iconv_set(j, 2)
-               n = i_last-i_first+1
+               n = i_last - i_first + 1
                CALL cp_fm_to_fm_submat(mo_coeff, c_conv, nao, n, 1, i_first, 1, jj)
-               jj = jj+n
+               jj = jj + n
             END DO
             CALL cp_fm_symm('L', 'U', nao, nmo_converged, 1.0_dp, s_fm, c_conv, 0.0_dp, m_tmp)
             CALL cp_gemm('N', 'T', nao, nao, nmo_converged, 1.0_dp, m_tmp, m_tmp, 0.0_dp, c_out)
@@ -310,10 +310,10 @@ CONTAINS
             DO j = 1, nset_not_conv
                i_first = inotconv_set(j, 1)
                i_last = inotconv_set(j, 2)
-               n = i_last-i_first+1
+               n = i_last - i_first + 1
                CALL cp_fm_to_fm_submat(mo_coeff, c_notconv, nao, n, 1, i_first, 1, jj)
-               eig_not_conv(jj:jj+n-1) = ritz_coeff(i_first:i_last)
-               jj = jj+n
+               eig_not_conv(jj:jj + n - 1) = ritz_coeff(i_first:i_last)
+               jj = jj + n
             END DO
             CALL cp_gemm('N', 'N', nao, nmo_not_converged, nao, 1.0_dp, c_out, c_notconv, 0.0_dp, m_hc)
             CALL cp_fm_symm('L', 'U', nao, nmo_not_converged, 1.0_dp, s_fm, c_notconv, 0.0_dp, m_sc)
@@ -370,14 +370,14 @@ CONTAINS
 
          ! compute ZSC
          CALL cp_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_sc, 0.0_dp, m_tmp)
-         CALL cp_fm_to_fm_submat(m_tmp, s_block, nmat, nmat, 1, 1, 1+nmat, 1)
+         CALL cp_fm_to_fm_submat(m_tmp, s_block, nmat, nmat, 1, 1, 1 + nmat, 1)
          CALL cp_fm_transpose(m_tmp, mt_tmp)
-         CALL cp_fm_to_fm_submat(mt_tmp, s_block, nmat, nmat, 1, 1, 1, 1+nmat)
+         CALL cp_fm_to_fm_submat(mt_tmp, s_block, nmat, nmat, 1, 1, 1, 1 + nmat)
          ! compute ZHC
          CALL cp_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_hc, 0.0_dp, m_tmp)
-         CALL cp_fm_to_fm_submat(m_tmp, h_block, nmat, nmat, 1, 1, 1+nmat, 1)
+         CALL cp_fm_to_fm_submat(m_tmp, h_block, nmat, nmat, 1, 1, 1 + nmat, 1)
          CALL cp_fm_transpose(m_tmp, mt_tmp)
-         CALL cp_fm_to_fm_submat(mt_tmp, h_block, nmat, nmat, 1, 1, 1, 1+nmat)
+         CALL cp_fm_to_fm_submat(mt_tmp, h_block, nmat, nmat, 1, 1, 1, 1 + nmat)
 
          CALL cp_fm_release(mt_tmp)
 
@@ -396,10 +396,10 @@ CONTAINS
 
          ! compute ZSZ
          CALL cp_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_sc, 0.0_dp, m_tmp)
-         CALL cp_fm_to_fm_submat(m_tmp, s_block, nmat, nmat, 1, 1, 1+nmat, 1+nmat)
+         CALL cp_fm_to_fm_submat(m_tmp, s_block, nmat, nmat, 1, 1, 1 + nmat, 1 + nmat)
          ! compute ZHZ
          CALL cp_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_hc, 0.0_dp, m_tmp)
-         CALL cp_fm_to_fm_submat(m_tmp, h_block, nmat, nmat, 1, 1, 1+nmat, 1+nmat)
+         CALL cp_fm_to_fm_submat(m_tmp, h_block, nmat, nmat, 1, 1, 1 + nmat, 1 + nmat)
 
          CALL cp_fm_release(m_sc)
 
@@ -409,7 +409,7 @@ CONTAINS
          ! extract egenvectors
          CALL cp_fm_to_fm_submat(v_block, m_tmp, nmat, nmat, 1, 1, 1, 1)
          CALL cp_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, c_notconv, m_tmp, 0.0_dp, m_hc)
-         CALL cp_fm_to_fm_submat(v_block, m_tmp, nmat, nmat, 1+nmat, 1, 1, 1)
+         CALL cp_fm_to_fm_submat(v_block, m_tmp, nmat, nmat, 1 + nmat, 1, 1, 1)
          CALL cp_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, c_pz, m_tmp, 1.0_dp, m_hc)
 
          CALL cp_fm_release(m_tmp)
@@ -427,10 +427,10 @@ CONTAINS
             DO j = 1, nset_not_conv
                i_first = inotconv_set(j, 1)
                i_last = inotconv_set(j, 2)
-               n = i_last-i_first+1
+               n = i_last - i_first + 1
                CALL cp_fm_to_fm_submat(m_hc, mo_coeff, nao, n, 1, jj, 1, i_first)
-               eigenvalues(i_first:i_last) = evals(jj:jj+n-1)
-               jj = jj+n
+               eigenvalues(i_first:i_last) = evals(jj:jj + n - 1)
+               jj = jj + n
             END DO
             DEALLOCATE (iconv_set)
             DEALLOCATE (inotconv_set)
@@ -447,7 +447,7 @@ CONTAINS
          t2 = m_walltime()
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)') &
-               iter, nmo_converged, max_norm, min_norm, t2-t1
+               iter, nmo_converged, max_norm, min_norm, t2 - t1
          END IF
          t1 = m_walltime()
 
@@ -585,10 +585,10 @@ CONTAINS
 
          DO imo = 1, nmo
             IF (vnorm(imo) <= bdav_env%eps_iter) THEN
-               nmo_converged = nmo_converged+1
+               nmo_converged = nmo_converged + 1
                iconv(nmo_converged) = imo
             ELSE
-               nmo_not_converged = nmo_not_converged+1
+               nmo_not_converged = nmo_not_converged + 1
                inotconv(nmo_not_converged) = imo
             END IF
          END DO
@@ -601,12 +601,12 @@ CONTAINS
             DO j = 1, nmo_converged
                imo = iconv(j)
 
-               IF (imo == i_last+1) THEN
+               IF (imo == i_last + 1) THEN
                   i_last = imo
                   iconv_set(nset, 2) = imo
                ELSE
                   i_last = imo
-                  nset = nset+1
+                  nset = nset + 1
                   iconv_set(nset, 1) = imo
                   iconv_set(nset, 2) = imo
                END IF
@@ -618,12 +618,12 @@ CONTAINS
             DO j = 1, nmo_not_converged
                imo = inotconv(j)
 
-               IF (imo == i_last+1) THEN
+               IF (imo == i_last + 1) THEN
                   i_last = imo
                   inotconv_set(nset, 2) = imo
                ELSE
                   i_last = imo
-                  nset = nset+1
+                  nset = nset + 1
                   inotconv_set(nset, 1) = imo
                   inotconv_set(nset, 2) = imo
                END IF
@@ -645,7 +645,7 @@ CONTAINS
             t2 = m_walltime()
             IF (output_unit > 0) THEN
                WRITE (output_unit, '(T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)') &
-                  iter, nmo_converged, max_norm, min_norm, t2-t1
+                  iter, nmo_converged, max_norm, min_norm, t2 - t1
 
                WRITE (output_unit, *) " Reached convergence in ", iter, &
                   " Davidson iterations"
@@ -669,9 +669,9 @@ CONTAINS
             DO j = 1, nset_conv
                i_first = iconv_set(j, 1)
                i_last = iconv_set(j, 2)
-               n = i_last-i_first+1
+               n = i_last - i_first + 1
                CALL cp_fm_to_fm_submat(mo_coeff, mo_conv_fm, nao, n, 1, i_first, 1, jj)
-               jj = jj+n
+               jj = jj + n
             END DO
 
             ! allocate c_out sparse matrix, to project out the converged MOS
@@ -716,10 +716,10 @@ CONTAINS
             DO j = 1, nset_not_conv
                i_first = inotconv_set(j, 1)
                i_last = inotconv_set(j, 2)
-               n = i_last-i_first+1
+               n = i_last - i_first + 1
                CALL cp_fm_to_fm_submat(mo_coeff, mo_notconv_fm, nao, n, 1, i_first, 1, jj)
-               eig_not_conv(jj:jj+n-1) = ritz_coeff(i_first:i_last)
-               jj = jj+n
+               eig_not_conv(jj:jj + n - 1) = ritz_coeff(i_first:i_last)
+               jj = jj + n
             END DO
 
             ! allocate mo_conv sparse
@@ -816,17 +816,17 @@ CONTAINS
          !  set the bottom left part of S[C,Z] block matrix  ZSC
          !copy sparse to full
          CALL copy_dbcsr_to_fm(matrix_mm, matrix_mm_fm)
-         CALL cp_fm_to_fm_submat(matrix_mm_fm, s_block, nmat, nmat, 1, 1, 1+nmat, 1)
+         CALL cp_fm_to_fm_submat(matrix_mm_fm, s_block, nmat, nmat, 1, 1, 1 + nmat, 1)
          CALL cp_fm_transpose(matrix_mm_fm, matrix_mmt_fm)
-         CALL cp_fm_to_fm_submat(matrix_mmt_fm, s_block, nmat, nmat, 1, 1, 1, 1+nmat)
+         CALL cp_fm_to_fm_submat(matrix_mmt_fm, s_block, nmat, nmat, 1, 1, 1, 1 + nmat)
 
          ! compute the bottom left  ZHC (top right is transpose)
          CALL dbcsr_multiply('t', 'n', 1.0_dp, matrix_pz, matrix_hc, 0.0_dp, matrix_mm, last_column=nmat)
          ! set the bottom left part of S[C,Z] block matrix  ZHC
          CALL copy_dbcsr_to_fm(matrix_mm, matrix_mm_fm)
-         CALL cp_fm_to_fm_submat(matrix_mm_fm, h_block, nmat, nmat, 1, 1, 1+nmat, 1)
+         CALL cp_fm_to_fm_submat(matrix_mm_fm, h_block, nmat, nmat, 1, 1, 1 + nmat, 1)
          CALL cp_fm_transpose(matrix_mm_fm, matrix_mmt_fm)
-         CALL cp_fm_to_fm_submat(matrix_mmt_fm, h_block, nmat, nmat, 1, 1, 1, 1+nmat)
+         CALL cp_fm_to_fm_submat(matrix_mmt_fm, h_block, nmat, nmat, 1, 1, 1, 1 + nmat)
 
          CALL cp_fm_release(matrix_mmt_fm)
 
@@ -839,13 +839,13 @@ CONTAINS
          CALL dbcsr_multiply('t', 'n', 1.0_dp, matrix_pz, matrix_sc, 0.0_dp, matrix_mm, last_column=k)
          ! set the bottom right part of S[C,Z] block matrix  ZSZ
          CALL copy_dbcsr_to_fm(matrix_mm, matrix_mm_fm)
-         CALL cp_fm_to_fm_submat(matrix_mm_fm, s_block, nmat, nmat, 1, 1, 1+nmat, 1+nmat)
+         CALL cp_fm_to_fm_submat(matrix_mm_fm, s_block, nmat, nmat, 1, 1, 1 + nmat, 1 + nmat)
 
          ! compute the bottom right  ZHZ
          CALL dbcsr_multiply('t', 'n', 1.0_dp, matrix_pz, matrix_hc, 0.0_dp, matrix_mm, last_column=k)
          ! set the bottom right part of H[C,Z] block matrix  ZHZ
          CALL copy_dbcsr_to_fm(matrix_mm, matrix_mm_fm)
-         CALL cp_fm_to_fm_submat(matrix_mm_fm, h_block, nmat, nmat, 1, 1, 1+nmat, 1+nmat)
+         CALL cp_fm_to_fm_submat(matrix_mm_fm, h_block, nmat, nmat, 1, 1, 1 + nmat, 1 + nmat)
 
          CALL dbcsr_release_p(matrix_mm)
          CALL dbcsr_release_p(matrix_sc)
@@ -865,7 +865,7 @@ CONTAINS
          ! extract egenvectors
          CALL cp_fm_to_fm_submat(v_block, matrix_mm_fm, nmat, nmat, 1, 1, 1, 1)
          CALL cp_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, mo_notconv_fm, matrix_mm_fm, 0.0_dp, matrix_nm_fm)
-         CALL cp_fm_to_fm_submat(v_block, matrix_mm_fm, nmat, nmat, 1+nmat, 1, 1, 1)
+         CALL cp_fm_to_fm_submat(v_block, matrix_mm_fm, nmat, nmat, 1 + nmat, 1, 1, 1)
          CALL cp_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, matrix_z_fm, matrix_mm_fm, 1.0_dp, matrix_nm_fm)
 
          CALL dbcsr_release_p(matrix_z)
@@ -883,10 +883,10 @@ CONTAINS
             DO j = 1, nset_not_conv
                i_first = inotconv_set(j, 1)
                i_last = inotconv_set(j, 2)
-               n = i_last-i_first+1
+               n = i_last - i_first + 1
                CALL cp_fm_to_fm_submat(matrix_nm_fm, mo_coeff, nao, n, 1, jj, 1, i_first)
-               eigenvalues(i_first:i_last) = evals(jj:jj+n-1)
-               jj = jj+n
+               eigenvalues(i_first:i_last) = evals(jj:jj + n - 1)
+               jj = jj + n
             END DO
             DEALLOCATE (iconv_set)
             DEALLOCATE (inotconv_set)
@@ -906,7 +906,7 @@ CONTAINS
          t2 = m_walltime()
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)') &
-               iter, nmo_converged, max_norm, min_norm, t2-t1
+               iter, nmo_converged, max_norm, min_norm, t2 - t1
          END IF
          t1 = m_walltime()
 

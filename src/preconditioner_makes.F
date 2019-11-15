@@ -271,13 +271,13 @@ CONTAINS
          CALL cp_fm_triangular_multiply(fm_s, fm, side="L", transpose_tr=.FALSE., &
                                         invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=n, alpha=1.0_dp)
          DO i = 1, n
-            evals(i) = 1.0_dp/MAX(evals(i)-energy_homo, energy_gap)
+            evals(i) = 1.0_dp/MAX(evals(i) - energy_homo, energy_gap)
          ENDDO
          CALL cp_fm_to_fm(fm, fm_h)
       CASE (cholesky_reduce)
          CALL cp_fm_cholesky_restore(fm, n, fm_s, fm_h, "SOLVE")
          DO i = 1, n
-            evals(i) = 1.0_dp/MAX(evals(i)-energy_homo, energy_gap)
+            evals(i) = 1.0_dp/MAX(evals(i) - energy_homo, energy_gap)
          ENDDO
          CALL cp_fm_to_fm(fm_h, fm)
       END SELECT
@@ -338,7 +338,7 @@ CONTAINS
 
       CALL choose_eigv_solver(fm_h, fm, evals)
       DO i = 1, n
-         evals(i) = 1.0_dp/MAX(evals(i)-energy_homo, energy_gap)
+         evals(i) = 1.0_dp/MAX(evals(i) - energy_homo, energy_gap)
       ENDDO
       CALL cp_fm_to_fm(fm, fm_h)
       CALL cp_fm_column_scale(fm, evals)
@@ -448,7 +448,7 @@ CONTAINS
       CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, matrix_shc0, matrix_shc0, 0.0_dp, matrix_s1)
       ALLOCATE (diag(k))
       CALL cp_fm_get_diag(matrix_s1, diag)
-      error_estimate = MAXVAL(SQRT(ABS(diag-c0_evals**2)))
+      error_estimate = MAXVAL(SQRT(ABS(diag - c0_evals**2)))
       DEALLOCATE (diag)
       CALL cp_fm_release(matrix_s1)
       CALL cp_fm_release(matrix_shc0)
@@ -473,8 +473,8 @@ CONTAINS
       CALL cp_fm_release(matrix_left)
 
       ALLOCATE (shifted_evals(k))
-      lambda = lambda_base+error_estimate
-      shifted_evals = c0_evals-lambda
+      lambda = lambda_base + error_estimate
+      shifted_evals = c0_evals - lambda
       CALL cp_fm_to_fm(matrix_sc0, matrix_hc0)
       CALL cp_fm_column_scale(matrix_hc0, shifted_evals)
       CALL cp_gemm('N', 'T', n, n, k, 1.0_dp, matrix_hc0, matrix_sc0, 1.0_dp, matrix_tmp)
@@ -511,7 +511,7 @@ CONTAINS
          ALLOCATE (norms(k))
          CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, matrix_sc0, matrix_tmp, 0.0_dp, matrix_s1)
          CALL choose_eigv_solver(matrix_s1, matrix_s2, norms)
-         WRITE (*, *) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms)-1.0_dp))
+         WRITE (*, *) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms) - 1.0_dp))
          DEALLOCATE (norms)
          CALL cp_fm_release(matrix_s1)
          CALL cp_fm_release(matrix_s2)
@@ -596,7 +596,7 @@ CONTAINS
       CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, matrix_hc0, matrix_hc0, 0.0_dp, matrix_s1)
       ALLOCATE (diag(k))
       CALL cp_fm_get_diag(matrix_s1, diag)
-      error_estimate = MAXVAL(SQRT(ABS(diag-c0_evals**2)))
+      error_estimate = MAXVAL(SQRT(ABS(diag - c0_evals**2)))
       DEALLOCATE (diag)
       CALL cp_fm_release(matrix_s1)
       ! we'll only use the energy gap, if our estimate of the error on the eigenvalues
@@ -621,8 +621,8 @@ CONTAINS
       CALL cp_fm_release(matrix_left)
 
       ALLOCATE (shifted_evals(k))
-      lambda = lambda_base+error_estimate
-      shifted_evals = c0_evals-lambda
+      lambda = lambda_base + error_estimate
+      shifted_evals = c0_evals - lambda
       CALL cp_fm_to_fm(matrix_sc0, matrix_hc0)
       CALL cp_fm_column_scale(matrix_hc0, shifted_evals)
       CALL cp_gemm('N', 'T', n, n, k, 1.0_dp, matrix_hc0, matrix_sc0, 1.0_dp, matrix_tmp)
@@ -643,7 +643,7 @@ CONTAINS
          CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, matrix_sc0, matrix_tmp, 0.0_dp, matrix_s1)
          CALL choose_eigv_solver(matrix_s1, matrix_s2, norms)
 
-         WRITE (*, *) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms)-1.0_dp))
+         WRITE (*, *) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms) - 1.0_dp))
          DEALLOCATE (norms)
          CALL cp_fm_release(matrix_s1)
          CALL cp_fm_release(matrix_s2)
@@ -781,9 +781,9 @@ CONTAINS
 !-------------------------------------compute eigenvalues of H ----------------------------------------------
       ! Shift the Lumo to the 1.5*the computed energy_gap or the external energy gap value
       ! The factor 1.5 is determined by trying. If the LUMO is positive, enough, just leave it alone
-      pre_shift = MAX(1.5_dp*(min_ev-max_ev), energy_gap)
+      pre_shift = MAX(1.5_dp*(min_ev - max_ev), energy_gap)
       IF (min_ev .LT. pre_shift) THEN
-         pre_shift = pre_shift-min_ev
+         pre_shift = pre_shift - min_ev
       ELSE
          pre_shift = 0.0_dp
       END IF

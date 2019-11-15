@@ -490,29 +490,29 @@ CONTAINS
             new_atom_b = .FALSE.
             CYCLE
          END IF
-         IF (blk_cnt+nadd .GT. SIZE(rows)) THEN
-            ALLOCATE (tmp(blk_cnt+nadd))
+         IF (blk_cnt + nadd .GT. SIZE(rows)) THEN
+            ALLOCATE (tmp(blk_cnt + nadd))
             tmp(1:blk_cnt) = rows(1:blk_cnt)
             DEALLOCATE (rows)
-            ALLOCATE (rows((blk_cnt+nadd)*2))
+            ALLOCATE (rows((blk_cnt + nadd)*2))
             rows(1:blk_cnt) = tmp(1:blk_cnt)
             tmp(1:blk_cnt) = cols(1:blk_cnt)
             DEALLOCATE (cols)
-            ALLOCATE (cols((blk_cnt+nadd)*2))
+            ALLOCATE (cols((blk_cnt + nadd)*2))
             cols(1:blk_cnt) = tmp(1:blk_cnt)
             DEALLOCATE (tmp)
          ENDIF
          IF (alloc_full) THEN
-            blk_cnt = blk_cnt+1
+            blk_cnt = blk_cnt + 1
             rows(blk_cnt) = iatom
             cols(blk_cnt) = jatom
             IF (iatom /= jatom) THEN
-               blk_cnt = blk_cnt+1
+               blk_cnt = blk_cnt + 1
                rows(blk_cnt) = jatom
                cols(blk_cnt) = iatom
             END IF
          ELSE
-            blk_cnt = blk_cnt+1
+            blk_cnt = blk_cnt + 1
             IF (symmetry == dbcsr_type_no_symmetry) THEN
                rows(blk_cnt) = iatom
                cols(blk_cnt) = jatom
@@ -664,7 +664,7 @@ CONTAINS
          CPASSERT(found)
 
          ! Distance between atoms a and b
-         dab = SQRT(rab(1)**2+rab(2)**2+rab(3)**2)
+         dab = SQRT(rab(1)**2 + rab(2)**2 + rab(3)**2)
 
          ! iterate over pairs of primitive GTOs i,j, get their radii r_i, r_j according
          ! to eps_pgf_orb. Define all matrix elements as non-zero to which a
@@ -678,7 +678,7 @@ CONTAINS
                   DO jshell = 1, nshell_b(jset)
                      gto_loop: DO ipgf = 1, npgf_a(iset)
                         DO jpgf = 1, npgf_b(jset)
-                           IF (rpgfa(ipgf, iset)+rpgfb(jpgf, jset) .GE. dab) THEN
+                           IF (rpgfa(ipgf, iset) + rpgfb(jpgf, jset) .GE. dab) THEN
                               ! more selective screening with radius calculated for each primitive GTO
                               r_a = exp_radius(l_a(ishell, iset), &
                                                zet_a(ipgf, iset), &
@@ -688,23 +688,23 @@ CONTAINS
                                                zet_b(jpgf, jset), &
                                                eps_pgf_orb, &
                                                gcc_b(jpgf, jshell, jset))
-                              IF (r_a+r_b .GE. dab) THEN
+                              IF (r_a + r_b .GE. dab) THEN
                                  IF (irow .EQ. iatom) THEN
-                                    screen_blk(isgf+1:isgf+nso(l_a(ishell, iset)), &
-                                               jsgf+1:jsgf+nso(l_b(jshell, jset))) = 1.0_dp
+                                    screen_blk(isgf + 1:isgf + nso(l_a(ishell, iset)), &
+                                               jsgf + 1:jsgf + nso(l_b(jshell, jset))) = 1.0_dp
                                  ELSE
-                                    screen_blk(jsgf+1:jsgf+nso(l_b(jshell, jset)), &
-                                               isgf+1:isgf+nso(l_a(ishell, iset))) = 1.0_dp
+                                    screen_blk(jsgf + 1:jsgf + nso(l_b(jshell, jset)), &
+                                               isgf + 1:isgf + nso(l_a(ishell, iset))) = 1.0_dp
                                  ENDIF
                                  EXIT gto_loop
                               ENDIF
                            ENDIF
                         ENDDO
                      ENDDO gto_loop
-                     jsgf = jsgf+nso(l_b(jshell, jset))
+                     jsgf = jsgf + nso(l_b(jshell, jset))
                   ENDDO
                ENDDO
-               isgf = isgf+nso(l_a(ishell, iset))
+               isgf = isgf + nso(l_a(ishell, iset))
             ENDDO
          ENDDO
       ENDDO

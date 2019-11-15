@@ -368,7 +368,7 @@ CONTAINS
          c = this%energies(1)
          b = -slope
          x2 = this%scan_step
-         a = (this%energies(2)-b*x2-c)/(x2**2)
+         a = (this%energies(2) - b*x2 - c)/(x2**2)
 
          IF (a < 0.0_dp) THEN
             IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| had to quench curvature"
@@ -376,7 +376,7 @@ CONTAINS
          ENDIF
 
          step_size = -b/(2.0_dp*a)
-         pred_energy = a*step_size**2+b*step_size+c
+         pred_energy = a*step_size**2 + b*step_size + c
 
          IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| 2pnt suggested step_size: ", step_size
          IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| 2pnt predicted energy", pred_energy
@@ -450,13 +450,13 @@ CONTAINS
          IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| 3pnt energies: ", this%energies
 
          ! Cramer's Rule
-         denom = (x1-x2)*(x1-x3)*(x2-x3)
-         a = (x3*(y2-y1)+x2*(y1-y3)+x1*(y3-y2))/denom
-         b = (x3**2*(y1-y2)+x2**2*(y3-y1)+x1**2*(y2-y3))/denom
-         c = (x2*x3*(x2-x3)*y1+x3*x1*(x3-x1)*y2+x1*x2*(x1-x2)*y3)/denom
+         denom = (x1 - x2)*(x1 - x3)*(x2 - x3)
+         a = (x3*(y2 - y1) + x2*(y1 - y3) + x1*(y3 - y2))/denom
+         b = (x3**2*(y1 - y2) + x2**2*(y3 - y1) + x1**2*(y2 - y3))/denom
+         c = (x2*x3*(x2 - x3)*y1 + x3*x1*(x3 - x1)*y2 + x1*x2*(x1 - x2)*y3)/denom
 
          step_size = -b/(2.0_dp*a)
-         pred_energy = a*step_size**2+b*step_size+c
+         pred_energy = a*step_size**2 + b*step_size + c
          IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| 3pnt suggested step_size: ", step_size
          IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| 3pnt predicted energy", pred_energy
 
@@ -511,7 +511,7 @@ CONTAINS
                                                             y1, y2, y3
 
       is_done = .FALSE.
-      this%count = this%count+1
+      this%count = this%count + 1
 
       IF (.NOT. this%have_left) THEN
          this%left_x = 0.0_dp
@@ -568,10 +568,10 @@ CONTAINS
          x1 = this%left_x; x2 = this%middle_x; x3 = this%right_x
 
          ! Cramer's rule
-         denom = (x1-x2)*(x1-x3)*(x2-x3)
-         a = (x3*(y2-y1)+x2*(y1-y3)+x1*(y3-y2))/denom
-         b = (x3**2*(y1-y2)+x2**2*(y3-y1)+x1**2*(y2-y3))/denom
-         c = (x2*x3*(x2-x3)*y1+x3*x1*(x3-x1)*y2+x1*x2*(x1-x2)*y3)/denom
+         denom = (x1 - x2)*(x1 - x3)*(x2 - x3)
+         a = (x3*(y2 - y1) + x2*(y1 - y3) + x1*(y3 - y2))/denom
+         b = (x3**2*(y1 - y2) + x2**2*(y3 - y1) + x1**2*(y2 - y3))/denom
+         c = (x2*x3*(x2 - x3)*y1 + x3*x1*(x3 - x1)*y2 + x1*x2*(x1 - x2)*y3)/denom
 
          IF (ABS(a) /= 0.0_dp) THEN
             step_size = -b/(2.0_dp*a)
@@ -580,7 +580,7 @@ CONTAINS
          ENDIF
 
          CPASSERT(step_size >= 0.0_dp)
-         pred_energy = a*step_size**2+b*step_size+c
+         pred_energy = a*step_size**2 + b*step_size + c
          IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| adapt: suggested step_size: ", step_size
          IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| adapt: predicted energy", pred_energy
 
@@ -621,7 +621,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'linesearch_gold', &
          routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER :: phi = (1.0_dp+SQRT(5.0_dp))/2.0_dp
+      REAL(KIND=dp), PARAMETER :: phi = (1.0_dp + SQRT(5.0_dp))/2.0_dp
 
       REAL(KIND=dp)                                      :: a, b, d
 
@@ -672,8 +672,8 @@ CONTAINS
          ENDIF
 
       ELSE !up and running
-         a = this%middle_x-this%left_x
-         b = this%right_x-this%middle_x
+         a = this%middle_x - this%left_x
+         b = this%right_x - this%middle_x
          IF (energy < this%middle_e) THEN
             IF (a < b) THEN
                this%left_e = this%middle_e
@@ -700,18 +700,18 @@ CONTAINS
       IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| gold: ", this%left_e, this%middle_e, this%right_e
 
       IF (this%have_left .AND. this%have_middle .AND. this%have_right) THEN
-         a = this%middle_x-this%left_x
-         b = this%right_x-this%middle_x
-         IF (ABS(MIN(a, b)*phi-MAX(a, b)) > 1.0E-10) &
+         a = this%middle_x - this%left_x
+         b = this%right_x - this%middle_x
+         IF (ABS(MIN(a, b)*phi - MAX(a, b)) > 1.0E-10) &
             CPABORT("golden-ratio gone")
 
          IF (a < b) THEN
-            step_size = this%middle_x+a/phi
+            step_size = this%middle_x + a/phi
          ELSE
-            step_size = this%middle_x-b/phi
+            step_size = this%middle_x - b/phi
          END IF
 
-         d = ABS(this%right_x-this%left_x)/(ABS(this%middle_x)+ABS(step_size))
+         d = ABS(this%right_x - this%left_x)/(ABS(this%middle_x) + ABS(step_size))
          IF (d < this%eps_step_size) THEN
             step_size = this%middle_x
             this%last_step_size = step_size

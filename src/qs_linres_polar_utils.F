@@ -251,7 +251,7 @@ CONTAINS
                   !SL compute trace
                   ptmp = 0.0_dp
                   CALL cp_fm_trace(psi1_dBerry(i, ispin)%matrix, dBerry_psi0(z, ispin)%matrix, ptmp)
-                  polar_tmp(i, z) = polar_tmp(i, z)-2.0_dp*ptmp
+                  polar_tmp(i, z) = polar_tmp(i, z) - 2.0_dp*ptmp
                END DO
             END DO
          END DO !spin
@@ -462,10 +462,10 @@ CONTAINS
             IF (iounit > 0) THEN
                IF (do_periodic) THEN
                   WRITE (iounit, "(/,T2,A)") &
-                     "POLAR| Response to the perturbation operator Berry phase_"//ACHAR(idir+119)
+                     "POLAR| Response to the perturbation operator Berry phase_"//ACHAR(idir + 119)
                ELSE
                   WRITE (iounit, "(/,T2,A)") &
-                     "POLAR| Response to the perturbation operator R_"//ACHAR(idir+119)
+                     "POLAR| Response to the perturbation operator R_"//ACHAR(idir + 119)
                END IF
             ENDIF
             ! Do scf cycle to optimize psi1

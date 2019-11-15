@@ -114,7 +114,7 @@ CONTAINS
 
       seed(:, :, 1) = initial_seed
       DO ithermo = 2, csvr%glob_num_csvr
-         seed(:, :, ithermo) = next_rng_seed(seed(:, :, ithermo-1))
+         seed(:, :, ithermo) = next_rng_seed(seed(:, :, ithermo - 1))
       END DO
       ! Update initial seed
       initial_seed = next_rng_seed(seed(:, :, csvr%glob_num_csvr))

@@ -84,7 +84,7 @@ CONTAINS
 
       ALLOCATE (gopt_param)
 
-      last_gopt_param_id = last_gopt_param_id+1
+      last_gopt_param_id = last_gopt_param_id + 1
       gopt_param%id_nr = last_gopt_param_id
       gopt_param%ref_count = 1
    END SUBROUTINE gopt_param_create
@@ -176,7 +176,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(gopt_param))
       CPASSERT(gopt_param%ref_count > 0)
-      gopt_param%ref_count = gopt_param%ref_count+1
+      gopt_param%ref_count = gopt_param%ref_count + 1
    END SUBROUTINE gopt_param_retain
 
 ! **************************************************************************************************
@@ -193,7 +193,7 @@ CONTAINS
 
       IF (ASSOCIATED(gopt_param)) THEN
          CPASSERT(gopt_param%ref_count > 0)
-         gopt_param%ref_count = gopt_param%ref_count-1
+         gopt_param%ref_count = gopt_param%ref_count - 1
          IF (gopt_param%ref_count == 0) THEN
             DEALLOCATE (gopt_param)
          END IF

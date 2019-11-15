@@ -117,7 +117,7 @@ CONTAINS
          norm = .FALSE.
       ENDIF
 
-      l_max = la_max+lb_max
+      l_max = la_max + lb_max
 
       IF (PRESENT(potential)) THEN
          exact = .TRUE.
@@ -146,7 +146,7 @@ CONTAINS
       ENDIF
 
       IF (exact) THEN
-         alpha_G = 0.25_dp/zeta+0.25_dp/zetb
+         alpha_G = 0.25_dp/zeta + 0.25_dp/zetb
          ! resolution for Gaussian width
          G_res = 0.5_dp*param%G_min
          R_res = 0.5_dp*param%R_min
@@ -161,7 +161,7 @@ CONTAINS
             CALL eri_mme_2c_get_bounds(hmat, h_inv, vol, is_ortho, param%G_min, param%R_min, la_max, lb_max, &
                                        zeta, zetb, aw(i_aw), param%sum_precision, n_sum_1d, n_sum_3d, &
                                        G_bounds, G_rad, R_bounds, R_rad)
-            alpha_G = aw(i_aw)+0.25_dp/zeta+0.25_dp/zetb
+            alpha_G = aw(i_aw) + 0.25_dp/zeta + 0.25_dp/zetb
             alpha_R = 0.25_dp/alpha_G
             IF (is_ortho) THEN ! orthorhombic cell
 
@@ -176,17 +176,17 @@ CONTAINS
 
                   IF (do_g_sum) THEN
                      CALL pgf_sum_2c_gspace_1d(S_G(:, i_xyz, i_aw), -rab(i_xyz), alpha_G, inv_lgth, G_bounds(i_xyz))
-                     IF (PRESENT(G_count)) G_count = G_count+1
+                     IF (PRESENT(G_count)) G_count = G_count + 1
                   ELSE
                      CALL pgf_sum_2c_rspace_1d(S_G(:, i_xyz, i_aw), -rab(i_xyz), alpha_R, lgth, R_bounds(i_xyz))
-                     IF (PRESENT(R_count)) R_count = R_count+1
+                     IF (PRESENT(R_count)) R_count = R_count + 1
                   ENDIF
 
                   IF (param%debug) THEN
                      ! check consistency of summation methods
                      CALL pgf_sum_2c_gspace_1d(S_G_1, -rab(i_xyz), alpha_G, inv_lgth, G_bounds(i_xyz))
                      CALL pgf_sum_2c_rspace_1d(S_G_2, -rab(i_xyz), alpha_R, lgth, R_bounds(i_xyz))
-                     max_error = MAXVAL(ABS(S_G_1-S_G_2)/(0.5_dp*(ABS(S_G_1)+ABS(S_G_2))+1.0_dp))
+                     max_error = MAXVAL(ABS(S_G_1 - S_G_2)/(0.5_dp*(ABS(S_G_1) + ABS(S_G_2)) + 1.0_dp))
 
                      CPASSERT(max_error .LE. param%debug_delta)
                   ENDIF
@@ -198,12 +198,12 @@ CONTAINS
 
                IF (do_g_sum) THEN
                   CALL pgf_sum_2c_gspace_3d(S_G_no_H, l_max, -rab, alpha_G, h_inv, G_bounds, G_rad, vol)
-                  IF (PRESENT(G_count)) G_count = G_count+1
+                  IF (PRESENT(G_count)) G_count = G_count + 1
                ELSE
                   CALL pgf_sum_2c_rspace_3d(S_G_no_H, l_max, -rab, alpha_R, hmat, h_inv, R_bounds, R_rad)
-                  IF (PRESENT(R_count)) R_count = R_count+1
+                  IF (PRESENT(R_count)) R_count = R_count + 1
                ENDIF
-               S_G_no(:) = S_G_no(:)+aw(n_aw+i_aw)*S_G_no_H
+               S_G_no(:) = S_G_no(:) + aw(n_aw + i_aw)*S_G_no_H
             ENDIF
          ENDDO
       ENDIF
@@ -212,10 +212,10 @@ CONTAINS
       prefac = SQRT(1.0_dp/(zeta*zetb))
 
       ! 2) Assemble integral values from Ewald sums
-      DO jco = ncoset(lb_min-1)+1, ncoset(lb_max)
+      DO jco = ncoset(lb_min - 1) + 1, ncoset(lb_max)
          CALL get_l(jco, lb, bx, by, bz)
          lb_xyz = [bx, by, bz]
-         DO ico = ncoset(la_min-1)+1, ncoset(la_max)
+         DO ico = ncoset(la_min - 1) + 1, ncoset(la_max)
             CALL get_l(ico, la, ax, ay, az)
             la_xyz = [ax, ay, az]
             IF (is_ortho) THEN
@@ -223,24 +223,24 @@ CONTAINS
                DO i_aw = 1, n_aw
                   Ixyz = 1.0_dp
                   DO i_xyz = 1, 3
-                     Ixyz = Ixyz*S_G(la_xyz(i_xyz)+lb_xyz(i_xyz), i_xyz, i_aw)*prefac
+                     Ixyz = Ixyz*S_G(la_xyz(i_xyz) + lb_xyz(i_xyz), i_xyz, i_aw)*prefac
                   ENDDO
-                  Imm = Imm+aw(n_aw+i_aw)*Ixyz
+                  Imm = Imm + aw(n_aw + i_aw)*Ixyz
                ENDDO
             ELSE
-               Imm = S_G_no(coset(ax+bx, ay+by, az+bz))*prefac**3
+               Imm = S_G_no(coset(ax + bx, ay + by, az + bz))*prefac**3
             ENDIF
-            IF (la+lb .EQ. 0 .AND. .NOT. exact) THEN
-               Imm = Imm-SUM(aw(n_aw+1:2*n_aw))*prefac**3/vol ! subtracting G = 0 term
+            IF (la + lb .EQ. 0 .AND. .NOT. exact) THEN
+               Imm = Imm - SUM(aw(n_aw + 1:2*n_aw))*prefac**3/vol ! subtracting G = 0 term
             ENDIF
             IF (.NOT. norm) THEN
                ! rescaling needed due to Hermite Gaussians (such that they can be contracted same way as Cartesian Gaussians)
                ! and factor of 4 pi**4 (-1)**lb
-               hab(o1+ico, o2+jco) = Imm*4.0_dp*pi**4/((2.0_dp*zeta)**la*(-2.0_dp*zetb)**lb)
+               hab(o1 + ico, o2 + jco) = Imm*4.0_dp*pi**4/((2.0_dp*zeta)**la*(-2.0_dp*zetb)**lb)
             ELSE
                ! same thing for normalized Hermite Gaussians
-               hab(o1+ico, o2+jco) = Imm*4.0_dp*pi**4*(-1.0_dp)**lb*hermite_gauss_norm(zeta, la_xyz)* &
-                                     hermite_gauss_norm(zetb, lb_xyz)
+               hab(o1 + ico, o2 + jco) = Imm*4.0_dp*pi**4*(-1.0_dp)**lb*hermite_gauss_norm(zeta, la_xyz)* &
+                                         hermite_gauss_norm(zetb, lb_xyz)
             ENDIF
          ENDDO ! la
       ENDDO ! lb
@@ -350,7 +350,7 @@ CONTAINS
       CALL eri_mme_3c_get_rads(la_max, lb_max, lc_max, zeta, zetb, zetc, 0.0_dp, param%G_min, param%R_min, &
                                param%sum_precision, G_rads_1=G_rads_1)
 
-      cutoff = (MIN(G_rads_1(1), G_rads_1(2)+G_rads_1(3)))**2/2
+      cutoff = (MIN(G_rads_1(1), G_rads_1(2) + G_rads_1(3)))**2/2
 
       CALL get_minimax_from_cutoff(param%minimax_grid, cutoff, n_aw, aw, grid)
 
@@ -376,18 +376,18 @@ CONTAINS
 
       ! G= 0 components
       IF (lc_min == 0) THEN
-         ALLOCATE (S_G_0(0:la_max+lb_max, 3))
+         ALLOCATE (S_G_0(0:la_max + lb_max, 3))
 
-         alpha_R_0 = zeta*zetb/(zeta+zetb)
-         lmax_0 = la_max+lb_max
+         alpha_R_0 = zeta*zetb/(zeta + zetb)
+         lmax_0 = la_max + lb_max
          R_rad_0 = exp_radius(lmax_0, alpha_R_0, param%sum_precision, 1.0_dp, epsin=R_res)
 
          lgth = ABS(hmat(1, 1))
-         CALL pgf_sum_2c_rspace_1d(S_G_0(:, 1), RB(1)-RA(1), alpha_R_0, lgth, R_rad_0/lgth)
+         CALL pgf_sum_2c_rspace_1d(S_G_0(:, 1), RB(1) - RA(1), alpha_R_0, lgth, R_rad_0/lgth)
          lgth = ABS(hmat(2, 2))
-         CALL pgf_sum_2c_rspace_1d(S_G_0(:, 2), RB(2)-RA(2), alpha_R_0, lgth, R_rad_0/lgth)
+         CALL pgf_sum_2c_rspace_1d(S_G_0(:, 2), RB(2) - RA(2), alpha_R_0, lgth, R_rad_0/lgth)
          lgth = ABS(hmat(3, 3))
-         CALL pgf_sum_2c_rspace_1d(S_G_0(:, 3), RB(3)-RA(3), alpha_R_0, lgth, R_rad_0/lgth)
+         CALL pgf_sum_2c_rspace_1d(S_G_0(:, 3), RB(3) - RA(3), alpha_R_0, lgth, R_rad_0/lgth)
       ENDIF
 
       DO i_aw = 1, n_aw
@@ -406,7 +406,7 @@ CONTAINS
                             zeta, zetb, zetc, aw(i_aw), ABS(hmat(3, 3)), &
                             R_bounds_3(:, 3))
 
-         IF (PRESENT(RR_count)) RR_count = RR_count+3
+         IF (PRESENT(RR_count)) RR_count = RR_count + 3
       ENDDO
 
       CALL eri_mme_3c_collect_ortho(vol, la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
@@ -479,7 +479,7 @@ CONTAINS
       CALL eri_mme_3c_get_rads(la_max, lb_max, lc_max, zeta, zetb, zetc, 0.0_dp, param%G_min, param%R_min, &
                                param%sum_precision, G_rads_1=G_rads_1)
 
-      cutoff = (MIN(G_rads_1(1), G_rads_1(2)+G_rads_1(3)))**2/2
+      cutoff = (MIN(G_rads_1(1), G_rads_1(2) + G_rads_1(3)))**2/2
 
       CALL get_minimax_from_cutoff(param%minimax_grid, cutoff, n_aw, aw, grid)
 
@@ -519,16 +519,16 @@ CONTAINS
 
       ! G= 0 components
       IF (lc_min == 0) THEN
-         ALLOCATE (S_G_0_no(ncoset(la_max+lb_max)))
-         alpha_G_0 = 0.25_dp/zetb+0.25_dp/zeta
+         ALLOCATE (S_G_0_no(ncoset(la_max + lb_max)))
+         alpha_G_0 = 0.25_dp/zetb + 0.25_dp/zeta
          alpha_R_0 = 0.25_dp/alpha_G_0
-         lmax_0 = la_max+lb_max
-         R_0 = RB-RA
+         lmax_0 = la_max + lb_max
+         R_0 = RB - RA
          G_rad_0 = exp_radius(lmax_0, alpha_G_0, param%sum_precision, 1.0_dp, epsin=G_res)
          R_rad_0 = exp_radius(lmax_0, alpha_R_0, param%sum_precision, 1.0_dp, epsin=R_res)
          G_bound_0 = ellipsoid_bounds(G_rad_0, TRANSPOSE(hmat)/(2.0_dp*pi))
          R_bound_0 = ellipsoid_bounds(R_rad_0, h_inv)
-         do_g_sum_0 = PRODUCT(2*R_bound_0+1) .GT. PRODUCT(2*G_bound_0+1)
+         do_g_sum_0 = PRODUCT(2*R_bound_0 + 1) .GT. PRODUCT(2*G_bound_0 + 1)
          IF (do_g_sum_0) THEN
             CALL pgf_sum_2c_gspace_3d(S_G_0_no, lmax_0, R_0, alpha_G_0, h_inv, G_bound_0, G_rad_0, vol)
          ELSE
@@ -547,15 +547,15 @@ CONTAINS
                             G_bounds_1, R_bounds_2, R_bounds_3, &
                             G_rads_1, R_rads_2, R_rads_3, &
                             method=sum_method, method_out=method)
-         S_G_no(:, :, :) = S_G_no(:, :, :)+aw(n_aw+i_aw)*S_G_no_H(:, :, :)
+         S_G_no(:, :, :) = S_G_no(:, :, :) + aw(n_aw + i_aw)*S_G_no_H(:, :, :)
 
          SELECT CASE (method)
          CASE (1)
-            IF (PRESENT(GG_count)) GG_count = GG_count+1
+            IF (PRESENT(GG_count)) GG_count = GG_count + 1
          CASE (2)
-            IF (PRESENT(GR_count)) GR_count = GR_count+1
+            IF (PRESENT(GR_count)) GR_count = GR_count + 1
          CASE (3)
-            IF (PRESENT(RR_count)) RR_count = RR_count+1
+            IF (PRESENT(RR_count)) RR_count = RR_count + 1
          CASE DEFAULT
             CPABORT("")
          END SELECT
@@ -583,7 +583,7 @@ CONTAINS
                                   G_bounds_1, R_bounds_2, R_bounds_3, &
                                   G_rads_1, R_rads_2, R_rads_3, &
                                   method=1)
-               nresults = nresults+1
+               nresults = nresults + 1
             ENDIF
 
             IF (db_sum2) THEN
@@ -592,7 +592,7 @@ CONTAINS
                                   G_bounds_1, R_bounds_2, R_bounds_3, &
                                   G_rads_1, R_rads_2, R_rads_3, &
                                   method=2)
-               nresults = nresults+1
+               nresults = nresults + 1
             ENDIF
 
             IF (db_sum3) THEN
@@ -601,40 +601,40 @@ CONTAINS
                                   G_bounds_1, R_bounds_2, R_bounds_3, &
                                   G_rads_1, R_rads_2, R_rads_3, &
                                   method=3)
-               nresults = nresults+1
+               nresults = nresults + 1
             ENDIF
 
             max_error = 0.0_dp
             ALLOCATE (results_no(nresults))
 
-            DO kco = ncoset(lc_min-1)+1, ncoset(lc_max)
+            DO kco = ncoset(lc_min - 1) + 1, ncoset(lc_max)
                CALL get_l(kco, lc, cx, cy, cz)
-               DO jco = ncoset(lb_min-1)+1, ncoset(lb_max)
+               DO jco = ncoset(lb_min - 1) + 1, ncoset(lb_max)
                   CALL get_l(jco, lb, bx, by, bz)
-                  DO ico = ncoset(la_min-1)+1, ncoset(la_max)
+                  DO ico = ncoset(la_min - 1) + 1, ncoset(la_max)
                      CALL get_l(ico, la, ax, ay, az)
 
                      max_error = 0.0_dp
                      ir = 0
                      IF (db_sum1) THEN
-                        ir = ir+1
+                        ir = ir + 1
                         results_no(ir) = S_G_no_1(ico, jco, kco)
                      ENDIF
 
                      IF (db_sum2) THEN
-                        ir = ir+1
+                        ir = ir + 1
                         results_no(ir) = S_G_no_2(ico, jco, kco)
                      ENDIF
 
                      IF (db_sum3) THEN
-                        ir = ir+1
+                        ir = ir + 1
                         results_no(ir) = S_G_no_3(ico, jco, kco)
                      ENDIF
 
                      max_result = MAXVAL(results_no)
                      min_result = MINVAL(results_no)
                      IF (nresults > 0) max_error = MAX(max_error, &
-                                                       (max_result-min_result)/(0.5_dp*(ABS(max_result)+ABS(min_result))+1.0_dp))
+                                                    (max_result - min_result)/(0.5_dp*(ABS(max_result) + ABS(min_result)) + 1.0_dp))
                   ENDDO
                ENDDO
             ENDDO
@@ -703,37 +703,37 @@ CONTAINS
 
       resc_c = resc_c_init
       lc_prev = lc_min
-      DO kco = ncoset(lc_min-1)+1, ncoset(lc_max)
+      DO kco = ncoset(lc_min - 1) + 1, ncoset(lc_max)
          CALL get_l(kco, lc, cx, cy, cz)
          IF (lc_prev < lc) resc_c = resc_c*(2.0_dp*zetc)
 
          resc_b = resc_b_init
          lb_prev = lb_min
-         DO jco = ncoset(lb_min-1)+1, ncoset(lb_max)
+         DO jco = ncoset(lb_min - 1) + 1, ncoset(lb_max)
             CALL get_l(jco, lb, bx, by, bz)
             mone_lb = (-1.0_dp)**lb
             IF (lb_prev < lb) resc_b = resc_b*(2.0_dp*zetb)
 
             resc_a = resc_a_init
             la_prev = la_min
-            DO ico = ncoset(la_min-1)+1, ncoset(la_max)
+            DO ico = ncoset(la_min - 1) + 1, ncoset(la_max)
                CALL get_l(ico, la, ax, ay, az)
 
                IF (la_prev < la) resc_a = resc_a*(2.0_dp*zeta)
                Ixyz_0 = 0.0_dp
                IF (lc == 0) THEN
-                  Ixyz_0 = S_G_0(ax+bx, 1)* &
-                           S_G_0(ay+by, 2)* &
-                           S_G_0(az+bz, 3) &
+                  Ixyz_0 = S_G_0(ax + bx, 1)* &
+                           S_G_0(ay + by, 2)* &
+                           S_G_0(az + bz, 3) &
                            /vol*mone_lb
                ENDIF
-               Imm = SUM(aw(n_aw+1:2*n_aw)*( &
+               Imm = SUM(aw(n_aw + 1:2*n_aw)*( &
                          S_G(1:n_aw, 1, ax, bx, cx)* &
                          S_G(1:n_aw, 2, ay, by, cy)* &
-                         S_G(1:n_aw, 3, az, bz, cz))-Ixyz_0)
+                         S_G(1:n_aw, 3, az, bz, cz)) - Ixyz_0)
 
                ! rescaling needed due to Hermite Gaussians
-               habc(o1+ico, o2+jco, o3+kco) = Imm*prefac/(resc_a*resc_b*resc_c)
+               habc(o1 + ico, o2 + jco, o3 + kco) = Imm*prefac/(resc_a*resc_b*resc_c)
                la_prev = la
             ENDDO ! la
             lb_prev = lb
@@ -794,32 +794,32 @@ CONTAINS
 
       resc_c = resc_c_init
       lc_prev = lc_min
-      DO kco = ncoset(lc_min-1)+1, ncoset(lc_max)
+      DO kco = ncoset(lc_min - 1) + 1, ncoset(lc_max)
          CALL get_l(kco, lc, cx, cy, cz)
          IF (lc_prev < lc) resc_c = resc_c*(2.0_dp*zetc)
 
          resc_b = resc_b_init
          lb_prev = lb_min
-         DO jco = ncoset(lb_min-1)+1, ncoset(lb_max)
+         DO jco = ncoset(lb_min - 1) + 1, ncoset(lb_max)
             CALL get_l(jco, lb, bx, by, bz)
             mone_lb = (-1.0_dp)**lb
             IF (lb_prev < lb) resc_b = resc_b*(2.0_dp*zetb)
 
             resc_a = resc_a_init
             la_prev = la_min
-            DO ico = ncoset(la_min-1)+1, ncoset(la_max)
+            DO ico = ncoset(la_min - 1) + 1, ncoset(la_max)
                CALL get_l(ico, la, ax, ay, az)
 
                IF (la_prev < la) resc_a = resc_a*(2.0_dp*zeta)
                IF (lc .GT. 0) THEN
                   Imm = S_G(ico, jco, kco)
                ELSE
-                  ijco = coset(ax+bx, ay+by, az+bz)
-                  Imm = S_G(ico, jco, kco)-SUM(aw(n_aw+1:2*n_aw))*S_G_0(ijco)/vol*mone_lb
+                  ijco = coset(ax + bx, ay + by, az + bz)
+                  Imm = S_G(ico, jco, kco) - SUM(aw(n_aw + 1:2*n_aw))*S_G_0(ijco)/vol*mone_lb
                ENDIF
 
                ! rescaling needed due to Hermite Gaussians
-               habc(o1+ico, o2+jco, o3+kco) = Imm*prefac/(resc_a*resc_b*resc_c)
+               habc(o1 + ico, o2 + jco, o3 + kco) = Imm*prefac/(resc_a*resc_b*resc_c)
                la_prev = la
             ENDDO ! la
             lb_prev = lb

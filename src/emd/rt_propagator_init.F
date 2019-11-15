@@ -431,8 +431,8 @@ CONTAINS
       CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
 
       DO ispin = 1, SIZE(mos)
-         re = 2*ispin-1
-         alpha = 3.0_dp-REAL(SIZE(mos), dp)
+         re = 2*ispin - 1
+         alpha = 3.0_dp - REAL(SIZE(mos), dp)
          CALL dbcsr_set(rho_old(re)%matrix, 0.0_dp)
          CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, ncol_global=ncol)
          CALL cp_fm_column_scale(mos(ispin)%mo_set%mo_coeff, mos(ispin)%mo_set%occupation_numbers/alpha)

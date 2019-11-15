@@ -68,7 +68,7 @@ CONTAINS
       f_C = ter_f_C(tersoff, drij)
       f_A = ter_f_A(tersoff, drij)
       f_R = ter_f_R(tersoff, drij)
-      pot_loc = f_C*(f_R+b_ij*f_A)
+      pot_loc = f_C*(f_R + b_ij*f_A)
 
    END SUBROUTINE tersoff_energy
 
@@ -90,13 +90,13 @@ CONTAINS
 
       bigR = tersoff%bigR
       bigD = tersoff%bigD
-      RmD = tersoff%bigR-tersoff%bigD
-      RpD = tersoff%bigR+tersoff%bigD
+      RmD = tersoff%bigR - tersoff%bigD
+      RpD = tersoff%bigR + tersoff%bigD
       ter_f_C = 0.0_dp
       IF (r < RmD) ter_f_C = 1.0_dp
       IF (r > RpD) ter_f_C = 0.0_dp
       IF ((r < RpD) .AND. (r > RmD)) THEN
-         ter_f_C = 0.5_dp*(1.0_dp-SIN(0.5_dp*PI*(r-bigR)/(bigD)))
+         ter_f_C = 0.5_dp*(1.0_dp - SIN(0.5_dp*PI*(r - bigR)/(bigD)))
       END IF
    END FUNCTION ter_f_C
 
@@ -118,13 +118,13 @@ CONTAINS
 
       bigR = tersoff%bigR
       bigD = tersoff%bigD
-      RmD = tersoff%bigR-tersoff%bigD
-      RpD = tersoff%bigR+tersoff%bigD
+      RmD = tersoff%bigR - tersoff%bigD
+      RpD = tersoff%bigR + tersoff%bigD
       ter_f_C_d = 0.0_dp
       IF (r < RmD) ter_f_C_d = 0.0_dp
       IF (r > RpD) ter_f_C_d = 0.0_dp
       IF ((r < RpD) .AND. (r > RmD)) THEN
-         ter_f_C_d = (0.25_dp*PI/bigD)*COS(0.5_dp*PI*(r-bigR)/(bigD))/r
+         ter_f_C_d = (0.25_dp*PI/bigD)*COS(0.5_dp*PI*(r - bigR)/(bigD))/r
       END IF
 
    END FUNCTION ter_f_C_d
@@ -279,7 +279,7 @@ CONTAINS
       ter_b_ij = 0.0_dp
       zeta_ij = ter_zeta_ij(tersoff, r_last_update_pbc, iparticle, jparticle, &
                             n_loc_size, full_loc_list, loc_cell_v, cell_v, rcutsq)
-      ter_b_ij = (1.0_dp+(beta*zeta_ij)**n)**(-0.5_dp/n)
+      ter_b_ij = (1.0_dp + (beta*zeta_ij)**n)**(-0.5_dp/n)
 
    END FUNCTION ter_b_ij
 
@@ -319,12 +319,12 @@ CONTAINS
       zeta_ij = ter_zeta_ij(tersoff, r_last_update_pbc, iparticle, jparticle, n_loc_size, &
                             full_loc_list, loc_cell_v, cell_v, rcutsq)
       zeta_ij_nm1 = 0.0_dp
-      IF (zeta_ij > 0.0_dp) zeta_ij_nm1 = zeta_ij**(n-1.0_dp)
+      IF (zeta_ij > 0.0_dp) zeta_ij_nm1 = zeta_ij**(n - 1.0_dp)
       zeta_ij_n = zeta_ij**(n)
 
       ter_b_ij_d = 0.0_dp
       ter_b_ij_d = -0.5_dp*beta_n*zeta_ij_nm1* &
-                   ((1.0_dp+beta_n*zeta_ij_n)**((-0.5_dp/n)-1.0_dp))
+                   ((1.0_dp + beta_n*zeta_ij_n)**((-0.5_dp/n) - 1.0_dp))
 
    END FUNCTION ter_b_ij_d
 
@@ -366,14 +366,14 @@ CONTAINS
       n = tersoff%n
       lambda3 = tersoff%lambda3
       rab2_max = rcutsq
-      rij(:) = r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v
+      rij(:) = r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v
       drij = SQRT(DOT_PRODUCT(rij, rij))
       ter_zeta_ij = 0.0_dp
       DO ilist = 1, n_loc_size
          kparticle = full_loc_list(2, ilist)
          IF (kparticle == jparticle) CYCLE
          cell_v_2 = loc_cell_v(:, ilist)
-         rik(:) = r_last_update_pbc(kparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v_2
+         rik(:) = r_last_update_pbc(kparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v_2
          drik = DOT_PRODUCT(rik, rik)
          IF (drik > rab2_max) CYCLE
          drik = SQRT(drik)
@@ -382,8 +382,8 @@ CONTAINS
          IF (costheta > +1.0_dp) costheta = +1.0_dp
          f_C = ter_f_C(tersoff, drik)
          gterm = ter_g(tersoff, costheta)
-         expterm = EXP((lambda3*(drij-drik))**3)
-         ter_zeta_ij = ter_zeta_ij+f_C*gterm*expterm
+         expterm = EXP((lambda3*(drij - drik))**3)
+         ter_zeta_ij = ter_zeta_ij + f_C*gterm*expterm
       END DO
 
    END FUNCTION ter_zeta_ij
@@ -435,7 +435,7 @@ CONTAINS
       lambda3 = tersoff%lambda3
       rab2_max = rcutsq
 
-      rij(:) = r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v
+      rij(:) = r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v
       drij = SQRT(DOT_PRODUCT(rij, rij))
       rij_hat(:) = rij(:)/drij
 
@@ -444,7 +444,7 @@ CONTAINS
          kparticle = full_loc_list(2, ilist)
          IF (kparticle == jparticle) CYCLE
          cell_v_2 = loc_cell_v(:, ilist)
-         rik(:) = r_last_update_pbc(kparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v_2
+         rik(:) = r_last_update_pbc(kparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v_2
          drik = DOT_PRODUCT(rik, rik)
 
          IF (drik > rab2_max) CYCLE
@@ -454,53 +454,53 @@ CONTAINS
          IF (costheta < -1.0_dp) costheta = -1.0_dp
          IF (costheta > +1.0_dp) costheta = +1.0_dp
 
-         dcosdrj(:) = (1.0_dp/(drij))*(rik_hat(:)-costheta*rij_hat(:))
-         dcosdrk(:) = (1.0_dp/(drik))*(rij_hat(:)-costheta*rik_hat(:))
-         dcosdri(:) = -(dcosdrj(:)+dcosdrk(:))
+         dcosdrj(:) = (1.0_dp/(drij))*(rik_hat(:) - costheta*rij_hat(:))
+         dcosdrk(:) = (1.0_dp/(drik))*(rij_hat(:) - costheta*rik_hat(:))
+         dcosdri(:) = -(dcosdrj(:) + dcosdrk(:))
 
          f_C = ter_f_C(tersoff, drik)
          f_C_d = ter_f_C_d(tersoff, drik)
          gterm = ter_g(tersoff, costheta)
          gterm_d = ter_g_d(tersoff, costheta) !still need d(costheta)/dR term
-         expterm = EXP((lambda3*(drij-drik))**3)
-         expterm_d = (3.0_dp)*(lambda3**3)*((drij-drik)**2)*expterm
+         expterm = EXP((lambda3*(drij - drik))**3)
+         expterm_d = (3.0_dp)*(lambda3**3)*((drij - drik)**2)*expterm
 
          dri = f_C_d*gterm*expterm*(rik) &
-               +f_C*gterm_d*expterm*(dcosdri) &
-               +f_C*gterm*expterm_d*(-rij_hat+rik_hat)
+               + f_C*gterm_d*expterm*(dcosdri) &
+               + f_C*gterm*expterm_d*(-rij_hat + rik_hat)
 
          !No f_C_d component for Rj
          drj = f_C*gterm_d*expterm*(dcosdrj) &
-               +f_C*gterm*expterm_d*(rij_hat)
+               + f_C*gterm*expterm_d*(rij_hat)
 
          drk = f_C_d*gterm*expterm*(-rik) &
-               +f_C*gterm_d*expterm*(dcosdrk) &
-               +f_C*gterm*expterm_d*(-rik_hat)
+               + f_C*gterm_d*expterm*(dcosdrk) &
+               + f_C*gterm*expterm_d*(-rik_hat)
 
-         f_nonbond(1, iparticle) = f_nonbond(1, iparticle)+prefactor*dri(1)
-         f_nonbond(2, iparticle) = f_nonbond(2, iparticle)+prefactor*dri(2)
-         f_nonbond(3, iparticle) = f_nonbond(3, iparticle)+prefactor*dri(3)
+         f_nonbond(1, iparticle) = f_nonbond(1, iparticle) + prefactor*dri(1)
+         f_nonbond(2, iparticle) = f_nonbond(2, iparticle) + prefactor*dri(2)
+         f_nonbond(3, iparticle) = f_nonbond(3, iparticle) + prefactor*dri(3)
 
-         f_nonbond(1, jparticle) = f_nonbond(1, jparticle)+prefactor*drj(1)
-         f_nonbond(2, jparticle) = f_nonbond(2, jparticle)+prefactor*drj(2)
-         f_nonbond(3, jparticle) = f_nonbond(3, jparticle)+prefactor*drj(3)
+         f_nonbond(1, jparticle) = f_nonbond(1, jparticle) + prefactor*drj(1)
+         f_nonbond(2, jparticle) = f_nonbond(2, jparticle) + prefactor*drj(2)
+         f_nonbond(3, jparticle) = f_nonbond(3, jparticle) + prefactor*drj(3)
 
-         f_nonbond(1, kparticle) = f_nonbond(1, kparticle)+prefactor*drk(1)
-         f_nonbond(2, kparticle) = f_nonbond(2, kparticle)+prefactor*drk(2)
-         f_nonbond(3, kparticle) = f_nonbond(3, kparticle)+prefactor*drk(3)
+         f_nonbond(1, kparticle) = f_nonbond(1, kparticle) + prefactor*drk(1)
+         f_nonbond(2, kparticle) = f_nonbond(2, kparticle) + prefactor*drk(2)
+         f_nonbond(3, kparticle) = f_nonbond(3, kparticle) + prefactor*drk(3)
 
          IF (use_virial) THEN
-            pv_nonbond(1, 1) = pv_nonbond(1, 1)+prefactor*(rij(1)*drj(1)+rik(1)*drk(1))
-            pv_nonbond(1, 2) = pv_nonbond(1, 2)+prefactor*(rij(1)*drj(2)+rik(1)*drk(2))
-            pv_nonbond(1, 3) = pv_nonbond(1, 3)+prefactor*(rij(1)*drj(3)+rik(1)*drk(3))
+            pv_nonbond(1, 1) = pv_nonbond(1, 1) + prefactor*(rij(1)*drj(1) + rik(1)*drk(1))
+            pv_nonbond(1, 2) = pv_nonbond(1, 2) + prefactor*(rij(1)*drj(2) + rik(1)*drk(2))
+            pv_nonbond(1, 3) = pv_nonbond(1, 3) + prefactor*(rij(1)*drj(3) + rik(1)*drk(3))
 
-            pv_nonbond(2, 1) = pv_nonbond(2, 1)+prefactor*(rij(2)*drj(1)+rik(2)*drk(1))
-            pv_nonbond(2, 2) = pv_nonbond(2, 2)+prefactor*(rij(2)*drj(2)+rik(2)*drk(2))
-            pv_nonbond(2, 3) = pv_nonbond(2, 3)+prefactor*(rij(2)*drj(3)+rik(2)*drk(3))
+            pv_nonbond(2, 1) = pv_nonbond(2, 1) + prefactor*(rij(2)*drj(1) + rik(2)*drk(1))
+            pv_nonbond(2, 2) = pv_nonbond(2, 2) + prefactor*(rij(2)*drj(2) + rik(2)*drk(2))
+            pv_nonbond(2, 3) = pv_nonbond(2, 3) + prefactor*(rij(2)*drj(3) + rik(2)*drk(3))
 
-            pv_nonbond(3, 1) = pv_nonbond(3, 1)+prefactor*(rij(3)*drj(1)+rik(3)*drk(1))
-            pv_nonbond(3, 2) = pv_nonbond(3, 2)+prefactor*(rij(3)*drj(2)+rik(3)*drk(2))
-            pv_nonbond(3, 3) = pv_nonbond(3, 3)+prefactor*(rij(3)*drj(3)+rik(3)*drk(3))
+            pv_nonbond(3, 1) = pv_nonbond(3, 1) + prefactor*(rij(3)*drj(1) + rik(3)*drk(1))
+            pv_nonbond(3, 2) = pv_nonbond(3, 2) + prefactor*(rij(3)*drj(2) + rik(3)*drk(2))
+            pv_nonbond(3, 3) = pv_nonbond(3, 3) + prefactor*(rij(3)*drj(3) + rik(3)*drk(3))
          END IF
       END DO
    END SUBROUTINE ter_zeta_ij_d
@@ -527,7 +527,7 @@ CONTAINS
       c2 = c*c
       d2 = d*d
       ter_g = 0.0_dp
-      ter_g = 1.0_dp+(c2/d2)-(c2)/(d2+(h-costheta)**2)
+      ter_g = 1.0_dp + (c2/d2) - (c2)/(d2 + (h - costheta)**2)
 
    END FUNCTION ter_g
 
@@ -552,13 +552,13 @@ CONTAINS
       h = tersoff%h
       c2 = c*c
       d2 = d*d
-      hc = h-costheta
+      hc = h - costheta
 
-      sintheta = SQRT(1.0-costheta**2)
+      sintheta = SQRT(1.0 - costheta**2)
 
       ter_g_d = 0.0_dp
       ! Still need d(costheta)/dR
-      ter_g_d = (-2.0_dp*c2*hc)/(d2+hc**2)**2
+      ter_g_d = (-2.0_dp*c2*hc)/(d2 + hc**2)**2
    END FUNCTION ter_g_d
 
 ! **************************************************************************************************
@@ -602,7 +602,7 @@ CONTAINS
                                                             rij_hat(3)
 
       CALL timeset(routineN, handle)
-      rij(:) = r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v
+      rij(:) = r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v
       drij = SQRT(DOT_PRODUCT(rij, rij))
       rij_hat(:) = rij(:)/drij
 
@@ -619,85 +619,85 @@ CONTAINS
       ! Lets do the easy one first, the repulsive term
       ! Note a_ij = 1.0_dp so just going to ignore it...
       f_R1 = f_C_d*f_R*fac
-      f_nonbond(1, iparticle) = f_nonbond(1, iparticle)+f_R1*rij(1)
-      f_nonbond(2, iparticle) = f_nonbond(2, iparticle)+f_R1*rij(2)
-      f_nonbond(3, iparticle) = f_nonbond(3, iparticle)+f_R1*rij(3)
-      f_nonbond(1, jparticle) = f_nonbond(1, jparticle)-f_R1*rij(1)
-      f_nonbond(2, jparticle) = f_nonbond(2, jparticle)-f_R1*rij(2)
-      f_nonbond(3, jparticle) = f_nonbond(3, jparticle)-f_R1*rij(3)
+      f_nonbond(1, iparticle) = f_nonbond(1, iparticle) + f_R1*rij(1)
+      f_nonbond(2, iparticle) = f_nonbond(2, iparticle) + f_R1*rij(2)
+      f_nonbond(3, iparticle) = f_nonbond(3, iparticle) + f_R1*rij(3)
+      f_nonbond(1, jparticle) = f_nonbond(1, jparticle) - f_R1*rij(1)
+      f_nonbond(2, jparticle) = f_nonbond(2, jparticle) - f_R1*rij(2)
+      f_nonbond(3, jparticle) = f_nonbond(3, jparticle) - f_R1*rij(3)
 
       IF (use_virial) THEN
-         pv_nonbond(1, 1) = pv_nonbond(1, 1)-f_R1*rij(1)*rij(1)
-         pv_nonbond(1, 2) = pv_nonbond(1, 2)-f_R1*rij(1)*rij(2)
-         pv_nonbond(1, 3) = pv_nonbond(1, 3)-f_R1*rij(1)*rij(3)
-         pv_nonbond(2, 1) = pv_nonbond(2, 1)-f_R1*rij(2)*rij(1)
-         pv_nonbond(2, 2) = pv_nonbond(2, 2)-f_R1*rij(2)*rij(2)
-         pv_nonbond(2, 3) = pv_nonbond(2, 3)-f_R1*rij(2)*rij(3)
-         pv_nonbond(3, 1) = pv_nonbond(3, 1)-f_R1*rij(3)*rij(1)
-         pv_nonbond(3, 2) = pv_nonbond(3, 2)-f_R1*rij(3)*rij(2)
-         pv_nonbond(3, 3) = pv_nonbond(3, 3)-f_R1*rij(3)*rij(3)
+         pv_nonbond(1, 1) = pv_nonbond(1, 1) - f_R1*rij(1)*rij(1)
+         pv_nonbond(1, 2) = pv_nonbond(1, 2) - f_R1*rij(1)*rij(2)
+         pv_nonbond(1, 3) = pv_nonbond(1, 3) - f_R1*rij(1)*rij(3)
+         pv_nonbond(2, 1) = pv_nonbond(2, 1) - f_R1*rij(2)*rij(1)
+         pv_nonbond(2, 2) = pv_nonbond(2, 2) - f_R1*rij(2)*rij(2)
+         pv_nonbond(2, 3) = pv_nonbond(2, 3) - f_R1*rij(2)*rij(3)
+         pv_nonbond(3, 1) = pv_nonbond(3, 1) - f_R1*rij(3)*rij(1)
+         pv_nonbond(3, 2) = pv_nonbond(3, 2) - f_R1*rij(3)*rij(2)
+         pv_nonbond(3, 3) = pv_nonbond(3, 3) - f_R1*rij(3)*rij(3)
       END IF
 
       f_R2 = f_C*f_R_d*fac
-      f_nonbond(1, iparticle) = f_nonbond(1, iparticle)+f_R2*rij(1)
-      f_nonbond(2, iparticle) = f_nonbond(2, iparticle)+f_R2*rij(2)
-      f_nonbond(3, iparticle) = f_nonbond(3, iparticle)+f_R2*rij(3)
-      f_nonbond(1, jparticle) = f_nonbond(1, jparticle)-f_R2*rij(1)
-      f_nonbond(2, jparticle) = f_nonbond(2, jparticle)-f_R2*rij(2)
-      f_nonbond(3, jparticle) = f_nonbond(3, jparticle)-f_R2*rij(3)
+      f_nonbond(1, iparticle) = f_nonbond(1, iparticle) + f_R2*rij(1)
+      f_nonbond(2, iparticle) = f_nonbond(2, iparticle) + f_R2*rij(2)
+      f_nonbond(3, iparticle) = f_nonbond(3, iparticle) + f_R2*rij(3)
+      f_nonbond(1, jparticle) = f_nonbond(1, jparticle) - f_R2*rij(1)
+      f_nonbond(2, jparticle) = f_nonbond(2, jparticle) - f_R2*rij(2)
+      f_nonbond(3, jparticle) = f_nonbond(3, jparticle) - f_R2*rij(3)
 
       IF (use_virial) THEN
-         pv_nonbond(1, 1) = pv_nonbond(1, 1)-f_R2*rij(1)*rij(1)
-         pv_nonbond(1, 2) = pv_nonbond(1, 2)-f_R2*rij(1)*rij(2)
-         pv_nonbond(1, 3) = pv_nonbond(1, 3)-f_R2*rij(1)*rij(3)
-         pv_nonbond(2, 1) = pv_nonbond(2, 1)-f_R2*rij(2)*rij(1)
-         pv_nonbond(2, 2) = pv_nonbond(2, 2)-f_R2*rij(2)*rij(2)
-         pv_nonbond(2, 3) = pv_nonbond(2, 3)-f_R2*rij(2)*rij(3)
-         pv_nonbond(3, 1) = pv_nonbond(3, 1)-f_R2*rij(3)*rij(1)
-         pv_nonbond(3, 2) = pv_nonbond(3, 2)-f_R2*rij(3)*rij(2)
-         pv_nonbond(3, 3) = pv_nonbond(3, 3)-f_R2*rij(3)*rij(3)
+         pv_nonbond(1, 1) = pv_nonbond(1, 1) - f_R2*rij(1)*rij(1)
+         pv_nonbond(1, 2) = pv_nonbond(1, 2) - f_R2*rij(1)*rij(2)
+         pv_nonbond(1, 3) = pv_nonbond(1, 3) - f_R2*rij(1)*rij(3)
+         pv_nonbond(2, 1) = pv_nonbond(2, 1) - f_R2*rij(2)*rij(1)
+         pv_nonbond(2, 2) = pv_nonbond(2, 2) - f_R2*rij(2)*rij(2)
+         pv_nonbond(2, 3) = pv_nonbond(2, 3) - f_R2*rij(2)*rij(3)
+         pv_nonbond(3, 1) = pv_nonbond(3, 1) - f_R2*rij(3)*rij(1)
+         pv_nonbond(3, 2) = pv_nonbond(3, 2) - f_R2*rij(3)*rij(2)
+         pv_nonbond(3, 3) = pv_nonbond(3, 3) - f_R2*rij(3)*rij(3)
       END IF
 
       ! Lets do the f_A1 piece derivative of F_C
       f_A1 = f_C_d*b_ij*f_A*fac
-      f_nonbond(1, iparticle) = f_nonbond(1, iparticle)+f_A1*rij(1)
-      f_nonbond(2, iparticle) = f_nonbond(2, iparticle)+f_A1*rij(2)
-      f_nonbond(3, iparticle) = f_nonbond(3, iparticle)+f_A1*rij(3)
-      f_nonbond(1, jparticle) = f_nonbond(1, jparticle)-f_A1*rij(1)
-      f_nonbond(2, jparticle) = f_nonbond(2, jparticle)-f_A1*rij(2)
-      f_nonbond(3, jparticle) = f_nonbond(3, jparticle)-f_A1*rij(3)
+      f_nonbond(1, iparticle) = f_nonbond(1, iparticle) + f_A1*rij(1)
+      f_nonbond(2, iparticle) = f_nonbond(2, iparticle) + f_A1*rij(2)
+      f_nonbond(3, iparticle) = f_nonbond(3, iparticle) + f_A1*rij(3)
+      f_nonbond(1, jparticle) = f_nonbond(1, jparticle) - f_A1*rij(1)
+      f_nonbond(2, jparticle) = f_nonbond(2, jparticle) - f_A1*rij(2)
+      f_nonbond(3, jparticle) = f_nonbond(3, jparticle) - f_A1*rij(3)
 
       IF (use_virial) THEN
-         pv_nonbond(1, 1) = pv_nonbond(1, 1)-f_A1*rij(1)*rij(1)
-         pv_nonbond(1, 2) = pv_nonbond(1, 2)-f_A1*rij(1)*rij(2)
-         pv_nonbond(1, 3) = pv_nonbond(1, 3)-f_A1*rij(1)*rij(3)
-         pv_nonbond(2, 1) = pv_nonbond(2, 1)-f_A1*rij(2)*rij(1)
-         pv_nonbond(2, 2) = pv_nonbond(2, 2)-f_A1*rij(2)*rij(2)
-         pv_nonbond(2, 3) = pv_nonbond(2, 3)-f_A1*rij(2)*rij(3)
-         pv_nonbond(3, 1) = pv_nonbond(3, 1)-f_A1*rij(3)*rij(1)
-         pv_nonbond(3, 2) = pv_nonbond(3, 2)-f_A1*rij(3)*rij(2)
-         pv_nonbond(3, 3) = pv_nonbond(3, 3)-f_A1*rij(3)*rij(3)
+         pv_nonbond(1, 1) = pv_nonbond(1, 1) - f_A1*rij(1)*rij(1)
+         pv_nonbond(1, 2) = pv_nonbond(1, 2) - f_A1*rij(1)*rij(2)
+         pv_nonbond(1, 3) = pv_nonbond(1, 3) - f_A1*rij(1)*rij(3)
+         pv_nonbond(2, 1) = pv_nonbond(2, 1) - f_A1*rij(2)*rij(1)
+         pv_nonbond(2, 2) = pv_nonbond(2, 2) - f_A1*rij(2)*rij(2)
+         pv_nonbond(2, 3) = pv_nonbond(2, 3) - f_A1*rij(2)*rij(3)
+         pv_nonbond(3, 1) = pv_nonbond(3, 1) - f_A1*rij(3)*rij(1)
+         pv_nonbond(3, 2) = pv_nonbond(3, 2) - f_A1*rij(3)*rij(2)
+         pv_nonbond(3, 3) = pv_nonbond(3, 3) - f_A1*rij(3)*rij(3)
       END IF
 
       ! Lets do the f_A2 piece derivative of F_A
       f_A2 = f_C*b_ij*f_A_d*fac
-      f_nonbond(1, iparticle) = f_nonbond(1, iparticle)+f_A2*rij(1)
-      f_nonbond(2, iparticle) = f_nonbond(2, iparticle)+f_A2*rij(2)
-      f_nonbond(3, iparticle) = f_nonbond(3, iparticle)+f_A2*rij(3)
-      f_nonbond(1, jparticle) = f_nonbond(1, jparticle)-f_A2*rij(1)
-      f_nonbond(2, jparticle) = f_nonbond(2, jparticle)-f_A2*rij(2)
-      f_nonbond(3, jparticle) = f_nonbond(3, jparticle)-f_A2*rij(3)
+      f_nonbond(1, iparticle) = f_nonbond(1, iparticle) + f_A2*rij(1)
+      f_nonbond(2, iparticle) = f_nonbond(2, iparticle) + f_A2*rij(2)
+      f_nonbond(3, iparticle) = f_nonbond(3, iparticle) + f_A2*rij(3)
+      f_nonbond(1, jparticle) = f_nonbond(1, jparticle) - f_A2*rij(1)
+      f_nonbond(2, jparticle) = f_nonbond(2, jparticle) - f_A2*rij(2)
+      f_nonbond(3, jparticle) = f_nonbond(3, jparticle) - f_A2*rij(3)
 
       IF (use_virial) THEN
-         pv_nonbond(1, 1) = pv_nonbond(1, 1)-f_A2*rij(1)*rij(1)
-         pv_nonbond(1, 2) = pv_nonbond(1, 2)-f_A2*rij(1)*rij(2)
-         pv_nonbond(1, 3) = pv_nonbond(1, 3)-f_A2*rij(1)*rij(3)
-         pv_nonbond(2, 1) = pv_nonbond(2, 1)-f_A2*rij(2)*rij(1)
-         pv_nonbond(2, 2) = pv_nonbond(2, 2)-f_A2*rij(2)*rij(2)
-         pv_nonbond(2, 3) = pv_nonbond(2, 3)-f_A2*rij(2)*rij(3)
-         pv_nonbond(3, 1) = pv_nonbond(3, 1)-f_A2*rij(3)*rij(1)
-         pv_nonbond(3, 2) = pv_nonbond(3, 2)-f_A2*rij(3)*rij(2)
-         pv_nonbond(3, 3) = pv_nonbond(3, 3)-f_A2*rij(3)*rij(3)
+         pv_nonbond(1, 1) = pv_nonbond(1, 1) - f_A2*rij(1)*rij(1)
+         pv_nonbond(1, 2) = pv_nonbond(1, 2) - f_A2*rij(1)*rij(2)
+         pv_nonbond(1, 3) = pv_nonbond(1, 3) - f_A2*rij(1)*rij(3)
+         pv_nonbond(2, 1) = pv_nonbond(2, 1) - f_A2*rij(2)*rij(1)
+         pv_nonbond(2, 2) = pv_nonbond(2, 2) - f_A2*rij(2)*rij(2)
+         pv_nonbond(2, 3) = pv_nonbond(2, 3) - f_A2*rij(2)*rij(3)
+         pv_nonbond(3, 1) = pv_nonbond(3, 1) - f_A2*rij(3)*rij(1)
+         pv_nonbond(3, 2) = pv_nonbond(3, 2) - f_A2*rij(3)*rij(2)
+         pv_nonbond(3, 3) = pv_nonbond(3, 3) - f_A2*rij(3)*rij(3)
       END IF
 
       ! Lets do the f_A3 piece derivative of b_ij
@@ -756,10 +756,10 @@ CONTAINS
             ikind = neighbor_kind_pair%ij_kind(1, igrp)
             jkind = neighbor_kind_pair%ij_kind(2, igrp)
             pot => potparm%pot(ikind, jkind)%pot
-            npairs = iend-istart+1
+            npairs = iend - istart + 1
             IF (pot%no_mb) CYCLE
             DO i = 1, SIZE(pot%type)
-               IF (pot%type(i) == tersoff_type) npairs_tot = npairs_tot+npairs
+               IF (pot%type(i) == tersoff_type) npairs_tot = npairs_tot + npairs
             END DO
          END DO Kind_Group_Loop1
       END DO
@@ -781,17 +781,17 @@ CONTAINS
             list => neighbor_kind_pair%list
             cvi = neighbor_kind_pair%cell_vector
             pot => potparm%pot(ikind, jkind)%pot
-            npairs = iend-istart+1
+            npairs = iend - istart + 1
             IF (pot%no_mb) CYCLE
             CALL matvec_3x3(cell_v, cell%hmat, cvi)
             DO i = 1, SIZE(pot%type)
                ! TERSOFF
                IF (pot%type(i) == tersoff_type) THEN
                   DO ipair = 1, npairs
-                     glob_loc_list(:, npairs_tot+ipair) = list(:, istart-1+ipair)
-                     glob_cell_v(1:3, npairs_tot+ipair) = cell_v(1:3)
+                     glob_loc_list(:, npairs_tot + ipair) = list(:, istart - 1 + ipair)
+                     glob_cell_v(1:3, npairs_tot + ipair) = cell_v(1:3)
                   END DO
-                  npairs_tot = npairs_tot+npairs
+                  npairs_tot = npairs_tot + npairs
                END IF
             END DO
          END DO Kind_Group_Loop2

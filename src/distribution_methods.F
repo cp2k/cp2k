@@ -153,7 +153,7 @@ CONTAINS
       logger => cp_get_default_logger()
 
       group = logger%para_env%group
-      mype = logger%para_env%mepos+1
+      mype = logger%para_env%mepos + 1
       npe = logger%para_env%num_pe
 
       ALLOCATE (workload_count(npe))
@@ -210,7 +210,7 @@ CONTAINS
                   IF (ANY(prev_local_molecules%list(imolecule_prev_kind)%array( &
                           1:prev_local_molecules%n_el(imolecule_prev_kind)) == molecule_list(imolecule))) THEN
                      ! molecule used to be local
-                     nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind)+1
+                     nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind) + 1
                   ENDIF
                END DO
             ELSE
@@ -222,9 +222,9 @@ CONTAINS
                IF (bin_price /= workload_count(ipe)) &
                   CPABORT("inconsistent heap")
 
-               workload_count(ipe) = workload_count(ipe)+nload
+               workload_count(ipe) = workload_count(ipe) + nload
                IF (ipe == mype) THEN
-                  nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind)+1
+                  nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind) + 1
                END IF
 
                bin_price = workload_count(ipe)
@@ -260,19 +260,19 @@ CONTAINS
                IF (bin_price /= workload_fill(ipe)) &
                   CPABORT("inconsistent heap")
 
-               workload_fill(ipe) = workload_fill(ipe)+nload
+               workload_fill(ipe) = workload_fill(ipe) + nload
                is_local = (ipe == mype)
             ENDIF
             IF (is_local) THEN
-               imolecule_local = imolecule_local+1
+               imolecule_local = imolecule_local + 1
                molecule_a = molecule_list(imolecule)
                local_molecule(imolecule_kind)%array(imolecule_local) = molecule_a
                DO iatom = 1, natom
-                  atom_a = molecule_set(molecule_a)%first_atom+iatom-1
+                  atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
 
                   CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind, &
                                        kind_number=kind_a)
-                  nparticle_local(kind_a) = nparticle_local(kind_a)+1
+                  nparticle_local(kind_a) = nparticle_local(kind_a) + 1
                END DO
             END IF
             IF (.NOT. has_prev_subsys_info) THEN
@@ -320,10 +320,10 @@ CONTAINS
          DO imolecule = 1, nmolecule_local(imolecule_kind)
             molecule_a = local_molecule(imolecule_kind)%array(imolecule)
             DO iatom = 1, natom
-               atom_a = molecule_set(molecule_a)%first_atom+iatom-1
+               atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
                CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind, &
                                     kind_number=kind_a)
-               nparticle_local(kind_a) = nparticle_local(kind_a)+1
+               nparticle_local(kind_a) = nparticle_local(kind_a) + 1
                local_particles%list(kind_a)%array(nparticle_local(kind_a)) = atom_a
             END DO
          END DO
@@ -354,7 +354,7 @@ CONTAINS
                    FMT="(/, T2, A, T51, A, /, (T52, I6, T73, I8))") &
                "DISTRIBUTION OF THE MOLECULES", &
                "Process    Number of molecules", &
-               (ipe-1, work(ipe), ipe=1, npe)
+               (ipe - 1, work(ipe), ipe=1, npe)
             WRITE (UNIT=output_unit, FMT="(T55, A3, T73, I8)") &
                "Sum", SUM(work)
             CALL m_flush(output_unit)
@@ -369,7 +369,7 @@ CONTAINS
                DO imolecule_kind = 1, nmolecule_kind
                   IF (imolecule_kind == 1) THEN
                      WRITE (UNIT=iw, FMT="(T4, I6, 2X, I5, (T21, 10I6))") &
-                        ipe-1, imolecule_kind, &
+                        ipe - 1, imolecule_kind, &
                         (local_molecules%list(imolecule_kind)%array(imolecule), &
                          imolecule=1, nmolecule_local(imolecule_kind))
                   ELSE
@@ -396,7 +396,7 @@ CONTAINS
                    FMT="(/, T2, A, T51, A, /, (T52, I6, T73, I8))") &
                "DISTRIBUTION OF THE PARTICLES", &
                "Process    Number of particles", &
-               (ipe-1, work(ipe), ipe=1, npe)
+               (ipe - 1, work(ipe), ipe=1, npe)
             WRITE (UNIT=output_unit, FMT="(T55, A3, T73, I8)") &
                "Sum", SUM(work)
             CALL m_flush(output_unit)
@@ -411,7 +411,7 @@ CONTAINS
                DO iparticle_kind = 1, nparticle_kind
                   IF (iparticle_kind == 1) THEN
                      WRITE (UNIT=iw, FMT="(T4, I6, 2X, I5, (T20, 10I6))") &
-                        ipe-1, iparticle_kind, &
+                        ipe - 1, iparticle_kind, &
                         (local_particles%list(iparticle_kind)%array(iatom), &
                          iatom=1, nparticle_local(iparticle_kind))
                   ELSE
@@ -531,8 +531,8 @@ CONTAINS
       !
 
       group = blacs_env%para_env%group
-      myprow = blacs_env%mepos(1)+1
-      mypcol = blacs_env%mepos(2)+1
+      myprow = blacs_env%mepos(1) + 1
+      mypcol = blacs_env%mepos(2) + 1
       nprow = blacs_env%num_pe(1)
       npcol = blacs_env%num_pe(2)
 
@@ -590,7 +590,7 @@ CONTAINS
                CASE default
                   CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
                   CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
-                  cluster_price = 8+(MAXVAL(lmax_basis)**2)
+                  cluster_price = 8 + (MAXVAL(lmax_basis)**2)
                END SELECT
                cluster_prices(iatom) = cluster_price
             ENDDO
@@ -600,24 +600,24 @@ CONTAINS
                molecule_kind => molecule_kind_set(imolecule_kind)
                CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
                DO imolecule = 1, SIZE(molecule_list)
-                  imol = imol+1
+                  imol = imol + 1
                   cluster_list(imol) = imol
                   cluster_price = 0
                   DO iatom_mol = 1, natom_mol
-                     iatom = molecule_set(molecule_list(imolecule))%first_atom+iatom_mol-1
+                     iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
                      CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
                      SELECT CASE (cost_model)
                      CASE (model_block_count)
                         CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf)
-                        cluster_price = cluster_price+nsgf
+                        cluster_price = cluster_price + nsgf
                      CASE (model_block_lmax)
                         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
                         CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
-                        cluster_price = cluster_price+MAXVAL(lmax_basis)
+                        cluster_price = cluster_price + MAXVAL(lmax_basis)
                      CASE default
                         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
                         CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
-                        cluster_price = cluster_price+8+(MAXVAL(lmax_basis)**2)
+                        cluster_price = cluster_price + 8 + (MAXVAL(lmax_basis)**2)
                      END SELECT
                   ENDDO
                   cluster_prices(imol) = cluster_price
@@ -654,13 +654,13 @@ CONTAINS
                      molecule_kind => molecule_kind_set(imolecule_kind)
                      CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
                      DO imolecule = 1, SIZE(molecule_list)
-                        imol = imol+1
+                        imol = imol + 1
                         iatom_one = molecule_set(molecule_list(imolecule))%first_atom
                         center = 0.0_dp
                         DO iatom_mol = 1, natom_mol
-                           iatom = molecule_set(molecule_list(imolecule))%first_atom+iatom_mol-1
-                           center = center+ &
-                                    pbc(particle_set(iatom)%r(:)-particle_set(iatom_one)%r(:), cell)+particle_set(iatom_one)%r(:)
+                           iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
+                           center = center + &
+                                   pbc(particle_set(iatom)%r(:) - particle_set(iatom_one)%r(:), cell) + particle_set(iatom_one)%r(:)
                         ENDDO
                         center = center/natom_mol
                         CALL real_to_scaled(pbc_scaled_coords(:, imol), pbc(center, cell), cell)
@@ -685,9 +685,9 @@ CONTAINS
                molecule_kind => molecule_kind_set(imolecule_kind)
                CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
                DO imolecule = 1, SIZE(molecule_list)
-                  imol = imol+1
+                  imol = imol + 1
                   DO iatom_mol = 1, natom_mol
-                     iatom = molecule_set(molecule_list(imolecule))%first_atom+iatom_mol-1
+                     iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
                      row_distribution(iatom, :) = cluster_row_distribution(imol, :)
                      col_distribution(iatom, :) = cluster_col_distribution(imol, :)
                   ENDDO
@@ -713,8 +713,8 @@ CONTAINS
       nparticle_local_row = 0
       DO iatom = 1, natom
          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, kind_number=kind_a)
-         IF (row_distribution(iatom, 1) == myprow) nparticle_local_row(kind_a) = nparticle_local_row(kind_a)+1
-         IF (col_distribution(iatom, 1) == mypcol) nparticle_local_col(kind_a) = nparticle_local_col(kind_a)+1
+         IF (row_distribution(iatom, 1) == myprow) nparticle_local_row(kind_a) = nparticle_local_row(kind_a) + 1
+         IF (col_distribution(iatom, 1) == mypcol) nparticle_local_col(kind_a) = nparticle_local_col(kind_a) + 1
       ENDDO
 
       ! allocate space
@@ -732,18 +732,18 @@ CONTAINS
       DO iatom = 1, natom
          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, kind_number=kind_a)
          IF (row_distribution(iatom, 1) == myprow) THEN
-            nparticle_local_row(kind_a) = nparticle_local_row(kind_a)+1
+            nparticle_local_row(kind_a) = nparticle_local_row(kind_a) + 1
             local_particle_row(kind_a)%array(nparticle_local_row(kind_a)) = iatom
          ENDIF
          IF (col_distribution(iatom, 1) == mypcol) THEN
-            nparticle_local_col(kind_a) = nparticle_local_col(kind_a)+1
+            nparticle_local_col(kind_a) = nparticle_local_col(kind_a) + 1
             local_particle_col(kind_a)%array(nparticle_local_col(kind_a)) = iatom
          ENDIF
       ENDDO
 
 !   *** Generate the 2d distribution structure  but take care of the zero offsets required
-      row_distribution(:, 1) = row_distribution(:, 1)-1
-      col_distribution(:, 1) = col_distribution(:, 1)-1
+      row_distribution(:, 1) = row_distribution(:, 1) - 1
+      col_distribution(:, 1) = col_distribution(:, 1) - 1
       CALL distribution_2d_create(distribution_2d, &
                                   row_distribution_ptr=row_distribution, &
                                   col_distribution_ptr=col_distribution, &
@@ -777,7 +777,7 @@ CONTAINS
                    FMT="(/, T2, A, /, T15, A, /, (T16, I10, T41, I10, T71, I10))") &
                "DISTRIBUTION OF THE PARTICLES (ROWS)", &
                "Process row      Number of particles         Number of matrix rows", &
-               (iprow-1, work(iprow), -1, iprow=1, nprow)
+               (iprow - 1, work(iprow), -1, iprow=1, nprow)
             WRITE (UNIT=output_unit, FMT="(T23, A3, T41, I10, T71, I10)") &
                "Sum", SUM(work), -1
             CALL m_flush(output_unit)
@@ -799,7 +799,7 @@ CONTAINS
                    FMT="(/, T2, A, /, T15, A, /, (T16, I10, T41, I10, T71, I10))") &
                "DISTRIBUTION OF THE PARTICLES (COLUMNS)", &
                "Process col      Number of particles      Number of matrix columns", &
-               (ipcol-1, work(ipcol), -1, ipcol=1, npcol)
+               (ipcol - 1, work(ipcol), -1, ipcol=1, npcol)
             WRITE (UNIT=output_unit, FMT="(T23, A3, T41, I10, T71, I10)") &
                "Sum", SUM(work), -1
             CALL m_flush(output_unit)
@@ -879,17 +879,17 @@ CONTAINS
          IF (.NOT. found) &
             CPABORT("No topmost heap element found.")
          !
-         prow = INT((bin-1)*pgrid_gcd/npcols)
+         prow = INT((bin - 1)*pgrid_gcd/npcols)
          IF (prow .GE. nprows) &
             CPABORT("Invalid process row.")
-         pcol = INT((bin-1)*pgrid_gcd/nprows)
+         pcol = INT((bin - 1)*pgrid_gcd/nprows)
          IF (pcol .GE. npcols) &
             CPABORT("Invalid process column.")
-         row_distribution(cluster) = prow+1
-         col_distribution(cluster) = pcol+1
+         row_distribution(cluster) = prow + 1
+         col_distribution(cluster) = pcol + 1
          !
          cluster_price = cluster_prices(cluster_index)
-         bin_price = bin_price+cluster_price
+         bin_price = bin_price + cluster_price
          CALL cp_heap_reset_first(bin_heap, bin_price)
       ENDDO
       CALL cp_heap_release(bin_heap)
@@ -937,8 +937,8 @@ CONTAINS
 
       ! final row_distribution / col_distribution
       DO iatom = 1, natoms
-         row_distribution(iatom) = (distribution(iatom)-1)*pgrid_gcd/npcols+1
-         col_distribution(iatom) = (distribution(iatom)-1)*pgrid_gcd/nprows+1
+         row_distribution(iatom) = (distribution(iatom) - 1)*pgrid_gcd/npcols + 1
+         col_distribution(iatom) = (distribution(iatom) - 1)*pgrid_gcd/nprows + 1
       ENDDO
 
       DEALLOCATE (bin_costs, distribution)
@@ -969,7 +969,7 @@ CONTAINS
 
       natoms = SIZE(costs)
       nbins = SIZE(bin_costs)
-      nhalf = (natoms+1)/2
+      nhalf = (natoms + 1)/2
 
       IF (natoms <= nbins) THEN
          ! assign the most expensive atom to the least costly bin
@@ -982,11 +982,11 @@ CONTAINS
          ibin = 0
          ! WRITE(*, *) "Dealing with a new bunch of atoms "
          DO iatom = natoms, 1, -1
-            ibin = ibin+1
+            ibin = ibin + 1
             ! WRITE(*, *) "atom", indices(atom_permutation(iatom)), "cost", atom_costs_sorted(iatom), &
             !            "bin", permutation(ibin), "its cost", bin_costs(permutation(ibin))
             ! WRITE(100, '(A, I0, 3F12.6)') "A", permutation(ibin), pbc_scaled_coords(:, atom_permutation(iatom))
-            bin_costs(permutation(ibin)) = bin_costs(permutation(ibin))+atom_costs_sorted(iatom)
+            bin_costs(permutation(ibin)) = bin_costs(permutation(ibin)) + atom_costs_sorted(iatom)
             distribution(indices(atom_permutation(iatom))) = permutation(ibin)
          ENDDO
          DEALLOCATE (bin_costs_sorted, permutation, atom_costs_sorted, atom_permutation)
@@ -994,12 +994,12 @@ CONTAINS
          ! divide atoms in two subsets, sorting according to their coordinates, alternatively x, y, z
          ! recursively do this for both subsets
          ALLOCATE (coord(natoms), permutation(natoms))
-         coord(:) = pbc_scaled_coords(MOD(level, 3)+1, :)
+         coord(:) = pbc_scaled_coords(MOD(level, 3) + 1, :)
          CALL sort(coord, natoms, permutation)
          CALL spatial_recurse(pbc_scaled_coords(:, permutation(1:nhalf)), costs(permutation(1:nhalf)), &
-                              indices(permutation(1:nhalf)), bin_costs, distribution, level+1)
-         CALL spatial_recurse(pbc_scaled_coords(:, permutation(nhalf+1:)), costs(permutation(nhalf+1:)), &
-                              indices(permutation(nhalf+1:)), bin_costs, distribution, level+1)
+                              indices(permutation(1:nhalf)), bin_costs, distribution, level + 1)
+         CALL spatial_recurse(pbc_scaled_coords(:, permutation(nhalf + 1:)), costs(permutation(nhalf + 1:)), &
+                              indices(permutation(nhalf + 1:)), bin_costs, distribution, level + 1)
          DEALLOCATE (coord, permutation)
       ENDIF
 
@@ -1083,13 +1083,13 @@ CONTAINS
       ALLOCATE (cluster_count(ncluster))
       cluster_count = 0
       DO i = 1, natom
-         cluster_count(atom_to_cluster(i)) = cluster_count(atom_to_cluster(i))+1
+         cluster_count(atom_to_cluster(i)) = cluster_count(atom_to_cluster(i)) + 1
          cluster_center(:, atom_to_cluster(i)) = coords(:, i)
       ENDDO
       cluster_low = HUGE(0.0_dp)/2
       cluster_high = -HUGE(0.0_dp)/2
       DO i = 1, natom
-         fold = pbc(coords(:, i)-cluster_center(:, atom_to_cluster(i)), cell)+cluster_center(:, atom_to_cluster(i))
+         fold = pbc(coords(:, i) - cluster_center(:, atom_to_cluster(i)), cell) + cluster_center(:, atom_to_cluster(i))
          cluster_low(:, atom_to_cluster(i)) = MIN(cluster_low(:, atom_to_cluster(i)), fold(:))
          cluster_high(:, atom_to_cluster(i)) = MAX(cluster_high(:, atom_to_cluster(i)), fold(:))
       ENDDO
@@ -1101,14 +1101,14 @@ CONTAINS
          WRITE (output_unit, '(T2,A,T48,I8)') "Largest cluster in atoms", MAXVAL(cluster_count)
          WRITE (output_unit, '(T2,A,T48,I8)') "Smallest cluster in atoms", MINVAL(cluster_count)
          WRITE (output_unit, '(T2,A,T48,F8.3,I8)') "Largest cartesian extend [a.u.]/cluster x=", &
-            MAXVAL(cluster_high(1, :)-cluster_low(1, :), MASK=(cluster_count > 0)), &
-            MAXLOC(cluster_high(1, :)-cluster_low(1, :), MASK=(cluster_count > 0))
+            MAXVAL(cluster_high(1, :) - cluster_low(1, :), MASK=(cluster_count > 0)), &
+            MAXLOC(cluster_high(1, :) - cluster_low(1, :), MASK=(cluster_count > 0))
          WRITE (output_unit, '(T2,A,T48,F8.3,I8)') "Largest cartesian extend [a.u.]/cluster y=", &
-            MAXVAL(cluster_high(2, :)-cluster_low(2, :), MASK=(cluster_count > 0)), &
-            MAXLOC(cluster_high(2, :)-cluster_low(2, :), MASK=(cluster_count > 0))
+            MAXVAL(cluster_high(2, :) - cluster_low(2, :), MASK=(cluster_count > 0)), &
+            MAXLOC(cluster_high(2, :) - cluster_low(2, :), MASK=(cluster_count > 0))
          WRITE (output_unit, '(T2,A,T48,F8.3,I8)') "Largest cartesian extend [a.u.]/cluster z=", &
-            MAXVAL(cluster_high(3, :)-cluster_low(3, :), MASK=(cluster_count > 0)), &
-            MAXLOC(cluster_high(3, :)-cluster_low(3, :), MASK=(cluster_count > 0))
+            MAXVAL(cluster_high(3, :) - cluster_low(3, :), MASK=(cluster_count > 0)), &
+            MAXLOC(cluster_high(3, :) - cluster_low(3, :), MASK=(cluster_count > 0))
       ENDIF
 
       DEALLOCATE (atom_to_cluster, cluster_cost, cluster_to_row, cluster_to_col, sorted_cost, piv_cost, proc_cost)
@@ -1141,10 +1141,10 @@ CONTAINS
          sort_proc_cost(:) = proc_cost(:)
          CALL sort(sort_proc_cost, nproc, piv_pcost)
 
-         offset = (SIZE(cluster_cost)/nproc-ilevel+1)*nproc+1
+         offset = (SIZE(cluster_cost)/nproc - ilevel + 1)*nproc + 1
          DO i = 1, nproc
-            cluster_assign(piv_cost(offset-i)) = piv_pcost(i)
-            proc_cost(piv_pcost(i)) = proc_cost(piv_pcost(i))+cluster_cost(piv_cost(offset-i))
+            cluster_assign(piv_cost(offset - i)) = piv_pcost(i)
+            proc_cost(piv_pcost(i)) = proc_cost(piv_pcost(i)) + cluster_cost(piv_cost(offset - i))
          END DO
       END DO
 
@@ -1195,7 +1195,7 @@ CONTAINS
          nsplits = MIN(INT(MIN(INT(MAX(6, INT(60.00/LOG(REAL(natoms, KIND=dp)))), KIND=int_8), ncluster)), natoms)
       ENDIF
       IF (nsplits == 1) THEN
-         icluster = icluster+1
+         icluster = icluster + 1
          cluster_inds = icluster
          fin_cluster_cost(icluster) = SUM(costs)
       ELSE
@@ -1211,11 +1211,11 @@ CONTAINS
             found = .FALSE.
             DO i = 1, 5
                IF (balance .GT. 1.1) THEN
-                  CALL kmeans(nsplits, coord, scaled_coord, cell, cluster_inds, nat_cluster, seed+i*40, conv)
+                  CALL kmeans(nsplits, coord, scaled_coord, cell, cluster_inds, nat_cluster, seed + i*40, conv)
                   balance_new = MAXVAL(REAL(nat_cluster, KIND=dp))/MINVAL(REAL(nat_cluster, KIND=dp))
                   IF (balance_new .LT. balance) THEN
                      balance = balance_new
-                     min_seed = seed+i*40; 
+                     min_seed = seed + i*40; 
                   END IF
                ELSE
                   found = .TRUE.
@@ -1228,17 +1228,17 @@ CONTAINS
 
          ! compute the cost of each cluster to decide how many splits have to be performed on the next lower level
          DO i = 1, natoms
-            cluster_cost(cluster_inds(i)) = cluster_cost(cluster_inds(i))+costs(i)
+            cluster_cost(cluster_inds(i)) = cluster_cost(cluster_inds(i)) + costs(i)
          END DO
          tot_cost = SUM(cluster_cost)
          ! compute new splitting, can be done more elegant
          ncluster_new(:) = ncluster*cluster_cost(:)/tot_cost
-         nleft = INT(ncluster-SUM(ncluster_new))
+         nleft = INT(ncluster - SUM(ncluster_new))
          ! As we won't have empty clusters, we can not have 0 as new size, so we correct for this at first
          DO i = 1, nsplits
             IF (ncluster_new(i) == 0) THEN
                ncluster_new(i) = 1
-               nleft = nleft-1
+               nleft = nleft - 1
             END IF
          END DO
          ! now comes the next part that the number of clusters will not match anymore, so try to correct in a meaningful way without
@@ -1248,14 +1248,14 @@ CONTAINS
                IF (nleft < 0) THEN
                   maxv = MINLOC(cluster_cost/ncluster_new)
                   IF (ncluster_new(maxv(1)) .NE. 1) THEN
-                     ncluster_new(maxv) = ncluster_new(maxv)-1
+                     ncluster_new(maxv) = ncluster_new(maxv) - 1
                   ELSE
                      maxv = MAXLOC(ncluster_new)
-                     ncluster_new(maxv) = ncluster_new(maxv)-1
+                     ncluster_new(maxv) = ncluster_new(maxv) - 1
                   END IF
                ELSE
                   maxv = MAXLOC(cluster_cost/ncluster_new)
-                  ncluster_new(maxv) = ncluster_new(maxv)+1
+                  ncluster_new(maxv) = ncluster_new(maxv) + 1
                END IF
             END DO
          END IF
@@ -1267,10 +1267,10 @@ CONTAINS
          ibeg = 1; iend = 0
          DO i = 1, nsplits
             IF (nat_cluster(i) == 0) CYCLE
-            iend = iend+nat_cluster(i)
+            iend = iend + nat_cluster(i)
             CALL cluster_recurse(coord(:, piv(ibeg:iend)), scaled_coord(:, piv(ibeg:iend)), cell, costs(piv(ibeg:iend)), &
                                  inds_tmp(ibeg:iend), ncluster_new(i), icluster, fin_cluster_cost)
-            ibeg = ibeg+nat_cluster(i)
+            ibeg = ibeg + nat_cluster(i)
          END DO
          ! copy the sorted cluster IDs on the old layout, inds_tmp gets set at the lowest level of recursion
          cluster_inds(piv(:)) = inds_tmp
@@ -1332,7 +1332,7 @@ CONTAINS
             ind = CEILING(rn*nat)
             cent_coord(:, i) = coord(:, ind)
             devi = HUGE(1.0_dp)
-            DO j = 1, i-1
+            DO j = 1, i - 1
                dvec = pbc(cent_coord(:, j), cent_coord(:, i), cell)
                dist = SQRT(DOT_PRODUCT(dvec, dvec))
                IF (dist .LT. devi) devi = dist
@@ -1357,14 +1357,14 @@ CONTAINS
          DO i = 1, nat
             devi = HUGE(1.0_dp); oldc = cluster(i)
             DO j = 1, ncent
-               dist = dmat(j, i)+MAX(nat_cl(j)**2/nat*ncent, nat/ncent)
+               dist = dmat(j, i) + MAX(nat_cl(j)**2/nat*ncent, nat/ncent)
                IF (dist .LT. devi) THEN
                   devi = dist; cluster(i) = j
                END IF
             END DO
-            deviat(cluster(i)) = deviat(cluster(i))+SQRT(devi)
-            nat_cl(cluster(i)) = nat_cl(cluster(i))+1
-            tot_var = tot_var+devi
+            deviat(cluster(i)) = deviat(cluster(i)) + SQRT(devi)
+            nat_cl(cluster(i)) = nat_cl(cluster(i)) + 1
+            tot_var = tot_var + devi
             IF (oldc .NE. cluster(i)) changed = .TRUE.
          END DO
          ! get the update of the centers done, add a new one in case one center lost all its atoms
@@ -1375,8 +1375,8 @@ CONTAINS
             ! The mapping on the unit circle allows to circumvent all problems
             average = 0.0_dp
             DO i = 1, SIZE(coord, 2)
-               average(:, cluster(i), 1) = average(:, cluster(i), 1)+COS(scaled_coord(:, i)*2.0_dp*pi)
-               average(:, cluster(i), 2) = average(:, cluster(i), 2)+SIN(scaled_coord(:, i)*2.0_dp*pi)
+               average(:, cluster(i), 1) = average(:, cluster(i), 1) + COS(scaled_coord(:, i)*2.0_dp*pi)
+               average(:, cluster(i), 2) = average(:, cluster(i), 2) + SIN(scaled_coord(:, i)*2.0_dp*pi)
             END DO
 
             DO i = 1, ncent
@@ -1386,7 +1386,7 @@ CONTAINS
                ELSE
                   average(:, i, 1) = average(:, i, 1)/REAL(nat_cl(i), dp)
                   average(:, i, 2) = average(:, i, 2)/REAL(nat_cl(i), dp)
-                  scaled_cent(:, i) = (ATAN2(-average(:, i, 2), -average(:, i, 1))+pi)/(2.0_dp*pi)
+                  scaled_cent(:, i) = (ATAN2(-average(:, i, 2), -average(:, i, 1)) + pi)/(2.0_dp*pi)
                   CALL scaled_to_real(cent_coord(:, i), scaled_cent(:, i), cell)
                END IF
             END DO

@@ -159,8 +159,8 @@ CONTAINS
                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                s2r = r_last_update(iparticle)%r
                s = particle_set(iparticle)%r(:)
-               dr(:) = s2r-s
-               dr2 = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
+               dr(:) = s2r - s
+               dr2 = dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3)
                dr2_max = MAX(dr2_max, dr2)
             END DO
          END DO
@@ -233,10 +233,10 @@ CONTAINS
          CALL cell_clone(cell, cell_last_update)
 
          IF (counter > 0) THEN
-            num_update = num_update+1
-            lup = counter+1-last_update
-            last_update = counter+1
-            aup = aup+(lup-aup)/REAL(num_update, KIND=dp)
+            num_update = num_update + 1
+            lup = counter + 1 - last_update
+            last_update = counter + 1
+            aup = aup + (lup - aup)/REAL(num_update, KIND=dp)
          ELSE
             num_update = 0
             lup = 0
@@ -278,33 +278,33 @@ CONTAINS
             rab(2) = -cell%hmat(2, 2)*cell%perd(2)*ANINT(cell_last_update%h_inv(2, 2)*rab(2))
             rab(3) = -cell%hmat(3, 3)*cell%perd(3)*ANINT(cell_last_update%h_inv(3, 3)*rab(3))
          ELSE
-            s(1) = cell_last_update%h_inv(1, 1)*rab(1)+cell_last_update%h_inv(1, 2)*rab(2)+ &
+            s(1) = cell_last_update%h_inv(1, 1)*rab(1) + cell_last_update%h_inv(1, 2)*rab(2) + &
                    cell_last_update%h_inv(1, 3)*rab(3)
-            s(2) = cell_last_update%h_inv(2, 1)*rab(1)+cell_last_update%h_inv(2, 2)*rab(2)+ &
+            s(2) = cell_last_update%h_inv(2, 1)*rab(1) + cell_last_update%h_inv(2, 2)*rab(2) + &
                    cell_last_update%h_inv(2, 3)*rab(3)
-            s(3) = cell_last_update%h_inv(3, 1)*rab(1)+cell_last_update%h_inv(3, 2)*rab(2)+ &
+            s(3) = cell_last_update%h_inv(3, 1)*rab(1) + cell_last_update%h_inv(3, 2)*rab(2) + &
                    cell_last_update%h_inv(3, 3)*rab(3)
             s(1) = -cell%perd(1)*ANINT(s(1))
             s(2) = -cell%perd(2)*ANINT(s(2))
             s(3) = -cell%perd(3)*ANINT(s(3))
-            rab(1) = +cell%hmat(1, 1)*s(1)+cell%hmat(1, 2)*s(2)+cell%hmat(1, 3)*s(3)
-            rab(2) = +cell%hmat(2, 1)*s(1)+cell%hmat(2, 2)*s(2)+cell%hmat(2, 3)*s(3)
-            rab(3) = +cell%hmat(3, 1)*s(1)+cell%hmat(3, 2)*s(2)+cell%hmat(3, 3)*s(3)
+            rab(1) = +cell%hmat(1, 1)*s(1) + cell%hmat(1, 2)*s(2) + cell%hmat(1, 3)*s(3)
+            rab(2) = +cell%hmat(2, 1)*s(1) + cell%hmat(2, 2)*s(2) + cell%hmat(2, 3)*s(3)
+            rab(3) = +cell%hmat(3, 1)*s(1) + cell%hmat(3, 2)*s(2) + cell%hmat(3, 3)*s(3)
          END IF
-         r_last_update_pbc(iparticle)%r = particle_set(iparticle)%r+rab
+         r_last_update_pbc(iparticle)%r = particle_set(iparticle)%r + rab
          ! Use the same translation for core and shell.
          ishell = particle_set(iparticle)%shell_index
          IF (ishell /= 0) THEN
-            rshell_last_update_pbc(ishell)%r = rab+shell_particle_set(ishell)%r(:)
+            rshell_last_update_pbc(ishell)%r = rab + shell_particle_set(ishell)%r(:)
             IF (shell_adiabatic) THEN
-               rcore_last_update_pbc(ishell)%r = rab+core_particle_set(ishell)%r(:)
+               rcore_last_update_pbc(ishell)%r = rab + core_particle_set(ishell)%r(:)
             ELSE
                rcore_last_update_pbc(ishell)%r = r_last_update_pbc(iparticle)%r(:)
             END IF
          END IF
       END DO
 
-      counter = counter+1
+      counter = counter + 1
       CALL fist_nonbond_env_set(fist_nonbond_env, counter=counter)
       CALL timestop(handle)
 

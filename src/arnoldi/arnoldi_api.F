@@ -341,7 +341,7 @@ CONTAINS
          CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, xvec)
          nb = rb_size(i)
          no = rb_offset(i)
-         xvec(1:nb, 1) = vec_x(no:no+nb-1)
+         xvec(1:nb, 1) = vec_x(no:no + nb - 1)
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
 
@@ -368,7 +368,7 @@ CONTAINS
          CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, xvec)
          nb = rb_size(i)
          no = rb_offset(i)
-         vec_x(no:no+nb-1) = xvec(1:nb, 1)
+         vec_x(no:no + nb - 1) = xvec(1:nb, 1)
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
       control => get_control(my_arnoldi)
@@ -528,7 +528,7 @@ CONTAINS
          CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, av)
          CALL dbcsr_get_block_p(bvec, i, j, bv, found)
          IF (found .AND. SIZE(bv) > 0) THEN
-            adotb = adotb+DOT_PRODUCT(av(:, 1), bv(:, 1))
+            adotb = adotb + DOT_PRODUCT(av(:, 1), bv(:, 1))
          END IF
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)

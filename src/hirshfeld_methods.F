@@ -118,13 +118,13 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
          IF (nspin == 1) THEN
             WRITE (UNIT=unit_nr, FMT="(i7,T15,A2,T20,i3,T27,F8.3,T42,F8.3,T72,F8.3)") &
-               iatom, element_symbol, ikind, refc, charges(iatom, 1), zeff-charges(iatom, 1)
+               iatom, element_symbol, ikind, refc, charges(iatom, 1), zeff - charges(iatom, 1)
          ELSE
             WRITE (UNIT=unit_nr, FMT="(i7,T15,A2,T20,i3,T27,F8.3,T36,2F8.3,T61,F8.3,T72,F8.3)") &
                iatom, element_symbol, ikind, refc, charges(iatom, 1), charges(iatom, 2), &
-               charges(iatom, 1)-charges(iatom, 2), zeff-SUM(charges(iatom, :))
+               charges(iatom, 1) - charges(iatom, 2), zeff - SUM(charges(iatom, :))
          END IF
-         tc1 = tc1+(zeff-SUM(charges(iatom, :)))
+         tc1 = tc1 + (zeff - SUM(charges(iatom, :)))
       END DO
       WRITE (UNIT=unit_nr, FMT="(/,T3,A,T72,F8.3)") "Total Charge ", tc1
       WRITE (unit_nr, '(T2,A)') '!-----------------------------------------------------------------------------!'
@@ -254,7 +254,7 @@ CONTAINS
       CALL calculate_hirshfeld_normalization(qs_env, hirshfeld_env)
       ! check normalization
       tnfun = pw_integrate_function(hirshfeld_env%fnorm%pw)
-      tnfun = ABS(tnfun-SUM(hirshfeld_env%charges))
+      tnfun = ABS(tnfun - SUM(hirshfeld_env%charges))
       !
       ALLOCATE (rhonorm)
       !
@@ -364,7 +364,7 @@ CONTAINS
          CALL calculate_hirshfeld_normalization(qs_env, hirshfeld_env)
          ! check normalization
          tnfun = pw_integrate_function(hirshfeld_env%fnorm%pw)
-         tnfun = ABS(tnfun-SUM(hirshfeld_env%charges))
+         tnfun = ABS(tnfun - SUM(hirshfeld_env%charges))
          ! loop over spins
          DO is = 1, SIZE(rho_r)
             IF (rho_r_valid) THEN
@@ -379,7 +379,7 @@ CONTAINS
          ! residual
          res = 0.0_dp
          DO iat = 1, natom
-            res = res+(SUM(charges(iat, :))-hirshfeld_env%charges(iat))**2
+            res = res + (SUM(charges(iat, :)) - hirshfeld_env%charges(iat))**2
          END DO
          res = SQRT(res/REAL(natom, KIND=dp))
          IF (ounit > 0) THEN
@@ -466,11 +466,11 @@ CONTAINS
                IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
                   ! replicated realspace grid, split the atoms up between procs
                   IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
-                     npme = npme+1
+                     npme = npme + 1
                      cores(npme) = iatom
                   ENDIF
                ELSE
-                  npme = npme+1
+                  npme = npme + 1
                   cores(npme) = iatom
                ENDIF
             END DO
@@ -587,11 +587,11 @@ CONTAINS
                IF (rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
                   ! replicated realspace grid, split the atoms up between procs
                   IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
-                     npme = npme+1
+                     npme = npme + 1
                      cores(npme) = iatom
                   ENDIF
                ELSE
-                  npme = npme+1
+                  npme = npme + 1
                   cores(npme) = iatom
                ENDIF
             END DO
@@ -611,9 +611,9 @@ CONTAINS
                                                  eps_gvg_rspace=eps_rho_rspace, calculate_forces=do_force, &
                                                  force_a=force_a, force_b=force_b, use_virial=.FALSE., &
                                                  use_subpatch=.TRUE., subpatch_pattern=0_int_8)
-               fval(atom_a) = fval(atom_a)+hab(1, 1)*dvol*coef
+               fval(atom_a) = fval(atom_a) + hab(1, 1)*dvol*coef
                IF (do_force) THEN
-                  fderiv(:, atom_a) = fderiv(:, atom_a)+force_a(:)*dvol
+                  fderiv(:, atom_a) = fderiv(:, atom_a) + force_a(:)*dvol
                END IF
             END DO
 

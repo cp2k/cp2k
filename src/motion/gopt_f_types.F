@@ -110,7 +110,7 @@ CONTAINS
 
       NULLIFY (gopt_env%dimer_env, gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, gopt_env%cell_env)
       gopt_env%ref_count = 1
-      last_gopt_f_id = last_gopt_f_id+1
+      last_gopt_f_id = last_gopt_f_id + 1
       gopt_env%id_nr = last_gopt_f_id
       gopt_env%dimer_rotation = .FALSE.
       gopt_env%do_line_search = .FALSE.
@@ -132,7 +132,7 @@ CONTAINS
                             shell_particles=shell_particles)
          IF (ASSOCIATED(shell_particles)) nshell = shell_particles%n_els
          ! The same number of shell and core particles is assumed
-         gopt_env%nfree = particles%n_els+nshell
+         gopt_env%nfree = particles%n_els + nshell
          gopt_env%label = "GEO_OPT"
          gopt_env%tag = "GEOMETRY"
          SELECT CASE (gopt_param%type_id)
@@ -187,7 +187,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(gopt_env))
       CPASSERT(gopt_env%ref_count > 0)
-      gopt_env%ref_count = gopt_env%ref_count+1
+      gopt_env%ref_count = gopt_env%ref_count + 1
    END SUBROUTINE gopt_f_retain
 
 ! **************************************************************************************************
@@ -203,7 +203,7 @@ CONTAINS
 
       IF (ASSOCIATED(gopt_env)) THEN
          CPASSERT(gopt_env%ref_count > 0)
-         gopt_env%ref_count = gopt_env%ref_count-1
+         gopt_env%ref_count = gopt_env%ref_count - 1
          IF (gopt_env%ref_count == 0) THEN
             CALL force_env_release(gopt_env%force_env)
             NULLIFY (gopt_env%force_env, &

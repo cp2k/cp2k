@@ -7465,11 +7465,11 @@ CONTAINS
       aab_pm6(83, 83) = 1.0740640163_dp
 
       DO i = 0, nelem
-         DO j = i+1, nelem
-            xab = xab_pm6(i, j)+xab_pm6(j, i)
+         DO j = i + 1, nelem
+            xab = xab_pm6(i, j) + xab_pm6(j, i)
             xab_pm6(i, j) = xab
             xab_pm6(j, i) = xab
-            aab = aab_pm6(i, j)+aab_pm6(j, i)
+            aab = aab_pm6(i, j) + aab_pm6(j, i)
             aab_pm6(i, j) = aab
             aab_pm6(j, i) = aab
          END DO
@@ -9355,11 +9355,11 @@ CONTAINS
       aab_pm6fm(83, 83) = 1.0740640163_dp
 
       DO i = 0, nelem
-         DO j = i+1, nelem
-            xab = xab_pm6fm(i, j)+xab_pm6fm(j, i)
+         DO j = i + 1, nelem
+            xab = xab_pm6fm(i, j) + xab_pm6fm(j, i)
             xab_pm6fm(i, j) = xab
             xab_pm6fm(j, i) = xab
-            aab = aab_pm6fm(i, j)+aab_pm6fm(j, i)
+            aab = aab_pm6fm(i, j) + aab_pm6fm(j, i)
             aab_pm6fm(i, j) = aab
             aab_pm6fm(j, i) = aab
          END DO

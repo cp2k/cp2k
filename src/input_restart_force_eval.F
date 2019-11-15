@@ -176,7 +176,7 @@ CONTAINS
                   dft_section => section_vals_get_subs_vals3(force_env_sections, "DFT", &
                                                              i_rep_section=i_force_eval(iforce_eval))
                   ALLOCATE (work(SIZE(force_env%mixed_env%strength, 2)))
-                  work = force_env%mixed_env%strength(iforce_eval-1, :)
+                  work = force_env%mixed_env%strength(iforce_eval - 1, :)
                   CALL section_vals_val_set(dft_section, "QS%CDFT%STRENGTH", &
                                             r_vals_ptr=work)
                   CALL section_vals_val_set(dft_section, "QS%CDFT%COUNTER", &
@@ -581,7 +581,7 @@ CONTAINS
             NULLIFY (my_val)
          ELSE
             IF (last_atom < irk) THEN
-               imol = imol+1
+               imol = imol + 1
                molecule_now => molecules%els(imol)
                CALL get_molecule(molecule_now, last_atom=last_atom)
                CALL get_molecule_kind(molecule_now%molecule_kind, molname_generated=molname_generated, &
@@ -761,7 +761,7 @@ CONTAINS
          ind = 0
          DO i = 1, 3
             DO j = i, 3
-               ind = ind+1
+               ind = ind + 1
                work(ind) = quadrupoles(j, i, irk)
             END DO
          END DO
@@ -847,7 +847,7 @@ CONTAINS
          CALL get_atomic_kind(particles%els(iparticle)%atomic_kind, name=kind_name)
          IF (.NOT. core_or_shell) THEN
             IF (iparticle > last_atom) THEN
-               imolecule = imolecule+1
+               imolecule = imolecule + 1
                molecule => molecules%els(imolecule)
                CALL get_molecule(molecule, last_atom=last_atom)
                CALL get_molecule_kind(molecule%molecule_kind, &

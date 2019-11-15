@@ -134,7 +134,7 @@ CONTAINS
       CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho)
-      npoints = (bo(2, 1)-bo(1, 1)+1)*(bo(2, 2)-bo(1, 2)+1)*(bo(2, 3)-bo(1, 3)+1)
+      npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
 
       IF (grad_deriv >= 0) THEN
          deriv => xc_dset_get_derivative(deriv_set, "", &
@@ -333,35 +333,35 @@ CONTAINS
 
             rs = rsfac/rhos13
             rs12 = SQRT(rs)
-            q = 2.0_dp*a1*(beta1(1)+(beta1(2)+(beta1(3)+ &
-                                               beta1(4)*rs12)*rs12)*rs12)*rs12
-            p = 1.0_dp+1.0_dp/q
-            x = -2.0_dp*a1*(1.0_dp+alpha1*rs)
+            q = 2.0_dp*a1*(beta1(1) + (beta1(2) + (beta1(3) + &
+                                                   beta1(4)*rs12)*rs12)*rs12)*rs12
+            p = 1.0_dp + 1.0_dp/q
+            x = -2.0_dp*a1*(1.0_dp + alpha1*rs)
             y = LOG(p)
             g = x*y
-            dgdrs = -2.0_dp*a1*alpha1*y- &
-                    x*a1*(beta1(1)/rs12+2.0_dp*beta1(2)+ &
-                          3.0_dp*beta1(3)*rs12+4.0_dp*beta1(4)*rs)/(p*q*q)
+            dgdrs = -2.0_dp*a1*alpha1*y - &
+                    x*a1*(beta1(1)/rs12 + 2.0_dp*beta1(2) + &
+                          3.0_dp*beta1(3)*rs12 + 4.0_dp*beta1(4)*rs)/(p*q*q)
             drsdrho = -f13*rs/my_rho
             ecss = my_rho*g
-            vcss = g+my_rho*dgdrs*drsdrho
+            vcss = g + my_rho*dgdrs*drsdrho
 
             !     *** G(rho_alpha,rho_beta) => spin polarisation zeta = 0 ***
 
             rs = rsfac/rho13
             rs12 = SQRT(rs)
-            q = 2.0_dp*a0*(beta0(1)+(beta0(2)+(beta0(3)+ &
-                                               beta0(4)*rs12)*rs12)*rs12)*rs12
-            p = 1.0_dp+1.0_dp/q
-            x = -2.0_dp*a0*(1.0_dp+alpha0*rs)
+            q = 2.0_dp*a0*(beta0(1) + (beta0(2) + (beta0(3) + &
+                                                   beta0(4)*rs12)*rs12)*rs12)*rs12
+            p = 1.0_dp + 1.0_dp/q
+            x = -2.0_dp*a0*(1.0_dp + alpha0*rs)
             y = LOG(p)
             g = x*y
-            dgdrs = -2.0_dp*a0*alpha0*y- &
-                    x*a0*(beta0(1)/rs12+2.0_dp*beta0(2)+ &
-                          3.0_dp*beta0(3)*rs12+4.0_dp*beta0(4)*rs)/(p*q*q)
+            dgdrs = -2.0_dp*a0*alpha0*y - &
+                    x*a0*(beta0(1)/rs12 + 2.0_dp*beta0(2) + &
+                          3.0_dp*beta0(3)*rs12 + 4.0_dp*beta0(4)*rs)/(p*q*q)
             drsdrho = -f13*rs/my_rho
-            ecab = my_rho*g-ecss
-            vcab = g+my_rho*dgdrs*drsdrho-vcss
+            ecab = my_rho*g - ecss
+            vcab = g + my_rho*dgdrs*drsdrho - vcss
 
             !     *** GGA part (HCTH) ***
 
@@ -373,43 +373,43 @@ CONTAINS
             !     *** g_x(rho_sigma,rho_sigma) ***
 
             gs2 = gamma_xss*s2
-            q = 1.0_dp/(1.0_dp+gs2)
+            q = 1.0_dp/(1.0_dp + gs2)
             u = gs2*q
-            gxss = cxss(0)+(cxss(1)+(cxss(2)+(cxss(3)+cxss(4)*u)*u)*u)*u
-            dgxssds = q*(cxss(1)+(2.0_dp*cxss(2)+(3.0_dp*cxss(3)+ &
-                                                  4.0_dp*cxss(4)*u)*u)*u)*u
+            gxss = cxss(0) + (cxss(1) + (cxss(2) + (cxss(3) + cxss(4)*u)*u)*u)*u
+            dgxssds = q*(cxss(1) + (2.0_dp*cxss(2) + (3.0_dp*cxss(3) + &
+                                                      4.0_dp*cxss(4)*u)*u)*u)*u
             dgxssdrho = x*dgxssds
             dgxssddrho = y*dgxssds
 
             !     *** g_c(rho_sigma,rho_sigma) ***
 
             gs2 = gamma_css*s2
-            q = 1.0_dp/(1.0_dp+gs2)
+            q = 1.0_dp/(1.0_dp + gs2)
             u = gs2*q
-            gcss = ccss(0)+(ccss(1)+(ccss(2)+(ccss(3)+ccss(4)*u)*u)*u)*u
-            dgcssds = q*(ccss(1)+(2.0_dp*ccss(2)+(3.0_dp*ccss(3)+ &
-                                                  4.0_dp*ccss(4)*u)*u)*u)*u
+            gcss = ccss(0) + (ccss(1) + (ccss(2) + (ccss(3) + ccss(4)*u)*u)*u)*u
+            dgcssds = q*(ccss(1) + (2.0_dp*ccss(2) + (3.0_dp*ccss(3) + &
+                                                      4.0_dp*ccss(4)*u)*u)*u)*u
             dgcssdrho = x*dgcssds
             dgcssddrho = y*dgcssds
 
             !     *** g_c(rho_alpha,rho_beta) ***
 
             gs2 = gamma_cab*s2
-            q = 1.0_dp/(1.0_dp+gs2)
+            q = 1.0_dp/(1.0_dp + gs2)
             u = gs2*q
-            gcab = ccab(0)+(ccab(1)+(ccab(2)+(ccab(3)+ccab(4)*u)*u)*u)*u
-            dgcabds = q*(ccab(1)+(2.0_dp*ccab(2)+(3.0_dp*ccab(3)+ &
-                                                  4.0_dp*ccab(4)*u)*u)*u)*u
+            gcab = ccab(0) + (ccab(1) + (ccab(2) + (ccab(3) + ccab(4)*u)*u)*u)*u
+            dgcabds = q*(ccab(1) + (2.0_dp*ccab(2) + (3.0_dp*ccab(3) + &
+                                                      4.0_dp*ccab(4)*u)*u)*u)*u
             dgcabdrho = x*dgcabds
             dgcabddrho = y*dgcabds
 
             !     *** Finally collect all contributions ***
 
-            e_0(ii) = e_0(ii)+exss*gxss+ecss*gcss+ecab*gcab
-            e_rho(ii) = e_rho(ii)+vxss*gxss+exss*dgxssdrho+ &
-                        vcss*gcss+ecss*dgcssdrho+ &
-                        vcab*gcab+ecab*dgcabdrho
-            e_ndrho(ii) = e_ndrho(ii)+(exss*dgxssddrho+ecss*dgcssddrho+ecab*dgcabddrho)*drho
+            e_0(ii) = e_0(ii) + exss*gxss + ecss*gcss + ecab*gcab
+            e_rho(ii) = e_rho(ii) + vxss*gxss + exss*dgxssdrho + &
+                        vcss*gcss + ecss*dgcssdrho + &
+                        vcab*gcab + ecab*dgcabdrho
+            e_ndrho(ii) = e_ndrho(ii) + (exss*dgxssddrho + ecss*dgcssddrho + ecab*dgcabddrho)*drho
          END IF
       END DO
 

@@ -8,21 +8,21 @@ MODULE manybody_quip
    USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
    USE atomic_kind_types, ONLY: atomic_kind_type
    USE bibliography, ONLY: QUIP_ref, &
-      cite_reference
+                           cite_reference
    USE cell_types, ONLY: cell_type
    USE cp_para_types, ONLY: cp_para_env_type
    USE fist_nonbond_env_types, ONLY: fist_nonbond_env_get, &
-      fist_nonbond_env_set, &
-      fist_nonbond_env_type, &
-      quip_data_type
+                                     fist_nonbond_env_set, &
+                                     fist_nonbond_env_type, &
+                                     quip_data_type
    USE kinds, ONLY: dp
    USE pair_potential_types, ONLY: pair_potential_pp_type, &
-      pair_potential_single_type, &
-      quip_pot_type, &
-      quip_type
+                                   pair_potential_single_type, &
+                                   quip_pot_type, &
+                                   quip_type
    USE particle_types, ONLY: particle_type
    USE physcon, ONLY: angstrom, &
-      evolt
+                      evolt
 #ifdef __QUIP
    USE quip_unified_wrapper_module, ONLY: quip_unified_wrapper
 #endif
@@ -115,7 +115,7 @@ CONTAINS
       iat_use = 0
       DO iat = 1, n_atoms
          IF (.NOT. use_atom(iat)) CYCLE
-         iat_use = iat_use+1
+         iat_use = iat_use + 1
          pos(1:3, iat_use) = particle_set(iat)%r*angstrom
          elem_symbol(iat_use) = particle_set(iat)%atomic_kind%element_symbol
       END DO
@@ -176,7 +176,7 @@ CONTAINS
       iat_use = 0
       DO iat = 1, n_atoms
          IF (use_atom(iat)) THEN
-            iat_use = iat_use+1
+            iat_use = iat_use + 1
             quip_data%use_indices(iat_use) = iat
          ENDIF
       END DO
@@ -217,9 +217,9 @@ CONTAINS
       DO iat_use = 1, SIZE(quip_data%use_indices)
          iat = quip_data%use_indices(iat_use)
          CPASSERT(iat >= 1 .AND. iat <= SIZE(force, 2))
-         force(1:3, iat) = force(1:3, iat)+quip_data%force(1:3, iat_use)
+         force(1:3, iat) = force(1:3, iat) + quip_data%force(1:3, iat_use)
       END DO
-      virial = virial+quip_data%virial
+      virial = virial + quip_data%virial
 #endif
    END SUBROUTINE quip_add_force_virial
 

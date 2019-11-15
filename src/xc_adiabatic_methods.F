@@ -90,15 +90,15 @@ CONTAINS
       ELSE
          nelec_b = 0
       END IF
-      nelectron = nelec_a+nelec_b
-      dfa_energy = energy%exc+energy%exc1
+      nelectron = nelec_a + nelec_b
+      dfa_energy = energy%exc + energy%exc1
       a = hf_energy(1)
       b = -c1*2.0_dp*adiabatic_omega*oorootpi*nelectron !-0.23163_dp*2.0_dp*0.2_dp*oorootpi*nelectron
-      c = -1.0_dp/adiabatic_lambda-b/(hf_energy(1)-dfa_energy-hf_energy(2))
+      c = -1.0_dp/adiabatic_lambda - b/(hf_energy(1) - dfa_energy - hf_energy(2))
 
       dExc_da = 1.0_dp
-      dExc_db = 1.0_dp/c-(LOG(ABS(1.0_dp+c))/(c*c))
-      dExc_dc = -b/(c*c*c*(1.0_dp+c))*(2.0_dp*c+c*c-2.0_dp*LOG(ABS(1.0_dp+c))-2.0_dp*LOG(ABS(1.0_dp+c))*c)
+      dExc_db = 1.0_dp/c - (LOG(ABS(1.0_dp + c))/(c*c))
+      dExc_dc = -b/(c*c*c*(1.0_dp + c))*(2.0_dp*c + c*c - 2.0_dp*LOG(ABS(1.0_dp + c)) - 2.0_dp*LOG(ABS(1.0_dp + c))*c)
 
       da_dEx1 = 1.0_dp
       da_ddW0 = 0.0_dp
@@ -110,17 +110,17 @@ CONTAINS
       db_dDFA = 0.0_dp
       db_dEx2 = 0.0_dp
 
-      dc_dEx1 = b/(hf_energy(1)-dfa_energy-hf_energy(2))**2
-      dc_ddW0 = -1.0_dp/(hf_energy(1)-dfa_energy-hf_energy(2))
+      dc_dEx1 = b/(hf_energy(1) - dfa_energy - hf_energy(2))**2
+      dc_ddW0 = -1.0_dp/(hf_energy(1) - dfa_energy - hf_energy(2))
       dc_dDFA = -dc_dEx1
       dc_dEx2 = -dc_dEx1
 
-      scale_dEx1 = dExc_da*da_dEx1+dExc_db*db_dEx1+dExc_dc*dc_dEx1
-      scale_ddW0 = dExc_da*da_ddW0+dExc_db*db_ddW0+dExc_dc*dc_ddW0
-      scale_dDFA = dExc_da*da_dDFA+dExc_db*db_dDFA+dExc_dc*dc_dDFA
-      scale_dEx2 = dExc_da*da_dEx2+dExc_db*db_dEx2+dExc_dc*dc_dEx2
+      scale_dEx1 = dExc_da*da_dEx1 + dExc_db*db_dEx1 + dExc_dc*dc_dEx1
+      scale_ddW0 = dExc_da*da_ddW0 + dExc_db*db_ddW0 + dExc_dc*dc_ddW0
+      scale_dDFA = dExc_da*da_dDFA + dExc_db*db_dDFA + dExc_dc*dc_dDFA
+      scale_dEx2 = dExc_da*da_dEx2 + dExc_db*db_dEx2 + dExc_dc*dc_dEx2
 
-      total_energy_xc = a+b/(c*c)*(c-LOG(ABS(1.0_dp+c)))
+      total_energy_xc = a + b/(c*c)*(c - LOG(ABS(1.0_dp + c)))
       IF (do_swap_hf) THEN
          swap_value = scale_dEx1
          scale_dEx1 = scale_dEx2

@@ -791,17 +791,17 @@ CONTAINS
       CALL print_wanniers(print_section)
       NULLIFY (subsection)
       ! Total Dipoles with wannier
-      CALL create_dipoles_section(subsection, "TOTAL_DIPOLE", debug_print_level+1)
+      CALL create_dipoles_section(subsection, "TOTAL_DIPOLE", debug_print_level + 1)
       CALL section_add_subsection(print_section, subsection)
       CALL section_release(subsection)
       ! Molecular Dipoles with wannier
-      CALL create_dipoles_section(subsection, "MOLECULAR_DIPOLES", debug_print_level+1)
+      CALL create_dipoles_section(subsection, "MOLECULAR_DIPOLES", debug_print_level + 1)
       CALL section_add_subsection(print_section, subsection)
       CALL section_release(subsection)
       ! Molecular Mulipole Moments with wannier
       CALL cp_print_key_section_create(subsection, __LOCATION__, name="MOLECULAR_MOMENTS", &
                                        description="Section controlling the calculation of molecular multipole moments.", &
-                                       print_level=debug_print_level+1, filename="__STD_OUT__")
+                                       print_level=debug_print_level + 1, filename="__STD_OUT__")
       CALL keyword_create(keyword, __LOCATION__, name="ORDER", &
                           description="Maximum order of mulitpoles to be calculated.", &
                           usage=" ORDER {integer}", default_i_val=2, type_of_var=integer_t)
@@ -1843,7 +1843,7 @@ CONTAINS
       NULLIFY (sub_print_key)
       CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "MINBAS_CUBE", &
                                        description="Write the minimal basis on Cube files.", &
-                                       print_level=debug_print_level+1, add_last=add_last_numeric, filename="MINBAS")
+                                       print_level=debug_print_level + 1, add_last=add_last_numeric, filename="MINBAS")
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
@@ -1865,7 +1865,7 @@ CONTAINS
       NULLIFY (sub_print_key)
       CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "MOS_MOLDEN", &
                                        description="Write the minimal basis in Molden file format, for visualisation.", &
-                                       print_level=debug_print_level+1, add_last=add_last_numeric, filename="MINBAS")
+                                       print_level=debug_print_level + 1, add_last=add_last_numeric, filename="MINBAS")
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
                           description="Specifies the number of signficiant digits retained. 3 is OK for visualization.", &
                           usage="NDIGITS {int}", &
@@ -5116,7 +5116,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MOS_MOLDEN", &
                                        description="Write the molecular orbitals in Molden file format, for visualisation.", &
-                                       print_level=debug_print_level+1, add_last=add_last_numeric, filename="MOS")
+                                       print_level=debug_print_level + 1, add_last=add_last_numeric, filename="MOS")
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
                           description="Specifies the number of signficiant digits retained. 3 is OK for visualization.", &
                           usage="NDIGITS {int}", &

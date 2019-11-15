@@ -107,13 +107,13 @@ CONTAINS
 
             WRITE (unit_nr, '(I5,3f12.6)') np, 0.0_dp, 0._dp, 0._dp !start of cube
 
-            WRITE (unit_nr, '(I5,3f12.6)') (pw%pw_grid%npts(1)+my_stride(1)-1)/my_stride(1), &
+            WRITE (unit_nr, '(I5,3f12.6)') (pw%pw_grid%npts(1) + my_stride(1) - 1)/my_stride(1), &
                pw%pw_grid%dh(1, 1)*REAL(my_stride(1), dp), pw%pw_grid%dh(2, 1)*REAL(my_stride(1), dp), &
                pw%pw_grid%dh(3, 1)*REAL(my_stride(1), dp)
-            WRITE (unit_nr, '(I5,3f12.6)') (pw%pw_grid%npts(2)+my_stride(2)-1)/my_stride(2), &
+            WRITE (unit_nr, '(I5,3f12.6)') (pw%pw_grid%npts(2) + my_stride(2) - 1)/my_stride(2), &
                pw%pw_grid%dh(1, 2)*REAL(my_stride(2), dp), pw%pw_grid%dh(2, 2)*REAL(my_stride(2), dp), &
                pw%pw_grid%dh(3, 2)*REAL(my_stride(2), dp)
-            WRITE (unit_nr, '(I5,3f12.6)') (pw%pw_grid%npts(3)+my_stride(3)-1)/my_stride(3), &
+            WRITE (unit_nr, '(I5,3f12.6)') (pw%pw_grid%npts(3) + my_stride(3) - 1)/my_stride(3), &
                pw%pw_grid%dh(1, 3)*REAL(my_stride(3), dp), pw%pw_grid%dh(2, 3)*REAL(my_stride(3), dp), &
                pw%pw_grid%dh(3, 3)*REAL(my_stride(3), dp)
 
@@ -156,9 +156,9 @@ CONTAINS
 
                ! cycling through the CPUs, check if the current ray (I1,I2) is local to that CPU
                IF (pw%pw_grid%para%mode .NE. PW_MODE_LOCAL) THEN
-                  DO ip = 0, num_pe-1
-                     IF (pw%pw_grid%para%bo(1, 1, ip, 1) <= I1-L1+1 .AND. pw%pw_grid%para%bo(2, 1, ip, 1) >= I1-L1+1 .AND. &
-                         pw%pw_grid%para%bo(1, 2, ip, 1) <= I2-L2+1 .AND. pw%pw_grid%para%bo(2, 2, ip, 1) >= I2-L2+1) THEN
+                  DO ip = 0, num_pe - 1
+                     IF (pw%pw_grid%para%bo(1, 1, ip, 1) <= I1 - L1 + 1 .AND. pw%pw_grid%para%bo(2, 1, ip, 1) >= I1 - L1 + 1 .AND. &
+                         pw%pw_grid%para%bo(1, 2, ip, 1) <= I2 - L2 + 1 .AND. pw%pw_grid%para%bo(2, 2, ip, 1) >= I2 - L2 + 1) THEN
                         source = ip
                      ENDIF
                   ENDDO
@@ -202,11 +202,11 @@ CONTAINS
 
          DEALLOCATE (buf)
       ELSE
-         size_of_z = CEILING(REAL(pw%pw_grid%bounds(2, 3)-pw%pw_grid%bounds(1, 3)+1, dp)/REAL(my_stride(3), dp))
+         size_of_z = CEILING(REAL(pw%pw_grid%bounds(2, 3) - pw%pw_grid%bounds(1, 3) + 1, dp)/REAL(my_stride(3), dp))
          num_linebreak = size_of_z/num_entries_line
          IF (MODULO(size_of_z, num_entries_line) /= 0) &
-            num_linebreak = num_linebreak+1
-         msglen = (size_of_z*entry_len+num_linebreak)*mpi_character_size
+            num_linebreak = num_linebreak + 1
+         msglen = (size_of_z*entry_len + num_linebreak)*mpi_character_size
          CALL pw_to_cube_parallel(pw, unit_nr, title, particles_r, particles_z, my_stride, my_zero_tails, msglen)
       END IF
 
@@ -256,7 +256,7 @@ CONTAINS
 
       lbounds_local = grid%pw_grid%bounds_local(1, :)
       ubounds_local = grid%pw_grid%bounds_local(2, :)
-      size_of_z = ubounds_local(3)-lbounds_local(3)+1
+      size_of_z = ubounds_local(3) - lbounds_local(3) + 1
 
       IF (.NOT. parallel_read) THEN
          npoints = grid%pw_grid%npts
@@ -289,7 +289,7 @@ CONTAINS
             READ (extunit, *) nat, rdum
             DO i = 1, 3
                READ (extunit, *) ndum, rdum
-               IF ((ndum /= npoints(i) .OR. (ABS(rdum(i)-dr(i)) > 1e-4)) .AND. &
+               IF ((ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4)) .AND. &
                    output_unit > 0) THEN
                   WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
                   WRITE (output_unit, *) "Restart from density | ", ndum, " DIFFERS FROM ", npoints(i)
@@ -308,7 +308,7 @@ CONTAINS
                IF (my_rank .EQ. 0) THEN
                   READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
                   IF (num_pe .GT. 1) THEN
-                     DO ip = 1, num_pe-1
+                     DO ip = 1, num_pe - 1
                         CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
                      ENDDO
                   ENDIF
@@ -339,8 +339,8 @@ CONTAINS
          ! Thus, this size is simply the number of entries multiplied by the entry size + the number of line breaks
          num_linebreak = size_of_z/num_entries_line
          IF (MODULO(size_of_z, num_entries_line) /= 0) &
-            num_linebreak = num_linebreak+1
-         msglen = (size_of_z*entry_len+num_linebreak)*mpi_character_size
+            num_linebreak = num_linebreak + 1
+         msglen = (size_of_z*entry_len + num_linebreak)*mpi_character_size
          CALL cube_to_pw_parallel(grid, filename, scaling, msglen)
       END IF
 
@@ -403,8 +403,8 @@ CONTAINS
       npoints_local = grid%pw_grid%npts_local
       lbounds_local = grid%pw_grid%bounds_local(1, :)
       ubounds_local = grid%pw_grid%bounds_local(2, :)
-      size_of_z = ubounds_local(3)-lbounds_local(3)+1
-      nslices = (ubounds_local(1)-lbounds_local(1)+1)*(ubounds_local(2)-lbounds_local(2)+1)
+      size_of_z = ubounds_local(3) - lbounds_local(3) + 1
+      nslices = (ubounds_local(1) - lbounds_local(1) + 1)*(ubounds_local(2) - lbounds_local(2) + 1)
       islice = 1
 
       ! Read header information and determine byte offset of cube data on master process
@@ -427,7 +427,7 @@ CONTAINS
          READ (extunit, *) nat, rdum
          DO i = 1, 3
             READ (extunit, *) ndum, rdum
-            IF ((ndum /= npoints(i) .OR. (ABS(rdum(i)-dr(i)) > 1e-4)) .AND. &
+            IF ((ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4)) .AND. &
                 output_unit > 0) THEN
                WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
                WRITE (output_unit, *) "Restart from density | ", ndum, " DIFFERS FROM ", npoints(i)
@@ -464,10 +464,10 @@ CONTAINS
             IF (ALL(should_read .EQV. .TRUE.)) THEN
                IF (islice > nslices) CPABORT("Index out of bounds.")
                displacements(islice) = BOF
-               islice = islice+1
+               islice = islice + 1
             END IF
             ! Update global byte offset
-            BOF = BOF+msglen
+            BOF = BOF + msglen
          END DO
       END DO
       ! Size of each z-slice is msglen
@@ -512,21 +512,21 @@ CONTAINS
             DO k = lbounds_local(3), ubounds_local(3)
                IF (MODULO(ientry, num_entries_line) == 0 .OR. k == ubounds_local(3)) THEN
                   ! Last value on line, dont read line break
-                  READ (tmp(pos:pos+(entry_len-2)), '(E12.5)') buffer(k)
-                  pos = pos+(entry_len+1)
+                  READ (tmp(pos:pos + (entry_len - 2)), '(E12.5)') buffer(k)
+                  pos = pos + (entry_len + 1)
                ELSE
-                  READ (tmp(pos:pos+(entry_len-1)), '(E13.5)') buffer(k)
-                  pos = pos+entry_len
+                  READ (tmp(pos:pos + (entry_len - 1)), '(E13.5)') buffer(k)
+                  pos = pos + entry_len
                END IF
-               ientry = ientry+1
+               ientry = ientry + 1
             END DO
          END IF
          ! Optionally scale cube file values
          grid%cr3d(i, j, lbounds(3):ubounds(3)) = scaling*buffer(lbounds(3):ubounds(3))
-         j = j+1
+         j = j + 1
          IF (j > ubounds_local(2)) THEN
             j = lbounds_local(2)
-            i = i+1
+            i = i + 1
          END IF
       END DO
       DEALLOCATE (readbuffer)
@@ -552,7 +552,7 @@ CONTAINS
             READ (extunit, *) nat, rdum
             DO i = 1, 3
                READ (extunit, *) ndum, rdum
-               IF ((ndum /= npoints(i) .OR. (ABS(rdum(i)-dr(i)) > 1e-4)) .AND. &
+               IF ((ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4)) .AND. &
                    output_unit > 0) THEN
                   WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
                   WRITE (output_unit, *) "Restart from density | ", ndum, " DIFFERS FROM ", npoints(i)
@@ -571,7 +571,7 @@ CONTAINS
                IF (my_rank .EQ. 0) THEN
                   READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
                   IF (num_pe .GT. 1) THEN
-                     DO ip = 1, num_pe-1
+                     DO ip = 1, num_pe - 1
                         CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
                      ENDDO
                   ENDIF
@@ -658,7 +658,7 @@ CONTAINS
       lbounds_local = grid%pw_grid%bounds_local(1, :)
       ubounds_local = grid%pw_grid%bounds_local(2, :)
       ! Determine the total number of z-slices and the number of values per slice
-      size_of_z = CEILING(REAL(ubounds_local(3)-lbounds_local(3)+1, dp)/REAL(stride(3), dp))
+      size_of_z = CEILING(REAL(ubounds_local(3) - lbounds_local(3) + 1, dp)/REAL(stride(3), dp))
       islice = 1
       DO i = lbounds(1), ubounds(1), stride(1)
          should_write(:) = .TRUE.
@@ -673,13 +673,13 @@ CONTAINS
                should_write(2) = .FALSE.
             END IF
             IF (ALL(should_write .EQV. .TRUE.)) THEN
-               islice = islice+1
+               islice = islice + 1
             END IF
          END DO
       END DO
-      nslices = islice-1
+      nslices = islice - 1
       DO k = lbounds(3), ubounds(3), stride(3)
-         IF (k+stride(3) > ubounds(3)) last_z = k
+         IF (k + stride(3) > ubounds(3)) last_z = k
       END DO
       islice = 1
       ! Determine initial byte offset (0 or EOF if data is appended)
@@ -689,13 +689,13 @@ CONTAINS
          ! this format seems to work for e.g. molekel and gOpenmol
          ! latest version of VMD can read non orthorhombic cells
          CALL mp_file_write_at(unit_nr, BOF, "-Quickstep-"//NEW_LINE("C"))
-         BOF = BOF+LEN("-Quickstep-"//NEW_LINE("C"))*mpi_character_size
+         BOF = BOF + LEN("-Quickstep-"//NEW_LINE("C"))*mpi_character_size
          IF (PRESENT(title)) THEN
             CALL mp_file_write_at(unit_nr, BOF, TRIM(title)//NEW_LINE("C"))
-            BOF = BOF+LEN(TRIM(title)//NEW_LINE("C"))*mpi_character_size
+            BOF = BOF + LEN(TRIM(title)//NEW_LINE("C"))*mpi_character_size
          ELSE
             CALL mp_file_write_at(unit_nr, BOF, "No Title"//NEW_LINE("C"))
-            BOF = BOF+LEN("No Title"//NEW_LINE("C"))*mpi_character_size
+            BOF = BOF + LEN("No Title"//NEW_LINE("C"))*mpi_character_size
          ENDIF
 
          CPASSERT(PRESENT(particles_z) .EQV. PRESENT(particles_r))
@@ -709,31 +709,31 @@ CONTAINS
 
          WRITE (header, '(I5,3f12.6)') np, 0.0_dp, 0._dp, 0._dp !start of cube
          CALL mp_file_write_at(unit_nr, BOF, header//NEW_LINE("C"))
-         BOF = BOF+LEN(header//NEW_LINE("C"))*mpi_character_size
+         BOF = BOF + LEN(header//NEW_LINE("C"))*mpi_character_size
 
-         WRITE (header, '(I5,3f12.6)') (grid%pw_grid%npts(1)+stride(1)-1)/stride(1), &
+         WRITE (header, '(I5,3f12.6)') (grid%pw_grid%npts(1) + stride(1) - 1)/stride(1), &
             grid%pw_grid%dh(1, 1)*REAL(stride(1), dp), grid%pw_grid%dh(2, 1)*REAL(stride(1), dp), &
             grid%pw_grid%dh(3, 1)*REAL(stride(1), dp)
          CALL mp_file_write_at(unit_nr, BOF, header//NEW_LINE("C"))
-         BOF = BOF+LEN(header//NEW_LINE("C"))*mpi_character_size
+         BOF = BOF + LEN(header//NEW_LINE("C"))*mpi_character_size
 
-         WRITE (header, '(I5,3f12.6)') (grid%pw_grid%npts(2)+stride(2)-1)/stride(2), &
+         WRITE (header, '(I5,3f12.6)') (grid%pw_grid%npts(2) + stride(2) - 1)/stride(2), &
             grid%pw_grid%dh(1, 2)*REAL(stride(2), dp), grid%pw_grid%dh(2, 2)*REAL(stride(2), dp), &
             grid%pw_grid%dh(3, 2)*REAL(stride(2), dp)
          CALL mp_file_write_at(unit_nr, BOF, header//NEW_LINE("C"))
-         BOF = BOF+LEN(header//NEW_LINE("C"))*mpi_character_size
+         BOF = BOF + LEN(header//NEW_LINE("C"))*mpi_character_size
 
-         WRITE (header, '(I5,3f12.6)') (grid%pw_grid%npts(3)+stride(3)-1)/stride(3), &
+         WRITE (header, '(I5,3f12.6)') (grid%pw_grid%npts(3) + stride(3) - 1)/stride(3), &
             grid%pw_grid%dh(1, 3)*REAL(stride(3), dp), grid%pw_grid%dh(2, 3)*REAL(stride(3), dp), &
             grid%pw_grid%dh(3, 3)*REAL(stride(3), dp)
          CALL mp_file_write_at(unit_nr, BOF, header//NEW_LINE("C"))
-         BOF = BOF+LEN(header//NEW_LINE("C"))*mpi_character_size
+         BOF = BOF + LEN(header//NEW_LINE("C"))*mpi_character_size
 
          IF (PRESENT(particles_z)) THEN
             DO i = 1, np
                WRITE (header_z, '(I5,4f12.6)') particles_z(i), 0._dp, particles_r(:, i)
                CALL mp_file_write_at(unit_nr, BOF, header_z//NEW_LINE("C"))
-               BOF = BOF+LEN(header_z//NEW_LINE("C"))*mpi_character_size
+               BOF = BOF + LEN(header_z//NEW_LINE("C"))*mpi_character_size
             END DO
          END IF
       ENDIF
@@ -769,15 +769,15 @@ CONTAINS
                      WRITE (value, '(E13.5)') grid%cr3d(i, j, k)
                   END IF
                   tmp = TRIM(tmp)//TRIM(value)
-                  counter = counter+1
+                  counter = counter + 1
                   IF (MODULO(counter, num_entries_line) == 0 .OR. k == last_z) &
                      tmp = TRIM(tmp)//NEW_LINE('C')
                END DO
                writebuffer(islice) = tmp
-               islice = islice+1
+               islice = islice + 1
             END IF
             ! Update global byte offset
-            BOF = BOF+msglen
+            BOF = BOF + msglen
          END DO
       END DO
       ! Create indexed MPI type using calculated byte offsets as displacements
@@ -861,9 +861,9 @@ CONTAINS
       ! Write the header: number of points and number of spins
       ngrids = 1
       IF (DOUBLE) ngrids = 2
-      npoints = ((pw%pw_grid%npts(1)+my_stride(1)-1)/my_stride(1))* &
-                ((pw%pw_grid%npts(2)+my_stride(2)-1)/my_stride(1))* &
-                ((pw%pw_grid%npts(3)+my_stride(3)-1)/my_stride(1))
+      npoints = ((pw%pw_grid%npts(1) + my_stride(1) - 1)/my_stride(1))* &
+                ((pw%pw_grid%npts(2) + my_stride(2) - 1)/my_stride(1))* &
+                ((pw%pw_grid%npts(3) + my_stride(3) - 1)/my_stride(1))
       IF (unit_nr > 1) WRITE (unit_nr, '(I7,I5)') npoints, ngrids
 
       ALLOCATE (buf(L3:U3))
@@ -891,9 +891,9 @@ CONTAINS
 
             ! cycling through the CPUs, check if the current ray (I1,I2) is local to that CPU
             IF (pw%pw_grid%para%mode .NE. PW_MODE_LOCAL) THEN
-               DO ip = 0, num_pe-1
-                  IF (pw%pw_grid%para%bo(1, 1, ip, 1) <= I1-L1+1 .AND. pw%pw_grid%para%bo(2, 1, ip, 1) >= I1-L1+1 .AND. &
-                      pw%pw_grid%para%bo(1, 2, ip, 1) <= I2-L2+1 .AND. pw%pw_grid%para%bo(2, 2, ip, 1) >= I2-L2+1) THEN
+               DO ip = 0, num_pe - 1
+                  IF (pw%pw_grid%para%bo(1, 1, ip, 1) <= I1 - L1 + 1 .AND. pw%pw_grid%para%bo(2, 1, ip, 1) >= I1 - L1 + 1 .AND. &
+                      pw%pw_grid%para%bo(1, 2, ip, 1) <= I2 - L2 + 1 .AND. pw%pw_grid%para%bo(2, 2, ip, 1) >= I2 - L2 + 1) THEN
                      source = ip
                   ENDIF
                ENDDO
@@ -923,16 +923,16 @@ CONTAINS
 
             IF (.NOT. DOUBLE) THEN
                DO I3 = L3, U3, my_stride(3)
-                  x = pw%pw_grid%dh(1, 1)*I1+ &
-                      pw%pw_grid%dh(2, 1)*I2+ &
+                  x = pw%pw_grid%dh(1, 1)*I1 + &
+                      pw%pw_grid%dh(2, 1)*I2 + &
                       pw%pw_grid%dh(3, 1)*I3
 
-                  y = pw%pw_grid%dh(1, 2)*I1+ &
-                      pw%pw_grid%dh(2, 2)*I2+ &
+                  y = pw%pw_grid%dh(1, 2)*I1 + &
+                      pw%pw_grid%dh(2, 2)*I2 + &
                       pw%pw_grid%dh(3, 2)*I3
 
-                  z = pw%pw_grid%dh(1, 3)*I1+ &
-                      pw%pw_grid%dh(2, 3)*I2+ &
+                  z = pw%pw_grid%dh(1, 3)*I1 + &
+                      pw%pw_grid%dh(2, 3)*I2 + &
                       pw%pw_grid%dh(3, 3)*I3
 
                   IF (unit_nr > 0) THEN
@@ -943,16 +943,16 @@ CONTAINS
             ELSE
 
                DO I3 = L3, U3, my_stride(3)
-                  x = pw%pw_grid%dh(1, 1)*I1+ &
-                      pw%pw_grid%dh(2, 1)*I2+ &
+                  x = pw%pw_grid%dh(1, 1)*I1 + &
+                      pw%pw_grid%dh(2, 1)*I2 + &
                       pw%pw_grid%dh(3, 1)*I3
 
-                  y = pw%pw_grid%dh(1, 2)*I1+ &
-                      pw%pw_grid%dh(2, 2)*I2+ &
+                  y = pw%pw_grid%dh(1, 2)*I1 + &
+                      pw%pw_grid%dh(2, 2)*I2 + &
                       pw%pw_grid%dh(3, 2)*I3
 
-                  z = pw%pw_grid%dh(1, 3)*I1+ &
-                      pw%pw_grid%dh(2, 3)*I2+ &
+                  z = pw%pw_grid%dh(1, 3)*I1 + &
+                      pw%pw_grid%dh(2, 3)*I2 + &
                       pw%pw_grid%dh(3, 3)*I3
 
                   IF (unit_nr > 0) THEN

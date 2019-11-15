@@ -97,7 +97,7 @@ CONTAINS
       ALLOCATE (cell_env)
       NULLIFY (cell_env%ref_cell, cell, subsys, particles)
       cell_env%ref_count = 1
-      last_cell_opt_env_id = last_cell_opt_env_id+1
+      last_cell_opt_env_id = last_cell_opt_env_id + 1
       cell_env%id_nr = last_cell_opt_env_id
       CALL force_env_get(force_env, cell=cell, subsys=subsys)
       CALL cell_create(cell_env%ref_cell)
@@ -183,7 +183,7 @@ CONTAINS
 
       IF (ASSOCIATED(cell_env)) THEN
          CPASSERT(cell_env%ref_count > 0)
-         cell_env%ref_count = cell_env%ref_count-1
+         cell_env%ref_count = cell_env%ref_count - 1
          IF (cell_env%ref_count == 0) THEN
             CALL cell_release(cell_env%ref_cell)
             DEALLOCATE (cell_env)

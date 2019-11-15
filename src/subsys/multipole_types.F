@@ -81,7 +81,7 @@ CONTAINS
 
       ALLOCATE (multipoles)
 
-      last_multipole_id_nr = last_multipole_id_nr+1
+      last_multipole_id_nr = last_multipole_id_nr + 1
       multipoles%id_nr = last_multipole_id_nr
       multipoles%ref_count = 1
       multipoles%task = .FALSE.
@@ -142,7 +142,7 @@ CONTAINS
                CALL section_vals_val_get(work_section, "_DEFAULT_KEYWORD_", i_rep_val=iparticle, r_vals=work)
                DO i = 1, 3
                   DO j = 1, 3
-                     ind2 = 3*(MIN(i, j)-1)-(MIN(i, j)*(MIN(i, j)-1))/2+MAX(i, j)
+                     ind2 = 3*(MIN(i, j) - 1) - (MIN(i, j)*(MIN(i, j) - 1))/2 + MAX(i, j)
                      multipoles%quadrupoles(i, j, iparticle) = work(ind2)
                   END DO
                END DO
@@ -168,7 +168,7 @@ CONTAINS
 
       IF (ASSOCIATED(multipoles)) THEN
          CPASSERT(multipoles%ref_count > 0)
-         multipoles%ref_count = multipoles%ref_count-1
+         multipoles%ref_count = multipoles%ref_count - 1
          IF (multipoles%ref_count == 0) THEN
             IF (ASSOCIATED(multipoles%charges)) THEN
                DEALLOCATE (multipoles%charges)
@@ -202,7 +202,7 @@ CONTAINS
 
       IF (ASSOCIATED(multipoles)) THEN
          CPASSERT(multipoles%ref_count > 0)
-         multipoles%ref_count = multipoles%ref_count+1
+         multipoles%ref_count = multipoles%ref_count + 1
       END IF
    END SUBROUTINE retain_multipole_type
 

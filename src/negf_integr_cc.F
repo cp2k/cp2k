@@ -129,7 +129,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(weights))
 
       ! ensure that MOD(nnodes-1, 2) == 0
-      nnodes = 2*((nnodes-1)/2)+1
+      nnodes = 2*((nnodes - 1)/2) + 1
 
       cc_env%interval_id = interval_id
       cc_env%shape_id = shape_id
@@ -151,7 +151,7 @@ CONTAINS
 
       SELECT CASE (interval_id)
       CASE (cc_interval_full)
-         nnodes_half = nnodes/2+1
+         nnodes_half = nnodes/2 + 1
       CASE (cc_interval_half)
          nnodes_half = nnodes
       CASE DEFAULT
@@ -169,17 +169,17 @@ CONTAINS
          ! Moreover, by applying this rescaling transformation to the end-points we cannot guarantee the exact
          ! result due to rounding errors in evaluation of COS function.
          IF (nnodes_half > 2) &
-            CALL rescale_nodes_cos(nnodes_half-2, cc_env%tnodes(2:))
+            CALL rescale_nodes_cos(nnodes_half - 2, cc_env%tnodes(2:))
 
          SELECT CASE (interval_id)
          CASE (cc_interval_full)
             ! reflect symmetric nodes
-            DO ipoint = nnodes_half-1, 1, -1
-               cc_env%tnodes(nnodes_half+ipoint) = -cc_env%tnodes(nnodes_half-ipoint)
+            DO ipoint = nnodes_half - 1, 1, -1
+               cc_env%tnodes(nnodes_half + ipoint) = -cc_env%tnodes(nnodes_half - ipoint)
             END DO
          CASE (cc_interval_half)
             ! rescale half-interval : [-1 .. 0] -> [-1 .. 1]
-            cc_env%tnodes(1:nnodes_half) = 2.0_dp*cc_env%tnodes(1:nnodes_half)+1.0_dp
+            cc_env%tnodes(1:nnodes_half) = 2.0_dp*cc_env%tnodes(1:nnodes_half) + 1.0_dp
          END SELECT
       END IF
 
@@ -257,7 +257,7 @@ CONTAINS
       nnodes_exist = SIZE(cc_env%zdata_cache)
       ! new nodes will be placed between the existed ones, so the number of nodes
       ! on the left half-interval [-1 .. 0] is equal to nnodes_exist - 1
-      nnodes_half = nnodes_exist-1
+      nnodes_half = nnodes_exist - 1
 
       SELECT CASE (cc_env%interval_id)
       CASE (cc_interval_full)
@@ -272,7 +272,7 @@ CONTAINS
       ALLOCATE (xnodes_next(nnodes_next))
       ALLOCATE (tnodes(nnodes_next))
 
-      CALL equidistant_nodes_a_b(0.5_dp/REAL(nnodes_half, kind=dp)-1.0_dp, &
+      CALL equidistant_nodes_a_b(0.5_dp/REAL(nnodes_half, kind=dp) - 1.0_dp, &
                                  -0.5_dp/REAL(nnodes_half, kind=dp), &
                                  nnodes_half, tnodes)
 
@@ -282,20 +282,20 @@ CONTAINS
       CASE (cc_interval_full)
          ! reflect symmetric nodes
          DO ipoint = 1, nnodes_half
-            tnodes(nnodes_half+ipoint) = -tnodes(nnodes_half-ipoint+1)
+            tnodes(nnodes_half + ipoint) = -tnodes(nnodes_half - ipoint + 1)
          END DO
       CASE (cc_interval_half)
          ! rescale half-interval : [-1 .. 0] -> [-1 .. 1]
-         tnodes(1:nnodes_half) = 2.0_dp*tnodes(1:nnodes_half)+1.0_dp
+         tnodes(1:nnodes_half) = 2.0_dp*tnodes(1:nnodes_half) + 1.0_dp
       END SELECT
 
       ! append new tnodes to the cache
       CALL MOVE_ALLOC(cc_env%tnodes, tnodes_old)
       nnodes_exist = SIZE(tnodes_old)
 
-      ALLOCATE (cc_env%tnodes(nnodes_exist+nnodes_next))
+      ALLOCATE (cc_env%tnodes(nnodes_exist + nnodes_next))
       cc_env%tnodes(1:nnodes_exist) = tnodes_old(1:nnodes_exist)
-      cc_env%tnodes(nnodes_exist+1:nnodes_exist+nnodes_next) = tnodes(1:nnodes_next)
+      cc_env%tnodes(nnodes_exist + 1:nnodes_exist + nnodes_next) = tnodes(1:nnodes_next)
       DEALLOCATE (tnodes_old)
 
       ! rescale nodes [-1 .. 1] -> [a .. b] according to the shape
@@ -340,7 +340,7 @@ CONTAINS
       CPASSERT(nnodes_exist >= nnodes_next)
 
       ALLOCATE (zscale(nnodes_next))
-      CALL rescale_normalised_nodes(nnodes_next, cc_env%tnodes(nnodes_exist-nnodes_next+1:nnodes_exist), &
+      CALL rescale_normalised_nodes(nnodes_next, cc_env%tnodes(nnodes_exist - nnodes_next + 1:nnodes_exist), &
                                     cc_env%a, cc_env%b, cc_env%shape_id, weights=zscale)
 
       IF (cc_env%interval_id == cc_interval_half) zscale(:) = 2.0_dp*zscale(:)
@@ -361,15 +361,15 @@ CONTAINS
       SELECT CASE (cc_env%interval_id)
       CASE (cc_interval_full)
          IF (ALLOCATED(cc_env%zdata_cache)) THEN
-            CPASSERT(nnodes_exist == nnodes_next/2+1)
-            nnodes_half = nnodes_exist-1
+            CPASSERT(nnodes_exist == nnodes_next/2 + 1)
+            nnodes_half = nnodes_exist - 1
          ELSE
             CPASSERT(MOD(nnodes_next, 2) == 1)
-            nnodes_half = nnodes_next/2+1
+            nnodes_half = nnodes_next/2 + 1
          END IF
       CASE (cc_interval_half)
          IF (ALLOCATED(cc_env%zdata_cache)) THEN
-            CPASSERT(nnodes_exist == nnodes_next+1)
+            CPASSERT(nnodes_exist == nnodes_next + 1)
          END IF
 
          nnodes_half = nnodes_next
@@ -377,20 +377,20 @@ CONTAINS
 
       IF (cc_env%interval_id == cc_interval_full) THEN
          DO ipoint = nnodes_next/2, 1, -1
-            CALL cp_cfm_scale_and_add(z_one, zdata_next(ipoint)%matrix, z_one, zdata_next(nnodes_next-ipoint+1)%matrix)
+            CALL cp_cfm_scale_and_add(z_one, zdata_next(ipoint)%matrix, z_one, zdata_next(nnodes_next - ipoint + 1)%matrix)
          END DO
       END IF
 
       IF (ALLOCATED(cc_env%zdata_cache)) THEN
          ! note that nnodes_half+1 == nnodes_exist for both half- and full-intervals
-         ALLOCATE (zdata_tmp(nnodes_half+nnodes_exist))
+         ALLOCATE (zdata_tmp(nnodes_half + nnodes_exist))
 
          DO ipoint = 1, nnodes_half
-            zdata_tmp(2*ipoint-1)%matrix => cc_env%zdata_cache(ipoint)%matrix
+            zdata_tmp(2*ipoint - 1)%matrix => cc_env%zdata_cache(ipoint)%matrix
             zdata_tmp(2*ipoint)%matrix => zdata_next(ipoint)%matrix
             NULLIFY (zdata_next(ipoint)%matrix)
          END DO
-         zdata_tmp(nnodes_half+nnodes_exist)%matrix => cc_env%zdata_cache(nnodes_exist)%matrix
+         zdata_tmp(nnodes_half + nnodes_exist)%matrix => cc_env%zdata_cache(nnodes_exist)%matrix
 
          DEALLOCATE (cc_env%zdata_cache)
          CALL MOVE_ALLOC(zdata_tmp, cc_env%zdata_cache)
@@ -436,10 +436,10 @@ CONTAINS
       CPASSERT(ALLOCATED(cc_env%zdata_cache))
 
       nintervals_half_plus_1 = SIZE(cc_env%zdata_cache)
-      nintervals_half = nintervals_half_plus_1-1
-      nintervals_half_plus_2 = nintervals_half_plus_1+1
+      nintervals_half = nintervals_half_plus_1 - 1
+      nintervals_half_plus_2 = nintervals_half_plus_1 + 1
       nintervals = 2*nintervals_half
-      nintervals_plus_2 = nintervals+2
+      nintervals_plus_2 = nintervals + 2
       CPASSERT(nintervals_half > 1)
 
       IF (.NOT. ASSOCIATED(cc_env%integral)) THEN
@@ -464,12 +464,12 @@ CONTAINS
 
       ! omit the trivial weights(1) = 0.5
       DO ipoint = 2, nintervals_half
-         rscale = REAL(2*(ipoint-1), kind=dp)
-         weights(ipoint) = 1.0_dp/(1.0_dp-rscale*rscale)
+         rscale = REAL(2*(ipoint - 1), kind=dp)
+         weights(ipoint) = 1.0_dp/(1.0_dp - rscale*rscale)
       END DO
       ! weights(1) <- weights(intervals_half + 1)
       rscale = REAL(nintervals, kind=dp)
-      weights(1) = 1.0_dp/(1.0_dp-rscale*rscale)
+      weights(1) = 1.0_dp/(1.0_dp - rscale*rscale)
 
       ! 1.0 / nintervals
       rscale = 1.0_dp/rscale
@@ -486,7 +486,7 @@ CONTAINS
             END DO
 
             DO ipoint = 2, nintervals_half
-               ztmp(nintervals_half+ipoint, irow, icol) = ztmp(nintervals_half_plus_2-ipoint, irow, icol)
+               ztmp(nintervals_half + ipoint, irow, icol) = ztmp(nintervals_half_plus_2 - ipoint, irow, icol)
             END DO
          END DO
       END DO
@@ -506,8 +506,8 @@ CONTAINS
          DO irow = 1, nrows_local
             ztmp_dct(1, irow, icol) = 0.5_dp*ztmp_dct(1, irow, icol)
             DO ipoint = 2, nintervals_half
-               ztmp_dct(ipoint, irow, icol) = 0.5_dp*weights(ipoint)*(ztmp_dct(ipoint, irow, icol)+ &
-                                                                      ztmp_dct(nintervals_plus_2-ipoint, irow, icol))
+               ztmp_dct(ipoint, irow, icol) = 0.5_dp*weights(ipoint)*(ztmp_dct(ipoint, irow, icol) + &
+                                                                      ztmp_dct(nintervals_plus_2 - ipoint, irow, icol))
             END DO
             ztmp_dct(nintervals_half_plus_1, irow, icol) = weights(1)*ztmp_dct(nintervals_half_plus_1, irow, icol)
 

@@ -98,7 +98,7 @@ CONTAINS
          CASE (do_fe_ui)
             ! Umbrella Integration..
             CALL force_env_get(force_env, subsys=subsys)
-            fe_env%nr_points = fe_env%nr_points+1
+            fe_env%nr_points = fe_env%nr_points + 1
             output_unit = cp_logger_get_default_io_unit(logger)
             DO ic = 1, fe_env%ncolvar
                cv => fe_env%uivar(ic)
@@ -110,7 +110,7 @@ CONTAINS
                   WRITE (output_unit, *) "COLVAR::", cv%ss(fe_env%nr_points)
                END IF
             END DO
-            stat_sign_points = fe_env%nr_points-fe_env%nr_rejected
+            stat_sign_points = fe_env%nr_points - fe_env%nr_rejected
             IF (output_unit > 0) THEN
                WRITE (output_unit, *) fe_env%nr_points, stat_sign_points
             END IF
@@ -122,7 +122,7 @@ CONTAINS
                CALL print_fe_prolog(output_unit)
                ! Trend test..  recomputes the number of statistically significant points..
                CALL ui_check_trend(fe_env, fe_env%conv_par%test_k, stat_sign_points, output_unit)
-               stat_sign_points = fe_env%nr_points-fe_env%nr_rejected
+               stat_sign_points = fe_env%nr_points - fe_env%nr_rejected
                ! Normality and serial correlation tests..
                IF (fe_env%conv_par%cg_width*fe_env%conv_par%cg_points <= stat_sign_points .AND. &
                    fe_env%conv_par%test_k) THEN
@@ -235,18 +235,18 @@ CONTAINS
          ii = 1
          DO i = ng_points, 1, -1
             wrk(ii) = fe_env%cg_data(i)%avg(j)
-            ii = ii+1
+            ii = ii + 1
          END DO
-         DO i = my_reject+1, ng_points
-            IF ((ng_points-my_reject) .LT. min_sample_size) THEN
-               my_reject = MAX(0, my_reject-1)
+         DO i = my_reject + 1, ng_points
+            IF ((ng_points - my_reject) .LT. min_sample_size) THEN
+               my_reject = MAX(0, my_reject - 1)
                test_avg = .FALSE.
                EXIT
             END IF
-            CALL k_test(wrk, my_reject+1, ng_points, tau, z, prob)
+            CALL k_test(wrk, my_reject + 1, ng_points, tau, z, prob)
             PRINT *, prob, fe_env%conv_par%k_conf_lm
             IF (prob < fe_env%conv_par%k_conf_lm) EXIT
-            my_reject = my_reject+1
+            my_reject = my_reject + 1
          END DO
          my_reject = MIN(ng_points, my_reject)
       END DO
@@ -254,7 +254,7 @@ CONTAINS
       ! Print some info
       IF (output_unit > 0) THEN
          WRITE (output_unit, *) "Kendall trend test (Average)", test_avg, &
-            "number of points rejected:", rejected_points+fe_env%nr_rejected
+            "number of points rejected:", rejected_points + fe_env%nr_rejected
          WRITE (output_unit, *) "Reject Nr.", my_reject, " coarse grained points testing average"
       END IF
       ! Test on coarse grained covariance matrix
@@ -263,24 +263,24 @@ CONTAINS
             ii = 1
             DO i = ng_points, 1, -1
                wrk(ii) = fe_env%cg_data(i)%var(j, k)
-               ii = ii+1
+               ii = ii + 1
             END DO
-            DO i = my_reject+1, ng_points
-               IF ((ng_points-my_reject) .LT. min_sample_size) THEN
-                  my_reject = MAX(0, my_reject-1)
+            DO i = my_reject + 1, ng_points
+               IF ((ng_points - my_reject) .LT. min_sample_size) THEN
+                  my_reject = MAX(0, my_reject - 1)
                   test_std = .FALSE.
                   EXIT
                END IF
-               CALL k_test(wrk, my_reject+1, ng_points, tau, z, prob)
+               CALL k_test(wrk, my_reject + 1, ng_points, tau, z, prob)
                PRINT *, prob, fe_env%conv_par%k_conf_lm
                IF (prob < fe_env%conv_par%k_conf_lm) EXIT
-               my_reject = my_reject+1
+               my_reject = my_reject + 1
             END DO
             my_reject = MIN(ng_points, my_reject)
          END DO
       END DO
       rejected_points = my_reject*fe_env%conv_par%cg_width
-      fe_env%nr_rejected = fe_env%nr_rejected+rejected_points
+      fe_env%nr_rejected = fe_env%nr_rejected + rejected_points
       trend_free = test_avg .AND. test_std
       ! Print some info
       IF (output_unit > 0) THEN
@@ -369,8 +369,8 @@ CONTAINS
       INTEGER                                            :: i, iend, istart
 
       DO i = 1, ng_points
-         istart = fe_env%nr_points-(i)*fe_env%conv_par%cg_width+1
-         iend = fe_env%nr_points-(i-1)*fe_env%conv_par%cg_width
+         istart = fe_env%nr_points - (i)*fe_env%conv_par%cg_width + 1
+         iend = fe_env%nr_points - (i - 1)*fe_env%conv_par%cg_width
          IF (output_unit > 0) THEN
             WRITE (output_unit, *) istart, iend
          END IF
@@ -408,7 +408,7 @@ CONTAINS
          CALL ui_check_norm_sc_low(fe_env, nr_points, output_unit)
          test_passed = fe_env%conv_par%test_vn .AND. fe_env%conv_par%test_sw
          IF (test_passed) EXIT
-         fe_env%conv_par%cg_width = fe_env%conv_par%cg_width+1
+         fe_env%conv_par%cg_width = fe_env%conv_par%cg_width + 1
          IF (output_unit > 0) THEN
             WRITE (output_unit, *) "New coarse grained width:", fe_env%conv_par%cg_width
          END IF
@@ -460,8 +460,8 @@ CONTAINS
          ! Test of Shapiro - Wilks for normality
          !                 - Average
          CALL sw_test(wrk, ng_points, w, pw)
-         PRINT *, 1.0_dp-pw, fe_env%conv_par%sw_conf_lm
-         avg_test_passed = (1.0_dp-pw) <= fe_env%conv_par%sw_conf_lm
+         PRINT *, 1.0_dp - pw, fe_env%conv_par%sw_conf_lm
+         avg_test_passed = (1.0_dp - pw) <= fe_env%conv_par%sw_conf_lm
          fe_env%conv_par%test_sw = avg_test_passed
          IF (output_unit > 0) THEN
             WRITE (output_unit, *) "Shapiro-Wilks normality test (Avg)", avg_test_passed
@@ -487,8 +487,8 @@ CONTAINS
                ! Test of Shapiro - Wilks for normality
                !                 - Standard Deviation
                CALL sw_test(wrk, ng_points, w, pw)
-               PRINT *, 1.0_dp-pw, fe_env%conv_par%sw_conf_lm
-               sdv_test_passed = (1.0_dp-pw) <= fe_env%conv_par%sw_conf_lm
+               PRINT *, 1.0_dp - pw, fe_env%conv_par%sw_conf_lm
+               sdv_test_passed = (1.0_dp - pw) <= fe_env%conv_par%sw_conf_lm
                fe_env%conv_par%test_sw = fe_env%conv_par%test_sw .AND. sdv_test_passed
                IF (output_unit > 0) THEN
                   WRITE (output_unit, *) "Shapiro-Wilks normality test (Std. Dev.)", sdv_test_passed
@@ -548,13 +548,13 @@ CONTAINS
          CALL create_csg_data(fe_env, ng_points, output_unit)
          ALLOCATE (covmx(ncolvar, ncolvar))
          ALLOCATE (avgmx(ncolvar))
-         ALLOCATE (cov_std(ncolvar*(ncolvar+1)/2, ncolvar*(ncolvar+1)/2))
+         ALLOCATE (cov_std(ncolvar*(ncolvar + 1)/2, ncolvar*(ncolvar + 1)/2))
          ALLOCATE (avg_std(ncolvar))
          covmx = 0.0_dp
          avgmx = 0.0_dp
          DO i = 1, ng_points
-            covmx = covmx+fe_env%cg_data(i)%var
-            avgmx = avgmx+fe_env%cg_data(i)%avg
+            covmx = covmx + fe_env%cg_data(i)%var
+            avgmx = avgmx + fe_env%cg_data(i)%avg
          END DO
          covmx = covmx/REAL(ng_points, KIND=dp)
          avgmx = avgmx/REAL(ng_points, KIND=dp)
@@ -641,17 +641,17 @@ CONTAINS
       DO k = 1, SIZE(fe_env%cg_data)
          DO j = 1, nvar
             DO i = j, nvar
-               wrk(i, j) = wrk(i, j)+fe_env%cg_data(k)%avg(i)*fe_env%cg_data(k)%avg(j)
+               wrk(i, j) = wrk(i, j) + fe_env%cg_data(k)%avg(i)*fe_env%cg_data(k)%avg(j)
             END DO
          END DO
       END DO
       DO j = 1, nvar
          DO i = j, nvar
-            wrk(i, j) = wrk(i, j)-avgmx(i)*avgmx(j)*fac
+            wrk(i, j) = wrk(i, j) - avgmx(i)*avgmx(j)*fac
             wrk(j, i) = wrk(i, j)
          END DO
       END DO
-      wrk = wrk/(fac-1.0_dp)
+      wrk = wrk/(fac - 1.0_dp)
       ! Diagonalize the covariance matrix and check for the maximum error
       CALL diamat_all(wrk, eig)
       DO i = 1, nvar
@@ -660,7 +660,7 @@ CONTAINS
       DEALLOCATE (wrk)
       DEALLOCATE (eig)
       ! Standard Deviations
-      nvar = ncolvar*(ncolvar+1)/2
+      nvar = ncolvar*(ncolvar + 1)/2
       ALLOCATE (wrk(nvar, nvar))
       ALLOCATE (eig(nvar))
       ALLOCATE (awrk(nvar))
@@ -670,7 +670,7 @@ CONTAINS
       ind = 0
       DO i = 1, ncolvar
          DO j = i, ncolvar
-            ind = ind+1
+            ind = ind + 1
             awrk(ind) = covmx(i, j)
          END DO
       END DO
@@ -678,29 +678,29 @@ CONTAINS
          ind = 0
          DO i = 1, ncolvar
             DO j = i, ncolvar
-               ind = ind+1
+               ind = ind + 1
                tmp(ind) = fe_env%cg_data(k)%var(i, j)
             END DO
          END DO
          DO i = 1, nvar
             DO j = i, nvar
-               wrk(i, j) = wrk(i, j)+tmp(i)*tmp(j)-awrk(i)*awrk(j)
+               wrk(i, j) = wrk(i, j) + tmp(i)*tmp(j) - awrk(i)*awrk(j)
             END DO
          END DO
       END DO
       DO i = 1, nvar
          DO j = i, nvar
-            wrk(i, j) = wrk(i, j)-fac*awrk(i)*awrk(j)
+            wrk(i, j) = wrk(i, j) - fac*awrk(i)*awrk(j)
             wrk(j, i) = wrk(i, j)
          END DO
       END DO
-      wrk = wrk/(fac-1.0_dp)
+      wrk = wrk/(fac - 1.0_dp)
       ! Diagonalize the covariance matrix and check for the maximum error
       CALL diamat_all(wrk, eig)
       ind = 0
       DO i = 1, ncolvar
          DO j = i, ncolvar
-            ind = ind+1
+            ind = ind + 1
             cov_std(i, j) = eig(ind)
             cov_std(j, i) = cov_std(i, j)
          END DO
@@ -739,7 +739,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       ncolvar = fe_env%ncolvar
-      nlength = iend-istart+1
+      nlength = iend - istart + 1
       fe_env%cg_data(cg_index)%avg = 0.0_dp
       fe_env%cg_data(cg_index)%var = 0.0_dp
       IF (nlength > 1) THEN
@@ -748,7 +748,7 @@ CONTAINS
             DO ic = 1, ncolvar
                cv => fe_env%uivar(ic)
                tmp_ic = cv%ss(jstep)
-               fe_env%cg_data(cg_index)%avg(ic) = fe_env%cg_data(cg_index)%avg(ic)+tmp_ic
+               fe_env%cg_data(cg_index)%avg(ic) = fe_env%cg_data(cg_index)%avg(ic) + tmp_ic
             END DO
             DO ic = 1, ncolvar
                cv => fe_env%uivar(ic)
@@ -756,20 +756,20 @@ CONTAINS
                DO jc = 1, ic
                   cv => fe_env%uivar(jc)
                   tmp_jc = cv%ss(jstep)
-                  fe_env%cg_data(cg_index)%var(jc, ic) = fe_env%cg_data(cg_index)%var(jc, ic)+tmp_ic*tmp_jc
+                  fe_env%cg_data(cg_index)%var(jc, ic) = fe_env%cg_data(cg_index)%var(jc, ic) + tmp_ic*tmp_jc
                END DO
             END DO
          END DO
          ! Normalized the variances and the averages
          ! Unbiased estimator
-         fe_env%cg_data(cg_index)%var = fe_env%cg_data(cg_index)%var/REAL(nlength-1, KIND=dp)
+         fe_env%cg_data(cg_index)%var = fe_env%cg_data(cg_index)%var/REAL(nlength - 1, KIND=dp)
          fe_env%cg_data(cg_index)%avg = fe_env%cg_data(cg_index)%avg/REAL(nlength, KIND=dp)
          ! Compute the covariance matrix
          DO ic = 1, ncolvar
             tmp_ic = fe_env%cg_data(cg_index)%avg(ic)
             DO jc = 1, ic
-               tmp_jc = fe_env%cg_data(cg_index)%avg(jc)*REAL(nlength, KIND=dp)/REAL(nlength-1, KIND=dp)
-               fe_env%cg_data(cg_index)%var(jc, ic) = fe_env%cg_data(cg_index)%var(jc, ic)-tmp_ic*tmp_jc
+               tmp_jc = fe_env%cg_data(cg_index)%avg(jc)*REAL(nlength, KIND=dp)/REAL(nlength - 1, KIND=dp)
+               fe_env%cg_data(cg_index)%var(jc, ic) = fe_env%cg_data(cg_index)%var(jc, ic) - tmp_ic*tmp_jc
                fe_env%cg_data(cg_index)%var(ic, jc) = fe_env%cg_data(cg_index)%var(jc, ic)
             END DO
          END DO
@@ -860,10 +860,10 @@ CONTAINS
       CALL section_vals_val_get(alch_section, "NEQUIL_STEPS", i_val=NEquilStep)
       ! Store results
       IF (istep > NEquilStep) THEN
-         isize = SIZE(cum_res, 2)+1
+         isize = SIZE(cum_res, 2) + 1
          CALL reallocate(cum_res, 1, 3, 1, isize)
          cum_res(1, isize) = dedf
-         cum_res(2, isize) = dedf-d_ene_w
+         cum_res(2, isize) = dedf - d_ene_w
          cum_res(3, isize) = ene_w
          ! Compute derivative of biased and total energy
          ! Total Free Energy
@@ -873,19 +873,19 @@ CONTAINS
          avg_BP = SUM(cum_res(3, 1:isize))/REAL(isize, KIND=dp)
          wfac = 0.0_dp
          DO j = 1, isize
-            wfac = wfac+EXP(beta*(cum_res(3, j)-avg_BP))
+            wfac = wfac + EXP(beta*(cum_res(3, j) - avg_BP))
          END DO
          avg_DUE = 0.0_dp
          std_DUE = 0.0_dp
          DO j = 1, isize
             tmp = cum_res(2, j)
-            tmp2 = EXP(beta*(cum_res(3, j)-avg_BP))/wfac
-            avg_DUE = avg_DUE+tmp*tmp2
-            std_DUE = std_DUE+tmp**2*tmp2
+            tmp2 = EXP(beta*(cum_res(3, j) - avg_BP))/wfac
+            avg_DUE = avg_DUE + tmp*tmp2
+            std_DUE = std_DUE + tmp**2*tmp2
          END DO
          IF (isize > 1) THEN
-            Err_DUE = SQRT(std_DUE-avg_DUE**2)/SQRT(REAL(isize-1, KIND=dp))
-            Err_DET = SQRT(std_DET-avg_DET**2)/SQRT(REAL(isize-1, KIND=dp))
+            Err_DUE = SQRT(std_DUE - avg_DUE**2)/SQRT(REAL(isize - 1, KIND=dp))
+            Err_DET = SQRT(std_DET - avg_DET**2)/SQRT(REAL(isize - 1, KIND=dp))
          END IF
          ! Print info
          iw = cp_print_key_unit_nr(logger, fe_section, "FREE_ENERGY_INFO", &
@@ -899,7 +899,7 @@ CONTAINS
             WRITE (iw, '(T2,"ALCHEMICAL CHANGE| DERIVATIVE OF TOTAL ENERGY  [ PARAMETER (",A,") ]",T66,F15.9)') &
                TRIM(par), dedf
             WRITE (iw, '(T2,"ALCHEMICAL CHANGE| DERIVATIVE OF BIASED ENERGY [ PARAMETER (",A,") ]",T66,F15.9)') &
-               TRIM(par), dedf-d_ene_w
+               TRIM(par), dedf - d_ene_w
             WRITE (iw, '(T2,"ALCHEMICAL CHANGE| BIASING UMBRELLA POTENTIAL  ",T66,F15.9)') &
                ene_w
 

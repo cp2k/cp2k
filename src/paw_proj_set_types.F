@@ -328,7 +328,7 @@ CONTAINS
             IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset)) THEN
                DO ip = 1, npgf(iset)
                   IF (set_radius2(ip, lshell, iset) < max_rad_local) THEN
-                     np = np+1
+                     np = np + 1
                   END IF
                END DO
             ENDIF
@@ -376,10 +376,10 @@ CONTAINS
             IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset)) THEN
                DO ip = 1, npgf(iset)
                   IF (set_radius2(ip, lshell, iset) < max_rad_local) THEN
-                     npgfg = npgfg+1
+                     npgfg = npgfg + 1
                      zet(npgfg) = orb_basis%zet(ip, iset)
                   ELSE
-                     notprj = notprj+1
+                     notprj = notprj + 1
                   END IF
                END DO
             ENDIF
@@ -391,7 +391,7 @@ CONTAINS
          nisop = 0
          DO ip = 1, np
             ! Check for equal exponents
-            DO ipp = 1, ip-1
+            DO ipp = 1, ip - 1
                IF (zet(ip) == zet(ipp)) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "Linear dependency in the construction of the GAPW projectors:"// &
@@ -401,7 +401,7 @@ CONTAINS
 
             IF (zet(ip) >= paw_proj%zisomin(lshell)) THEN
                isoprj(ip) = .TRUE.
-               nisop = nisop+1
+               nisop = nisop + 1
             ELSE
                isoprj(ip) = .FALSE.
             END IF
@@ -412,8 +412,8 @@ CONTAINS
 
          !     *** Generate the projectors by the geometric progression ***
 
-         IF (np-nisop-1 > 2) THEN
-            x = (80.0_dp/zetmin)**(1.0_dp/REAL(np-nisop-1, dp))
+         IF (np - nisop - 1 > 2) THEN
+            x = (80.0_dp/zetmin)**(1.0_dp/REAL(np - nisop - 1, dp))
          ELSE
             x = 2.0_dp
          END IF
@@ -434,21 +434,21 @@ CONTAINS
             IF (isoprj(ip)) THEN
                zetp(ip) = zetval
                zetval = x*zetval
-               nisop = nisop+1
+               nisop = nisop + 1
             ENDIF
          ENDDO
 
          !     *** Build the overlap matrix: <projector|primitive> ***
-         prefac = 0.5_dp**(lshell+2)*rootpi*dfac(2*lshell+1)
-         expzet = REAL(lshell, dp)+1.5_dp
+         prefac = 0.5_dp**(lshell + 2)*rootpi*dfac(2*lshell + 1)
+         expzet = REAL(lshell, dp) + 1.5_dp
 
          DO ip = 1, np
             IF (isoprj(ip)) THEN
-               smat(ip, ip) = prefac/(zetp(ip)+zet(ip))**expzet
+               smat(ip, ip) = prefac/(zetp(ip) + zet(ip))**expzet
             ELSE
                DO jp = 1, np
                   IF (.NOT. isoprj(jp)) THEN
-                     smat(ip, jp) = prefac/(zetp(ip)+zet(jp))**expzet
+                     smat(ip, jp) = prefac/(zetp(ip) + zet(jp))**expzet
                   ENDIF
                ENDDO
             ENDIF
@@ -501,10 +501,10 @@ CONTAINS
             IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset)) THEN
                DO ip = 1, npgf(iset)
                   IF (set_radius2(ip, lshell, iset) < max_rad_local) THEN
-                     npgfg = npgfg+1
+                     npgfg = npgfg + 1
                      paw_proj%gccprj(1:np, ip, lshell, iset) = gcc(1:np, npgfg)
                   ELSE
-                     notprj = notprj+1
+                     notprj = notprj + 1
                      paw_proj%gccprj(1:np, ip, lshell, iset) = 0.0_dp
                   END IF
                END DO
@@ -548,8 +548,8 @@ CONTAINS
       paw_proj%ncgauprj = 0
       paw_proj%nsgauprj = 0
       DO lshell = 0, maxl
-         paw_proj%ncgauprj = paw_proj%ncgauprj+nco(lshell)*paw_proj%nprj(lshell)
-         paw_proj%nsgauprj = paw_proj%nsgauprj+nso(lshell)*paw_proj%nprj(lshell)
+         paw_proj%ncgauprj = paw_proj%ncgauprj + nco(lshell)*paw_proj%nprj(lshell)
+         paw_proj%nsgauprj = paw_proj%nsgauprj + nso(lshell)*paw_proj%nprj(lshell)
       ENDDO
 
       ncgauprj = paw_proj%ncgauprj
@@ -569,18 +569,18 @@ CONTAINS
       nsgauprj = 0
       DO lshell = 0, maxl
          np = paw_proj%nprj(lshell)
-         paw_proj%first_prj(lshell) = ncgauprj+1
-         paw_proj%first_prjs(lshell) = nsgauprj+1
-         paw_proj%last_prj(lshell) = ncgauprj+nco(lshell)*np
+         paw_proj%first_prj(lshell) = ncgauprj + 1
+         paw_proj%first_prjs(lshell) = nsgauprj + 1
+         paw_proj%last_prj(lshell) = ncgauprj + nco(lshell)*np
          DO ip = 1, np
-            DO ico = ncoset(lshell-1)+1, ncoset(lshell)
-               ncgauprj = ncgauprj+1
+            DO ico = ncoset(lshell - 1) + 1, ncoset(lshell)
+               ncgauprj = ncgauprj + 1
                paw_proj%lx(ncgauprj) = indco(1, ico)
                paw_proj%ly(ncgauprj) = indco(2, ico)
                paw_proj%lz(ncgauprj) = indco(3, ico)
             ENDDO ! ico
-            DO iso = nsoset(lshell-1)+1, nsoset(lshell)
-               nsgauprj = nsgauprj+1
+            DO iso = nsoset(lshell - 1) + 1, nsoset(lshell)
+               nsgauprj = nsgauprj + 1
                paw_proj%ll(nsgauprj) = indso(1, iso)
                paw_proj%m(nsgauprj) = indso(2, iso)
             ENDDO
@@ -596,47 +596,47 @@ CONTAINS
             DO ipgf = 1, npgf(iset)
                DO ip = 1, np
                   DO il = 1, nso(lshell)
-                     iprjs = iprjfirst-1+il+(ip-1)*nso(lshell)
-                     iso = nsoset(lshell-1)+1+(lshell+paw_proj%m(iprjs))
+                     iprjs = iprjfirst - 1 + il + (ip - 1)*nso(lshell)
+                     iso = nsoset(lshell - 1) + 1 + (lshell + paw_proj%m(iprjs))
 
-                     iso = iso+(ipgf-1)*ns+ms
+                     iso = iso + (ipgf - 1)*ns + ms
                      paw_proj%cprj_s(iprjs, iso) = &
                         paw_proj%gccprj(ip, ipgf, lshell, iset)
                   ENDDO ! iprjs
                ENDDO ! ip
             ENDDO ! ipgf
          ENDDO ! lshell
-         ms = ms+maxso
+         ms = ms + maxso
       ENDDO ! iset
 
       ms = 0
       DO iset = 1, orb_basis%nset
          ns = nsoset(lmax(iset))
          DO ipgf = 1, npgf(iset)
-            DO iso = nsoset(lmin(iset)-1)+1+ns*(ipgf-1)+ms, ns*ipgf+ms
+            DO iso = nsoset(lmin(iset) - 1) + 1 + ns*(ipgf - 1) + ms, ns*ipgf + ms
                DO lshell = 0, maxl
                   np = paw_proj%nprj(lshell)
                   DO ip = 1, np
-                     jp = paw_proj%first_prj(lshell)+(ip-1)*nco(lshell)-1
-                     kp = paw_proj%first_prjs(lshell)+(ip-1)*nso(lshell)-1
+                     jp = paw_proj%first_prj(lshell) + (ip - 1)*nco(lshell) - 1
+                     kp = paw_proj%first_prjs(lshell) + (ip - 1)*nso(lshell) - 1
                      DO il = 1, nco(lshell)
-                        lx = indco(1, il+ncoset(lshell-1))
-                        ly = indco(2, il+ncoset(lshell-1))
-                        lz = indco(3, il+ncoset(lshell-1))
-                        iprj = jp+il
+                        lx = indco(1, il + ncoset(lshell - 1))
+                        ly = indco(2, il + ncoset(lshell - 1))
+                        lz = indco(3, il + ncoset(lshell - 1))
+                        iprj = jp + il
                         DO ic = 1, nso(lshell)
-                           iprjs = kp+ic
-                           paw_proj%cprj(iprj, iso) = paw_proj%cprj(iprj, iso)+ &
+                           iprjs = kp + ic
+                           paw_proj%cprj(iprj, iso) = paw_proj%cprj(iprj, iso) + &
                                                       orbtramat(lshell)%s2c(ic, il)*paw_proj%cprj_s(iprjs, iso)* &
-                                                      SQRT(dfac(2*lshell+1)/(4.0_dp*pi)/ &
-                                                           dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
+                                                      SQRT(dfac(2*lshell + 1)/(4.0_dp*pi)/ &
+                                                           dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
                         ENDDO ! ic
                      ENDDO ! il
                   ENDDO ! ip
                ENDDO ! lshell
             ENDDO ! iso
          ENDDO ! ipgf
-         ms = ms+maxso
+         ms = ms + maxso
       ENDDO ! iset
 
       !   local coefficients for the one center expansions : oce
@@ -661,8 +661,8 @@ CONTAINS
          DO ipgf = 1, npgf(iset)
             DO ishell = 1, nshell(iset)
                lshell = l(ishell, iset)
-               icomin = ncoset(lshell-1)+1+n*(ipgf-1)
-               icomax = ncoset(lshell)+n*(ipgf-1)
+               icomin = ncoset(lshell - 1) + 1 + n*(ipgf - 1)
+               icomax = ncoset(lshell) + n*(ipgf - 1)
                icgfmin = first_cgf(ishell, iset)
                icgfmax = last_cgf(ishell, iset)
                radius = exp_radius(lshell, orb_basis%zet(ipgf, iset), &
@@ -686,8 +686,8 @@ CONTAINS
          DO ipgf = 1, npgf(iset)
             DO ishell = 1, nshell(iset)
                lshell = l(ishell, iset)
-               icomin = ncoset(lshell-1)+1+n*(ipgf-1)
-               icomax = ncoset(lshell)+n*(ipgf-1)
+               icomin = ncoset(lshell - 1) + 1 + n*(ipgf - 1)
+               icomax = ncoset(lshell) + n*(ipgf - 1)
                isgfmin = first_sgf(ishell, iset)
                isgfmax = last_sgf(ishell, iset)
                radius = exp_radius(lshell, orb_basis%zet(ipgf, iset), &
@@ -712,29 +712,29 @@ CONTAINS
          DO ipgf = 1, npgf(iset)
             DO ishell = 1, nshell(iset)
                lshell = l(ishell, iset)
-               icomin = ncoset(lshell-1)+1+n*(ipgf-1)
-               icomax = ncoset(lshell)+n*(ipgf-1)
+               icomin = ncoset(lshell - 1) + 1 + n*(ipgf - 1)
+               icomax = ncoset(lshell) + n*(ipgf - 1)
                isgfmin = first_sgf(ishell, iset)
                isgfmax = last_sgf(ishell, iset)
-               isomin = nsoset(lshell-1)+1+ns*(ipgf-1)
+               isomin = nsoset(lshell - 1) + 1 + ns*(ipgf - 1)
                DO is = 1, nso(lshell)
-                  iso = isomin+is-1
+                  iso = isomin + is - 1
                   DO ic = 1, nco(lshell)
-                     ico = icomin+ic-1
-                     lx = indco(1, ic+ncoset(lshell-1))
-                     ly = indco(2, ic+ncoset(lshell-1))
-                     lz = indco(3, ic+ncoset(lshell-1))
+                     ico = icomin + ic - 1
+                     lx = indco(1, ic + ncoset(lshell - 1))
+                     ly = indco(2, ic + ncoset(lshell - 1))
+                     lz = indco(3, ic + ncoset(lshell - 1))
                      DO isgf = isgfmin, isgfmax
                         paw_proj%local_oce_sphi_h(iso, isgf) = &
-                           paw_proj%local_oce_sphi_h(iso, isgf)+ &
+                           paw_proj%local_oce_sphi_h(iso, isgf) + &
                            orbtramat(lshell)%s2c(is, ic)* &
                            paw_proj%sphi_h(ico, isgf)*SQRT((4.0_dp*pi* &
-                                                            dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))/dfac(2*lshell+1))
+                                                            dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))/dfac(2*lshell + 1))
                         paw_proj%local_oce_sphi_s(iso, isgf) = &
-                           paw_proj%local_oce_sphi_s(iso, isgf)+ &
+                           paw_proj%local_oce_sphi_s(iso, isgf) + &
                            orbtramat(lshell)%s2c(is, ic)* &
                            paw_proj%sphi_s(ico, isgf)*SQRT((4.0_dp*pi* &
-                                                            dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))/dfac(2*lshell+1))
+                                                            dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))/dfac(2*lshell + 1))
                      END DO ! isgf
                   END DO ! ic
                END DO ! is
@@ -749,22 +749,22 @@ CONTAINS
       paw_proj%n2oindex = 0
       ico = 1
       DO iset = 1, nset
-         iso_set = (iset-1)*maxso+1
+         iso_set = (iset - 1)*maxso + 1
          nsox = nsoset(lmax(iset))
          DO ipgf = 1, npgf(iset)
-            iso_pgf = iso_set+(ipgf-1)*nsox
-            iso = iso_pgf+nsoset(lmin(iset)-1)
+            iso_pgf = iso_set + (ipgf - 1)*nsox
+            iso = iso_pgf + nsoset(lmin(iset) - 1)
             DO lx = lmin(iset), lmax(iset)
                DO k = 1, nso(lx)
                   paw_proj%n2oindex(ico) = iso
                   paw_proj%o2nindex(iso) = ico
-                  iso = iso+1
-                  ico = ico+1
+                  iso = iso + 1
+                  ico = ico + 1
                END DO
             END DO
          END DO
       END DO
-      mp = ico-1
+      mp = ico - 1
       paw_proj%nsatbas = mp
       paw_proj%nsotot = nset*maxso
       ALLOCATE (paw_proj%csprj(nsgauprj, mp))

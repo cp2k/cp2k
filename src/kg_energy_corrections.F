@@ -424,9 +424,9 @@ CONTAINS
          END IF
 
          ! calclulate Int(vhxc*rho)dr and Int(vtau*tau)dr
-         evhxc = evhxc+pw_integral_ab(rho_r(ispin)%pw, v_rspace(ispin)%pw)/v_rspace(1)%pw%pw_grid%dvol
+         evhxc = evhxc + pw_integral_ab(rho_r(ispin)%pw, v_rspace(ispin)%pw)/v_rspace(1)%pw%pw_grid%dvol
          IF (ASSOCIATED(v_tau_rspace)) THEN
-            evhxc = evhxc+pw_integral_ab(tau_r(ispin)%pw, v_tau_rspace(ispin)%pw)/v_tau_rspace(ispin)%pw%pw_grid%dvol
+            evhxc = evhxc + pw_integral_ab(tau_r(ispin)%pw, v_tau_rspace(ispin)%pw)/v_tau_rspace(ispin)%pw%pw_grid%dvol
          END IF
 
       END DO
@@ -444,7 +444,7 @@ CONTAINS
       CALL calculate_ecore_self(qs_env, E_self_core=eself)
       CALL calculate_ecore_overlap(qs_env, para_env, calculate_forces=.FALSE., E_overlap_core=eovrl)
       ec_env%exc = eexc
-      ec_env%ehartree = ehartree+eovrl+eself
+      ec_env%ehartree = ehartree + eovrl + eself
       ec_env%vhxc = evhxc
 
       ! add the core matrix
@@ -775,7 +775,7 @@ CONTAINS
 
       ! dispersion through pairpotentials
       CALL calculate_dispersion_pairpot(qs_env, ec_env%dispersion_env, energy, .FALSE.)
-      ec_env%edispersion = ec_env%edispersion+energy
+      ec_env%edispersion = ec_env%edispersion + energy
 !deb  ! gCP pairpotentials
 !deb  CALL calculate_gcp_pairpot(qs_env, ec_env%gcp_env, energy, .FALSE.)
 !deb  ec_env%edispersion = ec_env%edispersion+energy
@@ -792,10 +792,10 @@ CONTAINS
             IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,T16,F16.10)') 'Tr[PS] ', trace
 !dbg
             CALL dbcsr_dot(ec_env%matrix_ks(ispin, 1)%matrix, ec_env%matrix_p(ispin, 1)%matrix, trace)
-            eband = eband+trace
+            eband = eband + trace
          END DO
          ec_env%eband = eband
-         ec_env%etotal = ec_env%eband+ec_env%ehartree+ec_env%exc-ec_env%vhxc+ec_env%edispersion
+         ec_env%etotal = ec_env%eband + ec_env%ehartree + ec_env%exc - ec_env%vhxc + ec_env%edispersion
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A,T16,F16.10)') "HF Etotal   ", ec_env%etotal
             WRITE (unit_nr, '(T2,A,T16,F16.10)') "Eband    ", ec_env%eband

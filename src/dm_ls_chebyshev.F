@@ -61,7 +61,7 @@ CONTAINS
 !polynomial values
 !number of chev polynomials
 
-      value = COS((n-1)*ACOS(x))
+      value = COS((n - 1)*ACOS(x))
 
    END SUBROUTINE chebyshev_poly
 
@@ -83,8 +83,8 @@ CONTAINS
 !number of total chebyshev polynomials
 !Kernel define
 
-      value = 1.0_dp/(nc+1.0_dp)*((nc-(n-1)+1.0_dp)* &
-                                  COS(pi*(n-1)/(nc+1.0_dp))+SIN(pi*(n-1)/(nc+1.0_dp))*1.0_dp/TAN(pi/(nc+1.0_dp)))
+      value = 1.0_dp/(nc + 1.0_dp)*((nc - (n - 1) + 1.0_dp)* &
+                                    COS(pi*(n - 1)/(nc + 1.0_dp)) + SIN(pi*(n - 1)/(nc + 1.0_dp))*1.0_dp/TAN(pi/(nc + 1.0_dp)))
 
    END SUBROUTINE kernel
 
@@ -200,20 +200,20 @@ CONTAINS
             IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,1000F16.8)') "requested interval-min_energy", ev1(:)
             IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,1000F16.8)') "requested interval-max_energy", ev2(:)
          ENDIF
-         interval_a = (max_ev-min_ev)*scale_evals/2
-         interval_b = (max_ev+min_ev)/2
+         interval_a = (max_ev - min_ev)*scale_evals/2
+         interval_b = (max_ev + min_ev)/2
 
-         sev1(:) = (ev1(:)-interval_b)/interval_a !scaled ev1 vector
-         sev2(:) = (ev2(:)-interval_b)/interval_a !scaled ev2 vector
+         sev1(:) = (ev1(:) - interval_b)/interval_a !scaled ev1 vector
+         sev2(:) = (ev2(:) - interval_b)/interval_a !scaled ev2 vector
 
          !chebyshev domain,pi*sqrt(1-x^2) vector construction and chebyshev polynomials for integration (for g(E))
-         ALLOCATE (E_inte(1:ninte+1, 1:nwindow))
-         ALLOCATE (sqrt_vec(1:ninte+1, 1:nwindow))
+         ALLOCATE (E_inte(1:ninte + 1, 1:nwindow))
+         ALLOCATE (sqrt_vec(1:ninte + 1, 1:nwindow))
 
          DO iwindow = 1, nwindow
-            DO iinte = 1, ninte+1
-               E_inte(iinte, iwindow) = sev1(iwindow)+((sev2(iwindow)-sev1(iwindow))/ninte)*(iinte-1)
-               sqrt_vec(iinte, iwindow) = pi*SQRT(1.0_dp-E_inte(iinte, iwindow)*E_inte(iinte, iwindow))
+            DO iinte = 1, ninte + 1
+               E_inte(iinte, iwindow) = sev1(iwindow) + ((sev2(iwindow) - sev1(iwindow))/ninte)*(iinte - 1)
+               sqrt_vec(iinte, iwindow) = pi*SQRT(1.0_dp - E_inte(iinte, iwindow)*E_inte(iinte, iwindow))
             END DO
          END DO
 
@@ -225,10 +225,10 @@ CONTAINS
             DO icheb = 1, ncheb
                CALL chebyshev_poly(initial, E_inte(1, iwindow), icheb)
                CALL chebyshev_poly(final, E_inte(1, iwindow), icheb)
-               summa = (sev2(iwindow)-sev1(iwindow))/(2.0_dp*ninte)*(initial/sqrt_vec(1, iwindow)+final/sqrt_vec(ninte+1, iwindow))
+          summa = (sev2(iwindow) - sev1(iwindow))/(2.0_dp*ninte)*(initial/sqrt_vec(1, iwindow) + final/sqrt_vec(ninte + 1, iwindow))
                DO iinte = 2, ninte
                   CALL chebyshev_poly(chev_T, E_inte(iinte, iwindow), icheb)
-                  summa = summa+((sev2(iwindow)-sev1(iwindow))/ninte)*(chev_T/sqrt_vec(iinte, iwindow))
+                  summa = summa + ((sev2(iwindow) - sev1(iwindow))/ninte)*(chev_T/sqrt_vec(iinte, iwindow))
                END DO
                aitchev_T(icheb, iwindow) = summa
                summa = 0
@@ -267,20 +267,20 @@ CONTAINS
             CALL dbcsr_add(matrix_dummy2(iwindow), matrix_dummy1, 1.0_dp, 1.0_dp)
          END DO
 
-         DO icheb = 2, ncheb-1
+         DO icheb = 2, ncheb - 1
             t1 = m_walltime()
             CALL dbcsr_multiply("N", "N", 2.0_dp, matrix_F, matrix_tmp2, &
                                 -1.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter) !matrix multiplication(Recursion)
             CALL dbcsr_copy(matrix_tmp3, matrix_tmp1)
             CALL dbcsr_copy(matrix_tmp1, matrix_tmp2)
             CALL dbcsr_copy(matrix_tmp2, matrix_tmp3)
-            CALL dbcsr_trace(matrix_tmp2, trace=mu(icheb+1)) !icheb+1 th coefficient
-            CALL kernel(kernel_g(icheb+1), icheb+1, ncheb)
+            CALL dbcsr_trace(matrix_tmp2, trace=mu(icheb + 1)) !icheb+1 th coefficient
+            CALL kernel(kernel_g(icheb + 1), icheb + 1, ncheb)
 
             DO iwindow = 1, nwindow
 
                CALL dbcsr_copy(matrix_dummy1, matrix_tmp2)
-               CALL dbcsr_scale(matrix_dummy1, 2.0_dp*kernel_g(icheb+1)*aitchev_T(icheb+1, iwindow)) !second term of chebyshev poly(matrix)
+               CALL dbcsr_scale(matrix_dummy1, 2.0_dp*kernel_g(icheb + 1)*aitchev_T(icheb + 1, iwindow)) !second term of chebyshev poly(matrix)
                CALL dbcsr_add(matrix_dummy2(iwindow), matrix_dummy1, 1.0_dp, 1.0_dp)
                CALL dbcsr_trace(matrix_dummy2(iwindow), trace=trace_dm(iwindow)) !icheb+1 th coefficient
 
@@ -292,10 +292,10 @@ CONTAINS
                CALL m_flush(unit_nr)
                IF (nwindow > 0) THEN
                   WRITE (unit_nr, '(T2,A,I5,1X,A,1X,F8.3,1X,A,1X,F8.6,1X,A,1X,1000F16.8)') &
-                     "Iter.", icheb, "time=", t2-t1, "occ=", occ, "traces=", trace_dm(:)
+                     "Iter.", icheb, "time=", t2 - t1, "occ=", occ, "traces=", trace_dm(:)
                ELSE
                   WRITE (unit_nr, '(T2,A,I5,1X,A,1X,F8.3,1X,A,1X,F8.6)') &
-                     "Iter.", icheb, "time=", t2-t1, "occ=", occ
+                     "Iter.", icheb, "time=", t2 - t1, "occ=", occ
                ENDIF
             ENDIF
          ENDDO
@@ -350,23 +350,23 @@ CONTAINS
          ALLOCATE (chev_Es_dos(1:n_gridpoint_dos))
          ALLOCATE (dummy2(1:nwindow))
          DO igrid = 1, n_gridpoint_dos
-            chev_E(igrid) = min_ev+(igrid-1)*(max_ev-min_ev)/(n_gridpoint_dos-1)
-            chev_Es_dos(igrid) = (chev_E(igrid)-interval_b)/interval_a
+            chev_E(igrid) = min_ev + (igrid - 1)*(max_ev - min_ev)/(n_gridpoint_dos - 1)
+            chev_Es_dos(igrid) = (chev_E(igrid) - interval_b)/interval_a
          END DO
          DO igrid = 1, n_gridpoint_dos
             dummy1 = 0.0_dp !summation of polynomials
             dummy2(:) = 0.0_dp !summation of polynomials
             DO icheb = 2, ncheb
                CALL chebyshev_poly(chev_T_dos, chev_Es_dos(igrid), icheb)
-               dummy1 = dummy1+kernel_g(icheb)*mu(icheb)*chev_T_dos
+               dummy1 = dummy1 + kernel_g(icheb)*mu(icheb)*chev_T_dos
                DO iwindow = 1, nwindow
-                  dummy2(iwindow) = dummy2(iwindow)+kernel_g(icheb)*aitchev_T(icheb, iwindow)*chev_T_dos
+                  dummy2(iwindow) = dummy2(iwindow) + kernel_g(icheb)*aitchev_T(icheb, iwindow)*chev_T_dos
                END DO
             END DO
             dos(igrid) = 1.0_dp/(interval_a*Nrows* &
-                                 (pi*SQRT(1.0_dp-chev_Es_dos(igrid)*chev_Es_dos(igrid))))*(kernel_g(1)*mu(1)+2.0_dp*dummy1)
+                                 (pi*SQRT(1.0_dp - chev_Es_dos(igrid)*chev_Es_dos(igrid))))*(kernel_g(1)*mu(1) + 2.0_dp*dummy1)
             DO iwindow = 1, nwindow
-               gdensity(igrid, iwindow) = kernel_g(1)*aitchev_T(1, iwindow)+2.0_dp*dummy2(iwindow)
+               gdensity(igrid, iwindow) = kernel_g(1)*aitchev_T(1, iwindow) + 2.0_dp*dummy2(iwindow)
             END DO
             WRITE (unit_dos, '(1000F16.8)') chev_E(igrid), dos(igrid), gdensity(igrid, :)
          END DO

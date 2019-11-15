@@ -424,7 +424,7 @@ CONTAINS
             ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
             CALL get_mo_set(mos(my_spin)%mo_set, nmo=nmo)
             CALL get_xas_env(xas_env, occ_estate=occ_estate, xas_nelectron=xas_nelectron)
-            tmp = xas_nelectron+1.0_dp-occ_estate
+            tmp = xas_nelectron + 1.0_dp - occ_estate
             IF (nmo < tmp) &
                CPABORT("CLS: the required method needs added_mos to the ground state")
             ! If the restart file for this atom exists, the mos and the
@@ -656,7 +656,7 @@ CONTAINS
       IF (nexc_search < 0) THEN
          ! ground state occupation
          CALL get_mo_set(mos(my_spin)%mo_set, nmo=nmo, lfomo=lfomo)
-         nexc_search = lfomo-1
+         nexc_search = lfomo - 1
       END IF
       nexc_atoms = xas_control%nexc_atoms
       ALLOCATE (xas_env%exc_atoms(nexc_atoms))
@@ -671,11 +671,11 @@ CONTAINS
 
       nvirtual2 = 0
       IF (xas_control%added_mos .GT. 0) THEN
-         nvirtual2 = MIN(xas_control%added_mos, nao-nmo)
+         nvirtual2 = MIN(xas_control%added_mos, nao - nmo)
          xas_env%unoccupied_eps = xas_control%eps_added
          xas_env%unoccupied_max_iter = xas_control%max_iter_added
       END IF
-      nvirtual = nmo+nvirtual2
+      nvirtual = nmo + nvirtual2
 
       n_mo(1:2) = nmo
 
@@ -708,7 +708,7 @@ CONTAINS
       ! initialize operators for the calculation of the oscillator strengths
       IF (xas_control%xas_method == xas_tp_hh) THEN
          occ_estate = 0.5_dp
-         nele = REAL(nelectron, dp)-0.5_dp
+         nele = REAL(nelectron, dp) - 0.5_dp
          occ_homo = 1.0_dp
          occ_homo_plus = 0._dp
       ELSEIF (xas_control%xas_method == xas_tp_xhh) THEN
@@ -718,7 +718,7 @@ CONTAINS
          occ_homo_plus = 0.5_dp
       ELSEIF (xas_control%xas_method == xas_tp_fh) THEN
          occ_estate = 0.0_dp
-         nele = REAL(nelectron, dp)-1.0_dp
+         nele = REAL(nelectron, dp) - 1.0_dp
          occ_homo = 1.0_dp
          occ_homo_plus = 0._dp
       ELSEIF (xas_control%xas_method == xas_tp_xfh) THEN
@@ -728,7 +728,7 @@ CONTAINS
          occ_homo_plus = 1._dp
       ELSEIF (xas_control%xas_method == xes_tp_val) THEN
          occ_estate = xas_control%xes_core_occupation
-         nele = REAL(nelectron, dp)-xas_control%xes_core_occupation
+         nele = REAL(nelectron, dp) - xas_control%xes_core_occupation
          occ_homo = xas_control%xes_homo_occupation
       ELSEIF (xas_control%xas_method == xas_dscf) THEN
          occ_estate = 0.0_dp
@@ -738,7 +738,7 @@ CONTAINS
       ELSEIF (xas_control%xas_method == xas_tp_flex) THEN
          nele = REAL(xas_control%nel_tot, dp)
          occ_estate = REAL(xas_control%xas_core_occupation, dp)
-         IF (nele < 0.0_dp) nele = REAL(nelectron, dp)-(1.0_dp-occ_estate)
+         IF (nele < 0.0_dp) nele = REAL(nelectron, dp) - (1.0_dp - occ_estate)
          occ_homo = 1.0_dp
       ENDIF
       CALL set_xas_env(xas_env=xas_env, occ_estate=occ_estate, xas_nelectron=nele, &
@@ -751,12 +751,12 @@ CONTAINS
          CALL section_vals_val_get(xas_section, &
                                    "PRINT%CLS_FUNCTION_CUBES%CUBES_LU_BOUNDS", &
                                    i_vals=bounds)
-         ncubes = bounds(2)-bounds(1)+1
+         ncubes = bounds(2) - bounds(1) + 1
          IF (ncubes > 0) THEN
             ALLOCATE (xas_control%list_cubes(ncubes))
 
             DO ik = 1, ncubes
-               xas_control%list_cubes(ik) = bounds(1)+(ik-1)
+               xas_control%list_cubes(ik) = bounds(1) + (ik - 1)
             END DO
          END IF
 
@@ -771,11 +771,11 @@ CONTAINS
                                          "PRINT%CLS_FUNCTION_CUBES%CUBES_LIST", &
                                          i_rep_val=ik, i_vals=list)
                IF (ASSOCIATED(list)) THEN
-                  CALL reallocate(xas_control%list_cubes, 1, ncubes+SIZE(list))
+                  CALL reallocate(xas_control%list_cubes, 1, ncubes + SIZE(list))
                   DO i = 1, SIZE(list)
-                     xas_control%list_cubes(i+ncubes) = list(i)
+                     xas_control%list_cubes(i + ncubes) = list(i)
                   END DO
-                  ncubes = ncubes+SIZE(list)
+                  ncubes = ncubes + SIZE(list)
                END IF
             END DO ! ik
          END IF
@@ -785,7 +785,7 @@ CONTAINS
             ncubes = MIN(ncubes, xas_control%added_mos)
             ALLOCATE (xas_control%list_cubes(ncubes))
             DO ik = 1, ncubes
-               xas_control%list_cubes(ik) = homo+ik
+               xas_control%list_cubes(ik) = homo + ik
             END DO
          END IF
       ELSE
@@ -961,7 +961,7 @@ CONTAINS
             END IF
          END DO
          IF (.NOT. ihavethis) THEN
-            nk = nk+1
+            nk = nk + 1
             kind_type_tmp(nk) = ikind
             kind_z_tmp(nk) = INT(zatom)
             xas_env%mykind_of_atom(iat) = nk
@@ -974,10 +974,10 @@ CONTAINS
       DO ik = 1, nk
          NULLIFY (xas_env%my_gto_basis(ik)%gto_basis_set, sto_basis_set)
          ne = 0
-         DO l = 1, lq(1)+1
-            nj = 2*(l-1)+1
+         DO l = 1, lq(1) + 1
+            nj = 2*(l - 1) + 1
             DO i = l, nq(1)
-               ne(l, i) = ptable(kind_z_tmp(ik))%e_conv(l-1)-2*nj*(i-l)
+               ne(l, i) = ptable(kind_z_tmp(ik))%e_conv(l - 1) - 2*nj*(i - l)
                ne(l, i) = MAX(ne(l, i), 0)
                ne(l, i) = MIN(ne(l, i), 2*nj)
             END DO
@@ -1068,7 +1068,7 @@ CONTAINS
                        ostrength_sm=ostrength_sm, nvirtual=nvirtual, spin_channel=my_spin)
       CALL get_mo_set(mos(my_spin)%mo_set, homo=homo, lfomo=lfomo, nmo=nmo)
 
-      nabs = nvirtual-lfomo+1
+      nabs = nvirtual - lfomo + 1
       ALLOCATE (sp_em(6, homo))
       ALLOCATE (sp_ab(6, nabs))
       CPASSERT(ASSOCIATED(excvec_coeff))
@@ -1194,7 +1194,7 @@ CONTAINS
             ", index of excited core MO is", estate, ", # of lines ", SIZE(sp_ab, 2)
          ene2 = 1.0_dp
          DO i = 1, SIZE(sp_ab, 2)
-            istate = lfomo-1+i
+            istate = lfomo - 1 + i
             IF (length) ene2 = sp_ab(1, i)*sp_ab(1, i)
             WRITE (out_sp_ab, '(I6,5F16.8,F10.5)') istate, sp_ab(1, i)*evolt, &
                sp_ab(2, i)*ene2, sp_ab(3, i)*ene2, &
@@ -1377,20 +1377,20 @@ CONTAINS
             CALL cp_fm_get_element(fm_set(my_spin, i)%matrix, 1, istate, dip(i))
          END DO
          IF (istate <= homo) THEN
-            sp_em(1, istate) = ene_f-ene_i
+            sp_em(1, istate) = ene_f - ene_i
             sp_em(2, istate) = dip(1)
             sp_em(3, istate) = dip(2)
             sp_em(4, istate) = dip(3)
-            sp_em(5, istate) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
+            sp_em(5, istate) = dip(1)*dip(1) + dip(2)*dip(2) + dip(3)*dip(3)
             sp_em(6, istate) = occupation_numbers(istate)
          END IF
          IF (istate >= lfomo) THEN
-            i_abs = istate-lfomo+1
-            sp_ab(1, i_abs) = ene_f-ene_i
+            i_abs = istate - lfomo + 1
+            sp_ab(1, i_abs) = ene_f - ene_i
             sp_ab(2, i_abs) = dip(1)
             sp_ab(3, i_abs) = dip(2)
             sp_ab(4, i_abs) = dip(3)
-            sp_ab(5, i_abs) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
+            sp_ab(5, i_abs) = dip(1)*dip(1) + dip(2)*dip(2) + dip(3)*dip(3)
             IF (istate <= nmo) sp_ab(6, i_abs) = occupation_numbers(istate)
          END IF
 
@@ -1449,11 +1449,11 @@ CONTAINS
 
       DO iset = 1, nseta
 
-         na = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+         na = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
          sgfa = first_sgfa(1, iset)
 
          DO jset = 1, nsetb
-            nb = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+            nb = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
             sgfb = first_sgfb(1, jset)
 
             CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
@@ -1577,7 +1577,7 @@ CONTAINS
                ra(1:3) = particle_set(iatom)%r(1:3)
                rc(1:3) = centers_wfn(1:3, istate)
                rac = pbc(ra, rc, cell)
-               dist = rac(1)*rac(1)+rac(2)*rac(2)+rac(3)*rac(3)
+               dist = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
 
                IF (dist < distmin) THEN
 
@@ -1603,10 +1603,10 @@ CONTAINS
                DO i = 1, SIZE(stogto_overlap(my_kind)%array, 1)
                   component = 0.0_dp
                   DO j = 1, SIZE(stogto_overlap(my_kind)%array, 2)
-                     isgf = first_sgf(iatom)+j-1
-                     component = component+stogto_overlap(my_kind)%array(i, j)*vecbuffer(1, isgf)
+                     isgf = first_sgf(iatom) + j - 1
+                     component = component + stogto_overlap(my_kind)%array(i, j)*vecbuffer(1, isgf)
                   END DO
-                  sto_state_overlap(istate) = sto_state_overlap(istate)+ &
+                  sto_state_overlap(istate) = sto_state_overlap(istate) + &
                                               component*component
                END DO
 
@@ -1625,7 +1625,7 @@ CONTAINS
                   IF (atom_of_state(istate) == iatom) THEN
                      IF (sto_state_overlap(istate) > max_overlap(iatom)*xas_control%overlap_threshold &
                          .AND. istate /= state_of_mytype(iat)) THEN
-                        nexc_states(iat) = nexc_states(iat)+1
+                        nexc_states(iat) = nexc_states(iat) + 1
                         state_of_atom(iat, nexc_states(iat)) = istate
                      END IF
                   END IF
@@ -1697,14 +1697,14 @@ CONTAINS
                ra(1:3) = particle_set(iat)%r(1:3)
                rc(1:3) = centers_wfn(1:3, chosen_state)
                rac = pbc(ra, rc, cell)
-               dist = rac(1)*rac(1)+rac(2)*rac(2)+rac(3)*rac(3)
+               dist = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
                IF (dist < distmin) THEN
                   atom_of_state(chosen_state) = iat !?
                   distmin = dist
                END IF
             END DO ! iat
 
-            nexc_states(atom_of_state(chosen_state)) = nexc_states(atom_of_state(chosen_state))+1
+            nexc_states(atom_of_state(chosen_state)) = nexc_states(atom_of_state(chosen_state)) + 1
             state_of_atom(atom_of_state(chosen_state), nexc_states(atom_of_state(chosen_state))) = chosen_state
 
          END DO !istate

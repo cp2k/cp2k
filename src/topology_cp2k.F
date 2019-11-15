@@ -139,7 +139,7 @@ CONTAINS
       DO
          CALL parser_get_object(parser, object=string, newline=.TRUE., at_end=eof)
          IF (eof) EXIT
-         natom = natom+1
+         natom = natom + 1
          IF (natom > SIZE(atom_info%id_atmname)) THEN
             newsize = INT(pfactor*natom)
             CALL reallocate(atom_info%id_molname, 1, newsize)

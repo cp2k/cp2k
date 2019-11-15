@@ -390,13 +390,13 @@ CONTAINS
                           "already set, but not in new_indices array")
          new_labels(old_index) = label
       ELSE
-         n_new = n_new+1
+         n_new = n_new + 1
          IF (n_new > max_n_qm) &
             CALL cp_abort(__LOCATION__, &
                           "add_new_label tried to add more atoms "// &
                           "than allowed by &FORCE_MIXING&MAX_N_QM!")
-         IF (n_new > SIZE(new_indices)) CALL reallocate(new_indices, 1, n_new+9)
-         IF (n_new > SIZE(new_labels)) CALL reallocate(new_labels, 1, n_new+9)
+         IF (n_new > SIZE(new_indices)) CALL reallocate(new_indices, 1, n_new + 9)
+         IF (n_new > SIZE(new_labels)) CALL reallocate(new_labels, 1, n_new + 9)
          new_indices(n_new) = ip
          new_labels(n_new) = label
       ENDIF
@@ -471,7 +471,7 @@ CONTAINS
             j_outside_new_seed = (new_full_labels(j_ind) < seed_min_label_val)
 
             IF ((i_in_new_seed .AND. j_outside_new_seed) .OR. (j_in_new_seed .AND. i_outside_new_seed)) THEN
-               r_ij = pbc(particle_set(i_ind)%r-particle_set(j_ind)%r, cell)
+               r_ij = pbc(particle_set(i_ind)%r - particle_set(j_ind)%r, cell)
                r_ij_mag = SQRT(SUM(r_ij**2))
                IF (i_in_new_seed .AND. j_outside_new_seed .AND. (r_ij_mag < nearest_dist(j_ind))) THEN
                   nearest_dist(j_ind) = r_ij_mag
@@ -710,14 +710,14 @@ CONTAINS
                 cur_labels(ip) /= force_mixing_label_termination) THEN
                qm_kind_section => section_vals_get_subs_vals3(qmmm_extended_section, "QM_KIND")
                IF (new_element_extended) THEN ! add new QM_KIND section for this element
-                  i_rep_section_extended = i_rep_section_extended+1
+                  i_rep_section_extended = i_rep_section_extended + 1
                   CALL section_vals_add_values(qm_kind_section)
                   CALL section_vals_val_set(qm_kind_section, "_SECTION_PARAMETERS_", i_rep_section=i_rep_section_extended, &
                                             c_val=elem_mapping(2, ielem))
                   i_rep_val_extended = 0
                   new_element_extended = .FALSE.
                ENDIF
-               i_rep_val_extended = i_rep_val_extended+1
+               i_rep_val_extended = i_rep_val_extended + 1
                CALL section_vals_val_set(qm_kind_section, "MM_INDEX", i_rep_section=i_rep_section_extended, &
                                          i_rep_val=i_rep_val_extended, i_val=cur_indices(ip))
             ENDIF ! is a non-termination QM atom
@@ -728,14 +728,14 @@ CONTAINS
             IF (cur_labels(ip) == force_mixing_label_QM_core) THEN
                qm_kind_section => section_vals_get_subs_vals3(qmmm_core_section, "QM_KIND")
                IF (new_element_core) THEN ! add new QM_KIND section for this element
-                  i_rep_section_core = i_rep_section_core+1
+                  i_rep_section_core = i_rep_section_core + 1
                   CALL section_vals_add_values(qm_kind_section)
                   CALL section_vals_val_set(qm_kind_section, "_SECTION_PARAMETERS_", i_rep_section=i_rep_section_core, &
                                             c_val=elem_mapping(2, ielem))
                   i_rep_val_core = 0
                   new_element_core = .FALSE.
                ENDIF
-               i_rep_val_core = i_rep_val_core+1
+               i_rep_val_core = i_rep_val_core + 1
                CALL section_vals_val_set(qm_kind_section, "MM_INDEX", i_rep_section=i_rep_section_core, &
                                          i_rep_val=i_rep_val_core, i_val=cur_indices(ip))
             ENDIF ! is a non-termination QM atom
@@ -791,15 +791,15 @@ CONTAINS
       DO i_rep_val = 1, n_reps
          CALL section_vals_val_get(restart_section, "INDICES", &
                                    i_rep_val=i_rep_val, i_vals=indices_entry)
-         n_indices = n_indices+SIZE(indices_entry)
+         n_indices = n_indices + SIZE(indices_entry)
       END DO
       ALLOCATE (indices(n_indices))
       n_indices = 0
       DO i_rep_val = 1, n_reps
          CALL section_vals_val_get(restart_section, "INDICES", &
                                    i_rep_val=i_rep_val, i_vals=indices_entry)
-         indices(n_indices+1:n_indices+SIZE(indices_entry)) = indices_entry
-         n_indices = n_indices+SIZE(indices_entry)
+         indices(n_indices + 1:n_indices + SIZE(indices_entry)) = indices_entry
+         n_indices = n_indices + SIZE(indices_entry)
       END DO
 
       CALL section_vals_val_get(restart_section, "LABELS", n_rep_val=n_reps)
@@ -807,15 +807,15 @@ CONTAINS
       DO i_rep_val = 1, n_reps
          CALL section_vals_val_get(restart_section, "LABELS", &
                                    i_rep_val=i_rep_val, i_vals=labels_entry)
-         n_labels = n_labels+SIZE(labels_entry)
+         n_labels = n_labels + SIZE(labels_entry)
       END DO
       ALLOCATE (labels(n_labels))
       n_labels = 0
       DO i_rep_val = 1, n_reps
          CALL section_vals_val_get(restart_section, "LABELS", &
                                    i_rep_val=i_rep_val, i_vals=labels_entry)
-         labels(n_labels+1:n_labels+SIZE(labels_entry)) = labels_entry
-         n_labels = n_labels+SIZE(labels_entry)
+         labels(n_labels + 1:n_labels + SIZE(labels_entry)) = labels_entry
+         n_labels = n_labels + SIZE(labels_entry)
       END DO
 
       IF (n_indices /= n_labels) &

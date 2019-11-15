@@ -42,14 +42,14 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(ilist))
       ind = INDEX(token, "..")
-      READ (UNIT=token(:ind-1), FMT=*) ilist%istart
-      READ (UNIT=token(ind+2:), FMT=*) ilist%iend
+      READ (UNIT=token(:ind - 1), FMT=*) ilist%istart
+      READ (UNIT=token(ind + 2:), FMT=*) ilist%iend
       IF (ilist%istart > ilist%iend) &
          CALL cp_abort(__LOCATION__, &
                        "Invalid list range specified: "// &
                        TRIM(ADJUSTL(cp_to_string(ilist%istart)))//".."// &
                        TRIM(ADJUSTL(cp_to_string(ilist%iend))))
-      ilist%nel_list = ilist%iend-ilist%istart+1
+      ilist%nel_list = ilist%iend - ilist%istart + 1
       ilist%ipresent = ilist%istart
       ilist%in_use = .TRUE.
 
@@ -67,7 +67,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'ilist_update', routineP = moduleN//':'//routineN
 
       CPASSERT(ASSOCIATED(ilist))
-      ilist%ipresent = ilist%ipresent+1
+      ilist%ipresent = ilist%ipresent + 1
       IF (ilist%ipresent > ilist%iend) THEN
          CALL ilist_reset(ilist)
       END IF

@@ -116,7 +116,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(p_env))
       CPASSERT(p_env%ref_count > 0)
-      p_env%ref_count = p_env%ref_count+1
+      p_env%ref_count = p_env%ref_count + 1
    END SUBROUTINE p_env_retain
 
 ! **************************************************************************************************
@@ -136,7 +136,7 @@ CONTAINS
 
       IF (ASSOCIATED(p_env)) THEN
          CPASSERT(p_env%ref_count > 0)
-         p_env%ref_count = p_env%ref_count-1
+         p_env%ref_count = p_env%ref_count - 1
          IF (p_env%ref_count < 1) THEN
             CALL kpp1_release(p_env%kpp1_env)
             CALL cp_fm_vect_dealloc(p_env%S_psi0)

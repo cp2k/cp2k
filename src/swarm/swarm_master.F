@@ -256,7 +256,7 @@ CONTAINS
 
       IF (.NOT. master%ignore_last_iteration) THEN
          ! There are no queued commands. Do the normal processing.
-         master%i_iteration = master%i_iteration+1
+         master%i_iteration = master%i_iteration + 1
 
          IF (master%iw > 0) WRITE (master%iw, '(A,A,1X,I8,A,A)') ' SWARM| ', REPEAT("*", 15), &
             master%i_iteration, ' Master / Worker Communication  ', REPEAT("*", 15)
@@ -301,8 +301,8 @@ CONTAINS
       ! Don't pollute comlog with "continue waiting"-commands.
       CALL swarm_message_get(report, "status", status)
       CALL swarm_message_get(cmd, "command", command)
-      IF (TRIM(status) == "wait_done") master%n_waiting = master%n_waiting-1
-      IF (TRIM(command) == "wait") master%n_waiting = master%n_waiting+1
+      IF (TRIM(status) == "wait_done") master%n_waiting = master%n_waiting - 1
+      IF (TRIM(command) == "wait") master%n_waiting = master%n_waiting + 1
       IF (master%n_waiting < 0) CPABORT("master%n_waiting < 0")
       IF (TRIM(status) /= "wait_done" .OR. TRIM(command) /= "wait") THEN
          CALL swarm_message_file_write(report, master%comlog_unit)

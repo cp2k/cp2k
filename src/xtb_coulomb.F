@@ -212,25 +212,25 @@ CONTAINS
          CALL get_xtb_atom_param(xtb_atom_a, eta=etaa, lmax=lmaxa, kappa=kappaa, rcut=rcuta)
          CALL get_xtb_atom_param(xtb_atom_b, eta=etab, lmax=lmaxb, kappa=kappab, rcut=rcutb)
          ! gamma matrix
-         ni = lmaxa+1
-         nj = lmaxb+1
+         ni = lmaxa + 1
+         nj = lmaxb + 1
          ALLOCATE (gammab(ni, nj))
-         rcut = rcuta+rcutb
+         rcut = rcuta + rcutb
          dr = SQRT(SUM(rij(:)**2))
          CALL gamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
-         gchrg(iatom, 1:ni, 1) = gchrg(iatom, 1:ni, 1)+MATMUL(gammab, charges(jatom, 1:nj))
+         gchrg(iatom, 1:ni, 1) = gchrg(iatom, 1:ni, 1) + MATMUL(gammab, charges(jatom, 1:nj))
          IF (iatom /= jatom) THEN
-            gchrg(jatom, 1:nj, 1) = gchrg(jatom, 1:nj, 1)+MATMUL(charges(iatom, 1:ni), gammab)
+            gchrg(jatom, 1:nj, 1) = gchrg(jatom, 1:nj, 1) + MATMUL(charges(iatom, 1:ni), gammab)
          END IF
          IF (calculate_forces) THEN
             IF (dr > 1.e-6_dp) THEN
                CALL dgamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
                DO i = 1, 3
-                  gchrg(iatom, 1:ni, i+1) = gchrg(iatom, 1:ni, i+1) &
-                                            +MATMUL(gammab, charges(jatom, 1:nj))*rij(i)/dr
+                  gchrg(iatom, 1:ni, i + 1) = gchrg(iatom, 1:ni, i + 1) &
+                                              + MATMUL(gammab, charges(jatom, 1:nj))*rij(i)/dr
                   IF (iatom /= jatom) THEN
-                     gchrg(jatom, 1:nj, i+1) = gchrg(jatom, 1:nj, i+1) &
-                                               -MATMUL(charges(iatom, 1:ni), gammab)*rij(i)/dr
+                     gchrg(jatom, 1:nj, i + 1) = gchrg(jatom, 1:nj, i + 1) &
+                                                 - MATMUL(charges(iatom, 1:ni), gammab)*rij(i)/dr
                   END IF
                END DO
                IF (use_virial) THEN
@@ -284,16 +284,16 @@ CONTAINS
          DO ikind = 1, SIZE(local_particles%n_el)
             DO ia = 1, local_particles%n_el(ikind)
                iatom = local_particles%list(ikind)%array(ia)
-               DO jatom = 1, iatom-1
-                  rij = particle_set(iatom)%r-particle_set(jatom)%r
+               DO jatom = 1, iatom - 1
+                  rij = particle_set(iatom)%r - particle_set(jatom)%r
                   rij = pbc(rij, cell)
                   dr = SQRT(SUM(rij(:)**2))
                   IF (dr > 1.e-6_dp) THEN
-                     gmcharge(iatom, 1) = gmcharge(iatom, 1)+mcharge(jatom)/dr
-                     gmcharge(jatom, 1) = gmcharge(jatom, 1)+mcharge(iatom)/dr
+                     gmcharge(iatom, 1) = gmcharge(iatom, 1) + mcharge(jatom)/dr
+                     gmcharge(jatom, 1) = gmcharge(jatom, 1) + mcharge(iatom)/dr
                      DO i = 2, nmat
-                        gmcharge(iatom, i) = gmcharge(iatom, i)+rij(i-1)*mcharge(jatom)/dr**3
-                        gmcharge(jatom, i) = gmcharge(jatom, i)-rij(i-1)*mcharge(iatom)/dr**3
+                        gmcharge(iatom, i) = gmcharge(iatom, i) + rij(i - 1)*mcharge(jatom)/dr**3
+                        gmcharge(jatom, i) = gmcharge(jatom, i) - rij(i - 1)*mcharge(iatom)/dr**3
                      END DO
                   END IF
                END DO
@@ -311,9 +311,9 @@ CONTAINS
 
       IF (do_ewald) THEN
          ! add self charge interaction and background charge contribution
-         gmcharge(:, 1) = gmcharge(:, 1)-2._dp*alpha*oorootpi*mcharge(:)
+         gmcharge(:, 1) = gmcharge(:, 1) - 2._dp*alpha*oorootpi*mcharge(:)
          IF (ANY(periodic(:) == 1)) THEN
-            gmcharge(:, 1) = gmcharge(:, 1)-pi/alpha**2/deth
+            gmcharge(:, 1) = gmcharge(:, 1) - pi/alpha**2/deth
          END IF
       END IF
 
@@ -327,25 +327,25 @@ CONTAINS
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
          CALL get_xtb_atom_param(xtb_kind, lmax=ni)
-         ni = ni+1
-         ecsr = ecsr+SUM(charges(iatom, 1:ni)*gchrg(iatom, 1:ni, 1))
+         ni = ni + 1
+         ecsr = ecsr + SUM(charges(iatom, 1:ni)*gchrg(iatom, 1:ni, 1))
       END DO
 
-      energy%hartree = energy%hartree+0.5_dp*ecsr
-      energy%hartree = energy%hartree+0.5_dp*SUM(mcharge(:)*gmcharge(:, 1))
+      energy%hartree = energy%hartree + 0.5_dp*ecsr
+      energy%hartree = energy%hartree + 0.5_dp*SUM(mcharge(:)*gmcharge(:, 1))
 
       IF (atprop%energy) THEN
          CALL get_qs_env(qs_env=qs_env, local_particles=local_particles)
          DO ikind = 1, SIZE(local_particles%n_el)
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
             CALL get_xtb_atom_param(xtb_kind, lmax=ni, occupation=occ)
-            ni = ni+1
+            ni = ni + 1
             zeff = SUM(REAL(occ, KIND=dp))
             DO ia = 1, local_particles%n_el(ikind)
                iatom = local_particles%list(ikind)%array(ia)
-               atprop%atecoul(iatom) = atprop%atecoul(iatom)+ &
+               atprop%atecoul(iatom) = atprop%atecoul(iatom) + &
                                        0.5_dp*SUM(REAL(occ(1:ni), KIND=dp)*gchrg(iatom, 1:ni, 1))
-               atprop%atecoul(iatom) = atprop%atecoul(iatom)+ &
+               atprop%atecoul(iatom) = atprop%atecoul(iatom) + &
                                        0.5_dp*zeff*gmcharge(iatom, 1)
             END DO
          END DO
@@ -358,20 +358,20 @@ CONTAINS
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
             CALL get_xtb_atom_param(xtb_kind, lmax=ni)
             ! short range
-            ni = ni+1
+            ni = ni + 1
             DO i = 1, 3
-               fij(i) = SUM(charges(iatom, 1:ni)*gchrg(iatom, 1:ni, i+1))
+               fij(i) = SUM(charges(iatom, 1:ni)*gchrg(iatom, 1:ni, i + 1))
             END DO
-            force(ikind)%rho_elec(1, atom_i) = force(ikind)%rho_elec(1, atom_i)-fij(1)
-            force(ikind)%rho_elec(2, atom_i) = force(ikind)%rho_elec(2, atom_i)-fij(2)
-            force(ikind)%rho_elec(3, atom_i) = force(ikind)%rho_elec(3, atom_i)-fij(3)
+            force(ikind)%rho_elec(1, atom_i) = force(ikind)%rho_elec(1, atom_i) - fij(1)
+            force(ikind)%rho_elec(2, atom_i) = force(ikind)%rho_elec(2, atom_i) - fij(2)
+            force(ikind)%rho_elec(3, atom_i) = force(ikind)%rho_elec(3, atom_i) - fij(3)
             ! long range
             DO i = 1, 3
-               fij(i) = gmcharge(iatom, i+1)*mcharge(iatom)
+               fij(i) = gmcharge(iatom, i + 1)*mcharge(iatom)
             END DO
-            force(ikind)%rho_elec(1, atom_i) = force(ikind)%rho_elec(1, atom_i)-fij(1)
-            force(ikind)%rho_elec(2, atom_i) = force(ikind)%rho_elec(2, atom_i)-fij(2)
-            force(ikind)%rho_elec(3, atom_i) = force(ikind)%rho_elec(3, atom_i)-fij(3)
+            force(ikind)%rho_elec(1, atom_i) = force(ikind)%rho_elec(1, atom_i) - fij(1)
+            force(ikind)%rho_elec(2, atom_i) = force(ikind)%rho_elec(2, atom_i) - fij(2)
+            force(ikind)%rho_elec(3, atom_i) = force(ikind)%rho_elec(3, atom_i) - fij(3)
          END DO
       END IF
 
@@ -419,19 +419,19 @@ CONTAINS
                ALLOCATE (gcij(ni, nj))
                DO i = 1, ni
                   DO j = 1, nj
-                     la = laoa(i)+1
-                     lb = laob(j)+1
-                     gcij(i, j) = 0.5_dp*(gchrg(irow, la, 1)+gchrg(icol, lb, 1))
+                     la = laoa(i) + 1
+                     lb = laob(j) + 1
+                     gcij(i, j) = 0.5_dp*(gchrg(irow, la, 1) + gchrg(icol, lb, 1))
                   END DO
                END DO
-               gmij = 0.5_dp*(gmcharge(irow, 1)+gmcharge(icol, 1))
+               gmij = 0.5_dp*(gmcharge(irow, 1) + gmcharge(icol, 1))
                DO is = 1, SIZE(ks_matrix, 1)
                   NULLIFY (ksblock)
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
                                          row=irow, col=icol, block=ksblock, found=found)
                   CPASSERT(found)
-                  ksblock = ksblock-gcij*sblock
-                  ksblock = ksblock-gmij*sblock
+                  ksblock = ksblock - gcij*sblock
+                  ksblock = ksblock - gmij*sblock
                END DO
                IF (calculate_forces) THEN
                   atom_i = atom_of_kind(irow)
@@ -442,20 +442,20 @@ CONTAINS
                   CPASSERT(found)
                   DO i = 1, 3
                      NULLIFY (dsblock)
-                     CALL dbcsr_get_block_p(matrix=matrix_s(1+i, 1)%matrix, &
+                     CALL dbcsr_get_block_p(matrix=matrix_s(1 + i, 1)%matrix, &
                                             row=irow, col=icol, block=dsblock, found=found)
                      CPASSERT(found)
                      fij(i) = 0.0_dp
                      ! short range
                      fi = -2.0_dp*SUM(pblock*dsblock*gcij)
-                     force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
-                     force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
-                     fij(i) = fij(i)+fi
+                     force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
+                     force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
+                     fij(i) = fij(i) + fi
                      ! long range
                      fi = -2.0_dp*gmij*SUM(pblock*dsblock)
-                     force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
-                     force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
-                     fij(i) = fij(i)+fi
+                     force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
+                     force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
+                     fij(i) = fij(i) + fi
                   END DO
                END IF
                DEALLOCATE (gcij)
@@ -465,7 +465,7 @@ CONTAINS
             IF (do_gamma_stress) THEN
                DO ikind = 1, nkind
                   DO jkind = 1, nkind
-                     iac = ikind+nkind*(jkind-1)
+                     iac = ikind + nkind*(jkind - 1)
                      IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
                      ! atomic parameters
                      CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
@@ -484,12 +484,12 @@ CONTAINS
                               ALLOCATE (gcij(ni, nj))
                               DO i = 1, ni
                                  DO j = 1, nj
-                                    la = laoa(i)+1
-                                    lb = laob(j)+1
-                                    gcij(i, j) = 0.5_dp*(gchrg(iatom, la, 1)+gchrg(jatom, lb, 1))
+                                    la = laoa(i) + 1
+                                    lb = laob(j) + 1
+                                    gcij(i, j) = 0.5_dp*(gchrg(iatom, la, 1) + gchrg(jatom, lb, 1))
                                  END DO
                               END DO
-                              gmij = 0.5_dp*(gmcharge(iatom, 1)+gmcharge(jatom, 1))
+                              gmij = 0.5_dp*(gmcharge(iatom, 1) + gmcharge(jatom, 1))
                               icol = MAX(iatom, jatom)
                               irow = MIN(iatom, jatom)
                               NULLIFY (pblock)
@@ -506,7 +506,7 @@ CONTAINS
                                     f1 = -2.0_dp*SUM(TRANSPOSE(pblock)*dsint(:, :, i)*gcij)
                                     f2 = -2.0_dp*gmij*SUM(TRANSPOSE(pblock)*dsint(:, :, i))
                                  END IF
-                                 fij(i) = f1+f2
+                                 fij(i) = f1 + f2
                               END DO
                               DEALLOCATE (gcij)
                               fi = 1.0_dp
@@ -553,24 +553,24 @@ CONTAINS
                DO i = 1, ni
                   DO j = 1, nj
                      IF (irow == iatom) THEN
-                        la = laoa(i)+1
-                        lb = laob(j)+1
-                        gcij(i, j) = 0.5_dp*(gchrg(iatom, la, 1)+gchrg(jatom, lb, 1))
+                        la = laoa(i) + 1
+                        lb = laob(j) + 1
+                        gcij(i, j) = 0.5_dp*(gchrg(iatom, la, 1) + gchrg(jatom, lb, 1))
                      ELSE
-                        la = laoa(j)+1
-                        lb = laob(i)+1
-                        gcij(i, j) = 0.5_dp*(gchrg(iatom, la, 1)+gchrg(jatom, lb, 1))
+                        la = laoa(j) + 1
+                        lb = laob(i) + 1
+                        gcij(i, j) = 0.5_dp*(gchrg(iatom, la, 1) + gchrg(jatom, lb, 1))
                      END IF
                   END DO
                END DO
-               gmij = 0.5_dp*(gmcharge(iatom, 1)+gmcharge(jatom, 1))
+               gmij = 0.5_dp*(gmcharge(iatom, 1) + gmcharge(jatom, 1))
                DO is = 1, SIZE(ks_matrix, 1)
                   NULLIFY (ksblock)
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
                                          row=irow, col=icol, block=ksblock, found=found)
                   CPASSERT(found)
-                  ksblock = ksblock-gcij*sblock
-                  ksblock = ksblock-gmij*sblock
+                  ksblock = ksblock - gcij*sblock
+                  ksblock = ksblock - gmij*sblock
                END DO
 
                IF (calculate_forces) THEN
@@ -586,20 +586,20 @@ CONTAINS
                   CPASSERT(found)
                   DO i = 1, 3
                      NULLIFY (dsblock)
-                     CALL dbcsr_get_block_p(matrix=matrix_s(1+i, ic)%matrix, &
+                     CALL dbcsr_get_block_p(matrix=matrix_s(1 + i, ic)%matrix, &
                                             row=irow, col=icol, block=dsblock, found=found)
                      CPASSERT(found)
                      fij(i) = 0.0_dp
                      ! short range
                      fi = -2.0_dp*SUM(pblock*dsblock*gcij)
-                     force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
-                     force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
-                     fij(i) = fij(i)+fi
+                     force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
+                     force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
+                     fij(i) = fij(i) + fi
                      ! long range
                      fi = -2.0_dp*gmij*SUM(pblock*dsblock)
-                     force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
-                     force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
-                     fij(i) = fij(i)+fi
+                     force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
+                     force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
+                     fij(i) = fij(i) + fi
                   END DO
                   IF (use_virial) THEN
                      dr = SQRT(SUM(rij(:)**2))
@@ -700,7 +700,7 @@ CONTAINS
 
       DO j = 1, nlb
          DO i = 1, nla
-            eta(i, j) = 1._dp/(etaa*(1._dp+kappaa(i)))+1._dp/(etab*(1._dp+kappab(j)))
+            eta(i, j) = 1._dp/(etaa*(1._dp + kappaa(i))) + 1._dp/(etab*(1._dp + kappab(j)))
             eta(i, j) = 2._dp/eta(i, j)
          END DO
       END DO
@@ -714,14 +714,14 @@ CONTAINS
       ELSE
          rk = rab**kg
          eta = eta**(-kg)
-         IF (rab < rcut-rsmooth) THEN
+         IF (rab < rcut - rsmooth) THEN
             fcut = 1.0_dp
          ELSE
-            r = rab-(rcut-rsmooth)
+            r = rab - (rcut - rsmooth)
             x = r/rsmooth
-            fcut = -6._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
+            fcut = -6._dp*x**5 + 15._dp*x**4 - 10._dp*x**3 + 1._dp
          END IF
-         gmat(:, :) = fcut*(1._dp/(rk+eta(:, :)))**(1._dp/kg)-fcut/rab
+         gmat(:, :) = fcut*(1._dp/(rk + eta(:, :)))**(1._dp/kg) - fcut/rab
       END IF
 
       DEALLOCATE (eta)
@@ -770,7 +770,7 @@ CONTAINS
 
       DO j = 1, nlb
          DO i = 1, nla
-            eta(i, j) = 1._dp/(etaa*(1._dp+kappaa(i)))+1._dp/(etab*(1._dp+kappab(j)))
+            eta(i, j) = 1._dp/(etaa*(1._dp + kappaa(i))) + 1._dp/(etab*(1._dp + kappab(j)))
             eta(i, j) = 2._dp/eta(i, j)
          END DO
       END DO
@@ -783,19 +783,19 @@ CONTAINS
       ELSE
          eta = eta**(-kg)
          rk = rab**kg
-         IF (rab < rcut-rsmooth) THEN
+         IF (rab < rcut - rsmooth) THEN
             fcut = 1.0_dp
             dfcut = 0.0_dp
          ELSE
-            r = rab-(rcut-rsmooth)
+            r = rab - (rcut - rsmooth)
             x = r/rsmooth
-            fcut = -6._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
-            dfcut = -30._dp*x**4+60._dp*x**3-30._dp*x**2
+            fcut = -6._dp*x**5 + 15._dp*x**4 - 10._dp*x**3 + 1._dp
+            dfcut = -30._dp*x**4 + 60._dp*x**3 - 30._dp*x**2
             dfcut = dfcut/rsmooth
          END IF
-         dgmat(:, :) = dfcut*(1._dp/(rk+eta(:, :)))**(1._dp/kg)
-         dgmat(:, :) = dgmat(:, :)-dfcut/rab+fcut/rab**2
-         dgmat(:, :) = dgmat(:, :)-fcut/(rk+eta(:, :))*(1._dp/(rk+eta(:, :)))**(1._dp/kg)*rk/rab
+         dgmat(:, :) = dfcut*(1._dp/(rk + eta(:, :)))**(1._dp/kg)
+         dgmat(:, :) = dgmat(:, :) - dfcut/rab + fcut/rab**2
+         dgmat(:, :) = dgmat(:, :) - fcut/(rk + eta(:, :))*(1._dp/(rk + eta(:, :)))**(1._dp/kg)*rk/rab
       END IF
 
       DEALLOCATE (eta)
@@ -863,7 +863,7 @@ CONTAINS
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, &
                                 jatom=jatom, nlist=nlist, ilist=ilist, nnode=nneighbor, &
                                 inode=jneighbor, cell=cell, r=rij)
-         iac = ikind+nkind*(jkind-1)
+         iac = ikind + nkind*(jkind - 1)
          !
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
          CALL get_xtb_atom_param(xtb_atom_a, defined=defined, natorb=natorb_a)
@@ -939,12 +939,12 @@ CONTAINS
 
          DO iset = 1, nseta
             ncoa = npgfa(iset)*ncoset(la_max(iset))
-            n1 = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+            n1 = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
             sgfa = first_sgfa(1, iset)
             DO jset = 1, nsetb
-               IF (set_radius_a(iset)+set_radius_b(jset) < dr) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dr) CYCLE
                ncob = npgfb(jset)*ncoset(lb_max(jset))
-               n2 = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+               n2 = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
                sgfb = first_sgfb(1, jset)
                CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &

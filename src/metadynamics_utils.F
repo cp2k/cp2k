@@ -379,7 +379,7 @@ CONTAINS
                   WRITE (iw, '(/,A,5X,I10,T50,A,T70,A11)') ' METAVARS| Wall Number:', j, 'Type of Wall:', &
                      ADJUSTR(TRIM(enum_i2c(enum, meta_env%metavar(i)%walls(j)%id_type)))
                   ! Type of wall IO
-                  SELECT CASE (meta_env%metavar (i)%walls (j)%id_type)
+                  SELECT CASE (meta_env%metavar(i)%walls(j)%id_type)
                   CASE (do_wall_none)
                      ! Do Nothing
                      CYCLE
@@ -453,7 +453,7 @@ CONTAINS
          DO i = 1, n_walls
             CALL section_vals_val_get(wall_section, "TYPE", i_rep_section=i, i_val=metavar%walls(i)%id_type)
             CALL section_vals_val_get(wall_section, "POSITION", i_rep_section=i, r_val=metavar%walls(i)%pos)
-            SELECT CASE (metavar%walls (i)%id_type)
+            SELECT CASE (metavar%walls(i)%id_type)
             CASE (do_wall_none)
                ! Just cycle..
                CYCLE
@@ -468,11 +468,11 @@ CONTAINS
                work_section => section_vals_get_subs_vals(wall_section, "QUARTIC", i_rep_section=i)
                CALL section_vals_val_get(work_section, "DIRECTION", i_val=metavar%walls(i)%id_direction)
                CALL section_vals_val_get(work_section, "K", r_val=metavar%walls(i)%k_quartic)
-               SELECT CASE (metavar%walls (i)%id_direction)
+               SELECT CASE (metavar%walls(i)%id_direction)
                CASE (do_wall_m)
-                  metavar%walls(i)%pos0 = metavar%walls(i)%pos+(0.05_dp/metavar%walls(i)%k_quartic**(0.25_dp))
+                  metavar%walls(i)%pos0 = metavar%walls(i)%pos + (0.05_dp/metavar%walls(i)%k_quartic**(0.25_dp))
                CASE (do_wall_p)
-                  metavar%walls(i)%pos0 = metavar%walls(i)%pos-(0.05_dp/metavar%walls(i)%k_quartic**(0.25_dp))
+                  metavar%walls(i)%pos0 = metavar%walls(i)%pos - (0.05_dp/metavar%walls(i)%k_quartic**(0.25_dp))
                END SELECT
             CASE (do_wall_gaussian)
                work_section => section_vals_get_subs_vals(wall_section, "GAUSSIAN", i_rep_section=i)
@@ -568,7 +568,7 @@ CONTAINS
                CYCLE
             END IF
 
-            i_hills = multiple_walkers%walkers_status(i)+1
+            i_hills = multiple_walkers%walkers_status(i) + 1
             filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"// &
                        TRIM(ADJUSTL(cp_to_string(i_hills)))
 
@@ -607,7 +607,7 @@ CONTAINS
                   CALL add_hill_single(hills_env, colvars, ww, hills_env%n_hills, n_colvar)
                END IF
 
-               i_hills = i_hills+1
+               i_hills = i_hills + 1
                filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"// &
                           TRIM(ADJUSTL(cp_to_string(i_hills)))
                IF (para_env%ionode) THEN
@@ -616,8 +616,8 @@ CONTAINS
                CALL mp_bcast(exist, para_env%source, para_env%group)
             END DO
 
-            delta_hills = i_hills-1-multiple_walkers%walkers_status(i)
-            multiple_walkers%walkers_status(i) = i_hills-1
+            delta_hills = i_hills - 1 - multiple_walkers%walkers_status(i)
+            multiple_walkers%walkers_status(i) = i_hills - 1
             iw = cp_print_key_unit_nr(logger, metadyn_section, "PRINT%PROGRAM_RUN_INFO", &
                                       extension=".metadynLog")
             IF (iw > 0) THEN
@@ -671,41 +671,41 @@ CONTAINS
 
       wtcontrol = PRESENT(invdt)
       NULLIFY (tmp, tnp)
-      IF (SIZE(hills_env%ss_history, 2) < n_hills+1) THEN
-         ALLOCATE (tmp(n_colvar, n_hills+100))
+      IF (SIZE(hills_env%ss_history, 2) < n_hills + 1) THEN
+         ALLOCATE (tmp(n_colvar, n_hills + 100))
          tmp(:, :n_hills) = hills_env%ss_history
-         tmp(:, n_hills+1:) = 0.0_dp
+         tmp(:, n_hills + 1:) = 0.0_dp
          DEALLOCATE (hills_env%ss_history)
          hills_env%ss_history => tmp
          NULLIFY (tmp)
       ENDIF
-      IF (SIZE(hills_env%delta_s_history, 2) < n_hills+1) THEN
-         ALLOCATE (tmp(n_colvar, n_hills+100))
+      IF (SIZE(hills_env%delta_s_history, 2) < n_hills + 1) THEN
+         ALLOCATE (tmp(n_colvar, n_hills + 100))
          tmp(:, :n_hills) = hills_env%delta_s_history
-         tmp(:, n_hills+1:) = 0.0_dp
+         tmp(:, n_hills + 1:) = 0.0_dp
          DEALLOCATE (hills_env%delta_s_history)
          hills_env%delta_s_history => tmp
          NULLIFY (tmp)
       ENDIF
-      IF (SIZE(hills_env%ww_history) < n_hills+1) THEN
-         ALLOCATE (tnp(n_hills+100))
+      IF (SIZE(hills_env%ww_history) < n_hills + 1) THEN
+         ALLOCATE (tnp(n_hills + 100))
          tnp(1:n_hills) = hills_env%ww_history
-         tnp(n_hills+1:) = 0.0_dp
+         tnp(n_hills + 1:) = 0.0_dp
          DEALLOCATE (hills_env%ww_history)
          hills_env%ww_history => tnp
          NULLIFY (tnp)
       ENDIF
       IF (wtcontrol) THEN
-         IF (SIZE(hills_env%invdt_history) < n_hills+1) THEN
-            ALLOCATE (tnp(n_hills+100))
+         IF (SIZE(hills_env%invdt_history) < n_hills + 1) THEN
+            ALLOCATE (tnp(n_hills + 100))
             tnp(1:n_hills) = hills_env%invdt_history
-            tnp(n_hills+1:) = 0.0_dp
+            tnp(n_hills + 1:) = 0.0_dp
             DEALLOCATE (hills_env%invdt_history)
             hills_env%invdt_history => tnp
             NULLIFY (tnp)
          ENDIF
       ENDIF
-      n_hills = n_hills+1
+      n_hills = n_hills + 1
       ! Now add the hill
       DO i = 1, n_colvar
          hills_env%ss_history(i, n_hills) = colvars(i)%ss0
@@ -901,52 +901,52 @@ CONTAINS
             colvars(ih)%epot_walls = 0.0_dp
             colvars(ih)%ff_walls = 0.0_dp
             DO iwall = 1, SIZE(colvars(ih)%walls)
-               SELECT CASE (colvars (ih)%walls (iwall)%id_type)
+               SELECT CASE (colvars(ih)%walls(iwall)%id_type)
                CASE (do_wall_reflective, do_wall_none)
                   ! Do Nothing.. treated in the main metadyn function
                   CYCLE
                CASE (do_wall_quadratic)
-                  diff_ss = colvars(ih)%ss0-colvars(ih)%walls(iwall)%pos
+                  diff_ss = colvars(ih)%ss0 - colvars(ih)%walls(iwall)%pos
                   IF (colvars(ih)%periodic) THEN
                      ! The difference of a periodic COLVAR is always within [-pi,pi]
                      diff_ss = SIGN(1.0_dp, ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
                   END IF
                   efunc = colvars(ih)%walls(iwall)%k_quadratic*diff_ss**2
                   dfunc = 2.0_dp*colvars(ih)%walls(iwall)%k_quadratic*diff_ss
-                  SELECT CASE (colvars (ih)%walls (iwall)%id_direction)
+                  SELECT CASE (colvars(ih)%walls(iwall)%id_direction)
                   CASE (do_wall_p)
                      IF (diff_ss > 0.0_dp) THEN
-                        colvars(ih)%ff_walls = colvars(ih)%ff_walls-dfunc
-                        colvars(ih)%epot_walls = colvars(ih)%epot_walls+efunc
+                        colvars(ih)%ff_walls = colvars(ih)%ff_walls - dfunc
+                        colvars(ih)%epot_walls = colvars(ih)%epot_walls + efunc
                      END IF
                   CASE (do_wall_m)
                      IF (diff_ss < 0.0_dp) THEN
-                        colvars(ih)%ff_walls = colvars(ih)%ff_walls-dfunc
-                        colvars(ih)%epot_walls = colvars(ih)%epot_walls+efunc
+                        colvars(ih)%ff_walls = colvars(ih)%ff_walls - dfunc
+                        colvars(ih)%epot_walls = colvars(ih)%epot_walls + efunc
                      END IF
                   END SELECT
                CASE (do_wall_quartic)
-                  diff_ss = colvars(ih)%ss0-colvars(ih)%walls(iwall)%pos0
+                  diff_ss = colvars(ih)%ss0 - colvars(ih)%walls(iwall)%pos0
                   IF (colvars(ih)%periodic) THEN
                      ! The difference of a periodic COLVAR is always within [-pi,pi]
                      diff_ss = SIGN(1.0_dp, ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
                   END IF
                   efunc = colvars(ih)%walls(iwall)%k_quartic*diff_ss*diff_ss**4
                   dfunc = 4.0_dp*colvars(ih)%walls(iwall)%k_quartic*diff_ss**3
-                  SELECT CASE (colvars (ih)%walls (iwall)%id_direction)
+                  SELECT CASE (colvars(ih)%walls(iwall)%id_direction)
                   CASE (do_wall_p)
                      IF (diff_ss > 0.0_dp) THEN
-                        colvars(ih)%ff_walls = colvars(ih)%ff_walls-dfunc
-                        colvars(ih)%epot_walls = colvars(ih)%epot_walls+efunc
+                        colvars(ih)%ff_walls = colvars(ih)%ff_walls - dfunc
+                        colvars(ih)%epot_walls = colvars(ih)%epot_walls + efunc
                      END IF
                   CASE (do_wall_m)
                      IF (diff_ss < 0.0_dp) THEN
-                        colvars(ih)%ff_walls = colvars(ih)%ff_walls-dfunc
-                        colvars(ih)%epot_walls = colvars(ih)%epot_walls+efunc
+                        colvars(ih)%ff_walls = colvars(ih)%ff_walls - dfunc
+                        colvars(ih)%epot_walls = colvars(ih)%epot_walls + efunc
                      END IF
                   END SELECT
                CASE (do_wall_gaussian)
-                  diff_ss = colvars(ih)%ss0-colvars(ih)%walls(iwall)%pos
+                  diff_ss = colvars(ih)%ss0 - colvars(ih)%walls(iwall)%pos
                   IF (colvars(ih)%periodic) THEN
                      ! The difference of a periodic COLVAR is always within [-pi,pi]
                      diff_ss = SIGN(1.0_dp, ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
@@ -957,8 +957,8 @@ CONTAINS
                   dp2 = ddp**2
                   efunc = ww*EXP(-0.5_dp*dp2)
                   dfunc = -efunc*ddp/delta_s
-                  colvars(ih)%ff_walls = colvars(ih)%ff_walls-dfunc
-                  colvars(ih)%epot_walls = colvars(ih)%epot_walls+efunc
+                  colvars(ih)%ff_walls = colvars(ih)%ff_walls - dfunc
+                  colvars(ih)%epot_walls = colvars(ih)%epot_walls + efunc
                END SELECT
             END DO
          END IF

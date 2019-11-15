@@ -11,20 +11,20 @@
 ! **************************************************************************************************
 MODULE cp_cfm_diag
    USE cp_cfm_basic_linalg, ONLY: cp_cfm_cholesky_decompose, &
-      cp_cfm_gemm, &
-      cp_cfm_column_scale, &
-      cp_cfm_scale, &
-      cp_cfm_triangular_invert, &
-      cp_cfm_triangular_multiply
+                                  cp_cfm_gemm, &
+                                  cp_cfm_column_scale, &
+                                  cp_cfm_scale, &
+                                  cp_cfm_triangular_invert, &
+                                  cp_cfm_triangular_multiply
    USE cp_cfm_types, ONLY: cp_cfm_get_info, &
-      cp_cfm_set_element, &
-      cp_cfm_to_cfm, &
-      cp_cfm_type
+                           cp_cfm_set_element, &
+                           cp_cfm_to_cfm, &
+                           cp_cfm_type
    USE kinds, ONLY: dp
 #if defined (__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
-      ieee_set_halting_mode, &
-      ieee_all
+                              ieee_set_halting_mode, &
+                              ieee_all
 #endif
 
 #include "../base/base_uses.f90"
@@ -91,7 +91,7 @@ CONTAINS
                    work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
       lwork = CEILING(REAL(work(1), KIND=dp))
       ! needed to correct for a bug in scalapack, unclear how much the right number is
-      lrwork = CEILING(REAL(rwork(1), KIND=dp))+1000000
+      lrwork = CEILING(REAL(rwork(1), KIND=dp)) + 1000000
       liwork = iwork(1)
 #else
       CALL ZHEEVD('V', 'U', n, m(1, 1), SIZE(m, 1), eigenvalues(1), &
@@ -224,7 +224,7 @@ CONTAINS
       nc = nao
       DO i = 1, nao
          IF (evals(i) < epseig) THEN
-            nc = i-1
+            nc = i - 1
             EXIT
          END IF
       END DO
@@ -233,17 +233,17 @@ CONTAINS
       IF (nc /= nao) THEN
          IF (nc < nmo) THEN
             ! Copy NULL space definition to last vectors of eigenvectors (if needed)
-            ncol = nmo-nc
-            CALL cp_cfm_to_cfm(work, eigenvectors, ncol, nc+1, nc+1)
+            ncol = nmo - nc
+            CALL cp_cfm_to_cfm(work, eigenvectors, ncol, nc + 1, nc + 1)
          END IF
          ! Set NULL space in eigenvector matrix of S to zero
-         DO icol = nc+1, nao
+         DO icol = nc + 1, nao
             DO irow = 1, nao
                CALL cp_cfm_set_element(work, irow, icol, czero)
             END DO
          END DO
          ! Set small eigenvalues to a dummy save value
-         evals(nc+1:nao) = 1.0_dp
+         evals(nc + 1:nao) = 1.0_dp
       END IF
       ! calculate U*s**(-1/2)
       cevals(:) = CMPLX(1.0_dp/SQRT(evals(:)), 0.0_dp, KIND=dp)
@@ -253,7 +253,7 @@ CONTAINS
       CALL cp_cfm_gemm("N", "N", nao, nao, nao, cone, bmatrix, work, czero, amatrix)
       IF (nc /= nao) THEN
          ! set diagonal values to save large value
-         DO icol = nc+1, nao
+         DO icol = nc + 1, nao
             CALL cp_cfm_set_element(amatrix, icol, icol, CMPLX(10000.0_dp, 0.0_dp, KIND=dp))
          END DO
       END IF

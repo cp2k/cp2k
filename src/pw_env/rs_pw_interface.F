@@ -124,7 +124,7 @@ CONTAINS
          CASE (spline3_pbc_interp)
             DO igrid_level = gridlevel_info%ngrid_levels, 2, -1
                CALL pw_prolongate_s3(mgrid_rspace(igrid_level)%pw, &
-                                     mgrid_rspace(igrid_level-1)%pw, pw_pools(igrid_level)%pool, &
+                                     mgrid_rspace(igrid_level - 1)%pw, pw_pools(igrid_level)%pool, &
                                      pw_env%interp_section)
             END DO
             CALL pw_copy(mgrid_rspace(1)%pw, rho%pw)
@@ -211,7 +211,7 @@ CONTAINS
          CASE (spline3_pbc_interp)
             DO igrid_level = gridlevel_info%ngrid_levels, 2, -1
                CALL pw_prolongate_s3(mgrid_rspace(igrid_level)%pw, &
-                                     mgrid_rspace(igrid_level-1)%pw, pw_pools(igrid_level)%pool, &
+                                     mgrid_rspace(igrid_level - 1)%pw, pw_pools(igrid_level)%pool, &
                                      pw_env%interp_section)
             END DO
             CALL pw_copy(mgrid_rspace(1)%pw, rho%pw)
@@ -299,14 +299,14 @@ CONTAINS
          CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace)
       CASE (spline3_pbc_interp)
          CALL pw_copy(v_rspace%pw, mgrid_rspace(1)%pw)
-         DO igrid_level = 1, gridlevel_info%ngrid_levels-1
-            CALL pw_zero(mgrid_rspace(igrid_level+1)%pw)
+         DO igrid_level = 1, gridlevel_info%ngrid_levels - 1
+            CALL pw_zero(mgrid_rspace(igrid_level + 1)%pw)
             CALL pw_restrict_s3(mgrid_rspace(igrid_level)%pw, &
-                                mgrid_rspace(igrid_level+1)%pw, pw_pools(igrid_level+1)%pool, &
+                                mgrid_rspace(igrid_level + 1)%pw, pw_pools(igrid_level + 1)%pool, &
                                 pw_env%interp_section)
             ! *** Multiply by the grid volume element ratio
-            mgrid_rspace(igrid_level+1)%pw%cr3d = &
-               mgrid_rspace(igrid_level+1)%pw%cr3d*8._dp
+            mgrid_rspace(igrid_level + 1)%pw%cr3d = &
+               mgrid_rspace(igrid_level + 1)%pw%cr3d*8._dp
          END DO
       CASE default
          CALL cp_abort(__LOCATION__, &

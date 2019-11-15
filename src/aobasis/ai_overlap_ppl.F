@@ -124,11 +124,11 @@ CONTAINS
          CPASSERT(PRESENT(force_a))
          CPASSERT(PRESENT(force_b))
          CPASSERT(PRESENT(fs))
-         mmax = la_max_set+lb_max_set+2
+         mmax = la_max_set + lb_max_set + 2
          force_a(:) = 0.0_dp
          force_b(:) = 0.0_dp
       ELSE
-         mmax = la_max_set+lb_max_set
+         mmax = la_max_set + lb_max_set
       END IF
 
       ALLOCATE (auxint(0:mmax, npgfa*npgfb))
@@ -138,14 +138,14 @@ CONTAINS
 
       DO ipgf = 1, npgfa
          ! *** Screening ***
-         IF (rpgfa(ipgf)+rpgfc < dac) CYCLE
+         IF (rpgfa(ipgf) + rpgfc < dac) CYCLE
          DO jpgf = 1, npgfb
             ! *** Screening ***
-            IF ((rpgfb(jpgf)+rpgfc < dbc) .OR. &
-                (rpgfa(ipgf)+rpgfb(jpgf) < dab)) CYCLE
-            ij = (ipgf-1)*npgfb+jpgf
-            rho = zeta(ipgf)+zetb(jpgf)
-            pci(:) = -(zeta(ipgf)*rac(:)+zetb(jpgf)*rbc(:))/rho
+            IF ((rpgfb(jpgf) + rpgfc < dbc) .OR. &
+                (rpgfa(ipgf) + rpgfb(jpgf) < dab)) CYCLE
+            ij = (ipgf - 1)*npgfb + jpgf
+            rho = zeta(ipgf) + zetb(jpgf)
+            pci(:) = -(zeta(ipgf)*rac(:) + zetb(jpgf)*rbc(:))/rho
             sab = EXP(-(zeta(ipgf)*zetb(jpgf)/rho*dab*dab))
             t = rho*SUM(pci(:)*pci(:))
 
@@ -224,7 +224,7 @@ CONTAINS
       debug = .FALSE.
 
       IF (PRESENT(dva)) THEN
-         mmax = la_max_set+1
+         mmax = la_max_set + 1
       ELSE
          mmax = la_max_set
       END IF
@@ -234,7 +234,7 @@ CONTAINS
 
       ! *** Calculate auxiliary integrals ***
       DO ipgf = 1, npgfa
-         IF (rpgfa(ipgf)+rpgfc < dac) CYCLE
+         IF (rpgfa(ipgf) + rpgfc < dac) CYCLE
          rho = zeta(ipgf)
          t = rho*dac*dac
 
@@ -260,40 +260,40 @@ CONTAINS
          iw = 6
          na = 0
          DO ipgf = 1, npgfa
-            IF (rpgfa(ipgf)+rpgfc < dac) THEN
-               na = na+ncoset(la_max_set)
+            IF (rpgfa(ipgf) + rpgfc < dac) THEN
+               na = na + ncoset(la_max_set)
                CYCLE
             END IF
             rho = zeta(ipgf)
-            DO i = ncoset(la_min_set-1)+1, ncoset(la_max_set)
-               oref = va(na+i)
+            DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+               oref = va(na + i)
                ani(1:3) = indco(1:3, i)
                oint = ppl_ri_test(rho, ani, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
                ! test
-               IF (ABS(oint-oref) > 1.0e-12_dp) THEN
+               IF (ABS(oint - oref) > 1.0e-12_dp) THEN
                   WRITE (iw, '(A,3i2,i5,F10.4,2G24.12)') "PPL int error     ", ani, la_max_set, dac, oint, oref
                END IF
                IF (PRESENT(dva)) THEN
-                  anp = ani+(/1, 0, 0/)
-                  anm = ani-(/1, 0, 0/)
+                  anp = ani + (/1, 0, 0/)
+                  anm = ani - (/1, 0, 0/)
                   doint(1) = 2._dp*rho*ppl_ri_test(rho, anp, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) &
-                             -ani(1)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
-                  anp = ani+(/0, 1, 0/)
-                  anm = ani-(/0, 1, 0/)
+                             - ani(1)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
+                  anp = ani + (/0, 1, 0/)
+                  anm = ani - (/0, 1, 0/)
                   doint(2) = 2._dp*rho*ppl_ri_test(rho, anp, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) &
-                             -ani(2)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
-                  anp = ani+(/0, 0, 1/)
-                  anm = ani-(/0, 0, 1/)
+                             - ani(2)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
+                  anp = ani + (/0, 0, 1/)
+                  anm = ani - (/0, 0, 1/)
                   doint(3) = 2._dp*rho*ppl_ri_test(rho, anp, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) &
-                             -ani(3)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
-                  doref(1:3) = dva(na+i, 1:3)
-                  IF (ANY(ABS(doint-doref) > 1.0e-6_dp)) THEN
+                             - ani(3)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
+                  doref(1:3) = dva(na + i, 1:3)
+                  IF (ANY(ABS(doint - doref) > 1.0e-6_dp)) THEN
                      WRITE (iw, '(A,3i2,i5,F10.4,2G24.12)') " PPL dint error   ", &
                         ani, la_max_set, dac, SUM(ABS(doint)), SUM(ABS(doref))
                   END IF
                END IF
             END DO
-            na = na+ncoset(la_max_set)
+            na = na + ncoset(la_max_set)
          END DO
       END IF
 
@@ -334,29 +334,29 @@ CONTAINS
             cn = cexp_ppl(ni, iexp)
             SELECT CASE (ni)
             CASE (1)
-               oint = oint+cn*os_overlap2(ani, (/0, 0, 0/))
+               oint = oint + cn*os_overlap2(ani, (/0, 0, 0/))
             CASE (2)
-               oint = oint+cn*os_overlap2(ani, (/2, 0, 0/))
-               oint = oint+cn*os_overlap2(ani, (/0, 2, 0/))
-               oint = oint+cn*os_overlap2(ani, (/0, 0, 2/))
+               oint = oint + cn*os_overlap2(ani, (/2, 0, 0/))
+               oint = oint + cn*os_overlap2(ani, (/0, 2, 0/))
+               oint = oint + cn*os_overlap2(ani, (/0, 0, 2/))
             CASE (3)
-               oint = oint+cn*os_overlap2(ani, (/4, 0, 0/))
-               oint = oint+cn*os_overlap2(ani, (/0, 4, 0/))
-               oint = oint+cn*os_overlap2(ani, (/0, 0, 4/))
-               oint = oint+2.0_dp*cn*os_overlap2(ani, (/2, 2, 0/))
-               oint = oint+2.0_dp*cn*os_overlap2(ani, (/0, 2, 2/))
-               oint = oint+2.0_dp*cn*os_overlap2(ani, (/2, 0, 2/))
+               oint = oint + cn*os_overlap2(ani, (/4, 0, 0/))
+               oint = oint + cn*os_overlap2(ani, (/0, 4, 0/))
+               oint = oint + cn*os_overlap2(ani, (/0, 0, 4/))
+               oint = oint + 2.0_dp*cn*os_overlap2(ani, (/2, 2, 0/))
+               oint = oint + 2.0_dp*cn*os_overlap2(ani, (/0, 2, 2/))
+               oint = oint + 2.0_dp*cn*os_overlap2(ani, (/2, 0, 2/))
             CASE (4)
-               oint = oint+cn*os_overlap2(ani, (/6, 0, 0/))
-               oint = oint+cn*os_overlap2(ani, (/0, 6, 0/))
-               oint = oint+cn*os_overlap2(ani, (/0, 0, 6/))
-               oint = oint+3.0_dp*cn*os_overlap2(ani, (/4, 2, 0/))
-               oint = oint+3.0_dp*cn*os_overlap2(ani, (/4, 0, 2/))
-               oint = oint+3.0_dp*cn*os_overlap2(ani, (/2, 4, 0/))
-               oint = oint+3.0_dp*cn*os_overlap2(ani, (/0, 4, 2/))
-               oint = oint+3.0_dp*cn*os_overlap2(ani, (/2, 0, 4/))
-               oint = oint+3.0_dp*cn*os_overlap2(ani, (/0, 2, 4/))
-               oint = oint+6.0_dp*cn*os_overlap2(ani, (/2, 2, 2/))
+               oint = oint + cn*os_overlap2(ani, (/6, 0, 0/))
+               oint = oint + cn*os_overlap2(ani, (/0, 6, 0/))
+               oint = oint + cn*os_overlap2(ani, (/0, 0, 6/))
+               oint = oint + 3.0_dp*cn*os_overlap2(ani, (/4, 2, 0/))
+               oint = oint + 3.0_dp*cn*os_overlap2(ani, (/4, 0, 2/))
+               oint = oint + 3.0_dp*cn*os_overlap2(ani, (/2, 4, 0/))
+               oint = oint + 3.0_dp*cn*os_overlap2(ani, (/0, 4, 2/))
+               oint = oint + 3.0_dp*cn*os_overlap2(ani, (/2, 0, 4/))
+               oint = oint + 3.0_dp*cn*os_overlap2(ani, (/0, 2, 4/))
+               oint = oint + 6.0_dp*cn*os_overlap2(ani, (/2, 2, 2/))
             CASE DEFAULT
                CPABORT("OVERLAP_PPL")
             END SELECT
@@ -392,18 +392,18 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:mmax)                   :: expder
 
       CPASSERT(nexp_ppl > 0)
-      q = rho+zetc
+      q = rho + zetc
       polder = 0._dp
       pmax = 0
       IF (nexp_ppl > 0) THEN
-         polder(0) = polder(0)+cexp_ppl(1)
+         polder(0) = polder(0) + cexp_ppl(1)
          pmax = 0
       END IF
       IF (nexp_ppl > 1) THEN
          q2 = q*q
          a2 = 0.5_dp/q2*cexp_ppl(2)
-         polder(0) = polder(0)+a2*(2._dp*rho*t+3._dp*q)
-         polder(1) = polder(1)-a2*2._dp*rho
+         polder(0) = polder(0) + a2*(2._dp*rho*t + 3._dp*q)
+         polder(1) = polder(1) - a2*2._dp*rho
          pmax = 1
       END IF
       IF (nexp_ppl > 2) THEN
@@ -411,9 +411,9 @@ CONTAINS
          rho2 = rho*rho
          t2 = t*t
          a3 = 0.25_dp/q4*cexp_ppl(3)
-         polder(0) = polder(0)+a3*(4._dp*rho2*t2+20._dp*rho*t*q+15._dp*q2)
-         polder(1) = polder(1)-a3*(8._dp*rho2*t+20._dp*rho*q)
-         polder(2) = polder(2)+a3*8._dp*rho2
+         polder(0) = polder(0) + a3*(4._dp*rho2*t2 + 20._dp*rho*t*q + 15._dp*q2)
+         polder(1) = polder(1) - a3*(8._dp*rho2*t + 20._dp*rho*q)
+         polder(2) = polder(2) + a3*8._dp*rho2
          pmax = 2
       END IF
       IF (nexp_ppl > 3) THEN
@@ -421,10 +421,10 @@ CONTAINS
          rho3 = rho2*rho
          t3 = t2*t
          a4 = 0.125_dp/q6*cexp_ppl(4)
-         polder(0) = polder(0)+a4*(8._dp*rho3*t3+84._dp*rho2*t2*q+210._dp*rho*t*q2+105._dp*q*q2)
-         polder(1) = polder(1)-a4*(24._dp*rho3*t2+168._dp*rho2*t*q+210._dp*rho*q2)
-         polder(2) = polder(2)+a4*(48._dp*rho3*t+168._dp*rho2*q)
-         polder(3) = polder(3)-a4*48_dp*rho3
+         polder(0) = polder(0) + a4*(8._dp*rho3*t3 + 84._dp*rho2*t2*q + 210._dp*rho*t*q2 + 105._dp*q*q2)
+         polder(1) = polder(1) - a4*(24._dp*rho3*t2 + 168._dp*rho2*t*q + 210._dp*rho*q2)
+         polder(2) = polder(2) + a4*(48._dp*rho3*t + 168._dp*rho2*q)
+         polder(3) = polder(3) - a4*48_dp*rho3
          pmax = 3
       END IF
       IF (nexp_ppl > 4) THEN
@@ -436,14 +436,14 @@ CONTAINS
 
       IF (mmax >= 0) expder(0) = cc
       DO i = 1, mmax
-         expder(i) = f*expder(i-1)
+         expder(i) = f*expder(i - 1)
       END DO
 
       DO i = 0, mmax
          DO j = 0, MIN(i, pmax)
             kp = j
-            ke = i-j
-            auxint(i) = auxint(i)+expder(ke)*polder(kp)*choose(i, j)
+            ke = i - j
+            auxint(i) = auxint(i) + expder(ke)*polder(kp)*choose(i, j)
          END DO
       END DO
 
@@ -460,7 +460,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: choose
 
       IF (n >= k) THEN
-         choose = REAL(NINT(fac(n)/(fac(k)*fac(n-k))), KIND=dp)
+         choose = REAL(NINT(fac(n)/(fac(k)*fac(n - k))), KIND=dp)
       ELSE
          choose = 0.0_dp
       ENDIF

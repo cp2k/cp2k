@@ -148,7 +148,7 @@ CONTAINS
          CALL mp_sum(pos, int_group)
          IF (my_add) THEN
             DO iparticle = 1, nparticle
-               particle_set(iparticle)%r(:) = particle_set(iparticle)%r(:)+pos(:, iparticle)
+               particle_set(iparticle)%r(:) = particle_set(iparticle)%r(:) + pos(:, iparticle)
             END DO
          ELSE
             DO iparticle = 1, nparticle
@@ -160,7 +160,7 @@ CONTAINS
          CALL mp_sum(vel, int_group)
          IF (my_add) THEN
             DO iparticle = 1, nparticle
-               particle_set(iparticle)%v(:) = particle_set(iparticle)%v(:)+vel(:, iparticle)
+               particle_set(iparticle)%v(:) = particle_set(iparticle)%v(:) + vel(:, iparticle)
             END DO
          ELSE
             DO iparticle = 1, nparticle
@@ -172,7 +172,7 @@ CONTAINS
          CALL mp_sum(for, int_group)
          IF (my_add) THEN
             DO iparticle = 1, nparticle
-               particle_set(iparticle)%f(:) = particle_set(iparticle)%f(:)+for(:, iparticle)
+               particle_set(iparticle)%f(:) = particle_set(iparticle)%f(:) + for(:, iparticle)
             END DO
          ELSE
             DO iparticle = 1, nparticle
@@ -206,15 +206,15 @@ CONTAINS
       INTEGER                                            :: ic, is
       REAL(KIND=dp)                                      :: fc, fs, mass
 
-      ic = 3*(iatom-1)
+      ic = 3*(iatom - 1)
       IF (particle_set(iatom)%shell_index == 0) THEN
-         x(1:3) = vector(ic+1:ic+3)
+         x(1:3) = vector(ic + 1:ic + 3)
       ELSE
-         is = 3*(SIZE(particle_set)+particle_set(iatom)%shell_index-1)
+         is = 3*(SIZE(particle_set) + particle_set(iatom)%shell_index - 1)
          mass = particle_set(iatom)%atomic_kind%mass
          fc = particle_set(iatom)%atomic_kind%shell%mass_core/mass
          fs = particle_set(iatom)%atomic_kind%shell%mass_shell/mass
-         x(1:3) = fc*vector(ic+1:ic+3)+fs*vector(is+1:is+3)
+         x(1:3) = fc*vector(ic + 1:ic + 3) + fs*vector(is + 1:is + 3)
       END IF
 
    END FUNCTION get_particle_pos_or_vel
@@ -243,18 +243,18 @@ CONTAINS
       INTEGER                                            :: ic, is
       REAL(KIND=dp)                                      :: fc, fs, mass
 
-      ic = 3*(iatom-1)
+      ic = 3*(iatom - 1)
       IF (particle_set(iatom)%shell_index == 0) THEN
-         vector(ic+1:ic+3) = vector(ic+1:ic+3)+x(1:3)
-         x(1:3) = vector(ic+1:ic+3)
+         vector(ic + 1:ic + 3) = vector(ic + 1:ic + 3) + x(1:3)
+         x(1:3) = vector(ic + 1:ic + 3)
       ELSE
-         is = 3*(SIZE(particle_set)+particle_set(iatom)%shell_index-1)
+         is = 3*(SIZE(particle_set) + particle_set(iatom)%shell_index - 1)
          mass = particle_set(iatom)%atomic_kind%mass
          fc = particle_set(iatom)%atomic_kind%shell%mass_core/mass
          fs = particle_set(iatom)%atomic_kind%shell%mass_shell/mass
-         vector(ic+1:ic+3) = vector(ic+1:ic+3)+x(1:3)
-         vector(is+1:is+3) = vector(is+1:is+3)+x(1:3)
-         x(1:3) = fc*vector(ic+1:ic+3)+fs*vector(is+1:is+3)
+         vector(ic + 1:ic + 3) = vector(ic + 1:ic + 3) + x(1:3)
+         vector(is + 1:is + 3) = vector(is + 1:is + 3) + x(1:3)
+         x(1:3) = fc*vector(ic + 1:ic + 3) + fs*vector(is + 1:is + 3)
       END IF
 
    END SUBROUTINE update_particle_pos_or_vel

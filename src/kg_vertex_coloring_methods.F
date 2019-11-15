@@ -116,7 +116,7 @@ CONTAINS
             imol = jmol
             nneighbors = 0
          END IF
-         nneighbors = nneighbors+1
+         nneighbors = nneighbors + 1
       END DO
 
       IF (imol .NE. 0) THEN
@@ -140,7 +140,7 @@ CONTAINS
             ineighbor = 0
             imol = jmol
          END IF
-         ineighbor = ineighbor+1
+         ineighbor = ineighbor + 1
          kmol = pairs(2, i)
          graph(imol)%vertex%neighbors(ineighbor)%vertex => graph(kmol)%vertex
       END DO
@@ -181,7 +181,7 @@ CONTAINS
 
       nnodes = SIZE(graph)
 
-      ALLOCATE (color_present(maxdegree+1))
+      ALLOCATE (color_present(maxdegree + 1))
 
       DO i = 1, nnodes
          color_present(:) = .FALSE.
@@ -192,7 +192,7 @@ CONTAINS
                IF (color .NE. 0) color_present(color) = .TRUE.
             END DO
          END IF
-         DO j = 1, maxdegree+1 !nnodes
+         DO j = 1, maxdegree + 1 !nnodes
             IF (color_present(j) .EQV. .FALSE.) THEN
                newcolor = j
                EXIT
@@ -237,13 +237,13 @@ CONTAINS
             counter = 0
             DO j = 1, nnodes
                IF (graph(j)%vertex%color .EQ. i) THEN
-                  counter = counter+1
+                  counter = counter + 1
                   IF (MOD(counter, 13) .EQ. 0) THEN
-                     counter = counter+1
+                     counter = counter + 1
                      WRITE (unit_nr, '()') ! line break
                      WRITE (unit_nr, '(6X,A)', ADVANCE='NO') " |" ! indent next line
                   END IF
-                  WRITE (unit_nr, '(I5,1X)', ADVANCE='NO') graph(j)%vertex%id-1
+                  WRITE (unit_nr, '(I5,1X)', ADVANCE='NO') graph(j)%vertex%id - 1
                END IF
             END DO
             WRITE (unit_nr, '()')
@@ -270,7 +270,7 @@ CONTAINS
 !   INTEGER, PARAMETER                       :: huge_4 = HUGE(0_int_4) ! PR67219 workaround
 ! we actually need a max_heap
 
-      value = (huge_4-INT(dsat, KIND=int_8))*huge_4+huge_4-degree
+      value = (huge_4 - INT(dsat, KIND=int_8))*huge_4 + huge_4 - degree
 
    END FUNCTION
 
@@ -397,7 +397,7 @@ CONTAINS
                this%color = 1
                CYCLE
             END IF
-            DO i = 1, this%degree+1
+            DO i = 1, this%degree + 1
                IF (this%color_present(i) .EQV. .FALSE.) THEN
                   this%color = i ! smallest possible
                   EXIT
@@ -410,7 +410,7 @@ CONTAINS
                neighbor => this%neighbors(i)%vertex
                IF (neighbor%color_present(this%color)) CYCLE
                neighbor%color_present(this%color) = .TRUE.
-               neighbor%dsat = neighbor%dsat+1
+               neighbor%dsat = neighbor%dsat + 1
                IF (neighbor%color /= 0) CYCLE
                CALL kg_update_node(heap, neighbor)
 
@@ -426,7 +426,7 @@ CONTAINS
                   DO j = 1, color_limit
                      graph(i)%vertex%color_present(j) = color_present(j)
                   END DO
-                  DO j = color_limit+1, 2*color_limit
+                  DO j = color_limit + 1, 2*color_limit
                      graph(i)%vertex%color_present(j) = .FALSE.
                   END DO
                END DO
@@ -468,7 +468,7 @@ CONTAINS
       INTEGER                                            :: i
 
       switchable = .TRUE.
-      low_col = ncolors+1
+      low_col = ncolors + 1
 
       DO i = 1, this%degree
          IF (this%neighbors(i)%vertex%id == neighbor%id) CYCLE
@@ -532,10 +532,10 @@ CONTAINS
             DO i = 1, nnodes
                this => graph(i)%vertex
                IF (.NOT. ASSOCIATED(this%neighbors)) CYCLE
-               IF (graph(i)%vertex%color < ncolors-depth+1) CYCLE !Node already has a low color
+               IF (graph(i)%vertex%color < ncolors - depth + 1) CYCLE !Node already has a low color
 
                partner = 0
-               low_col = this%color+1
+               low_col = this%color + 1
 
                DO j = 1, this%degree
                   neighbor => this%neighbors(j)%vertex

@@ -366,16 +366,16 @@ CONTAINS
             IF (my_tmpv) THEN
                DO iparticle_local = 1, nparticle_local
                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                  K = K+0.5_dp*mass*DOT_PRODUCT(tmp%vel(:, iparticle), tmp%vel(:, iparticle))
-                  a = a+DOT_PRODUCT(tmp%vel(:, iparticle), particle_set(iparticle)%f(:))
-                  b = b+(1.0_dp/mass)*DOT_PRODUCT(particle_set(iparticle)%f(:), particle_set(iparticle)%f(:))
+                  K = K + 0.5_dp*mass*DOT_PRODUCT(tmp%vel(:, iparticle), tmp%vel(:, iparticle))
+                  a = a + DOT_PRODUCT(tmp%vel(:, iparticle), particle_set(iparticle)%f(:))
+                  b = b + (1.0_dp/mass)*DOT_PRODUCT(particle_set(iparticle)%f(:), particle_set(iparticle)%f(:))
                END DO
             ELSE
                DO iparticle_local = 1, nparticle_local
                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                  K = K+0.5_dp*mass*DOT_PRODUCT(particle_set(iparticle)%v(:), particle_set(iparticle)%v(:))
-                  a = a+DOT_PRODUCT(particle_set(iparticle)%v(:), particle_set(iparticle)%f(:))
-                  b = b+(1.0_dp/mass)*DOT_PRODUCT(particle_set(iparticle)%f(:), particle_set(iparticle)%f(:))
+                  K = K + 0.5_dp*mass*DOT_PRODUCT(particle_set(iparticle)%v(:), particle_set(iparticle)%v(:))
+                  a = a + DOT_PRODUCT(particle_set(iparticle)%v(:), particle_set(iparticle)%f(:))
+                  b = b + (1.0_dp/mass)*DOT_PRODUCT(particle_set(iparticle)%f(:), particle_set(iparticle)%f(:))
                END DO
             END IF
          END IF
@@ -386,8 +386,8 @@ CONTAINS
       a = a/(2.0_dp*K)
       b = b/(2.0_dp*K)
       rb = SQRT(b)
-      tmp%s = (a/b)*(COSH(dt*rb/2.0_dp)-1)+SINH(dt*rb/2.0_dp)/rb
-      tmp%ds = (a/b)*(SINH(dt*rb/2.0_dp)*rb)+COSH(dt*rb/2.0_dp)
+      tmp%s = (a/b)*(COSH(dt*rb/2.0_dp) - 1) + SINH(dt*rb/2.0_dp)/rb
+      tmp%ds = (a/b)*(SINH(dt*rb/2.0_dp)*rb) + COSH(dt*rb/2.0_dp)
 
    END SUBROUTINE get_s_ds
 
@@ -562,11 +562,11 @@ CONTAINS
             DO ipart = first_atom, last_atom
                atomic_kind => particle_set(ipart)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-               kin = kin+mass*particle_set(ipart)%v(1)* &
+               kin = kin + mass*particle_set(ipart)%v(1)* &
                      particle_set(ipart)%v(1)
-               kin = kin+mass*particle_set(ipart)%v(2)* &
+               kin = kin + mass*particle_set(ipart)%v(2)* &
                      particle_set(ipart)%v(2)
-               kin = kin+mass*particle_set(ipart)%v(3)* &
+               kin = kin + mass*particle_set(ipart)%v(3)* &
                      particle_set(ipart)%v(3)
             END DO
          END DO
@@ -577,7 +577,7 @@ CONTAINS
       ikin = 1.0_dp/kin
       scale = 1.0_dp
       alpha = 2.0_dp*npt%mass*npt%v*npt%v*gamma1*ikin
-      scale = scale*SQRT(1.0_dp+alpha*0.5_dp*dt)
+      scale = scale*SQRT(1.0_dp + alpha*0.5_dp*dt)
       ! Scale
       DO ikind = 1, SIZE(molecule_kind_set)
          nmol_local = local_molecules%n_el(ikind)
@@ -642,9 +642,9 @@ CONTAINS
             DO ipart = first_atom, last_atom
                atomic_kind => particle_set(ipart)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-               kin = kin+mass*vel(1, ipart)*vel(1, ipart)
-               kin = kin+mass*vel(2, ipart)*vel(2, ipart)
-               kin = kin+mass*vel(3, ipart)*vel(3, ipart)
+               kin = kin + mass*vel(1, ipart)*vel(1, ipart)
+               kin = kin + mass*vel(2, ipart)*vel(2, ipart)
+               kin = kin + mass*vel(3, ipart)*vel(3, ipart)
             END DO
          END DO
       END DO
@@ -654,7 +654,7 @@ CONTAINS
       ikin = 1.0_dp/kin
       scale = 1.0_dp
       alpha = 2.0_dp*npt%mass*npt%v*npt%v*gamma1*ikin
-      scale = scale*SQRT(1.0_dp+alpha*0.5_dp*dt)
+      scale = scale*SQRT(1.0_dp + alpha*0.5_dp*dt)
       ! Scale
       DO ikind = 1, SIZE(molecule_kind_set)
          nmol_local = local_molecules%n_el(ikind)
@@ -835,11 +835,11 @@ CONTAINS
             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
             DO i = 1, 3
                DO j = 1, 3
-                  pv_kin(i, j) = pv_kin(i, j)+ &
+                  pv_kin(i, j) = pv_kin(i, j) + &
                                  mass*particle_set(iparticle)%v(i)* &
                                  particle_set(iparticle)%v(j)
                END DO
-               kin = kin+mass*particle_set(iparticle)%v(i)* &
+               kin = kin + mass*particle_set(iparticle)%v(i)* &
                      particle_set(iparticle)%v(i)
             END DO
          END DO
@@ -909,10 +909,10 @@ CONTAINS
             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
             DO i = 1, 3
                DO j = 1, 3
-                  pv_kin(i, j) = pv_kin(i, j)+ &
+                  pv_kin(i, j) = pv_kin(i, j) + &
                                  mass*vel(i, iparticle)*vel(j, iparticle)
                END DO
-               kin = kin+mass*vel(i, iparticle)*vel(i, iparticle)
+               kin = kin + mass*vel(i, iparticle)*vel(i, iparticle)
             END DO
          END DO
       END DO
@@ -971,20 +971,20 @@ CONTAINS
          ! get force on barostat
          fdotr = 0.0_dp
          DO ii = 1, 3
-            fdotr = fdotr+virial%pv_virial(ii, ii)+ &
+            fdotr = fdotr + virial%pv_virial(ii, ii) + &
                     virial%pv_constraint(ii, ii)
          END DO
 
-         npt(:, :)%f = (1.0_dp+(3.0_dp*infree))*kin+fdotr- &
+         npt(:, :)%f = (1.0_dp + (3.0_dp*infree))*kin + fdotr - &
                        3.0_dp*simpar%p_ext*box%deth
       ELSEIF (simpar%ensemble == npt_f_ensemble .OR. &
               simpar%ensemble == npe_f_ensemble) THEN
-         npt(:, :)%f = virial%pv_virial(:, :)+ &
-                       pv_kin(:, :)+virial%pv_constraint(:, :)- &
-                       unit(:, :)*simpar%p_ext*box%deth+ &
+         npt(:, :)%f = virial%pv_virial(:, :) + &
+                       pv_kin(:, :) + virial%pv_constraint(:, :) - &
+                       unit(:, :)*simpar%p_ext*box%deth + &
                        infree*kin*unit(:, :)
          IF (debug_isotropic_limit) THEN
-            trace = npt(1, 1)%f+npt(2, 2)%f+npt(3, 3)%f
+            trace = npt(1, 1)%f + npt(2, 2)%f + npt(3, 3)%f
             trace = trace/3.0_dp
             npt(:, :)%f = trace*unit(:, :)
          END IF
@@ -997,25 +997,25 @@ CONTAINS
          ! orthorhombic box ONLY
          ! Chooses only the compressive solution
          IF (v < v0) THEN
-            npt(1, 1)%f = virial%pv_virial(1, 1)+ &
-                          pv_kin(1, 1)+virial%pv_constraint(1, 1)- &
-                          simpar%p0*v-simpar%v_shock*simpar%v_shock* &
-                          v*v0i*(1._dp-v*v0i)+infree*kin
+            npt(1, 1)%f = virial%pv_virial(1, 1) + &
+                          pv_kin(1, 1) + virial%pv_constraint(1, 1) - &
+                          simpar%p0*v - simpar%v_shock*simpar%v_shock* &
+                          v*v0i*(1._dp - v*v0i) + infree*kin
          ELSE
-            npt(1, 1)%f = virial%pv_virial(1, 1)+ &
-                          pv_kin(1, 1)+virial%pv_constraint(1, 1)- &
-                          simpar%p0*v+infree*kin
+            npt(1, 1)%f = virial%pv_virial(1, 1) + &
+                          pv_kin(1, 1) + virial%pv_constraint(1, 1) - &
+                          simpar%p0*v + infree*kin
          ENDIF
          IF (debug_uniaxial_limit) THEN
             ! orthorhombic box ONLY
-            npt(1, 1)%f = virial%pv_virial(1, 1)+ &
-                          pv_kin(1, 1)+virial%pv_constraint(1, 1)- &
-                          simpar%p0*box%deth+infree*kin
+            npt(1, 1)%f = virial%pv_virial(1, 1) + &
+                          pv_kin(1, 1) + virial%pv_constraint(1, 1) - &
+                          simpar%p0*box%deth + infree*kin
          END IF
       ENDIF
 
       ! update barostat velocities
-      npt(:, :)%v = npt(:, :)%v+ &
+      npt(:, :)%v = npt(:, :)%v + &
                     0.5_dp*simpar%dt*npt(:, :)%f/npt(:, :)%mass
 
       ! Screen the dynamics of the barostat according user request
@@ -1190,31 +1190,31 @@ CONTAINS
                                           shell_index, u, dmc, dt, tmp%poly_v, tmp%poly_r, tmp%scale_v, tmp%scale_r)
 
                      ! Derive velocities and positions of the COM
-                     tmp%vel(:, iparticle) = fac_masss*tmp%shell_vel(:, shell_index)+ &
+                     tmp%vel(:, iparticle) = fac_masss*tmp%shell_vel(:, shell_index) + &
                                              fac_massc*tmp%core_vel(:, shell_index)
-                     tmp%pos(:, iparticle) = fac_masss*tmp%shell_pos(:, shell_index)+ &
+                     tmp%pos(:, iparticle) = fac_masss*tmp%shell_pos(:, shell_index) + &
                                              fac_massc*tmp%core_pos(:, shell_index)
 
                      tmp%max_vel = MAX(tmp%max_vel, ABS(tmp%vel(1, iparticle)), &
                                        ABS(tmp%vel(2, iparticle)), ABS(tmp%vel(3, iparticle)))
                      tmp%max_vel_sc = MAX(tmp%max_vel_sc, &
-                                          ABS(tmp%shell_vel(1, shell_index)-tmp%core_vel(1, shell_index)), &
-                                          ABS(tmp%shell_vel(2, shell_index)-tmp%core_vel(2, shell_index)), &
-                                          ABS(tmp%shell_vel(3, shell_index)-tmp%core_vel(3, shell_index)))
+                                          ABS(tmp%shell_vel(1, shell_index) - tmp%core_vel(1, shell_index)), &
+                                          ABS(tmp%shell_vel(2, shell_index) - tmp%core_vel(2, shell_index)), &
+                                          ABS(tmp%shell_vel(3, shell_index) - tmp%core_vel(3, shell_index)))
                      tmp%max_dr = MAX(tmp%max_dr, &
-                                      ABS(particle_set(iparticle)%r(1)-tmp%pos(1, iparticle)), &
-                                      ABS(particle_set(iparticle)%r(2)-tmp%pos(2, iparticle)), &
-                                      ABS(particle_set(iparticle)%r(3)-tmp%pos(3, iparticle)))
+                                      ABS(particle_set(iparticle)%r(1) - tmp%pos(1, iparticle)), &
+                                      ABS(particle_set(iparticle)%r(2) - tmp%pos(2, iparticle)), &
+                                      ABS(particle_set(iparticle)%r(3) - tmp%pos(3, iparticle)))
                      tmp%max_dvel = MAX(tmp%max_dvel, &
-                                        ABS(particle_set(iparticle)%v(1)-tmp%vel(1, iparticle)), &
-                                        ABS(particle_set(iparticle)%v(2)-tmp%vel(2, iparticle)), &
-                                        ABS(particle_set(iparticle)%v(3)-tmp%vel(3, iparticle)))
+                                        ABS(particle_set(iparticle)%v(1) - tmp%vel(1, iparticle)), &
+                                        ABS(particle_set(iparticle)%v(2) - tmp%vel(2, iparticle)), &
+                                        ABS(particle_set(iparticle)%v(3) - tmp%vel(3, iparticle)))
 
-                     dsc(:) = tmp%shell_pos(:, shell_index)-tmp%core_pos(:, shell_index)- &
-                              shell_particle_set(shell_index)%r(:)+core_particle_set(shell_index)%r(:)
+                     dsc(:) = tmp%shell_pos(:, shell_index) - tmp%core_pos(:, shell_index) - &
+                              shell_particle_set(shell_index)%r(:) + core_particle_set(shell_index)%r(:)
                      tmp%max_dsc = MAX(tmp%max_dsc, ABS(dsc(1)), ABS(dsc(2)), ABS(dsc(3)))
-                     dvsc(:) = tmp%shell_vel(:, shell_index)-tmp%core_vel(:, shell_index)- &
-                               shell_particle_set(shell_index)%v(:)+core_particle_set(shell_index)%v(:)
+                     dvsc(:) = tmp%shell_vel(:, shell_index) - tmp%core_vel(:, shell_index) - &
+                               shell_particle_set(shell_index)%v(:) + core_particle_set(shell_index)%v(:)
                      tmp%max_dvel_sc = MAX(tmp%max_dvel_sc, ABS(dvsc(1)), ABS(dvsc(2)), ABS(dvsc(3)))
                   END DO ! iparticle_local
                ELSE
@@ -1222,41 +1222,41 @@ CONTAINS
                      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                      shell_index = particle_set(iparticle)%shell_index
                      tmp%shell_vel(:, shell_index) = &
-                        shell_particle_set(shell_index)%v(:)*tmp%scale_v(:)*tmp%scale_v(:)+ &
+                        shell_particle_set(shell_index)%v(:)*tmp%scale_v(:)*tmp%scale_v(:) + &
                         tmp%scale_v(:)*tmp%poly_v(:)*dms*shell_particle_set(shell_index)%f(:)
                      tmp%shell_pos(:, shell_index) = &
-                        shell_particle_set(shell_index)%r(:)*tmp%scale_r(:)*tmp%scale_r(:)+ &
+                        shell_particle_set(shell_index)%r(:)*tmp%scale_r(:)*tmp%scale_r(:) + &
                         tmp%scale_r(:)*tmp%poly_r(:)*dt*tmp%shell_vel(:, shell_index)
                      tmp%core_vel(:, shell_index) = &
-                        core_particle_set(shell_index)%v(:)*tmp%scale_v(:)*tmp%scale_v(:)+ &
+                        core_particle_set(shell_index)%v(:)*tmp%scale_v(:)*tmp%scale_v(:) + &
                         tmp%scale_v(:)*tmp%poly_v(:)*dmc*core_particle_set(shell_index)%f(:)
                      tmp%core_pos(:, shell_index) = &
-                        core_particle_set(shell_index)%r(:)*tmp%scale_r(:)*tmp%scale_r(:)+ &
+                        core_particle_set(shell_index)%r(:)*tmp%scale_r(:)*tmp%scale_r(:) + &
                         tmp%scale_r(:)*tmp%poly_r(:)*dt*tmp%core_vel(:, shell_index)
 
-                     tmp%vel(:, iparticle) = fac_masss*tmp%shell_vel(:, shell_index)+ &
+                     tmp%vel(:, iparticle) = fac_masss*tmp%shell_vel(:, shell_index) + &
                                              fac_massc*tmp%core_vel(:, shell_index)
-                     tmp%pos(:, iparticle) = fac_masss*tmp%shell_pos(:, shell_index)+ &
+                     tmp%pos(:, iparticle) = fac_masss*tmp%shell_pos(:, shell_index) + &
                                              fac_massc*tmp%core_pos(:, shell_index)
                      tmp%max_vel = MAX(tmp%max_vel, &
                                        ABS(tmp%vel(1, iparticle)), ABS(tmp%vel(2, iparticle)), ABS(tmp%vel(3, iparticle)))
                      tmp%max_vel_sc = MAX(tmp%max_vel_sc, &
-                                          ABS(tmp%shell_vel(1, shell_index)-tmp%core_vel(1, shell_index)), &
-                                          ABS(tmp%shell_vel(2, shell_index)-tmp%core_vel(2, shell_index)), &
-                                          ABS(tmp%shell_vel(3, shell_index)-tmp%core_vel(3, shell_index)))
+                                          ABS(tmp%shell_vel(1, shell_index) - tmp%core_vel(1, shell_index)), &
+                                          ABS(tmp%shell_vel(2, shell_index) - tmp%core_vel(2, shell_index)), &
+                                          ABS(tmp%shell_vel(3, shell_index) - tmp%core_vel(3, shell_index)))
                      tmp%max_dr = MAX(tmp%max_dr, &
-                                      ABS(particle_set(iparticle)%r(1)-tmp%pos(1, iparticle)), &
-                                      ABS(particle_set(iparticle)%r(2)-tmp%pos(2, iparticle)), &
-                                      ABS(particle_set(iparticle)%r(3)-tmp%pos(3, iparticle)))
+                                      ABS(particle_set(iparticle)%r(1) - tmp%pos(1, iparticle)), &
+                                      ABS(particle_set(iparticle)%r(2) - tmp%pos(2, iparticle)), &
+                                      ABS(particle_set(iparticle)%r(3) - tmp%pos(3, iparticle)))
                      tmp%max_dvel = MAX(tmp%max_dvel, &
-                                        ABS(particle_set(iparticle)%v(1)-tmp%vel(1, iparticle)), &
-                                        ABS(particle_set(iparticle)%v(2)-tmp%vel(2, iparticle)), &
-                                        ABS(particle_set(iparticle)%v(3)-tmp%vel(3, iparticle)))
-                     dsc(:) = tmp%shell_pos(:, shell_index)-tmp%core_pos(:, shell_index)- &
-                              shell_particle_set(shell_index)%r(:)+core_particle_set(shell_index)%r(:)
+                                        ABS(particle_set(iparticle)%v(1) - tmp%vel(1, iparticle)), &
+                                        ABS(particle_set(iparticle)%v(2) - tmp%vel(2, iparticle)), &
+                                        ABS(particle_set(iparticle)%v(3) - tmp%vel(3, iparticle)))
+                     dsc(:) = tmp%shell_pos(:, shell_index) - tmp%core_pos(:, shell_index) - &
+                              shell_particle_set(shell_index)%r(:) + core_particle_set(shell_index)%r(:)
                      tmp%max_dsc = MAX(tmp%max_dsc, ABS(dsc(1)), ABS(dsc(2)), ABS(dsc(3)))
-                     dvsc(:) = tmp%shell_vel(:, shell_index)-tmp%core_vel(:, shell_index)- &
-                               shell_particle_set(shell_index)%v(:)+core_particle_set(shell_index)%v(:)
+                     dvsc(:) = tmp%shell_vel(:, shell_index) - tmp%core_vel(:, shell_index) - &
+                               shell_particle_set(shell_index)%v(:) + core_particle_set(shell_index)%v(:)
                      tmp%max_dvel_sc = MAX(tmp%max_dvel_sc, ABS(dvsc(1)), ABS(dvsc(2)), ABS(dvsc(3)))
                   END DO ! iparticle_local
                END IF
@@ -1271,46 +1271,46 @@ CONTAINS
 
                      tmp%max_vel = MAX(tmp%max_vel, &
                                        ABS(tmp%vel(1, iparticle)), ABS(tmp%vel(2, iparticle)), ABS(tmp%vel(3, iparticle)))
-                     tmp%max_dr = MAX(tmp%max_dr, ABS(particle_set(iparticle)%r(1)-tmp%pos(1, iparticle)), &
-                                      ABS(particle_set(iparticle)%r(2)-tmp%pos(2, iparticle)), &
-                                      ABS(particle_set(iparticle)%r(3)-tmp%pos(3, iparticle)))
+                     tmp%max_dr = MAX(tmp%max_dr, ABS(particle_set(iparticle)%r(1) - tmp%pos(1, iparticle)), &
+                                      ABS(particle_set(iparticle)%r(2) - tmp%pos(2, iparticle)), &
+                                      ABS(particle_set(iparticle)%r(3) - tmp%pos(3, iparticle)))
                      tmp%max_dvel = MAX(tmp%max_dvel, &
-                                        ABS(particle_set(iparticle)%v(1)-tmp%vel(1, iparticle)), &
-                                        ABS(particle_set(iparticle)%v(2)-tmp%vel(2, iparticle)), &
-                                        ABS(particle_set(iparticle)%v(3)-tmp%vel(3, iparticle)))
+                                        ABS(particle_set(iparticle)%v(1) - tmp%vel(1, iparticle)), &
+                                        ABS(particle_set(iparticle)%v(2) - tmp%vel(2, iparticle)), &
+                                        ABS(particle_set(iparticle)%v(3) - tmp%vel(3, iparticle)))
                   END DO ! iparticle_local
                ELSE
                   DO iparticle_local = 1, nparticle_local
                      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                      tmp%vel(1, iparticle) = &
-                        particle_set(iparticle)%v(1)*tmp%scale_v(1)*tmp%scale_v(1)+ &
+                        particle_set(iparticle)%v(1)*tmp%scale_v(1)*tmp%scale_v(1) + &
                         tmp%scale_v(1)*tmp%poly_v(1)*dm*particle_set(iparticle)%f(1)
                      tmp%vel(2, iparticle) = &
-                        particle_set(iparticle)%v(2)*tmp%scale_v(2)*tmp%scale_v(2)+ &
+                        particle_set(iparticle)%v(2)*tmp%scale_v(2)*tmp%scale_v(2) + &
                         tmp%scale_v(2)*tmp%poly_v(2)*dm*particle_set(iparticle)%f(2)
                      tmp%vel(3, iparticle) = &
-                        particle_set(iparticle)%v(3)*tmp%scale_v(3)*tmp%scale_v(3)+ &
+                        particle_set(iparticle)%v(3)*tmp%scale_v(3)*tmp%scale_v(3) + &
                         tmp%scale_v(3)*tmp%poly_v(3)*dm*particle_set(iparticle)%f(3)
                      tmp%pos(1, iparticle) = &
-                        particle_set(iparticle)%r(1)*tmp%scale_r(1)*tmp%scale_r(1)+ &
+                        particle_set(iparticle)%r(1)*tmp%scale_r(1)*tmp%scale_r(1) + &
                         tmp%scale_r(1)*tmp%poly_r(1)*dt*tmp%vel(1, iparticle)
                      tmp%pos(2, iparticle) = &
-                        particle_set(iparticle)%r(2)*tmp%scale_r(2)*tmp%scale_r(2)+ &
+                        particle_set(iparticle)%r(2)*tmp%scale_r(2)*tmp%scale_r(2) + &
                         tmp%scale_r(2)*tmp%poly_r(2)*dt*tmp%vel(2, iparticle)
                      tmp%pos(3, iparticle) = &
-                        particle_set(iparticle)%r(3)*tmp%scale_r(3)*tmp%scale_r(3)+ &
+                        particle_set(iparticle)%r(3)*tmp%scale_r(3)*tmp%scale_r(3) + &
                         tmp%scale_r(3)*tmp%poly_r(3)*dt*tmp%vel(3, iparticle)
 
                      tmp%max_vel = MAX(tmp%max_vel, &
                                        ABS(tmp%vel(1, iparticle)), ABS(tmp%vel(2, iparticle)), ABS(tmp%vel(3, iparticle)))
                      tmp%max_dr = MAX(tmp%max_dr, &
-                                      ABS(particle_set(iparticle)%r(1)-tmp%pos(1, iparticle)), &
-                                      ABS(particle_set(iparticle)%r(2)-tmp%pos(2, iparticle)), &
-                                      ABS(particle_set(iparticle)%r(3)-tmp%pos(3, iparticle)))
+                                      ABS(particle_set(iparticle)%r(1) - tmp%pos(1, iparticle)), &
+                                      ABS(particle_set(iparticle)%r(2) - tmp%pos(2, iparticle)), &
+                                      ABS(particle_set(iparticle)%r(3) - tmp%pos(3, iparticle)))
                      tmp%max_dvel = MAX(tmp%max_dvel, &
-                                        ABS(particle_set(iparticle)%v(1)-tmp%vel(1, iparticle)), &
-                                        ABS(particle_set(iparticle)%v(2)-tmp%vel(2, iparticle)), &
-                                        ABS(particle_set(iparticle)%v(3)-tmp%vel(3, iparticle)))
+                                        ABS(particle_set(iparticle)%v(1) - tmp%vel(1, iparticle)), &
+                                        ABS(particle_set(iparticle)%v(2) - tmp%vel(2, iparticle)), &
+                                        ABS(particle_set(iparticle)%v(3) - tmp%vel(3, iparticle)))
                   END DO
                END IF
             END IF
@@ -1388,11 +1388,11 @@ CONTAINS
                                            u, dmc, tmp%poly_v, tmp%scale_v)
 
                      ! Derive velocties of the COM
-                     tmp%vel(1, iparticle) = fac_masss*tmp%shell_vel(1, shell_index)+ &
+                     tmp%vel(1, iparticle) = fac_masss*tmp%shell_vel(1, shell_index) + &
                                              fac_massc*tmp%core_vel(1, shell_index)
-                     tmp%vel(2, iparticle) = fac_masss*tmp%shell_vel(2, shell_index)+ &
+                     tmp%vel(2, iparticle) = fac_masss*tmp%shell_vel(2, shell_index) + &
                                              fac_massc*tmp%core_vel(2, shell_index)
-                     tmp%vel(3, iparticle) = fac_masss*tmp%shell_vel(3, shell_index)+ &
+                     tmp%vel(3, iparticle) = fac_masss*tmp%shell_vel(3, shell_index) + &
                                              fac_massc*tmp%core_vel(3, shell_index)
                   END DO ! iparticle_local
                ELSE
@@ -1400,29 +1400,29 @@ CONTAINS
                      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                      shell_index = particle_set(iparticle)%shell_index
                      tmp%shell_vel(1, shell_index) = &
-                        tmp%shell_vel(1, shell_index)*tmp%scale_v(1)*tmp%scale_v(1)+ &
+                        tmp%shell_vel(1, shell_index)*tmp%scale_v(1)*tmp%scale_v(1) + &
                         tmp%scale_v(1)*tmp%poly_v(1)*dms*shell_particle_set(shell_index)%f(1)
                      tmp%shell_vel(2, shell_index) = &
-                        tmp%shell_vel(2, shell_index)*tmp%scale_v(2)*tmp%scale_v(2)+ &
+                        tmp%shell_vel(2, shell_index)*tmp%scale_v(2)*tmp%scale_v(2) + &
                         tmp%scale_v(2)*tmp%poly_v(2)*dms*shell_particle_set(shell_index)%f(2)
                      tmp%shell_vel(3, shell_index) = &
-                        tmp%shell_vel(3, shell_index)*tmp%scale_v(3)*tmp%scale_v(3)+ &
+                        tmp%shell_vel(3, shell_index)*tmp%scale_v(3)*tmp%scale_v(3) + &
                         tmp%scale_v(3)*tmp%poly_v(3)*dms*shell_particle_set(shell_index)%f(3)
                      tmp%core_vel(1, shell_index) = &
-                        tmp%core_vel(1, shell_index)*tmp%scale_v(1)*tmp%scale_v(1)+ &
+                        tmp%core_vel(1, shell_index)*tmp%scale_v(1)*tmp%scale_v(1) + &
                         tmp%scale_v(1)*tmp%poly_v(1)*dmc*core_particle_set(shell_index)%f(1)
                      tmp%core_vel(2, shell_index) = &
-                        tmp%core_vel(2, shell_index)*tmp%scale_v(2)*tmp%scale_v(2)+ &
+                        tmp%core_vel(2, shell_index)*tmp%scale_v(2)*tmp%scale_v(2) + &
                         tmp%scale_v(2)*tmp%poly_v(2)*dmc*core_particle_set(shell_index)%f(2)
                      tmp%core_vel(3, shell_index) = &
-                        tmp%core_vel(3, shell_index)*tmp%scale_v(3)*tmp%scale_v(3)+ &
+                        tmp%core_vel(3, shell_index)*tmp%scale_v(3)*tmp%scale_v(3) + &
                         tmp%scale_v(3)*tmp%poly_v(3)*dmc*core_particle_set(shell_index)%f(3)
 
-                     tmp%vel(1, iparticle) = fac_masss*tmp%shell_vel(1, shell_index)+ &
+                     tmp%vel(1, iparticle) = fac_masss*tmp%shell_vel(1, shell_index) + &
                                              fac_massc*tmp%core_vel(1, shell_index)
-                     tmp%vel(2, iparticle) = fac_masss*tmp%shell_vel(2, shell_index)+ &
+                     tmp%vel(2, iparticle) = fac_masss*tmp%shell_vel(2, shell_index) + &
                                              fac_massc*tmp%core_vel(2, shell_index)
-                     tmp%vel(3, iparticle) = fac_masss*tmp%shell_vel(3, shell_index)+ &
+                     tmp%vel(3, iparticle) = fac_masss*tmp%shell_vel(3, shell_index) + &
                                              fac_massc*tmp%core_vel(3, shell_index)
                   END DO ! iparticle_local
                END IF
@@ -1438,13 +1438,13 @@ CONTAINS
                   DO iparticle_local = 1, nparticle_local
                      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                      tmp%vel(1, iparticle) = &
-                        tmp%vel(1, iparticle)*tmp%scale_v(1)*tmp%scale_v(1)+ &
+                        tmp%vel(1, iparticle)*tmp%scale_v(1)*tmp%scale_v(1) + &
                         tmp%scale_v(1)*tmp%poly_v(1)*dm*particle_set(iparticle)%f(1)
                      tmp%vel(2, iparticle) = &
-                        tmp%vel(2, iparticle)*tmp%scale_v(2)*tmp%scale_v(2)+ &
+                        tmp%vel(2, iparticle)*tmp%scale_v(2)*tmp%scale_v(2) + &
                         tmp%scale_v(2)*tmp%poly_v(2)*dm*particle_set(iparticle)%f(2)
                      tmp%vel(3, iparticle) = &
-                        tmp%vel(3, iparticle)*tmp%scale_v(3)*tmp%scale_v(3)+ &
+                        tmp%vel(3, iparticle)*tmp%scale_v(3)*tmp%scale_v(3) + &
                         tmp%scale_v(3)*tmp%poly_v(3)*dm*particle_set(iparticle)%f(3)
                   END DO
                END IF
@@ -1490,13 +1490,13 @@ CONTAINS
       CALL matvec_3x3(uv, TRANSPOSE_3D(u), particle_set(index)%v(:))
       CALL matvec_3x3(uf, TRANSPOSE_3D(u), particle_set(index)%f(:))
       !
-      uv(1) = uv(1)*scale_v(1)*scale_v(1)+uf(1)*scale_v(1)*poly_v(1)*dm
-      uv(2) = uv(2)*scale_v(2)*scale_v(2)+uf(2)*scale_v(2)*poly_v(2)*dm
-      uv(3) = uv(3)*scale_v(3)*scale_v(3)+uf(3)*scale_v(3)*poly_v(3)*dm
+      uv(1) = uv(1)*scale_v(1)*scale_v(1) + uf(1)*scale_v(1)*poly_v(1)*dm
+      uv(2) = uv(2)*scale_v(2)*scale_v(2) + uf(2)*scale_v(2)*poly_v(2)*dm
+      uv(3) = uv(3)*scale_v(3)*scale_v(3) + uf(3)*scale_v(3)*poly_v(3)*dm
 
-      ur(1) = ur(1)*scale_r(1)*scale_r(1)+uv(1)*scale_r(1)*poly_r(1)*dt
-      ur(2) = ur(2)*scale_r(2)*scale_r(2)+uv(2)*scale_r(2)*poly_r(2)*dt
-      ur(3) = ur(3)*scale_r(3)*scale_r(3)+uv(3)*scale_r(3)*poly_r(3)*dt
+      ur(1) = ur(1)*scale_r(1)*scale_r(1) + uv(1)*scale_r(1)*poly_r(1)*dt
+      ur(2) = ur(2)*scale_r(2)*scale_r(2) + uv(2)*scale_r(2)*poly_r(2)*dt
+      ur(3) = ur(3)*scale_r(3)*scale_r(3) + uv(3)*scale_r(3)*poly_r(3)*dt
       !
       CALL MATVEC_3x3(pos(:, index), u, ur)
       CALL MATVEC_3x3(vel(:, index), u, uv)
@@ -1532,9 +1532,9 @@ CONTAINS
       CALL matvec_3x3(uv, TRANSPOSE_3D(u), vel(:, index))
       CALL matvec_3x3(uf, TRANSPOSE_3D(u), particle_set(index)%f(:))
       !
-      uv(1) = uv(1)*scale_v(1)*scale_v(1)+uf(1)*scale_v(1)*poly_v(1)*dm
-      uv(2) = uv(2)*scale_v(2)*scale_v(2)+uf(2)*scale_v(2)*poly_v(2)*dm
-      uv(3) = uv(3)*scale_v(3)*scale_v(3)+uf(3)*scale_v(3)*poly_v(3)*dm
+      uv(1) = uv(1)*scale_v(1)*scale_v(1) + uf(1)*scale_v(1)*poly_v(1)*dm
+      uv(2) = uv(2)*scale_v(2)*scale_v(2) + uf(2)*scale_v(2)*poly_v(2)*dm
+      uv(3) = uv(3)*scale_v(3)*scale_v(3) + uf(3)*scale_v(3)*poly_v(3)*dm
 
       CALL MATVEC_3x3(vel(:, index), u, uv)
 
@@ -1593,7 +1593,7 @@ CONTAINS
       simpar%dt_fact = 1.0_dp
       NULLIFY (thermostats)
 
-      itime = itime+1
+      itime = itime + 1
       CALL mp_max(tmp%max_dr, para_env%group)
       IF (tmp%max_dr > simpar%dr_tol) THEN
          CALL mp_max(tmp%max_dvel, para_env%group)
@@ -1647,7 +1647,7 @@ CONTAINS
       simpar%dt_fact = dt_fact_f*dt_fact_v
       IF (simpar%dt_fact < 1.0_dp) THEN
          CALL get_md_env(md_env, t=time, thermostats=thermostats)
-         time = time-dt_old+dt_old*simpar%dt_fact
+         time = time - dt_old + dt_old*simpar%dt_fact
          IF (ASSOCIATED(thermostats)) THEN
             CALL set_thermostats(thermostats, dt_fact=simpar%dt_fact)
          END IF
@@ -1714,25 +1714,25 @@ CONTAINS
 
       CASE (npt_i_ensemble, npe_i_ensemble)
          arg_r = arg_r*simpar%dt_fact*simpar%dt_fact
-         tmp%poly_r(1:3) = 1.0_dp+e2*arg_r(1)+e4*arg_r(1)*arg_r(1)+e6*arg_r(1)**3+e8*arg_r(1)**4
+         tmp%poly_r(1:3) = 1.0_dp + e2*arg_r(1) + e4*arg_r(1)*arg_r(1) + e6*arg_r(1)**3 + e8*arg_r(1)**4
          arg_v = arg_v*simpar%dt_fact*simpar%dt_fact
-         tmp%poly_v(1:3) = 1.0_dp+e2*arg_v(1)+e4*arg_v(1)*arg_v(1)+e6*arg_v(1)**3+e8*arg_v(1)**4
+         tmp%poly_v(1:3) = 1.0_dp + e2*arg_v(1) + e4*arg_v(1)*arg_v(1) + e6*arg_v(1)**3 + e8*arg_v(1)**4
          tmp%scale_r(1:3) = EXP(0.5_dp*dt*npt(1, 1)%v)
          tmp%scale_v(1:3) = EXP(-0.25_dp*dt*npt(1, 1)%v* &
-                                (1.0_dp+3.0_dp*infree))
+                                (1.0_dp + 3.0_dp*infree))
          CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
                        core_particle_set, shell_particle_set, nparticle_kind, &
                        shell_adiabatic, dt)
 
       CASE (npt_f_ensemble, npe_f_ensemble)
-         trvg = npt(1, 1)%v+npt(2, 2)%v+npt(3, 3)%v
+         trvg = npt(1, 1)%v + npt(2, 2)%v + npt(3, 3)%v
          arg_r(:) = arg_r(:)*simpar%dt_fact*simpar%dt_fact
-         tmp%poly_r = 1._dp+e2*arg_r+e4*arg_r*arg_r+e6*arg_r**3+e8*arg_r**4
+         tmp%poly_r = 1._dp + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
          tmp%scale_r(:) = EXP(0.5_dp*dt*e_val(:))
          arg_v(:) = arg_v(:)*simpar%dt_fact*simpar%dt_fact
-         tmp%poly_v = 1.0_dp+e2*arg_v+e4*arg_v*arg_v+e6*arg_v**3+e8*arg_v**4
+         tmp%poly_v = 1.0_dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
          tmp%scale_v(:) = EXP(-0.25_dp*dt*( &
-                              e_val(:)+trvg*infree))
+                              e_val(:) + trvg*infree))
 
          CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
                        core_particle_set, shell_particle_set, nparticle_kind, &
@@ -1740,15 +1740,15 @@ CONTAINS
 
       CASE (nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble)
          arg_r = arg_r*simpar%dt_fact*simpar%dt_fact
-         tmp%poly_r(1) = 1._dp+e2*arg_r(1)+e4*arg_r(1)*arg_r(1)+e6*arg_r(1)**3+e8*arg_r(1)**4
+         tmp%poly_r(1) = 1._dp + e2*arg_r(1) + e4*arg_r(1)*arg_r(1) + e6*arg_r(1)**3 + e8*arg_r(1)**4
          arg_v(2) = arg_v(2)*simpar%dt_fact*simpar%dt_fact
          arg_v(1) = arg_v(1)*simpar%dt_fact*simpar%dt_fact
-         tmp%poly_v(1) = 1._dp+e2*arg_v(1)+e4*arg_v(1)*arg_v(1)+e6*arg_v(1)**3+e8*arg_v(1)**4
-         tmp%poly_v(2) = 1._dp+e2*arg_v(2)+e4*arg_v(2)*arg_v(2)+e6*arg_v(2)**3+e8*arg_v(2)**4
-         tmp%poly_v(3) = 1._dp+e2*arg_v(2)+e4*arg_v(2)*arg_v(2)+e6*arg_v(2)**3+e8*arg_v(2)**4
+         tmp%poly_v(1) = 1._dp + e2*arg_v(1) + e4*arg_v(1)*arg_v(1) + e6*arg_v(1)**3 + e8*arg_v(1)**4
+         tmp%poly_v(2) = 1._dp + e2*arg_v(2) + e4*arg_v(2)*arg_v(2) + e6*arg_v(2)**3 + e8*arg_v(2)**4
+         tmp%poly_v(3) = 1._dp + e2*arg_v(2) + e4*arg_v(2)*arg_v(2) + e6*arg_v(2)**3 + e8*arg_v(2)**4
          tmp%scale_r(1) = EXP(0.5_dp*dt*npt(1, 1)%v)
          tmp%scale_v(1) = EXP(-0.25_dp*dt*npt(1, 1)%v* &
-                              (1._dp+infree))
+                              (1._dp + infree))
          tmp%scale_v(2) = EXP(-0.25_dp*dt*npt(1, 1)%v*infree)
          tmp%scale_v(3) = EXP(-0.25_dp*dt*npt(1, 1)%v*infree)
          CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &

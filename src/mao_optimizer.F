@@ -150,7 +150,7 @@ CONTAINS
             END IF
             DO iter = 1, max_iter
                IF (grad_norm < eps_grad) EXIT
-               IF ((1.0_dp-fval/electra(ispin)) < eps_fun) EXIT
+               IF ((1.0_dp - fval/electra(ispin)) < eps_fun) EXIT
                CALL dbcsr_add(mao_coef(ispin)%matrix, cgmat, 1.0_dp, alpha)
                CALL mao_orthogonalization(mao_coef(ispin)%matrix, matrix_smm(1)%matrix)
                CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
@@ -173,8 +173,8 @@ CONTAINS
                CALL dbcsr_add(amat, cgmat, 1.0_dp, alpha)
                CALL mao_orthogonalization(amat, matrix_smm(1)%matrix)
                CALL mao_function(amat, fa2, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, binv, .TRUE.)
-               a2 = (4._dp*fa1-fa2-3._dp*fval)/alpha
-               a1 = (fa2-fval-a2*alpha)/(alpha*alpha)
+               a2 = (4._dp*fa1 - fa2 - 3._dp*fval)/alpha
+               a1 = (fa2 - fval - a2*alpha)/(alpha*alpha)
                IF (ABS(a1) > 1.e-14_dp) THEN
                   an = -a2/(2._dp*a1)
                   an = MIN(an, 2.0_dp*alpha)

@@ -133,7 +133,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(dimer_env))
       ALLOCATE (dimer_env)
       dimer_env%ref_count = 1
-      last_dimer_id = last_dimer_id+1
+      last_dimer_id = last_dimer_id + 1
       dimer_env%id_nr = last_dimer_id
       ! Setup NVEC
       NULLIFY (dimer_env%nvec, dimer_env%rot%g0, dimer_env%rot%g1, dimer_env%rot%g1p, &
@@ -156,7 +156,7 @@ CONTAINS
          DO i = 1, n_rep_val
             CALL section_vals_val_get(nvec_section, "_DEFAULT_KEYWORD_", r_vals=array, i_rep_val=i)
             DO j = 1, SIZE(array)
-               isize = isize+1
+               isize = isize + 1
                dimer_env%nvec(isize) = array(j)
             END DO
          END DO
@@ -169,16 +169,16 @@ CONTAINS
          xval = 0.0_dp
          DO j = 1, natom
             DO k = 1, 3
-               i = (j-1)*3+k
-               xval(k) = xval(k)+dimer_env%nvec(i)
+               i = (j - 1)*3 + k
+               xval(k) = xval(k) + dimer_env%nvec(i)
             END DO
          END DO
          ! Subtract net translations
          xval = xval/REAL(natom*3, KIND=dp)
          DO j = 1, natom
             DO k = 1, 3
-               i = (j-1)*3+k
-               dimer_env%nvec(i) = dimer_env%nvec(i)-xval(k)
+               i = (j - 1)*3 + k
+               dimer_env%nvec(i) = dimer_env%nvec(i) - xval(k)
             END DO
          END DO
       END IF
@@ -223,7 +223,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(dimer_env))
       CPASSERT(dimer_env%ref_count > 0)
-      dimer_env%ref_count = dimer_env%ref_count+1
+      dimer_env%ref_count = dimer_env%ref_count + 1
    END SUBROUTINE dimer_env_retain
 
 ! **************************************************************************************************
@@ -241,7 +241,7 @@ CONTAINS
 
       IF (ASSOCIATED(dimer_env)) THEN
          CPASSERT(dimer_env%ref_count > 0)
-         dimer_env%ref_count = dimer_env%ref_count-1
+         dimer_env%ref_count = dimer_env%ref_count - 1
          IF (dimer_env%ref_count == 0) THEN
             IF (ASSOCIATED(dimer_env%nvec)) THEN
                DEALLOCATE (dimer_env%nvec)
@@ -309,28 +309,28 @@ CONTAINS
             DO ii = 1, nfixed_atoms
                IF (.NOT. fixd_list(ii)%restraint%active) THEN
                   iparticle = fixd_list(ii)%fixd
-                  ind = (iparticle-1)*3
+                  ind = (iparticle - 1)*3
                   ! apply constraint to nvec
-                  SELECT CASE (fixd_list (ii)%itype)
+                  SELECT CASE (fixd_list(ii)%itype)
                   CASE (use_perd_x)
-                     vec(ind+1) = 0.0_dp
+                     vec(ind + 1) = 0.0_dp
                   CASE (use_perd_y)
-                     vec(ind+2) = 0.0_dp
+                     vec(ind + 2) = 0.0_dp
                   CASE (use_perd_z)
-                     vec(ind+3) = 0.0_dp
+                     vec(ind + 3) = 0.0_dp
                   CASE (use_perd_xy)
-                     vec(ind+1) = 0.0_dp
-                     vec(ind+2) = 0.0_dp
+                     vec(ind + 1) = 0.0_dp
+                     vec(ind + 2) = 0.0_dp
                   CASE (use_perd_xz)
-                     vec(ind+1) = 0.0_dp
-                     vec(ind+3) = 0.0_dp
+                     vec(ind + 1) = 0.0_dp
+                     vec(ind + 3) = 0.0_dp
                   CASE (use_perd_yz)
-                     vec(ind+2) = 0.0_dp
-                     vec(ind+3) = 0.0_dp
+                     vec(ind + 2) = 0.0_dp
+                     vec(ind + 3) = 0.0_dp
                   CASE (use_perd_xyz)
-                     vec(ind+1) = 0.0_dp
-                     vec(ind+2) = 0.0_dp
-                     vec(ind+3) = 0.0_dp
+                     vec(ind + 1) = 0.0_dp
+                     vec(ind + 2) = 0.0_dp
+                     vec(ind + 3) = 0.0_dp
                   END SELECT
                END IF ! .NOT.fixd_list(ii)%restraint%active
             END DO ! ii

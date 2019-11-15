@@ -131,7 +131,7 @@ CONTAINS
       ALLOCATE (val)
       NULLIFY (val%l_val, val%i_val, val%r_val, val%c_val, val%enum)
       val%type_of_var = no_t
-      last_val_id = last_val_id+1
+      last_val_id = last_val_id + 1
       val%id_nr = last_val_id
       val%ref_count = 1
 
@@ -140,20 +140,20 @@ CONTAINS
       IF (PRESENT(l_val)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(l_vals),cp_failure_level,routineP,failure)
 !FM        CPPrecondition(.NOT.PRESENT(l_vals_ptr),cp_failure_level,routineP,failure)
-         narg = narg+1
+         narg = narg + 1
          ALLOCATE (val%l_val(1))
          val%l_val(1) = l_val
          val%type_of_var = logical_t
       END IF
       IF (PRESENT(l_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(l_vals_ptr),cp_failure_level,routineP,failure)
-         narg = narg+1
+         narg = narg + 1
          ALLOCATE (val%l_val(SIZE(l_vals)))
          val%l_val = l_vals
          val%type_of_var = logical_t
       END IF
       IF (PRESENT(l_vals_ptr)) THEN
-         narg = narg+1
+         narg = narg + 1
          val%l_val => l_vals_ptr
          val%type_of_var = logical_t
       END IF
@@ -161,20 +161,20 @@ CONTAINS
       IF (PRESENT(r_val)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(r_vals),cp_failure_level,routineP,failure)
 !FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,failure)
-         narg = narg+1
+         narg = narg + 1
          ALLOCATE (val%r_val(1))
          val%r_val(1) = r_val
          val%type_of_var = real_t
       END IF
       IF (PRESENT(r_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,failure)
-         narg = narg+1
+         narg = narg + 1
          ALLOCATE (val%r_val(SIZE(r_vals)))
          val%r_val = r_vals
          val%type_of_var = real_t
       END IF
       IF (PRESENT(r_vals_ptr)) THEN
-         narg = narg+1
+         narg = narg + 1
          val%r_val => r_vals_ptr
          val%type_of_var = real_t
       END IF
@@ -182,20 +182,20 @@ CONTAINS
       IF (PRESENT(i_val)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(i_vals),cp_failure_level,routineP,failure)
 !FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,failure)
-         narg = narg+1
+         narg = narg + 1
          ALLOCATE (val%i_val(1))
          val%i_val(1) = i_val
          val%type_of_var = integer_t
       END IF
       IF (PRESENT(i_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,failure)
-         narg = narg+1
+         narg = narg + 1
          ALLOCATE (val%i_val(SIZE(i_vals)))
          val%i_val = i_vals
          val%type_of_var = integer_t
       END IF
       IF (PRESENT(i_vals_ptr)) THEN
-         narg = narg+1
+         narg = narg + 1
          val%i_val => i_vals_ptr
          val%type_of_var = integer_t
       END IF
@@ -204,7 +204,7 @@ CONTAINS
          CPASSERT(LEN_TRIM(c_val) <= default_string_length)
 !FM        CPPrecondition(.NOT.PRESENT(c_vals),cp_failure_level,routineP,failure)
 !FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,failure)
-         narg = narg+1
+         narg = narg + 1
          ALLOCATE (val%c_val(1))
          val%c_val(1) = c_val
          val%type_of_var = char_t
@@ -212,20 +212,20 @@ CONTAINS
       IF (PRESENT(c_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,failure)
          CPASSERT(ALL(LEN_TRIM(c_vals) <= default_string_length))
-         narg = narg+1
+         narg = narg + 1
          ALLOCATE (val%c_val(SIZE(c_vals)))
          val%c_val = c_vals
          val%type_of_var = char_t
       END IF
       IF (PRESENT(c_vals_ptr)) THEN
-         narg = narg+1
+         narg = narg + 1
          val%c_val => c_vals_ptr
          val%type_of_var = char_t
       END IF
       IF (PRESENT(lc_val)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(lc_vals),cp_failure_level,routineP,failure)
 !FM        CPPrecondition(.NOT.PRESENT(lc_vals_ptr),cp_failure_level,routineP,failure)
-         narg = narg+1
+         narg = narg + 1
          len_c = LEN_TRIM(lc_val)
          nVal = MAX(1, CEILING(REAL(len_c, dp)/80._dp))
          ALLOCATE (val%c_val(nVal))
@@ -234,7 +234,7 @@ CONTAINS
             val%c_val(1) = ""
          ELSE
             DO i = 1, nVal
-               val%c_val(i) = lc_val((i-1)*default_string_length+1: &
+               val%c_val(i) = lc_val((i - 1)*default_string_length + 1: &
                                      MIN(len_c, i*default_string_length))
             END DO
          END IF
@@ -242,13 +242,13 @@ CONTAINS
       END IF
       IF (PRESENT(lc_vals)) THEN
          CPASSERT(ALL(LEN_TRIM(lc_vals) <= default_string_length))
-         narg = narg+1
+         narg = narg + 1
          ALLOCATE (val%c_val(SIZE(lc_vals)))
          val%c_val = lc_vals
          val%type_of_var = lchar_t
       END IF
       IF (PRESENT(lc_vals_ptr)) THEN
-         narg = narg+1
+         narg = narg + 1
          val%c_val => lc_vals_ptr
          val%type_of_var = lchar_t
       END IF
@@ -281,7 +281,7 @@ CONTAINS
 
       IF (ASSOCIATED(val)) THEN
          CPASSERT(val%ref_count > 0)
-         val%ref_count = val%ref_count-1
+         val%ref_count = val%ref_count - 1
          IF (val%ref_count == 0) THEN
             IF (ASSOCIATED(val%l_val)) THEN
                DEALLOCATE (val%l_val)
@@ -315,7 +315,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(val))
       CPASSERT(val%ref_count > 0)
-      val%ref_count = val%ref_count+1
+      val%ref_count = val%ref_count + 1
    END SUBROUTINE val_retain
 
 ! **************************************************************************************************
@@ -413,19 +413,19 @@ CONTAINS
          IF (ASSOCIATED(val%c_val)) THEN
             IF (SIZE(val%c_val) > 0) THEN
                IF (val%type_of_var == lchar_t) THEN
-                  l_in = default_string_length*(SIZE(val%c_val)-1)+ &
+                  l_in = default_string_length*(SIZE(val%c_val) - 1) + &
                          LEN_TRIM(val%c_val(SIZE(val%c_val)))
                   IF (l_out < l_in) &
                      CALL cp_warn(__LOCATION__, &
                                   "val_get will truncate value, value beginning with '"// &
                                   TRIM(val%c_val(1))//"' is too long for variable")
                   DO i = 1, SIZE(val%c_val)
-                     c_val((i-1)*default_string_length+1:MIN(l_out, i*default_string_length)) = &
-                        val%c_val(i) (1:MIN(80, l_out-(i-1)*default_string_length))
+                     c_val((i - 1)*default_string_length + 1:MIN(l_out, i*default_string_length)) = &
+                        val%c_val(i) (1:MIN(80, l_out - (i - 1)*default_string_length))
                      IF (l_out <= i*default_string_length) EXIT
                   END DO
                   IF (l_out > SIZE(val%c_val)*default_string_length) &
-                     c_val(SIZE(val%c_val)*default_string_length+1:l_out) = ""
+                     c_val(SIZE(val%c_val)*default_string_length + 1:l_out) = ""
                ELSE
                   l_in = LEN_TRIM(val%c_val(1))
                   IF (l_out < l_in) &
@@ -452,7 +452,7 @@ CONTAINS
          IF (ASSOCIATED(val%c_val)) THEN
             IF (SIZE(val%c_val) > 0) THEN
                IF (val%type_of_var == lchar_t) THEN
-                  len_c = default_string_length*(SIZE(val%c_val)-1)+ &
+                  len_c = default_string_length*(SIZE(val%c_val) - 1) + &
                           LEN_TRIM(val%c_val(SIZE(val%c_val)))
                ELSE
                   len_c = LEN_TRIM(val%c_val(1))
@@ -530,20 +530,20 @@ CONTAINS
                item = 0
                i = 1
                loop_i: DO WHILE (i <= SIZE(val%i_val))
-                  item = item+1
+                  item = item + 1
                   IF (MODULO(item, 10) == 0) THEN
                      WRITE (UNIT=unit_nr, FMT="(1X,A)") default_continuation_character
                      WRITE (UNIT=unit_nr, FMT="("//TRIM(myfmt)//")", ADVANCE="NO")
                   END IF
                   iend = i
-                  loop_j: DO j = i+1, SIZE(val%i_val)
-                     IF (val%i_val(j-1)+1 == val%i_val(j)) THEN
-                        iend = iend+1
+                  loop_j: DO j = i + 1, SIZE(val%i_val)
+                     IF (val%i_val(j - 1) + 1 == val%i_val(j)) THEN
+                        iend = iend + 1
                      ELSE
                         EXIT loop_j
                      END IF
                   END DO loop_j
-                  IF ((iend-i) > 1) THEN
+                  IF ((iend - i) > 1) THEN
                      WRITE (UNIT=unit_nr, FMT="(1X,I0,A2,I0)", ADVANCE="NO") &
                         val%i_val(i), "..", val%i_val(iend)
                      i = iend
@@ -551,7 +551,7 @@ CONTAINS
                      WRITE (UNIT=unit_nr, FMT="(1X,I0)", ADVANCE="NO") &
                         val%i_val(i)
                   END IF
-                  i = i+1
+                  i = i + 1
                END DO loop_i
             ELSE
                CPABORT("")
@@ -578,18 +578,18 @@ CONTAINS
                l = 0
                DO i = 1, SIZE(val%c_val)
                   IF (i > 1) WRITE (unit=unit_nr, fmt="(' ')", advance="NO")
-                  l = l+1
-                  IF (l > 10 .AND. l+LEN_TRIM(val%c_val(i)) > 76) THEN
+                  l = l + 1
+                  IF (l > 10 .AND. l + LEN_TRIM(val%c_val(i)) > 76) THEN
                      WRITE (unit=unit_nr, fmt="('\')")
                      WRITE (unit=unit_nr, fmt="("//TRIM(myfmt)//")", advance="NO")
                      l = 0
                      WRITE (unit=unit_nr, fmt='(a)', advance="NO") TRIM(val%c_val(i))
-                     l = l+LEN_TRIM(val%c_val(i))+3
+                     l = l + LEN_TRIM(val%c_val(i)) + 3
                   ELSE IF (LEN_TRIM(val%c_val(i)) > 0) THEN
-                     l = l+LEN_TRIM(val%c_val(i))
+                     l = l + LEN_TRIM(val%c_val(i))
                      WRITE (unit=unit_nr, fmt='(a)', advance="NO") TRIM(val%c_val(i))
                   ELSE
-                     l = l+3
+                     l = l + 3
                      WRITE (unit=unit_nr, fmt="(a)", advance="NO") '" "'
                   END IF
                END DO
@@ -599,7 +599,7 @@ CONTAINS
          CASE (lchar_t)
             IF (ASSOCIATED(val%c_val)) THEN
                l = 0
-               DO i = 1, SIZE(val%c_val)-1
+               DO i = 1, SIZE(val%c_val) - 1
                   WRITE (unit=unit_nr, fmt='(a)', advance="NO") val%c_val(i)
                END DO
                IF (SIZE(val%c_val) > 0) THEN
@@ -613,12 +613,12 @@ CONTAINS
                l = 0
                DO i = 1, SIZE(val%i_val)
                   c_string = enum_i2c(val%enum, val%i_val(i))
-                  IF (l > 10 .AND. l+LEN_TRIM(c_string) > 76) THEN
+                  IF (l > 10 .AND. l + LEN_TRIM(c_string) > 76) THEN
                      WRITE (unit=unit_nr, fmt="(' ',A)") default_continuation_character
                      WRITE (unit=unit_nr, fmt="("//TRIM(myfmt)//")", advance="NO")
                      l = 0
                   ELSE
-                     l = l+LEN_TRIM(c_string)+3
+                     l = l + LEN_TRIM(c_string) + 3
                   END IF
                   WRITE (unit=unit_nr, fmt="(' ',a)", advance="NO") TRIM(c_string)
                END DO
@@ -672,7 +672,7 @@ CONTAINS
          CASE (logical_t)
             IF (ASSOCIATED(val%l_val)) THEN
                DO i = 1, SIZE(val%l_val)
-                  WRITE (UNIT=string(2*i-1:), FMT="(L2)") val%l_val(i)
+                  WRITE (UNIT=string(2*i - 1:), FMT="(L2)") val%l_val(i)
                END DO
             ELSE
                CPABORT("")
@@ -680,7 +680,7 @@ CONTAINS
          CASE (integer_t)
             IF (ASSOCIATED(val%i_val)) THEN
                DO i = 1, SIZE(val%i_val)
-                  WRITE (UNIT=string(12*i-11:), FMT="(I12)") val%i_val(i)
+                  WRITE (UNIT=string(12*i - 11:), FMT="(I12)") val%i_val(i)
                END DO
             ELSE
                CPABORT("")
@@ -691,11 +691,11 @@ CONTAINS
                   DO i = 1, SIZE(val%r_val)
                      value = cp_unit_from_cp2k(value=val%r_val(i), &
                                                unit_str=cp_unit_desc(unit=unit))
-                     WRITE (UNIT=string(17*i-16:), FMT="(ES17.8E3)") value
+                     WRITE (UNIT=string(17*i - 16:), FMT="(ES17.8E3)") value
                   END DO
                ELSE
                   DO i = 1, SIZE(val%r_val)
-                     WRITE (UNIT=string(17*i-16:), FMT="(ES17.8E3)") val%r_val(i)
+                     WRITE (UNIT=string(17*i - 16:), FMT="(ES17.8E3)") val%r_val(i)
                   END DO
                END IF
             ELSE
@@ -706,7 +706,7 @@ CONTAINS
                ipos = 1
                DO i = 1, SIZE(val%c_val)
                   WRITE (UNIT=string(ipos:), FMT="(A)") TRIM(ADJUSTL(val%c_val(i)))
-                  ipos = ipos+LEN_TRIM(ADJUSTL(val%c_val(i)))+1
+                  ipos = ipos + LEN_TRIM(ADJUSTL(val%c_val(i))) + 1
                END DO
             ELSE
                CPABORT("")
@@ -748,7 +748,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(val_in))
       CPASSERT(.NOT. ASSOCIATED(val_out))
       ALLOCATE (val_out)
-      last_val_id = last_val_id+1
+      last_val_id = last_val_id + 1
       val_out%id_nr = last_val_id
       val_out%type_of_var = val_in%type_of_var
       val_out%ref_count = 1

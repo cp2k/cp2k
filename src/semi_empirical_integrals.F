@@ -86,7 +86,7 @@ CONTAINS
 
       w(:) = 0.0_dp
       IF (.NOT. store_int_env%memory_parameter%do_all_on_the_fly) THEN
-         nints = (sepi%natorb*(sepi%natorb+1)/2)*(sepj%natorb*(sepj%natorb+1)/2)
+         nints = (sepi%natorb*(sepi%natorb + 1)/2)*(sepj%natorb*(sepj%natorb + 1)/2)
          cache_size = store_int_env%memory_parameter%cache_size
          eps_storage = store_int_env%memory_parameter%eps_storage_scaling
          IF (store_int_env%filling_containers) THEN
@@ -95,7 +95,7 @@ CONTAINS
                buffer_overflow = .TRUE.
                store_int_env%memory_parameter%ram_counter = store_int_env%nbuffer
             ELSE
-               store_int_env%nbuffer = store_int_env%nbuffer+1
+               store_int_env%nbuffer = store_int_env%nbuffer + 1
                buffer_overflow = .FALSE.
             END IF
             ! Compute Integrals
@@ -113,12 +113,12 @@ CONTAINS
                IF (store_int_env%compress) THEN
                   ! Store integrals in the containers
                   IF (store_int_env%nbuffer > SIZE(store_int_env%max_val_buffer)) THEN
-                     new_size = store_int_env%nbuffer+1000
+                     new_size = store_int_env%nbuffer + 1000
                      CALL reallocate(store_int_env%max_val_buffer, 1, new_size)
                   END IF
                   store_int_env%max_val_buffer(store_int_env%nbuffer) = MAXVAL(ABS(w(1:nints)))
 
-                  nbits = EXPONENT(store_int_env%max_val_buffer(store_int_env%nbuffer)/eps_storage)+1
+                  nbits = EXPONENT(store_int_env%max_val_buffer(store_int_env%nbuffer)/eps_storage) + 1
                   buffer_left = nints
                   buffer_start = 1
                   DO WHILE (buffer_left > 0)
@@ -130,19 +130,19 @@ CONTAINS
                                                       eps_storage, 1.0_dp, &
                                                       store_int_env%memory_parameter%actual_memory_usage, &
                                                       .FALSE.)
-                     buffer_left = buffer_left-buffer_size
-                     buffer_start = buffer_start+buffer_size
+                     buffer_left = buffer_left - buffer_size
+                     buffer_start = buffer_start + buffer_size
                   END DO
                ELSE
                   ! Skip compression
                   memory_usage = store_int_env%memory_parameter%actual_memory_usage
-                  CPASSERT((nints/1.2_dp) <= HUGE(0)-memory_usage)
-                  IF (memory_usage+nints > SIZE(store_int_env%uncompressed_container)) THEN
-                     new_size = INT((memory_usage+nints)*1.2_dp)
+                  CPASSERT((nints/1.2_dp) <= HUGE(0) - memory_usage)
+                  IF (memory_usage + nints > SIZE(store_int_env%uncompressed_container)) THEN
+                     new_size = INT((memory_usage + nints)*1.2_dp)
                      CALL reallocate(store_int_env%uncompressed_container, 1, new_size)
                   END IF
-                  store_int_env%uncompressed_container(memory_usage:memory_usage+nints-1) = w(1:nints)
-                  store_int_env%memory_parameter%actual_memory_usage = memory_usage+nints
+                  store_int_env%uncompressed_container(memory_usage:memory_usage + nints - 1) = w(1:nints)
+                  store_int_env%memory_parameter%actual_memory_usage = memory_usage + nints
                END IF
             END IF
          ELSE
@@ -150,14 +150,14 @@ CONTAINS
             IF (store_int_env%memory_parameter%ram_counter == store_int_env%nbuffer) THEN
                buffer_overflow = .TRUE.
             ELSE
-               store_int_env%nbuffer = store_int_env%nbuffer+1
+               store_int_env%nbuffer = store_int_env%nbuffer + 1
                buffer_overflow = .FALSE.
             END IF
             ! Get integrals from cache unless we overflowed
             IF (.NOT. buffer_overflow) THEN
                IF (store_int_env%compress) THEN
                   ! Get Integrals from containers
-                  nbits = EXPONENT(store_int_env%max_val_buffer(store_int_env%nbuffer)/eps_storage)+1
+                  nbits = EXPONENT(store_int_env%max_val_buffer(store_int_env%nbuffer)/eps_storage) + 1
                   buffer_left = nints
                   buffer_start = 1
                   DO WHILE (buffer_left > 0)
@@ -169,14 +169,14 @@ CONTAINS
                                                       eps_storage, 1.0_dp, &
                                                       store_int_env%memory_parameter%actual_memory_usage, &
                                                       .FALSE.)
-                     buffer_left = buffer_left-buffer_size
-                     buffer_start = buffer_start+buffer_size
+                     buffer_left = buffer_left - buffer_size
+                     buffer_start = buffer_start + buffer_size
                   END DO
                ELSE
                   ! Skip compression
                   memory_usage = store_int_env%memory_parameter%actual_memory_usage
-                  w(1:nints) = store_int_env%uncompressed_container(memory_usage:memory_usage+nints-1)
-                  store_int_env%memory_parameter%actual_memory_usage = memory_usage+nints
+                  w(1:nints) = store_int_env%uncompressed_container(memory_usage:memory_usage + nints - 1)
+                  store_int_env%memory_parameter%actual_memory_usage = memory_usage + nints
                END IF
             ELSE
                IF (se_int_control%integral_screening == do_se_IS_slater) THEN
@@ -244,9 +244,9 @@ CONTAINS
       IF (.NOT. do_all_on_the_fly) THEN
          nints_1 = 0
          nints_2 = 0
-         IF (PRESENT(e1b)) nints_1 = (sepi%natorb*(sepi%natorb+1)/2)
-         IF (PRESENT(e2a)) nints_2 = (sepj%natorb*(sepj%natorb+1)/2)
-         nints = nints_1+nints_2
+         IF (PRESENT(e1b)) nints_1 = (sepi%natorb*(sepi%natorb + 1)/2)
+         IF (PRESENT(e2a)) nints_2 = (sepj%natorb*(sepj%natorb + 1)/2)
+         nints = nints_1 + nints_2
          ! This is the upper limit for an spd basis set
          CPASSERT(nints <= 90)
          cache_size = store_int_env%memory_parameter%cache_size
@@ -257,7 +257,7 @@ CONTAINS
                buffer_overflow = .TRUE.
                store_int_env%memory_parameter%ram_counter = store_int_env%nbuffer
             ELSE
-               store_int_env%nbuffer = store_int_env%nbuffer+1
+               store_int_env%nbuffer = store_int_env%nbuffer + 1
                buffer_overflow = .FALSE.
             END IF
             ! Compute Integrals
@@ -276,17 +276,17 @@ CONTAINS
             ! Store integrals if we did not go overflow
             IF (.NOT. buffer_overflow) THEN
                IF (PRESENT(e1b)) w(1:nints_1) = e1b(1:nints_1)
-               IF (PRESENT(e2a)) w(nints_1+1:nints) = e2a(1:nints_2)
+               IF (PRESENT(e2a)) w(nints_1 + 1:nints) = e2a(1:nints_2)
 
                IF (store_int_env%compress) THEN
                   ! Store integrals in the containers
                   IF (store_int_env%nbuffer > SIZE(store_int_env%max_val_buffer)) THEN
-                     new_size = store_int_env%nbuffer+1000
+                     new_size = store_int_env%nbuffer + 1000
                      CALL reallocate(store_int_env%max_val_buffer, 1, new_size)
                   END IF
                   store_int_env%max_val_buffer(store_int_env%nbuffer) = MAXVAL(ABS(w(1:nints)))
 
-                  nbits = EXPONENT(store_int_env%max_val_buffer(store_int_env%nbuffer)/eps_storage)+1
+                  nbits = EXPONENT(store_int_env%max_val_buffer(store_int_env%nbuffer)/eps_storage) + 1
                   buffer_left = nints
                   buffer_start = 1
                   DO WHILE (buffer_left > 0)
@@ -298,19 +298,19 @@ CONTAINS
                                                       eps_storage, 1.0_dp, &
                                                       store_int_env%memory_parameter%actual_memory_usage, &
                                                       .FALSE.)
-                     buffer_left = buffer_left-buffer_size
-                     buffer_start = buffer_start+buffer_size
+                     buffer_left = buffer_left - buffer_size
+                     buffer_start = buffer_start + buffer_size
                   END DO
                ELSE
                   ! Skip compression
                   memory_usage = store_int_env%memory_parameter%actual_memory_usage
-                  CPASSERT((nints/1.2_dp) <= HUGE(0)-memory_usage)
-                  IF (memory_usage+nints > SIZE(store_int_env%uncompressed_container)) THEN
-                     new_size = INT((memory_usage+nints)*1.2_dp)
+                  CPASSERT((nints/1.2_dp) <= HUGE(0) - memory_usage)
+                  IF (memory_usage + nints > SIZE(store_int_env%uncompressed_container)) THEN
+                     new_size = INT((memory_usage + nints)*1.2_dp)
                      CALL reallocate(store_int_env%uncompressed_container, 1, new_size)
                   END IF
-                  store_int_env%uncompressed_container(memory_usage:memory_usage+nints-1) = w(1:nints)
-                  store_int_env%memory_parameter%actual_memory_usage = memory_usage+nints
+                  store_int_env%uncompressed_container(memory_usage:memory_usage + nints - 1) = w(1:nints)
+                  store_int_env%memory_parameter%actual_memory_usage = memory_usage + nints
                END IF
             END IF
          ELSE
@@ -318,14 +318,14 @@ CONTAINS
             IF (store_int_env%memory_parameter%ram_counter == store_int_env%nbuffer) THEN
                buffer_overflow = .TRUE.
             ELSE
-               store_int_env%nbuffer = store_int_env%nbuffer+1
+               store_int_env%nbuffer = store_int_env%nbuffer + 1
                buffer_overflow = .FALSE.
             END IF
             ! Get integrals from cache unless we overflowed
             IF (.NOT. buffer_overflow) THEN
                IF (store_int_env%compress) THEN
                   ! Get Integrals from containers
-                  nbits = EXPONENT(store_int_env%max_val_buffer(store_int_env%nbuffer)/eps_storage)+1
+                  nbits = EXPONENT(store_int_env%max_val_buffer(store_int_env%nbuffer)/eps_storage) + 1
                   buffer_left = nints
                   buffer_start = 1
                   DO WHILE (buffer_left > 0)
@@ -337,17 +337,17 @@ CONTAINS
                                                       eps_storage, 1.0_dp, &
                                                       store_int_env%memory_parameter%actual_memory_usage, &
                                                       .FALSE.)
-                     buffer_left = buffer_left-buffer_size
-                     buffer_start = buffer_start+buffer_size
+                     buffer_left = buffer_left - buffer_size
+                     buffer_start = buffer_start + buffer_size
                   END DO
                ELSE
                   ! Skip compression
                   memory_usage = store_int_env%memory_parameter%actual_memory_usage
-                  w(1:nints) = store_int_env%uncompressed_container(memory_usage:memory_usage+nints-1)
-                  store_int_env%memory_parameter%actual_memory_usage = memory_usage+nints
+                  w(1:nints) = store_int_env%uncompressed_container(memory_usage:memory_usage + nints - 1)
+                  store_int_env%memory_parameter%actual_memory_usage = memory_usage + nints
                END IF
                IF (PRESENT(e1b)) e1b(1:nints_1) = w(1:nints_1)
-               IF (PRESENT(e2a)) e2a(1:nints_2) = w(nints_1+1:nints)
+               IF (PRESENT(e2a)) e2a(1:nints_2) = w(nints_1 + 1:nints)
             ELSE
                IF (se_int_control%integral_screening == do_se_IS_slater) THEN
                   CALL rotnuc_gks(sepi, sepj, rij, e1b=e1b, e2a=e2a, &

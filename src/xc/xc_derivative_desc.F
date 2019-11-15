@@ -33,7 +33,7 @@ MODULE xc_derivative_desc
    INTEGER, PARAMETER :: &
       MAX_LABEL_LENGTH = 12, &
       MAX_DERIVATIVE = 4, &
-      MAX_DERIVATIVE_DESC_LENGTH = (MAX_LABEL_LENGTH+2)*MAX_DERIVATIVE
+      MAX_DERIVATIVE_DESC_LENGTH = (MAX_LABEL_LENGTH + 2)*MAX_DERIVATIVE
 
    LOGICAL, PARAMETER :: debug_this_module = .FALSE.
 
@@ -70,10 +70,10 @@ CONTAINS
       ordered = .FALSE.
       DO WHILE (.NOT. ordered)
          ordered = .TRUE.
-         DO i = 1, SIZE(deriv_array)-1
-            IF (deriv_array(i) > deriv_array(i+1)) THEN
-               tmp = deriv_array(i+1)
-               deriv_array(i+1) = deriv_array(i)
+         DO i = 1, SIZE(deriv_array) - 1
+            IF (deriv_array(i) > deriv_array(i + 1)) THEN
+               tmp = deriv_array(i + 1)
+               deriv_array(i + 1) = deriv_array(i)
                deriv_array(i) = tmp
                ordered = .FALSE.
             END IF
@@ -84,8 +84,8 @@ CONTAINS
       pos = 1
       DO i = 1, SIZE(deriv_array)
          l_label = LEN_TRIM(deriv_array(i))
-         res(pos:pos+l_label+1) = '('//deriv_array(i) (1:l_label)//')'
-         pos = pos+l_label+2
+         res(pos:pos + l_label + 1) = '('//deriv_array(i) (1:l_label)//')'
+         pos = pos + l_label + 2
       END DO
 
       DEALLOCATE (deriv_array)
@@ -110,7 +110,7 @@ CONTAINS
       nderiv = 0
       DO i = 1, LEN(deriv_desc)
          IF (deriv_desc(i:i) == '(') THEN
-            nderiv = nderiv+1
+            nderiv = nderiv + 1
          END IF
       END DO
 
@@ -119,12 +119,12 @@ CONTAINS
       nderiv = 0
       DO i = 1, LEN(deriv_desc)
          IF (deriv_desc(i:i) == '(') THEN
-            nderiv = nderiv+1
-            DO j = i+1, LEN(deriv_desc)
+            nderiv = nderiv + 1
+            DO j = i + 1, LEN(deriv_desc)
                IF (deriv_desc(j:j) == ')') EXIT
             END DO
 !tc: should we do a check on the derivative descriptions?
-            res(nderiv) = deriv_desc(i+1:j-1)
+            res(nderiv) = deriv_desc(i + 1:j - 1)
          END IF
       END DO
 

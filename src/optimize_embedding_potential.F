@@ -167,22 +167,22 @@ CONTAINS
             IF (all_nspins(3) .EQ. 1) THEN
                total_spin = 0
             ELSE
-               total_spin = all_spins(1, 3)-all_spins(2, 3)
+               total_spin = all_spins(1, 3) - all_spins(2, 3)
             ENDIF
             IF (all_nspins(1) .EQ. 1) THEN
                sub_spin_1 = 0
             ELSE
-               sub_spin_1 = all_spins(1, 1)-all_spins(2, 1)
+               sub_spin_1 = all_spins(1, 1) - all_spins(2, 1)
             ENDIF
             IF (all_nspins(2) .EQ. 1) THEN
                sub_spin_2 = 0
             ELSE
-               sub_spin_2 = all_spins(1, 2)-all_spins(2, 2)
+               sub_spin_2 = all_spins(1, 2) - all_spins(2, 2)
             ENDIF
-            IF ((sub_spin_1+sub_spin_2) .EQ. total_spin) THEN
+            IF ((sub_spin_1 + sub_spin_2) .EQ. total_spin) THEN
                change_spin = .FALSE.
             ELSE
-               IF (ABS(sub_spin_1-sub_spin_2) .EQ. total_spin) THEN
+               IF (ABS(sub_spin_1 - sub_spin_2) .EQ. total_spin) THEN
                   change_spin = .TRUE.
                ELSE
                   CPABORT("Spin states of subsystems are not compatible.")
@@ -288,8 +288,8 @@ CONTAINS
          CALL pw_copy(v_hartree_r_space%pw, embed_pot%pw)
 
          ! Calculate the number of electrons
-         nelectrons = nelectron_spin(1)+nelectron_spin(2)
-         factor = (REAL(nelectrons)-1.0_dp)/(REAL(nelectrons))
+         nelectrons = nelectron_spin(1) + nelectron_spin(2)
+         factor = (REAL(nelectrons) - 1.0_dp)/(REAL(nelectrons))
 
          ! Scale the Hartree potential to get Fermi-Amaldi
          CALL pw_scale(embed_pot%pw, a=factor)
@@ -420,7 +420,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       NULLIFY (opt_embed%prev_subsys_dens)
-      size_prev_dens = SUM(opt_embed%all_nspins(1:(SIZE(opt_embed%all_nspins)-1)))
+      size_prev_dens = SUM(opt_embed%all_nspins(1:(SIZE(opt_embed%all_nspins) - 1)))
       ALLOCATE (opt_embed%prev_subsys_dens(size_prev_dens))
       DO i_dens = 1, size_prev_dens
          CALL pw_pool_create_pw(auxbas_pw_pool, opt_embed%prev_subsys_dens(i_dens)%pw, &
@@ -610,7 +610,7 @@ CONTAINS
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind=qs_kind_set(ikind), nsgf=nsgf, basis_type="RI_AUX")
-         dimen_aux = dimen_aux+nsgf
+         dimen_aux = dimen_aux + nsgf
       END DO
 
       DEALLOCATE (kind_of)
@@ -1217,7 +1217,7 @@ CONTAINS
          CALL cp_fm_to_fm_submat(msource=opt_embed%embed_pot_coef, &
                                  mtarget=embed_pot_coeff_spin, &
                                  nrow=opt_embed%dimen_aux, ncol=1, &
-                                 s_firstrow=opt_embed%dimen_aux+1, s_firstcol=1, &
+                                 s_firstrow=opt_embed%dimen_aux + 1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=1)
          ! Multiply
          CALL cp_gemm(transa="N", transb="N", m=opt_embed%dimen_aux, n=1, &
@@ -1238,7 +1238,7 @@ CONTAINS
                                  mtarget=regular_term, &
                                  nrow=opt_embed%dimen_aux, ncol=1, &
                                  s_firstrow=1, s_firstcol=1, &
-                                 t_firstrow=opt_embed%dimen_aux+1, t_firstcol=1)
+                                 t_firstrow=opt_embed%dimen_aux + 1, t_firstcol=1)
          ! Release internally used auxiliary structures
          CALL cp_fm_release(embed_pot_coeff_spinless)
          CALL cp_fm_release(embed_pot_coeff_spin)
@@ -1335,8 +1335,8 @@ CONTAINS
       DO ikind = 1, SIZE(lri)
          DO iatom = 1, SIZE(lri(ikind)%v_int, DIM=1)
             nsgf = SIZE(lri(ikind)%v_int(iatom, :))
-            pot_grad(start_pos:start_pos+nsgf-1) = lri(ikind)%v_int(iatom, :)
-            start_pos = start_pos+nsgf
+            pot_grad(start_pos:start_pos + nsgf - 1) = lri(ikind)%v_int(iatom, :)
+            start_pos = start_pos + nsgf
          ENDDO
       ENDDO
 
@@ -1352,12 +1352,12 @@ CONTAINS
             CALL mp_sum(lri(ikind)%v_int, para_env%group)
          END DO
 
-         start_pos = dimen_aux+1
+         start_pos = dimen_aux + 1
          DO ikind = 1, SIZE(lri)
             DO iatom = 1, SIZE(lri(ikind)%v_int, DIM=1)
                nsgf = SIZE(lri(ikind)%v_int(iatom, :))
-               pot_grad(start_pos:start_pos+nsgf-1) = lri(ikind)%v_int(iatom, :)
-               start_pos = start_pos+nsgf
+               pot_grad(start_pos:start_pos + nsgf - 1) = lri(ikind)%v_int(iatom, :)
+               start_pos = start_pos + nsgf
             ENDDO
          ENDDO
       ENDIF
@@ -1521,9 +1521,9 @@ CONTAINS
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
                square_norm_dpot%cr3d(i, j, k) = (dpot(1)%pw%cr3d(i, j, k)* &
-                                                 dpot(1)%pw%cr3d(i, j, k)+ &
+                                                 dpot(1)%pw%cr3d(i, j, k) + &
                                                  dpot(2)%pw%cr3d(i, j, k)* &
-                                                 dpot(2)%pw%cr3d(i, j, k)+ &
+                                                 dpot(2)%pw%cr3d(i, j, k) + &
                                                  dpot(3)%pw%cr3d(i, j, k)* &
                                                  dpot(3)%pw%cr3d(i, j, k))
             END DO
@@ -1766,12 +1766,12 @@ CONTAINS
       CALL pw_axpy(diff_rho_r%pw, embed_pot%pw, opt_embed%step_len)
       ! Regularize
       CALL grid_regularize(embed_pot, pw_env, opt_embed%lambda, my_reg_term)
-      opt_embed%reg_term = opt_embed%reg_term+my_reg_term
+      opt_embed%reg_term = opt_embed%reg_term + my_reg_term
 
       IF (opt_embed%open_shell_embed) THEN
          CALL pw_axpy(diff_rho_spin%pw, spin_embed_pot%pw, opt_embed%step_len)
          CALL grid_regularize(spin_embed_pot, pw_env, opt_embed%lambda, my_reg_term)
-         opt_embed%reg_term = opt_embed%reg_term+my_reg_term
+         opt_embed%reg_term = opt_embed%reg_term + my_reg_term
       ENDIF
 
       CALL timestop(handle)
@@ -1871,7 +1871,7 @@ CONTAINS
          CALL cp_fm_to_fm_submat(embed_pot_coef, &
                                  mtarget=embed_pot_coef_spin, &
                                  nrow=dimen_aux, ncol=1, &
-                                 s_firstrow=dimen_aux+1, s_firstcol=1, &
+                                 s_firstrow=dimen_aux + 1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=1)
 
          ! Spinless potential
@@ -2047,7 +2047,7 @@ CONTAINS
 
       CALL cp_fm_trace(y, B_inv_y, y_dot_B_inv_y)
 
-      factor1 = (s_dot_y+y_dot_B_inv_y)/(s_dot_y)**2
+      factor1 = (s_dot_y + y_dot_B_inv_y)/(s_dot_y)**2
 
       CALL cp_fm_scale_and_add(1.0_dp, inv_Hess, factor1, s_s)
 
@@ -2295,10 +2295,10 @@ CONTAINS
                    beta=0.0_dp, matrix_c=H_b)
       CALL cp_fm_trace(opt_embed%step, H_b, quad_term)
 
-      pred_ener_change = lin_term+0.5_dp*quad_term
+      pred_ener_change = lin_term + 0.5_dp*quad_term
 
       ! Reveal actual energy change
-      actual_ener_change = opt_embed%w_func(opt_embed%i_iter)- &
+      actual_ener_change = opt_embed%w_func(opt_embed%i_iter) - &
                            opt_embed%w_func(opt_embed%last_accepted)
 
       ener_ratio = actual_ener_change/pred_ener_change
@@ -2374,7 +2374,7 @@ CONTAINS
          !shift_min = -2.0_dp*(diag_grad_norm/opt_embed%trust_rad - min(hess_min, 0.0_dp))
          !shift_max = max(0.0_dp, -hess_min + 0.5_dp*grad_min/opt_embed%trust_rad)
          !shift_max = MIN(-hess_min+0.5_dp*grad_min/opt_embed%trust_rad, 0.0_dp)
-         shift_max = hess_min+0.1
+         shift_max = hess_min + 0.1
          shift_min = diag_grad_norm/opt_embed%trust_rad
          shift_min = 10.0_dp
          !If (abs(shift_max) .LE. thresh) then
@@ -2397,7 +2397,7 @@ CONTAINS
                shift = shift_min
             ELSE
                DO i_iter = 1, max_iter
-                  shift = 0.5_dp*(shift_max+shift_min)
+                  shift = 0.5_dp*(shift_max + shift_min)
                   step_minus_trad = shifted_step(diag_grad, eigenval, shift, opt_embed%trust_rad)
                   IF (i_iter .EQ. 1) step_minus_trad_first = step_minus_trad
                   IF (step_minus_trad .GT. 0.0_dp) shift_max = shift
@@ -2415,7 +2415,7 @@ CONTAINS
                l_global = row_indices(LLL)
                IF (ABS(eigenval(l_global)) .GE. thresh) THEN
                   diag_step%local_data(LLL, 1) = &
-                     -diag_grad%local_data(LLL, 1)/(eigenval(l_global)-shift)
+                     -diag_grad%local_data(LLL, 1)/(eigenval(l_global) - shift)
                ELSE
                   diag_step%local_data(LLL, 1) = 0.0_dp
                ENDIF
@@ -2447,7 +2447,7 @@ CONTAINS
             IF (red_eigenval_map(l_global) .EQ. 0) THEN
                IF (ABS(eigenval(l_global)) .GE. thresh) THEN
                   diag_step%local_data(LLL, 1) = &
-                     -diag_grad%local_data(LLL, 1)/(eigenval(l_global)-shift)
+                     -diag_grad%local_data(LLL, 1)/(eigenval(l_global) - shift)
                ELSE
                   diag_step%local_data(LLL, 1) = 0.0_dp
                ENDIF
@@ -2494,14 +2494,14 @@ CONTAINS
       DO LLL = 1, nrow_local
          l_global = row_indices(LLL)
          IF ((ABS(eigenval(l_global)) .GE. thresh) .AND. (ABS(diag_grad%local_data(LLL, 1)) .GE. thresh)) THEN
-            step_1d = -diag_grad%local_data(LLL, 1)/(eigenval(l_global)+shift)
-            step = step+step_1d**2
+            step_1d = -diag_grad%local_data(LLL, 1)/(eigenval(l_global) + shift)
+            step = step + step_1d**2
          ENDIF
       ENDDO
 
       CALL mp_sum(step, para_env%group)
 
-      step_minus_trad = SQRT(step)-trust_rad
+      step_minus_trad = SQRT(step) - trust_rad
 
    END FUNCTION shifted_step
 
@@ -2616,7 +2616,7 @@ CONTAINS
                      my_rho = rho_cutoff
                   ENDIF
                   new_embed_pot(1)%pw%cr3d(i, j, k) = step_len*embed_pot%pw%cr3d(i, j, k)* &
-                                                      (diff_rho_r%pw%cr3d(i, j, k)+rho_r_ref(1)%pw%cr3d(i, j, k))/my_rho
+                                                      (diff_rho_r%pw%cr3d(i, j, k) + rho_r_ref(1)%pw%cr3d(i, j, k))/my_rho
                END DO
             END DO
          END DO
@@ -3034,7 +3034,7 @@ CONTAINS
                   ELSE
                      my_rho = rho_cutoff
                   ENDIF
-                  v_w(1)%pw%cr3d(i, j, k) = one_8*rho_set%norm_drhoa(i, j, k)**2/my_rho**2- &
+                  v_w(1)%pw%cr3d(i, j, k) = one_8*rho_set%norm_drhoa(i, j, k)**2/my_rho**2 - &
                                             one_4*rho_set%laplace_rhoa(i, j, k)/my_rho
 
                   IF (rho_r(2)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
@@ -3042,7 +3042,7 @@ CONTAINS
                   ELSE
                      my_rho = rho_cutoff
                   ENDIF
-                  v_w(2)%pw%cr3d(i, j, k) = one_8*rho_set%norm_drhob(i, j, k)**2/my_rho**2- &
+                  v_w(2)%pw%cr3d(i, j, k) = one_8*rho_set%norm_drhob(i, j, k)**2/my_rho**2 - &
                                             one_4*rho_set%laplace_rhob(i, j, k)/my_rho
                END DO
             END DO
@@ -3057,7 +3057,7 @@ CONTAINS
                DO i = lb(1), ub(1)
                   IF (rho_r(1)%pw%cr3d(i, j, k) .GT. rho_cutoff) THEN
                      my_rho = rho_r(1)%pw%cr3d(i, j, k)
-                     v_w(1)%pw%cr3d(i, j, k) = one_8*rho_set%norm_drho(i, j, k)**2/my_rho**2- &
+                     v_w(1)%pw%cr3d(i, j, k) = one_8*rho_set%norm_drho(i, j, k)**2/my_rho**2 - &
                                                one_4*rho_set%laplace_rho(i, j, k)/my_rho
                   ELSE
                      v_w(1)%pw%cr3d(i, j, k) = 0.0_dp
@@ -3485,15 +3485,15 @@ CONTAINS
             END DO
 
             ! Fold the coordinates
-            center(:) = cell%hmat(:, 1)/2.0_dp+cell%hmat(:, 2)/2.0_dp+cell%hmat(:, 3)/2.0_dp
+            center(:) = cell%hmat(:, 1)/2.0_dp + cell%hmat(:, 2)/2.0_dp + cell%hmat(:, 3)/2.0_dp
 
             ! Print folded coordinates to file
             DO iat = 1, SIZE(particles_el)
-               r_pbc(:) = particles_r(:, iat)-center
+               r_pbc(:) = particles_r(:, iat) - center
                s = MATMUL(cell%h_inv, r_pbc)
-               s = s-ANINT(s)
+               s = s - ANINT(s)
                r_pbc = MATMUL(cell%hmat, s)
-               r_pbc = r_pbc+center
+               r_pbc = r_pbc + center
                WRITE (unit_nr, '(a4,4f12.6)') particles_el(iat), r_pbc(:)
             END DO
 
@@ -3525,8 +3525,8 @@ CONTAINS
             " Functional value         = ", opt_embed%w_func(step_num)
          IF (step_num .GT. 1) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-               " Real energy change         = ", opt_embed%w_func(step_num)- &
-               opt_embed%w_func(step_num-1)
+               " Real energy change         = ", opt_embed%w_func(step_num) - &
+               opt_embed%w_func(step_num - 1)
 
             WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
                " Step size                  = ", opt_embed%step_len
@@ -3562,10 +3562,10 @@ CONTAINS
 
       nspins = opt_embed%all_nspins(subsys_num)
 
-      i_dens_start = SUM(opt_embed%all_nspins(1:subsys_num))-nspins+1
+      i_dens_start = SUM(opt_embed%all_nspins(1:subsys_num)) - nspins + 1
 
       DO i_spin = 1, nspins
-         opt_embed%prev_subsys_dens(i_dens_start+i_spin-1)%pw%cr3d(:, :, :) = &
+         opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1)%pw%cr3d(:, :, :) = &
             rho_r(i_spin)%pw%cr3d(:, :, :)
       ENDDO
 
@@ -3592,13 +3592,13 @@ CONTAINS
 
       nspins = opt_embed%all_nspins(subsys_num)
 
-      i_dens_start = SUM(opt_embed%all_nspins(1:subsys_num))-nspins+1
+      i_dens_start = SUM(opt_embed%all_nspins(1:subsys_num)) - nspins + 1
 
       DO i_spin = 1, nspins
-         opt_embed%prev_subsys_dens(i_dens_start+i_spin-1)%pw%cr3d(:, :, :) = &
-            rho_r(i_spin)%pw%cr3d(:, :, :)-opt_embed%prev_subsys_dens(i_dens_start+i_spin-1)%pw%cr3d(:, :, :)
-         opt_embed%max_subsys_dens_diff(i_dens_start+i_spin-1) = &
-            max_dens_diff(opt_embed%prev_subsys_dens(i_dens_start+i_spin-1))
+         opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1)%pw%cr3d(:, :, :) = &
+            rho_r(i_spin)%pw%cr3d(:, :, :) - opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1)%pw%cr3d(:, :, :)
+         opt_embed%max_subsys_dens_diff(i_dens_start + i_spin - 1) = &
+            max_dens_diff(opt_embed%prev_subsys_dens(i_dens_start + i_spin - 1))
       ENDDO
 
    END SUBROUTINE get_max_subsys_diff
@@ -3745,12 +3745,12 @@ CONTAINS
          ! Maximum subsystem density change
          WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
             " Maximum density change in:"
-         DO i_dens = 1, (SIZE(opt_embed%all_nspins)-1)
-            i_dens_start = SUM(opt_embed%all_nspins(1:i_dens))-opt_embed%all_nspins(i_dens)+1
+         DO i_dens = 1, (SIZE(opt_embed%all_nspins) - 1)
+            i_dens_start = SUM(opt_embed%all_nspins(1:i_dens)) - opt_embed%all_nspins(i_dens) + 1
             DO i_spin = 1, opt_embed%all_nspins(i_dens)
                WRITE (UNIT=output_unit, FMT="(T4,A10,I3,A6,I3,A1,F20.10)") &
                   " subsystem ", i_dens, ', spin', i_spin, ":", &
-                  opt_embed%max_subsys_dens_diff(i_dens_start+i_spin-1)
+                  opt_embed%max_subsys_dens_diff(i_dens_start + i_spin - 1)
             ENDDO
          ENDDO
 

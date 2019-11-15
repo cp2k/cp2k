@@ -213,8 +213,8 @@ CONTAINS
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          CALL get_qs_kind(qs_kind_set(ikind), floating=floating)
          IF (floating) THEN
-            nfloat = nfloat+1
-            norm = norm+SUM(ABS(gradient(1:3, iatom)))
+            nfloat = nfloat + 1
+            norm = norm + SUM(ABS(gradient(1:3, iatom)))
          END IF
       END DO
       IF (nfloat > 0) THEN
@@ -256,7 +256,7 @@ CONTAINS
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          CALL get_qs_kind(qs_kind_set(ikind), floating=floating)
          IF (floating) THEN
-            particle_set(iatom)%r(1:3) = particle_set(iatom)%r(1:3)+alpha*gradient(1:3, iatom)
+            particle_set(iatom)%r(1:3) = particle_set(iatom)%r(1:3) + alpha*gradient(1:3, iatom)
          END IF
       END DO
 

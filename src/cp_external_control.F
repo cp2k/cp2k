@@ -129,7 +129,7 @@ CONTAINS
          ! however, if should_stop has been true, we should always check
          ! (at each level scf, md, ... the file must be there to guarantee termination)
          t1 = m_walltime()
-         IF (t1 > t_last_file_check+20.0_dp .OR. t1 <= t_last_file_check .OR. check_always) THEN
+         IF (t1 > t_last_file_check + 20.0_dp .OR. t1 <= t_last_file_check .OR. check_always) THEN
 
             t_last_file_check = t1
             ! allows for halting execution for a while
@@ -147,7 +147,7 @@ CONTAINS
                   t1 = m_walltime()
                   DO I = 1, 100000000
                      t2 = m_walltime()
-                     IF (t2-t1 > 1.0_dp) EXIT
+                     IF (t2 - t1 > 1.0_dp) EXIT
                   ENDDO
                   ! and ask again
                   INQUIRE (FILE="WAIT", EXIST=should_wait)
@@ -207,7 +207,7 @@ CONTAINS
 
          IF ((.NOT. should_stop) .AND. (my_target_time > 0.0_dp)) THEN
             ! Check for execution time
-            time_check = m_walltime()-my_start_time
+            time_check = m_walltime() - my_start_time
             IF (time_check .GT. my_target_time) THEN
                should_stop = .TRUE.
                WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(/,T2,A,f12.3,A)") &

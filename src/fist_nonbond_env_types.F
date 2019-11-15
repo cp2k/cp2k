@@ -352,7 +352,7 @@ CONTAINS
       fist_nonbond_env%long_range_correction = 0
       fist_nonbond_env%ref_count = 1
       fist_nonbond_env%id_nr = last_fist_nonbond_env_id_nr
-      last_fist_nonbond_env_id_nr = last_fist_nonbond_env_id_nr+1
+      last_fist_nonbond_env_id_nr = last_fist_nonbond_env_id_nr + 1
       IF (do_nonbonded) THEN
          natom_types = 1
          ! Determine size of kind arrays
@@ -384,7 +384,7 @@ CONTAINS
                   ! Warning: rlist_rcut should only be used by the neighbor list
                   ! algorithm. It is not the cutoff for the evaluation of the
                   ! interactions because rlist_rcut includes the Verlet skin.
-                  rcut = MAX(rcut, ewald_rcut)+verlet_skin
+                  rcut = MAX(rcut, ewald_rcut) + verlet_skin
                   fist_nonbond_env%rlist_cut(idim, jdim) = rcut
                   fist_nonbond_env%rlist_cut(jdim, idim) = rcut
                   rlow = rlow*(1.06_dp)**2 ! 1.06_dp in order to have 1/2 Emax_spline
@@ -442,7 +442,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(fist_nonbond_env))
       CPASSERT(fist_nonbond_env%ref_count > 0)
-      fist_nonbond_env%ref_count = fist_nonbond_env%ref_count+1
+      fist_nonbond_env%ref_count = fist_nonbond_env%ref_count + 1
    END SUBROUTINE fist_nonbond_env_retain
 
 ! **************************************************************************************************
@@ -460,7 +460,7 @@ CONTAINS
 
       IF (ASSOCIATED(fist_nonbond_env)) THEN
          CPASSERT(fist_nonbond_env%ref_count > 0)
-         fist_nonbond_env%ref_count = fist_nonbond_env%ref_count-1
+         fist_nonbond_env%ref_count = fist_nonbond_env%ref_count - 1
          IF (fist_nonbond_env%ref_count < 1) THEN
             IF (ASSOCIATED(fist_nonbond_env%nonbonded)) THEN
                CALL fist_neighbor_deallocate(fist_nonbond_env%nonbonded)

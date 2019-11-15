@@ -336,7 +336,7 @@ CONTAINS
       IF (do_svd) THEN
          CALL matrix_root_with_svd(fm_matrix_L, eps_svd, num_small_eigen, cond_num, do_inversion, para_env)
 
-         dimen_RI_red = dimen_RI-num_small_eigen
+         dimen_RI_red = dimen_RI - num_small_eigen
 
          ! We changed the size of fm_matrix_L in matrix_root_with_svd.
          ! So, we have to get new group sizes
@@ -710,7 +710,7 @@ CONTAINS
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind=qs_kind_set(ikind), nsgf=nsgf, basis_type="RI_AUX")
-         dimen_RI = dimen_RI+nsgf
+         dimen_RI = dimen_RI + nsgf
       END DO
 
       ! check that very small systems are not running on too many processes
@@ -754,9 +754,9 @@ CONTAINS
 
       min_mem_for_QK = REAL(dimen_RI, KIND=dp)*dimen_RI*3.0_dp*8.0_dp/1024_dp/1024_dp
 
-      group_size = strat_group_size-1
+      group_size = strat_group_size - 1
       DO iproc = strat_group_size, para_env%num_pe
-         group_size = group_size+1
+         group_size = group_size + 1
          ! check that group_size is a multiple of sub_group_size and a divisor of
          ! the total num of proc
          IF (MOD(para_env%num_pe, group_size) /= 0 .OR. MOD(group_size, para_env_sub%num_pe) /= 0) CYCLE
@@ -791,11 +791,11 @@ CONTAINS
       CALL cp_para_env_create(para_env_exchange, comm_exchange)
 
       ! crate the proc maps
-      ALLOCATE (proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe-1))
-      DO i = 0, para_env_exchange%num_pe-1
+      ALLOCATE (proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe - 1))
+      DO i = 0, para_env_exchange%num_pe - 1
          proc_map(i) = i
-         proc_map(-i-1) = para_env_exchange%num_pe-i-1
-         proc_map(para_env_exchange%num_pe+i) = i
+         proc_map(-i - 1) = para_env_exchange%num_pe - i - 1
+         proc_map(para_env_exchange%num_pe + i) = i
       END DO
 
       CALL create_group_dist(gd_sub_array, my_group_L_start, &
@@ -824,17 +824,17 @@ CONTAINS
             IF (j_global >= my_group_L_start .AND. j_global <= my_group_L_end) THEN
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
-                  fm_matrix_L%local_data(iiB, jjB) = L_local_col(i_global, j_global-my_group_L_start+1)
+                  fm_matrix_L%local_data(iiB, jjB) = L_local_col(i_global, j_global - my_group_L_start + 1)
                END DO
             END IF
          END DO
 
-         proc_send_static = proc_map(para_env_exchange%mepos+1)
-         proc_receive_static = proc_map(para_env_exchange%mepos-1)
+         proc_send_static = proc_map(para_env_exchange%mepos + 1)
+         proc_receive_static = proc_map(para_env_exchange%mepos - 1)
 
-         DO proc_shift = 1, para_env_exchange%num_pe-1
-            proc_send = proc_map(para_env_exchange%mepos+proc_shift)
-            proc_receive = proc_map(para_env_exchange%mepos-proc_shift)
+         DO proc_shift = 1, para_env_exchange%num_pe - 1
+            proc_send = proc_map(para_env_exchange%mepos + proc_shift)
+            proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
             CALL get_group_dist(gd_sub_array, proc_receive, rec_L_start, rec_L_end, rec_L_size)
 
@@ -848,7 +848,7 @@ CONTAINS
                IF (j_global >= rec_L_start .AND. j_global <= rec_L_end) THEN
                   DO iiB = 1, nrow_local
                      i_global = row_indices(iiB)
-                     fm_matrix_L%local_data(iiB, jjB) = L_external_col(i_global, j_global-rec_L_start+1)
+                     fm_matrix_L%local_data(iiB, jjB) = L_external_col(i_global, j_global - rec_L_start + 1)
                   END DO
                END IF
             END DO
@@ -898,7 +898,7 @@ CONTAINS
 
          num_small_eigen = 0
          DO iiB = 1, dimen_RI
-            IF (ABS(egen_L(iiB)) < 0.001_dp) num_small_eigen = num_small_eigen+1
+            IF (ABS(egen_L(iiB)) < 0.001_dp) num_small_eigen = num_small_eigen + 1
          END DO
 
          cond_num = MAXVAL(ABS(egen_L))/MINVAL(ABS(egen_L))
@@ -962,21 +962,21 @@ CONTAINS
       num_small_evals = 0
       DO ii = 1, nrow
          IF (evals(ii) > eps_svd) THEN
-            num_small_evals = ii-1
+            num_small_evals = ii - 1
             EXIT
          END IF
       END DO
-      needed_evals = nrow-num_small_evals
+      needed_evals = nrow - num_small_evals
 
       ! Get the condition number w.r.t. considered eigenvalues
-      cond_num = evals(nrow)/evals(num_small_evals+1)
+      cond_num = evals(nrow)/evals(num_small_evals + 1)
 
       ! Determine the eigenvalues of the request matrix root or its inverse
       evals(1:num_small_evals) = 0.0_dp
       IF (do_inversion) THEN
-         evals(num_small_evals+1:nrow) = 1.0_dp/SQRT(evals(num_small_evals+1:nrow))
+         evals(num_small_evals + 1:nrow) = 1.0_dp/SQRT(evals(num_small_evals + 1:nrow))
       ELSE
-         evals(num_small_evals+1:nrow) = SQRT(evals(num_small_evals+1:nrow))
+         evals(num_small_evals + 1:nrow) = SQRT(evals(num_small_evals + 1:nrow))
       END IF
 
       CALL cp_fm_column_scale(evecs, evals)
@@ -990,7 +990,7 @@ CONTAINS
       NULLIFY (para_env_exchange)
       CALL cp_para_env_create(para_env_exchange, comm_exchange)
 
-      ALLOCATE (num_eval(0:group_size_L-1))
+      ALLOCATE (num_eval(0:group_size_L - 1))
       num_eval = 0
       num_eval(para_env_exchange%mepos) = num_small_evals
       CALL mp_sum(num_eval, para_env_exchange%group)
@@ -999,14 +999,14 @@ CONTAINS
 
       IF (num_small_evals /= MAXVAL(num_eval)) THEN
          ! Step 2: Get position of maximum value
-         DO ii = 0, group_size_L-1
+         DO ii = 0, group_size_L - 1
             IF (num_eval(ii) == num_small_evals) THEN
                pos_max = ii
                EXIT
             END IF
          END DO
          num_small_evals = num_eval(pos_max)
-         needed_evals = nrow-num_small_evals
+         needed_evals = nrow - num_small_evals
 
          ! Step 3: Broadcast your local data to all other processes
          CALL mp_bcast(evecs%local_data, pos_max, para_env_exchange%group)
@@ -1020,7 +1020,7 @@ CONTAINS
       CALL reset_size_matrix(matrix, needed_evals, matrix%matrix_struct)
 
       ! Copy the needed eigenvectors
-      CALL cp_fm_to_fm(evecs, matrix, needed_evals, num_small_evals+1)
+      CALL cp_fm_to_fm(evecs, matrix, needed_evals, num_small_evals + 1)
 
       CALL cp_fm_release(evecs)
 
@@ -1110,8 +1110,8 @@ CONTAINS
       nprow = fm_matrix_L%matrix_struct%context%num_pe(1)
       npcol = fm_matrix_L%matrix_struct%context%num_pe(2)
 
-      ALLOCATE (num_entries_rec(0:para_env%num_pe-1))
-      ALLOCATE (num_entries_send(0:para_env%num_pe-1))
+      ALLOCATE (num_entries_rec(0:para_env%num_pe - 1))
+      ALLOCATE (num_entries_send(0:para_env%num_pe - 1))
 
       num_entries_rec(:) = 0
       num_entries_send(:) = 0
@@ -1131,7 +1131,7 @@ CONTAINS
 
             proc_send = fm_matrix_L%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
 
-            num_entries_send(proc_send) = num_entries_send(proc_send)+1
+            num_entries_send(proc_send) = num_entries_send(proc_send) + 1
 
          END DO
 
@@ -1148,11 +1148,11 @@ CONTAINS
       CALL timeset(routineN//"_3", handle2)
 
       ! allocate buffers to send the entries and the information of the entries
-      ALLOCATE (buffer_rec(0:para_env%num_pe-1))
-      ALLOCATE (buffer_send(0:para_env%num_pe-1))
+      ALLOCATE (buffer_rec(0:para_env%num_pe - 1))
+      ALLOCATE (buffer_send(0:para_env%num_pe - 1))
 
       ! allocate data message and corresponding indices
-      DO iproc = 0, para_env%num_pe-1
+      DO iproc = 0, para_env%num_pe - 1
 
          ALLOCATE (buffer_rec(iproc)%msg(num_entries_rec(iproc)))
          buffer_rec(iproc)%msg = 0.0_dp
@@ -1163,7 +1163,7 @@ CONTAINS
 
       CALL timeset(routineN//"_4", handle2)
 
-      DO iproc = 0, para_env%num_pe-1
+      DO iproc = 0, para_env%num_pe - 1
 
          ALLOCATE (buffer_send(iproc)%msg(num_entries_send(iproc)))
          buffer_send(iproc)%msg = 0.0_dp
@@ -1174,7 +1174,7 @@ CONTAINS
 
       CALL timeset(routineN//"_5", handle2)
 
-      DO iproc = 0, para_env%num_pe-1
+      DO iproc = 0, para_env%num_pe - 1
 
          ALLOCATE (buffer_rec(iproc)%indx(num_entries_rec(iproc), 2))
          buffer_rec(iproc)%indx = 0
@@ -1185,7 +1185,7 @@ CONTAINS
 
       CALL timeset(routineN//"_6", handle2)
 
-      DO iproc = 0, para_env%num_pe-1
+      DO iproc = 0, para_env%num_pe - 1
 
          ALLOCATE (buffer_send(iproc)%indx(num_entries_send(iproc), 2))
          buffer_send(iproc)%indx = 0
@@ -1196,7 +1196,7 @@ CONTAINS
 
       CALL timeset(routineN//"_7", handle2)
 
-      ALLOCATE (entry_counter(0:para_env%num_pe-1))
+      ALLOCATE (entry_counter(0:para_env%num_pe - 1))
       entry_counter(:) = 0
 
       ! get the process, where the elements from L_local_col have to be sent and
@@ -1213,10 +1213,10 @@ CONTAINS
 
             proc_send = fm_matrix_L%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
 
-            entry_counter(proc_send) = entry_counter(proc_send)+1
+            entry_counter(proc_send) = entry_counter(proc_send) + 1
 
             buffer_send(proc_send)%msg(entry_counter(proc_send)) = &
-               L_local_col(LLL, MMM-my_group_L_start+1)
+               L_local_col(LLL, MMM - my_group_L_start + 1)
 
             buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = LLL
             buffer_send(proc_send)%indx(entry_counter(proc_send), 2) = MMM
@@ -1242,7 +1242,7 @@ CONTAINS
       CALL timeset(routineN//"_9", handle2)
 
       ! fill fm_matrix_L with the entries from buffer_rec
-      DO iproc = 0, para_env%num_pe-1
+      DO iproc = 0, para_env%num_pe - 1
 
          DO i_entry_rec = 1, num_entries_rec(iproc)
 
@@ -1273,7 +1273,7 @@ CONTAINS
 
       CALL timeset(routineN//"_10", handle2)
 
-      DO iproc = 0, para_env%num_pe-1
+      DO iproc = 0, para_env%num_pe - 1
          DEALLOCATE (buffer_rec(iproc)%msg)
          DEALLOCATE (buffer_rec(iproc)%indx)
          DEALLOCATE (buffer_send(iproc)%msg)

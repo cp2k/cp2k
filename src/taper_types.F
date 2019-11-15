@@ -49,7 +49,7 @@ CONTAINS
       IF (range > EPSILON(0.0_dp)) THEN
          taper%apply_taper = .TRUE.
          CPASSERT(range > 0.0_dp)
-         taper%r0 = 2.0_dp*rc-20.0_dp*range
+         taper%r0 = 2.0_dp*rc - 20.0_dp*range
          taper%rscale = 1.0_dp/range
       ELSE
          taper%apply_taper = .FALSE.
@@ -88,8 +88,8 @@ CONTAINS
 
       ft = 1._dp
       IF (taper%apply_taper) THEN
-         dr = taper%rscale*(rij-taper%r0)
-         ft = 0.5_dp*(1.0_dp-TANH(dr))
+         dr = taper%rscale*(rij - taper%r0)
+         ft = 0.5_dp*(1.0_dp - TANH(dr))
       END IF
    END FUNCTION taper_eval
 
@@ -110,8 +110,8 @@ CONTAINS
 
       dft = 0.0_dp
       IF (taper%apply_taper) THEN
-         dr = taper%rscale*(rij-taper%r0)
-         dft = -0.5_dp*(1.0_dp-TANH(dr)**2)*taper%rscale
+         dr = taper%rscale*(rij - taper%r0)
+         dft = -0.5_dp*(1.0_dp - TANH(dr)**2)*taper%rscale
       END IF
    END FUNCTION dtaper_eval
 

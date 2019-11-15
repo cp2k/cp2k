@@ -194,24 +194,24 @@ CONTAINS
       ! find k pointer and smallest and largest R_mm value for this k
       i_k = 1
       DO WHILE (k_mm(k_p(i_k)) .LT. k)
-         i_k = i_k+1
+         i_k = i_k + 1
       ENDDO
       CPASSERT(k_mm(k_p(i_k)) .EQ. k)
 
       R_k_min = R_mm(k_p(i_k))
-      R_k_max = R_mm(k_p(i_k+1)-1)
+      R_k_max = R_mm(k_p(i_k + 1) - 1)
 
       IF (Rc .GE. R_k_max) THEN
-         i_mm = k_p(i_k+1)-1 ! pointer to largest Rc for current k
+         i_mm = k_p(i_k + 1) - 1 ! pointer to largest Rc for current k
       ELSE IF (Rc .LE. R_k_min) THEN
          i_mm = k_p(i_k) ! pointer to smallest Rc for current k
       ELSE
          i = k_p(i_k)
          DO WHILE (Rc .GT. R_mm(i))
-            i = i+1
+            i = i + 1
          ENDDO
          i_r = i ! pointer to closest R_mm >= Rc
-         i_l = i-1 ! pointer to closest R_mm < Rc
+         i_l = i - 1 ! pointer to closest R_mm < Rc
 
          IF (PRESENT(ge_Rc)) THEN
             IF (ge_Rc) THEN
@@ -272,8 +272,8 @@ CONTAINS
             DEALLOCATE (aw)
             IF (iw > 0) WRITE (iw, '(T2,A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
                MERGE("k15", "k53", which_coeffs .EQ. mm_k15), k, R, &
-               mm_error, ref_error, (mm_error-ref_error)/ref_error
-            CPASSERT(mm_error .LE. ref_error*1.05_dp+1.0E-15_dp)
+               mm_error, ref_error, (mm_error - ref_error)/ref_error
+            CPASSERT(mm_error .LE. ref_error*1.05_dp + 1.0E-15_dp)
          ELSE
             IF (iw > 0) WRITE (iw, '(T2,A4, I3, ES10.1, 3X, A)') "k15", k, R, "missing"
          ENDIF
@@ -284,8 +284,8 @@ CONTAINS
             ref_error = err_mm(i_mm)
             DEALLOCATE (aw)
             IF (iw > 0) WRITE (iw, '(T2,A4,I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
-               "k53", k, R, mm_error, ref_error, (mm_error-ref_error)/ref_error
-            IF (mm_error .GT. ref_error*1.05_dp+1.0E-15_dp) THEN
+               "k53", k, R, mm_error, ref_error, (mm_error - ref_error)/ref_error
+            IF (mm_error .GT. ref_error*1.05_dp + 1.0E-15_dp) THEN
                CPABORT("Test 1 failed: numerical error is larger than tabulated error")
             ENDIF
          ENDIF
@@ -316,8 +316,8 @@ CONTAINS
             ref_error = err_mm(i_mm)
             IF (iw > 0) WRITE (iw, '(T2, A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
                MERGE("k15", "k53", which_coeffs .EQ. mm_k15), k, R, &
-               mm_error, ref_error, (mm_error-ref_error)/ref_error
-            IF (mm_error .GT. ref_error*1.05_dp+1.0E-15_dp) THEN
+               mm_error, ref_error, (mm_error - ref_error)/ref_error
+            IF (mm_error .GT. ref_error*1.05_dp + 1.0E-15_dp) THEN
                CPABORT("Test 2 failed: numerical error is larger than tabulated error")
             ENDIF
             IF (do_exit) EXIT

@@ -163,7 +163,7 @@ CONTAINS
 ! record the attempt...we really only care about molecule type 1 and box
 ! type 1, since the acceptance will be identical for all boxes and molecules
       moves(1, 1)%moves%Quickstep%attempts = &
-         moves(1, 1)%moves%Quickstep%attempts+1
+         moves(1, 1)%moves%Quickstep%attempts + 1
 
 ! grab the coordinates for the force_env
       DO ibox = 1, nboxes
@@ -235,10 +235,10 @@ CONTAINS
                IF (SUM(nchains(:, ibox)) .NE. 0) THEN
 ! find the molecule bounds
                   start_mol = 1
-                  DO jbox = 1, ibox-1
-                     start_mol = start_mol+SUM(nchains(:, jbox))
+                  DO jbox = 1, ibox - 1
+                     start_mol = start_mol + SUM(nchains(:, jbox))
                   ENDDO
-                  end_mol = start_mol+SUM(nchains(:, ibox))-1
+                  end_mol = start_mol + SUM(nchains(:, ibox)) - 1
                   CALL check_for_overlap(bias_env(ibox)%force_env, &
                                          nchains(:, ibox), nunits(:), loverlap, mol_type(start_mol:end_mol))
                   IF (loverlap) &
@@ -247,8 +247,8 @@ CONTAINS
                bias_energy_old(ibox) = last_bias_energy(ibox)
             ENDDO
 
-            energies = -BETA*((SUM(new_energy(:))-SUM(bias_energy_new(:))) &
-                              -(SUM(old_energy(:))-SUM(bias_energy_old(:))))
+            energies = -BETA*((SUM(new_energy(:)) - SUM(bias_energy_new(:))) &
+                              - (SUM(old_energy(:)) - SUM(bias_energy_old(:))))
 
 ! used to prevent over and underflows
             IF (energies .GE. -1.0E-8) THEN
@@ -261,13 +261,13 @@ CONTAINS
 
             IF (ionode) THEN
                DO ibox = 1, nboxes
-                  WRITE (diff(ibox), *) nnstep, new_energy(ibox)- &
+                  WRITE (diff(ibox), *) nnstep, new_energy(ibox) - &
                      old_energy(ibox), &
-                     bias_energy_new(ibox)-bias_energy_old(ibox)
+                     bias_energy_new(ibox) - bias_energy_old(ibox)
                ENDDO
             ENDIF
          ELSE
-            energies = -BETA*(SUM(new_energy(:))-SUM(old_energy(:)))
+            energies = -BETA*(SUM(new_energy(:)) - SUM(old_energy(:)))
 ! used to prevent over and underflows
             IF (energies .GE. 0.0_dp) THEN
                w = 1.0_dp
@@ -292,7 +292,7 @@ CONTAINS
 
 ! accept the move
          moves(1, 1)%moves%Quickstep%successes = &
-            moves(1, 1)%moves%Quickstep%successes+1
+            moves(1, 1)%moves%Quickstep%successes + 1
 
          DO ibox = 1, nboxes
 ! remember what kind of move we did for lbias=.false.
@@ -318,8 +318,8 @@ CONTAINS
             ENDDO
 
 ! update energies
-            energy_check(ibox) = energy_check(ibox)+ &
-                                 (new_energy(ibox)-old_energy(ibox))
+            energy_check(ibox) = energy_check(ibox) + &
+                                 (new_energy(ibox) - old_energy(ibox))
             old_energy(ibox) = new_energy(ibox)
 
          ENDDO
@@ -542,14 +542,14 @@ CONTAINS
 
 ! record the attempt for the box the particle is to be inserted into
       moves(molecule_type, insert_box)%moves%swap%attempts = &
-         moves(molecule_type, insert_box)%moves%swap%attempts+1
+         moves(molecule_type, insert_box)%moves%swap%attempts + 1
 
 ! now choose a random molecule to remove from the removal box, checking
 ! to make sure the box isn't empty
       IF (nchains(molecule_type, remove_box) == 0) THEN
          loverlap = .TRUE.
          moves(molecule_type, insert_box)%moves%empty = &
-            moves(molecule_type, insert_box)%moves%empty+1
+            moves(molecule_type, insert_box)%moves%empty + 1
       ELSE
 
          IF (ionode) rand = next_random_number(rng_stream)
@@ -559,28 +559,28 @@ CONTAINS
          start_atom_rem = 1
          DO itype = 1, nmol_types
             IF (itype == molecule_type) THEN
-               start_atom_rem = start_atom_rem+(imolecule-1)*nunits(itype)
+               start_atom_rem = start_atom_rem + (imolecule - 1)*nunits(itype)
                EXIT
             ELSE
-               start_atom_rem = start_atom_rem+nchains(itype, remove_box)*nunits(itype)
+               start_atom_rem = start_atom_rem + nchains(itype, remove_box)*nunits(itype)
             ENDIF
          ENDDO
 
 ! check for overlap
          start_mol = 1
-         DO jbox = 1, remove_box-1
-            start_mol = start_mol+SUM(nchains(:, jbox))
+         DO jbox = 1, remove_box - 1
+            start_mol = start_mol + SUM(nchains(:, jbox))
          ENDDO
-         end_mol = start_mol+SUM(nchains(:, remove_box))-1
+         end_mol = start_mol + SUM(nchains(:, remove_box)) - 1
          CALL check_for_overlap(force_env(remove_box)%force_env, &
                                 nchains(:, remove_box), nunits, loverlap, mol_type(start_mol:end_mol))
          IF (loverlap) CALL cp_abort(__LOCATION__, &
                                      'CBMC swap move found an overlap in the old remove config')
          start_mol = 1
-         DO jbox = 1, insert_box-1
-            start_mol = start_mol+SUM(nchains(:, jbox))
+         DO jbox = 1, insert_box - 1
+            start_mol = start_mol + SUM(nchains(:, jbox))
          ENDDO
-         end_mol = start_mol+SUM(nchains(:, insert_box))-1
+         end_mol = start_mol + SUM(nchains(:, insert_box)) - 1
          CALL check_for_overlap(force_env(insert_box)%force_env, &
                                 nchains(:, insert_box), nunits, loverlap, mol_type(start_mol:end_mol))
          IF (loverlap) CALL cp_abort(__LOCATION__, &
@@ -595,8 +595,8 @@ CONTAINS
       ENDIF
 
 ! figure out how many atoms will be in each box after the move
-      ins_atoms = nunits_tot(insert_box)+nunits(molecule_type)
-      rem_atoms = nunits_tot(remove_box)-nunits(molecule_type)
+      ins_atoms = nunits_tot(insert_box) + nunits(molecule_type)
+      rem_atoms = nunits_tot(remove_box) - nunits(molecule_type)
 ! now allocate the arrays that will hold the coordinates and the
 ! atom name, for writing to the dat file
       IF (rem_atoms == 0) THEN
@@ -637,10 +637,10 @@ CONTAINS
       ALLOCATE (r_insert_mol(1:3, 1:nunits(molecule_type)))
 
       iiatom = 1
-      DO iatom = start_atom_rem, start_atom_rem+nunits(molecule_type)-1
+      DO iatom = start_atom_rem, start_atom_rem + nunits(molecule_type) - 1
          r_insert_mol(1:3, iiatom) = &
             particles_old(remove_box)%list%els(iatom)%r(1:3)
-         iiatom = iiatom+1
+         iiatom = iiatom + 1
       ENDDO
 
 !     find the center of mass of the molecule
@@ -648,9 +648,9 @@ CONTAINS
                               center_of_mass(:), mass(:, molecule_type))
 
 !     move the center of mass to the insertion point
-      displace_molecule(1:3) = pos_insert(1:3)-center_of_mass(1:3)
+      displace_molecule(1:3) = pos_insert(1:3) - center_of_mass(1:3)
       DO iatom = 1, nunits(molecule_type)
-         r_insert_mol(1:3, iatom) = r_insert_mol(1:3, iatom)+ &
+         r_insert_mol(1:3, iatom) = r_insert_mol(1:3, iatom) + &
                                     displace_molecule(1:3)
       ENDDO
 
@@ -661,7 +661,7 @@ CONTAINS
          DO iatom = 1, nunits(molecule_type)
             insert_coords(1:3, iatom) = r_insert_mol(1:3, iatom)
             atom_names_insert(iatom) = &
-               particles_old(remove_box)%list%els(start_atom_rem+iatom-1)%atomic_kind%name
+               particles_old(remove_box)%list%els(start_atom_rem + iatom - 1)%atomic_kind%name
          ENDDO
          start_atom_ins = 1
       ELSE
@@ -672,42 +672,42 @@ CONTAINS
 ! remember the start number for the CBMC stuff
          start_atom_ins = 1
          DO itype = 1, nmol_types
-            start_atom_ins = start_atom_ins+ &
+            start_atom_ins = start_atom_ins + &
                              nchains(itype, insert_box)*nunits(itype)
             IF (itype == molecule_type) EXIT
          ENDDO
 
-         DO iatom = 1, start_atom_ins-1
+         DO iatom = 1, start_atom_ins - 1
             insert_coords(1:3, iatom) = &
                particles_old(insert_box)%list%els(iatom)%r(1:3)
             atom_names_insert(iatom) = &
                particles_old(insert_box)%list%els(iatom)%atomic_kind%name
          ENDDO
          iiatom = 1
-         DO iatom = start_atom_ins, start_atom_ins+nunits(molecule_type)-1
+         DO iatom = start_atom_ins, start_atom_ins + nunits(molecule_type) - 1
             insert_coords(1:3, iatom) = r_insert_mol(1:3, iiatom)
             atom_names_insert(iatom) = atom_names(iiatom, molecule_type)
-            iiatom = iiatom+1
+            iiatom = iiatom + 1
          ENDDO
-         DO iatom = start_atom_ins+nunits(molecule_type), ins_atoms
+         DO iatom = start_atom_ins + nunits(molecule_type), ins_atoms
             insert_coords(1:3, iatom) = &
-               particles_old(insert_box)%list%els(iatom-nunits(molecule_type))%r(1:3)
+               particles_old(insert_box)%list%els(iatom - nunits(molecule_type))%r(1:3)
             atom_names_insert(iatom) = &
-               particles_old(insert_box)%list%els(iatom-nunits(molecule_type))%atomic_kind%name
+               particles_old(insert_box)%list%els(iatom - nunits(molecule_type))%atomic_kind%name
          ENDDO
       ENDIF
 
 ! fold the coordinates into the box and check for overlaps
       start_mol = 1
-      DO jbox = 1, insert_box-1
-         start_mol = start_mol+SUM(nchains(:, jbox))
+      DO jbox = 1, insert_box - 1
+         start_mol = start_mol + SUM(nchains(:, jbox))
       ENDDO
-      end_mol = start_mol+SUM(nchains(:, insert_box))-1
+      end_mol = start_mol + SUM(nchains(:, insert_box)) - 1
 
 ! make the .dat file
       IF (ionode) THEN
 
-         nchains(molecule_type, insert_box) = nchains(molecule_type, insert_box)+1
+         nchains(molecule_type, insert_box) = nchains(molecule_type, insert_box) + 1
          IF (lbias) THEN
             CALL get_mc_par(mc_par(insert_box)%mc_par, mc_bias_file=mc_bias_file)
             CALL mc_make_dat_file_new(insert_coords(:, :), atom_names_insert(:), ins_atoms, &
@@ -719,7 +719,7 @@ CONTAINS
                                       abc_insert(:), dat_file(insert_box), nchains(:, insert_box), &
                                       mc_input_file)
          ENDIF
-         nchains(molecule_type, insert_box) = nchains(molecule_type, insert_box)-1
+         nchains(molecule_type, insert_box) = nchains(molecule_type, insert_box) - 1
 
       ENDIF
 
@@ -733,7 +733,7 @@ CONTAINS
 ! need to adjust nchains, because otherwise if we are removing a molecule type
 ! that is not the first molecule, the dat file will have two molecules in it but
 ! only the coordinates for one
-         nchains(molecule_type, remove_box) = nchains(molecule_type, remove_box)-1
+         nchains(molecule_type, remove_box) = nchains(molecule_type, remove_box) - 1
          IF (ionode) THEN
             IF (lbias) THEN
                CALL get_mc_par(mc_par(remove_box)%mc_par, mc_bias_file=mc_bias_file)
@@ -748,25 +748,25 @@ CONTAINS
             ENDIF
 
          ENDIF
-         nchains(molecule_type, remove_box) = nchains(molecule_type, remove_box)+1
+         nchains(molecule_type, remove_box) = nchains(molecule_type, remove_box) + 1
 
       ELSE
-         DO iatom = 1, start_atom_rem-1
+         DO iatom = 1, start_atom_rem - 1
             remove_coords(1:3, iatom) = &
                particles_old(remove_box)%list%els(iatom)%r(1:3)
             atom_names_remove(iatom) = &
                particles_old(remove_box)%list%els(iatom)%atomic_kind%name
          ENDDO
-         DO iatom = start_atom_rem+nunits(molecule_type), nunits_tot(remove_box)
-            remove_coords(1:3, iatom-nunits(molecule_type)) = &
+         DO iatom = start_atom_rem + nunits(molecule_type), nunits_tot(remove_box)
+            remove_coords(1:3, iatom - nunits(molecule_type)) = &
                particles_old(remove_box)%list%els(iatom)%r(1:3)
-            atom_names_remove(iatom-nunits(molecule_type)) = &
+            atom_names_remove(iatom - nunits(molecule_type)) = &
                particles_old(remove_box)%list%els(iatom)%atomic_kind%name
          ENDDO
 
 ! make the .dat file
          IF (ionode) THEN
-            nchains(molecule_type, remove_box) = nchains(molecule_type, remove_box)-1
+            nchains(molecule_type, remove_box) = nchains(molecule_type, remove_box) - 1
             IF (lbias) THEN
                CALL get_mc_par(mc_par(remove_box)%mc_par, mc_bias_file=mc_bias_file)
                CALL mc_make_dat_file_new(remove_coords(:, :), atom_names_remove(:), rem_atoms, &
@@ -778,7 +778,7 @@ CONTAINS
                                          abc_remove(:), dat_file(remove_box), nchains(:, remove_box), &
                                          mc_input_file)
             ENDIF
-            nchains(molecule_type, remove_box) = nchains(molecule_type, remove_box)+1
+            nchains(molecule_type, remove_box) = nchains(molecule_type, remove_box) + 1
 
          ENDIF
       ENDIF
@@ -814,10 +814,10 @@ CONTAINS
 ! figure out the position of the molecule we're inserting, and the
 ! Rosenbluth weight
       start_mol = 1
-      DO jbox = 1, insert_box-1
-         start_mol = start_mol+SUM(nchains_test(:, jbox))
+      DO jbox = 1, insert_box - 1
+         start_mol = start_mol + SUM(nchains_test(:, jbox))
       ENDDO
-      end_mol = start_mol+SUM(nchains_test(:, insert_box))-1
+      end_mol = start_mol + SUM(nchains_test(:, insert_box)) - 1
 
       IF (lbias) THEN
          CALL generate_cbmc_swap_config(test_env(insert_box)%force_env, &
@@ -831,7 +831,7 @@ CONTAINS
 ! the real energy for the acceptance rule...we don't do this for the
 ! lbias=.false. case because it doesn't appear in the acceptance rule, and
 ! we compensate in case of acceptance
-         bias_energy_new(insert_box) = bias_energy_new(insert_box)+ &
+         bias_energy_new(insert_box) = bias_energy_new(insert_box) + &
                                        bias_energy_old(insert_box)
       ELSE
          CALL generate_cbmc_swap_config(test_env(insert_box)%force_env, &
@@ -883,7 +883,7 @@ CONTAINS
 
 ! if we made it this far, we have no overlaps
       moves(molecule_type, insert_box)%moves%grown = &
-         moves(molecule_type, insert_box)%moves%grown+1
+         moves(molecule_type, insert_box)%moves%grown + 1
 
 ! if we're biasing, we need to make environments with the non-biasing
 ! potentials, and calculate the energies
@@ -953,10 +953,10 @@ CONTAINS
 ! had a molecule removed for the CBMC configurations, and therefore nchains
 ! and mol_type instead of nchains_test and mol_type_test
       start_mol = 1
-      DO jbox = 1, remove_box-1
-         start_mol = start_mol+SUM(nchains(:, jbox))
+      DO jbox = 1, remove_box - 1
+         start_mol = start_mol + SUM(nchains(:, jbox))
       ENDDO
-      end_mol = start_mol+SUM(nchains(:, remove_box))-1
+      end_mol = start_mol + SUM(nchains(:, remove_box)) - 1
       IF (lbias) THEN
          CALL generate_cbmc_swap_config(bias_env(remove_box)%force_env, &
                                         BETA, max_val, min_val, exp_max_val, &
@@ -977,16 +977,16 @@ CONTAINS
 ! rule, based on numbers of particles and volumes
 
       prefactor = REAL(nchains(molecule_type, remove_box), dp)/ &
-                  REAL(nchains(molecule_type, insert_box)+1, dp)* &
+                  REAL(nchains(molecule_type, insert_box) + 1, dp)* &
                   vol_insert/vol_remove
 
       IF (lbias) THEN
 
-         del_quickstep_energy = (-BETA)*(new_energy(insert_box)- &
-                                         old_energy(insert_box)+new_energy(remove_box)- &
-                                         old_energy(remove_box)-(bias_energy_new(insert_box)+ &
-                                                                 bias_energy_new(remove_box)-bias_energy_old(insert_box) &
-                                                                 -bias_energy_old(remove_box)))
+         del_quickstep_energy = (-BETA)*(new_energy(insert_box) - &
+                                         old_energy(insert_box) + new_energy(remove_box) - &
+                                         old_energy(remove_box) - (bias_energy_new(insert_box) + &
+                                                                   bias_energy_new(remove_box) - bias_energy_old(insert_box) &
+                                                                   - bias_energy_old(remove_box)))
 
          IF (del_quickstep_energy .GT. exp_max_val) THEN
             del_quickstep_energy = max_val
@@ -996,11 +996,11 @@ CONTAINS
             del_quickstep_energy = EXP(del_quickstep_energy)
          ENDIF
          w = prefactor*del_quickstep_energy*weight_new/weight_old &
-             *EXP(BETA*(eta_remove(molecule_type)-eta_insert(molecule_type)))
+             *EXP(BETA*(eta_remove(molecule_type) - eta_insert(molecule_type)))
 
       ELSE
          w = prefactor*weight_new/weight_old &
-             *EXP(BETA*(eta_remove(molecule_type)-eta_insert(molecule_type)))
+             *EXP(BETA*(eta_remove(molecule_type) - eta_insert(molecule_type)))
 
       ENDIF
 
@@ -1019,19 +1019,19 @@ CONTAINS
 
 !     accept the move
          moves(molecule_type, insert_box)%moves%swap%successes = &
-            moves(molecule_type, insert_box)%moves%swap%successes+1
+            moves(molecule_type, insert_box)%moves%swap%successes + 1
 
 ! we need to compensate for the fact that we take the difference in
 ! generate_cbmc_config to keep the exponetials small
          IF (.NOT. lbias) THEN
-            new_energy(insert_box) = new_energy(insert_box)+ &
+            new_energy(insert_box) = new_energy(insert_box) + &
                                      old_energy(insert_box)
          ENDIF
 
          DO ibox = 1, 2
 ! update energies
-            energy_check(ibox) = energy_check(ibox)+(new_energy(ibox)- &
-                                                     old_energy(ibox))
+            energy_check(ibox) = energy_check(ibox) + (new_energy(ibox) - &
+                                                       old_energy(ibox))
             old_energy(ibox) = new_energy(ibox)
 ! if we're biasing the update the biasing energy
             IF (lbias) THEN
@@ -1206,9 +1206,9 @@ CONTAINS
 ! record the attempt
       DO ibox = 1, 2
          moves(1, ibox)%moves%volume%attempts = &
-            moves(1, ibox)%moves%volume%attempts+1
+            moves(1, ibox)%moves%volume%attempts + 1
          move_updates(1, ibox)%moves%volume%attempts = &
-            move_updates(1, ibox)%moves%volume%attempts+1
+            move_updates(1, ibox)%moves%volume%attempts + 1
       ENDDO
 
 ! now let's grab the cell length and particle positions
@@ -1240,20 +1240,20 @@ CONTAINS
       IF (ionode) rand = next_random_number(rng_stream)
       CALL mp_bcast(rand, source, group)
 
-      vol_dis = rmvolume*(rand-0.5E0_dp)*2.0E0_dp
+      vol_dis = rmvolume*(rand - 0.5E0_dp)*2.0E0_dp
 
 ! add to one box, subtract from the other
       IF (old_cell_length(1, 1)*old_cell_length(2, 1)* &
-          old_cell_length(3, 1)+vol_dis .LE. (3.0E0_dp/angstrom)**3) &
+          old_cell_length(3, 1) + vol_dis .LE. (3.0E0_dp/angstrom)**3) &
          CPABORT('GE_volume moves are trying to make box 1 smaller than 3')
       IF (old_cell_length(1, 2)*old_cell_length(2, 2)* &
-          old_cell_length(3, 2)+vol_dis .LE. (3.0E0_dp/angstrom)**3) &
+          old_cell_length(3, 2) + vol_dis .LE. (3.0E0_dp/angstrom)**3) &
          CPABORT('GE_volume moves are trying to make box 2 smaller than 3')
 
       DO iside = 1, 3
-         new_cell_length(iside, 1) = (old_cell_length(1, 1)**3+ &
+         new_cell_length(iside, 1) = (old_cell_length(1, 1)**3 + &
                                       vol_dis)**(1.0E0_dp/3.0E0_dp)
-         new_cell_length(iside, 2) = (old_cell_length(1, 2)**3- &
+         new_cell_length(iside, 2) = (old_cell_length(1, 2)**3 - &
                                       vol_dis)**(1.0E0_dp/3.0E0_dp)
       ENDDO
 
@@ -1281,16 +1281,16 @@ CONTAINS
 ! center of mass
          start_atom = 1
          molecule_index = 1
-         DO jbox = 1, ibox-1
+         DO jbox = 1, ibox - 1
             IF (jbox == ibox) EXIT
-            molecule_index = molecule_index+SUM(nchains(:, jbox))
+            molecule_index = molecule_index + SUM(nchains(:, jbox))
          ENDDO
          DO imolecule = 1, SUM(nchains(:, ibox))
-            molecule_type = mol_type(imolecule+molecule_index-1)
+            molecule_type = mol_type(imolecule + molecule_index - 1)
             IF (imolecule .NE. 1) THEN
-               start_atom = start_atom+nunits(mol_type(imolecule+molecule_index-2))
+               start_atom = start_atom + nunits(mol_type(imolecule + molecule_index - 2))
             ENDIF
-            end_atom = start_atom+nunits(molecule_type)-1
+            end_atom = start_atom + nunits(molecule_type) - 1
 
 ! now find the center of mass
             CALL get_center_of_mass(r(:, start_atom:end_atom, ibox), &
@@ -1301,11 +1301,11 @@ CONTAINS
             center_of_mass_new(1:3) = center_of_mass(1:3)* &
                                       new_cell_length(1:3, ibox)/old_cell_length(1:3, ibox)
             DO j = 1, 3
-               diff(j) = center_of_mass_new(j)-center_of_mass(j)
+               diff(j) = center_of_mass_new(j) - center_of_mass(j)
 ! now change the particle positions
                DO jatom = start_atom, end_atom
                   particles_old(ibox)%list%els(jatom)%r(j) = &
-                     particles_old(ibox)%list%els(jatom)%r(j)+diff(j)
+                     particles_old(ibox)%list%els(jatom)%r(j) + diff(j)
                ENDDO
 
             ENDDO
@@ -1313,10 +1313,10 @@ CONTAINS
 
 ! check for any overlaps we might have
          start_mol = 1
-         DO jbox = 1, ibox-1
-            start_mol = start_mol+SUM(nchains(:, jbox))
+         DO jbox = 1, ibox - 1
+            start_mol = start_mol + SUM(nchains(:, jbox))
          ENDDO
-         end_mol = start_mol+SUM(nchains(:, ibox))-1
+         end_mol = start_mol + SUM(nchains(:, ibox)) - 1
          CALL check_for_overlap(force_env(ibox)%force_env, &
                                 nchains(:, ibox), nunits, loverlap(ibox), mol_type(start_mol:end_mol), &
                                 cell_length=new_cell_length(:, ibox))
@@ -1354,8 +1354,8 @@ CONTAINS
          w = 0.0E0_dp
       ELSE
          w = prefactor*EXP(-BETA* &
-                           (new_energy(1)+new_energy(2)- &
-                            old_energy(1)-old_energy(2)))
+                           (new_energy(1) + new_energy(2) - &
+                            old_energy(1) - old_energy(2)))
 
       ENDIF
 
@@ -1383,13 +1383,13 @@ CONTAINS
          DO ibox = 1, 2
 ! accept the move
             moves(1, ibox)%moves%volume%successes = &
-               moves(1, ibox)%moves%volume%successes+1
+               moves(1, ibox)%moves%volume%successes + 1
             move_updates(1, ibox)%moves%volume%successes = &
-               move_updates(1, ibox)%moves%volume%successes+1
+               move_updates(1, ibox)%moves%volume%successes + 1
 
 ! update energies
-            energy_check(ibox) = energy_check(ibox)+(new_energy(ibox)- &
-                                                     old_energy(ibox))
+            energy_check(ibox) = energy_check(ibox) + (new_energy(ibox) - &
+                                                       old_energy(ibox))
             old_energy(ibox) = new_energy(ibox)
 
 ! and the new "old" coordiantes

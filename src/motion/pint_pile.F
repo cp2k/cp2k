@@ -95,7 +95,7 @@ CONTAINS
          ex = -dti2*pile_therm%g_fric(i)
          pile_therm%c1(i) = EXP(ex)
          ex = pile_therm%c1(i)*pile_therm%c1(i)
-         pile_therm%c2(i) = SQRT(1.0_dp-ex)
+         pile_therm%c2(i) = SQRT(1.0_dp - ex)
       END DO
       DO j = 1, pint_env%ndim
          DO i = 1, pint_env%p
@@ -149,15 +149,15 @@ CONTAINS
       delta_ekin = 0.0_dp
       DO idim = 1, ndim
          DO ibead = first_mode, p
-            vnew(ibead, idim) = pile_therm%c1(ibead)*vold(ibead, idim)+ &
+            vnew(ibead, idim) = pile_therm%c1(ibead)*vold(ibead, idim) + &
                                 pile_therm%massfact(ibead, idim)*pile_therm%c2(ibead)* &
                                 next_random_number(pile_therm%gaussian_rng_stream)
-            delta_ekin = delta_ekin+masses(ibead, idim)*( &
-                         vnew(ibead, idim)*vnew(ibead, idim)- &
+            delta_ekin = delta_ekin + masses(ibead, idim)*( &
+                         vnew(ibead, idim)*vnew(ibead, idim) - &
                          vold(ibead, idim)*vold(ibead, idim))
          END DO
       END DO
-      pile_therm%thermostat_energy = pile_therm%thermostat_energy-0.5_dp*delta_ekin
+      pile_therm%thermostat_energy = pile_therm%thermostat_energy - 0.5_dp*delta_ekin
 
       CALL timestop(handle)
    END SUBROUTINE pint_pile_step
@@ -179,7 +179,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       IF (ASSOCIATED(pile_therm)) THEN
-         pile_therm%ref_count = pile_therm%ref_count-1
+         pile_therm%ref_count = pile_therm%ref_count - 1
          IF (pile_therm%ref_count == 0) THEN
             DEALLOCATE (pile_therm%c1)
             DEALLOCATE (pile_therm%c2)

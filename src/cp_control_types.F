@@ -582,7 +582,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(mulliken_restraint_control))
       CPASSERT(mulliken_restraint_control%ref_count > 0)
-      mulliken_restraint_control%ref_count = mulliken_restraint_control%ref_count-1
+      mulliken_restraint_control%ref_count = mulliken_restraint_control%ref_count - 1
       IF (mulliken_restraint_control%ref_count == 0) THEN
          IF (ASSOCIATED(mulliken_restraint_control%atoms)) &
             DEALLOCATE (mulliken_restraint_control%atoms)
@@ -608,7 +608,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(mulliken_restraint_control))
 
-      mulliken_restraint_control%ref_count = mulliken_restraint_control%ref_count+1
+      mulliken_restraint_control%ref_count = mulliken_restraint_control%ref_count + 1
    END SUBROUTINE mulliken_control_retain
 
 ! **************************************************************************************************
@@ -652,7 +652,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(ddapc_restraint_control))
       CPASSERT(ddapc_restraint_control%ref_count > 0)
-      ddapc_restraint_control%ref_count = ddapc_restraint_control%ref_count-1
+      ddapc_restraint_control%ref_count = ddapc_restraint_control%ref_count - 1
       IF (ddapc_restraint_control%ref_count == 0) THEN
          IF (ASSOCIATED(ddapc_restraint_control%atoms)) &
             DEALLOCATE (ddapc_restraint_control%atoms)
@@ -680,7 +680,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(ddapc_restraint_control))
 
-      ddapc_restraint_control%ref_count = ddapc_restraint_control%ref_count+1
+      ddapc_restraint_control%ref_count = ddapc_restraint_control%ref_count + 1
    END SUBROUTINE ddapc_control_retain
 
 ! **************************************************************************************************
@@ -719,7 +719,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(s2_restraint_control))
       CPASSERT(s2_restraint_control%ref_count > 0)
-      s2_restraint_control%ref_count = s2_restraint_control%ref_count-1
+      s2_restraint_control%ref_count = s2_restraint_control%ref_count - 1
       IF (s2_restraint_control%ref_count == 0) THEN
          s2_restraint_control%ref_count = 0
          s2_restraint_control%strength = 0.0_dp
@@ -741,7 +741,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CPASSERT(ASSOCIATED(s2_restraint_control))
-      s2_restraint_control%ref_count = s2_restraint_control%ref_count+1
+      s2_restraint_control%ref_count = s2_restraint_control%ref_count + 1
    END SUBROUTINE s2_control_retain
 
 ! **************************************************************************************************
@@ -760,7 +760,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(dft_control))
       ALLOCATE (dft_control)
       dft_control%ref_count = 1
-      last_dft_control_id = last_dft_control_id+1
+      last_dft_control_id = last_dft_control_id + 1
       dft_control%id_nr = last_dft_control_id
       NULLIFY (dft_control%xas_control)
       NULLIFY (dft_control%xas_tdp_control)
@@ -794,7 +794,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(dft_control))
       CPASSERT(dft_control%ref_count > 0)
-      dft_control%ref_count = dft_control%ref_count+1
+      dft_control%ref_count = dft_control%ref_count + 1
    END SUBROUTINE dft_control_retain
 
 ! **************************************************************************************************
@@ -812,7 +812,7 @@ CONTAINS
 
       IF (ASSOCIATED(dft_control)) THEN
          CPASSERT(dft_control%ref_count > 0)
-         dft_control%ref_count = dft_control%ref_count-1
+         dft_control%ref_count = dft_control%ref_count - 1
          IF (dft_control%ref_count == 0) THEN
             CALL qs_control_release(dft_control%qs_control)
             CALL tddfpt_control_release(dft_control%tddfpt_control)
@@ -1223,7 +1223,7 @@ CONTAINS
 
       IF (ASSOCIATED(sccs_control)) THEN
          CPASSERT(sccs_control%ref_count > 0)
-         sccs_control%ref_count = sccs_control%ref_count-1
+         sccs_control%ref_count = sccs_control%ref_count - 1
          IF (sccs_control%ref_count == 0) THEN
             DEALLOCATE (sccs_control)
          END IF

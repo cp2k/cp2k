@@ -323,8 +323,8 @@ CONTAINS
       nspins = dft_control%nspins
       itegrated_jrho = 0.0_dp
       !
-      idir2_1 = MODULO(idir, 3)+1
-      idir3_1 = MODULO(idir+1, 3)+1
+      idir2_1 = MODULO(idir, 3) + 1
+      idir3_1 = MODULO(idir + 1, 3) + 1
       scale_fac_1 = fac_vecp(idir3_1, idir2_1, idir)
       !
       ALLOCATE (cs_loc_tmp(3, natom_tot), list_j(natom_tot), &
@@ -358,7 +358,7 @@ CONTAINS
          DO ia = 1, na
             DO ir = 1, nr
                r_grid(:, ira) = grid_atom%rad(ir)*harmonics%a(:, ia)
-               ira = ira+1
+               ira = ira + 1
             ENDDO
          ENDDO
          !
@@ -377,9 +377,9 @@ CONTAINS
                natom_local = 0
                DO jatom = 1, natom_tot
                   rij(:) = pbc(particle_set(iatom)%r, particle_set(jatom)%r, cell)
-                  dist = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+                  dist = SQRT(rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3))
                   IF (dist .LE. shift_gapw_radius) THEN
-                     natom_local = natom_local+1
+                     natom_local = natom_local + 1
                      list_j(natom_local) = jatom
                      dist_ij(:, natom_local) = rij(:)
                   ENDIF
@@ -391,9 +391,9 @@ CONTAINS
                   DO jatom = 1, n_nics
                      r_jatom(:) = r_nics(:, jatom)
                      rij(:) = pbc(particle_set(iatom)%r, r_jatom, cell)
-                     dist = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+                     dist = SQRT(rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3))
                      IF (dist .LE. shift_gapw_radius) THEN
-                        nnics_local = nnics_local+1
+                        nnics_local = nnics_local + 1
                         list_nics_j(nnics_local) = jatom
                         dist_nics_ij(:, nnics_local) = rij(:)
                      ENDIF
@@ -413,9 +413,9 @@ CONTAINS
                   ira = 1
                   DO ia = 1, na
                      DO ir = 1, nr
-                        j_grid(ira) = (jrho_h_grid(ir, ia)-jrho_s_grid(ir, ia))*grid_atom%weight(ia, ir)
-                        itegrated_jrho = itegrated_jrho+j_grid(ira)
-                        ira = ira+1
+                        j_grid(ira) = (jrho_h_grid(ir, ia) - jrho_s_grid(ir, ia))*grid_atom%weight(ia, ir)
+                        itegrated_jrho = itegrated_jrho + j_grid(ira)
+                        ira = ira + 1
                      ENDDO
                   ENDDO
                   !
@@ -427,16 +427,16 @@ CONTAINS
                      s_2 = 0.0_dp
                      DO ira = 1, nra
                         !
-                        rdiff(:) = rij(:)-r_grid(:, ira)
-                        ddiff = SQRT(rdiff(1)*rdiff(1)+rdiff(2)*rdiff(2)+rdiff(3)*rdiff(3))
+                        rdiff(:) = rij(:) - r_grid(:, ira)
+                        ddiff = SQRT(rdiff(1)*rdiff(1) + rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3))
                         IF (ddiff .GT. 1.0E-12_dp) THEN
                            dum = scale_fac_1*j_grid(ira)/(ddiff*ddiff*ddiff)
-                           s_1 = s_1+rdiff(idir2_1)*dum
-                           s_2 = s_2+rdiff(idir3_1)*dum
+                           s_1 = s_1 + rdiff(idir2_1)*dum
+                           s_2 = s_2 + rdiff(idir3_1)*dum
                         ENDIF ! ddiff
                      ENDDO ! ira
-                     cs_loc_tmp(idir3_1, jatom) = cs_loc_tmp(idir3_1, jatom)+s_1
-                     cs_loc_tmp(idir2_1, jatom) = cs_loc_tmp(idir2_1, jatom)-s_2
+                     cs_loc_tmp(idir3_1, jatom) = cs_loc_tmp(idir3_1, jatom) + s_1
+                     cs_loc_tmp(idir2_1, jatom) = cs_loc_tmp(idir2_1, jatom) - s_2
                   ENDDO ! j
                   !
                   IF (do_nics) THEN
@@ -448,16 +448,16 @@ CONTAINS
                         s_2 = 0.0_dp
                         DO ira = 1, nra
                            !
-                           rdiff(:) = rij(:)-r_grid(:, ira)
-                           ddiff = SQRT(rdiff(1)*rdiff(1)+rdiff(2)*rdiff(2)+rdiff(3)*rdiff(3))
+                           rdiff(:) = rij(:) - r_grid(:, ira)
+                           ddiff = SQRT(rdiff(1)*rdiff(1) + rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3))
                            IF (ddiff .GT. 1.0E-12_dp) THEN
                               dum = scale_fac_1*j_grid(ira)/(ddiff*ddiff*ddiff)
-                              s_1 = s_1+rdiff(idir2_1)*dum
-                              s_2 = s_2+rdiff(idir3_1)*dum
+                              s_1 = s_1 + rdiff(idir2_1)*dum
+                              s_2 = s_2 + rdiff(idir3_1)*dum
                            ENDIF ! ddiff
                         ENDDO ! ira
-                        cs_nics_loc_tmp(idir3_1, jatom) = cs_nics_loc_tmp(idir3_1, jatom)+s_1
-                        cs_nics_loc_tmp(idir2_1, jatom) = cs_nics_loc_tmp(idir2_1, jatom)-s_2
+                        cs_nics_loc_tmp(idir3_1, jatom) = cs_nics_loc_tmp(idir3_1, jatom) + s_1
+                        cs_nics_loc_tmp(idir2_1, jatom) = cs_nics_loc_tmp(idir2_1, jatom) - s_2
                      ENDDO ! j
                   ENDIF ! do_nics
                ENDDO ! ispin
@@ -470,19 +470,19 @@ CONTAINS
       CALL mp_sum(itegrated_jrho, para_env%group)
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A,E24.16)') 'Integrated local j_'&
-              &//ACHAR(idir+119)//ACHAR(iB+119)//'(r)=', itegrated_jrho
+              &//ACHAR(idir + 119)//ACHAR(iB + 119)//'(r)=', itegrated_jrho
       ENDIF
       !
       CALL mp_sum(cs_loc_tmp, para_env%group)
       chemical_shift_loc(:, iB, :) = chemical_shift_loc(:, iB, :) &
-           & -nmr_env%shift_factor_gapw*cs_loc_tmp(:, :)/2.0_dp
+           & - nmr_env%shift_factor_gapw*cs_loc_tmp(:, :)/2.0_dp
       !
       DEALLOCATE (cs_loc_tmp, list_j, dist_ij)
       !
       IF (do_nics) THEN
          CALL mp_sum(cs_nics_loc_tmp, para_env%group)
          chemical_shift_nics_loc(:, iB, :) = chemical_shift_nics_loc(:, iB, :) &
-              & -nmr_env%shift_factor_gapw*cs_nics_loc_tmp(:, :)/2.0_dp
+              & - nmr_env%shift_factor_gapw*cs_nics_loc_tmp(:, :)/2.0_dp
          !
          DEALLOCATE (cs_nics_loc_tmp, list_nics_j, dist_nics_ij)
       ENDIF
@@ -581,7 +581,7 @@ CONTAINS
          iatom = cs_atom_list(iat)
          R_iatom = pbc(particle_set(iatom)%r, cell)
          shift_val = Eval_Interp_Spl3_pbc(R_iatom, shiftspl%pw)
-         chemical_shift(idir, i_B, iatom) = chemical_shift(idir, i_B, iatom)+ &
+         chemical_shift(idir, i_B, iatom) = chemical_shift(idir, i_B, iatom) + &
                                             nmr_env%shift_factor*twopi**2*shift_val
       END DO
 
@@ -590,7 +590,7 @@ CONTAINS
             ra(:) = r_nics(:, iatom)
             R_iatom = pbc(ra, cell)
             shift_val = Eval_Interp_Spl3_pbc(R_iatom, shiftspl%pw)
-            chemical_shift_nics(idir, i_B, iatom) = chemical_shift_nics(idir, i_B, iatom)+ &
+            chemical_shift_nics(idir, i_B, iatom) = chemical_shift_nics(idir, i_B, iatom) + &
                                                     nmr_env%shift_factor*twopi**2*shift_val
          END DO
       END IF
@@ -654,7 +654,7 @@ CONTAINS
          iatom = cs_atom_list(iat)
          R_iatom = pbc(particle_set(iatom)%r, cell)
          CALL gsumr(R_iatom, shift_pw_gspace%pw, cplx)
-         chemical_shift(idir, i_B, iatom) = chemical_shift(idir, i_B, iatom)+ &
+         chemical_shift(idir, i_B, iatom) = chemical_shift(idir, i_B, iatom) + &
                                             nmr_env%shift_factor*twopi**2*REAL(cplx, dp)
       ENDDO
       !
@@ -663,7 +663,7 @@ CONTAINS
          DO iat = 1, n_nics
             ra = pbc(r_nics(:, iat), cell)
             CALL gsumr(ra, shift_pw_gspace%pw, cplx)
-            chemical_shift_nics(idir, i_B, iat) = chemical_shift_nics(idir, i_B, iat)+ &
+            chemical_shift_nics(idir, i_B, iat) = chemical_shift_nics(idir, i_B, iat) + &
                                                   nmr_env%shift_factor*twopi**2*REAL(cplx, dp)
          ENDDO
       ENDIF
@@ -690,10 +690,10 @@ CONTAINS
       grid => pw%pw_grid
       cplx = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       DO ig = grid%first_gne0, grid%ngpts_cut_local
-         rg = (grid%g(1, ig)*r(1)+grid%g(2, ig)*r(2)+grid%g(3, ig)*r(3))*gaussi
-         cplx = cplx+pw%cc(ig)*EXP(rg)
+         rg = (grid%g(1, ig)*r(1) + grid%g(2, ig)*r(2) + grid%g(3, ig)*r(3))*gaussi
+         cplx = cplx + pw%cc(ig)*EXP(rg)
       ENDDO
-      IF (grid%have_g0) cplx = cplx+pw%cc(1)
+      IF (grid%have_g0) cplx = cplx + pw%cc(1)
       CALL mp_sum(cplx, grid%para%group)
    END SUBROUTINE gsumr
 
@@ -759,7 +759,7 @@ CONTAINS
       ! multiply by the appropriate factor
       chi_tensor_tmp(:, :) = 0.0_dp
       chi_tensor_loc_tmp(:, :) = 0.0_dp
-      chi_tensor_tmp(:, :) = (chi_tensor(:, :, 1)+chi_tensor(:, :, 2))*nmr_env%chi_factor
+      chi_tensor_tmp(:, :) = (chi_tensor(:, :, 1) + chi_tensor(:, :, 2))*nmr_env%chi_factor
       !chi_tensor_loc_tmp(:,:) = (chi_tensor_loc(:,:,1) + chi_tensor_loc(:,:,2)) * here there is another factor
       !
       CALL get_qs_env(qs_env=qs_env, &
@@ -776,15 +776,15 @@ CONTAINS
       ENDIF
       ! Finalize Chi calculation
       ! Symmetrize
-      chi_sym_tot(:, :) = (chi_tensor_tmp(:, :)+TRANSPOSE(chi_tensor_tmp(:, :)))/2.0_dp
+      chi_sym_tot(:, :) = (chi_tensor_tmp(:, :) + TRANSPOSE(chi_tensor_tmp(:, :)))/2.0_dp
       IF (gapw) THEN
          chi_sym_tot(:, :) = chi_sym_tot(:, :) &
-              & +(chi_tensor_loc_tmp(:, :)+TRANSPOSE(chi_tensor_loc_tmp(:, :)))/2.0_dp
+              & + (chi_tensor_loc_tmp(:, :) + TRANSPOSE(chi_tensor_loc_tmp(:, :)))/2.0_dp
       ENDIF
       chi_tmp(:, :) = chi_sym_tot(:, :)
       CALL diamat_all(chi_tmp, eig)
-      chi_iso = (eig(1)+eig(2)+eig(3))/3.0_dp
-      chi_aniso = eig(3)-(eig(2)+eig(1))/2.0_dp
+      chi_iso = (eig(1) + eig(2) + eig(3))/3.0_dp
+      chi_aniso = eig(3) - (eig(2) + eig(1))/2.0_dp
       !
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A,E14.6)') 'CheckSum Chi =', &
@@ -863,8 +863,8 @@ CONTAINS
          rpos(1:3) = particle_set(iatom)%r(1:3)
          atom_kind => particle_set(iatom)%atomic_kind
          CALL get_atomic_kind(atom_kind, name=name, element_symbol=element_symbol)
-         cs_tot(:, :, ir) = chi_tensor_tmp(:, :)*nmr_env%chi_SI2shiftppm+cs(:, :, iatom)
-         IF (gapw) cs_tot(:, :, ir) = cs_tot(:, :, ir)+cs_loc(:, :, iatom)
+         cs_tot(:, :, ir) = chi_tensor_tmp(:, :)*nmr_env%chi_SI2shiftppm + cs(:, :, iatom)
+         IF (gapw) cs_tot(:, :, ir) = cs_tot(:, :, ir) + cs_loc(:, :, iatom)
       ENDDO ! ir
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A,E14.6)') 'CheckSum Shifts =', &
@@ -888,10 +888,10 @@ CONTAINS
                rpos(1:3) = particle_set(iatom)%r(1:3)
                atom_kind => particle_set(iatom)%atomic_kind
                CALL get_atomic_kind(atom_kind, name=name, element_symbol=element_symbol)
-               shift_sym_tot(:, :) = 0.5_dp*(cs_tot(:, :, ir)+TRANSPOSE(cs_tot(:, :, ir)))
+               shift_sym_tot(:, :) = 0.5_dp*(cs_tot(:, :, ir) + TRANSPOSE(cs_tot(:, :, ir)))
                CALL diamat_all(shift_sym_tot, eig)
-               shift_iso = (eig(1)+eig(2)+eig(3))/3.0_dp
-               shift_aniso = eig(3)-(eig(2)+eig(1))/2.0_dp
+               shift_iso = (eig(1) + eig(2) + eig(3))/3.0_dp
+               shift_aniso = eig(3) - (eig(2) + eig(1))/2.0_dp
                !
                WRITE (unit_atoms, '(T2,I5,A,2X,A2,2X,3f15.6)') iatom, TRIM(name), element_symbol, rpos(1:3)
                !
@@ -939,8 +939,8 @@ CONTAINS
             ! Add the chi part to the nics
             cs_nics_tot(:, :, :) = 0.0_dp
             DO ir = 1, n_nics
-               cs_nics_tot(:, :, ir) = chi_tensor_tmp(:, :)*nmr_env%chi_SI2shiftppm+cs_nics(:, :, ir)
-               IF (gapw) cs_nics_tot(:, :, ir) = cs_nics_tot(:, :, ir)+cs_nics_loc(:, :, ir)
+               cs_nics_tot(:, :, ir) = chi_tensor_tmp(:, :)*nmr_env%chi_SI2shiftppm + cs_nics(:, :, ir)
+               IF (gapw) cs_nics_tot(:, :, ir) = cs_nics_tot(:, :, ir) + cs_nics_loc(:, :, ir)
             ENDDO ! ir
             IF (output_unit > 0) THEN
                WRITE (output_unit, '(T2,A,E14.6)') 'CheckSum NICS =', &
@@ -954,10 +954,10 @@ CONTAINS
                WRITE (title, '(A,1X,I5)') "Shielding at nics positions. # tensors printed ", n_nics
                WRITE (unit_nics, '(T2,A)') title
                DO ir = 1, n_nics
-                  shift_sym_tot(:, :) = 0.5_dp*(cs_nics_tot(:, :, ir)+TRANSPOSE(cs_nics_tot(:, :, ir)))
+                  shift_sym_tot(:, :) = 0.5_dp*(cs_nics_tot(:, :, ir) + TRANSPOSE(cs_nics_tot(:, :, ir)))
                   CALL diamat_all(shift_sym_tot, eig)
-                  shift_iso = (eig(1)+eig(2)+eig(3))/3.0_dp
-                  shift_aniso = eig(3)-(eig(2)+eig(1))/2.0_dp
+                  shift_iso = (eig(1) + eig(2) + eig(3))/3.0_dp
+                  shift_aniso = eig(3) - (eig(2) + eig(1))/2.0_dp
                   !
                   WRITE (unit_nics, '(T2,I5,2X,3f15.6)') ir, r_nics(1:3, ir)
                   !

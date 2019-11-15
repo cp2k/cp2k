@@ -164,7 +164,7 @@ CONTAINS
       ifield(ii) = 0
       CALL parser_get_next_line(parser, 1)
       DO WHILE (INDEX(parser%input_line, "_atom_site_") /= 0)
-         ii = ii+1
+         ii = ii + 1
          CPASSERT(ii <= 20)
 
          ifield(ii) = -1
@@ -181,7 +181,7 @@ CONTAINS
       ! Parse real info
       natom = 0
       DO WHILE ((INDEX(parser%input_line, "loop_") == 0) .AND. (parser%input_line(1:1) /= "_"))
-         natom = natom+1
+         natom = natom + 1
          ! Resize in case needed
          IF (natom > SIZE(atom_info%id_molname)) THEN
             newsize = INT(pfactor*natom)
@@ -199,7 +199,7 @@ CONTAINS
          ii = 1
          itype = 0
          DO WHILE (ANY(ifield(ii:) > 0))
-            SELECT CASE (ifield (ii))
+            SELECT CASE (ifield(ii))
             CASE (-1)
                ! Skip this field
                CALL parser_get_object(parser, s_tag)
@@ -220,7 +220,7 @@ CONTAINS
                ! Never reach this point..
                CPABORT("")
             END SELECT
-            ii = ii+1
+            ii = ii + 1
          END DO
          s = atom_info%r(1:3, natom)
          CALL scaled_to_real(atom_info%r(1:3, natom), s, cell)
@@ -231,9 +231,9 @@ CONTAINS
       ! check since they should be REALLY unique.. anyway..
       DO ii = 1, natom
          r1 = atom_info%r(1:3, ii)
-         DO jj = ii+1, natom
+         DO jj = ii + 1, natom
             r2 = atom_info%r(1:3, jj)
-            r = pbc(r1-r2, cell)
+            r = pbc(r1 - r2, cell)
             ! check = (SQRT(DOT_PRODUCT(r, r)) >= threshold)
             check = (DOT_PRODUCT(r, r) >= (threshold*threshold))
             CPASSERT(check)
@@ -267,25 +267,25 @@ CONTAINS
          isym = 0
          natom_orig = natom
          DO WHILE ((INDEX(parser%input_line, "loop_") == 0) .AND. (parser%input_line(1:1) /= "_"))
-            isym = isym+1
+            isym = isym + 1
             ! find seprator ' or "
             sep = "'"
             IF (INDEX(parser%input_line(1:), '"') > 0) sep = '"'
             iln0 = INDEX(parser%input_line(1:), sep)
-            iln1 = INDEX(parser%input_line(iln0+1:), ",")+iln0
-            iln2 = INDEX(parser%input_line(iln1+1:), ",")+iln1
+            iln1 = INDEX(parser%input_line(iln0 + 1:), ",") + iln0
+            iln2 = INDEX(parser%input_line(iln1 + 1:), ",") + iln1
             IF (iln0 == 0) THEN
-               iln3 = LEN_TRIM(parser%input_line)+1
+               iln3 = LEN_TRIM(parser%input_line) + 1
             ELSE
-               iln3 = INDEX(parser%input_line(iln2+1:), sep)+iln2
+               iln3 = INDEX(parser%input_line(iln2 + 1:), sep) + iln2
             END IF
             CPASSERT(iln1 /= 0)
             CPASSERT(iln2 /= iln1)
             CPASSERT(iln3 /= iln2)
             CALL initf(3)
-            CALL parsef(1, TRIM(parser%input_line(iln0+1:iln1-1)), s2a("x", "y", "z"))
-            CALL parsef(2, TRIM(parser%input_line(iln1+1:iln2-1)), s2a("x", "y", "z"))
-            CALL parsef(3, TRIM(parser%input_line(iln2+1:iln3-1)), s2a("x", "y", "z"))
+            CALL parsef(1, TRIM(parser%input_line(iln0 + 1:iln1 - 1)), s2a("x", "y", "z"))
+            CALL parsef(2, TRIM(parser%input_line(iln1 + 1:iln2 - 1)), s2a("x", "y", "z"))
+            CALL parsef(3, TRIM(parser%input_line(iln2 + 1:iln3 - 1)), s2a("x", "y", "z"))
             Loop_over_unique_atoms: DO ii = 1, natom_orig
                CALL real_to_scaled(s_tmp, atom_info%r(1:3, ii), cell)
                s(1) = evalf(1, (/s_tmp(1), s_tmp(2), s_tmp(3)/))
@@ -295,7 +295,7 @@ CONTAINS
                check = .TRUE.
                DO jj = 1, natom
                   r2 = atom_info%r(1:3, jj)
-                  r = pbc(r1-r2, cell)
+                  r = pbc(r1 - r2, cell)
                   ! SQRT(DOT_PRODUCT(r, r)) <= threshold
                   IF (DOT_PRODUCT(r, r) <= (threshold*threshold)) THEN
                      check = .FALSE.
@@ -304,7 +304,7 @@ CONTAINS
                END DO
                ! If the atom generated is unique let's add to the atom set..
                IF (check) THEN
-                  natom = natom+1
+                  natom = natom + 1
                   ! Resize in case needed
                   IF (natom > SIZE(atom_info%id_molname)) THEN
                      newsize = INT(pfactor*natom)
@@ -378,7 +378,7 @@ CONTAINS
 
       CALL parser_get_object(parser, s_tag)
       iln = LEN_TRIM(s_tag)
-      IF (INDEX(s_tag, "(") /= 0) iln = INDEX(s_tag, "(")-1
+      IF (INDEX(s_tag, "(") /= 0) iln = INDEX(s_tag, "(") - 1
       READ (s_tag(1:iln), *) r
    END SUBROUTINE cif_get_real
 

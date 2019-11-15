@@ -92,7 +92,7 @@ CONTAINS
       DO ilayer = 1, nlayers
       DO i = 1, width
       DO j = 1, width
-         forward(ilayer, i) = forward(ilayer, i)+A(ilayer, i, j)*TANH(forward(ilayer-1, j))
+         forward(ilayer, i) = forward(ilayer, i) + A(ilayer, i, j)*TANH(forward(ilayer - 1, j))
       ENDDO
       ENDDO
       ENDDO
@@ -104,7 +104,7 @@ CONTAINS
       DO ilayer = nlayers, 1, -1
       DO i = 1, width
       DO j = 1, width
-         backward(ilayer-1, j) = backward(ilayer-1, j)+backward(ilayer, i)*A(ilayer, i, j)*(1.0_dp-TANH(forward(ilayer-1, j))**2)
+  backward(ilayer - 1, j) = backward(ilayer - 1, j) + backward(ilayer, i)*A(ilayer, i, j)*(1.0_dp - TANH(forward(ilayer - 1, j))**2)
       ENDDO
       ENDDO
       ENDDO
@@ -154,7 +154,7 @@ CONTAINS
          DO ilayer = 1, nlayers
          DO i = 1, width
          DO j = 1, width
-            training_matrix%NN(ilayer, i, j) = -1.0_dp+2.0_dp*next_random_number(rng_stream)
+            training_matrix%NN(ilayer, i, j) = -1.0_dp + 2.0_dp*next_random_number(rng_stream)
          ENDDO
          ENDDO
          ENDDO
@@ -172,7 +172,7 @@ CONTAINS
                                      gradient=gradient, &
                                      error=error)
             ENDDO
-            training_matrix%NN(:, :, :) = training_matrix%NN-step_size*gradient
+            training_matrix%NN(:, :, :) = training_matrix%NN - step_size*gradient
 
             IF (pao%iw > 0 .AND. MOD(icycle, 100) == 0) WRITE (pao%iw, *) &
                "PAO|ML| ", TRIM(training_matrix%kindname), &
@@ -199,20 +199,20 @@ CONTAINS
             DO j = 1, width
                bak = training_matrix%NN(ilayer, i, j)
 
-               training_matrix%NN(ilayer, i, j) = bak+eps
+               training_matrix%NN(ilayer, i, j) = bak + eps
                CALL nn_eval(training_matrix%NN, &
                             input=training_matrix%inputs(:, ipoint), &
                             prediction=prediction)
-               error1 = SUM((training_matrix%outputs(:, ipoint)-prediction)**2)
+               error1 = SUM((training_matrix%outputs(:, ipoint) - prediction)**2)
 
-               training_matrix%NN(ilayer, i, j) = bak-eps
+               training_matrix%NN(ilayer, i, j) = bak - eps
                CALL nn_eval(training_matrix%NN, &
                             input=training_matrix%inputs(:, ipoint), &
                             prediction=prediction)
-               error2 = SUM((training_matrix%outputs(:, ipoint)-prediction)**2)
+               error2 = SUM((training_matrix%outputs(:, ipoint) - prediction)**2)
 
                training_matrix%NN(ilayer, i, j) = bak
-               num_grad = (error1-error2)/(2.0_dp*eps)
+               num_grad = (error1 - error2)/(2.0_dp*eps)
                IF (pao%iw > 0) WRITE (pao%iw, *) "PAO|ML| Numeric gradient:", i, j, gradient(ilayer, i, j), num_grad
 
             ENDDO
@@ -229,7 +229,7 @@ CONTAINS
             CALL nn_eval(training_matrix%NN, &
                          input=training_matrix%inputs(:, ipoint), &
                          prediction=prediction)
-            error = MAXVAL(ABS(training_matrix%outputs(:, ipoint)-prediction))
+            error = MAXVAL(ABS(training_matrix%outputs(:, ipoint) - prediction))
             IF (pao%iw > 0) WRITE (pao%iw, *) "PAO|ML| ", TRIM(training_matrix%kindname), &
                " verify training-point:", ipoint, "SQRT(error):", SQRT(error)
          ENDDO
@@ -267,7 +267,7 @@ CONTAINS
       DO ilayer = 1, nlayers
       DO i = 1, width
       DO j = 1, width
-         forward(ilayer, i) = forward(ilayer, i)+A(ilayer, i, j)*TANH(forward(ilayer-1, j))
+         forward(ilayer, i) = forward(ilayer, i) + A(ilayer, i, j)*TANH(forward(ilayer - 1, j))
       ENDDO
       ENDDO
       ENDDO
@@ -308,24 +308,24 @@ CONTAINS
       DO ilayer = 1, nlayers
       DO i = 1, width
       DO j = 1, width
-         forward(ilayer, i) = forward(ilayer, i)+A(ilayer, i, j)*TANH(forward(ilayer-1, j))
+         forward(ilayer, i) = forward(ilayer, i) + A(ilayer, i, j)*TANH(forward(ilayer - 1, j))
       ENDDO
       ENDDO
       ENDDO
 
       prediction(:) = forward(nlayers, 1:width_out)
 
-      error = error+SUM((prediction-goal)**2)
+      error = error + SUM((prediction - goal)**2)
 
       ! Turning Point ------------------------------------------------------------------------------
       backward = 0.0_dp
-      backward(nlayers, 1:width_out) = prediction-goal
+      backward(nlayers, 1:width_out) = prediction - goal
 
       DO ilayer = nlayers, 1, -1
       DO i = 1, width
       DO j = 1, width
-         gradient(ilayer, i, j) = gradient(ilayer, i, j)+2.0_dp*backward(ilayer, i)*TANH(forward(ilayer-1, j))
-         backward(ilayer-1, j) = backward(ilayer-1, j)+backward(ilayer, i)*A(ilayer, i, j)*(1.0_dp-TANH(forward(ilayer-1, j))**2)
+         gradient(ilayer, i, j) = gradient(ilayer, i, j) + 2.0_dp*backward(ilayer, i)*TANH(forward(ilayer - 1, j))
+  backward(ilayer - 1, j) = backward(ilayer - 1, j) + backward(ilayer, i)*A(ilayer, i, j)*(1.0_dp - TANH(forward(ilayer - 1, j))**2)
       ENDDO
       ENDDO
       ENDDO

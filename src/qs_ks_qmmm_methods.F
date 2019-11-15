@@ -113,7 +113,7 @@ CONTAINS
       ks_qmmm_env%pc_ener = 0.0_dp
       ks_qmmm_env%n_evals = 0
       ks_qmmm_env%ref_count = 1
-      last_ks_qmmm_nr = last_ks_qmmm_nr+1
+      last_ks_qmmm_nr = last_ks_qmmm_nr + 1
       ks_qmmm_env%id_nr = last_ks_qmmm_nr
 
       CALL pw_pool_create_pw(auxbas_pw_pool, ks_qmmm_env%v_qmmm_rspace%pw, &
@@ -182,13 +182,13 @@ CONTAINS
 
       qmmm_energy = 0.0_dp
       DO ispin = 1, dft_control%nspins
-         qmmm_energy = qmmm_energy+pw_integral_ab(rho(ispin)%pw, v_qmmm%pw)
+         qmmm_energy = qmmm_energy + pw_integral_ab(rho(ispin)%pw, v_qmmm%pw)
       END DO
       IF (dft_control%qs_control%gapw) THEN
          CALL get_qs_env(qs_env=qs_env, &
                          rho0_s_rs=rho0_s_rs)
          CPASSERT(ASSOCIATED(rho0_s_rs))
-         qmmm_energy = qmmm_energy+pw_integral_ab(rho0_s_rs%pw, v_qmmm%pw)
+         qmmm_energy = qmmm_energy + pw_integral_ab(rho0_s_rs%pw, v_qmmm%pw)
       END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, input, &

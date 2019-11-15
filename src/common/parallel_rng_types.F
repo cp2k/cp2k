@@ -273,34 +273,34 @@ CONTAINS
          CALL write_rng_stream(g3, output_unit)
       END IF
 
-      sum = next_random_number(g2)+next_random_number(g3)
+      sum = next_random_number(g2) + next_random_number(g3)
 
       CALL advance_rng_state(g1, 5, 3)
-      sum = sum+next_random_number(g1)
+      sum = sum + next_random_number(g1)
 
       CALL reset_rng_stream(g1)
       DO i = 1, 35
          CALL advance_rng_state(g1, 0, 1)
       END DO
-      sum = sum+next_random_number(g1)
+      sum = sum + next_random_number(g1)
 
       CALL reset_rng_stream(g1)
 
       sumi = 0
       DO i = 1, 35
-         sumi = sumi+next_random_number(g1, 1, 10)
+         sumi = sumi + next_random_number(g1, 1, 10)
       END DO
-      sum = sum+sumi/100.0_dp
+      sum = sum + sumi/100.0_dp
 
       sum3 = 0.0_dp
       DO i = 1, 100
-         sum3 = sum3+next_random_number(g3)
+         sum3 = sum3 + next_random_number(g3)
       END DO
-      sum = sum+sum3/10.0_dp
+      sum = sum + sum3/10.0_dp
 
       CALL reset_rng_stream(g3)
       DO i = 1, 5
-         sum = sum+next_random_number(g3)
+         sum = sum + next_random_number(g3)
       END DO
 
       CALL reset_rng_stream(g3)
@@ -308,27 +308,27 @@ CONTAINS
          CALL reset_to_next_rng_substream(g3)
       END DO
       DO i = 1, 5
-         sum = sum+next_random_number(g3)
+         sum = sum + next_random_number(g3)
       END DO
 
       CALL reset_rng_substream(g3)
       DO i = 1, 5
-         sum = sum+next_random_number(g3)
+         sum = sum + next_random_number(g3)
       END DO
 
       CALL reset_to_next_rng_substream(g2)
       sum3 = 0.0_dp
       DO i = 1, 100000
-         sum3 = sum3+next_random_number(g2)
+         sum3 = sum3 + next_random_number(g2)
       END DO
-      sum = sum+sum3/10000.0_dp
+      sum = sum + sum3/10000.0_dp
 
       CALL set_rng_stream(g3, antithetic=.TRUE.)
       sum3 = 0.0_dp
       DO i = 1, 100000
-         sum3 = sum3+next_random_number(g3)
+         sum3 = sum3 + next_random_number(g3)
       END DO
-      sum = sum+sum3/10000.0_dp
+      sum = sum + sum3/10000.0_dp
 
       IF (ionode) THEN
          WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
@@ -371,34 +371,34 @@ CONTAINS
          CALL write_rng_stream(cantor, output_unit)
       END IF
 
-      sum = sum+next_random_number(poisson)+ &
-            next_random_number(laplace)+ &
-            next_random_number(galois)+ &
+      sum = sum + next_random_number(poisson) + &
+            next_random_number(laplace) + &
+            next_random_number(galois) + &
             next_random_number(cantor)
 
       CALL advance_rng_state(galois, -127, 0)
-      sum = sum+next_random_number(galois)
+      sum = sum + next_random_number(galois)
 
       CALL reset_to_next_rng_substream(galois)
       CALL set_rng_stream(galois, extended_precision=.TRUE.)
       sum3 = 0.0_dp
       DO i = 1, 100000
-         sum3 = sum3+next_random_number(galois)
+         sum3 = sum3 + next_random_number(galois)
       END DO
-      sum = sum+sum3/10000.0_dp
+      sum = sum + sum3/10000.0_dp
 
       CALL set_rng_stream(galois, antithetic=.TRUE.)
       sum3 = 0.0_dp
       DO i = 1, 100000
-         sum3 = sum3+next_random_number(galois)
+         sum3 = sum3 + next_random_number(galois)
       END DO
-      sum = sum+sum3/10000.0_dp
+      sum = sum + sum3/10000.0_dp
       CALL set_rng_stream(galois, antithetic=.FALSE.)
 
       CALL set_rng_stream(galois, extended_precision=.FALSE.)
-      sum = sum+next_random_number(poisson)+ &
-            next_random_number(laplace)+ &
-            next_random_number(galois)+ &
+      sum = sum + next_random_number(poisson) + &
+            next_random_number(laplace) + &
+            next_random_number(galois) + &
             next_random_number(cantor)
 
       IF (ionode) THEN
@@ -937,18 +937,18 @@ CONTAINS
          DO j = 1, 3
             a2 = a(i, j)
             c = v(i)
-            v(i) = a2*s(j)+c
+            v(i) = a2*s(j) + c
             IF ((v(i) >= two53) .OR. (v(i) <= -two53)) THEN
                a1 = INT(a2/two17)
-               a2 = a2-a1*two17
+               a2 = a2 - a1*two17
                v(i) = a1*s(j)
                a1 = INT(v(i)/m)
-               v(i) = v(i)-a1*m
-               v(i) = v(i)*two17+a2*s(j)+c
+               v(i) = v(i) - a1*m
+               v(i) = v(i)*two17 + a2*s(j) + c
             END IF
             a1 = INT(v(i)/m)
-            v(i) = v(i)-a1*m
-            IF (v(i) < 0.0_dp) v(i) = v(i)+m
+            v(i) = v(i) - a1*m
+            IF (v(i) < 0.0_dp) v(i) = v(i) + m
          END DO
       END DO
 
@@ -981,7 +981,7 @@ CONTAINS
       CPASSERT(rng_stream%distribution_type == UNIFORM)
 
       r = next_real_random_number(rng_stream)
-      u = low+INT(r*REAL(high-low+1, dp))
+      u = low + INT(r*REAL(high - low + 1, dp))
 
    END FUNCTION next_integer_random_number
 
@@ -1020,13 +1020,13 @@ CONTAINS
          ELSE
             DO
                IF (rng_stream%extended_precision) THEN
-                  u1 = 2.0_dp*rn53(rng_stream)-1.0_dp
-                  u2 = 2.0_dp*rn53(rng_stream)-1.0_dp
+                  u1 = 2.0_dp*rn53(rng_stream) - 1.0_dp
+                  u2 = 2.0_dp*rn53(rng_stream) - 1.0_dp
                ELSE
-                  u1 = 2.0_dp*rn32(rng_stream)-1.0_dp
-                  u2 = 2.0_dp*rn32(rng_stream)-1.0_dp
+                  u1 = 2.0_dp*rn32(rng_stream) - 1.0_dp
+                  u2 = 2.0_dp*rn32(rng_stream) - 1.0_dp
                END IF
-               r = u1*u1+u2*u2
+               r = u1*u1 + u2*u2
                IF ((r > 0.0_dp) .AND. (r < 1.0_dp)) EXIT
             END DO
             ! Box-Muller transformation
@@ -1279,20 +1279,20 @@ CONTAINS
 ! -------------------------------------------------------------------------
 ! Component 1
 
-      p1 = a12*rng_stream%cg(2, 1)-a13n*rng_stream%cg(1, 1)
+      p1 = a12*rng_stream%cg(2, 1) - a13n*rng_stream%cg(1, 1)
       k = INT(p1/m1)
-      p1 = p1-k*m1
-      IF (p1 < 0.0_dp) p1 = p1+m1
+      p1 = p1 - k*m1
+      IF (p1 < 0.0_dp) p1 = p1 + m1
       rng_stream%cg(1, 1) = rng_stream%cg(2, 1)
       rng_stream%cg(2, 1) = rng_stream%cg(3, 1)
       rng_stream%cg(3, 1) = p1
 
       ! Component 2
 
-      p2 = a21*rng_stream%cg(3, 2)-a23n*rng_stream%cg(1, 2)
+      p2 = a21*rng_stream%cg(3, 2) - a23n*rng_stream%cg(1, 2)
       k = INT(p2/m2)
-      p2 = p2-k*m2
-      IF (p2 < 0.0_dp) p2 = p2+m2
+      p2 = p2 - k*m2
+      IF (p2 < 0.0_dp) p2 = p2 + m2
       rng_stream%cg(1, 2) = rng_stream%cg(2, 2)
       rng_stream%cg(2, 2) = rng_stream%cg(3, 2)
       rng_stream%cg(3, 2) = p2
@@ -1300,12 +1300,12 @@ CONTAINS
       ! Combination
 
       IF (p1 > p2) THEN
-         u = (p1-p2)*norm
+         u = (p1 - p2)*norm
       ELSE
-         u = (p1-p2+m1)*norm
+         u = (p1 - p2 + m1)*norm
       END IF
 
-      IF (rng_stream%antithetic) u = 1.0_dp-u
+      IF (rng_stream%antithetic) u = 1.0_dp - u
 
    END FUNCTION rn32
 
@@ -1328,11 +1328,11 @@ CONTAINS
       ! Note: rn32 returns 1 - u in the antithetic case
 
       IF (rng_stream%antithetic) THEN
-         u = u+(rn32(rng_stream)-1.0_dp)*fact
-         IF (u < 0.0_dp) u = u+1.0_dp
+         u = u + (rn32(rng_stream) - 1.0_dp)*fact
+         IF (u < 0.0_dp) u = u + 1.0_dp
       ELSE
-         u = u+rn32(rng_stream)*fact
-         IF (u >= 1.0_dp) u = u-1.0_dp
+         u = u + rn32(rng_stream)*fact
+         IF (u >= 1.0_dp) u = u - 1.0_dp
       END IF
 
    END FUNCTION rn53

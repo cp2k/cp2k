@@ -137,14 +137,14 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat
       REAL(KIND=dp), DIMENSION(3)                        :: abc
 
-      abc(1) = SQRT(cell_hmat(1, 1)*cell_hmat(1, 1)+ &
-                    cell_hmat(2, 1)*cell_hmat(2, 1)+ &
+      abc(1) = SQRT(cell_hmat(1, 1)*cell_hmat(1, 1) + &
+                    cell_hmat(2, 1)*cell_hmat(2, 1) + &
                     cell_hmat(3, 1)*cell_hmat(3, 1))
-      abc(2) = SQRT(cell_hmat(1, 2)*cell_hmat(1, 2)+ &
-                    cell_hmat(2, 2)*cell_hmat(2, 2)+ &
+      abc(2) = SQRT(cell_hmat(1, 2)*cell_hmat(1, 2) + &
+                    cell_hmat(2, 2)*cell_hmat(2, 2) + &
                     cell_hmat(3, 2)*cell_hmat(3, 2))
-      abc(3) = SQRT(cell_hmat(1, 3)*cell_hmat(1, 3)+ &
-                    cell_hmat(2, 3)*cell_hmat(2, 3)+ &
+      abc(3) = SQRT(cell_hmat(1, 3)*cell_hmat(1, 3) + &
+                    cell_hmat(2, 3)*cell_hmat(2, 3) + &
                     cell_hmat(3, 3)*cell_hmat(3, 3))
    END FUNCTION get_cell_lengths
 
@@ -208,11 +208,11 @@ CONTAINS
 
 ! big grid bounds
       grid_b%bounds(1, :) = -grid_b%npts/2
-      grid_b%bounds(2, :) = +(grid_b%npts-1)/2
+      grid_b%bounds(2, :) = +(grid_b%npts - 1)/2
       grid_b%grid_span = HALFSPACE
 ! small grid bounds
       grid_s%bounds(1, :) = -nout(:)/2
-      grid_s%bounds(2, :) = (+nout(:)-1)/2
+      grid_s%bounds(2, :) = (+nout(:) - 1)/2
       grid_s%grid_span = HALFSPACE
       grid_s%npts = nout
 
@@ -381,7 +381,7 @@ CONTAINS
 
 ! compute the scaled coordinate of atomi
       s = MATMUL(cell_h_inv, r)
-      s = s-NINT(s)
+      s = s - NINT(s)
 
 ! find the continuous ``grid'' point (on big grid)
       grid_i(1:3) = REAL(npts_b(1:3), KIND=dp)*s(1:3)
@@ -390,11 +390,11 @@ CONTAINS
       centre(:) = NINT(grid_i(:))
 
 ! find the distance vector
-      delta(:) = (grid_i(:)-centre(:))/REAL(npts_s(:), KIND=dp)
+      delta(:) = (grid_i(:) - centre(:))/REAL(npts_s(:), KIND=dp)
 
-      centre(:) = centre(:)+npts_b(:)/2
+      centre(:) = centre(:) + npts_b(:)/2
       centre(:) = MODULO(centre(:), npts_b(:))
-      centre(:) = centre(:)-npts_b(:)/2
+      centre(:) = centre(:) - npts_b(:)/2
 
    END SUBROUTINE dg_get_delta
 
@@ -417,42 +417,42 @@ CONTAINS
       folded = .FALSE.
 
       DO i = rhos%pw%pw_grid%bounds(1, 1), rhos%pw%pw_grid%bounds(2, 1)
-         ia = i-rhos%pw%pw_grid%bounds(1, 1)+1
-         ii = center(1)+i-rs%lb_local(1)
+         ia = i - rhos%pw%pw_grid%bounds(1, 1) + 1
+         ii = center(1) + i - rs%lb_local(1)
          IF (ii < 0) THEN
-            rs%px(ia) = ii+rs%npts_local(1)+1
+            rs%px(ia) = ii + rs%npts_local(1) + 1
             folded = .TRUE.
          ELSEIF (ii >= rs%npts_local(1)) THEN
-            rs%px(ia) = ii-rs%npts_local(1)+1
+            rs%px(ia) = ii - rs%npts_local(1) + 1
             folded = .TRUE.
          ELSE
-            rs%px(ia) = ii+1
+            rs%px(ia) = ii + 1
          ENDIF
       END DO
       DO i = rhos%pw%pw_grid%bounds(1, 2), rhos%pw%pw_grid%bounds(2, 2)
-         ia = i-rhos%pw%pw_grid%bounds(1, 2)+1
-         ii = center(2)+i-rs%lb_local(2)
+         ia = i - rhos%pw%pw_grid%bounds(1, 2) + 1
+         ii = center(2) + i - rs%lb_local(2)
          IF (ii < 0) THEN
-            rs%py(ia) = ii+rs%npts_local(2)+1
+            rs%py(ia) = ii + rs%npts_local(2) + 1
             folded = .TRUE.
          ELSEIF (ii >= rs%npts_local(2)) THEN
-            rs%py(ia) = ii-rs%npts_local(2)+1
+            rs%py(ia) = ii - rs%npts_local(2) + 1
             folded = .TRUE.
          ELSE
-            rs%py(ia) = ii+1
+            rs%py(ia) = ii + 1
          ENDIF
       END DO
       DO i = rhos%pw%pw_grid%bounds(1, 3), rhos%pw%pw_grid%bounds(2, 3)
-         ia = i-rhos%pw%pw_grid%bounds(1, 3)+1
-         ii = center(3)+i-rs%lb_local(3)
+         ia = i - rhos%pw%pw_grid%bounds(1, 3) + 1
+         ii = center(3) + i - rs%lb_local(3)
          IF (ii < 0) THEN
-            rs%pz(ia) = ii+rs%npts_local(3)+1
+            rs%pz(ia) = ii + rs%npts_local(3) + 1
             folded = .TRUE.
          ELSEIF (ii >= rs%npts_local(3)) THEN
-            rs%pz(ia) = ii-rs%npts_local(3)+1
+            rs%pz(ia) = ii - rs%npts_local(3) + 1
             folded = .TRUE.
          ELSE
-            rs%pz(ia) = ii+1
+            rs%pz(ia) = ii + 1
          ENDIF
       END DO
 
@@ -460,9 +460,9 @@ CONTAINS
          CALL dg_add_patch(rs%r, rhos%pw%cr3d, rhos%pw%pw_grid%npts, &
                            rs%px, rs%py, rs%pz)
       ELSE
-         nc(1) = rs%px(1)-1
-         nc(2) = rs%py(1)-1
-         nc(3) = rs%pz(1)-1
+         nc(1) = rs%px(1) - 1
+         nc(2) = rs%py(1) - 1
+         nc(3) = rs%pz(1) - 1
          CALL dg_add_patch(rs%r, rhos%pw%cr3d, rhos%pw%pw_grid%npts, nc)
       END IF
 
@@ -487,56 +487,56 @@ CONTAINS
       ns(1) = SIZE(rhos, 1)
       ns(2) = SIZE(rhos, 2)
       ns(3) = SIZE(rhos, 3)
-      lb = -(ns-1)/2
-      ub = lb+ns-1
+      lb = -(ns - 1)/2
+      ub = lb + ns - 1
       folded = .FALSE.
 
       DO i = lb(1), ub(1)
-         ia = i-lb(1)+1
-         ii = center(1)+i-rs%lb_local(1)
+         ia = i - lb(1) + 1
+         ii = center(1) + i - rs%lb_local(1)
          IF (ii < 0) THEN
-            rs%px(ia) = ii+rs%npts_local(1)+1
+            rs%px(ia) = ii + rs%npts_local(1) + 1
             folded = .TRUE.
          ELSEIF (ii >= rs%npts_local(1)) THEN
-            rs%px(ia) = ii-rs%npts_local(1)+1
+            rs%px(ia) = ii - rs%npts_local(1) + 1
             folded = .TRUE.
          ELSE
-            rs%px(ia) = ii+1
+            rs%px(ia) = ii + 1
          ENDIF
       END DO
       DO i = lb(2), ub(2)
-         ia = i-lb(2)+1
-         ii = center(2)+i-rs%lb_local(2)
+         ia = i - lb(2) + 1
+         ii = center(2) + i - rs%lb_local(2)
          IF (ii < 0) THEN
-            rs%py(ia) = ii+rs%npts_local(2)+1
+            rs%py(ia) = ii + rs%npts_local(2) + 1
             folded = .TRUE.
          ELSEIF (ii >= rs%npts_local(2)) THEN
-            rs%py(ia) = ii-rs%npts_local(2)+1
+            rs%py(ia) = ii - rs%npts_local(2) + 1
             folded = .TRUE.
          ELSE
-            rs%py(ia) = ii+1
+            rs%py(ia) = ii + 1
          ENDIF
       END DO
       DO i = lb(3), ub(3)
-         ia = i-lb(3)+1
-         ii = center(3)+i-rs%lb_local(3)
+         ia = i - lb(3) + 1
+         ii = center(3) + i - rs%lb_local(3)
          IF (ii < 0) THEN
-            rs%pz(ia) = ii+rs%npts_local(3)+1
+            rs%pz(ia) = ii + rs%npts_local(3) + 1
             folded = .TRUE.
          ELSEIF (ii >= rs%npts_local(3)) THEN
-            rs%pz(ia) = ii-rs%npts_local(3)+1
+            rs%pz(ia) = ii - rs%npts_local(3) + 1
             folded = .TRUE.
          ELSE
-            rs%pz(ia) = ii+1
+            rs%pz(ia) = ii + 1
          ENDIF
       END DO
 
       IF (folded) THEN
          CALL dg_add_patch(rs%r, rhos, ns, rs%px, rs%py, rs%pz)
       ELSE
-         nc(1) = rs%px(1)-1
-         nc(2) = rs%py(1)-1
-         nc(3) = rs%pz(1)-1
+         nc(1) = rs%px(1) - 1
+         nc(2) = rs%py(1) - 1
+         nc(3) = rs%pz(1) - 1
          CALL dg_add_patch(rs%r, rhos, ns, nc)
       END IF
 
@@ -563,47 +563,47 @@ CONTAINS
       ns(1) = SIZE(rhos, 1)
       ns(2) = SIZE(rhos, 2)
       ns(3) = SIZE(rhos, 3)
-      lb = -(ns-1)/2
-      ub = lb+ns-1
+      lb = -(ns - 1)/2
+      ub = lb + ns - 1
       folded = .FALSE.
 
       DO i = lb(1), ub(1)
-         ia = i-lb(1)+1
-         ii = center(1)+i-drpot(1)%rs_grid%lb_local(1)
+         ia = i - lb(1) + 1
+         ii = center(1) + i - drpot(1)%rs_grid%lb_local(1)
          IF (ii < 0) THEN
-            drpot(1)%rs_grid%px(ia) = ii+drpot(1)%rs_grid%npts_local(1)+1
+            drpot(1)%rs_grid%px(ia) = ii + drpot(1)%rs_grid%npts_local(1) + 1
             folded = .TRUE.
          ELSEIF (ii >= drpot(1)%rs_grid%npts_local(1)) THEN
-            drpot(1)%rs_grid%px(ia) = ii-drpot(1)%rs_grid%npts_local(1)+1
+            drpot(1)%rs_grid%px(ia) = ii - drpot(1)%rs_grid%npts_local(1) + 1
             folded = .TRUE.
          ELSE
-            drpot(1)%rs_grid%px(ia) = ii+1
+            drpot(1)%rs_grid%px(ia) = ii + 1
          ENDIF
       END DO
       DO i = lb(2), ub(2)
-         ia = i-lb(2)+1
-         ii = center(2)+i-drpot(1)%rs_grid%lb_local(2)
+         ia = i - lb(2) + 1
+         ii = center(2) + i - drpot(1)%rs_grid%lb_local(2)
          IF (ii < 0) THEN
-            drpot(1)%rs_grid%py(ia) = ii+drpot(1)%rs_grid%npts_local(2)+1
+            drpot(1)%rs_grid%py(ia) = ii + drpot(1)%rs_grid%npts_local(2) + 1
             folded = .TRUE.
          ELSEIF (ii >= drpot(1)%rs_grid%npts_local(2)) THEN
-            drpot(1)%rs_grid%py(ia) = ii-drpot(1)%rs_grid%npts_local(2)+1
+            drpot(1)%rs_grid%py(ia) = ii - drpot(1)%rs_grid%npts_local(2) + 1
             folded = .TRUE.
          ELSE
-            drpot(1)%rs_grid%py(ia) = ii+1
+            drpot(1)%rs_grid%py(ia) = ii + 1
          ENDIF
       END DO
       DO i = lb(3), ub(3)
-         ia = i-lb(3)+1
-         ii = center(3)+i-drpot(1)%rs_grid%lb_local(3)
+         ia = i - lb(3) + 1
+         ii = center(3) + i - drpot(1)%rs_grid%lb_local(3)
          IF (ii < 0) THEN
-            drpot(1)%rs_grid%pz(ia) = ii+drpot(1)%rs_grid%npts_local(3)+1
+            drpot(1)%rs_grid%pz(ia) = ii + drpot(1)%rs_grid%npts_local(3) + 1
             folded = .TRUE.
          ELSEIF (ii >= drpot(1)%rs_grid%npts_local(3)) THEN
-            drpot(1)%rs_grid%pz(ia) = ii-drpot(1)%rs_grid%npts_local(3)+1
+            drpot(1)%rs_grid%pz(ia) = ii - drpot(1)%rs_grid%npts_local(3) + 1
             folded = .TRUE.
          ELSE
-            drpot(1)%rs_grid%pz(ia) = ii+1
+            drpot(1)%rs_grid%pz(ia) = ii + 1
          ENDIF
       END DO
 
@@ -612,9 +612,9 @@ CONTAINS
                               drpot(3)%rs_grid%r, rhos, force, ns, &
                               drpot(1)%rs_grid%px, drpot(1)%rs_grid%py, drpot(1)%rs_grid%pz)
       ELSE
-         nc(1) = drpot(1)%rs_grid%px(1)-1
-         nc(2) = drpot(1)%rs_grid%py(1)-1
-         nc(3) = drpot(1)%rs_grid%pz(1)-1
+         nc(1) = drpot(1)%rs_grid%px(1) - 1
+         nc(2) = drpot(1)%rs_grid%py(1) - 1
+         nc(3) = drpot(1)%rs_grid%pz(1) - 1
          CALL dg_int_patch_3d(drpot(1)%rs_grid%r, drpot(2)%rs_grid%r, &
                               drpot(3)%rs_grid%r, rhos, force, ns, nc)
       END IF
@@ -642,47 +642,47 @@ CONTAINS
       ns(1) = SIZE(rhos, 1)
       ns(2) = SIZE(rhos, 2)
       ns(3) = SIZE(rhos, 3)
-      lb = -(ns-1)/2
-      ub = lb+ns-1
+      lb = -(ns - 1)/2
+      ub = lb + ns - 1
       folded = .FALSE.
 
       DO i = lb(1), ub(1)
-         ia = i-lb(1)+1
-         ii = center(1)+i-drpot%lb_local(1)
+         ia = i - lb(1) + 1
+         ii = center(1) + i - drpot%lb_local(1)
          IF (ii < 0) THEN
-            drpot%px(ia) = ii+drpot%npts_local(1)+1
+            drpot%px(ia) = ii + drpot%npts_local(1) + 1
             folded = .TRUE.
          ELSEIF (ii >= drpot%desc%npts(1)) THEN
-            drpot%px(ia) = ii-drpot%npts_local(1)+1
+            drpot%px(ia) = ii - drpot%npts_local(1) + 1
             folded = .TRUE.
          ELSE
-            drpot%px(ia) = ii+1
+            drpot%px(ia) = ii + 1
          ENDIF
       END DO
       DO i = lb(2), ub(2)
-         ia = i-lb(2)+1
-         ii = center(2)+i-drpot%lb_local(2)
+         ia = i - lb(2) + 1
+         ii = center(2) + i - drpot%lb_local(2)
          IF (ii < 0) THEN
-            drpot%py(ia) = ii+drpot%npts_local(2)+1
+            drpot%py(ia) = ii + drpot%npts_local(2) + 1
             folded = .TRUE.
          ELSEIF (ii >= drpot%desc%npts(2)) THEN
-            drpot%py(ia) = ii-drpot%npts_local(2)+1
+            drpot%py(ia) = ii - drpot%npts_local(2) + 1
             folded = .TRUE.
          ELSE
-            drpot%py(ia) = ii+1
+            drpot%py(ia) = ii + 1
          ENDIF
       END DO
       DO i = lb(3), ub(3)
-         ia = i-lb(3)+1
-         ii = center(3)+i-drpot%lb_local(3)
+         ia = i - lb(3) + 1
+         ii = center(3) + i - drpot%lb_local(3)
          IF (ii < 0) THEN
-            drpot%pz(ia) = ii+drpot%npts_local(3)+1
+            drpot%pz(ia) = ii + drpot%npts_local(3) + 1
             folded = .TRUE.
          ELSEIF (ii >= drpot%desc%npts(3)) THEN
-            drpot%pz(ia) = ii-drpot%npts_local(3)+1
+            drpot%pz(ia) = ii - drpot%npts_local(3) + 1
             folded = .TRUE.
          ELSE
-            drpot%pz(ia) = ii+1
+            drpot%pz(ia) = ii + 1
          ENDIF
       END DO
 
@@ -690,9 +690,9 @@ CONTAINS
          CALL dg_int_patch_1d(drpot%r, rhos, force, ns, &
                               drpot%px, drpot%py, drpot%pz)
       ELSE
-         nc(1) = drpot%px(1)-1
-         nc(2) = drpot%py(1)-1
-         nc(3) = drpot%pz(1)-1
+         nc(1) = drpot%px(1) - 1
+         nc(2) = drpot%py(1) - 1
+         nc(3) = drpot%pz(1) - 1
          CALL dg_int_patch_1d(drpot%r, rhos, force, ns, nc)
       END IF
 
@@ -719,42 +719,42 @@ CONTAINS
       folded = .FALSE.
 
       DO i = rhos%pw%pw_grid%bounds(1, 1), rhos%pw%pw_grid%bounds(2, 1)
-         ia = i-rhos%pw%pw_grid%bounds(1, 1)+1
-         ii = center(1)+i-drpot(1)%rs_grid%lb_local(1)
+         ia = i - rhos%pw%pw_grid%bounds(1, 1) + 1
+         ii = center(1) + i - drpot(1)%rs_grid%lb_local(1)
          IF (ii < 0) THEN
-            drpot(1)%rs_grid%px(ia) = ii+drpot(1)%rs_grid%desc%npts(1)+1
+            drpot(1)%rs_grid%px(ia) = ii + drpot(1)%rs_grid%desc%npts(1) + 1
             folded = .TRUE.
          ELSEIF (ii >= drpot(1)%rs_grid%desc%npts(1)) THEN
-            drpot(1)%rs_grid%px(ia) = ii-drpot(1)%rs_grid%desc%npts(1)+1
+            drpot(1)%rs_grid%px(ia) = ii - drpot(1)%rs_grid%desc%npts(1) + 1
             folded = .TRUE.
          ELSE
-            drpot(1)%rs_grid%px(ia) = ii+1
+            drpot(1)%rs_grid%px(ia) = ii + 1
          ENDIF
       END DO
       DO i = rhos%pw%pw_grid%bounds(1, 2), rhos%pw%pw_grid%bounds(2, 2)
-         ia = i-rhos%pw%pw_grid%bounds(1, 2)+1
-         ii = center(2)+i-drpot(1)%rs_grid%lb_local(2)
+         ia = i - rhos%pw%pw_grid%bounds(1, 2) + 1
+         ii = center(2) + i - drpot(1)%rs_grid%lb_local(2)
          IF (ii < 0) THEN
-            drpot(1)%rs_grid%py(ia) = ii+drpot(1)%rs_grid%desc%npts(2)+1
+            drpot(1)%rs_grid%py(ia) = ii + drpot(1)%rs_grid%desc%npts(2) + 1
             folded = .TRUE.
          ELSEIF (ii >= drpot(1)%rs_grid%desc%npts(2)) THEN
-            drpot(1)%rs_grid%py(ia) = ii-drpot(1)%rs_grid%desc%npts(2)+1
+            drpot(1)%rs_grid%py(ia) = ii - drpot(1)%rs_grid%desc%npts(2) + 1
             folded = .TRUE.
          ELSE
-            drpot(1)%rs_grid%py(ia) = ii+1
+            drpot(1)%rs_grid%py(ia) = ii + 1
          ENDIF
       END DO
       DO i = rhos%pw%pw_grid%bounds(1, 3), rhos%pw%pw_grid%bounds(2, 3)
-         ia = i-rhos%pw%pw_grid%bounds(1, 3)+1
-         ii = center(3)+i-drpot(1)%rs_grid%lb_local(3)
+         ia = i - rhos%pw%pw_grid%bounds(1, 3) + 1
+         ii = center(3) + i - drpot(1)%rs_grid%lb_local(3)
          IF (ii < 0) THEN
-            drpot(1)%rs_grid%pz(ia) = ii+drpot(1)%rs_grid%desc%npts(3)+1
+            drpot(1)%rs_grid%pz(ia) = ii + drpot(1)%rs_grid%desc%npts(3) + 1
             folded = .TRUE.
          ELSEIF (ii >= drpot(1)%rs_grid%desc%npts(3)) THEN
-            drpot(1)%rs_grid%pz(ia) = ii-drpot(1)%rs_grid%desc%npts(3)+1
+            drpot(1)%rs_grid%pz(ia) = ii - drpot(1)%rs_grid%desc%npts(3) + 1
             folded = .TRUE.
          ELSE
-            drpot(1)%rs_grid%pz(ia) = ii+1
+            drpot(1)%rs_grid%pz(ia) = ii + 1
          ENDIF
       END DO
 
@@ -763,9 +763,9 @@ CONTAINS
                               drpot(3)%rs_grid%r, rhos%pw%cr3d, force, rhos%pw%pw_grid%npts, &
                               drpot(1)%rs_grid%px, drpot(1)%rs_grid%py, drpot(1)%rs_grid%pz)
       ELSE
-         nc(1) = drpot(1)%rs_grid%px(1)-1
-         nc(2) = drpot(1)%rs_grid%py(1)-1
-         nc(3) = drpot(1)%rs_grid%pz(1)-1
+         nc(1) = drpot(1)%rs_grid%px(1) - 1
+         nc(2) = drpot(1)%rs_grid%py(1) - 1
+         nc(3) = drpot(1)%rs_grid%pz(1) - 1
          CALL dg_int_patch_3d(drpot(1)%rs_grid%r, drpot(2)%rs_grid%r, &
                               drpot(3)%rs_grid%r, rhos%pw%cr3d, force, rhos%pw%pw_grid%npts, nc)
       END IF
@@ -793,42 +793,42 @@ CONTAINS
       folded = .FALSE.
 
       DO i = rhos%pw%pw_grid%bounds(1, 1), rhos%pw%pw_grid%bounds(2, 1)
-         ia = i-rhos%pw%pw_grid%bounds(1, 1)+1
-         ii = center(1)+i-drpot%lb_local(1)
+         ia = i - rhos%pw%pw_grid%bounds(1, 1) + 1
+         ii = center(1) + i - drpot%lb_local(1)
          IF (ii < 0) THEN
-            drpot%px(ia) = ii+drpot%desc%npts(1)+1
+            drpot%px(ia) = ii + drpot%desc%npts(1) + 1
             folded = .TRUE.
          ELSEIF (ii >= drpot%desc%npts(1)) THEN
-            drpot%px(ia) = ii-drpot%desc%npts(1)+1
+            drpot%px(ia) = ii - drpot%desc%npts(1) + 1
             folded = .TRUE.
          ELSE
-            drpot%px(ia) = ii+1
+            drpot%px(ia) = ii + 1
          ENDIF
       END DO
       DO i = rhos%pw%pw_grid%bounds(1, 2), rhos%pw%pw_grid%bounds(2, 2)
-         ia = i-rhos%pw%pw_grid%bounds(1, 2)+1
-         ii = center(2)+i-drpot%lb_local(2)
+         ia = i - rhos%pw%pw_grid%bounds(1, 2) + 1
+         ii = center(2) + i - drpot%lb_local(2)
          IF (ii < 0) THEN
-            drpot%py(ia) = ii+drpot%desc%npts(2)+1
+            drpot%py(ia) = ii + drpot%desc%npts(2) + 1
             folded = .TRUE.
          ELSEIF (ii >= drpot%desc%npts(2)) THEN
-            drpot%py(ia) = ii-drpot%desc%npts(2)+1
+            drpot%py(ia) = ii - drpot%desc%npts(2) + 1
             folded = .TRUE.
          ELSE
-            drpot%py(ia) = ii+1
+            drpot%py(ia) = ii + 1
          ENDIF
       END DO
       DO i = rhos%pw%pw_grid%bounds(1, 3), rhos%pw%pw_grid%bounds(2, 3)
-         ia = i-rhos%pw%pw_grid%bounds(1, 3)+1
-         ii = center(3)+i-drpot%lb_local(3)
+         ia = i - rhos%pw%pw_grid%bounds(1, 3) + 1
+         ii = center(3) + i - drpot%lb_local(3)
          IF (ii < 0) THEN
-            drpot%pz(ia) = ii+drpot%desc%npts(3)+1
+            drpot%pz(ia) = ii + drpot%desc%npts(3) + 1
             folded = .TRUE.
          ELSEIF (ii >= drpot%desc%npts(3)) THEN
-            drpot%pz(ia) = ii-drpot%desc%npts(3)+1
+            drpot%pz(ia) = ii - drpot%desc%npts(3) + 1
             folded = .TRUE.
          ELSE
-            drpot%pz(ia) = ii+1
+            drpot%pz(ia) = ii + 1
          ENDIF
       END DO
 
@@ -836,9 +836,9 @@ CONTAINS
          CALL dg_int_patch_1d(drpot%r, rhos%pw%cr3d, force, &
                               rhos%pw%pw_grid%npts, drpot%px, drpot%py, drpot%pz)
       ELSE
-         nc(1) = drpot%px(1)-1
-         nc(2) = drpot%py(1)-1
-         nc(3) = drpot%pz(1)-1
+         nc(1) = drpot%px(1) - 1
+         nc(2) = drpot%py(1) - 1
+         nc(3) = drpot%pz(1) - 1
          CALL dg_int_patch_1d(drpot%r, rhos%pw%cr3d, force, rhos%pw%pw_grid%npts, nc)
       END IF
 
@@ -961,12 +961,12 @@ CONTAINS
       INTEGER                                            :: i, ii, j, jj, k, kk
 
       DO k = 1, ns(3)
-         kk = nc(3)+k
+         kk = nc(3) + k
          DO j = 1, ns(2)
-            jj = nc(2)+j
+            jj = nc(2) + j
             DO i = 1, ns(1)
-               ii = nc(1)+i
-               rb(ii, jj, kk) = rb(ii, jj, kk)+rs(i, j, k)
+               ii = nc(1) + i
+               rb(ii, jj, kk) = rb(ii, jj, kk) + rs(i, j, k)
             END DO
          END DO
       END DO
@@ -997,7 +997,7 @@ CONTAINS
             jj = py(j)
             DO i = 1, ns(1)
                ii = px(i)
-               rb(ii, jj, kk) = rb(ii, jj, kk)+rs(i, j, k)
+               rb(ii, jj, kk) = rb(ii, jj, kk) + rs(i, j, k)
             END DO
          END DO
       END DO
@@ -1025,15 +1025,15 @@ CONTAINS
 
       f = 0.0_dp
       DO k = 1, ns(3)
-         kk = nc(3)+k
+         kk = nc(3) + k
          DO j = 1, ns(2)
-            jj = nc(2)+j
+            jj = nc(2) + j
             DO i = 1, ns(1)
-               ii = nc(1)+i
+               ii = nc(1) + i
                s = rs(i, j, k)
-               f(1) = f(1)+s*rbx(ii, jj, kk)
-               f(2) = f(2)+s*rby(ii, jj, kk)
-               f(3) = f(3)+s*rbz(ii, jj, kk)
+               f(1) = f(1) + s*rbx(ii, jj, kk)
+               f(2) = f(2) + s*rby(ii, jj, kk)
+               f(3) = f(3) + s*rbz(ii, jj, kk)
             END DO
          END DO
       END DO
@@ -1059,13 +1059,13 @@ CONTAINS
 
       f = 0.0_dp
       DO k = 1, ns(3)
-         kk = nc(3)+k
+         kk = nc(3) + k
          DO j = 1, ns(2)
-            jj = nc(2)+j
+            jj = nc(2) + j
             DO i = 1, ns(1)
-               ii = nc(1)+i
+               ii = nc(1) + i
                s = rs(i, j, k)
-               f = f+s*rb(ii, jj, kk)
+               f = f + s*rb(ii, jj, kk)
             END DO
          END DO
       END DO
@@ -1102,9 +1102,9 @@ CONTAINS
             DO i = 1, ns(1)
                ii = px(i)
                s = rs(i, j, k)
-               f(1) = f(1)+s*rbx(ii, jj, kk)
-               f(2) = f(2)+s*rby(ii, jj, kk)
-               f(3) = f(3)+s*rbz(ii, jj, kk)
+               f(1) = f(1) + s*rbx(ii, jj, kk)
+               f(2) = f(2) + s*rby(ii, jj, kk)
+               f(3) = f(3) + s*rbz(ii, jj, kk)
             END DO
          END DO
       END DO
@@ -1139,7 +1139,7 @@ CONTAINS
             DO i = 1, ns(1)
                ii = px(i)
                s = rs(i, j, k)
-               f = f+s*rb(ii, jj, kk)
+               f = f + s*rb(ii, jj, kk)
             END DO
          END DO
       END DO

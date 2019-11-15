@@ -149,15 +149,15 @@ CONTAINS
 
          ! use eigenvalues of V_block as descriptor
          IF (PRESENT(descriptor)) &
-            descriptor((idesc-1)*N+1:idesc*N) = V_evals(:)
+            descriptor((idesc - 1)*N + 1:idesc*N) = V_evals(:)
 
          ! FORCES ----------------------------------------------------------------------------------
          IF (PRESENT(forces)) THEN
             CPASSERT(PRESENT(descr_grad))
             block_M = 0.0_dp
             DO k = 1, N
-               w = descr_grad((idesc-1)*N+k)
-               block_M(:, :) = block_M(:, :)+w*MATMUL(V_evecs(:, k:k), TRANSPOSE(V_evecs(:, k:k)))
+               w = descr_grad((idesc - 1)*N + k)
+               block_M(:, :) = block_M(:, :) + w*MATMUL(V_evecs(:, k:k), TRANSPOSE(V_evecs(:, k:k)))
             ENDDO
             DO jatom = 1, natoms
                IF (jatom == iatom) CYCLE
@@ -171,8 +171,8 @@ CONTAINS
                block_D = 0.0_dp
                CALL pao_calc_gaussian(basis_set, block_D=block_D, Rab=Rab, lpot=0, beta=beta, weight=weight)
                DO i = 1, 3
-                  forces(iatom, i) = forces(iatom, i)-SUM(block_M*block_D(:, :, i))
-                  forces(jatom, i) = forces(jatom, i)+SUM(block_M*block_D(:, :, i))
+                  forces(iatom, i) = forces(iatom, i) - SUM(block_M*block_D(:, :, i))
+                  forces(jatom, i) = forces(jatom, i) + SUM(block_M*block_D(:, :, i))
                ENDDO
             ENDDO
          ENDIF
@@ -252,7 +252,7 @@ CONTAINS
 
       ! check if N was choosen large enough
       IF (natoms > N) THEN
-         IF (neighbor_dist(N+1) < screening_radius) &
+         IF (neighbor_dist(N + 1) < screening_radius) &
             CPABORT("PAO heuristic for descriptor size broke down")
       ENDIF
 
@@ -277,7 +277,7 @@ CONTAINS
             jbeta = jpao_descriptors(idesc)%beta
             kweight = kpao_descriptors(idesc)%weight
             kbeta = kpao_descriptors(idesc)%beta
-            beta_sum = sbeta+jbeta+kbeta
+            beta_sum = sbeta + jbeta + kbeta
 
             ! get distances
             Rj = particle_set(jatom)%r
@@ -290,7 +290,7 @@ CONTAINS
             Rjk2 = SUM(Rjk**2)
 
             ! calculate integral over three Gaussians
-            exponent = -(sbeta*jbeta*Rij2+sbeta*kbeta*Rik2+jbeta*kbeta*Rjk2)/beta_sum
+            exponent = -(sbeta*jbeta*Rij2 + sbeta*kbeta*Rik2 + jbeta*kbeta*Rjk2)/beta_sum
             integral = EXP(exponent)*rootpi/SQRT(beta_sum)
             normalization = SQRT(jbeta*kbeta)/rootpi**2
             block_S(j, k) = jweight*kweight*normalization*integral
@@ -303,15 +303,15 @@ CONTAINS
 
          ! use eigenvalues of S_block as descriptor
          IF (PRESENT(descriptor)) &
-            descriptor((idesc-1)*N+1:idesc*N) = S_evals(:)
+            descriptor((idesc - 1)*N + 1:idesc*N) = S_evals(:)
 
          ! FORCES ----------------------------------------------------------------------------------
          IF (PRESENT(forces)) THEN
             CPASSERT(PRESENT(descr_grad))
             block_M = 0.0_dp
             DO k = 1, N
-               w = descr_grad((idesc-1)*N+k)
-               block_M(:, :) = block_M(:, :)+w*MATMUL(S_evecs(:, k:k), TRANSPOSE(S_evecs(:, k:k)))
+               w = descr_grad((idesc - 1)*N + k)
+               block_M(:, :) = block_M(:, :) + w*MATMUL(S_evecs(:, k:k), TRANSPOSE(S_evecs(:, k:k)))
             ENDDO
 
             DO j = 1, MIN(natoms, N)
@@ -328,7 +328,7 @@ CONTAINS
                jbeta = jpao_descriptors(idesc)%beta
                kweight = kpao_descriptors(idesc)%weight
                kbeta = kpao_descriptors(idesc)%beta
-               beta_sum = sbeta+jbeta+kbeta
+               beta_sum = sbeta + jbeta + kbeta
 
                ! get distances
                Rj = particle_set(jatom)%r
@@ -341,17 +341,17 @@ CONTAINS
                Rjk2 = SUM(Rjk**2)
 
                ! calculate integral over three Gaussians
-               exponent = -(sbeta*jbeta*Rij2+sbeta*kbeta*Rik2+jbeta*kbeta*Rjk2)/beta_sum
+               exponent = -(sbeta*jbeta*Rij2 + sbeta*kbeta*Rik2 + jbeta*kbeta*Rjk2)/beta_sum
                integral = EXP(exponent)*rootpi/SQRT(beta_sum)
                normalization = SQRT(jbeta*kbeta)/rootpi**2
                deriv = 2.0_dp/beta_sum*block_M(j, k)
                w = jweight*kweight*normalization*integral*deriv
-               forces(iatom, :) = forces(iatom, :)-sbeta*jbeta*Rij*w
-               forces(jatom, :) = forces(jatom, :)+sbeta*jbeta*Rij*w
-               forces(iatom, :) = forces(iatom, :)-sbeta*kbeta*Rik*w
-               forces(katom, :) = forces(katom, :)+sbeta*kbeta*Rik*w
-               forces(jatom, :) = forces(jatom, :)-jbeta*kbeta*Rjk*w
-               forces(katom, :) = forces(katom, :)+jbeta*kbeta*Rjk*w
+               forces(iatom, :) = forces(iatom, :) - sbeta*jbeta*Rij*w
+               forces(jatom, :) = forces(jatom, :) + sbeta*jbeta*Rij*w
+               forces(iatom, :) = forces(iatom, :) - sbeta*kbeta*Rik*w
+               forces(katom, :) = forces(katom, :) + sbeta*kbeta*Rik*w
+               forces(jatom, :) = forces(jatom, :) - jbeta*kbeta*Rjk*w
+               forces(katom, :) = forces(katom, :) + jbeta*kbeta*Rjk*w
             ENDDO
             ENDDO
          ENDIF
@@ -399,8 +399,8 @@ CONTAINS
       IF (PRESENT(forces)) THEN
          CPASSERT(PRESENT(descr_grad))
          G = R12/SQRT(SUM(R12**2))*descr_grad(1)
-         forces(1, :) = forces(1, :)+G
-         forces(2, :) = forces(2, :)-G
+         forces(1, :) = forces(1, :) + G
+         forces(2, :) = forces(2, :) - G
       ENDIF
    END SUBROUTINE calc_descriptor_r12
 

@@ -251,19 +251,19 @@ CONTAINS
          CALL allocate_gto_basis_set(fba)
          CALL read_gto_basis_set(TRIM("CA"), basis_type, fba, basis_section, irep=3)
          lcamax = MAXVAL(fba%lmax)
-         lmax = MAX(lamax+lcamax, lbmax)
+         lmax = MAX(lamax + lcamax, lbmax)
       ENDIF
       IF (test_overlap_abb) THEN
          CALL allocate_gto_basis_set(fbb)
          CALL read_gto_basis_set(TRIM("CB"), basis_type, fbb, basis_section, irep=3)
          lcbmax = MAXVAL(fbb%lmax)
-         lmax = MAX(lamax, lbmax+lcbmax)
+         lmax = MAX(lamax, lbmax + lcbmax)
       ENDIF
       IF (test_overlap_aba .AND. test_overlap_abb) THEN
-         lmax = MAX(MAX(lamax+lcamax, lbmax), MAX(lamax, lbmax+lcbmax))
+         lmax = MAX(MAX(lamax + lcamax, lbmax), MAX(lamax, lbmax + lcbmax))
       ENDIF
       !*** Initialize basis set information
-      CALL init_orbital_pointers(lmax+1)
+      CALL init_orbital_pointers(lmax + 1)
       CALL init_spherical_harmonics(lmax, output_unit=-100)
       oba%norm_type = 2
       CALL init_orb_basis_set(oba)
@@ -283,7 +283,7 @@ CONTAINS
       CALL contraction_matrix_shg(obb, sconb_shg)
 
       !*** Create range of rab (atomic distances) to be tested
-      nab_xyz = CEILING(REAL(nab_min, KIND=dp)**(1.0_dp/3.0_dp)-1.0E-06)
+      nab_xyz = CEILING(REAL(nab_min, KIND=dp)**(1.0_dp/3.0_dp) - 1.0E-06)
       nab = nab_xyz**3
 
       ALLOCATE (rab(3, nab))
@@ -291,7 +291,7 @@ CONTAINS
       DO iab = 1, nab_xyz
          DO jab = 1, nab_xyz
             DO kab = 1, nab_xyz
-               count_ab = count_ab+1
+               count_ab = count_ab + 1
                rab(:, count_ab) = [iab*ABS(cell_par(1)), jab*ABS(cell_par(2)), kab*ABS(cell_par(3))]/nab_xyz
             ENDDO
          ENDDO
@@ -718,7 +718,7 @@ CONTAINS
             fba%set_radius(:) = 1.0E+09_dp
             fba%pgf_radius(:, :) = 1.0E+09_dp
             nfa = fba%nsgf
-            maxl_ri = MAXVAL(fba%lmax)+1 ! + 1 to avoid fail for l=0
+            maxl_ri = MAXVAL(fba%lmax) + 1 ! + 1 to avoid fail for l=0
             ALLOCATE (saba_shg(nba, nbb, nfa), dsaba_shg(nba, nbb, nfa, 3))
             ALLOCATE (saba_os(nba, nbb, nfa), dsaba_os(nba, nbb, nfa, 3))
             CALL contraction_matrix_shg_mix(oba, fba, oba_index, fba_index, scona_mix)
@@ -727,8 +727,8 @@ CONTAINS
             fbb%set_radius(:) = 1.0E+09_dp
             fbb%pgf_radius(:, :) = 1.0E+09_dp
             nfb = fbb%nsgf
-            maxl_ri = MAXVAL(fbb%lmax)+1
-            lbb_max = MAXVAL(obb%lmax)+MAXVAL(fbb%lmax)
+            maxl_ri = MAXVAL(fbb%lmax) + 1
+            lbb_max = MAXVAL(obb%lmax) + MAXVAL(fbb%lmax)
             ALLOCATE (sabb_shg(nba, nbb, nfb), dsabb_shg(nba, nbb, nfb, 3))
             ALLOCATE (sabb_os(nba, nbb, nfb), dsabb_os(nba, nbb, nfb, 3))
             CALL contraction_matrix_shg_mix(obb, fbb, obb_index, fbb_index, sconb_mix)
@@ -826,7 +826,7 @@ CONTAINS
       ! integrals vab
       DO j = 1, SIZE(vab_shg, 2)
          DO i = 1, SIZE(vab_shg, 1)
-            diff = ABS(vab_shg(i, j)-vab_os(i, j))
+            diff = ABS(vab_shg(i, j) - vab_os(i, j))
             dmax = MAX(dmax, diff)
          ENDDO
       ENDDO
@@ -835,7 +835,7 @@ CONTAINS
       DO k = 1, 3
          DO j = 1, SIZE(dvab_shg, 2)
             DO i = 1, SIZE(dvab_shg, 1)
-               diff = ABS(dvab_shg(i, j, k)-dvab_os(i, j, k))
+               diff = ABS(dvab_shg(i, j, k) - dvab_os(i, j, k))
                ddmax = MAX(ddmax, diff)
             ENDDO
          ENDDO
@@ -871,7 +871,7 @@ CONTAINS
       DO k = 1, SIZE(vab_shg, 3)
          DO j = 1, SIZE(vab_shg, 2)
             DO i = 1, SIZE(vab_shg, 1)
-               diff = ABS(vab_shg(i, j, k)-vab_os(i, j, k))
+               diff = ABS(vab_shg(i, j, k) - vab_os(i, j, k))
                dmax = MAX(dmax, diff)
             ENDDO
          ENDDO
@@ -882,7 +882,7 @@ CONTAINS
          DO k = 1, SIZE(dvab_shg, 3)
             DO j = 1, SIZE(dvab_shg, 2)
                DO i = 1, SIZE(dvab_shg, 1)
-                  diff = ABS(dvab_shg(i, j, k, l)-dvab_os(i, j, k, l))
+                  diff = ABS(dvab_shg(i, j, k, l) - dvab_os(i, j, k, l))
                   ddmax = MAX(ddmax, diff)
                ENDDO
             ENDDO

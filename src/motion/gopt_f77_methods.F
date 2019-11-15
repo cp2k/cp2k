@@ -23,55 +23,55 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
 
    USE cp_log_handling, ONLY: cp_logger_type
    USE averages_types, ONLY: average_quantities_type, &
-      create_averages, &
-      release_averages
+                             create_averages, &
+                             release_averages
    USE bibliography, ONLY: Henkelman1999, &
-      cite_reference
+                           cite_reference
    USE cell_opt_utils, ONLY: get_dg_dh, &
-      gopt_new_logger_create, &
-      gopt_new_logger_release
+                             gopt_new_logger_create, &
+                             gopt_new_logger_release
    USE cell_types, ONLY: cell_type
    USE cell_methods, ONLY: write_cell
    USE cp_para_types, ONLY: cp_para_env_type
    USE cp_subsys_types, ONLY: cp_subsys_get, &
-      cp_subsys_type, &
-      pack_subsys_particles, &
-      unpack_subsys_particles
+                              cp_subsys_type, &
+                              pack_subsys_particles, &
+                              unpack_subsys_particles
    USE dimer_methods, ONLY: cp_eval_at_ts
    USE force_env_methods, ONLY: force_env_calc_energy_force
    USE force_env_types, ONLY: force_env_get, &
-      force_env_get_nparticle
+                              force_env_get_nparticle
    USE geo_opt, ONLY: cp_geo_opt
    USE gopt_f_types, ONLY: gopt_f_type
    USE gopt_f_methods, ONLY: apply_cell_change
    USE input_constants, ONLY: default_minimization_method_id, &
-      default_ts_method_id, &
-      default_cell_direct_id, &
-      default_cell_method_id, &
-      default_cell_geo_opt_id, &
-      default_cell_md_id, &
-      default_shellcore_method_id, &
-      nvt_ensemble, &
-      mol_dyn_run, &
-      geo_opt_run, &
-      cell_opt_run
+                              default_ts_method_id, &
+                              default_cell_direct_id, &
+                              default_cell_method_id, &
+                              default_cell_geo_opt_id, &
+                              default_cell_md_id, &
+                              default_shellcore_method_id, &
+                              nvt_ensemble, &
+                              mol_dyn_run, &
+                              geo_opt_run, &
+                              cell_opt_run
    USE input_section_types, ONLY: section_vals_get, &
-      section_vals_get_subs_vals, &
-      section_vals_type, &
-      section_vals_val_get
+                                  section_vals_get_subs_vals, &
+                                  section_vals_type, &
+                                  section_vals_val_get
    USE md_run, ONLY: qs_mol_dyn
    USE message_passing, ONLY: mp_bcast
    USE kinds, ONLY: dp, &
-      default_string_length
+                    default_string_length
    USE particle_list_types, ONLY: particle_list_type
    USE particle_methods, ONLY: write_structure_data
    USE virial_methods, ONLY: virial_update
    USE virial_types, ONLY: cp_virial, &
-      virial_create, &
-      virial_release, &
-      virial_type
+                           virial_create, &
+                           virial_release, &
+                           virial_type
    USE cp_log_handling, ONLY: cp_add_default_logger, &
-      cp_rm_default_logger
+                              cp_rm_default_logger
 
 #include "../base/base_uses.f90"
    IMPLICIT NONE
@@ -199,10 +199,10 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                CPASSERT(ASSOCIATED(gradient))
                nparticle = force_env_get_nparticle(gopt_env%force_env)
                nsize = 3*nparticle
-               CPASSERT((SIZE(gradient) == nsize+6))
+               CPASSERT((SIZE(gradient) == nsize + 6))
                CALL pack_subsys_particles(subsys=subsys, f=gradient(1:nsize), fscale=-1.0_dp)
                CALL apply_cell_change(gopt_env, cell, gradient, update_forces=.TRUE.)
-               cell_gradient => gradient(nsize+1:nsize+6)
+               cell_gradient => gradient(nsize + 1:nsize + 6)
                cell_gradient = 0.0_dp
                CALL get_dg_dh(cell_gradient, av_ptens, gopt_env%cell_env%pres_ext, cell, gopt_env%cell_env%mtrx, &
                               keep_angles=gopt_env%cell_env%keep_angles, &
@@ -307,8 +307,8 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
          shell_index = particles%els(ip)%shell_index
          IF (shell_index /= 0) THEN
             DO idir = 1, 3
-               idg = 3*(shell_index-1)+idir
-               shell_particles%els(shell_index)%r(idir) = core_particles%els(ip)%r(idir)-x(idg)
+               idg = 3*(shell_index - 1) + idir
+               shell_particles%els(shell_index)%r(idir) = core_particles%els(ip)%r(idir) - x(idg)
             END DO
          END IF
       END DO
@@ -331,8 +331,8 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
             idg = 0
             DO ip = 1, shell_particles%n_els
                DO idir = 1, 3
-                  idg = idg+1
-                  gradient(idg) = -(core_particles%els(ip)%f(idir)-shell_particles%els(ip)%f(idir))
+                  idg = idg + 1
+                  gradient(idg) = -(core_particles%els(ip)%f(idir) - shell_particles%els(ip)%f(idir))
                END DO
             END DO
          END IF

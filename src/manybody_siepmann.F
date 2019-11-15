@@ -101,7 +101,7 @@ CONTAINS
       !three-body part
       pot_loc_v3 = E*f2*drij**(-siepmann%beta)*a_ij
 
-      pot_loc = pot_loc_v2+pot_loc_v3
+      pot_loc = pot_loc_v2 + pot_loc_v3
 
    END SUBROUTINE siepmann_energy
 
@@ -123,7 +123,7 @@ CONTAINS
       rcut = SQRT(siepmann%rcutsq)
       siep_f2 = 0.0_dp
       IF (r < rcut) THEN
-         siep_f2 = EXP(siepmann%B/(r-rcut))
+         siep_f2 = EXP(siepmann%B/(r - rcut))
       END IF
    END FUNCTION siep_f2
 
@@ -146,7 +146,7 @@ CONTAINS
       B = siepmann%B
       siep_f2_d = 0.0_dp
       IF (r < rcut) THEN
-         siep_f2_d = -B*EXP(B/(r-rcut))/(r-rcut)**2
+         siep_f2_d = -B*EXP(B/(r - rcut))/(r - rcut)**2
       END IF
 
    END FUNCTION siep_f2_d
@@ -193,7 +193,7 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind, &
                            element_symbol=element_symbol)
       IF (element_symbol /= "O") RETURN
-      rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v)
+      rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v)
       drji = SQRT(DOT_PRODUCT(rji, rji))
       DO ilist = 1, n_loc_size
          kparticle = full_loc_list(2, ilist)
@@ -206,7 +206,7 @@ CONTAINS
          IF (costheta < -1.0_dp) costheta = -1.0_dp
          IF (costheta > +1.0_dp) costheta = +1.0_dp
          theta = ACOS(costheta)
-         siep_a_ij = siep_a_ij+EXP(F*(COS(theta/2.0_dp))**2)
+         siep_a_ij = siep_a_ij + EXP(F*(COS(theta/2.0_dp))**2)
       END DO
    END FUNCTION siep_a_ij
 
@@ -253,7 +253,7 @@ CONTAINS
       rab2_max = rcutsq
       F = siepmann%F
 
-      rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v)
+      rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v)
       drji = SQRT(DOT_PRODUCT(rji, rji))
       rji_hat(:) = rji(:)/drji
 
@@ -270,12 +270,12 @@ CONTAINS
          IF (costheta < -1.0_dp) costheta = -1.0_dp
          IF (costheta > +1.0_dp) costheta = +1.0_dp
 
-         dcosdri(:) = (1.0_dp/(drji))*(rjk_hat(:)-costheta*rji_hat(:))
-         dcosdrk(:) = (1.0_dp/(drjk))*(rji_hat(:)-costheta*rjk_hat(:))
-         dcosdrj(:) = -(dcosdri(:)+dcosdrk(:))
+         dcosdri(:) = (1.0_dp/(drji))*(rjk_hat(:) - costheta*rji_hat(:))
+         dcosdrk(:) = (1.0_dp/(drjk))*(rji_hat(:) - costheta*rjk_hat(:))
+         dcosdrj(:) = -(dcosdri(:) + dcosdrk(:))
 
          theta = ACOS(costheta)
-         dcos_thetahalf = -1.0_dp/(2.0_dp*SQRT(1-costheta**2))
+         dcos_thetahalf = -1.0_dp/(2.0_dp*SQRT(1 - costheta**2))
          d_expterm = -2.0_dp*F*COS(theta/2.0_dp)*SIN(theta/2.0_dp) &
                      *EXP(F*(COS(theta/2.0_dp))**2)
 
@@ -285,17 +285,17 @@ CONTAINS
 
          drk = d_expterm*dcos_thetahalf*dcosdrk
 
-         f_nonbond(1, iparticle) = f_nonbond(1, iparticle)+prefactor*dri(1)
-         f_nonbond(2, iparticle) = f_nonbond(2, iparticle)+prefactor*dri(2)
-         f_nonbond(3, iparticle) = f_nonbond(3, iparticle)+prefactor*dri(3)
+         f_nonbond(1, iparticle) = f_nonbond(1, iparticle) + prefactor*dri(1)
+         f_nonbond(2, iparticle) = f_nonbond(2, iparticle) + prefactor*dri(2)
+         f_nonbond(3, iparticle) = f_nonbond(3, iparticle) + prefactor*dri(3)
 
-         f_nonbond(1, jparticle) = f_nonbond(1, jparticle)+prefactor*drj(1)
-         f_nonbond(2, jparticle) = f_nonbond(2, jparticle)+prefactor*drj(2)
-         f_nonbond(3, jparticle) = f_nonbond(3, jparticle)+prefactor*drj(3)
+         f_nonbond(1, jparticle) = f_nonbond(1, jparticle) + prefactor*drj(1)
+         f_nonbond(2, jparticle) = f_nonbond(2, jparticle) + prefactor*drj(2)
+         f_nonbond(3, jparticle) = f_nonbond(3, jparticle) + prefactor*drj(3)
 
-         f_nonbond(1, kparticle) = f_nonbond(1, kparticle)+prefactor*drk(1)
-         f_nonbond(2, kparticle) = f_nonbond(2, kparticle)+prefactor*drk(2)
-         f_nonbond(3, kparticle) = f_nonbond(3, kparticle)+prefactor*drk(3)
+         f_nonbond(1, kparticle) = f_nonbond(1, kparticle) + prefactor*drk(1)
+         f_nonbond(2, kparticle) = f_nonbond(2, kparticle) + prefactor*drk(2)
+         f_nonbond(3, kparticle) = f_nonbond(3, kparticle) + prefactor*drk(3)
 
          IF (use_virial) THEN
             CALL cp_abort(__LOCATION__, &
@@ -351,7 +351,7 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind, &
                            element_symbol=element_symbol)
       IF (element_symbol /= "O") RETURN
-      rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v)
+      rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v)
       drji = SQRT(DOT_PRODUCT(rji, rji))
 
       DO iatom = 1, natom
@@ -361,7 +361,7 @@ CONTAINS
          rih(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(iatom)%r(:), cell)
          drih = SQRT(DOT_PRODUCT(rih, rih))
          IF (drih >= h_max_dist) CYCLE
-         count_h = count_h+1
+         count_h = count_h + 1
          IF (count_h == 1) THEN
             index_h1 = iatom
          ELSEIF (count_h == 2) THEN
@@ -371,21 +371,21 @@ CONTAINS
 
       IF (count_h == 0) THEN
          IF (siepmann%allow_o_formation) THEN
-            IF (PRESENT(nr_o)) nr_o = nr_o+1
+            IF (PRESENT(nr_o)) nr_o = nr_o + 1
             siep_Phi_ij = 0.0_dp
          ELSE
             CPABORT("No H atoms for O found")
          ENDIF
       ELSEIF (count_h == 1) THEN
          IF (siepmann%allow_oh_formation) THEN
-            IF (PRESENT(nr_oh)) nr_oh = nr_oh+1
+            IF (PRESENT(nr_oh)) nr_oh = nr_oh + 1
             siep_Phi_ij = 0.0_dp
          ELSE
             CPABORT("Only one H atom of O atom found")
          ENDIF
       ELSEIF (count_h == 3) THEN
          IF (siepmann%allow_h3o_formation) THEN
-            IF (PRESENT(nr_h3o)) nr_h3o = nr_h3o+1
+            IF (PRESENT(nr_h3o)) nr_h3o = nr_h3o + 1
             siep_Phi_ij = 0.0_dp
          ELSE
             CPABORT("Three H atoms for O atom found")
@@ -398,12 +398,12 @@ CONTAINS
          !dipole vector rix of the H2O molecule
          rih1(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
          rih2(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
-         rix(:) = rih1(:)+rih2(:)
+         rix(:) = rih1(:) + rih2(:)
          drix = SQRT(DOT_PRODUCT(rix, rix))
          cosphi = DOT_PRODUCT(rji, rix)/(drji*drix)
          IF (cosphi < -1.0_dp) cosphi = -1.0_dp
          IF (cosphi > +1.0_dp) cosphi = +1.0_dp
-         siep_Phi_ij = EXP(-8.0_dp*((cosphi-1)/4.0_dp)**4)
+         siep_Phi_ij = EXP(-8.0_dp*((cosphi - 1)/4.0_dp)**4)
       ENDIF
    END FUNCTION siep_Phi_ij
 
@@ -455,7 +455,7 @@ CONTAINS
       Phi_ij = siep_Phi_ij(siepmann, r_last_update_pbc, iparticle, jparticle, &
                            cell_v, cell, rcutsq, &
                            particle_set)
-      rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v)
+      rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v)
       drji = SQRT(DOT_PRODUCT(rji, rji))
       rji_hat(:) = rji(:)/drji
 
@@ -466,7 +466,7 @@ CONTAINS
          rih(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(iatom)%r(:), cell)
          drih = SQRT(DOT_PRODUCT(rih, rih))
          IF (drih >= h_max_dist) CYCLE
-         count_h = count_h+1
+         count_h = count_h + 1
          IF (count_h == 1) THEN
             index_h1 = iatom
          ELSEIF (count_h == 2) THEN
@@ -488,39 +488,39 @@ CONTAINS
          !dipole vector rix of the H2O molecule
          rih1(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
          rih2(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
-         rix(:) = rih1(:)+rih2(:)
+         rix(:) = rih1(:) + rih2(:)
          drix = SQRT(DOT_PRODUCT(rix, rix))
          rix_hat(:) = rix(:)/drix
          cosphi = DOT_PRODUCT(rji, rix)/(drji*drix)
          IF (cosphi < -1.0_dp) cosphi = -1.0_dp
          IF (cosphi > +1.0_dp) cosphi = +1.0_dp
 
-         dcosdrj(:) = (1.0_dp/(drji))*(-rix_hat(:)+cosphi*rji_hat(:))
+         dcosdrj(:) = (1.0_dp/(drji))*(-rix_hat(:) + cosphi*rji_hat(:))
          ! for H atoms:
-         dcosdrh(:) = (1.0_dp/(drix))*(rji_hat(:)-cosphi*rix_hat(:))
-         dcosdri(:) = -dcosdrj-2.0_dp*dcosdrh
+         dcosdrh(:) = (1.0_dp/(drix))*(rji_hat(:) - cosphi*rix_hat(:))
+         dcosdri(:) = -dcosdrj - 2.0_dp*dcosdrh
 
-         dphi = Phi_ij*(-8.0_dp)*((cosphi-1)/4.0_dp)**3
+         dphi = Phi_ij*(-8.0_dp)*((cosphi - 1)/4.0_dp)**3
 
          dri = dphi*dcosdri
          drj = dphi*dcosdrj
          drh = dphi*dcosdrh
 
-         f_nonbond(1, iparticle) = f_nonbond(1, iparticle)+prefactor*dri(1)
-         f_nonbond(2, iparticle) = f_nonbond(2, iparticle)+prefactor*dri(2)
-         f_nonbond(3, iparticle) = f_nonbond(3, iparticle)+prefactor*dri(3)
+         f_nonbond(1, iparticle) = f_nonbond(1, iparticle) + prefactor*dri(1)
+         f_nonbond(2, iparticle) = f_nonbond(2, iparticle) + prefactor*dri(2)
+         f_nonbond(3, iparticle) = f_nonbond(3, iparticle) + prefactor*dri(3)
 
-         f_nonbond(1, jparticle) = f_nonbond(1, jparticle)+prefactor*drj(1)
-         f_nonbond(2, jparticle) = f_nonbond(2, jparticle)+prefactor*drj(2)
-         f_nonbond(3, jparticle) = f_nonbond(3, jparticle)+prefactor*drj(3)
+         f_nonbond(1, jparticle) = f_nonbond(1, jparticle) + prefactor*drj(1)
+         f_nonbond(2, jparticle) = f_nonbond(2, jparticle) + prefactor*drj(2)
+         f_nonbond(3, jparticle) = f_nonbond(3, jparticle) + prefactor*drj(3)
 
-         f_nonbond(1, index_h1) = f_nonbond(1, index_h1)+prefactor*drh(1)
-         f_nonbond(2, index_h1) = f_nonbond(2, index_h1)+prefactor*drh(2)
-         f_nonbond(3, index_h1) = f_nonbond(3, index_h1)+prefactor*drh(3)
+         f_nonbond(1, index_h1) = f_nonbond(1, index_h1) + prefactor*drh(1)
+         f_nonbond(2, index_h1) = f_nonbond(2, index_h1) + prefactor*drh(2)
+         f_nonbond(3, index_h1) = f_nonbond(3, index_h1) + prefactor*drh(3)
 
-         f_nonbond(1, index_h2) = f_nonbond(1, index_h2)+prefactor*drh(1)
-         f_nonbond(2, index_h2) = f_nonbond(2, index_h2)+prefactor*drh(2)
-         f_nonbond(3, index_h2) = f_nonbond(3, index_h2)+prefactor*drh(3)
+         f_nonbond(1, index_h2) = f_nonbond(1, index_h2) + prefactor*drh(1)
+         f_nonbond(2, index_h2) = f_nonbond(2, index_h2) + prefactor*drh(2)
+         f_nonbond(3, index_h2) = f_nonbond(3, index_h2) + prefactor*drh(3)
 
          IF (use_virial) THEN
             CALL cp_abort(__LOCATION__, &
@@ -578,7 +578,7 @@ CONTAINS
                            element_symbol=element_symbol)
       IF (element_symbol /= "O") RETURN
 
-      rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v)
+      rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v)
       drji = SQRT(DOT_PRODUCT(rji, rji))
       rji_hat(:) = rji(:)/drji
 
@@ -590,12 +590,12 @@ CONTAINS
 
       ! Lets do the f_A1 piece derivative of  f2
       f_A1 = E*f2_d*drji**(-beta)*a_ij*fac*(1.0_dp/drji)
-      f_nonbond(1, iparticle) = f_nonbond(1, iparticle)+f_A1*rji(1)
-      f_nonbond(2, iparticle) = f_nonbond(2, iparticle)+f_A1*rji(2)
-      f_nonbond(3, iparticle) = f_nonbond(3, iparticle)+f_A1*rji(3)
-      f_nonbond(1, jparticle) = f_nonbond(1, jparticle)-f_A1*rji(1)
-      f_nonbond(2, jparticle) = f_nonbond(2, jparticle)-f_A1*rji(2)
-      f_nonbond(3, jparticle) = f_nonbond(3, jparticle)-f_A1*rji(3)
+      f_nonbond(1, iparticle) = f_nonbond(1, iparticle) + f_A1*rji(1)
+      f_nonbond(2, iparticle) = f_nonbond(2, iparticle) + f_A1*rji(2)
+      f_nonbond(3, iparticle) = f_nonbond(3, iparticle) + f_A1*rji(3)
+      f_nonbond(1, jparticle) = f_nonbond(1, jparticle) - f_A1*rji(1)
+      f_nonbond(2, jparticle) = f_nonbond(2, jparticle) - f_A1*rji(2)
+      f_nonbond(3, jparticle) = f_nonbond(3, jparticle) - f_A1*rji(3)
 
       IF (use_virial) THEN
          CALL cp_abort(__LOCATION__, &
@@ -604,13 +604,13 @@ CONTAINS
       END IF
 
       ! Lets do the f_A2 piece derivative of rji**(-beta)
-      f_A2 = E*f2*(-beta)*drji**(-beta-1)*a_ij*fac*(1.0_dp/drji)
-      f_nonbond(1, iparticle) = f_nonbond(1, iparticle)+f_A2*rji(1)
-      f_nonbond(2, iparticle) = f_nonbond(2, iparticle)+f_A2*rji(2)
-      f_nonbond(3, iparticle) = f_nonbond(3, iparticle)+f_A2*rji(3)
-      f_nonbond(1, jparticle) = f_nonbond(1, jparticle)-f_A2*rji(1)
-      f_nonbond(2, jparticle) = f_nonbond(2, jparticle)-f_A2*rji(2)
-      f_nonbond(3, jparticle) = f_nonbond(3, jparticle)-f_A2*rji(3)
+      f_A2 = E*f2*(-beta)*drji**(-beta - 1)*a_ij*fac*(1.0_dp/drji)
+      f_nonbond(1, iparticle) = f_nonbond(1, iparticle) + f_A2*rji(1)
+      f_nonbond(2, iparticle) = f_nonbond(2, iparticle) + f_A2*rji(2)
+      f_nonbond(3, iparticle) = f_nonbond(3, iparticle) + f_A2*rji(3)
+      f_nonbond(1, jparticle) = f_nonbond(1, jparticle) - f_A2*rji(1)
+      f_nonbond(2, jparticle) = f_nonbond(2, jparticle) - f_A2*rji(2)
+      f_nonbond(3, jparticle) = f_nonbond(3, jparticle) - f_A2*rji(3)
 
       IF (use_virial) THEN
          CALL cp_abort(__LOCATION__, &
@@ -666,7 +666,7 @@ CONTAINS
                            element_symbol=element_symbol)
       IF (element_symbol /= "O") RETURN
 
-      rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v)
+      rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v)
       drji = SQRT(DOT_PRODUCT(rji, rji))
 
       fac = -1.0_dp
@@ -677,12 +677,12 @@ CONTAINS
 
       ! Lets do the f_A1 piece derivative of  f2
       f_A1 = -D*f2_d*drji**(-3)*Phi_ij*fac*(1.0_dp/drji)
-      f_nonbond(1, iparticle) = f_nonbond(1, iparticle)+f_A1*rji(1)
-      f_nonbond(2, iparticle) = f_nonbond(2, iparticle)+f_A1*rji(2)
-      f_nonbond(3, iparticle) = f_nonbond(3, iparticle)+f_A1*rji(3)
-      f_nonbond(1, jparticle) = f_nonbond(1, jparticle)-f_A1*rji(1)
-      f_nonbond(2, jparticle) = f_nonbond(2, jparticle)-f_A1*rji(2)
-      f_nonbond(3, jparticle) = f_nonbond(3, jparticle)-f_A1*rji(3)
+      f_nonbond(1, iparticle) = f_nonbond(1, iparticle) + f_A1*rji(1)
+      f_nonbond(2, iparticle) = f_nonbond(2, iparticle) + f_A1*rji(2)
+      f_nonbond(3, iparticle) = f_nonbond(3, iparticle) + f_A1*rji(3)
+      f_nonbond(1, jparticle) = f_nonbond(1, jparticle) - f_A1*rji(1)
+      f_nonbond(2, jparticle) = f_nonbond(2, jparticle) - f_A1*rji(2)
+      f_nonbond(3, jparticle) = f_nonbond(3, jparticle) - f_A1*rji(3)
 
       IF (use_virial) THEN
          CALL cp_abort(__LOCATION__, &
@@ -692,12 +692,12 @@ CONTAINS
 
 !   ! Lets do the f_A2 piece derivative of rji**(-3)
       f_A2 = -D*f2*(-3.0_dp)*drji**(-4)*Phi_ij*fac*(1.0_dp/drji)
-      f_nonbond(1, iparticle) = f_nonbond(1, iparticle)+f_A2*rji(1)
-      f_nonbond(2, iparticle) = f_nonbond(2, iparticle)+f_A2*rji(2)
-      f_nonbond(3, iparticle) = f_nonbond(3, iparticle)+f_A2*rji(3)
-      f_nonbond(1, jparticle) = f_nonbond(1, jparticle)-f_A2*rji(1)
-      f_nonbond(2, jparticle) = f_nonbond(2, jparticle)-f_A2*rji(2)
-      f_nonbond(3, jparticle) = f_nonbond(3, jparticle)-f_A2*rji(3)
+      f_nonbond(1, iparticle) = f_nonbond(1, iparticle) + f_A2*rji(1)
+      f_nonbond(2, iparticle) = f_nonbond(2, iparticle) + f_A2*rji(2)
+      f_nonbond(3, iparticle) = f_nonbond(3, iparticle) + f_A2*rji(3)
+      f_nonbond(1, jparticle) = f_nonbond(1, jparticle) - f_A2*rji(1)
+      f_nonbond(2, jparticle) = f_nonbond(2, jparticle) - f_A2*rji(2)
+      f_nonbond(3, jparticle) = f_nonbond(3, jparticle) - f_A2*rji(3)
 
       IF (use_virial) THEN
          CALL cp_abort(__LOCATION__, &
@@ -761,10 +761,10 @@ CONTAINS
             ikind = neighbor_kind_pair%ij_kind(1, igrp)
             jkind = neighbor_kind_pair%ij_kind(2, igrp)
             pot => potparm%pot(ikind, jkind)%pot
-            npairs = iend-istart+1
+            npairs = iend - istart + 1
             IF (pot%no_mb) CYCLE
             DO i = 1, SIZE(pot%type)
-               IF (pot%type(i) == siepmann_type) npairs_tot = npairs_tot+npairs
+               IF (pot%type(i) == siepmann_type) npairs_tot = npairs_tot + npairs
             END DO
          END DO Kind_Group_Loop1
       END DO
@@ -786,17 +786,17 @@ CONTAINS
             list => neighbor_kind_pair%list
             cvi = neighbor_kind_pair%cell_vector
             pot => potparm%pot(ikind, jkind)%pot
-            npairs = iend-istart+1
+            npairs = iend - istart + 1
             IF (pot%no_mb) CYCLE
             CALL matvec_3x3(cell_v, cell%hmat, cvi)
             DO i = 1, SIZE(pot%type)
                ! SIEPMANN
                IF (pot%type(i) == siepmann_type) THEN
                   DO ipair = 1, npairs
-                     glob_loc_list(:, npairs_tot+ipair) = list(:, istart-1+ipair)
-                     glob_cell_v(1:3, npairs_tot+ipair) = cell_v(1:3)
+                     glob_loc_list(:, npairs_tot + ipair) = list(:, istart - 1 + ipair)
+                     glob_cell_v(1:3, npairs_tot + ipair) = cell_v(1:3)
                   END DO
-                  npairs_tot = npairs_tot+npairs
+                  npairs_tot = npairs_tot + npairs
                END IF
             END DO
          END DO Kind_Group_Loop2

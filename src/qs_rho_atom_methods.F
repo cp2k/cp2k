@@ -65,10 +65,10 @@ MODULE qs_rho_atom_methods
                                               whittaker_ci
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
-!$    omp_get_thread_num, &
-!$    omp_lock_kind, &
-!$    omp_init_lock, omp_set_lock, &
-!$    omp_unset_lock, omp_destroy_lock
+!$                    omp_get_thread_num, &
+!$                    omp_lock_kind, &
+!$                    omp_init_lock, omp_set_lock, &
+!$                    omp_unset_lock, omp_destroy_lock
 
 #include "./base/base_uses.f90"
 
@@ -204,34 +204,34 @@ CONTAINS
             n1s = nsoset(lmax(iset1))
 
             DO ipgf1 = 1, npgf(iset1)
-               iso1_first = nsoset(lmin(iset1)-1)+1+n1s*(ipgf1-1)+m1s
-               iso1_last = nsoset(lmax(iset1))+n1s*(ipgf1-1)+m1s
-               size1 = iso1_last-iso1_first+1
+               iso1_first = nsoset(lmin(iset1) - 1) + 1 + n1s*(ipgf1 - 1) + m1s
+               iso1_last = nsoset(lmax(iset1)) + n1s*(ipgf1 - 1) + m1s
+               size1 = iso1_last - iso1_first + 1
                iso1_first = o2nindex(iso1_first)
                iso1_last = o2nindex(iso1_last)
-               i1 = iso1_last-iso1_first+1
+               i1 = iso1_last - iso1_first + 1
                CPASSERT(size1 == i1)
-               i1 = nsoset(lmin(iset1)-1)+1
+               i1 = nsoset(lmin(iset1) - 1) + 1
 
                g1(1:nr) = EXP(-zet(ipgf1, iset1)*grid_atom%rad2(1:nr))
 
                n2s = nsoset(lmax(iset2))
                DO ipgf2 = 1, npgf(iset2)
-                  iso2_first = nsoset(lmin(iset2)-1)+1+n2s*(ipgf2-1)+m2s
-                  iso2_last = nsoset(lmax(iset2))+n2s*(ipgf2-1)+m2s
-                  size2 = iso2_last-iso2_first+1
+                  iso2_first = nsoset(lmin(iset2) - 1) + 1 + n2s*(ipgf2 - 1) + m2s
+                  iso2_last = nsoset(lmax(iset2)) + n2s*(ipgf2 - 1) + m2s
+                  size2 = iso2_last - iso2_first + 1
                   iso2_first = o2nindex(iso2_first)
                   iso2_last = o2nindex(iso2_last)
-                  i2 = iso2_last-iso2_first+1
+                  i2 = iso2_last - iso2_first + 1
                   CPASSERT(size2 == i2)
-                  i2 = nsoset(lmin(iset2)-1)+1
+                  i2 = nsoset(lmin(iset2) - 1) + 1
 
                   g2(1:nr) = EXP(-zet(ipgf2, iset2)*grid_atom%rad2(1:nr))
-                  lmin12 = lmin(iset1)+lmin(iset2)
-                  lmax12 = lmax(iset1)+lmax(iset2)
+                  lmin12 = lmin(iset1) + lmin(iset2)
+                  lmax12 = lmax(iset1) + lmax(iset2)
 
-                  zet12 = zet(ipgf1, iset1)+zet(ipgf2, iset2)
-                  root_zet12 = SQRT(zet(ipgf1, iset1)+zet(ipgf2, iset2))
+                  zet12 = zet(ipgf1, iset1) + zet(ipgf2, iset2)
+                  root_zet12 = SQRT(zet(ipgf1, iset1) + zet(ipgf2, iset2))
                   DO ir = 1, nr
                      erf_zet12(ir) = erf(root_zet12*grid_atom%rad(ir))
                   END DO
@@ -250,36 +250,36 @@ CONTAINS
                      ELSE
                         gg0(1:nr) = g1(1:nr)*g2(1:nr)
                         gg(1:nr, lmin12) = grid_atom%rad2l(1:nr, lmin12)*g1(1:nr)*g2(1:nr)
-                        gg_lm1(1:nr, lmin12) = grid_atom%rad2l(1:nr, lmin12-1)*g1(1:nr)*g2(1:nr)
+                        gg_lm1(1:nr, lmin12) = grid_atom%rad2l(1:nr, lmin12 - 1)*g1(1:nr)*g2(1:nr)
                      END IF
 
                      ! reduce the number of terms in the expansion local densities
                      IF (lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
 
-                     DO l = lmin12+1, lmax12
-                        gg(1:nr, l) = grid_atom%rad(1:nr)*gg(1:nr, l-1)
-                        gg_lm1(1:nr, l) = gg(1:nr, l-1)
-                        dgg(1:nr, l-1) = dgg(1:nr, l-1)-2.0_dp*(zet(ipgf1, iset1) &
-                                                                +zet(ipgf2, iset2))*gg(1:nr, l)
+                     DO l = lmin12 + 1, lmax12
+                        gg(1:nr, l) = grid_atom%rad(1:nr)*gg(1:nr, l - 1)
+                        gg_lm1(1:nr, l) = gg(1:nr, l - 1)
+                        dgg(1:nr, l - 1) = dgg(1:nr, l - 1) - 2.0_dp*(zet(ipgf1, iset1) &
+                                                                      + zet(ipgf2, iset2))*gg(1:nr, l)
 
                      END DO
-                     dgg(1:nr, lmax12) = dgg(1:nr, lmax12)-2.0_dp*(zet(ipgf1, iset1) &
-                                                                   +zet(ipgf2, iset2))*grid_atom%rad(1:nr)*gg(1:nr, lmax12)
+                     dgg(1:nr, lmax12) = dgg(1:nr, lmax12) - 2.0_dp*(zet(ipgf1, iset1) &
+                                                                     + zet(ipgf2, iset2))*grid_atom%rad(1:nr)*gg(1:nr, lmax12)
 
                      c2 = SQRT(pi*pi*pi/(zet12*zet12*zet12))
 
                      DO iso = 1, max_iso_not0_local
                         l_iso = indso(1, iso)
-                        c1 = fourpi/(2._dp*REAL(l_iso, dp)+1._dp)
+                        c1 = fourpi/(2._dp*REAL(l_iso, dp) + 1._dp)
                         DO icg = 1, cg_n_list(iso)
                            iso1 = cg_list(1, icg, iso)
                            iso2 = cg_list(2, icg, iso)
 
-                           l = indso(1, iso1)+indso(1, iso2)
+                           l = indso(1, iso1) + indso(1, iso2)
                            CPASSERT(l <= lmax_expansion)
                            IF (done_vgg(l, l_iso)) CYCLE
-                           L_sum = l+l_iso
-                           L_sub = l-l_iso
+                           L_sum = l + l_iso
+                           L_sub = l - l_iso
 
                            IF (l_sum == 0) THEN
                               vgg(1:nr, l, l_iso) = erf_zet12(1:nr)*grid_atom%oorad2l(1:nr, 1)*c2
@@ -289,7 +289,7 @@ CONTAINS
 
                               DO ir = 1, nr
                                  int2(ir) = grid_atom%rad2l(ir, l_iso)*int2(ir)
-                                 vgg(ir, l, l_iso) = c1*(int1(ir)+int2(ir))
+                                 vgg(ir, l, l_iso) = c1*(int1(ir) + int2(ir))
                               END DO
                            END IF
                            done_vgg(l, l_iso) = .TRUE.
@@ -305,10 +305,10 @@ CONTAINS
                         CPCS_sphere = 0.0_dp
 
                         coeff => rho_atom_set(iatom)%cpc_h(i)%r_coef
-                        CPCH_sphere(i1:i1+size1-1, i2:i2+size2-1) = coeff(iso1_first:iso1_last, iso2_first:iso2_last)
+                        CPCH_sphere(i1:i1 + size1 - 1, i2:i2 + size2 - 1) = coeff(iso1_first:iso1_last, iso2_first:iso2_last)
 
                         coeff => rho_atom_set(iatom)%cpc_s(i)%r_coef
-                        CPCS_sphere(i1:i1+size1-1, i2:i2+size2-1) = coeff(iso1_first:iso1_last, iso2_first:iso2_last)
+                        CPCS_sphere(i1:i1 + size1 - 1, i2:i2 + size2 - 1) = coeff(iso1_first:iso1_last, iso2_first:iso2_last)
 
                         DO iso = 1, max_iso_not0_local
                            l_iso = indso(1, iso)
@@ -324,51 +324,51 @@ CONTAINS
                               isom2 = soset(l2, -m2)
 
                               dd(1:nr) = REAL(l1*l2, dp)/grid_atom%rad2(1:nr) &
-                                         -2._dp*REAL(l1, dp)*zet(ipgf2, iset2) &
-                                         -2._dp*REAL(l2, dp)*zet(ipgf1, iset1) &
-                                         +4._dp*zet(ipgf1, iset1)*zet(ipgf2, iset2)*grid_atom%rad2(1:nr)
-                              l = indso(1, iso1)+indso(1, iso2)
+                                         - 2._dp*REAL(l1, dp)*zet(ipgf2, iset2) &
+                                         - 2._dp*REAL(l2, dp)*zet(ipgf1, iset1) &
+                                         + 4._dp*zet(ipgf1, iset1)*zet(ipgf2, iset2)*grid_atom%rad2(1:nr)
+                              l = indso(1, iso1) + indso(1, iso2)
                               CPASSERT(l <= lmax_expansion)
 
                               rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr, iso) = &
-                                 rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr, iso)+ &
+                                 rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr, iso) + &
                                  gg(1:nr, l)*CPCH_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
 
                               rho_atom_set(iatom)%rho_rad_s(i)%r_coef(1:nr, iso) = &
-                                 rho_atom_set(iatom)%rho_rad_s(i)%r_coef(1:nr, iso)+ &
+                                 rho_atom_set(iatom)%rho_rad_s(i)%r_coef(1:nr, iso) + &
                                  gg(1:nr, l)*CPCS_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
 
                               rho_atom_set(iatom)%drho_rad_h(i)%r_coef(1:nr, iso) = &
-                                 rho_atom_set(iatom)%drho_rad_h(i)%r_coef(1:nr, iso)+ &
+                                 rho_atom_set(iatom)%drho_rad_h(i)%r_coef(1:nr, iso) + &
                                  dgg(1:nr, l)*CPCH_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
 
                               rho_atom_set(iatom)%drho_rad_s(i)%r_coef(1:nr, iso) = &
-                                 rho_atom_set(iatom)%drho_rad_s(i)%r_coef(1:nr, iso)+ &
+                                 rho_atom_set(iatom)%drho_rad_s(i)%r_coef(1:nr, iso) + &
                                  dgg(1:nr, l)*CPCS_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
 
                               rho_atom_set(iatom)%vrho_rad_h(i)%r_coef(1:nr, iso) = &
-                                 rho_atom_set(iatom)%vrho_rad_h(i)%r_coef(1:nr, iso)+ &
+                                 rho_atom_set(iatom)%vrho_rad_h(i)%r_coef(1:nr, iso) + &
                                  vgg(1:nr, l, l_iso)*CPCH_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
 
                               rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(1:nr, iso) = &
-                                 rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(1:nr, iso)+ &
+                                 rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(1:nr, iso) + &
                                  vgg(1:nr, l, l_iso)*CPCS_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
 
                               rho_atom_set(iatom)%trho_rad_h(1, i)%r_coef(1:nr, iso) = &
-                                 rho_atom_set(iatom)%trho_rad_h(1, i)%r_coef(1:nr, iso)+ &
+                                 rho_atom_set(iatom)%trho_rad_h(1, i)%r_coef(1:nr, iso) + &
                                  0.5_dp*gg(1:nr, l)*dd(1:nr)*CPCH_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
 
                               rho_atom_set(iatom)%trho_rad_s(1, i)%r_coef(1:nr, iso) = &
-                                 rho_atom_set(iatom)%trho_rad_s(1, i)%r_coef(1:nr, iso)+ &
+                                 rho_atom_set(iatom)%trho_rad_s(1, i)%r_coef(1:nr, iso) + &
                                  0.5_dp*gg(1:nr, l)*dd(1:nr)*CPCS_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
 
                               rho_atom_set(iatom)%trho_rad_h(3, i)%r_coef(1:nr, iso) = &
-                                 rho_atom_set(iatom)%trho_rad_h(3, i)%r_coef(1:nr, iso)+ &
+                                 rho_atom_set(iatom)%trho_rad_h(3, i)%r_coef(1:nr, iso) + &
                                  0.5_dp*REAL(m1*m2, dp)*gg(1:nr, l)*CPCH_sphere(iso1, iso2)* &
                                  my_CG(isom1, isom2, iso)/grid_atom%rad2(1:nr)
 
                               rho_atom_set(iatom)%trho_rad_s(3, i)%r_coef(1:nr, iso) = &
-                                 rho_atom_set(iatom)%trho_rad_s(3, i)%r_coef(1:nr, iso)+ &
+                                 rho_atom_set(iatom)%trho_rad_s(3, i)%r_coef(1:nr, iso) + &
                                  0.5_dp*REAL(m1*m2, dp)*gg(1:nr, l)*CPCS_sphere(iso1, iso2)* &
                                  my_CG(isom1, isom2, iso)/grid_atom%rad2(1:nr)
 
@@ -381,15 +381,15 @@ CONTAINS
                            DO icg = 1, dacg_n_list(iso)
                               iso1 = dacg_list(1, icg, iso)
                               iso2 = dacg_list(2, icg, iso)
-                              l = indso(1, iso1)+indso(1, iso2)
+                              l = indso(1, iso1) + indso(1, iso2)
                               CPASSERT(l <= lmax_expansion)
                               DO j = 1, 3
                                  rho_atom_set(iatom)%rho_rad_h_d(j, i)%r_coef(1:nr, iso) = &
-                                    rho_atom_set(iatom)%rho_rad_h_d(j, i)%r_coef(1:nr, iso)+ &
+                                    rho_atom_set(iatom)%rho_rad_h_d(j, i)%r_coef(1:nr, iso) + &
                                     gg_lm1(1:nr, l)*CPCH_sphere(iso1, iso2)*my_CG_dxyz(j, iso1, iso2, iso)
 
                                  rho_atom_set(iatom)%rho_rad_s_d(j, i)%r_coef(1:nr, iso) = &
-                                    rho_atom_set(iatom)%rho_rad_s_d(j, i)%r_coef(1:nr, iso)+ &
+                                    rho_atom_set(iatom)%rho_rad_s_d(j, i)%r_coef(1:nr, iso) + &
                                     gg_lm1(1:nr, l)*CPCS_sphere(iso1, iso2)*my_CG_dxyz(j, iso1, iso2, iso)
                               END DO
                            END DO ! icg
@@ -405,15 +405,15 @@ CONTAINS
                               iso1 = dbcg_list(1, icg, iso)
                               iso2 = dbcg_list(2, icg, iso)
 
-                              l = indso(1, iso1)+indso(1, iso2)
+                              l = indso(1, iso1) + indso(1, iso2)
                               CPASSERT(l <= lmax_expansion)
                               rho_atom_set(iatom)%trho_rad_h(2, i)%r_coef(1:nr, iso) = &
-                                 rho_atom_set(iatom)%trho_rad_h(2, i)%r_coef(1:nr, iso)+ &
+                                 rho_atom_set(iatom)%trho_rad_h(2, i)%r_coef(1:nr, iso) + &
                                  0.5_dp*gg(1:nr, l)*CPCH_sphere(iso1, iso2)* &
                                  my_dCG(iso1, iso2, iso)/grid_atom%rad2(1:nr)
 
                               rho_atom_set(iatom)%trho_rad_s(2, i)%r_coef(1:nr, iso) = &
-                                 rho_atom_set(iatom)%trho_rad_s(2, i)%r_coef(1:nr, iso)+ &
+                                 rho_atom_set(iatom)%trho_rad_s(2, i)%r_coef(1:nr, iso) + &
                                  0.5_dp*gg(1:nr, l)*CPCS_sphere(iso1, iso2)* &
                                  my_dCG(iso1, iso2, iso)/grid_atom%rad2(1:nr)
                            END DO ! icg
@@ -424,9 +424,9 @@ CONTAINS
 
                ENDDO ! ipgf2
             ENDDO ! ipgf1
-            m2s = m2s+maxso
+            m2s = m2s + maxso
          ENDDO ! iset2
-         m1s = m1s+maxso
+         m1s = m1s + maxso
       ENDDO ! iset1
 
       DO iat = bo(1), bo(2)
@@ -438,11 +438,11 @@ CONTAINS
                rho_s = 0.0_dp
                rho_h = 0.0_dp
                DO ir = 1, nr
-                  rho_h = rho_h+rho_atom_set(iatom)%rho_rad_h(i)%r_coef(ir, iso)*grid_atom%wr(ir)
-                  rho_s = rho_s+rho_atom_set(iatom)%rho_rad_s(i)%r_coef(ir, iso)*grid_atom%wr(ir)
+                  rho_h = rho_h + rho_atom_set(iatom)%rho_rad_h(i)%r_coef(ir, iso)*grid_atom%wr(ir)
+                  rho_s = rho_s + rho_atom_set(iatom)%rho_rad_s(i)%r_coef(ir, iso)*grid_atom%wr(ir)
                END DO ! ir
-               tot_rho1_h(i) = tot_rho1_h(i)+rho_h*harmonics%slm_int(iso)
-               tot_rho1_s(i) = tot_rho1_s(i)+rho_s*harmonics%slm_int(iso)
+               tot_rho1_h(i) = tot_rho1_h(i) + rho_h*harmonics%slm_int(iso)
+               tot_rho1_s(i) = tot_rho1_s(i) + rho_s*harmonics%slm_int(iso)
             END DO ! iso
 
          END DO ! ispin
@@ -672,7 +672,7 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix=rho_ao(ispin, img)%matrix, &
                                    row=irow, col=icol, BLOCK=p_block_spin(ispin)%r_coef, &
                                    found=found)
-            pmax = pmax+MAXVAL(ABS(p_block_spin(ispin)%r_coef))
+            pmax = pmax + MAXVAL(ABS(p_block_spin(ispin)%r_coef))
          ENDDO
 
          DO kkind = 1, nkind
@@ -687,8 +687,8 @@ CONTAINS
             CALL get_paw_proj_set(paw_proj_set=paw_proj, nsatbas=nsatbas)
             nsoctot = nsatbas
 
-            iac = ikind+nkind*(kkind-1)
-            ibc = jkind+nkind*(kkind-1)
+            iac = ikind + nkind*(kkind - 1)
+            ibc = jkind + nkind*(kkind - 1)
             IF (.NOT. ASSOCIATED(oce%intac(iac)%alist)) CYCLE
             IF (.NOT. ASSOCIATED(oce%intac(ibc)%alist)) CYCLE
 
@@ -700,7 +700,7 @@ CONTAINS
             DO kac = 1, alist_ac%nclist
                DO kbc = 1, alist_bc%nclist
                   IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
-                  IF (ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0)) THEN
+                  IF (ALL(cell_b + alist_bc%clist(kbc)%cell - alist_ac%clist(kac)%cell == 0)) THEN
                      IF (pmax*alist_bc%clist(kbc)%maxac*alist_ac%clist(kac)%maxac < eps_cpc) CYCLE
 
                      n_cont_a = alist_ac%clist(kac)%nsgf_cnt
@@ -751,7 +751,7 @@ CONTAINS
                         r_coef_h => rho_atom(katom)%cpc_h(ispin)%r_coef
                         r_coef_s => rho_atom(katom)%cpc_s(ispin)%r_coef
 
-!$                      CALL omp_set_lock(locks((katom-1)*nspins+ispin))
+!$                      CALL omp_set_lock(locks((katom - 1)*nspins + ispin))
                         IF (iatom <= jatom) THEN
                            CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                          C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
@@ -763,7 +763,7 @@ CONTAINS
                                          p_matrix, max_nsgf, r_coef_h, r_coef_s, nsoctot, &
                                          len_PC1, len_CPC, factor, distab)
                         ENDIF
-!$                      CALL omp_unset_lock(locks((katom-1)*nspins+ispin))
+!$                      CALL omp_unset_lock(locks((katom - 1)*nspins + ispin))
 
                      END DO
                      EXIT !search loop over jatom-katom list
@@ -801,8 +801,8 @@ CONTAINS
                CALL mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef, para_env%group)
                r_coef_h => rho_atom(iatom)%cpc_h(ispin)%r_coef
                r_coef_s => rho_atom(iatom)%cpc_s(ispin)%r_coef
-               r_coef_h(:, :) = r_coef_h(:, :)+TRANSPOSE(r_coef_h(:, :))
-               r_coef_s(:, :) = r_coef_s(:, :)+TRANSPOSE(r_coef_s(:, :))
+               r_coef_h(:, :) = r_coef_h(:, :) + TRANSPOSE(r_coef_h(:, :))
+               r_coef_s(:, :) = r_coef_s(:, :) + TRANSPOSE(r_coef_s(:, :))
             END IF
          ENDDO
 
@@ -870,21 +870,21 @@ CONTAINS
 
       ALLOCATE (rga(lcleb, 2))
       DO lc1 = 0, maxlgto
-         DO iso1 = nsoset(lc1-1)+1, nsoset(lc1)
+         DO iso1 = nsoset(lc1 - 1) + 1, nsoset(lc1)
             l1 = indso(1, iso1)
             m1 = indso(2, iso1)
             DO lc2 = 0, maxlgto
-               DO iso2 = nsoset(lc2-1)+1, nsoset(lc2)
+               DO iso2 = nsoset(lc2 - 1) + 1, nsoset(lc2)
                   l2 = indso(1, iso2)
                   m2 = indso(2, iso2)
                   CALL clebsch_gordon(l1, m1, l2, m2, rga)
-                  IF (l1+l2 > llmax) THEN
+                  IF (l1 + l2 > llmax) THEN
                      l1l2 = llmax
                   ELSE
-                     l1l2 = l1+l2
+                     l1l2 = l1 + l2
                   END IF
-                  mp = m1+m2
-                  mm = m1-m2
+                  mp = m1 + m2
+                  mm = m1 - m2
                   IF (m1*m2 < 0 .OR. (m1*m2 == 0 .AND. (m1 < 0 .OR. m2 < 0))) THEN
                      mp = -ABS(mp)
                      mm = -ABS(mm)
@@ -892,21 +892,21 @@ CONTAINS
                      mp = ABS(mp)
                      mm = ABS(mm)
                   END IF
-                  DO lp = MOD(l1+l2, 2), l1l2, 2
-                     il = lp/2+1
+                  DO lp = MOD(l1 + l2, 2), l1l2, 2
+                     il = lp/2 + 1
                      IF (ABS(mp) <= lp) THEN
                      IF (mp >= 0) THEN
-                        iso = nsoset(lp-1)+lp+1+mp
+                        iso = nsoset(lp - 1) + lp + 1 + mp
                      ELSE
-                        iso = nsoset(lp-1)+lp+1-ABS(mp)
+                        iso = nsoset(lp - 1) + lp + 1 - ABS(mp)
                      END IF
                      my_CG(iso1, iso2, iso) = rga(il, 1)
                      ENDIF
                      IF (mp /= mm .AND. ABS(mm) <= lp) THEN
                      IF (mm >= 0) THEN
-                        iso = nsoset(lp-1)+lp+1+mm
+                        iso = nsoset(lp - 1) + lp + 1 + mm
                      ELSE
-                        iso = nsoset(lp-1)+lp+1-ABS(mm)
+                        iso = nsoset(lp - 1) + lp + 1 - ABS(mm)
                      END IF
                      my_CG(iso1, iso2, iso) = rga(il, 2)
                      ENDIF

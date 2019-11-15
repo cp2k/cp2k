@@ -280,9 +280,9 @@ CONTAINS
             ! INDEX LIST
             DO k = 1, n_var
                CALL section_vals_val_get(coordination_section, "ATOMS_FROM", i_rep_val=k, i_vals=iatms)
-               CALL reallocate(colvar%coord_param%i_at_from, 1, ndim+SIZE(iatms))
-               colvar%coord_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms
-               ndim = ndim+SIZE(iatms)
+               CALL reallocate(colvar%coord_param%i_at_from, 1, ndim + SIZE(iatms))
+               colvar%coord_param%i_at_from(ndim + 1:ndim + SIZE(iatms)) = iatms
+               ndim = ndim + SIZE(iatms)
             END DO
             colvar%coord_param%n_atoms_from = ndim
             colvar%coord_param%use_kinds_from = .FALSE.
@@ -292,9 +292,9 @@ CONTAINS
             CPASSERT(n_var > 0)
             DO k = 1, n_var
                CALL section_vals_val_get(coordination_section, "KINDS_FROM", i_rep_val=k, c_vals=c_kinds)
-               CALL reallocate(colvar%coord_param%c_kinds_from, 1, ndim+SIZE(c_kinds))
-               colvar%coord_param%c_kinds_from(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
-               ndim = ndim+SIZE(c_kinds)
+               CALL reallocate(colvar%coord_param%c_kinds_from, 1, ndim + SIZE(c_kinds))
+               colvar%coord_param%c_kinds_from(ndim + 1:ndim + SIZE(c_kinds)) = c_kinds
+               ndim = ndim + SIZE(c_kinds)
             END DO
             colvar%coord_param%n_atoms_from = 0
             colvar%coord_param%use_kinds_from = .TRUE.
@@ -310,9 +310,9 @@ CONTAINS
             ! INDEX LIST
             DO k = 1, n_var
                CALL section_vals_val_get(coordination_section, "ATOMS_TO", i_rep_val=k, i_vals=iatms)
-               CALL reallocate(colvar%coord_param%i_at_to, 1, ndim+SIZE(iatms))
-               colvar%coord_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms
-               ndim = ndim+SIZE(iatms)
+               CALL reallocate(colvar%coord_param%i_at_to, 1, ndim + SIZE(iatms))
+               colvar%coord_param%i_at_to(ndim + 1:ndim + SIZE(iatms)) = iatms
+               ndim = ndim + SIZE(iatms)
             END DO
             colvar%coord_param%n_atoms_to = ndim
             colvar%coord_param%use_kinds_to = .FALSE.
@@ -322,9 +322,9 @@ CONTAINS
             CPASSERT(n_var > 0)
             DO k = 1, n_var
                CALL section_vals_val_get(coordination_section, "KINDS_TO", i_rep_val=k, c_vals=c_kinds)
-               CALL reallocate(colvar%coord_param%c_kinds_to, 1, ndim+SIZE(c_kinds))
-               colvar%coord_param%c_kinds_to(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
-               ndim = ndim+SIZE(c_kinds)
+               CALL reallocate(colvar%coord_param%c_kinds_to, 1, ndim + SIZE(c_kinds))
+               colvar%coord_param%c_kinds_to(ndim + 1:ndim + SIZE(c_kinds)) = c_kinds
+               ndim = ndim + SIZE(c_kinds)
             END DO
             colvar%coord_param%n_atoms_to = 0
             colvar%coord_param%use_kinds_to = .TRUE.
@@ -347,9 +347,9 @@ CONTAINS
                ! INDEX LIST
                DO k = 1, n_var
                   CALL section_vals_val_get(coordination_section, "ATOMS_TO_B", i_rep_val=k, i_vals=iatms)
-                  CALL reallocate(colvar%coord_param%i_at_to_b, 1, ndim+SIZE(iatms))
-                  colvar%coord_param%i_at_to_b(ndim+1:ndim+SIZE(iatms)) = iatms
-                  ndim = ndim+SIZE(iatms)
+                  CALL reallocate(colvar%coord_param%i_at_to_b, 1, ndim + SIZE(iatms))
+                  colvar%coord_param%i_at_to_b(ndim + 1:ndim + SIZE(iatms)) = iatms
+                  ndim = ndim + SIZE(iatms)
                END DO
                colvar%coord_param%n_atoms_to_b = ndim
                colvar%coord_param%use_kinds_to_b = .FALSE.
@@ -359,9 +359,9 @@ CONTAINS
                CPASSERT(n_var_k > 0)
                DO k = 1, n_var_k
                   CALL section_vals_val_get(coordination_section, "KINDS_TO_B", i_rep_val=k, c_vals=c_kinds)
-                  CALL reallocate(colvar%coord_param%c_kinds_to_b, 1, ndim+SIZE(c_kinds))
-                  colvar%coord_param%c_kinds_to_b(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
-                  ndim = ndim+SIZE(c_kinds)
+                  CALL reallocate(colvar%coord_param%c_kinds_to_b, 1, ndim + SIZE(c_kinds))
+                  colvar%coord_param%c_kinds_to_b(ndim + 1:ndim + SIZE(c_kinds)) = c_kinds
+                  ndim = ndim + SIZE(c_kinds)
                END DO
                colvar%coord_param%n_atoms_to_b = 0
                colvar%coord_param%use_kinds_to_b = .TRUE.
@@ -430,9 +430,9 @@ CONTAINS
          ndim = 0
          DO k = 1, n_var
             CALL section_vals_val_get(qparm_section, "ATOMS_FROM", i_rep_val=k, i_vals=iatms)
-            CALL reallocate(colvar%qparm_param%i_at_from, 1, ndim+SIZE(iatms))
-            colvar%qparm_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms
-            ndim = ndim+SIZE(iatms)
+            CALL reallocate(colvar%qparm_param%i_at_from, 1, ndim + SIZE(iatms))
+            colvar%qparm_param%i_at_from(ndim + 1:ndim + SIZE(iatms)) = iatms
+            ndim = ndim + SIZE(iatms)
          END DO
          colvar%qparm_param%n_atoms_from = ndim
          ! This section can be repeated
@@ -440,9 +440,9 @@ CONTAINS
          ndim = 0
          DO k = 1, n_var
             CALL section_vals_val_get(qparm_section, "ATOMS_TO", i_rep_val=k, i_vals=iatms)
-            CALL reallocate(colvar%qparm_param%i_at_to, 1, ndim+SIZE(iatms))
-            colvar%qparm_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms
-            ndim = ndim+SIZE(iatms)
+            CALL reallocate(colvar%qparm_param%i_at_to, 1, ndim + SIZE(iatms))
+            colvar%qparm_param%i_at_to(ndim + 1:ndim + SIZE(iatms)) = iatms
+            ndim = ndim + SIZE(iatms)
          END DO
          colvar%qparm_param%n_atoms_to = ndim
       ELSE IF (my_subsection(9)) THEN
@@ -497,9 +497,9 @@ CONTAINS
                   ! INDEX LIST
                   DO k = 1, n_var
                      CALL section_vals_val_get(path_section, "ATOMS", i_rep_val=k, i_vals=iatms)
-                     CALL reallocate(colvar%reaction_path_param%i_rmsd, 1, ndim+SIZE(iatms))
-                     colvar%reaction_path_param%i_rmsd(ndim+1:ndim+SIZE(iatms)) = iatms
-                     ndim = ndim+SIZE(iatms)
+                     CALL reallocate(colvar%reaction_path_param%i_rmsd, 1, ndim + SIZE(iatms))
+                     colvar%reaction_path_param%i_rmsd(ndim + 1:ndim + SIZE(iatms)) = iatms
+                     ndim = ndim + SIZE(iatms)
                   END DO
                   colvar%reaction_path_param%n_components = ndim
                ELSE
@@ -625,16 +625,16 @@ CONTAINS
          DO i = 1, ncol
             isize = SIZE(colvar%combine_cvs_param%c_parameters)
             CALL section_vals_val_get(combine_section, "PARAMETERS", c_vals=my_par, i_rep_val=i)
-            CALL reallocate(colvar%combine_cvs_param%c_parameters, 1, isize+SIZE(my_par))
-            colvar%combine_cvs_param%c_parameters(isize+1:isize+SIZE(my_par)) = my_par
+            CALL reallocate(colvar%combine_cvs_param%c_parameters, 1, isize + SIZE(my_par))
+            colvar%combine_cvs_param%c_parameters(isize + 1:isize + SIZE(my_par)) = my_par
          END DO
          ALLOCATE (colvar%combine_cvs_param%v_parameters(0))
          CALL section_vals_val_get(combine_section, "VALUES", n_rep_val=ncol)
          DO i = 1, ncol
             isize = SIZE(colvar%combine_cvs_param%v_parameters)
             CALL section_vals_val_get(combine_section, "VALUES", r_vals=my_vals, i_rep_val=i)
-            CALL reallocate(colvar%combine_cvs_param%v_parameters, 1, isize+SIZE(my_vals))
-            colvar%combine_cvs_param%v_parameters(isize+1:isize+SIZE(my_vals)) = my_vals
+            CALL reallocate(colvar%combine_cvs_param%v_parameters, 1, isize + SIZE(my_vals))
+            colvar%combine_cvs_param%v_parameters(isize + 1:isize + SIZE(my_vals)) = my_vals
          END DO
          ! Info on derivative evaluation
          CALL section_vals_val_get(combine_section, "DX", r_val=colvar%combine_cvs_param%dx)
@@ -655,9 +655,9 @@ CONTAINS
             ! INDEX LIST
             DO k = 1, n_var
                CALL section_vals_val_get(population_section, "ATOMS_FROM", i_rep_val=k, i_vals=iatms)
-               CALL reallocate(colvar%population_param%i_at_from, 1, ndim+SIZE(iatms))
-               colvar%population_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms
-               ndim = ndim+SIZE(iatms)
+               CALL reallocate(colvar%population_param%i_at_from, 1, ndim + SIZE(iatms))
+               colvar%population_param%i_at_from(ndim + 1:ndim + SIZE(iatms)) = iatms
+               ndim = ndim + SIZE(iatms)
             END DO
             colvar%population_param%n_atoms_from = ndim
             colvar%population_param%use_kinds_from = .FALSE.
@@ -667,9 +667,9 @@ CONTAINS
             CPASSERT(n_var > 0)
             DO k = 1, n_var
                CALL section_vals_val_get(population_section, "KINDS_FROM", i_rep_val=k, c_vals=c_kinds)
-               CALL reallocate(colvar%population_param%c_kinds_from, 1, ndim+SIZE(c_kinds))
-               colvar%population_param%c_kinds_from(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
-               ndim = ndim+SIZE(c_kinds)
+               CALL reallocate(colvar%population_param%c_kinds_from, 1, ndim + SIZE(c_kinds))
+               colvar%population_param%c_kinds_from(ndim + 1:ndim + SIZE(c_kinds)) = c_kinds
+               ndim = ndim + SIZE(c_kinds)
             END DO
             colvar%population_param%n_atoms_from = 0
             colvar%population_param%use_kinds_from = .TRUE.
@@ -685,9 +685,9 @@ CONTAINS
             ! INDEX LIST
             DO k = 1, n_var
                CALL section_vals_val_get(population_section, "ATOMS_TO", i_rep_val=k, i_vals=iatms)
-               CALL reallocate(colvar%population_param%i_at_to, 1, ndim+SIZE(iatms))
-               colvar%population_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms
-               ndim = ndim+SIZE(iatms)
+               CALL reallocate(colvar%population_param%i_at_to, 1, ndim + SIZE(iatms))
+               colvar%population_param%i_at_to(ndim + 1:ndim + SIZE(iatms)) = iatms
+               ndim = ndim + SIZE(iatms)
             END DO
             colvar%population_param%n_atoms_to = ndim
             colvar%population_param%use_kinds_to = .FALSE.
@@ -697,9 +697,9 @@ CONTAINS
             CPASSERT(n_var > 0)
             DO k = 1, n_var
                CALL section_vals_val_get(population_section, "KINDS_TO", i_rep_val=k, c_vals=c_kinds)
-               CALL reallocate(colvar%population_param%c_kinds_to, 1, ndim+SIZE(c_kinds))
-               colvar%population_param%c_kinds_to(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
-               ndim = ndim+SIZE(c_kinds)
+               CALL reallocate(colvar%population_param%c_kinds_to, 1, ndim + SIZE(c_kinds))
+               colvar%population_param%c_kinds_to(ndim + 1:ndim + SIZE(c_kinds)) = c_kinds
+               ndim = ndim + SIZE(c_kinds)
             END DO
             colvar%population_param%n_atoms_to = 0
             colvar%population_param%use_kinds_to = .TRUE.
@@ -764,9 +764,9 @@ CONTAINS
             ! INDEX LIST
             DO k = 1, n_var
                CALL section_vals_val_get(gyration_section, "ATOMS", i_rep_val=k, i_vals=iatms)
-               CALL reallocate(colvar%gyration_param%i_at, 1, ndim+SIZE(iatms))
-               colvar%gyration_param%i_at(ndim+1:ndim+SIZE(iatms)) = iatms
-               ndim = ndim+SIZE(iatms)
+               CALL reallocate(colvar%gyration_param%i_at, 1, ndim + SIZE(iatms))
+               colvar%gyration_param%i_at(ndim + 1:ndim + SIZE(iatms)) = iatms
+               ndim = ndim + SIZE(iatms)
             END DO
             colvar%gyration_param%n_atoms = ndim
             colvar%gyration_param%use_kinds = .FALSE.
@@ -776,9 +776,9 @@ CONTAINS
             CPASSERT(n_var > 0)
             DO k = 1, n_var
                CALL section_vals_val_get(gyration_section, "KINDS", i_rep_val=k, c_vals=c_kinds)
-               CALL reallocate(colvar%gyration_param%c_kinds, 1, ndim+SIZE(c_kinds))
-               colvar%gyration_param%c_kinds(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
-               ndim = ndim+SIZE(c_kinds)
+               CALL reallocate(colvar%gyration_param%c_kinds, 1, ndim + SIZE(c_kinds))
+               colvar%gyration_param%c_kinds(ndim + 1:ndim + SIZE(c_kinds)) = c_kinds
+               ndim = ndim + SIZE(c_kinds)
             END DO
             colvar%gyration_param%n_atoms = 0
             colvar%gyration_param%use_kinds = .TRUE.
@@ -820,9 +820,9 @@ CONTAINS
                ! INDEX LIST
                DO k = 1, n_var
                   CALL section_vals_val_get(rmsd_section, "ATOMS", i_rep_val=k, i_vals=iatms)
-                  CALL reallocate(colvar%rmsd_param%i_rmsd, 1, ndim+SIZE(iatms))
-                  colvar%rmsd_param%i_rmsd(ndim+1:ndim+SIZE(iatms)) = iatms
-                  ndim = ndim+SIZE(iatms)
+                  CALL reallocate(colvar%rmsd_param%i_rmsd, 1, ndim + SIZE(iatms))
+                  colvar%rmsd_param%i_rmsd(ndim + 1:ndim + SIZE(iatms)) = iatms
+                  ndim = ndim + SIZE(iatms)
                END DO
                colvar%rmsd_param%n_atoms = ndim
             ELSE
@@ -835,9 +835,9 @@ CONTAINS
                ! INDEX LIST
                DO k = 1, n_var
                   CALL section_vals_val_get(rmsd_section, "ATOMS", i_rep_val=k, i_vals=iatms)
-                  CALL reallocate(colvar%rmsd_param%i_rmsd, 1, ndim+SIZE(iatms))
-                  colvar%rmsd_param%i_rmsd(ndim+1:ndim+SIZE(iatms)) = iatms
-                  ndim = ndim+SIZE(iatms)
+                  CALL reallocate(colvar%rmsd_param%i_rmsd, 1, ndim + SIZE(iatms))
+                  colvar%rmsd_param%i_rmsd(ndim + 1:ndim + SIZE(iatms)) = iatms
+                  ndim = ndim + SIZE(iatms)
                END DO
                colvar%rmsd_param%n_atoms = ndim
             ELSE
@@ -849,9 +849,9 @@ CONTAINS
                ! INDEX LIST
                DO k = 1, n_var
                   CALL section_vals_val_get(rmsd_section, "WEIGHTS", i_rep_val=k, r_vals=wei)
-                  CALL reallocate(weights, 1, ndim+SIZE(wei))
-                  weights(ndim+1:ndim+SIZE(wei)) = wei
-                  ndim = ndim+SIZE(wei)
+                  CALL reallocate(weights, 1, ndim + SIZE(wei))
+                  weights(ndim + 1:ndim + SIZE(wei)) = wei
+                  ndim = ndim + SIZE(wei)
                END DO
                IF (ndim /= colvar%rmsd_param%n_atoms) &
                   CALL cp_abort(__LOCATION__, "CV RMSD: list of atoms and list of "// &
@@ -939,7 +939,7 @@ CONTAINS
          IF (ndim <= 3) &
             CPABORT("CV Ring Puckering: Ring size has to be 4 or larger. ")
          ii = colvar%ring_puckering_param%iq
-         IF (ABS(ii) == 1 .OR. ii < -(ndim-1)/2 .OR. ii > ndim/2) &
+         IF (ABS(ii) == 1 .OR. ii < -(ndim - 1)/2 .OR. ii > ndim/2) &
             CPABORT("CV Ring Puckering: Invalid coordinate number.")
       ELSE IF (my_subsection(23)) THEN
          ! Minimum Distance
@@ -959,9 +959,9 @@ CONTAINS
             ! INDEX LIST
             DO k = 1, n_var
                CALL section_vals_val_get(mindist_section, "ATOMS_FROM", i_rep_val=k, i_vals=iatms)
-               CALL reallocate(colvar%mindist_param%i_coord_from, 1, ndim+SIZE(iatms))
-               colvar%mindist_param%i_coord_from(ndim+1:ndim+SIZE(iatms)) = iatms
-               ndim = ndim+SIZE(iatms)
+               CALL reallocate(colvar%mindist_param%i_coord_from, 1, ndim + SIZE(iatms))
+               colvar%mindist_param%i_coord_from(ndim + 1:ndim + SIZE(iatms)) = iatms
+               ndim = ndim + SIZE(iatms)
             END DO
             colvar%mindist_param%n_coord_from = ndim
             colvar%mindist_param%use_kinds_from = .FALSE.
@@ -971,9 +971,9 @@ CONTAINS
             CPASSERT(n_var > 0)
             DO k = 1, n_var
                CALL section_vals_val_get(mindist_section, "KINDS_FROM", i_rep_val=k, c_vals=c_kinds)
-               CALL reallocate(colvar%mindist_param%k_coord_from, 1, ndim+SIZE(c_kinds))
-               colvar%mindist_param%k_coord_from(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
-               ndim = ndim+SIZE(c_kinds)
+               CALL reallocate(colvar%mindist_param%k_coord_from, 1, ndim + SIZE(c_kinds))
+               colvar%mindist_param%k_coord_from(ndim + 1:ndim + SIZE(c_kinds)) = c_kinds
+               ndim = ndim + SIZE(c_kinds)
             END DO
             colvar%mindist_param%n_coord_from = 0
             colvar%mindist_param%use_kinds_from = .TRUE.
@@ -989,9 +989,9 @@ CONTAINS
             ! INDEX LIST
             DO k = 1, n_var
                CALL section_vals_val_get(mindist_section, "ATOMS_TO", i_rep_val=k, i_vals=iatms)
-               CALL reallocate(colvar%mindist_param%i_coord_to, 1, ndim+SIZE(iatms))
-               colvar%mindist_param%i_coord_to(ndim+1:ndim+SIZE(iatms)) = iatms
-               ndim = ndim+SIZE(iatms)
+               CALL reallocate(colvar%mindist_param%i_coord_to, 1, ndim + SIZE(iatms))
+               colvar%mindist_param%i_coord_to(ndim + 1:ndim + SIZE(iatms)) = iatms
+               ndim = ndim + SIZE(iatms)
             END DO
             colvar%mindist_param%n_coord_to = ndim
             colvar%mindist_param%use_kinds_to = .FALSE.
@@ -1001,9 +1001,9 @@ CONTAINS
             CPASSERT(n_var > 0)
             DO k = 1, n_var
                CALL section_vals_val_get(mindist_section, "KINDS_TO", i_rep_val=k, c_vals=c_kinds)
-               CALL reallocate(colvar%mindist_param%k_coord_to, 1, ndim+SIZE(c_kinds))
-               colvar%mindist_param%k_coord_to(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
-               ndim = ndim+SIZE(c_kinds)
+               CALL reallocate(colvar%mindist_param%k_coord_to, 1, ndim + SIZE(c_kinds))
+               colvar%mindist_param%k_coord_to(ndim + 1:ndim + SIZE(c_kinds)) = c_kinds
+               ndim = ndim + SIZE(c_kinds)
             END DO
             colvar%mindist_param%n_coord_to = 0
             colvar%mindist_param%use_kinds_to = .TRUE.
@@ -1413,9 +1413,9 @@ CONTAINS
       ndim = 0
       DO k = 1, n_var
          CALL section_vals_val_get(section, "OXYGENS", i_vals=iatms)
-         CALL reallocate(i_oxygens, 1, ndim+SIZE(iatms))
-         i_oxygens(ndim+1:ndim+SIZE(iatms)) = iatms
-         ndim = ndim+SIZE(iatms)
+         CALL reallocate(i_oxygens, 1, ndim + SIZE(iatms))
+         i_oxygens(ndim + 1:ndim + SIZE(iatms)) = iatms
+         ndim = ndim + SIZE(iatms)
       END DO
       n_oxygens = ndim
 
@@ -1423,9 +1423,9 @@ CONTAINS
       ndim = 0
       DO k = 1, n_var
          CALL section_vals_val_get(section, "HYDROGENS", i_vals=iatms)
-         CALL reallocate(i_hydrogens, 1, ndim+SIZE(iatms))
-         i_hydrogens(ndim+1:ndim+SIZE(iatms)) = iatms
-         ndim = ndim+SIZE(iatms)
+         CALL reallocate(i_hydrogens, 1, ndim + SIZE(iatms))
+         i_hydrogens(ndim + 1:ndim + SIZE(iatms)) = iatms
+         ndim = ndim + SIZE(iatms)
       END DO
       n_hydrogens = ndim
 
@@ -1493,9 +1493,9 @@ CONTAINS
       ndim = 0
       DO k = 1, n_var
          CALL section_vals_val_get(section, "OXYGENS_WATER", i_vals=iatms)
-         CALL reallocate(i_oxygens_water, 1, ndim+SIZE(iatms))
-         i_oxygens_water(ndim+1:ndim+SIZE(iatms)) = iatms
-         ndim = ndim+SIZE(iatms)
+         CALL reallocate(i_oxygens_water, 1, ndim + SIZE(iatms))
+         i_oxygens_water(ndim + 1:ndim + SIZE(iatms)) = iatms
+         ndim = ndim + SIZE(iatms)
       END DO
       n_oxygens_water = ndim
 
@@ -1503,9 +1503,9 @@ CONTAINS
       ndim = 0
       DO k = 1, n_var
          CALL section_vals_val_get(section, "OXYGENS_ACID", i_vals=iatms)
-         CALL reallocate(i_oxygens_acid, 1, ndim+SIZE(iatms))
-         i_oxygens_acid(ndim+1:ndim+SIZE(iatms)) = iatms
-         ndim = ndim+SIZE(iatms)
+         CALL reallocate(i_oxygens_acid, 1, ndim + SIZE(iatms))
+         i_oxygens_acid(ndim + 1:ndim + SIZE(iatms)) = iatms
+         ndim = ndim + SIZE(iatms)
       END DO
       n_oxygens_acid = ndim
 
@@ -1513,9 +1513,9 @@ CONTAINS
       ndim = 0
       DO k = 1, n_var
          CALL section_vals_val_get(section, "HYDROGENS", i_vals=iatms)
-         CALL reallocate(i_hydrogens, 1, ndim+SIZE(iatms))
-         i_hydrogens(ndim+1:ndim+SIZE(iatms)) = iatms
-         ndim = ndim+SIZE(iatms)
+         CALL reallocate(i_hydrogens, 1, ndim + SIZE(iatms))
+         i_hydrogens(ndim + 1:ndim + SIZE(iatms)) = iatms
+         ndim = ndim + SIZE(iatms)
       END DO
       n_hydrogens = ndim
 
@@ -1588,20 +1588,20 @@ CONTAINS
             NULLIFY (colvar%points(i)%atoms)
             NULLIFY (colvar%points(i)%weights)
             CALL section_vals_val_get(point_sections, "TYPE", i_rep_section=i, i_val=colvar%points(i)%type_id)
-            SELECT CASE (colvar%points (i)%type_id)
+            SELECT CASE (colvar%points(i)%type_id)
             CASE (do_clv_geo_center)
                ! Define a point through a list of atoms..
                CALL section_vals_val_get(point_sections, "ATOMS", i_rep_section=i, n_rep_val=nrep, i_vals=atoms)
                DO irep = 1, nrep
                   CALL section_vals_val_get(point_sections, "ATOMS", i_rep_section=i, i_rep_val=irep, i_vals=atoms)
-                  natoms = natoms+SIZE(atoms)
+                  natoms = natoms + SIZE(atoms)
                END DO
                ALLOCATE (colvar%points(i)%atoms(natoms))
                natoms = 0
                DO irep = 1, nrep
                   CALL section_vals_val_get(point_sections, "ATOMS", i_rep_section=i, i_rep_val=irep, i_vals=atoms)
-                  colvar%points(i)%atoms(natoms+1:) = atoms(:)
-                  natoms = natoms+SIZE(atoms)
+                  colvar%points(i)%atoms(natoms + 1:) = atoms(:)
+                  natoms = natoms + SIZE(atoms)
                END DO
                ! Define weights of the list
                ALLOCATE (colvar%points(i)%weights(natoms))
@@ -1611,8 +1611,8 @@ CONTAINS
                   DO irep = 1, nrep
                      CALL section_vals_val_get(point_sections, "WEIGHTS", i_rep_section=i, i_rep_val=irep, &
                                                r_vals=weights)
-                     colvar%points(i)%weights(nweights+1:) = weights(:)
-                     nweights = nweights+SIZE(weights)
+                     colvar%points(i)%weights(nweights + 1:) = weights(:)
+                     nweights = nweights + SIZE(weights)
                   END DO
                   CPASSERT(natoms == nweights)
                END IF
@@ -1946,7 +1946,7 @@ CONTAINS
       IF (colvar%use_points) THEN
          CALL eval_point_der(colvar%points, i, colvar%dsdr, fi)
       ELSE
-         colvar%dsdr(:, i) = colvar%dsdr(:, i)+fi
+         colvar%dsdr(:, i) = colvar%dsdr(:, i) + fi
       END IF
 
    END SUBROUTINE put_derivative
@@ -1999,11 +1999,11 @@ CONTAINS
       ENDIF
 
       IF (colvar%xyz_diag_param%use_pbc) THEN
-         ss = MATMUL(cell%h_inv, xpi-r0)
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, xpi - r0)
+         ss = ss - NINT(ss)
          xi = MATMUL(cell%hmat, ss)
       ELSE
-         xi = xpi-r0
+         xi = xpi - r0
       END IF
 
       IF (.NOT. colvar%xyz_diag_param%use_absolute_position) THEN
@@ -2027,7 +2027,7 @@ CONTAINS
             ! do_clv_xyz
          END SELECT
 
-         r = xi(1)**2+xi(2)**2+xi(3)**2
+         r = xi(1)**2 + xi(2)**2 + xi(3)**2
          fi(:) = 2.0_dp*xi
       ELSE
          SELECT CASE (colvar%xyz_diag_param%component)
@@ -2100,14 +2100,14 @@ CONTAINS
          IF (ALL(colvar%xyz_outerdiag_param%r0(:, k) == HUGE(0.0_dp))) r0 = xpi
 
          IF (colvar%xyz_outerdiag_param%use_pbc) THEN
-            ss = MATMUL(cell%h_inv, xpi-r0)
-            ss = ss-NINT(ss)
+            ss = MATMUL(cell%h_inv, xpi - r0)
+            ss = ss - NINT(ss)
             xi(:, k) = MATMUL(cell%hmat, ss)
          ELSE
-            xi(:, k) = xpi-r0
+            xi(:, k) = xpi - r0
          END IF
 
-         SELECT CASE (colvar%xyz_outerdiag_param%components (k))
+         SELECT CASE (colvar%xyz_outerdiag_param%components(k))
          CASE (do_clv_x)
             xi(2, k) = 0.0_dp
             xi(3, k) = 0.0_dp
@@ -2132,8 +2132,8 @@ CONTAINS
       fi = 0.0_dp
       DO i = 1, 3
          DO l = 1, 3
-            IF (xi(l, 1) /= 0.0_dp) fi(l, 1) = fi(l, 1)+xi(i, 2)
-            r = r+xi(l, 1)*xi(i, 2)
+            IF (xi(l, 1) /= 0.0_dp) fi(l, 1) = fi(l, 1) + xi(i, 2)
+            r = r + xi(l, 1)*xi(i, 2)
          END DO
          IF (xi(i, 2) /= 0.0_dp) fi(i, 2) = SUM(xi(:, 1))
       END DO
@@ -2355,34 +2355,34 @@ CONTAINS
       CALL get_coordinates(colvar, j, rj, my_particles)
       CALL get_coordinates(colvar, k, rk, my_particles)
       CALL get_coordinates(colvar, l, rl, my_particles)
-      xpij = ri-rj
-      xpkj = rk-rj
-      xpl = rl-(ri+rj+rk)/3.0_dp
+      xpij = ri - rj
+      xpkj = rk - rj
+      xpl = rl - (ri + rj + rk)/3.0_dp
       IF (colvar%plane_distance_param%use_pbc) THEN
          ! xpij
-         ss = MATMUL(cell%h_inv, ri-rj)
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, ri - rj)
+         ss = ss - NINT(ss)
          xpij = MATMUL(cell%hmat, ss)
          ! xpkj
-         ss = MATMUL(cell%h_inv, rk-rj)
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, rk - rj)
+         ss = ss - NINT(ss)
          xpkj = MATMUL(cell%hmat, ss)
          ! xpl
-         ss = MATMUL(cell%h_inv, rl-(ri+rj+rk)/3.0_dp)
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, rl - (ri + rj + rk)/3.0_dp)
+         ss = ss - NINT(ss)
          xpl = MATMUL(cell%hmat, ss)
       END IF
       ! xpn
-      xpn(1) = xpij(2)*xpkj(3)-xpij(3)*xpkj(2)
-      xpn(2) = xpij(3)*xpkj(1)-xpij(1)*xpkj(3)
-      xpn(3) = xpij(1)*xpkj(2)-xpij(2)*xpkj(1)
+      xpn(1) = xpij(2)*xpkj(3) - xpij(3)*xpkj(2)
+      xpn(2) = xpij(3)*xpkj(1) - xpij(1)*xpkj(3)
+      xpn(3) = xpij(1)*xpkj(2) - xpij(2)*xpkj(1)
       a = DOT_PRODUCT(xpn, xpn)
       b = DOT_PRODUCT(xpl, xpn)
       r12 = SQRT(a)
       colvar%ss = b/r12
-      dsdxpn(1) = xpl(1)/r12-b*xpn(1)/(r12*a)
-      dsdxpn(2) = xpl(2)/r12-b*xpn(2)/(r12*a)
-      dsdxpn(3) = xpl(3)/r12-b*xpn(3)/(r12*a)
+      dsdxpn(1) = xpl(1)/r12 - b*xpn(1)/(r12*a)
+      dsdxpn(2) = xpl(2)/r12 - b*xpn(2)/(r12*a)
+      dsdxpn(3) = xpl(3)/r12 - b*xpn(3)/(r12*a)
       !
       dxpndxi(1, 1) = 0.0_dp
       dxpndxi(1, 2) = 1.0_dp*xpkj(3)
@@ -2395,13 +2395,13 @@ CONTAINS
       dxpndxi(3, 3) = 0.0_dp
       !
       dxpndxj(1, 1) = 0.0_dp
-      dxpndxj(1, 2) = -1.0_dp*xpkj(3)+xpij(3)
-      dxpndxj(1, 3) = -1.0_dp*xpij(2)+xpkj(2)
-      dxpndxj(2, 1) = -1.0_dp*xpij(3)+xpkj(3)
+      dxpndxj(1, 2) = -1.0_dp*xpkj(3) + xpij(3)
+      dxpndxj(1, 3) = -1.0_dp*xpij(2) + xpkj(2)
+      dxpndxj(2, 1) = -1.0_dp*xpij(3) + xpkj(3)
       dxpndxj(2, 2) = 0.0_dp
-      dxpndxj(2, 3) = -1.0_dp*xpkj(1)+xpij(1)
-      dxpndxj(3, 1) = -1.0_dp*xpkj(2)+xpij(2)
-      dxpndxj(3, 2) = -1.0_dp*xpij(1)+xpkj(1)
+      dxpndxj(2, 3) = -1.0_dp*xpkj(1) + xpij(1)
+      dxpndxj(3, 1) = -1.0_dp*xpkj(2) + xpij(2)
+      dxpndxj(3, 2) = -1.0_dp*xpij(1) + xpkj(1)
       dxpndxj(3, 3) = 0.0_dp
       !
       dxpndxk(1, 1) = 0.0_dp
@@ -2414,9 +2414,9 @@ CONTAINS
       dxpndxk(3, 2) = 1.0_dp*xpij(1)
       dxpndxk(3, 3) = 0.0_dp
       !
-      fi(:) = MATMUL(dsdxpn, dxpndxi)-xpn/(3.0_dp*r12)
-      fj(:) = MATMUL(dsdxpn, dxpndxj)-xpn/(3.0_dp*r12)
-      fk(:) = MATMUL(dsdxpn, dxpndxk)-xpn/(3.0_dp*r12)
+      fi(:) = MATMUL(dsdxpn, dxpndxi) - xpn/(3.0_dp*r12)
+      fj(:) = MATMUL(dsdxpn, dxpndxj) - xpn/(3.0_dp*r12)
+      fk(:) = MATMUL(dsdxpn, dxpndxk) - xpn/(3.0_dp*r12)
       fl(:) = xpn/r12
       ! Transfer derivatives on atoms
       CALL put_derivative(colvar, 1, fi)
@@ -2479,19 +2479,19 @@ CONTAINS
          CALL get_coordinates(colvar, k1, rk1, my_particles)
 
          ! xpij
-         ss = MATMUL(cell%h_inv, ri1-rj1)
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, ri1 - rj1)
+         ss = ss - NINT(ss)
          xpij1 = MATMUL(cell%hmat, ss)
 
          ! xpkj
-         ss = MATMUL(cell%h_inv, rk1-rj1)
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, rk1 - rj1)
+         ss = ss - NINT(ss)
          xpkj1 = MATMUL(cell%hmat, ss)
 
          ! xpn
-         xpn1(1) = xpij1(2)*xpkj1(3)-xpij1(3)*xpkj1(2)
-         xpn1(2) = xpij1(3)*xpkj1(1)-xpij1(1)*xpkj1(3)
-         xpn1(3) = xpij1(1)*xpkj1(2)-xpij1(2)*xpkj1(1)
+         xpn1(1) = xpij1(2)*xpkj1(3) - xpij1(3)*xpkj1(2)
+         xpn1(2) = xpij1(3)*xpkj1(1) - xpij1(1)*xpkj1(3)
+         xpn1(3) = xpij1(1)*xpkj1(2) - xpij1(2)*xpkj1(1)
       ELSE
          xpn1 = colvar%plane_plane_angle_param%plane1%normal_vec
       END IF
@@ -2511,19 +2511,19 @@ CONTAINS
          CALL get_coordinates(colvar, k2, rk2, my_particles)
 
          ! xpij
-         ss = MATMUL(cell%h_inv, ri2-rj2)
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, ri2 - rj2)
+         ss = ss - NINT(ss)
          xpij2 = MATMUL(cell%hmat, ss)
 
          ! xpkj
-         ss = MATMUL(cell%h_inv, rk2-rj2)
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, rk2 - rj2)
+         ss = ss - NINT(ss)
          xpkj2 = MATMUL(cell%hmat, ss)
 
          ! xpn
-         xpn2(1) = xpij2(2)*xpkj2(3)-xpij2(3)*xpkj2(2)
-         xpn2(2) = xpij2(3)*xpkj2(1)-xpij2(1)*xpkj2(3)
-         xpn2(3) = xpij2(1)*xpkj2(2)-xpij2(2)*xpkj2(1)
+         xpn2(1) = xpij2(2)*xpkj2(3) - xpij2(3)*xpkj2(2)
+         xpn2(2) = xpij2(3)*xpkj2(1) - xpij2(1)*xpkj2(3)
+         xpn2(3) = xpij2(1)*xpkj2(2) - xpij2(2)*xpkj2(1)
       ELSE
          xpn2 = colvar%plane_plane_angle_param%plane2%normal_vec
       END IF
@@ -2539,7 +2539,7 @@ CONTAINS
       t = MIN(1.0_dp, ABS(t))*SIGN(1.0_dp, t)
       colvar%ss = ACOS(t)
 
-      IF ((ABS(colvar%ss) .LT. tolerance_acos) .OR. (ABS(colvar%ss-pi) .LT. tolerance_acos)) THEN
+      IF ((ABS(colvar%ss) .LT. tolerance_acos) .OR. (ABS(colvar%ss - pi) .LT. tolerance_acos)) THEN
          fmod = 0.0_dp
       ELSE
          fmod = -1.0_dp/SIN(colvar%ss)
@@ -2550,7 +2550,7 @@ CONTAINS
       IF (colvar%plane_plane_angle_param%plane1%type_of_def == plane_def_atoms) THEN
          dprod12_dxpn = xpn2
          dnorm_dxpn = 1.0_dp/norm1*xpn1
-         dt_dxpn = (dprod12_dxpn*d-prod_12*dnorm_dxpn*norm2)/d**2
+         dt_dxpn = (dprod12_dxpn*d - prod_12*dnorm_dxpn*norm2)/d**2
 
          dsdxpn(1) = fmod*dt_dxpn(1)
          dsdxpn(2) = fmod*dt_dxpn(2)
@@ -2567,13 +2567,13 @@ CONTAINS
          dxpndxi(3, 3) = 0.0_dp
          !
          dxpndxj(1, 1) = 0.0_dp
-         dxpndxj(1, 2) = -1.0_dp*xpkj1(3)+xpij1(3)
-         dxpndxj(1, 3) = -1.0_dp*xpij1(2)+xpkj1(2)
-         dxpndxj(2, 1) = -1.0_dp*xpij1(3)+xpkj1(3)
+         dxpndxj(1, 2) = -1.0_dp*xpkj1(3) + xpij1(3)
+         dxpndxj(1, 3) = -1.0_dp*xpij1(2) + xpkj1(2)
+         dxpndxj(2, 1) = -1.0_dp*xpij1(3) + xpkj1(3)
          dxpndxj(2, 2) = 0.0_dp
-         dxpndxj(2, 3) = -1.0_dp*xpkj1(1)+xpij1(1)
-         dxpndxj(3, 1) = -1.0_dp*xpkj1(2)+xpij1(2)
-         dxpndxj(3, 2) = -1.0_dp*xpij1(1)+xpkj1(1)
+         dxpndxj(2, 3) = -1.0_dp*xpkj1(1) + xpij1(1)
+         dxpndxj(3, 1) = -1.0_dp*xpkj1(2) + xpij1(2)
+         dxpndxj(3, 2) = -1.0_dp*xpij1(1) + xpkj1(1)
          dxpndxj(3, 3) = 0.0_dp
          !
          dxpndxk(1, 1) = 0.0_dp
@@ -2591,9 +2591,9 @@ CONTAINS
          fk = MATMUL(dsdxpn, dxpndxk)
 
          ! Transfer derivatives on atoms
-         CALL put_derivative(colvar, np+1, fi)
-         CALL put_derivative(colvar, np+2, fj)
-         CALL put_derivative(colvar, np+3, fk)
+         CALL put_derivative(colvar, np + 1, fi)
+         CALL put_derivative(colvar, np + 2, fj)
+         CALL put_derivative(colvar, np + 3, fk)
          np = 3
       END IF
 
@@ -2601,7 +2601,7 @@ CONTAINS
       IF (colvar%plane_plane_angle_param%plane2%type_of_def == plane_def_atoms) THEN
          dprod12_dxpn = xpn1
          dnorm_dxpn = 1.0_dp/norm2*xpn2
-         dt_dxpn = (dprod12_dxpn*d-prod_12*dnorm_dxpn*norm1)/d**2
+         dt_dxpn = (dprod12_dxpn*d - prod_12*dnorm_dxpn*norm1)/d**2
 
          dsdxpn(1) = fmod*dt_dxpn(1)
          dsdxpn(2) = fmod*dt_dxpn(2)
@@ -2618,13 +2618,13 @@ CONTAINS
          dxpndxi(3, 3) = 0.0_dp
          !
          dxpndxj(1, 1) = 0.0_dp
-         dxpndxj(1, 2) = -1.0_dp*xpkj1(3)+xpij1(3)
-         dxpndxj(1, 3) = -1.0_dp*xpij1(2)+xpkj1(2)
-         dxpndxj(2, 1) = -1.0_dp*xpij1(3)+xpkj1(3)
+         dxpndxj(1, 2) = -1.0_dp*xpkj1(3) + xpij1(3)
+         dxpndxj(1, 3) = -1.0_dp*xpij1(2) + xpkj1(2)
+         dxpndxj(2, 1) = -1.0_dp*xpij1(3) + xpkj1(3)
          dxpndxj(2, 2) = 0.0_dp
-         dxpndxj(2, 3) = -1.0_dp*xpkj1(1)+xpij1(1)
-         dxpndxj(3, 1) = -1.0_dp*xpkj1(2)+xpij1(2)
-         dxpndxj(3, 2) = -1.0_dp*xpij1(1)+xpkj1(1)
+         dxpndxj(2, 3) = -1.0_dp*xpkj1(1) + xpij1(1)
+         dxpndxj(3, 1) = -1.0_dp*xpkj1(2) + xpij1(2)
+         dxpndxj(3, 2) = -1.0_dp*xpij1(1) + xpkj1(1)
          dxpndxj(3, 3) = 0.0_dp
          !
          dxpndxk(1, 1) = 0.0_dp
@@ -2642,9 +2642,9 @@ CONTAINS
          fk = MATMUL(dsdxpn, dxpndxk)
 
          ! Transfer derivatives on atoms
-         CALL put_derivative(colvar, np+1, fi)
-         CALL put_derivative(colvar, np+2, fj)
-         CALL put_derivative(colvar, np+3, fk)
+         CALL put_derivative(colvar, np + 1, fi)
+         CALL put_derivative(colvar, np + 2, fj)
+         CALL put_derivative(colvar, np + 3, fk)
       END IF
 
    END SUBROUTINE plane_plane_angle_colvar
@@ -2695,12 +2695,12 @@ CONTAINS
       i = colvar%rotation_param%i_at2_bond2
       CALL get_coordinates(colvar, i, xp2b2, my_particles)
       ! xij
-      ss = MATMUL(cell%h_inv, xp1b1-xp2b1)
-      ss = ss-NINT(ss)
+      ss = MATMUL(cell%h_inv, xp1b1 - xp2b1)
+      ss = ss - NINT(ss)
       xij = MATMUL(cell%hmat, ss)
       ! xkj
-      ss = MATMUL(cell%h_inv, xp1b2-xp2b2)
-      ss = ss-NINT(ss)
+      ss = MATMUL(cell%h_inv, xp1b2 - xp2b2)
+      ss = ss - NINT(ss)
       xkj = MATMUL(cell%hmat, ss)
       ! evaluation of the angle..
       a = SQRT(DOT_PRODUCT(xij, xij))
@@ -2710,15 +2710,15 @@ CONTAINS
       t2 = 1.0_dp/(a*b**3.0_dp)
       t3 = DOT_PRODUCT(xij, xkj)
       colvar%ss = ACOS(t3*t0)
-      IF ((ABS(colvar%ss) .LT. tolerance_acos) .OR. (ABS(colvar%ss-pi) .LT. tolerance_acos)) THEN
+      IF ((ABS(colvar%ss) .LT. tolerance_acos) .OR. (ABS(colvar%ss - pi) .LT. tolerance_acos)) THEN
          fmod = 0.0_dp
       ELSE
          fmod = -1.0_dp/SIN(colvar%ss)
       ENDIF
-      dp1b1 = xkj(:)*t0-xij(:)*t1*t3
-      dp2b1 = -xkj(:)*t0+xij(:)*t1*t3
-      dp1b2 = xij(:)*t0-xkj(:)*t2*t3
-      dp2b2 = -xij(:)*t0+xkj(:)*t2*t3
+      dp1b1 = xkj(:)*t0 - xij(:)*t1*t3
+      dp2b1 = -xkj(:)*t0 + xij(:)*t1*t3
+      dp1b2 = xij(:)*t0 - xkj(:)*t2*t3
+      dp2b2 = -xij(:)*t0 + xkj(:)*t2*t3
 
       xdum = dp1b1*fmod
       idum = colvar%rotation_param%i_at1_bond1
@@ -2776,28 +2776,28 @@ CONTAINS
       CALL get_coordinates(colvar, i, xpi, my_particles)
       CALL get_coordinates(colvar, j, xpj, my_particles)
       IF (colvar%dfunct_param%use_pbc) THEN
-         ss = MATMUL(cell%h_inv, xpi-xpj)
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, xpi - xpj)
+         ss = ss - NINT(ss)
          xij = MATMUL(cell%hmat, ss)
       ELSE
-         xij = xpi-xpj
+         xij = xpi - xpj
       END IF
-      r12 = SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+      r12 = SQRT(xij(1)**2 + xij(2)**2 + xij(3)**2)
       ! Second bond
       k = colvar%dfunct_param%i_at_dfunct(3)
       l = colvar%dfunct_param%i_at_dfunct(4)
       CALL get_coordinates(colvar, k, xpk, my_particles)
       CALL get_coordinates(colvar, l, xpl, my_particles)
       IF (colvar%dfunct_param%use_pbc) THEN
-         ss = MATMUL(cell%h_inv, xpk-xpl)
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, xpk - xpl)
+         ss = ss - NINT(ss)
          xkl = MATMUL(cell%hmat, ss)
       ELSE
-         xkl = xpk-xpl
+         xkl = xpk - xpl
       END IF
-      r34 = SQRT(xkl(1)**2+xkl(2)**2+xkl(3)**2)
+      r34 = SQRT(xkl(1)**2 + xkl(2)**2 + xkl(3)**2)
       !
-      colvar%ss = r12+colvar%dfunct_param%coeff*r34
+      colvar%ss = r12 + colvar%dfunct_param%coeff*r34
       fi(:) = xij/r12
       fj(:) = -xij/r12
       fk(:) = colvar%dfunct_param%coeff*xkl/r34
@@ -2850,12 +2850,12 @@ CONTAINS
       CALL get_coordinates(colvar, j, rj, my_particles)
       CALL get_coordinates(colvar, k, rk, my_particles)
       ! xij
-      ss = MATMUL(cell%h_inv, ri-rj)
-      ss = ss-NINT(ss)
+      ss = MATMUL(cell%h_inv, ri - rj)
+      ss = ss - NINT(ss)
       xij = MATMUL(cell%hmat, ss)
       ! xkj
-      ss = MATMUL(cell%h_inv, rk-rj)
-      ss = ss-NINT(ss)
+      ss = MATMUL(cell%h_inv, rk - rj)
+      ss = ss - NINT(ss)
       xkj = MATMUL(cell%hmat, ss)
       ! Evaluation of the angle..
       a = SQRT(DOT_PRODUCT(xij, xij))
@@ -2865,14 +2865,14 @@ CONTAINS
       t2 = 1.0_dp/(a*b**3.0_dp)
       t3 = DOT_PRODUCT(xij, xkj)
       colvar%ss = ACOS(t3*t0)
-      IF ((ABS(colvar%ss) .LT. tolerance_acos) .OR. (ABS(colvar%ss-pi) .LT. tolerance_acos)) THEN
+      IF ((ABS(colvar%ss) .LT. tolerance_acos) .OR. (ABS(colvar%ss - pi) .LT. tolerance_acos)) THEN
          fmod = 0.0_dp
       ELSE
          fmod = -1.0_dp/SIN(colvar%ss)
       ENDIF
-      fi(:) = xkj(:)*t0-xij(:)*t1*t3
-      fj(:) = -xkj(:)*t0+xij(:)*t1*t3-xij(:)*t0+xkj(:)*t2*t3
-      fk(:) = xij(:)*t0-xkj(:)*t2*t3
+      fi(:) = xkj(:)*t0 - xij(:)*t1*t3
+      fj(:) = -xkj(:)*t0 + xij(:)*t1*t3 - xij(:)*t0 + xkj(:)*t2*t3
+      fk(:) = xij(:)*t0 - xkj(:)*t2*t3
       fi = fi*fmod
       fj = fj*fmod
       fk = fk*fmod
@@ -2919,8 +2919,8 @@ CONTAINS
       j = colvar%dist_param%j_at
       CALL get_coordinates(colvar, i, xpi, my_particles)
       CALL get_coordinates(colvar, j, xpj, my_particles)
-      ss = MATMUL(cell%h_inv, xpi-xpj)
-      ss = ss-NINT(ss)
+      ss = MATMUL(cell%h_inv, xpi - xpj)
+      ss = ss - NINT(ss)
       xij = MATMUL(cell%hmat, ss)
       SELECT CASE (colvar%dist_param%axis_id)
       CASE (do_clv_x)
@@ -2941,7 +2941,7 @@ CONTAINS
       CASE DEFAULT
          !do_clv_xyz
       END SELECT
-      r12 = SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+      r12 = SQRT(xij(1)**2 + xij(2)**2 + xij(3)**2)
 
       colvar%ss = r12
       fi(:) = xij/r12
@@ -3000,51 +3000,51 @@ CONTAINS
       ENDDO
       o0 = colvar%torsion_param%o0
       ! ba
-      ss = MATMUL(cell%h_inv, rr(:, 2)-rr(:, 1))
-      ss = ss-NINT(ss)
+      ss = MATMUL(cell%h_inv, rr(:, 2) - rr(:, 1))
+      ss = ss - NINT(ss)
       ss = MATMUL(cell%hmat, ss)
       xba = ss(1)
       yba = ss(2)
       zba = ss(3)
       ! cb
-      ss = MATMUL(cell%h_inv, rr(:, 3)-rr(:, 2))
-      ss = ss-NINT(ss)
+      ss = MATMUL(cell%h_inv, rr(:, 3) - rr(:, 2))
+      ss = ss - NINT(ss)
       ss = MATMUL(cell%hmat, ss)
       xcb = ss(1)
       ycb = ss(2)
       zcb = ss(3)
       ! dc
-      ss = MATMUL(cell%h_inv, rr(:, 4)-rr(:, 3))
-      ss = ss-NINT(ss)
+      ss = MATMUL(cell%h_inv, rr(:, 4) - rr(:, 3))
+      ss = ss - NINT(ss)
       ss = MATMUL(cell%hmat, ss)
       xdc = ss(1)
       ydc = ss(2)
       zdc = ss(3)
       !
-      xt = yba*zcb-ycb*zba
-      yt = zba*xcb-zcb*xba
-      zt = xba*ycb-xcb*yba
-      xu = ycb*zdc-ydc*zcb
-      yu = zcb*xdc-zdc*xcb
-      zu = xcb*ydc-xdc*ycb
-      xtu = yt*zu-yu*zt
-      ytu = zt*xu-zu*xt
-      ztu = xt*yu-xu*yt
-      rt2 = xt*xt+yt*yt+zt*zt
-      ru2 = xu*xu+yu*yu+zu*zu
+      xt = yba*zcb - ycb*zba
+      yt = zba*xcb - zcb*xba
+      zt = xba*ycb - xcb*yba
+      xu = ycb*zdc - ydc*zcb
+      yu = zcb*xdc - zdc*xcb
+      zu = xcb*ydc - xdc*ycb
+      xtu = yt*zu - yu*zt
+      ytu = zt*xu - zu*xt
+      ztu = xt*yu - xu*yt
+      rt2 = xt*xt + yt*yt + zt*zt
+      ru2 = xu*xu + yu*yu + zu*zu
       rtru = SQRT(rt2*ru2)
       IF (rtru .NE. 0.0_dp) THEN
-         rcb = SQRT(xcb*xcb+ycb*ycb+zcb*zcb)
-         cosine = (xt*xu+yt*yu+zt*zu)/rtru
-         sine = (xcb*xtu+ycb*ytu+zcb*ztu)/(rcb*rtru)
+         rcb = SQRT(xcb*xcb + ycb*ycb + zcb*zcb)
+         cosine = (xt*xu + yt*yu + zt*zu)/rtru
+         sine = (xcb*xtu + ycb*ytu + zcb*ztu)/(rcb*rtru)
          cosine = MIN(1.0_dp, MAX(-1.0_dp, cosine))
          angle = ACOS(cosine)
          IF (sine .LT. 0.0_dp) angle = -angle
          !
          dt = angle ! [rad]
-         dt = MOD(2.0E4_dp*pi+dt-o0, 2.0_dp*pi)
-         IF (dt .GT. pi) dt = dt-2.0_dp*pi
-         dt = o0+dt
+         dt = MOD(2.0E4_dp*pi + dt - o0, 2.0_dp*pi)
+         IF (dt .GT. pi) dt = dt - 2.0_dp*pi
+         dt = o0 + dt
          colvar%torsion_param%o0 = dt
          !
          !     calculate improper energy and master chain rule term
@@ -3055,42 +3055,42 @@ CONTAINS
          !     chain rule terms for first derivative components
          !
          ! ca
-         ss = MATMUL(cell%h_inv, rr(:, 3)-rr(:, 1))
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, rr(:, 3) - rr(:, 1))
+         ss = ss - NINT(ss)
          ss = MATMUL(cell%hmat, ss)
          xca = ss(1)
          yca = ss(2)
          zca = ss(3)
          ! db
-         ss = MATMUL(cell%h_inv, rr(:, 4)-rr(:, 2))
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, rr(:, 4) - rr(:, 2))
+         ss = ss - NINT(ss)
          ss = MATMUL(cell%hmat, ss)
          xdb = ss(1)
          ydb = ss(2)
          zdb = ss(3)
          !
-         dedxt = dedphi*(yt*zcb-ycb*zt)/(rt2*rcb)
-         dedyt = dedphi*(zt*xcb-zcb*xt)/(rt2*rcb)
-         dedzt = dedphi*(xt*ycb-xcb*yt)/(rt2*rcb)
-         dedxu = -dedphi*(yu*zcb-ycb*zu)/(ru2*rcb)
-         dedyu = -dedphi*(zu*xcb-zcb*xu)/(ru2*rcb)
-         dedzu = -dedphi*(xu*ycb-xcb*yu)/(ru2*rcb)
+         dedxt = dedphi*(yt*zcb - ycb*zt)/(rt2*rcb)
+         dedyt = dedphi*(zt*xcb - zcb*xt)/(rt2*rcb)
+         dedzt = dedphi*(xt*ycb - xcb*yt)/(rt2*rcb)
+         dedxu = -dedphi*(yu*zcb - ycb*zu)/(ru2*rcb)
+         dedyu = -dedphi*(zu*xcb - zcb*xu)/(ru2*rcb)
+         dedzu = -dedphi*(xu*ycb - xcb*yu)/(ru2*rcb)
          !
          !     compute first derivative components for this angle
          !
-         dedxia = zcb*dedyt-ycb*dedzt
-         dedyia = xcb*dedzt-zcb*dedxt
-         dedzia = ycb*dedxt-xcb*dedyt
-         dedzia = ycb*dedxt-xcb*dedyt
-         dedxib = yca*dedzt-zca*dedyt+zdc*dedyu-ydc*dedzu
-         dedyib = zca*dedxt-xca*dedzt+xdc*dedzu-zdc*dedxu
-         dedzib = xca*dedyt-yca*dedxt+ydc*dedxu-xdc*dedyu
-         dedxic = zba*dedyt-yba*dedzt+ydb*dedzu-zdb*dedyu
-         dedyic = xba*dedzt-zba*dedxt+zdb*dedxu-xdb*dedzu
-         dedzic = yba*dedxt-xba*dedyt+xdb*dedyu-ydb*dedxu
-         dedxid = zcb*dedyu-ycb*dedzu
-         dedyid = xcb*dedzu-zcb*dedxu
-         dedzid = ycb*dedxu-xcb*dedyu
+         dedxia = zcb*dedyt - ycb*dedzt
+         dedyia = xcb*dedzt - zcb*dedxt
+         dedzia = ycb*dedxt - xcb*dedyt
+         dedzia = ycb*dedxt - xcb*dedyt
+         dedxib = yca*dedzt - zca*dedyt + zdc*dedyu - ydc*dedzu
+         dedyib = zca*dedxt - xca*dedzt + xdc*dedzu - zdc*dedxu
+         dedzib = xca*dedyt - yca*dedxt + ydc*dedxu - xdc*dedyu
+         dedxic = zba*dedyt - yba*dedzt + ydb*dedzu - zdb*dedyu
+         dedyic = xba*dedzt - zba*dedxt + zdb*dedxu - xdb*dedzu
+         dedzic = yba*dedxt - xba*dedyt + xdb*dedyu - ydb*dedxu
+         dedxid = zcb*dedyu - ycb*dedzu
+         dedyid = xcb*dedzu - zcb*dedxu
+         dedzid = ycb*dedxu - xcb*dedyu
       ENDIF
       !
       colvar%ss = e
@@ -3194,17 +3194,17 @@ CONTAINS
 
                   ! determine how many cells must be included in each direction
                   ! based on rcut
-                  xij(:) = xpj(:)-xpi(:)
+                  xij(:) = xpj(:) - xpi(:)
                   ss = MATMUL(cell%h_inv, xij)
                   ! these are fractional coordinates of the closest periodic image
                   ! lie in the [-0.5,0.5] interval
-                  ss0 = ss-NINT(ss)
+                  ss0 = ss - NINT(ss)
                   DO idim = 1, 3
                      shift(:) = 0.0_dp
                      shift(idim) = 1.0_dp
                      xij_shift = MATMUL(cell%hmat, shift)
                      rij_shift = SQRT(DOT_PRODUCT(xij_shift, xij_shift))
-                     ncells(idim) = FLOOR(rcut/rij_shift-0.5)
+                     ncells(idim) = FLOOR(rcut/rij_shift - 0.5)
                   ENDDO !idim
 
                   !IF (mm.eq.0) WRITE(*,'(A8,3I3,A3,I10)') "Ncells:", ncells, "J:", j
@@ -3217,7 +3217,7 @@ CONTAINS
                            shift(1) = REAL(aa, KIND=dp)
                            shift(2) = REAL(bb, KIND=dp)
                            shift(3) = REAL(cc, KIND=dp)
-                           xij = MATMUL(cell%hmat, ss0(:)+shift(:))
+                           xij = MATMUL(cell%hmat, ss0(:) + shift(:))
                            rij = SQRT(DOT_PRODUCT(xij, xij))
                            !IF (rij > rcut) THEN
                            !   IF (mm.EQ.0) WRITE(*,'(A8,4F10.5)') " --", shift, rij
@@ -3238,7 +3238,7 @@ CONTAINS
                ELSE
 
                   IF (i == j) CYCLE jloop
-                  xij(:) = xpj(:)-xpi(:)
+                  xij(:) = xpj(:) - xpi(:)
                   rij = SQRT(DOT_PRODUCT(xij, xij))
                   IF (rij > rcut) CYCLE
 
@@ -3266,19 +3266,19 @@ CONTAINS
 
             d_nbond_dxi(:) = d_nbond_dxi(:)/nbond
             re_qlm = re_qlm/nbond
-            d_re_qlm_dxi(:) = d_re_qlm_dxi(:)/nbond-d_nbond_dxi(:)*re_qlm
+            d_re_qlm_dxi(:) = d_re_qlm_dxi(:)/nbond - d_nbond_dxi(:)*re_qlm
             im_qlm = im_qlm/nbond
-            d_im_qlm_dxi(:) = d_im_qlm_dxi(:)/nbond-d_nbond_dxi(:)*im_qlm
+            d_im_qlm_dxi(:) = d_im_qlm_dxi(:)/nbond - d_nbond_dxi(:)*im_qlm
 
-            ql = ql+fact*(re_qlm*re_qlm+im_qlm*im_qlm)
+            ql = ql + fact*(re_qlm*re_qlm + im_qlm*im_qlm)
             d_ql_dxi(:) = d_ql_dxi(:) &
-                          +fact*2.0_dp*(re_qlm*d_re_qlm_dxi(:)+im_qlm*d_im_qlm_dxi(:))
+                          + fact*2.0_dp*(re_qlm*d_re_qlm_dxi(:) + im_qlm*d_im_qlm_dxi(:))
 
          ENDDO ! loop over m
 
-         pre_fac = (4.0_dp*pi)/(2.0_dp*l+1)
+         pre_fac = (4.0_dp*pi)/(2.0_dp*l + 1)
          !WRITE(*,'(A8,2F10.5)') "  si = ", SQRT(pre_fac*ql)
-         qparm = qparm+SQRT(pre_fac*ql)
+         qparm = qparm + SQRT(pre_fac*ql)
          ftmp(:) = 0.5_dp*SQRT(pre_fac/ql)*d_ql_dxi(:)
          ! multiply by -1 because aparently we have to save the force, not the gradient
          ftmp(:) = -1.0_dp*ftmp(:)
@@ -3338,16 +3338,16 @@ CONTAINS
             bond = 1.0_dp
             exp_fac = 0.0_dp
          ELSE
-            exp0 = EXP((r1cut-rcut)/(rij-rcut)-(r1cut-rcut)/(r1cut-rij))
-            bond = 1.0_dp/(1.0_dp+exp0)
-            exp_fac = ((rcut-r1cut)/(rij-rcut)**2+(rcut-r1cut)/(r1cut-rij)**2)*exp0/(1.0_dp+exp0)**2
+            exp0 = EXP((r1cut - rcut)/(rij - rcut) - (r1cut - rcut)/(r1cut - rij))
+            bond = 1.0_dp/(1.0_dp + exp0)
+            exp_fac = ((rcut - r1cut)/(rij - rcut)**2 + (rcut - r1cut)/(r1cut - rij)**2)*exp0/(1.0_dp + exp0)**2
          ENDIF
       ENDIF
       IF (bond > 1.0_dp) THEN
          CPABORT("bond > 1.0_dp")
       END IF
       ! compute continuous bond order
-      nbond = nbond+bond
+      nbond = nbond + bond
       IF (ABS(xij(1)) .LT. denominator_tolerance &
           .AND. ABS(xij(2)) .LT. denominator_tolerance) THEN
          fi = 0.0_dp
@@ -3362,11 +3362,11 @@ CONTAINS
       ! legendre works correctly only for positive m
       plm = legendre(costheta, ll, mm)
       dplm = dlegendre(costheta, ll, mm)
-      IF ((ll+ABS(mm)) > maxfac) THEN
+      IF ((ll + ABS(mm)) > maxfac) THEN
          CPABORT("(l+m) > maxfac")
       END IF
       ! use absolute m to compenstate for the defficiency of legendre
-      sqrt_c1 = SQRT(((2*ll+1)*fac(ll-ABS(mm)))/(4*pi*fac(ll+ABS(mm))))
+      sqrt_c1 = SQRT(((2*ll + 1)*fac(ll - ABS(mm)))/(4*pi*fac(ll + ABS(mm))))
       pre_fac = bond*sqrt_c1
       dylm = pre_fac*dplm
       !WHY? IF (plm < 0.0_dp) THEN
@@ -3375,29 +3375,29 @@ CONTAINS
       !WHY?    dylm = pre_fac*dplm
       !WHY? ENDIF
 
-      re_qlm = re_qlm+pre_fac*plm*COS(mm*fi)
-      im_qlm = im_qlm+pre_fac*plm*SIN(mm*fi)
+      re_qlm = re_qlm + pre_fac*plm*COS(mm*fi)
+      im_qlm = im_qlm + pre_fac*plm*SIN(mm*fi)
 
       !WRITE(*,'(A8,2I4,F10.5)') "  Qlm = ", mm, j, bond
       !WRITE(*,'(A8,2I4,2F10.5)') "  Qlm = ", mm, j, re_qlm, im_qlm
 
       dcosTheta(:) = xij(:)*xij(3)/(rij**3)
-      dcosTheta(3) = dcosTheta(3)-1.0_dp/rij
+      dcosTheta(3) = dcosTheta(3) - 1.0_dp/rij
       ! use tangent half-angle formula to compute d_fi/d_xi
       ! http://math.stackexchange.com/questions/989877/continuous-differentiability-of-atan2
       ! +/- sign changed because xij = xj - xi
-      dfi(1) = xij(2)/(xij(1)**2+xij(2)**2)
-      dfi(2) = -xij(1)/(xij(1)**2+xij(2)**2)
+      dfi(1) = xij(2)/(xij(1)**2 + xij(2)**2)
+      dfi(2) = -xij(1)/(xij(1)**2 + xij(2)**2)
       dfi(3) = 0.0_dp
       d_re_qlm_dxi(:) = d_re_qlm_dxi(:) &
-                        +exp_fac*sqrt_c1*plm*COS(mm*fi)*xij(:)/rij &
-                        +dylm*dcosTheta(:)*COS(mm*fi) &
-                        +pre_fac*plm*mm*(-1.0_dp)*SIN(mm*fi)*dfi(:)
+                        + exp_fac*sqrt_c1*plm*COS(mm*fi)*xij(:)/rij &
+                        + dylm*dcosTheta(:)*COS(mm*fi) &
+                        + pre_fac*plm*mm*(-1.0_dp)*SIN(mm*fi)*dfi(:)
       d_im_qlm_dxi(:) = d_im_qlm_dxi(:) &
-                        +exp_fac*sqrt_c1*plm*SIN(mm*fi)*xij(:)/rij &
-                        +dylm*dcosTheta(:)*SIN(mm*fi) &
-                        +pre_fac*plm*mm*(+1.0_dp)*COS(mm*fi)*dfi(:)
-      d_nbond_dxi(:) = d_nbond_dxi(:)+exp_fac*xij(:)/rij
+                        + exp_fac*sqrt_c1*plm*SIN(mm*fi)*xij(:)/rij &
+                        + dylm*dcosTheta(:)*SIN(mm*fi) &
+                        + pre_fac*plm*mm*(+1.0_dp)*COS(mm*fi)*dfi(:)
+      d_nbond_dxi(:) = d_nbond_dxi(:) + exp_fac*xij(:)/rij
 
    END SUBROUTINE accumulate_qlm_over_neigbors
 
@@ -3482,22 +3482,22 @@ CONTAINS
             rji = pbc(rpj, rpi, cell)
             drji = SQRT(SUM(rji**2))
             rrel = drji/roh
-            num = (1.0_dp-rrel**poh)
-            invden = 1.0_dp/(1.0_dp-rrel**qoh)
-            IF (ABS(1.0_dp-rrel) > 1.0E-6_dp) THEN
-               noh(ii) = noh(ii)+num*invden
-               fscalar = ((-poh*(rrel**(poh-1))*invden) &
-                          +num*(invden)**2*qoh*(rrel**(qoh-1)))/(drji*roh)
+            num = (1.0_dp - rrel**poh)
+            invden = 1.0_dp/(1.0_dp - rrel**qoh)
+            IF (ABS(1.0_dp - rrel) > 1.0E-6_dp) THEN
+               noh(ii) = noh(ii) + num*invden
+               fscalar = ((-poh*(rrel**(poh - 1))*invden) &
+                          + num*(invden)**2*qoh*(rrel**(qoh - 1)))/(drji*roh)
                dnoh(1:3, jj, ii) = rji(1:3)*fscalar
             ELSE
                !correct limit if rji --> roh
-               noh(ii) = noh(ii)+REAL(poh, dp)/REAL(qoh, dp)
-               fscalar = REAL(poh*(poh-qoh), dp)/(REAL(2*qoh, dp)*roh*drji)
+               noh(ii) = noh(ii) + REAL(poh, dp)/REAL(qoh, dp)
+               fscalar = REAL(poh*(poh - qoh), dp)/(REAL(2*qoh, dp)*roh*drji)
                dnoh(1:3, jj, ii) = rji(1:3)*fscalar
             ENDIF
          END DO
-         M(ii) = 1.0_dp-(1.0_dp-(noh(ii)/nh)**pm)/ &
-                 (1.0_dp-(noh(ii)/nh)**qm)
+         M(ii) = 1.0_dp - (1.0_dp - (noh(ii)/nh)**pm)/ &
+                 (1.0_dp - (noh(ii)/nh)**qm)
 
          ! Computing no ( ii )
          DO jj = 1, n_oxygens
@@ -3507,17 +3507,17 @@ CONTAINS
             rji = pbc(rpj, rpi, cell)
             drji = SQRT(SUM(rji**2))
             rrel = drji/roo
-            num = (1.0_dp-rrel**poo)
-            invden = 1.0_dp/(1.0_dp-rrel**qoo)
-            IF (ABS(1.0_dp-rrel) > 1.0E-6_dp) THEN
-               noo(ii) = noo(ii)+num*invden
-               fscalar = ((-poo*(rrel**(poo-1))*invden) &
-                          +num*(invden)**2*qoo*(rrel**(qoo-1)))/(drji*roo)
+            num = (1.0_dp - rrel**poo)
+            invden = 1.0_dp/(1.0_dp - rrel**qoo)
+            IF (ABS(1.0_dp - rrel) > 1.0E-6_dp) THEN
+               noo(ii) = noo(ii) + num*invden
+               fscalar = ((-poo*(rrel**(poo - 1))*invden) &
+                          + num*(invden)**2*qoo*(rrel**(qoo - 1)))/(drji*roo)
                dnoo(1:3, jj, ii) = rji(1:3)*fscalar
             ELSE
                !correct limit if rji --> roo
-               noo(ii) = noo(ii)+REAL(poo, dp)/REAL(qoo, dp)
-               fscalar = REAL(poo*(poo-qoo), dp)/(REAL(2*qoo, dp)*roo*drji)
+               noo(ii) = noo(ii) + REAL(poo, dp)/REAL(qoo, dp)
+               fscalar = REAL(poo*(poo - qoo), dp)/(REAL(2*qoo, dp)*roo*drji)
                dnoo(1:3, jj, ii) = rji(1:3)*fscalar
             ENDIF
          END DO
@@ -3527,27 +3527,27 @@ CONTAINS
       qtot = 0._dp
       DO ii = 1, n_oxygens
          qloc(ii) = EXP(lambda*M(ii)*noo(ii))
-         qtot = qtot+qloc(ii)
+         qtot = qtot + qloc(ii)
       END DO
       ! compute forces
       DO ii = 1, n_oxygens
          ! Computing f_OH
          DO jj = 1, n_hydrogens
-            dM(1:3, jj, ii) = (pm*((noh(ii)/nh)**(pm-1))*dnoh(1:3, jj, ii))/nh/ &
-                              (1.0_dp-(noh(ii)/nh)**qm)- &
-                              (1.0_dp-(noh(ii)/nh)**pm)/ &
-                              ((1.0_dp-(noh(ii)/nh)**qm)**2)* &
-                              qm*dnoh(1:3, jj, ii)*(noh(ii)/nh)**(qm-1)/nh
+            dM(1:3, jj, ii) = (pm*((noh(ii)/nh)**(pm - 1))*dnoh(1:3, jj, ii))/nh/ &
+                              (1.0_dp - (noh(ii)/nh)**qm) - &
+                              (1.0_dp - (noh(ii)/nh)**pm)/ &
+                              ((1.0_dp - (noh(ii)/nh)**qm)**2)* &
+                              qm*dnoh(1:3, jj, ii)*(noh(ii)/nh)**(qm - 1)/nh
 
-            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii)+qloc(ii)*dM(1:3, jj, ii)*noo(ii)/qtot
-            colvar%dsdr(1:3, n_oxygens+jj) = colvar%dsdr(1:3, n_oxygens+jj) &
-                                             -qloc(ii)*dM(1:3, jj, ii)*noo(ii)/qtot
+            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) + qloc(ii)*dM(1:3, jj, ii)*noo(ii)/qtot
+            colvar%dsdr(1:3, n_oxygens + jj) = colvar%dsdr(1:3, n_oxygens + jj) &
+                                               - qloc(ii)*dM(1:3, jj, ii)*noo(ii)/qtot
          END DO
          ! Computing f_OO
          DO jj = 1, n_oxygens
-            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii)+qloc(ii)*M(ii)*dnoo(1:3, jj, ii)/qtot
+            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) + qloc(ii)*M(ii)*dnoo(1:3, jj, ii)/qtot
             colvar%dsdr(1:3, jj) = colvar%dsdr(1:3, jj) &
-                                   -qloc(ii)*M(ii)*dnoo(1:3, jj, ii)/qtot
+                                   - qloc(ii)*M(ii)*dnoo(1:3, jj, ii)/qtot
          END DO
       END DO
 
@@ -3654,17 +3654,17 @@ CONTAINS
             rji = pbc(rpj, rpi, cell)
             drji = SQRT(SUM(rji**2))
             rrel = drji/roh
-            num = (1.0_dp-rrel**poh)
-            invden = 1.0_dp/(1.0_dp-rrel**qoh)
-            IF (ABS(1.0_dp-rrel) > 1.0E-6_dp) THEN
-               noh(ii) = noh(ii)+num*invden
-               fscalar = ((-poh*(rrel**(poh-1))*invden) &
-                          +num*(invden)**2*qoh*(rrel**(qoh-1)))/(drji*roh)
+            num = (1.0_dp - rrel**poh)
+            invden = 1.0_dp/(1.0_dp - rrel**qoh)
+            IF (ABS(1.0_dp - rrel) > 1.0E-6_dp) THEN
+               noh(ii) = noh(ii) + num*invden
+               fscalar = ((-poh*(rrel**(poh - 1))*invden) &
+                          + num*(invden)**2*qoh*(rrel**(qoh - 1)))/(drji*roh)
                dnoh(1:3, jj, ii) = rji(1:3)*fscalar
             ELSE
                !correct limit if rji --> roh
-               noh(ii) = noh(ii)+REAL(poh, dp)/REAL(qoh, dp)
-               fscalar = REAL(poh*(poh-qoh), dp)/(REAL(2*qoh, dp)*roh*drji)
+               noh(ii) = noh(ii) + REAL(poh, dp)/REAL(qoh, dp)
+               fscalar = REAL(poh*(poh - qoh), dp)/(REAL(2*qoh, dp)*roh*drji)
                dnoh(1:3, jj, ii) = rji(1:3)*fscalar
             ENDIF
          END DO
@@ -3672,27 +3672,27 @@ CONTAINS
 
       !*** Calculate M, dM, exp(lambda*M) and sum_[exp(lambda*M)]
       DO ii = 1, n_oxygens
-         num = 1.0_dp-(noh(ii)/nh)**pm
-         invden = 1.0_dp/(1.0_dp-(noh(ii)/nh)**qm)
-         M(ii) = 1.0_dp-num*invden
-         dM(ii) = (pm*(noh(ii)/nh)**(pm-1)*invden-qm*num*(invden**2)* &
-                   (noh(ii)/nh)**(qm-1))/nh
+         num = 1.0_dp - (noh(ii)/nh)**pm
+         invden = 1.0_dp/(1.0_dp - (noh(ii)/nh)**qm)
+         M(ii) = 1.0_dp - num*invden
+         dM(ii) = (pm*(noh(ii)/nh)**(pm - 1)*invden - qm*num*(invden**2)* &
+                   (noh(ii)/nh)**(qm - 1))/nh
          expfac_noh(ii) = EXP(lambda*noh(ii))
          dexpfac_noh(ii) = lambda*expfac_noh(ii)
-         sum_expfac_noh = sum_expfac_noh+expfac_noh(ii)
+         sum_expfac_noh = sum_expfac_noh + expfac_noh(ii)
       END DO
 
       !*** Calculate F, dF, exp(lambda*F) and sum_[exp(lambda*F)]
       DO ii = 1, n_oxygens
          i = colvar%hydronium_dist_param%i_oxygens(ii)
-         num = 1.0_dp-(noh(ii)/nn)**pf
-         invden = 1.0_dp/(1.0_dp-(noh(ii)/nn)**qf)
+         num = 1.0_dp - (noh(ii)/nn)**pf
+         invden = 1.0_dp/(1.0_dp - (noh(ii)/nn)**qf)
          F(ii) = num*invden
-         dF(ii) = (-pf*(noh(ii)/nn)**(pf-1)*invden+qf*num*(invden**2)* &
-                   (noh(ii)/nn)**(qf-1))/nn
+         dF(ii) = (-pf*(noh(ii)/nn)**(pf - 1)*invden + qf*num*(invden**2)* &
+                   (noh(ii)/nn)**(qf - 1))/nn
          expfac_F(ii) = EXP(lambda*F(ii))
          dexpfac_F(ii) = lambda*expfac_F(ii)
-         sum_expfac_F = sum_expfac_F+expfac_F(ii)
+         sum_expfac_F = sum_expfac_F + expfac_F(ii)
       END DO
 
       !*** Calculation numerator of rion
@@ -3705,11 +3705,11 @@ CONTAINS
             rpk(:) = my_particles(k)%r(1:3)
             rki = pbc(rpk, rpi, cell)
             drki = SQRT(SUM(rki**2))
-            expfac_F_rki(ii) = expfac_F_rki(ii)+drki*expfac_F(kk)
+            expfac_F_rki(ii) = expfac_F_rki(ii) + drki*expfac_F(kk)
             ddist_rki(1:3, kk, ii) = rki(1:3)/drki
             dexpfac_F_rki(kk, ii) = drki*dexpfac_F(kk)
          ENDDO
-         rion_num = rion_num+M(ii)*expfac_noh(ii)*expfac_F_rki(ii)
+         rion_num = rion_num + M(ii)*expfac_noh(ii)*expfac_F_rki(ii)
       ENDDO
 
       !*** Final H3O+/OH- distance
@@ -3722,33 +3722,33 @@ CONTAINS
       DO ii = 1, n_oxygens
          DO jj = 1, n_hydrogens
             colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                   +dM(ii)*dnoh(1:3, jj, ii)*expfac_noh(ii) &
+                                   + dM(ii)*dnoh(1:3, jj, ii)*expfac_noh(ii) &
                                    *expfac_F_rki(ii)/rion_den
-            colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
-                                           -dM(ii)*dnoh(1:3, jj, ii)*expfac_noh(ii) &
-                                           *expfac_F_rki(ii)/rion_den
+            colvar%dsdr(1:3, offsetH + jj) = colvar%dsdr(1:3, offsetH + jj) &
+                                             - dM(ii)*dnoh(1:3, jj, ii)*expfac_noh(ii) &
+                                             *expfac_F_rki(ii)/rion_den
             colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                   +M(ii)*dexpfac_noh(ii)*dnoh(1:3, jj, ii) &
+                                   + M(ii)*dexpfac_noh(ii)*dnoh(1:3, jj, ii) &
                                    *expfac_F_rki(ii)/rion_den
-            colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
-                                           -M(ii)*dexpfac_noh(ii)*dnoh(1:3, jj, ii) &
-                                           *expfac_F_rki(ii)/rion_den
+            colvar%dsdr(1:3, offsetH + jj) = colvar%dsdr(1:3, offsetH + jj) &
+                                             - M(ii)*dexpfac_noh(ii)*dnoh(1:3, jj, ii) &
+                                             *expfac_F_rki(ii)/rion_den
          ENDDO
          DO kk = 1, n_oxygens
             IF (ii == kk) CYCLE
             colvar%dsdr(1:3, kk) = colvar%dsdr(1:3, kk) &
-                                   -M(ii)*expfac_noh(ii)*ddist_rki(1:3, kk, ii) &
+                                   - M(ii)*expfac_noh(ii)*ddist_rki(1:3, kk, ii) &
                                    *expfac_F(kk)/rion_den
             colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                   +M(ii)*expfac_noh(ii)*ddist_rki(1:3, kk, ii) &
+                                   + M(ii)*expfac_noh(ii)*ddist_rki(1:3, kk, ii) &
                                    *expfac_F(kk)/rion_den
             DO jj = 1, n_hydrogens
                colvar%dsdr(1:3, kk) = colvar%dsdr(1:3, kk) &
-                                      +M(ii)*expfac_noh(ii)*dexpfac_F_rki(kk, ii) &
+                                      + M(ii)*expfac_noh(ii)*dexpfac_F_rki(kk, ii) &
                                       *dF(kk)*dnoh(1:3, jj, kk)/rion_den
-               colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
-                                              -M(ii)*expfac_noh(ii)*dexpfac_F_rki(kk, ii) &
-                                              *dF(kk)*dnoh(1:3, jj, kk)/rion_den
+               colvar%dsdr(1:3, offsetH + jj) = colvar%dsdr(1:3, offsetH + jj) &
+                                                - M(ii)*expfac_noh(ii)*dexpfac_F_rki(kk, ii) &
+                                                *dF(kk)*dnoh(1:3, jj, kk)/rion_den
             ENDDO
          ENDDO
       ENDDO
@@ -3756,17 +3756,17 @@ CONTAINS
       DO ii = 1, n_oxygens
          DO jj = 1, n_hydrogens
             colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                   -rion_num*sum_expfac_F*dexpfac_noh(ii) &
+                                   - rion_num*sum_expfac_F*dexpfac_noh(ii) &
                                    *dnoh(1:3, jj, ii)/(rion_den**2)
-            colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
-                                           +rion_num*sum_expfac_F*dexpfac_noh(ii) &
-                                           *dnoh(1:3, jj, ii)/(rion_den**2)
+            colvar%dsdr(1:3, offsetH + jj) = colvar%dsdr(1:3, offsetH + jj) &
+                                             + rion_num*sum_expfac_F*dexpfac_noh(ii) &
+                                             *dnoh(1:3, jj, ii)/(rion_den**2)
             colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                   -rion_num*sum_expfac_noh*dexpfac_F(ii)*dF(ii) &
+                                   - rion_num*sum_expfac_noh*dexpfac_F(ii)*dF(ii) &
                                    *dnoh(1:3, jj, ii)/(rion_den**2)
-            colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
-                                           +rion_num*sum_expfac_noh*dexpfac_F(ii)*dF(ii) &
-                                           *dnoh(1:3, jj, ii)/(rion_den**2)
+            colvar%dsdr(1:3, offsetH + jj) = colvar%dsdr(1:3, offsetH + jj) &
+                                             + rion_num*sum_expfac_noh*dexpfac_F(ii)*dF(ii) &
+                                             *dnoh(1:3, jj, ii)/(rion_den**2)
          ENDDO
       ENDDO
 
@@ -3861,23 +3861,23 @@ CONTAINS
             rji = pbc(rpj, rpi, cell)
             drji = SQRT(SUM(rji**2))
             rrel = drji/rwoh
-            num = 1.0_dp-rrel**pwoh
-            invden = 1.0_dp/(1.0_dp-rrel**qwoh)
-            IF (ABS(1.0_dp-rrel) > 1.0E-6_dp) THEN
-               nwoh(ii) = nwoh(ii)+num*invden
-               fscalar = (-pwoh*(rrel**(pwoh-1))*invden &
-                          +num*(invden**2)*qwoh*(rrel**(qwoh-1)))/(drji*rwoh)
+            num = 1.0_dp - rrel**pwoh
+            invden = 1.0_dp/(1.0_dp - rrel**qwoh)
+            IF (ABS(1.0_dp - rrel) > 1.0E-6_dp) THEN
+               nwoh(ii) = nwoh(ii) + num*invden
+               fscalar = (-pwoh*(rrel**(pwoh - 1))*invden &
+                          + num*(invden**2)*qwoh*(rrel**(qwoh - 1)))/(drji*rwoh)
                dnwoh(1:3, jj, ii) = rji(1:3)*fscalar
             ELSE
                !correct limit if rji --> rwoh
-               nwoh(ii) = nwoh(ii)+REAL(pwoh, dp)/REAL(qwoh, dp)
-               fscalar = REAL(pwoh*(pwoh-qwoh), dp)/(REAL(2*qwoh, dp)*rwoh*drji)
+               nwoh(ii) = nwoh(ii) + REAL(pwoh, dp)/REAL(qwoh, dp)
+               fscalar = REAL(pwoh*(pwoh - qwoh), dp)/(REAL(2*qwoh, dp)*rwoh*drji)
                dnwoh(1:3, jj, ii) = rji(1:3)*fscalar
             ENDIF
          ENDDO
          expfac(ii) = EXP(lambda*nwoh(ii))
          dexpfac(ii) = lambda*expfac(ii)
-         rion_den = rion_den+expfac(ii)
+         rion_den = rion_den + expfac(ii)
       ENDDO
 
       ! Calculate nominator of rion
@@ -3889,7 +3889,7 @@ CONTAINS
             rpi(:) = my_particles(i)%r(1:3)
             rik = pbc(rpi, rpk, cell)
             drik = SQRT(SUM(rik**2))
-            rion_num = rion_num+drik*expfac(ii)
+            rion_num = rion_num + drik*expfac(ii)
             ddist_rik(1:3, ii, kk) = rik(1:3)/drik
             dexpfac_rik(ii, kk) = drik*dexpfac(ii)
          ENDDO
@@ -3905,23 +3905,23 @@ CONTAINS
             rjk = pbc(rpj, rpk, cell)
             drjk = SQRT(SUM(rjk**2))
             rrel = drjk/raoh
-            num = 1.0_dp-rrel**paoh
-            invden = 1.0_dp/(1.0_dp-rrel**qaoh)
-            IF (ABS(1.0_dp-rrel) > 1.0E-6_dp) THEN
-               naoh = naoh+num*invden
-               fscalar = (-paoh*(rrel**(paoh-1))*invden &
-                          +num*(invden**2)*qaoh*(rrel**(qaoh-1)))/(drjk*raoh)
+            num = 1.0_dp - rrel**paoh
+            invden = 1.0_dp/(1.0_dp - rrel**qaoh)
+            IF (ABS(1.0_dp - rrel) > 1.0E-6_dp) THEN
+               naoh = naoh + num*invden
+               fscalar = (-paoh*(rrel**(paoh - 1))*invden &
+                          + num*(invden**2)*qaoh*(rrel**(qaoh - 1)))/(drjk*raoh)
                dnaoh(1:3, jj, kk) = rjk(1:3)*fscalar
             ELSE
                !correct limit if rjk --> raoh
-               naoh = naoh+REAL(paoh, dp)/REAL(qaoh, dp)
-               fscalar = REAL(paoh*(paoh-qaoh), dp)/(REAL(2*qaoh, dp)*raoh*drjk)
+               naoh = naoh + REAL(paoh, dp)/REAL(qaoh, dp)
+               fscalar = REAL(paoh*(paoh - qaoh), dp)/(REAL(2*qaoh, dp)*raoh*drjk)
                dnaoh(1:3, jj, kk) = rjk(1:3)*fscalar
             ENDIF
          ENDDO
       ENDDO
-      num_cut = 1.0_dp-(naoh/nc)**pcut
-      invden_cut = 1.0_dp/(1.0_dp-(naoh/nc)**qcut)
+      num_cut = 1.0_dp - (naoh/nc)**pcut
+      invden_cut = 1.0_dp/(1.0_dp - (naoh/nc)**qcut)
       fcut = num_cut*invden_cut
 
       !Final distance acid - hydronium
@@ -3930,16 +3930,16 @@ CONTAINS
       colvar%ss = rion
 
       !Derivatives of fcut
-      dfcut = ((-pcut*(naoh/nc)**(pcut-1)*invden_cut) &
-               +num_cut*(invden_cut**2)*qcut*(naoh/nc)**(qcut-1))/nc
+      dfcut = ((-pcut*(naoh/nc)**(pcut - 1)*invden_cut) &
+               + num_cut*(invden_cut**2)*qcut*(naoh/nc)**(qcut - 1))/nc
       offsetO = n_oxygens_water
-      offsetH = n_oxygens_water+n_oxygens_acid
+      offsetH = n_oxygens_water + n_oxygens_acid
       DO kk = 1, n_oxygens_acid
          DO jj = 1, n_hydrogens
-            colvar%dsdr(1:3, offsetO+kk) = colvar%dsdr(1:3, offsetO+kk) &
-                                           +dfcut*dnaoh(1:3, jj, kk)*fbrace
-            colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
-                                           -dfcut*dnaoh(1:3, jj, kk)*fbrace
+            colvar%dsdr(1:3, offsetO + kk) = colvar%dsdr(1:3, offsetO + kk) &
+                                             + dfcut*dnaoh(1:3, jj, kk)*fbrace
+            colvar%dsdr(1:3, offsetH + jj) = colvar%dsdr(1:3, offsetH + jj) &
+                                             - dfcut*dnaoh(1:3, jj, kk)*fbrace
          ENDDO
       ENDDO
 
@@ -3947,15 +3947,15 @@ CONTAINS
       !***nominator
       DO kk = 1, n_oxygens_acid
          DO ii = 1, n_oxygens_water
-            colvar%dsdr(1:3, offsetO+kk) = colvar%dsdr(1:3, offsetO+kk) &
-                                           +fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/2.0_dp
+            colvar%dsdr(1:3, offsetO + kk) = colvar%dsdr(1:3, offsetO + kk) &
+                                             + fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/2.0_dp
             colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                   -fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/2.0_dp
+                                   - fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/2.0_dp
             DO jj = 1, n_hydrogens
                colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                      +fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/2.0_dp
-               colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
-                                              -fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/2.0_dp
+                                      + fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/2.0_dp
+               colvar%dsdr(1:3, offsetH + jj) = colvar%dsdr(1:3, offsetH + jj) &
+                                                - fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/2.0_dp
             ENDDO
          ENDDO
       ENDDO
@@ -3963,9 +3963,9 @@ CONTAINS
       DO ii = 1, n_oxygens_water
          DO jj = 1, n_hydrogens
             colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                   -fcut*rion_num*dexpfac(ii)*dnwoh(1:3, jj, ii)/2.0_dp/(rion_den**2)
-            colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
-                                           +fcut*rion_num*dexpfac(ii)*dnwoh(1:3, jj, ii)/2.0_dp/(rion_den**2)
+                                   - fcut*rion_num*dexpfac(ii)*dnwoh(1:3, jj, ii)/2.0_dp/(rion_den**2)
+            colvar%dsdr(1:3, offsetH + jj) = colvar%dsdr(1:3, offsetH + jj) &
+                                             + fcut*rion_num*dexpfac(ii)*dnwoh(1:3, jj, ii)/2.0_dp/(rion_den**2)
          ENDDO
       ENDDO
 
@@ -4029,7 +4029,7 @@ CONTAINS
       ALLOCATE (M(n_oxygens_water))
       ALLOCATE (dM(n_oxygens_water))
       ALLOCATE (noo(n_oxygens_water))
-      ALLOCATE (dnoo(3, n_oxygens_water+n_oxygens_acid, n_oxygens_water))
+      ALLOCATE (dnoo(3, n_oxygens_water + n_oxygens_acid, n_oxygens_water))
       ALLOCATE (qloc(n_oxygens_water))
       nwoh(:) = 0._dp
       naoh = 0._dp
@@ -4060,17 +4060,17 @@ CONTAINS
             rji = pbc(rpj, rpi, cell)
             drji = SQRT(SUM(rji**2))
             rrel = drji/rwoh
-            num = 1.0_dp-rrel**pwoh
-            invden = 1.0_dp/(1.0_dp-rrel**qwoh)
-            IF (ABS(1.0_dp-rrel) > 1.0E-6_dp) THEN
-               nwoh(ii) = nwoh(ii)+num*invden
-               fscalar = (-pwoh*(rrel**(pwoh-1))*invden &
-                          +num*(invden**2)*qwoh*(rrel**(qwoh-1)))/(drji*rwoh)
+            num = 1.0_dp - rrel**pwoh
+            invden = 1.0_dp/(1.0_dp - rrel**qwoh)
+            IF (ABS(1.0_dp - rrel) > 1.0E-6_dp) THEN
+               nwoh(ii) = nwoh(ii) + num*invden
+               fscalar = (-pwoh*(rrel**(pwoh - 1))*invden &
+                          + num*(invden**2)*qwoh*(rrel**(qwoh - 1)))/(drji*rwoh)
                dnwoh(1:3, jj, ii) = rji(1:3)*fscalar
             ELSE
                !correct limit if rji --> rwoh
-               nwoh(ii) = nwoh(ii)+REAL(pwoh, dp)/REAL(qwoh, dp)
-               fscalar = REAL(pwoh*(pwoh-qwoh), dp)/(REAL(2*qwoh, dp)*rwoh*drji)
+               nwoh(ii) = nwoh(ii) + REAL(pwoh, dp)/REAL(qwoh, dp)
+               fscalar = REAL(pwoh*(pwoh - qwoh), dp)/(REAL(2*qwoh, dp)*rwoh*drji)
                dnwoh(1:3, jj, ii) = rji(1:3)*fscalar
             ENDIF
          ENDDO
@@ -4078,41 +4078,41 @@ CONTAINS
 
       ! calculate M function
       DO ii = 1, n_oxygens_water
-         num = 1.0_dp-(nwoh(ii)/nh)**pm
-         invden = 1.0_dp/(1.0_dp-(nwoh(ii)/nh)**qm)
-         M(ii) = 1.0_dp-num*invden
-         dM(ii) = (pm*(nwoh(ii)/nh)**(pm-1)*invden-qm*num*(invden**2)* &
-                   (nwoh(ii)/nh)**(qm-1))/nh
+         num = 1.0_dp - (nwoh(ii)/nh)**pm
+         invden = 1.0_dp/(1.0_dp - (nwoh(ii)/nh)**qm)
+         M(ii) = 1.0_dp - num*invden
+         dM(ii) = (pm*(nwoh(ii)/nh)**(pm - 1)*invden - qm*num*(invden**2)* &
+                   (nwoh(ii)/nh)**(qm - 1))/nh
       ENDDO
 
       ! Computing noo(i)
       DO ii = 1, n_oxygens_water
          i = colvar%acid_hyd_shell_param%i_oxygens_water(ii)
          rpi(:) = my_particles(i)%r(1:3)
-         DO kk = 1, n_oxygens_water+n_oxygens_acid
+         DO kk = 1, n_oxygens_water + n_oxygens_acid
             IF (ii == kk) CYCLE
             IF (kk <= n_oxygens_water) THEN
                k = colvar%acid_hyd_shell_param%i_oxygens_water(kk)
                rpk(:) = my_particles(k)%r(1:3)
             ELSE
-               tt = kk-n_oxygens_water
+               tt = kk - n_oxygens_water
                k = colvar%acid_hyd_shell_param%i_oxygens_acid(tt)
                rpk(:) = my_particles(k)%r(1:3)
             ENDIF
             rki = pbc(rpk, rpi, cell)
             drki = SQRT(SUM(rki**2))
             rrel = drki/roo
-            num = 1.0_dp-rrel**poo
-            invden = 1.0_dp/(1.0_dp-rrel**qoo)
-            IF (ABS(1.0_dp-rrel) > 1.0E-6_dp) THEN
-               noo(ii) = noo(ii)+num*invden
-               fscalar = (-poo*(rrel**(poo-1))*invden &
-                          +num*(invden**2)*qoo*(rrel**(qoo-1)))/(drki*roo)
+            num = 1.0_dp - rrel**poo
+            invden = 1.0_dp/(1.0_dp - rrel**qoo)
+            IF (ABS(1.0_dp - rrel) > 1.0E-6_dp) THEN
+               noo(ii) = noo(ii) + num*invden
+               fscalar = (-poo*(rrel**(poo - 1))*invden &
+                          + num*(invden**2)*qoo*(rrel**(qoo - 1)))/(drki*roo)
                dnoo(1:3, kk, ii) = rki(1:3)*fscalar
             ELSE
                !correct limit if rki --> roo
-               noo(ii) = noo(ii)+REAL(poo, dp)/REAL(qoo, dp)
-               fscalar = REAL(poo*(poo-qoo), dp)/(REAL(2*qoo, dp)*roo*drki)
+               noo(ii) = noo(ii) + REAL(poo, dp)/REAL(qoo, dp)
+               fscalar = REAL(poo*(poo - qoo), dp)/(REAL(2*qoo, dp)*roo*drki)
                dnoo(1:3, kk, ii) = rki(1:3)*fscalar
             ENDIF
          ENDDO
@@ -4128,44 +4128,44 @@ CONTAINS
             rjk = pbc(rpj, rpk, cell)
             drjk = SQRT(SUM(rjk**2))
             rrel = drjk/raoh
-            num = 1.0_dp-rrel**paoh
-            invden = 1.0_dp/(1.0_dp-rrel**qaoh)
-            IF (ABS(1.0_dp-rrel) > 1.0E-6_dp) THEN
-               naoh = naoh+num*invden
-               fscalar = (-paoh*(rrel**(paoh-1))*invden &
-                          +num*(invden**2)*qaoh*(rrel**(qaoh-1)))/(drjk*raoh)
+            num = 1.0_dp - rrel**paoh
+            invden = 1.0_dp/(1.0_dp - rrel**qaoh)
+            IF (ABS(1.0_dp - rrel) > 1.0E-6_dp) THEN
+               naoh = naoh + num*invden
+               fscalar = (-paoh*(rrel**(paoh - 1))*invden &
+                          + num*(invden**2)*qaoh*(rrel**(qaoh - 1)))/(drjk*raoh)
                dnaoh(1:3, jj, kk) = rjk(1:3)*fscalar
             ELSE
                !correct limit if rjk --> raoh
-               naoh = naoh+REAL(paoh, dp)/REAL(qaoh, dp)
-               fscalar = REAL(paoh*(paoh-qaoh), dp)/(REAL(2*qaoh, dp)*raoh*drjk)
+               naoh = naoh + REAL(paoh, dp)/REAL(qaoh, dp)
+               fscalar = REAL(paoh*(paoh - qaoh), dp)/(REAL(2*qaoh, dp)*raoh*drjk)
                dnaoh(1:3, jj, kk) = rjk(1:3)*fscalar
             ENDIF
          ENDDO
       ENDDO
-      num_cut = 1.0_dp-(naoh/nc)**pcut
-      invden_cut = 1.0_dp/(1.0_dp-(naoh/nc)**qcut)
+      num_cut = 1.0_dp - (naoh/nc)**pcut
+      invden_cut = 1.0_dp/(1.0_dp - (naoh/nc)**qcut)
       fcut = num_cut*invden_cut
 
       ! Final value: number of oxygens in 1st shell of hydronium
       DO ii = 1, n_oxygens_water
          qloc(ii) = EXP(lambda*M(ii)*noo(ii))
-         qtot = qtot+qloc(ii)
+         qtot = qtot + qloc(ii)
       ENDDO
       qsol = LOG(qtot)/lambda
       colvar%ss = fcut*qsol
 
       ! Derivatives of fcut
-      dfcut = ((-pcut*(naoh/nc)**(pcut-1)*invden_cut) &
-               +num_cut*(invden_cut**2)*qcut*(naoh/nc)**(qcut-1))/nc
+      dfcut = ((-pcut*(naoh/nc)**(pcut - 1)*invden_cut) &
+               + num_cut*(invden_cut**2)*qcut*(naoh/nc)**(qcut - 1))/nc
       offsetO = n_oxygens_water
-      offsetH = n_oxygens_water+n_oxygens_acid
+      offsetH = n_oxygens_water + n_oxygens_acid
       DO kk = 1, n_oxygens_acid
          DO jj = 1, n_hydrogens
-            colvar%dsdr(1:3, offsetO+kk) = colvar%dsdr(1:3, offsetO+kk) &
-                                           +dfcut*dnaoh(1:3, jj, kk)*qsol
-            colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
-                                           -dfcut*dnaoh(1:3, jj, kk)*qsol
+            colvar%dsdr(1:3, offsetO + kk) = colvar%dsdr(1:3, offsetO + kk) &
+                                             + dfcut*dnaoh(1:3, jj, kk)*qsol
+            colvar%dsdr(1:3, offsetH + jj) = colvar%dsdr(1:3, offsetH + jj) &
+                                             - dfcut*dnaoh(1:3, jj, kk)*qsol
          ENDDO
       ENDDO
 
@@ -4175,18 +4175,18 @@ CONTAINS
          fscalar = fcut*qloc(ii)*dM(ii)*noo(ii)/qtot
          DO jj = 1, n_hydrogens
             colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                   +fscalar*dnwoh(1:3, jj, ii)
-            colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
-                                           -fscalar*dnwoh(1:3, jj, ii)
+                                   + fscalar*dnwoh(1:3, jj, ii)
+            colvar%dsdr(1:3, offsetH + jj) = colvar%dsdr(1:3, offsetH + jj) &
+                                             - fscalar*dnwoh(1:3, jj, ii)
          ENDDO
       ENDDO
       !*** noo derivatives
       DO ii = 1, n_oxygens_water
          fscalar = fcut*qloc(ii)*M(ii)/qtot
-         DO kk = 1, n_oxygens_water+n_oxygens_acid
+         DO kk = 1, n_oxygens_water + n_oxygens_acid
             IF (ii == kk) CYCLE
-            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii)+fscalar*dnoo(1:3, kk, ii)
-            colvar%dsdr(1:3, kk) = colvar%dsdr(1:3, kk)-fscalar*dnoo(1:3, kk, ii)
+            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) + fscalar*dnoo(1:3, kk, ii)
+            colvar%dsdr(1:3, kk) = colvar%dsdr(1:3, kk) - fscalar*dnoo(1:3, kk, ii)
          ENDDO
       ENDDO
 
@@ -4253,27 +4253,27 @@ CONTAINS
             CALL get_coordinates(colvar, j, xpj, my_particles)
             ! define coordination of atom A with itself to be 0. also fixes rij==0 for the force calculation
             IF (i .EQ. j) CYCLE
-            ss = MATMUL(cell%h_inv, xpi(:)-xpj(:))
-            ss = ss-NINT(ss)
+            ss = MATMUL(cell%h_inv, xpi(:) - xpj(:))
+            ss = ss - NINT(ss)
             xij = MATMUL(cell%hmat, ss)
-            rij = SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+            rij = SQRT(xij(1)**2 + xij(2)**2 + xij(3)**2)
             IF (rij < 1.0e-8_dp) CYCLE
             rdist_ij = rij/r_0_a
-            IF (ABS(1.0_dp-rdist_ij) > EPSILON(0.0_dp)*1.0E+4_dp) THEN
-               num_ij = (1.0_dp-rdist_ij**p_a)
-               invden_ij = 1.0_dp/(1.0_dp-rdist_ij**q_a)
+            IF (ABS(1.0_dp - rdist_ij) > EPSILON(0.0_dp)*1.0E+4_dp) THEN
+               num_ij = (1.0_dp - rdist_ij**p_a)
+               invden_ij = 1.0_dp/(1.0_dp - rdist_ij**q_a)
                func_ij = num_ij*invden_ij
                IF (rij < 1.0E-8_dp) THEN
                   ! provide the correct limit of the derivative
                   dfunc_ij = 0.0_dp
                ELSE
-                  dfunc_ij = (-p_a*rdist_ij**(p_a-1)*invden_ij &
-                              +num_ij*(invden_ij)**2*q_a*rdist_ij**(q_a-1))/(rij*r_0_a)
+                  dfunc_ij = (-p_a*rdist_ij**(p_a - 1)*invden_ij &
+                              + num_ij*(invden_ij)**2*q_a*rdist_ij**(q_a - 1))/(rij*r_0_a)
                END IF
             ELSE
                ! Provide the correct limit for function value and derivative
                func_ij = REAL(p_a, KIND=dp)/REAL(q_a, KIND=dp)
-               dfunc_ij = REAL(p_a, KIND=dp)*REAL((-q_a+p_a), KIND=dp)/(REAL(2*q_a, KIND=dp)*r_0_a)
+               dfunc_ij = REAL(p_a, KIND=dp)*REAL((-q_a + p_a), KIND=dp)/(REAL(2*q_a, KIND=dp)*r_0_a)
             END IF
             IF (n_atoms_to_b /= 0) THEN
                func_k = 0.0_dp
@@ -4281,42 +4281,42 @@ CONTAINS
                   k = colvar%coord_param%i_at_to_b(kk)
                   IF (k .EQ. j) CYCLE
                   CALL get_coordinates(colvar, k, xpk, my_particles)
-                  ss = MATMUL(cell%h_inv, xpj(:)-xpk(:))
-                  ss = ss-NINT(ss)
+                  ss = MATMUL(cell%h_inv, xpj(:) - xpk(:))
+                  ss = ss - NINT(ss)
                   xjk = MATMUL(cell%hmat, ss)
-                  rjk = SQRT(xjk(1)**2+xjk(2)**2+xjk(3)**2)
+                  rjk = SQRT(xjk(1)**2 + xjk(2)**2 + xjk(3)**2)
                   IF (rjk < 1.0e-8_dp) CYCLE
                   rdist_jk = rjk/r_0_b
-                  IF (ABS(1.0_dp-rdist_jk) > EPSILON(0.0_dp)*1.0E+4_dp) THEN
-                     num_jk = (1.0_dp-rdist_jk**p_b)
-                     invden_jk = 1.0_dp/(1.0_dp-rdist_jk**q_b)
+                  IF (ABS(1.0_dp - rdist_jk) > EPSILON(0.0_dp)*1.0E+4_dp) THEN
+                     num_jk = (1.0_dp - rdist_jk**p_b)
+                     invden_jk = 1.0_dp/(1.0_dp - rdist_jk**q_b)
                      func_jk = num_jk*invden_jk
                      IF (rjk < 1.0E-8_dp) THEN
                         ! provide the correct limit of the derivative
                         dfunc_jk = 0.0_dp
                      ELSE
-                        dfunc_jk = (-p_b*rdist_jk**(p_b-1)*invden_jk &
-                                    +num_jk*(invden_jk)**2*q_b*rdist_jk**(q_b-1))/(rjk*r_0_b)
+                        dfunc_jk = (-p_b*rdist_jk**(p_b - 1)*invden_jk &
+                                    + num_jk*(invden_jk)**2*q_b*rdist_jk**(q_b - 1))/(rjk*r_0_b)
                      END IF
                   ELSE
                      ! Provide the correct limit for function value and derivative
                      func_jk = REAL(p_b, KIND=dp)/REAL(q_b, KIND=dp)
-                     dfunc_jk = REAL(p_b, KIND=dp)*REAL((-q_b+p_b), KIND=dp)/(REAL(2*q_b, KIND=dp)*r_0_b)
+                     dfunc_jk = REAL(p_b, KIND=dp)*REAL((-q_b + p_b), KIND=dp)/(REAL(2*q_b, KIND=dp)*r_0_b)
                   ENDIF
-                  func_k = func_k+func_jk
+                  func_k = func_k + func_jk
                   ftmp_k = -func_ij*dfunc_jk*xjk
-                  CALL put_derivative(colvar, n_atoms_from+n_atoms_to_a+kk, ftmp_k)
+                  CALL put_derivative(colvar, n_atoms_from + n_atoms_to_a + kk, ftmp_k)
 
-                  ftmp_j = -dfunc_ij*xij*func_jk+func_ij*dfunc_jk*xjk
-                  CALL put_derivative(colvar, n_atoms_from+jj, ftmp_j)
+                  ftmp_j = -dfunc_ij*xij*func_jk + func_ij*dfunc_jk*xjk
+                  CALL put_derivative(colvar, n_atoms_from + jj, ftmp_j)
                END DO
             ELSE
                func_k = 1.0_dp
                dfunc_jk = 0.0_dp
                ftmp_j = -dfunc_ij*xij
-               CALL put_derivative(colvar, n_atoms_from+jj, ftmp_j)
+               CALL put_derivative(colvar, n_atoms_from + jj, ftmp_j)
             END IF
-            ncoord = ncoord+func_ij*func_k
+            ncoord = ncoord + func_ij*func_k
             ftmp_i = dfunc_ij*xij*func_k
             CALL put_derivative(colvar, ii, ftmp_i)
          ENDDO
@@ -4392,29 +4392,29 @@ CONTAINS
             jj = colvar%mindist_param%i_coord_to(j)
             rpj = my_particles(jj)%r(1:3)
             rij = pbc(rpj, rpi, cell)
-            r12 = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+            r12 = SQRT(rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3))
             rfact = r12/r_cut
-            num_n = 1.0_dp-rfact**p
-            den_n = 1.0_dp-rfact**q
+            num_n = 1.0_dp - rfact**p
+            den_n = 1.0_dp - rfact**q
             inv_den_n = 1.0_dp/den_n
             IF (ABS(inv_den_n) < 1.e-10_dp) THEN
                inv_den_n = 1.e-10_dp
                num_n = ABS(num_n)
             END IF
 
-            fscalar = (-p*rfact**(p-1)+num_n*q*rfact**(q-1)*inv_den_n)*inv_den_n/(r_cut*r12)
+            fscalar = (-p*rfact**(p - 1) + num_n*q*rfact**(q - 1)*inv_den_n)*inv_den_n/(r_cut*r12)
 
             dnLcoord(1, i, j) = rij(1)*fscalar
             dnLcoord(2, i, j) = rij(2)*fscalar
             dnLcoord(3, i, j) = rij(3)*fscalar
 
-            nLcoord(i) = nLcoord(i)+num_n*inv_den_n
+            nLcoord(i) = nLcoord(i) + num_n*inv_den_n
          END DO
          expnL(i) = EXP(lambda*nLcoord(i))
 !dbg
 ! write(*,*) ii,nLcoord(i),expnL(i)
 !dbg
-         den_Q = den_Q+expnL(i)
+         den_Q = den_Q + expnL(i)
       END DO
       inv_den_Q = 1.0_dp/den_Q
 
@@ -4430,14 +4430,14 @@ CONTAINS
             jj = colvar%mindist_param%i_coord_from(j)
             rpj = my_particles(jj)%r(1:3)
             rij = pbc(rpj, rpi, cell)
-            r12 = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+            r12 = SQRT(rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3))
 
 !dbg
 ! write(*,*) ii,jj,rpi(1:3),rpj(1:3),rij(1:3),r12
 !dbg
-            num_Q = num_Q+r12*expnL(j)
+            num_Q = num_Q + r12*expnL(j)
 
-            sum_rij(j) = sum_rij(j)+r12
+            sum_rij(j) = sum_rij(j) + r12
             dqfunc_dr(1, i, j) = expnL(j)*rij(1)/r12
             dqfunc_dr(2, i, j) = expnL(j)*rij(2)/r12
             dqfunc_dr(3, i, j) = expnL(j)*rij(3)/r12
@@ -4456,7 +4456,7 @@ CONTAINS
 !dbg
 
       DO i = 1, n_coord_from
-         dqfunc_dnL(i) = lambda*expnL(i)*inv_den_Q*(sum_rij(i)-num_Q*inv_den_Q)
+         dqfunc_dnL(i) = lambda*expnL(i)*inv_den_Q*(sum_rij(i) - num_Q*inv_den_Q)
       END DO
 
       !Compute Forces
@@ -4467,7 +4467,7 @@ CONTAINS
             ftemp_i(3) = dqfunc_dr(3, i, j)
 
             CALL put_derivative(colvar, i, ftemp_i)
-            CALL put_derivative(colvar, j+n_dist_from, -ftemp_i)
+            CALL put_derivative(colvar, j + n_dist_from, -ftemp_i)
 
          END DO
       END DO
@@ -4477,8 +4477,8 @@ CONTAINS
             ftemp_i(2) = dqfunc_dnL(i)*dnLcoord(2, i, j)
             ftemp_i(3) = dqfunc_dnL(i)*dnLcoord(3, i, j)
 
-            CALL put_derivative(colvar, i+n_dist_from, ftemp_i)
-            CALL put_derivative(colvar, j+n_dist_from+n_coord_from, -ftemp_i)
+            CALL put_derivative(colvar, i + n_dist_from, ftemp_i)
+            CALL put_derivative(colvar, j + n_dist_from + n_coord_from, -ftemp_i)
 
          END DO
       END DO
@@ -4540,14 +4540,14 @@ CONTAINS
 
       ! Evaluate the combination of the COLVARs
       CALL initf(1)
-      ndim = SIZE(colvar%combine_cvs_param%c_parameters)+ &
+      ndim = SIZE(colvar%combine_cvs_param%c_parameters) + &
              SIZE(colvar%combine_cvs_param%variables)
       ALLOCATE (my_par(ndim))
       my_par(1:SIZE(colvar%combine_cvs_param%variables)) = colvar%combine_cvs_param%variables
-      my_par(SIZE(colvar%combine_cvs_param%variables)+1:) = colvar%combine_cvs_param%c_parameters
+      my_par(SIZE(colvar%combine_cvs_param%variables) + 1:) = colvar%combine_cvs_param%c_parameters
       ALLOCATE (my_val(ndim))
       my_val(1:SIZE(colvar%combine_cvs_param%variables)) = ss_vals
-      my_val(SIZE(colvar%combine_cvs_param%variables)+1:) = colvar%combine_cvs_param%v_parameters
+      my_val(SIZE(colvar%combine_cvs_param%variables) + 1:) = colvar%combine_cvs_param%v_parameters
       CALL parsef(1, TRIM(colvar%combine_cvs_param%function), my_par)
       colvar%ss = evalf(1, my_val)
       DO i = 1, ncolv
@@ -4572,7 +4572,7 @@ CONTAINS
       ii = 0
       DO i = 1, ncolv
          DO j = 1, colvar%combine_cvs_param%colvar_p(i)%colvar%n_atom_s
-            ii = ii+1
+            ii = ii + 1
             fi(:, ii) = colvar%combine_cvs_param%colvar_p(i)%colvar%dsdr(:, j)*dss_vals(i)
          END DO
       END DO
@@ -4677,8 +4677,8 @@ CONTAINS
       ALLOCATE (ds1(ncolv, 2))
 
       DO k = istart, iend
-         s1v(1, k) = REAL(k, kind=dp)*step_size*EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:, k), ss_vals(:)-f_vals(:, k)))
-         s1v(2, k) = EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:, k), ss_vals(:)-f_vals(:, k)))
+         s1v(1, k) = REAL(k, kind=dp)*step_size*EXP(-lambda*DOT_PRODUCT(ss_vals(:) - f_vals(:, k), ss_vals(:) - f_vals(:, k)))
+         s1v(2, k) = EXP(-lambda*DOT_PRODUCT(ss_vals(:) - f_vals(:, k), ss_vals(:) - f_vals(:, k)))
          DO j = 1, ncolv
             ds1v(j, 1, k) = f_vals(j, k)*s1v(1, k)
             ds1v(j, 2, k) = f_vals(j, k)*s1v(2, k)
@@ -4691,16 +4691,16 @@ CONTAINS
          END DO
       END DO
 
-      colvar%ss = s1(1)/s1(2)/REAL(nconf-1, dp)
+      colvar%ss = s1(1)/s1(2)/REAL(nconf - 1, dp)
 
       ALLOCATE (fi(3, colvar%n_atom_s))
 
       ii = 0
       DO i = 1, ncolv
          DO j = 1, colvar%reaction_path_param%colvar_p(i)%colvar%n_atom_s
-            ii = ii+1
+            ii = ii + 1
             fi(:, ii) = colvar%reaction_path_param%colvar_p(i)%colvar%dsdr(:, j)*lambda* &
-                        (ds1(i, 1)/s1(2)/REAL(nconf-1, dp)-colvar%ss*ds1(i, 2)/s1(2))*2.0_dp
+                        (ds1(i, 1)/s1(2)/REAL(nconf - 1, dp) - colvar%ss*ds1(i, 2)/s1(2))*2.0_dp
          END DO
       END DO
 
@@ -4760,10 +4760,10 @@ CONTAINS
       ALLOCATE (ds1v(3, rmsd_atom, 2, nconf))
       ALLOCATE (ds1(3, rmsd_atom, 2))
       DO i = 1, natom
-         ii = (i-1)*3
-         r0(ii+1) = particles(i)%r(1)
-         r0(ii+2) = particles(i)%r(2)
-         r0(ii+3) = particles(i)%r(3)
+         ii = (i - 1)*3
+         r0(ii + 1) = particles(i)%r(1)
+         r0(ii + 2) = particles(i)%r(2)
+         r0(ii + 3) = particles(i)%r(3)
       END DO
 
       DO iat = 1, rmsd_atom
@@ -4773,10 +4773,10 @@ CONTAINS
 
       DO ik = 1, nconf
          DO i = 1, natom
-            ii = (i-1)*3
-            r(ii+1) = path_conf(ii+1, ik)
-            r(ii+2) = path_conf(ii+2, ik)
-            r(ii+3) = path_conf(ii+3, ik)
+            ii = (i - 1)*3
+            r(ii + 1) = path_conf(ii + 1, ik)
+            r(ii + 2) = path_conf(ii + 2, ik)
+            r(ii + 3) = path_conf(ii + 3, ik)
          END DO
 
          CALL rmsd3(particles, r, r0, output_unit=-1, my_val=my_rmsd, rotate=.TRUE.)
@@ -4784,23 +4784,23 @@ CONTAINS
          sum_exp = 0.0_dp
          DO iat = 1, rmsd_atom
             i = iatom(iat)
-            ii = (i-1)*3
-            vec_dif(iat) = (riat(1, iat)-r(ii+1))**2+(riat(2, iat)-r(ii+2))**2 &
-                           +(riat(3, iat)-r(ii+3))**2
-            sum_exp = sum_exp+vec_dif(iat)
+            ii = (i - 1)*3
+            vec_dif(iat) = (riat(1, iat) - r(ii + 1))**2 + (riat(2, iat) - r(ii + 2))**2 &
+                           + (riat(3, iat) - r(ii + 3))**2
+            sum_exp = sum_exp + vec_dif(iat)
          END DO
 
-         s1v(1, ik) = REAL(ik-1, dp)*EXP(-lambda*sum_exp)
+         s1v(1, ik) = REAL(ik - 1, dp)*EXP(-lambda*sum_exp)
          s1v(2, ik) = EXP(-lambda*sum_exp)
          DO iat = 1, rmsd_atom
             i = iatom(iat)
-            ii = (i-1)*3
-            ds1v(1, iat, 1, ik) = r(ii+1)*s1v(1, ik)
-            ds1v(1, iat, 2, ik) = r(ii+1)*s1v(2, ik)
-            ds1v(2, iat, 1, ik) = r(ii+2)*s1v(1, ik)
-            ds1v(2, iat, 2, ik) = r(ii+2)*s1v(2, ik)
-            ds1v(3, iat, 1, ik) = r(ii+3)*s1v(1, ik)
-            ds1v(3, iat, 2, ik) = r(ii+3)*s1v(2, ik)
+            ii = (i - 1)*3
+            ds1v(1, iat, 1, ik) = r(ii + 1)*s1v(1, ik)
+            ds1v(1, iat, 2, ik) = r(ii + 1)*s1v(2, ik)
+            ds1v(2, iat, 1, ik) = r(ii + 2)*s1v(1, ik)
+            ds1v(2, iat, 2, ik) = r(ii + 2)*s1v(2, ik)
+            ds1v(3, iat, 1, ik) = r(ii + 3)*s1v(1, ik)
+            ds1v(3, iat, 2, ik) = r(ii + 3)*s1v(2, ik)
          END DO
 
       END DO
@@ -4814,14 +4814,14 @@ CONTAINS
          END DO
       END DO
 
-      colvar%ss = s1(1)/s1(2)/REAL(nconf-1, dp)
+      colvar%ss = s1(1)/s1(2)/REAL(nconf - 1, dp)
 
       ALLOCATE (fi(3, rmsd_atom))
 
       DO iat = 1, rmsd_atom
-         fi(1, iat) = 2.0_dp*lambda/s1(2)/REAL(nconf-1, dp)*(ds1(1, iat, 1)-ds1(1, iat, 2)*s1(1)/s1(2))
-         fi(2, iat) = 2.0_dp*lambda/s1(2)/REAL(nconf-1, dp)*(ds1(2, iat, 1)-ds1(2, iat, 2)*s1(1)/s1(2))
-         fi(3, iat) = 2.0_dp*lambda/s1(2)/REAL(nconf-1, dp)*(ds1(3, iat, 1)-ds1(3, iat, 2)*s1(1)/s1(2))
+         fi(1, iat) = 2.0_dp*lambda/s1(2)/REAL(nconf - 1, dp)*(ds1(1, iat, 1) - ds1(1, iat, 2)*s1(1)/s1(2))
+         fi(2, iat) = 2.0_dp*lambda/s1(2)/REAL(nconf - 1, dp)*(ds1(2, iat, 1) - ds1(2, iat, 2)*s1(1)/s1(2))
+         fi(3, iat) = 2.0_dp*lambda/s1(2)/REAL(nconf - 1, dp)*(ds1(3, iat, 1) - ds1(3, iat, 2)*s1(1)/s1(2))
          CALL put_derivative(colvar, iat, fi(:, iat))
       END DO
 
@@ -4878,10 +4878,10 @@ CONTAINS
       ALLOCATE (weight(natom))
 
       DO i = 1, natom
-         ii = (i-1)*3
-         r0(ii+1) = particles(i)%r(1)
-         r0(ii+2) = particles(i)%r(2)
-         r0(ii+3) = particles(i)%r(3)
+         ii = (i - 1)*3
+         r0(ii + 1) = particles(i)%r(1)
+         r0(ii + 2) = particles(i)%r(2)
+         r0(ii + 3) = particles(i)%r(3)
       END DO
 
       DO iat = 1, rmsd_atom
@@ -4898,16 +4898,16 @@ CONTAINS
 
       DO ik = 1, nconf
          DO i = 1, natom
-            ii = (i-1)*3
-            r(ii+1) = path_conf(ii+1, ik)
-            r(ii+2) = path_conf(ii+2, ik)
-            r(ii+3) = path_conf(ii+3, ik)
+            ii = (i - 1)*3
+            r(ii + 1) = path_conf(ii + 1, ik)
+            r(ii + 2) = path_conf(ii + 2, ik)
+            r(ii + 3) = path_conf(ii + 3, ik)
          END DO
 
          CALL rmsd3(particles, r0, r, output_unit=-1, weights=weight, my_val=my_rmsd, &
                     rotate=.FALSE., drmsd3=drmsd)
 
-         s1v(1, ik) = REAL(ik-1, dp)*EXP(-lambda*my_rmsd)
+         s1v(1, ik) = REAL(ik - 1, dp)*EXP(-lambda*my_rmsd)
          s1v(2, ik) = EXP(-lambda*my_rmsd)
          DO iat = 1, rmsd_atom
             i = iatom(iat)
@@ -4930,14 +4930,14 @@ CONTAINS
          END DO
       END DO
 
-      colvar%ss = s1(1)/s1(2)/REAL(nconf-1, dp)
+      colvar%ss = s1(1)/s1(2)/REAL(nconf - 1, dp)
 
       ALLOCATE (fi(3, rmsd_atom))
 
       DO iat = 1, rmsd_atom
-         fi(1, iat) = -lambda/s1(2)/REAL(nconf-1, dp)*(ds1(1, iat, 1)-ds1(1, iat, 2)*s1(1)/s1(2))
-         fi(2, iat) = -lambda/s1(2)/REAL(nconf-1, dp)*(ds1(2, iat, 1)-ds1(2, iat, 2)*s1(1)/s1(2))
-         fi(3, iat) = -lambda/s1(2)/REAL(nconf-1, dp)*(ds1(3, iat, 1)-ds1(3, iat, 2)*s1(1)/s1(2))
+         fi(1, iat) = -lambda/s1(2)/REAL(nconf - 1, dp)*(ds1(1, iat, 1) - ds1(1, iat, 2)*s1(1)/s1(2))
+         fi(2, iat) = -lambda/s1(2)/REAL(nconf - 1, dp)*(ds1(2, iat, 1) - ds1(2, iat, 2)*s1(1)/s1(2))
+         fi(3, iat) = -lambda/s1(2)/REAL(nconf - 1, dp)*(ds1(3, iat, 1) - ds1(3, iat, 2)*s1(1)/s1(2))
          CALL put_derivative(colvar, iat, fi(:, iat))
       END DO
 
@@ -5036,7 +5036,7 @@ CONTAINS
       ALLOCATE (ds1(ncolv))
 
       DO k = istart, iend
-         s1v(k) = EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:, k), ss_vals(:)-f_vals(:, k)))
+         s1v(k) = EXP(-lambda*DOT_PRODUCT(ss_vals(:) - f_vals(:, k), ss_vals(:) - f_vals(:, k)))
          DO j = 1, ncolv
             ds1v(j, k) = f_vals(j, k)*s1v(k)
          END DO
@@ -5053,9 +5053,9 @@ CONTAINS
       ii = 0
       DO i = 1, ncolv
          DO j = 1, colvar%reaction_path_param%colvar_p(i)%colvar%n_atom_s
-            ii = ii+1
+            ii = ii + 1
             fi(:, ii) = colvar%reaction_path_param%colvar_p(i)%colvar%dsdr(:, j)* &
-                        2.0_dp*(ss_vals(i)-ds1(i)/s1)
+                        2.0_dp*(ss_vals(i) - ds1(i)/s1)
          END DO
       END DO
 
@@ -5114,10 +5114,10 @@ CONTAINS
       ALLOCATE (ds1v(3, rmsd_atom, nconf))
       ALLOCATE (ds1(3, rmsd_atom))
       DO i = 1, natom
-         ii = (i-1)*3
-         r0(ii+1) = particles(i)%r(1)
-         r0(ii+2) = particles(i)%r(2)
-         r0(ii+3) = particles(i)%r(3)
+         ii = (i - 1)*3
+         r0(ii + 1) = particles(i)%r(1)
+         r0(ii + 2) = particles(i)%r(2)
+         r0(ii + 3) = particles(i)%r(3)
       END DO
 
       DO iat = 1, rmsd_atom
@@ -5127,10 +5127,10 @@ CONTAINS
 
       DO ik = 1, nconf
          DO i = 1, natom
-            ii = (i-1)*3
-            r(ii+1) = path_conf(ii+1, ik)
-            r(ii+2) = path_conf(ii+2, ik)
-            r(ii+3) = path_conf(ii+3, ik)
+            ii = (i - 1)*3
+            r(ii + 1) = path_conf(ii + 1, ik)
+            r(ii + 2) = path_conf(ii + 2, ik)
+            r(ii + 3) = path_conf(ii + 3, ik)
          END DO
 
          CALL rmsd3(particles, r, r0, output_unit=-1, rotate=.TRUE.)
@@ -5138,12 +5138,12 @@ CONTAINS
          sum_exp = 0.0_dp
          DO iat = 1, rmsd_atom
             i = iatom(iat)
-            ii = (i-1)*3
-            vec_dif(iat) = (riat(1, iat)-r(ii+1))**2+(riat(2, iat)-r(ii+2))**2+(riat(3, iat)-r(ii+3))**2
-            sum_exp = sum_exp+vec_dif(iat)
-            dvec_dif(1, iat) = r(ii+1)
-            dvec_dif(2, iat) = r(ii+2)
-            dvec_dif(3, iat) = r(ii+3)
+            ii = (i - 1)*3
+            vec_dif(iat) = (riat(1, iat) - r(ii + 1))**2 + (riat(2, iat) - r(ii + 2))**2 + (riat(3, iat) - r(ii + 3))**2
+            sum_exp = sum_exp + vec_dif(iat)
+            dvec_dif(1, iat) = r(ii + 1)
+            dvec_dif(2, iat) = r(ii + 2)
+            dvec_dif(3, iat) = r(ii + 3)
          END DO
          s1v(ik) = EXP(-lambda*sum_exp)
          DO iat = 1, rmsd_atom
@@ -5164,7 +5164,7 @@ CONTAINS
       ALLOCATE (fi(3, rmsd_atom))
 
       DO iat = 1, rmsd_atom
-         fi(:, iat) = 2.0_dp*(riat(:, iat)-ds1(:, iat)/s1)
+         fi(:, iat) = 2.0_dp*(riat(:, iat) - ds1(:, iat)/s1)
          CALL put_derivative(colvar, iat, fi(:, iat))
       END DO
 
@@ -5220,10 +5220,10 @@ CONTAINS
       ALLOCATE (weight(natom))
 
       DO i = 1, natom
-         ii = (i-1)*3
-         r0(ii+1) = particles(i)%r(1)
-         r0(ii+2) = particles(i)%r(2)
-         r0(ii+3) = particles(i)%r(3)
+         ii = (i - 1)*3
+         r0(ii + 1) = particles(i)%r(1)
+         r0(ii + 2) = particles(i)%r(2)
+         r0(ii + 3) = particles(i)%r(3)
       END DO
 
       DO iat = 1, rmsd_atom
@@ -5240,10 +5240,10 @@ CONTAINS
 
       DO ik = 1, nconf
          DO i = 1, natom
-            ii = (i-1)*3
-            r(ii+1) = path_conf(ii+1, ik)
-            r(ii+2) = path_conf(ii+2, ik)
-            r(ii+3) = path_conf(ii+3, ik)
+            ii = (i - 1)*3
+            r(ii + 1) = path_conf(ii + 1, ik)
+            r(ii + 2) = path_conf(ii + 2, ik)
+            r(ii + 3) = path_conf(ii + 3, ik)
          END DO
 
          CALL rmsd3(particles, r0, r, output_unit=-1, weights=weight, my_val=my_rmsd, &
@@ -5351,28 +5351,28 @@ CONTAINS
          DO jj = 1, n_atoms_to
             i = colvar%population_param%i_at_to(jj)
             CALL get_coordinates(colvar, i, xpj, my_particles)
-            ss = MATMUL(cell%h_inv, xpi(:)-xpj(:))
-            ss = ss-NINT(ss)
+            ss = MATMUL(cell%h_inv, xpi(:) - xpj(:))
+            ss = ss - NINT(ss)
             xij = MATMUL(cell%hmat, ss)
-            r12 = SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+            r12 = SQRT(xij(1)**2 + xij(2)**2 + xij(3)**2)
             IF (r12 < 1.0e-8_dp) CYCLE
             rdist = r12/r_0
-            num = (1.0_dp-rdist**nncrd)
-            invden = 1.0_dp/(1.0_dp-rdist**ndcrd)
+            num = (1.0_dp - rdist**nncrd)
+            invden = 1.0_dp/(1.0_dp - rdist**ndcrd)
             func_coord = num*invden
-            dfunc_coord = (-nncrd*rdist**(nncrd-1)*invden &
-                           +num*(invden)**2*ndcrd*rdist**(ndcrd-1))/(r12*r_0)
+            dfunc_coord = (-nncrd*rdist**(nncrd - 1)*invden &
+                           + num*(invden)**2*ndcrd*rdist**(ndcrd - 1))/(r12*r_0)
 
-            ncoord = ncoord+func_coord
+            ncoord = ncoord + func_coord
             ftmp_coord(1, jj) = dfunc_coord*xij(1)
             ftmp_coord(2, jj) = dfunc_coord*xij(2)
             ftmp_coord(3, jj) = dfunc_coord*xij(3)
          END DO
 
-         func = EXP(-(ncoord-n_0)**2/(2.0_dp*sigma*sigma))
-         dfunc = -func*(ncoord-n_0)/(sigma*sigma)
+         func = EXP(-(ncoord - n_0)**2/(2.0_dp*sigma*sigma))
+         dfunc = -func*(ncoord - n_0)/(sigma*sigma)
 
-         population = population+norm*func
+         population = population + norm*func
          DO jj = 1, n_atoms_to
             ftmp(1) = ftmp_coord(1, jj)*dfunc
             ftmp(2) = ftmp_coord(2, jj)*dfunc
@@ -5381,7 +5381,7 @@ CONTAINS
             ftmp(1) = -ftmp_coord(1, jj)*dfunc
             ftmp(2) = -ftmp_coord(2, jj)*dfunc
             ftmp(3) = -ftmp_coord(3, jj)*dfunc
-            CALL put_derivative(colvar, n_atoms_from+jj, ftmp)
+            CALL put_derivative(colvar, n_atoms_from + jj, ftmp)
          ENDDO
          ncoord = 0.0_dp
       ENDDO
@@ -5434,8 +5434,8 @@ CONTAINS
          i = colvar%gyration_param%i_at(ii)
          CALL get_coordinates(colvar, i, xpi, my_particles)
          CALL get_mass(colvar, i, mi, my_particles)
-         xpcom(:) = xpcom(:)+xpi(:)*mi
-         mass_tot = mass_tot+mi
+         xpcom(:) = xpcom(:) + xpi(:)*mi
+         mass_tot = mass_tot + mi
       END DO
       xpcom(:) = xpcom(:)/mass_tot
 
@@ -5445,12 +5445,12 @@ CONTAINS
       DO ii = 1, n_atoms
          i = colvar%gyration_param%i_at(ii)
          CALL get_coordinates(colvar, i, xpi, my_particles)
-         ss = MATMUL(cell%h_inv, xpi(:)-xpcom(:))
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, xpi(:) - xpcom(:))
+         ss = ss - NINT(ss)
          dxi = MATMUL(cell%hmat, ss)
-         dri2 = (dxi(1)**2+dxi(2)**2+dxi(3)**2)
-         func = func+dri2
-         dfunc(:) = dfunc(:)+dxi(:)
+         dri2 = (dxi(1)**2 + dxi(2)**2 + dxi(3)**2)
+         func = func + dri2
+         dfunc(:) = dfunc(:) + dxi(:)
       END DO
       gyration = SQRT(inv_n*func)
 
@@ -5458,12 +5458,12 @@ CONTAINS
          i = colvar%gyration_param%i_at(ii)
          CALL get_coordinates(colvar, i, xpi, my_particles)
          CALL get_mass(colvar, i, mi, my_particles)
-         ss = MATMUL(cell%h_inv, xpi(:)-xpcom(:))
-         ss = ss-NINT(ss)
+         ss = MATMUL(cell%h_inv, xpi(:) - xpcom(:))
+         ss = ss - NINT(ss)
          dxi = MATMUL(cell%hmat, ss)
-         ftmp(1) = dxi(1)-dfunc(1)*mi/mass_tot
-         ftmp(2) = dxi(2)-dfunc(2)*mi/mass_tot
-         ftmp(3) = dxi(3)-dfunc(3)*mi/mass_tot
+         ftmp(1) = dxi(1) - dfunc(1)*mi/mass_tot
+         ftmp(2) = dxi(2) - dfunc(2)*mi/mass_tot
+         ftmp(3) = dxi(3) - dfunc(3)*mi/mass_tot
          ftmp(:) = ftmp(:)*inv_n/gyration
          CALL put_derivative(colvar, ii, ftmp)
       END DO
@@ -5545,10 +5545,10 @@ CONTAINS
 
       weights => colvar%rmsd_param%weights
       DO i = 1, natom
-         ii = (i-1)*3
-         r(ii+1) = my_particles(i)%r(1)
-         r(ii+2) = my_particles(i)%r(2)
-         r(ii+3) = my_particles(i)%r(3)
+         ii = (i - 1)*3
+         r(ii + 1) = my_particles(i)%r(1)
+         r(ii + 2) = my_particles(i)%r(2)
+         r(ii + 3) = my_particles(i)%r(3)
       END DO
       r0(:, :) = colvar%rmsd_param%r_ref
       rmsd = 0.0_dp
@@ -5559,20 +5559,20 @@ CONTAINS
          CALL rmsd3(my_particles, r, r0(:, 2), output_unit=-1, weights=weights, &
                     my_val=rmsd(2), rotate=.FALSE., drmsd3=drmsd(:, :, 2))
 
-         f1 = 1.0_dp/(rmsd(1)+rmsd(2))
+         f1 = 1.0_dp/(rmsd(1) + rmsd(2))
          ! (rmsdA-rmsdB)/(rmsdA+rmsdB)
-         cv_val = (rmsd(1)-rmsd(2))*f1
+         cv_val = (rmsd(1) - rmsd(2))*f1
          ! (rmsdA+rmsdB)^-1-(rmsdA-rmsdB)/(rmsdA+rmsdB)^2
-         der(1) = f1-cv_val*f1
+         der(1) = f1 - cv_val*f1
          ! -(rmsdA+rmsdB)^-1-(rmsdA-rmsdB)/(rmsdA+rmsdB)^2
-         der(2) = -f1-cv_val*f1
+         der(2) = -f1 - cv_val*f1
 
          DO i = 1, colvar%rmsd_param%n_atoms
             ii = colvar%rmsd_param%i_rmsd(i)
             IF (weights(ii) > 0.0_dp) THEN
-               ftmp(1) = der(1)*drmsd(1, ii, 1)+der(2)*drmsd(1, ii, 2)
-               ftmp(2) = der(1)*drmsd(2, ii, 1)+der(2)*drmsd(2, ii, 2)
-               ftmp(3) = der(1)*drmsd(3, ii, 1)+der(2)*drmsd(3, ii, 2)
+               ftmp(1) = der(1)*drmsd(1, ii, 1) + der(2)*drmsd(1, ii, 2)
+               ftmp(2) = der(1)*drmsd(2, ii, 1) + der(2)*drmsd(2, ii, 2)
+               ftmp(3) = der(1)*drmsd(3, ii, 1) + der(2)*drmsd(3, ii, 2)
                CALL put_derivative(colvar, i, ftmp)
             END IF
          END DO
@@ -5658,21 +5658,21 @@ CONTAINS
       !compute origin position
       r0 = 0.0_dp
       DO ii = 1, nring
-         r0(:) = r0(:)+r(:, ii)
+         r0(:) = r0(:) + r(:, ii)
       END DO
       kr = 1._dp/REAL(nring, KIND=dp)
       r0(:) = r0(:)*kr
       DO ii = 1, nring
-         r(:, ii) = r(:, ii)-r0(:)
+         r(:, ii) = r(:, ii) - r0(:)
       END DO
       ! orientation vectors
       rp = 0._dp
       rpp = 0._dp
       DO ii = 1, nring
-         cosj(ii) = COS(twopi*(ii-1)*kr)
-         sinj(ii) = SIN(twopi*(ii-1)*kr)
-         rp(:) = rp(:)+r(:, ii)*sinj(ii)
-         rpp(:) = rpp(:)+r(:, ii)*cosj(ii)
+         cosj(ii) = COS(twopi*(ii - 1)*kr)
+         sinj(ii) = SIN(twopi*(ii - 1)*kr)
+         rp(:) = rp(:) + r(:, ii)*sinj(ii)
+         rpp(:) = rpp(:) + r(:, ii)*cosj(ii)
       END DO
       nv = vector_product(rp, rpp)
       nv = nv/SQRT(SUM(nv**2))
@@ -5684,14 +5684,14 @@ CONTAINS
          uv = 0._dp
          uv(i) = 1._dp
          uv = vector_product(uv, rpp)/rpxpp
-         dnvp(:, i) = uv-nv*SUM(uv*nv)
+         dnvp(:, i) = uv - nv*SUM(uv*nv)
          uv = 0._dp
          uv(i) = 1._dp
          uv = vector_product(rp, uv)/rpxpp
-         dnvpp(:, i) = uv-nv*SUM(uv*nv)
+         dnvpp(:, i) = uv - nv*SUM(uv*nv)
       END DO
       DO ii = 1, nring
-         nforce(:, :, ii) = dnvp(:, :)*sinj(ii)+dnvpp(:, :)*cosj(ii)
+         nforce(:, :, ii) = dnvp(:, :)*sinj(ii) + dnvpp(:, :)*cosj(ii)
       END DO
 
       ! molecular z-coordinate
@@ -5708,7 +5708,7 @@ CONTAINS
             END IF
             DO i = 1, 3
                DO j = 1, 3
-                  zforce(ii, jj, i) = zforce(ii, jj, i)+r(j, ii)*nforce(j, i, jj)
+                  zforce(ii, jj, i) = zforce(ii, jj, i) + r(j, ii)*nforce(j, i, jj)
                END DO
             END DO
          END DO
@@ -5720,7 +5720,7 @@ CONTAINS
          DO ii = 1, nring
             ftmp = 0._dp
             DO jj = 1, nring
-               ftmp(:) = ftmp(:)+zforce(jj, ii, :)*z(jj)
+               ftmp(:) = ftmp(:) + zforce(jj, ii, :)*z(jj)
             END DO
             ftmp = ftmp/svar
             CALL put_derivative(colvar, ii, ftmp)
@@ -5733,9 +5733,9 @@ CONTAINS
             svar = 0._dp
             DO ii = 1, nring
                IF (MOD(ii, 2) == 0) THEN
-                  svar = svar-z(ii)
+                  svar = svar - z(ii)
                ELSE
-                  svar = svar+z(ii)
+                  svar = svar + z(ii)
                END IF
             END DO
             svar = svar*SQRT(kr)
@@ -5743,45 +5743,45 @@ CONTAINS
                ftmp = 0._dp
                DO jj = 1, nring
                   IF (MOD(jj, 2) == 0) THEN
-                     ftmp(:) = ftmp(:)-zforce(jj, ii, :)*SQRT(kr)
+                     ftmp(:) = ftmp(:) - zforce(jj, ii, :)*SQRT(kr)
                   ELSE
-                     ftmp(:) = ftmp(:)+zforce(jj, ii, :)*SQRT(kr)
+                     ftmp(:) = ftmp(:) + zforce(jj, ii, :)*SQRT(kr)
                   END IF
                END DO
                CALL put_derivative(colvar, ii, -ftmp)
             END DO
          ELSE
-            CPASSERT(m <= (nring-1)/2)
+            CPASSERT(m <= (nring - 1)/2)
             a = 0._dp
             b = 0._dp
             DO ii = 1, nring
-               a = a+z(ii)*COS(twopi*m*(ii-1)*kr)
-               b = b-z(ii)*SIN(twopi*m*(ii-1)*kr)
+               a = a + z(ii)*COS(twopi*m*(ii - 1)*kr)
+               b = b - z(ii)*SIN(twopi*m*(ii - 1)*kr)
             END DO
             a = a*SQRT(2._dp*kr)
             b = b*SQRT(2._dp*kr)
             IF (colvar%ring_puckering_param%iq > 0) THEN
                ! puckering amplitude
-               svar = SQRT(a*a+b*b)
+               svar = SQRT(a*a + b*b)
                da = a/svar
                db = b/svar
             ELSE
                ! puckering phase angle
                at = ATAN2(a, b)
                IF (at > pi/2._dp) THEN
-                  svar = 2.5_dp*pi-at
+                  svar = 2.5_dp*pi - at
                ELSE
-                  svar = 0.5_dp*pi-at
+                  svar = 0.5_dp*pi - at
                END IF
-               da = -b/(a*a+b*b)
-               db = a/(a*a+b*b)
+               da = -b/(a*a + b*b)
+               db = a/(a*a + b*b)
             END IF
             DO jj = 1, nring
                ftmp = 0._dp
                DO ii = 1, nring
-                  ds = da*COS(twopi*m*(ii-1)*kr)
-                  ds = ds-db*SIN(twopi*m*(ii-1)*kr)
-                  ftmp(:) = ftmp(:)+ds*SQRT(2._dp*kr)*zforce(ii, jj, :)
+                  ds = da*COS(twopi*m*(ii - 1)*kr)
+                  ds = ds - db*SIN(twopi*m*(ii - 1)*kr)
+                  ftmp(:) = ftmp(:) + ds*SQRT(2._dp*kr)*zforce(ii, jj, :)
                END DO
                CALL put_derivative(colvar, jj, ftmp)
             END DO
@@ -5832,7 +5832,7 @@ CONTAINS
 
       k = 1
       IF (v_count .LT. ncol) THEN
-         count1 = v_count+1
+         count1 = v_count + 1
          DO i = p_bounds(1, count1), p_bounds(2, count1)
             gp(count1) = REAL(i, KIND=dp)*grid_sp(count1)
             k = rec_eval_grid(iw1, ncol, f_vals, count1, gp, grid_sp, step_size, &
@@ -5840,17 +5840,17 @@ CONTAINS
          END DO
       ELSE IF (v_count == ncol .AND. ifunc == 1) THEN
          DO i = istart, iend
-            s1v(1, i) = REAL(i, kind=dp)*step_size*EXP(-lambda*DOT_PRODUCT(gp(:)-f_vals(:, i), &
-                                                                           gp(:)-f_vals(:, i)))
-            s1v(2, i) = EXP(-lambda*DOT_PRODUCT(gp(:)-f_vals(:, i), gp(:)-f_vals(:, i)))
+            s1v(1, i) = REAL(i, kind=dp)*step_size*EXP(-lambda*DOT_PRODUCT(gp(:) - f_vals(:, i), &
+                                                                           gp(:) - f_vals(:, i)))
+            s1v(2, i) = EXP(-lambda*DOT_PRODUCT(gp(:) - f_vals(:, i), gp(:) - f_vals(:, i)))
          END DO
          DO i = 1, 2
             s1(i) = accurate_sum(s1v(i, :))
          END DO
-         WRITE (iw1, '(5F10.5)') gp(:), s1(1)/s1(2)/REAL(nconf-1, dp)
+         WRITE (iw1, '(5F10.5)') gp(:), s1(1)/s1(2)/REAL(nconf - 1, dp)
       ELSE IF (v_count == ncol .AND. ifunc == 2) THEN
          DO i = istart, iend
-            s1v(1, i) = EXP(-lambda*DOT_PRODUCT(gp(:)-f_vals(:, i), gp(:)-f_vals(:, i)))
+            s1v(1, i) = EXP(-lambda*DOT_PRODUCT(gp(:) - f_vals(:, i), gp(:) - f_vals(:, i)))
          END DO
          s1(1) = accurate_sum(s1v(1, :))
 
@@ -5905,7 +5905,7 @@ CONTAINS
             DO j = 1, natom
                CALL section_vals_val_get(coord_section, "_DEFAULT_KEYWORD_", &
                                          i_rep_val=j, r_vals=rptr)
-               r_ref((j-1)*3+1:(j-1)*3+3, i) = rptr(1:3)
+               r_ref((j - 1)*3 + 1:(j - 1)*3 + 3, i) = rptr(1:3)
             END DO ! natom
          ELSE
             CALL section_vals_val_get(frame_section, "COORD_FILE_NAME", i_rep_section=i, c_val=filename)
@@ -5932,9 +5932,9 @@ CONTAINS
                                 " Error in XYZ format for COORD_A (CV rmsd). Very probably the"// &
                                 " line with title is missing or is empty. Please check the XYZ file and rerun your job!")
                READ (parser%input_line, *) dummy_char, rptr(1:3)
-               r_ref((j-1)*3+1, i) = cp_unit_to_cp2k(rptr(1), "angstrom")
-               r_ref((j-1)*3+2, i) = cp_unit_to_cp2k(rptr(2), "angstrom")
-               r_ref((j-1)*3+3, i) = cp_unit_to_cp2k(rptr(3), "angstrom")
+               r_ref((j - 1)*3 + 1, i) = cp_unit_to_cp2k(rptr(1), "angstrom")
+               r_ref((j - 1)*3 + 2, i) = cp_unit_to_cp2k(rptr(2), "angstrom")
+               r_ref((j - 1)*3 + 3, i) = cp_unit_to_cp2k(rptr(3), "angstrom")
             END DO ! natom
             CALL parser_release(parser)
             DEALLOCATE (rptr)
@@ -5998,33 +5998,33 @@ CONTAINS
       nwca = 0
       nwcd = 0
       DO j = 1, SIZE(wc(1)%WannierHamDiag)
-         x = distance(rOd-wc(1)%centres(:, j))
-         y = distance(rOa-wc(1)%centres(:, j))
+         x = distance(rOd - wc(1)%centres(:, j))
+         y = distance(rOa - wc(1)%centres(:, j))
          IF (x < rcut) THEN
-            nwcd = nwcd+1
+            nwcd = nwcd + 1
             wcdi(nwcd) = j
             CYCLE
          ENDIF
          IF (y < rcut) THEN
-            nwca = nwca+1
+            nwca = nwca + 1
             wcai(nwca) = j
          ENDIF
       ENDDO
 
-      dmin = distance(rH-wc(1)%centres(:, wcdi(1)))
-      amin = distance(rH-wc(1)%centres(:, wcai(1)))
+      dmin = distance(rH - wc(1)%centres(:, wcdi(1)))
+      amin = distance(rH - wc(1)%centres(:, wcai(1)))
       idmin = wcdi(1)
       iamin = wcai(1)
       !dmin constains the smallest numer, amin the next smallest
       DO i = 2, nwcd
-         x = distance(rH-wc(1)%centres(:, wcdi(i)))
+         x = distance(rH - wc(1)%centres(:, wcdi(i)))
          IF (x < dmin) THEN
             dmin = x
             idmin = wcdi(i)
          ENDIF
       ENDDO
       DO i = 2, nwca
-         x = distance(rH-wc(1)%centres(:, wcai(i)))
+         x = distance(rH - wc(1)%centres(:, wcai(i)))
          IF (x < amin) THEN
             amin = x
             iamin = wcai(i)
@@ -6036,7 +6036,7 @@ CONTAINS
 !     CALL put_derivative(colvar, 3, zero)
 
 !     write(*,'(2(i0,1x),4(f16.8,1x))')idmin,iamin,wc(1)%WannierHamDiag(idmin),wc(1)%WannierHamDiag(iamin),dmin,amin
-      colvar%ss = wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
+      colvar%ss = wc(1)%WannierHamDiag(idmin) - wc(1)%WannierHamDiag(iamin)
       DEALLOCATE (wcai)
       DEALLOCATE (wcdi)
 
@@ -6050,7 +6050,7 @@ CONTAINS
       REAL(dp), INTENT(in)                               :: rij(3)
 
          s = MATMUL(cell%h_inv, rij)
-         s = s-NINT(s)
+         s = s - NINT(s)
          xv = MATMUL(cell%hmat, s)
          distance = SQRT(DOT_PRODUCT(xv, xv))
       END FUNCTION distance
@@ -6116,40 +6116,40 @@ CONTAINS
          nwca = 0
          nwcd = 0
          DO j = 1, SIZE(wc(1)%WannierHamDiag)
-            x = distance(rOd-wc(1)%centres(:, j))
-            y = distance(rOa-wc(1)%centres(:, j))
+            x = distance(rOd - wc(1)%centres(:, j))
+            y = distance(rOa - wc(1)%centres(:, j))
             IF (x < rcut) THEN
-               nwcd = nwcd+1
+               nwcd = nwcd + 1
                wcdi(nwcd) = j
                CYCLE
             ENDIF
             IF (y < rcut) THEN
-               nwca = nwca+1
+               nwca = nwca + 1
                wcai(nwca) = j
             ENDIF
          ENDDO
 
-         dmin = distance(rH-wc(1)%centres(:, wcdi(1)))
-         amin = distance(rH-wc(1)%centres(:, wcai(1)))
+         dmin = distance(rH - wc(1)%centres(:, wcdi(1)))
+         amin = distance(rH - wc(1)%centres(:, wcai(1)))
          idmin = wcdi(1)
          iamin = wcai(1)
          !dmin constains the smallest numer, amin the next smallest
          DO i = 2, nwcd
-            x = distance(rH-wc(1)%centres(:, wcdi(i)))
+            x = distance(rH - wc(1)%centres(:, wcdi(i)))
             IF (x < dmin) THEN
                dmin = x
                idmin = wcdi(i)
             ENDIF
          ENDDO
          DO i = 2, nwca
-            x = distance(rH-wc(1)%centres(:, wcai(i)))
+            x = distance(rH - wc(1)%centres(:, wcai(i)))
             IF (x < amin) THEN
                amin = x
                iamin = wcai(i)
             ENDIF
          ENDDO
-         colvar%HBP%ewc(il) = colvar%HBP%shift+wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
-         colvar%ss = colvar%ss+colvar%HBP%shift+wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
+         colvar%HBP%ewc(il) = colvar%HBP%shift + wc(1)%WannierHamDiag(idmin) - wc(1)%WannierHamDiag(iamin)
+         colvar%ss = colvar%ss + colvar%HBP%shift + wc(1)%WannierHamDiag(idmin) - wc(1)%WannierHamDiag(iamin)
       ENDDO
       IF (output_unit > 0) THEN
          DO il = 1, colvar%HBP%nPoints
@@ -6170,7 +6170,7 @@ CONTAINS
       REAL(dp), INTENT(in)                               :: rij(3)
 
          s = MATMUL(cell%h_inv, rij)
-         s = s-NINT(s)
+         s = s - NINT(s)
          xv = MATMUL(cell%hmat, s)
          distance = SQRT(DOT_PRODUCT(xv, xv))
       END FUNCTION distance

@@ -76,8 +76,8 @@ CONTAINS
          Rlm_s(1, -1) = Rs
       ENDIF
       DO li = 2, l
-         temp_c = (-r(1)*Rc+r(2)*Rs)/(REAL(2*(li-1)+2, dp))
-         Rs = (-r(2)*Rc-r(1)*Rs)/(REAL(2*(li-1)+2, dp))
+         temp_c = (-r(1)*Rc + r(2)*Rs)/(REAL(2*(li - 1) + 2, dp))
+         Rs = (-r(2)*Rc - r(1)*Rs)/(REAL(2*(li - 1) + 2, dp))
          Rc = temp_c
          Rlm_c(li, li) = Rc
          Rlm_s(li, li) = Rs
@@ -90,18 +90,18 @@ CONTAINS
          ENDIF
       ENDDO
 
-      DO mi = 0, l-1
+      DO mi = 0, l - 1
          Rmlm = Rlm_c(mi, mi)
          Rlm = r(3)*Rlm_c(mi, mi)
-         Rlm_c(mi+1, mi) = Rlm
+         Rlm_c(mi + 1, mi) = Rlm
          IF (MODULO(mi, 2) /= 0) THEN
-            Rlm_c(mi+1, -mi) = -Rlm
+            Rlm_c(mi + 1, -mi) = -Rlm
          ELSE
-            Rlm_c(mi+1, -mi) = Rlm
+            Rlm_c(mi + 1, -mi) = Rlm
          ENDIF
-         DO li = mi+2, l
-            prefac = (li+mi)*(li-mi)
-            Rplm = (REAL(2*li-1, dp)*r(3)*Rlm-r2*Rmlm)/REAL(prefac, dp)
+         DO li = mi + 2, l
+            prefac = (li + mi)*(li - mi)
+            Rplm = (REAL(2*li - 1, dp)*r(3)*Rlm - r2*Rmlm)/REAL(prefac, dp)
             Rmlm = Rlm
             Rlm = Rplm
             Rlm_c(li, mi) = Rlm
@@ -112,18 +112,18 @@ CONTAINS
             ENDIF
          ENDDO
       ENDDO
-      DO mi = 1, l-1
+      DO mi = 1, l - 1
          Rmlm = Rlm_s(mi, mi)
          Rlm = r(3)*Rlm_s(mi, mi)
-         Rlm_s(mi+1, mi) = Rlm
+         Rlm_s(mi + 1, mi) = Rlm
          IF (MODULO(mi, 2) /= 0) THEN
-            Rlm_s(mi+1, -mi) = Rlm
+            Rlm_s(mi + 1, -mi) = Rlm
          ELSE
-            Rlm_s(mi+1, -mi) = -Rlm
+            Rlm_s(mi + 1, -mi) = -Rlm
          ENDIF
-         DO li = mi+2, l
-            prefac = (li+mi)*(li-mi)
-            Rplm = (REAL(2*li-1, dp)*r(3)*Rlm-r2*Rmlm)/REAL(prefac, dp)
+         DO li = mi + 2, l
+            prefac = (li + mi)*(li - mi)
+            Rplm = (REAL(2*li - 1, dp)*r(3)*Rlm - r2*Rmlm)/REAL(prefac, dp)
             Rmlm = Rlm
             Rlm = Rplm
             Rlm_s(li, mi) = Rlm
@@ -155,7 +155,7 @@ CONTAINS
 
       DO l = 0, lmax
          DO m = 0, l
-            temp = SQRT(fac(l+m)*fac(l-m))
+            temp = SQRT(fac(l + m)*fac(l - m))
             IF (MODULO(m, 2) /= 0) temp = -temp
             IF (m /= 0) temp = temp*SQRT(2.0_dp)
             A(l, m) = temp
@@ -192,11 +192,11 @@ CONTAINS
             bm_m = 1.0_dp
             bm_p = 1.0_dp
             IF (m /= 0) bm = SQRT(2.0_dp)
-            IF (m-1 /= 0) bm_m = SQRT(2.0_dp)
-            IF (m+1 /= 0) bm_p = SQRT(2.0_dp)
-            dA_p(l, m) = -bm/bm_p*SQRT(REAL((l-m)*(l-m-1), dp))
-            dA_m(l, m) = -bm/bm_m*SQRT(REAL((l+m)*(l+m-1), dp))
-            dA(l, m) = 2.0_dp*SQRT(REAL((l+m)*(l-m), dp))
+            IF (m - 1 /= 0) bm_m = SQRT(2.0_dp)
+            IF (m + 1 /= 0) bm_p = SQRT(2.0_dp)
+            dA_p(l, m) = -bm/bm_p*SQRT(REAL((l - m)*(l - m - 1), dp))
+            dA_m(l, m) = -bm/bm_m*SQRT(REAL((l + m)*(l + m - 1), dp))
+            dA(l, m) = 2.0_dp*SQRT(REAL((l + m)*(l - m), dp))
             IF (m == 0) dA_p(l, m) = 2.0_dp*dA_p(l, m)
          ENDDO
       ENDDO
@@ -237,9 +237,9 @@ CONTAINS
       CALL get_Alm(lmax, A)
 
       DO lb = 0, lbmax
-         nlb = nsoset(lb-1)
+         nlb = nsoset(lb - 1)
          DO la = 0, lamax(lb)
-            nla = nsoset(la-1)
+            nla = nsoset(la - 1)
             labmin = MIN(la, lb)
             DO mb = 0, lb
                A_lbmb = A(lb, mb)
@@ -248,20 +248,20 @@ CONTAINS
                   A_lama = A(la, ma)
                   Alm_fac = A_lama*A_lbmb
                   DO j = 0, labmin
-                     laj = la-j
-                     lbj = lb-j
-                     prefac = Alm_fac*REAL(2**(la+lb-j), dp)*dfac(2*j-1)
+                     laj = la - j
+                     lbj = lb - j
+                     prefac = Alm_fac*REAL(2**(la + lb - j), dp)*dfac(2*j - 1)
                      delta_k = 0.5_dp
                      Wmat = 0.0_dp
                      DO k = 0, j
-                        ma_m = ma-k
-                        ma_p = ma+k
+                        ma_m = ma - k
+                        ma_p = ma + k
                         IF (laj < ABS(ma_m) .AND. laj < ABS(ma_p)) CYCLE
-                        mb_m = mb-k
-                        mb_p = mb+k
+                        mb_m = mb - k
+                        mb_p = mb + k
                         IF (lbj < ABS(mb_m) .AND. lbj < ABS(mb_p)) CYCLE
                         IF (k /= 0) delta_k = 1.0_dp
-                        A_jk = fac(j+k)*fac(j-k)
+                        A_jk = fac(j + k)*fac(j - k)
                         IF (k /= 0) A_jk = 2.0_dp*A_jk
                         IF (MODULO(k, 2) /= 0) THEN
                            sign_fac = -1.0_dp
@@ -276,29 +276,29 @@ CONTAINS
                         Rsb_m = Rs(lbj, mb_m)
                         Rcb_p = Rc(lbj, mb_p)
                         Rsb_p = Rs(lbj, mb_p)
-                        Wa(1) = delta_k*(Rca_m+sign_fac*Rca_p)
-                        Wb(1) = delta_k*(Rcb_m+sign_fac*Rcb_p)
-                        Wa(2) = -Rsa_m+sign_fac*Rsa_p
-                        Wb(2) = -Rsb_m+sign_fac*Rsb_p
-                        Wmat(1) = Wmat(1)+prefac/A_jk*(Wa(1)*Wb(1)+Wa(2)*Wb(2))
+                        Wa(1) = delta_k*(Rca_m + sign_fac*Rca_p)
+                        Wb(1) = delta_k*(Rcb_m + sign_fac*Rcb_p)
+                        Wa(2) = -Rsa_m + sign_fac*Rsa_p
+                        Wb(2) = -Rsb_m + sign_fac*Rsb_p
+                        Wmat(1) = Wmat(1) + prefac/A_jk*(Wa(1)*Wb(1) + Wa(2)*Wb(2))
                         IF (mb > 0) THEN
-                           Wb(3) = delta_k*(Rsb_m+sign_fac*Rsb_p)
-                           Wb(4) = Rcb_m-sign_fac*Rcb_p
-                           Wmat(2) = Wmat(2)+prefac/A_jk*(Wa(1)*Wb(3)+Wa(2)*Wb(4))
+                           Wb(3) = delta_k*(Rsb_m + sign_fac*Rsb_p)
+                           Wb(4) = Rcb_m - sign_fac*Rcb_p
+                           Wmat(2) = Wmat(2) + prefac/A_jk*(Wa(1)*Wb(3) + Wa(2)*Wb(4))
                         ENDIF
                         IF (ma > 0) THEN
-                           Wa(3) = delta_k*(Rsa_m+sign_fac*Rsa_p)
-                           Wa(4) = Rca_m-sign_fac*Rca_p
-                           Wmat(3) = Wmat(3)+prefac/A_jk*(Wa(3)*Wb(1)+Wa(4)*Wb(2))
+                           Wa(3) = delta_k*(Rsa_m + sign_fac*Rsa_p)
+                           Wa(4) = Rca_m - sign_fac*Rca_p
+                           Wmat(3) = Wmat(3) + prefac/A_jk*(Wa(3)*Wb(1) + Wa(4)*Wb(2))
                         ENDIF
                         IF (ma > 0 .AND. mb > 0) THEN
-                           Wmat(4) = Wmat(4)+prefac/A_jk*(Wa(3)*Wb(3)+Wa(4)*Wb(4))
+                           Wmat(4) = Wmat(4) + prefac/A_jk*(Wa(3)*Wb(3) + Wa(4)*Wb(4))
                         ENDIF
                      ENDDO
-                     Waux_mat(j+1, nla+la+1+ma, nlb+lb+1+mb) = Wmat(1)
-                     IF (mb > 0) Waux_mat(j+1, nla+la+1+ma, nlb+lb+1-mb) = Wmat(2)
-                     IF (ma > 0) Waux_mat(j+1, nla+la+1-ma, nlb+lb+1+mb) = Wmat(3)
-                     IF (ma > 0 .AND. mb > 0) Waux_mat(j+1, nla+la+1-ma, nlb+lb+1-mb) = Wmat(4)
+                     Waux_mat(j + 1, nla + la + 1 + ma, nlb + lb + 1 + mb) = Wmat(1)
+                     IF (mb > 0) Waux_mat(j + 1, nla + la + 1 + ma, nlb + lb + 1 - mb) = Wmat(2)
+                     IF (ma > 0) Waux_mat(j + 1, nla + la + 1 - ma, nlb + lb + 1 + mb) = Wmat(3)
+                     IF (ma > 0 .AND. mb > 0) Waux_mat(j + 1, nla + la + 1 - ma, nlb + lb + 1 - mb) = Wmat(4)
                   ENDDO
                ENDDO
             ENDDO
@@ -347,122 +347,122 @@ CONTAINS
       CALL get_dA_prefactors(lmax, dA_p, dA_m, dA)
 
       DO lb = 0, lbmax
-         nlb = nsoset(lb-1)
+         nlb = nsoset(lb - 1)
          nlbm = 0
-         IF (lb > 0) nlbm = nsoset(lb-2)
+         IF (lb > 0) nlbm = nsoset(lb - 2)
          DO la = 0, lamax(lb)
-            nla = nsoset(la-1)
+            nla = nsoset(la - 1)
             nlam = 0
-            IF (la > 0) nlam = nsoset(la-2)
+            IF (la > 0) nlam = nsoset(la - 2)
             labmin = MIN(la, lb)
-            lamb = MIN(la-1, lb)
-            labm = MIN(la, lb-1)
+            lamb = MIN(la - 1, lb)
+            labm = MIN(la, lb - 1)
             DO mb = 0, lb
                dAb = dA(lb, mb)
                dAb_p = dA_p(lb, mb)
                dAb_m = dA_m(lb, mb)
-               ipb = nlb+lb+mb+1
-               imb = nlb+lb-mb+1
-               ipbm = nlbm+lb+mb
-               imbm = nlbm+lb-mb
+               ipb = nlb + lb + mb + 1
+               imb = nlb + lb - mb + 1
+               ipbm = nlbm + lb + mb
+               imbm = nlbm + lb - mb
                DO ma = 0, la
                   dAa = dA(la, ma)
                   dAa_p = dA_p(la, ma)
                   dAa_m = dA_m(la, ma)
-                  ipa = nla+la+ma+1
-                  ima = nla+la-ma+1
-                  ipam = nlam+la+ma
-                  imam = nlam+la-ma
+                  ipa = nla + la + ma + 1
+                  ima = nla + la - ma + 1
+                  ipam = nlam + la + ma
+                  imam = nlam + la - ma
                   Wam(:, :) = 0.0_dp
                   Wamm(:, :) = 0.0_dp
                   Wamp(:, :) = 0.0_dp
                   !*** Wam: la-1, ma
-                  IF (ma <= la-1) THEN
-                     Wam(0:lamb, 1) = Waux_mat(1:lamb+1, ipam, ipb)
-                     IF (mb > 0) Wam(0:lamb, 2) = Waux_mat(1:lamb+1, ipam, imb)
-                     IF (ma > 0) Wam(0:lamb, 3) = Waux_mat(1:lamb+1, imam, ipb)
-                     IF (ma > 0 .AND. mb > 0) Wam(0:lamb, 4) = Waux_mat(1:lamb+1, imam, imb)
+                  IF (ma <= la - 1) THEN
+                     Wam(0:lamb, 1) = Waux_mat(1:lamb + 1, ipam, ipb)
+                     IF (mb > 0) Wam(0:lamb, 2) = Waux_mat(1:lamb + 1, ipam, imb)
+                     IF (ma > 0) Wam(0:lamb, 3) = Waux_mat(1:lamb + 1, imam, ipb)
+                     IF (ma > 0 .AND. mb > 0) Wam(0:lamb, 4) = Waux_mat(1:lamb + 1, imam, imb)
                   ENDIF
                   !*** Wamm: la-1, ma-1
-                  IF (ma-1 >= 0) THEN
-                     Wamm(0:lamb, 1) = Waux_mat(1:lamb+1, ipam-1, ipb)
-                     IF (mb > 0) Wamm(0:lamb, 2) = Waux_mat(1:lamb+1, ipam-1, imb)
-                     IF (ma-1 > 0) Wamm(0:lamb, 3) = Waux_mat(1:lamb+1, imam+1, ipb) !order: e.g. -1 0 1, if < 0 |m|, -1 means  -m+1
-                     IF (ma-1 > 0 .AND. mb > 0) Wamm(0:lamb, 4) = Waux_mat(1:lamb+1, imam+1, imb)
+                  IF (ma - 1 >= 0) THEN
+                     Wamm(0:lamb, 1) = Waux_mat(1:lamb + 1, ipam - 1, ipb)
+                     IF (mb > 0) Wamm(0:lamb, 2) = Waux_mat(1:lamb + 1, ipam - 1, imb)
+                     IF (ma - 1 > 0) Wamm(0:lamb, 3) = Waux_mat(1:lamb + 1, imam + 1, ipb) !order: e.g. -1 0 1, if < 0 |m|, -1 means  -m+1
+                     IF (ma - 1 > 0 .AND. mb > 0) Wamm(0:lamb, 4) = Waux_mat(1:lamb + 1, imam + 1, imb)
                   ENDIF
                   !*** Wamp: la-1, ma+1
-                  IF (ma+1 <= la-1) THEN
-                     Wamp(0:lamb, 1) = Waux_mat(1:lamb+1, ipam+1, ipb)
-                     IF (mb > 0) Wamp(0:lamb, 2) = Waux_mat(1:lamb+1, ipam+1, imb)
-                     IF (ma+1 > 0) Wamp(0:lamb, 3) = Waux_mat(1:lamb+1, imam-1, ipb)
-                     IF (ma+1 > 0 .AND. mb > 0) Wamp(0:lamb, 4) = Waux_mat(1:lamb+1, imam-1, imb)
+                  IF (ma + 1 <= la - 1) THEN
+                     Wamp(0:lamb, 1) = Waux_mat(1:lamb + 1, ipam + 1, ipb)
+                     IF (mb > 0) Wamp(0:lamb, 2) = Waux_mat(1:lamb + 1, ipam + 1, imb)
+                     IF (ma + 1 > 0) Wamp(0:lamb, 3) = Waux_mat(1:lamb + 1, imam - 1, ipb)
+                     IF (ma + 1 > 0 .AND. mb > 0) Wamp(0:lamb, 4) = Waux_mat(1:lamb + 1, imam - 1, imb)
                   ENDIF
                   Wbm(:, :) = 0.0_dp
                   Wbmm(:, :) = 0.0_dp
                   Wbmp(:, :) = 0.0_dp
                   !*** Wbm: lb-1, mb
-                  IF (mb <= lb-1) THEN
-                     Wbm(0:labm, 1) = Waux_mat(1:labm+1, ipa, ipbm)
-                     IF (mb > 0) Wbm(0:labm, 2) = Waux_mat(1:labm+1, ipa, imbm)
-                     IF (ma > 0) Wbm(0:labm, 3) = Waux_mat(1:labm+1, ima, ipbm)
-                     IF (ma > 0 .AND. mb > 0) Wbm(0:labm, 4) = Waux_mat(1:labm+1, ima, imbm)
+                  IF (mb <= lb - 1) THEN
+                     Wbm(0:labm, 1) = Waux_mat(1:labm + 1, ipa, ipbm)
+                     IF (mb > 0) Wbm(0:labm, 2) = Waux_mat(1:labm + 1, ipa, imbm)
+                     IF (ma > 0) Wbm(0:labm, 3) = Waux_mat(1:labm + 1, ima, ipbm)
+                     IF (ma > 0 .AND. mb > 0) Wbm(0:labm, 4) = Waux_mat(1:labm + 1, ima, imbm)
                   ENDIF
                   !*** Wbmm: lb-1, mb-1
-                  IF (mb-1 >= 0) THEN
-                     Wbmm(0:labm, 1) = Waux_mat(1:labm+1, ipa, ipbm-1)
-                     IF (mb-1 > 0) Wbmm(0:labm, 2) = Waux_mat(1:labm+1, ipa, imbm+1)
-                     IF (ma > 0) Wbmm(0:labm, 3) = Waux_mat(1:labm+1, ima, ipbm-1)
-                     IF (ma > 0 .AND. mb-1 > 0) Wbmm(0:labm, 4) = Waux_mat(1:labm+1, ima, imbm+1)
+                  IF (mb - 1 >= 0) THEN
+                     Wbmm(0:labm, 1) = Waux_mat(1:labm + 1, ipa, ipbm - 1)
+                     IF (mb - 1 > 0) Wbmm(0:labm, 2) = Waux_mat(1:labm + 1, ipa, imbm + 1)
+                     IF (ma > 0) Wbmm(0:labm, 3) = Waux_mat(1:labm + 1, ima, ipbm - 1)
+                     IF (ma > 0 .AND. mb - 1 > 0) Wbmm(0:labm, 4) = Waux_mat(1:labm + 1, ima, imbm + 1)
                   ENDIF
                   !*** Wbmp: lb-1, mb+1
-                  IF (mb+1 <= lb-1) THEN
-                     Wbmp(0:labm, 1) = Waux_mat(1:labm+1, ipa, ipbm+1)
-                     IF (mb+1 > 0) Wbmp(0:labm, 2) = Waux_mat(1:labm+1, ipa, imbm-1)
-                     IF (ma > 0) Wbmp(0:labm, 3) = Waux_mat(1:labm+1, ima, ipbm+1)
-                     IF (ma > 0 .AND. mb+1 > 0) Wbmp(0:labm, 4) = Waux_mat(1:labm+1, ima, imbm-1)
+                  IF (mb + 1 <= lb - 1) THEN
+                     Wbmp(0:labm, 1) = Waux_mat(1:labm + 1, ipa, ipbm + 1)
+                     IF (mb + 1 > 0) Wbmp(0:labm, 2) = Waux_mat(1:labm + 1, ipa, imbm - 1)
+                     IF (ma > 0) Wbmp(0:labm, 3) = Waux_mat(1:labm + 1, ima, ipbm + 1)
+                     IF (ma > 0 .AND. mb + 1 > 0) Wbmp(0:labm, 4) = Waux_mat(1:labm + 1, ima, imbm - 1)
                   ENDIF
                   DO j = 0, labmin
                      !*** x component
-                     dWaux_mat(1, j+1, ipa, ipb) = dAa_p*Wamp(j, 1)-dAa_m*Wamm(j, 1) &
-                                                   -dAb_p*Wbmp(j, 1)+dAb_m*Wbmm(j, 1)
+                     dWaux_mat(1, j + 1, ipa, ipb) = dAa_p*Wamp(j, 1) - dAa_m*Wamm(j, 1) &
+                                                     - dAb_p*Wbmp(j, 1) + dAb_m*Wbmm(j, 1)
                      IF (mb > 0) THEN
-                        dWaux_mat(1, j+1, ipa, imb) = dAa_p*Wamp(j, 2)-dAa_m*Wamm(j, 2) &
-                                                      -dAb_p*Wbmp(j, 2)+dAb_m*Wbmm(j, 2)
+                        dWaux_mat(1, j + 1, ipa, imb) = dAa_p*Wamp(j, 2) - dAa_m*Wamm(j, 2) &
+                                                        - dAb_p*Wbmp(j, 2) + dAb_m*Wbmm(j, 2)
                      ENDIF
                      IF (ma > 0) THEN
-                        dWaux_mat(1, j+1, ima, ipb) = dAa_p*Wamp(j, 3)-dAa_m*Wamm(j, 3) &
-                                                      -dAb_p*Wbmp(j, 3)+dAb_m*Wbmm(j, 3)
+                        dWaux_mat(1, j + 1, ima, ipb) = dAa_p*Wamp(j, 3) - dAa_m*Wamm(j, 3) &
+                                                        - dAb_p*Wbmp(j, 3) + dAb_m*Wbmm(j, 3)
                      ENDIF
                      IF (ma > 0 .AND. mb > 0) THEN
-                        dWaux_mat(1, j+1, ima, imb) = dAa_p*Wamp(j, 4)-dAa_m*Wamm(j, 4) &
-                                                      -dAb_p*Wbmp(j, 4)+dAb_m*Wbmm(j, 4)
+                        dWaux_mat(1, j + 1, ima, imb) = dAa_p*Wamp(j, 4) - dAa_m*Wamm(j, 4) &
+                                                        - dAb_p*Wbmp(j, 4) + dAb_m*Wbmm(j, 4)
                      ENDIF
 
                      !**** y component
-                     dWaux_mat(2, j+1, ipa, ipb) = dAa_p*Wamp(j, 3)+dAa_m*Wamm(j, 3) &
-                                                   -dAb_p*Wbmp(j, 2)-dAb_m*Wbmm(j, 2)
+                     dWaux_mat(2, j + 1, ipa, ipb) = dAa_p*Wamp(j, 3) + dAa_m*Wamm(j, 3) &
+                                                     - dAb_p*Wbmp(j, 2) - dAb_m*Wbmm(j, 2)
                      IF (mb > 0) THEN
-                        dWaux_mat(2, j+1, ipa, imb) = dAa_p*Wamp(j, 4)+dAa_m*Wamm(j, 4) &
-                                                      +dAb_p*Wbmp(j, 1)+dAb_m*Wbmm(j, 1)
+                        dWaux_mat(2, j + 1, ipa, imb) = dAa_p*Wamp(j, 4) + dAa_m*Wamm(j, 4) &
+                                                        + dAb_p*Wbmp(j, 1) + dAb_m*Wbmm(j, 1)
                      ENDIF
                      IF (ma > 0) THEN
-                        dWaux_mat(2, j+1, ima, ipb) = -dAa_p*Wamp(j, 1)-dAa_m*Wamm(j, 1) &
-                                                      -dAb_p*Wbmp(j, 4)-dAb_m*Wbmm(j, 4)
+                        dWaux_mat(2, j + 1, ima, ipb) = -dAa_p*Wamp(j, 1) - dAa_m*Wamm(j, 1) &
+                                                        - dAb_p*Wbmp(j, 4) - dAb_m*Wbmm(j, 4)
                      ENDIF
                      IF (ma > 0 .AND. mb > 0) THEN
-                        dWaux_mat(2, j+1, ima, imb) = -dAa_p*Wamp(j, 2)-dAa_m*Wamm(j, 2) &
-                                                      +dAb_p*Wbmp(j, 3)+dAb_m*Wbmm(j, 3)
+                        dWaux_mat(2, j + 1, ima, imb) = -dAa_p*Wamp(j, 2) - dAa_m*Wamm(j, 2) &
+                                                        + dAb_p*Wbmp(j, 3) + dAb_m*Wbmm(j, 3)
                      ENDIF
                      !**** z compnent
-                     dWaux_mat(3, j+1, ipa, ipb) = dAa*Wam(j, 1)-dAb*Wbm(j, 1)
+                     dWaux_mat(3, j + 1, ipa, ipb) = dAa*Wam(j, 1) - dAb*Wbm(j, 1)
                      IF (mb > 0) THEN
-                        dWaux_mat(3, j+1, ipa, imb) = dAa*Wam(j, 2)-dAb*Wbm(j, 2)
+                        dWaux_mat(3, j + 1, ipa, imb) = dAa*Wam(j, 2) - dAb*Wbm(j, 2)
                      ENDIF
                      IF (ma > 0) THEN
-                        dWaux_mat(3, j+1, ima, ipb) = dAa*Wam(j, 3)-dAb*Wbm(j, 3)
+                        dWaux_mat(3, j + 1, ima, ipb) = dAa*Wam(j, 3) - dAb*Wbm(j, 3)
                      ENDIF
                      IF (ma > 0 .AND. mb > 0) THEN
-                        dWaux_mat(3, j+1, ima, imb) = dAa*Wam(j, 4)-dAb*Wbm(j, 4)
+                        dWaux_mat(3, j + 1, ima, imb) = dAa*Wam(j, 4) - dAb*Wbm(j, 4)
                      ENDIF
 
                   ENDDO
@@ -510,23 +510,23 @@ CONTAINS
 
       DO jshellb = 1, nshellb
          lbj = lb(jshellb)
-         fnlb = nsoset(lbj-1)+1
+         fnlb = nsoset(lbj - 1) + 1
          lnlb = nsoset(lbj)
          fsgfb = first_sgfb(jshellb)
-         lsgfb = fsgfb+2*lbj
+         lsgfb = fsgfb + 2*lbj
          DO ishella = 1, nshella
             lai = la(ishella)
-            fnla = nsoset(lai-1)+1
+            fnla = nsoset(lai - 1) + 1
             lnla = nsoset(lai)
             fsgfa = first_sgfa(ishella)
-            lsgfa = fsgfa+2*lai
+            lsgfa = fsgfa + 2*lai
             labmin = MIN(lai, lbj)
             DO mbj = 0, 2*lbj
                DO mai = 0, 2*lai
                   DO j = 0, labmin
-                     prefac = swork_cont(lai+lbj-j+1, ishella, jshellb)
-                     sab(fsgfa+mai, fsgfb+mbj) = sab(fsgfa+mai, fsgfb+mbj) &
-                                                 +prefac*Waux_mat(j+1, fnla+mai, fnlb+mbj)
+                     prefac = swork_cont(lai + lbj - j + 1, ishella, jshellb)
+                     sab(fsgfa + mai, fsgfb + mbj) = sab(fsgfa + mai, fsgfb + mbj) &
+                                                     + prefac*Waux_mat(j + 1, fnla + mai, fnlb + mbj)
                   ENDDO
                ENDDO
             ENDDO
@@ -573,24 +573,24 @@ CONTAINS
       rabx2(:) = 2.0_dp*rab
       DO jshellb = 1, nshellb
          lbj = lb(jshellb)
-         fnlb = nsoset(lbj-1)+1
+         fnlb = nsoset(lbj - 1) + 1
          lnlb = nsoset(lbj)
          fsgfb = first_sgfb(jshellb)
-         lsgfb = fsgfb+2*lbj
+         lsgfb = fsgfb + 2*lbj
          DO ishella = 1, nshella
             lai = la(ishella)
-            fnla = nsoset(lai-1)+1
+            fnla = nsoset(lai - 1) + 1
             lnla = nsoset(lai)
             fsgfa = first_sgfa(ishella)
-            lsgfa = fsgfa+2*lai
+            lsgfa = fsgfa + 2*lai
             labmin = MIN(lai, lbj)
             DO j = 0, labmin
-               prefac = swork_cont(lai+lbj-j+1, ishella, jshellb)
-               dprefac = swork_cont(lai+lbj-j+2, ishella, jshellb) !j+1
+               prefac = swork_cont(lai + lbj - j + 1, ishella, jshellb)
+               dprefac = swork_cont(lai + lbj - j + 2, ishella, jshellb) !j+1
                DO i = 1, 3
                   dsab(fsgfa:lsgfa, fsgfb:lsgfb, i) = dsab(fsgfa:lsgfa, fsgfb:lsgfb, i) &
-                                                      +rabx2(i)*dprefac*Waux_mat(j+1, fnla:lnla, fnlb:lnlb) &
-                                                      +prefac*dWaux_mat(i, j+1, fnla:lnla, fnlb:lnlb)
+                                                      + rabx2(i)*dprefac*Waux_mat(j + 1, fnla:lnla, fnlb:lnlb) &
+                                                      + prefac*dWaux_mat(i, j + 1, fnla:lnla, fnlb:lnlb)
                ENDDO
             ENDDO
          ENDDO
@@ -645,16 +645,16 @@ CONTAINS
       DO kshella = 1, nshellca
          lak = lca(kshella)
          sgfca = first_sgfca(kshella)
-         ka = sgfca+lak
+         ka = sgfca + lak
          DO jshellb = 1, nshellb
             lbj = lb(jshellb)
-            nlb = nsoset(lbj-1)+lbj+1
+            nlb = nsoset(lbj - 1) + lbj + 1
             sgfb = first_sgfb(jshellb)
-            jb = sgfb+lbj
+            jb = sgfb + lbj
             DO ishella = 1, nshella
                lai = la(ishella)
                sgfa = first_sgfa(ishella)
-               ia = sgfa+lai
+               ia = sgfa + lai
                DO mai = -lai, lai, 1
                   DO mak = -lak, lak, 1
                      isoa1 = indso_inv(lai, mai)
@@ -664,15 +664,15 @@ CONTAINS
                            isoaa = cg_none0_list(isoa1, isoa2, ilist)
                            laa = indso(1, isoaa)
                            maa = indso(2, isoaa)
-                           nla = nsoset(laa-1)+laa+1
+                           nla = nsoset(laa - 1) + laa + 1
                            labmin = MIN(laa, lbj)
-                           il = INT((lai+lak-laa)/2)
+                           il = INT((lai + lak - laa)/2)
                            stemp = 0.0_dp
                            DO j = 0, labmin
-                              prefac = swork_cont(laa+lbj-j+1, il, ishella, jshellb, kshella)
-                              stemp = stemp+prefac*Waux_mat(j+1, nla+maa, nlb+mbj)
+                              prefac = swork_cont(laa + lbj - j + 1, il, ishella, jshellb, kshella)
+                              stemp = stemp + prefac*Waux_mat(j + 1, nla + maa, nlb + mbj)
                            ENDDO
-                           saba(ia+mai, jb+mbj, ka+mak) = saba(ia+mai, jb+mbj, ka+mak)+cg_coeff(isoa1, isoa2, isoaa)*stemp
+                       saba(ia + mai, jb + mbj, ka + mak) = saba(ia + mai, jb + mbj, ka + mak) + cg_coeff(isoa1, isoa2, isoaa)*stemp
                         ENDDO
                      ENDDO
                   ENDDO
@@ -738,16 +738,16 @@ CONTAINS
       DO kshella = 1, nshellca
          lak = lca(kshella)
          sgfca = first_sgfca(kshella)
-         ka = sgfca+lak
+         ka = sgfca + lak
          DO jshellb = 1, nshellb
             lbj = lb(jshellb)
-            nlb = nsoset(lbj-1)+lbj+1
+            nlb = nsoset(lbj - 1) + lbj + 1
             sgfb = first_sgfb(jshellb)
-            jb = sgfb+lbj
+            jb = sgfb + lbj
             DO ishella = 1, nshella
                lai = la(ishella)
                sgfa = first_sgfa(ishella)
-               ia = sgfa+lai
+               ia = sgfa + lai
                DO mai = -lai, lai, 1
                   DO mak = -lak, lak, 1
                      isoa1 = indso_inv(lai, mai)
@@ -757,21 +757,21 @@ CONTAINS
                            isoaa = cg_none0_list(isoa1, isoa2, ilist)
                            laa = indso(1, isoaa)
                            maa = indso(2, isoaa)
-                           nla = nsoset(laa-1)+laa+1
+                           nla = nsoset(laa - 1) + laa + 1
                            labmin = MIN(laa, lbj)
-                           il = (lai+lak-laa)/2 ! lai+lak-laa always even
+                           il = (lai + lak - laa)/2 ! lai+lak-laa always even
                            dtemp = 0.0_dp
                            DO j = 0, labmin
-                              prefac = swork_cont(laa+lbj-j+1, il, ishella, jshellb, kshella)
-                              dprefac = swork_cont(laa+lbj-j+2, il, ishella, jshellb, kshella)
+                              prefac = swork_cont(laa + lbj - j + 1, il, ishella, jshellb, kshella)
+                              dprefac = swork_cont(laa + lbj - j + 2, il, ishella, jshellb, kshella)
                               DO i = 1, 3
-                                 dtemp(i) = dtemp(i)+rabx2(i)*dprefac*Waux_mat(j+1, nla+maa, nlb+mbj) &
-                                            +prefac*dWaux_mat(i, j+1, nla+maa, nlb+mbj)
+                                 dtemp(i) = dtemp(i) + rabx2(i)*dprefac*Waux_mat(j + 1, nla + maa, nlb + mbj) &
+                                            + prefac*dWaux_mat(i, j + 1, nla + maa, nlb + mbj)
                               ENDDO
                            ENDDO
                            DO i = 1, 3
-                              dsaba(ia+mai, jb+mbj, ka+mak, i) = dsaba(ia+mai, jb+mbj, ka+mak, i) &
-                                                                 +cg_coeff(isoa1, isoa2, isoaa)*dtemp(i)
+                              dsaba(ia + mai, jb + mbj, ka + mak, i) = dsaba(ia + mai, jb + mbj, ka + mak, i) &
+                                                                       + cg_coeff(isoa1, isoa2, isoaa)*dtemp(i)
                            ENDDO
                         ENDDO
                      ENDDO
@@ -830,16 +830,16 @@ CONTAINS
       DO kshellb = 1, nshellcb
          lbk = lcb(kshellb)
          sgfcb = first_sgfcb(kshellb)
-         kb = sgfcb+lbk
+         kb = sgfcb + lbk
          DO jshellb = 1, nshellb
             lbj = lb(jshellb)
             sgfb = first_sgfb(jshellb)
-            jb = sgfb+lbj
+            jb = sgfb + lbj
             DO ishella = 1, nshella
                lai = la(ishella)
-               nla = nsoset(lai-1)+lai+1
+               nla = nsoset(lai - 1) + lai + 1
                sgfa = first_sgfa(ishella)
-               ia = sgfa+lai
+               ia = sgfa + lai
                DO mbj = -lbj, lbj, 1
                   DO mbk = -lbk, lbk, 1
                      isob1 = indso_inv(lbj, mbj)
@@ -849,18 +849,18 @@ CONTAINS
                            isobb = cg_none0_list(isob1, isob2, ilist)
                            lbb = indso(1, isobb)
                            mbb = indso(2, isobb)
-                           nlb = nsoset(lbb-1)+lbb+1
+                           nlb = nsoset(lbb - 1) + lbb + 1
                            ! tsgin: because we take the transpose of auxmat (calculated for (la,lb))
                            tsign = 1.0_dp
-                           IF (MODULO(lbb-lai, 2) /= 0) tsign = -1.0_dp
+                           IF (MODULO(lbb - lai, 2) /= 0) tsign = -1.0_dp
                            labmin = MIN(lai, lbb)
-                           il = INT((lbj+lbk-lbb)/2)
+                           il = INT((lbj + lbk - lbb)/2)
                            stemp = 0.0_dp
                            DO j = 0, labmin
-                              prefac = swork_cont(lai+lbb-j+1, il, ishella, jshellb, kshellb)
-                              stemp = stemp+prefac*Waux_mat(j+1, nlb+mbb, nla+mai)
+                              prefac = swork_cont(lai + lbb - j + 1, il, ishella, jshellb, kshellb)
+                              stemp = stemp + prefac*Waux_mat(j + 1, nlb + mbb, nla + mai)
                            ENDDO
-                           sabb(ia+mai, jb+mbj, kb+mbk) = sabb(ia+mai, jb+mbj, kb+mbk)+tsign*cg_coeff(isob1, isob2, isobb)*stemp
+                 sabb(ia + mai, jb + mbj, kb + mbk) = sabb(ia + mai, jb + mbj, kb + mbk) + tsign*cg_coeff(isob1, isob2, isobb)*stemp
                         ENDDO
                      ENDDO
                   ENDDO
@@ -927,16 +927,16 @@ CONTAINS
       DO kshellb = 1, nshellcb
          lbk = lcb(kshellb)
          sgfcb = first_sgfcb(kshellb)
-         kb = sgfcb+lbk
+         kb = sgfcb + lbk
          DO jshellb = 1, nshellb
             lbj = lb(jshellb)
             sgfb = first_sgfb(jshellb)
-            jb = sgfb+lbj
+            jb = sgfb + lbj
             DO ishella = 1, nshella
                lai = la(ishella)
-               nla = nsoset(lai-1)+lai+1
+               nla = nsoset(lai - 1) + lai + 1
                sgfa = first_sgfa(ishella)
-               ia = sgfa+lai
+               ia = sgfa + lai
                DO mbj = -lbj, lbj, 1
                   DO mbk = -lbk, lbk, 1
                      isob1 = indso_inv(lbj, mbj)
@@ -946,24 +946,24 @@ CONTAINS
                            isobb = cg_none0_list(isob1, isob2, ilist)
                            lbb = indso(1, isobb)
                            mbb = indso(2, isobb)
-                           nlb = nsoset(lbb-1)+lbb+1
+                           nlb = nsoset(lbb - 1) + lbb + 1
                            ! tsgin: because we take the transpose of auxmat (calculated for (la,lb))
                            tsign = 1.0_dp
-                           IF (MODULO(lbb-lai, 2) /= 0) tsign = -1.0_dp
+                           IF (MODULO(lbb - lai, 2) /= 0) tsign = -1.0_dp
                            labmin = MIN(lai, lbb)
-                           il = (lbj+lbk-lbb)/2
+                           il = (lbj + lbk - lbb)/2
                            dtemp = 0.0_dp
                            DO j = 0, labmin
-                              prefac = swork_cont(lai+lbb-j+1, il, ishella, jshellb, kshellb)
-                              dprefac = swork_cont(lai+lbb-j+2, il, ishella, jshellb, kshellb)
+                              prefac = swork_cont(lai + lbb - j + 1, il, ishella, jshellb, kshellb)
+                              dprefac = swork_cont(lai + lbb - j + 2, il, ishella, jshellb, kshellb)
                               DO i = 1, 3
-                                 dtemp(i) = dtemp(i)+rabx2(i)*dprefac*Waux_mat(j+1, nlb+mbb, nla+mai) &
-                                            +prefac*dWaux_mat(i, j+1, nlb+mbb, nla+mai)
+                                 dtemp(i) = dtemp(i) + rabx2(i)*dprefac*Waux_mat(j + 1, nlb + mbb, nla + mai) &
+                                            + prefac*dWaux_mat(i, j + 1, nlb + mbb, nla + mai)
                               ENDDO
                            ENDDO
                            DO i = 1, 3
-                              dsabb(ia+mai, jb+mbj, kb+mbk, i) = dsabb(ia+mai, jb+mbj, kb+mbk, i) &
-                                                                 +tsign*cg_coeff(isob1, isob2, isobb)*dtemp(i)
+                              dsabb(ia + mai, jb + mbj, kb + mbk, i) = dsabb(ia + mai, jb + mbj, kb + mbk, i) &
+                                                                       + tsign*cg_coeff(isob1, isob2, isobb)*dtemp(i)
                            ENDDO
                         ENDDO
                      ENDDO

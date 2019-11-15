@@ -413,27 +413,27 @@ CONTAINS
       ! bisect if both bounds are known, otherwise find the bounds with a linear search
       DO iter = 1, 30
          IF (has_mu_low .AND. has_mu_high) THEN
-            mu = (mu_low+mu_high)/2
-            IF (ABS(mu_high-mu_low) < threshold) EXIT
+            mu = (mu_low + mu_high)/2
+            IF (ABS(mu_high - mu_low) < threshold) EXIT
          ENDIF
 
          CALL density_matrix_sign_fixed_mu(matrix_p, trace, mu, sign_method, sign_order, &
                                            matrix_ks, matrix_s, matrix_s_inv, threshold)
          IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,I2,1X,F13.9,1X,F15.9)') &
-            "Density matrix:  iter, mu, trace error: ", iter, mu, trace-nelectron
+            "Density matrix:  iter, mu, trace error: ", iter, mu, trace - nelectron
 
          ! OK, we can skip early if we are as close as possible to the exact result
          ! smaller differences should be considered 'noise'
-         IF (ABS(trace-nelectron) < 0.5_dp .OR. fixed_mu) EXIT
+         IF (ABS(trace - nelectron) < 0.5_dp .OR. fixed_mu) EXIT
 
          IF (trace < nelectron) THEN
             mu_low = mu
-            mu = mu+increment
+            mu = mu + increment
             has_mu_low = .TRUE.
             increment = increment*2
          ELSE
             mu_high = mu
-            mu = mu-increment
+            mu = mu - increment
             has_mu_high = .TRUE.
             increment = increment*2
          ENDIF
@@ -629,9 +629,9 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T6,A,1X,L12)') "Lanczos converged:      ", arnoldi_converged
             WRITE (unit_nr, '(T6,A,1X,F12.5)') "change in mixed matrix: ", maxdev
-            WRITE (unit_nr, '(T6,A,1X,F12.5)') "HOMO upper bound:       ", e_homo+maxdev
-            WRITE (unit_nr, '(T6,A,1X,F12.5)') "LUMO lower bound:       ", e_lumo-maxdev
-            WRITE (unit_nr, '(T6,A,1X,L12)') "Predicts a gap ?        ", ((e_lumo-maxdev)-(e_homo+maxdev)) > 0
+            WRITE (unit_nr, '(T6,A,1X,F12.5)') "HOMO upper bound:       ", e_homo + maxdev
+            WRITE (unit_nr, '(T6,A,1X,F12.5)') "LUMO lower bound:       ", e_lumo - maxdev
+            WRITE (unit_nr, '(T6,A,1X,L12)') "Predicts a gap ?        ", ((e_lumo - maxdev) - (e_homo + maxdev)) > 0
          ENDIF
          ! save the old mixed matrix
          CALL dbcsr_copy(matrix_ks_deviation, matrix_x_nosym)
@@ -651,14 +651,14 @@ CONTAINS
          CALL dbcsr_scale(matrix_x, 1.0_dp/eps_max)
       ELSE
          CALL dbcsr_add_on_diag(matrix_x, -eps_max)
-         CALL dbcsr_scale(matrix_x, -1.0_dp/(eps_max-eps_min))
+         CALL dbcsr_scale(matrix_x, -1.0_dp/(eps_max - eps_min))
       ENDIF
 
       current_threshold = threshold
       IF (do_dyn_threshold) THEN
          ! scale bounds for HOMO/LUMO
-         scaled_homo_bound = (eps_max-(e_homo+maxdev))/(eps_max-eps_min)
-         scaled_lumo_bound = (eps_max-(e_lumo-maxdev))/(eps_max-eps_min)
+         scaled_homo_bound = (eps_max - (e_homo + maxdev))/(eps_max - eps_min)
+         scaled_lumo_bound = (eps_max - (e_lumo - maxdev))/(eps_max - eps_min)
       ENDIF
 
       CALL dbcsr_create(matrix_xsq, template=matrix_ks, matrix_type="S")
@@ -702,7 +702,7 @@ CONTAINS
          ! if converged, and gam becomes noisy, fix it to 3, which results in a final McWeeny step.
          ! do this only if the electron count is reasonable.
          ! maybe tune if the current criterion is not good enough
-         delta_n = nelectron-trace_fx
+         delta_n = nelectron - trace_fx
          ! condition: ABS(frob_id/frob_x) < SQRT(threshold) ...
          IF (((frob_id*frob_id) < (threshold*frob_x*frob_x)) .AND. (ABS(delta_n) < 0.5_dp)) THEN
             gam = 3.0_dp
@@ -721,16 +721,16 @@ CONTAINS
 
          IF (do_dyn_threshold) THEN
             ! quantities used for dynamic thresholding, when the estimated gap is larger than zero
-            xi = (scaled_homo_bound-scaled_lumo_bound)
+            xi = (scaled_homo_bound - scaled_lumo_bound)
             IF (xi > 0.0_dp) THEN
-               mmin = 0.5*(scaled_homo_bound+scaled_lumo_bound)
-               max_threshold = ABS(1-2*mmin)*xi
+               mmin = 0.5*(scaled_homo_bound + scaled_lumo_bound)
+               max_threshold = ABS(1 - 2*mmin)*xi
 
                scaled_homo_bound = evaluate_trs4_polynomial(scaled_homo_bound, gamma_values(i:), 1)
                scaled_lumo_bound = evaluate_trs4_polynomial(scaled_lumo_bound, gamma_values(i:), 1)
                estimated_steps = estimate_steps(scaled_homo_bound, scaled_lumo_bound, threshold)
 
-               est_threshold = (threshold/(estimated_steps+i+1))*xi/(1+threshold/(estimated_steps+i+1))
+               est_threshold = (threshold/(estimated_steps + i + 1))*xi/(1 + threshold/(estimated_steps + i + 1))
                est_threshold = MIN(max_threshold, est_threshold)
                IF (i > 1) est_threshold = MAX(est_threshold, 0.1_dp*current_threshold)
                current_threshold = est_threshold
@@ -762,8 +762,8 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, &
                    '(T6,A,I3,1X,F10.8,E12.3,F12.3,F13.3,E12.3)') "TRS4 it ", &
-               i, occ_matrix, ABS(trace_gx), t2-t1, &
-               (flop1+flop2)/(1.0E6_dp*MAX(t2-t1, 0.001_dp)), current_threshold
+               i, occ_matrix, ABS(trace_gx), t2 - t1, &
+               (flop1 + flop2)/(1.0E6_dp*MAX(t2 - t1, 0.001_dp)), current_threshold
             CALL m_flush(unit_nr)
          ENDIF
 
@@ -797,11 +797,11 @@ CONTAINS
       ! calculate the chemical potential by doing a bisection of fk(x0)-0.5, where fk is evaluated using the stored values for gamma
       ! E. Rubensson et al., Chem Phys Lett 432, 2006, 591-594
       mu_a = 0.0_dp; mu_b = 1.0_dp; 
-      mu_fa = evaluate_trs4_polynomial(mu_a, gamma_values, i-1)-0.5_dp
+      mu_fa = evaluate_trs4_polynomial(mu_a, gamma_values, i - 1) - 0.5_dp
       DO j = 1, 40
-         mu_c = 0.5*(mu_a+mu_b)
-         mu_fc = evaluate_trs4_polynomial(mu_c, gamma_values, i-1)-0.5_dp ! i-1 because in the last iteration, only convergence is checked
-         IF (ABS(mu_fc) < 1.0E-6_dp .OR. (mu_b-mu_a)/2 < 1.0E-6_dp) EXIT !TODO: define threshold values
+         mu_c = 0.5*(mu_a + mu_b)
+         mu_fc = evaluate_trs4_polynomial(mu_c, gamma_values, i - 1) - 0.5_dp ! i-1 because in the last iteration, only convergence is checked
+         IF (ABS(mu_fc) < 1.0E-6_dp .OR. (mu_b - mu_a)/2 < 1.0E-6_dp) EXIT !TODO: define threshold values
 
          IF (mu_fc*mu_fa > 0) THEN
             mu_a = mu_c
@@ -810,7 +810,7 @@ CONTAINS
             mu_b = mu_c
          ENDIF
       ENDDO
-      mu = (eps_min-eps_max)*mu_c+eps_max
+      mu = (eps_min - eps_max)*mu_c + eps_max
       DEALLOCATE (gamma_values)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T6,A,1X,F12.5)') 'Chemical potential (mu): ', mu
@@ -898,7 +898,7 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T6,A,1X,F12.5)') "HOMO upper bound:       ", e_homo
          WRITE (unit_nr, '(T6,A,1X,F12.5)') "LUMO lower bound:       ", e_lumo
-         WRITE (unit_nr, '(T6,A,1X,L12)') "Predicts a gap ?        ", ((e_lumo)-(e_homo)) > 0
+         WRITE (unit_nr, '(T6,A,1X,L12)') "Predicts a gap ?        ", ((e_lumo) - (e_homo)) > 0
       ENDIF
 
       ! get largest/smallest eigenvalues for scaling
@@ -913,7 +913,7 @@ CONTAINS
       ! scale KS matrix
       CALL dbcsr_scale(matrix_x, -1.0_dp)
       CALL dbcsr_add_on_diag(matrix_x, eps_max)
-      CALL dbcsr_scale(matrix_x, 1/(eps_max-eps_min))
+      CALL dbcsr_scale(matrix_x, 1/(eps_max - eps_min))
 
       CALL dbcsr_create(matrix_xsq, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_copy(matrix_xsq, matrix_x)
@@ -929,12 +929,12 @@ CONTAINS
       ALLOCATE (lambda(4))
 
 ! Controls over the non_monotonic bounds, First if low gap, bias slightly
-      beta = (eps_max-ABS(e_lumo))/(eps_max-eps_min)
-      betaB = (eps_max+ABS(e_homo))/(eps_max-eps_min)
+      beta = (eps_max - ABS(e_lumo))/(eps_max - eps_min)
+      betaB = (eps_max + ABS(e_homo))/(eps_max - eps_min)
 
-      IF ((beta-betaB) < 0.005_dp) THEN
-         beta = beta-0.002_dp
-         betaB = betaB+0.002_dp
+      IF ((beta - betaB) < 0.005_dp) THEN
+         beta = beta - 0.002_dp
+         betaB = betaB + 0.002_dp
       ENDIF
 ! Check if input specifies to use monotonic bounds.
       IF (.NOT. do_non_monotonic) THEN
@@ -955,13 +955,13 @@ CONTAINS
          t1 = m_walltime()
          flop1 = 0; flop2 = 0
 
-         IF (ABS(trace_fx-nelectron) <= ABS(trace_gx-nelectron)) THEN
+         IF (ABS(trace_fx - nelectron) <= ABS(trace_gx - nelectron)) THEN
 ! Xn+1 = (aX+ (1-a)I)^2
             poly(i) = 1.0_dp
-            alpha(i) = 2.0_dp/(2.0_dp-beta)
+            alpha(i) = 2.0_dp/(2.0_dp - beta)
 
             CALL dbcsr_scale(matrix_x, alpha(i))
-            CALL dbcsr_add_on_diag(matrix_x, 1.0_dp-alpha(i))
+            CALL dbcsr_add_on_diag(matrix_x, 1.0_dp - alpha(i))
             CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x, &
                                 0.0_dp, matrix_xsq, &
                                 filter_eps=threshold, flop=flop1)
@@ -971,14 +971,14 @@ CONTAINS
 
             CALL dbcsr_copy(matrix_x, matrix_xsq)
 
-            beta = (1.0_dp-alpha(i))+alpha(i)*beta
+            beta = (1.0_dp - alpha(i)) + alpha(i)*beta
             beta = beta*beta
-            betaB = (1.0_dp-alpha(i))+alpha(i)*betaB
+            betaB = (1.0_dp - alpha(i)) + alpha(i)*betaB
             betaB = betaB*betaB
          ELSE
 ! Xn+1 = 2aX-a^2*X^2
             poly(i) = 0.0_dp
-            alpha(i) = 2.0_dp/(1.0_dp+betaB)
+            alpha(i) = 2.0_dp/(1.0_dp + betaB)
 
             CALL dbcsr_scale(matrix_x, alpha(i))
             CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x, &
@@ -991,9 +991,9 @@ CONTAINS
             CALL dbcsr_add(matrix_x, matrix_xsq, 2.0_dp, -1.0_dp)
 
             beta = alpha(i)*beta
-            beta = 2.0_dp*beta-beta*beta
+            beta = 2.0_dp*beta - beta*beta
             betaB = alpha(i)*betaB
-            betaB = 2.0_dp*betaB-betaB*betaB
+            betaB = 2.0_dp*betaB - betaB*betaB
 
          ENDIF
          occ_matrix = dbcsr_get_occupation(matrix_x)
@@ -1001,8 +1001,8 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, &
                    '(T6,A,I3,1X,F10.8,E12.3,F12.3,F13.3,E12.3)') "TC2 it ", &
-               i, occ_matrix, t2-t1, &
-               (flop1+flop2)/(1.0E6_dp*(t2-t1)), threshold
+               i, occ_matrix, t2 - t1, &
+               (flop1 + flop2)/(1.0E6_dp*(t2 - t1)), threshold
             CALL m_flush(unit_nr)
          ENDIF
 
@@ -1039,32 +1039,32 @@ CONTAINS
       X(2) = 1.0_dp
       X(3) = 0.0_dp
       X(4) = 0.0_dp
-      gama = 6.0_dp-4.0_dp*(SQRT(2.0_dp))
-      gama = gama-gama*gama
+      gama = 6.0_dp - 4.0_dp*(SQRT(2.0_dp))
+      gama = gama - gama*gama
       DO WHILE (nu(i) < gama)
          ! safeguard against negative root, is skipping correct?
          IF (wu(i) < 1.0e-14_dp) THEN
-            i = i-1
+            i = i - 1
             CYCLE
          END IF
-         IF ((1.0_dp-4.0_dp*nu(i)*nu(i)/wu(i)) < 0.0_dp) THEN
-            i = i-1
+         IF ((1.0_dp - 4.0_dp*nu(i)*nu(i)/wu(i)) < 0.0_dp) THEN
+            i = i - 1
             CYCLE
          END IF
-         Y(1) = 0.5_dp*(1.0_dp-SQRT(1.0_dp-4.0_dp*nu(i)*nu(i)/wu(i)))
-         Y(2) = 0.5_dp*(1.0_dp-SQRT(1.0_dp-4.0_dp*nu(i)))
-         Y(3) = 0.5_dp*(1.0_dp+SQRT(1.0_dp-4.0_dp*nu(i)))
-         Y(4) = 0.5_dp*(1.0_dp+SQRT(1.0_dp-4.0_dp*nu(i)*nu(i)/wu(i)))
+         Y(1) = 0.5_dp*(1.0_dp - SQRT(1.0_dp - 4.0_dp*nu(i)*nu(i)/wu(i)))
+         Y(2) = 0.5_dp*(1.0_dp - SQRT(1.0_dp - 4.0_dp*nu(i)))
+         Y(3) = 0.5_dp*(1.0_dp + SQRT(1.0_dp - 4.0_dp*nu(i)))
+         Y(4) = 0.5_dp*(1.0_dp + SQRT(1.0_dp - 4.0_dp*nu(i)*nu(i)/wu(i)))
          Y(:) = MIN(1.0_dp, MAX(0.0_dp, Y(:)))
          DO j = i, 1, -1
             IF (poly(j) == 1.0_dp) THEN
                DO k = 1, 4
                   Y(k) = SQRT(Y(k))
-                  Y(k) = (Y(k)-1.0_dp+alpha(j))/alpha(j)
+                  Y(k) = (Y(k) - 1.0_dp + alpha(j))/alpha(j)
                ENDDO ! end K
             ELSE
                DO k = 1, 4
-                  Y(k) = 1.0_dp-SQRT(1.0_dp-Y(k))
+                  Y(k) = 1.0_dp - SQRT(1.0_dp - Y(k))
                   Y(k) = Y(k)/alpha(j)
                ENDDO ! end K
             ENDIF ! end poly
@@ -1073,17 +1073,17 @@ CONTAINS
          X(2) = MIN(X(2), Y(2))
          X(3) = MAX(X(3), Y(3))
          X(4) = MAX(X(4), Y(4))
-         i = i-1
+         i = i - 1
       ENDDO ! end i
 !   lambda 1,2,3,4 are:: out lumo, in lumo, in homo, out homo
       DO k = 1, 4
-         lambda(k) = eps_max-(eps_max-eps_min)*X(k)
+         lambda(k) = eps_max - (eps_max - eps_min)*X(k)
       ENDDO ! end k
 ! END  ALGO 3 from. SIAM DOI. 10.1137/130911585
       e_homo = lambda(4)
       e_lumo = lambda(1)
-      IF (unit_nr > 0) WRITE (unit_nr, '(T6,A,3E12.4)') "outer homo/lumo/gap", e_homo, e_lumo, (e_lumo-e_homo)
-      IF (unit_nr > 0) WRITE (unit_nr, '(T6,A,3E12.4)') "inner homo/lumo/gap", lambda(3), lambda(2), (lambda(2)-lambda(3))
+      IF (unit_nr > 0) WRITE (unit_nr, '(T6,A,3E12.4)') "outer homo/lumo/gap", e_homo, e_lumo, (e_lumo - e_homo)
+      IF (unit_nr > 0) WRITE (unit_nr, '(T6,A,3E12.4)') "inner homo/lumo/gap", lambda(3), lambda(2), (lambda(2) - lambda(3))
 
       DEALLOCATE (poly)
       DEALLOCATE (nu)
@@ -1148,7 +1148,7 @@ CONTAINS
                           0.0_dp, tmp1, filter_eps=threshold)
       CALL arnoldi_extremal(tmp1, max_eig, min_eig, converged=converged, &
                             threshold=eps_lanczos, max_iter=max_iter_lanczos)
-      homo = max_eig-shift1
+      homo = max_eig - shift1
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T6,A,1X,L12)') "Lanczos converged:      ", converged
       ENDIF
@@ -1163,11 +1163,11 @@ CONTAINS
                           0.0_dp, tmp1, filter_eps=threshold)
       CALL arnoldi_extremal(tmp1, max_eig, min_eig, converged=converged, &
                             threshold=eps_lanczos, max_iter=max_iter_lanczos)
-      lumo = -max_eig+shift2
+      lumo = -max_eig + shift2
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T6,A,1X,L12)') "Lanczos converged:      ", converged
-         WRITE (unit_nr, '(T6,A,1X,3F12.5)') 'HOMO/LUMO/gap', homo, lumo, lumo-homo
+         WRITE (unit_nr, '(T6,A,1X,3F12.5)') 'HOMO/LUMO/gap', homo, lumo, lumo - homo
       ENDIF
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
@@ -1195,11 +1195,11 @@ CONTAINS
       xr = x
       DO k = 1, i
          IF (gamma_values(k) > gam_max) THEN
-            xr = 2*xr-xr**2
+            xr = 2*xr - xr**2
          ELSE IF (gamma_values(k) < gam_min) THEN
             xr = xr**2
          ELSE
-            xr = (xr*xr)*(4*xr-3*xr*xr)+gamma_values(k)*xr*xr*((1-xr)**2)
+            xr = (xr*xr)*(4*xr - 3*xr*xr) + gamma_values(k)*xr*xr*((1 - xr)**2)
          ENDIF
       ENDDO
    END FUNCTION evaluate_trs4_polynomial
@@ -1222,17 +1222,17 @@ CONTAINS
       h = homo
 
       DO i = 1, 200
-         IF (ABS(l) < threshold .AND. ABS(1-h) < threshold) EXIT
-         m = 0.5_dp*(h+l)
+         IF (ABS(l) < threshold .AND. ABS(1 - h) < threshold) EXIT
+         m = 0.5_dp*(h + l)
          IF (m > 0.5_dp) THEN
             h = h**2
             l = l**2
          ELSE
-            h = 2*h-h**2
-            l = 2*l-l**2
+            h = 2*h - h**2
+            l = 2*l - l**2
          ENDIF
       ENDDO
-      steps = i-1
+      steps = i - 1
    END FUNCTION estimate_steps
 
 END MODULE dm_ls_scf_methods

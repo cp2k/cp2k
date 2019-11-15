@@ -112,9 +112,9 @@ CONTAINS
          ALLOCATE (atom_bond_list(I)%array1(0))
       ENDDO
       N = 0
-      IF (ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)-nbond_prev
-      CALL reorder_structure(atom_bond_list, conn_info%bond_a(nbond_prev+1:)-natom_prev, &
-                             conn_info%bond_b(nbond_prev+1:)-natom_prev, N)
+      IF (ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a) - nbond_prev
+      CALL reorder_structure(atom_bond_list, conn_info%bond_a(nbond_prev + 1:) - natom_prev, &
+                             conn_info%bond_b(nbond_prev + 1:) - natom_prev, N)
 
       nmol = 0
       check = ALL(id_molname == str2id(s2s("__UNDEF__"))) .OR. ALL(id_molname /= str2id(s2s("__UNDEF__")))
@@ -123,7 +123,7 @@ CONTAINS
          IF (id2str(id_molname(i)) == "__UNDEF__") THEN
             molname = TRIM(basename)//ADJUSTL(cp_to_string(nmol))
             CALL generate_molname_low(i, atom_bond_list, molname, id_molname)
-            nmol = nmol+1
+            nmol = nmol + 1
          END IF
       END DO
       DO I = 1, natom
@@ -243,17 +243,17 @@ CONTAINS
       DO iatom = 2, natom
          IF (topology%conn_type == do_conn_off) THEN
             ! No connectivity: each atom becomes a molecule of its own molecule kind
-            ntype = ntype+1
+            ntype = ntype + 1
             atom_info%map_mol_typ(iatom) = ntype
          ELSE IF (topology%conn_type == do_conn_user) THEN
             ! User-defined connectivity: 5th column of COORD section or molecule
             ! or residue name in the case of PDB files
-            IF (atom_info%id_molname(iatom) == atom_info%id_molname(iatom-1)) THEN
-               atom_info%map_mol_typ(iatom) = atom_info%map_mol_typ(iatom-1)
-               IF (atom_info%id_resname(iatom) == atom_info%id_resname(iatom-1)) THEN
-                  atom_info%map_mol_res(iatom) = atom_info%map_mol_res(iatom-1)
+            IF (atom_info%id_molname(iatom) == atom_info%id_molname(iatom - 1)) THEN
+               atom_info%map_mol_typ(iatom) = atom_info%map_mol_typ(iatom - 1)
+               IF (atom_info%id_resname(iatom) == atom_info%id_resname(iatom - 1)) THEN
+                  atom_info%map_mol_res(iatom) = atom_info%map_mol_res(iatom - 1)
                ELSE
-                  resid = resid+1
+                  resid = resid + 1
                   atom_info%map_mol_res(iatom) = resid
                END IF
             ELSE
@@ -267,19 +267,19 @@ CONTAINS
                   END IF
                END DO
                IF (.NOT. found) THEN
-                  ntype = ntype+1
+                  ntype = ntype + 1
                   atom_info%map_mol_typ(iatom) = ntype
                   IF (ntype > SIZE(wrk1)) CALL reallocate(wrk1, 1, 2*SIZE(wrk1))
                   wrk1(ntype) = atom_info%id_molname(iatom)
                END IF
-               resid = resid+1
+               resid = resid + 1
                atom_info%map_mol_res(iatom) = resid
             END IF
          ELSE
-            IF (atom_info%id_molname(iatom-1) == atom_info%id_molname(iatom)) THEN
+            IF (atom_info%id_molname(iatom - 1) == atom_info%id_molname(iatom)) THEN
                atom_info%map_mol_typ(iatom) = ntype
             ELSE
-               ntype = ntype+1
+               ntype = ntype + 1
                atom_info%map_mol_typ(iatom) = ntype
             END IF
          END IF
@@ -322,12 +322,12 @@ CONTAINS
       mol_typ = wrk1(istart)
       DO i = 2, natom
          IF (mol_typ /= wrk1(i)) THEN
-            iend = i-1
+            iend = i - 1
             first = MINVAL(wrk2(istart:iend))
             last = MAXVAL(wrk2(istart:iend))
-            nlocl = last-first+1
-            IF (iend-istart+1 /= nlocl) THEN
-               IF (debug_this_module) WRITE (*, *) iend, istart, iend-istart+1, first, last, nlocl
+            nlocl = last - first + 1
+            IF (iend - istart + 1 /= nlocl) THEN
+               IF (debug_this_module) WRITE (*, *) iend, istart, iend - istart + 1, first, last, nlocl
                CALL cp_abort(__LOCATION__, &
                              "CP2K requires molecules to be contiguous and we have detected a non contiguous one!! "// &
                              "In particular a molecule defined from index ("//cp_to_string(first)//") to ("// &
@@ -340,12 +340,12 @@ CONTAINS
             mol_typ = wrk1(istart)
          END IF
       END DO
-      iend = i-1
+      iend = i - 1
       first = MINVAL(wrk2(istart:iend))
       last = MAXVAL(wrk2(istart:iend))
-      nlocl = last-first+1
-      IF (iend-istart+1 /= nlocl) THEN
-         IF (debug_this_module) WRITE (*, *) iend, istart, iend-istart+1, first, last, nlocl
+      nlocl = last - first + 1
+      IF (iend - istart + 1 /= nlocl) THEN
+         IF (debug_this_module) WRITE (*, *) iend, istart, iend - istart + 1, first, last, nlocl
          CALL cp_abort(__LOCATION__, &
                        "CP2K requires molecules to be contiguous and we have detected a non contiguous one!! "// &
                        "In particular a molecule defined from index ("//cp_to_string(first)//") to ("// &
@@ -363,10 +363,10 @@ CONTAINS
          mol_num = 1
          atom_info%map_mol_num(1) = 1
          DO iatom = 2, natom
-            IF (atom_info%id_molname(iatom) /= atom_info%id_molname(iatom-1)) THEN
+            IF (atom_info%id_molname(iatom) /= atom_info%id_molname(iatom - 1)) THEN
                mol_num = 1
-            ELSE IF (atom_info%map_mol_res(iatom) /= atom_info%map_mol_res(iatom-1)) THEN
-               mol_num = mol_num+1
+            ELSE IF (atom_info%map_mol_res(iatom) /= atom_info%map_mol_res(iatom - 1)) THEN
+               mol_num = mol_num + 1
             END IF
             atom_info%map_mol_num(iatom) = mol_num
          END DO
@@ -375,12 +375,12 @@ CONTAINS
          mol_num = atom_info%map_mol_num(1)
          DO i = 2, natom
             IF (atom_info%map_mol_typ(i) /= mol_typ) THEN
-               myind = atom_info%map_mol_num(i)-mol_num+1
-               CPASSERT(myind /= atom_info%map_mol_num(i-1))
+               myind = atom_info%map_mol_num(i) - mol_num + 1
+               CPASSERT(myind /= atom_info%map_mol_num(i - 1))
                mol_typ = atom_info%map_mol_typ(i)
                mol_num = atom_info%map_mol_num(i)
             END IF
-            atom_info%map_mol_num(i) = atom_info%map_mol_num(i)-mol_num+1
+            atom_info%map_mol_num(i) = atom_info%map_mol_num(i) - mol_num + 1
          END DO
       END IF
       IF (iw > 0) WRITE (UNIT=iw, FMT="(/,T2,A)") "End of renumbering molecules"
@@ -396,11 +396,11 @@ CONTAINS
             mol_num = 1
             atom_info%map_mol_num(1) = 1
             DO iatom = 2, natom
-               IF (atom_info%id_molname(iatom) /= atom_info%id_molname(iatom-1)) THEN
-                  ntype = ntype+1
+               IF (atom_info%id_molname(iatom) /= atom_info%id_molname(iatom - 1)) THEN
+                  ntype = ntype + 1
                   mol_num = 1
-               ELSE IF (atom_info%map_mol_res(iatom) /= atom_info%map_mol_res(iatom-1)) THEN
-                  mol_num = mol_num+1
+               ELSE IF (atom_info%map_mol_res(iatom) /= atom_info%map_mol_res(iatom - 1)) THEN
+                  mol_num = mol_num + 1
                END IF
                atom_info%map_mol_typ(iatom) = ntype
                atom_info%map_mol_num(iatom) = mol_num
@@ -411,9 +411,9 @@ CONTAINS
             mol_num = atom_info%map_mol_num(1)
             atom_info%map_mol_res(1) = mol_res
             DO i = 2, natom
-               IF ((atom_info%resid(i-1) /= atom_info%resid(i)) .OR. &
-                   (atom_info%id_resname(i-1) /= atom_info%id_resname(i))) THEN
-                  mol_res = mol_res+1
+               IF ((atom_info%resid(i - 1) /= atom_info%resid(i)) .OR. &
+                   (atom_info%id_resname(i - 1) /= atom_info%id_resname(i))) THEN
+                  mol_res = mol_res + 1
                END IF
                IF ((atom_info%map_mol_typ(i) /= mol_typ) .OR. &
                    (atom_info%map_mol_num(i) /= mol_num)) THEN
@@ -461,34 +461,34 @@ CONTAINS
                IF (iw > 0) WRITE (iw, *) "QM Molecule name :: ", id2str(atom_info%id_molname(iatm))
                WHERE (qm_atom_index == iatm) qm_atom_index = 0
             END DO
-            DO iatm = 1, ifirst-1
+            DO iatm = 1, ifirst - 1
                IF (ANY(qm_atom_index == iatm)) do_again = .TRUE.
             END DO
-            DO iatm = ilast+1, natom
+            DO iatm = ilast + 1, natom
                IF (ANY(qm_atom_index == iatm)) do_again = .TRUE.
             END DO
             IF (iw > 0) WRITE (iw, *) " Another QM fragment? :: ", do_again
             IF (ifirst /= 1) THEN
-               jump1 = atom_info%map_mol_typ(ifirst)-atom_info%map_mol_typ(ifirst-1)
+               jump1 = atom_info%map_mol_typ(ifirst) - atom_info%map_mol_typ(ifirst - 1)
                CPASSERT(jump1 <= 1 .AND. jump1 >= 0)
-               jump1 = ABS(jump1-1)
+               jump1 = ABS(jump1 - 1)
             ELSE
                jump1 = 0
             END IF
             IF (ilast /= natom) THEN
-               jump2 = atom_info%map_mol_typ(ilast+1)-atom_info%map_mol_typ(ilast)
+               jump2 = atom_info%map_mol_typ(ilast + 1) - atom_info%map_mol_typ(ilast)
                CPASSERT(jump2 <= 1 .AND. jump2 >= 0)
-               jump2 = ABS(jump2-1)
+               jump2 = ABS(jump2 - 1)
             ELSE
                jump2 = 0
             END IF
 
             ! Changing mol_type consistently
             DO iatm = ifirst, natom
-               atom_info%map_mol_typ(iatm) = atom_info%map_mol_typ(iatm)+jump1
+               atom_info%map_mol_typ(iatm) = atom_info%map_mol_typ(iatm) + jump1
             END DO
-            DO iatm = ilast+1, natom
-               atom_info%map_mol_typ(iatm) = atom_info%map_mol_typ(iatm)+jump2
+            DO iatm = ilast + 1, natom
+               atom_info%map_mol_typ(iatm) = atom_info%map_mol_typ(iatm) + jump2
             END DO
             IF (jump1 == 1) THEN
                DO iatm = ifirst, ilast
@@ -497,14 +497,14 @@ CONTAINS
             END IF
 
             IF (jump2 == 1) THEN
-               CALL find_boundary(atom_info%map_mol_typ, natom, first, last, atom_info%map_mol_typ(ilast+1))
+               CALL find_boundary(atom_info%map_mol_typ, natom, first, last, atom_info%map_mol_typ(ilast + 1))
                CALL find_boundary(atom_info%map_mol_typ, atom_info%map_mol_num, natom, ifirst, ilast, &
-                                  atom_info%map_mol_typ(ilast+1), atom_info%map_mol_num(ilast+1))
-               atom_in_mol = ilast-ifirst+1
+                                  atom_info%map_mol_typ(ilast + 1), atom_info%map_mol_num(ilast + 1))
+               atom_in_mol = ilast - ifirst + 1
                inum = 1
                DO iatm = first, last, atom_in_mol
-                  atom_info%map_mol_num(iatm:iatm+atom_in_mol-1) = inum
-                  inum = inum+1
+                  atom_info%map_mol_num(iatm:iatm + atom_in_mol - 1) = inum
+                  inum = inum + 1
                END DO
             END IF
 
@@ -532,7 +532,7 @@ CONTAINS
             IF (atom_in_kind <= 1) CYCLE
             CALL find_boundary(atom_info%map_mol_typ, natom, first, last, i)
             WRITE (iw, *) "Boundary atoms:", first, last
-            CPASSERT(last-first+1 == atom_in_kind)
+            CPASSERT(last - first + 1 == atom_in_kind)
             max_mol_num = MAXVAL(atom_info%map_mol_num(first:last))
             WRITE (iw, *) "Number of molecules of kind", i, "is ::", max_mol_num
             atom_in_mol = atom_in_kind/max_mol_num
@@ -613,8 +613,8 @@ CONTAINS
          CALL section_vals_val_get(isolated_section, "LIST", n_rep_val=n_rep)
          DO i = 1, n_rep
             CALL section_vals_val_get(isolated_section, "LIST", i_vals=tmp_v, i_rep_val=i)
-            CALL reallocate(isolated_atoms, 1, SIZE(isolated_atoms)+SIZE(tmp_v))
-            isolated_atoms(SIZE(isolated_atoms)-SIZE(tmp_v)+1:SIZE(isolated_atoms)) = tmp_v
+            CALL reallocate(isolated_atoms, 1, SIZE(isolated_atoms) + SIZE(tmp_v))
+            isolated_atoms(SIZE(isolated_atoms) - SIZE(tmp_v) + 1:SIZE(isolated_atoms)) = tmp_v
          END DO
       END IF
       atom_info => topology%atom_info
@@ -695,7 +695,7 @@ CONTAINS
       END IF
       npairs = 0
       DO i = 1, SIZE(nonbonded%neighbor_kind_pairs)
-         npairs = npairs+nonbonded%neighbor_kind_pairs(i)%npairs
+         npairs = npairs + nonbonded%neighbor_kind_pairs(i)%npairs
       END DO
       ALLOCATE (bond_a(npairs))
       ALLOCATE (bond_b(npairs))
@@ -703,7 +703,7 @@ CONTAINS
       idim = 0
       DO j = 1, SIZE(nonbonded%neighbor_kind_pairs)
          DO i = 1, nonbonded%neighbor_kind_pairs(j)%npairs
-            idim = idim+1
+            idim = idim + 1
             bond_a(idim) = nonbonded%neighbor_kind_pairs(j)%list(1, i)
             bond_b(idim) = nonbonded%neighbor_kind_pairs(j)%list(2, i)
             map_nb(idim) = j
@@ -750,7 +750,7 @@ CONTAINS
                k = ABS(k)
                CALL matvec_3x3(cell_v, topology%cell%hmat, &
                                REAL(nonbonded%neighbor_kind_pairs(k)%cell_vector, KIND=dp))
-               dr = pbc_coord(:, iatm1)-pbc_coord(:, iatm2)-ksign*cell_v
+               dr = pbc_coord(:, iatm1) - pbc_coord(:, iatm2) - ksign*cell_v
                r2 = DOT_PRODUCT(dr, dr)
                IF (r2 <= r_minsq(1, 1)) THEN
                   CALL cp_abort(__LOCATION__, &
@@ -762,7 +762,7 @@ CONTAINS
 
                ! Screen neighbors
                IF (topology%bondparm_type == do_bondparm_covalent) THEN
-                  rbond = radius(iatm1)+radius(iatm2)
+                  rbond = radius(iatm1) + radius(iatm2)
                ELSE IF (topology%bondparm_type == do_bondparm_vdw) THEN
                   rbond = MAX(radius(iatm1), radius(iatm2))
                END IF
@@ -770,7 +770,7 @@ CONTAINS
                rbond2 = rbond2*(bondparm_factor)**2
                !Test the distance to the sum of the covalent radius
                IF (r2 <= rbond2) THEN
-                  n_heavy_bonds = n_heavy_bonds+1
+                  n_heavy_bonds = n_heavy_bonds + 1
                   CALL add_bonds_list(conn_info, iatm1, iatm2, n_heavy_bonds)
                END IF
             END DO
@@ -798,7 +798,7 @@ CONTAINS
                k = ABS(k)
                CALL matvec_3x3(cell_v, topology%cell%hmat, &
                                REAL(nonbonded%neighbor_kind_pairs(k)%cell_vector, KIND=dp))
-               dr = pbc_coord(:, iatm1)-pbc_coord(:, iatm2)-ksign*cell_v
+               dr = pbc_coord(:, iatm1) - pbc_coord(:, iatm2) - ksign*cell_v
                r2 = DOT_PRODUCT(dr, dr)
                IF (r2 <= r_minsq(1, 1)) THEN
                   CALL cp_abort(__LOCATION__, &
@@ -816,8 +816,8 @@ CONTAINS
                      "WARNING:: No connections detected for Hydrogen - Atom Nr:", iatm1, " !"
                END IF
             ELSE
-               n_hydr_bonds = n_hydr_bonds+1
-               n_bonds = n_bonds+1
+               n_hydr_bonds = n_hydr_bonds + 1
+               n_bonds = n_bonds + 1
                CALL add_bonds_list(conn_info, MIN(iatm1, ibond), MAX(iatm1, ibond), n_bonds)
             END IF
          END DO
@@ -901,7 +901,7 @@ CONTAINS
                 (atom_info%id_resname(iatom) /= atom_info%id_resname(jatom))) THEN
                IF (iw > 0) WRITE (iw, *) "      PARA_RES, bond between molecules atom ", &
                   iatom, jatom
-               cbond = cbond+1
+               cbond = cbond + 1
                CALL reallocate(conn_info%c_bond_a, 1, cbond)
                CALL reallocate(conn_info%c_bond_b, 1, cbond)
                conn_info%c_bond_a(cbond) = iatom
@@ -989,13 +989,13 @@ CONTAINS
       mol_info_tmp(1, 1) = itype
       DO i = 2, natom
          IF (mol_map(i) /= itype) THEN
-            nsize = nsize+1
+            nsize = nsize + 1
             itype = mol_map(i)
             mol_info_tmp(nsize, 1) = itype
-            mol_info_tmp(nsize-1, 2) = idim
+            mol_info_tmp(nsize - 1, 2) = idim
             idim = 1
          ELSE
-            idim = idim+1
+            idim = idim + 1
          END IF
       END DO
       mol_info_tmp(nsize, 2) = idim
@@ -1019,7 +1019,7 @@ CONTAINS
          DO j = 1, SIZE(mol_info)
             IF (itype == mol_info(j, 1)) EXIT
          END DO
-         mol_info(j, 3) = mol_info(j, 3)+1
+         mol_info(j, 3) = mol_info(j, 3) + 1
          IF (mol_info(j, 4) == 0) mol_info(j, 4) = mol_natom
          IF (mol_info(j, 4) /= mol_natom) THEN
             ! Two same molecules have been found with different number
@@ -1099,8 +1099,8 @@ CONTAINS
       ip3 = PRESENT(Iarray3)
       ip4 = PRESENT(Iarray4)
       nsize = 2
-      IF (ip3) nsize = nsize+1
-      IF (ip3 .AND. ip4) nsize = nsize+1
+      IF (ip3) nsize = nsize + 1
+      IF (ip3 .AND. ip4) nsize = nsize + 1
       ! Put the lists always in the canonical order
       CALL reorder_list_array(Iarray1, Iarray2, Iarray3, Iarray4, nsize, nvar)
       ! Go on with external control
@@ -1136,20 +1136,20 @@ CONTAINS
                CALL section_vals_val_get(section, "ATOMS", i_rep_section=i, i_rep_val=j, &
                                          i_vals=atlist)
                CPASSERT(SIZE(atlist) == nsize)
-               CALL integer_to_string(nsize-1, fmt)
+               CALL integer_to_string(nsize - 1, fmt)
                CALL check_element_list(do_it, do_action, atlist, Ilist1, Ilist2, Ilist3, Ilist4, &
                                        is_impr)
                IF (do_action == do_add) THEN
                   ! Add to the element to the list
                   IF (do_it > 0) THEN
-                     nvar = nvar+1
+                     nvar = nvar + 1
                      IF (output_unit > 0) THEN
                         WRITE (output_unit, '(T2,"ADD|",1X,A,I6,'//TRIM(fmt)//'(A,I6),A,T64,A,I6)') &
                            "element (", &
                            atlist(1), (",", atlist(k), k=2, nsize), ") added.", " NEW size::", nvar
                      END IF
                      IF (nvar > SIZE(Iarray1)) THEN
-                        new_size = INT(5+1.2*nvar)
+                        new_size = INT(5 + 1.2*nvar)
                         CALL reallocate(Iarray1, 1, new_size)
                         CALL reallocate(Iarray2, 1, new_size)
                         SELECT CASE (nsize)
@@ -1161,17 +1161,17 @@ CONTAINS
                         END SELECT
                      END IF
                      ! Using Ilist instead of atlist the canonical order is preserved..
-                     Iarray1(do_it+1:nvar) = Iarray1(do_it:nvar-1)
-                     Iarray2(do_it+1:nvar) = Iarray2(do_it:nvar-1)
+                     Iarray1(do_it + 1:nvar) = Iarray1(do_it:nvar - 1)
+                     Iarray2(do_it + 1:nvar) = Iarray2(do_it:nvar - 1)
                      Iarray1(do_it) = Ilist1(do_it)
                      Iarray2(do_it) = Ilist2(do_it)
                      SELECT CASE (nsize)
                      CASE (3)
-                        Iarray3(do_it+1:nvar) = Iarray3(do_it:nvar-1)
+                        Iarray3(do_it + 1:nvar) = Iarray3(do_it:nvar - 1)
                         Iarray3(do_it) = Ilist3(do_it)
                      CASE (4)
-                        Iarray3(do_it+1:nvar) = Iarray3(do_it:nvar-1)
-                        Iarray4(do_it+1:nvar) = Iarray4(do_it:nvar-1)
+                        Iarray3(do_it + 1:nvar) = Iarray3(do_it:nvar - 1)
+                        Iarray4(do_it + 1:nvar) = Iarray4(do_it:nvar - 1)
                         Iarray3(do_it) = Ilist3(do_it)
                         Iarray4(do_it) = Ilist4(do_it)
                      END SELECT
@@ -1185,25 +1185,25 @@ CONTAINS
                ELSE
                   ! Remove element from the list
                   IF (do_it > 0) THEN
-                     nvar = nvar-1
+                     nvar = nvar - 1
                      IF (output_unit > 0) THEN
                         WRITE (output_unit, '(T2,"RMV|",1X,A,I6,'//TRIM(fmt)//'(A,I6),A,T64,A,I6)') &
                            "element (", &
                            atlist(1), (",", atlist(k), k=2, nsize), ") removed.", " NEW size::", nvar
                      END IF
-                     Iarray1(do_it:nvar) = Iarray1(do_it+1:nvar+1)
-                     Iarray2(do_it:nvar) = Iarray2(do_it+1:nvar+1)
-                     Iarray1(nvar+1) = -HUGE(0)
-                     Iarray2(nvar+1) = -HUGE(0)
+                     Iarray1(do_it:nvar) = Iarray1(do_it + 1:nvar + 1)
+                     Iarray2(do_it:nvar) = Iarray2(do_it + 1:nvar + 1)
+                     Iarray1(nvar + 1) = -HUGE(0)
+                     Iarray2(nvar + 1) = -HUGE(0)
                      SELECT CASE (nsize)
                      CASE (3)
-                        Iarray3(do_it:nvar) = Iarray3(do_it+1:nvar+1)
-                        Iarray3(nvar+1) = -HUGE(0)
+                        Iarray3(do_it:nvar) = Iarray3(do_it + 1:nvar + 1)
+                        Iarray3(nvar + 1) = -HUGE(0)
                      CASE (4)
-                        Iarray3(do_it:nvar) = Iarray3(do_it+1:nvar+1)
-                        Iarray4(do_it:nvar) = Iarray4(do_it+1:nvar+1)
-                        Iarray3(nvar+1) = -HUGE(0)
-                        Iarray4(nvar+1) = -HUGE(0)
+                        Iarray3(do_it:nvar) = Iarray3(do_it + 1:nvar + 1)
+                        Iarray4(do_it:nvar) = Iarray4(do_it + 1:nvar + 1)
+                        Iarray3(nvar + 1) = -HUGE(0)
+                        Iarray4(nvar + 1) = -HUGE(0)
                      END SELECT
                   ELSE
                      IF (output_unit > 0) THEN
@@ -1366,12 +1366,12 @@ CONTAINS
       END DO
       ! if nothing there stay within bounds
       IF (istart <= ndim) THEN
-         IF (Ilist1(istart) > tmp(1) .AND. (istart /= 1)) istart = istart-1
+         IF (Ilist1(istart) > tmp(1) .AND. (istart /= 1)) istart = istart - 1
       ENDIF
       DO iend = istart, ndim
          IF (Ilist1(iend) /= tmp(1)) EXIT
       END DO
-      IF (iend == ndim+1) iend = ndim
+      IF (iend == ndim + 1) iend = ndim
       ! Final search in array
       SELECT CASE (nsize)
       CASE (2)
@@ -1414,23 +1414,23 @@ CONTAINS
             ! the one we're searching for
             ! At the end do_it gives the exact location of the element in the canonical list
             do_it = i
-            new_size = ndim+1
+            new_size = ndim + 1
             CALL reallocate(Ilist1, 1, new_size)
             CALL reallocate(Ilist2, 1, new_size)
-            Ilist1(i+1:new_size) = Ilist1(i:ndim)
-            Ilist2(i+1:new_size) = Ilist2(i:ndim)
+            Ilist1(i + 1:new_size) = Ilist1(i:ndim)
+            Ilist2(i + 1:new_size) = Ilist2(i:ndim)
             Ilist1(i) = tmp(1)
             Ilist2(i) = tmp(2)
             SELECT CASE (nsize)
             CASE (3)
                CALL reallocate(Ilist3, 1, new_size)
-               Ilist3(i+1:new_size) = Ilist3(i:ndim)
+               Ilist3(i + 1:new_size) = Ilist3(i:ndim)
                Ilist3(i) = tmp(3)
             CASE (4)
                CALL reallocate(Ilist3, 1, new_size)
                CALL reallocate(Ilist4, 1, new_size)
-               Ilist3(i+1:new_size) = Ilist3(i:ndim)
-               Ilist4(i+1:new_size) = Ilist4(i:ndim)
+               Ilist3(i + 1:new_size) = Ilist3(i:ndim)
+               Ilist4(i + 1:new_size) = Ilist4(i:ndim)
                Ilist3(i) = tmp(3)
                Ilist4(i) = tmp(4)
             END SELECT
@@ -1439,18 +1439,18 @@ CONTAINS
          IF (found) THEN
             do_it = i
             ! Let's delete the element in position do_it
-            new_size = ndim-1
-            Ilist1(i:new_size) = Ilist1(i+1:ndim)
-            Ilist2(i:new_size) = Ilist2(i+1:ndim)
+            new_size = ndim - 1
+            Ilist1(i:new_size) = Ilist1(i + 1:ndim)
+            Ilist2(i:new_size) = Ilist2(i + 1:ndim)
             CALL reallocate(Ilist1, 1, new_size)
             CALL reallocate(Ilist2, 1, new_size)
             SELECT CASE (nsize)
             CASE (3)
-               Ilist3(i:new_size) = Ilist3(i+1:ndim)
+               Ilist3(i:new_size) = Ilist3(i + 1:ndim)
                CALL reallocate(Ilist3, 1, new_size)
             CASE (4)
-               Ilist3(i:new_size) = Ilist3(i+1:ndim)
-               Ilist4(i:new_size) = Ilist4(i+1:ndim)
+               Ilist3(i:new_size) = Ilist3(i + 1:ndim)
+               Ilist4(i:new_size) = Ilist4(i + 1:ndim)
                CALL reallocate(Ilist3, 1, new_size)
                CALL reallocate(Ilist4, 1, new_size)
             END SELECT
@@ -1479,7 +1479,7 @@ CONTAINS
 
       old_size = SIZE(conn_info%bond_a)
       IF (n_bonds > old_size) THEN
-         new_size = INT(5+1.2*old_size)
+         new_size = INT(5 + 1.2*old_size)
          CALL reallocate(conn_info%bond_a, 1, new_size)
          CALL reallocate(conn_info%bond_b, 1, new_size)
       END IF
@@ -1525,7 +1525,7 @@ CONTAINS
          CALL reallocate(conn_info%bond_b, 1, nbond)
       END IF
       IF (nbond /= 0) THEN
-         nsize = INT(5+1.2*ntheta)
+         nsize = INT(5 + 1.2*ntheta)
          CALL reallocate(conn_info%theta_a, 1, nsize)
          CALL reallocate(conn_info%theta_b, 1, nsize)
          CALL reallocate(conn_info%theta_c, 1, nsize)
@@ -1645,7 +1645,7 @@ CONTAINS
             CALL match_iterative_path(Iarray1=Iarray1, &
                                       Iarray2=Iarray2, &
                                       Iarray3=Iarray3, &
-                                      it_levl=my_levl+1, &
+                                      it_levl=my_levl + 1, &
                                       max_levl=max_levl, &
                                       Oarray1=Oarray1, &
                                       Oarray2=Oarray2, &
@@ -1664,7 +1664,7 @@ CONTAINS
          CASE (4)
             wrk => Iarray3
          END SELECT
-         i = Ilist(it_levl-1)
+         i = Ilist(it_levl - 1)
          DO j = 1, SIZE(Iarray1(i)%array1)
             ind = wrk(i)%array1(j)
             IF (ANY(Ilist == ind)) CYCLE
@@ -1673,7 +1673,7 @@ CONTAINS
                CALL match_iterative_path(Iarray1=Iarray1, &
                                          Iarray2=Iarray2, &
                                          Iarray3=Iarray3, &
-                                         it_levl=it_levl+1, &
+                                         it_levl=it_levl + 1, &
                                          max_levl=max_levl, &
                                          Oarray1=Oarray1, &
                                          Oarray2=Oarray2, &
@@ -1685,30 +1685,30 @@ CONTAINS
             ELSEIF (it_levl == max_levl) THEN
                IF (Ilist(1) > ind) CYCLE
                Ilist(it_levl) = ind
-               nvar = nvar+1
+               nvar = nvar + 1
                SELECT CASE (it_levl)
                CASE (2)
                   IF (nvar > SIZE(Oarray1)) THEN
-                     CALL reallocate(Oarray1, 1, INT(5+1.2*nvar))
-                     CALL reallocate(Oarray2, 1, INT(5+1.2*nvar))
+                     CALL reallocate(Oarray1, 1, INT(5 + 1.2*nvar))
+                     CALL reallocate(Oarray2, 1, INT(5 + 1.2*nvar))
                   END IF
                   Oarray1(nvar) = Ilist(1)
                   Oarray2(nvar) = Ilist(2)
                CASE (3)
                   IF (nvar > SIZE(Oarray1)) THEN
-                     CALL reallocate(Oarray1, 1, INT(5+1.2*nvar))
-                     CALL reallocate(Oarray2, 1, INT(5+1.2*nvar))
-                     CALL reallocate(Oarray3, 1, INT(5+1.2*nvar))
+                     CALL reallocate(Oarray1, 1, INT(5 + 1.2*nvar))
+                     CALL reallocate(Oarray2, 1, INT(5 + 1.2*nvar))
+                     CALL reallocate(Oarray3, 1, INT(5 + 1.2*nvar))
                   END IF
                   Oarray1(nvar) = Ilist(1)
                   Oarray2(nvar) = Ilist(2)
                   Oarray3(nvar) = Ilist(3)
                CASE (4)
                   IF (nvar > SIZE(Oarray1)) THEN
-                     CALL reallocate(Oarray1, 1, INT(5+1.2*nvar))
-                     CALL reallocate(Oarray2, 1, INT(5+1.2*nvar))
-                     CALL reallocate(Oarray3, 1, INT(5+1.2*nvar))
-                     CALL reallocate(Oarray4, 1, INT(5+1.2*nvar))
+                     CALL reallocate(Oarray1, 1, INT(5 + 1.2*nvar))
+                     CALL reallocate(Oarray2, 1, INT(5 + 1.2*nvar))
+                     CALL reallocate(Oarray3, 1, INT(5 + 1.2*nvar))
+                     CALL reallocate(Oarray4, 1, INT(5 + 1.2*nvar))
                   END IF
                   Oarray1(nvar) = Ilist(1)
                   Oarray2(nvar) = Ilist(2)
@@ -1802,7 +1802,7 @@ CONTAINS
       nphi = 0
       nbond = SIZE(conn_info%bond_a)
       IF (nbond /= 0) THEN
-         nsize = INT(5+1.2*nphi)
+         nsize = INT(5 + 1.2*nphi)
          CALL reallocate(conn_info%phi_a, 1, nsize)
          CALL reallocate(conn_info%phi_b, 1, nsize)
          CALL reallocate(conn_info%phi_c, 1, nsize)
@@ -1893,7 +1893,7 @@ CONTAINS
       nimpr = 0
       nbond = SIZE(conn_info%bond_a)
       IF (nbond /= 0) THEN
-         nsize = INT(5+1.2*nimpr)
+         nsize = INT(5 + 1.2*nimpr)
          CALL reallocate(conn_info%impr_a, 1, nsize)
          CALL reallocate(conn_info%impr_b, 1, nsize)
          CALL reallocate(conn_info%impr_c, 1, nsize)
@@ -1922,9 +1922,9 @@ CONTAINS
                   END DO
                END IF
                IF (.NOT. accept_impr) CYCLE
-               nimpr = nimpr+1
+               nimpr = nimpr + 1
                IF (nimpr > SIZE(conn_info%impr_a)) THEN
-                  nsize = INT(5+1.2*nimpr)
+                  nsize = INT(5 + 1.2*nimpr)
                   CALL reallocate(conn_info%impr_a, 1, nsize)
                   CALL reallocate(conn_info%impr_b, 1, nsize)
                   CALL reallocate(conn_info%impr_c, 1, nsize)
@@ -2034,8 +2034,8 @@ CONTAINS
             ! Avoid onfo's in 5-rings.
             IF (ANY(atom_b == theta_list(atom_a)%array1)) CYCLE
             ! Avoid onfo's in 6-rings.
-            IF (ANY(atom_b == phi_list(atom_a)%array1(:i-1))) CYCLE
-            ionfo = ionfo+1
+            IF (ANY(atom_b == phi_list(atom_a)%array1(:i - 1))) CYCLE
+            ionfo = ionfo + 1
             conn_info%onfo_a(ionfo) = atom_a
             conn_info%onfo_b(ionfo) = atom_b
          END DO

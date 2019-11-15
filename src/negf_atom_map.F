@@ -117,11 +117,11 @@ CONTAINS
 
                ! loop over matching atoms
                DO iatom_kind = 1, kind_groups_contact(ikind_contact)%natoms
-                  coords(1:3) = particle_set_device(atom_index_device)%r(1:3)- &
+                  coords(1:3) = particle_set_device(atom_index_device)%r(1:3) - &
                                 kind_groups_contact(ikind_contact)%r(1:3, iatom_kind)
 
                   CALL real_to_scaled(coords_scaled, coords, cell_contact)
-                  coords_error = coords_scaled-REAL(NINT(coords_scaled), kind=dp)
+                  coords_error = coords_scaled - REAL(NINT(coords_scaled), kind=dp)
 
                   IF (SQRT(DOT_PRODUCT(coords_error, coords_error)) < eps_geometry) THEN
                      atom_map(iatom)%iatom = kind_groups_contact(ikind_contact)%atom_list(iatom_kind)
@@ -186,7 +186,7 @@ CONTAINS
 
       DO iatom = 1, natoms
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-         kind_groups(ikind)%natoms = kind_groups(ikind)%natoms+1
+         kind_groups(ikind)%natoms = kind_groups(ikind)%natoms + 1
       END DO
 
       DO ikind = 1, nkinds
@@ -198,7 +198,7 @@ CONTAINS
 
       DO iatom = 1, natoms
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-         kind_groups(ikind)%natoms = kind_groups(ikind)%natoms+1
+         kind_groups(ikind)%natoms = kind_groups(ikind)%natoms + 1
 
          kind_groups(ikind)%atom_list(kind_groups(ikind)%natoms) = iatom
          kind_groups(ikind)%r(1:3, kind_groups(ikind)%natoms) = particle_set(iatom)%r(1:3)

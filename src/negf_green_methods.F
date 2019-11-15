@@ -179,7 +179,7 @@ CONTAINS
       END IF
 
       ! actually compute the Green's function
-      DO WHILE (cp_cfm_norm(work%b, 'M')+cp_cfm_norm(work%c, 'M') > conv)
+      DO WHILE (cp_cfm_norm(work%b, 'M') + cp_cfm_norm(work%c, 'M') > conv)
          ! A_n^-1
          CALL cp_cfm_to_cfm(work%a, work%a_inv)
          CALL cp_cfm_lu_invert(work%a_inv)

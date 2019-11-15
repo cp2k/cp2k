@@ -146,8 +146,8 @@ CONTAINS
                                         row_size=row_size, col_size=col_size)
          DO p = 1, col_size ! p
          DO i = 1, row_size ! i
-            tmp = SQRT(DATA(i, p)**2+f2_eps)
-            f2 = f2+tmp
+            tmp = SQRT(DATA(i, p)**2 + f2_eps)
+            f2 = f2 + tmp
             DATA(i, p) = DATA(i, p)/tmp
          ENDDO
          ENDDO
@@ -924,8 +924,8 @@ CONTAINS
                                            row_offset=row_offset, col_offset=col_offset)
             DO j = 1, col_size
             DO i = 1, row_size
-               e1 = qs_ot_env%rot_mat_evals(row_offset+i-1)
-               e2 = qs_ot_env%rot_mat_evals(col_offset+j-1)
+               e1 = qs_ot_env%rot_mat_evals(row_offset + i - 1)
+               e2 = qs_ot_env%rot_mat_evals(col_offset + j - 1)
                data_z(i, j) = data_z(i, j)*cint(e1, e2)
             ENDDO
             ENDDO
@@ -966,14 +966,14 @@ CONTAINS
 
          l1 = (0.0_dp, -1.0_dp)*e1
          l2 = (0.0_dp, -1.0_dp)*e2
-         IF (ABS(l1-l2) .GT. 0.5_dp) THEN
-            cint = (EXP(l1)-EXP(l2))/(l1-l2)
+         IF (ABS(l1 - l2) .GT. 0.5_dp) THEN
+            cint = (EXP(l1) - EXP(l2))/(l1 - l2)
          ELSE
             x = 1.0_dp
             cint = 0.0_dp
             DO I = 1, 16
-               cint = cint+x
-               x = x*(l1-l2)/REAL(I+1, KIND=dp)
+               cint = cint + x
+               x = x*(l1 - l2)/REAL(I + 1, KIND=dp)
             ENDDO
             cint = cint*EXP(l2)
          ENDIF
@@ -1002,8 +1002,8 @@ CONTAINS
       N = 0
       num_error = qs_ot_env%largest_eval_upper_bound/(2.0_dp)
       DO WHILE (num_error > qs_ot_env%settings%eps_taylor .AND. N <= qs_ot_env%settings%max_taylor)
-         N = N+1
-         num_error = num_error*qs_ot_env%largest_eval_upper_bound/REAL((2*N+1)*(2*N+2), KIND=dp)
+         N = N + 1
+         num_error = num_error*qs_ot_env%largest_eval_upper_bound/REAL((2*N + 1)*(2*N + 2), KIND=dp)
       END DO
       qs_ot_env%taylor_order = N
       IF (qs_ot_env%taylor_order <= qs_ot_env%settings%max_taylor) THEN
@@ -1299,7 +1299,7 @@ CONTAINS
       ! OOM+OMO+MOO
       !   ...
       DO i = 2, qs_ot_env%taylor_order
-         sinfactor = sinfactor*(-1.0_dp)/REAL(2*i*(2*i+1), KIND=dp)
+         sinfactor = sinfactor*(-1.0_dp)/REAL(2*i*(2*i + 1), KIND=dp)
          CALL dbcsr_multiply('N', 'N', rone, qs_ot_env%matrix_p, matrix_left, rzero, qs_ot_env%matrix_buf1)
          CALL dbcsr_multiply('N', 'N', rone, matrix_right, qs_ot_env%matrix_p, rzero, matrix_left)
          CALL dbcsr_copy(matrix_right, matrix_left)
@@ -1328,7 +1328,7 @@ CONTAINS
       ! OOM+OMO+MOO
       !   ...
       DO i = 2, qs_ot_env%taylor_order
-         cosfactor = cosfactor*(-1.0_dp)/REAL(2*i*(2*i-1), KIND=dp)
+         cosfactor = cosfactor*(-1.0_dp)/REAL(2*i*(2*i - 1), KIND=dp)
          CALL dbcsr_multiply('N', 'N', rone, qs_ot_env%matrix_p, matrix_left, rzero, qs_ot_env%matrix_buf1)
          CALL dbcsr_multiply('N', 'N', rone, matrix_right, qs_ot_env%matrix_p, rzero, matrix_left)
          CALL dbcsr_copy(matrix_right, matrix_left)
@@ -1392,8 +1392,8 @@ CONTAINS
                              rzero, qs_ot_env%matrix_buf1)
          CALL dbcsr_copy(qs_ot_env%matrix_r, qs_ot_env%matrix_buf1)
          ! add to the taylor expansion so far
-         cosfactor = cosfactor*(-1.0_dp)/REAL(2*i*(2*i-1), KIND=dp)
-         sinfactor = sinfactor*(-1.0_dp)/REAL(2*i*(2*i+1), KIND=dp)
+         cosfactor = cosfactor*(-1.0_dp)/REAL(2*i*(2*i - 1), KIND=dp)
+         sinfactor = sinfactor*(-1.0_dp)/REAL(2*i*(2*i + 1), KIND=dp)
          CALL dbcsr_add(qs_ot_env%matrix_cosp, qs_ot_env%matrix_r, &
                         alpha_scalar=1.0_dp, beta_scalar=cosfactor)
          CALL dbcsr_add(qs_ot_env%matrix_sinp, qs_ot_env%matrix_r, &
@@ -1462,10 +1462,10 @@ CONTAINS
                                         row_offset=row_offset, col_offset=col_offset)
          DO j = 1, col_size
          DO i = 1, row_size
-            a = (SQRT(qs_ot_env%evals(row_offset+i-1)) &
-                 -SQRT(qs_ot_env%evals(col_offset+j-1)))/2.0_dp
-            b = (SQRT(qs_ot_env%evals(row_offset+i-1)) &
-                 +SQRT(qs_ot_env%evals(col_offset+j-1)))/2.0_dp
+            a = (SQRT(qs_ot_env%evals(row_offset + i - 1)) &
+                 - SQRT(qs_ot_env%evals(col_offset + j - 1)))/2.0_dp
+            b = (SQRT(qs_ot_env%evals(row_offset + i - 1)) &
+                 + SQRT(qs_ot_env%evals(col_offset + j - 1)))/2.0_dp
             DATA(i, j) = -0.5_dp*qs_ot_sinc(a)*qs_ot_sinc(b)
          ENDDO
          ENDDO
@@ -1480,8 +1480,8 @@ CONTAINS
                                         row_offset=row_offset, col_offset=col_offset)
          DO j = 1, col_size
          DO i = 1, row_size
-            a = SQRT(qs_ot_env%evals(row_offset+i-1))
-            b = SQRT(qs_ot_env%evals(col_offset+j-1))
+            a = SQRT(qs_ot_env%evals(row_offset + i - 1))
+            b = SQRT(qs_ot_env%evals(col_offset + j - 1))
             DATA(i, j) = qs_ot_sincf(a, b)
          ENDDO
          ENDDO
@@ -1514,7 +1514,7 @@ CONTAINS
          qs_ot_sinc = SIN(x)/x
       ELSE
          y = x*x
-         qs_ot_sinc = q1+y*(q2+y*(q3+y*(q4+y*(q5+y*(q6+y*(q7+y*(q8+y*(q9+y*(q10)))))))))
+         qs_ot_sinc = q1 + y*(q2 + y*(q3 + y*(q4 + y*(q5 + y*(q6 + y*(q7 + y*(q8 + y*(q9 + y*(q10)))))))))
       ENDIF
    END FUNCTION qs_ot_sinc
    ! computes (1/(x^2-y^2))*(sinc(x)-sinc(y)) for all positive values of the arguments
@@ -1556,27 +1556,27 @@ CONTAINS
             ybx = 0.0_dp
          ENDIF
 
-         sf = -1.0_dp/((1.0_dp+ybx)*6.0_dp)
+         sf = -1.0_dp/((1.0_dp + ybx)*6.0_dp)
          rs = 1.0_dp
          ybxs = ybx
          xs = 1.0_dp
 
          DO i = 1, 10
-            qs_ot_sincf = qs_ot_sincf+sf*rs*xs*(1.0_dp+ybxs)
-            sf = -sf/(REAL((2*i+2), dp)*REAL((2*i+3), dp))
-            rs = rs+ybxs
+            qs_ot_sincf = qs_ot_sincf + sf*rs*xs*(1.0_dp + ybxs)
+            sf = -sf/(REAL((2*i + 2), dp)*REAL((2*i + 3), dp))
+            rs = rs + ybxs
             ybxs = ybxs*ybx
             xs = xs*x*x
          ENDDO
 
       ELSE ! no series expansion
-         IF (x-y .GT. 0.1_dp) THEN ! safe to use the normal form
-            qs_ot_sincf = (qs_ot_sinc(x)-qs_ot_sinc(y))/((x+y)*(x-y))
+         IF (x - y .GT. 0.1_dp) THEN ! safe to use the normal form
+            qs_ot_sincf = (qs_ot_sinc(x) - qs_ot_sinc(y))/((x + y)*(x - y))
          ELSE
-            a = (x+y)/2.0_dp
-            b = (x-y)/2.0_dp ! might be close to zero
+            a = (x + y)/2.0_dp
+            b = (x - y)/2.0_dp ! might be close to zero
             ! y (=(a-b)) can not be close to zero since it is close to x>0.5
-            qs_ot_sincf = (qs_ot_sinc(b)*COS(a)-qs_ot_sinc(a)*COS(b))/(2*x*y)
+            qs_ot_sincf = (qs_ot_sinc(b)*COS(a) - qs_ot_sinc(a)*COS(b))/(2*x*y)
          ENDIF
       ENDIF
 

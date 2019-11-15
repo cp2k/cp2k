@@ -98,23 +98,23 @@ CONTAINS
 
       ! Distance of the centers a and b
 
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       tab = SQRT(rab2)
 
       ! Maximum l for auxiliary integrals
-      lma = la_max+2*m
+      lma = la_max + 2*m
       lmb = lb_max
-      IF (calculate_forces) lma = lma+1
-      ldrr = MAX(lma, lmb)+1
+      IF (calculate_forces) lma = lma + 1
+      ldrr = MAX(lma, lmb) + 1
 
       ! Allocate space for auxiliary integrals
-      ALLOCATE (rr(0:ldrr-1, 0:ldrr-1, 3))
+      ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
 
       ! Number of integrals, check size of arrays
-      ofa = ncoset(la_min-1)
-      ofb = ncoset(lb_min-1)
-      na = ncoset(la_max)-ofa
-      nb = ncoset(lb_max)-ofb
+      ofa = ncoset(la_min - 1)
+      ofb = ncoset(lb_min - 1)
+      na = ncoset(la_max) - ofa
+      nb = ncoset(lb_max) - ofb
       CPASSERT((SIZE(sab, 1) >= na*npgfa))
       CPASSERT((SIZE(sab, 2) >= nb*npgfb))
 
@@ -127,7 +127,7 @@ CONTAINS
             ! Calculate some prefactors
             a = zeta(ipgf)
             b = zetb(jpgf)
-            zet = a+b
+            zet = a + b
             xhi = a*b/zet
             rap = b*rab/zet
             rbp = -a*rab/zet
@@ -140,37 +140,37 @@ CONTAINS
 
             DO lb = lb_min, lb_max
             DO bx = 0, lb
-            DO by = 0, lb-bx
-               bz = lb-bx-by
-               cob = coset(bx, by, bz)-ofb
-               ib = mb+cob
+            DO by = 0, lb - bx
+               bz = lb - bx - by
+               cob = coset(bx, by, bz) - ofb
+               ib = mb + cob
                DO la = la_min, la_max
                DO ax = 0, la
-               DO ay = 0, la-ax
-                  az = la-ax-ay
-                  coa = coset(ax, ay, az)-ofa
-                  ia = ma+coa
+               DO ay = 0, la - ax
+                  az = la - ax - ay
+                  coa = coset(ax, ay, az) - ofa
+                  ia = ma + coa
                   DO i = 0, m
                   DO j = 0, m
                   DO k = 0, m
-                     IF (i+j+k /= m) CYCLE
+                     IF (i + j + k /= m) CYCLE
                      prefac = fac(m)/fac(i)/fac(j)/fac(k)
-                     sab(ia, ib) = sab(ia, ib)+prefac*f0 &
-                                   *rr(ax+2*i, bx, 1)*rr(ay+2*j, by, 2)*rr(az+2*k, bz, 3)
+                     sab(ia, ib) = sab(ia, ib) + prefac*f0 &
+                                   *rr(ax + 2*i, bx, 1)*rr(ay + 2*j, by, 2)*rr(az + 2*k, bz, 3)
                      IF (calculate_forces) THEN
                         ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
                         ! dx
-                        dumx = 2.0_dp*a*rr(ax+2*i+1, bx, 1)
-                        IF (ax+2*i > 0) dumx = dumx-REAL(ax+2*i, dp)*rr(ax+2*i-1, bx, 1)
-                        dsab(ia, ib, 1) = dsab(ia, ib, 1)+prefac*f0*dumx*rr(ay+2*j, by, 2)*rr(az+2*k, bz, 3)
+                        dumx = 2.0_dp*a*rr(ax + 2*i + 1, bx, 1)
+                        IF (ax + 2*i > 0) dumx = dumx - REAL(ax + 2*i, dp)*rr(ax + 2*i - 1, bx, 1)
+                        dsab(ia, ib, 1) = dsab(ia, ib, 1) + prefac*f0*dumx*rr(ay + 2*j, by, 2)*rr(az + 2*k, bz, 3)
                         ! dy
-                        dumy = 2.0_dp*a*rr(ay+2*j+1, by, 2)
-                        IF (ay+2*j > 0) dumy = dumy-REAL(ay+2*j, dp)*rr(ay+2*j-1, by, 2)
-                        dsab(ia, ib, 2) = dsab(ia, ib, 2)+prefac*f0*rr(ax+2*i, bx, 1)*dumy*rr(az+2*k, bz, 3)
+                        dumy = 2.0_dp*a*rr(ay + 2*j + 1, by, 2)
+                        IF (ay + 2*j > 0) dumy = dumy - REAL(ay + 2*j, dp)*rr(ay + 2*j - 1, by, 2)
+                        dsab(ia, ib, 2) = dsab(ia, ib, 2) + prefac*f0*rr(ax + 2*i, bx, 1)*dumy*rr(az + 2*k, bz, 3)
                         ! dz
-                        dumz = 2.0_dp*a*rr(az+2*k+1, bz, 3)
-                        IF (az+2*k > 0) dumz = dumz-REAL(az+2*k, dp)*rr(az+2*k-1, bz, 3)
-                        dsab(ia, ib, 3) = dsab(ia, ib, 3)+prefac*f0*rr(ax+2*i, bx, 1)*rr(ay+2*j, by, 2)*dumz
+                        dumz = 2.0_dp*a*rr(az + 2*k + 1, bz, 3)
+                        IF (az + 2*k > 0) dumz = dumz - REAL(az + 2*k, dp)*rr(az + 2*k - 1, bz, 3)
+                        dsab(ia, ib, 3) = dsab(ia, ib, 3) + prefac*f0*rr(ax + 2*i, bx, 1)*rr(ay + 2*j, by, 2)*dumz
                      ENDIF
                   ENDDO
                   ENDDO
@@ -183,9 +183,9 @@ CONTAINS
             ENDDO
             ENDDO !lb
 
-            mb = mb+nb
+            mb = mb + nb
          END DO
-         ma = ma+na
+         ma = ma + na
       END DO
 
       DEALLOCATE (rr)

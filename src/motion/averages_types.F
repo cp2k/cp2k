@@ -95,7 +95,7 @@ CONTAINS
       ! Point to the averages section
       averages%averages_section => averages_section
       ! Initialize averages
-      last_avg_env_id = last_avg_env_id+1
+      last_avg_env_id = last_avg_env_id + 1
       averages%id_nr = last_avg_env_id
       averages%ref_count = 1
       averages%itimes_start = -1
@@ -153,7 +153,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(averages))
       CPASSERT(averages%ref_count > 0)
-      averages%ref_count = averages%ref_count+1
+      averages%ref_count = averages%ref_count + 1
    END SUBROUTINE retain_averages
 
 ! **************************************************************************************************
@@ -171,7 +171,7 @@ CONTAINS
 
       IF (ASSOCIATED(averages)) THEN
          CPASSERT(averages%ref_count > 0)
-         averages%ref_count = averages%ref_count-1
+         averages%ref_count = averages%ref_count - 1
          IF (averages%ref_count == 0) THEN
             CALL virial_release(averages%virial)
             IF (ASSOCIATED(averages%avecolvar)) THEN
@@ -305,7 +305,7 @@ CONTAINS
                   averages%itimes_start = itimes
                END IF
             END IF
-            delta_t = itimes-averages%itimes_start+1
+            delta_t = itimes - averages%itimes_start + 1
 
             ! Perform averages
             SELECT CASE (delta_t)
@@ -452,7 +452,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'get_averages_rs', &
          routineP = moduleN//':'//routineN
 
-      avg = (avg*REAL(delta_t-1, dp)+add)/REAL(delta_t, dp)
+      avg = (avg*REAL(delta_t - 1, dp) + add)/REAL(delta_t, dp)
    END SUBROUTINE get_averages_rs
 
 ! **************************************************************************************************
@@ -476,7 +476,7 @@ CONTAINS
       check = SIZE(avg) == SIZE(add)
       CPASSERT(check)
       DO i = 1, SIZE(avg)
-         avg(i) = (avg(i)*REAL(delta_t-1, dp)+add(i))/REAL(delta_t, dp)
+         avg(i) = (avg(i)*REAL(delta_t - 1, dp) + add(i))/REAL(delta_t, dp)
       END DO
    END SUBROUTINE get_averages_rv
 
@@ -504,7 +504,7 @@ CONTAINS
       CPASSERT(check)
       DO i = 1, SIZE(avg, 2)
          DO j = 1, SIZE(avg, 1)
-            avg(j, i) = (avg(j, i)*REAL(delta_t-1, dp)+add(j, i))/REAL(delta_t, dp)
+            avg(j, i) = (avg(j, i)*REAL(delta_t - 1, dp) + add(j, i))/REAL(delta_t, dp)
          END DO
       END DO
    END SUBROUTINE get_averages_rm

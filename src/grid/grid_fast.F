@@ -40,7 +40,7 @@ SUBROUTINE collocate_gf_npbc(grid, xdat, ydat, zdat, bo1, bo2, zlb, zub, ylb, yu
       DO iy = ylb, yub
          tmp1 = zdat(iz)*ydat(iy)
          DO ix = xlb, xub
-            grid(ix, iy, iz) = grid(ix, iy, iz)+xdat(ix)*tmp1
+            grid(ix, iy, iz) = grid(ix, iy, iz) + xdat(ix)*tmp1
          END DO ! Loop on x
       END DO ! Loop on y
    END DO ! Loop on z
@@ -80,8 +80,8 @@ SUBROUTINE integrate_gf_npbc(grid, xdat, ydat, zdat, bo, zlb, zub, ylb, yub, xlb
    DO iz = zlb, zub
       iy2 = HUGE(0)
       ! unroll by 2
-      DO iy = ylb, yub-1, 2
-         iy2 = iy+1
+      DO iy = ylb, yub - 1, 2
+         iy2 = iy + 1
          fx1 = 0.0_dp
          fyz1 = 0.0_dp
          fx2 = 0.0_dp
@@ -91,17 +91,17 @@ SUBROUTINE integrate_gf_npbc(grid, xdat, ydat, zdat, bo, zlb, zub, ylb, yub, xlb
             g2 = grid(ix, iy2, iz)
             x1 = xdat(1, ix)
             x2 = xdat(2, ix)
-            fyz1 = fyz1+g1*x1
-            fx1 = fx1+g1*x2
-            fyz2 = fyz2+g2*x1
-            fx2 = fx2+g2*x2
+            fyz1 = fyz1 + g1*x1
+            fx1 = fx1 + g1*x2
+            fyz2 = fyz2 + g2*x1
+            fx2 = fx2 + g2*x2
          END DO ! Loop on x
-         force(1) = force(1)+fx1*zdat(1, iz)*ydat(1, iy)
-         force(2) = force(2)+fyz1*zdat(1, iz)*ydat(2, iy)
-         force(3) = force(3)+fyz1*zdat(2, iz)*ydat(1, iy)
-         force(1) = force(1)+fx2*zdat(1, iz)*ydat(1, iy2)
-         force(2) = force(2)+fyz2*zdat(1, iz)*ydat(2, iy2)
-         force(3) = force(3)+fyz2*zdat(2, iz)*ydat(1, iy2)
+         force(1) = force(1) + fx1*zdat(1, iz)*ydat(1, iy)
+         force(2) = force(2) + fyz1*zdat(1, iz)*ydat(2, iy)
+         force(3) = force(3) + fyz1*zdat(2, iz)*ydat(1, iy)
+         force(1) = force(1) + fx2*zdat(1, iz)*ydat(1, iy2)
+         force(2) = force(2) + fyz2*zdat(1, iz)*ydat(2, iy2)
+         force(3) = force(3) + fyz2*zdat(2, iz)*ydat(1, iy2)
       END DO ! Loop on y
 
       ! cleanup loop: check if the last loop element has done
@@ -113,12 +113,12 @@ SUBROUTINE integrate_gf_npbc(grid, xdat, ydat, zdat, bo, zlb, zub, ylb, yub, xlb
             g2 = grid(ix, iy2, iz)
             x1 = xdat(1, ix)
             x2 = xdat(2, ix)
-            fyz2 = fyz2+g2*x1
-            fx2 = fx2+g2*x2
+            fyz2 = fyz2 + g2*x1
+            fx2 = fx2 + g2*x2
          END DO ! Loop on x
-         force(1) = force(1)+fx2*zdat(1, iz)*ydat(1, iy2)
-         force(2) = force(2)+fyz2*zdat(1, iz)*ydat(2, iy2)
-         force(3) = force(3)+fyz2*zdat(2, iz)*ydat(1, iy2)
+         force(1) = force(1) + fx2*zdat(1, iz)*ydat(1, iy2)
+         force(2) = force(2) + fyz2*zdat(1, iz)*ydat(2, iy2)
+         force(3) = force(3) + fyz2*zdat(2, iz)*ydat(1, iy2)
       ENDIF
 
    END DO ! Loop on z

@@ -112,16 +112,16 @@ CONTAINS
 
             !       *** Screening ***
 
-            IF (rpgfa(ipgf)+rpgfb(jpgf) < dab) THEN
-               DO j = nb+ncoset(lb_min-1)+1, nb+ncoset(lb_max)
-                  DO i = na+ncoset(la_min-1)+1, na+ncoset(la_max)
+            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
+               DO j = nb + ncoset(lb_min - 1) + 1, nb + ncoset(lb_max)
+                  DO i = na + ncoset(la_min - 1) + 1, na + ncoset(la_max)
                      dabdx(i, j) = 0.0_dp
                      dabdy(i, j) = 0.0_dp
                      dabdz(i, j) = 0.0_dp
                   END DO
                END DO
-               nb = nb+ncoset(lb_max)
-               ndb = ndb+ncoset(lb_max+1)
+               nb = nb + ncoset(lb_max)
+               ndb = ndb + ncoset(lb_max + 1)
                CYCLE
             END IF
 
@@ -131,17 +131,17 @@ CONTAINS
 
                IF (la == 0) THEN
 
-                  coa = na+1
-                  coapx = nda+2
-                  coapy = nda+3
-                  coapz = nda+4
+                  coa = na + 1
+                  coapx = nda + 2
+                  coapy = nda + 3
+                  coapz = nda + 4
 
                   DO lb = 0, lb_max !lb_min,lb_max
                      DO bx = 0, lb
-                        DO by = 0, lb-bx
-                           bz = lb-bx-by
-                           cob = nb+coset(bx, by, bz)
-                           codb = ndb+coset(bx, by, bz)
+                        DO by = 0, lb - bx
+                           bz = lb - bx - by
+                           cob = nb + coset(bx, by, bz)
+                           codb = ndb + coset(bx, by, bz)
                            dabdx(coa, cob) = fa*ab(coapx, codb)
                            dabdy(coa, cob) = fa*ab(coapy, codb)
                            dabdz(coa, cob) = fa*ab(coapz, codb)
@@ -152,16 +152,16 @@ CONTAINS
                ELSE
 
                   DO ax = 0, la
-                     DO ay = 0, la-ax
-                        az = la-ax-ay
+                     DO ay = 0, la - ax
+                        az = la - ax - ay
 
-                        coa = na+coset(ax, ay, az)
-                        coamx = nda+coset(MAX(0, ax-1), ay, az)
-                        coamy = nda+coset(ax, MAX(0, ay-1), az)
-                        coamz = nda+coset(ax, ay, MAX(0, az-1))
-                        coapx = nda+coset(ax+1, ay, az)
-                        coapy = nda+coset(ax, ay+1, az)
-                        coapz = nda+coset(ax, ay, az+1)
+                        coa = na + coset(ax, ay, az)
+                        coamx = nda + coset(MAX(0, ax - 1), ay, az)
+                        coamy = nda + coset(ax, MAX(0, ay - 1), az)
+                        coamz = nda + coset(ax, ay, MAX(0, az - 1))
+                        coapx = nda + coset(ax + 1, ay, az)
+                        coapy = nda + coset(ax, ay + 1, az)
+                        coapz = nda + coset(ax, ay, az + 1)
 
                         fx = REAL(ax, dp)
                         fy = REAL(ay, dp)
@@ -169,13 +169,13 @@ CONTAINS
 
                         DO lb = 0, lb_max !lb_min,lb_max
                            DO bx = 0, lb
-                              DO by = 0, lb-bx
-                                 bz = lb-bx-by
-                                 cob = nb+coset(bx, by, bz)
-                                 codb = ndb+coset(bx, by, bz)
-                                 dabdx(coa, cob) = fa*ab(coapx, codb)-fx*ab(coamx, codb)
-                                 dabdy(coa, cob) = fa*ab(coapy, codb)-fy*ab(coamy, codb)
-                                 dabdz(coa, cob) = fa*ab(coapz, codb)-fz*ab(coamz, codb)
+                              DO by = 0, lb - bx
+                                 bz = lb - bx - by
+                                 cob = nb + coset(bx, by, bz)
+                                 codb = ndb + coset(bx, by, bz)
+                                 dabdx(coa, cob) = fa*ab(coapx, codb) - fx*ab(coamx, codb)
+                                 dabdy(coa, cob) = fa*ab(coapy, codb) - fy*ab(coamy, codb)
+                                 dabdz(coa, cob) = fa*ab(coapz, codb) - fz*ab(coamz, codb)
                               END DO
                            END DO
                         END DO
@@ -187,13 +187,13 @@ CONTAINS
 
             END DO
 
-            nb = nb+ncoset(lb_max)
-            ndb = ndb+ncoset(lb_max+1)
+            nb = nb + ncoset(lb_max)
+            ndb = ndb + ncoset(lb_max + 1)
 
          END DO
 
-         na = na+ncoset(la_max)
-         nda = nda+ncoset(la_max+1)
+         na = na + ncoset(la_max)
+         nda = nda + ncoset(la_max + 1)
 
       END DO
 
@@ -259,16 +259,16 @@ CONTAINS
 
             !       *** Screening ***
 
-            IF (rpgfa(ipgf)+rpgfb(jpgf) < dab) THEN
-               DO j = nb+ncoset(lb_min-1)+1, nb+ncoset(lb_max)
-                  DO i = na+ncoset(la_min-1)+1, na+ncoset(la_max)
+            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
+               DO j = nb + ncoset(lb_min - 1) + 1, nb + ncoset(lb_max)
+                  DO i = na + ncoset(la_min - 1) + 1, na + ncoset(la_max)
                      adbdx(i, j) = 0.0_dp
                      adbdy(i, j) = 0.0_dp
                      adbdz(i, j) = 0.0_dp
                   END DO
                END DO
-               nb = nb+ncoset(lb_max)
-               ndb = ndb+ncoset(lb_max+1)
+               nb = nb + ncoset(lb_max)
+               ndb = ndb + ncoset(lb_max + 1)
                CYCLE
             END IF
 
@@ -278,17 +278,17 @@ CONTAINS
 
                IF (lb == 0) THEN
 
-                  cob = nb+1
-                  cobpx = ndb+2
-                  cobpy = ndb+3
-                  cobpz = ndb+4
+                  cob = nb + 1
+                  cobpx = ndb + 2
+                  cobpy = ndb + 3
+                  cobpz = ndb + 4
 
                   DO la = 0, la_max !la_min,la_max
                      DO ax = 0, la
-                        DO ay = 0, la-ax
-                           az = la-ax-ay
-                           coa = na+coset(ax, ay, az)
-                           coda = nda+coset(ax, ay, az)
+                        DO ay = 0, la - ax
+                           az = la - ax - ay
+                           coa = na + coset(ax, ay, az)
+                           coda = nda + coset(ax, ay, az)
                            adbdx(coa, cob) = fb*ab(coda, cobpx)
                            adbdy(coa, cob) = fb*ab(coda, cobpy)
                            adbdz(coa, cob) = fb*ab(coda, cobpz)
@@ -298,16 +298,16 @@ CONTAINS
                ELSE
 
                   DO bx = 0, lb
-                     DO by = 0, lb-bx
-                        bz = lb-bx-by
+                     DO by = 0, lb - bx
+                        bz = lb - bx - by
 
-                        cob = nb+coset(bx, by, bz)
-                        cobmx = ndb+coset(MAX(0, bx-1), by, bz)
-                        cobmy = ndb+coset(bx, MAX(0, by-1), bz)
-                        cobmz = ndb+coset(bx, by, MAX(0, bz-1))
-                        cobpx = ndb+coset(bx+1, by, bz)
-                        cobpy = ndb+coset(bx, by+1, bz)
-                        cobpz = ndb+coset(bx, by, bz+1)
+                        cob = nb + coset(bx, by, bz)
+                        cobmx = ndb + coset(MAX(0, bx - 1), by, bz)
+                        cobmy = ndb + coset(bx, MAX(0, by - 1), bz)
+                        cobmz = ndb + coset(bx, by, MAX(0, bz - 1))
+                        cobpx = ndb + coset(bx + 1, by, bz)
+                        cobpy = ndb + coset(bx, by + 1, bz)
+                        cobpz = ndb + coset(bx, by, bz + 1)
 
                         fx = REAL(bx, dp)
                         fy = REAL(by, dp)
@@ -315,13 +315,13 @@ CONTAINS
 
                         DO la = 0, la_max !la_min,la_max
                            DO ax = 0, la
-                              DO ay = 0, la-ax
-                                 az = la-ax-ay
-                                 coa = na+coset(ax, ay, az)
-                                 coda = nda+coset(ax, ay, az)
-                                 adbdx(coa, cob) = fb*ab(coda, cobpx)-fx*ab(coda, cobmx)
-                                 adbdy(coa, cob) = fb*ab(coda, cobpy)-fy*ab(coda, cobmy)
-                                 adbdz(coa, cob) = fb*ab(coda, cobpz)-fz*ab(coda, cobmz)
+                              DO ay = 0, la - ax
+                                 az = la - ax - ay
+                                 coa = na + coset(ax, ay, az)
+                                 coda = nda + coset(ax, ay, az)
+                                 adbdx(coa, cob) = fb*ab(coda, cobpx) - fx*ab(coda, cobmx)
+                                 adbdy(coa, cob) = fb*ab(coda, cobpy) - fy*ab(coda, cobmy)
+                                 adbdz(coa, cob) = fb*ab(coda, cobpz) - fz*ab(coda, cobmz)
                               END DO
                            END DO
                         END DO
@@ -333,13 +333,13 @@ CONTAINS
 
             END DO
 
-            nb = nb+ncoset(lb_max)
-            ndb = ndb+ncoset(lb_max+1)
+            nb = nb + ncoset(lb_max)
+            ndb = ndb + ncoset(lb_max + 1)
 
          END DO
 
-         na = na+ncoset(la_max)
-         nda = nda+ncoset(la_max+1)
+         na = na + ncoset(la_max)
+         nda = nda + ncoset(la_max + 1)
 
       END DO
 
@@ -397,17 +397,17 @@ CONTAINS
 
                IF (la == 0) THEN
 
-                  coa = na+1
-                  coapx = nda+2
-                  coapy = nda+3
-                  coapz = nda+4
+                  coa = na + 1
+                  coapx = nda + 2
+                  coapy = nda + 3
+                  coapz = nda + 4
 
                   DO lb = 0, lb_max !lb_min,lb_max
                      DO bx = 0, lb
-                        DO by = 0, lb-bx
-                           bz = lb-bx-by
-                           cob = nb+coset(bx, by, bz)
-                           codb = ndb+coset(bx, by, bz)
+                        DO by = 0, lb - bx
+                           bz = lb - bx - by
+                           cob = nb + coset(bx, by, bz)
+                           codb = ndb + coset(bx, by, bz)
                            dabdx(coa, cob) = fa*ab(coapx, codb)
                            dabdy(coa, cob) = fa*ab(coapy, codb)
                            dabdz(coa, cob) = fa*ab(coapz, codb)
@@ -418,16 +418,16 @@ CONTAINS
                ELSE
 
                   DO ax = 0, la
-                     DO ay = 0, la-ax
-                        az = la-ax-ay
+                     DO ay = 0, la - ax
+                        az = la - ax - ay
 
-                        coa = na+coset(ax, ay, az)
-                        coamx = nda+coset(MAX(0, ax-1), ay, az)
-                        coamy = nda+coset(ax, MAX(0, ay-1), az)
-                        coamz = nda+coset(ax, ay, MAX(0, az-1))
-                        coapx = nda+coset(ax+1, ay, az)
-                        coapy = nda+coset(ax, ay+1, az)
-                        coapz = nda+coset(ax, ay, az+1)
+                        coa = na + coset(ax, ay, az)
+                        coamx = nda + coset(MAX(0, ax - 1), ay, az)
+                        coamy = nda + coset(ax, MAX(0, ay - 1), az)
+                        coamz = nda + coset(ax, ay, MAX(0, az - 1))
+                        coapx = nda + coset(ax + 1, ay, az)
+                        coapy = nda + coset(ax, ay + 1, az)
+                        coapz = nda + coset(ax, ay, az + 1)
 
                         fx = REAL(ax, dp)
                         fy = REAL(ay, dp)
@@ -435,13 +435,13 @@ CONTAINS
 
                         DO lb = 0, lb_max !lb_min,lb_max
                            DO bx = 0, lb
-                              DO by = 0, lb-bx
-                                 bz = lb-bx-by
-                                 cob = nb+coset(bx, by, bz)
-                                 codb = ndb+coset(bx, by, bz)
-                                 dabdx(coa, cob) = fa*ab(coapx, codb)-fx*ab(coamx, codb)
-                                 dabdy(coa, cob) = fa*ab(coapy, codb)-fy*ab(coamy, codb)
-                                 dabdz(coa, cob) = fa*ab(coapz, codb)-fz*ab(coamz, codb)
+                              DO by = 0, lb - bx
+                                 bz = lb - bx - by
+                                 cob = nb + coset(bx, by, bz)
+                                 codb = ndb + coset(bx, by, bz)
+                                 dabdx(coa, cob) = fa*ab(coapx, codb) - fx*ab(coamx, codb)
+                                 dabdy(coa, cob) = fa*ab(coapy, codb) - fy*ab(coamy, codb)
+                                 dabdz(coa, cob) = fa*ab(coapz, codb) - fz*ab(coamz, codb)
                               END DO
                            END DO
                         END DO
@@ -453,13 +453,13 @@ CONTAINS
 
             END DO
 
-            nb = nb+ncoset(lb_max)
-            ndb = ndb+ncoset(lb_max+1)
+            nb = nb + ncoset(lb_max)
+            ndb = ndb + ncoset(lb_max + 1)
 
          END DO
 
-         na = na+ncoset(la_max)
-         nda = nda+ncoset(la_max+1)
+         na = na + ncoset(la_max)
+         nda = nda + ncoset(la_max + 1)
 
       END DO
 

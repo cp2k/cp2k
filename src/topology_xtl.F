@@ -189,7 +189,7 @@ CONTAINS
       ! Parse real info
       natom = 0
       DO WHILE (INDEX(parser%input_line, "EOF") == 0)
-         natom = natom+1
+         natom = natom + 1
          ! Resize in case needed
          IF (natom > SIZE(atom_info%id_molname)) THEN
             newsize = INT(pfactor*natom)
@@ -228,9 +228,9 @@ CONTAINS
       ! check since they should be REALLY unique.. anyway..
       DO ii = 1, natom
          r1 = atom_info%r(1:3, ii)
-         DO jj = ii+1, natom
+         DO jj = ii + 1, natom
             r2 = atom_info%r(1:3, jj)
-            r = pbc(r1-r2, cell)
+            r = pbc(r1 - r2, cell)
             ! SQRT(DOT_PRODUCT(r, r)) >= threshold
             check = (DOT_PRODUCT(r, r) >= threshold2)
             CPASSERT(check)
@@ -256,18 +256,18 @@ CONTAINS
          isym = 0
          natom_orig = natom
          DO WHILE (found)
-            isym = isym+1
-            icol = INDEX(parser%input_line, "SYM MAT")+8
+            isym = isym + 1
+            icol = INDEX(parser%input_line, "SYM MAT") + 8
             READ (parser%input_line(icol:), *) ((rot_mat(ii, jj), jj=1, 3), ii=1, 3), transl_vec(1:3)
             Loop_over_unique_atoms: DO ii = 1, natom_orig
                ! Rotate and apply translation
                CALL matvec_3x3(r1, rot_mat, atom_info%r(1:3, ii))
-               r1 = r1+transl_vec
+               r1 = r1 + transl_vec
                ! Verify if this atom is really unique..
                check = .TRUE.
                DO jj = 1, natom
                   r2 = atom_info%r(1:3, jj)
-                  r = pbc(r1-r2, cell)
+                  r = pbc(r1 - r2, cell)
                   ! SQRT(DOT_PRODUCT(r, r)) <= threshold
                   IF (DOT_PRODUCT(r, r) <= threshold2) THEN
                      check = .FALSE.
@@ -276,7 +276,7 @@ CONTAINS
                END DO
                ! If the atom generated is unique let's add to the atom set..
                IF (check) THEN
-                  natom = natom+1
+                  natom = natom + 1
                   ! Resize in case needed
                   IF (natom > SIZE(atom_info%id_molname)) THEN
                      newsize = INT(pfactor*natom)

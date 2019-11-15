@@ -69,7 +69,7 @@ CONTAINS
       ALLOCATE (normalmode_env%x2u(p, p))
       ALLOCATE (normalmode_env%u2x(p, p))
       ALLOCATE (normalmode_env%lambda(p))
-      last_normalmode_id = last_normalmode_id+1
+      last_normalmode_id = last_normalmode_id + 1
       normalmode_env%id_nr = last_normalmode_id
       normalmode_env%ref_count = 1
 
@@ -95,12 +95,12 @@ CONTAINS
 
          ! set up the transformation matrices
          DO i = 1, p
-            normalmode_env%lambda(i) = 2.0_dp*(1.0_dp-COS(pi*(i/2)*2.0_dp/p))
+            normalmode_env%lambda(i) = 2.0_dp*(1.0_dp - COS(pi*(i/2)*2.0_dp/p))
             DO j = 1, p
-               k = ((i/2)*(j-1))/p
-               k = (i/2)*(j-1)-k*p
-               li = 2*(i-2*(i/2))*p-p
-               normalmode_env%u2x(j, i) = SQRT(2.0_dp/p)*SIN(twopi*(k+0.125_dp*li)/p)
+               k = ((i/2)*(j - 1))/p
+               k = (i/2)*(j - 1) - k*p
+               li = 2*(i - 2*(i/2))*p - p
+               normalmode_env%u2x(j, i) = SQRT(2.0_dp/p)*SIN(twopi*(k + 0.125_dp*li)/p)
             END DO
          END DO
          normalmode_env%lambda(1) = 1.0_dp/(p*normalmode_env%modefactor)
@@ -128,17 +128,17 @@ CONTAINS
          normalmode_env%x2u(:, :) = 0.0_dp
          normalmode_env%x2u(1, :) = invsqrtp
          DO j = 1, p
-            DO i = 2, p/2+1
-               normalmode_env%x2u(i, j) = sqrt2p*COS(twopip*(i-1)*(j-1))
+            DO i = 2, p/2 + 1
+               normalmode_env%x2u(i, j) = sqrt2p*COS(twopip*(i - 1)*(j - 1))
             END DO
-            DO i = p/2+2, p
-               normalmode_env%x2u(i, j) = sqrt2p*SIN(twopip*(i-1)*(j-1))
+            DO i = p/2 + 2, p
+               normalmode_env%x2u(i, j) = sqrt2p*SIN(twopip*(i - 1)*(j - 1))
             END DO
          END DO
          IF (MOD(p, 2) == 0) THEN
-            DO i = 1, p-1, 2
-               normalmode_env%x2u(p/2+1, i) = invsqrtp
-               normalmode_env%x2u(p/2+1, i+1) = -1.0_dp*invsqrtp
+            DO i = 1, p - 1, 2
+               normalmode_env%x2u(p/2 + 1, i) = invsqrtp
+               normalmode_env%x2u(p/2 + 1, i + 1) = -1.0_dp*invsqrtp
             END DO
          END IF
 
@@ -147,7 +147,7 @@ CONTAINS
          ! Setting up propagator frequencies for rpmd
          normalmode_env%lambda(1) = 0.0_dp
          DO i = 2, p
-            normalmode_env%lambda(i) = 2.0_dp*normalmode_env%harm*SIN((i-1)*pip)
+            normalmode_env%lambda(i) = 2.0_dp*normalmode_env%harm*SIN((i - 1)*pip)
             normalmode_env%lambda(i) = normalmode_env%lambda(i)*normalmode_env%lambda(i)
          END DO
          normalmode_env%harm = kT*kT
@@ -172,7 +172,7 @@ CONTAINS
 
       IF (ASSOCIATED(normalmode_env)) THEN
          CPASSERT(normalmode_env%ref_count > 0)
-         normalmode_env%ref_count = normalmode_env%ref_count-1
+         normalmode_env%ref_count = normalmode_env%ref_count - 1
          IF (normalmode_env%ref_count == 0) THEN
             DEALLOCATE (normalmode_env%x2u)
             DEALLOCATE (normalmode_env%u2x)
@@ -199,7 +199,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(normalmode_env))
       CPASSERT(normalmode_env%ref_count > 0)
-      normalmode_env%ref_count = normalmode_env%ref_count+1
+      normalmode_env%ref_count = normalmode_env%ref_count + 1
 
       RETURN
    END SUBROUTINE normalmode_retain
@@ -353,7 +353,7 @@ CONTAINS
             f = -mass_beads(ibead, idim)*normalmode_env%lambda(ibead)*ux(ibead, idim)
             uf_h(ibead, idim) = f
             ! - to cancel the - in the force f.
-            e_h = e_h-0.5_dp*ux(ibead, idim)*f
+            e_h = e_h - 0.5_dp*ux(ibead, idim)*f
          END DO
 
       END DO

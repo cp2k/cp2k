@@ -94,47 +94,47 @@ CONTAINS
       INTEGER                                            :: i, j
 
       DO i = 1, 3
-         DO j = 1, i-1
+         DO j = 1, i - 1
             ! Symmetrize total
-            virial%pv_total(j, i) = (virial%pv_total(i, j)+virial%pv_total(j, i))*0.5_dp
+            virial%pv_total(j, i) = (virial%pv_total(i, j) + virial%pv_total(j, i))*0.5_dp
             virial%pv_total(i, j) = virial%pv_total(j, i)
             ! Symmetrize Kinetic
-            virial%pv_kinetic(j, i) = (virial%pv_kinetic(i, j)+virial%pv_kinetic(j, i))*0.5_dp
+            virial%pv_kinetic(j, i) = (virial%pv_kinetic(i, j) + virial%pv_kinetic(j, i))*0.5_dp
             virial%pv_kinetic(i, j) = virial%pv_kinetic(j, i)
             ! Symmetrize Virial
-            virial%pv_virial(j, i) = (virial%pv_virial(i, j)+virial%pv_virial(j, i))*0.5_dp
+            virial%pv_virial(j, i) = (virial%pv_virial(i, j) + virial%pv_virial(j, i))*0.5_dp
             virial%pv_virial(i, j) = virial%pv_virial(j, i)
             ! Symmetrize XC
-            virial%pv_xc(j, i) = (virial%pv_xc(i, j)+virial%pv_xc(j, i))*0.5_dp
+            virial%pv_xc(j, i) = (virial%pv_xc(i, j) + virial%pv_xc(j, i))*0.5_dp
             virial%pv_xc(i, j) = virial%pv_xc(j, i)
 
             ! Symmetrize tensor parts
-            virial%pv_ekin(j, i) = (virial%pv_ekin(i, j)+virial%pv_ekin(j, i))*0.5_dp
+            virial%pv_ekin(j, i) = (virial%pv_ekin(i, j) + virial%pv_ekin(j, i))*0.5_dp
             virial%pv_ekin(i, j) = virial%pv_ekin(j, i)
             !
-            virial%pv_overlap(j, i) = (virial%pv_overlap(i, j)+virial%pv_overlap(j, i))*0.5_dp
+            virial%pv_overlap(j, i) = (virial%pv_overlap(i, j) + virial%pv_overlap(j, i))*0.5_dp
             virial%pv_overlap(i, j) = virial%pv_overlap(j, i)
             !
-            virial%pv_hartree(j, i) = (virial%pv_hartree(i, j)+virial%pv_hartree(j, i))*0.5_dp
+            virial%pv_hartree(j, i) = (virial%pv_hartree(i, j) + virial%pv_hartree(j, i))*0.5_dp
             virial%pv_hartree(i, j) = virial%pv_hartree(j, i)
             !
-            virial%pv_exc(j, i) = (virial%pv_exc(i, j)+virial%pv_exc(j, i))*0.5_dp
+            virial%pv_exc(j, i) = (virial%pv_exc(i, j) + virial%pv_exc(j, i))*0.5_dp
             virial%pv_exc(i, j) = virial%pv_exc(j, i)
             !
-            virial%pv_vdw(j, i) = (virial%pv_vdw(i, j)+virial%pv_vdw(j, i))*0.5_dp
+            virial%pv_vdw(j, i) = (virial%pv_vdw(i, j) + virial%pv_vdw(j, i))*0.5_dp
             virial%pv_vdw(i, j) = virial%pv_vdw(j, i)
             !
-            virial%pv_ppl(j, i) = (virial%pv_ppl(i, j)+virial%pv_ppl(j, i))*0.5_dp
+            virial%pv_ppl(j, i) = (virial%pv_ppl(i, j) + virial%pv_ppl(j, i))*0.5_dp
             virial%pv_ppl(i, j) = virial%pv_ppl(j, i)
             !
-            virial%pv_ppnl(j, i) = (virial%pv_ppnl(i, j)+virial%pv_ppnl(j, i))*0.5_dp
+            virial%pv_ppnl(j, i) = (virial%pv_ppnl(i, j) + virial%pv_ppnl(j, i))*0.5_dp
             virial%pv_ppnl(i, j) = virial%pv_ppnl(j, i)
             !
-            virial%pv_fock_4c(j, i) = (virial%pv_fock_4c(i, j)+virial%pv_fock_4c(j, i))*0.5_dp
+            virial%pv_fock_4c(j, i) = (virial%pv_fock_4c(i, j) + virial%pv_fock_4c(j, i))*0.5_dp
             virial%pv_fock_4c(i, j) = virial%pv_fock_4c(j, i)
 
             ! Symmetrize constraints
-            virial%pv_constraint(j, i) = (virial%pv_constraint(i, j)+virial%pv_constraint(j, i))*0.5_dp
+            virial%pv_constraint(j, i) = (virial%pv_constraint(i, j) + virial%pv_constraint(j, i))*0.5_dp
             virial%pv_constraint(i, j) = virial%pv_constraint(j, i)
          END DO
       END DO
@@ -245,7 +245,7 @@ CONTAINS
       ALLOCATE (virial)
 
       CALL zero_virial(virial)
-      last_virial_id_nr = last_virial_id_nr+1
+      last_virial_id_nr = last_virial_id_nr + 1
       virial%id_nr = last_virial_id_nr
       virial%ref_count = 1
    END SUBROUTINE virial_create
@@ -266,7 +266,7 @@ CONTAINS
 
       IF (ASSOCIATED(virial)) THEN
          CPASSERT(virial%ref_count > 0)
-         virial%ref_count = virial%ref_count-1
+         virial%ref_count = virial%ref_count - 1
          IF (virial%ref_count .EQ. 0) THEN
             DEALLOCATE (virial)
          ENDIF

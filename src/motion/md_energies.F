@@ -233,7 +233,7 @@ CONTAINS
          CALL force_env_get(force_env, potential_energy=md_ener%epot)
       ELSE
          md_ener%epot = reftraj%epot
-         md_ener%delta_epot = (reftraj%epot-reftraj%epot0)/REAL(reftraj%natom, kind=dp)*kelvin
+         md_ener%delta_epot = (reftraj%epot - reftraj%epot0)/REAL(reftraj%natom, kind=dp)*kelvin
       END IF
 
    END SUBROUTINE md_ener_reftraj
@@ -320,7 +320,7 @@ CONTAINS
       IF (virial%pv_availability) THEN
          pv_scalar = 0._dp
          DO i = 1, 3
-            pv_scalar = pv_scalar+virial%pv_total(i, i)
+            pv_scalar = pv_scalar + virial%pv_total(i, i)
          END DO
          pv_scalar = pv_scalar/3._dp/cell%deth
          pv_scalar = cp_unit_from_cp2k(pv_scalar, "bar")
@@ -357,17 +357,17 @@ CONTAINS
          ! Computing the Hugoniot for NPH calculations
          IF (simpar%ensemble == nph_uniaxial_ensemble .OR. &
              simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
-            IF (simpar%e0 == 0._dp) simpar%e0 = md_ener%epot+md_ener%ekin
-            hugoniot = md_ener%epot+md_ener%ekin-simpar%e0-0.5_dp*(pv_xx_nc+simpar%p0)* &
-                       (simpar%v0-cell%deth)
+            IF (simpar%e0 == 0._dp) simpar%e0 = md_ener%epot + md_ener%ekin
+            hugoniot = md_ener%epot + md_ener%ekin - simpar%e0 - 0.5_dp*(pv_xx_nc + simpar%p0)* &
+                       (simpar%v0 - cell%deth)
          ENDIF
 
          IF (simpar%ensemble == reftraj_ensemble) reftraj%init = init
       ELSE
          ! Performing protocol for anything beyond the first step of MD
          IF (simpar%ensemble == nph_uniaxial_ensemble .OR. simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
-            hugoniot = md_ener%epot+md_ener%ekin-simpar%e0-0.5_dp*(pv_xx_nc+simpar%p0)* &
-                       (simpar%v0-cell%deth)
+            hugoniot = md_ener%epot + md_ener%ekin - simpar%e0 - 0.5_dp*(pv_xx_nc + simpar%p0)* &
+                       (simpar%v0 - cell%deth)
          END IF
 
          IF (simpar%ensemble == reftraj_ensemble) THEN

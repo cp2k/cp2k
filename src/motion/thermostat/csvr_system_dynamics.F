@@ -251,8 +251,8 @@ CONTAINS
          imap = map_info%map_index(i)
          kin_energy_br = csvr%nvt(i)%region_kin_energy
          kin_energy_ar = map_info%s_kin(imap)
-         csvr%nvt(i)%thermostat_energy = csvr%nvt(i)%thermostat_energy+ &
-                                         0.5_dp*(kin_energy_br-kin_energy_ar)
+         csvr%nvt(i)%thermostat_energy = csvr%nvt(i)%thermostat_energy + &
+                                         0.5_dp*(kin_energy_br - kin_energy_ar)
       END DO
 
    END SUBROUTINE do_csvr_eval_energy

@@ -159,7 +159,7 @@ CONTAINS
          CPABORT("timer_env_retain: not associated")
       IF (timer_env%ref_count < 0) &
          CPABORT("timer_env_retain: negativ ref_count")
-      timer_env%ref_count = timer_env%ref_count+1
+      timer_env%ref_count = timer_env%ref_count + 1
    END SUBROUTINE timer_env_retain
 
 ! **************************************************************************************************
@@ -178,7 +178,7 @@ CONTAINS
          CPABORT("timer_env_release: not associated")
       IF (timer_env%ref_count < 0) &
          CPABORT("timer_env_release: negativ ref_count")
-      timer_env%ref_count = timer_env%ref_count-1
+      timer_env%ref_count = timer_env%ref_count - 1
       IF (timer_env%ref_count > 0) RETURN
 
       ! No more references left - let's tear down this timer_env...
@@ -248,9 +248,9 @@ CONTAINS
       ! update routine r_stats
       r_stat => list_get(timer_env%routine_stats, routine_id)
       stack_size = list_size(timer_env%callstack)
-      r_stat%total_calls = r_stat%total_calls+1
-      r_stat%active_calls = r_stat%active_calls+1
-      r_stat%stackdepth_accu = r_stat%stackdepth_accu+stack_size+1
+      r_stat%total_calls = r_stat%total_calls + 1
+      r_stat%active_calls = r_stat%active_calls + 1
+      r_stat%stackdepth_accu = r_stat%stackdepth_accu + stack_size + 1
 
       ! add routine to callstack
       cs_entry%routine_id = routine_id
@@ -259,14 +259,14 @@ CONTAINS
       !..if debug mode echo the subroutine name
       IF ((timer_env%trace_all .OR. r_stat%trace) .AND. &
           (r_stat%total_calls < timer_env%trace_max)) THEN
-         WRITE (sformat, *) "(A,A,", MAX(1, 3*stack_size-4), "X,I4,1X,I6,1X,A,A)"
-         WRITE (mystring, sformat) timer_env%trace_str, ">>", stack_size+1, &
+         WRITE (sformat, *) "(A,A,", MAX(1, 3*stack_size - 4), "X,I4,1X,I6,1X,A,A)"
+         WRITE (mystring, sformat) timer_env%trace_str, ">>", stack_size + 1, &
             r_stat%total_calls, TRIM(r_stat%routineN), "       start"
          CALL cuda_mem_info(gpumem_free, gpumem_total)
          CALL m_memory(cpumem)
          WRITE (line, '(A,A,I0,A,A,I0,A)') TRIM(mystring), &
-            " Hostmem: ", (cpumem+1024*1024-1)/(1024*1024), " MB", &
-            " GPUmem: ", (gpumem_total-gpumem_free)/(1024*1024), " MB"
+            " Hostmem: ", (cpumem + 1024*1024 - 1)/(1024*1024), " MB", &
+            " GPUmem: ", (gpumem_total - gpumem_free)/(1024*1024), " MB"
          WRITE (timer_env%trace_unit, *) TRIM(line)
          CALL m_flush(timer_env%trace_unit)
       END IF
@@ -329,28 +329,28 @@ CONTAINS
          wt_now = m_walltime()
          en_now = m_energy()
          ! add the elapsed time for this timeset/timestop to the time accumulator
-         wt_elapsed = wt_now-cs_entry%walltime_start
-         en_elapsed = en_now-cs_entry%energy_start
+         wt_elapsed = wt_now - cs_entry%walltime_start
+         en_elapsed = en_now - cs_entry%energy_start
       ENDIF
-      r_stat%active_calls = r_stat%active_calls-1
+      r_stat%active_calls = r_stat%active_calls - 1
 
       ! if we're the last instance in the stack, we do the accounting of the total time
       IF (r_stat%active_calls == 0) THEN
-         r_stat%incl_walltime_accu = r_stat%incl_walltime_accu+wt_elapsed
-         r_stat%incl_energy_accu = r_stat%incl_energy_accu+en_elapsed
+         r_stat%incl_walltime_accu = r_stat%incl_walltime_accu + wt_elapsed
+         r_stat%incl_energy_accu = r_stat%incl_energy_accu + en_elapsed
       ENDIF
 
       ! exclusive time we always sum, since children will correct this time with their total time
-      r_stat%excl_walltime_accu = r_stat%excl_walltime_accu+wt_elapsed
-      r_stat%excl_energy_accu = r_stat%excl_energy_accu+en_elapsed
+      r_stat%excl_walltime_accu = r_stat%excl_walltime_accu + wt_elapsed
+      r_stat%excl_energy_accu = r_stat%excl_energy_accu + en_elapsed
 
       stack_size = list_size(timer_env%callstack)
       IF (stack_size > 0) THEN
          prev_cs_entry = list_peek(timer_env%callstack)
          prev_stat => list_get(timer_env%routine_stats, prev_cs_entry%routine_id)
          ! we fixup the clock of the caller
-         prev_stat%excl_walltime_accu = prev_stat%excl_walltime_accu-wt_elapsed
-         prev_stat%excl_energy_accu = prev_stat%excl_energy_accu-en_elapsed
+         prev_stat%excl_walltime_accu = prev_stat%excl_walltime_accu - wt_elapsed
+         prev_stat%excl_energy_accu = prev_stat%excl_energy_accu - en_elapsed
 
          !update callgraph
          routine_tuple = (/prev_cs_entry%routine_id, routine_id/)
@@ -362,22 +362,22 @@ CONTAINS
             c_stat%incl_energy_accu = 0.0_dp
             CALL callgraph_set(timer_env%callgraph, routine_tuple, c_stat)
          END IF
-         c_stat%total_calls = c_stat%total_calls+1
-         c_stat%incl_walltime_accu = c_stat%incl_walltime_accu+wt_elapsed
-         c_stat%incl_energy_accu = c_stat%incl_energy_accu+en_elapsed
+         c_stat%total_calls = c_stat%total_calls + 1
+         c_stat%incl_walltime_accu = c_stat%incl_walltime_accu + wt_elapsed
+         c_stat%incl_energy_accu = c_stat%incl_energy_accu + en_elapsed
       ENDIF
 
       !..if debug mode echo the subroutine name
       IF ((timer_env%trace_all .OR. r_stat%trace) .AND. &
           (r_stat%total_calls < timer_env%trace_max)) THEN
-         WRITE (sformat, *) "(A,A,", MAX(1, 3*stack_size-4), "X,I4,1X,I6,1X,A,F12.3)"
-         WRITE (mystring, sformat) timer_env%trace_str, "<<", stack_size+1, &
+         WRITE (sformat, *) "(A,A,", MAX(1, 3*stack_size - 4), "X,I4,1X,I6,1X,A,F12.3)"
+         WRITE (mystring, sformat) timer_env%trace_str, "<<", stack_size + 1, &
             r_stat%total_calls, TRIM(r_stat%routineN), wt_elapsed
          CALL cuda_mem_info(gpumem_free, gpumem_total)
          CALL m_memory(cpumem)
          WRITE (line, '(A,A,I0,A,A,I0,A)') TRIM(mystring), &
-            " Hostmem: ", (cpumem+1024*1024-1)/(1024*1024), " MB", &
-            " GPUmem: ", (gpumem_total-gpumem_free)/(1024*1024), " MB"
+            " Hostmem: ", (cpumem + 1024*1024 - 1)/(1024*1024), " MB", &
+            " GPUmem: ", (gpumem_total - gpumem_free)/(1024*1024), " MB"
          WRITE (timer_env%trace_unit, *) TRIM(line)
          CALL m_flush(timer_env%trace_unit)
       ENDIF
@@ -486,7 +486,7 @@ CONTAINS
       END IF
 
       ! register routine_name_dsl with new routine_id
-      routine_id = routine_map_size(timer_env%routine_names)+1
+      routine_id = routine_map_size(timer_env%routine_names) + 1
       CALL routine_map_set(timer_env%routine_names, routineN, routine_id)
 
       ALLOCATE (r_stat)

@@ -94,7 +94,7 @@ CONTAINS
 
       IF (ASSOCIATED(spline_env)) THEN
          CPASSERT(spline_env%ref_count > 0)
-         spline_env%ref_count = spline_env%ref_count-1
+         spline_env%ref_count = spline_env%ref_count - 1
          IF (spline_env%ref_count < 1) THEN
             DEALLOCATE (spline_env%spltab)
             DO i = 1, SIZE(spline_env%spl_pp)
@@ -121,7 +121,7 @@ CONTAINS
 
       IF (ASSOCIATED(spline_data)) THEN
          CPASSERT(spline_data%ref_count > 0)
-         spline_data%ref_count = spline_data%ref_count-1
+         spline_data%ref_count = spline_data%ref_count - 1
          IF (spline_data%ref_count < 1) THEN
             IF (ASSOCIATED(spline_data%y)) THEN
                DEALLOCATE (spline_data%y)
@@ -174,7 +174,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(spline_data))
       CPASSERT(spline_data%ref_count > 0)
-      spline_data%ref_count = spline_data%ref_count+1
+      spline_data%ref_count = spline_data%ref_count + 1
    END SUBROUTINE spline_data_retain
 
 ! **************************************************************************************************
@@ -211,7 +211,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(spline_env))
       CPASSERT(spline_env%ref_count > 0)
-      spline_env%ref_count = spline_env%ref_count+1
+      spline_env%ref_count = spline_env%ref_count + 1
    END SUBROUTINE spline_env_retain
 
 ! **************************************************************************************************
@@ -240,13 +240,13 @@ CONTAINS
       NULLIFY (spline_env%spl_pp)
       NULLIFY (spline_env%spltab)
       spline_env%ref_count = 1
-      last_spline_env_id_nr = last_spline_env_id_nr+1
+      last_spline_env_id_nr = last_spline_env_id_nr + 1
       spline_env%id_nr = last_spline_env_id_nr
       ! Allocate the number of spline data tables (upper triangular)
       IF (PRESENT(ntab_in)) THEN
          ntab = ntab_in
       ELSE
-         ntab = (ntype*ntype+ntype)/2
+         ntab = (ntype*ntype + ntype)/2
       END IF
       ALLOCATE (spline_env%spl_pp(ntab))
 
@@ -344,7 +344,7 @@ CONTAINS
 
       ALLOCATE (spline_data)
       spline_data%ref_count = 1
-      last_spline_data_id_nr = last_spline_data_id_nr+1
+      last_spline_data_id_nr = last_spline_data_id_nr + 1
       spline_data%id_nr = last_spline_data_id_nr
       NULLIFY (spline_data%y)
       NULLIFY (spline_data%y2)

@@ -223,7 +223,7 @@ CONTAINS
       CALL cp_para_env_retain(para_env)
       embed_env%para_env => para_env
       embed_env%ref_count = 1
-      last_embed_env_id_nr = last_embed_env_id_nr+1
+      last_embed_env_id_nr = last_embed_env_id_nr + 1
       embed_env%id_nr = last_embed_env_id_nr
 
    END SUBROUTINE init_embed_env
@@ -351,7 +351,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(embed_env))
       CPASSERT(embed_env%ref_count > 0)
-      embed_env%ref_count = embed_env%ref_count+1
+      embed_env%ref_count = embed_env%ref_count + 1
    END SUBROUTINE embed_env_retain
 
 ! **************************************************************************************************
@@ -369,7 +369,7 @@ CONTAINS
 
       IF (ASSOCIATED(embed_env)) THEN
          CPASSERT(embed_env%ref_count > 0)
-         embed_env%ref_count = embed_env%ref_count-1
+         embed_env%ref_count = embed_env%ref_count - 1
          IF (embed_env%ref_count < 1) THEN
             ngroups = SIZE(embed_env%sub_para_env)
             DO i = 1, ngroups

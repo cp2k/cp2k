@@ -192,11 +192,11 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: tc_section, vc_section
 
       CALL timeset(routineN, handle)
-      ndig = CEILING(LOG10(REAL(neb_env%number_of_replica+1, KIND=dp)))
+      ndig = CEILING(LOG10(REAL(neb_env%number_of_replica + 1, KIND=dp)))
       CALL force_env_get(neb_env%force_env, cell=cell)
       DO irep = 1, neb_env%number_of_replica
-         ndigl = CEILING(LOG10(REAL(irep+1, KIND=dp)))
-         WRITE (line, '(A,'//cp_to_string(ndig)//'("0"),T'//cp_to_string(11+ndig+1-ndigl)//',I0)') "Replica_nr_", irep
+         ndigl = CEILING(LOG10(REAL(irep + 1, KIND=dp)))
+         WRITE (line, '(A,'//cp_to_string(ndig)//'("0"),T'//cp_to_string(11 + ndig + 1 - ndigl)//',I0)') "Replica_nr_", irep
          crd = cp_print_key_unit_nr(logger, neb_env%motion_print_section, "TRAJECTORY", &
                                     extension=".xyz", file_form="FORMATTED", middle_name="pos-"//TRIM(line))
          IF (PRESENT(vels)) THEN
@@ -319,11 +319,11 @@ CONTAINS
                ' REPLICA TEMPERATURES (K)      =', temperatures(1:MIN(4, SIZE(temperatures)))
             DO i = 5, SIZE(temperatures), 4
                WRITE (output_unit, '( T33,4(1X,F11.5))') &
-                  temperatures(i:MIN(i+3, SIZE(temperatures)))
+                  temperatures(i:MIN(i + 3, SIZE(temperatures)))
             END DO
          END IF
          WRITE (output_unit, '( A,T56,F25.14)') &
-            ' BAND TOTAL ENERGY [au]        =', SUM(energies(:)+ekin(:))+ &
+            ' BAND TOTAL ENERGY [au]        =', SUM(energies(:) + ekin(:)) + &
             neb_env%spring_energy
          WRITE (output_unit, FMT='(A,A)') ' **************************************', &
             '*****************************************'
@@ -334,7 +334,7 @@ CONTAINS
       ener = cp_print_key_unit_nr(logger, neb_env%neb_section, "ENERGY", &
                                   extension=".ener", file_form="FORMATTED")
       IF (ener > 0) THEN
-         WRITE (line, '(I0)') 2*neb_env%number_of_replica-1
+         WRITE (line, '(I0)') 2*neb_env%number_of_replica - 1
          WRITE (ener, '(I10,'//TRIM(line)//'(1X,F20.9))') istep, &
             energies, distances
       END IF
@@ -419,7 +419,7 @@ CONTAINS
                               handle=handle2)
       logger => cp_get_default_logger()
       CALL force_env_get(f_env%force_env, root_section=root_section)
-      j = irep+(rep_env%local_rep_indices(1)-1)
+      j = irep + (rep_env%local_rep_indices(1) - 1)
       ! Get replica_project_name
       replica_proj_name = get_replica_project_name(rep_env, n_rep, j)
       lp = LEN_TRIM(replica_proj_name)
@@ -444,7 +444,7 @@ CONTAINS
          WRITE (UNIT=logger%default_global_unit_nr, FMT="(T2,A,T79,A)") "**", "**"
          WRITE (UNIT=logger%default_global_unit_nr, FMT="(T2,A,T79,A)") "**", "**"
          WRITE (UNIT=logger%default_global_unit_nr, FMT="(T2,A,I5,T41,A,I5,T79,A)") &
-            "** Replica Env Nr. :", rep_env%local_rep_indices(1)-1, "Replica Band Nr. :", j, "**"
+            "** Replica Env Nr. :", rep_env%local_rep_indices(1) - 1, "Replica Band Nr. :", j, "**"
          WRITE (UNIT=logger%default_global_unit_nr, FMT="(T2,A,I5,T79,A)") &
             "** Band  Step  Nr. :", istep, "**"
          WRITE (UNIT=logger%default_global_unit_nr, FMT="(T2,A79)") &
@@ -455,7 +455,7 @@ CONTAINS
       SELECT CASE (f_env%force_env%in_use)
       CASE (use_mixed_force)
          DO i = 1, f_env%force_env%mixed_env%ngroups
-            IF (MODULO(i-1, f_env%force_env%mixed_env%ngroups) == &
+            IF (MODULO(i - 1, f_env%force_env%mixed_env%ngroups) == &
                 f_env%force_env%mixed_env%group_distribution(f_env%force_env%mixed_env%para_env%mepos)) THEN
                sub_logger => f_env%force_env%mixed_env%sub_logger(i)%p
                sub_logger%iter_info%project_name = replica_proj_name(1:lp)//"-r-"//TRIM(ADJUSTL(cp_to_string(i)))
@@ -502,15 +502,15 @@ CONTAINS
 
       replica_proj_name = rep_env%original_project_name
       ! Find padding
-      ndigits = CEILING(LOG10(REAL(n_rep+1, KIND=dp)))- &
-                CEILING(LOG10(REAL(j+1, KIND=dp)))
+      ndigits = CEILING(LOG10(REAL(n_rep + 1, KIND=dp))) - &
+                CEILING(LOG10(REAL(j + 1, KIND=dp)))
       padding = ""
       DO i = 1, ndigits
          padding(i:i) = "0"
       END DO
       lp = LEN_TRIM(replica_proj_name)
-      replica_proj_name(lp+1:LEN(replica_proj_name)) = "-BAND"// &
-                                                       TRIM(padding)//ADJUSTL(cp_to_string(j))
+      replica_proj_name(lp + 1:LEN(replica_proj_name)) = "-BAND"// &
+                                                         TRIM(padding)//ADJUSTL(cp_to_string(j))
    END FUNCTION get_replica_project_name
 
 ! **************************************************************************************************
@@ -546,16 +546,16 @@ CONTAINS
             "**                  MAPPING OF BAND REPLICA TO REPLICA ENV                   **", &
             "*******************************************************************************"
          WRITE (UNIT=output_unit, FMT='(T2,A,I6,T32,A,T79,A)') &
-            "** Replica Env Nr.: ", rep_env%local_rep_indices(1)-1, &
+            "** Replica Env Nr.: ", rep_env%local_rep_indices(1) - 1, &
             "working on the following BAND replicas", "**"
          WRITE (UNIT=output_unit, FMT='(T2,A79)') &
             "**                                                                           **"
       END IF
       DO irep = 1, n_rep_neb, n_rep
-         replica_proj_name = get_replica_project_name(rep_env, n_rep_neb, irep+rep_env%local_rep_indices(1)-1)
+         replica_proj_name = get_replica_project_name(rep_env, n_rep_neb, irep + rep_env%local_rep_indices(1) - 1)
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT='(T2,A,I6,T32,A,T79,A)') &
-               "** Band Replica   Nr.: ", irep+rep_env%local_rep_indices(1)-1, &
+               "** Band Replica   Nr.: ", irep + rep_env%local_rep_indices(1) - 1, &
                "Output available on file: "//TRIM(replica_proj_name)//".out", "**"
          END IF
       END DO

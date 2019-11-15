@@ -382,7 +382,7 @@ CONTAINS
 
       ! This sets the id number of the qs neighbor lists, new lists, means new version
       ! new version implies new sparsity of the matrices
-      last_qs_neighbor_list_id_nr = last_qs_neighbor_list_id_nr+1
+      last_qs_neighbor_list_id_nr = last_qs_neighbor_list_id_nr + 1
       CALL set_ks_env(ks_env=ks_env, neighbor_list_id=last_qs_neighbor_list_id_nr)
 
       CALL get_ks_env(ks_env=ks_env, &
@@ -650,7 +650,7 @@ CONTAINS
             ELSE
                CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
             END IF
-            pair_radius = pair_radius+roperator
+            pair_radius = pair_radius + roperator
          ELSE
             CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
          END IF
@@ -1138,7 +1138,7 @@ CONTAINS
          DO jkind = 1, nkind
             IF (.NOT. pres_b(jkind)) CYCLE
 
-            iab = ikind+nkind*(jkind-1)
+            iab = ikind + nkind*(jkind - 1)
 
             ! Calculate the square of the maximum interaction distance
             IF (pair_radius(ikind, jkind) <= 0._dp) CYCLE
@@ -1169,7 +1169,7 @@ CONTAINS
                                               0.5_dp*subcells*subcell_scale/sab_max_guard(:))))
 
             ! number of image cells to be considered
-            ncell(:) = (INT(sab_max(:))+1)*periodic(:)
+            ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
 
             CALL allocate_neighbor_list_set(neighbor_list_set=ab_list(iab)%neighbor_list_set, &
                                             symmetric=my_symmetric)
@@ -1189,12 +1189,12 @@ CONTAINS
                atom_a = atom(ikind)%list(iatom)
                r = r_pbc(:, atom_a)
                CALL give_ijk_subcell(r, i, j, k, cell, nsubcell)
-               subcell(i, j, k)%natom = subcell(i, j, k)%natom+1
+               subcell(i, j, k)%natom = subcell(i, j, k)%natom + 1
             END DO
             DO k = 1, nsubcell(3)
                DO j = 1, nsubcell(2)
                   DO i = 1, nsubcell(1)
-                     maxat = subcell(i, j, k)%natom+subcell(i, j, k)%natom/10
+                     maxat = subcell(i, j, k)%natom + subcell(i, j, k)%natom/10
                      ALLOCATE (subcell(i, j, k)%atom_list(maxat))
                      subcell(i, j, k)%natom = 0
                   END DO
@@ -1205,7 +1205,7 @@ CONTAINS
                atom_a = atom(ikind)%list(iatom)
                r = r_pbc(:, atom_a)
                CALL give_ijk_subcell(r, i, j, k, cell, nsubcell)
-               subcell(i, j, k)%natom = subcell(i, j, k)%natom+1
+               subcell(i, j, k)%natom = subcell(i, j, k)%natom + 1
                subcell(i, j, k)%atom_list(subcell(i, j, k)%natom) = iatom_local
             END DO
 
@@ -1225,9 +1225,9 @@ CONTAINS
                CALL real_to_scaled(sb_pbc(:), r(:), cell)
 
                loop2_kcell: DO kcell = -ncell(3), ncell(3)
-                  sb(3) = sb_pbc(3)+REAL(kcell, dp)
-                  sb_min(3) = sb(3)-sab_max(3)
-                  sb_max(3) = sb(3)+sab_max(3)
+                  sb(3) = sb_pbc(3) + REAL(kcell, dp)
+                  sb_min(3) = sb(3) - sab_max(3)
+                  sb_max(3) = sb(3) + sab_max(3)
                   IF (periodic(3) /= 0) THEN
                      IF (sb_min(3) >= 0.5_dp) EXIT loop2_kcell
                      IF (sb_max(3) < -0.5_dp) CYCLE loop2_kcell
@@ -1235,9 +1235,9 @@ CONTAINS
                   cell_b(3) = kcell
 
                   loop2_jcell: DO jcell = -ncell(2), ncell(2)
-                     sb(2) = sb_pbc(2)+REAL(jcell, dp)
-                     sb_min(2) = sb(2)-sab_max(2)
-                     sb_max(2) = sb(2)+sab_max(2)
+                     sb(2) = sb_pbc(2) + REAL(jcell, dp)
+                     sb_min(2) = sb(2) - sab_max(2)
+                     sb_max(2) = sb(2) + sab_max(2)
                      IF (periodic(2) /= 0) THEN
                         IF (sb_min(2) >= 0.5_dp) EXIT loop2_jcell
                         IF (sb_max(2) < -0.5_dp) CYCLE loop2_jcell
@@ -1245,9 +1245,9 @@ CONTAINS
                      cell_b(2) = jcell
 
                      loop2_icell: DO icell = -ncell(1), ncell(1)
-                        sb(1) = sb_pbc(1)+REAL(icell, dp)
-                        sb_min(1) = sb(1)-sab_max(1)
-                        sb_max(1) = sb(1)+sab_max(1)
+                        sb(1) = sb_pbc(1) + REAL(icell, dp)
+                        sb_min(1) = sb(1) - sab_max(1)
+                        sb_max(1) = sb(1) + sab_max(1)
                         IF (periodic(1) /= 0) THEN
                            IF (sb_min(1) >= 0.5_dp) EXIT loop2_icell
                            IF (sb_max(1) < -0.5_dp) CYCLE loop2_icell
@@ -1289,9 +1289,9 @@ CONTAINS
                                     END IF
                                     IF (my_symmetric) THEN
                                        IF (atom_a > atom_b) THEN
-                                          include_ab = (MODULO(atom_a+atom_b, 2) /= 0)
+                                          include_ab = (MODULO(atom_a + atom_b, 2) /= 0)
                                        ELSE
-                                          include_ab = (MODULO(atom_a+atom_b, 2) == 0)
+                                          include_ab = (MODULO(atom_a + atom_b, 2) == 0)
                                        END IF
                                        IF (my_sort_atomb) THEN
                                           IF ((.NOT. ANY(atomb_to_keep == atom_b)) .AND. &
@@ -1304,15 +1304,15 @@ CONTAINS
                                     END IF
                                     IF (include_ab) THEN
                                        ra(:) = r_pbc(:, atom_a)
-                                       rab(:) = rb(:)-ra(:)
-                                       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+                                       rab(:) = rb(:) - ra(:)
+                                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                                        IF (rab2 < rab2_max) THEN
                                           include_ab = .TRUE.
                                           IF (my_mic) THEN
                                              ! only if rab is minimum image the pair will be included
                                              ! ideally the range of the pair list is < L/2 so that this never triggers
                                              rab_pbc(:) = pbc(rab(:), cell)
-                                             IF (SUM((rab_pbc-rab)**2) > EPSILON(1.0_dp)) THEN
+                                             IF (SUM((rab_pbc - rab)**2) > EPSILON(1.0_dp)) THEN
                                                 include_ab = .FALSE.
                                              ENDIF
                                           ENDIF
@@ -1513,7 +1513,7 @@ CONTAINS
          nb = 0
       END IF
 
-      ALLOCATE (list(na+nb))
+      ALLOCATE (list(na + nb))
 
       n = na
       IF (na .GT. 0) list(1:na) = lista(1:na)
@@ -1522,7 +1522,7 @@ CONTAINS
             DO i = 1, na
                IF (listb(ib) == list(i)) CYCLE loopb
             END DO
-            n = n+1
+            n = n + 1
             list(n) = listb(ib)
          END DO loopb
       ENDIF
@@ -1556,7 +1556,7 @@ CONTAINS
          IF (.NOT. present_a(i)) CYCLE
          DO j = 1, nkind
             IF (.NOT. present_b(j)) CYCLE
-            pair_radius(i, j) = radius_a(i)+radius_b(j)
+            pair_radius(i, j) = radius_a(i) + radius_b(j)
          END DO
       END DO
 
@@ -1594,7 +1594,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       group = para_env%group
-      mype = para_env%mepos+1
+      mype = para_env%mepos + 1
       npe = para_env%num_pe
 
       ! Allocate work storage
@@ -1616,8 +1616,8 @@ CONTAINS
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, nnode=nnode)
          IF (inode == 1) THEN
             n = nnsgf(ikind)*nnsgf(jkind)
-            nblock(mype) = nblock(mype)+nnode
-            nelement(mype) = nelement(mype)+n*nnode
+            nblock(mype) = nblock(mype) + nnode
+            nelement(mype) = nelement(mype) + n*nnode
          END IF
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
@@ -1648,16 +1648,16 @@ CONTAINS
                    FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T27,I10,T55,I10))") &
                "DISTRIBUTION OF THE NEIGHBOR LISTS", &
                "Process   Number of particle pairs   Number of matrix elements", &
-               (ipe-1, nblock(ipe), nelement(ipe), ipe=1, npe)
+               (ipe - 1, nblock(ipe), nelement(ipe), ipe=1, npe)
             WRITE (UNIT=output_unit, FMT="(/,T7,A3,T27,I10,T55,I10)") &
                "Sum", SUM(nblock), SUM(nelement)
          ELSE
             WRITE (UNIT=output_unit, FMT="(/,T2,A)") "DISTRIBUTION OF THE NEIGHBOR LISTS"
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Total number of particle pairs:", nblock_sum
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Total number of matrix elements:", nelement_sum
-            WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Average number of particle pairs:", (nblock_sum+npe-1)/npe
+            WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Average number of particle pairs:", (nblock_sum + npe - 1)/npe
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Maximum number of particle pairs:", nblock_max
-            WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Average number of matrix element:", (nelement_sum+npe-1)/npe
+            WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Average number of matrix element:", (nelement_sum + npe - 1)/npe
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Maximum number of matrix elements:", nelement_max
          ENDIF
       END IF
@@ -1738,10 +1738,10 @@ CONTAINS
          DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
             CALL get_iterator_info(nl_iterator, inode=inode, nnode=nnode, &
                                    iatom=iatom, jatom=jatom, cell=cell_b, r=rab)
-            nneighbor = nneighbor+1
+            nneighbor = nneighbor + 1
             ra(:) = pbc(particle_set(iatom)%r, cell)
-            rb(:) = ra(:)+rab(:)
-            dab = SQRT(rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3))
+            rb(:) = ra(:) + rab(:)
+            dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
             IF (iw > 0) THEN
                IF (inode == 1) THEN
                   WRITE (UNIT=iw, FMT="(/,T2,I5,3X,I6,3X,3F12.6)") &

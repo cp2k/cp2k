@@ -148,7 +148,7 @@ CONTAINS
 
       IF (ASSOCIATED(array_b)) THEN
          CPASSERT(ASSOCIATED(array_a))
-         array_a = array_a+array_b
+         array_a = array_a + array_b
       END IF
 
    END SUBROUTINE atprop_array_add

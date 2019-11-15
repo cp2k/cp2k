@@ -188,7 +188,7 @@ CONTAINS
       CALL dbcsr_create(matrix_ia_jnu, template=mo_coeff_o)
 
       ! Allocate Sparse matrices: (ia|jb)
-      CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb, template=mo_coeff_o, m=homo, n=nmo-homo, &
+      CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb, template=mo_coeff_o, m=homo, n=nmo - homo, &
                                          sym=dbcsr_type_no_symmetry)
 
       ! set all to zero in such a way that the memory is actually allocated
@@ -232,10 +232,10 @@ CONTAINS
          CALL dbcsr_create(matrix_ia_jnu_beta, template=mo_coeff_o_beta)
 
          ! Allocate Sparse matrices: (ia|jb)
-         CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb_beta, template=mo_coeff_o_beta, m=homo_beta, n=nmo-homo_beta, &
+         CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb_beta, template=mo_coeff_o_beta, m=homo_beta, n=nmo - homo_beta, &
                                             sym=dbcsr_type_no_symmetry)
 
-         virtual_beta = nmo-homo_beta
+         virtual_beta = nmo - homo_beta
 
          CALL dbcsr_set(matrix_ia_jnu_beta, 0.0_dp)
          CALL dbcsr_set(matrix_ia_jb_beta, 0.0_dp)
@@ -245,7 +245,7 @@ CONTAINS
       CALL prepare_gpw(qs_env, dft_control, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_sub, pw_env_sub, &
                        auxbas_pw_pool, poisson_env, task_list_sub, rho_r, rho_g, pot_g, psi_a, sab_orb_sub)
 
-      virtual = nmo-homo
+      virtual = nmo - homo
 
       wfn_size = REAL(SIZE(rho_r%pw%cr3d), KIND=dp)
       CALL mp_max(wfn_size, para_env%group)
@@ -272,12 +272,12 @@ CONTAINS
          mem_min, ' MB'
 
       CALL m_memory(mem)
-      mem_real = (mem+1024*1024-1)/(1024*1024)
+      mem_real = (mem + 1024*1024 - 1)/(1024*1024)
       ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
       ! has not been given back to the OS yet.
       CALL mp_min(mem_real, para_env%group)
 
-      mem_real = mp2_memory-mem_real
+      mem_real = mp2_memory - mem_real
       mem_real = MAX(mem_real, mem_min)
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T69,F9.2,A3)') 'Available memory per MPI process for MP2:', &
          mem_real, ' MB'
@@ -290,7 +290,7 @@ CONTAINS
          CALL estimate_memory_usage(wfn_size, p, q, para_env_sub%num_pe, nmo, virtual, homo, calc_ex, mem_try)
 
          IF (mem_try > mem_real) CYCLE
-         wfn_calc = ((homo+p-1)/p)+((virtual+q-1)/q)
+         wfn_calc = ((homo + p - 1)/p) + ((virtual + q - 1)/q)
          IF (wfn_calc < wfn_calc_best) THEN
             wfn_calc_best = wfn_calc
             p_best = p
@@ -298,8 +298,8 @@ CONTAINS
          ENDIF
       ENDDO
 
-      max_batch_size_I = (homo+p_best-1)/p_best
-      max_batch_size_A = (virtual+q_best-1)/q_best
+      max_batch_size_I = (homo + p_best - 1)/p_best
+      max_batch_size_A = (virtual + q_best - 1)/q_best
 
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="(T3,A,T77,i4)") &
@@ -315,25 +315,25 @@ CONTAINS
       group_counter = 0
       a_group_counter = 0
       my_A_virtual_start = 1
-      DO j = 0, q_best-1
+      DO j = 0, q_best - 1
          my_I_occupied_start = 1
          i_group_counter = 0
-         DO i = 0, p_best-1
-            group_counter = group_counter+1
-            IF (color_sub == group_counter-1) EXIT
-            my_I_occupied_start = my_I_occupied_start+vector_batch_I_size_group(i)
-            i_group_counter = i_group_counter+1
+         DO i = 0, p_best - 1
+            group_counter = group_counter + 1
+            IF (color_sub == group_counter - 1) EXIT
+            my_I_occupied_start = my_I_occupied_start + vector_batch_I_size_group(i)
+            i_group_counter = i_group_counter + 1
          END DO
          my_q_position = j
-         IF (color_sub == group_counter-1) EXIT
-         my_A_virtual_start = my_A_virtual_start+vector_batch_A_size_group(j)
-         a_group_counter = a_group_counter+1
+         IF (color_sub == group_counter - 1) EXIT
+         my_A_virtual_start = my_A_virtual_start + vector_batch_A_size_group(j)
+         a_group_counter = a_group_counter + 1
       END DO
       !XXXXXXXXXXXXX inverse group distribution
 
-      my_I_occupied_end = my_I_occupied_start+vector_batch_I_size_group(i_group_counter)-1
+      my_I_occupied_end = my_I_occupied_start + vector_batch_I_size_group(i_group_counter) - 1
       my_I_batch_size = vector_batch_I_size_group(i_group_counter)
-      my_A_virtual_end = my_A_virtual_start+vector_batch_A_size_group(a_group_counter)-1
+      my_A_virtual_end = my_A_virtual_start + vector_batch_A_size_group(a_group_counter) - 1
       my_A_batch_size = vector_batch_A_size_group(a_group_counter)
 
       DEALLOCATE (vector_batch_I_size_group)
@@ -349,18 +349,18 @@ CONTAINS
 
       ! divide the b states in the sub_group in such a way to create
       ! b_start and b_end for each proc inside the sub_group
-      max_b_size = (virtual+para_env_sub%num_pe-1)/para_env_sub%num_pe
+      max_b_size = (virtual + para_env_sub%num_pe - 1)/para_env_sub%num_pe
       CALL get_vector_batch(vector_B_sizes, para_env_sub%num_pe, max_b_size, virtual)
 
       ! now give to each proc its b_start and b_end
       b_group_counter = 0
       my_B_virtual_start = 1
-      DO j = 0, para_env_sub%num_pe-1
-         b_group_counter = b_group_counter+1
-         IF (b_group_counter-1 == para_env_sub%mepos) EXIT
-         my_B_virtual_start = my_B_virtual_start+vector_B_sizes(j)
+      DO j = 0, para_env_sub%num_pe - 1
+         b_group_counter = b_group_counter + 1
+         IF (b_group_counter - 1 == para_env_sub%mepos) EXIT
+         my_B_virtual_start = my_B_virtual_start + vector_B_sizes(j)
       END DO
-      my_B_virtual_end = my_B_virtual_start+vector_B_sizes(para_env_sub%mepos)-1
+      my_B_virtual_end = my_B_virtual_start + vector_B_sizes(para_env_sub%mepos) - 1
       my_B_size = vector_B_sizes(para_env_sub%mepos)
 
       DEALLOCATE (vector_B_sizes)
@@ -368,12 +368,12 @@ CONTAINS
       ! create an array containing a different "color" for each pair of
       ! A_start and B_start, communication will take place only among
       ! those proc that have the same A_start and B_start
-      ALLOCATE (color_array(0:para_env_sub%num_pe-1, 0:q_best-1))
+      ALLOCATE (color_array(0:para_env_sub%num_pe - 1, 0:q_best - 1))
       color_array = 0
       color_counter = 0
-      DO j = 0, q_best-1
-         DO i = 0, para_env_sub%num_pe-1
-            color_counter = color_counter+1
+      DO j = 0, q_best - 1
+         DO i = 0, para_env_sub%num_pe - 1
+            color_counter = color_counter + 1
             color_array(i, j) = color_counter
          END DO
       END DO
@@ -389,18 +389,18 @@ CONTAINS
       CALL cp_para_env_create(para_env_exchange, comm_exchange)
 
       ! crate the proc maps
-      ALLOCATE (proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe-1))
-      DO i = 0, para_env_exchange%num_pe-1
+      ALLOCATE (proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe - 1))
+      DO i = 0, para_env_exchange%num_pe - 1
          proc_map(i) = i
-         proc_map(-i-1) = para_env_exchange%num_pe-i-1
-         proc_map(para_env_exchange%num_pe+i) = i
+         proc_map(-i - 1) = para_env_exchange%num_pe - i - 1
+         proc_map(para_env_exchange%num_pe + i) = i
       END DO
 
-      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1))
-      DO i = 0, para_env_sub%num_pe-1
+      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
+      DO i = 0, para_env_sub%num_pe - 1
          sub_proc_map(i) = i
-         sub_proc_map(-i-1) = para_env_sub%num_pe-i-1
-         sub_proc_map(para_env_sub%num_pe+i) = i
+         sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
+         sub_proc_map(para_env_sub%num_pe + i) = i
       END DO
 
       ! create an array containing the information for communication
@@ -417,7 +417,7 @@ CONTAINS
                                 in_space=REALSPACE)
          CALL calculate_wavefunction(mo_coeff, i, psi_i(i), rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, &
-                                     pw_env_sub, external_vector=my_Cocc(:, i-my_I_occupied_start+1))
+                                     pw_env_sub, external_vector=my_Cocc(:, i - my_I_occupied_start + 1))
       END DO
 
       potential_type = qs_env%mp2_env%potential_parameter%potential_type
@@ -432,17 +432,17 @@ CONTAINS
       END IF
 
       CALL timeset(routineN//"_loop", handle2)
-      DO a = homo+my_A_virtual_start, homo+my_A_virtual_end
+      DO a = homo + my_A_virtual_start, homo + my_A_virtual_end
 
          IF (calc_ex) BIb_C = 0.0_dp
 
          ! psi_a
          CALL calculate_wavefunction(mo_coeff, a, psi_a, rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, &
-                                     pw_env_sub, external_vector=my_Cvirt(:, a-(homo+my_A_virtual_start)+1))
+                                     pw_env_sub, external_vector=my_Cvirt(:, a - (homo + my_A_virtual_start) + 1))
          i_counter = 0
          DO i = my_I_occupied_start, my_I_occupied_end
-            i_counter = i_counter+1
+            i_counter = i_counter + 1
 
             ! potential
             rho_r%pw%cr3d = psi_i(i)%pw%cr3d*psi_a%pw%cr3d
@@ -485,8 +485,8 @@ CONTAINS
                DO b = 1, col_size
                DO j = 1, row_size
                   ! Compute the coulomb MP2 energy
-                  Emp2_Cou = Emp2_Cou-2.0_dp*data_block(j, b)**2/ &
-                             (Eigenval(a)+Eigenval(homo+col_offset+b-1)-Eigenval(i)-Eigenval(row_offset+j-1))
+                  Emp2_Cou = Emp2_Cou - 2.0_dp*data_block(j, b)**2/ &
+                             (Eigenval(a) + Eigenval(homo + col_offset + b - 1) - Eigenval(i) - Eigenval(row_offset + j - 1))
                ENDDO
                ENDDO
             ENDDO
@@ -501,8 +501,8 @@ CONTAINS
                   DO b = 1, col_size
                   DO j = 1, row_size
                      ! Compute the coulomb MP2 energy alpha beta case
-                     Emp2_AB = Emp2_AB-data_block(j, b)**2/ &
-                               (Eigenval(a)+Eigenval_beta(homo_beta+col_offset+b-1)-Eigenval(i)-Eigenval_beta(row_offset+j-1))
+                     Emp2_AB = Emp2_AB - data_block(j, b)**2/ &
+                     (Eigenval(a) + Eigenval_beta(homo_beta + col_offset + b - 1) - Eigenval(i) - Eigenval_beta(row_offset + j - 1))
                   ENDDO
                   ENDDO
                ENDDO
@@ -529,18 +529,18 @@ CONTAINS
             DO i = 1, my_I_batch_size
                DO j = my_I_occupied_start, my_I_occupied_end
                   DO b = 1, my_B_size
-                     b_global = b-1+my_B_virtual_start
-                     Emp2_EX = Emp2_EX+BIb_C(b, j, i)*BIb_C(b, i+my_I_occupied_start-1, j-my_I_occupied_start+1) &
-                               /(Eigenval(a)+Eigenval(homo+b_global)-Eigenval(i+my_I_occupied_start-1)-Eigenval(j))
+                     b_global = b - 1 + my_B_virtual_start
+                     Emp2_EX = Emp2_EX + BIb_C(b, j, i)*BIb_C(b, i + my_I_occupied_start - 1, j - my_I_occupied_start + 1) &
+                               /(Eigenval(a) + Eigenval(homo + b_global) - Eigenval(i + my_I_occupied_start - 1) - Eigenval(j))
                   END DO
                END DO
             END DO
 
             ! start communicating and collecting exchange contributions from
             ! other processes in my exchange group
-            DO index_proc_shift = 1, size_of_exchange_group-1
-               proc_send = proc_map(mepos_in_EX_group+index_proc_shift)
-               proc_receive = proc_map(mepos_in_EX_group-index_proc_shift)
+            DO index_proc_shift = 1, size_of_exchange_group - 1
+               proc_send = proc_map(mepos_in_EX_group + index_proc_shift)
+               proc_receive = proc_map(mepos_in_EX_group - index_proc_shift)
 
                CALL get_group_dist(gd_exchange, proc_receive, EX_start, EX_end, size_EX)
 
@@ -559,10 +559,10 @@ CONTAINS
                DO i = 1, my_I_batch_size
                   DO j = 1, size_EX
                      DO b = 1, my_B_size
-                        b_global = b-1+my_B_virtual_start
-                        Emp2_EX = Emp2_EX+BIb_C(b, j+EX_start-1, i)*BIb_EX(b, i, j) &
-                                  /(Eigenval(a)+Eigenval(homo+b_global)-Eigenval(i+my_I_occupied_start-1) &
-                                    -Eigenval(j+EX_start-1))
+                        b_global = b - 1 + my_B_virtual_start
+                        Emp2_EX = Emp2_EX + BIb_C(b, j + EX_start - 1, i)*BIb_EX(b, i, j) &
+                                  /(Eigenval(a) + Eigenval(homo + b_global) - Eigenval(i + my_I_occupied_start - 1) &
+                                    - Eigenval(j + EX_start - 1))
                      END DO
                   END DO
                END DO
@@ -579,7 +579,7 @@ CONTAINS
 
       CALL mp_sum(Emp2_Cou, para_env%group)
       CALL mp_sum(Emp2_EX, para_env%group)
-      Emp2 = Emp2_Cou+Emp2_EX
+      Emp2 = Emp2_Cou + Emp2_EX
       IF (do_alpha_beta) CALL mp_sum(Emp2_AB, para_env%group)
 
       DEALLOCATE (my_Cocc)
@@ -635,20 +635,20 @@ CONTAINS
 
       mem_try = 0.0_dp
       ! integrals
-      mem_try = mem_try+virtual*REAL(homo, KIND=dp)**2/(p*num_w)
+      mem_try = mem_try + virtual*REAL(homo, KIND=dp)**2/(p*num_w)
       ! array for the coefficient matrix and wave vectors
-      mem_try = mem_try+REAL(homo, KIND=dp)*nmo/p+ &
-                REAL(virtual, KIND=dp)*nmo/q+ &
+      mem_try = mem_try + REAL(homo, KIND=dp)*nmo/p + &
+                REAL(virtual, KIND=dp)*nmo/q + &
                 2.0_dp*MAX(REAL(homo, KIND=dp)*nmo/p, REAL(virtual, KIND=dp)*nmo/q)
       ! temporary array for MO integrals and MO integrals to be exchanged
       IF (calc_ex) THEN
-         mem_try = mem_try+2.0_dp*MAX(virtual*REAL(homo, KIND=dp)*MIN(1, num_w-1)/num_w, &
-                                      virtual*REAL(homo, KIND=dp)**2/(p*p*num_w))
+         mem_try = mem_try + 2.0_dp*MAX(virtual*REAL(homo, KIND=dp)*MIN(1, num_w - 1)/num_w, &
+                                        virtual*REAL(homo, KIND=dp)**2/(p*p*num_w))
       ELSE
-         mem_try = mem_try+2.0_dp*virtual*REAL(homo, KIND=dp)
+         mem_try = mem_try + 2.0_dp*virtual*REAL(homo, KIND=dp)
       END IF
       ! wfn
-      mem_try = mem_try+((homo+p-1)/p)*wfn_size
+      mem_try = mem_try + ((homo + p - 1)/p)*wfn_size
       ! Mb
       mem_try = mem_try*8.0D+00/1024.0D+00**2
 
@@ -667,7 +667,7 @@ CONTAINS
 
       INTEGER                                            :: i, one
 
-      ALLOCATE (vector_batch_I_size_group(0:p_best-1))
+      ALLOCATE (vector_batch_I_size_group(0:p_best - 1))
 
       vector_batch_I_size_group = max_batch_size_I
       IF (SUM(vector_batch_I_size_group) /= homo) THEN
@@ -675,10 +675,10 @@ CONTAINS
          IF (SUM(vector_batch_I_size_group) > homo) one = -1
          i = -1
          DO
-            i = i+1
-            vector_batch_I_size_group(i) = vector_batch_I_size_group(i)+one
+            i = i + 1
+            vector_batch_I_size_group(i) = vector_batch_I_size_group(i) + one
             IF (SUM(vector_batch_I_size_group) == homo) EXIT
-            IF (i == p_best-1) i = -1
+            IF (i == p_best - 1) i = -1
          END DO
       END IF
 
@@ -735,7 +735,7 @@ CONTAINS
          IF (j_global >= my_B_virtual_start .AND. j_global <= my_B_virtual_end) THEN
             DO iiB = 1, nrow_rec
                i_global = row_indices_rec(iiB)
-               BIb_jb(j_global-my_B_virtual_start+1, i_global) = fm_BIb_jb%local_data(iiB, jjB)
+               BIb_jb(j_global - my_B_virtual_start + 1, i_global) = fm_BIb_jb%local_data(iiB, jjB)
             END DO
          END IF
       END DO
@@ -747,9 +747,9 @@ CONTAINS
          ALLOCATE (local_BI(nrow_rec, ncol_rec))
          local_BI(1:nrow_rec, 1:ncol_rec) = fm_BIb_jb%local_data(1:nrow_rec, 1:ncol_rec)
 
-         DO proc_shift = 1, para_env_sub%num_pe-1
-            proc_send = proc_map(para_env_sub%mepos+proc_shift)
-            proc_receive = proc_map(para_env_sub%mepos-proc_shift)
+         DO proc_shift = 1, para_env_sub%num_pe - 1
+            proc_send = proc_map(para_env_sub%mepos + proc_shift)
+            proc_receive = proc_map(para_env_sub%mepos - proc_shift)
 
             ! first exchange information on the local data
             rec_col_row_info = 0
@@ -775,7 +775,7 @@ CONTAINS
                IF (j_global >= my_B_virtual_start .AND. j_global <= my_B_virtual_end) THEN
                   DO iiB = 1, nrow_rec
                      i_global = row_indices_rec(iiB)
-                     BIb_jb(j_global-my_B_virtual_start+1, i_global) = rec_BI(iiB, jjB)
+                     BIb_jb(j_global - my_B_virtual_start + 1, i_global) = rec_BI(iiB, jjB)
                   END DO
                END IF
             END DO
@@ -843,11 +843,11 @@ CONTAINS
                                         row_size=row_size, col_size=col_size, &
                                         row_offset=row_offset, col_offset=col_offset)
          DO j = 1, col_size
-            j_global = col_offset+j-1
+            j_global = col_offset + j - 1
             IF (j_global >= my_I_occupied_start .AND. j_global <= my_I_occupied_end) THEN
                DO i = 1, row_size
-                  i_global = row_offset+i-1
-                  my_Cocc(i_global, j_global-my_I_occupied_start+1) = data_block(i, j)
+                  i_global = row_offset + i - 1
+                  my_Cocc(i_global, j_global - my_I_occupied_start + 1) = data_block(i, j)
                END DO
             END IF
          END DO
@@ -863,11 +863,11 @@ CONTAINS
                                         row_size=row_size, col_size=col_size, &
                                         row_offset=row_offset, col_offset=col_offset)
          DO j = 1, col_size
-            j_global = col_offset+j-1
+            j_global = col_offset + j - 1
             IF (j_global >= my_A_virtual_start .AND. j_global <= my_A_virtual_end) THEN
                DO i = 1, row_size
-                  i_global = row_offset+i-1
-                  my_Cvirt(i_global, j_global-my_A_virtual_start+1) = data_block(i, j)
+                  i_global = row_offset + i - 1
+                  my_Cvirt(i_global, j_global - my_A_virtual_start + 1) = data_block(i, j)
                END DO
             END IF
          END DO

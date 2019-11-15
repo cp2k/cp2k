@@ -394,11 +394,11 @@ CONTAINS
                         DO idir = 1, 3
                            hard_value = 0.0_dp
                            DO iso = 1, harmonics%max_iso_not0
-                              hard_value = hard_value+ &
-                                           vh1_rad_h(ir, iso)*harmonics%dslm_dxyz(idir, ia, iso)+ &
+                              hard_value = hard_value + &
+                                           vh1_rad_h(ir, iso)*harmonics%dslm_dxyz(idir, ia, iso) + &
                                            harmonics%slm(ia, iso)* &
-                                           (vh1_rad_h(ir-1, iso)-vh1_rad_h(ir, iso))/ &
-                                           (grid_atom%rad(ir-1)-grid_atom%rad(ir))* &
+                                           (vh1_rad_h(ir - 1, iso) - vh1_rad_h(ir, iso))/ &
+                                           (grid_atom%rad(ir - 1) - grid_atom%rad(ir))* &
                                            (harmonics%a(idir, ia))
                            END DO
                            nablavks_vec_rad_h(idir, 1)%r_coef(ir, ia) = hard_value
@@ -409,11 +409,11 @@ CONTAINS
                         DO idir = 1, 3
                            soft_value = 0.0_dp
                            DO iso = 1, harmonics%max_iso_not0
-                              soft_value = soft_value+ &
-                                           vh1_rad_s(ir, iso)*harmonics%dslm_dxyz(idir, ia, iso)+ &
+                              soft_value = soft_value + &
+                                           vh1_rad_s(ir, iso)*harmonics%dslm_dxyz(idir, ia, iso) + &
                                            harmonics%slm(ia, iso)* &
-                                           (vh1_rad_s(ir-1, iso)-vh1_rad_s(ir, iso))/ &
-                                           (grid_atom%rad(ir-1)-grid_atom%rad(ir))* &
+                                           (vh1_rad_s(ir - 1, iso) - vh1_rad_s(ir, iso))/ &
+                                           (grid_atom%rad(ir - 1) - grid_atom%rad(ir))* &
                                            (harmonics%a(idir, ia))
                            END DO
                            nablavks_vec_rad_s(idir, 1)%r_coef(ir, ia) = soft_value
@@ -536,54 +536,54 @@ CONTAINS
 
                         SELECT CASE (nexp_ppl)
                         CASE (1)
-                           gtemp = gtemp+ &
+                           gtemp = gtemp + &
                                    (twopi)**(1.5_dp)/(cell%deth*(2.0_dp*alpha)**(1.5_dp))* &
                                    EXP(-v_coulomb_gspace%pw%pw_grid%gsq(ig)/(4.0_dp*alpha))*( &
                                    ! C1
                                    +cexp_ppl(1) &
                                    )
                         CASE (2)
-                           gtemp = gtemp+ &
+                           gtemp = gtemp + &
                                    (twopi)**(1.5_dp)/(cell%deth*(2.0_dp*alpha)**(1.5_dp))* &
                                    EXP(-v_coulomb_gspace%pw%pw_grid%gsq(ig)/(4.0_dp*alpha))*( &
                                    ! C1
                                    +cexp_ppl(1) &
                                    ! C2
-                                   +cexp_ppl(2)/(2.0_dp*alpha)* &
-                                   (3.0_dp-v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha)) &
+                                   + cexp_ppl(2)/(2.0_dp*alpha)* &
+                                   (3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha)) &
                                    )
                         CASE (3)
-                           gtemp = gtemp+ &
+                           gtemp = gtemp + &
                                    (twopi)**(1.5_dp)/(cell%deth*(2.0_dp*alpha)**(1.5_dp))* &
                                    EXP(-v_coulomb_gspace%pw%pw_grid%gsq(ig)/(4.0_dp*alpha))*( &
                                    ! C1
                                    +cexp_ppl(1) &
                                    ! C2
-                                   +cexp_ppl(2)/(2.0_dp*alpha)* &
-                                   (3.0_dp-v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha)) &
+                                   + cexp_ppl(2)/(2.0_dp*alpha)* &
+                                   (3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha)) &
                                    ! C3
-                                   +cexp_ppl(3)/(2.0_dp*alpha)**2* &
-                                   (15.0_dp-10.0_dp*v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha) &
-                                    +(v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha))**2) &
+                                   + cexp_ppl(3)/(2.0_dp*alpha)**2* &
+                                   (15.0_dp - 10.0_dp*v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha) &
+                                    + (v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha))**2) &
                                    )
                         CASE (4)
-                           gtemp = gtemp+ &
+                           gtemp = gtemp + &
                                    (twopi)**(1.5_dp)/(cell%deth*(2.0_dp*alpha)**(1.5_dp))* &
                                    EXP(-v_coulomb_gspace%pw%pw_grid%gsq(ig)/(4.0_dp*alpha))*( &
                                    ! C1
                                    +cexp_ppl(1) &
                                    ! C2
-                                   +cexp_ppl(2)/(2.0_dp*alpha)* &
-                                   (3.0_dp-v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha)) &
+                                   + cexp_ppl(2)/(2.0_dp*alpha)* &
+                                   (3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha)) &
                                    ! C3
-                                   +cexp_ppl(3)/(2.0_dp*alpha)**2* &
-                                   (15.0_dp-10.0_dp*v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha) &
-                                    +(v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha))**2) &
+                                   + cexp_ppl(3)/(2.0_dp*alpha)**2* &
+                                   (15.0_dp - 10.0_dp*v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha) &
+                                    + (v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha))**2) &
                                    ! C4
-                                   +cexp_ppl(4)/(2.0_dp*alpha)**3* &
-                                   (105.0_dp-105.0_dp*v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha) &
-                                    +21.0_dp*(v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha))**2 &
-                                    -(v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha))**3) &
+                                   + cexp_ppl(4)/(2.0_dp*alpha)**3* &
+                                   (105.0_dp - 105.0_dp*v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha) &
+                                    + 21.0_dp*(v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha))**2 &
+                                    - (v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha))**3) &
                                    )
                         END SELECT
 
@@ -592,7 +592,7 @@ CONTAINS
                      arg = DOT_PRODUCT(v_coulomb_gspace%pw%pw_grid%g(:, ig), ratom)
 
                      gtemp = gtemp*CMPLX(COS(arg), -SIN(arg), KIND=dp)
-                     v_coulomb_gspace%pw%cc(ig) = v_coulomb_gspace%pw%cc(ig)+gtemp
+                     v_coulomb_gspace%pw%cc(ig) = v_coulomb_gspace%pw%cc(ig) + gtemp
                   END DO
                   IF (v_coulomb_gspace%pw%pw_grid%have_g0) v_coulomb_gspace%pw%cc(1) = 0.0_dp
 
@@ -644,36 +644,36 @@ CONTAINS
                            rpoint = (/REAL(ix, dp)*pwx%pw_grid%dr(1), &
                                       REAL(iy, dp)*pwx%pw_grid%dr(2), &
                                       REAL(iz, dp)*pwx%pw_grid%dr(3)/)
-                           rpoint = rpoint+roffset
-                           rap = rpoint-ratom
-                           rap(1) = MODULO(rap(1), cell%hmat(1, 1))-cell%hmat(1, 1)/2._dp
-                           rap(2) = MODULO(rap(2), cell%hmat(2, 2))-cell%hmat(2, 2)/2._dp
-                           rap(3) = MODULO(rap(3), cell%hmat(3, 3))-cell%hmat(3, 3)/2._dp
+                           rpoint = rpoint + roffset
+                           rap = rpoint - ratom
+                           rap(1) = MODULO(rap(1), cell%hmat(1, 1)) - cell%hmat(1, 1)/2._dp
+                           rap(2) = MODULO(rap(2), cell%hmat(2, 2)) - cell%hmat(2, 2)/2._dp
+                           rap(3) = MODULO(rap(3), cell%hmat(3, 3)) - cell%hmat(3, 3)/2._dp
                            sqrt_rap = SQRT(DOT_PRODUCT(rap, rap))
                            exp_rap = EXP(-alpha*sqrt_rap**2)
                            sqrt_rap = MAX(sqrt_rap, 1.e-10_dp)
                            ! d_x
 
-                           pwx%cr3d(ix, iy, iz) = pwx%cr3d(ix, iy, iz)+charge*( &
+                           pwx%cr3d(ix, iy, iz) = pwx%cr3d(ix, iy, iz) + charge*( &
                                                   -2.0_dp*sqrt_alpha*EXP(-sqrt_rap**2*sqrt_alpha**2)*rap(1) &
                                                   /(rootpi*sqrt_rap**2) &
-                                                  +erf(sqrt_rap*sqrt_alpha)*rap(1) &
+                                                  + erf(sqrt_rap*sqrt_alpha)*rap(1) &
                                                   /sqrt_rap**3)
 
                            ! d_y
 
-                           pwy%cr3d(ix, iy, iz) = pwy%cr3d(ix, iy, iz)+charge*( &
+                           pwy%cr3d(ix, iy, iz) = pwy%cr3d(ix, iy, iz) + charge*( &
                                                   -2.0_dp*sqrt_alpha*EXP(-sqrt_rap**2*sqrt_alpha**2)*rap(2) &
                                                   /(rootpi*sqrt_rap**2) &
-                                                  +erf(sqrt_rap*sqrt_alpha)*rap(2) &
+                                                  + erf(sqrt_rap*sqrt_alpha)*rap(2) &
                                                   /sqrt_rap**3)
 
                            ! d_z
 
-                           pwz%cr3d(ix, iy, iz) = pwz%cr3d(ix, iy, iz)+charge*( &
+                           pwz%cr3d(ix, iy, iz) = pwz%cr3d(ix, iy, iz) + charge*( &
                                                   -2.0_dp*sqrt_alpha*EXP(-sqrt_rap**2*sqrt_alpha**2)*rap(3) &
                                                   /(rootpi*sqrt_rap**2) &
-                                                  +erf(sqrt_rap*sqrt_alpha)*rap(3) &
+                                                  + erf(sqrt_rap*sqrt_alpha)*rap(3) &
                                                   /sqrt_rap**3)
 
                            IF (make_soft) CYCLE
@@ -681,39 +681,39 @@ CONTAINS
                            ! d_x
 
                            DO iexp = 1, nexp_ppl
-                              pwx%cr3d(ix, iy, iz) = pwx%cr3d(ix, iy, iz)+( &
+                              pwx%cr3d(ix, iy, iz) = pwx%cr3d(ix, iy, iz) + ( &
                                                      -2.0_dp*alpha*rap(1)*exp_rap* &
-                                                     cexp_ppl(iexp)*(sqrt_rap**2)**(iexp-1))
+                                                     cexp_ppl(iexp)*(sqrt_rap**2)**(iexp - 1))
                               IF (iexp > 1) THEN
-                                 pwx%cr3d(ix, iy, iz) = pwx%cr3d(ix, iy, iz)+( &
+                                 pwx%cr3d(ix, iy, iz) = pwx%cr3d(ix, iy, iz) + ( &
                                                         2.0_dp*exp_rap*cexp_ppl(iexp)* &
-                                                        (sqrt_rap**2)**(iexp-2)*REAL(iexp-1, dp)*rap(1))
+                                                        (sqrt_rap**2)**(iexp - 2)*REAL(iexp - 1, dp)*rap(1))
                               END IF
                            END DO
 
                            ! d_y
 
                            DO iexp = 1, nexp_ppl
-                              pwy%cr3d(ix, iy, iz) = pwy%cr3d(ix, iy, iz)+( &
+                              pwy%cr3d(ix, iy, iz) = pwy%cr3d(ix, iy, iz) + ( &
                                                      -2.0_dp*alpha*rap(2)*exp_rap* &
-                                                     cexp_ppl(iexp)*(sqrt_rap**2)**(iexp-1))
+                                                     cexp_ppl(iexp)*(sqrt_rap**2)**(iexp - 1))
                               IF (iexp > 1) THEN
-                                 pwy%cr3d(ix, iy, iz) = pwy%cr3d(ix, iy, iz)+( &
+                                 pwy%cr3d(ix, iy, iz) = pwy%cr3d(ix, iy, iz) + ( &
                                                         2.0_dp*exp_rap*cexp_ppl(iexp)* &
-                                                        (sqrt_rap**2)**(iexp-2)*REAL(iexp-1, dp)*rap(2))
+                                                        (sqrt_rap**2)**(iexp - 2)*REAL(iexp - 1, dp)*rap(2))
                               END IF
                            END DO
 
                            ! d_z
 
                            DO iexp = 1, nexp_ppl
-                              pwz%cr3d(ix, iy, iz) = pwz%cr3d(ix, iy, iz)+( &
+                              pwz%cr3d(ix, iy, iz) = pwz%cr3d(ix, iy, iz) + ( &
                                                      -2.0_dp*alpha*rap(3)*exp_rap* &
-                                                     cexp_ppl(iexp)*(sqrt_rap**2)**(iexp-1))
+                                                     cexp_ppl(iexp)*(sqrt_rap**2)**(iexp - 1))
                               IF (iexp > 1) THEN
-                                 pwz%cr3d(ix, iy, iz) = pwz%cr3d(ix, iy, iz)+( &
+                                 pwz%cr3d(ix, iy, iz) = pwz%cr3d(ix, iy, iz) + ( &
                                                         2.0_dp*exp_rap*cexp_ppl(iexp)* &
-                                                        (sqrt_rap**2)**(iexp-2)*REAL(iexp-1, dp)*rap(3))
+                                                        (sqrt_rap**2)**(iexp - 2)*REAL(iexp - 1, dp)*rap(3))
                               END IF
                            END DO
 
@@ -752,29 +752,29 @@ CONTAINS
                                         -2.0_dp*sqrt_alpha*EXP(-grid_atom%rad(ir)**2*sqrt_alpha**2) &
                                         *grid_atom%rad(ir)*harmonics%a(idir, ia) &
                                         /(rootpi*grid_atom%rad(ir)**2) &
-                                        +erf(grid_atom%rad(ir)*sqrt_alpha) &
+                                        + erf(grid_atom%rad(ir)*sqrt_alpha) &
                                         *grid_atom%rad(ir)*harmonics%a(idir, ia) &
                                         /grid_atom%rad(ir)**3)
                            soft_value = hard_value
                            DO iexp = 1, nexp_ppl
-                              hard_value = hard_value+( &
+                              hard_value = hard_value + ( &
                                            -2.0_dp*alpha*grid_atom%rad(ir)*harmonics%a(idir, ia) &
-                                           *exp_rap*cexp_ppl(iexp)*(grid_atom%rad(ir)**2)**(iexp-1))
+                                           *exp_rap*cexp_ppl(iexp)*(grid_atom%rad(ir)**2)**(iexp - 1))
                               IF (iexp > 1) THEN
-                                 hard_value = hard_value+( &
+                                 hard_value = hard_value + ( &
                                               2.0_dp*exp_rap*cexp_ppl(iexp) &
-                                              *(grid_atom%rad(ir)**2)**(iexp-2)*REAL(iexp-1, dp) &
+                                              *(grid_atom%rad(ir)**2)**(iexp - 2)*REAL(iexp - 1, dp) &
                                               *grid_atom%rad(ir)*harmonics%a(idir, ia))
                               END IF
                            END DO
                            nablavks_vec_rad_h(idir, 1)%r_coef(ir, ia) = &
-                              nablavks_vec_rad_h(idir, 1)%r_coef(ir, ia)+hard_value
+                              nablavks_vec_rad_h(idir, 1)%r_coef(ir, ia) + hard_value
                            IF (make_soft) THEN
                               nablavks_vec_rad_s(idir, 1)%r_coef(ir, ia) = &
-                                 nablavks_vec_rad_s(idir, 1)%r_coef(ir, ia)+soft_value
+                                 nablavks_vec_rad_s(idir, 1)%r_coef(ir, ia) + soft_value
                            ELSE
                               nablavks_vec_rad_s(idir, 1)%r_coef(ir, ia) = &
-                                 nablavks_vec_rad_s(idir, 1)%r_coef(ir, ia)+hard_value
+                                 nablavks_vec_rad_s(idir, 1)%r_coef(ir, ia) + hard_value
                            END IF
                         END DO
 
@@ -828,11 +828,11 @@ CONTAINS
                                      2.0_dp*sqrt_alpha*EXP(-grid_atom%rad(ir)**2*sqrt_alpha**2) &
                                      *grid_atom%rad(ir)*harmonics%a(idir, ia) &
                                      /(rootpi*grid_atom%rad(ir)**2) &
-                                     +erfc(grid_atom%rad(ir)*sqrt_alpha) &
+                                     + erfc(grid_atom%rad(ir)*sqrt_alpha) &
                                      *grid_atom%rad(ir)*harmonics%a(idir, ia) &
                                      /grid_atom%rad(ir)**3)
                         nablavks_vec_rad_h(idir, 1)%r_coef(ir, ia) = &
-                           nablavks_vec_rad_h(idir, 1)%r_coef(ir, ia)+hard_value
+                           nablavks_vec_rad_h(idir, 1)%r_coef(ir, ia) + hard_value
                      END DO
 
                   END DO ! ia

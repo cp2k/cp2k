@@ -178,7 +178,7 @@ CONTAINS
       context => matrix_struct%context
       matrix%matrix_struct => matrix_struct
       CALL cp_fm_struct_retain(matrix%matrix_struct)
-      last_fm_id_nr = last_fm_id_nr+1
+      last_fm_id_nr = last_fm_id_nr + 1
       matrix%id_nr = last_fm_id_nr
       matrix%ref_count = 1
       matrix%print_count = 0
@@ -233,7 +233,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(matrix))
       CPASSERT(matrix%ref_count > 0)
-      matrix%ref_count = matrix%ref_count+1
+      matrix%ref_count = matrix%ref_count + 1
 
    END SUBROUTINE cp_fm_retain
 
@@ -255,7 +255,7 @@ CONTAINS
 
       IF (ASSOCIATED(matrix)) THEN
          CPASSERT(matrix%ref_count > 0)
-         matrix%ref_count = matrix%ref_count-1
+         matrix%ref_count = matrix%ref_count - 1
          IF (matrix%ref_count < 1) THEN
             IF (ASSOCIATED(matrix%local_data)) THEN
                DEALLOCATE (matrix%local_data)
@@ -325,7 +325,7 @@ CONTAINS
       my_ncol = matrix%matrix_struct%ncol_global
       IF (PRESENT(ncol)) my_ncol = ncol
 
-      IF (ncol_global < (my_start_col+my_ncol-1)) &
+      IF (ncol_global < (my_start_col + my_ncol - 1)) &
          CPABORT("ncol_global>=(my_start_col+my_ncol-1)")
 
       ALLOCATE (buff(nrow_global))
@@ -338,7 +338,7 @@ CONTAINS
          CPASSERT(col_indices(icol_local) > icol_global)
          DO
             CALL reset_to_next_rng_substream(rng)
-            icol_global = icol_global+1
+            icol_global = icol_global + 1
             IF (icol_global == col_indices(icol_local)) EXIT
          ENDDO
          CALL random_numbers(buff, rng)
@@ -665,7 +665,7 @@ CONTAINS
 
       IF (al == 1.0 .AND. be == 0.0) THEN
          DO j = 1, ncol_local
-            this_col = col_indices(j)-j0+1
+            this_col = col_indices(j) - j0 + 1
             IF (this_col .GE. 1 .AND. this_col .LE. ncol) THEN
                IF (tr_a) THEN
                   IF (i0 == 1 .AND. nrow_global == nrow) THEN
@@ -674,7 +674,7 @@ CONTAINS
                      END DO
                   ELSE
                      DO i = 1, nrow_local
-                        this_row = row_indices(i)-i0+1
+                        this_row = row_indices(i) - i0 + 1
                         IF (this_row >= 1 .AND. this_row <= nrow) THEN
                            full_block(i, j) = new_values(this_col, this_row)
                         END IF
@@ -687,7 +687,7 @@ CONTAINS
                      END DO
                   ELSE
                      DO i = 1, nrow_local
-                        this_row = row_indices(i)-i0+1
+                        this_row = row_indices(i) - i0 + 1
                         IF (this_row >= 1 .AND. this_row <= nrow) THEN
                            full_block(i, j) = new_values(this_row, this_col)
                         END IF
@@ -698,21 +698,21 @@ CONTAINS
          END DO
       ELSE
          DO j = 1, ncol_local
-            this_col = col_indices(j)-j0+1
+            this_col = col_indices(j) - j0 + 1
             IF (this_col .GE. 1 .AND. this_col .LE. ncol) THEN
                IF (tr_a) THEN
                   DO i = 1, nrow_local
-                     this_row = row_indices(i)-i0+1
+                     this_row = row_indices(i) - i0 + 1
                      IF (this_row >= 1 .AND. this_row <= nrow) THEN
-                        full_block(i, j) = al*new_values(this_col, this_row)+ &
+                        full_block(i, j) = al*new_values(this_col, this_row) + &
                                            be*full_block(i, j)
                      END IF
                   END DO
                ELSE
                   DO i = 1, nrow_local
-                     this_row = row_indices(i)-i0+1
+                     this_row = row_indices(i) - i0 + 1
                      IF (this_row >= 1 .AND. this_row <= nrow) THEN
-                        full_block(i, j) = al*new_values(this_row, this_col)+ &
+                        full_block(i, j) = al*new_values(this_row, this_col) + &
                                            be*full_block(i, j)
                      END IF
                   END DO
@@ -806,7 +806,7 @@ CONTAINS
                           row_indices=row_indices, col_indices=col_indices)
 
       DO j = 1, ncol_local
-         this_col = col_indices(j)-j0+1
+         this_col = col_indices(j) - j0 + 1
          IF (this_col .GE. 1 .AND. this_col .LE. ncol) THEN
             IF (tr_a) THEN
                IF (i0 == 1 .AND. nrow_global == nrow) THEN
@@ -815,7 +815,7 @@ CONTAINS
                   END DO
                ELSE
                   DO i = 1, nrow_local
-                     this_row = row_indices(i)-i0+1
+                     this_row = row_indices(i) - i0 + 1
                      IF (this_row >= 1 .AND. this_row <= nrow) THEN
                         target_m(this_col, this_row) = full_block(i, j)
                      END IF
@@ -828,7 +828,7 @@ CONTAINS
                   END DO
                ELSE
                   DO i = 1, nrow_local
-                     this_row = row_indices(i)-i0+1
+                     this_row = row_indices(i) - i0 + 1
                      IF (this_row >= 1 .AND. this_row <= nrow) THEN
                         target_m(this_row, this_col) = full_block(i, j)
                      END IF
@@ -959,12 +959,12 @@ CONTAINS
       IF (PRESENT(ir_max)) THEN
          num_pe = matrix%matrix_struct%para_env%num_pe
          mepos = matrix%matrix_struct%para_env%mepos
-         ALLOCATE (ir_max_vec(0:num_pe-1))
-         ir_max_vec(0:num_pe-1) = 0
-         ALLOCATE (ic_max_vec(0:num_pe-1))
-         ic_max_vec(0:num_pe-1) = 0
-         ALLOCATE (a_max_vec(0:num_pe-1))
-         a_max_vec(0:num_pe-1) = 0.0_dp
+         ALLOCATE (ir_max_vec(0:num_pe - 1))
+         ir_max_vec(0:num_pe - 1) = 0
+         ALLOCATE (ic_max_vec(0:num_pe - 1))
+         ic_max_vec(0:num_pe - 1) = 0
+         ALLOCATE (a_max_vec(0:num_pe - 1))
+         a_max_vec(0:num_pe - 1) = 0.0_dp
          my_max = 0.0_dp
 
          IF ((ncol_local > 0) .AND. (nrow_local > 0)) THEN
@@ -997,7 +997,7 @@ CONTAINS
          CALL mp_sum(ic_max_vec, matrix%matrix_struct%para_env%group)
 
          my_max = 0.0_dp
-         DO i = 0, num_pe-1
+         DO i = 0, num_pe - 1
             IF (a_max_vec(i) > my_max) THEN
                ir_max = ir_max_vec(i)
                ic_max = ic_max_vec(i)
@@ -1054,7 +1054,7 @@ CONTAINS
       values = 0.0_dp
       DO j = 1, ncol_local
          DO i = 1, nrow_local
-            values(row_indices(i)) = values(row_indices(i))+ABS(my_block(i, j))
+            values(row_indices(i)) = values(row_indices(i)) + ABS(my_block(i, j))
          ENDDO
       ENDDO
       CALL mp_sum(values, matrix%matrix_struct%para_env%group)
@@ -1094,7 +1094,7 @@ CONTAINS
       norm_array = 0.0_dp
       DO j = 1, ncol_local
          DO i = 1, nrow_local
-            norm_array(col_indices(j)) = norm_array(col_indices(j))+my_block(i, j)*my_block(i, j)
+            norm_array(col_indices(j)) = norm_array(col_indices(j)) + my_block(i, j)*my_block(i, j)
          ENDDO
       ENDDO
       CALL mp_sum(norm_array, matrix%matrix_struct%para_env%group)
@@ -1136,7 +1136,7 @@ CONTAINS
       sum_array(:) = 0.0_dp
       DO j = 1, ncol_local
          DO i = 1, nrow_local
-            sum_array(col_indices(j)) = sum_array(col_indices(j))+my_block(i, j)
+            sum_array(col_indices(j)) = sum_array(col_indices(j)) + my_block(i, j)
          ENDDO
       ENDDO
       CALL mp_sum(sum_array, matrix%matrix_struct%para_env%group)
@@ -1252,8 +1252,8 @@ CONTAINS
 #if defined(__SCALAPACK)
       desca(:) = msource%matrix_struct%descriptor(:)
       descb(:) = mtarget%matrix_struct%descriptor(:)
-      DO i = 0, ncol-1
-         CALL pdcopy(n, a(1, 1), 1, ss+i, desca, 1, b(1, 1), 1, ts+i, descb, 1)
+      DO i = 0, ncol - 1
+         CALL pdcopy(n, a(1, 1), 1, ss + i, desca, 1, b(1, 1), 1, ts + i, descb, 1)
       END DO
 #else
       CALL dcopy(ncol*n, a(1, ss), 1, b(1, ts), 1)
@@ -1354,15 +1354,15 @@ CONTAINS
 #if defined(__SCALAPACK)
       desca(:) = msource%matrix_struct%descriptor(:)
       descb(:) = mtarget%matrix_struct%descriptor(:)
-      DO i = 0, ncol-1
-         ss = s_firstcol+i
-         ts = t_firstcol+i
+      DO i = 0, ncol - 1
+         ss = s_firstcol + i
+         ts = t_firstcol + i
          CALL pdcopy(nrow, a(1, 1), s_firstrow, ss, desca, 1, b(1, 1), t_firstrow, ts, descb, 1)
       END DO
 #else
-      DO i = 0, ncol-1
-         ss = s_firstcol+i
-         ts = t_firstcol+i
+      DO i = 0, ncol - 1
+         ss = s_firstcol + i
+         ts = t_firstcol + i
          CALL dcopy(nrow, a(s_firstrow, ss), 1, b(t_firstrow, ts), 1)
       END DO
 #endif
@@ -1448,7 +1448,7 @@ CONTAINS
          k = 0
          DO j = 1, ncol_local_send
             DO i = 1, nrow_local_send
-               k = k+1
+               k = k + 1
                send_buf(k) = source%local_data(i, j)
             END DO
          END DO
@@ -1488,12 +1488,12 @@ CONTAINS
          END IF
 
          ! Map the rank in the source/dest communicator to the global rank
-         ALLOCATE (all_ranks(0:global_size-1))
+         ALLOCATE (all_ranks(0:global_size - 1))
 
          CALL mp_allgather(send_rank, all_ranks, global_comm)
          IF (ASSOCIATED(destination)) THEN
-            ALLOCATE (source2global(0:COUNT(all_ranks .NE. mp_proc_null)-1))
-            DO i = 0, global_size-1
+            ALLOCATE (source2global(0:COUNT(all_ranks .NE. mp_proc_null) - 1))
+            DO i = 0, global_size - 1
                IF (all_ranks(i) .NE. mp_proc_null) THEN
                   source2global(all_ranks(i)) = i
                END IF
@@ -1502,8 +1502,8 @@ CONTAINS
 
          CALL mp_allgather(recv_rank, all_ranks, global_comm)
          IF (ASSOCIATED(source)) THEN
-            ALLOCATE (dest2global(0:COUNT(all_ranks .NE. mp_proc_null)-1))
-            DO i = 0, global_size-1
+            ALLOCATE (dest2global(0:COUNT(all_ranks .NE. mp_proc_null) - 1))
+            DO i = 0, global_size - 1
                IF (all_ranks(i) .NE. mp_proc_null) THEN
                   dest2global(all_ranks(i)) = i
                END IF
@@ -1544,8 +1544,8 @@ CONTAINS
          IF (global_rank == 0) THEN
             CALL mp_waitall(recv_req(1:4))
             ! Now we know the process decomposition, we can allocate the arrays to hold the blacs2mpi mapping
-            ALLOCATE (src_blacs2mpi(0:src_num_pe(1)-1, 0:src_num_pe(2)-1), &
-                      dest_blacs2mpi(0:dest_num_pe(1)-1, 0:dest_num_pe(2)-1) &
+            ALLOCATE (src_blacs2mpi(0:src_num_pe(1) - 1, 0:src_num_pe(2) - 1), &
+                      dest_blacs2mpi(0:dest_num_pe(1) - 1, 0:dest_num_pe(2) - 1) &
                       )
             CALL mp_irecv(src_blacs2mpi, mp_any_source, global_comm, recv_req(5), tag=src_tag)
             CALL mp_irecv(dest_blacs2mpi, mp_any_source, global_comm, recv_req(6), tag=dest_tag)
@@ -1575,8 +1575,8 @@ CONTAINS
          info%src_num_pe(1:2) = src_num_pe(1:2)
          info%nblock_src(1:2) = src_block(1:2)
          IF (global_rank .NE. 0) THEN
-            ALLOCATE (src_blacs2mpi(0:src_num_pe(1)-1, 0:src_num_pe(2)-1), &
-                      dest_blacs2mpi(0:dest_num_pe(1)-1, 0:dest_num_pe(2)-1) &
+            ALLOCATE (src_blacs2mpi(0:src_num_pe(1) - 1, 0:src_num_pe(2) - 1), &
+                      dest_blacs2mpi(0:dest_num_pe(1) - 1, 0:dest_num_pe(2) - 1) &
                       )
          END IF
          CALL mp_bcast(src_blacs2mpi, 0, global_comm)
@@ -1611,7 +1611,7 @@ CONTAINS
             info%recv_row_indices => recv_row_indices
             nrow_block_src = src_block(1)
             ncol_block_src = src_block(2)
-            ALLOCATE (recv_count(0:send_size-1), recv_disp(0:send_size-1), recv_request(0:send_size-1))
+            ALLOCATE (recv_count(0:send_size - 1), recv_disp(0:send_size - 1), recv_request(0:send_size - 1))
 
             ! Determine the recv counts, allocate the receive buffers, call mpi_irecv for all the non-zero sized receives
             nrow_local_recv = recv_dist%nrow_locals(recv_dist%context%mepos(1))
@@ -1623,17 +1623,17 @@ CONTAINS
             DO i = 1, nrow_local_recv
                ! For each local row we will receive, we look up its global row (in recv_row_indices),
                ! then work out which row block it comes from, and which process row that row block comes from.
-               src_p(i) = MOD(((recv_row_indices(i)-1)/nrow_block_src), src_num_pe(1))
+               src_p(i) = MOD(((recv_row_indices(i) - 1)/nrow_block_src), src_num_pe(1))
             END DO
             DO j = 1, ncol_local_recv
                ! Similarly for the columns
-               src_q(j) = MOD(((recv_col_indices(j)-1)/ncol_block_src), src_num_pe(2))
+               src_q(j) = MOD(((recv_col_indices(j) - 1)/ncol_block_src), src_num_pe(2))
             END DO
             ! src_p/q now contains the process row/column ID that will send data to that row/column
 
-            DO q = 0, src_num_pe(2)-1
+            DO q = 0, src_num_pe(2) - 1
                ncols = COUNT(src_q .EQ. q)
-               DO p = 0, src_num_pe(1)-1
+               DO p = 0, src_num_pe(1) - 1
                   nrows = COUNT(src_p .EQ. p)
                   ! Use the send_dist here as we are looking up the processes where the data comes from
                   recv_count(src_blacs2mpi(p, q)) = nrows*ncols
@@ -1646,15 +1646,15 @@ CONTAINS
             ALLOCATE (recv_buf(SUM(recv_count(:))))
             info%recv_buf => recv_buf
             recv_disp(0) = 0
-            DO i = 1, send_size-1
-               recv_disp(i) = recv_disp(i-1)+recv_count(i-1)
+            DO i = 1, send_size - 1
+               recv_disp(i) = recv_disp(i - 1) + recv_count(i - 1)
             END DO
             info%recv_disp => recv_disp
 
             ! Issue receive calls on ranks which expect data
-            DO k = 0, send_size-1
+            DO k = 0, send_size - 1
                IF (recv_count(k) .GT. 0) THEN
-                  CALL mp_irecv(recv_buf(recv_disp(k)+1:recv_disp(k)+recv_count(k)), &
+                  CALL mp_irecv(recv_buf(recv_disp(k) + 1:recv_disp(k) + recv_count(k)), &
                                 source2global(k), global_comm, recv_request(k))
                ELSE
                   recv_request(k) = mp_request_null
@@ -1671,7 +1671,7 @@ CONTAINS
                                   )
             nrow_block_dest = dest_block(1)
             ncol_block_dest = dest_block(2)
-            ALLOCATE (send_count(0:recv_size-1), send_disp(0:recv_size-1), send_request(0:recv_size-1))
+            ALLOCATE (send_count(0:recv_size - 1), send_disp(0:recv_size - 1), send_request(0:recv_size - 1))
 
             ! Determine the send counts, allocate the send buffers
             nrow_local_send = send_dist%nrow_locals(send_dist%context%mepos(1))
@@ -1683,16 +1683,16 @@ CONTAINS
 
             DO i = 1, nrow_local_send
                ! Use the send_dist%row_indices() here (we are looping over the local rows we will send)
-               dest_p(i) = MOD(((send_row_indices(i)-1)/nrow_block_dest), dest_num_pe(1))
+               dest_p(i) = MOD(((send_row_indices(i) - 1)/nrow_block_dest), dest_num_pe(1))
             END DO
             DO j = 1, ncol_local_send
-               dest_q(j) = MOD(((send_col_indices(j)-1)/ncol_block_dest), dest_num_pe(2))
+               dest_q(j) = MOD(((send_col_indices(j) - 1)/ncol_block_dest), dest_num_pe(2))
             END DO
             ! dest_p/q now contain the process row/column ID that will receive data from that row/column
 
-            DO q = 0, dest_num_pe(2)-1
+            DO q = 0, dest_num_pe(2) - 1
                ncols = COUNT(dest_q .EQ. q)
-               DO p = 0, dest_num_pe(1)-1
+               DO p = 0, dest_num_pe(1) - 1
                   nrows = COUNT(dest_p .EQ. p)
                   send_count(dest_blacs2mpi(p, q)) = nrows*ncols
                END DO
@@ -1702,28 +1702,28 @@ CONTAINS
             ! Allocate the send buffer using send_count -- and calculate the offset into the buffer for each process
             ALLOCATE (send_buf(SUM(send_count(:))))
             send_disp(0) = 0
-            DO k = 1, recv_size-1
-               send_disp(k) = send_disp(k-1)+send_count(k-1)
+            DO k = 1, recv_size - 1
+               send_disp(k) = send_disp(k - 1) + send_count(k - 1)
             END DO
 
             ! Loop over the smat, pack the send buffers
             send_count(:) = 0
             DO j = 1, ncol_local_send
                ! Use send_col_indices and row_indices here, as we are looking up the global row/column number of local rows.
-               dest_q_j = MOD(((send_col_indices(j)-1)/ncol_block_dest), dest_num_pe(2))
+               dest_q_j = MOD(((send_col_indices(j) - 1)/ncol_block_dest), dest_num_pe(2))
                DO i = 1, nrow_local_send
-                  dest_p_i = MOD(((send_row_indices(i)-1)/nrow_block_dest), dest_num_pe(1))
+                  dest_p_i = MOD(((send_row_indices(i) - 1)/nrow_block_dest), dest_num_pe(1))
                   mpi_rank = dest_blacs2mpi(dest_p_i, dest_q_j)
-                  send_count(mpi_rank) = send_count(mpi_rank)+1
-                  send_buf(send_disp(mpi_rank)+send_count(mpi_rank)) = source%local_data(i, j)
+                  send_count(mpi_rank) = send_count(mpi_rank) + 1
+                  send_buf(send_disp(mpi_rank) + send_count(mpi_rank)) = source%local_data(i, j)
                END DO
             END DO
             info%send_buf => send_buf
 
             ! For each non-zero send_count, call mpi_isend
-            DO k = 0, recv_size-1
+            DO k = 0, recv_size - 1
                IF (send_count(k) .GT. 0) THEN
-                  CALL mp_isend(send_buf(send_disp(k)+1:send_disp(k)+send_count(k)), &
+                  CALL mp_isend(send_buf(send_disp(k) + 1:send_disp(k) + send_count(k)), &
                                 dest2global(k), global_comm, send_request(k))
                ELSE
                   send_request(k) = mp_request_null
@@ -1771,7 +1771,7 @@ CONTAINS
          k = 0
          DO j = 1, SIZE(destination%local_data, 2)
             DO i = 1, SIZE(destination%local_data, 1)
-               k = k+1
+               k = k + 1
                destination%local_data(i, j) = info%send_buf(k)
             END DO
          END DO
@@ -1794,17 +1794,17 @@ CONTAINS
          ! ... use the local variables to do the work
          ! DEST_2
          CALL mp_waitall(recv_request(:))
-         ALLOCATE (recv_count(0:send_size-1))
+         ALLOCATE (recv_count(0:send_size - 1))
          ! Loop over the rmat, filling it in with data from the recv buffers
          ! (here the block sizes, num_pes refer to the distribution of the source matrix)
          recv_count(:) = 0
          DO j = 1, nlocal_recv(2)
-            src_q_j = MOD(((recv_col_indices(j)-1)/nblock_src(2)), src_num_pe(2))
+            src_q_j = MOD(((recv_col_indices(j) - 1)/nblock_src(2)), src_num_pe(2))
             DO i = 1, nlocal_recv(1)
-               src_p_i = MOD(((recv_row_indices(i)-1)/nblock_src(1)), src_num_pe(1))
+               src_p_i = MOD(((recv_row_indices(i) - 1)/nblock_src(1)), src_num_pe(1))
                mpi_rank = src_blacs2mpi(src_p_i, src_q_j)
-               recv_count(mpi_rank) = recv_count(mpi_rank)+1
-               destination%local_data(i, j) = recv_buf(recv_disp(mpi_rank)+recv_count(mpi_rank))
+               recv_count(mpi_rank) = recv_count(mpi_rank) + 1
+               destination%local_data(i, j) = recv_buf(recv_disp(mpi_rank) + recv_count(mpi_rank))
             END DO
          END DO
          DEALLOCATE (recv_count, recv_disp, recv_request, recv_buf, src_blacs2mpi)
@@ -2031,12 +2031,12 @@ CONTAINS
                    irow_local, icol_local, iprow, ipcol)
 
       IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
-         a(irow_local, icol_local) = a(irow_local, icol_local)+alpha
+         a(irow_local, icol_local) = a(irow_local, icol_local) + alpha
       END IF
 
 #else
 
-      a(irow_global, icol_global) = a(irow_global, icol_global)+alpha
+      a(irow_global, icol_global) = a(irow_global, icol_global) + alpha
 
 #endif
 
@@ -2097,12 +2097,12 @@ CONTAINS
       vecbuf = HUGE(1.0_dp) ! init for valgrind
 
       DO i = 1, ncol_global, MAX(max_block, 1)
-         i_block = MIN(max_block, ncol_global-i+1)
+         i_block = MIN(max_block, ncol_global - i + 1)
          CALL infog2l(1, i, desc, nprow, npcol, myprow, mypcol, &
                       irow_local, icol_local, iprow, ipcol)
          IF (ipcol == mypcol) THEN
             DO j = 1, i_block
-               vecbuf((j-1)*nrow_global+1:nrow_global*j) = newdat(:, icol_local+j-1)
+               vecbuf((j - 1)*nrow_global + 1:nrow_global*j) = newdat(:, icol_local + j - 1)
             END DO
          END IF
 
@@ -2119,7 +2119,7 @@ CONTAINS
 
          IF (unit > 0) THEN
             DO j = 1, i_block
-               WRITE (unit) vecbuf((j-1)*nrow_global+1:nrow_global*j)
+               WRITE (unit) vecbuf((j - 1)*nrow_global + 1:nrow_global*j)
             END DO
          END IF
 
@@ -2218,12 +2218,12 @@ CONTAINS
       icol = 1
 
       DO i = 1, ncol_global, MAX(max_block, 1)
-         i_block = MIN(max_block, ncol_global-i+1)
+         i_block = MIN(max_block, ncol_global - i + 1)
          CALL infog2l(1, i, desc, nprow, npcol, myprow, mypcol, &
                       irow_local, icol_local, iprow, ipcol)
          IF (ipcol == mypcol) THEN
             DO j = 1, i_block
-               vecbuf((j-1)*nrow_global+1:nrow_global*j) = newdat(:, icol_local+j-1)
+               vecbuf((j - 1)*nrow_global + 1:nrow_global*j) = newdat(:, icol_local + j - 1)
             END DO
          END IF
 
@@ -2240,12 +2240,12 @@ CONTAINS
 
          IF (unit > 0) THEN
             DO j = 1, i_block
-               DO k = (j-1)*nrow_global+1, nrow_global*j
+               DO k = (j - 1)*nrow_global + 1, nrow_global*j
                   WRITE (UNIT=unit, FMT=my_value_format) irow, icol, vecbuf(k)
-                  irow = irow+1
+                  irow = irow + 1
                   IF (irow > nrow_global) THEN
                      irow = 1
-                     icol = icol+1
+                     icol = icol + 1
                   END IF
                END DO
             END DO
@@ -2306,7 +2306,7 @@ CONTAINS
 
       DO j = 1, ncol_global, max_block
 
-         n_cols = MIN(max_block, ncol_global-j+1)
+         n_cols = MIN(max_block, ncol_global - j + 1)
          IF (para_env%mepos == 0) THEN
             DO k = 1, n_cols
                READ (unit) vecbuf(:, k)

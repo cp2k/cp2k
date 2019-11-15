@@ -197,7 +197,7 @@ CONTAINS
             CPASSERT(ASSOCIATED(p_block_b))
             check = (size_p_block_a(1) == SIZE(p_block_b, 1)) .AND. (size_p_block_a(2) == SIZE(p_block_b, 2))
             CPASSERT(check)
-            p_block_tot(1:SIZE(p_block_a, 1), 1:SIZE(p_block_a, 2)) = p_block_a+p_block_b
+            p_block_tot(1:SIZE(p_block_a, 1), 1:SIZE(p_block_a, 2)) = p_block_a + p_block_b
          END IF
 
          dr = DOT_PRODUCT(rij, rij)
@@ -250,14 +250,14 @@ CONTAINS
                   CALL virial_pair_force(virial%pv_virial, -1.0_dp, force_ab, rij)
                END IF
 
-               force(ikind)%rho_elec(1, atom_a) = force(ikind)%rho_elec(1, atom_a)-force_ab(1)
-               force(jkind)%rho_elec(1, atom_b) = force(jkind)%rho_elec(1, atom_b)+force_ab(1)
+               force(ikind)%rho_elec(1, atom_a) = force(ikind)%rho_elec(1, atom_a) - force_ab(1)
+               force(jkind)%rho_elec(1, atom_b) = force(jkind)%rho_elec(1, atom_b) + force_ab(1)
 
-               force(ikind)%rho_elec(2, atom_a) = force(ikind)%rho_elec(2, atom_a)-force_ab(2)
-               force(jkind)%rho_elec(2, atom_b) = force(jkind)%rho_elec(2, atom_b)+force_ab(2)
+               force(ikind)%rho_elec(2, atom_a) = force(ikind)%rho_elec(2, atom_a) - force_ab(2)
+               force(jkind)%rho_elec(2, atom_b) = force(jkind)%rho_elec(2, atom_b) + force_ab(2)
 
-               force(ikind)%rho_elec(3, atom_a) = force(ikind)%rho_elec(3, atom_a)-force_ab(3)
-               force(jkind)%rho_elec(3, atom_b) = force(jkind)%rho_elec(3, atom_b)+force_ab(3)
+               force(ikind)%rho_elec(3, atom_a) = force(ikind)%rho_elec(3, atom_a) - force_ab(3)
+               force(jkind)%rho_elec(3, atom_b) = force(jkind)%rho_elec(3, atom_b) + force_ab(3)
             END IF
          END IF
       END DO

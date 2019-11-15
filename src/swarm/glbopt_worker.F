@@ -189,7 +189,7 @@ CONTAINS
       ENDIF
 
       ! setup mdctrl callback
-      ALLOCATE (mdctrl_data%epot_history(worker%bump_steps_downwards+worker%bump_steps_upwards+1))
+      ALLOCATE (mdctrl_data%epot_history(worker%bump_steps_downwards + worker%bump_steps_upwards + 1))
       mdctrl_data%epot_history = 0.0
       mdctrl_data%md_bump_counter = 0
       mdctrl_data%bump_steps_upwards = worker%bump_steps_upwards
@@ -212,7 +212,7 @@ CONTAINS
 
       prev_iframe = iframe
       IF (iframe == 0) iframe = 1 ! qs_mol_dyn behaves differently for STEP_START_VAL=0
-      CALL section_vals_val_set(worker%root_section, "MOTION%MD%STEP_START_VAL", i_val=iframe-1)
+      CALL section_vals_val_set(worker%root_section, "MOTION%MD%STEP_START_VAL", i_val=iframe - 1)
       CALL section_vals_val_set(worker%root_section, "MOTION%MD%TEMPERATURE", r_val=temperature)
 
       IF (worker%iw > 0) THEN
@@ -223,8 +223,8 @@ CONTAINS
       ! run MD
       CALL qs_mol_dyn(worker%force_env, worker%globenv, mdctrl=mdctrl_p)
 
-      iframe = mdctrl_data%itimes+1
-      md_steps = iframe-prev_iframe
+      iframe = mdctrl_data%itimes + 1
+      md_steps = iframe - prev_iframe
       IF (worker%iw > 0) WRITE (worker%iw, '(A,I4,A)') " GLBOPT| md ended after ", md_steps, " steps."
 
       ! fix fragmentation
@@ -232,7 +232,7 @@ CONTAINS
       CALL pack_subsys_particles(worker%subsys, r=positions)
       n_fragments = 0
       DO
-         n_fragments = n_fragments+1
+         n_fragments = n_fragments + 1
          IF (fix_fragmentation(positions, worker%fragmentation_threshold)) EXIT
       END DO
       CALL unpack_subsys_particles(worker%subsys, r=positions)
@@ -242,17 +242,17 @@ CONTAINS
 
       ! setup geometry optimization
       IF (worker%iw > 0) WRITE (worker%iw, '(A,13X,I10)') " GLBOPT| Starting local optimisation at trajectory frame ", iframe
-      CALL section_vals_val_set(worker%root_section, "MOTION%GEO_OPT%STEP_START_VAL", i_val=iframe-1)
+      CALL section_vals_val_set(worker%root_section, "MOTION%GEO_OPT%STEP_START_VAL", i_val=iframe - 1)
       CALL section_vals_val_set(worker%root_section, "MOTION%GEO_OPT%MAX_ITER", &
-                                i_val=iframe+worker%gopt_max_iter)
+                                i_val=iframe + worker%gopt_max_iter)
 
       ! run geometry optimization
       CALL cp_geo_opt(worker%force_env, worker%globenv, rm_restart_info=.FALSE.)
 
       prev_iframe = iframe
       CALL section_vals_val_get(worker%root_section, "MOTION%GEO_OPT%STEP_START_VAL", i_val=iframe)
-      iframe = iframe+2 ! Compensates for different START_VAL interpretation.
-      gopt_steps = iframe-prev_iframe-1
+      iframe = iframe + 2 ! Compensates for different START_VAL interpretation.
+      gopt_steps = iframe - prev_iframe - 1
       IF (worker%iw > 0) WRITE (worker%iw, '(A,I4,A)') " GLBOPT| gopt ended after ", gopt_steps, " steps."
       CALL force_env_get(worker%force_env, potential_energy=Epot)
       IF (worker%iw > 0) WRITE (worker%iw, '(A,25X,E20.10)') ' GLBOPT| Potential Energy [Hartree]', Epot
@@ -295,12 +295,12 @@ CONTAINS
       marked(1) = .TRUE.; stack(1) = 1; stack_size = 1
 
       DO WHILE (stack_size > 0)
-         i = stack(stack_size); stack_size = stack_size-1 !pop
+         i = stack(stack_size); stack_size = stack_size - 1 !pop
          DO j = 1, n_particles
             IF (norm(diff(positions, i, j)) < 1.25*bondlength) THEN ! they are close = they are connected
                IF (.NOT. marked(j)) THEN
                   marked(j) = .TRUE.
-                  stack(stack_size+1) = j; stack_size = stack_size+1; !push
+                  stack(stack_size + 1) = j; stack_size = stack_size + 1; !push
                END IF
             END IF
          END DO
@@ -329,10 +329,10 @@ CONTAINS
       END DO
 
       dr = diff(positions, cluster_edge, fragment_edge)
-      s = 1.0-bondlength/norm(dr)
+      s = 1.0 - bondlength/norm(dr)
       DO i = 1, n_particles
          IF (marked(i)) CYCLE
-         positions(3*i-2:3*i) = positions(3*i-2:3*i)-s*dr
+         positions(3*i - 2:3*i) = positions(3*i - 2:3*i) - s*dr
       END DO
 
    END FUNCTION fix_fragmentation
@@ -350,7 +350,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: i, j
       REAL(KIND=dp), DIMENSION(3)                        :: dr
 
-      dr = positions(3*i-2:3*i)-positions(3*j-2:3*j)
+      dr = positions(3*i - 2:3*i) - positions(3*j - 2:3*j)
    END FUNCTION diff
 
 ! **************************************************************************************************

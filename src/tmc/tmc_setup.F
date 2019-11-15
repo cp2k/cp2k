@@ -432,7 +432,7 @@ CONTAINS
                   CALL deallocate_sub_tree_node(tree_elem=ana_list(temp)%temp%last_elem)
                IF (ASSOCIATED(ana_list(temp)%temp%last_elem)) &
                   ana_list(temp)%temp%conf_offset = ana_list(temp)%temp%conf_offset &
-                                                    +ana_list(temp)%temp%last_elem%nr
+                                                    + ana_list(temp)%temp%last_elem%nr
             END DO
             CALL finalize_tmc_analysis(ana_env=ana_list(temp)%temp)
             ! write analysis restart file
@@ -519,7 +519,7 @@ CONTAINS
          ALLOCATE (Temps(nr_temp))
          Temps(1) = tmin
          DO t_act = 2, SIZE(Temps)
-            Temps(t_act) = Temps(t_act-1)+(tmax-tmin)/(SIZE(Temps)-1.0_dp)
+            Temps(t_act) = Temps(t_act - 1) + (tmax - tmin)/(SIZE(Temps) - 1.0_dp)
          END DO
          IF (ANY(Temps .LT. 0.0_dp)) &
             CALL cp_abort(__LOCATION__, "The temperatures are negative. Should be specified using "// &
@@ -651,7 +651,7 @@ CONTAINS
          ALLOCATE (tmc_env%params%Temp(tmc_env%params%nr_temp))
          tmc_env%params%Temp(1) = tmin
          DO itmp = 2, SIZE(tmc_env%params%Temp)
-            tmc_env%params%Temp(itmp) = tmc_env%params%Temp(itmp-1)+(tmax-tmin)/(SIZE(tmc_env%params%Temp)-1.0_dp)
+            tmc_env%params%Temp(itmp) = tmc_env%params%Temp(itmp - 1) + (tmax - tmin)/(SIZE(tmc_env%params%Temp) - 1.0_dp)
          END DO
          IF (ANY(tmc_env%params%Temp .LT. 0.0_dp)) &
             CALL cp_abort(__LOCATION__, "The temperatures are negative. Should be specified using "// &
@@ -661,8 +661,8 @@ CONTAINS
       CALL section_vals_val_get(tmc_section, "TASK_TYPE", explicit=explicit_key)
       IF (explicit_key) THEN
          CALL section_vals_val_get(tmc_section, "TASK_TYPE", c_val=c_tmp)
-         SELECT CASE (TRIM (c_tmp))
-         CASE (TRIM (tmc_default_unspecified_name))
+         SELECT CASE (TRIM(c_tmp))
+         CASE (TRIM(tmc_default_unspecified_name))
             tmc_env%params%task_type = task_type_MC
          CASE ("IDEAL_GAS")
             tmc_env%params%task_type = task_type_ideal_gas
@@ -828,7 +828,7 @@ CONTAINS
       ! colors and positions for new communicators
       ! variables for printing
       tmc_comp_set%group_nr = -1
-      my_mpi_undefined = para_env%num_pe+10000 !HUGE(my_mpi_undefined)! mp_undefined
+      my_mpi_undefined = para_env%num_pe + 10000 !HUGE(my_mpi_undefined)! mp_undefined
       master_worker_group = my_mpi_undefined
       master_worker_rank = -1
       cc_group = my_mpi_undefined
@@ -847,10 +847,10 @@ CONTAINS
          success = .FALSE.
       ELSE
          ! check if there are enougth cores available
-         IF (tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr .GT. (para_env%num_pe-1)) &
+         IF (tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr .GT. (para_env%num_pe - 1)) &
             CPWARN("The selected energy group size is too huge. ")
          IF (flag) THEN
-            tmc_comp_set%group_ener_nr = INT((para_env%num_pe-1)/ &
+            tmc_comp_set%group_ener_nr = INT((para_env%num_pe - 1)/ &
                                              REAL(tmc_comp_set%group_ener_size, KIND=dp))
             IF (tmc_comp_set%group_ener_nr .LT. 1) &
                CPWARN("The selected energy group size is too huge. ")
@@ -860,8 +860,8 @@ CONTAINS
          ! set the amount of configurational change worker groups
          tmc_comp_set%group_cc_nr = 0
          IF (tmc_comp_set%group_cc_size .GT. 0) THEN
-            tmc_comp_set%group_cc_nr = INT((para_env%num_pe-1-tmc_comp_set%ana_on_the_fly &
-                                            -tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr)/ &
+            tmc_comp_set%group_cc_nr = INT((para_env%num_pe - 1 - tmc_comp_set%ana_on_the_fly &
+                                            - tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr)/ &
                                            REAL(tmc_comp_set%group_cc_size, KIND=dp))
 
             IF (tmc_comp_set%group_cc_nr .LT. 1) &
@@ -870,51 +870,51 @@ CONTAINS
             IF (flag) success = .FALSE.
          END IF
 
-         total_used = tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr+ &
-                      tmc_comp_set%group_cc_size*tmc_comp_set%group_cc_nr+ &
+         total_used = tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr + &
+                      tmc_comp_set%group_cc_size*tmc_comp_set%group_cc_nr + &
                       tmc_comp_set%ana_on_the_fly
-         IF (para_env%num_pe-1 .GT. total_used) &
+         IF (para_env%num_pe - 1 .GT. total_used) &
             CPWARN(" mpi ranks are unused, but can be used for analysis.")
 
          ! duplicate communicator
          CALL mp_comm_dup(para_env%group, my_mpi_world)
 
          ! determine the master node
-         IF (para_env%mepos == para_env%num_pe-1) THEN
+         IF (para_env%mepos == para_env%num_pe - 1) THEN
             master = .TRUE.
-            master_worker_group = para_env%num_pe+3 ! belong to master_worker_comm
+            master_worker_group = para_env%num_pe + 3 ! belong to master_worker_comm
             master_worker_rank = 0 ! rank in m_w_comm
-            master_first_e_worker_g = para_env%num_pe+3 ! belong to master_first_energy_worker_comm
+            master_first_e_worker_g = para_env%num_pe + 3 ! belong to master_first_energy_worker_comm
             master_first_e_worker_r = 0
             tmc_comp_set%group_nr = 0 !para_env%num_pe +3
-            master_ana_group = para_env%num_pe+4
+            master_ana_group = para_env%num_pe + 4
             master_ana_rank = 0
          ELSE
             ! energy calculation groups
             IF (para_env%mepos .LT. tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr) THEN
-               tmc_comp_set%group_nr = INT(para_env%mepos/tmc_comp_set%group_ener_size)+1 ! assign to groups
+               tmc_comp_set%group_nr = INT(para_env%mepos/tmc_comp_set%group_ener_size) + 1 ! assign to groups
                ! master of worker group
                IF (MODULO(para_env%mepos, tmc_comp_set%group_ener_size) .EQ. 0) THEN ! tmc_comp_set%group_nr masters
-                  master_worker_group = para_env%num_pe+3 ! belong to master_worker_comm
+                  master_worker_group = para_env%num_pe + 3 ! belong to master_worker_comm
                   master_worker_rank = tmc_comp_set%group_nr ! rank in m_w_comm
                   IF (master_worker_rank .EQ. 1) THEN
-                     master_first_e_worker_g = para_env%num_pe+3 ! belong to master_first_energy_worker_comm
+                     master_first_e_worker_g = para_env%num_pe + 3 ! belong to master_first_energy_worker_comm
                      master_first_e_worker_r = 1
                   END IF
                END IF
                cc_group = tmc_comp_set%group_nr
-               cc_group_rank = para_env%mepos- &
-                               (tmc_comp_set%group_nr-1)*tmc_comp_set%group_ener_size ! rank in worker group
+               cc_group_rank = para_env%mepos - &
+                               (tmc_comp_set%group_nr - 1)*tmc_comp_set%group_ener_size ! rank in worker group
 
                ! configurational change groups
-            ELSE IF (para_env%mepos .LT. (tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr+ &
+            ELSE IF (para_env%mepos .LT. (tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr + &
                                           tmc_comp_set%group_cc_size*tmc_comp_set%group_cc_nr)) THEN
-               cc_group_rank = para_env%mepos-tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr ! temporary
-               tmc_comp_set%group_nr = tmc_comp_set%group_ener_nr+1+INT(cc_group_rank/tmc_comp_set%group_cc_size)
+               cc_group_rank = para_env%mepos - tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr ! temporary
+               tmc_comp_set%group_nr = tmc_comp_set%group_ener_nr + 1 + INT(cc_group_rank/tmc_comp_set%group_cc_size)
                cc_group = tmc_comp_set%group_nr
                ! master of worker group
                IF (MODULO(cc_group_rank, tmc_comp_set%group_cc_size) .EQ. 0) THEN ! tmc_comp_set%group_nr masters
-                  master_worker_group = para_env%num_pe+3 ! belong to master_worker_comm
+                  master_worker_group = para_env%num_pe + 3 ! belong to master_worker_comm
                   master_worker_rank = tmc_comp_set%group_nr ! rank in m_w_comm
                END IF
                !cc_group_rank = cc_group_rank-(tmc_comp_set%group_nr-1)*tmc_comp_set%group_cc_size       ! rank in worker group
@@ -922,11 +922,11 @@ CONTAINS
             ELSE
                ! not used cores
                ! up to now we use just one core for doing the analysis
-               IF (para_env%mepos .EQ. para_env%num_pe-2) THEN
-                  tmc_comp_set%group_nr = para_env%mepos-(para_env%num_pe-1) ! negative
+               IF (para_env%mepos .EQ. para_env%num_pe - 2) THEN
+                  tmc_comp_set%group_nr = para_env%mepos - (para_env%num_pe - 1) ! negative
                   CPASSERT(tmc_comp_set%group_nr .LT. 0)
-                  IF (para_env%mepos .GE. para_env%num_pe-1-ana_on_the_fly) THEN
-                     master_ana_group = para_env%num_pe+4
+                  IF (para_env%mepos .GE. para_env%num_pe - 1 - ana_on_the_fly) THEN
+                     master_ana_group = para_env%num_pe + 4
                      master_ana_rank = -tmc_comp_set%group_nr
                   END IF
                END IF
@@ -1031,7 +1031,7 @@ CONTAINS
 
          WRITE (UNIT=file_nr, FMT="(T2,A,T35,A,T80,A)") "-", "distribution of cores", "-"
          WRITE (file_nr, FMT=fmt_my) plabel, "number of all working groups ", &
-            cp_to_string(tmc_env%tmc_comp_set%para_env_m_w%num_pe-1)
+            cp_to_string(tmc_env%tmc_comp_set%para_env_m_w%num_pe - 1)
          WRITE (file_nr, FMT=fmt_my) plabel, "number of groups (ener|cc)", &
             cp_to_string(tmc_env%tmc_comp_set%group_ener_nr)//" | "// &
             cp_to_string(tmc_env%tmc_comp_set%group_cc_nr)
@@ -1040,7 +1040,7 @@ CONTAINS
             cp_to_string(tmc_env%tmc_comp_set%group_cc_size)
          IF (ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_ana)) &
             WRITE (file_nr, FMT=fmt_my) plabel, "Analysis groups ", &
-            cp_to_string(tmc_env%tmc_comp_set%para_env_m_ana%num_pe-1)
+            cp_to_string(tmc_env%tmc_comp_set%para_env_m_ana%num_pe - 1)
          IF (SIZE(tmc_env%params%Temp(:)) .LE. 7) THEN
             WRITE (fmt_tmp, *) '(T2,A,"| ",A,T25,A56)'
             c_tmp = ""

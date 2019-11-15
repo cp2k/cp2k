@@ -187,7 +187,7 @@ CONTAINS
                block_sizes_new(:) = 0
                DO iatom = 1, natoms
                   block_sizes_new(almo_scf_env%domain_index_of_atom(iatom)) = &
-                     block_sizes_new(almo_scf_env%domain_index_of_atom(iatom))+ &
+                     block_sizes_new(almo_scf_env%domain_index_of_atom(iatom)) + &
                      blk_sizes(iatom)
                ENDDO
                DO imol = 1, nmols
@@ -723,7 +723,7 @@ CONTAINS
       !! Add electronic entropy contribution if smearing is requested
       !! Previous QS entropy is replaced by the sum of the entropy for each spin
       IF (smearing) THEN
-         energy%total = energy%total-energy%kTS+entropic_term
+         energy%total = energy%total - energy%kTS + entropic_term
       END IF
 
       energy_total = energy%total
@@ -831,7 +831,7 @@ CONTAINS
          qs_energy%total = energy
       ENDIF
 
-      qs_energy%total = qs_energy%total+qs_energy%singles_corr
+      qs_energy%total = qs_energy%total + qs_energy%singles_corr
 
    END SUBROUTINE almo_scf_update_ks_energy
 
@@ -962,7 +962,7 @@ CONTAINS
                                 iatom=iatom2, jatom=jatom2, inode=inode2, nnode=nnode2)
          !WRITE(*,*) "GET INFO: ",iatom2, jatom2, inode2, nnode2
          IF (inode2 == 1) THEN
-            local_list_length = local_list_length+nnode2
+            local_list_length = local_list_length + nnode2
          END IF
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
@@ -975,9 +975,9 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator2) == 0)
          CALL get_iterator_info(nl_iterator2, &
                                 iatom=iatom2, jatom=jatom2)
-         local_list(2*local_list_length+1) = iatom2
-         local_list(2*local_list_length+2) = jatom2
-         local_list_length = local_list_length+1
+         local_list(2*local_list_length + 1) = iatom2
+         local_list(2*local_list_length + 2) = jatom2
+         local_list_length = local_list_length + 1
       ENDDO ! end loop over pairs of atoms
       CALL neighbor_list_iterator_release(nl_iterator2)
 
@@ -988,10 +988,10 @@ CONTAINS
       ! fourth, create a global list
       list_offset_cpu(1) = 0
       DO iNode = 2, nNodes
-         list_offset_cpu(iNode) = list_offset_cpu(iNode-1)+ &
-                                  list_length_cpu(iNode-1)
+         list_offset_cpu(iNode) = list_offset_cpu(iNode - 1) + &
+                                  list_length_cpu(iNode - 1)
       ENDDO
-      global_list_length = list_offset_cpu(nNodes)+list_length_cpu(nNodes)
+      global_list_length = list_offset_cpu(nNodes) + list_length_cpu(nNodes)
 
       ! fifth, communicate all list data
       ALLOCATE (global_list(global_list_length))
@@ -1005,15 +1005,15 @@ CONTAINS
       current_number_neighbors(:) = 0
       global_list_length = global_list_length/2
       DO ipair = 1, global_list_length
-         iatom2 = global_list(2*(ipair-1)+1)
-         jatom2 = global_list(2*(ipair-1)+2)
+         iatom2 = global_list(2*(ipair - 1) + 1)
+         jatom2 = global_list(2*(ipair - 1) + 2)
          idomain2 = almo_scf_env%domain_index_of_atom(iatom2)
          jdomain2 = almo_scf_env%domain_index_of_atom(jatom2)
          ! add to the list
-         current_number_neighbors(idomain2) = current_number_neighbors(idomain2)+1
+         current_number_neighbors(idomain2) = current_number_neighbors(idomain2) + 1
          ! add j,i with i,j
          IF (idomain2 .NE. jdomain2) THEN
-            current_number_neighbors(jdomain2) = current_number_neighbors(jdomain2)+1
+            current_number_neighbors(jdomain2) = current_number_neighbors(jdomain2) + 1
          ENDIF
       ENDDO
       max_domain_neighbors = MAXVAL(current_number_neighbors)
@@ -1025,8 +1025,8 @@ CONTAINS
          domain_neighbor_list_excessive(ipair, 1) = ipair
       ENDDO
       DO ipair = 1, global_list_length
-         iatom2 = global_list(2*(ipair-1)+1)
-         jatom2 = global_list(2*(ipair-1)+2)
+         iatom2 = global_list(2*(ipair - 1) + 1)
+         jatom2 = global_list(2*(ipair - 1) + 2)
          idomain2 = almo_scf_env%domain_index_of_atom(iatom2)
          jdomain2 = almo_scf_env%domain_index_of_atom(jatom2)
          already_listed = .FALSE.
@@ -1038,11 +1038,11 @@ CONTAINS
          ENDDO
          IF (.NOT. already_listed) THEN
             ! add to the list
-            current_number_neighbors(idomain2) = current_number_neighbors(idomain2)+1
+            current_number_neighbors(idomain2) = current_number_neighbors(idomain2) + 1
             domain_neighbor_list_excessive(idomain2, current_number_neighbors(idomain2)) = jdomain2
             ! add j,i with i,j
             IF (idomain2 .NE. jdomain2) THEN
-               current_number_neighbors(jdomain2) = current_number_neighbors(jdomain2)+1
+               current_number_neighbors(jdomain2) = current_number_neighbors(jdomain2) + 1
                domain_neighbor_list_excessive(jdomain2, current_number_neighbors(jdomain2)) = idomain2
             ENDIF
          ENDIF
@@ -1133,9 +1133,9 @@ CONTAINS
                      IF (domain_map_local_entries .GE. max_domain_neighbors*almo_scf_env%ndomains) THEN
                         CPABORT("weird... max_domain_neighbors is exceeded")
                      ENDIF
-                     almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1, 1) = iblock_row
-                     almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1, 2) = iblock_col
-                     domain_map_local_entries = domain_map_local_entries+1
+                     almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries + 1, 1) = iblock_row
+                     almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries + 1, 2) = iblock_col
+                     domain_map_local_entries = domain_map_local_entries + 1
 
                   ENDIF
 
@@ -1198,7 +1198,7 @@ CONTAINS
                   s0 = -LOG10(ABS(almo_scf_env%quencher_s0))
                   s1 = -LOG10(ABS(almo_scf_env%quencher_s1))
                   IF (overlap .EQ. 0.0_dp) THEN
-                     overlap = -LOG10(ABS(almo_scf_env%eps_filter))+100.0_dp
+                     overlap = -LOG10(ABS(almo_scf_env%eps_filter)) + 100.0_dp
                   ELSE
                      overlap = -LOG10(overlap)
                   ENDIF
@@ -1223,7 +1223,7 @@ CONTAINS
                         !WRITE(*,'(A15,2I7,3F8.3,E11.3)') "INTRA-BLOCKS: ",&
                         !   iblock_col, iblock_row, s0, s1, overlap, p_new_block(1,1)
                      ELSE
-                        p_new_block(:, :) = 1.0_dp/(1.0_dp+EXP(-(s0-s1)/(s0-overlap)-(s0-s1)/(overlap-s1)))
+                        p_new_block(:, :) = 1.0_dp/(1.0_dp + EXP(-(s0 - s1)/(s0 - overlap) - (s0 - s1)/(overlap - s1)))
                         !WRITE(*,'(A15,2I7,3F8.3,E11.3)') "INTER-BLOCKS: ",&
                         !   iblock_col, iblock_row, s0, s1, overlap, p_new_block(1,1)
                      ENDIF
@@ -1232,9 +1232,9 @@ CONTAINS
                         IF (domain_map_local_entries .GE. max_domain_neighbors*almo_scf_env%ndomains) THEN
                            CPABORT("weird... max_domain_neighbors is exceeded")
                         ENDIF
-                        almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1, 1) = iblock_row
-                        almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1, 2) = iblock_col
-                        domain_map_local_entries = domain_map_local_entries+1
+                        almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries + 1, 1) = iblock_row
+                        almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries + 1, 2) = iblock_col
+                        domain_map_local_entries = domain_map_local_entries + 1
                      ENDIF
 
                   ENDIF
@@ -1263,7 +1263,7 @@ CONTAINS
                            DO iatom = first_atom_of_molecule(domain_row), last_atom_of_molecule(domain_row)
                               DO jatom = first_atom_of_molecule(domain_col), last_atom_of_molecule(domain_col)
                                  rab(:) = pbc(particle_set(iatom)%r(:), particle_set(jatom)%r(:), cell)
-                                 trial_distance_squared = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+                                 trial_distance_squared = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                                  IF (trial_distance_squared .LT. distance_squared) THEN
                                     distance_squared = trial_distance_squared
                                     contact_atom_1 = iatom
@@ -1297,7 +1297,7 @@ CONTAINS
                         ! ao domains are atomic / electron groups are atomic
                         ! compute distance between atoms: domain_row and domain_col
                         rab(:) = pbc(particle_set(domain_row)%r(:), particle_set(domain_col)%r(:), cell)
-                        distance = SQRT(rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3))
+                        distance = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
                         contact_atom_1 = domain_row
                         contact_atom_2 = domain_col
 
@@ -1327,9 +1327,9 @@ CONTAINS
                   ! the element specific radii
 
                   ! compute inner and outer cutoff radii
-                  r0 = almo_scf_env%quencher_r0_factor*(contact1_radius+contact2_radius)
+                  r0 = almo_scf_env%quencher_r0_factor*(contact1_radius + contact2_radius)
                   !+almo_scf_env%quencher_r0_shift
-                  r1 = almo_scf_env%quencher_r1_factor*(contact1_radius+contact2_radius)
+                  r1 = almo_scf_env%quencher_r1_factor*(contact1_radius + contact2_radius)
                   !+almo_scf_env%quencher_r1_shift
 
                   IF (r0 .LT. 0.0_dp) THEN
@@ -1356,7 +1356,7 @@ CONTAINS
                      ELSE
                         ! remove the intermediate values from the quencher temporarily
                         CPABORT("")
-                        p_new_block(:, :) = 1.0_dp/(1.0_dp+EXP((r1-r0)/(r0-distance)+(r1-r0)/(r1-distance)))
+                        p_new_block(:, :) = 1.0_dp/(1.0_dp + EXP((r1 - r0)/(r0 - distance) + (r1 - r0)/(r1 - distance)))
                         !WRITE(*,'(A15,2I7,5F8.3,E11.3)') "INTER-BLOCKS: ",&
                         !   iblock_col, iblock_row, contact1_radius,&
                         !   contact2_radius, r0, r1, distance, p_new_block(1,1)
@@ -1366,9 +1366,9 @@ CONTAINS
                         IF (domain_map_local_entries .GE. max_domain_neighbors*almo_scf_env%ndomains) THEN
                            CPABORT("weird... max_domain_neighbors is exceeded")
                         ENDIF
-                        almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1, 1) = iblock_row
-                        almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1, 2) = iblock_col
-                        domain_map_local_entries = domain_map_local_entries+1
+                        almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries + 1, 1) = iblock_row
+                        almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries + 1, 2) = iblock_col
+                        domain_map_local_entries = domain_map_local_entries + 1
                      ENDIF
 
                   ENDIF
@@ -1404,16 +1404,16 @@ CONTAINS
       ! second, create
       offset_for_cpu(1) = 0
       DO iNode = 2, nNodes
-         offset_for_cpu(iNode) = offset_for_cpu(iNode-1)+ &
-                                 domain_entries_cpu(iNode-1)
+         offset_for_cpu(iNode) = offset_for_cpu(iNode - 1) + &
+                                 domain_entries_cpu(iNode - 1)
       ENDDO
-      global_entries = offset_for_cpu(nNodes)+domain_entries_cpu(nNodes)
+      global_entries = offset_for_cpu(nNodes) + domain_entries_cpu(nNodes)
 
       ! communicate all entries
       ALLOCATE (domain_map_global(global_entries))
       ALLOCATE (domain_map_local(2*domain_map_local_entries))
       DO ientry = 1, domain_map_local_entries
-         domain_map_local(2*(ientry-1)+1) = almo_scf_env%domain_map(ispin)%pairs(ientry, 1)
+         domain_map_local(2*(ientry - 1) + 1) = almo_scf_env%domain_map(ispin)%pairs(ientry, 1)
          domain_map_local(2*ientry) = almo_scf_env%domain_map(ispin)%pairs(ientry, 2)
       ENDDO
       CALL mp_allgather(domain_map_local, domain_map_global, &
@@ -1445,7 +1445,7 @@ CONTAINS
             ! get the center
             grid1 = domain_map_global(2*ientry)
             ! get the neighbor
-            ineig = domain_map_global(2*(ientry-1)+1)
+            ineig = domain_map_global(2*(ientry - 1) + 1)
             ! check boundaries
             IF (domain_grid(grid1, 0) .GT. max_neig) THEN
                ! this neighbor will overstep the boundaries
@@ -1475,7 +1475,7 @@ CONTAINS
                ENDIF
             ENDDO
             IF (delayed_increment) THEN
-               domain_grid(grid1, 0) = domain_grid(grid1, 0)+1
+               domain_grid(grid1, 0) = domain_grid(grid1, 0) + 1
             ELSE
                ! should not be here - all records must be inserted
                CPABORT("all records must be inserted")
@@ -1487,10 +1487,10 @@ CONTAINS
 
       ientry = 1
       DO idomain = 1, almo_scf_env%ndomains
-         DO ineig = 1, domain_grid(idomain, 0)-1
+         DO ineig = 1, domain_grid(idomain, 0) - 1
             almo_scf_env%domain_map(ispin)%pairs(ientry, 1) = domain_grid(idomain, ineig)
             almo_scf_env%domain_map(ispin)%pairs(ientry, 2) = idomain
-            ientry = ientry+1
+            ientry = ientry + 1
          ENDDO
          almo_scf_env%domain_map(ispin)%index1(idomain) = ientry
       ENDDO

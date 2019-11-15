@@ -590,7 +590,7 @@ CONTAINS
       IF (.NOT. my_assert(ierr == 0, 'set_pos error', shell)) RETURN
       max_change = 0.0_dp
       DO i = 1, SIZE(pos)
-         max_change = MAX(max_change, ABS(pos(i)-old_pos(i)))
+         max_change = MAX(max_change, ABS(pos(i) - old_pos(i)))
       END DO
       DEALLOCATE (pos, old_pos)
       IF (shell%iw > 0) THEN

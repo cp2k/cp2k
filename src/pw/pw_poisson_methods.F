@@ -414,7 +414,7 @@ CONTAINS
                h_stress(alpha, alpha) = ehartree
                DO beta = alpha, 3
                   h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                          +ffa*pw_integral_ab(dvg(alpha)%pw, dvg(beta)%pw)
+                                          + ffa*pw_integral_ab(dvg(alpha)%pw, dvg(beta)%pw)
                   h_stress(beta, alpha) = h_stress(alpha, beta)
                END DO
             END DO

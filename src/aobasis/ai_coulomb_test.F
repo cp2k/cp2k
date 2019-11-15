@@ -112,7 +112,7 @@ CONTAINS
       rc = (/0.0_dp, 0.3_dp, 0.3_dp/)
       rd = (/0.7_dp, 0.2_dp, 0.1_dp/)
 
-      rac2 = SUM((ra-rc)**2)
+      rac2 = SUM((ra - rc)**2)
       rpgf = 1.e10_dp
 
       ! Performance test of coulomb2 routine
@@ -125,15 +125,15 @@ CONTAINS
             lc_max = l
             lc_min = l
             ll = ncoset(l)
-            ALLOCATE (f(0:2*l+2), v(npgfa*ll, npgfc*ll, 2*l+1), vac(npgfa*ll, npgfc*ll))
+            ALLOCATE (f(0:2*l + 2), v(npgfa*ll, npgfc*ll, 2*l + 1), vac(npgfa*ll, npgfc*ll))
             vac = 0._dp
-            ii = MAX(100/(l+1)**2, 1)
+            ii = MAX(100/(l + 1)**2, 1)
             tstart = m_walltime()
             DO i = 1, ii
                CALL coulomb2(la_max, npgfa, zeta, rpgf, la_min, lc_max, npgfc, zetc, rpgf, lc_min, rc, rac2, vac, v, f)
             END DO
             tend = m_walltime()
-            t = tend-tstart+threshold
+            t = tend - tstart + threshold
             perf = REAL(ii*nco(l)**2, KIND=dp)*1.e-6_dp*REAL(npgfa*npgfc, KIND=dp)/t
             WRITE (iw, '(A,T40,A,T66,F15.3)') " Performance [Mintegrals/s] ", i2c(l), perf
             DEALLOCATE (f, v, vac)

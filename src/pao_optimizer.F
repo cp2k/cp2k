@@ -189,7 +189,7 @@ CONTAINS
          IF (pao%iw_opt > 0) WRITE (pao%iw_opt, *) "PAO|CG| trace_D_Gnew", trace_D_Gnew
 
          IF (trace_G_prev /= 0.0_dp) THEN
-            beta = (trace_G_new-trace_G_mix)/trace_G_prev !Polak-Ribiere
+            beta = (trace_G_new - trace_G_mix)/trace_G_prev !Polak-Ribiere
          ENDIF
 
          IF (beta < 0.0_dp) THEN
@@ -270,7 +270,7 @@ CONTAINS
          ! See chapter 18 in Nocedal and Wright's book for details.
          ! The formulas were adopted to inverse Hessian algorithm.
          IF (trace_sy < 0.2_dp*trace_yHy) THEN
-            theta = 0.8_dp*trace_yHy/(trace_yHy-trace_sy)
+            theta = 0.8_dp*trace_yHy/(trace_yHy - trace_sy)
             IF (pao%iw_opt > 0) WRITE (pao%iw_opt, *) "PAO|BFGS| Dampening theta:", theta
          ELSE
             theta = 1.0
@@ -278,7 +278,7 @@ CONTAINS
 
          ! r = theta*s + (1-theta)*Hy
          CALL dbcsr_copy(matrix_r, matrix_s)
-         CALL dbcsr_add(matrix_r, matrix_Hy, theta, (1.0_dp-theta))
+         CALL dbcsr_add(matrix_r, matrix_Hy, theta, (1.0_dp - theta))
 
          ! use t instead of y to update B matrix
          CALL dbcsr_dot(matrix_r, matrix_y, trace_ry)

@@ -110,7 +110,7 @@ CONTAINS
       ELSE
          CALL new_p_from_save(ls_scf_env%matrix_p, ls_scf_env%curvy_data%matrix_psave, lsstep, &
                               ls_scf_env%curvy_data%double_step_size)
-         ls_scf_env%curvy_data%line_search_step = ls_scf_env%curvy_data%line_search_step+1
+         ls_scf_env%curvy_data%line_search_step = ls_scf_env%curvy_data%line_search_step + 1
          CALL timestop(handle)
          RETURN
       END IF
@@ -174,7 +174,7 @@ CONTAINS
          curvy_data%BCH_saved = 0
       ELSE IF (curvy_data%line_search_step == 2) THEN
          step_size = curvy_data%step_size
-         IF (curvy_data%energies(1)-curvy_data%energies(2) .GT. 0.0_dp) THEN
+         IF (curvy_data%energies(1) - curvy_data%energies(2) .GT. 0.0_dp) THEN
             curvy_data%step_size = curvy_data%step_size*2.0_dp
             curvy_data%double_step_size = .TRUE.
          ELSE
@@ -195,7 +195,7 @@ CONTAINS
                         curvy_data%n_bch_hist)
 
 ! line_search type has the value appropriate to the numeber of energy calculations needed
-      curvy_data%line_search_step = MOD(curvy_data%line_search_step, curvy_data%line_search_type)+1
+      curvy_data%line_search_step = MOD(curvy_data%line_search_step, curvy_data%line_search_type) + 1
       IF (curvy_data%line_search_step == 1) THEN
          DO ispin = 1, SIZE(curvy_data%matrix_p)
             CALL dbcsr_copy(curvy_data%matrix_p(ispin), ls_scf_env%matrix_p(ispin))
@@ -226,7 +226,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
-      IF (energies(1)-energies(2) .LT. 0._dp) THEN
+      IF (energies(1) - energies(2) .LT. 0._dp) THEN
          tmp_e = energies(2); energies(2) = energies(3); energies(3) = tmp_e
          step_size = step_size*2.0_dp
       END IF
@@ -245,20 +245,20 @@ CONTAINS
 
       CALL invmat(sys_lin_eq, info)
       param = MATMUL(sys_lin_eq, energies)
-      v1 = (param(2)*param(4))/(2.0_dp*param(1))-param(5)
-      v2 = -(param(2)**2)/(2.0_dp*param(1))+2.0_dp*param(3)
+      v1 = (param(2)*param(4))/(2.0_dp*param(1)) - param(5)
+      v2 = -(param(2)**2)/(2.0_dp*param(1)) + 2.0_dp*param(3)
       step_size(2) = v1/v2
-      step_size(1) = (-param(2)*step_size(2)-param(4))/(2.0_dp*param(1))
+      step_size(1) = (-param(2)*step_size(2) - param(4))/(2.0_dp*param(1))
       IF (step_size(1) .LT. 0.0_dp) step_size(1) = 1.0_dp
       IF (step_size(2) .LT. 0.0_dp) step_size(2) = 1.0_dp
 !    step_size(1)=MIN(step_size(1),2.0_dp)
 !    step_size(2)=MIN(step_size(2),2.0_dp)
-      e_pred = param(1)*step_size(1)**2+param(2)*step_size(1)*step_size(2)+ &
-               param(3)*step_size(2)**2+param(4)*step_size(1)+param(5)*step_size(2)+param(6)
+      e_pred = param(1)*step_size(1)**2 + param(2)*step_size(1)*step_size(2) + &
+               param(3)*step_size(2)**2 + param(4)*step_size(1) + param(5)*step_size(2) + param(6)
       IF (unit_nr .GT. 0) WRITE (unit_nr, "(t3,a,F10.5,F10.5,A,F20.9)") &
          " Line Search: Step Size", step_size, " Predicted energy", e_pred
-      e_pred = param(1)*s1**2+param(2)*s2*s1*0.0_dp+ &
-               param(3)*s1**2*0.0_dp+param(4)*s1+param(5)*s1*0.0_dp+param(6)
+      e_pred = param(1)*s1**2 + param(2)*s2*s1*0.0_dp + &
+               param(3)*s1**2*0.0_dp + param(4)*s1 + param(5)*s1*0.0_dp + param(6)
 
    END SUBROUTINE line_search_2d
 
@@ -283,7 +283,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
-      IF (energies(1)-energies(2) .LT. 0._dp) THEN
+      IF (energies(1) - energies(2) .LT. 0._dp) THEN
          tmp_e = energies(2); energies(2) = energies(3); energies(3) = tmp_e
          step_size = step_size*2.0_dp
       END IF
@@ -294,11 +294,11 @@ CONTAINS
       ENDIF
       step1 = 0.5_dp*step_size(1)
       c = energies(1)
-      a = (energies(3)+c-2.0_dp*energies(2))/(2.0_dp*step1**2)
-      b = (energies(2)-c-a*step1**2)/step1
+      a = (energies(3) + c - 2.0_dp*energies(2))/(2.0_dp*step1**2)
+      b = (energies(2) - c - a*step1**2)/step1
       IF (a .LT. 1.0E-12_dp) a = -1.0E-12_dp
       min_val = -b/(2.0_dp*a)
-      e_pred = a*min_val**2+b*min_val+c
+      e_pred = a*min_val**2 + b*min_val + c
       tmp = step_size(1)
       IF (e_pred .LT. energies(1) .AND. e_pred .LT. energies(2)) THEN
          step_size = MAX(-1.0_dp, &
@@ -306,7 +306,7 @@ CONTAINS
       ELSE
          step_size = 1.0_dp
       END IF
-      e_pred = a*(step_size(1))**2+b*(step_size(1))+c
+      e_pred = a*(step_size(1))**2 + b*(step_size(1)) + c
       IF (unit_nr .GT. 0) THEN
          WRITE (unit_nr, "(t3,a,f16.8,a,F20.9)") "Line Search: Step Size", step_size(1), " Predicted energy", e_pred
          CALL m_flush(unit_nr)
@@ -393,7 +393,7 @@ CONTAINS
          conv_val = MAX(0.010_dp*old_conv, 100.0_dp*eps_filter)
          old_conv = 100.0_dp
          IF (fix_shift(ispin)) THEN
-            shift = MAX(min_shift, MIN(10.0_dp, MAX(shift, curvy_shift(ispin)-0.5_dp*curvy_shift(ispin))))
+            shift = MAX(min_shift, MIN(10.0_dp, MAX(shift, curvy_shift(ispin) - 0.5_dp*curvy_shift(ispin))))
             curvy_shift(ispin) = shift
          END IF
 
@@ -502,7 +502,7 @@ CONTAINS
          CALL dbcsr_add(tmp, Ax, 1.0_dp, -fac)
          devi(i) = dbcsr_frobenius_norm(tmp)
          lin_eq(i, :) = (/fac**2, fac, 1.0_dp/)
-         fac = fac1+fac1*((-1)**i)*0.5_dp
+         fac = fac1 + fac1*((-1)**i)*0.5_dp
       END DO
       CALL invmat(lin_eq, info)
       vec = MATMUL(lin_eq, devi)
@@ -676,7 +676,7 @@ CONTAINS
 
 ! If the copy and scale isn't enough compute a few more BCH steps. 20 seems high but except of the first step it will never be close
          save_BCH = BCH_saved(ispin) == 0 .AND. n_bch_hist .GT. 0
-         DO i = BCH_saved(ispin)+1, 20
+         DO i = BCH_saved(ispin) + 1, 20
             step_fac = step_fac*step_size(ispin)
             !allow for a bit of matrix magic here by exploiting matrix and matrix_tmp
             !matrix_tmp is alway the previous order of the BCH series

@@ -108,7 +108,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: averages_section
 
       ALLOCATE (md_env)
-      last_md_env_id = last_md_env_id+1
+      last_md_env_id = last_md_env_id + 1
       md_env%id_nr = last_md_env_id
       md_env%ref_count = 1
 
@@ -159,7 +159,7 @@ CONTAINS
 
       IF (ASSOCIATED(md_env)) THEN
          CPASSERT(md_env%ref_count > 0)
-         md_env%ref_count = md_env%ref_count-1
+         md_env%ref_count = md_env%ref_count - 1
          IF (md_env%ref_count == 0) THEN
             CALL fe_env_release(md_env%fe_env)
             CALL cp_para_env_release(md_env%para_env)

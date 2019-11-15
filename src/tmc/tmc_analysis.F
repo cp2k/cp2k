@@ -172,8 +172,8 @@ CONTAINS
          IF (explicit_key) THEN
             CALL tmc_ana_dipole_analysis_create(tmc_ana%dip_ana)
             CALL section_vals_val_get(tmc_ana_section, "DIPOLE_ANALYSIS", c_val=c_tmp)
-            SELECT CASE (TRIM (c_tmp))
-            CASE (TRIM (tmc_default_unspecified_name))
+            SELECT CASE (TRIM(c_tmp))
+            CASE (TRIM(tmc_default_unspecified_name))
                tmc_ana%dip_ana%ana_type = ana_type_default
             CASE ("ICE")
                tmc_ana%dip_ana%ana_type = ana_type_ice
@@ -488,7 +488,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       IF (ASSOCIATED(ana_env%last_elem) .AND. &
           (ana_env%last_elem%nr .LT. elem%nr)) THEN
-         weight_act = elem%nr-ana_env%last_elem%nr
+         weight_act = elem%nr - ana_env%last_elem%nr
          ! calculates the 3 dimensional distributed density
          IF (ASSOCIATED(ana_env%density_3d)) &
             CALL calc_density_3d(elem=ana_env%last_elem, &
@@ -776,15 +776,15 @@ CONTAINS
       CALL get_scaled_cell(cell=ana_env%cell, box_scale=elem%box_scale, &
                            abc=cell_size, vol=vol_cell)
       ! volume summed over configurations for average volume [A]
-      ana_env%density_3d%sum_vol = ana_env%density_3d%sum_vol+ &
+      ana_env%density_3d%sum_vol = ana_env%density_3d%sum_vol + &
                                    vol_cell*(au2a)**3*weight
-      ana_env%density_3d%sum_vol2 = ana_env%density_3d%sum_vol2+ &
+      ana_env%density_3d%sum_vol2 = ana_env%density_3d%sum_vol2 + &
                                     (vol_cell*(au2a)**3)**2*weight
 
       ana_env%density_3d%sum_box_length(:) = ana_env%density_3d%sum_box_length(:) &
-                                             +cell_size(:)*(au2a)*weight
+                                             + cell_size(:)*(au2a)*weight
       ana_env%density_3d%sum_box_length2(:) = ana_env%density_3d%sum_box_length2(:) &
-                                              +(cell_size(:)*(au2a))**2*weight
+                                              + (cell_size(:)*(au2a))**2*weight
 
       ! sub interval length
       interval_size(1) = cell_size(1)/REAL(bin_x, dp)
@@ -799,26 +799,26 @@ CONTAINS
       ! count every atom
       DO atom = 1, SIZE(elem%pos), ana_env%dim_per_elem
 
-         atom_pos(:) = elem%pos(atom:atom+2)
+         atom_pos(:) = elem%pos(atom:atom + 2)
          ! fold into box
          CALL get_scaled_cell(cell=ana_env%cell, box_scale=elem%box_scale, &
                               vec=atom_pos)
          ! shifts the box to positive values (before 0,0,0 is the center)
-         atom_pos(:) = atom_pos(:)+0.5_dp*cell_size(:)
+         atom_pos(:) = atom_pos(:) + 0.5_dp*cell_size(:)
          ! calculate the index of the sub box
-         bin_x = INT(atom_pos(1)/interval_size(1))+1
-         bin_y = INT(atom_pos(2)/interval_size(2))+1
-         bin_z = INT(atom_pos(3)/interval_size(3))+1
+         bin_x = INT(atom_pos(1)/interval_size(1)) + 1
+         bin_y = INT(atom_pos(2)/interval_size(2)) + 1
+         bin_z = INT(atom_pos(3)/interval_size(3)) + 1
          CPASSERT(bin_x .GT. 0 .AND. bin_y .GT. 0 .AND. bin_z .GT. 0)
          CPASSERT(bin_x .LE. SIZE(ana_env%density_3d%sum_density(:, 1, 1)))
          CPASSERT(bin_y .LE. SIZE(ana_env%density_3d%sum_density(1, :, 1)))
          CPASSERT(bin_z .LE. SIZE(ana_env%density_3d%sum_density(1, 1, :)))
 
          ! sum mass in [g] (in bins and total)
-         mass_bin(bin_x, bin_y, bin_z) = mass_bin(bin_x, bin_y, bin_z)+ &
-                                         atoms(INT(atom/REAL(ana_env%dim_per_elem, KIND=dp))+1)%mass/massunit*1000*a_mass
-         mass_total = mass_total+ &
-                      atoms(INT(atom/REAL(ana_env%dim_per_elem, KIND=dp))+1)%mass/massunit*1000*a_mass
+         mass_bin(bin_x, bin_y, bin_z) = mass_bin(bin_x, bin_y, bin_z) + &
+                                         atoms(INT(atom/REAL(ana_env%dim_per_elem, KIND=dp)) + 1)%mass/massunit*1000*a_mass
+         mass_total = mass_total + &
+                      atoms(INT(atom/REAL(ana_env%dim_per_elem, KIND=dp)) + 1)%mass/massunit*1000*a_mass
          !mass_bin(bin_x,bin_y,bin_z) = mass_bin(bin_x,bin_y,bin_z) + &
          !  atoms(INT(atom/REAL(ana_env%dim_per_elem,KIND=dp))+1)%mass/&
          !     massunit/n_avogadro
@@ -827,18 +827,18 @@ CONTAINS
          !     massunit/n_avogadro
       END DO
       ! check total cell density
-      r_tmp = mass_total/vol_cell-SUM(mass_bin(:, :, :))/vol_sub_box/SIZE(mass_bin(:, :, :))
+      r_tmp = mass_total/vol_cell - SUM(mass_bin(:, :, :))/vol_sub_box/SIZE(mass_bin(:, :, :))
       CPASSERT(ABS(r_tmp) .LT. 1E-5)
 
       ! calculate density (mass per volume) and sum up for average value
-      ana_env%density_3d%sum_density(:, :, :) = ana_env%density_3d%sum_density(:, :, :)+ &
+      ana_env%density_3d%sum_density(:, :, :) = ana_env%density_3d%sum_density(:, :, :) + &
                                                 weight*mass_bin(:, :, :)/vol_sub_box
 
       ! calculate density squared ( (mass per volume)^2 ) for variance and sum up for average value
-      ana_env%density_3d%sum_dens2(:, :, :) = ana_env%density_3d%sum_dens2(:, :, :)+ &
+      ana_env%density_3d%sum_dens2(:, :, :) = ana_env%density_3d%sum_dens2(:, :, :) + &
                                               weight*(mass_bin(:, :, :)/vol_sub_box)**2
 
-      ana_env%density_3d%conf_counter = ana_env%density_3d%conf_counter+weight
+      ana_env%density_3d%conf_counter = ana_env%density_3d%conf_counter + weight
 
       ! print out the actual and average density in file
       IF (ana_env%density_3d%print_dens) THEN
@@ -856,14 +856,14 @@ CONTAINS
             "dens_average[g/cm^3]", "density_variance", &
             "averages:volume", "box_lenth_x", "box_lenth_y", "box_lenth_z", &
             "variances:volume", "box_lenth_x", "box_lenth_y", "box_lenth_z"
-         WRITE (file_ptr, FMT="(I8,11F20.10)") ana_env%density_3d%conf_counter+1-weight, &
+         WRITE (file_ptr, FMT="(I8,11F20.10)") ana_env%density_3d%conf_counter + 1 - weight, &
             SUM(mass_bin(:, :, :))/vol_sub_box/SIZE(mass_bin(:, :, :)), &
             SUM(ana_env%density_3d%sum_density(:, :, :))/ &
             SIZE(ana_env%density_3d%sum_density(:, :, :))/ &
             REAL(ana_env%density_3d%conf_counter, KIND=dp), &
             SUM(ana_env%density_3d%sum_dens2(:, :, :))/ &
             SIZE(ana_env%density_3d%sum_dens2(:, :, :))/ &
-            REAL(ana_env%density_3d%conf_counter, KIND=dp)- &
+            REAL(ana_env%density_3d%conf_counter, KIND=dp) - &
             (SUM(ana_env%density_3d%sum_density(:, :, :))/ &
              SIZE(ana_env%density_3d%sum_density(:, :, :))/ &
              REAL(ana_env%density_3d%conf_counter, KIND=dp))**2, &
@@ -872,11 +872,11 @@ CONTAINS
             ana_env%density_3d%sum_box_length(:)/ &
             REAL(ana_env%density_3d%conf_counter, KIND=dp), &
             ana_env%density_3d%sum_vol2/ &
-            REAL(ana_env%density_3d%conf_counter, KIND=dp)- &
+            REAL(ana_env%density_3d%conf_counter, KIND=dp) - &
             (ana_env%density_3d%sum_vol/ &
              REAL(ana_env%density_3d%conf_counter, KIND=dp))**2, &
             ana_env%density_3d%sum_box_length2(:)/ &
-            REAL(ana_env%density_3d%conf_counter, KIND=dp)- &
+            REAL(ana_env%density_3d%conf_counter, KIND=dp) - &
             (ana_env%density_3d%sum_box_length(:)/ &
              REAL(ana_env%density_3d%conf_counter, KIND=dp))**2
          CALL close_file(unit_number=file_ptr)
@@ -951,11 +951,11 @@ CONTAINS
          DO j = 1, SIZE(ana_env%density_3d%sum_density(1, :, 1))
             DO k = 1, SIZE(ana_env%density_3d%sum_density(1, 1, :))
                WRITE (file_ptr_dens, FMT='(3F10.2,F20.10)') &
-                  (i-0.5_dp)*interval_size(1), (j-0.5_dp)*interval_size(2), (k-0.5_dp)*interval_size(3), &
+                  (i - 0.5_dp)*interval_size(1), (j - 0.5_dp)*interval_size(2), (k - 0.5_dp)*interval_size(3), &
                   ana_env%density_3d%sum_density(i, j, k)/REAL(ana_env%density_3d%conf_counter, KIND=dp)
                WRITE (file_ptr_vari, FMT='(3F10.2,F20.10)') &
-                  (i-0.5_dp)*interval_size(1), (j-0.5_dp)*interval_size(2), (k-0.5_dp)*interval_size(3), &
-                  ana_env%density_3d%sum_dens2(i, j, k)/REAL(ana_env%density_3d%conf_counter, KIND=dp)- &
+                  (i - 0.5_dp)*interval_size(1), (j - 0.5_dp)*interval_size(2), (k - 0.5_dp)*interval_size(3), &
+                  ana_env%density_3d%sum_dens2(i, j, k)/REAL(ana_env%density_3d%conf_counter, KIND=dp) - &
                   (ana_env%density_3d%sum_density(i, j, k)/REAL(ana_env%density_3d%conf_counter, KIND=dp))**2
             END DO
          END DO
@@ -978,7 +978,7 @@ CONTAINS
       WRITE (ana_env%io_unit, FMT=fmt_my) plabel, "density variance:", &
          cp_to_string(SUM(ana_env%density_3d%sum_dens2(:, :, :))/ &
                       SIZE(ana_env%density_3d%sum_dens2(:, :, :))/ &
-                      REAL(ana_env%density_3d%conf_counter, KIND=dp)- &
+                      REAL(ana_env%density_3d%conf_counter, KIND=dp) - &
                       (SUM(ana_env%density_3d%sum_density(:, :, :))/ &
                        SIZE(ana_env%density_3d%sum_density(:, :, :))/ &
                        REAL(ana_env%density_3d%conf_counter, KIND=dp))**2)
@@ -1038,24 +1038,24 @@ CONTAINS
       ! initialise the atom pairs
       ALLOCATE (pairs_tmp(SIZE(atoms)))
       DO f_n = 1, SIZE(atoms)
-         DO s_n = f_n+1, SIZE(atoms)
+         DO s_n = f_n + 1, SIZE(atoms)
             ! search if atom pair is already selected
             list_ind = search_pair_in_list(pair_list=pairs_tmp, n1=atoms(f_n)%name, &
-                                           n2=atoms(s_n)%name, list_end=counter-1)
+                                           n2=atoms(s_n)%name, list_end=counter - 1)
             ! add to list
             IF (list_ind .LT. 0) THEN
                pairs_tmp(counter)%f_n = atoms(f_n)%name
                pairs_tmp(counter)%s_n = atoms(s_n)%name
                pairs_tmp(counter)%pair_count = 1
-               counter = counter+1
+               counter = counter + 1
             ELSE
-               pairs_tmp(list_ind)%pair_count = pairs_tmp(list_ind)%pair_count+1
+               pairs_tmp(list_ind)%pair_count = pairs_tmp(list_ind)%pair_count + 1
             END IF
          END DO
       END DO
 
-      ALLOCATE (ana_pair_correl%pairs(counter-1))
-      DO list = 1, counter-1
+      ALLOCATE (ana_pair_correl%pairs(counter - 1))
+      DO list = 1, counter - 1
          ana_pair_correl%pairs(list)%f_n = pairs_tmp(list)%f_n
          ana_pair_correl%pairs(list)%s_n = pairs_tmp(list)%s_n
          ana_pair_correl%pairs(list)%pair_count = pairs_tmp(list)%pair_count
@@ -1107,24 +1107,24 @@ CONTAINS
       dist = -1.0_dp
 
       first_elem_loop: DO i = 1, SIZE(elem%pos), ana_env%dim_per_elem
-         second_elem_loop: DO j = i+3, SIZE(elem%pos), ana_env%dim_per_elem
-            dist = nearest_distance(x1=elem%pos(i:i+ana_env%dim_per_elem-1), &
-                                    x2=elem%pos(j:j+ana_env%dim_per_elem-1), &
+         second_elem_loop: DO j = i + 3, SIZE(elem%pos), ana_env%dim_per_elem
+            dist = nearest_distance(x1=elem%pos(i:i + ana_env%dim_per_elem - 1), &
+                                    x2=elem%pos(j:j + ana_env%dim_per_elem - 1), &
                                     cell=ana_env%cell, box_scale=elem%box_scale)
             ind = CEILING(dist/ana_env%pair_correl%step_lenght)
             IF (ind .LE. ana_env%pair_correl%nr_bins) THEN
                pair_ind = search_pair_in_list(pair_list=ana_env%pair_correl%pairs, &
-                                              n1=atoms(INT(i/REAL(ana_env%dim_per_elem, KIND=dp))+1)%name, &
-                                              n2=atoms(INT(j/REAL(ana_env%dim_per_elem, KIND=dp))+1)%name)
+                                              n1=atoms(INT(i/REAL(ana_env%dim_per_elem, KIND=dp)) + 1)%name, &
+                                              n2=atoms(INT(j/REAL(ana_env%dim_per_elem, KIND=dp)) + 1)%name)
                CPASSERT(pair_ind .GT. 0)
                ana_env%pair_correl%g_r(pair_ind, ind) = &
-                  ana_env%pair_correl%g_r(pair_ind, ind)+weight
+                  ana_env%pair_correl%g_r(pair_ind, ind) + weight
             END IF
          END DO second_elem_loop
       END DO first_elem_loop
-      ana_env%pair_correl%conf_counter = ana_env%pair_correl%conf_counter+weight
+      ana_env%pair_correl%conf_counter = ana_env%pair_correl%conf_counter + weight
       CALL get_cell(cell=ana_env%cell, abc=cell_size)
-      ana_env%pair_correl%sum_box_scale = ana_env%pair_correl%sum_box_scale+ &
+      ana_env%pair_correl%sum_box_scale = ana_env%pair_correl%sum_box_scale + &
                                           (elem%box_scale(:)*weight)
       ! end the timing
       CALL timestop(handle)
@@ -1179,8 +1179,8 @@ CONTAINS
             "[A] (for Vol changes: refering to the reference cell)"
          DO bin = 1, ana_env%pair_correl%nr_bins
             voldr = 4.0/3.0*PI*ana_env%pair_correl%step_lenght**3* &
-                    (REAL(bin, KIND=dp)**3-REAL(bin-1, KIND=dp)**3)
-            WRITE (file_ptr, *) (bin-0.5)*ana_env%pair_correl%step_lenght*au2a, &
+                    (REAL(bin, KIND=dp)**3 - REAL(bin - 1, KIND=dp)**3)
+            WRITE (file_ptr, *) (bin - 0.5)*ana_env%pair_correl%step_lenght*au2a, &
                (ana_env%pair_correl%g_r(pair, bin)/ana_env%pair_correl%conf_counter)/ &
                (voldr*ana_env%pair_correl%pairs(pair)%pair_count/vol)
          END DO
@@ -1275,8 +1275,8 @@ CONTAINS
       dip_cl(:) = 0.0_dp
 
       DO i = 1, SIZE(elem%pos, 1), ana_env%dim_per_elem
-         dip_cl(:) = dip_cl(:)+elem%pos(i:i+ana_env%dim_per_elem-1)* &
-                     ana_env%dip_mom%charges(INT(i/REAL(ana_env%dim_per_elem, KIND=dp))+1)
+         dip_cl(:) = dip_cl(:) + elem%pos(i:i + ana_env%dim_per_elem - 1)* &
+                     ana_env%dip_mom%charges(INT(i/REAL(ana_env%dim_per_elem, KIND=dp)) + 1)
       END DO
 
       ! if there are no exact dipoles save these ones in element structure
@@ -1289,10 +1289,10 @@ CONTAINS
          file_name = expand_file_name_temp(tmc_default_trajectory_file_name, &
                                            ana_env%temperature)
          CALL write_dipoles_in_file(file_name=file_name, &
-                                    conf_nr=ana_env%dip_mom%conf_counter+1, dip=dip_cl, &
+                                    conf_nr=ana_env%dip_mom%conf_counter + 1, dip=dip_cl, &
                                     file_ext="dip_cl")
       END IF
-      ana_env%dip_mom%conf_counter = ana_env%dip_mom%conf_counter+weight
+      ana_env%dip_mom%conf_counter = ana_env%dip_mom%conf_counter + weight
       ana_env%dip_mom%last_dip_cl(:) = dip_cl
 
       DEALLOCATE (dip_cl)
@@ -1357,35 +1357,35 @@ CONTAINS
       ! fold exact dipole moments using the classical ones
       IF (ASSOCIATED(ana_env%dip_mom)) THEN
          IF (ALL(ana_env%dip_mom%last_dip_cl .NE. elem%dipole)) THEN
-            elem%dipole = pbc(r=elem%dipole(:)-ana_env%dip_mom%last_dip_cl, &
-                              cell=scaled_cell)+ana_env%dip_mom%last_dip_cl
+            elem%dipole = pbc(r=elem%dipole(:) - ana_env%dip_mom%last_dip_cl, &
+                              cell=scaled_cell) + ana_env%dip_mom%last_dip_cl
          END IF
       END IF
 
-      ana_env%dip_ana%conf_counter = ana_env%dip_ana%conf_counter+weight_act
+      ana_env%dip_ana%conf_counter = ana_env%dip_ana%conf_counter + weight_act
 
       ! dipole sqared absolut value summed and weight_acted with volume and conf weight_act
-      ana_env%dip_ana%mu2_pv_s = ana_env%dip_ana%mu2_pv_s+ &
+      ana_env%dip_ana%mu2_pv_s = ana_env%dip_ana%mu2_pv_s + &
                                  DOT_PRODUCT(elem%dipole(:), elem%dipole(:))/vol*weight_act
 
       tmp_dip(:, :) = 0.0_dp
       tmp_dip(:, 1) = elem%dipole(:)
 
       ! dipole sum, weight_acted with volume and conf weight_act
-      ana_env%dip_ana%mu_pv(:) = ana_env%dip_ana%mu_pv(:)+ &
+      ana_env%dip_ana%mu_pv(:) = ana_env%dip_ana%mu_pv(:) + &
                                  tmp_dip(:, 1)/vol*weight_act
 
       ! dipole sum, weight_acted with square root of volume and conf weight_act
-      ana_env%dip_ana%mu_psv(:) = ana_env%dip_ana%mu_psv(:)+ &
+      ana_env%dip_ana%mu_psv(:) = ana_env%dip_ana%mu_psv(:) + &
                                   tmp_dip(:, 1)/SQRT(vol)*weight_act
 
       ! dipole squared sum, weight_acted with volume and conf weight_act
-      ana_env%dip_ana%mu2_pv(:) = ana_env%dip_ana%mu2_pv(:)+ &
+      ana_env%dip_ana%mu2_pv(:) = ana_env%dip_ana%mu2_pv(:) + &
                                   tmp_dip(:, 1)**2/vol*weight_act
 
       ! calculate the directional average with componentwise correlation per volume
       tmp_dip(:, :) = MATMUL(tmp_dip(:, :), TRANSPOSE(tmp_dip(:, :)))
-      ana_env%dip_ana%mu2_pv_mat(:, :) = ana_env%dip_ana%mu2_pv_mat(:, :)+ &
+      ana_env%dip_ana%mu2_pv_mat(:, :) = ana_env%dip_ana%mu2_pv_mat(:, :) + &
                                          tmp_dip(:, :)/vol*weight_act
 
    END SUBROUTINE calc_dipole_analysis
@@ -1422,7 +1422,7 @@ CONTAINS
                                         tmc_default_trajectory_file_name, &
                                         ana_env%temperature)
       CALL write_dipoles_in_file(file_name=file_name, &
-                                 conf_nr=INT(ana_env%dip_ana%conf_counter)+1, dip=elem%dipole, &
+                                 conf_nr=INT(ana_env%dip_ana%conf_counter) + 1, dip=elem%dipole, &
                                  file_ext="dip_folded")
 
       ! set output file name
@@ -1447,13 +1447,13 @@ CONTAINS
 
       ! calc the dielectric constant
       ! 1+( <M^2> - <M>^2 ) / (3*e_0*V*k*T)
-      diel_const = 1.0_dp+(ana_env%dip_ana%mu2_pv_s/(ana_env%dip_ana%conf_counter)- &
-                           DOT_PRODUCT(ana_env%dip_ana%mu_psv(:)/(ana_env%dip_ana%conf_counter), &
-                                       ana_env%dip_ana%mu_psv(:)/(ana_env%dip_ana%conf_counter)))* &
+      diel_const = 1.0_dp + (ana_env%dip_ana%mu2_pv_s/(ana_env%dip_ana%conf_counter) - &
+                             DOT_PRODUCT(ana_env%dip_ana%mu_psv(:)/(ana_env%dip_ana%conf_counter), &
+                                         ana_env%dip_ana%mu_psv(:)/(ana_env%dip_ana%conf_counter)))* &
                    diel_const_norm
       ! symmetrized dielctric constant
       ! 1+( <M^2> ) / (3*e_0*V*k*T)
-      diel_const_sym = 1.0_dp+ana_env%dip_ana%mu2_pv_s/(ana_env%dip_ana%conf_counter)* &
+      diel_const_sym = 1.0_dp + ana_env%dip_ana%mu2_pv_s/(ana_env%dip_ana%conf_counter)* &
                        diel_const_norm
       ! print dielectric constant trajectory
       !  if szmetry used print only every 8th configuration, hence every different (not mirrowed)
@@ -1487,7 +1487,7 @@ CONTAINS
 
       WRITE (file_ptr, FMT="(I8,10F20.10)") counter_tmp, &
          4.0_dp*PI/(kB*ana_env%temperature)* &
-         (ana_env%dip_ana%mu2_pv_mat(:, :)/REAL(ana_env%dip_ana%conf_counter, KIND=dp)- &
+         (ana_env%dip_ana%mu2_pv_mat(:, :)/REAL(ana_env%dip_ana%conf_counter, KIND=dp) - &
           MATMUL(tmp_dip(:, :), TRANSPOSE(tmp_dip(:, :))))
       CALL close_file(unit_number=file_ptr)
    END SUBROUTINE print_act_dipole_analysis
@@ -1522,7 +1522,7 @@ CONTAINS
       !dielectric constant
       tmp_dip(:, 1) = ana_env%dip_ana%mu_psv(:)/REAL(ana_env%dip_ana%conf_counter, KIND=dp)
       diel_const(:, :) = 4.0_dp*PI/(kB*ana_env%temperature)* &
-                         (ana_env%dip_ana%mu2_pv_mat(:, :)/REAL(ana_env%dip_ana%conf_counter, KIND=dp)- &
+                         (ana_env%dip_ana%mu2_pv_mat(:, :)/REAL(ana_env%dip_ana%conf_counter, KIND=dp) - &
                           MATMUL(tmp_dip(:, :), TRANSPOSE(tmp_dip(:, :))))
 
       !dielectric constant for symmetric case
@@ -1530,8 +1530,8 @@ CONTAINS
                           ana_env%dip_ana%mu2_pv(:)/REAL(ana_env%dip_ana%conf_counter, KIND=dp)
 
       DO i = 1, 3
-         diel_const(i, i) = diel_const(i, i)+1.0_dp ! +1 for unpolarizable models, 1.592 for polarizable
-         diel_const_scalar = diel_const_scalar+diel_const(i, i)
+         diel_const(i, i) = diel_const(i, i) + 1.0_dp ! +1 for unpolarizable models, 1.592 for polarizable
+         diel_const_scalar = diel_const_scalar + diel_const(i, i)
       END DO
       diel_const_scalar = diel_const_scalar/REAL(3, KIND=dp)
 
@@ -1613,13 +1613,13 @@ CONTAINS
 
       DO ind = 1, SIZE(elem%pos), ana_env%dim_per_elem
          ! fold into box
-         atom_disp(:) = elem%pos(ind:ind+2)-ana_env%last_elem%pos(ind:ind+2)
+         atom_disp(:) = elem%pos(ind:ind + 2) - ana_env%last_elem%pos(ind:ind + 2)
          CALL get_scaled_cell(cell=ana_env%cell, box_scale=elem%box_scale, &
                               vec=atom_disp)
-         disp = disp+SUM((atom_disp(:)*au2a)**2)
+         disp = disp + SUM((atom_disp(:)*au2a)**2)
       END DO
-      ana_env%displace%disp = ana_env%displace%disp+disp
-      ana_env%displace%conf_counter = ana_env%displace%conf_counter+1
+      ana_env%displace%disp = ana_env%displace%disp + disp
+      ana_env%displace%conf_counter = ana_env%displace%conf_counter + 1
 
       IF (ana_env%displace%print_disp) THEN
          file_name_tmp = expand_file_name_temp(TRIM(ana_env%out_file_prefix)// &

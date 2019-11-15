@@ -107,7 +107,7 @@ CONTAINS
       ALLOCATE (opt_bas%fval_weight(0:opt_bas%ncombinations))
       opt_bas%fval_weight = 1.0_dp
       DO iweight = 1, nrep
-         CALL section_vals_val_get(optbas_section, "RESIDUUM_WEIGHT", r_val=opt_bas%fval_weight(iweight-1), &
+         CALL section_vals_val_get(optbas_section, "RESIDUUM_WEIGHT", r_val=opt_bas%fval_weight(iweight - 1), &
                                    i_rep_val=iweight)
       END DO
 
@@ -115,7 +115,7 @@ CONTAINS
       ALLOCATE (opt_bas%condition_weight(0:opt_bas%ncombinations))
       opt_bas%condition_weight = 1.0_dp
       DO iweight = 1, nrep
-         CALL section_vals_val_get(optbas_section, "CONDITION_WEIGHT", r_val=opt_bas%condition_weight(iweight-1), &
+         CALL section_vals_val_get(optbas_section, "CONDITION_WEIGHT", r_val=opt_bas%condition_weight(iweight - 1), &
                                    i_rep_val=iweight)
       END DO
 
@@ -192,10 +192,10 @@ CONTAINS
             DO j = 1, opt_bas%nkind
                opt_bas%combination(i, j) = tmp_i2(j)
             END DO
-            tmp_i2(opt_bas%nkind) = tmp_i2(opt_bas%nkind)+1
+            tmp_i2(opt_bas%nkind) = tmp_i2(opt_bas%nkind) + 1
             raise = .FALSE.
             DO j = opt_bas%nkind, 1, -1
-               IF (raise) tmp_i2(j) = tmp_i2(j)+1
+               IF (raise) tmp_i2(j) = tmp_i2(j) + 1
                IF (tmp_i2(j) .GT. tmp_i(j)) THEN
                   tmp_i2(j) = 0
                   raise = .TRUE.
@@ -239,8 +239,8 @@ CONTAINS
       ncom = opt_bas%ncombinations
       nset = opt_bas%ntraining_sets
 
-      set_id = (calc_id)/ncom+1
-      bas_id = MOD(calc_id, ncom)+1
+      set_id = (calc_id)/ncom + 1
+      bas_id = MOD(calc_id, ncom) + 1
 
    END SUBROUTINE
 
@@ -276,27 +276,27 @@ CONTAINS
             iadd1 = nproc/ncalc
             iadd2 = MOD(nproc, ncalc)
             ALLOCATE (opt_bas%comp_group(ncalc))
-            ALLOCATE (opt_bas%group_partition(0:ncalc-1))
-            DO igroup = 0, ncalc-1
-               ALLOCATE (opt_bas%comp_group(igroup+1)%member_list(1))
-               opt_bas%comp_group(igroup+1)%member_list(1) = igroup
+            ALLOCATE (opt_bas%group_partition(0:ncalc - 1))
+            DO igroup = 0, ncalc - 1
+               ALLOCATE (opt_bas%comp_group(igroup + 1)%member_list(1))
+               opt_bas%comp_group(igroup + 1)%member_list(1) = igroup
                opt_bas%group_partition(igroup) = iadd1
-               IF (igroup .LT. iadd2) opt_bas%group_partition(igroup) = opt_bas%group_partition(igroup)+1
+               IF (igroup .LT. iadd2) opt_bas%group_partition(igroup) = opt_bas%group_partition(igroup) + 1
             END DO
          ELSE
             iadd1 = ncalc/nproc
             iadd2 = MOD(ncalc, nproc)
             ALLOCATE (opt_bas%comp_group(nproc))
-            ALLOCATE (opt_bas%group_partition(0:nproc-1))
+            ALLOCATE (opt_bas%group_partition(0:nproc - 1))
             icount = 0
-            DO igroup = 0, nproc-1
+            DO igroup = 0, nproc - 1
                opt_bas%group_partition(igroup) = 1
                isize = iadd1
-               IF (igroup .LT. iadd2) isize = isize+1
-               ALLOCATE (opt_bas%comp_group(igroup+1)%member_list(isize))
+               IF (igroup .LT. iadd2) isize = isize + 1
+               ALLOCATE (opt_bas%comp_group(igroup + 1)%member_list(isize))
                DO j = 1, isize
-                  opt_bas%comp_group(igroup+1)%member_list(j) = icount
-                  icount = icount+1
+                  opt_bas%comp_group(igroup + 1)%member_list(j) = icount
+                  icount = icount + 1
                END DO
             END DO
          END IF
@@ -316,26 +316,26 @@ CONTAINS
                           " Please change input.")
          CPASSERT(nptot == nproc)
          ALLOCATE (opt_bas%comp_group(isize))
-         ALLOCATE (opt_bas%group_partition(0:isize-1))
+         ALLOCATE (opt_bas%group_partition(0:isize - 1))
          IF (isize .LT. ncalc) THEN
             iadd1 = ncalc/isize
             iadd2 = MOD(ncalc, isize)
             icount = 0
-            DO igroup = 0, isize-1
-               opt_bas%group_partition(igroup) = i_vals(igroup+1)
+            DO igroup = 0, isize - 1
+               opt_bas%group_partition(igroup) = i_vals(igroup + 1)
                isize = iadd1
-               IF (igroup .LT. iadd2) isize = isize+1
-               ALLOCATE (opt_bas%comp_group(igroup+1)%member_list(isize))
+               IF (igroup .LT. iadd2) isize = isize + 1
+               ALLOCATE (opt_bas%comp_group(igroup + 1)%member_list(isize))
                DO j = 1, isize
-                  opt_bas%comp_group(igroup+1)%member_list(j) = icount
-                  icount = icount+1
+                  opt_bas%comp_group(igroup + 1)%member_list(j) = icount
+                  icount = icount + 1
                END DO
             END DO
          ELSE
-            DO igroup = 0, isize-1
-               opt_bas%group_partition(igroup) = i_vals(igroup+1)
-               ALLOCATE (opt_bas%comp_group(igroup+1)%member_list(1))
-               opt_bas%comp_group(igroup+1)%member_list(1) = igroup
+            DO igroup = 0, isize - 1
+               opt_bas%group_partition(igroup) = i_vals(igroup + 1)
+               ALLOCATE (opt_bas%comp_group(igroup + 1)%member_list(1))
+               opt_bas%comp_group(igroup + 1)%member_list(1) = igroup
             END DO
          END IF
       END IF
@@ -407,12 +407,12 @@ CONTAINS
       jset = 0
       DO iset = 1, basis%nsets
          IF (info_new%in_use_set(iset)) THEN
-            jset = jset+1
+            jset = jset + 1
             basis_new%subset(jset)%exps(:) = basis%subset(iset)%exps
             jcont = 0
             DO icont = 1, basis%subset(iset)%ncon_tot
                IF (info_new%use_contr(iset)%in_use(icont)) THEN
-                  jcont = jcont+1
+                  jcont = jcont + 1
                   basis_new%subset(jset)%coeff(:, jcont) = basis%subset(iset)%coeff(:, icont)
                END IF
             END DO
@@ -548,14 +548,14 @@ CONTAINS
 
       nsets = 0
       DO i = 1, basis%nsets
-         IF (info_new%in_use_set(i)) nsets = nsets+1
+         IF (info_new%in_use_set(i)) nsets = nsets + 1
       END DO
       basis_new%nsets = nsets
       ALLOCATE (basis_new%subset(nsets))
       jset = 0
       DO i = 1, basis%nsets
          IF (info_new%in_use_set(i)) THEN
-            jset = jset+1
+            jset = jset + 1
             CALL create_new_subset(basis%subset(i), basis_new%subset(jset), info_new%use_contr(jset)%in_use)
          END IF
       END DO
@@ -583,17 +583,17 @@ CONTAINS
       ALLOCATE (tmp_l(SIZE(subset%l)))
       tmp_l(:) = subset%l
       subset_new%lmin = subset%lmin
-      subset_new%lmax = subset%lmin-1
+      subset_new%lmax = subset%lmin - 1
       subset_new%nexp = subset%nexp
       subset_new%n = subset%n
       DO il = 1, SIZE(subset%l)
          DO icon = 1, subset%l(il)
-            iind = convert_l_contr_to_entry(subset%lmin, subset%l, icon, subset%lmin+il-1)
-            IF (.NOT. in_use(iind)) tmp_l(il) = tmp_l(il)-1
+            iind = convert_l_contr_to_entry(subset%lmin, subset%l, icon, subset%lmin + il - 1)
+            IF (.NOT. in_use(iind)) tmp_l(il) = tmp_l(il) - 1
          END DO
-         IF (tmp_l(il) .GT. 0) subset_new%lmax = subset_new%lmax+1
+         IF (tmp_l(il) .GT. 0) subset_new%lmax = subset_new%lmax + 1
       END DO
-      subset_new%nl = subset_new%lmax-subset_new%lmin+1
+      subset_new%nl = subset_new%lmax - subset_new%lmin + 1
       subset_new%ncon_tot = SUM(tmp_l)
       ALLOCATE (subset_new%l(subset_new%nl))
       ALLOCATE (subset_new%coeff(subset_new%nexp, subset_new%ncon_tot))
@@ -607,7 +607,7 @@ CONTAINS
       iind = 0
       DO icon = 1, subset%ncon_tot
          IF (in_use(icon)) THEN
-            iind = iind+1
+            iind = iind + 1
             subset_new%coeff(:, iind) = subset%coeff(:, icon)
          END IF
       END DO
@@ -685,7 +685,7 @@ CONTAINS
 
          CALL parse_derived_basis(kind_section, opt_bas%kind_basis(ikind)%deriv_info, ikind)
 
-         variable_counter = variable_counter+opt_bas%kind_basis(ikind)%flex_basis(0)%nopt
+         variable_counter = variable_counter + opt_bas%kind_basis(ikind)%flex_basis(0)%nopt
       END DO
 
       ALLOCATE (opt_bas%x_opt(variable_counter))
@@ -720,12 +720,12 @@ CONTAINS
       LOGICAL                                            :: explicit
       TYPE(section_vals_type), POINTER                   :: set1_section
 
-      nsets = SIZE(deriv_info)-1
+      nsets = SIZE(deriv_info) - 1
       set1_section => section_vals_get_subs_vals(kind_section, "DERIVED_BASIS_SETS", &
                                                  i_rep_section=ikind)
       DO jset = 1, nsets
          ! stracnge but as derive info is allcated from 0 to n the count over here has to be shifted
-         iset = jset+1
+         iset = jset + 1
          CALL section_vals_val_get(set1_section, "BASIS_SET_NAME", c_val=deriv_info(iset)%basis_name, &
                                    i_rep_section=jset)
          CALL section_vals_val_get(set1_section, "REFERENCE_SET", i_vals=i_vals, i_rep_section=jset)
@@ -865,7 +865,7 @@ CONTAINS
                           " to"//cp_to_string(MAXVAL(r_vals))// &
                           " Please change input.")
          flex_basis%subset(iset)%exp_const(ipgf)%init = SUM(r_vals)/2.0_dp
-         flex_basis%subset(iset)%exp_const(ipgf)%var_fac = MAXVAL(r_vals)/flex_basis%subset(iset)%exp_const(ipgf)%init-1.0_dp
+         flex_basis%subset(iset)%exp_const(ipgf)%var_fac = MAXVAL(r_vals)/flex_basis%subset(iset)%exp_const(ipgf)%init - 1.0_dp
       END IF
       IF (is_varlim) THEN
          flex_basis%subset(iset)%exp_const(ipgf)%const_type = 1
@@ -897,13 +897,13 @@ CONTAINS
       DO iset = 1, basis%nsets
          DO ipgf = 1, basis%subset(iset)%nexp
             IF (basis%subset(iset)%opt_exps(ipgf)) THEN
-               x_ind = x_ind+1
+               x_ind = x_ind + 1
                basis%subset(iset)%exp_x_ind(ipgf) = x_ind
                x(x_ind) = basis%subset(iset)%exps(ipgf)
             END IF
             DO icont = 1, basis%subset(iset)%ncon_tot
                IF (basis%subset(iset)%opt_coeff(ipgf, icont)) THEN
-                  x_ind = x_ind+1
+                  x_ind = x_ind + 1
                   basis%subset(iset)%coeff_x_ind(ipgf, icont) = x_ind
                   x(x_ind) = basis%subset(iset)%coeff(ipgf, icont)
                END IF
@@ -992,7 +992,7 @@ CONTAINS
          CALL section_vals_val_get(kind1_section, "SWITCH_SET_STATE", i_rep_val=irep, &
                                    i_rep_section=ikind, i_vals=switch)
          DO ipgf = 1, flex_basis%subset(switch(2))%nexp
-            SELECT CASE (switch (1))
+            SELECT CASE (switch(1))
             CASE (0) ! switch all states in the set
                DO icont = 1, flex_basis%subset(switch(2))%ncon_tot
                   flex_basis%subset(switch(2))%opt_coeff(ipgf, icont) = &
@@ -1026,9 +1026,9 @@ CONTAINS
       DO irep = 1, flex_basis%nsets
          DO ipgf = 1, flex_basis%subset(irep)%nexp
             DO icont = 1, flex_basis%subset(irep)%ncon_tot
-               IF (flex_basis%subset(irep)%opt_coeff(ipgf, icont)) flex_basis%nopt = flex_basis%nopt+1
+               IF (flex_basis%subset(irep)%opt_coeff(ipgf, icont)) flex_basis%nopt = flex_basis%nopt + 1
             END DO
-            IF (flex_basis%subset(irep)%opt_exps(ipgf)) flex_basis%nopt = flex_basis%nopt+1
+            IF (flex_basis%subset(irep)%opt_exps(ipgf)) flex_basis%nopt = flex_basis%nopt + 1
          END DO
       END DO
 
@@ -1052,12 +1052,12 @@ CONTAINS
 
       INTEGER                                            :: i, icon2l, iwork
 
-      iwork = l-lmin
+      iwork = l - lmin
       icon2l = 0
       DO i = 1, iwork
-         icon2l = icon2l+nl(i)
+         icon2l = icon2l + nl(i)
       END DO
-      ientry = icon2l+icontr
+      ientry = icon2l + icontr
 
    END FUNCTION convert_l_contr_to_entry
 
@@ -1102,8 +1102,8 @@ CONTAINS
             line2 = " "//line//" "
             element2 = " "//TRIM(element)//" "
             basis_name2 = " "//TRIM(basis_name)//" "
-            strlen1 = LEN_TRIM(element2)+1
-            strlen2 = LEN_TRIM(basis_name2)+1
+            strlen1 = LEN_TRIM(element2) + 1
+            strlen2 = LEN_TRIM(basis_name2) + 1
             IF ((INDEX(line2, element2(:strlen1)) > 0) .AND. &
                 (INDEX(line2, basis_name2(:strlen2)) > 0)) match = .TRUE.
             IF (match) THEN
@@ -1151,7 +1151,7 @@ CONTAINS
       CALL parser_get_object(parser, subset%lmin)
       CALL parser_get_object(parser, subset%lmax)
       CALL parser_get_object(parser, subset%nexp)
-      subset%nl = subset%lmax-subset%lmin+1
+      subset%nl = subset%lmax - subset%lmin + 1
       ALLOCATE (r_val)
       ALLOCATE (subset%l(subset%nl))
       ALLOCATE (subset%exps(subset%nexp))
@@ -1181,14 +1181,14 @@ CONTAINS
       ! orthonormalize contraction coefficients using gram schmidt
       istart = 1
       DO il = 1, subset%nl
-         DO icon1 = istart, istart+subset%l(il)-2
-            DO icon2 = icon1+1, istart+subset%l(il)-1
+         DO icon1 = istart, istart + subset%l(il) - 2
+            DO icon2 = icon1 + 1, istart + subset%l(il) - 1
                gs_scale = DOT_PRODUCT(subset%coeff(:, icon2), subset%coeff(:, icon1))/ &
                           DOT_PRODUCT(subset%coeff(:, icon1), subset%coeff(:, icon1))
-               subset%coeff(:, icon2) = subset%coeff(:, icon2)-gs_scale*subset%coeff(:, icon1)
+               subset%coeff(:, icon2) = subset%coeff(:, icon2) - gs_scale*subset%coeff(:, icon1)
             END DO
          END DO
-         istart = istart+subset%l(il)
+         istart = istart + subset%l(il)
       END DO
 
       ! just to get an understandable basis normalize coefficients

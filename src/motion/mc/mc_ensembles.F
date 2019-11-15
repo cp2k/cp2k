@@ -298,10 +298,10 @@ CONTAINS
          IF (.NOT. lhmc) THEN
             ! check for overlaps
             start_mol = 1
-            DO jbox = 1, ibox-1
-               start_mol = start_mol+SUM(nchains(:, jbox))
+            DO jbox = 1, ibox - 1
+               start_mol = start_mol + SUM(nchains(:, jbox))
             ENDDO
-            end_mol = start_mol+SUM(nchains(:, ibox))-1
+            end_mol = start_mol + SUM(nchains(:, ibox)) - 1
             CALL check_for_overlap(force_env(ibox)%force_env, nchains(:, ibox), &
                                    nunits, loverlap, mol_type(start_mol:end_mol))
             IF (loverlap) CPABORT("overlap in an initial configuration")
@@ -326,10 +326,10 @@ CONTAINS
 
             atom_number = 1
             DO imolecule = 1, SUM(nchains(:, ibox))
-               DO iunit = 1, nunits(mol_type(imolecule+start_mol-1))
+               DO iunit = 1, nunits(mol_type(imolecule + start_mol - 1))
                   atom_names_box(atom_number) = &
-                     atom_names(iunit, mol_type(imolecule+start_mol-1))
-                  atom_number = atom_number+1
+                     atom_names(iunit, mol_type(imolecule + start_mol - 1))
+                  atom_number = atom_number + 1
                ENDDO
             ENDDO
 
@@ -437,7 +437,7 @@ CONTAINS
          iupvolume = iupvolume*nchain_total
       ENDIF
 
-      DO nnstep = nstart+1, nstart+nstep
+      DO nnstep = nstart + 1, nstart + nstep
 
          IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
             WRITE (iw, *)
@@ -505,16 +505,16 @@ CONTAINS
                   ! determine the atom names of every particle
                   ALLOCATE (atom_names_box(1:nunits_tot(ibox)))
                   start_mol = 1
-                  DO jbox = 1, ibox-1
-                     start_mol = start_mol+SUM(nchains(:, jbox))
+                  DO jbox = 1, ibox - 1
+                     start_mol = start_mol + SUM(nchains(:, jbox))
                   ENDDO
-                  end_mol = start_mol+SUM(nchains(:, ibox))-1
+                  end_mol = start_mol + SUM(nchains(:, ibox)) - 1
                   atom_number = 1
                   DO imolecule = 1, SUM(nchains(:, ibox))
-                     DO iunit = 1, nunits(mol_type(imolecule+start_mol-1))
+                     DO iunit = 1, nunits(mol_type(imolecule + start_mol - 1))
                         atom_names_box(atom_number) = &
-                           atom_names(iunit, mol_type(imolecule+start_mol-1))
-                        atom_number = atom_number+1
+                           atom_names(iunit, mol_type(imolecule + start_mol - 1))
+                        atom_number = atom_number + 1
                      ENDDO
                   ENDDO
 
@@ -631,7 +631,7 @@ CONTAINS
             IF (SUM(nchains(:, box_number)) .LE. 1) THEN
                ! indicate that we tried a move
                moves(molecule_type_swap, box_number)%moves%empty_avbmc = &
-                  moves(molecule_type_swap, box_number)%moves%empty_avbmc+1
+                  moves(molecule_type_swap, box_number)%moves%empty_avbmc + 1
             ELSE
 
                ! pick a molecule to be swapped in the box
@@ -646,8 +646,8 @@ CONTAINS
                                                 start_atom_target, idum, molecule_type_target, &
                                                 rng_stream, box=box_number)
                      IF (start_atom_swap .NE. start_atom_target) THEN
-                        start_atom_target = start_atom_target+ &
-                                            avbmc_atom(molecule_type_target)-1
+                        start_atom_target = start_atom_target + &
+                                            avbmc_atom(molecule_type_target) - 1
                         EXIT
                      ENDIF
                   ENDDO
@@ -726,7 +726,7 @@ CONTAINS
                   IF (nchains(molecule_type, box_number) == 0) THEN
                      ! indicate that we tried a move
                      moves(molecule_type, box_number)%moves%empty_conf = &
-                        moves(molecule_type, box_number)%moves%empty_conf+1
+                        moves(molecule_type, box_number)%moves%empty_conf + 1
                   ELSE
                      ! pick a molecule in the box
                      IF (ionode) THEN
@@ -746,7 +746,7 @@ CONTAINS
                      ! figure out what kind of move we're doing
                      IF (rand .LT. conf_prob(1, molecule_type)) THEN
                         move_type = 'bond'
-                     ELSEIF (rand .LT. (conf_prob(1, molecule_type)+ &
+                     ELSEIF (rand .LT. (conf_prob(1, molecule_type) + &
                                         conf_prob(2, molecule_type))) THEN
                         move_type = 'angle'
                      ELSE
@@ -915,18 +915,18 @@ CONTAINS
             DO ibox = 1, nboxes
                ! compute some averages
                averages(ibox)%averages%ave_energy = &
-                  averages(ibox)%averages%ave_energy*REAL(nnstep- &
-                                                          nstart-1, dp)/REAL(nnstep-nstart, dp)+ &
-                  old_energy(ibox)/REAL(nnstep-nstart, dp)
+                  averages(ibox)%averages%ave_energy*REAL(nnstep - &
+                                                          nstart - 1, dp)/REAL(nnstep - nstart, dp) + &
+                  old_energy(ibox)/REAL(nnstep - nstart, dp)
                averages(ibox)%averages%molecules = &
-                  averages(ibox)%averages%molecules*REAL(nnstep- &
-                                                         nstart-1, dp)/REAL(nnstep-nstart, dp)+ &
-                  REAL(SUM(nchains(:, ibox)), dp)/REAL(nnstep-nstart, dp)
+                  averages(ibox)%averages%molecules*REAL(nnstep - &
+                                                         nstart - 1, dp)/REAL(nnstep - nstart, dp) + &
+                  REAL(SUM(nchains(:, ibox)), dp)/REAL(nnstep - nstart, dp)
                averages(ibox)%averages%ave_volume = &
                   averages(ibox)%averages%ave_volume* &
-                  REAL(nnstep-nstart-1, dp)/REAL(nnstep-nstart, dp)+ &
+                  REAL(nnstep - nstart - 1, dp)/REAL(nnstep - nstart, dp) + &
                   abc(1, ibox)*abc(2, ibox)*abc(3, ibox)/ &
-                  REAL(nnstep-nstart, dp)
+                  REAL(nnstep - nstart, dp)
 
                ! flush the buffers to the files
                CALL m_flush(data_unit(ibox))
@@ -954,7 +954,7 @@ CONTAINS
 
          ! update the move displacements, if necessary
          DO ibox = 1, nboxes
-            IF (MOD(nnstep-nstart, iuptrans) == 0) THEN
+            IF (MOD(nnstep - nstart, iuptrans) == 0) THEN
                DO itype = 1, nmol_types
                   CALL mc_move_update(mc_par(ibox)%mc_par, &
                                       move_updates(itype, ibox)%moves, itype, &
@@ -962,7 +962,7 @@ CONTAINS
                ENDDO
             ENDIF
 
-            IF (MOD(nnstep-nstart, iupvolume) == 0) THEN
+            IF (MOD(nnstep - nstart, iupvolume) == 0) THEN
                CALL mc_move_update(mc_par(ibox)%mc_par, &
                                    move_updates(1, ibox)%moves, 1337, &
                                    "volume", nnstep, ionode)
@@ -975,10 +975,10 @@ CONTAINS
             DO ibox = 1, nboxes
                IF (SUM(nchains(:, ibox)) .NE. 0) THEN
                   start_mol = 1
-                  DO jbox = 1, ibox-1
-                     start_mol = start_mol+SUM(nchains(:, jbox))
+                  DO jbox = 1, ibox - 1
+                     start_mol = start_mol + SUM(nchains(:, jbox))
                   ENDDO
-                  end_mol = start_mol+SUM(nchains(:, ibox))-1
+                  end_mol = start_mol + SUM(nchains(:, ibox)) - 1
                   CALL check_for_overlap(force_env(ibox)%force_env, &
                                          nchains(:, ibox), nunits, loverlap, &
                                          mol_type(start_mol:end_mol))
@@ -1037,13 +1037,13 @@ CONTAINS
                   test_energy = 0.0E0_dp
                ENDIF
 
-               IF (ABS(initial_energy(ibox)+energy_check(ibox)- &
+               IF (ABS(initial_energy(ibox) + energy_check(ibox) - &
                        test_energy) .GT. 0.0000001E0_dp) THEN
                   IF (iw > 0) THEN
                      WRITE (iw, *) '!!!!!!! We have an energy problem. !!!!!!!!'
                      WRITE (iw, '(A,T64,F16.10)') 'Final Energy = ', test_energy
                      WRITE (iw, '(A,T64,F16.10)') 'Inital Energy+energy_check=', &
-                        initial_energy(ibox)+energy_check(ibox)
+                        initial_energy(ibox) + energy_check(ibox)
                      WRITE (iw, *) 'Box ', ibox
                      WRITE (iw, *) 'nchains ', nchains(:, ibox)
                   END IF
@@ -1213,8 +1213,8 @@ CONTAINS
       virial_stepsize(2) = 0.1
       virial_stepsize(3) = 0.2
 
-      nbins = CEILING(virial_cutoffs(1)/virial_stepsize(1)+(virial_cutoffs(2)-virial_cutoffs(1))/ &
-                      virial_stepsize(2)+(virial_cutoffs(3)-virial_cutoffs(2))/virial_stepsize(3))
+      nbins = CEILING(virial_cutoffs(1)/virial_stepsize(1) + (virial_cutoffs(2) - virial_cutoffs(1))/ &
+                      virial_stepsize(2) + (virial_cutoffs(3) - virial_cutoffs(2))/virial_stepsize(3))
 
       ! figure out what the default write unit is
       iw = cp_logger_get_default_io_unit()
@@ -1290,7 +1290,7 @@ CONTAINS
       CALL get_center_of_mass(r_old(:, start_atom:end_atom), nunits(mol_type(1)), &
                               center_of_mass(:), mass(1:nunits(mol_type(1)), mol_type(1)))
       DO iunit = start_atom, end_atom
-         r_old(:, iunit) = r_old(:, iunit)-center_of_mass(:)
+         r_old(:, iunit) = r_old(:, iunit) - center_of_mass(:)
       ENDDO
       ! set them in the force_env, so the first molecule is ready for the energy calc
       DO iparticle = start_atom, end_atom
@@ -1311,12 +1311,12 @@ CONTAINS
       DO ivirial = 1, nvirial
 
          ! move molecule two back to the origin
-         start_atom = nunits(mol_type(1))+1
+         start_atom = nunits(mol_type(1)) + 1
          end_atom = nunits_tot(1)
          CALL get_center_of_mass(r_old(:, start_atom:end_atom), nunits(mol_type(2)), &
                                  center_of_mass(:), mass(1:nunits(mol_type(2)), mol_type(2)))
          DO iunit = start_atom, end_atom
-            r_old(:, iunit) = r_old(:, iunit)-center_of_mass(:)
+            r_old(:, iunit) = r_old(:, iunit) - center_of_mass(:)
          ENDDO
 
          ! now we need a random orientation for molecule 2...this routine is
@@ -1334,17 +1334,17 @@ CONTAINS
             ! find out what our stepsize is
             current_division = 0
             DO idivision = 1, nintegral_divisions
-               IF (distance .LT. virial_cutoffs(idivision)-virial_stepsize(idivision)/2.0E0_dp) THEN
+               IF (distance .LT. virial_cutoffs(idivision) - virial_stepsize(idivision)/2.0E0_dp) THEN
                   current_division = idivision
                   EXIT
                ENDIF
             ENDDO
             IF (current_division == 0) EXIT
-            distance = distance+virial_stepsize(current_division)
+            distance = distance + virial_stepsize(current_division)
 
             ! move the second molecule only along the x direction
             DO iparticle = start_atom, end_atom
-               particles(1)%list%els(iparticle)%r(1) = r_old(1, iparticle)+distance
+               particles(1)%list%els(iparticle)%r(1) = r_old(1, iparticle) + distance
                particles(1)%list%els(iparticle)%r(2) = r_old(2, iparticle)
                particles(1)%list%els(iparticle)%r(3) = r_old(3, iparticle)
             ENDDO
@@ -1356,7 +1356,7 @@ CONTAINS
             ! exponent is exp(-beta*energy)-1, also called the Mayer term
             IF (loverlap) THEN
                DO itemp = 1, nvirial_temps
-                  mayer(itemp, ibin) = mayer(itemp, ibin)-1.0_dp
+                  mayer(itemp, ibin) = mayer(itemp, ibin) - 1.0_dp
                ENDDO
             ELSE
                CALL force_env_calc_energy_force(force_env(1)%force_env, &
@@ -1373,11 +1373,11 @@ CONTAINS
                   ELSEIF (exponent .LT. exp_min_val) THEN
                      exponent = exp_min_val
                   ENDIF
-                  mayer(itemp, ibin) = mayer(itemp, ibin)+EXP(exponent)-1.0_dp
+                  mayer(itemp, ibin) = mayer(itemp, ibin) + EXP(exponent) - 1.0_dp
                ENDDO
             ENDIF
 
-            ibin = ibin+1
+            ibin = ibin + 1
          ENDDO
          ! write out some info that keeps track of where we are
          IF (iw > 0) THEN
@@ -1397,13 +1397,13 @@ CONTAINS
          DO
             current_division = 0
             DO idivision = 1, nintegral_divisions
-               IF (distance .LT. virial_cutoffs(idivision)-virial_stepsize(idivision)/2.0E0_dp) THEN
+               IF (distance .LT. virial_cutoffs(idivision) - virial_stepsize(idivision)/2.0E0_dp) THEN
                   current_division = idivision
                   EXIT
                ENDIF
             ENDDO
             IF (current_division == 0) EXIT
-            distance = distance+virial_stepsize(current_division)
+            distance = distance + virial_stepsize(current_division)
 
             ! now we need to integrate, using the trapazoidal method
             ! first, find the value of the square
@@ -1411,11 +1411,11 @@ CONTAINS
             square_value = previous_value*virial_stepsize(current_division)
             ! now the triangle that sits on top of it, which is half the size of this square...
             ! notice this is negative if the current value is less than the previous value
-            triangle_value = 0.5E0_dp*((current_value-previous_value)*virial_stepsize(current_division))
+            triangle_value = 0.5E0_dp*((current_value - previous_value)*virial_stepsize(current_division))
 
-            integral = integral+square_value+triangle_value
+            integral = integral + square_value + triangle_value
             previous_value = current_value
-            ibin = ibin+1
+            ibin = ibin + 1
          ENDDO
 
          ! now that the integration is done, compute the second virial that results

@@ -184,27 +184,27 @@ CONTAINS
                                 row=irow, col=icol, BLOCK=kz_block, found=found)
          CPASSERT(found)
 
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          tab = SQRT(rab2)
          trans = do_symmetric .AND. (iatom > jatom)
 
          DO iset = 1, nseta
 
-            ncoa = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+            ncoa = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
             sgfa = first_sgfa(1, iset)
 
             DO jset = 1, nsetb
 
-               IF (set_radius_a(iset)+set_radius_b(jset) < tab) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < tab) CYCLE
 
-               ncob = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+               ncob = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
                sgfb = first_sgfb(1, jset)
 
                ! calclulate integrals
-               ltab = MAX(npgfa(iset)*ncoset(la_max(iset)+1), npgfb(jset)*ncoset(lb_max(jset)+1))
+               ltab = MAX(npgfa(iset)*ncoset(la_max(iset) + 1), npgfb(jset)*ncoset(lb_max(jset) + 1))
                ALLOCATE (tkab(ltab, ltab))
-               CALL kinetic(la_max(iset)+1, la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
-                            lb_max(jset)+1, lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+               CALL kinetic(la_max(iset) + 1, la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                            lb_max(jset) + 1, lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
                             rab, tkab)
                ! commutator
                CALL comab_opr(la_max(iset), npgfa(iset), rpgfa(:, iset), la_min(iset), &
@@ -301,8 +301,8 @@ CONTAINS
 
       comabr = 0.0_dp
 
-      ofa = ncoset(la_min-1)
-      ofb = ncoset(lb_min-1)
+      ofa = ncoset(la_min - 1)
+      ofb = ncoset(lb_min - 1)
 
       na = 0
       nap = 0
@@ -310,29 +310,29 @@ CONTAINS
          nb = 0
          nbp = 0
          DO jpgf = 1, npgfb
-            IF (rpgfa(ipgf)+rpgfb(jpgf) > dab) THEN
+            IF (rpgfa(ipgf) + rpgfb(jpgf) > dab) THEN
                DO la = la_min, la_max
                   DO ax = 0, la
-                     DO ay = 0, la-ax
-                        az = la-ax-ay
-                        coa = na+coset(ax, ay, az)-ofa
-                        coap = nap+coset(ax, ay, az)-ofa
-                        coapx = nap+coset(ax+1, ay, az)-ofa
-                        coapy = nap+coset(ax, ay+1, az)-ofa
-                        coapz = nap+coset(ax, ay, az+1)-ofa
+                     DO ay = 0, la - ax
+                        az = la - ax - ay
+                        coa = na + coset(ax, ay, az) - ofa
+                        coap = nap + coset(ax, ay, az) - ofa
+                        coapx = nap + coset(ax + 1, ay, az) - ofa
+                        coapy = nap + coset(ax, ay + 1, az) - ofa
+                        coapz = nap + coset(ax, ay, az + 1) - ofa
                         DO lb = lb_min, lb_max
                            DO bx = 0, lb
-                              DO by = 0, lb-bx
-                                 bz = lb-bx-by
-                                 cob = nb+coset(bx, by, bz)-ofb
-                                 cobp = nbp+coset(bx, by, bz)-ofb
-                                 cobpx = nbp+coset(bx+1, by, bz)-ofb
-                                 cobpy = nbp+coset(bx, by+1, bz)-ofb
-                                 cobpz = nbp+coset(bx, by, bz+1)-ofb
+                              DO by = 0, lb - bx
+                                 bz = lb - bx - by
+                                 cob = nb + coset(bx, by, bz) - ofb
+                                 cobp = nbp + coset(bx, by, bz) - ofb
+                                 cobpx = nbp + coset(bx + 1, by, bz) - ofb
+                                 cobpy = nbp + coset(bx, by + 1, bz) - ofb
+                                 cobpz = nbp + coset(bx, by, bz + 1) - ofb
                                  ! [a|[O,ri]|b] = [a|O|b+1i] - [a+1i|O|b]
-                                 comabr(coa, cob, 1) = ab(coap, cobpx)-ab(coapx, cobp)
-                                 comabr(coa, cob, 2) = ab(coap, cobpy)-ab(coapy, cobp)
-                                 comabr(coa, cob, 3) = ab(coap, cobpz)-ab(coapz, cobp)
+                                 comabr(coa, cob, 1) = ab(coap, cobpx) - ab(coapx, cobp)
+                                 comabr(coa, cob, 2) = ab(coap, cobpy) - ab(coapy, cobp)
+                                 comabr(coa, cob, 3) = ab(coap, cobpz) - ab(coapz, cobp)
                               END DO
                            END DO
                         END DO
@@ -340,11 +340,11 @@ CONTAINS
                   END DO
                END DO
             END IF
-            nb = nb+ncoset(lb_max)-ofb
-            nbp = nbp+ncoset(lb_max+1)-ofb
+            nb = nb + ncoset(lb_max) - ofb
+            nbp = nbp + ncoset(lb_max + 1) - ofb
          END DO
-         na = na+ncoset(la_max)-ofa
-         nap = nap+ncoset(la_max+1)-ofa
+         na = na + ncoset(la_max) - ofa
+         nap = nap + ncoset(la_max + 1) - ofa
       END DO
 
    END SUBROUTINE comab_opr

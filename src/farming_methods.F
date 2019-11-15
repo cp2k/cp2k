@@ -58,12 +58,12 @@ CONTAINS
          IF (current < start) THEN
             current = start
          ELSE
-            current = current+1
+            current = current + 1
          ENDIF
          IF (current > END) THEN
             todo = do_nothing
          ELSE
-            todo = MODULO(current-1, farming_env%njobs)+1
+            todo = MODULO(current - 1, farming_env%njobs) + 1
          ENDIF
       ELSE
          ! find a pending job
@@ -149,7 +149,7 @@ CONTAINS
       IF (n_rep_val > 0) THEN
          CALL section_vals_val_get(farming_section, "GROUP_PARTITION", &
                                    i_vals=i_vals)
-         ALLOCATE (farming_env%group_partition(0:SIZE(i_vals)-1))
+         ALLOCATE (farming_env%group_partition(0:SIZE(i_vals) - 1))
          farming_env%group_partition(:) = i_vals
          farming_env%ngroup_wish_set = .TRUE.
          farming_env%ngroup_wish = SIZE(i_vals)
@@ -245,7 +245,7 @@ CONTAINS
          WRITE (output_unit, FMT="(T2,A)") "FARMING| Master-slave setup not support for serial runs"
       ENDIF
       IF (farming_env%master_slave) THEN
-         num_slaves = para_env%num_pe-1
+         num_slaves = para_env%num_pe - 1
       ELSE
          num_slaves = para_env%num_pe
       ENDIF
@@ -256,7 +256,7 @@ CONTAINS
             WRITE (output_unit, FMT="(T2,A,T71,I10)") "FARMING| Ngroup wish:", farming_env%ngroup_wish
             IF (ASSOCIATED(farming_env%group_partition)) THEN
                WRITE (output_unit, FMT="(T2,A)", ADVANCE="NO") "FARMING| User partition:"
-               DO i = 0, SIZE(farming_env%group_partition)-1
+               DO i = 0, SIZE(farming_env%group_partition) - 1
                   IF (MODULO(i, 4) == 0) WRITE (output_unit, *)
                   WRITE (output_unit, FMT='(I4)', ADVANCE="NO") farming_env%group_partition(i)
                END DO

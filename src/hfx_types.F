@@ -723,7 +723,7 @@ CONTAINS
                ALLOCATE (actual_x_data%is_assoc_atomic_block(natom, natom))
                ALLOCATE (actual_x_data%atomic_block_offset(natom, natom))
                ALLOCATE (actual_x_data%set_offset(max_set, max_set, nkind, nkind))
-               ALLOCATE (actual_x_data%block_offset(para_env%num_pe+1))
+               ALLOCATE (actual_x_data%block_offset(para_env%num_pe + 1))
             END IF
 
             ALLOCATE (actual_x_data%distribution_forces(1))
@@ -740,7 +740,7 @@ CONTAINS
                !! ** This guy is allocated on the master thread only
                IF (i_thread == 1) THEN
                   ALLOCATE (actual_x_data%pmax_atom(natom, natom))
-                  ALLOCATE (actual_x_data%initial_p(nkind*(nkind+1)/2))
+                  ALLOCATE (actual_x_data%initial_p(nkind*(nkind + 1)/2))
                   i = 1
                   DO ikind = 1, nkind
                      CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_a)
@@ -750,14 +750,14 @@ CONTAINS
                         nsetb = actual_x_data%basis_parameter(jkind)%nset
                         ALLOCATE (actual_x_data%initial_p(i)%p_kind(nseta, nsetb, natom_a, natom_b))
                         actual_x_data%memory_parameter%size_p_screen = &
-                           actual_x_data%memory_parameter%size_p_screen+nseta*nsetb*natom_a*natom_b
-                        i = i+1
+                           actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b
+                        i = i + 1
                      END DO
                   END DO
                   IF (actual_x_data%memory_parameter%treat_forces_in_core) THEN
                      ALLOCATE (actual_x_data%pmax_atom_forces(natom, natom))
 
-                     ALLOCATE (actual_x_data%initial_p_forces(nkind*(nkind+1)/2))
+                     ALLOCATE (actual_x_data%initial_p_forces(nkind*(nkind + 1)/2))
                      i = 1
                      DO ikind = 1, nkind
                         CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_a)
@@ -767,8 +767,8 @@ CONTAINS
                            nsetb = actual_x_data%basis_parameter(jkind)%nset
                            ALLOCATE (actual_x_data%initial_p_forces(i)%p_kind(nseta, nsetb, natom_a, natom_b))
                            actual_x_data%memory_parameter%size_p_screen = &
-                              actual_x_data%memory_parameter%size_p_screen+nseta*nsetb*natom_a*natom_b
-                           i = i+1
+                              actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b
+                           i = i + 1
                         END DO
                      END DO
                   END IF
@@ -781,7 +781,7 @@ CONTAINS
                atom2kind = 0
                DO iatom = 1, natom
                   ikind = kind_of(iatom)
-                  atom2kind(ikind) = atom2kind(ikind)+1
+                  atom2kind(ikind) = atom2kind(ikind) + 1
                   actual_x_data%map_atom_to_kind_atom(iatom) = atom2kind(ikind)
                END DO
                DEALLOCATE (kind_of, atom2kind)
@@ -919,7 +919,7 @@ CONTAINS
             DO i = 0, basis_info%max_am
                nl_count = 0
                DO j = 1, nshell(iset)
-                  IF (basis_parameter(ikind)%nl(j, iset) == i) nl_count = nl_count+1
+                  IF (basis_parameter(ikind)%nl(j, iset) == i) nl_count = nl_count + 1
                END DO
                basis_parameter(ikind)%nsgfl(i, iset) = nl_count
             END DO
@@ -961,20 +961,20 @@ CONTAINS
          DO iset = 1, nseta
             sgfa = first_sgfa(1, iset)
             DO ipgf = 1, npgfa(iset)
-               offset_a1 = (ipgf-1)*ncoset(la_max(iset))
+               offset_a1 = (ipgf - 1)*ncoset(la_max(iset))
                s_offset_nl_a = 0
                DO la = la_min(iset), la_max(iset)
-                  offset_a = offset_a1+ncoset(la-1)
+                  offset_a = offset_a1 + ncoset(la - 1)
                   co_counter = 0
-                  co_counter = co_counter+1
+                  co_counter = co_counter + 1
                   so_counter = 0
-                  DO k = sgfa+s_offset_nl_a, sgfa+s_offset_nl_a+nso(la)*nl_a(la, iset)-1
-                     DO i = offset_a+1, offset_a+nco(la)
-                        so_counter = so_counter+1
+                  DO k = sgfa + s_offset_nl_a, sgfa + s_offset_nl_a + nso(la)*nl_a(la, iset) - 1
+                     DO i = offset_a + 1, offset_a + nco(la)
+                        so_counter = so_counter + 1
                         basis_parameter(ikind)%sphi_ext(so_counter, la, ipgf, iset) = sphi_a(i, k)
                      END DO
                   END DO
-                  s_offset_nl_a = s_offset_nl_a+nso(la)*(nl_a(la, iset))
+                  s_offset_nl_a = s_offset_nl_a + nso(la)*(nl_a(la, iset))
                END DO
             END DO
          END DO
@@ -1105,7 +1105,7 @@ CONTAINS
          memory_parameter%do_disk_storage = .FALSE.
       END IF
       IF (PRESENT(storage_id)) THEN
-         storage_id = (irep-1)*para_env%num_pe*n_threads+para_env%mepos*n_threads+i_thread-1
+         storage_id = (irep - 1)*para_env%num_pe*n_threads + para_env%mepos*n_threads + i_thread - 1
       END IF
    END SUBROUTINE parse_memory_section
 
@@ -1310,8 +1310,8 @@ CONTAINS
                   DO jset = 1, nsetb
                      DO ipgf = 1, npgfa(iset)
                         DO jpgf = 1, npgfb(jset)
-                           Zeta1 = zeta(ipgf, iset)+zetb(jpgf, jset)
-                           R1 = 1.0_dp/SQRT(Zeta1)*mul_fact(la_max(iset)+lb_max(jset))* &
+                           Zeta1 = zeta(ipgf, iset) + zetb(jpgf, jset)
+                           R1 = 1.0_dp/SQRT(Zeta1)*mul_fact(la_max(iset) + lb_max(jset))* &
                                 SQRT(-LOG(x_data%screening_parameter%eps_schwarz))
                            R_max = MAX(R1, R_max)
                         END DO
@@ -1321,7 +1321,7 @@ CONTAINS
             END DO
          END DO
 
-         R_max = 2.0_dp*R_max+x_data%potential_parameter%cutoff_radius
+         R_max = 2.0_dp*R_max + x_data%potential_parameter%cutoff_radius
          nothing_more_to_add = .FALSE.
          max_shell = 0
          total_number_of_cells = 0
@@ -1370,13 +1370,13 @@ CONTAINS
             ! Calculate distances to the eight points P1 to P8
             image_cell_found = .FALSE.
             ALLOCATE (tmp_neighbor_cells(1:ub))
-            DO i = 1, ub-1
+            DO i = 1, ub - 1
                tmp_neighbor_cells(i) = x_data%neighbor_cells(i)
             END DO
-            ub_max = (2*max_shell+1)**3
+            ub_max = (2*max_shell + 1)**3
             DEALLOCATE (x_data%neighbor_cells)
             ALLOCATE (x_data%neighbor_cells(1:ub_max))
-            DO i = 1, ub-1
+            DO i = 1, ub - 1
                x_data%neighbor_cells(i) = tmp_neighbor_cells(i)
             END DO
             DO i = ub, ub_max
@@ -1392,15 +1392,15 @@ CONTAINS
                IF (MAX(ABS(ishell), ABS(jshell), ABS(kshell)) /= max_shell) CYCLE
                idx = 0
                DO j = 0, 1
-                  x = -1.0_dp/2.0_dp+j*1.0_dp
+                  x = -1.0_dp/2.0_dp + j*1.0_dp
                   DO k = 0, 1
-                     y = -1.0_dp/2.0_dp+k*1.0_dp
+                     y = -1.0_dp/2.0_dp + k*1.0_dp
                      DO l = 0, 1
-                        z = -1.0_dp/2.0_dp+l*1.0_dp
-                        idx = idx+1
-                        P(1, idx) = x+ishell
-                        P(2, idx) = y+jshell
-                        P(3, idx) = z+kshell
+                        z = -1.0_dp/2.0_dp + l*1.0_dp
+                        idx = idx + 1
+                        P(1, idx) = x + ishell
+                        P(2, idx) = y + jshell
+                        P(3, idx) = z + kshell
                         CALL scaled_to_real(r, P(:, idx), cell)
                         distance(idx) = SQRT(SUM(r**2))
                         P(1:3, idx) = r
@@ -1410,97 +1410,97 @@ CONTAINS
                ! Now check distance to Faces and only take them into account if the base point lies within quadrilateral
 
                ! Face A (1342) 1 is the reference
-               idx = idx+1
-               plane_vector(:, 1) = P(:, 3)-P(:, 1)
-               plane_vector(:, 2) = P(:, 2)-P(:, 1)
-               cross_product(1) = plane_vector(2, 1)*plane_vector(3, 2)-plane_vector(3, 1)*plane_vector(2, 2)
-               cross_product(2) = plane_vector(3, 1)*plane_vector(1, 2)-plane_vector(1, 1)*plane_vector(3, 2)
-               cross_product(3) = plane_vector(1, 1)*plane_vector(2, 2)-plane_vector(2, 1)*plane_vector(1, 2)
+               idx = idx + 1
+               plane_vector(:, 1) = P(:, 3) - P(:, 1)
+               plane_vector(:, 2) = P(:, 2) - P(:, 1)
+               cross_product(1) = plane_vector(2, 1)*plane_vector(3, 2) - plane_vector(3, 1)*plane_vector(2, 2)
+               cross_product(2) = plane_vector(3, 1)*plane_vector(1, 2) - plane_vector(1, 1)*plane_vector(3, 2)
+               cross_product(3) = plane_vector(1, 1)*plane_vector(2, 2) - plane_vector(2, 1)*plane_vector(1, 2)
                normal(:, 1) = cross_product/SQRT(SUM(cross_product**2))
-               point_in_plane = -normal(:, 1)*(normal(1, 1)*P(1, 1)+normal(2, 1)*P(2, 1)+normal(3, 1)*P(3, 1))
+               point_in_plane = -normal(:, 1)*(normal(1, 1)*P(1, 1) + normal(2, 1)*P(2, 1) + normal(3, 1)*P(3, 1))
 
                IF (point_is_in_quadrilateral(P(:, 1), P(:, 3), P(:, 4), P(:, 2), point_in_plane)) THEN
-                  distance(idx) = ABS(normal(1, 1)*P(1, 1)+normal(2, 1)*P(2, 1)+normal(3, 1)*P(3, 1))
+                  distance(idx) = ABS(normal(1, 1)*P(1, 1) + normal(2, 1)*P(2, 1) + normal(3, 1)*P(3, 1))
                ELSE
                   distance(idx) = HUGE(distance(idx))
                END IF
 
                ! Face B (1562) 1 is the reference
-               idx = idx+1
-               plane_vector(:, 1) = P(:, 2)-P(:, 1)
-               plane_vector(:, 2) = P(:, 5)-P(:, 1)
-               cross_product(1) = plane_vector(2, 1)*plane_vector(3, 2)-plane_vector(3, 1)*plane_vector(2, 2)
-               cross_product(2) = plane_vector(3, 1)*plane_vector(1, 2)-plane_vector(1, 1)*plane_vector(3, 2)
-               cross_product(3) = plane_vector(1, 1)*plane_vector(2, 2)-plane_vector(2, 1)*plane_vector(1, 2)
+               idx = idx + 1
+               plane_vector(:, 1) = P(:, 2) - P(:, 1)
+               plane_vector(:, 2) = P(:, 5) - P(:, 1)
+               cross_product(1) = plane_vector(2, 1)*plane_vector(3, 2) - plane_vector(3, 1)*plane_vector(2, 2)
+               cross_product(2) = plane_vector(3, 1)*plane_vector(1, 2) - plane_vector(1, 1)*plane_vector(3, 2)
+               cross_product(3) = plane_vector(1, 1)*plane_vector(2, 2) - plane_vector(2, 1)*plane_vector(1, 2)
                normal(:, 1) = cross_product/SQRT(SUM(cross_product**2))
-               point_in_plane = -normal(:, 1)*(normal(1, 1)*P(1, 1)+normal(2, 1)*P(2, 1)+normal(3, 1)*P(3, 1))
+               point_in_plane = -normal(:, 1)*(normal(1, 1)*P(1, 1) + normal(2, 1)*P(2, 1) + normal(3, 1)*P(3, 1))
 
                IF (point_is_in_quadrilateral(P(:, 1), P(:, 5), P(:, 6), P(:, 2), point_in_plane)) THEN
-                  distance(idx) = ABS(normal(1, 1)*P(1, 1)+normal(2, 1)*P(2, 1)+normal(3, 1)*P(3, 1))
+                  distance(idx) = ABS(normal(1, 1)*P(1, 1) + normal(2, 1)*P(2, 1) + normal(3, 1)*P(3, 1))
                ELSE
                   distance(idx) = HUGE(distance(idx))
                END IF
 
                ! Face C (5786) 5 is the reference
-               idx = idx+1
-               plane_vector(:, 1) = P(:, 7)-P(:, 5)
-               plane_vector(:, 2) = P(:, 6)-P(:, 5)
-               cross_product(1) = plane_vector(2, 1)*plane_vector(3, 2)-plane_vector(3, 1)*plane_vector(2, 2)
-               cross_product(2) = plane_vector(3, 1)*plane_vector(1, 2)-plane_vector(1, 1)*plane_vector(3, 2)
-               cross_product(3) = plane_vector(1, 1)*plane_vector(2, 2)-plane_vector(2, 1)*plane_vector(1, 2)
+               idx = idx + 1
+               plane_vector(:, 1) = P(:, 7) - P(:, 5)
+               plane_vector(:, 2) = P(:, 6) - P(:, 5)
+               cross_product(1) = plane_vector(2, 1)*plane_vector(3, 2) - plane_vector(3, 1)*plane_vector(2, 2)
+               cross_product(2) = plane_vector(3, 1)*plane_vector(1, 2) - plane_vector(1, 1)*plane_vector(3, 2)
+               cross_product(3) = plane_vector(1, 1)*plane_vector(2, 2) - plane_vector(2, 1)*plane_vector(1, 2)
                normal(:, 1) = cross_product/SQRT(SUM(cross_product**2))
-               point_in_plane = -normal(:, 1)*(normal(1, 1)*P(1, 5)+normal(2, 1)*P(2, 5)+normal(3, 1)*P(3, 5))
+               point_in_plane = -normal(:, 1)*(normal(1, 1)*P(1, 5) + normal(2, 1)*P(2, 5) + normal(3, 1)*P(3, 5))
 
                IF (point_is_in_quadrilateral(P(:, 5), P(:, 7), P(:, 8), P(:, 6), point_in_plane)) THEN
-                  distance(idx) = ABS(normal(1, 1)*P(1, 5)+normal(2, 1)*P(2, 5)+normal(3, 1)*P(3, 5))
+                  distance(idx) = ABS(normal(1, 1)*P(1, 5) + normal(2, 1)*P(2, 5) + normal(3, 1)*P(3, 5))
                ELSE
                   distance(idx) = HUGE(distance(idx))
                END IF
 
                ! Face D (3784) 3 is the reference
-               idx = idx+1
-               plane_vector(:, 1) = P(:, 7)-P(:, 3)
-               plane_vector(:, 2) = P(:, 4)-P(:, 3)
-               cross_product(1) = plane_vector(2, 1)*plane_vector(3, 2)-plane_vector(3, 1)*plane_vector(2, 2)
-               cross_product(2) = plane_vector(3, 1)*plane_vector(1, 2)-plane_vector(1, 1)*plane_vector(3, 2)
-               cross_product(3) = plane_vector(1, 1)*plane_vector(2, 2)-plane_vector(2, 1)*plane_vector(1, 2)
+               idx = idx + 1
+               plane_vector(:, 1) = P(:, 7) - P(:, 3)
+               plane_vector(:, 2) = P(:, 4) - P(:, 3)
+               cross_product(1) = plane_vector(2, 1)*plane_vector(3, 2) - plane_vector(3, 1)*plane_vector(2, 2)
+               cross_product(2) = plane_vector(3, 1)*plane_vector(1, 2) - plane_vector(1, 1)*plane_vector(3, 2)
+               cross_product(3) = plane_vector(1, 1)*plane_vector(2, 2) - plane_vector(2, 1)*plane_vector(1, 2)
                normal(:, 1) = cross_product/SQRT(SUM(cross_product**2))
-               point_in_plane = -normal(:, 1)*(normal(1, 1)*P(1, 3)+normal(2, 1)*P(2, 3)+normal(3, 1)*P(3, 3))
+               point_in_plane = -normal(:, 1)*(normal(1, 1)*P(1, 3) + normal(2, 1)*P(2, 3) + normal(3, 1)*P(3, 3))
 
                IF (point_is_in_quadrilateral(P(:, 3), P(:, 7), P(:, 8), P(:, 4), point_in_plane)) THEN
-                  distance(idx) = ABS(normal(1, 1)*P(1, 3)+normal(2, 1)*P(2, 3)+normal(3, 1)*P(3, 3))
+                  distance(idx) = ABS(normal(1, 1)*P(1, 3) + normal(2, 1)*P(2, 3) + normal(3, 1)*P(3, 3))
                ELSE
                   distance(idx) = HUGE(distance(idx))
                END IF
 
                ! Face E (2684) 2 is the reference
-               idx = idx+1
-               plane_vector(:, 1) = P(:, 6)-P(:, 2)
-               plane_vector(:, 2) = P(:, 4)-P(:, 2)
-               cross_product(1) = plane_vector(2, 1)*plane_vector(3, 2)-plane_vector(3, 1)*plane_vector(2, 2)
-               cross_product(2) = plane_vector(3, 1)*plane_vector(1, 2)-plane_vector(1, 1)*plane_vector(3, 2)
-               cross_product(3) = plane_vector(1, 1)*plane_vector(2, 2)-plane_vector(2, 1)*plane_vector(1, 2)
+               idx = idx + 1
+               plane_vector(:, 1) = P(:, 6) - P(:, 2)
+               plane_vector(:, 2) = P(:, 4) - P(:, 2)
+               cross_product(1) = plane_vector(2, 1)*plane_vector(3, 2) - plane_vector(3, 1)*plane_vector(2, 2)
+               cross_product(2) = plane_vector(3, 1)*plane_vector(1, 2) - plane_vector(1, 1)*plane_vector(3, 2)
+               cross_product(3) = plane_vector(1, 1)*plane_vector(2, 2) - plane_vector(2, 1)*plane_vector(1, 2)
                normal(:, 1) = cross_product/SQRT(SUM(cross_product**2))
-               point_in_plane = -normal(:, 1)*(normal(1, 1)*P(1, 2)+normal(2, 1)*P(2, 2)+normal(3, 1)*P(3, 2))
+               point_in_plane = -normal(:, 1)*(normal(1, 1)*P(1, 2) + normal(2, 1)*P(2, 2) + normal(3, 1)*P(3, 2))
 
                IF (point_is_in_quadrilateral(P(:, 2), P(:, 6), P(:, 8), P(:, 4), point_in_plane)) THEN
-                  distance(idx) = ABS(normal(1, 1)*P(1, 2)+normal(2, 1)*P(2, 2)+normal(3, 1)*P(3, 2))
+                  distance(idx) = ABS(normal(1, 1)*P(1, 2) + normal(2, 1)*P(2, 2) + normal(3, 1)*P(3, 2))
                ELSE
                   distance(idx) = HUGE(distance(idx))
                END IF
 
                ! Face F (1573) 1 is the reference
-               idx = idx+1
-               plane_vector(:, 1) = P(:, 5)-P(:, 1)
-               plane_vector(:, 2) = P(:, 3)-P(:, 1)
-               cross_product(1) = plane_vector(2, 1)*plane_vector(3, 2)-plane_vector(3, 1)*plane_vector(2, 2)
-               cross_product(2) = plane_vector(3, 1)*plane_vector(1, 2)-plane_vector(1, 1)*plane_vector(3, 2)
-               cross_product(3) = plane_vector(1, 1)*plane_vector(2, 2)-plane_vector(2, 1)*plane_vector(1, 2)
+               idx = idx + 1
+               plane_vector(:, 1) = P(:, 5) - P(:, 1)
+               plane_vector(:, 2) = P(:, 3) - P(:, 1)
+               cross_product(1) = plane_vector(2, 1)*plane_vector(3, 2) - plane_vector(3, 1)*plane_vector(2, 2)
+               cross_product(2) = plane_vector(3, 1)*plane_vector(1, 2) - plane_vector(1, 1)*plane_vector(3, 2)
+               cross_product(3) = plane_vector(1, 1)*plane_vector(2, 2) - plane_vector(2, 1)*plane_vector(1, 2)
                normal(:, 1) = cross_product/SQRT(SUM(cross_product**2))
-               point_in_plane = -normal(:, 1)*(normal(1, 1)*P(1, 1)+normal(2, 1)*P(2, 1)+normal(3, 1)*P(3, 1))
+               point_in_plane = -normal(:, 1)*(normal(1, 1)*P(1, 1) + normal(2, 1)*P(2, 1) + normal(3, 1)*P(3, 1))
 
                IF (point_is_in_quadrilateral(P(:, 1), P(:, 5), P(:, 7), P(:, 3), point_in_plane)) THEN
-                  distance(idx) = ABS(normal(1, 1)*P(1, 1)+normal(2, 1)*P(2, 1)+normal(3, 1)*P(3, 1))
+                  distance(idx) = ABS(normal(1, 1)*P(1, 1) + normal(2, 1)*P(2, 1) + normal(3, 1)*P(3, 1))
                ELSE
                   distance(idx) = HUGE(distance(idx))
                END IF
@@ -1510,9 +1510,9 @@ CONTAINS
                   image_cell_found = .TRUE.
                END IF
                IF (dist_min < R_max) THEN
-                  total_number_of_cells = total_number_of_cells+1
+                  total_number_of_cells = total_number_of_cells + 1
                   x_data%neighbor_cells(ub)%cell = REAL((/ishell, jshell, kshell/), dp)
-                  ub = ub+1
+                  ub = ub + 1
                   image_cell_found = .TRUE.
                END IF
 
@@ -1520,14 +1520,14 @@ CONTAINS
             END DO
             END DO
             IF (image_cell_found) THEN
-               max_shell = max_shell+1
+               max_shell = max_shell + 1
             ELSE
                nothing_more_to_add = .TRUE.
             END IF
          END DO
          ! now remove what is not needed
          ALLOCATE (tmp_neighbor_cells(total_number_of_cells))
-         DO i = 1, ub-1
+         DO i = 1, ub - 1
             tmp_neighbor_cells(i) = x_data%neighbor_cells(i)
          END DO
          DEALLOCATE (x_data%neighbor_cells)
@@ -1552,7 +1552,7 @@ CONTAINS
          ELSE
             total_number_of_cells = 0
             DO i = 0, x_data%periodic_parameter%number_of_shells
-               total_number_of_cells = total_number_of_cells+count_cells_perd(i, x_data%periodic_parameter%perd)
+               total_number_of_cells = total_number_of_cells + count_cells_perd(i, x_data%periodic_parameter%perd)
             END DO
             IF (total_number_of_cells < SIZE(x_data%neighbor_cells)) THEN
                IF (i_thread == 1) THEN
@@ -1567,7 +1567,7 @@ CONTAINS
             END IF
             total_number_of_cells = 0
             DO i = 0, x_data%periodic_parameter%number_of_shells
-               total_number_of_cells = total_number_of_cells+count_cells_perd(i, x_data%periodic_parameter%perd)
+               total_number_of_cells = total_number_of_cells + count_cells_perd(i, x_data%periodic_parameter%perd)
             END DO
             DEALLOCATE (x_data%neighbor_cells)
 
@@ -1577,14 +1577,14 @@ CONTAINS
             DO WHILE (SUM(m**2) <= x_data%periodic_parameter%number_of_shells)
                x_data%neighbor_cells(i)%cell = REAL(m, dp)
                CALL next_image_cell_perd(m, x_data%periodic_parameter%perd)
-               i = i+1
+               i = i + 1
             ENDDO
          END IF
       CASE DEFAULT
          total_number_of_cells = 0
          IF (pbc_shells == -1) pbc_shells = 0
          DO i = 0, pbc_shells
-            total_number_of_cells = total_number_of_cells+count_cells_perd(i, x_data%periodic_parameter%perd)
+            total_number_of_cells = total_number_of_cells + count_cells_perd(i, x_data%periodic_parameter%perd)
          END DO
          DEALLOCATE (x_data%neighbor_cells)
 
@@ -1595,7 +1595,7 @@ CONTAINS
          DO WHILE (SUM(m**2) <= pbc_shells)
             x_data%neighbor_cells(i)%cell = REAL(m, dp)
             CALL next_image_cell_perd(m, x_data%periodic_parameter%perd)
-            i = i+1
+            i = i + 1
          ENDDO
       END SELECT
 
@@ -1612,7 +1612,7 @@ CONTAINS
       DO i = 1, SIZE(x_data%neighbor_cells)
          R_max_stress = MAX(R_max_stress, MAXVAL(ABS(x_data%neighbor_cells(i)%cell_r(:))))
       END DO
-      R_max_stress = R_max_stress+ABS(MAXVAL(cell%hmat(:, :)))
+      R_max_stress = R_max_stress + ABS(MAXVAL(cell%hmat(:, :)))
       x_data%periodic_parameter%R_max_stress = R_max_stress
 
    END SUBROUTINE hfx_create_neighbor_cells
@@ -1650,9 +1650,9 @@ CONTAINS
 
       ! ** ABC
 
-      v0 = D-A
-      v1 = C-A
-      v2 = P-A
+      v0 = D - A
+      v1 = C - A
+      v2 = P - A
 
       ! ** Compute dot products
       dot00 = DOT_PRODUCT(v0, v0)
@@ -1662,17 +1662,17 @@ CONTAINS
       dot12 = DOT_PRODUCT(v1, v2)
 
       ! ** Compute barycentric coordinates
-      invDenom = 1/(dot00*dot11-dot01*dot01)
-      u = (dot11*dot02-dot01*dot12)*invDenom
-      v = (dot00*dot12-dot01*dot02)*invDenom
+      invDenom = 1/(dot00*dot11 - dot01*dot01)
+      u = (dot11*dot02 - dot01*dot12)*invDenom
+      v = (dot00*dot12 - dot01*dot02)*invDenom
       ! ** Check if point is in triangle
-      IF ((u >= 0-fuzzy) .AND. (v >= 0-fuzzy) .AND. (u+v <= 1+fuzzy)) THEN
+      IF ((u >= 0 - fuzzy) .AND. (v >= 0 - fuzzy) .AND. (u + v <= 1 + fuzzy)) THEN
          point_is_in_quadrilateral = .TRUE.
          RETURN
       END IF
-      v0 = C-A
-      v1 = B-A
-      v2 = P-A
+      v0 = C - A
+      v1 = B - A
+      v2 = P - A
 
       ! ** Compute dot products
       dot00 = DOT_PRODUCT(v0, v0)
@@ -1682,12 +1682,12 @@ CONTAINS
       dot12 = DOT_PRODUCT(v1, v2)
 
       ! ** Compute barycentric coordinates
-      invDenom = 1/(dot00*dot11-dot01*dot01)
-      u = (dot11*dot02-dot01*dot12)*invDenom
-      v = (dot00*dot12-dot01*dot02)*invDenom
+      invDenom = 1/(dot00*dot11 - dot01*dot01)
+      u = (dot11*dot02 - dot01*dot12)*invDenom
+      v = (dot00*dot12 - dot01*dot02)*invDenom
 
       ! ** Check if point is in triangle
-      IF ((u >= 0-fuzzy) .AND. (v >= 0-fuzzy) .AND. (u+v <= 1+fuzzy)) THEN
+      IF ((u >= 0 - fuzzy) .AND. (v >= 0 - fuzzy) .AND. (u + v <= 1 + fuzzy)) THEN
          point_is_in_quadrilateral = .TRUE.
          RETURN
       END IF
@@ -1807,7 +1807,7 @@ CONTAINS
       INTEGER(int_8)                                     :: max_memory
 
       max_memory = memory_parameter%max_memory
-      max_memory = max_memory-subtr_size_mb
+      max_memory = max_memory - subtr_size_mb
       IF (max_memory <= 0) THEN
          memory_parameter%do_all_on_the_fly = .TRUE.
          memory_parameter%max_compression_counter = 0

@@ -234,7 +234,7 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(T4,A,T65,F15.8)") "Hartree Energy Correction", eh
          WRITE (UNIT=iounit, FMT="(T4,A,T65,F15.8)") "XC Energy Correction", exc
          WRITE (UNIT=iounit, FMT="(T4,A,T45,F15.8,T65,F15.8)") "Total Energy", &
-            energy%total, eban+eh+exc+energy%core_overlap+energy%core_self+energy%dispersion
+            energy%total, eban + eh + exc + energy%core_overlap + energy%core_self + energy%dispersion
          WRITE (UNIT=iounit, FMT="(T3,A)") REPEAT("=", 78)
       END IF
 
@@ -383,7 +383,7 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(T4,A)") "Local Stress Calculation"
          WRITE (UNIT=iounit, FMT="(T42,A,T64,A)") "       1/3 Trace", "     Determinant"
          WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Total Stress", &
-            (pv_loc(1, 1)+pv_loc(2, 2)+pv_loc(3, 3))/3.0_dp, det_3x3(pv_loc)
+            (pv_loc(1, 1) + pv_loc(2, 2) + pv_loc(3, 3))/3.0_dp, det_3x3(pv_loc)
          WRITE (UNIT=iounit, FMT="(T3,A)") REPEAT("=", 78)
       END IF
 

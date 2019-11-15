@@ -99,7 +99,7 @@ CONTAINS
       ! Number of configurations
       num_of_conf = 0
       DO k = 1, Num_of_frag
-         num_of_conf = num_of_conf+FACT(Num_of_frag)/(FACT(k)*FACT(Num_of_frag-k))
+         num_of_conf = num_of_conf + FACT(Num_of_frag)/(FACT(k)*FACT(Num_of_frag - k))
       END DO
       ALLOCATE (conf(num_of_conf, Num_of_frag))
       ALLOCATE (Em(num_of_conf))
@@ -121,7 +121,7 @@ CONTAINS
       CALL cp_iterate(logger%iter_info, last=.FALSE., iter_nr=istart)
 
       ! Evaluating the energy of the N-body cluster terms
-      DO i = istart+1, num_of_conf
+      DO i = istart + 1, num_of_conf
          CALL cp_iterate(logger%iter_info, last=(i == num_of_conf), iter_nr=i)
          CALL eval_bsse_energy(conf(i, :), Em(i), force_env, n_frags, &
                                root_section, globenv, should_stop)
@@ -184,8 +184,8 @@ CONTAINS
       ELSE
          my_energy = 0.0_dp
          DO k = 1, Num_of_sub_frag
-            Num_of_sub_conf = Num_of_sub_conf+ &
-                              FACT(Num_of_sub_frag)/(FACT(k)*FACT(Num_of_sub_frag-k))
+            Num_of_sub_conf = Num_of_sub_conf + &
+                              FACT(Num_of_sub_frag)/(FACT(k)*FACT(Num_of_sub_frag - k))
          END DO
          ALLOCATE (conf_loc(Num_of_sub_conf, Num_of_sub_frag))
          ALLOCATE (Em_loc(Num_of_sub_conf))
@@ -202,7 +202,7 @@ CONTAINS
          k = COUNT(conf == 1)
          DO i = 1, Num_of_sub_conf
             j = COUNT(conf_loc(i, :) == 1)
-            my_energy = my_energy+(-1.0_dp)**(k+j)*Em_loc(i)
+            my_energy = my_energy + (-1.0_dp)**(k + j)*Em_loc(i)
          END DO
          Em = my_energy
          DEALLOCATE (Em_loc)
@@ -279,12 +279,12 @@ CONTAINS
             IF (n_rep /= 0) THEN
                DO ir = 1, n_rep
                   CALL section_vals_val_get(n_frags, "LIST", i_rep_section=i, i_rep_val=ir, i_vals=tmplist)
-                  CALL reallocate(atom_index, 1, isize+SIZE(tmplist))
-                  atom_index(isize+1:isize+SIZE(tmplist)) = tmplist
+                  CALL reallocate(atom_index, 1, isize + SIZE(tmplist))
+                  atom_index(isize + 1:isize + SIZE(tmplist)) = tmplist
                   isize = SIZE(atom_index)
                END DO
             END IF
-            my_conf(i) = isize-old_size
+            my_conf(i) = isize - old_size
             CPASSERT(conf(i) /= 0)
          END IF
       END DO
@@ -304,7 +304,7 @@ CONTAINS
       END DO
       DO i = 1, SIZE(conf_loc)
          IF (my_conf(i) /= 0 .AND. conf_loc(i) == 0) THEN
-            DO j = SUM(my_conf(1:i-1))+1, SUM(my_conf(1:i))
+            DO j = SUM(my_conf(1:i - 1)) + 1, SUM(my_conf(1:i))
                atom_type(j) = TRIM(atom_type(j))//"_ghost"
             END DO
          END IF
@@ -497,13 +497,13 @@ CONTAINS
          WRITE (UNIT=iw, FMT="(T2,A,T80,A)") "-", "-"
          DO i = 1, SIZE(conf, 1)
             IF (i .GT. 1) THEN
-               IF (SUM(conf(i-1, :)) == 1 .AND. SUM(conf(i, :)) /= 1) THEN
+               IF (SUM(conf(i - 1, :)) == 1 .AND. SUM(conf(i, :)) /= 1) THEN
                   WRITE (UNIT=iw, FMT="(T2,A,T80,A)") "-", "-"
                END IF
             END IF
             WRITE (UNIT=iw, FMT="(T2,A,T24,I3,A,F16.6,T80,A)") "-", SUM(conf(i, :)), "-body contribution:", Em(i), "-"
          END DO
-         WRITE (UNIT=iw, FMT="(T2,A,T20,A,F16.6,T80,A)") "-", "BSSE-free interaction energy:", SUM(Em(Num_of_frag+1:)), "-"
+         WRITE (UNIT=iw, FMT="(T2,A,T20,A,F16.6,T80,A)") "-", "BSSE-free interaction energy:", SUM(Em(Num_of_frag + 1:)), "-"
          WRITE (UNIT=iw, FMT="(T2,A)") REPEAT("-", 79)
       END IF
 
@@ -552,17 +552,17 @@ CONTAINS
 
       INTEGER                                            :: i, kloc, my_ind0
 
-      kloc = k-1
+      kloc = k - 1
       my_ind0 = my_ind
       IF (kloc /= 0) THEN
          DO i = ldown, lup
-            CALL build_Nbody_conf(i+1, lup, conf, kloc, my_ind)
-            conf(my_ind0+1:my_ind, i) = 1
+            CALL build_Nbody_conf(i + 1, lup, conf, kloc, my_ind)
+            conf(my_ind0 + 1:my_ind, i) = 1
             my_ind0 = my_ind
          END DO
       ELSE
          DO i = ldown, lup
-            my_ind = my_ind+1
+            my_ind = my_ind + 1
             conf(my_ind, i) = 1
          END DO
       END IF
@@ -580,7 +580,7 @@ CONTAINS
       IF (num <= 1) THEN
          my_fact = 1
       ELSE
-         my_fact = num*FACT(num-1)
+         my_fact = num*FACT(num - 1)
       END IF
    END FUNCTION FACT
 
@@ -601,7 +601,7 @@ CONTAINS
       ind = 0
       DO i = 1, SIZE(main_conf)
          IF (main_conf(i) /= 0) THEN
-            ind = ind+1
+            ind = ind + 1
             tmp_conf(:, i) = conf(:, ind)
          END IF
       END DO

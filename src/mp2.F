@@ -306,9 +306,9 @@ CONTAINS
           (mp2_env%method .NE. ri_rpa_method_gpw) .AND. &
           (mp2_env%method .NE. ri_mp2_laplace)) THEN
          CALL m_memory(mem)
-         mem_real = (mem+1024*1024-1)/(1024*1024)
+         mem_real = (mem + 1024*1024 - 1)/(1024*1024)
          CALL mp_max(mem_real, para_env%group)
-         mp2_env%mp2_memory = mp2_env%mp2_memory-mem_real
+         mp2_env%mp2_memory = mp2_env%mp2_memory - mem_real
          IF (mp2_env%mp2_memory < 0.0_dp) mp2_env%mp2_memory = 1.0_dp
 
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'Available memory per MPI process for MP2:', &
@@ -354,7 +354,7 @@ CONTAINS
       max_nset = 0
       DO iatom = 1, natom
          ikind = kind_of(iatom)
-         dimen = dimen+SUM(basis_parameter(ikind)%nsgf)
+         dimen = dimen + SUM(basis_parameter(ikind)%nsgf)
          max_nset = MAX(max_nset, basis_parameter(ikind)%nset)
       END DO
 
@@ -478,8 +478,8 @@ CONTAINS
 !$       n_threads = omp_get_max_threads()
 
          DO irep = 1, n_rep_hf
-            DO i_thread = 0, n_threads-1
-               actual_x_data => qs_env%x_data(irep, i_thread+1)
+            DO i_thread = 0, n_threads - 1
+               actual_x_data => qs_env%x_data(irep, i_thread + 1)
 
                do_dynamic_load_balancing = .TRUE.
                IF (n_threads == 1 .OR. actual_x_data%memory_parameter%do_disk_storage) do_dynamic_load_balancing = .FALSE.
@@ -575,12 +575,12 @@ CONTAINS
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'MP2 Energy Alpha-Beta= ', Emp2_AB
             IF (unit_nr > 0) WRITE (unit_nr, *)
 
-            Emp2 = Emp2_AA+Emp2_BB+Emp2_AB*2.0_dp !+Emp2_BA
-            Emp2_Cou = Emp2_AA_Cou+Emp2_BB_Cou+Emp2_AB_Cou*2.0_dp !+Emp2_BA
-            Emp2_ex = Emp2_AA_ex+Emp2_BB_ex+Emp2_AB_ex*2.0_dp !+Emp2_BA
+            Emp2 = Emp2_AA + Emp2_BB + Emp2_AB*2.0_dp !+Emp2_BA
+            Emp2_Cou = Emp2_AA_Cou + Emp2_BB_Cou + Emp2_AB_Cou*2.0_dp !+Emp2_BA
+            Emp2_ex = Emp2_AA_ex + Emp2_BB_ex + Emp2_AB_ex*2.0_dp !+Emp2_BA
 
             Emp2_S = Emp2_AB*2.0_dp
-            Emp2_T = Emp2_AA+Emp2_BB
+            Emp2_T = Emp2_AA + Emp2_BB
 
          ELSE
 
@@ -689,7 +689,7 @@ CONTAINS
       t2 = m_walltime()
       IF (unit_nr > 0) WRITE (unit_nr, *)
       IF (mp2_env%method .NE. ri_rpa_method_gpw) THEN
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.6)') 'Total MP2 Time=', t2-t1
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.6)') 'Total MP2 Time=', t2 - t1
          IF (mp2_env%method == ri_mp2_laplace) THEN
             Emp2_S = Emp2
             Emp2_T = 0.0_dp
@@ -702,7 +702,7 @@ CONTAINS
                ! valid only in the closed shell case
                Emp2_S = Emp2_Cou/2.0_dp
                IF (calc_ex) THEN
-                  Emp2_T = Emp2_ex+Emp2_Cou/2.0_dp
+                  Emp2_T = Emp2_ex + Emp2_Cou/2.0_dp
                ELSE
                   ! unknown if Emp2_ex is not computed
                   Emp2_T = 0.0_dp
@@ -715,10 +715,10 @@ CONTAINS
          END IF
          Emp2_S = Emp2_S*mp2_env%scale_S
          Emp2_T = Emp2_T*mp2_env%scale_T
-         Emp2 = Emp2_S+Emp2_T
+         Emp2 = Emp2_S + Emp2_T
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Second order perturbation energy  =   ', Emp2
       ELSE
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.6)') 'Total RI-RPA Time=', t2-t1
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.6)') 'Total RI-RPA Time=', t2 - t1
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA energy  =   ', Emp2
          IF (mp2_env%ri_rpa%do_ri_axk) THEN
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA-AXK energy=', mp2_env%ri_rpa%ener_axk
@@ -734,13 +734,13 @@ CONTAINS
 
       ! we have it !!!!
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
-         Emp2 = Emp2+mp2_env%ri_rpa%ener_axk
+         Emp2 = Emp2 + mp2_env%ri_rpa%ener_axk
       ENDIF
       IF (mp2_env%ri_rpa%do_rse) THEN
-         Emp2 = Emp2+mp2_env%ri_rpa%rse_corr
+         Emp2 = Emp2 + mp2_env%ri_rpa%rse_corr
       ENDIF
       energy%mp2 = Emp2
-      energy%total = energy%total+Emp2
+      energy%total = energy%total + Emp2
 
       DO ispin = 1, nspins
          CALL deallocate_mo_set(mo_set=mos_mp2(ispin)%mo_set)
@@ -751,8 +751,8 @@ CONTAINS
       IF (free_hfx_buffer .AND. (.NOT. calc_forces)) THEN
          CALL timeset(routineN//"_alloc_hfx", handle2)
          DO irep = 1, n_rep_hf
-            DO i_thread = 0, n_threads-1
-               actual_x_data => qs_env%x_data(irep, i_thread+1)
+            DO i_thread = 0, n_threads - 1
+               actual_x_data => qs_env%x_data(irep, i_thread + 1)
 
                do_dynamic_load_balancing = .TRUE.
                IF (n_threads == 1 .OR. actual_x_data%memory_parameter%do_disk_storage) do_dynamic_load_balancing = .FALSE.
@@ -824,8 +824,8 @@ CONTAINS
          ikind = kind_of(iatom)
          nset = basis_parameter(ikind)%nset
          DO iset = 1, nset
-            index_table(iatom, iset) = counter+1
-            counter = counter+basis_parameter(ikind)%nsgf(iset)
+            index_table(iatom, iset) = counter + 1
+            counter = counter + basis_parameter(ikind)%nsgf(iset)
          END DO
       END DO
 
@@ -944,10 +944,10 @@ CONTAINS
       ! Distribute the I index and the J index over groups
       total_I_size_batch_group = occ_i/number_i_subset
       IF (total_I_size_batch_group < 1) total_I_size_batch_group = 1
-      ALLOCATE (vector_batch_I_size_group(0:number_i_subset-1))
+      ALLOCATE (vector_batch_I_size_group(0:number_i_subset - 1))
 
       vector_batch_I_size_group = 0
-      DO i = 0, number_i_subset-1
+      DO i = 0, number_i_subset - 1
          vector_batch_I_size_group(i) = total_I_size_batch_group
       END DO
       IF (SUM(vector_batch_I_size_group) /= occ_i) THEN
@@ -955,19 +955,19 @@ CONTAINS
          IF (SUM(vector_batch_I_size_group) > occ_i) one = -1
          i = -1
          DO
-            i = i+1
-            vector_batch_I_size_group(i) = vector_batch_I_size_group(i)+one
+            i = i + 1
+            vector_batch_I_size_group(i) = vector_batch_I_size_group(i) + one
             IF (SUM(vector_batch_I_size_group) == occ_i) EXIT
-            IF (i == number_i_subset-1) i = -1
+            IF (i == number_i_subset - 1) i = -1
          END DO
       END IF
 
       total_J_size_batch_group = occ_j/number_j_subset
       IF (total_J_size_batch_group < 1) total_J_size_batch_group = 1
-      ALLOCATE (vector_batch_J_size_group(0:number_j_subset-1))
+      ALLOCATE (vector_batch_J_size_group(0:number_j_subset - 1))
 
       vector_batch_J_size_group = 0
-      DO i = 0, number_J_subset-1
+      DO i = 0, number_J_subset - 1
          vector_batch_J_size_group(i) = total_J_size_batch_group
       END DO
       IF (SUM(vector_batch_J_size_group) /= occ_j) THEN
@@ -975,10 +975,10 @@ CONTAINS
          IF (SUM(vector_batch_J_size_group) > occ_j) one = -1
          i = -1
          DO
-            i = i+1
-            vector_batch_J_size_group(i) = vector_batch_J_size_group(i)+one
+            i = i + 1
+            vector_batch_J_size_group(i) = vector_batch_J_size_group(i) + one
             IF (SUM(vector_batch_J_size_group) == occ_j) EXIT
-            IF (i == number_J_subset-1) i = -1
+            IF (i == number_J_subset - 1) i = -1
          END DO
       END IF
 
@@ -986,22 +986,22 @@ CONTAINS
       group_counter = 0
       i_group_counter = 0
       my_I_occupied_start = 1
-      DO i = 0, number_i_subset-1
+      DO i = 0, number_i_subset - 1
          my_J_occupied_start = 1
          j_group_counter = 0
-         DO j = 0, number_j_subset-1
-            group_counter = group_counter+1
-            IF (color_sub == group_counter-1) EXIT
-            my_J_occupied_start = my_J_occupied_start+vector_batch_J_size_group(j)
-            j_group_counter = j_group_counter+1
+         DO j = 0, number_j_subset - 1
+            group_counter = group_counter + 1
+            IF (color_sub == group_counter - 1) EXIT
+            my_J_occupied_start = my_J_occupied_start + vector_batch_J_size_group(j)
+            j_group_counter = j_group_counter + 1
          END DO
-         IF (color_sub == group_counter-1) EXIT
-         my_I_occupied_start = my_I_occupied_start+vector_batch_I_size_group(i)
-         i_group_counter = i_group_counter+1
+         IF (color_sub == group_counter - 1) EXIT
+         my_I_occupied_start = my_I_occupied_start + vector_batch_I_size_group(i)
+         i_group_counter = i_group_counter + 1
       END DO
-      my_I_occupied_end = my_I_occupied_start+vector_batch_I_size_group(i_group_counter)-1
+      my_I_occupied_end = my_I_occupied_start + vector_batch_I_size_group(i_group_counter) - 1
       my_I_batch_size = vector_batch_I_size_group(i_group_counter)
-      my_J_occupied_end = my_J_occupied_start+vector_batch_J_size_group(j_group_counter)-1
+      my_J_occupied_end = my_J_occupied_start + vector_batch_J_size_group(j_group_counter) - 1
       my_J_batch_size = vector_batch_J_size_group(j_group_counter)
 
       DEALLOCATE (vector_batch_I_size_group)
@@ -1010,10 +1010,10 @@ CONTAINS
       max_batch_size = MIN( &
                        MAX(1, &
                            INT(mp2_env%mp2_memory*INT(1024, KIND=int_8)**2/ &
-                               (8*(2*dimen-occ_i)*INT(dimen, KIND=int_8)*my_J_batch_size/para_env_sub%num_pe))) &
+                               (8*(2*dimen - occ_i)*INT(dimen, KIND=int_8)*my_J_batch_size/para_env_sub%num_pe))) &
                        , my_I_batch_size)
       IF (max_batch_size < 1) THEN
-         max_batch_size = INT((8*(occ_i+1)*INT(dimen, KIND=int_8)**2/para_env%num_pe)/1024**2)
+         max_batch_size = INT((8*(occ_i + 1)*INT(dimen, KIND=int_8)**2/para_env%num_pe)/1024**2)
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T72,I6,A3)') 'More memory required, at least:', max_batch_size, 'MiB'
          max_batch_size = 1
       END IF
@@ -1026,12 +1026,12 @@ CONTAINS
       batch_number = 0
       DO i = 1, my_batch_size
          IF (i*max_batch_size > my_batch_size) EXIT
-         batch_number = batch_number+1
+         batch_number = batch_number + 1
          batch_sizes(i) = max_batch_size
       END DO
-      last_batch = my_batch_size-max_batch_size*batch_number
+      last_batch = my_batch_size - max_batch_size*batch_number
       IF (last_batch > 0) THEN
-         batch_number = batch_number+1
+         batch_number = batch_number + 1
          batch_sizes(batch_number) = last_batch
       END IF
 
@@ -1055,16 +1055,16 @@ CONTAINS
       ! Batches sizes exceed the occupied orbitals allocated for group
       CPASSERT(SUM(batch_sizes) <= my_batch_size)
 
-      virt_i = dimen-occ_i
-      virt_j = dimen-occ_j
+      virt_i = dimen - occ_i
+      virt_j = dimen - occ_j
       natom = SIZE(mp2_biel%index_table, 1)
 
       CALL mp_sync(para_env%group)
       Emp2 = zero
       Emp2_Cou = zero
       Emp2_ex = zero
-      i_batch_start = my_I_occupied_start-1
-      j_batch_start = my_J_occupied_start-1
+      i_batch_start = my_I_occupied_start - 1
+      j_batch_start = my_J_occupied_start - 1
       Nj_occupied = my_J_batch_size
       DO i_batch = 1, batch_number
 
@@ -1076,9 +1076,9 @@ CONTAINS
          ij_matrix = 0
          DO i = 1, Ni_occupied
             DO j = 1, Nj_occupied
-               counter = counter+1
+               counter = counter + 1
                IF (MOD(counter, para_env_sub%num_pe) == para_env_sub%mepos) THEN
-                  ij_matrix(i, j) = ij_matrix(i, j)+1
+                  ij_matrix(i, j) = ij_matrix(i, j) + 1
                END IF
             END DO
          END DO
@@ -1089,7 +1089,7 @@ CONTAINS
          DO i = 1, Ni_occupied
             DO j = 1, Nj_occupied
                IF (ij_matrix(i, j) == 0) CYCLE
-               elements_ij_proc = elements_ij_proc+1
+               elements_ij_proc = elements_ij_proc + 1
                ij_list_proc_temp(elements_ij_proc, 1) = i
                ij_list_proc_temp(elements_ij_proc, 2) = j
             END DO
@@ -1114,7 +1114,7 @@ CONTAINS
                                                    occ_j, C_j, Auto_j)
          END IF
 
-         i_batch_start = i_batch_start+Ni_occupied
+         i_batch_start = i_batch_start + Ni_occupied
 
          DEALLOCATE (ij_list_proc)
 
@@ -1196,7 +1196,7 @@ CONTAINS
       END DO
 
       ! Remove the Exchange-correlation energy contributions from the total energy
-      energy%total = energy%total-(energy%exc+energy%exc1+energy%ex+energy%exc_aux_fit)
+      energy%total = energy%total - (energy%exc + energy%exc1 + energy%ex + energy%exc_aux_fit)
 
       energy%exc = 0.0_dp
       energy%exc1 = 0.0_dp
@@ -1205,7 +1205,7 @@ CONTAINS
 
       ! take the exact exchange energy from GW or calculate it
       IF (do_gw) THEN
-         energy%total = energy%total+E_ex_from_GW
+         energy%total = energy%total + E_ex_from_GW
          energy%ex = E_ex_from_GW
       ELSE
 
@@ -1223,17 +1223,17 @@ CONTAINS
                                        rho_ao_2d, hfx_sections, &
                                        para_env, .TRUE., irep, .TRUE., &
                                        ispin=1)
-            ehfx = ehfx+eh1
+            ehfx = ehfx + eh1
          END DO
 
          ! include the EXX contribution to the total energy
          energy%ex = ehfx
-         energy%total = energy%total+energy%ex
+         energy%total = energy%total + energy%ex
       END IF
 
       t2 = m_walltime()
 
-      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.6)') 'Total EXX Time=', t2-t1+t3
+      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.6)') 'Total EXX Time=', t2 - t1 + t3
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'EXX energy  =   ', energy%ex
 
       ! reset to zero the Hartree-Fock energy
@@ -1561,7 +1561,7 @@ CONTAINS
                                           rho_ao_2d, hfx_sections, &
                                           para_env, .TRUE., irep, .TRUE., &
                                           ispin=1)
-               ehfx = ehfx+eh1
+               ehfx = ehfx + eh1
             END DO
          END IF
          energy_ex = ehfx
@@ -1613,16 +1613,16 @@ CONTAINS
             ! if corrected occ/virt levels exceed the number of occ/virt levels,
             ! correct all occ/virt level energies
             IF (gw_corr_lev_occ > homo) gw_corr_lev_occ = homo
-            IF (gw_corr_lev_virt > dimen-homo) gw_corr_lev_virt = dimen-homo
+            IF (gw_corr_lev_virt > dimen - homo) gw_corr_lev_virt = dimen - homo
             IF (ispin == 1) THEN
                mp2_env%ri_g0w0%corr_mos_occ = gw_corr_lev_occ
                mp2_env%ri_g0w0%corr_mos_virt = gw_corr_lev_virt
             ELSE IF (ispin == 2) THEN
                ! ensure that the total number of corrected MOs is the same for alpha and beta, important
                ! for parallelization
-               IF (mp2_env%ri_g0w0%corr_mos_occ+mp2_env%ri_g0w0%corr_mos_virt /= &
-                   gw_corr_lev_occ+gw_corr_lev_virt) THEN
-                  gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_occ+mp2_env%ri_g0w0%corr_mos_virt-gw_corr_lev_occ
+               IF (mp2_env%ri_g0w0%corr_mos_occ + mp2_env%ri_g0w0%corr_mos_virt /= &
+                   gw_corr_lev_occ + gw_corr_lev_virt) THEN
+                  gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_occ + mp2_env%ri_g0w0%corr_mos_virt - gw_corr_lev_occ
                END IF
                mp2_env%ri_g0w0%corr_mos_occ_beta = gw_corr_lev_occ
                mp2_env%ri_g0w0%corr_mos_virt_beta = gw_corr_lev_virt
@@ -1630,12 +1630,12 @@ CONTAINS
             END IF
 
             CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sigma_x_minus_vxc(ispin, 1)%matrix, &
-                                mo_coeff_b, 0.0_dp, matrix_tmp, first_column=homo+1-gw_corr_lev_occ, &
-                                last_column=homo+gw_corr_lev_virt)
+                                mo_coeff_b, 0.0_dp, matrix_tmp, first_column=homo + 1 - gw_corr_lev_occ, &
+                                last_column=homo + gw_corr_lev_virt)
 
             CALL dbcsr_multiply('T', 'N', 1.0_dp, mo_coeff_b, &
-                                matrix_tmp, 0.0_dp, matrix_tmp_2, first_row=homo+1-gw_corr_lev_occ, &
-                                last_row=homo+gw_corr_lev_virt)
+                                matrix_tmp, 0.0_dp, matrix_tmp_2, first_row=homo + 1 - gw_corr_lev_occ, &
+                                last_row=homo + gw_corr_lev_virt)
 
             CALL dbcsr_get_diag(matrix_tmp_2, vec_Sigma_x_minus_vxc_gw(:, ispin, 1))
 
@@ -1677,9 +1677,9 @@ CONTAINS
             WRITE (unit_nr, '(T3,A)') '-----------------'
             WRITE (unit_nr, '(T3,A)') ''
             WRITE (unit_nr, '(T6,2A)') 'MO                    Sigma_x-vxc'
-            DO n_level_gw = 1, gw_corr_lev_occ+gw_corr_lev_virt
+            DO n_level_gw = 1, gw_corr_lev_occ + gw_corr_lev_virt
 
-               n_level_gw_ref = n_level_gw+homo-gw_corr_lev_occ
+               n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
                IF (n_level_gw <= gw_corr_lev_occ) THEN
                   occ_virt = 'occ'
                ELSE
@@ -1741,7 +1741,7 @@ CONTAINS
 
       t2 = m_walltime()
 
-      t3 = t2-t1
+      t3 = t2 - t1
 
       CALL timestop(handle)
 
@@ -1887,16 +1887,16 @@ CONTAINS
          ! if corrected occ/virt levels exceed the number of occ/virt levels,
          ! correct all occ/virt level energies
          IF (gw_corr_lev_occ > homo) gw_corr_lev_occ = homo
-         IF (gw_corr_lev_virt > dimen-homo) gw_corr_lev_virt = dimen-homo
+         IF (gw_corr_lev_virt > dimen - homo) gw_corr_lev_virt = dimen - homo
          IF (ispin == 1) THEN
             mp2_env%ri_g0w0%corr_mos_occ = gw_corr_lev_occ
             mp2_env%ri_g0w0%corr_mos_virt = gw_corr_lev_virt
          ELSE IF (ispin == 2) THEN
             ! ensure that the total number of corrected MOs is the same for alpha and beta, important
             ! for parallelization
-            IF (mp2_env%ri_g0w0%corr_mos_occ+mp2_env%ri_g0w0%corr_mos_virt /= &
-                gw_corr_lev_occ+gw_corr_lev_virt) THEN
-               gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_occ+mp2_env%ri_g0w0%corr_mos_virt-gw_corr_lev_occ
+            IF (mp2_env%ri_g0w0%corr_mos_occ + mp2_env%ri_g0w0%corr_mos_virt /= &
+                gw_corr_lev_occ + gw_corr_lev_virt) THEN
+               gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_occ + mp2_env%ri_g0w0%corr_mos_virt - gw_corr_lev_occ
             END IF
             mp2_env%ri_g0w0%corr_mos_occ_beta = gw_corr_lev_occ
             mp2_env%ri_g0w0%corr_mos_virt_beta = gw_corr_lev_virt

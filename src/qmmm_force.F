@@ -192,7 +192,7 @@ CONTAINS
          IF (qmmm_link_imomm) CALL qmmm_link_Imomm_forces(qmmm_links, particles_qm, qm_atom_index)
          particles_mm => subsys_mm%particles%els
          DO ip = 1, SIZE(qm_atom_index)
-            particles_mm(qm_atom_index(ip))%f = particles_mm(qm_atom_index(ip))%f+particles_qm(ip)%f
+            particles_mm(qm_atom_index(ip))%f = particles_mm(qm_atom_index(ip))%f + particles_qm(ip)%f
          END DO
          ! If add charges get rid of their derivatives right NOW!
          IF (qmmm_added_chrg) CALL qmmm_added_chrg_forces(qmmm_env%qm, particles_mm)
@@ -224,7 +224,7 @@ CONTAINS
          CPASSERT(nres <= 1)
          CALL get_results(results=results_qm, description=description, values=dip_qm)
          CALL get_results(results=results_mm, description=description, values=dip_mm)
-         dip_qmmm = dip_qm+dip_mm
+         dip_qmmm = dip_qm + dip_mm
          CALL cp_results_erase(results=results_qmmm, description=description)
          CALL put_results(results=results_qmmm, description=description, values=dip_qmmm)
 

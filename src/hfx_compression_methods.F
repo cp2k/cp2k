@@ -77,11 +77,11 @@ CONTAINS
 
       INTEGER(int_8)                                     :: int_val
 
-      int_val = value+shifts(nbits-1)
+      int_val = value + shifts(nbits - 1)
 
       IF (cache%element_counter /= CACHE_SIZE) THEN
          cache%data(cache%element_counter) = int_val
-         cache%element_counter = cache%element_counter+1
+         cache%element_counter = cache%element_counter + 1
       ELSE
          cache%data(CACHE_SIZE) = int_val
          CALL hfx_compress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage, &
@@ -119,34 +119,34 @@ CONTAINS
                                                             tmp_elements, tmp_nints
 
       start_idx = container%element_counter
-      increment_counter = (nbits*CACHE_SIZE+63)/64
-      end_idx = start_idx+increment_counter-1
+      increment_counter = (nbits*CACHE_SIZE + 63)/64
+      end_idx = start_idx + increment_counter - 1
       IF (end_idx < CACHE_SIZE) THEN
          CALL ints2bits_specific(nbits, CACHE_SIZE, container%current%data(start_idx), full_array(1))
-         container%element_counter = container%element_counter+increment_counter
+         container%element_counter = container%element_counter + increment_counter
       ELSE
          !! We have to fill the container first with the remaining number of bits
-         tmp_elements = CACHE_SIZE-start_idx+1
+         tmp_elements = CACHE_SIZE - start_idx + 1
          tmp_nints = (tmp_elements*64)/nbits
          CALL ints2bits_specific(nbits, tmp_nints, container%current%data(start_idx), full_array(1))
          IF (use_disk_storage) THEN
             !! write to file
             WRITE (container%unit) container%current%data
 !$OMP         ATOMIC
-            memory_usage = memory_usage+1
-            container%file_counter = container%file_counter+1
+            memory_usage = memory_usage + 1
+            container%file_counter = container%file_counter + 1
          ELSE
             !! Allocate new list entry
             ALLOCATE (container%current%next)
 !$OMP         ATOMIC
-            memory_usage = memory_usage+1
+            memory_usage = memory_usage + 1
             container%current%next%next => NULL()
             container%current => container%current%next
-            IF (PRESENT(max_val_memory)) max_val_memory = max_val_memory+1
+            IF (PRESENT(max_val_memory)) max_val_memory = max_val_memory + 1
          END IF
          !! compress remaining ints
-         CALL ints2bits_specific(nbits, CACHE_SIZE-tmp_nints, container%current%data(1), full_array(tmp_nints+1))
-         container%element_counter = 1+(nbits*(CACHE_SIZE-tmp_nints)+63)/64
+         CALL ints2bits_specific(nbits, CACHE_SIZE - tmp_nints, container%current%data(1), full_array(tmp_nints + 1))
+         container%element_counter = 1 + (nbits*(CACHE_SIZE - tmp_nints) + 63)/64
       END IF
 
    END SUBROUTINE hfx_compress_cache
@@ -175,14 +175,14 @@ CONTAINS
 
       IF (cache%element_counter /= CACHE_SIZE) THEN
          value = cache%data(cache%element_counter)
-         cache%element_counter = cache%element_counter+1
+         cache%element_counter = cache%element_counter + 1
       ELSE
          value = cache%data(CACHE_SIZE)
          CALL hfx_decompress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage)
          cache%element_counter = 1
       END IF
 
-      value = value-shifts(nbits-1)
+      value = value - shifts(nbits - 1)
 
    END SUBROUTINE hfx_get_single_cache_element
 
@@ -209,14 +209,14 @@ CONTAINS
                                                             stat, tmp_elements, tmp_nints
 
       start_idx = container%element_counter
-      increment_counter = (nbits*CACHE_SIZE+63)/64
-      end_idx = start_idx+increment_counter-1
+      increment_counter = (nbits*CACHE_SIZE + 63)/64
+      end_idx = start_idx + increment_counter - 1
       IF (end_idx < CACHE_SIZE) THEN
          CALL bits2ints_specific(nbits, CACHE_SIZE, container%current%data(start_idx), full_array(1))
-         container%element_counter = container%element_counter+increment_counter
+         container%element_counter = container%element_counter + increment_counter
       ELSE
          !! We have to fill the container first with the remaining number of bits
-         tmp_elements = CACHE_SIZE-start_idx+1
+         tmp_elements = CACHE_SIZE - start_idx + 1
          tmp_nints = (tmp_elements*64)/nbits
          CALL bits2ints_specific(nbits, tmp_nints, container%current%data(start_idx), full_array(1))
          IF (use_disk_storage) THEN
@@ -225,15 +225,15 @@ CONTAINS
             !! but no other was needed for the current bit size
             !! Therefore we can safely igonore an eof error
             READ (container%unit, IOSTAT=stat) container%current%data
-            memory_usage = memory_usage+1
-            container%file_counter = container%file_counter+1
+            memory_usage = memory_usage + 1
+            container%file_counter = container%file_counter + 1
          ELSE
             container%current => container%current%next
-            memory_usage = memory_usage+1
+            memory_usage = memory_usage + 1
          END IF
          !! decompress remaining ints
-         CALL bits2ints_specific(nbits, CACHE_SIZE-tmp_nints, container%current%data(1), full_array(tmp_nints+1))
-         container%element_counter = 1+(nbits*(CACHE_SIZE-tmp_nints)+63)/64
+         CALL bits2ints_specific(nbits, CACHE_SIZE - tmp_nints, container%current%data(1), full_array(tmp_nints + 1))
+         container%element_counter = 1 + (nbits*(CACHE_SIZE - tmp_nints) + 63)/64
       END IF
    END SUBROUTINE hfx_decompress_cache
 
@@ -315,8 +315,8 @@ CONTAINS
       IF (use_disk_storage) THEN
          IF (container%element_counter /= 1) THEN
             WRITE (container%unit) container%current%data
-            memory_usage = memory_usage+1
-            container%file_counter = container%file_counter+1
+            memory_usage = memory_usage + 1
+            container%file_counter = container%file_counter + 1
          END IF
       END IF
    END SUBROUTINE hfx_flush_last_cache
@@ -354,49 +354,49 @@ CONTAINS
       eps_schwarz_inv = 1.0_dp/eps_schwarz
       factor = eps_schwarz/pmax_entry
 
-      shift = shifts(nbits-1)
+      shift = shifts(nbits - 1)
 
       start_idx = cache%element_counter
-      end_idx = start_idx+nints-1
+      end_idx = start_idx + nints - 1
       IF (end_idx < CACHE_SIZE) THEN
          DO i = 1, nints
             values(i) = values(i)*pmax_entry
             IF (ABS(values(i)) > eps_schwarz) THEN
                tmp = NINT(values(i)*eps_schwarz_inv, KIND=int_8)
-               cache%data(i+start_idx-1) = tmp+shift
+               cache%data(i + start_idx - 1) = tmp + shift
                values(i) = tmp*factor
             ELSE
                values(i) = 0.0_dp
-               cache%data(i+start_idx-1) = shift
+               cache%data(i + start_idx - 1) = shift
             END IF
          END DO
-         cache%element_counter = end_idx+1
+         cache%element_counter = end_idx + 1
       ELSE
-         tmp_elements = CACHE_SIZE-start_idx+1
+         tmp_elements = CACHE_SIZE - start_idx + 1
          DO i = 1, tmp_elements
             values(i) = values(i)*pmax_entry
             IF (ABS(values(i)) > eps_schwarz) THEN
                tmp = NINT(values(i)*eps_schwarz_inv, KIND=int_8)
-               cache%data(i+start_idx-1) = tmp+shift
+               cache%data(i + start_idx - 1) = tmp + shift
                values(i) = tmp*factor
             ELSE
                values(i) = 0.0_dp
-               cache%data(i+start_idx-1) = shift
+               cache%data(i + start_idx - 1) = shift
             END IF
          END DO
          CALL hfx_compress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage)
-         DO i = tmp_elements+1, nints
+         DO i = tmp_elements + 1, nints
             values(i) = values(i)*pmax_entry
             IF (ABS(values(i)) > eps_schwarz) THEN
                tmp = NINT(values(i)*eps_schwarz_inv, KIND=int_8)
-               cache%data(i-tmp_elements) = tmp+shift
+               cache%data(i - tmp_elements) = tmp + shift
                values(i) = tmp*factor
             ELSE
                values(i) = 0.0_dp
-               cache%data(i-tmp_elements) = shift
+               cache%data(i - tmp_elements) = shift
             END IF
          END DO
-         cache%element_counter = nints-tmp_elements+1
+         cache%element_counter = nints - tmp_elements + 1
       END IF
    END SUBROUTINE hfx_add_mult_cache_elements
 
@@ -433,26 +433,26 @@ CONTAINS
 
       factor = eps_schwarz/pmax_entry
 
-      shift = shifts(nbits-1)
+      shift = shifts(nbits - 1)
 
       start_idx = cache%element_counter
-      end_idx = start_idx+nints-1
+      end_idx = start_idx + nints - 1
 
       IF (end_idx < CACHE_SIZE) THEN
          DO i = 1, nints
-            values(i) = factor*REAL(cache%data(i+start_idx-1)-shift, dp)
+            values(i) = factor*REAL(cache%data(i + start_idx - 1) - shift, dp)
          END DO
-         cache%element_counter = end_idx+1
+         cache%element_counter = end_idx + 1
       ELSE
-         tmp_elements = CACHE_SIZE-start_idx+1
+         tmp_elements = CACHE_SIZE - start_idx + 1
          DO i = 1, tmp_elements
-            values(i) = factor*REAL(cache%data(i+start_idx-1)-shift, dp)
+            values(i) = factor*REAL(cache%data(i + start_idx - 1) - shift, dp)
          END DO
          CALL hfx_decompress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage)
-         DO i = tmp_elements+1, nints
-            values(i) = factor*REAL(cache%data(i-tmp_elements)-shift, dp)
+         DO i = tmp_elements + 1, nints
+            values(i) = factor*REAL(cache%data(i - tmp_elements) - shift, dp)
          END DO
-         cache%element_counter = nints-tmp_elements+1
+         cache%element_counter = nints - tmp_elements + 1
       END IF
    END SUBROUTINE hfx_get_mult_cache_elements
 

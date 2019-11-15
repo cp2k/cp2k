@@ -815,7 +815,7 @@ CONTAINS
                                         subm_t(idomain))
                !! Copy occupied eigenvalues if smearing requested
                IF (almo_scf_env%smear) THEN
-                  almo_scf_env%mo_energies(1+SUM(almo_scf_env%nocc_of_domain(:idomain-1, ispin)) &
+                  almo_scf_env%mo_energies(1 + SUM(almo_scf_env%nocc_of_domain(:idomain - 1, ispin)) &
                                            :SUM(almo_scf_env%nocc_of_domain(:idomain, ispin)), ispin) &
                      = eigenvalues(1:almo_scf_env%nocc_of_domain(idomain, ispin))
                END IF
@@ -986,7 +986,7 @@ CONTAINS
                   !!             (which is still a reasonable smearing in most cases...)
                   IF (almo_scf_env%smear) THEN
                      DO orbital = 1, nocc_of_block
-                        almo_scf_env%mo_energies(SUM(almo_scf_env%nocc_of_domain(:iblock_row-1, ispin))+orbital, &
+                        almo_scf_env%mo_energies(SUM(almo_scf_env%nocc_of_domain(:iblock_row - 1, ispin)) + orbital, &
                                                  ispin) = eigenvalues(orbital)
                      END DO
                   END IF
@@ -998,14 +998,14 @@ CONTAINS
                   NULLIFY (p_new_block)
                   CALL dbcsr_reserve_block2d(matrix_v_blk_orthog, iblock_row, iblock_col, p_new_block)
                   CPASSERT(ASSOCIATED(p_new_block))
-                  p_new_block(:, :) = data_copy(:, (nocc_of_block+1):(nocc_of_block+nvirt_of_block))
+                  p_new_block(:, :) = data_copy(:, (nocc_of_block + 1):(nocc_of_block + nvirt_of_block))
                   ! virtual energies
                   NULLIFY (p_new_block)
                   CALL dbcsr_reserve_block2d(almo_scf_env%matrix_evv_full(ispin), iblock_row, iblock_col, p_new_block)
                   CPASSERT(ASSOCIATED(p_new_block))
                   p_new_block(:, :) = 0.0_dp
                   DO orbital = 1, nvirt_of_block
-                     p_new_block(orbital, orbital) = eigenvalues(nocc_of_block+orbital)
+                     p_new_block(orbital, orbital) = eigenvalues(nocc_of_block + orbital)
                   ENDDO
                ENDIF
 
@@ -1218,7 +1218,7 @@ CONTAINS
                nocc_of_block = SIZE(p_new_block, 2)
                CPASSERT(ASSOCIATED(p_new_block))
                CPASSERT(nocc_of_block .GT. 0)
-               p_new_block(:, :) = data_copy(:, iblock_size-nocc_of_block+1:)
+               p_new_block(:, :) = data_copy(:, iblock_size - nocc_of_block + 1:)
 
                DEALLOCATE (WORK)
                DEALLOCATE (data_copy)
@@ -1322,15 +1322,15 @@ CONTAINS
 
       !! Apply Fermi-Dirac smearing for each domain and store associated occupations for the whole system
       DO idomain = 1, ndomains
-         CALL FermiFixed(occupation_numbers(1+neigenval_used:nocc_of_domain(idomain)+neigenval_used), &
+         CALL FermiFixed(occupation_numbers(1 + neigenval_used:nocc_of_domain(idomain) + neigenval_used), &
                          mu_of_domain(idomain), &
                          kTS, &
-                         mo_energies(1+neigenval_used:nocc_of_domain(idomain)+neigenval_used), &
+                         mo_energies(1 + neigenval_used:nocc_of_domain(idomain) + neigenval_used), &
                          real_ne_of_domain(idomain), &
                          smear_e_temp, &
                          1.0_dp) !! Warning, maxocc is set to 1 since we don't want to interfere with the spin_factor rescaling
-         spin_kTS = spin_kTS+kTS !! Add up electronic entropy contributions
-         neigenval_used = neigenval_used+nocc_of_domain(idomain) !! Update eigenvalues index offset
+         spin_kTS = spin_kTS + kTS !! Add up electronic entropy contributions
+         neigenval_used = neigenval_used + nocc_of_domain(idomain) !! Update eigenvalues index offset
       END DO
       rescaling_factors(:) = SQRT(occupation_numbers) !! scale = sqrt(occupation_number)
 
@@ -2320,14 +2320,14 @@ CONTAINS
             IF (idomain .EQ. 1) THEN
                index1_start = 1
             ELSE
-               index1_start = map%index1(idomain-1)
+               index1_start = map%index1(idomain - 1)
             ENDIF
-            index1_end = map%index1(idomain)-1
+            index1_end = map%index1(idomain) - 1
 
             n_domain_mos = 0
             DO row = index1_start, index1_end
                neighbor = map%pairs(row, 1)
-               n_domain_mos = n_domain_mos+nmos(neighbor)
+               n_domain_mos = n_domain_mos + nmos(neighbor)
             ENDDO
 
             naos = subm_main(idomain)%nrows
@@ -2831,7 +2831,7 @@ CONTAINS
          END IF
          ! complete the matrix
          DO ii = 1, N
-            DO jj = ii+1, N
+            DO jj = ii + 1, N
                Ainv(ii, jj) = Ainv(jj, ii)
             ENDDO
             !WRITE(*,'(100F13.9)') Ainv(ii,:)
@@ -2882,11 +2882,11 @@ CONTAINS
                IF ((jj .LE. range2) .AND. (eigenvalues(jj) .LT. range1_thr)) THEN
                   temp1(jj, :) = temp2(:, jj)*0.0_dp
                   IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
-                  range1_eiv = range1_eiv+1
+                  range1_eiv = range1_eiv + 1
                ELSE
-                  temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj)+my_shift)
+                  temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj) + my_shift)
                   IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
-                  range2_eiv = range2_eiv+1
+                  range2_eiv = range2_eiv + 1
                ENDIF
             ENDDO
          ELSE
@@ -2895,15 +2895,15 @@ CONTAINS
                   IF (jj .LE. range1) THEN
                      temp1(jj, :) = temp2(:, jj)*0.0_dp
                      IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
-                     range1_eiv = range1_eiv+1
+                     range1_eiv = range1_eiv + 1
                   ELSE IF (jj .LE. range2) THEN
                      temp1(jj, :) = temp2(:, jj)*1.0_dp
                      IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
-                     range2_eiv = range2_eiv+1
+                     range2_eiv = range2_eiv + 1
                   ELSE
-                     temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj)+my_shift)
+                     temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj) + my_shift)
                      IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
-                     range3_eiv = range3_eiv+1
+                     range3_eiv = range3_eiv + 1
                   ENDIF
                ENDDO
             ELSE IF (use_thr_only) THEN
@@ -2911,11 +2911,11 @@ CONTAINS
                   IF (eigenvalues(jj) .LT. range1_thr) THEN
                      temp1(jj, :) = temp2(:, jj)*0.0_dp
                      IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
-                     range1_eiv = range1_eiv+1
+                     range1_eiv = range1_eiv + 1
                   ELSE
-                     temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj)+my_shift)
+                     temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj) + my_shift)
                      IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
-                     range2_eiv = range2_eiv+1
+                     range2_eiv = range2_eiv + 1
                   ENDIF
                ENDDO
             ELSE ! no ranges, no thresholds
@@ -3075,9 +3075,9 @@ CONTAINS
          DO jj = 1, N
             IF ((jj .LE. range1) .AND. (eigenvalues(jj) .LT. range1_thr)) THEN
                temp1(jj, :) = temp2(:, jj)*0.0_dp
-               range1_eiv = range1_eiv+1
+               range1_eiv = range1_eiv + 1
             ELSE
-               temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj)+my_shift)**power)
+               temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj) + my_shift)**power)
             ENDIF
          ENDDO
       ELSE
@@ -3085,9 +3085,9 @@ CONTAINS
             DO jj = 1, N
                IF (jj .LE. range1) THEN
                   temp1(jj, :) = temp2(:, jj)*0.0_dp
-                  range1_eiv = range1_eiv+1
+                  range1_eiv = range1_eiv + 1
                ELSE
-                  temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj)+my_shift)**power)
+                  temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj) + my_shift)**power)
                ENDIF
             ENDDO
          ELSE
@@ -3096,14 +3096,14 @@ CONTAINS
                   IF (eigenvalues(jj) .LT. range1_thr) THEN
                      temp1(jj, :) = temp2(:, jj)*0.0_dp
 
-                     range1_eiv = range1_eiv+1
+                     range1_eiv = range1_eiv + 1
                   ELSE
-                     temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj)+my_shift)**power)
+                     temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj) + my_shift)**power)
                   ENDIF
                ENDDO
             ELSE
                DO jj = 1, N
-                  temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj)+my_shift)**power)
+                  temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj) + my_shift)**power)
                ENDDO
             ENDIF
          ENDIF
@@ -3158,8 +3158,8 @@ CONTAINS
 
       DO idomain = 1, ndomains
          least_loaded = MINLOC(cpu_load, 1)
-         cpu_load(least_loaded) = cpu_load(least_loaded)+domain_load(idomain)
-         almo_scf_env%cpu_of_domain(index0(idomain)) = least_loaded-1
+         cpu_load(least_loaded) = cpu_load(least_loaded) + domain_load(idomain)
+         almo_scf_env%cpu_of_domain(index0(idomain)) = least_loaded - 1
       ENDDO
 
       DEALLOCATE (cpu_load)
@@ -3339,9 +3339,9 @@ CONTAINS
             ! extrapolation
             DO iaspc = 1, naspc
 
-               istore = MOD(xalmo_history%istore-iaspc, xalmo_history%nstore)+1
-               alpha = (-1.0_dp)**(iaspc+1)*REAL(iaspc, KIND=dp)* &
-                       binomial(2*naspc, naspc-iaspc)/binomial(2*naspc-2, naspc-1)
+               istore = MOD(xalmo_history%istore - iaspc, xalmo_history%nstore) + 1
+               alpha = (-1.0_dp)**(iaspc + 1)*REAL(iaspc, KIND=dp)* &
+                       binomial(2*naspc, naspc - iaspc)/binomial(2*naspc - 2, naspc - 1)
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, FMT="(T3,A2,I0,A4,F10.6)") &
                      "B(", iaspc, ") = ", alpha

@@ -188,8 +188,8 @@ CONTAINS
             ! Non-relativistic isotropic hyperfine value (hypiso_one)
             DO ia = 1, grid_atom%ng_sphere
                DO iso = 1, harmonics%max_iso_not0
-                  hypiso_one(iatom) = hypiso_one(iatom)+ &
-                                      (rho_rad_h(1)%r_coef(grid_atom%nr, iso)- &
+                  hypiso_one(iatom) = hypiso_one(iatom) + &
+                                      (rho_rad_h(1)%r_coef(grid_atom%nr, iso) - &
                                        rho_rad_h(2)%r_coef(grid_atom%nr, iso))* &
                                       harmonics%slm(ia, iso)*grid_atom%wa(ia)/fourpi
                END DO
@@ -201,36 +201,36 @@ CONTAINS
                   DO ia = 1, grid_atom%ng_sphere
                      hypanisotemp = 0.0_dp
                      DO iso = 1, harmonics%max_iso_not0
-                        hypiso(iatom) = hypiso(iatom)+ &
-                                        (rho_rad_h(1)%r_coef(ir, iso)-rho_rad_h(2)%r_coef(ir, iso))* &
+                        hypiso(iatom) = hypiso(iatom) + &
+                                        (rho_rad_h(1)%r_coef(ir, iso) - rho_rad_h(2)%r_coef(ir, iso))* &
                                         harmonics%slm(ia, iso)*grid_atom%wr(ir)*grid_atom%wa(ia)* &
                                         2._dp/(REAL(z, KIND=dp)*a_fine**2* &
-                                               (1._dp+2._dp*grid_atom%rad(ir)/(REAL(z, KIND=dp)*a_fine**2))**2* &
+                                               (1._dp + 2._dp*grid_atom%rad(ir)/(REAL(z, KIND=dp)*a_fine**2))**2* &
                                                fourpi*grid_atom%rad(ir)**2)
-                        hypanisotemp = hypanisotemp+ &
-                                       (rho_rad_h(1)%r_coef(ir, iso)-rho_rad_h(2)%r_coef(ir, iso) &
-                                        -(rho_rad_s(1)%r_coef(ir, iso)-rho_rad_s(2)%r_coef(ir, iso)))* &
+                        hypanisotemp = hypanisotemp + &
+                                       (rho_rad_h(1)%r_coef(ir, iso) - rho_rad_h(2)%r_coef(ir, iso) &
+                                        - (rho_rad_s(1)%r_coef(ir, iso) - rho_rad_s(2)%r_coef(ir, iso)))* &
                                        harmonics%slm(ia, iso)*grid_atom%wr(ir)*grid_atom%wa(ia)/ &
                                        grid_atom%rad(ir)**3
                      END DO ! iso
-                     hypaniso(1, 1, iatom) = hypaniso(1, 1, iatom)+hypanisotemp* &
+                     hypaniso(1, 1, iatom) = hypaniso(1, 1, iatom) + hypanisotemp* &
                                              (3._dp*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia)* &
-                                              grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia)-1._dp)
-                     hypaniso(1, 2, iatom) = hypaniso(1, 2, iatom)+hypanisotemp* &
+                                              grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia) - 1._dp)
+                     hypaniso(1, 2, iatom) = hypaniso(1, 2, iatom) + hypanisotemp* &
                                              (3._dp*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia)* &
-                                              grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)-0._dp)
-                     hypaniso(1, 3, iatom) = hypaniso(1, 3, iatom)+hypanisotemp* &
+                                              grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia) - 0._dp)
+                     hypaniso(1, 3, iatom) = hypaniso(1, 3, iatom) + hypanisotemp* &
                                              (3._dp*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia)* &
-                                              grid_atom%cos_pol(ia)-0._dp)
-                     hypaniso(2, 2, iatom) = hypaniso(2, 2, iatom)+hypanisotemp* &
+                                              grid_atom%cos_pol(ia) - 0._dp)
+                     hypaniso(2, 2, iatom) = hypaniso(2, 2, iatom) + hypanisotemp* &
                                              (3._dp*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)* &
-                                              grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)-1._dp)
-                     hypaniso(2, 3, iatom) = hypaniso(2, 3, iatom)+hypanisotemp* &
+                                              grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia) - 1._dp)
+                     hypaniso(2, 3, iatom) = hypaniso(2, 3, iatom) + hypanisotemp* &
                                              (3._dp*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)* &
-                                              grid_atom%cos_pol(ia)-0._dp)
-                     hypaniso(3, 3, iatom) = hypaniso(3, 3, iatom)+hypanisotemp* &
+                                              grid_atom%cos_pol(ia) - 0._dp)
+                     hypaniso(3, 3, iatom) = hypaniso(3, 3, iatom) + hypanisotemp* &
                                              (3._dp*grid_atom%cos_pol(ia)* &
-                                              grid_atom%cos_pol(ia)-1._dp)
+                                              grid_atom%cos_pol(ia) - 1._dp)
                   END DO ! ia
                END IF ! hard_radius
             END DO ! ir
@@ -246,35 +246,35 @@ CONTAINS
                      IF (grid_atom%rad(ir) <= hard_radius) THEN
                         DO ia = 1, grid_atom%ng_sphere
                            hypanisotemp = 0.0_dp
-                           rtemp = SQRT(rab2+grid_atom%rad(ir)**2+2.0_dp*grid_atom%rad(ir)* &
-                                        (rab(1)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia)+ &
-                                         rab(2)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)+ &
+                           rtemp = SQRT(rab2 + grid_atom%rad(ir)**2 + 2.0_dp*grid_atom%rad(ir)* &
+                                        (rab(1)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia) + &
+                                         rab(2)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia) + &
                                          rab(3)*grid_atom%cos_pol(ia)))
                            DO iso = 1, harmonics%max_iso_not0
-                              hypanisotemp = hypanisotemp+ &
-                                             (rho_rad_h(1)%r_coef(ir, iso)-rho_rad_h(2)%r_coef(ir, iso) &
-                                              -(rho_rad_s(1)%r_coef(ir, iso)-rho_rad_s(2)%r_coef(ir, iso)))* &
+                              hypanisotemp = hypanisotemp + &
+                                             (rho_rad_h(1)%r_coef(ir, iso) - rho_rad_h(2)%r_coef(ir, iso) &
+                                              - (rho_rad_s(1)%r_coef(ir, iso) - rho_rad_s(2)%r_coef(ir, iso)))* &
                                              harmonics%slm(ia, iso)*grid_atom%wr(ir)*grid_atom%wa(ia)/ &
                                              rtemp**5
                            END DO ! iso
-                           hypaniso(1, 1, jatom) = hypaniso(1, 1, jatom)+hypanisotemp* &
-                                                   (3._dp*(rab(1)+grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))* &
-                                                    (rab(1)+grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))-rtemp**2)
-                           hypaniso(1, 2, jatom) = hypaniso(1, 2, jatom)+hypanisotemp* &
-                                                   (3._dp*(rab(1)+grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))* &
-                                                    (rab(2)+grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia))-0._dp)
-                           hypaniso(1, 3, jatom) = hypaniso(1, 3, jatom)+hypanisotemp* &
-                                                   (3._dp*(rab(1)+grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))* &
-                                                    (rab(3)+grid_atom%rad(ir)*grid_atom%cos_pol(ia))-0._dp)
-                           hypaniso(2, 2, jatom) = hypaniso(2, 2, jatom)+hypanisotemp* &
-                                                   (3._dp*(rab(2)+grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia))* &
-                                                    (rab(2)+grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia))-rtemp**2)
-                           hypaniso(2, 3, jatom) = hypaniso(2, 3, jatom)+hypanisotemp* &
-                                                   (3._dp*(rab(2)+grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia))* &
-                                                    (rab(3)+grid_atom%rad(ir)*grid_atom%cos_pol(ia))-0._dp)
-                           hypaniso(3, 3, jatom) = hypaniso(3, 3, jatom)+hypanisotemp* &
-                                                   (3._dp*(rab(3)+grid_atom%rad(ir)*grid_atom%cos_pol(ia))* &
-                                                    (rab(3)+grid_atom%rad(ir)*grid_atom%cos_pol(ia))-rtemp**2)
+                           hypaniso(1, 1, jatom) = hypaniso(1, 1, jatom) + hypanisotemp* &
+                                                  (3._dp*(rab(1) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))* &
+                                                (rab(1) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia)) - rtemp**2)
+                           hypaniso(1, 2, jatom) = hypaniso(1, 2, jatom) + hypanisotemp* &
+                                                  (3._dp*(rab(1) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))* &
+                                                   (rab(2) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)) - 0._dp)
+                           hypaniso(1, 3, jatom) = hypaniso(1, 3, jatom) + hypanisotemp* &
+                                                  (3._dp*(rab(1) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia))* &
+                                                    (rab(3) + grid_atom%rad(ir)*grid_atom%cos_pol(ia)) - 0._dp)
+                           hypaniso(2, 2, jatom) = hypaniso(2, 2, jatom) + hypanisotemp* &
+                                                  (3._dp*(rab(2) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia))* &
+                                                (rab(2) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)) - rtemp**2)
+                           hypaniso(2, 3, jatom) = hypaniso(2, 3, jatom) + hypanisotemp* &
+                                                  (3._dp*(rab(2) + grid_atom%rad(ir)*grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia))* &
+                                                    (rab(3) + grid_atom%rad(ir)*grid_atom%cos_pol(ia)) - 0._dp)
+                           hypaniso(3, 3, jatom) = hypaniso(3, 3, jatom) + hypanisotemp* &
+                                                   (3._dp*(rab(3) + grid_atom%rad(ir)*grid_atom%cos_pol(ia))* &
+                                                    (rab(3) + grid_atom%rad(ir)*grid_atom%cos_pol(ia)) - rtemp**2)
                         END DO ! ia
                      END IF ! hard_radius
                   END DO ! ir
@@ -319,12 +319,12 @@ CONTAINS
                ra(:) = pbc(particle_set(iatom)%r, cell)
                DO ig = 1, SIZE(hypaniso_gspace%pw%cc)
                   arg = DOT_PRODUCT(pw_grid%g(:, ig), ra)
-                  esum = esum+COS(arg)*REAL(hypaniso_gspace%pw%cc(ig), dp) &
-                         -SIN(arg)*AIMAG(hypaniso_gspace%pw%cc(ig))
+                  esum = esum + COS(arg)*REAL(hypaniso_gspace%pw%cc(ig), dp) &
+                         - SIN(arg)*AIMAG(hypaniso_gspace%pw%cc(ig))
                END DO
                ! Actually, we need -1.0 * fourpi * hypaniso_gspace
                esum = esum*fourpi*(-1.0_dp)
-               hypaniso(idir1, idir2, iatom) = hypaniso(idir1, idir2, iatom)+esum
+               hypaniso(idir1, idir2, iatom) = hypaniso(idir1, idir2, iatom) + esum
             END DO
          END DO ! idir2
       END DO ! idir1

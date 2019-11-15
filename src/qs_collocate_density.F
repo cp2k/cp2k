@@ -214,7 +214,7 @@ CONTAINS
          lmax_global = MAX(MAXVAL(mylmax), lmax_global)
       END DO
       !lmax_global set according to ni = 2*nc-2 below
-      lmax_global = 2*lmax_global-2
+      lmax_global = 2*lmax_global - 2
 
       DO ikind = 1, SIZE(atomic_kind_set)
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
@@ -231,7 +231,7 @@ CONTAINS
             alpha = alpha_nlcc(iexp_nlcc)
             nc = nct_nlcc(iexp_nlcc)
 
-            ni = ncoset(2*nc-2)
+            ni = ncoset(2*nc - 2)
             ALLOCATE (pab(ni, 1))
             pab = 0._dp
 
@@ -300,11 +300,11 @@ CONTAINS
                IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
                   ! replicated realspace grid, split the atoms up between procs
                   IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
-                     npme = npme+1
+                     npme = npme + 1
                      cores(npme) = iatom
                   ENDIF
                ELSE
-                  npme = npme+1
+                  npme = npme + 1
                   cores(npme) = iatom
                ENDIF
             END DO
@@ -315,7 +315,7 @@ CONTAINS
                atom_a = atom_list(iatom)
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                subpatch_pattern = 0
-               ni = 2*nc-2
+               ni = 2*nc - 2
                CALL collocate_pgf_product_rspace(ni, 1/(2*alpha**2), 0, 0, 0.0_dp, 0, ra, &
                                                  (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
                                                  cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
@@ -405,7 +405,7 @@ CONTAINS
          CALL get_potential(potential=gth_potential, nexp_ppl=lppl)
          lmax_global = MAX(lppl, lmax_global)
       END DO
-      lmax_global = 2*lmax_global-2
+      lmax_global = 2*lmax_global - 2
 
       DO ikind = 1, SIZE(atomic_kind_set)
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
@@ -416,7 +416,7 @@ CONTAINS
 
          IF (lppl <= 0) CYCLE
 
-         ni = ncoset(2*lppl-2)
+         ni = ncoset(2*lppl - 2)
          ALLOCATE (pab(ni, 1))
          pab = 0._dp
 
@@ -484,11 +484,11 @@ CONTAINS
             IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
                ! replicated realspace grid, split the atoms up between procs
                IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
-                  npme = npme+1
+                  npme = npme + 1
                   cores(npme) = iatom
                ENDIF
             ELSE
-               npme = npme+1
+               npme = npme + 1
                cores(npme) = iatom
             ENDIF
          END DO
@@ -500,7 +500,7 @@ CONTAINS
                atom_a = atom_list(iatom)
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                subpatch_pattern = 0
-               ni = 2*lppl-2
+               ni = 2*lppl - 2
                CALL collocate_pgf_product_rspace(ni, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                  (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
                                                  cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
@@ -674,14 +674,14 @@ CONTAINS
                         tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_grid%desc%npts(dir))
                         tp(dir) = MODULO(tp(dir), rs_grid%desc%npts(dir))
                         IF (rs_grid%desc%perd(dir) .NE. 1) THEN
-                           lb(dir) = rs_grid%lb_local(dir)+rs_grid%desc%border
-                           ub(dir) = rs_grid%ub_local(dir)-rs_grid%desc%border
+                           lb(dir) = rs_grid%lb_local(dir) + rs_grid%desc%border
+                           ub(dir) = rs_grid%ub_local(dir) - rs_grid%desc%border
                         ELSE
                            lb(dir) = rs_grid%lb_local(dir)
                            ub(dir) = rs_grid%ub_local(dir)
                         ENDIF
                         ! distributed grid, only map if it is local to the grid
-                        location(dir) = tp(dir)+rs_grid%desc%lb(dir)
+                        location(dir) = tp(dir) + rs_grid%desc%lb(dir)
                      ENDDO
                      IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                          lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
@@ -693,12 +693,12 @@ CONTAINS
                      IF (MODULO(offset, group_size) == my_pos) map_it(ipgf) = .TRUE.
                   ENDIF
                END DO
-               offset = offset+1
+               offset = offset + 1
 
                IF (ANY(map_it(1:npgfa(iset)))) THEN
                   sgfa = first_sgfa(1, iset)
                   ncoa = npgfa(iset)*ncoset(la_max(iset))
-                  m1 = sgfa+nsgfa(iset)-1
+                  m1 = sgfa + nsgfa(iset) - 1
                   ALLOCATE (work(nsgfa(iset), 1))
                   work(1:nsgfa(iset), 1) = aci(sgfa:m1)
                   pab = 0._dp
@@ -708,7 +708,7 @@ CONTAINS
                              SIZE(pab, 1))
 
                   DO ipgf = 1, npgfa(iset)
-                     na1 = (ipgf-1)*ncoset(la_max(iset))
+                     na1 = (ipgf - 1)*ncoset(la_max(iset))
                      igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
                      rs_grid => rs_rho(igrid_level)%rs_grid
                      IF (map_it(ipgf)) THEN
@@ -781,7 +781,7 @@ CONTAINS
                      map_it2 = .FALSE.
                      DO ipgf = 1, npgfa(iset)
                         DO jpgf = 1, npgfa(jset)
-                           zetp = zeta(ipgf, iset)+zeta(jpgf, jset)
+                           zetp = zeta(ipgf, iset) + zeta(jpgf, jset)
                            igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
                            rs_grid => rs_rho(igrid_level)%rs_grid
                            IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
@@ -790,14 +790,14 @@ CONTAINS
                                  tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_grid%desc%npts(dir))
                                  tp(dir) = MODULO(tp(dir), rs_grid%desc%npts(dir))
                                  IF (rs_grid%desc%perd(dir) .NE. 1) THEN
-                                    lb(dir) = rs_grid%lb_local(dir)+rs_grid%desc%border
-                                    ub(dir) = rs_grid%ub_local(dir)-rs_grid%desc%border
+                                    lb(dir) = rs_grid%lb_local(dir) + rs_grid%desc%border
+                                    ub(dir) = rs_grid%ub_local(dir) - rs_grid%desc%border
                                  ELSE
                                     lb(dir) = rs_grid%lb_local(dir)
                                     ub(dir) = rs_grid%ub_local(dir)
                                  ENDIF
                                  ! distributed grid, only map if it is local to the grid
-                                 location(dir) = tp(dir)+rs_grid%desc%lb(dir)
+                                 location(dir) = tp(dir) + rs_grid%desc%lb(dir)
                               ENDDO
                               IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                                   lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
@@ -810,7 +810,7 @@ CONTAINS
                            ENDIF
                         END DO
                      END DO
-                     offset = offset+1
+                     offset = offset + 1
                      !
                      IF (ANY(map_it2(1:npgfa(iset), 1:npgfa(jset)))) THEN
                         ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -828,12 +828,12 @@ CONTAINS
                                    0.0_dp, pab(1, 1), maxco)
                         DO ipgf = 1, npgfa(iset)
                            DO jpgf = 1, npgfa(jset)
-                              zetp = zeta(ipgf, iset)+zeta(jpgf, jset)
+                              zetp = zeta(ipgf, iset) + zeta(jpgf, jset)
                               igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
                               rs_grid => rs_rho(igrid_level)%rs_grid
 
-                              na1 = (ipgf-1)*ncoset(la_max(iset))
-                              nb1 = (jpgf-1)*ncoset(la_max(jset))
+                              na1 = (ipgf - 1)*ncoset(la_max(iset))
+                              nb1 = (jpgf - 1)*ncoset(la_max(jset))
 
                               IF (map_it2(ipgf, jpgf)) THEN
                                  CALL collocate_pgf_product_rspace( &
@@ -962,11 +962,11 @@ CONTAINS
             IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
                ! replicated realspace grid, split the atoms up between procs
                IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
-                  npme = npme+1
+                  npme = npme + 1
                   cores(npme) = iatom
                ENDIF
             ELSE
-               npme = npme+1
+               npme = npme + 1
                cores(npme) = iatom
             ENDIF
          END DO
@@ -1063,10 +1063,10 @@ CONTAINS
 
       IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
          IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
-            npme = npme+1
+            npme = npme + 1
          ENDIF
       ELSE
-         npme = npme+1
+         npme = npme + 1
       ENDIF
 
       IF (npme .GT. 0) THEN
@@ -1158,11 +1158,11 @@ CONTAINS
       DO iatom = 1, natom
          IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
             IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
-               npme = npme+1
+               npme = npme + 1
                cores(npme) = iatom
             ENDIF
          ELSE
-            npme = npme+1
+            npme = npme + 1
             cores(npme) = iatom
          ENDIF
       ENDDO
@@ -1258,10 +1258,10 @@ CONTAINS
 
       IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
          IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
-            npme = npme+1
+            npme = npme + 1
          ENDIF
       ELSE
-         npme = npme+1
+         npme = npme + 1
       ENDIF
 
       IF (npme .GT. 0) THEN
@@ -1355,11 +1355,11 @@ CONTAINS
       DO iatom = 1, natom
          IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
             IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
-               npme = npme+1
+               npme = npme + 1
                cores(npme) = iatom
             ENDIF
          ELSE
-            npme = npme+1
+            npme = npme + 1
             cores(npme) = iatom
          ENDIF
       ENDDO
@@ -1482,7 +1482,7 @@ CONTAINS
                sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, &
                workt, lgrid, mylmax)
 
-      debug_count = debug_count+1
+      debug_count = debug_count + 1
 
       ! by default, the full density is calculated
       my_soft = .FALSE.
@@ -1558,8 +1558,8 @@ CONTAINS
                            maxsgf=maxsgf, &
                            maxsgf_set=maxsgf_set, &
                            basis_type=my_basis_type)
-      CALL reallocate(pabt, 1, maxco, 1, maxco, 0, nthread-1)
-      CALL reallocate(workt, 1, maxco, 1, maxsgf_set, 0, nthread-1)
+      CALL reallocate(pabt, 1, maxco, 1, maxco, 0, nthread - 1)
+      CALL reallocate(workt, 1, maxco, 1, maxsgf_set, 0, nthread - 1)
 
       ! find maximum numbers
       natoms = SIZE(particle_set)
@@ -1587,21 +1587,21 @@ CONTAINS
       ! will be used for collocation
       SELECT CASE (ga_gb_function)
       CASE (FUNC_DADB)
-         lmax_global = lmax_global+1
+         lmax_global = lmax_global + 1
       CASE (FUNC_ADBmDAB)
-         lmax_global = lmax_global+1
+         lmax_global = lmax_global + 1
       CASE (FUNC_DABpADB)
-         lmax_global = lmax_global+1
+         lmax_global = lmax_global + 1
       CASE (FUNC_DX, FUNC_DY, FUNC_DZ)
-         lmax_global = lmax_global+1
+         lmax_global = lmax_global + 1
       CASE (FUNC_DXDY, FUNC_DYDZ, FUNC_DZDX)
-         lmax_global = lmax_global+2
+         lmax_global = lmax_global + 2
       CASE (FUNC_DXDX, FUNC_DYDY, FUNC_DZDZ)
-         lmax_global = lmax_global+2
+         lmax_global = lmax_global + 2
       CASE (FUNC_ARDBmDARB)
-         lmax_global = lmax_global+2
+         lmax_global = lmax_global + 2
       CASE (FUNC_ARB)
-         lmax_global = lmax_global+1
+         lmax_global = lmax_global + 1
       CASE (FUNC_AB)
          lmax_global = lmax_global
       CASE DEFAULT
@@ -1808,13 +1808,13 @@ CONTAINS
             ENDIF
 
             rab(:) = dist_ab(:, itask)
-            rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
-            rb(:) = ra(:)+rab(:)
-            zetp = zeta(ipgf, iset)+zetb(jpgf, jset)
+            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+            rb(:) = ra(:) + rab(:)
+            zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
 
-            na1 = (ipgf-1)*ncoset(la_max(iset))+1
+            na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
             na2 = ipgf*ncoset(la_max(iset))
-            nb1 = (jpgf-1)*ncoset(lb_max(jset))+1
+            nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
             nb2 = jpgf*ncoset(lb_max(jset))
 
             ! takes the density matrix symmetry in account, i.e. off-diagonal blocks need to be mapped 'twice'
@@ -1841,7 +1841,7 @@ CONTAINS
                   CALL collocate_pgf_product_rspace( &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                     ra, rab, rab2, scale, pab, na1-1, nb1-1, &
+                     ra, rab, rab2, scale, pab, na1 - 1, nb1 - 1, &
                      rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                      eps_rho_rspace, &
                      ga_gb_function=ga_gb_function, &
@@ -1854,7 +1854,7 @@ CONTAINS
                   CALL collocate_pgf_product_rspace( &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                     rb, rab_inv, rab2, scale, pab, nb1-1, na1-1, &
+                     rb, rab_inv, rab2, scale, pab, nb1 - 1, na1 - 1, &
                      rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                      eps_rho_rspace, &
                      ga_gb_function=ga_gb_function, &
@@ -1868,7 +1868,7 @@ CONTAINS
                   CALL collocate_pgf_product_rspace( &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                     ra, rab, rab2, scale, pab, na1-1, nb1-1, &
+                     ra, rab, rab2, scale, pab, na1 - 1, nb1 - 1, &
                      rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                      eps_rho_rspace, &
                      ga_gb_function=ga_gb_function, &
@@ -1880,7 +1880,7 @@ CONTAINS
                   CALL collocate_pgf_product_rspace( &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                     rb, rab_inv, rab2, scale, pab, nb1-1, na1-1, &
+                     rb, rab_inv, rab2, scale, pab, nb1 - 1, na1 - 1, &
                      rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                      eps_rho_rspace, &
                      ga_gb_function=ga_gb_function, &
@@ -1896,12 +1896,12 @@ CONTAINS
          ! Now sum the thread-local grids back into the rs_grid
          ! (in parallel, each thread writes to a section of the rs_grid at a time)
          IF (nthread > 1) THEN
-            nz = (1+rs_rho(igrid_level)%rs_grid%ub_local(3) &
-                  -rs_rho(igrid_level)%rs_grid%lb_local(3))
-            nxy = (1+rs_rho(igrid_level)%rs_grid%ub_local(1) &
-                   -rs_rho(igrid_level)%rs_grid%lb_local(1)) &
-                  *(1+rs_rho(igrid_level)%rs_grid%ub_local(2) &
-                    -rs_rho(igrid_level)%rs_grid%lb_local(2))
+            nz = (1 + rs_rho(igrid_level)%rs_grid%ub_local(3) &
+                  - rs_rho(igrid_level)%rs_grid%lb_local(3))
+            nxy = (1 + rs_rho(igrid_level)%rs_grid%ub_local(1) &
+                   - rs_rho(igrid_level)%rs_grid%lb_local(1)) &
+                  *(1 + rs_rho(igrid_level)%rs_grid%ub_local(2) &
+                    - rs_rho(igrid_level)%rs_grid%lb_local(2))
 
             ! Work out the number of tree levels, and start the reduction
 
@@ -1909,31 +1909,31 @@ CONTAINS
 
             DO nr = 1, nrlevel
                nblock = 2**nr
-               nzsize = MIN(nblock, nthread-(ithread/nblock)*nblock)
+               nzsize = MIN(nblock, nthread - (ithread/nblock)*nblock)
                itask = MODULO(ithread, nblock)
 
                lb = (nz*itask)/nzsize
-               ub = (nz*(itask+1))/nzsize-1
+               ub = (nz*(itask + 1))/nzsize - 1
                nw = (ithread/nblock)*nblock
-               lbw = 1+nxy*lb
+               lbw = 1 + nxy*lb
 
-               n = nw+nblock/2
+               n = nw + nblock/2
                IF (n < nthread) THEN
-                  lbr = 1+nxy*lb
+                  lbr = 1 + nxy*lb
 
-                  CALL daxpy(nxy*(1+ub-lb), 1.0_dp, lgrid%r(lbr, n), 1, lgrid%r(lbw, nw), 1)
+                  CALL daxpy(nxy*(1 + ub - lb), 1.0_dp, lgrid%r(lbr, n), 1, lgrid%r(lbw, nw), 1)
                END IF
 !$OMP BARRIER
             END DO
 
             ! Copy final result from first local grid to rs_grid
             lb = (nz*ithread)/nthread
-            ub = (nz*(ithread+1))/nthread-1
-            nzsize = 1+(ub-lb)
+            ub = (nz*(ithread + 1))/nthread - 1
+            nzsize = 1 + (ub - lb)
 
-            lb = lb+rs_rho(igrid_level)%rs_grid%lb_local(3)
-            ub = ub+rs_rho(igrid_level)%rs_grid%lb_local(3)
-            lbr = 1+nxy*(nz*ithread/nthread)
+            lb = lb + rs_rho(igrid_level)%rs_grid%lb_local(3)
+            ub = ub + rs_rho(igrid_level)%rs_grid%lb_local(3)
+            lbr = 1 + nxy*(nz*ithread/nthread)
 
             CALL daxpy(nxy*nzsize, 1.0_dp, lgrid%r(lbr, 0), 1, &
                        rs_rho(igrid_level)%rs_grid%r(:, :, lb:ub), 1)
@@ -2036,7 +2036,7 @@ CONTAINS
                sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, &
                workt, mylmax)
 
-      debug_count = debug_count+1
+      debug_count = debug_count + 1
 
       ! by default, the full density is calculated
       my_soft = .FALSE.
@@ -2078,8 +2078,8 @@ CONTAINS
                            maxsgf=maxsgf, &
                            maxsgf_set=maxsgf_set, &
                            basis_type=my_basis_type)
-      CALL reallocate(pabt, 1, maxco, 1, maxco, 0, nthread-1)
-      CALL reallocate(workt, 1, maxco, 1, maxsgf_set, 0, nthread-1)
+      CALL reallocate(pabt, 1, maxco, 1, maxco, 0, nthread - 1)
+      CALL reallocate(workt, 1, maxco, 1, maxsgf_set, 0, nthread - 1)
 
       ! find maximum numbers
       nimages = dft_control%nimages
@@ -2107,7 +2107,7 @@ CONTAINS
       END DO
 
       !update lmax_global since ga_gb_function=FUNC_DABpADB
-      lmax_global = lmax_global+1
+      lmax_global = lmax_global + 1
 
       ! get the task lists
       IF (my_soft) task_list => task_list_soft
@@ -2275,13 +2275,13 @@ CONTAINS
             ENDIF
 
             rab(:) = dist_ab(:, itask)
-            rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
-            rb(:) = ra(:)+rab(:)
-            zetp = zeta(ipgf, iset)+zetb(jpgf, jset)
+            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+            rb(:) = ra(:) + rab(:)
+            zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
 
-            na1 = (ipgf-1)*ncoset(la_max(iset))+1
+            na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
             na2 = ipgf*ncoset(la_max(iset))
-            nb1 = (jpgf-1)*ncoset(lb_max(jset))+1
+            nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
             nb2 = jpgf*ncoset(lb_max(jset))
 
             ! takes the density matrix symmetry in account, i.e. off-diagonal blocks need to be mapped 'twice'
@@ -2306,7 +2306,7 @@ CONTAINS
                CALL collocate_pgf_product_rspace( &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  ra, rab, rab2, scale, pab, na1-1, nb1-1, &
+                  ra, rab, rab2, scale, pab, na1 - 1, nb1 - 1, &
                   rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                   eps_rho_rspace, &
                   ga_gb_function=FUNC_DABpADB, &
@@ -2318,7 +2318,7 @@ CONTAINS
                CALL collocate_pgf_product_rspace( &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  rb, rab_inv, rab2, scale, pab, nb1-1, na1-1, &
+                  rb, rab_inv, rab2, scale, pab, nb1 - 1, na1 - 1, &
                   rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                   eps_rho_rspace, &
                   ga_gb_function=FUNC_DABpADB, &
@@ -2477,7 +2477,7 @@ CONTAINS
       group = mgrid_rspace(1)%pw%pw_grid%para%group
       my_pos = mgrid_rspace(1)%pw%pw_grid%para%my_pos
       group_size = mgrid_rspace(1)%pw%pw_grid%para%group_size
-      ALLOCATE (where_is_the_point(0:group_size-1))
+      ALLOCATE (where_is_the_point(0:group_size - 1))
 
       !loop over natom to find maximum value of la_max
       lmax_global = 0
@@ -2511,7 +2511,7 @@ CONTAINS
             sgfa = first_sgfa(1, iset)
 
             DO i = 1, nsgfa(iset)
-               work(i, 1) = eigenvector(offset+i)
+               work(i, 1) = eigenvector(offset + i)
             ENDDO
 
             CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), &
@@ -2521,7 +2521,7 @@ CONTAINS
 
             DO ipgf = 1, npgfa(iset)
 
-               na1 = (ipgf-1)*ncoset(la_max(iset))+1
+               na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                na2 = ipgf*ncoset(la_max(iset))
 
                scale = 1.0_dp
@@ -2536,14 +2536,14 @@ CONTAINS
                      tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_rho(igrid_level)%rs_grid%desc%npts(dir))
                      tp(dir) = MODULO(tp(dir), rs_rho(igrid_level)%rs_grid%desc%npts(dir))
                      IF (rs_rho(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                        lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local(dir)+rs_rho(igrid_level)%rs_grid%desc%border
-                        ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local(dir)-rs_rho(igrid_level)%rs_grid%desc%border
+                        lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local(dir) + rs_rho(igrid_level)%rs_grid%desc%border
+                        ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local(dir) - rs_rho(igrid_level)%rs_grid%desc%border
                      ELSE
                         lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local(dir)
                         ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local(dir)
                      ENDIF
                      ! distributed grid, only map if it is local to the grid
-                     location(dir) = tp(dir)+rs_rho(igrid_level)%rs_grid%desc%lb(dir)
+                     location(dir) = tp(dir) + rs_rho(igrid_level)%rs_grid%desc%lb(dir)
                   ENDDO
                   IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                       lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
@@ -2558,14 +2558,14 @@ CONTAINS
                IF (map_it_here) CALL collocate_pgf_product_rspace( &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   0, 0.0_dp, 0, &
-                  ra, rab, rab2, scale, pab, na1-1, 0, &
+                  ra, rab, rab2, scale, pab, na1 - 1, 0, &
                   rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                   eps_rho_rspace, map_consistent=.TRUE., ga_gb_function=FUNC_AB, &
                   lmax_global=lmax_global)
 
             END DO
 
-            offset = offset+nsgfa(iset)
+            offset = offset + nsgfa(iset)
 
          END DO
 
@@ -2693,8 +2693,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: map
       REAL(kind=dp) :: p_ele
       REAL(kind=dp), DIMENSION(0:lmax_global*2, 0:lmax_global, 0:lmax_global, 3) :: alpha
-      REAL(kind=dp), DIMENSION(((lmax_global*2+1)*(lmax_global*2+2)*(lmax_global*2+3))/6) :: coef_xyz
-      REAL(kind=dp), DIMENSION(((lmax_global*2+1)*(lmax_global*2+2))/2) :: coef_xyt
+      REAL(kind=dp), DIMENSION(((lmax_global*2 + 1)*(lmax_global*2 + 2)*(lmax_global*2 + 3))/6) :: coef_xyz
+      REAL(kind=dp), DIMENSION(((lmax_global*2 + 1)*(lmax_global*2 + 2))/2) :: coef_xyt
       REAL(kind=dp), DIMENSION(0:lmax_global*2) :: coef_xtt
 
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :, :) :: pol_z
@@ -2732,12 +2732,12 @@ CONTAINS
          my_collocate_rho0 = .FALSE.
       END IF
 
-      zetp = zeta+zetb
+      zetp = zeta + zetb
       f = zetb/zetp
       rap(:) = f*rab(:)
-      rbp(:) = rap(:)-rab(:)
-      rp(:) = ra(:)+rap(:)
-      rb(:) = ra(:)+rab(:)
+      rbp(:) = rap(:) - rab(:)
+      rp(:) = ra(:) + rap(:)
+      rb(:) = ra(:) + rab(:)
 
       ! check to avoid overflows
       a = MAXVAL(ABS(rsgrid%desc%dh))
@@ -2771,10 +2771,10 @@ CONTAINS
       ! this way we get the same radius as we use for the corresponding density
       SELECT CASE (ga_gb_function)
       CASE (FUNC_DADB)
-         la_max_local = la_max+1
-         la_min_local = MAX(la_min-1, 0)
-         lb_max_local = lb_max+1
-         lb_min_local = MAX(lb_min-1, 0)
+         la_max_local = la_max + 1
+         la_min_local = MAX(la_min - 1, 0)
+         lb_max_local = lb_max + 1
+         lb_min_local = MAX(lb_min - 1, 0)
          ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
          ! is equivalent to mapping pab with 0.5 * (nabla pgf_a) . (nabla pgf_b)
          ! (ddx pgf_a ) (ddx pgf_b) = (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x})*(lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x})
@@ -2783,10 +2783,10 @@ CONTAINS
          pab_local = 0.0_dp
          DO lxa = 0, la_max
          DO lxb = 0, lb_max
-            DO lya = 0, la_max-lxa
-            DO lyb = 0, lb_max-lxb
-               DO lza = MAX(la_min-lxa-lya, 0), la_max-lxa-lya
-               DO lzb = MAX(lb_min-lxb-lyb, 0), lb_max-lxb-lyb
+            DO lya = 0, la_max - lxa
+            DO lyb = 0, lb_max - lxb
+               DO lza = MAX(la_min - lxa - lya, 0), la_max - lxa - lya
+               DO lzb = MAX(lb_min - lxb - lyb, 0), lb_max - lxb - lyb
 
                   ! this element of pab results in 12 elements of pab_local
                   CALL prepare_dadb(pab_local, pab, lxa, lya, lza, lxb, lyb, lzb, o1, o2, zeta, zetb)
@@ -2802,10 +2802,10 @@ CONTAINS
          pab_local = pab_local*0.5_dp
       CASE (FUNC_ADBmDAB)
          CPASSERT(PRESENT(idir))
-         la_max_local = la_max+1
-         la_min_local = MAX(la_min-1, 0)
-         lb_max_local = lb_max+1
-         lb_min_local = MAX(lb_min-1, 0)
+         la_max_local = la_max + 1
+         la_min_local = MAX(la_min - 1, 0)
+         lb_max_local = lb_max + 1
+         lb_min_local = MAX(lb_min - 1, 0)
          ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
          ! is equivalent to mapping pab with
          !    pgf_a (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) pgf_b
@@ -2817,10 +2817,10 @@ CONTAINS
          pab_local = 0.0_dp
          DO lxa = 0, la_max
          DO lxb = 0, lb_max
-            DO lya = 0, la_max-lxa
-            DO lyb = 0, lb_max-lxb
-               DO lza = MAX(la_min-lxa-lya, 0), la_max-lxa-lya
-               DO lzb = MAX(lb_min-lxb-lyb, 0), lb_max-lxb-lyb
+            DO lya = 0, la_max - lxa
+            DO lyb = 0, lb_max - lxb
+               DO lza = MAX(la_min - lxa - lya, 0), la_max - lxa - lya
+               DO lzb = MAX(lb_min - lxb - lyb, 0), lb_max - lxb - lyb
                   ! this element of pab results in 4 elements of pab_local
                   CALL prepare_adb_m_dab(pab_local, pab, idir, &
                                          lxa, lya, lza, lxb, lyb, lzb, o1, o2, zeta, zetb)
@@ -2834,10 +2834,10 @@ CONTAINS
          o2_local = 0
       CASE (FUNC_DABpADB)
          CPASSERT(PRESENT(idir))
-         la_max_local = la_max+1
-         la_min_local = MAX(la_min-1, 0)
-         lb_max_local = lb_max+1
-         lb_min_local = MAX(lb_min-1, 0)
+         la_max_local = la_max + 1
+         la_min_local = MAX(la_min - 1, 0)
+         lb_max_local = lb_max + 1
+         lb_min_local = MAX(lb_min - 1, 0)
          ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
          ! is equivalent to mapping pab with
          !    pgf_a (nabla_{idir} pgf_b) + (nabla_{idir} pgf_a) pgf_b
@@ -2849,10 +2849,10 @@ CONTAINS
          pab_local = 0.0_dp
          DO lxa = 0, la_max
          DO lxb = 0, lb_max
-            DO lya = 0, la_max-lxa
-            DO lyb = 0, lb_max-lxb
-               DO lza = MAX(la_min-lxa-lya, 0), la_max-lxa-lya
-               DO lzb = MAX(lb_min-lxb-lyb, 0), lb_max-lxb-lyb
+            DO lya = 0, la_max - lxa
+            DO lyb = 0, lb_max - lxb
+               DO lza = MAX(la_min - lxa - lya, 0), la_max - lxa - lya
+               DO lzb = MAX(lb_min - lxb - lyb, 0), lb_max - lxb - lyb
                   ! this element of pab results in 4 elements of pab_local
                   CALL prepare_dab_p_adb(pab_local, pab, idir, &
                                          lxa, lya, lza, lxb, lyb, lzb, o1, o2, zeta, zetb)
@@ -2865,11 +2865,11 @@ CONTAINS
          o1_local = 0
          o2_local = 0
       CASE (FUNC_DX, FUNC_DY, FUNC_DZ)
-         ider1 = ga_gb_function-500
-         la_max_local = la_max+1
-         la_min_local = MAX(la_min-1, 0)
-         lb_max_local = lb_max+1
-         lb_min_local = MAX(lb_min-1, 0)
+         ider1 = ga_gb_function - 500
+         la_max_local = la_max + 1
+         la_min_local = MAX(la_min - 1, 0)
+         lb_max_local = lb_max + 1
+         lb_min_local = MAX(lb_min - 1, 0)
          ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
          ! is equivalent to mapping pab with
          !   d_{ider1} pgf_a d_{ider1} pgf_b
@@ -2881,10 +2881,10 @@ CONTAINS
          pab_local = 0.0_dp
          DO lxa = 0, la_max
          DO lxb = 0, lb_max
-            DO lya = 0, la_max-lxa
-            DO lyb = 0, lb_max-lxb
-               DO lza = MAX(la_min-lxa-lya, 0), la_max-lxa-lya
-               DO lzb = MAX(lb_min-lxb-lyb, 0), lb_max-lxb-lyb
+            DO lya = 0, la_max - lxa
+            DO lyb = 0, lb_max - lxb
+               DO lza = MAX(la_min - lxa - lya, 0), la_max - lxa - lya
+               DO lzb = MAX(lb_min - lxb - lyb, 0), lb_max - lxb - lyb
                   ! this element of pab results in 4 elements of pab_local
                   CALL prepare_dIadIb(pab_local, pab, ider1, &
                                       lxa, lya, lza, lxb, lyb, lzb, o1, o2, zeta, zetb)
@@ -2897,13 +2897,13 @@ CONTAINS
          o1_local = 0
          o2_local = 0
       CASE (FUNC_DXDY, FUNC_DYDZ, FUNC_DZDX)
-         ider1 = ga_gb_function-600
-         ider2 = ga_gb_function-600+1
-         IF (ider2 > 3) ider2 = ider1-2
-         la_max_local = la_max+2
-         la_min_local = MAX(la_min-2, 0)
-         lb_max_local = lb_max+2
-         lb_min_local = MAX(lb_min-2, 0)
+         ider1 = ga_gb_function - 600
+         ider2 = ga_gb_function - 600 + 1
+         IF (ider2 > 3) ider2 = ider1 - 2
+         la_max_local = la_max + 2
+         la_min_local = MAX(la_min - 2, 0)
+         lb_max_local = lb_max + 2
+         lb_min_local = MAX(lb_min - 2, 0)
          ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
          ! is equivalent to mapping pab with
          !   d_{ider1} pgf_a d_{ider1} pgf_b
@@ -2911,10 +2911,10 @@ CONTAINS
          pab_local = 0.0_dp
          DO lxa = 0, la_max
          DO lxb = 0, lb_max
-            DO lya = 0, la_max-lxa
-            DO lyb = 0, lb_max-lxb
-               DO lza = MAX(la_min-lxa-lya, 0), la_max-lxa-lya
-               DO lzb = MAX(lb_min-lxb-lyb, 0), lb_max-lxb-lyb
+            DO lya = 0, la_max - lxa
+            DO lyb = 0, lb_max - lxb
+               DO lza = MAX(la_min - lxa - lya, 0), la_max - lxa - lya
+               DO lzb = MAX(lb_min - lxb - lyb, 0), lb_max - lxb - lyb
                   ! this element of pab results in 16 elements of pab_local
                   CALL prepare_dijadijb(pab_local, pab, ider1, ider2, &
                                         lxa, lya, lza, lxb, lyb, lzb, o1, o2, zeta, zetb)
@@ -2927,11 +2927,11 @@ CONTAINS
          o1_local = 0
          o2_local = 0
       CASE (FUNC_DXDX, FUNC_DYDY, FUNC_DZDZ)
-         ider1 = ga_gb_function-603
-         la_max_local = la_max+2
-         la_min_local = MAX(la_min-2, 0)
-         lb_max_local = lb_max+2
-         lb_min_local = MAX(lb_min-2, 0)
+         ider1 = ga_gb_function - 603
+         la_max_local = la_max + 2
+         la_min_local = MAX(la_min - 2, 0)
+         lb_max_local = lb_max + 2
+         lb_min_local = MAX(lb_min - 2, 0)
          ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
          ! is equivalent to mapping pab with
          !   dd_{ider1} pgf_a dd_{ider1} pgf_b
@@ -2940,10 +2940,10 @@ CONTAINS
          pab_local = 0.0_dp
          DO lxa = 0, la_max
          DO lxb = 0, lb_max
-            DO lya = 0, la_max-lxa
-            DO lyb = 0, lb_max-lxb
-               DO lza = MAX(la_min-lxa-lya, 0), la_max-lxa-lya
-               DO lzb = MAX(lb_min-lxb-lyb, 0), lb_max-lxb-lyb
+            DO lya = 0, la_max - lxa
+            DO lyb = 0, lb_max - lxb
+               DO lza = MAX(la_min - lxa - lya, 0), la_max - lxa - lya
+               DO lzb = MAX(lb_min - lxb - lyb, 0), lb_max - lxb - lyb
                   ! this element of pab results in 9 elements of pab_local
                   CALL prepare_diiadiib(pab_local, pab, ider1, &
                                         lxa, lya, lza, lxb, lyb, lzb, o1, o2, zeta, zetb)
@@ -2958,10 +2958,10 @@ CONTAINS
       CASE (FUNC_ARDBmDARB)
          CPASSERT(PRESENT(idir))
          CPASSERT(PRESENT(ir))
-         la_max_local = la_max+1
-         la_min_local = MAX(la_min-1, 0)
-         lb_max_local = lb_max+2
-         lb_min_local = MAX(lb_min-1, 0)
+         la_max_local = la_max + 1
+         la_min_local = MAX(la_min - 1, 0)
+         lb_max_local = lb_max + 2
+         lb_min_local = MAX(lb_min - 1, 0)
          ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
          ! is equivalent to mapping pab with
          ! pgf_a (r-Rb)_{ir} (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) (r-Rb)_{ir}  pgf_b
@@ -2973,10 +2973,10 @@ CONTAINS
          pab_local = 0.0_dp
          DO lxa = 0, la_max
          DO lxb = 0, lb_max
-            DO lya = 0, la_max-lxa
-            DO lyb = 0, lb_max-lxb
-               DO lza = MAX(la_min-lxa-lya, 0), la_max-lxa-lya
-               DO lzb = MAX(lb_min-lxb-lyb, 0), lb_max-lxb-lyb
+            DO lya = 0, la_max - lxa
+            DO lyb = 0, lb_max - lxb
+               DO lza = MAX(la_min - lxa - lya, 0), la_max - lxa - lya
+               DO lzb = MAX(lb_min - lxb - lyb, 0), lb_max - lxb - lyb
 
                   ! this element of pab results in 4 elements of pab_local
                   CALL prepare_ardb_m_darb(pab_local, pab, idir, ir, &
@@ -2993,7 +2993,7 @@ CONTAINS
          CPASSERT(PRESENT(ir))
          la_max_local = la_max
          la_min_local = la_min
-         lb_max_local = lb_max+1
+         lb_max_local = lb_max + 1
          lb_min_local = lb_min
          ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
          ! is equivalent to mapping pab with
@@ -3002,10 +3002,10 @@ CONTAINS
          pab_local = 0.0_dp
          DO lxa = 0, la_max
          DO lxb = 0, lb_max
-            DO lya = 0, la_max-lxa
-            DO lyb = 0, lb_max-lxb
-               DO lza = MAX(la_min-lxa-lya, 0), la_max-lxa-lya
-               DO lzb = MAX(lb_min-lxb-lyb, 0), lb_max-lxb-lyb
+            DO lya = 0, la_max - lxa
+            DO lyb = 0, lb_max - lxb
+               DO lza = MAX(la_min - lxa - lya, 0), la_max - lxa - lya
+               DO lzb = MAX(lb_min - lxb - lyb, 0), lb_max - lxb - lyb
                   ! this element of pab results in 4 elements of pab_local
                   CALL prepare_arb(pab_local, pab, ir, lxa, lya, lza, lxb, lyb, lzb, o1, o2)
                END DO
@@ -3055,7 +3055,7 @@ CONTAINS
 !   where p is center of the product gaussian, and lp = la_max + lb_max
 !   (current implementation is l**7)
 !
-      lp = la_max_local+lb_max_local
+      lp = la_max_local + lb_max_local
 !
 !   compute polynomial expansion coefs -> (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
 !
@@ -3070,13 +3070,13 @@ CONTAINS
             binomial_l_lxb = 1.0_dp
             b = 1.0_dp
             DO l = 0, lxb
-               alpha(lxa-l+lxb-k, lxa, lxb, iaxis) = alpha(lxa-l+lxb-k, lxa, lxb, iaxis)+ &
-                                                     binomial_k_lxa*binomial_l_lxb*a*b
-               binomial_l_lxb = binomial_l_lxb*REAL(lxb-l, dp)/REAL(l+1, dp)
-               b = b*(rp(iaxis)-(ra(iaxis)+rab(iaxis)))
+               alpha(lxa - l + lxb - k, lxa, lxb, iaxis) = alpha(lxa - l + lxb - k, lxa, lxb, iaxis) + &
+                                                           binomial_k_lxa*binomial_l_lxb*a*b
+               binomial_l_lxb = binomial_l_lxb*REAL(lxb - l, dp)/REAL(l + 1, dp)
+               b = b*(rp(iaxis) - (ra(iaxis) + rab(iaxis)))
             ENDDO
-            binomial_k_lxa = binomial_k_lxa*REAL(lxa-k, dp)/REAL(k+1, dp)
-            a = a*(-ra(iaxis)+rp(iaxis))
+            binomial_k_lxa = binomial_k_lxa*REAL(lxa - k, dp)/REAL(k + 1, dp)
+            a = a*(-ra(iaxis) + rp(iaxis))
          ENDDO
       ENDDO
       ENDDO
@@ -3089,9 +3089,9 @@ CONTAINS
 !
       lxyz = 0
       DO lzp = 0, lp
-      DO lyp = 0, lp-lzp
-      DO lxp = 0, lp-lzp-lyp
-         lxyz = lxyz+1
+      DO lyp = 0, lp - lzp
+      DO lxp = 0, lp - lzp - lyp
+         lxyz = lxyz + 1
          coef_xyz(lxyz) = 0.0_dp
       ENDDO
       ENDDO
@@ -3099,50 +3099,50 @@ CONTAINS
       DO lzb = 0, lb_max_local
       DO lza = 0, la_max_local
          lxy = 0
-         DO lyp = 0, lp-lza-lzb
-            DO lxp = 0, lp-lza-lzb-lyp
-               lxy = lxy+1
+         DO lyp = 0, lp - lza - lzb
+            DO lxp = 0, lp - lza - lzb - lyp
+               lxy = lxy + 1
                coef_xyt(lxy) = 0.0_dp
             ENDDO
-            lxy = lxy+lza+lzb
+            lxy = lxy + lza + lzb
          ENDDO
-         DO lyb = 0, lb_max_local-lzb
-         DO lya = 0, la_max_local-lza
-            lxpm = (lb_max_local-lzb-lyb)+(la_max_local-lza-lya)
+         DO lyb = 0, lb_max_local - lzb
+         DO lya = 0, la_max_local - lza
+            lxpm = (lb_max_local - lzb - lyb) + (la_max_local - lza - lya)
             coef_xtt(0:lxpm) = 0.0_dp
-            DO lxb = MAX(lb_min_local-lzb-lyb, 0), lb_max_local-lzb-lyb
-            DO lxa = MAX(la_min_local-lza-lya, 0), la_max_local-lza-lya
+            DO lxb = MAX(lb_min_local - lzb - lyb, 0), lb_max_local - lzb - lyb
+            DO lxa = MAX(la_min_local - lza - lya, 0), la_max_local - lza - lya
                ico = coset(lxa, lya, lza)
                jco = coset(lxb, lyb, lzb)
-               p_ele = prefactor*pab_local(o1_local+ico, o2_local+jco)
-               DO lxp = 0, lxa+lxb
-                  coef_xtt(lxp) = coef_xtt(lxp)+p_ele*alpha(lxp, lxa, lxb, 1)
+               p_ele = prefactor*pab_local(o1_local + ico, o2_local + jco)
+               DO lxp = 0, lxa + lxb
+                  coef_xtt(lxp) = coef_xtt(lxp) + p_ele*alpha(lxp, lxa, lxb, 1)
                ENDDO
             ENDDO
             ENDDO
             lxy = 0
-            DO lyp = 0, lya+lyb
-               DO lxp = 0, lp-lza-lzb-lya-lyb
-                  lxy = lxy+1
-                  coef_xyt(lxy) = coef_xyt(lxy)+alpha(lyp, lya, lyb, 2)*coef_xtt(lxp)
+            DO lyp = 0, lya + lyb
+               DO lxp = 0, lp - lza - lzb - lya - lyb
+                  lxy = lxy + 1
+                  coef_xyt(lxy) = coef_xyt(lxy) + alpha(lyp, lya, lyb, 2)*coef_xtt(lxp)
                ENDDO
-               lxy = lxy+lza+lzb+lya+lyb-lyp
+               lxy = lxy + lza + lzb + lya + lyb - lyp
             ENDDO
          ENDDO
          ENDDO
          lxyz = 0
-         DO lzp = 0, lza+lzb
+         DO lzp = 0, lza + lzb
             lxy = 0
-            DO lyp = 0, lp-lza-lzb
-               DO lxp = 0, lp-lza-lzb-lyp
-                  lxy = lxy+1; lxyz = lxyz+1
-                  coef_xyz(lxyz) = coef_xyz(lxyz)+alpha(lzp, lza, lzb, 3)*coef_xyt(lxy)
+            DO lyp = 0, lp - lza - lzb
+               DO lxp = 0, lp - lza - lzb - lyp
+                  lxy = lxy + 1; lxyz = lxyz + 1
+                  coef_xyz(lxyz) = coef_xyz(lxyz) + alpha(lzp, lza, lzb, 3)*coef_xyt(lxy)
                ENDDO
-               lxy = lxy+lza+lzb; lxyz = lxyz+lza+lzb-lzp
+               lxy = lxy + lza + lzb; lxyz = lxyz + lza + lzb - lzp
             ENDDO
-            DO lyp = lp-lza-lzb+1, lp-lzp
-               DO lxp = 0, lp-lyp-lzp
-                  lxyz = lxyz+1
+            DO lyp = lp - lza - lzb + 1, lp - lzp
+               DO lxp = 0, lp - lyp - lzp
+                  lxyz = lxyz + 1
                ENDDO
             ENDDO
          ENDDO
@@ -3196,29 +3196,29 @@ CONTAINS
 
          ALLOCATE (map(-cmax:cmax, 3))
          CALL compute_cube_center(cubecenter, rsgrid%desc, zeta, zetb, ra, rab)
-         roffset(:) = rp(:)-REAL(cubecenter(:), dp)*dr(:)
+         roffset(:) = rp(:) - REAL(cubecenter(:), dp)*dr(:)
 !   *** a mapping so that the ig corresponds to the right grid point
          DO i = 1, 3
             IF (rsgrid%desc%perd(i) == 1) THEN
                start = lb_cube(i)
                DO
-                  offset = MODULO(cubecenter(i)+start, ng(i))+1-start
-                  length = MIN(ub_cube(i), ng(i)-offset)-start
-                  DO ig = start, start+length
-                     map(ig, i) = ig+offset
+                  offset = MODULO(cubecenter(i) + start, ng(i)) + 1 - start
+                  length = MIN(ub_cube(i), ng(i) - offset) - start
+                  DO ig = start, start + length
+                     map(ig, i) = ig + offset
                   END DO
-                  IF (start+length .GE. ub_cube(i)) EXIT
-                  start = start+length+1
+                  IF (start + length .GE. ub_cube(i)) EXIT
+                  start = start + length + 1
                END DO
             ELSE
                ! this takes partial grid + border regions into account
-               offset = MODULO(cubecenter(i)+lb_cube(i)+rsgrid%desc%lb(i)-rsgrid%lb_local(i), ng(i))+1-lb_cube(i)
+               offset = MODULO(cubecenter(i) + lb_cube(i) + rsgrid%desc%lb(i) - rsgrid%lb_local(i), ng(i)) + 1 - lb_cube(i)
                ! check for out of bounds
-               IF (ub_cube(i)+offset > UBOUND(grid, i) .OR. lb_cube(i)+offset < LBOUND(grid, i)) THEN
+               IF (ub_cube(i) + offset > UBOUND(grid, i) .OR. lb_cube(i) + offset < LBOUND(grid, i)) THEN
                   CPASSERT(.FALSE.)
                ENDIF
                DO ig = lb_cube(i), ub_cube(i)
-                  map(ig, i) = ig+offset
+                  map(ig, i) = ig + offset
                END DO
             END IF
          ENDDO
@@ -3262,41 +3262,41 @@ CONTAINS
          !
          sci = 1
          kgmin = sphere_bounds(sci)
-         sci = sci+1
+         sci = sci + 1
          DO kg = kgmin, 0
-            kg2 = 1-kg
+            kg2 = 1 - kg
             k = map(kg, 3)
             k2 = map(kg2, 3)
             jgmin = sphere_bounds(sci)
-            sci = sci+1
-            z = (REAL(kg, dp)+REAL(cubecenter(3), dp))*dr(3)
-            z2 = (REAL(kg2, dp)+REAL(cubecenter(3), dp))*dr(3)
+            sci = sci + 1
+            z = (REAL(kg, dp) + REAL(cubecenter(3), dp))*dr(3)
+            z2 = (REAL(kg2, dp) + REAL(cubecenter(3), dp))*dr(3)
             DO jg = jgmin, 0
-               jg2 = 1-jg
+               jg2 = 1 - jg
                j = map(jg, 2)
                j2 = map(jg2, 2)
                igmin = sphere_bounds(sci)
-               sci = sci+1
-               igmax = 1-igmin
-               y = (REAL(jg, dp)+REAL(cubecenter(2), dp))*dr(2)
-               y2 = (REAL(jg2, dp)+REAL(cubecenter(2), dp))*dr(2)
+               sci = sci + 1
+               igmax = 1 - igmin
+               y = (REAL(jg, dp) + REAL(cubecenter(2), dp))*dr(2)
+               y2 = (REAL(jg2, dp) + REAL(cubecenter(2), dp))*dr(2)
                DO ig = igmin, igmax
                   i = map(ig, 1)
-                  x = (REAL(ig, dp)+REAL(cubecenter(1), dp))*dr(1)
+                  x = (REAL(ig, dp) + REAL(cubecenter(1), dp))*dr(1)
                   point(1, 1) = x; point(2, 1) = y; point(3, 1) = z
                   point(1, 2) = x; point(2, 2) = y2; point(3, 2) = z
                   point(1, 3) = x; point(2, 3) = y; point(3, 3) = z2
                   point(1, 4) = x; point(2, 4) = y2; point(3, 4) = z2
                   !
-                  res(1) = (point(ir, 1)-rb(ir))-gauge(i, j, k)
-                  res(2) = (point(ir, 2)-rb(ir))-gauge(i, j2, k)
-                  res(3) = (point(ir, 3)-rb(ir))-gauge(i, j, k2)
-                  res(4) = (point(ir, 4)-rb(ir))-gauge(i, j2, k2)
+                  res(1) = (point(ir, 1) - rb(ir)) - gauge(i, j, k)
+                  res(2) = (point(ir, 2) - rb(ir)) - gauge(i, j2, k)
+                  res(3) = (point(ir, 3) - rb(ir)) - gauge(i, j, k2)
+                  res(4) = (point(ir, 4) - rb(ir)) - gauge(i, j2, k2)
                   !
-                  grid_tmp(i, j, k) = grid_tmp(i, j, k)+grid(i, j, k)*res(1)
-                  grid_tmp(i, j2, k) = grid_tmp(i, j2, k)+grid(i, j2, k)*res(2)
-                  grid_tmp(i, j, k2) = grid_tmp(i, j, k2)+grid(i, j, k2)*res(3)
-                  grid_tmp(i, j2, k2) = grid_tmp(i, j2, k2)+grid(i, j2, k2)*res(4)
+                  grid_tmp(i, j, k) = grid_tmp(i, j, k) + grid(i, j, k)*res(1)
+                  grid_tmp(i, j2, k) = grid_tmp(i, j2, k) + grid(i, j2, k)*res(2)
+                  grid_tmp(i, j, k2) = grid_tmp(i, j, k2) + grid(i, j, k2)*res(3)
+                  grid_tmp(i, j2, k2) = grid_tmp(i, j2, k2) + grid(i, j2, k2)*res(4)
                ENDDO
             ENDDO
          ENDDO
@@ -3317,20 +3317,20 @@ CONTAINS
          !
          sci = 1
          kgmin = sphere_bounds(sci)
-         sci = sci+1
+         sci = sci + 1
          DO kg = kgmin, 0
-            kg2 = 1-kg
+            kg2 = 1 - kg
             k = map(kg, 3)
             k2 = map(kg2, 3)
             jgmin = sphere_bounds(sci)
-            sci = sci+1
+            sci = sci + 1
             DO jg = jgmin, 0
-               jg2 = 1-jg
+               jg2 = 1 - jg
                j = map(jg, 2)
                j2 = map(jg2, 2)
                igmin = sphere_bounds(sci)
-               sci = sci+1
-               igmax = 1-igmin
+               sci = sci + 1
+               igmax = 1 - igmin
                DO ig = igmin, igmax
                   i = map(ig, 1)
                   grid(i, j, k) = 0.0_dp
@@ -3368,16 +3368,16 @@ CONTAINS
 ! sum_{lip,ljp,lkp} P_{lip,ljp,lkp} (i-i_p)**lip (j-j_p)**ljp (k-k_p)**lkp
 !
 
-         ALLOCATE (coef_ijk(((lp+1)*(lp+2)*(lp+3))/6))
+         ALLOCATE (coef_ijk(((lp + 1)*(lp + 2)*(lp + 3))/6))
 
          ! aux mapping array to simplify life
          ALLOCATE (coef_map(0:lp, 0:lp, 0:lp))
          coef_map = HUGE(coef_map)
          lxyz = 0
          DO lzp = 0, lp
-         DO lyp = 0, lp-lzp
-         DO lxp = 0, lp-lzp-lyp
-            lxyz = lxyz+1
+         DO lyp = 0, lp - lzp
+         DO lxp = 0, lp - lzp - lyp
+            lxyz = lxyz + 1
             coef_ijk(lxyz) = 0.0_dp
             coef_map(lxp, lyp, lzp) = lxyz
          ENDDO
@@ -3395,30 +3395,30 @@ CONTAINS
          ALLOCATE (hmatgridp(3, 3, 0:lp))
          hmatgridp(:, :, 0) = 1.0_dp
          DO k = 1, lp
-            hmatgridp(:, :, k) = hmatgridp(:, :, k-1)*hmatgrid(:, :)
+            hmatgridp(:, :, k) = hmatgridp(:, :, k - 1)*hmatgrid(:, :)
          ENDDO
 
          lpx = lp
          DO klx = 0, lpx
-         DO jlx = 0, lpx-klx
-         DO ilx = 0, lpx-klx-jlx
-            lx = ilx+jlx+klx
-            lpy = lp-lx
+         DO jlx = 0, lpx - klx
+         DO ilx = 0, lpx - klx - jlx
+            lx = ilx + jlx + klx
+            lpy = lp - lx
             DO kly = 0, lpy
-            DO jly = 0, lpy-kly
-            DO ily = 0, lpy-kly-jly
-               ly = ily+jly+kly
-               lpz = lp-lx-ly
+            DO jly = 0, lpy - kly
+            DO ily = 0, lpy - kly - jly
+               ly = ily + jly + kly
+               lpz = lp - lx - ly
                DO klz = 0, lpz
-               DO jlz = 0, lpz-klz
-               DO ilz = 0, lpz-klz-jlz
-                  lz = ilz+jlz+klz
+               DO jlz = 0, lpz - klz
+               DO ilz = 0, lpz - klz - jlz
+                  lz = ilz + jlz + klz
 
-                  il = ilx+ily+ilz
-                  jl = jlx+jly+jlz
-                  kl = klx+kly+klz
+                  il = ilx + ily + ilz
+                  jl = jlx + jly + jlz
+                  kl = klx + kly + klz
                   coef_ijk(coef_map(il, jl, kl)) = &
-                     coef_ijk(coef_map(il, jl, kl))+coef_xyz(coef_map(lx, ly, lz))* &
+                     coef_ijk(coef_map(il, jl, kl)) + coef_xyz(coef_map(lx, ly, lz))* &
                      hmatgridp(1, 1, ilx)*hmatgridp(1, 2, jlx)*hmatgridp(1, 3, klx)* &
                      hmatgridp(2, 1, ily)*hmatgridp(2, 2, jly)*hmatgridp(2, 3, kly)* &
                      hmatgridp(3, 1, ilz)*hmatgridp(3, 2, jlz)*hmatgridp(3, 3, klz)* &
@@ -3436,27 +3436,27 @@ CONTAINS
 
          CALL return_cube_nonortho(cube_info, radius, index_min, index_max, rp)
 
-         offset(:) = MODULO(index_min(:)+rsgrid%desc%lb(:)-rsgrid%lb_local(:), ng(:))+1
+         offset(:) = MODULO(index_min(:) + rsgrid%desc%lb(:) - rsgrid%lb_local(:), ng(:)) + 1
 
          ALLOCATE (grid_map(index_min(1):index_max(1)))
          DO i = index_min(1), index_max(1)
-            grid_map(i) = MODULO(i, ng(1))+1
+            grid_map(i) = MODULO(i, ng(1)) + 1
             IF (rsgrid%desc%perd(1) == 1) THEN
-               grid_map(i) = MODULO(i, ng(1))+1
+               grid_map(i) = MODULO(i, ng(1)) + 1
             ELSE
-               grid_map(i) = i-index_min(1)+offset(1)
+               grid_map(i) = i - index_min(1) + offset(1)
             ENDIF
          ENDDO
 
          ! go over the grid, but cycle if the point is not within the radius
          DO k = index_min(3), index_max(3)
-            dk = k-gp(3)
+            dk = k - gp(3)
             pointk = hmatgrid(:, 3)*dk
 
             IF (rsgrid%desc%perd(3) == 1) THEN
-               k_index = MODULO(k, ng(3))+1
+               k_index = MODULO(k, ng(3)) + 1
             ELSE
-               k_index = k-index_min(3)+offset(3)
+               k_index = k - index_min(3) + offset(3)
             ENDIF
 
             coef_xyt = 0.0_dp
@@ -3464,32 +3464,32 @@ CONTAINS
             dkp = 1.0_dp
             DO kl = 0, lp
                lxy = 0
-               DO jl = 0, lp-kl
-                  DO il = 0, lp-kl-jl
-                     lxyz = lxyz+1; lxy = lxy+1
-                     coef_xyt(lxy) = coef_xyt(lxy)+coef_ijk(lxyz)*dkp
+               DO jl = 0, lp - kl
+                  DO il = 0, lp - kl - jl
+                     lxyz = lxyz + 1; lxy = lxy + 1
+                     coef_xyt(lxy) = coef_xyt(lxy) + coef_ijk(lxyz)*dkp
                   ENDDO
-                  lxy = lxy+kl
+                  lxy = lxy + kl
                ENDDO
                dkp = dkp*dk
             ENDDO
 
             DO j = index_min(2), index_max(2)
-               dj = j-gp(2)
-               pointj = pointk+hmatgrid(:, 2)*dj
+               dj = j - gp(2)
+               pointj = pointk + hmatgrid(:, 2)*dj
                IF (rsgrid%desc%perd(2) == 1) THEN
-                  j_index = MODULO(j, ng(2))+1
+                  j_index = MODULO(j, ng(2)) + 1
                ELSE
-                  j_index = j-index_min(2)+offset(2)
+                  j_index = j - index_min(2) + offset(2)
                ENDIF
 
                coef_xtt = 0.0_dp
                lxy = 0
                djp = 1.0_dp
                DO jl = 0, lp
-                  DO il = 0, lp-jl
-                     lxy = lxy+1
-                     coef_xtt(il) = coef_xtt(il)+coef_xyt(lxy)*djp
+                  DO il = 0, lp - jl
+                     lxy = lxy + 1
+                     coef_xtt(il) = coef_xtt(il) + coef_xyt(lxy)*djp
                   ENDDO
                   djp = djp*dj
                ENDDO
@@ -3497,40 +3497,40 @@ CONTAINS
                ! find bounds for the inner loop
                ! based on a quadratic equation in i
                ! a*i**2+b*i+c=radius**2
-               v = pointj-gp(1)*hmatgrid(:, 1)
+               v = pointj - gp(1)*hmatgrid(:, 1)
                a = DOT_PRODUCT(hmatgrid(:, 1), hmatgrid(:, 1))
                b = 2*DOT_PRODUCT(v, hmatgrid(:, 1))
                c = DOT_PRODUCT(v, v)
-               d = b*b-4*a*(c-radius**2)
+               d = b*b - 4*a*(c - radius**2)
 
                IF (d < 0) THEN
                   CYCLE
                ELSE
                   d = SQRT(d)
-                  ismin = CEILING((-b-d)/(2*a))
-                  ismax = FLOOR((-b+d)/(2*a))
+                  ismin = CEILING((-b - d)/(2*a))
+                  ismax = FLOOR((-b + d)/(2*a))
                ENDIF
                ! prepare for computing -zetp*rsq
                a = -zetp*a
                b = -zetp*b
                c = -zetp*c
-               i = ismin-1
+               i = ismin - 1
 
                ! the recursion relation might have to be done
                ! from the center of the gaussian (in both directions)
                ! instead as the current implementation from an edge
-               exp2i = EXP((a*i+b)*i+c)
-               exp1i = EXP(2*a*i+a+b)
+               exp2i = EXP((a*i + b)*i + c)
+               exp1i = EXP(2*a*i + a + b)
                exp0i = EXP(2*a)
 
                DO i = ismin, ismax
-                  di = i-gp(1)
+                  di = i - gp(1)
 
                   ! polynomial terms
                   res = 0.0_dp
                   dip = 1.0_dp
                   DO il = 0, lp
-                     res = res+coef_xtt(il)*dip
+                     res = res + coef_xtt(il)*dip
                      dip = dip*di
                   ENDDO
 
@@ -3541,10 +3541,10 @@ CONTAINS
 
                   i_index = grid_map(i)
                   IF (PRESENT(lgrid)) THEN
-                     ig = (k_index-1)*ng(2)*ng(1)+(j_index-1)*ng(1)+(i_index-1)+1
-                     lgrid%r(ig, ithread_l) = lgrid%r(ig, ithread_l)+res
+                     ig = (k_index - 1)*ng(2)*ng(1) + (j_index - 1)*ng(1) + (i_index - 1) + 1
+                     lgrid%r(ig, ithread_l) = lgrid%r(ig, ithread_l) + res
                   ELSE
-                     grid(i_index, j_index, k_index) = grid(i_index, j_index, k_index)+res
+                     grid(i_index, j_index, k_index) = grid(i_index, j_index, k_index) + res
                   ENDIF
                ENDDO
             ENDDO
@@ -3569,18 +3569,18 @@ CONTAINS
 
          periodic = 1 ! cell%perd
          CALL poly_cp2k2d3(coef_xyz, lp, poly_d3)
-         local_b(1, :) = rsgrid%lb_real-rsgrid%desc%lb
-         local_b(2, :) = rsgrid%ub_real-rsgrid%desc%lb
-         local_s = rsgrid%lb_real-rsgrid%lb_local
-         IF (BTEST(subpatch_pattern, 0)) local_b(1, 1) = local_b(1, 1)-rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 1)) local_b(2, 1) = local_b(2, 1)+rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 2)) local_b(1, 2) = local_b(1, 2)-rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 3)) local_b(2, 2) = local_b(2, 2)+rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 4)) local_b(1, 3) = local_b(1, 3)-rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 5)) local_b(2, 3) = local_b(2, 3)+rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 0)) local_s(1) = local_s(1)-rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 2)) local_s(2) = local_s(2)-rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 4)) local_s(3) = local_s(3)-rsgrid%desc%border
+         local_b(1, :) = rsgrid%lb_real - rsgrid%desc%lb
+         local_b(2, :) = rsgrid%ub_real - rsgrid%desc%lb
+         local_s = rsgrid%lb_real - rsgrid%lb_local
+         IF (BTEST(subpatch_pattern, 0)) local_b(1, 1) = local_b(1, 1) - rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 1)) local_b(2, 1) = local_b(2, 1) + rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 2)) local_b(1, 2) = local_b(1, 2) - rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 3)) local_b(2, 2) = local_b(2, 2) + rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 4)) local_b(1, 3) = local_b(1, 3) - rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 5)) local_b(2, 3) = local_b(2, 3) + rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 0)) local_s(1) = local_s(1) - rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 2)) local_s(2) = local_s(2) - rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 4)) local_s(3) = local_s(3) - rsgrid%desc%border
          IF (PRESENT(lgrid)) THEN
             CALL collocGauss(h=cell%hmat, h_inv=cell%h_inv, &
                              grid=grid, poly=poly_d3, alphai=zetp, posi=rp, max_r2=radius*radius, &
@@ -3607,17 +3607,17 @@ CONTAINS
          periodic = 1 ! cell%perd
          CALL poly_cp2k2d3(coef_xyz, lp, poly_d3)
          local_b(1, :) = 0
-         local_b(2, :) = MIN(rsgrid%desc%npts-1, rsgrid%ub_local-rsgrid%lb_local)
-         local_shift = REAL(rsgrid%desc%lb-rsgrid%lb_local, dp)/REAL(rsgrid%desc%npts, dp)
-         rShifted(1) = rp(1)+cell%hmat(1, 1)*local_shift(1) &
-                       +cell%hmat(1, 2)*local_shift(2) &
-                       +cell%hmat(1, 3)*local_shift(3)
-         rShifted(2) = rp(2)+cell%hmat(2, 1)*local_shift(1) &
-                       +cell%hmat(2, 2)*local_shift(2) &
-                       +cell%hmat(2, 3)*local_shift(3)
-         rShifted(3) = rp(3)+cell%hmat(3, 1)*local_shift(1) &
-                       +cell%hmat(3, 2)*local_shift(2) &
-                       +cell%hmat(3, 3)*local_shift(3)
+         local_b(2, :) = MIN(rsgrid%desc%npts - 1, rsgrid%ub_local - rsgrid%lb_local)
+         local_shift = REAL(rsgrid%desc%lb - rsgrid%lb_local, dp)/REAL(rsgrid%desc%npts, dp)
+         rShifted(1) = rp(1) + cell%hmat(1, 1)*local_shift(1) &
+                       + cell%hmat(1, 2)*local_shift(2) &
+                       + cell%hmat(1, 3)*local_shift(3)
+         rShifted(2) = rp(2) + cell%hmat(2, 1)*local_shift(1) &
+                       + cell%hmat(2, 2)*local_shift(2) &
+                       + cell%hmat(2, 3)*local_shift(3)
+         rShifted(3) = rp(3) + cell%hmat(3, 1)*local_shift(1) &
+                       + cell%hmat(3, 2)*local_shift(2) &
+                       + cell%hmat(3, 3)*local_shift(3)
          IF (PRESENT(lgrid)) THEN
             CALL collocGauss(h=cell%hmat, h_inv=cell%h_inv, &
                              grid=grid, poly=poly_d3, alphai=zetp, posi=rShifted, max_r2=radius*radius, &
@@ -3661,15 +3661,15 @@ CONTAINS
             ! primitive_value of point
             primpt = primitive_value(point)
             ! skip if outside of the sphere
-            IF (SUM((point-rp)**2) > radius**2) CYCLE
+            IF (SUM((point - rp)**2) > radius**2) CYCLE
             ! point on the grid (including pbc)
-            ipoint = MODULO((/i, j, k/), ng)+1
+            ipoint = MODULO((/i, j, k/), ng) + 1
             ! add to grid
             IF (PRESENT(lgrid)) THEN
-               ig = ipoint(3)*ng(2)*ng(1)+ipoint(2)*ng(1)+ipoint(1)+1
-               lgrid%r(ig, ithread_l) = lgrid%r(ig, ithread_l)+primpt
+               ig = ipoint(3)*ng(2)*ng(1) + ipoint(2)*ng(1) + ipoint(1) + 1
+               lgrid%r(ig, ithread_l) = lgrid%r(ig, ithread_l) + primpt
             ELSE
-               grid(ipoint(1), ipoint(2), ipoint(3)) = grid(ipoint(1), ipoint(2), ipoint(3))+primpt
+               grid(ipoint(1), ipoint(2), ipoint(3)) = grid(ipoint(1), ipoint(2), ipoint(3)) + primpt
             ENDIF
          ENDDO
          ENDDO
@@ -3689,31 +3689,31 @@ CONTAINS
                                                             pdrap
 
          res = 0.0_dp
-         myexp = EXP(-zetp*SUM((point-rp)**2))*prefactor
-         dra = point-ra
-         drb = point-rb
+         myexp = EXP(-zetp*SUM((point - rp)**2))*prefactor
+         dra = point - ra
+         drb = point - rb
          drap(1) = 1.0_dp
          DO lxa = 0, la_max_local
             drbp(1) = 1.0_dp
             DO lxb = 0, lb_max_local
                drap(2) = 1.0_dp
-               DO lya = 0, la_max_local-lxa
+               DO lya = 0, la_max_local - lxa
                   drbp(2) = 1.0_dp
-                  DO lyb = 0, lb_max_local-lxb
+                  DO lyb = 0, lb_max_local - lxb
                      drap(3) = 1.0_dp
-                     DO lza = 1, MAX(la_min_local-lxa-lya, 0)
+                     DO lza = 1, MAX(la_min_local - lxa - lya, 0)
                         drap(3) = drap(3)*dra(3)
                      ENDDO
-                     DO lza = MAX(la_min_local-lxa-lya, 0), la_max_local-lxa-lya
+                     DO lza = MAX(la_min_local - lxa - lya, 0), la_max_local - lxa - lya
                         drbp(3) = 1.0_dp
-                        DO lzb = 1, MAX(lb_min_local-lxb-lyb, 0)
+                        DO lzb = 1, MAX(lb_min_local - lxb - lyb, 0)
                            drbp(3) = drbp(3)*drb(3)
                         ENDDO
                         ico = coset(lxa, lya, lza)
                         pdrap = PRODUCT(drap)
-                        DO lzb = MAX(lb_min_local-lxb-lyb, 0), lb_max_local-lxb-lyb
+                        DO lzb = MAX(lb_min_local - lxb - lyb, 0), lb_max_local - lxb - lyb
                            jco = coset(lxb, lyb, lzb)
-                           res = res+pab_local(ico+o1_local, jco+o2_local)*myexp*pdrap*PRODUCT(drbp)
+                           res = res + pab_local(ico + o1_local, jco + o2_local)*myexp*pdrap*PRODUCT(drbp)
                            drbp(3) = drbp(3)*drb(3)
                         ENDDO
                         drap(3) = drap(3)*dra(3)
@@ -3789,12 +3789,12 @@ CONTAINS
 
       dg(:) = twopi/(pw%pw_grid%npts(:)*pw%pw_grid%dr(:))
 
-      zetp = zeta+zetb
+      zetp = zeta + zetb
       rzetp = 1.0_dp/zetp
       f = zetb*rzetp
       rap(:) = f*rab(:)
-      rbp(:) = rap(:)-rab(:)
-      rp(:) = ra(:)+rap(:)
+      rbp(:) = rap(:) - rab(:)
+      rp(:) = ra(:) + rap(:)
       twozetp = 2.0_dp*zetp
       fap(:) = twozetp*rap(:)
       fbp(:) = twozetp*rbp(:)
@@ -3833,10 +3833,10 @@ CONTAINS
                cubeaxis(ig, i, 1, 0) = rag(ig)*cubeaxis(ig, i, 0, 0)
             END DO
             DO la = 2, la_max
-               fa = REAL(la-1, dp)*twozetp
+               fa = REAL(la - 1, dp)*twozetp
                DO ig = lb_cube(i), ub_cube(i)
-                  cubeaxis(ig, i, la, 0) = rag(ig)*cubeaxis(ig, i, la-1, 0)+ &
-                                           fa*cubeaxis(ig, i, la-2, 0)
+                  cubeaxis(ig, i, la, 0) = rag(ig)*cubeaxis(ig, i, la - 1, 0) + &
+                                           fa*cubeaxis(ig, i, la - 2, 0)
                END DO
             END DO
             IF (lb_max > 0) THEN
@@ -3844,31 +3844,31 @@ CONTAINS
                DO ig = lb_cube(i), ub_cube(i)
                   rbg(ig) = CMPLX(fbp(i), -g(ig), KIND=dp)
                   cubeaxis(ig, i, 0, 1) = rbg(ig)*cubeaxis(ig, i, 0, 0)
-                  cubeaxis(ig, i, 1, 1) = rbg(ig)*cubeaxis(ig, i, 1, 0)+ &
+                  cubeaxis(ig, i, 1, 1) = rbg(ig)*cubeaxis(ig, i, 1, 0) + &
                                           fa*cubeaxis(ig, i, 0, 0)
                END DO
                DO lb = 2, lb_max
-                  fb = REAL(lb-1, dp)*twozetp
+                  fb = REAL(lb - 1, dp)*twozetp
                   DO ig = lb_cube(i), ub_cube(i)
-                     cubeaxis(ig, i, 0, lb) = rbg(ig)*cubeaxis(ig, i, 0, lb-1)+ &
-                                              fb*cubeaxis(ig, i, 0, lb-2)
-                     cubeaxis(ig, i, 1, lb) = rbg(ig)*cubeaxis(ig, i, 1, lb-1)+ &
-                                              fb*cubeaxis(ig, i, 1, lb-2)+ &
-                                              fa*cubeaxis(ig, i, 0, lb-1)
+                     cubeaxis(ig, i, 0, lb) = rbg(ig)*cubeaxis(ig, i, 0, lb - 1) + &
+                                              fb*cubeaxis(ig, i, 0, lb - 2)
+                     cubeaxis(ig, i, 1, lb) = rbg(ig)*cubeaxis(ig, i, 1, lb - 1) + &
+                                              fb*cubeaxis(ig, i, 1, lb - 2) + &
+                                              fa*cubeaxis(ig, i, 0, lb - 1)
                   END DO
                END DO
                DO la = 2, la_max
                   fa = REAL(la, dp)*twozetp
                   DO ig = lb_cube(i), ub_cube(i)
-                     cubeaxis(ig, i, la, 1) = rbg(ig)*cubeaxis(ig, i, la, 0)+ &
-                                              fa*cubeaxis(ig, i, la-1, 0)
+                     cubeaxis(ig, i, la, 1) = rbg(ig)*cubeaxis(ig, i, la, 0) + &
+                                              fa*cubeaxis(ig, i, la - 1, 0)
                   END DO
                   DO lb = 2, lb_max
-                     fb = REAL(lb-1, dp)*twozetp
+                     fb = REAL(lb - 1, dp)*twozetp
                      DO ig = lb_cube(i), ub_cube(i)
-                        cubeaxis(ig, i, la, lb) = rbg(ig)*cubeaxis(ig, i, la, lb-1)+ &
-                                                  fb*cubeaxis(ig, i, la, lb-2)+ &
-                                                  fa*cubeaxis(ig, i, la-1, lb-1)
+                        cubeaxis(ig, i, la, lb) = rbg(ig)*cubeaxis(ig, i, la, lb - 1) + &
+                                                  fb*cubeaxis(ig, i, la, lb - 2) + &
+                                                  fa*cubeaxis(ig, i, la - 1, lb - 1)
                      END DO
                   END DO
                END DO
@@ -3881,10 +3881,10 @@ CONTAINS
                   cubeaxis(ig, i, 0, 1) = rbg(ig)*cubeaxis(ig, i, 0, 0)
                END DO
                DO lb = 2, lb_max
-                  fb = REAL(lb-1, dp)*twozetp
+                  fb = REAL(lb - 1, dp)*twozetp
                   DO ig = lb_cube(i), ub_cube(i)
-                     cubeaxis(ig, i, 0, lb) = rbg(ig)*cubeaxis(ig, i, 0, lb-1)+ &
-                                              fb*cubeaxis(ig, i, 0, lb-2)
+                     cubeaxis(ig, i, 0, lb) = rbg(ig)*cubeaxis(ig, i, 0, lb - 1) + &
+                                              fb*cubeaxis(ig, i, 0, lb - 2)
                   END DO
                END DO
             END IF
@@ -3894,8 +3894,8 @@ CONTAINS
 
       DO la = 0, la_max
          DO lb = 0, lb_max
-            IF (la+lb == 0) CYCLE
-            fa = (1.0_dp/twozetp)**(la+lb)
+            IF (la + lb == 0) CYCLE
+            fa = (1.0_dp/twozetp)**(la + lb)
             DO i = 1, 3
                DO ig = lb_cube(i), ub_cube(i)
                   cubeaxis(ig, i, la, lb) = fa*cubeaxis(ig, i, la, lb)
@@ -3906,15 +3906,15 @@ CONTAINS
 
       ! Add the current primitive Gaussian function product to grid
 
-      DO ico = ncoset(la_min-1)+1, ncoset(la_max)
+      DO ico = ncoset(la_min - 1) + 1, ncoset(la_max)
 
          ax = indco(1, ico)
          ay = indco(2, ico)
          az = indco(3, ico)
 
-         DO jco = ncoset(lb_min-1)+1, ncoset(lb_max)
+         DO jco = ncoset(lb_min - 1) + 1, ncoset(lb_max)
 
-            pij = prefactor*pab(na+ico, nb+jco)
+            pij = prefactor*pab(na + ico, nb + jco)
 
             IF (ABS(pij) < eps_rho_gspace) CYCLE
 
@@ -3927,7 +3927,7 @@ CONTAINS
                ig = pw%pw_grid%g_hat(1, i)
                jg = pw%pw_grid%g_hat(2, i)
                kg = pw%pw_grid%g_hat(3, i)
-               pw%cc(i) = pw%cc(i)+pij*cubeaxis(ig, 1, ax, bx)* &
+               pw%cc(i) = pw%cc(i) + pij*cubeaxis(ig, 1, ax, bx)* &
                           cubeaxis(jg, 2, ay, by)* &
                           cubeaxis(kg, 3, az, bz)
             END DO

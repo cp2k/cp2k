@@ -404,7 +404,7 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (output_unit, *)
          WRITE (output_unit, '(T2,"MEMORY| Estimated peak process memory [MiB]",T73,I8)') &
-            (m_memory_max_mpi+(1024*1024)-1)/(1024*1024)
+            (m_memory_max_mpi + (1024*1024) - 1)/(1024*1024)
       ENDIF
 
       IF (prog_name_id == do_cp2k) THEN
@@ -494,8 +494,8 @@ CONTAINS
          IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A)") "FARMING| using a master-slave setup"
 
          ALLOCATE (master_slave_partition(0:1))
-         master_slave_partition = (/1, para_env%num_pe-1/)
-         ALLOCATE (group_distribution(0:para_env%num_pe-1))
+         master_slave_partition = (/1, para_env%num_pe - 1/)
+         ALLOCATE (group_distribution(0:para_env%num_pe - 1))
 
          CALL mp_comm_split(para_env%group, slave_group, ngroups, group_distribution, &
                             n_subgroups=2, group_partition=master_slave_partition)
@@ -509,10 +509,10 @@ CONTAINS
             ! on the master node, num_slaves corresponds to the size of the master group
             ! due to the mp_environ call.
             CPASSERT(num_slaves == 1)
-            num_slaves = para_env%num_pe-1
+            num_slaves = para_env%num_pe - 1
             slave_rank = -1
          ENDIF
-         CPASSERT(num_slaves == para_env%num_pe-1)
+         CPASSERT(num_slaves == para_env%num_pe - 1)
       ELSE
          ! all processes are slaves
          IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A)") "FARMING| using a slave-only setup"
@@ -522,19 +522,19 @@ CONTAINS
       IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A,I0)") "FARMING| number of slaves ", num_slaves
 
       ! keep track of which para_env rank is which slave/master
-      ALLOCATE (slave_distribution(0:para_env%num_pe-1))
+      ALLOCATE (slave_distribution(0:para_env%num_pe - 1))
       slave_distribution = 0
       slave_distribution(para_env%mepos) = slave_rank
       CALL mp_sum(slave_distribution, para_env%group)
       ! we do have a primus inter pares
       primus_slave = 0
-      DO i = 1, para_env%num_pe-1
+      DO i = 1, para_env%num_pe - 1
          IF (slave_distribution(i) == 0) primus_slave = i
       ENDDO
 
       ! split the current communicator for the slaves
       ! in a new_group, new_size and new_rank according to the number of groups required according to the input
-      ALLOCATE (group_distribution(0:num_slaves-1))
+      ALLOCATE (group_distribution(0:num_slaves - 1))
       group_distribution = -1
       IF (slave) THEN
          IF (farming_env%group_size_wish_set) THEN
@@ -576,7 +576,7 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (output_unit, FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI (slave) groups:", ngroups
          WRITE (output_unit, FMT="(T2,A)", ADVANCE="NO") "FARMING| MPI (slave) process to group correspondence:"
-         DO i = 0, num_slaves-1
+         DO i = 0, num_slaves - 1
             IF (MODULO(i, 4) == 0) WRITE (output_unit, *)
             WRITE (output_unit, FMT='(A3,I6,A3,I6,A1)', ADVANCE="NO") &
                "  (", i, " : ", group_distribution(i), ")"
@@ -589,11 +589,11 @@ CONTAINS
       ! and determine the future restart point
       IF (farming_env%cycle) THEN
          n_jobs_to_run = farming_env%max_steps*ngroups
-         i_job_to_restart = MODULO(farming_env%restart_n+n_jobs_to_run-1, farming_env%njobs)+1
+         i_job_to_restart = MODULO(farming_env%restart_n + n_jobs_to_run - 1, farming_env%njobs) + 1
       ELSE
          n_jobs_to_run = MIN(farming_env%njobs, farming_env%max_steps*ngroups)
-         n_jobs_to_run = MIN(n_jobs_to_run, farming_env%njobs-farming_env%restart_n+1)
-         i_job_to_restart = n_jobs_to_run+farming_env%restart_n
+         n_jobs_to_run = MIN(n_jobs_to_run, farming_env%njobs - farming_env%restart_n + 1)
+         i_job_to_restart = n_jobs_to_run + farming_env%restart_n
       ENDIF
 
       ! and write the restart now, that's the point where the next job starts, even if this one is running
@@ -606,8 +606,8 @@ CONTAINS
 
       ! this is the job range to be executed.
       ijob_start = farming_env%restart_n
-      ijob_end = ijob_start+n_jobs_to_run-1
-      IF (output_unit > 0 .AND. ijob_end-ijob_start < 0) THEN
+      ijob_end = ijob_start + n_jobs_to_run - 1
+      IF (output_unit > 0 .AND. ijob_end - ijob_start < 0) THEN
          WRITE (output_unit, FMT="(T2,A)") "FARMING| --- WARNING --- NO JOBS NEED EXECUTION ? "
          WRITE (output_unit, FMT="(T2,A)") "FARMING| is the cycle keyword required ?"
          WRITE (output_unit, FMT="(T2,A)") "FARMING| or is a stray RESTART file present ?"
@@ -645,7 +645,7 @@ CONTAINS
                   t1 = m_walltime()
                   DO
                      t2 = m_walltime()
-                     IF (t2-t1 > farming_env%wait_time) EXIT
+                     IF (t2 - t1 > farming_env%wait_time) EXIT
                   ENDDO
                CASE (do_nothing)
                   EXIT
@@ -654,9 +654,9 @@ CONTAINS
                END SELECT
             ENDDO
          ELSE ! master
-            ALLOCATE (slave_status(0:ngroups-1))
+            ALLOCATE (slave_status(0:ngroups - 1))
             slave_status = slave_status_wait
-            ijob_current = ijob_start-1
+            ijob_current = ijob_start - 1
 
             DO
                IF (ALL(slave_status == slave_status_done)) EXIT
@@ -715,21 +715,21 @@ CONTAINS
          ! the i-th job in the input is always executed by the MODULO(i-1,ngroups)-th group
          ! (needed for cyclic runs, we don't want two groups working on the same job)
          IF (output_unit > 0) THEN
-            IF (ijob_end-ijob_start >= 0) THEN
+            IF (ijob_end - ijob_start >= 0) THEN
                WRITE (output_unit, FMT="(T2,A)") "FARMING| List of jobs : "
                DO ijob = ijob_start, ijob_end
-                  i = MODULO(ijob-1, farming_env%njobs)+1
+                  i = MODULO(ijob - 1, farming_env%njobs) + 1
                   WRITE (output_unit, FMT=*) "Job: ", i, " Dir: ", TRIM(farming_env%Job(i)%cwd), " Input: ", &
-                     TRIM(farming_env%Job(i)%input), " MPI group:", MODULO(i-1, ngroups)
+                     TRIM(farming_env%Job(i)%input), " MPI group:", MODULO(i - 1, ngroups)
                ENDDO
             ENDIF
             CALL m_flush(output_unit)
          ENDIF
 
          DO ijob = ijob_start, ijob_end
-            i = MODULO(ijob-1, farming_env%njobs)+1
+            i = MODULO(ijob - 1, farming_env%njobs) + 1
             ! this farms out the jobs
-            IF (MODULO(i-1, ngroups) == group_distribution(slave_rank)) THEN
+            IF (MODULO(i - 1, ngroups) == group_distribution(slave_rank)) THEN
                IF (output_unit > 0) THEN
                   WRITE (output_unit, FMT="(T2,A,I5.5,A)", ADVANCE="NO") " Running Job ", i, &
                      " in "//TRIM(farming_env%Job(i)%cwd)//"."
@@ -749,16 +749,16 @@ CONTAINS
       t1 = m_walltime()
       CALL mp_sync(para_env%group)
       t2 = m_walltime()
-      ALLOCATE (waittime(0:para_env%num_pe-1))
+      ALLOCATE (waittime(0:para_env%num_pe - 1))
       waittime = 0.0_dp
-      waittime(para_env%mepos) = t2-t1
+      waittime(para_env%mepos) = t2 - t1
       CALL mp_sum(waittime, para_env%group)
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A)') "Process idle times [s] at the end of the run"
-         DO i = 0, para_env%num_pe-1
+         DO i = 0, para_env%num_pe - 1
             WRITE (output_unit, FMT='(A2,I6,A3,F8.3,A1)', ADVANCE="NO") &
                " (", i, " : ", waittime(i), ")"
-            IF (MOD(i+1, 4) == 0) WRITE (output_unit, '(A)') ""
+            IF (MOD(i + 1, 4) == 0) WRITE (output_unit, '(A)') ""
          ENDDO
          CALL m_flush(output_unit)
       ENDIF
@@ -875,12 +875,12 @@ CONTAINS
       WRITE (UNIT=unit_number, FMT="(A)") &
          "<!DOCTYPE documentElement["
       DO i = 1, SIZE(html_entity_table), 2
-         is = INDEX(html_entity_table(i), "&")+1
+         is = INDEX(html_entity_table(i), "&") + 1
          CPASSERT(is > 0)
-         ie = INDEX(html_entity_table(i), ";")-1
+         ie = INDEX(html_entity_table(i), ";") - 1
          CPASSERT(ie >= is)
          WRITE (UNIT=unit_number, FMT="(A)") &
-            "<!ENTITY "//html_entity_table(i) (is:ie)//" """//TRIM(html_entity_table(i+1))//""">"
+            "<!ENTITY "//html_entity_table(i) (is:ie)//" """//TRIM(html_entity_table(i + 1))//""">"
       END DO
       WRITE (UNIT=unit_number, FMT="(A)") &
          "]>"

@@ -192,9 +192,9 @@ CONTAINS
                                          lower_to_upper=.TRUE.)
                   IF (token(1:1) == parser%section_character) THEN
                      IF (token == "&END") THEN
-                        nSub = nSub-1
+                        nSub = nSub - 1
                      ELSE
-                        nSub = nSub+1
+                        nSub = nSub + 1
                      END IF
                   END IF
                END DO
@@ -228,7 +228,7 @@ CONTAINS
             ELSE ! token is a "normal" keyword
                ik = section_get_keyword_index(section, token)
                IF (ik < 1) THEN ! don't accept pseudo keyword names
-                  parser%icol = parser%icol1-1 ! re-read also the actual token
+                  parser%icol = parser%icol1 - 1 ! re-read also the actual token
                   ik = 0
                   IF (.NOT. ASSOCIATED(section%keywords(0)%keyword)) THEN
                      IF (output_unit > 0) THEN
@@ -646,10 +646,10 @@ CONTAINS
                              "Invalid unit specifier found when parsing a number: "// &
                              c_val)
             END IF
-            CALL cp_unit_create(my_unit, c_val(2:LEN_TRIM(c_val)-1))
+            CALL cp_unit_create(my_unit, c_val(2:LEN_TRIM(c_val) - 1))
          ELSE
             IF (c_val /= "") THEN
-               CALL cp_unit_create(my_unit, c_val(2:LEN_TRIM(c_val)-1))
+               CALL cp_unit_create(my_unit, c_val(2:LEN_TRIM(c_val) - 1))
             ELSE
                my_unit => unit
             END IF

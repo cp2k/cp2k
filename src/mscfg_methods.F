@@ -197,7 +197,7 @@ CONTAINS
          IF (smear_almo_scf) THEN
             scf_section => section_vals_get_subs_vals(dft_section, "SCF")
             CALL section_vals_val_get(scf_section, "added_mos", i_val=tot_added_mos) !! Get total number of added MOs
-            tot_isize = last_atom_of_frag(nfrags)-first_atom_of_frag(1)+1 !! Get total number of atoms (assume consecutive atoms)
+            tot_isize = last_atom_of_frag(nfrags) - first_atom_of_frag(1) + 1 !! Get total number of atoms (assume consecutive atoms)
             !! Check that number of added MOs matches the number of atoms
             !! (to ensure compatibility, since each fragment will be computed with such parameters)
             IF (tot_isize .NE. tot_added_mos) THEN
@@ -258,7 +258,7 @@ CONTAINS
          ! It is important to have a linear scaling procedure here
          first_atom = first_atom_of_frag(ifrag)
          last_atom = last_atom_of_frag(ifrag)
-         isize = last_atom-first_atom+1
+         isize = last_atom - first_atom + 1
          ALLOCATE (atom_index(isize))
          atom_index(1:isize) = (/(i, i=first_atom, last_atom)/)
          !
@@ -324,10 +324,10 @@ CONTAINS
                IF (smear_almo_scf) THEN
                   !! Store MOs energies for ALMO smearing purpose
                   nmo_of_frag = SIZE(mos_of_frag(imo)%mo_set%eigenvalues)
-                  almo_scf_env%mo_energies(nb_eigenval_stored+1:nb_eigenval_stored+nmo_of_frag, imo) &
+                  almo_scf_env%mo_energies(nb_eigenval_stored + 1:nb_eigenval_stored + nmo_of_frag, imo) &
                      = mos_of_frag(imo)%mo_set%eigenvalues(:)
                   !! update stored energies offset. Assumes nmosets_of_frag == 1 (general smearing ALMO assumption)
-                  nb_eigenval_stored = nb_eigenval_stored+nmo_of_frag
+                  nb_eigenval_stored = nb_eigenval_stored + nmo_of_frag
                END IF
             END IF !! ALMO
 

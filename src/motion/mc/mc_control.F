@@ -141,7 +141,7 @@ CONTAINS
                   WRITE (unit, '(1X,A,1X,3(F15.10,3X))') &
                      TRIM(ADJUSTL(name)), &
                      particles%els(iparticle)%r(1:3)*angstrom
-                  iparticle = iparticle+1
+                  iparticle = iparticle + 1
                ENDDO
             ENDDO
          ENDDO
@@ -228,7 +228,7 @@ CONTAINS
       CALL mp_bcast(nchains, source, group)
 
       ! do some checking
-      IF (ABS(temperature-mc_temp) .GT. 0.01E0_dp) THEN
+      IF (ABS(temperature - mc_temp) .GT. 0.01E0_dp) THEN
          IF (ionode) THEN
             WRITE (iw, *) 'The temperature in the restart file is ', &
                'not the same as the input file.'
@@ -268,9 +268,9 @@ CONTAINS
          box_length(1:3) = box_length(1:3)/angstrom ! convert to a.u.
       ENDIF
       CALL mp_bcast(box_length, source, group)
-      IF (ABS(box_length(1)-abc(1)) .GT. 0.0001E0_dp .OR. &
-          ABS(box_length(2)-abc(2)) .GT. 0.0001E0_dp .OR. &
-          ABS(box_length(3)-abc(3)) .GT. 0.0001E0_dp) THEN
+      IF (ABS(box_length(1) - abc(1)) .GT. 0.0001E0_dp .OR. &
+          ABS(box_length(2) - abc(2)) .GT. 0.0001E0_dp .OR. &
+          ABS(box_length(3) - abc(3)) .GT. 0.0001E0_dp) THEN
          IF (ionode) THEN
             WRITE (iw, *) 'The cell length in the restart file is ', &
                'not the same as the input file.'
@@ -317,7 +317,7 @@ CONTAINS
 
       ! advance the random number sequence based on the restart step
       IF (ionode) THEN
-         DO i = 1, nstart+1
+         DO i = 1, nstart + 1
             rand = next_random_number(rng_stream)
          ENDDO
       ENDIF

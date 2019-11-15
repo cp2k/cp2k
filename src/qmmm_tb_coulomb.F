@@ -152,28 +152,28 @@ CONTAINS
       DO ikind = 1, SIZE(local_particles%n_el)
          DO ia = 1, local_particles%n_el(ikind)
             iatom = local_particles%list(ikind)%array(ia)
-            DO jatom = 1, iatom-1
-               rij = particle_set(iatom)%r-particle_set(jatom)%r
+            DO jatom = 1, iatom - 1
+               rij = particle_set(iatom)%r - particle_set(jatom)%r
                ! no pbc(rij,mm_cell) at this point, we assume that QM particles are
                ! inside QM box and QM box << MM box
                dr = SQRT(SUM(rij(:)**2))
                ! local (unit cell) correction 1/R
-               gmcharge(iatom, 1) = gmcharge(iatom, 1)-mcharge(jatom)/dr
-               gmcharge(jatom, 1) = gmcharge(jatom, 1)-mcharge(iatom)/dr
+               gmcharge(iatom, 1) = gmcharge(iatom, 1) - mcharge(jatom)/dr
+               gmcharge(jatom, 1) = gmcharge(jatom, 1) - mcharge(iatom)/dr
                DO i = 2, nmat
-                  gmcharge(iatom, i) = gmcharge(iatom, i)-rij(i-1)*mcharge(jatom)/dr**3
-                  gmcharge(jatom, i) = gmcharge(jatom, i)+rij(i-1)*mcharge(iatom)/dr**3
+                  gmcharge(iatom, i) = gmcharge(iatom, i) - rij(i - 1)*mcharge(jatom)/dr**3
+                  gmcharge(jatom, i) = gmcharge(jatom, i) + rij(i - 1)*mcharge(iatom)/dr**3
                END DO
                ! overlap correction
                fr = erfc(alpha*dr)/dr
-               gmcharge(iatom, 1) = gmcharge(iatom, 1)+mcharge(jatom)*fr
-               gmcharge(jatom, 1) = gmcharge(jatom, 1)+mcharge(iatom)*fr
+               gmcharge(iatom, 1) = gmcharge(iatom, 1) + mcharge(jatom)*fr
+               gmcharge(jatom, 1) = gmcharge(jatom, 1) + mcharge(iatom)*fr
                IF (nmat > 1) THEN
-                  dfr = -2._dp*alpha*EXP(-alpha*alpha*dr*dr)*oorootpi/dr-fr/dr
+                  dfr = -2._dp*alpha*EXP(-alpha*alpha*dr*dr)*oorootpi/dr - fr/dr
                   dfr = -dfr/dr
                   DO i = 2, nmat
-                     gmcharge(iatom, i) = gmcharge(iatom, i)-rij(i-1)*mcharge(jatom)*dfr
-                     gmcharge(jatom, i) = gmcharge(jatom, i)+rij(i-1)*mcharge(iatom)*dfr
+                     gmcharge(iatom, i) = gmcharge(iatom, i) - rij(i - 1)*mcharge(jatom)*dfr
+                     gmcharge(jatom, i) = gmcharge(jatom, i) + rij(i - 1)*mcharge(iatom)*dfr
                   END DO
                END IF
             END DO
@@ -197,12 +197,12 @@ CONTAINS
       CALL mp_sum(gmcharge(:, 1), para_env%group)
       !
       ! add self charge interaction and background charge contribution
-      gmcharge(:, 1) = gmcharge(:, 1)-2._dp*alpha*oorootpi*mcharge(:)
+      gmcharge(:, 1) = gmcharge(:, 1) - 2._dp*alpha*oorootpi*mcharge(:)
       IF (ANY(periodic(:) == 1)) THEN
-         gmcharge(:, 1) = gmcharge(:, 1)-pi/alpha**2/deth
+         gmcharge(:, 1) = gmcharge(:, 1) - pi/alpha**2/deth
       END IF
       !
-      energy%qmmm_el = energy%qmmm_el+0.5_dp*SUM(mcharge(:)*gmcharge(:, 1))
+      energy%qmmm_el = energy%qmmm_el + 0.5_dp*SUM(mcharge(:)*gmcharge(:, 1))
       !
       IF (calculate_forces) THEN
          ALLOCATE (atom_of_kind(natom), kind_of(natom))
@@ -230,9 +230,9 @@ CONTAINS
             END IF
             CALL dbcsr_get_block_p(matrix=matrix_s(1)%matrix, &
                                    row=iatom, col=jatom, block=sblock, found=found)
-            gmij = 0.5_dp*(gmcharge(iatom, 1)+gmcharge(jatom, 1))
-            ksblock = ksblock-gmij*sblock
-            IF (SIZE(ks_matrix, 1) > 1) ksblock_2 = ksblock_2-gmij*sblock
+            gmij = 0.5_dp*(gmcharge(iatom, 1) + gmcharge(jatom, 1))
+            ksblock = ksblock - gmij*sblock
+            IF (SIZE(ks_matrix, 1) > 1) ksblock_2 = ksblock_2 - gmij*sblock
             IF (calculate_forces) THEN
                ikind = kind_of(iatom)
                atom_i = atom_of_kind(iatom)
@@ -243,11 +243,11 @@ CONTAINS
                                       row=iatom, col=jatom, block=pblock, found=found)
                DO i = 1, 3
                   NULLIFY (dsblock)
-                  CALL dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix, &
+                  CALL dbcsr_get_block_p(matrix=matrix_s(1 + i)%matrix, &
                                          row=iatom, col=jatom, block=dsblock, found=found)
                   fi = -2.0_dp*gmij*SUM(pblock*dsblock)
-                  force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i)+fi
-                  force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j)-fi
+                  force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
+                  force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
                   fij(i) = fi
                END DO
             END IF

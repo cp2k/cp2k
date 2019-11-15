@@ -68,7 +68,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: a, b, rab2, xhi, zet
 
       ! Distance of the centers a and b
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       ndev = 0
       IF (calculate_forces) ndev = 1
       ! Loops over all pairs of primitive Gaussian-type functions
@@ -80,14 +80,14 @@ CONTAINS
             ! Calculate some prefactors
             a = zeta(ipgfa)
             b = zetb(jpgfb)
-            zet = a+b
+            zet = a + b
             xhi = a*b/zet
 
             ! [s|s] integral
             s(ipgfa, jpgfb, 1) = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
-            DO ids = 2, la_max+lb_max+ndev+1
-               s(ipgfa, jpgfb, ids) = -xhi*s(ipgfa, jpgfb, ids-1)
+            DO ids = 2, la_max + lb_max + ndev + 1
+               s(ipgfa, jpgfb, ids) = -xhi*s(ipgfa, jpgfb, ids - 1)
             ENDDO
 
          END DO
@@ -136,17 +136,17 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: coeff_srs
 
       ! Distance of the centers a and b
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       ndev = 0
       IF (calculate_forces) ndev = 1
 
-      lbb_max = lb_max+lcb_max
+      lbb_max = lb_max + lcb_max
       nl = INT(lbb_max/2)
       IF (lb_max == 0 .OR. lcb_max == 0) nl = 0
-      lmax = la_max+lbb_max
+      lmax = la_max + lbb_max
 
-      ALLOCATE (dtemp(nl+1), dsr_int(nl+1))
-      ALLOCATE (coeff_srs(nl+1, nl+1, nl+1))
+      ALLOCATE (dtemp(nl + 1), dsr_int(nl + 1))
+      ALLOCATE (coeff_srs(nl + 1, nl + 1, nl + 1))
       IF (nl > 5) CALL get_prefac_sabb(nl, coeff_srs)
 
       sqrt_pi3 = SQRT(pi**3)
@@ -158,9 +158,9 @@ CONTAINS
 
                !Calculate some prefactors
                a = zeta(ipgfa)
-               b = zetb(jpgfb)+zetcb(kpgfb)
+               b = zetb(jpgfb) + zetcb(kpgfb)
 
-               zet = a+b
+               zet = a + b
                xhi = a*b/zet
                exp_rab2 = EXP(-xhi*rab2)
 
@@ -168,154 +168,154 @@ CONTAINS
                sqrt_zet = SQRT(zet)
 
                DO il = 0, nl
-                  nds = lmax-2*il+ndev+1
+                  nds = lmax - 2*il + ndev + 1
                   SELECT CASE (il)
                   CASE (0)
                      ! [s|s] integral
-                     s(ipgfa, jpgfb, kpgfb, il+1, 1) = (pi/zet)**(1.5_dp)*exp_rab2
+                     s(ipgfa, jpgfb, kpgfb, il + 1, 1) = (pi/zet)**(1.5_dp)*exp_rab2
                      DO ids = 2, nds
-                        n = ids-1
-                        s(ipgfa, jpgfb, kpgfb, il+1, ids) = (-xhi)**n*s(ipgfa, jpgfb, kpgfb, il+1, 1)
+                        n = ids - 1
+                        s(ipgfa, jpgfb, kpgfb, il + 1, ids) = (-xhi)**n*s(ipgfa, jpgfb, kpgfb, il + 1, 1)
                      ENDDO
                   CASE (1)
                      ![s|r^2|s] integral
-                     sr_int = sqrt_pi3/sqrt_zet**5*(3.0_dp+2.0_dp*pfac*rab2)/2.0_dp
-                     s(ipgfa, jpgfb, kpgfb, il+1, 1) = exp_rab2*sr_int
+                     sr_int = sqrt_pi3/sqrt_zet**5*(3.0_dp + 2.0_dp*pfac*rab2)/2.0_dp
+                     s(ipgfa, jpgfb, kpgfb, il + 1, 1) = exp_rab2*sr_int
                      k = sqrt_pi3*a**2/sqrt_zet**7
                      DO ids = 2, nds
-                        n = ids-1
-                        s(ipgfa, jpgfb, kpgfb, il+1, ids) = (-xhi)**n*exp_rab2*sr_int &
-                                                            +n*(-xhi)**(n-1)*k*exp_rab2
+                        n = ids - 1
+                        s(ipgfa, jpgfb, kpgfb, il + 1, ids) = (-xhi)**n*exp_rab2*sr_int &
+                                                              + n*(-xhi)**(n - 1)*k*exp_rab2
                      ENDDO
                   CASE (2)
                      ![s|r^4|s] integral
                      prefac = sqrt_pi3/4.0_dp/sqrt_zet**7
-                     temp = 15.0_dp+20.0_dp*pfac*rab2+4.0_dp*(pfac*rab2)**2
+                     temp = 15.0_dp + 20.0_dp*pfac*rab2 + 4.0_dp*(pfac*rab2)**2
                      sr_int = prefac*temp
-                     s(ipgfa, jpgfb, kpgfb, il+1, 1) = exp_rab2*sr_int
+                     s(ipgfa, jpgfb, kpgfb, il + 1, 1) = exp_rab2*sr_int
                      !** derivatives
                      k = sqrt_pi3*a**4/sqrt_zet**11
-                     dsr_int(1) = prefac*(20.0_dp*pfac+8.0_dp*pfac**2*rab2)
+                     dsr_int(1) = prefac*(20.0_dp*pfac + 8.0_dp*pfac**2*rab2)
                      DO ids = 2, nds
-                        n = ids-1
+                        n = ids - 1
                         dtemp(1) = (-xhi)**n*exp_rab2*sr_int
-                        dtemp(2) = n*(-xhi)**(n-1)*exp_rab2*dsr_int(1)
-                        dtemp(3) = (n**2-n)*(-xhi)**(n-2)*k*exp_rab2
-                        s(ipgfa, jpgfb, kpgfb, il+1, ids) = dtemp(1)+dtemp(2)+dtemp(3)
+                        dtemp(2) = n*(-xhi)**(n - 1)*exp_rab2*dsr_int(1)
+                        dtemp(3) = (n**2 - n)*(-xhi)**(n - 2)*k*exp_rab2
+                        s(ipgfa, jpgfb, kpgfb, il + 1, ids) = dtemp(1) + dtemp(2) + dtemp(3)
                      ENDDO
                   CASE (3)
                      ![s|r^6|s] integral
                      prefac = sqrt_pi3/8.0_dp/sqrt_zet**9
-                     temp = 105.0_dp+210.0_dp*pfac*rab2
-                     temp = temp+84.0_dp*(pfac*rab2)**2+8.0_dp*(pfac*rab2)**3
+                     temp = 105.0_dp + 210.0_dp*pfac*rab2
+                     temp = temp + 84.0_dp*(pfac*rab2)**2 + 8.0_dp*(pfac*rab2)**3
                      sr_int = prefac*temp
-                     s(ipgfa, jpgfb, kpgfb, il+1, 1) = exp_rab2*sr_int
+                     s(ipgfa, jpgfb, kpgfb, il + 1, 1) = exp_rab2*sr_int
                      !** derivatives
                      k = sqrt_pi3*a**6/sqrt_zet**15
-                     dsr_int(1) = prefac*(210.0_dp*pfac+168.0_dp*pfac**2*rab2 &
-                                          +24.0_dp*pfac**3*rab2**2)
-                     dsr_int(2) = prefac*(168.0_dp*pfac**2+48.0_dp*pfac**3*rab2)
+                     dsr_int(1) = prefac*(210.0_dp*pfac + 168.0_dp*pfac**2*rab2 &
+                                          + 24.0_dp*pfac**3*rab2**2)
+                     dsr_int(2) = prefac*(168.0_dp*pfac**2 + 48.0_dp*pfac**3*rab2)
                      DO ids = 2, nds
-                        n = ids-1
+                        n = ids - 1
                         dtemp(1) = (-xhi)**n*exp_rab2*sr_int
-                        dtemp(2) = REAL(n, dp)*(-xhi)**(n-1)*exp_rab2*dsr_int(1)
-                        dtemp(3) = REAL(n**2-n, dp)/2.0_dp*(-xhi)**(n-2) &
+                        dtemp(2) = REAL(n, dp)*(-xhi)**(n - 1)*exp_rab2*dsr_int(1)
+                        dtemp(3) = REAL(n**2 - n, dp)/2.0_dp*(-xhi)**(n - 2) &
                                    *exp_rab2*dsr_int(2)
-                        dtemp(4) = REAL(n*(n-1)*(n-2), dp)*(-xhi)**(n-3)*k*exp_rab2
-                        s(ipgfa, jpgfb, kpgfb, il+1, ids) = dtemp(1)+dtemp(2) &
-                                                            +dtemp(3)+dtemp(4)
+                        dtemp(4) = REAL(n*(n - 1)*(n - 2), dp)*(-xhi)**(n - 3)*k*exp_rab2
+                        s(ipgfa, jpgfb, kpgfb, il + 1, ids) = dtemp(1) + dtemp(2) &
+                                                              + dtemp(3) + dtemp(4)
                      ENDDO
                   CASE (4)
                      ![s|r^8|s] integral
                      prefac = sqrt_pi3/16.0_dp/sqrt_zet**11
-                     temp = 945.0_dp+2520.0_dp*pfac*rab2+1512.0_dp*(pfac*rab2)**2
-                     temp = temp+288.0_dp*(pfac*rab2)**3+16.0_dp*(pfac*rab2)**4
+                     temp = 945.0_dp + 2520.0_dp*pfac*rab2 + 1512.0_dp*(pfac*rab2)**2
+                     temp = temp + 288.0_dp*(pfac*rab2)**3 + 16.0_dp*(pfac*rab2)**4
                      sr_int = prefac*temp
-                     s(ipgfa, jpgfb, kpgfb, il+1, 1) = exp_rab2*sr_int
+                     s(ipgfa, jpgfb, kpgfb, il + 1, 1) = exp_rab2*sr_int
                      !** derivatives
                      k = sqrt_pi3*a**8/sqrt_zet**19
-                     dsr_int(1) = 2520.0_dp*pfac+3024.0_dp*pfac**2*rab2
-                     dsr_int(1) = dsr_int(1)+864.0_dp*pfac**3*rab2**2 &
-                                  +64.0_dp*pfac**4*rab2**3
+                     dsr_int(1) = 2520.0_dp*pfac + 3024.0_dp*pfac**2*rab2
+                     dsr_int(1) = dsr_int(1) + 864.0_dp*pfac**3*rab2**2 &
+                                  + 64.0_dp*pfac**4*rab2**3
                      dsr_int(1) = prefac*dsr_int(1)
-                     dsr_int(2) = 3024.0_dp*pfac**2+1728.0_dp*pfac**3*rab2
-                     dsr_int(2) = dsr_int(2)+192.0_dp*pfac**4*rab2**2
+                     dsr_int(2) = 3024.0_dp*pfac**2 + 1728.0_dp*pfac**3*rab2
+                     dsr_int(2) = dsr_int(2) + 192.0_dp*pfac**4*rab2**2
                      dsr_int(2) = prefac*dsr_int(2)
-                     dsr_int(3) = 1728.0_dp*pfac**3+384.0_dp*pfac**4*rab2
+                     dsr_int(3) = 1728.0_dp*pfac**3 + 384.0_dp*pfac**4*rab2
                      dsr_int(3) = prefac*dsr_int(3)
                      DO ids = 2, nds
-                        n = ids-1
+                        n = ids - 1
                         dtemp(1) = (-xhi)**n*exp_rab2*sr_int
-                        dtemp(2) = REAL(n, dp)*(-xhi)**(n-1)*exp_rab2*dsr_int(1)
-                        dtemp(3) = REAL(n**2-n, dp)/2.0_dp*(-xhi)**(n-2) &
+                        dtemp(2) = REAL(n, dp)*(-xhi)**(n - 1)*exp_rab2*dsr_int(1)
+                        dtemp(3) = REAL(n**2 - n, dp)/2.0_dp*(-xhi)**(n - 2) &
                                    *exp_rab2*dsr_int(2)
-                        dtemp(4) = REAL(n*(n-1)*(n-2), dp)/6.0_dp*(-xhi)**(n-3) &
+                        dtemp(4) = REAL(n*(n - 1)*(n - 2), dp)/6.0_dp*(-xhi)**(n - 3) &
                                    *exp_rab2*dsr_int(3)
-                        dtemp(5) = REAL(n*(n-1)*(n-2)*(n-3), dp)*(-xhi)**(n-4) &
+                        dtemp(5) = REAL(n*(n - 1)*(n - 2)*(n - 3), dp)*(-xhi)**(n - 4) &
                                    *k*exp_rab2
-                        s(ipgfa, jpgfb, kpgfb, il+1, ids) = dtemp(1)+dtemp(2)+dtemp(3) &
-                                                            +dtemp(4)+dtemp(5)
+                        s(ipgfa, jpgfb, kpgfb, il + 1, ids) = dtemp(1) + dtemp(2) + dtemp(3) &
+                                                              + dtemp(4) + dtemp(5)
                      ENDDO
                   CASE (5)
                      ![s|r^10|s] integral
                      prefac = sqrt_pi3/32.0_dp/sqrt_zet**13
-                     temp = 10395.0_dp+34650.0_dp*pfac*rab2
-                     temp = temp+27720.0_dp*(pfac*rab2)**2+7920.0_dp*(pfac*rab2)**3
-                     temp = temp+880.0_dp*(pfac*rab2)**4+32.0_dp*(pfac*rab2)**5
+                     temp = 10395.0_dp + 34650.0_dp*pfac*rab2
+                     temp = temp + 27720.0_dp*(pfac*rab2)**2 + 7920.0_dp*(pfac*rab2)**3
+                     temp = temp + 880.0_dp*(pfac*rab2)**4 + 32.0_dp*(pfac*rab2)**5
                      sr_int = prefac*temp
-                     s(ipgfa, jpgfb, kpgfb, il+1, 1) = exp_rab2*sr_int
+                     s(ipgfa, jpgfb, kpgfb, il + 1, 1) = exp_rab2*sr_int
                      !** derivatives
                      k = sqrt_pi3*a**10/sqrt_zet**23
-                     dsr_int(1) = 34650.0_dp*pfac+55440.0_dp*pfac**2*rab2
-                     dsr_int(1) = dsr_int(1)+23760.0_dp*pfac**3*rab2**2
-                     dsr_int(1) = dsr_int(1)+3520.0_dp*pfac**4*rab2**3
-                     dsr_int(1) = dsr_int(1)+160.0_dp*pfac**5*rab2**4
+                     dsr_int(1) = 34650.0_dp*pfac + 55440.0_dp*pfac**2*rab2
+                     dsr_int(1) = dsr_int(1) + 23760.0_dp*pfac**3*rab2**2
+                     dsr_int(1) = dsr_int(1) + 3520.0_dp*pfac**4*rab2**3
+                     dsr_int(1) = dsr_int(1) + 160.0_dp*pfac**5*rab2**4
                      dsr_int(1) = prefac*dsr_int(1)
-                     dsr_int(2) = 55440.0_dp*pfac**2+47520.0_dp*pfac**3*rab2
-                     dsr_int(2) = dsr_int(2)+10560.0_dp*pfac**4*rab2**2
-                     dsr_int(2) = dsr_int(2)+640.0_dp*pfac**5*rab2**3
+                     dsr_int(2) = 55440.0_dp*pfac**2 + 47520.0_dp*pfac**3*rab2
+                     dsr_int(2) = dsr_int(2) + 10560.0_dp*pfac**4*rab2**2
+                     dsr_int(2) = dsr_int(2) + 640.0_dp*pfac**5*rab2**3
                      dsr_int(2) = prefac*dsr_int(2)
-                     dsr_int(3) = 47520.0_dp*pfac**3+21120.0_dp*pfac**4*rab2
-                     dsr_int(3) = dsr_int(3)+1920.0_dp*pfac**5*rab2**2
+                     dsr_int(3) = 47520.0_dp*pfac**3 + 21120.0_dp*pfac**4*rab2
+                     dsr_int(3) = dsr_int(3) + 1920.0_dp*pfac**5*rab2**2
                      dsr_int(3) = prefac*dsr_int(3)
-                     dsr_int(4) = 21120.0_dp*pfac**4+3840.0_dp*pfac**5*rab2
+                     dsr_int(4) = 21120.0_dp*pfac**4 + 3840.0_dp*pfac**5*rab2
                      dsr_int(4) = prefac*dsr_int(4)
                      DO ids = 2, nds
-                        n = ids-1
+                        n = ids - 1
                         dtemp(1) = (-xhi)**n*exp_rab2*sr_int
-                        dtemp(2) = REAL(n, dp)*(-xhi)**(n-1)*exp_rab2*dsr_int(1)
-                        dtemp(3) = REAL(n**2-n, dp)/2.0_dp*(-xhi)**(n-2) &
+                        dtemp(2) = REAL(n, dp)*(-xhi)**(n - 1)*exp_rab2*dsr_int(1)
+                        dtemp(3) = REAL(n**2 - n, dp)/2.0_dp*(-xhi)**(n - 2) &
                                    *exp_rab2*dsr_int(2)
-                        dtemp(4) = REAL(n*(n-1)*(n-2), dp)/6.0_dp*(-xhi)**(n-3) &
+                        dtemp(4) = REAL(n*(n - 1)*(n - 2), dp)/6.0_dp*(-xhi)**(n - 3) &
                                    *exp_rab2*dsr_int(3)
-                        dtemp(5) = REAL(n*(n-1)*(n-2)*(n-3), dp)/24.0_dp*(-xhi)**(n-4) &
+                        dtemp(5) = REAL(n*(n - 1)*(n - 2)*(n - 3), dp)/24.0_dp*(-xhi)**(n - 4) &
                                    *exp_rab2*dsr_int(4)
-                        dtemp(6) = REAL(n*(n-1)*(n-2)*(n-3)*(n-4), dp)*(-xhi)**(n-5) &
+                        dtemp(6) = REAL(n*(n - 1)*(n - 2)*(n - 3)*(n - 4), dp)*(-xhi)**(n - 5) &
                                    *k*exp_rab2
-                        s(ipgfa, jpgfb, kpgfb, il+1, ids) = dtemp(1)+dtemp(2)+dtemp(3) &
-                                                            +dtemp(4)+dtemp(5)+dtemp(6)
+                        s(ipgfa, jpgfb, kpgfb, il + 1, ids) = dtemp(1) + dtemp(2) + dtemp(3) &
+                                                              + dtemp(4) + dtemp(5) + dtemp(6)
                      ENDDO
                   CASE DEFAULT
                      !*** general formula; factor 1.5-2 slower than explicit expressions
-                     prefac = exp_rab2/sqrt_zet**(2*il+3)
+                     prefac = exp_rab2/sqrt_zet**(2*il + 3)
                      sr_int = 0.0_dp
                      DO i = 0, il
-                        sr_int = sr_int+coeff_srs(i+1, 1, il+1)*(pfac)**i*rab2**i
+                        sr_int = sr_int + coeff_srs(i + 1, 1, il + 1)*(pfac)**i*rab2**i
                      ENDDO
-                     s(ipgfa, jpgfb, kpgfb, il+1, 1) = prefac*sr_int
+                     s(ipgfa, jpgfb, kpgfb, il + 1, 1) = prefac*sr_int
                      DO ids = 2, nds
-                        n = ids-1
+                        n = ids - 1
                         nfac = 1
                         dfsr_int = (-xhi)**n*sr_int
                         DO j = 1, il
                            temp = 0.0_dp
                            DO i = j, il
-                              temp = temp+coeff_srs(i+1, j+1, il+1)*(pfac)**i*rab2**(i-j)
+                              temp = temp + coeff_srs(i + 1, j + 1, il + 1)*(pfac)**i*rab2**(i - j)
                            ENDDO
-                           nfac = nfac*(n-j+1)
-                           dfsr_int = dfsr_int+temp*REAL(nfac, dp)/fac(j)*(-xhi)**(n-j)
+                           nfac = nfac*(n - j + 1)
+                           dfsr_int = dfsr_int + temp*REAL(nfac, dp)/fac(j)*(-xhi)**(n - j)
                         ENDDO
-                        s(ipgfa, jpgfb, kpgfb, il+1, ids) = prefac*dfsr_int
+                        s(ipgfa, jpgfb, kpgfb, il + 1, ids) = prefac*dfsr_int
                      ENDDO
 
                   END SELECT
@@ -368,12 +368,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: coeff_srs
 
       ! Distance of the centers a and b
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       ndev = 0
       IF (calculate_forces) ndev = 1
 
-      ALLOCATE (dtemp(m+1), dsr_int(m+1))
-      ALLOCATE (coeff_srs(m+1, m+1, m+1))
+      ALLOCATE (dtemp(m + 1), dsr_int(m + 1))
+      ALLOCATE (coeff_srs(m + 1, m + 1, m + 1))
       CALL get_prefac_sabb(m, coeff_srs)
       !IF(m > 5) CALL get_prefac_sabb(m, coeff_srs)
       sqrt_pi3 = SQRT(pi**3)
@@ -385,161 +385,161 @@ CONTAINS
             ! Calculate some prefactors
             a = zeta(ipgfa)
             b = zetb(jpgfb)
-            zet = a+b
+            zet = a + b
             xhi = a*b/zet
             exp_rab2 = EXP(-xhi*rab2)
 
             sqrt_zet = SQRT(zet)
             pfac = b**2/zet
 
-            nds = la_max+lb_max+ndev+1
+            nds = la_max + lb_max + ndev + 1
             DO il = 0, m
                SELECT CASE (il)
                CASE (0)
                   ! [s|s] integral
-                  s(ipgfa, jpgfb, m-il+1, 1) = (pi/zet)**(1.5_dp)*exp_rab2
+                  s(ipgfa, jpgfb, m - il + 1, 1) = (pi/zet)**(1.5_dp)*exp_rab2
                   DO ids = 2, nds
-                     n = ids-1
-                     s(ipgfa, jpgfb, m-il+1, ids) = (-xhi)**n*s(ipgfa, jpgfb, m-il+1, 1)
+                     n = ids - 1
+                     s(ipgfa, jpgfb, m - il + 1, ids) = (-xhi)**n*s(ipgfa, jpgfb, m - il + 1, 1)
                   ENDDO
                CASE (1)
                   ![s|r^2|s] integral
-                  sr_int = sqrt_pi3/sqrt_zet**5*(3.0_dp+2.0_dp*pfac*rab2)/2.0_dp
-                  s(ipgfa, jpgfb, m-il+1, 1) = exp_rab2*sr_int
+                  sr_int = sqrt_pi3/sqrt_zet**5*(3.0_dp + 2.0_dp*pfac*rab2)/2.0_dp
+                  s(ipgfa, jpgfb, m - il + 1, 1) = exp_rab2*sr_int
                   k = sqrt_pi3*b**2/sqrt_zet**7
                   DO ids = 2, nds
-                     n = ids-1
-                     s(ipgfa, jpgfb, m-il+1, ids) = (-xhi)**n*exp_rab2*sr_int &
-                                                    +n*(-xhi)**(n-1)*k*exp_rab2
+                     n = ids - 1
+                     s(ipgfa, jpgfb, m - il + 1, ids) = (-xhi)**n*exp_rab2*sr_int &
+                                                        + n*(-xhi)**(n - 1)*k*exp_rab2
                   ENDDO
                CASE (2)
                   ![s|r^4|s] integral
                   prefac = sqrt_pi3/4.0_dp/sqrt_zet**7
-                  temp = 15.0_dp+20.0_dp*pfac*rab2+4.0_dp*(pfac*rab2)**2
+                  temp = 15.0_dp + 20.0_dp*pfac*rab2 + 4.0_dp*(pfac*rab2)**2
                   sr_int = prefac*temp
-                  s(ipgfa, jpgfb, m-il+1, 1) = exp_rab2*sr_int
+                  s(ipgfa, jpgfb, m - il + 1, 1) = exp_rab2*sr_int
                   !** derivatives
                   k = sqrt_pi3*b**4/sqrt_zet**11
-                  dsr_int(1) = prefac*(20.0_dp*pfac+8.0_dp*pfac**2*rab2)
+                  dsr_int(1) = prefac*(20.0_dp*pfac + 8.0_dp*pfac**2*rab2)
                   DO ids = 2, nds
-                     n = ids-1
+                     n = ids - 1
                      dtemp(1) = (-xhi)**n*exp_rab2*sr_int
-                     dtemp(2) = n*(-xhi)**(n-1)*exp_rab2*dsr_int(1)
-                     dtemp(3) = (n**2-n)*(-xhi)**(n-2)*k*exp_rab2
-                     s(ipgfa, jpgfb, m-il+1, ids) = dtemp(1)+dtemp(2)+dtemp(3)
+                     dtemp(2) = n*(-xhi)**(n - 1)*exp_rab2*dsr_int(1)
+                     dtemp(3) = (n**2 - n)*(-xhi)**(n - 2)*k*exp_rab2
+                     s(ipgfa, jpgfb, m - il + 1, ids) = dtemp(1) + dtemp(2) + dtemp(3)
                   ENDDO
                CASE (3)
                   ![s|r^6|s] integral
                   prefac = sqrt_pi3/8.0_dp/sqrt_zet**9
-                  temp = 105.0_dp+210.0_dp*pfac*rab2
-                  temp = temp+84.0_dp*(pfac*rab2)**2+8.0_dp*(pfac*rab2)**3
+                  temp = 105.0_dp + 210.0_dp*pfac*rab2
+                  temp = temp + 84.0_dp*(pfac*rab2)**2 + 8.0_dp*(pfac*rab2)**3
                   sr_int = prefac*temp
-                  s(ipgfa, jpgfb, m-il+1, 1) = exp_rab2*sr_int
+                  s(ipgfa, jpgfb, m - il + 1, 1) = exp_rab2*sr_int
                   !** derivatives
                   k = sqrt_pi3*b**6/sqrt_zet**15
-                  dsr_int(1) = prefac*(210.0_dp*pfac+168.0_dp*pfac**2*rab2 &
-                                       +24.0_dp*pfac**3*rab2**2)
-                  dsr_int(2) = prefac*(168.0_dp*pfac**2+48.0_dp*pfac**3*rab2)
+                  dsr_int(1) = prefac*(210.0_dp*pfac + 168.0_dp*pfac**2*rab2 &
+                                       + 24.0_dp*pfac**3*rab2**2)
+                  dsr_int(2) = prefac*(168.0_dp*pfac**2 + 48.0_dp*pfac**3*rab2)
                   DO ids = 2, nds
-                     n = ids-1
+                     n = ids - 1
                      dtemp(1) = (-xhi)**n*exp_rab2*sr_int
-                     dtemp(2) = REAL(n, dp)*(-xhi)**(n-1)*exp_rab2*dsr_int(1)
-                     dtemp(3) = REAL(n**2-n, dp)/2.0_dp*(-xhi)**(n-2) &
+                     dtemp(2) = REAL(n, dp)*(-xhi)**(n - 1)*exp_rab2*dsr_int(1)
+                     dtemp(3) = REAL(n**2 - n, dp)/2.0_dp*(-xhi)**(n - 2) &
                                 *exp_rab2*dsr_int(2)
-                     dtemp(4) = REAL(n*(n-1)*(n-2), dp)*(-xhi)**(n-3)*k*exp_rab2
-                     s(ipgfa, jpgfb, m-il+1, ids) = dtemp(1)+dtemp(2) &
-                                                    +dtemp(3)+dtemp(4)
+                     dtemp(4) = REAL(n*(n - 1)*(n - 2), dp)*(-xhi)**(n - 3)*k*exp_rab2
+                     s(ipgfa, jpgfb, m - il + 1, ids) = dtemp(1) + dtemp(2) &
+                                                        + dtemp(3) + dtemp(4)
                   ENDDO
                CASE (4)
                   ![s|r^8|s] integral
                   prefac = sqrt_pi3/16.0_dp/sqrt_zet**11
-                  temp = 945.0_dp+2520.0_dp*pfac*rab2+1512.0_dp*(pfac*rab2)**2
-                  temp = temp+288.0_dp*(pfac*rab2)**3+16.0_dp*(pfac*rab2)**4
+                  temp = 945.0_dp + 2520.0_dp*pfac*rab2 + 1512.0_dp*(pfac*rab2)**2
+                  temp = temp + 288.0_dp*(pfac*rab2)**3 + 16.0_dp*(pfac*rab2)**4
                   sr_int = prefac*temp
-                  s(ipgfa, jpgfb, m-il+1, 1) = exp_rab2*sr_int
+                  s(ipgfa, jpgfb, m - il + 1, 1) = exp_rab2*sr_int
                   !** derivatives
                   k = sqrt_pi3*b**8/sqrt_zet**19
-                  dsr_int(1) = 2520.0_dp*pfac+3024.0_dp*pfac**2*rab2
-                  dsr_int(1) = dsr_int(1)+864.0_dp*pfac**3*rab2**2 &
-                               +64.0_dp*pfac**4*rab2**3
+                  dsr_int(1) = 2520.0_dp*pfac + 3024.0_dp*pfac**2*rab2
+                  dsr_int(1) = dsr_int(1) + 864.0_dp*pfac**3*rab2**2 &
+                               + 64.0_dp*pfac**4*rab2**3
                   dsr_int(1) = prefac*dsr_int(1)
-                  dsr_int(2) = 3024.0_dp*pfac**2+1728.0_dp*pfac**3*rab2
-                  dsr_int(2) = dsr_int(2)+192.0_dp*pfac**4*rab2**2
+                  dsr_int(2) = 3024.0_dp*pfac**2 + 1728.0_dp*pfac**3*rab2
+                  dsr_int(2) = dsr_int(2) + 192.0_dp*pfac**4*rab2**2
                   dsr_int(2) = prefac*dsr_int(2)
-                  dsr_int(3) = 1728.0_dp*pfac**3+384.0_dp*pfac**4*rab2
+                  dsr_int(3) = 1728.0_dp*pfac**3 + 384.0_dp*pfac**4*rab2
                   dsr_int(3) = prefac*dsr_int(3)
                   DO ids = 2, nds
-                     n = ids-1
+                     n = ids - 1
                      dtemp(1) = (-xhi)**n*exp_rab2*sr_int
-                     dtemp(2) = REAL(n, dp)*(-xhi)**(n-1)*exp_rab2*dsr_int(1)
-                     dtemp(3) = REAL(n**2-n, dp)/2.0_dp*(-xhi)**(n-2) &
+                     dtemp(2) = REAL(n, dp)*(-xhi)**(n - 1)*exp_rab2*dsr_int(1)
+                     dtemp(3) = REAL(n**2 - n, dp)/2.0_dp*(-xhi)**(n - 2) &
                                 *exp_rab2*dsr_int(2)
-                     dtemp(4) = REAL(n*(n-1)*(n-2), dp)/6.0_dp*(-xhi)**(n-3) &
+                     dtemp(4) = REAL(n*(n - 1)*(n - 2), dp)/6.0_dp*(-xhi)**(n - 3) &
                                 *exp_rab2*dsr_int(3)
-                     dtemp(5) = REAL(n*(n-1)*(n-2)*(n-3), dp)*(-xhi)**(n-4) &
+                     dtemp(5) = REAL(n*(n - 1)*(n - 2)*(n - 3), dp)*(-xhi)**(n - 4) &
                                 *k*exp_rab2
-                     s(ipgfa, jpgfb, m-il+1, ids) = dtemp(1)+dtemp(2)+dtemp(3) &
-                                                    +dtemp(4)+dtemp(5)
+                     s(ipgfa, jpgfb, m - il + 1, ids) = dtemp(1) + dtemp(2) + dtemp(3) &
+                                                        + dtemp(4) + dtemp(5)
                   ENDDO
                CASE (5)
                   ![s|r^10|s] integral
                   prefac = sqrt_pi3/32.0_dp/sqrt_zet**13
-                  temp = 10395.0_dp+34650.0_dp*pfac*rab2
-                  temp = temp+27720.0_dp*(pfac*rab2)**2+7920.0_dp*(pfac*rab2)**3
-                  temp = temp+880.0_dp*(pfac*rab2)**4+32.0_dp*(pfac*rab2)**5
+                  temp = 10395.0_dp + 34650.0_dp*pfac*rab2
+                  temp = temp + 27720.0_dp*(pfac*rab2)**2 + 7920.0_dp*(pfac*rab2)**3
+                  temp = temp + 880.0_dp*(pfac*rab2)**4 + 32.0_dp*(pfac*rab2)**5
                   sr_int = prefac*temp
-                  s(ipgfa, jpgfb, m-il+1, 1) = exp_rab2*sr_int
+                  s(ipgfa, jpgfb, m - il + 1, 1) = exp_rab2*sr_int
                   !** derivatives
                   k = sqrt_pi3*b**10/sqrt_zet**23
-                  dsr_int(1) = 34650.0_dp*pfac+55440.0_dp*pfac**2*rab2
-                  dsr_int(1) = dsr_int(1)+23760.0_dp*pfac**3*rab2**2
-                  dsr_int(1) = dsr_int(1)+3520.0_dp*pfac**4*rab2**3
-                  dsr_int(1) = dsr_int(1)+160.0_dp*pfac**5*rab2**4
+                  dsr_int(1) = 34650.0_dp*pfac + 55440.0_dp*pfac**2*rab2
+                  dsr_int(1) = dsr_int(1) + 23760.0_dp*pfac**3*rab2**2
+                  dsr_int(1) = dsr_int(1) + 3520.0_dp*pfac**4*rab2**3
+                  dsr_int(1) = dsr_int(1) + 160.0_dp*pfac**5*rab2**4
                   dsr_int(1) = prefac*dsr_int(1)
-                  dsr_int(2) = 55440.0_dp*pfac**2+47520.0_dp*pfac**3*rab2
-                  dsr_int(2) = dsr_int(2)+10560.0_dp*pfac**4*rab2**2
-                  dsr_int(2) = dsr_int(2)+640.0_dp*pfac**5*rab2**3
+                  dsr_int(2) = 55440.0_dp*pfac**2 + 47520.0_dp*pfac**3*rab2
+                  dsr_int(2) = dsr_int(2) + 10560.0_dp*pfac**4*rab2**2
+                  dsr_int(2) = dsr_int(2) + 640.0_dp*pfac**5*rab2**3
                   dsr_int(2) = prefac*dsr_int(2)
-                  dsr_int(3) = 47520.0_dp*pfac**3+21120.0_dp*pfac**4*rab2
-                  dsr_int(3) = dsr_int(3)+1920.0_dp*pfac**5*rab2**2
+                  dsr_int(3) = 47520.0_dp*pfac**3 + 21120.0_dp*pfac**4*rab2
+                  dsr_int(3) = dsr_int(3) + 1920.0_dp*pfac**5*rab2**2
                   dsr_int(3) = prefac*dsr_int(3)
-                  dsr_int(4) = 21120.0_dp*pfac**4+3840.0_dp*pfac**5*rab2
+                  dsr_int(4) = 21120.0_dp*pfac**4 + 3840.0_dp*pfac**5*rab2
                   dsr_int(4) = prefac*dsr_int(4)
                   DO ids = 2, nds
-                     n = ids-1
+                     n = ids - 1
                      dtemp(1) = (-xhi)**n*exp_rab2*sr_int
-                     dtemp(2) = REAL(n, dp)*(-xhi)**(n-1)*exp_rab2*dsr_int(1)
-                     dtemp(3) = REAL(n**2-n, dp)/2.0_dp*(-xhi)**(n-2) &
+                     dtemp(2) = REAL(n, dp)*(-xhi)**(n - 1)*exp_rab2*dsr_int(1)
+                     dtemp(3) = REAL(n**2 - n, dp)/2.0_dp*(-xhi)**(n - 2) &
                                 *exp_rab2*dsr_int(2)
-                     dtemp(4) = REAL(n*(n-1)*(n-2), dp)/6.0_dp*(-xhi)**(n-3) &
+                     dtemp(4) = REAL(n*(n - 1)*(n - 2), dp)/6.0_dp*(-xhi)**(n - 3) &
                                 *exp_rab2*dsr_int(3)
-                     dtemp(5) = REAL(n*(n-1)*(n-2)*(n-3), dp)/24.0_dp*(-xhi)**(n-4) &
+                     dtemp(5) = REAL(n*(n - 1)*(n - 2)*(n - 3), dp)/24.0_dp*(-xhi)**(n - 4) &
                                 *exp_rab2*dsr_int(4)
-                     dtemp(6) = REAL(n*(n-1)*(n-2)*(n-3)*(n-4), dp)*(-xhi)**(n-5) &
+                     dtemp(6) = REAL(n*(n - 1)*(n - 2)*(n - 3)*(n - 4), dp)*(-xhi)**(n - 5) &
                                 *k*exp_rab2
-                     s(ipgfa, jpgfb, m-il+1, ids) = dtemp(1)+dtemp(2)+dtemp(3) &
-                                                    +dtemp(4)+dtemp(5)+dtemp(6)
+                     s(ipgfa, jpgfb, m - il + 1, ids) = dtemp(1) + dtemp(2) + dtemp(3) &
+                                                        + dtemp(4) + dtemp(5) + dtemp(6)
                   ENDDO
                CASE DEFAULT
-                  prefac = exp_rab2/sqrt_zet**(2*il+3)
+                  prefac = exp_rab2/sqrt_zet**(2*il + 3)
                   sr_int = 0.0_dp
                   DO i = 0, il
-                     sr_int = sr_int+coeff_srs(i+1, 1, il+1)*(pfac)**i*rab2**i
+                     sr_int = sr_int + coeff_srs(i + 1, 1, il + 1)*(pfac)**i*rab2**i
                   ENDDO
-                  s(ipgfa, jpgfb, m-il+1, 1) = prefac*sr_int
+                  s(ipgfa, jpgfb, m - il + 1, 1) = prefac*sr_int
                   DO ids = 2, nds
-                     n = ids-1
+                     n = ids - 1
                      nfac = 1
                      dfsr_int = (-xhi)**n*sr_int
                      DO j = 1, il
                         temp = 0.0_dp
                         DO i = j, il
-                           temp = temp+coeff_srs(i+1, j+1, il+1)*(pfac)**i*rab2**(i-j)
+                           temp = temp + coeff_srs(i + 1, j + 1, il + 1)*(pfac)**i*rab2**(i - j)
                         ENDDO
-                        nfac = nfac*(n-j+1)
-                        dfsr_int = dfsr_int+temp*REAL(nfac, dp)/fac(j)*(-xhi)**(n-j)
+                        nfac = nfac*(n - j + 1)
+                        dfsr_int = dfsr_int + temp*REAL(nfac, dp)/fac(j)*(-xhi)**(n - j)
                      ENDDO
-                     s(ipgfa, jpgfb, m-il+1, ids) = prefac*dfsr_int
+                     s(ipgfa, jpgfb, m - il + 1, ids) = prefac*dfsr_int
                   ENDDO
                END SELECT
             ENDDO
@@ -569,10 +569,10 @@ CONTAINS
       sqrt_pi3 = SQRT(pi**3)
 
       DO il = 0, nl
-         temp = dfac(2*il+1)*sqrt_pi3*fac(il)/2.0_dp**il
+         temp = dfac(2*il + 1)*sqrt_pi3*fac(il)/2.0_dp**il
          DO j = 0, il
             DO k = j, il
-               prefac(k+1, j+1, il+1) = temp*2.0_dp**k/dfac(2*k+1)/fac(il-k)/fac(k-j)
+               prefac(k + 1, j + 1, il + 1) = temp*2.0_dp**k/dfac(2*k + 1)/fac(il - k)/fac(k - j)
             ENDDO
          ENDDO
       ENDDO
@@ -612,10 +612,10 @@ CONTAINS
       dummy = omega
 
       ! Distance of the centers a and b
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       ndev = 0
       IF (calculate_forces) ndev = 1
-      nmax = la_max+lb_max+ndev+1
+      nmax = la_max + lb_max + ndev + 1
       ALLOCATE (f(0:nmax))
       ! Loops over all pairs of primitive Gaussian-type functions
       DO ipgfa = 1, npgfa
@@ -624,14 +624,14 @@ CONTAINS
             ! Calculate some prefactors
             a = zeta(ipgfa)
             b = zetb(jpgfb)
-            zet = a+b
+            zet = a + b
             xhi = a*b/zet
             prefac = 2.0_dp*SQRT(pi**5)/(a*b)/SQRT(zet)
             T = xhi*rab2
-            CALL fgamma(nmax-1, T, f)
+            CALL fgamma(nmax - 1, T, f)
 
             DO ids = 1, nmax
-               n = ids-1
+               n = ids - 1
                v(ipgfa, jpgfb, ids) = prefac*(-xhi)**n*f(n)
             ENDDO
 
@@ -673,10 +673,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
 
       ! Distance of the centers a and b
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       ndev = 0
       IF (calculate_forces) ndev = 1
-      nmax = la_max+lb_max+ndev+1
+      nmax = la_max + lb_max + ndev + 1
       ALLOCATE (f(0:nmax))
       ! Loops over all pairs of primitive Gaussian-type functions
       DO ipgfa = 1, npgfa
@@ -685,16 +685,16 @@ CONTAINS
             ! Calculate some prefactors
             a = zeta(ipgfa)
             b = zetb(jpgfb)
-            zet = a+b
+            zet = a + b
             xhi = a*b/zet
-            comega = omega**2/(omega**2+xhi)
+            comega = omega**2/(omega**2 + xhi)
             prefac = 2.0_dp*SQRT(pi**5)*SQRT(comega)/(a*b)/SQRT(zet)
             T = xhi*rab2
             Arg = comega*T
-            CALL fgamma(nmax-1, Arg, f)
+            CALL fgamma(nmax - 1, Arg, f)
 
             DO ids = 1, nmax
-               n = ids-1
+               n = ids - 1
                v(ipgfa, jpgfb, ids) = prefac*(-xhi*comega)**n*f(n)
             ENDDO
 
@@ -737,10 +737,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fv, fverf
 
       ! Distance of the centers a and b
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       ndev = 0
       IF (calculate_forces) ndev = 1
-      nmax = la_max+lb_max+ndev+1
+      nmax = la_max + lb_max + ndev + 1
       ALLOCATE (fv(0:nmax), fverf(0:nmax))
       ! Loops over all pairs of primitive Gaussian-type functions
       DO ipgfa = 1, npgfa
@@ -749,18 +749,18 @@ CONTAINS
             ! Calculate some prefactors
             a = zeta(ipgfa)
             b = zetb(jpgfb)
-            zet = a+b
+            zet = a + b
             xhi = a*b/zet
-            comega = omega**2/(omega**2+xhi)
+            comega = omega**2/(omega**2 + xhi)
             prefac = 2.0_dp*SQRT(pi**5)/(a*b)/SQRT(zet)
             T = xhi*rab2
             comegaT = comega*T
-            CALL fgamma(nmax-1, T, fv)
-            CALL fgamma(nmax-1, comegaT, fverf)
+            CALL fgamma(nmax - 1, T, fv)
+            CALL fgamma(nmax - 1, comegaT, fverf)
 
             DO ids = 1, nmax
-               n = ids-1
-               v(ipgfa, jpgfb, ids) = prefac*(-xhi)**n*(fv(n)-SQRT(comega)*comega**n*fverf(n))
+               n = ids - 1
+               v(ipgfa, jpgfb, ids) = prefac*(-xhi)**n*(fv(n) - SQRT(comega)*comega**n*fverf(n))
             ENDDO
 
          END DO
@@ -802,10 +802,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
 
       ! Distance of the centers a and b
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       ndev = 0
       IF (calculate_forces) ndev = 1
-      nmax = la_max+lb_max+ndev+1
+      nmax = la_max + lb_max + ndev + 1
       ALLOCATE (f(0:nmax))
       ! Loops over all pairs of primitive Gaussian-type functions
       v = 0.0_dp
@@ -815,22 +815,22 @@ CONTAINS
             ! Calculate some prefactors
             a = zeta(ipgfa)
             b = zetb(jpgfb)
-            zet = a+b
+            zet = a + b
             xhi = a*b/zet
-            eta = xhi/(xhi+omega)
+            eta = xhi/(xhi + omega)
             oeta = omega*eta
             xeta = xhi*eta
             T = xhi*rab2
-            expT = EXP(-omega/(omega+xhi)*T)
-            prefac = 2.0_dp*SQRT(pi**5/zet**3)/(xhi+omega)*expT
+            expT = EXP(-omega/(omega + xhi)*T)
+            prefac = 2.0_dp*SQRT(pi**5/zet**3)/(xhi + omega)*expT
             etaT = eta*T
-            CALL fgamma(nmax-1, etaT, f)
+            CALL fgamma(nmax - 1, etaT, f)
 
             DO ids = 1, nmax
-               n = ids-1
+               n = ids - 1
                DO j = 0, n
                   v(ipgfa, jpgfb, ids) = v(ipgfa, jpgfb, ids) &
-                                         +prefac*fac(n)/fac(j)/fac(n-j)*(-oeta)**(n-j)*(-xeta)**j*f(j)
+                                         + prefac*fac(n)/fac(j)/fac(n - j)*(-oeta)**(n - j)*(-xeta)**j*f(j)
                ENDDO
             ENDDO
 
@@ -873,10 +873,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
 
       ! Distance of the centers a and b
-      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
       ndev = 0
       IF (calculate_forces) ndev = 1
-      nmax = la_max+lb_max+ndev+1
+      nmax = la_max + lb_max + ndev + 1
       ALLOCATE (f(0:nmax))
       ! Loops over all pairs of primitive Gaussian-type functions
       DO ipgfa = 1, npgfa
@@ -885,16 +885,16 @@ CONTAINS
             ! Calculate some prefactors
             a = zeta(ipgfa)
             b = zetb(jpgfb)
-            zet = a+b
+            zet = a + b
             xhi = a*b/zet
-            eta = xhi/(xhi+omega)
+            eta = xhi/(xhi + omega)
             oeta = omega*eta
             T = xhi*rab2
-            expT = EXP(-omega/(omega+xhi)*T)
-            prefac = pi**3/SQRT(zet**3)/SQRT((xhi+omega)**3)*expT
+            expT = EXP(-omega/(omega + xhi)*T)
+            prefac = pi**3/SQRT(zet**3)/SQRT((xhi + omega)**3)*expT
 
             DO ids = 1, nmax
-               n = ids-1
+               n = ids - 1
                v(ipgfa, jpgfb, ids) = prefac*(-oeta)**n
             ENDDO
 
@@ -946,13 +946,13 @@ CONTAINS
          lai = la(ishella)
          DO jshellb = 1, nshellb
             lbj = lb(jshellb)
-            nds = lai+lbj+1
-            ids_start = nds-MIN(lai, lbj)
+            nds = lai + lbj + 1
+            ids_start = nds - MIN(lai, lbj)
             DO ipgfa = 1, npgfa
                DO jpgfb = 1, npgfb
-                  DO ids = ids_start, nds+ndev
+                  DO ids = ids_start, nds + ndev
                      swork_cont(ids, ishella, jshellb) = swork_cont(ids, ishella, jshellb) &
-                                                         +scona_shg(ipgfa, ishella) &
+                                                         + scona_shg(ipgfa, ishella) &
                                                          *sconb_shg(jpgfb, jshellb) &
                                                          *swork(ipgfa, jpgfb, ids)
                   ENDDO
@@ -1037,7 +1037,7 @@ CONTAINS
       INTEGER                                            :: i, my_m
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work_pc
 
-      my_m = m+1
+      my_m = m + 1
       ALLOCATE (work_pc(npgfb, nds_max, nshella))
       work_pc = 0.0_dp
       swork_cont = 0.0_dp
@@ -1115,23 +1115,23 @@ CONTAINS
          lbk = lcb(kshellb)
          DO jshellb = 1, nshellb
             lbj = lb(jshellb)
-            nl = INT((lbj+lbk)/2)
+            nl = INT((lbj + lbk)/2)
             IF (lbj == 0 .OR. lbk == 0) nl = 0
             DO ishella = 1, nshella
                lai = la(ishella)
                DO il = 0, nl
-                  lbb = lbj+lbk-2*il
-                  nds = lai+lbb+1
-                  ids_start = nds-MIN(lai, lbb)
+                  lbb = lbj + lbk - 2*il
+                  nds = lai + lbb + 1
+                  ids_start = nds - MIN(lai, lbb)
                   DO jpgfb = 1, npgfb
                      forb = orbb_index(jpgfb, jshellb)
                      DO kpgfb = 1, npgfcb
                         fri = rib_index(kpgfb, kshellb)
-                        DO ids = ids_start, nds+ndev
+                        DO ids = ids_start, nds + ndev
                            DO iil = 0, il
                               swork_cont(ids, il, ishella, jshellb, kshellb) = &
                                  swork_cont(ids, il, ishella, jshellb, kshellb) &
-                                 +sconb_mix(iil+1, fri, forb, il+1)*work_ppc(jpgfb, kpgfb, il-iil+1, ids, ishella)
+                                 + sconb_mix(iil + 1, fri, forb, il + 1)*work_ppc(jpgfb, kpgfb, il - iil + 1, ids, ishella)
                            ENDDO
                         ENDDO
                      ENDDO
@@ -1209,21 +1209,21 @@ CONTAINS
             lbj = lb(jshellb)
             DO ishella = 1, nshella
                lai = la(ishella)
-               nl = INT((lai+lak)/2)
+               nl = INT((lai + lak)/2)
                IF (lai == 0 .OR. lak == 0) nl = 0
                DO il = 0, nl
-                  laa = lai+lak-2*il
-                  nds = laa+lbj+1
-                  ids_start = nds-MIN(laa, lbj)
+                  laa = lai + lak - 2*il
+                  nds = laa + lbj + 1
+                  ids_start = nds - MIN(laa, lbj)
                   DO kpgfa = 1, npgfca
                      fri = ria_index(kpgfa, kshella)
                      DO ipgfa = 1, npgfa
                         forb = orba_index(ipgfa, ishella)
-                        DO ids = ids_start, nds+ndev
+                        DO ids = ids_start, nds + ndev
                            DO iil = 0, il
                               swork_cont(ids, il, ishella, jshellb, kshella) = &
                                  swork_cont(ids, il, ishella, jshellb, kshella) &
-                                 +scona_mix(iil+1, fri, forb, il+1)*work_ppc(ipgfa, kpgfa, il-iil+1, ids, jshellb)
+                                 + scona_mix(iil + 1, fri, forb, il + 1)*work_ppc(ipgfa, kpgfa, il - iil + 1, ids, jshellb)
                            ENDDO
                         ENDDO
                      ENDDO

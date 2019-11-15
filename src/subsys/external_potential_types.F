@@ -1106,29 +1106,29 @@ CONTAINS
       DO l = 0, potential%lppnl
          alpha_ppnl = potential%alpha_ppnl(l)
          DO iprj_ppnl = 1, potential%nprj_ppnl(l)
-            lp = iprj_ppnl-1
-            lprj_ppnl = l+2*lp
-            cp = SQRT(2.0_dp**(2.0_dp*REAL(lprj_ppnl, dp)+3.5_dp)* &
-                      alpha_ppnl**(REAL(lprj_ppnl, dp)+1.5_dp)/ &
-                      (rootpi*dfac(2*lprj_ppnl+1)))
+            lp = iprj_ppnl - 1
+            lprj_ppnl = l + 2*lp
+            cp = SQRT(2.0_dp**(2.0_dp*REAL(lprj_ppnl, dp) + 3.5_dp)* &
+                      alpha_ppnl**(REAL(lprj_ppnl, dp) + 1.5_dp)/ &
+                      (rootpi*dfac(2*lprj_ppnl + 1)))
             potential%cprj_ppnl(iprj_ppnl, l) = cp
             DO cx = 0, l
-               DO cy = 0, l-cx
-                  cz = l-cx-cy
-                  iprj = nprj+co(cx, cy, cz)
+               DO cy = 0, l - cx
+                  cz = l - cx - cy
+                  iprj = nprj + co(cx, cy, cz)
                   DO px = 0, lp
-                     DO py = 0, lp-px
-                        pz = lp-px-py
-                        cpx = cx+2*px
-                        cpy = cy+2*py
-                        cpz = cz+2*pz
+                     DO py = 0, lp - px
+                        pz = lp - px - py
+                        cpx = cx + 2*px
+                        cpy = cy + 2*py
+                        cpz = cz + 2*pz
                         ico = coset(cpx, cpy, cpz)
                         potential%cprj(ico, iprj) = cp*fac(lp)/(fac(px)*fac(py)*fac(pz))
                      END DO
                   END DO
                END DO
             END DO
-            nprj = nprj+nco(l)
+            nprj = nprj + nco(l)
          END DO
       END DO
 
@@ -1186,15 +1186,15 @@ CONTAINS
 
       DO l = 0, potential%lppnl
          DO iprj_ppnl = 1, potential%nprj_ppnl(l)
-            iprj = nprj+(iprj_ppnl-1)*nco(l)
+            iprj = nprj + (iprj_ppnl - 1)*nco(l)
             DO jprj_ppnl = 1, potential%nprj_ppnl(l)
-               jprj = nprj+(jprj_ppnl-1)*nco(l)
+               jprj = nprj + (jprj_ppnl - 1)*nco(l)
                DO ico = 1, nco(l)
-                  i = iprj+ico
+                  i = iprj + ico
                   DO jco = 1, nco(l)
-                     j = jprj+jco
+                     j = jprj + jco
                      DO iso = 1, nso(l)
-                        potential%vprj_ppnl(i, j) = potential%vprj_ppnl(i, j)+ &
+                        potential%vprj_ppnl(i, j) = potential%vprj_ppnl(i, j) + &
                                                     orbtramat(l)%slm(iso, ico)* &
                                                     potential%hprj_ppnl(iprj_ppnl, &
                                                                         jprj_ppnl, l)* &
@@ -1204,7 +1204,7 @@ CONTAINS
                END DO
             END DO
          END DO
-         nprj = nprj+potential%nprj_ppnl(l)*nco(l)
+         nprj = nprj + potential%nprj_ppnl(l)*nco(l)
       END DO
 
    END SUBROUTINE init_vprj_ppnl
@@ -1231,66 +1231,66 @@ CONTAINS
 
       IF (PRESENT(zeff)) potential%zeff = zeff
       IF (PRESENT(zeff_correction)) potential%zeff_correction = zeff_correction
-      dz = potential%z-INT(potential%zeff-potential%zeff_correction)
+      dz = potential%z - INT(potential%zeff - potential%zeff_correction)
       SELECT CASE (dz)
       CASE DEFAULT
       CASE (2)
-         potential%elec_conf(0) = potential%elec_conf(0)-2
+         potential%elec_conf(0) = potential%elec_conf(0) - 2
       CASE (10)
-         potential%elec_conf(0) = potential%elec_conf(0)-4
-         potential%elec_conf(1) = potential%elec_conf(1)-6
+         potential%elec_conf(0) = potential%elec_conf(0) - 4
+         potential%elec_conf(1) = potential%elec_conf(1) - 6
       CASE (18)
-         potential%elec_conf(0) = potential%elec_conf(0)-6
-         potential%elec_conf(1) = potential%elec_conf(1)-12
+         potential%elec_conf(0) = potential%elec_conf(0) - 6
+         potential%elec_conf(1) = potential%elec_conf(1) - 12
       CASE (28)
-         potential%elec_conf(0) = potential%elec_conf(0)-6
-         potential%elec_conf(1) = potential%elec_conf(1)-12
-         potential%elec_conf(2) = potential%elec_conf(2)-10
+         potential%elec_conf(0) = potential%elec_conf(0) - 6
+         potential%elec_conf(1) = potential%elec_conf(1) - 12
+         potential%elec_conf(2) = potential%elec_conf(2) - 10
       CASE (30)
-         potential%elec_conf(0) = potential%elec_conf(0)-8
-         potential%elec_conf(1) = potential%elec_conf(1)-12
-         potential%elec_conf(2) = potential%elec_conf(2)-10
+         potential%elec_conf(0) = potential%elec_conf(0) - 8
+         potential%elec_conf(1) = potential%elec_conf(1) - 12
+         potential%elec_conf(2) = potential%elec_conf(2) - 10
       CASE (36)
-         potential%elec_conf(0) = potential%elec_conf(0)-8
-         potential%elec_conf(1) = potential%elec_conf(1)-18
-         potential%elec_conf(2) = potential%elec_conf(2)-10
+         potential%elec_conf(0) = potential%elec_conf(0) - 8
+         potential%elec_conf(1) = potential%elec_conf(1) - 18
+         potential%elec_conf(2) = potential%elec_conf(2) - 10
       CASE (46)
-         potential%elec_conf(0) = potential%elec_conf(0)-8
-         potential%elec_conf(1) = potential%elec_conf(1)-18
-         potential%elec_conf(2) = potential%elec_conf(2)-20
+         potential%elec_conf(0) = potential%elec_conf(0) - 8
+         potential%elec_conf(1) = potential%elec_conf(1) - 18
+         potential%elec_conf(2) = potential%elec_conf(2) - 20
       CASE (48)
-         potential%elec_conf(0) = potential%elec_conf(0)-10
-         potential%elec_conf(1) = potential%elec_conf(1)-18
-         potential%elec_conf(2) = potential%elec_conf(2)-20
+         potential%elec_conf(0) = potential%elec_conf(0) - 10
+         potential%elec_conf(1) = potential%elec_conf(1) - 18
+         potential%elec_conf(2) = potential%elec_conf(2) - 20
       CASE (54)
-         potential%elec_conf(0) = potential%elec_conf(0)-10
-         potential%elec_conf(1) = potential%elec_conf(1)-24
-         potential%elec_conf(2) = potential%elec_conf(2)-20
+         potential%elec_conf(0) = potential%elec_conf(0) - 10
+         potential%elec_conf(1) = potential%elec_conf(1) - 24
+         potential%elec_conf(2) = potential%elec_conf(2) - 20
       CASE (68)
-         potential%elec_conf(0) = potential%elec_conf(0)-10
-         potential%elec_conf(1) = potential%elec_conf(1)-24
-         potential%elec_conf(2) = potential%elec_conf(2)-20
-         potential%elec_conf(3) = potential%elec_conf(3)-14
+         potential%elec_conf(0) = potential%elec_conf(0) - 10
+         potential%elec_conf(1) = potential%elec_conf(1) - 24
+         potential%elec_conf(2) = potential%elec_conf(2) - 20
+         potential%elec_conf(3) = potential%elec_conf(3) - 14
       CASE (78)
-         potential%elec_conf(0) = potential%elec_conf(0)-10
-         potential%elec_conf(1) = potential%elec_conf(1)-24
-         potential%elec_conf(2) = potential%elec_conf(2)-30
-         potential%elec_conf(3) = potential%elec_conf(3)-14
+         potential%elec_conf(0) = potential%elec_conf(0) - 10
+         potential%elec_conf(1) = potential%elec_conf(1) - 24
+         potential%elec_conf(2) = potential%elec_conf(2) - 30
+         potential%elec_conf(3) = potential%elec_conf(3) - 14
       CASE (80)
-         potential%elec_conf(0) = potential%elec_conf(0)-12
-         potential%elec_conf(1) = potential%elec_conf(1)-24
-         potential%elec_conf(2) = potential%elec_conf(2)-30
-         potential%elec_conf(3) = potential%elec_conf(3)-14
+         potential%elec_conf(0) = potential%elec_conf(0) - 12
+         potential%elec_conf(1) = potential%elec_conf(1) - 24
+         potential%elec_conf(2) = potential%elec_conf(2) - 30
+         potential%elec_conf(3) = potential%elec_conf(3) - 14
       CASE (86)
-         potential%elec_conf(0) = potential%elec_conf(0)-12
-         potential%elec_conf(1) = potential%elec_conf(1)-30
-         potential%elec_conf(2) = potential%elec_conf(2)-30
-         potential%elec_conf(3) = potential%elec_conf(3)-14
+         potential%elec_conf(0) = potential%elec_conf(0) - 12
+         potential%elec_conf(1) = potential%elec_conf(1) - 30
+         potential%elec_conf(2) = potential%elec_conf(2) - 30
+         potential%elec_conf(3) = potential%elec_conf(3) - 14
       CASE (100)
-         potential%elec_conf(0) = potential%elec_conf(0)-12
-         potential%elec_conf(1) = potential%elec_conf(1)-30
-         potential%elec_conf(2) = potential%elec_conf(2)-30
-         potential%elec_conf(3) = potential%elec_conf(3)-28
+         potential%elec_conf(0) = potential%elec_conf(0) - 12
+         potential%elec_conf(1) = potential%elec_conf(1) - 30
+         potential%elec_conf(2) = potential%elec_conf(2) - 30
+         potential%elec_conf(3) = potential%elec_conf(3) - 28
       END SELECT
 
       IF (PRESENT(itype)) THEN
@@ -1331,7 +1331,7 @@ CONTAINS
             nprj = 0
             DO l = 0, potential%lmax
                nnl = potential%n_nonlocal
-               IF (potential%is_nonlocal(l)) nprj = nprj+nnl*nso(l)
+               IF (potential%is_nonlocal(l)) nprj = nprj + nnl*nso(l)
             END DO
             ALLOCATE (potential%cprj_ppnl(potential%nppnl, nprj))
             cprj => potential%cprj_ppnl
@@ -1341,14 +1341,14 @@ CONTAINS
             !
             n1 = 0
             DO la = 0, potential%lmax
-               n1 = n1+nnl*nco(la)
+               n1 = n1 + nnl*nco(la)
             END DO
             ALLOCATE (ind1(n1, 3))
             n1 = 0
             DO i1 = 1, nnl
                DO la = 0, potential%lmax
                   DO j1 = 1, nco(la)
-                     n1 = n1+1
+                     n1 = n1 + 1
                      ind1(n1, 1) = la
                      ind1(n1, 2) = j1
                      ind1(n1, 3) = i1
@@ -1360,7 +1360,7 @@ CONTAINS
             DO i2 = 1, nnl
                DO lb = 0, potential%lmax
                   IF (.NOT. potential%is_nonlocal(lb)) CYCLE
-                  n2 = n2+nso(lb)
+                  n2 = n2 + nso(lb)
                END DO
             END DO
             ALLOCATE (ind2(n2, 3))
@@ -1369,7 +1369,7 @@ CONTAINS
                DO lb = 0, potential%lmax
                   IF (.NOT. potential%is_nonlocal(lb)) CYCLE
                   DO j2 = 1, nso(lb)
-                     n2 = n2+1
+                     n2 = n2 + 1
                      ind2(n2, 1) = lb
                      ind2(n2, 2) = j2
                      ind2(n2, 3) = i2
@@ -1491,8 +1491,8 @@ CONTAINS
                line2 = " "//line//" "
                symbol2 = " "//TRIM(symbol)//" "
                apname2 = " "//TRIM(apname)//" "
-               strlen1 = LEN_TRIM(symbol2)+1
-               strlen2 = LEN_TRIM(apname2)+1
+               strlen1 = LEN_TRIM(symbol2) + 1
+               strlen2 = LEN_TRIM(apname2) + 1
 
                IF ((INDEX(line2, symbol2(:strlen1)) > 0) .AND. &
                    (INDEX(line2, apname2(:strlen2)) > 0)) match = .TRUE.
@@ -1511,7 +1511,7 @@ CONTAINS
                   READ (line_att, *) elec_conf(l)
                   CALL remove_word(line_att)
                   DO WHILE (LEN_TRIM(line_att) /= 0)
-                     l = l+1
+                     l = l + 1
                      CALL reallocate(elec_conf, 0, l)
                      READ (line_att, *) elec_conf(l)
                      CALL remove_word(line_att)
@@ -1519,11 +1519,11 @@ CONTAINS
                ELSE
                   CALL parser_get_object(parser, elec_conf(l), newline=.TRUE.)
                   DO WHILE (parser_test_next_token(parser) == "INT")
-                     l = l+1
+                     l = l + 1
                      CALL reallocate(elec_conf, 0, l)
                      CALL parser_get_object(parser, elec_conf(l))
                   END DO
-                  irep = irep+1
+                  irep = irep + 1
                   IF (update_input) THEN
                      WRITE (line_att, '(100(1X,I0))') elec_conf
                      CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
@@ -1535,7 +1535,7 @@ CONTAINS
                potential%elec_conf(:) = elec_conf(:)
 
                potential%zeff_correction = zeff_correction
-               potential%zeff = REAL(SUM(elec_conf), dp)+zeff_correction
+               potential%zeff = REAL(SUM(elec_conf), dp) + zeff_correction
 
                DEALLOCATE (elec_conf)
 
@@ -1551,7 +1551,7 @@ CONTAINS
                   READ (line_att, *) r
                ELSE
                   CALL parser_get_object(parser, r, newline=.TRUE.)
-                  irep = irep+1
+                  irep = irep + 1
                   IF (update_input) THEN
                      WRITE (line_att, '(E24.16)') r
                      CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
@@ -1580,11 +1580,11 @@ CONTAINS
       IF (.NOT. read_from_input) THEN
          ! Dump the potential info the in potential section
          IF (match .AND. update_input) THEN
-            irep = irep+1
+            irep = irep + 1
             WRITE (line_att, '(A)') "         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
             CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
                                       c_val=TRIM(line_att))
-            irep = irep+1
+            irep = irep + 1
             WRITE (line_att, '(A)') "         # Potential read from the potential filename: "//TRIM(potential_file_name)
             CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
                                       c_val=TRIM(line_att))
@@ -1675,8 +1675,8 @@ CONTAINS
                line2 = " "//line//" "
                symbol2 = " "//TRIM(symbol)//" "
                apname2 = " "//TRIM(apname)//" "
-               strlen1 = LEN_TRIM(symbol2)+1
-               strlen2 = LEN_TRIM(apname2)+1
+               strlen1 = LEN_TRIM(symbol2) + 1
+               strlen2 = LEN_TRIM(apname2) + 1
 
                IF ((INDEX(line2, symbol2(:strlen1)) > 0) .AND. &
                    (INDEX(line2, apname2(:strlen2)) > 0)) match = .TRUE.
@@ -1695,7 +1695,7 @@ CONTAINS
                ELSE
                   CALL parser_get_object(parser, ngau, newline=.TRUE.)
                   CALL parser_get_object(parser, npol)
-                  irep = irep+1
+                  irep = irep + 1
                   IF (update_input) THEN
                      WRITE (line_att, '(2(1X,I0))') ngau, npol
                      CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
@@ -1718,7 +1718,7 @@ CONTAINS
                      DO ipol = 1, npol
                         CALL parser_get_object(parser, cval(igau, ipol), newline=.FALSE.)
                      END DO
-                     irep = irep+1
+                     irep = irep + 1
                      IF (update_input) THEN
                         WRITE (line_att, '(8(E24.16))') alpha(igau), (cval(igau, ipol), ipol=1, npol)
                         CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
@@ -1737,7 +1737,7 @@ CONTAINS
                potential%radius = 0.0_dp
                DO igau = 1, ngau
                   DO ipol = 1, npol
-                     l = 2*(ipol-1)
+                     l = 2*(ipol - 1)
                      potential%radius = MAX(potential%radius, &
                                             exp_radius(l, alpha(igau), eps_tpot, cval(igau, ipol)))
                   END DO
@@ -1760,11 +1760,11 @@ CONTAINS
       IF (.NOT. read_from_input) THEN
          ! Dump the potential info in the potential section
          IF (match .AND. update_input) THEN
-            irep = irep+1
+            irep = irep + 1
             WRITE (line_att, '(A)') "         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
             CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
                                       c_val=TRIM(line_att))
-            irep = irep+1
+            irep = irep + 1
             WRITE (line_att, '(A)') "         # Potential read from the potential filename: "//TRIM(potential_file_name)
             CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
                                       c_val=TRIM(line_att))
@@ -1877,14 +1877,14 @@ CONTAINS
                line2 = " "//line//" "
                symbol2 = " "//TRIM(symbol)//" "
                apname2 = " "//TRIM(apname)//" "
-               strlen1 = LEN_TRIM(symbol2)+1
-               strlen2 = LEN_TRIM(apname2)+1
+               strlen1 = LEN_TRIM(symbol2) + 1
+               strlen2 = LEN_TRIM(apname2) + 1
 
                i = INDEX(line2, symbol2(:strlen1))
                j = INDEX(line2, apname2(:strlen2))
                IF (i > 0 .AND. j > 0) THEN
                   match = .TRUE.
-                  i = i+1+INDEX(line2(i+1:), " ")
+                  i = i + 1 + INDEX(line2(i + 1:), " ")
                   potential%aliases = line2(i:) ! copy all names into aliases field
                ENDIF
             END IF
@@ -1902,7 +1902,7 @@ CONTAINS
                   READ (line_att, *) elec_conf(l)
                   CALL remove_word(line_att)
                   DO WHILE (LEN_TRIM(line_att) /= 0)
-                     l = l+1
+                     l = l + 1
                      CALL reallocate(elec_conf, 0, l)
                      READ (line_att, *) elec_conf(l)
                      CALL remove_word(line_att)
@@ -1910,11 +1910,11 @@ CONTAINS
                ELSE
                   CALL parser_get_object(parser, elec_conf(l), newline=.TRUE.)
                   DO WHILE (parser_test_next_token(parser) == "INT")
-                     l = l+1
+                     l = l + 1
                      CALL reallocate(elec_conf, 0, l)
                      CALL parser_get_object(parser, elec_conf(l))
                   END DO
-                  irep = irep+1
+                  irep = irep + 1
                   IF (update_input) THEN
                      WRITE (line_att, '(100(1X,I0))') elec_conf
                      CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
@@ -1926,7 +1926,7 @@ CONTAINS
                potential%elec_conf(:) = elec_conf(:)
 
                potential%zeff_correction = zeff_correction
-               potential%zeff = REAL(SUM(elec_conf), dp)+zeff_correction
+               potential%zeff = REAL(SUM(elec_conf), dp) + zeff_correction
 
                DEALLOCATE (elec_conf)
 
@@ -1944,7 +1944,7 @@ CONTAINS
                ELSE
                   line_att = ""
                   CALL parser_get_object(parser, r, newline=.TRUE.)
-                  istr = LEN_TRIM(line_att)+1
+                  istr = LEN_TRIM(line_att) + 1
                   WRITE (line_att(istr:), '(E24.16)') r
                END IF
                alpha = 1.0_dp/(2.0_dp*r**2)
@@ -1963,7 +1963,7 @@ CONTAINS
                   CALL remove_word(line_att)
                ELSE
                   CALL parser_get_object(parser, n)
-                  istr = LEN_TRIM(line_att)+1
+                  istr = LEN_TRIM(line_att) + 1
                   WRITE (line_att(istr:), '(1X,I0)') n
                END IF
                potential%nexp_ppl = n
@@ -1975,15 +1975,15 @@ CONTAINS
                      CALL remove_word(line_att)
                   ELSE
                      CALL parser_get_object(parser, ci)
-                     istr = LEN_TRIM(line_att)+1
+                     istr = LEN_TRIM(line_att) + 1
                      WRITE (line_att(istr:), '(E24.16)') ci
                   END IF
                   rc2 = (2.0_dp*potential%alpha_ppl)
-                  potential%cexp_ppl(i) = rc2**(i-1)*ci
+                  potential%cexp_ppl(i) = rc2**(i - 1)*ci
                END DO
 
                IF (.NOT. read_from_input) THEN
-                  irep = irep+1
+                  irep = irep + 1
                   IF (update_input) THEN
                      CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
                                                c_val=TRIM(line_att))
@@ -1995,7 +1995,7 @@ CONTAINS
                                    "Error reading the Potential from input file!!")
                   END IF
                END IF
-               maxlppl = 2*(n-1)
+               maxlppl = 2*(n - 1)
 
                IF (maxlppl > -1) CALL init_orbital_pointers(maxlppl)
 
@@ -2011,7 +2011,7 @@ CONTAINS
                         CALL remove_word(line_att)
                         READ (line_att, *) potential%nexp_lpot
                         n = potential%nexp_lpot
-                        maxlppl = 2*(n-1)
+                        maxlppl = 2*(n - 1)
                         IF (maxlppl > -1) CALL init_orbital_pointers(maxlppl)
                         NULLIFY (potential%alpha_lpot, potential%nct_lpot, potential%cval_lpot)
                         CALL reallocate(potential%alpha_lpot, 1, n)
@@ -2028,7 +2028,7 @@ CONTAINS
                            CALL remove_word(line_att)
                            DO ic = 1, potential%nct_lpot(ipot)
                               READ (line_att, *) ci
-                              rc2 = (2._dp*potential%alpha_lpot(ipot))**(ic-1)
+                              rc2 = (2._dp*potential%alpha_lpot(ipot))**(ic - 1)
                               potential%cval_lpot(ic, ipot) = ci*rc2
                               CALL remove_word(line_att)
                            END DO
@@ -2077,7 +2077,7 @@ CONTAINS
                            CALL remove_word(line_att)
                            DO ic = 1, potential%nct_lsd(ipot)
                               READ (line_att, *) ci
-                              rc2 = (2._dp*potential%alpha_lsd(ipot))**(ic-1)
+                              rc2 = (2._dp*potential%alpha_lsd(ipot))**(ic - 1)
                               potential%cval_lsd(ic, ipot) = ci*rc2
                               CALL remove_word(line_att)
                            END DO
@@ -2103,7 +2103,7 @@ CONTAINS
                            CALL reallocate(potential%nct_lpot, 1, n)
                            CALL reallocate(potential%cval_lpot, 1, 4, 1, n)
                            ! add to input section
-                           irep = irep+1
+                           irep = irep + 1
                            IF (update_input) THEN
                               WRITE (line_att, '(A,1X,I0)') "LPOT", n
                               CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
@@ -2117,11 +2117,11 @@ CONTAINS
                               DO ic = 1, potential%nct_lpot(ipot)
                                  CALL parser_get_object(parser, ci)
                                  tmp_vals(ic) = ci
-                                 rc2 = (2._dp*potential%alpha_lpot(ipot))**(ic-1)
+                                 rc2 = (2._dp*potential%alpha_lpot(ipot))**(ic - 1)
                                  potential%cval_lpot(ic, ipot) = ci*rc2
                               END DO
                               ! add to input section
-                              irep = irep+1
+                              irep = irep + 1
                               IF (update_input) THEN
                                  WRITE (line_att, '(E24.16,1X,I0,100(1X,E24.16))') r, potential%nct_lpot(ipot), &
                                     tmp_vals(1:potential%nct_lpot(ipot))
@@ -2140,7 +2140,7 @@ CONTAINS
                            CALL reallocate(potential%cval_nlcc, 1, 4, 1, n)
                            ! add to input section
                            WRITE (line_att, '(A,1X,I0)') "NLCC", n
-                           irep = irep+1
+                           irep = irep + 1
                            CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
                                                      c_val=TRIM(line_att))
                            DO ipot = 1, potential%nexp_nlcc
@@ -2154,7 +2154,7 @@ CONTAINS
                                  potential%cval_nlcc(ic, ipot) = potential%cval_nlcc(ic, ipot)/(4.0_dp*pi)
                               END DO
                               ! add to input section
-                              irep = irep+1
+                              irep = irep + 1
                               IF (update_input) THEN
                                  WRITE (line_att, '(E24.16,1X,I0,100(1X,E24.16))') &
                                     potential%alpha_nlcc(ipot), potential%nct_nlcc(ipot), &
@@ -2173,7 +2173,7 @@ CONTAINS
                            CALL reallocate(potential%nct_lsd, 1, n)
                            CALL reallocate(potential%cval_lsd, 1, 4, 1, n)
                            ! add to input section
-                           irep = irep+1
+                           irep = irep + 1
                            IF (update_input) THEN
                               WRITE (line_att, '(A,1X,I0)') "LSD", n
                               CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
@@ -2187,11 +2187,11 @@ CONTAINS
                               DO ic = 1, potential%nct_lsd(ipot)
                                  CALL parser_get_object(parser, ci)
                                  tmp_vals(ic) = ci
-                                 rc2 = (2._dp*potential%alpha_lsd(ipot))**(ic-1)
+                                 rc2 = (2._dp*potential%alpha_lsd(ipot))**(ic - 1)
                                  potential%cval_lsd(ic, ipot) = ci*rc2
                               END DO
                               ! add to input section
-                              irep = irep+1
+                              irep = irep + 1
                               IF (update_input) THEN
                                  WRITE (line_att, '(E24.16,1X,I0,100(1X,E24.16))') r, potential%nct_lsd(ipot), &
                                     tmp_vals(1:potential%nct_lsd(ipot))
@@ -2231,17 +2231,17 @@ CONTAINS
                   CALL remove_word(line_att)
                ELSE
                   CALL parser_get_object(parser, n)
-                  irep = irep+1
+                  irep = irep + 1
                   IF (update_input) THEN
                      WRITE (line_att, '(1X,I0)') n
                      CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
                                                c_val=TRIM(line_att))
                   END IF
                END IF
-               potential%lppnl = n-1
+               potential%lppnl = n - 1
                potential%nppnl = 0
 
-               potential%lprj_ppnl_max = n-1
+               potential%lprj_ppnl_max = n - 1
                potential%nprj_ppnl_max = 0
 
                IF (n > 0) THEN
@@ -2276,7 +2276,7 @@ CONTAINS
                         line_att = ""
                         CALL parser_get_object(parser, r, newline=.TRUE.)
                         CALL parser_get_object(parser, nprj_ppnl)
-                        istr = LEN_TRIM(line_att)+1
+                        istr = LEN_TRIM(line_att) + 1
                         WRITE (line_att(istr:), '(E24.16,1X,I0)') r, nprj_ppnl
                      END IF
                      IF (r == 0.0_dp .AND. nprj_ppnl /= 0) THEN
@@ -2289,7 +2289,7 @@ CONTAINS
                      potential%alpha_ppnl(l) = 0.0_dp
                      IF (r /= 0.0_dp .AND. n /= 0) potential%alpha_ppnl(l) = 1.0_dp/(2.0_dp*r**2)
                      potential%nprj_ppnl(l) = nprj_ppnl
-                     nppnl = nppnl+nprj_ppnl*nco(l)
+                     nppnl = nppnl + nprj_ppnl*nco(l)
                      IF (nprj_ppnl > nprj_ppnl_max) THEN
                         nprj_ppnl_max = nprj_ppnl
                         CALL reallocate(hprj_ppnl, 1, nprj_ppnl_max, &
@@ -2303,7 +2303,7 @@ CONTAINS
                               CALL remove_word(line_att)
                            ELSE
                               CALL parser_get_object(parser, hprj_ppnl(i, i, l))
-                              istr = LEN_TRIM(line_att)+1
+                              istr = LEN_TRIM(line_att) + 1
                               WRITE (line_att(istr:), '(E24.16)') hprj_ppnl(i, i, l)
                            END IF
                         ELSE
@@ -2319,28 +2319,28 @@ CONTAINS
                               READ (line_att, *) hprj_ppnl(i, i, l)
                               CALL remove_word(line_att)
                            ELSE
-                              irep = irep+1
+                              irep = irep + 1
                               CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
                                                         c_val=TRIM(line_att))
                               line_att = ""
                               CALL parser_get_object(parser, hprj_ppnl(i, i, l), newline=.TRUE.)
-                              istr = LEN_TRIM(line_att)+1
+                              istr = LEN_TRIM(line_att) + 1
                               WRITE (line_att(istr:), '(E24.16)') hprj_ppnl(i, i, l)
                            END IF
                         END IF
-                        DO j = i+1, nprj_ppnl
+                        DO j = i + 1, nprj_ppnl
                            IF (read_from_input) THEN
                               READ (line_att, *) hprj_ppnl(i, j, l)
                               CALL remove_word(line_att)
                            ELSE
                               CALL parser_get_object(parser, hprj_ppnl(i, j, l))
-                              istr = LEN_TRIM(line_att)+1
+                              istr = LEN_TRIM(line_att) + 1
                               WRITE (line_att(istr:), '(E24.16)') hprj_ppnl(i, j, l)
                            END IF
                         END DO
                      END DO
                      IF (.NOT. read_from_input) THEN
-                        irep = irep+1
+                        irep = irep + 1
                         IF (update_input) THEN
                            CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
                                                      c_val=TRIM(line_att))
@@ -2355,7 +2355,7 @@ CONTAINS
                      IF (nprj_ppnl > 1) THEN
                         CALL symmetrize_matrix(hprj_ppnl(:, :, l), "upper_to_lower")
                      END IF
-                     lprj_ppnl_max = MAX(lprj_ppnl_max, l+2*(nprj_ppnl-1))
+                     lprj_ppnl_max = MAX(lprj_ppnl_max, l + 2*(nprj_ppnl - 1))
                   END DO
 
                   potential%nppnl = nppnl
@@ -2391,11 +2391,11 @@ CONTAINS
       IF (.NOT. read_from_input) THEN
          ! Dump the potential info the in potential section
          IF (match .AND. update_input) THEN
-            irep = irep+1
+            irep = irep + 1
             WRITE (line_att, '(A)') "         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
             CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
                                       c_val=TRIM(line_att))
-            irep = irep+1
+            irep = irep + 1
             WRITE (line_att, '(A)') "         # Potential read from the potential filename: "//TRIM(potential_file_name)
             CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
                                       c_val=TRIM(line_att))
@@ -2429,7 +2429,7 @@ CONTAINS
 
       ALLOCATE (elec_conf(0:3))
       elec_conf(0:3) = ptable(z)%e_conv(0:3)
-      zeff = REAL(SUM(elec_conf), dp)+zeff_correction
+      zeff = REAL(SUM(elec_conf), dp) + zeff_correction
       name = ptable(z)%name
 
       r = ptable(z)%covalent_radius*0.5_dp
@@ -2499,7 +2499,7 @@ CONTAINS
          IF (PRESENT(zeff_correction)) potential%zeff_correction = zeff_correction
          IF (PRESENT(elec_conf)) THEN
             IF (.NOT. ASSOCIATED(potential%elec_conf)) THEN
-               CALL reallocate(potential%elec_conf, 0, SIZE(elec_conf)-1)
+               CALL reallocate(potential%elec_conf, 0, SIZE(elec_conf) - 1)
             END IF
             potential%elec_conf(:) = elec_conf(:)
          END IF
@@ -2671,7 +2671,7 @@ CONTAINS
             IF (ASSOCIATED(potential%elec_conf)) THEN
                DEALLOCATE (potential%elec_conf)
             ENDIF
-            ALLOCATE (potential%elec_conf(0:SIZE(elec_conf)-1))
+            ALLOCATE (potential%elec_conf(0:SIZE(elec_conf) - 1))
             potential%elec_conf(:) = elec_conf(:)
          ENDIF
          IF (PRESENT(nprj_ppnl)) potential%nprj_ppnl => nprj_ppnl
@@ -2774,7 +2774,7 @@ CONTAINS
             IF (ASSOCIATED(potential%elec_conf)) THEN
                DEALLOCATE (potential%elec_conf)
             ENDIF
-            ALLOCATE (potential%elec_conf(0:SIZE(elec_conf)-1))
+            ALLOCATE (potential%elec_conf(0:SIZE(elec_conf) - 1))
             potential%elec_conf(:) = elec_conf(:)
          ENDIF
 
@@ -2876,7 +2876,7 @@ CONTAINS
          DO igau = 1, potential%ngau
             WRITE (UNIT=output_unit, FMT="(T8,A,F12.6,T50,A,4(T68,I2,F10.4))") &
                "Exponent: ", potential%alpha(igau), &
-               "Coefficients: ", (2*ipol-2, potential%cval(igau, ipol), ipol=1, potential%npol)
+               "Coefficients: ", (2*ipol - 2, potential%cval(igau, ipol), ipol=1, potential%npol)
          END DO
       END IF
 
@@ -2920,7 +2920,7 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(/,T8,A,/,/,T27,A,/,T21,5F12.6)") &
             "Parameters of the local part of the GTH pseudopotential:", &
             "rloc        C1          C2          C3          C4", &
-            r, (potential%cexp_ppl(i)*r**(2*(i-1)), i=1, potential%nexp_ppl)
+            r, (potential%cexp_ppl(i)*r**(2*(i - 1)), i=1, potential%nexp_ppl)
 
          IF (potential%lppnl > -1) THEN
             WRITE (UNIT=output_unit, FMT="(/,T8,A,/,/,T20,A,/)") &

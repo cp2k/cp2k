@@ -473,7 +473,7 @@ CONTAINS
 !              Free some unneeded attributes of current_state
                CALL free_ds_memory(current_state)
 
-               current_state_index = current_state_index+1
+               current_state_index = current_state_index + 1
                NULLIFY (current_state)
 
             END DO ! state type
@@ -590,8 +590,8 @@ CONTAINS
          DO i = 1, nex_atoms
             at_ind = xas_tdp_env%ex_atom_indices(i)
             CALL get_atomic_kind(particle_set(at_ind)%atomic_kind, kind_number=j)
-            IF (ALL(ABS(xas_tdp_env%ex_kind_indices-j) .NE. 0)) THEN
-               k = k+1
+            IF (ALL(ABS(xas_tdp_env%ex_kind_indices - j) .NE. 0)) THEN
+               k = k + 1
                xas_tdp_env%ex_kind_indices(k) = j
             END IF
          END DO
@@ -614,8 +614,8 @@ CONTAINS
             CALL get_atomic_kind(atomic_kind=at_kind_set(i), name=kind_name, &
                                  natom=nat_of_kind, kind_number=kind_ind)
             IF (ANY(xas_tdp_control%list_ex_kinds == kind_name)) THEN
-               nex_atoms = nex_atoms+nat_of_kind
-               k = k+1
+               nex_atoms = nex_atoms + nat_of_kind
+               k = k + 1
                xas_tdp_env%ex_kind_indices(k) = kind_ind
             END IF
          END DO
@@ -630,13 +630,13 @@ CONTAINS
                                  natom=nat_of_kind, atom_list=ind_of_kind)
             DO j = 1, nex_kinds
                IF (xas_tdp_control%list_ex_kinds(j) == kind_name) THEN
-                  xas_tdp_env%ex_atom_indices(nex_atoms+1:nex_atoms+nat_of_kind) = ind_of_kind
+                  xas_tdp_env%ex_atom_indices(nex_atoms + 1:nex_atoms + nat_of_kind) = ind_of_kind
                   DO k = 1, SIZE(xas_tdp_control%state_types, 1)
-                     xas_tdp_env%state_types(k, nex_atoms+1:nex_atoms+nat_of_kind) = &
+                     xas_tdp_env%state_types(k, nex_atoms + 1:nex_atoms + nat_of_kind) = &
                         xas_tdp_control%state_types(k, j)
                   END DO
-                  nex_atoms = nex_atoms+nat_of_kind
-                  nmatch = nmatch+1
+                  nex_atoms = nex_atoms + nat_of_kind
+                  nmatch = nmatch + 1
                END IF
             END DO
          END DO
@@ -1242,7 +1242,7 @@ CONTAINS
             DO ilmo = 1, xas_tdp_control%n_search
                IF (xas_tdp_env%mos_of_ex_atoms(ilmo, iat, ispin) == -1) CYCLE
 
-               i = i+1
+               i = i + 1
                ! put the coeff in our atom-restricted lmo_fm
                CALL cp_fm_to_fm_submat(mo_coeff, lmo_fm, nrow=nao, ncol=1, s_firstrow=1, &
                                        s_firstcol=ilmo, t_firstrow=1, t_firstcol=i)
@@ -1266,7 +1266,7 @@ CONTAINS
             DO ilmo = 1, xas_tdp_control%n_search
                IF (xas_tdp_env%mos_of_ex_atoms(ilmo, iat, ispin) == -1) CYCLE
 
-               i = i+1
+               i = i + 1
                CALL cp_fm_to_fm_submat(work, mo_coeff, nrow=nao, ncol=1, s_firstrow=1, &
                                        s_firstcol=i, t_firstrow=1, t_firstcol=ilmo)
 
@@ -1371,9 +1371,9 @@ CONTAINS
 !     Electronic configuration (copied from MI's XAS)
       ne = 0
       DO l = 1, 4
-         nj = 2*(l-1)+1
+         nj = 2*(l - 1) + 1
          DO i = l, 7
-            ne(l, i) = ptable(zval)%e_conv(l-1)-2*nj*(i-l)
+            ne(l, i) = ptable(zval)%e_conv(l - 1) - 2*nj*(i - l)
             ne(l, i) = MAX(ne(l, i), 0)
             ne(l, i) = MIN(ne(l, i), 2*nj)
          END DO
@@ -1486,7 +1486,7 @@ CONTAINS
             DO i = 1, n_states
                CALL cp_fm_to_fm_submat(msource=mo_coeff, mtarget=donor_state%gs_coeffs, nrow=nao, &
                                        ncol=1, s_firstrow=1, s_firstcol=my_mos(i, ispin), &
-                                       t_firstrow=1, t_firstcol=(ispin-1)*n_states+i)
+                                       t_firstrow=1, t_firstcol=(ispin - 1)*n_states + i)
             END DO
          END DO
          gs_coeffs => donor_state%gs_coeffs
@@ -1567,7 +1567,7 @@ CONTAINS
 
 !                 Put the epsilon_ii into the donor_state. No off-diagonal element because of subset diag
                   CALL cp_fm_get_diag(eval_mat, diag)
-                  donor_state%energy_evals(:, ispin) = diag((ispin-1)*n_states+1:ispin*n_states)
+                  donor_state%energy_evals(:, ispin) = diag((ispin - 1)*n_states + 1:ispin*n_states)
 
                END DO
 
@@ -1797,7 +1797,7 @@ CONTAINS
                CALL assign_mos_to_donor_state(current_state, xas_tdp_env, xas_tdp_control, qs_env)
                CALL perform_mulliken_on_donor_state(current_state, qs_env)
 
-               current_state_index = current_state_index+1
+               current_state_index = current_state_index + 1
                NULLIFY (current_state)
 
             END DO !istate
@@ -1850,7 +1850,7 @@ CONTAINS
       IF (xas_tdp_control%do_quad) THEN
          DO i = 1, 6
             CALL dbcsr_set(xas_tdp_env%quadmat(i)%matrix, 0.0_dp)
-            work(3+i)%matrix => xas_tdp_env%quadmat(i)%matrix
+            work(3 + i)%matrix => xas_tdp_env%quadmat(i)%matrix
          END DO
          order = 2
          IF (xas_tdp_control%dipole_form == xas_dip_vel) order = -2
@@ -1947,20 +1947,20 @@ CONTAINS
          DO iosc = 1, nosc
 
             tot_contr = 0.0_dp
-            CALL cp_fm_get_submatrix(fm=mat_work, target_m=dip_block, start_row=(iosc-1)*ndo_so+1, &
+            CALL cp_fm_get_submatrix(fm=mat_work, target_m=dip_block, start_row=(iosc - 1)*ndo_so + 1, &
                                      start_col=1, n_rows=ndo_so, n_cols=ngs)
             IF (do_sg) THEN
                tot_contr(:) = get_diag(dip_block)
             ELSE IF (do_sc .AND. xas_tdp_control%do_uks) THEN
                tot_contr(:) = get_diag(dip_block(1:ndo_mo, 1:ndo_mo)) !alpha
-               tot_contr(:) = tot_contr(:)+get_diag(dip_block(ndo_mo+1:ndo_so, ndo_mo+1:ndo_so)) !beta
+               tot_contr(:) = tot_contr(:) + get_diag(dip_block(ndo_mo + 1:ndo_so, ndo_mo + 1:ndo_so)) !beta
             ELSE
                !roks
                tot_contr(:) = get_diag(dip_block(1:ndo_mo, :)) !alpha
-               tot_contr(:) = tot_contr(:)+get_diag(dip_block(ndo_mo+1:ndo_so, :)) !beta
+               tot_contr(:) = tot_contr(:) + get_diag(dip_block(ndo_mo + 1:ndo_so, :)) !beta
             END IF
 
-            osc_str(iosc) = osc_str(iosc)+SUM(tot_contr)**2
+            osc_str(iosc) = osc_str(iosc) + SUM(tot_contr)**2
 
          END DO !iosc
       END DO !j
@@ -2064,35 +2064,35 @@ CONTAINS
          DO iosc = 1, nosc
 
             tot_contr = 0.0_dp
-            CALL cp_fm_get_submatrix(fm=mat_work, target_m=quad_block, start_row=(iosc-1)*ndo_so+1, &
+            CALL cp_fm_get_submatrix(fm=mat_work, target_m=quad_block, start_row=(iosc - 1)*ndo_so + 1, &
                                      start_col=1, n_rows=ndo_so, n_cols=ngs)
 
             IF (do_sg) THEN
                tot_contr(:) = get_diag(quad_block)
             ELSE IF (do_sc .AND. xas_tdp_control%do_uks) THEN
                tot_contr(:) = get_diag(quad_block(1:ndo_mo, 1:ndo_mo)) !alpha
-               tot_contr(:) = tot_contr(:)+get_diag(quad_block(ndo_mo+1:ndo_so, ndo_mo+1:ndo_so)) !beta
+               tot_contr(:) = tot_contr(:) + get_diag(quad_block(ndo_mo + 1:ndo_so, ndo_mo + 1:ndo_so)) !beta
             ELSE
                !roks
                tot_contr(:) = get_diag(quad_block(1:ndo_mo, :)) !alpha
-               tot_contr(:) = tot_contr(:)+get_diag(quad_block(ndo_mo+1:ndo_so, :)) !beta
+               tot_contr(:) = tot_contr(:) + get_diag(quad_block(ndo_mo + 1:ndo_so, :)) !beta
             END IF
 
             !if x2, y2, or z2 direction, need to update the trace (for later)
             IF (j == 1 .OR. j == 4 .OR. j == 6) THEN
-               osc_str(iosc) = osc_str(iosc)+SUM(tot_contr)**2
-               trace(iosc) = trace(iosc)+SUM(tot_contr)
+               osc_str(iosc) = osc_str(iosc) + SUM(tot_contr)**2
+               trace(iosc) = trace(iosc) + SUM(tot_contr)
 
                !if xy, xz or yz, need to count twice the contribution (for yx, zx and zy)
             ELSE
-               osc_str(iosc) = osc_str(iosc)+2.0_dp*SUM(tot_contr)**2
+               osc_str(iosc) = osc_str(iosc) + 2.0_dp*SUM(tot_contr)**2
             END IF
 
          END DO !iosc
       END DO !j
 
       !compute the prefactor, and remove 1/3*trace^2
-      osc_str(:) = pref*1._dp/20._dp*a_fine**2*lr_evals(:)**3*(osc_str(:)-1._dp/3._dp*trace(:)**2)
+      osc_str(:) = pref*1._dp/20._dp*a_fine**2*lr_evals(:)**3*(osc_str(:) - 1._dp/3._dp*trace(:)**2)
 
       !clean-up
       CALL cp_fm_release(mat_work)
@@ -2244,7 +2244,7 @@ CONTAINS
       ALLOCATE (last_sgf(natom))
 
       CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, last_sgf=last_sgf)
-      nsgf = last_sgf(at_index)-first_sgf(at_index)+1
+      nsgf = last_sgf(at_index) - first_sgf(at_index) + 1
 
       CALL cp_fm_create(work_vect, col_vect_struct)
 
@@ -2264,7 +2264,7 @@ CONTAINS
 !  The Mullikan population for the MOs in on the diagonal.
       DO ispin = 1, nspins
          DO i = 1, ndo_mo
-            mul_pop(i, ispin) = pop_mat((ispin-1)*ndo_mo+i, (ispin-1)*ndo_mo+i)
+            mul_pop(i, ispin) = pop_mat((ispin - 1)*ndo_mo + i, (ispin - 1)*ndo_mo + i)
          END DO
       END DO
 
@@ -2430,11 +2430,11 @@ CONTAINS
          print_key => section_vals_get_subs_vals(xas_tdp_section, "PRINT%CUBES")
 
          CALL section_vals_val_get(print_key, "CUBES_LU_BOUNDS", i_vals=bounds)
-         ncubes = bounds(2)-bounds(1)+1
+         ncubes = bounds(2) - bounds(1) + 1
          IF (ncubes > 0) THEN
             ALLOCATE (state_list(ncubes))
             DO ic = 1, ncubes
-               state_list(ic) = bounds(1)+ic-1
+               state_list(ic) = bounds(1) + ic - 1
             END DO
          END IF
 
@@ -2446,11 +2446,11 @@ CONTAINS
                NULLIFY (list)
                CALL section_vals_val_get(print_key, "CUBES_LIST", i_rep_val=irep, i_vals=list)
                IF (ASSOCIATED(list)) THEN
-                  CALL reallocate(state_list, 1, ncubes+SIZE(list))
+                  CALL reallocate(state_list, 1, ncubes + SIZE(list))
                   DO ic = 1, SIZE(list)
-                     state_list(ncubes+ic) = list(ic)
+                     state_list(ncubes + ic) = list(ic)
                   END DO
-                  ncubes = ncubes+SIZE(list)
+                  ncubes = ncubes + SIZE(list)
                END IF
             END DO
          END IF
@@ -2487,7 +2487,7 @@ CONTAINS
                DO imo = 1, nmo
                   CALL cp_fm_to_fm_submat(msource=lr_coeffs, mtarget=mo_set%mo_coeff, &
                                           nrow=nao, ncol=1, s_firstrow=1, &
-                                          s_firstcol=(imo-1)*ndo_so+(ispin-1)*ndo_mo+ido_mo, &
+                                          s_firstcol=(imo - 1)*ndo_so + (ispin - 1)*ndo_mo + ido_mo, &
                                           t_firstrow=1, t_firstcol=imo)
                END DO
             END IF

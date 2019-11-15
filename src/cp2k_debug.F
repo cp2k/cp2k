@@ -197,10 +197,10 @@ CONTAINS
                WRITE (UNIT=iw, FMT="(/,(T2,A))") &
                   "DEBUG| Difference pv_virial"
                WRITE (UNIT=iw, FMT="((T2,A,3F16.10))") &
-                  ("DEBUG|", virial_numerical%pv_virial(i, 1:3)-virial_analytical%pv_virial(i, 1:3), i=1, 3)
+                  ("DEBUG|", virial_numerical%pv_virial(i, 1:3) - virial_analytical%pv_virial(i, 1:3), i=1, 3)
                WRITE (UNIT=iw, FMT="(T2,A,T40,F16.10,/)") &
                   "DEBUG| Sum of differences:", &
-                  SUM(ABS(virial_numerical%pv_virial(:, :)-virial_analytical%pv_virial(:, :)))
+                  SUM(ABS(virial_numerical%pv_virial(:, :) - virial_analytical%pv_virial(:, :)))
             END IF
 
             ! Check and abort on failure
@@ -209,7 +209,7 @@ CONTAINS
                err(:) = 0.0_dp
                DO k = 1, 3
                   IF (ABS(virial_analytical%pv_virial(i, k)) >= eps_no_error_check) THEN
-                     err(k) = 100.0_dp*(virial_numerical%pv_virial(i, k)-virial_analytical%pv_virial(i, k))/ &
+                     err(k) = 100.0_dp*(virial_numerical%pv_virial(i, k) - virial_analytical%pv_virial(i, k))/ &
                               virial_analytical%pv_virial(i, k)
                   END IF
                END DO
@@ -259,7 +259,7 @@ CONTAINS
                numer_energy = 0.0_dp
                std_value = particles(ip)%r(k)
                DO j = 1, 2
-                  particles(ip)%r(k) = std_value-(-1.0_dp)**j*dx
+                  particles(ip)%r(k) = std_value - (-1.0_dp)**j*dx
                   SELECT CASE (force_env%in_use)
                   CASE (use_qs_force)
                      CALL get_qs_env(force_env%qs_env, qs_kind_set=qs_kind_set)
@@ -275,11 +275,11 @@ CONTAINS
                   CALL force_env_get(force_env, potential_energy=numer_energy(j))
                END DO
                particles(ip)%r(k) = std_value
-               numer_forces(ip, k) = -0.5_dp*(numer_energy(1)-numer_energy(2))/dx
+               numer_forces(ip, k) = -0.5_dp*(numer_energy(1) - numer_energy(2))/dx
                IF (iw > 0) THEN
                   WRITE (UNIT=iw, FMT="(T2,A,T17,A,F7.4,A,T34,A,F7.4,A,T52,A,T68,A)") &
-                     "DEBUG| Atom", "E("//ACHAR(119+k)//" +", dx, ")", &
-                     "E("//ACHAR(119+k)//" -", dx, ")", &
+                     "DEBUG| Atom", "E("//ACHAR(119 + k)//" +", dx, ")", &
+                     "E("//ACHAR(119 + k)//" -", dx, ")", &
                      "f(numerical)", "f(analytical)"
                   WRITE (UNIT=iw, FMT="(T2,A,I5,4(1X,F16.8))") &
                      "DEBUG|", ip, numer_energy(1:2), numer_forces(ip, k), analyt_forces(ip, k)
@@ -291,7 +291,7 @@ CONTAINS
             DO k = 1, 3
                ! Calculate percentage but ignore very small force values
                IF (ABS(analyt_forces(ip, k)) >= eps_no_error_check) THEN
-                  err(k) = 100.0_dp*(numer_forces(ip, k)-analyt_forces(ip, k))/analyt_forces(ip, k)
+                  err(k) = 100.0_dp*(numer_forces(ip, k) - analyt_forces(ip, k))/analyt_forces(ip, k)
                END IF
                ! Increase error tolerance for small force values
                IF (ABS(analyt_forces(ip, k)) <= 0.0001_dp) my_maxerr(k) = 5.0_dp*my_maxerr(k)
@@ -300,13 +300,13 @@ CONTAINS
                WRITE (UNIT=iw, FMT="(/,T2,A)") &
                   "DEBUG| Atom  Coordinate   f(numerical)   f(analytical)   Difference   Error [%]"
                DO k = 1, 3
-                  difference = analyt_forces(ip, k)-numer_forces(ip, k)
+                  difference = analyt_forces(ip, k) - numer_forces(ip, k)
                   IF (ABS(analyt_forces(ip, k)) >= eps_no_error_check) THEN
                      WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)") &
-                        "DEBUG|", ip, ACHAR(119+k), numer_forces(ip, k), analyt_forces(ip, k), difference, err(k)
+                        "DEBUG|", ip, ACHAR(119 + k), numer_forces(ip, k), analyt_forces(ip, k), difference, err(k)
                   ELSE
                      WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T80,A1)") &
-                        "DEBUG|", ip, ACHAR(119+k), numer_forces(ip, k), analyt_forces(ip, k), difference, "-"
+                        "DEBUG|", ip, ACHAR(119 + k), numer_forces(ip, k), analyt_forces(ip, k), difference, "-"
                   END IF
                END DO
             END IF
@@ -330,16 +330,16 @@ CONTAINS
             DO ip = 1, np
                err(1:3) = 0.0_dp
                DO k = 1, 3
-                  difference = analyt_forces(ip, k)-numer_forces(ip, k)
+                  difference = analyt_forces(ip, k) - numer_forces(ip, k)
                   IF (ABS(analyt_forces(ip, k)) >= eps_no_error_check) THEN
-                     err(k) = 100_dp*(numer_forces(ip, k)-analyt_forces(ip, k))/analyt_forces(ip, k)
+                     err(k) = 100_dp*(numer_forces(ip, k) - analyt_forces(ip, k))/analyt_forces(ip, k)
                      WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)") &
-                        "DEBUG|", ip, ACHAR(119+k), numer_forces(ip, k), analyt_forces(ip, k), difference, err(k)
+                        "DEBUG|", ip, ACHAR(119 + k), numer_forces(ip, k), analyt_forces(ip, k), difference, err(k)
                   ELSE
                      WRITE (UNIT=iw, FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T80,A1)") &
-                        "DEBUG|", ip, ACHAR(119+k), numer_forces(ip, k), analyt_forces(ip, k), difference, "-"
+                        "DEBUG|", ip, ACHAR(119 + k), numer_forces(ip, k), analyt_forces(ip, k), difference, "-"
                   END IF
-                  sum_of_differences = sum_of_differences+ABS(difference)
+                  sum_of_differences = sum_of_differences + ABS(difference)
                END DO
             END DO
             WRITE (UNIT=iw, FMT="(T2,A,T57,F12.8)") &
@@ -377,21 +377,21 @@ CONTAINS
                   CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
                   CALL force_env_get(force_env, potential_energy=numer_energy(j))
                END DO
-               dipole_numer(k) = 0.5_dp*(numer_energy(1)-numer_energy(2))/de
+               dipole_numer(k) = 0.5_dp*(numer_energy(1) - numer_energy(2))/de
             END DO
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(/,(T2,A))") &
                   "DEBUG|========================= DIPOLE MOMENTS ================================", &
                   "DEBUG| Coordinate      D(numerical)    D(analytical)    Difference    Error [%]"
                DO k = 1, 3
-                  dd = dipole_moment(k)-dipole_numer(k)
+                  dd = dipole_moment(k) - dipole_numer(k)
                   IF (ABS(dipole_moment(k)) > eps_no_error_check) THEN
                      derr = 100._dp*dd/dipole_moment(k)
                      WRITE (UNIT=iw, FMT="(T13,A1,T21,F16.8,T38,F16.8,T56,G12.3,T72,F9.3)") &
-                        ACHAR(119+k), dipole_numer(k), dipole_moment(k), dd, derr
+                        ACHAR(119 + k), dipole_numer(k), dipole_moment(k), dd, derr
                   ELSE
                      WRITE (UNIT=iw, FMT="(T13,A1,T21,F16.8,T38,F16.8,T56,G12.3)") &
-                        ACHAR(119+k), dipole_numer(k), dipole_moment(k), dd
+                        ACHAR(119 + k), dipole_numer(k), dipole_moment(k), dd
                   END IF
                END DO
                WRITE (UNIT=iw, FMT="((T2,A))") &
@@ -434,7 +434,7 @@ CONTAINS
                   CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., linres=.TRUE.)
                   CALL get_results(results, description=description, values=dipn(1:3, j))
                END DO
-               polar_numeric(1:3, k) = 0.5_dp*(dipn(1:3, 2)-dipn(1:3, 1))/de
+               polar_numeric(1:3, k) = 0.5_dp*(dipn(1:3, 2) - dipn(1:3, 1))/de
             END DO
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(/,(T2,A))") &
@@ -442,14 +442,14 @@ CONTAINS
                   "DEBUG| Coordinates     P(numerical)    P(analytical)    Difference    Error [%]"
                DO k = 1, 3
                   DO j = 1, 3
-                     dd = polar_analytic(k, j)-polar_numeric(k, j)
+                     dd = polar_analytic(k, j) - polar_numeric(k, j)
                      IF (ABS(polar_analytic(k, j)) > eps_no_error_check) THEN
                         derr = 100._dp*dd/polar_analytic(k, j)
                         WRITE (UNIT=iw, FMT="(T12,A1,A1,T21,F16.8,T38,F16.8,T56,G12.3,T72,F9.3)") &
-                           ACHAR(119+k), ACHAR(119+j), polar_numeric(k, j), polar_analytic(k, j), dd, derr
+                           ACHAR(119 + k), ACHAR(119 + j), polar_numeric(k, j), polar_analytic(k, j), dd, derr
                      ELSE
                         WRITE (UNIT=iw, FMT="(T12,A1,A1,T21,F16.8,T38,F16.8,T56,G12.3)") &
-                           ACHAR(119+k), ACHAR(119+j), polar_numeric(k, j), polar_analytic(k, j), dd
+                           ACHAR(119 + k), ACHAR(119 + j), polar_numeric(k, j), polar_analytic(k, j), dd
                      END IF
                   END DO
                END DO

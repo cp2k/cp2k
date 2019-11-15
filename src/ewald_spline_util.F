@@ -107,7 +107,7 @@ CONTAINS
       iounit = cp_print_key_unit_nr(logger, print_section, "", &
                                     extension=".Log")
       bo(1, 1:3) = 0
-      bo(2, 1:3) = npts(1:3)-1
+      bo(2, 1:3) = npts(1:3) - 1
       CALL pw_grid_setup(cell%hmat, pw_grid, grid_span=HALFSPACE, bounds=bo, iounit=iounit)
 
       CALL cp_print_key_finished_output(iounit, logger, print_section, &
@@ -203,7 +203,7 @@ CONTAINS
       ALLOCATE (sin_gz(SIZE(Lg), gbo(1, 3):gbo(2, 3)))
       !NB precalculate Cos(gx*xs1) etc for Cos refactoring
       DO k = gbo(1, 3), gbo(2, 3)
-         my_k = k-gbo(1, 3)
+         my_k = k - gbo(1, 3)
          xs3 = REAL(my_k, dp)*dr3
          IF (k > nzlim) CYCLE
          cos_gz(1:SIZE(Lg), k) = COS(gz(1:SIZE(Lg))*xs3)
@@ -214,14 +214,14 @@ CONTAINS
          IF (j > nylim) CYCLE
          cos_gy(1:SIZE(Lg), j) = COS(gy(1:SIZE(Lg))*xs2)
          sin_gy(1:SIZE(Lg), j) = SIN(gy(1:SIZE(Lg))*xs2)
-         xs2 = xs2+dr2
+         xs2 = xs2 + dr2
       END DO ! j
       xs1 = 0.0_dp
       DO i = gbo(1, 1), gbo(2, 1)
          IF (i > nxlim) CYCLE
          cos_gx(1:SIZE(Lg), i) = COS(gx(1:SIZE(Lg))*xs1)
          sin_gx(1:SIZE(Lg), i) = SIN(gx(1:SIZE(Lg))*xs1)
-         xs1 = xs1+dr1
+         xs1 = xs1 + dr1
       END DO ! i
 
       !NB use DGEMM to compute sum over kg for each i, j, k
@@ -231,20 +231,20 @@ CONTAINS
       n_extra = MOD(SIZE(Lg), grid%pw_grid%para%group_size)
       ! first n_extra nodes get NLg_loc+1, remaining get NLg_loc
       IF (grid%pw_grid%para%my_pos < n_extra) THEN
-         Lg_loc_min = (NLg_loc+1)*grid%pw_grid%para%my_pos+1
-         Lg_loc_max = Lg_loc_min+(NLg_loc+1)-1
+         Lg_loc_min = (NLg_loc + 1)*grid%pw_grid%para%my_pos + 1
+         Lg_loc_max = Lg_loc_min + (NLg_loc + 1) - 1
       ELSE
-         Lg_loc_min = (NLg_loc+1)*n_extra+NLg_loc*(grid%pw_grid%para%my_pos-n_extra)+1
-         Lg_loc_max = Lg_loc_min+NLg_loc-1
+         Lg_loc_min = (NLg_loc + 1)*n_extra + NLg_loc*(grid%pw_grid%para%my_pos - n_extra) + 1
+         Lg_loc_max = Lg_loc_min + NLg_loc - 1
       END IF
       ! shouldn't be necessary
       Lg_loc_max = MIN(SIZE(Lg), Lg_loc_max)
-      NLg_loc = Lg_loc_max-Lg_loc_min+1
+      NLg_loc = Lg_loc_max - Lg_loc_min + 1
 
       IF (NLg_loc > 0) THEN ! some work for this node
 
-         act_nx = MIN(gbo(2, 1), nxlim)-gbo(1, 1)+1
-         act_ny = MIN(gbo(2, 2), nylim)-gbo(1, 2)+1
+         act_nx = MIN(gbo(2, 1), nxlim) - gbo(1, 1) + 1
+         act_ny = MIN(gbo(2, 2), nylim) - gbo(1, 2) + 1
          !NB temporaries for DGEMM use
          ALLOCATE (lhs(act_nx, NLg_loc))
          ALLOCATE (rhs(act_ny, NLg_loc))
@@ -252,14 +252,14 @@ CONTAINS
          ! do cos(gx) cos(gy+gz) term
          DO i = gbo(1, 1), gbo(2, 1)
             IF (i > nxlim) CYCLE
-            lhs(i-gbo(1, 1)+1, 1:NLg_loc) = lg(Lg_loc_min:Lg_loc_max)*cos_gx(Lg_loc_min:Lg_loc_max, i)
+            lhs(i - gbo(1, 1) + 1, 1:NLg_loc) = lg(Lg_loc_min:Lg_loc_max)*cos_gx(Lg_loc_min:Lg_loc_max, i)
          END DO
          DO k = gbo(1, 3), gbo(2, 3)
             IF (k > nzlim) CYCLE
             DO j = gbo(1, 2), gbo(2, 2)
                IF (j > nylim) CYCLE
-               rhs(j-gbo(1, 2)+1, 1:NLg_loc) = cos_gy(Lg_loc_min:Lg_loc_max, j)*cos_gz(Lg_loc_min:Lg_loc_max, k)- &
-                                               sin_gy(Lg_loc_min:Lg_loc_max, j)*sin_gz(Lg_loc_min:Lg_loc_max, k)
+               rhs(j - gbo(1, 2) + 1, 1:NLg_loc) = cos_gy(Lg_loc_min:Lg_loc_max, j)*cos_gz(Lg_loc_min:Lg_loc_max, k) - &
+                                                   sin_gy(Lg_loc_min:Lg_loc_max, j)*sin_gz(Lg_loc_min:Lg_loc_max, k)
             END DO
             CALL DGEMM('N', 'T', act_nx, act_ny, NLg_loc, 1.0D0, lhs(1, 1), act_nx, rhs(1, 1), act_ny, 0.0D0, &
                        grid%cr3d(gbo(1, 1), gbo(1, 2), k), SIZE(grid%cr3d, 1))
@@ -268,14 +268,14 @@ CONTAINS
          ! do sin(gx) sin(gy+gz) term
          DO i = gbo(1, 1), gbo(2, 1)
             IF (i > nxlim) CYCLE
-            lhs(i-gbo(1, 1)+1, 1:NLg_loc) = -lg(Lg_loc_min:Lg_loc_max)*sin_gx(Lg_loc_min:Lg_loc_max, i)
+            lhs(i - gbo(1, 1) + 1, 1:NLg_loc) = -lg(Lg_loc_min:Lg_loc_max)*sin_gx(Lg_loc_min:Lg_loc_max, i)
          END DO
          DO k = gbo(1, 3), gbo(2, 3)
             IF (k > nzlim) CYCLE
             DO j = gbo(1, 2), gbo(2, 2)
                IF (j > nylim) CYCLE
-               rhs(j-gbo(1, 2)+1, 1:NLg_loc) = cos_gy(Lg_loc_min:Lg_loc_max, j)*sin_gz(Lg_loc_min:Lg_loc_max, k)+ &
-                                               sin_gy(Lg_loc_min:Lg_loc_max, j)*cos_gz(Lg_loc_min:Lg_loc_max, k)
+               rhs(j - gbo(1, 2) + 1, 1:NLg_loc) = cos_gy(Lg_loc_min:Lg_loc_max, j)*sin_gz(Lg_loc_min:Lg_loc_max, k) + &
+                                                   sin_gy(Lg_loc_min:Lg_loc_max, j)*cos_gz(Lg_loc_min:Lg_loc_max, k)
             END DO
             CALL DGEMM('N', 'T', act_nx, act_ny, NLg_loc, 1.0D0, lhs(1, 1), act_nx, rhs(1, 1), act_ny, 1.0D0, &
                        grid%cr3d(gbo(1, 1), gbo(1, 2), k), SIZE(grid%cr3d, 1))
@@ -300,13 +300,13 @@ CONTAINS
 
       Fake_LoopOnGrid: DO k = gbo(1, 3), gbo(2, 3)
          my_k = k
-         IF (k > nzlim) my_k = nzlim-ABS(nzlim-k)+ks
+         IF (k > nzlim) my_k = nzlim - ABS(nzlim - k) + ks
          DO j = gbo(1, 2), gbo(2, 2)
             my_j = j
-            IF (j > nylim) my_j = nylim-ABS(nylim-j)+js
+            IF (j > nylim) my_j = nylim - ABS(nylim - j) + js
             DO i = gbo(1, 1), gbo(2, 1)
                my_i = i
-               IF (i > nxlim) my_i = nxlim-ABS(nxlim-i)+is
+               IF (i > nxlim) my_i = nxlim - ABS(nxlim - i) + is
                grid%cr3d(i, j, k) = grid%cr3d(my_i, my_j, my_k)
             END DO
          END DO
@@ -393,7 +393,7 @@ CONTAINS
          WRITE (iw, '(A,T5,A15,4X,A17,T50,4X,A,5X,A,T80,A,T85,A15,4X,A17,T130,4X,A,5X,A)') &
             "#", "Analytical Term", "Interpolated Term", "Error", "MaxError", &
             "*", " Analyt Deriv  ", "Interp Deriv Mod ", "Error", "MaxError"
-         DO i = 1, npoints+1
+         DO i = 1, npoints + 1
             Term = 0.0_dp
             dxTerm = 0.0_dp
             dyTerm = 0.0_dp
@@ -401,26 +401,26 @@ CONTAINS
             ! Sum over k vectors
             DO kg = 1, SIZE(Lg)
                vec = (/REAL(gx(kg), KIND=dp), REAL(gy(kg), KIND=dp), REAL(gz(kg), KIND=dp)/)
-               Term = Term+lg(kg)*COS(vec(1)*xs1+vec(2)*xs2+vec(3)*xs3)
-               dxTerm = dxTerm-lg(kg)*SIN(vec(1)*xs1+vec(2)*xs2+vec(3)*xs3)*vec(1)
-               dyTerm = dyTerm-lg(kg)*SIN(vec(1)*xs1+vec(2)*xs2+vec(3)*xs3)*vec(2)
-               dzTerm = dzTerm-lg(kg)*SIN(vec(1)*xs1+vec(2)*xs2+vec(3)*xs3)*vec(3)
+               Term = Term + lg(kg)*COS(vec(1)*xs1 + vec(2)*xs2 + vec(3)*xs3)
+               dxTerm = dxTerm - lg(kg)*SIN(vec(1)*xs1 + vec(2)*xs2 + vec(3)*xs3)*vec(1)
+               dyTerm = dyTerm - lg(kg)*SIN(vec(1)*xs1 + vec(2)*xs2 + vec(3)*xs3)*vec(2)
+               dzTerm = dzTerm - lg(kg)*SIN(vec(1)*xs1 + vec(2)*xs2 + vec(3)*xs3)*vec(3)
             END DO
-            Na = SQRT(dxTerm*dxTerm+dyTerm*dyTerm+dzTerm*dzTerm)
+            Na = SQRT(dxTerm*dxTerm + dyTerm*dyTerm + dzTerm*dzTerm)
             dn = Eval_d_Interp_Spl3_pbc((/xs1, xs2, xs3/), TabLR)
             Nn = SQRT(DOT_PRODUCT(dn, dn))
             Fterm = Eval_Interp_Spl3_pbc((/xs1, xs2, xs3/), TabLR)
-            tmp1 = ABS(Term-Fterm)
-            tmp2 = SQRT(DOT_PRODUCT(dn-(/dxTerm, dyTerm, dzTerm/), dn-(/dxTerm, dyTerm, dzTerm/)))
-            errf = errf+tmp1
+            tmp1 = ABS(Term - Fterm)
+            tmp2 = SQRT(DOT_PRODUCT(dn - (/dxTerm, dyTerm, dzTerm/), dn - (/dxTerm, dyTerm, dzTerm/)))
+            errf = errf + tmp1
             maxerrorf = MAX(maxerrorf, tmp1)
-            errd = errd+tmp2
+            errd = errd + tmp2
             maxerrord = MAX(maxerrord, tmp2)
             WRITE (iw, '(T5,F15.10,5X,F15.10,T50,2F12.9,T80,A,T85,F15.10,5X,F15.10,T130,2F12.9)') &
                Term, Fterm, tmp1, maxerrorf, "*", Na, Nn, tmp2, maxerrord
-            xs1 = xs1+dr1
-            xs2 = xs2+dr2
-            xs3 = xs3+dr3
+            xs1 = xs1 + dr1
+            xs2 = xs2 + dr2
+            xs3 = xs3 + dr3
          END DO
          WRITE (iw, '(A,T5,A,T50,F12.9,T130,F12.9)') "#", "Averages", errf/REAL(npoints, kind=dp), &
             errd/REAL(npoints, kind=dp)

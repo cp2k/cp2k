@@ -129,7 +129,7 @@ CONTAINS
       ! we are adding a new entry only if islot points to an empty slot,
       ! otherwise just change the val of the existing entry
       IF (hash_table%obj%table(islot)%key == EMPTY_KEY) THEN
-         hash_table%obj%nelements = hash_table%obj%nelements+1
+         hash_table%obj%nelements = hash_table%obj%nelements + 1
          hash_table%obj%table(islot)%key = key
       END IF
       hash_table%obj%table(islot)%val = val
@@ -166,7 +166,7 @@ CONTAINS
                               nmax=my_nmax)
       ! book keeping stuff
       hash_table%obj%ref_count = 1
-      hash_table%obj%id_nr = last_fb_hash_table_id+1
+      hash_table%obj%id_nr = last_fb_hash_table_id + 1
       last_fb_hash_table_id = hash_table%obj%id_nr
    END SUBROUTINE fb_hash_table_create
 
@@ -242,7 +242,7 @@ CONTAINS
       ! power that is greater or equal to my_nmax
       power = 0
       DO WHILE (2**power .LT. my_nmax)
-         power = power+1
+         power = power + 1
       END DO
       my_nmax = 2**power
       IF (ASSOCIATED(hash_table%obj%table)) THEN
@@ -332,7 +332,7 @@ CONTAINS
       IF (ASSOCIATED(hash_table%obj)) THEN
          check_ok = hash_table%obj%ref_count > 0
          CPASSERT(check_ok)
-         hash_table%obj%ref_count = hash_table%obj%ref_count-1
+         hash_table%obj%ref_count = hash_table%obj%ref_count - 1
          IF (hash_table%obj%ref_count == 0) THEN
             hash_table%obj%ref_count = 1
             IF (ASSOCIATED(hash_table%obj%table)) THEN
@@ -369,7 +369,7 @@ CONTAINS
       IF (islot > 0) THEN
          IF (hash_table%obj%table(islot)%key == key) THEN
             hash_table%obj%table(islot)%key = EMPTY_KEY
-            hash_table%obj%nelements = hash_table%obj%nelements-1
+            hash_table%obj%nelements = hash_table%obj%nelements - 1
             ! must rehash after setting a filled slot to empty, otherwise the
             ! table will not work. Automatic resize if required
             IF (hash_table%obj%nelements*REDUCE_RATIO .LT. &
@@ -400,7 +400,7 @@ CONTAINS
       CPASSERT(check_ok)
       check_ok = hash_table%obj%ref_count > 0
       CPASSERT(check_ok)
-      hash_table%obj%ref_count = hash_table%obj%ref_count+1
+      hash_table%obj%ref_count = hash_table%obj%ref_count + 1
    END SUBROUTINE fb_hash_table_retain
 
 ! **************************************************************************************************
@@ -454,7 +454,7 @@ CONTAINS
              (hash_table%obj%table(islot)%key == EMPTY_KEY)) RETURN
       END DO
       ! if unsuccessful, search from 1 to guess
-      DO islot = 1, guess-1
+      DO islot = 1, guess - 1
          IF ((hash_table%obj%table(islot)%key == key) .OR. &
              (hash_table%obj%table(islot)%key == EMPTY_KEY)) RETURN
       END DO
@@ -480,7 +480,7 @@ CONTAINS
       nmax_8 = INT(hash_table%obj%nmax, int_8)
       prime_8 = INT(hash_table%obj%prime, int_8)
       ! IAND with nmax-1 is equivalent to MOD nmax if nmax is alway a power of 2.
-      hash_8 = IAND(key*prime_8, nmax_8-1)+1_int_8
+      hash_8 = IAND(key*prime_8, nmax_8 - 1) + 1_int_8
       hash = INT(hash_8)
    END FUNCTION fb_hash_table_hash_function
 

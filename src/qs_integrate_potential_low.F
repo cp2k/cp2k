@@ -40,7 +40,7 @@ MODULE qs_integrate_potential_low
          IMPORT :: dp
          REAL(KIND=dp), INTENT(in)                       :: prefactor
          INTEGER, INTENT(in)                             :: lp
-         REAL(kind=dp), DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
+         REAL(kind=dp), DIMENSION(((lp + 1)*(lp + 2)*(lp + 3))/6), &
             INTENT(inout)                                :: coef_xyz
          INTEGER, INTENT(in) :: la_max_local, lb_max_local, la_min_local, &
                                 lb_min_local, maxl, lvab, hvab
@@ -199,13 +199,13 @@ CONTAINS
       END IF
 
       IF (calculate_forces) THEN
-         la_max_local = la_max+1 ! needed for the derivative of the gaussian, unimportant which one
-         la_min_local = MAX(la_min-1, 0) ! just in case the la_min,lb_min is not zero
-         lb_min_local = MAX(lb_min-1, 0)
+         la_max_local = la_max + 1 ! needed for the derivative of the gaussian, unimportant which one
+         la_min_local = MAX(la_min - 1, 0) ! just in case the la_min,lb_min is not zero
+         lb_min_local = MAX(lb_min - 1, 0)
          lb_max_local = lb_max
          IF (my_use_virial) THEN
-            la_max_local = la_max_local+1
-            lb_max_local = lb_max_local+1
+            la_max_local = la_max_local + 1
+            lb_max_local = lb_max_local + 1
          ENDIF
       ELSE
          la_max_local = la_max
@@ -215,21 +215,21 @@ CONTAINS
       END IF
 
       IF (my_compute_tau) THEN
-         la_max_local = la_max_local+1
-         lb_max_local = lb_max_local+1
-         la_min_local = MAX(la_min_local-1, 0)
-         lb_min_local = MAX(lb_min_local-1, 0)
+         la_max_local = la_max_local + 1
+         lb_max_local = lb_max_local + 1
+         la_min_local = MAX(la_min_local - 1, 0)
+         lb_min_local = MAX(lb_min_local - 1, 0)
       ENDIF
 
-      coef_max = la_max_local+lb_max_local+1
-      zetp = zeta+zetb
+      coef_max = la_max_local + lb_max_local + 1
+      zetp = zeta + zetb
       f = zetb/zetp
       prefactor = EXP(-zeta*f*rab2)
 !   *** position of the gaussian product
       rap(:) = f*rab(:)
-      rbp(:) = rap(:)-rab(:)
-      rp(:) = ra(:)+rap(:) ! this is the gaussian center in real coordinates
-      rb(:) = ra(:)+rab(:)
+      rbp(:) = rap(:) - rab(:)
+      rp(:) = ra(:) + rap(:) ! this is the gaussian center in real coordinates
+      rb(:) = ra(:) + rab(:)
 
       IF (my_map_consistent) THEN ! still assumes that eps_gvg_rspace=eps_rho_rspace
          cutoff = 1.0_dp
@@ -278,62 +278,62 @@ CONTAINS
 
       DO la = la_min, la_max
          DO ax = 0, la
-            DO ay = 0, la-ax
-               az = la-ax-ay
+            DO ay = 0, la - ax
+               az = la - ax - ay
                ico = coset(ax, ay, az)
                DO lb = lb_min, lb_max
                   DO bx = 0, lb
-                     DO by = 0, lb-bx
-                        bz = lb-bx-by
+                     DO by = 0, lb - bx
+                        bz = lb - bx - by
                         jco = coset(bx, by, bz)
                         IF (.NOT. my_compute_tau) THEN
                            axpm0 = vab(ico, jco)
                         ELSE
-                           axpm0 = 0.5_dp*(ax*bx*vab(coset(MAX(ax-1, 0), ay, az), coset(MAX(bx-1, 0), by, bz))+ &
-                                           ay*by*vab(coset(ax, MAX(ay-1, 0), az), coset(bx, MAX(by-1, 0), bz))+ &
-                                           az*bz*vab(coset(ax, ay, MAX(az-1, 0)), coset(bx, by, MAX(bz-1, 0))) &
-                                           -ftza*bx*vab(coset(ax+1, ay, az), coset(MAX(bx-1, 0), by, bz)) &
-                                           -ftza*by*vab(coset(ax, ay+1, az), coset(bx, MAX(by-1, 0), bz)) &
-                                           -ftza*bz*vab(coset(ax, ay, az+1), coset(bx, by, MAX(bz-1, 0))) &
-                                           -ax*ftzb*vab(coset(MAX(ax-1, 0), ay, az), coset(bx+1, by, bz)) &
-                                           -ay*ftzb*vab(coset(ax, MAX(ay-1, 0), az), coset(bx, by+1, bz)) &
-                                           -az*ftzb*vab(coset(ax, ay, MAX(az-1, 0)), coset(bx, by, bz+1))+ &
-                                           ftza*ftzb*vab(coset(ax+1, ay, az), coset(bx+1, by, bz))+ &
-                                           ftza*ftzb*vab(coset(ax, ay+1, az), coset(bx, by+1, bz))+ &
-                                           ftza*ftzb*vab(coset(ax, ay, az+1), coset(bx, by, bz+1)))
+                           axpm0 = 0.5_dp*(ax*bx*vab(coset(MAX(ax - 1, 0), ay, az), coset(MAX(bx - 1, 0), by, bz)) + &
+                                           ay*by*vab(coset(ax, MAX(ay - 1, 0), az), coset(bx, MAX(by - 1, 0), bz)) + &
+                                           az*bz*vab(coset(ax, ay, MAX(az - 1, 0)), coset(bx, by, MAX(bz - 1, 0))) &
+                                           - ftza*bx*vab(coset(ax + 1, ay, az), coset(MAX(bx - 1, 0), by, bz)) &
+                                           - ftza*by*vab(coset(ax, ay + 1, az), coset(bx, MAX(by - 1, 0), bz)) &
+                                           - ftza*bz*vab(coset(ax, ay, az + 1), coset(bx, by, MAX(bz - 1, 0))) &
+                                           - ax*ftzb*vab(coset(MAX(ax - 1, 0), ay, az), coset(bx + 1, by, bz)) &
+                                           - ay*ftzb*vab(coset(ax, MAX(ay - 1, 0), az), coset(bx, by + 1, bz)) &
+                                           - az*ftzb*vab(coset(ax, ay, MAX(az - 1, 0)), coset(bx, by, bz + 1)) + &
+                                           ftza*ftzb*vab(coset(ax + 1, ay, az), coset(bx + 1, by, bz)) + &
+                                           ftza*ftzb*vab(coset(ax, ay + 1, az), coset(bx, by + 1, bz)) + &
+                                           ftza*ftzb*vab(coset(ax, ay, az + 1), coset(bx, by, bz + 1)))
                         ENDIF
-                        hab(o1+ico, o2+jco) = hab(o1+ico, o2+jco)+axpm0
+                        hab(o1 + ico, o2 + jco) = hab(o1 + ico, o2 + jco) + axpm0
                         IF (calculate_forces .AND. PRESENT(force_a)) THEN
                            IF (my_compute_tau) THEN
-                              pabval = pab(o1+ico, o2+jco)*0.5_dp*ax*bx
+                              pabval = pab(o1 + ico, o2 + jco)*0.5_dp*ax*bx
                               CALL force_update( &
-                                 force_a, force_b, rab, pabval, ftza, ftzb, MAX(ax-1, 0), ay, az, MAX(bx-1, 0), by, bz, vab)
-                              pabval = pab(o1+ico, o2+jco)*0.5_dp*ay*by
+                                 force_a, force_b, rab, pabval, ftza, ftzb, MAX(ax - 1, 0), ay, az, MAX(bx - 1, 0), by, bz, vab)
+                              pabval = pab(o1 + ico, o2 + jco)*0.5_dp*ay*by
                               CALL force_update( &
-                                 force_a, force_b, rab, pabval, ftza, ftzb, ax, MAX(ay-1, 0), az, bx, MAX(by-1, 0), bz, vab)
-                              pabval = pab(o1+ico, o2+jco)*0.5_dp*az*bz
+                                 force_a, force_b, rab, pabval, ftza, ftzb, ax, MAX(ay - 1, 0), az, bx, MAX(by - 1, 0), bz, vab)
+                              pabval = pab(o1 + ico, o2 + jco)*0.5_dp*az*bz
                               CALL force_update( &
-                                 force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, MAX(az-1, 0), bx, by, MAX(bz-1, 0), vab)
-                              pabval = pab(o1+ico, o2+jco)*0.5_dp*(-ftza*bx)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax+1, ay, az, MAX(bx-1, 0), by, bz, vab)
-                              pabval = pab(o1+ico, o2+jco)*0.5_dp*(-ftza*by)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay+1, az, bx, MAX(by-1, 0), bz, vab)
-                              pabval = pab(o1+ico, o2+jco)*0.5_dp*(-ftza*bz)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, az+1, bx, by, MAX(bz-1, 0), vab)
-                              pabval = pab(o1+ico, o2+jco)*0.5_dp*(-ax*ftzb)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, MAX(ax-1, 0), ay, az, bx+1, by, bz, vab)
-                              pabval = pab(o1+ico, o2+jco)*0.5_dp*(-ay*ftzb)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, MAX(ay-1, 0), az, bx, by+1, bz, vab)
-                              pabval = pab(o1+ico, o2+jco)*0.5_dp*(-az*ftzb)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, MAX(az-1, 0), bx, by, bz+1, vab)
-                              pabval = pab(o1+ico, o2+jco)*0.5_dp*(ftza*ftzb)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax+1, ay, az, bx+1, by, bz, vab)
-                              pabval = pab(o1+ico, o2+jco)*0.5_dp*(ftza*ftzb)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay+1, az, bx, by+1, bz, vab)
-                              pabval = pab(o1+ico, o2+jco)*0.5_dp*(ftza*ftzb)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, az+1, bx, by, bz+1, vab)
+                                 force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, MAX(az - 1, 0), bx, by, MAX(bz - 1, 0), vab)
+                              pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(-ftza*bx)
+                           CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax + 1, ay, az, MAX(bx - 1, 0), by, bz, vab)
+                              pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(-ftza*by)
+                           CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay + 1, az, bx, MAX(by - 1, 0), bz, vab)
+                              pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(-ftza*bz)
+                           CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, az + 1, bx, by, MAX(bz - 1, 0), vab)
+                              pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(-ax*ftzb)
+                           CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, MAX(ax - 1, 0), ay, az, bx + 1, by, bz, vab)
+                              pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(-ay*ftzb)
+                           CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, MAX(ay - 1, 0), az, bx, by + 1, bz, vab)
+                              pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(-az*ftzb)
+                           CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, MAX(az - 1, 0), bx, by, bz + 1, vab)
+                              pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(ftza*ftzb)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax + 1, ay, az, bx + 1, by, bz, vab)
+                              pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(ftza*ftzb)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay + 1, az, bx, by + 1, bz, vab)
+                              pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(ftza*ftzb)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, az + 1, bx, by, bz + 1, vab)
                            ELSE
-                              pabval = pab(o1+ico, o2+jco)
+                              pabval = pab(o1 + ico, o2 + jco)
                               CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, az, bx, by, bz, vab)
                               IF (my_use_virial) THEN
                                  CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, ax, ay, az, bx, by, bz, vab)
@@ -344,15 +344,15 @@ CONTAINS
                            der_a(1:3) = 0.0_dp
                            der_b(1:3) = 0.0_dp
                            CALL hab_derivatives(der_a, der_b, rab, ftza, ftzb, ax, ay, az, bx, by, bz, vab)
-                           hdab(1:3, o1+ico, o2+jco) = der_a(1:3)
-                           hadb(1:3, o1+ico, o2+jco) = der_b(1:3)
+                           hdab(1:3, o1 + ico, o2 + jco) = der_a(1:3)
+                           hadb(1:3, o1 + ico, o2 + jco) = der_b(1:3)
                            pabval = 1.0_dp
                            IF (my_use_virial .AND. PRESENT(a_hdab)) THEN
                               my_virial_a = 0.0_dp
                               my_virial_b = 0.0_dp
                               CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, ax, ay, az, bx, by, bz, vab)
                               DO j = 1, 3
-                                 a_hdab(1:3, j, o1+ico, o2+jco) = a_hdab(1:3, j, o1+ico, o2+jco)+my_virial_a(1:3, j)
+                                 a_hdab(1:3, j, o1 + ico, o2 + jco) = a_hdab(1:3, j, o1 + ico, o2 + jco) + my_virial_a(1:3, j)
                               END DO
                            ENDIF
                         END IF
@@ -386,7 +386,7 @@ CONTAINS
          gridbounds(2, 3) = UBOUND(GRID, 3)
 
          CALL compute_cube_center(cubecenter, rsgrid%desc, zeta, zetb, ra, rab)
-         roffset(:) = rp(:)-REAL(cubecenter(:), dp)*dr(:)
+         roffset(:) = rp(:) - REAL(cubecenter(:), dp)*dr(:)
          lb_cube_min = MINVAL(lb_cube(:))
          ub_cube_max = MAXVAL(ub_cube(:))
 
@@ -396,29 +396,29 @@ CONTAINS
             IF (rsgrid%desc%perd(i) == 1) THEN
                start = lb_cube(i)
                DO
-                  offset = MODULO(cubecenter(i)+start, ng(i))+1-start
-                  length = MIN(ub_cube(i), ng(i)-offset)-start
-                  DO ig = start, start+length
-                     map(ig, i) = ig+offset
+                  offset = MODULO(cubecenter(i) + start, ng(i)) + 1 - start
+                  length = MIN(ub_cube(i), ng(i) - offset) - start
+                  DO ig = start, start + length
+                     map(ig, i) = ig + offset
                   END DO
-                  IF (start+length .GE. ub_cube(i)) EXIT
-                  start = start+length+1
+                  IF (start + length .GE. ub_cube(i)) EXIT
+                  start = start + length + 1
                END DO
             ELSE
                ! this takes partial grid + border regions into account
-               offset = MODULO(cubecenter(i)+lb_cube(i)+rsgrid%desc%lb(i)-rsgrid%lb_local(i), ng(i))+1-lb_cube(i)
+               offset = MODULO(cubecenter(i) + lb_cube(i) + rsgrid%desc%lb(i) - rsgrid%lb_local(i), ng(i)) + 1 - lb_cube(i)
                ! check for out of bounds
-               IF (ub_cube(i)+offset > UBOUND(grid, i) .OR. lb_cube(i)+offset < LBOUND(grid, i)) THEN
+               IF (ub_cube(i) + offset > UBOUND(grid, i) .OR. lb_cube(i) + offset < LBOUND(grid, i)) THEN
                   CPABORT("")
                ENDIF
                DO ig = lb_cube(i), ub_cube(i)
-                  map(ig, i) = ig+offset
+                  map(ig, i) = ig + offset
                END DO
             END IF
          ENDDO
 
-         lp = la_max_local+lb_max_local
-         ALLOCATE (coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
+         lp = la_max_local + lb_max_local
+         ALLOCATE (coef_xyz(((lp + 1)*(lp + 2)*(lp + 3))/6))
          ALLOCATE (pol_z(1:2, 0:lp, -cmax:0))
          ALLOCATE (pol_y(1:2, 0:lp, -cmax:0))
          ALLOCATE (pol_x(0:lp, -cmax:cmax))
@@ -505,10 +505,10 @@ CONTAINS
 ! sum_{lip,ljp,lkp} P_{lip,ljp,lkp} (i-i_p)**lip (j-j_p)**ljp (k-k_p)**lkp
 !
 
-         lp = la_max_local+lb_max_local
-         ALLOCATE (coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
-         ALLOCATE (coef_ijk(((lp+1)*(lp+2)*(lp+3))/6))
-         ALLOCATE (coef_xyt(((lp+1)*(lp+2))/2))
+         lp = la_max_local + lb_max_local
+         ALLOCATE (coef_xyz(((lp + 1)*(lp + 2)*(lp + 3))/6))
+         ALLOCATE (coef_ijk(((lp + 1)*(lp + 2)*(lp + 3))/6))
+         ALLOCATE (coef_xyt(((lp + 1)*(lp + 2))/2))
          ALLOCATE (coef_xtt(0:lp))
 
          ! aux mapping array to simplify life
@@ -516,9 +516,9 @@ CONTAINS
          coef_map = HUGE(coef_map)
          lxyz = 0
          DO lzp = 0, lp
-         DO lyp = 0, lp-lzp
-         DO lxp = 0, lp-lzp-lyp
-            lxyz = lxyz+1
+         DO lyp = 0, lp - lzp
+         DO lxp = 0, lp - lzp - lyp
+            lxyz = lxyz + 1
             coef_map(lxp, lyp, lzp) = lxyz
          ENDDO
          ENDDO
@@ -541,15 +541,15 @@ CONTAINS
 
          CALL return_cube_nonortho(cube_info, radius, index_min, index_max, rp)
 
-         offset(:) = MODULO(index_min(:)+rsgrid%desc%lb(:)-rsgrid%lb_local(:), ng(:))+1
+         offset(:) = MODULO(index_min(:) + rsgrid%desc%lb(:) - rsgrid%lb_local(:), ng(:)) + 1
 
          ALLOCATE (grid_map(index_min(1):index_max(1)))
          DO i = index_min(1), index_max(1)
-            grid_map(i) = MODULO(i, ng(1))+1
+            grid_map(i) = MODULO(i, ng(1)) + 1
             IF (rsgrid%desc%perd(1) == 1) THEN
-               grid_map(i) = MODULO(i, ng(1))+1
+               grid_map(i) = MODULO(i, ng(1)) + 1
             ELSE
-               grid_map(i) = i-index_min(1)+offset(1)
+               grid_map(i) = i - index_min(1) + offset(1)
             ENDIF
          ENDDO
 
@@ -557,25 +557,25 @@ CONTAINS
 
          ! go over the grid, but cycle if the point is not within the radius
          DO k = index_min(3), index_max(3)
-            dk = k-gp(3)
+            dk = k - gp(3)
             pointk = hmatgrid(:, 3)*dk
 
             ! allow for generalised rs grids
             IF (rsgrid%desc%perd(3) == 1) THEN
-               k_index = MODULO(k, ng(3))+1
+               k_index = MODULO(k, ng(3)) + 1
             ELSE
-               k_index = k-index_min(3)+offset(3)
+               k_index = k - index_min(3) + offset(3)
             ENDIF
 
             coef_xyt = 0.0_dp
 
             DO j = index_min(2), index_max(2)
-               dj = j-gp(2)
-               pointj = pointk+hmatgrid(:, 2)*dj
+               dj = j - gp(2)
+               pointj = pointk + hmatgrid(:, 2)*dj
                IF (rsgrid%desc%perd(2) == 1) THEN
-                  j_index = MODULO(j, ng(2))+1
+                  j_index = MODULO(j, ng(2)) + 1
                ELSE
-                  j_index = j-index_min(2)+offset(2)
+                  j_index = j - index_min(2) + offset(2)
                ENDIF
 
                coef_xtt = 0.0_dp
@@ -583,32 +583,32 @@ CONTAINS
                ! find bounds for the inner loop
                ! based on a quadratic equation in i
                ! a*i**2+b*i+c=radius**2
-               v = pointj-gp(1)*hmatgrid(:, 1)
+               v = pointj - gp(1)*hmatgrid(:, 1)
                a = DOT_PRODUCT(hmatgrid(:, 1), hmatgrid(:, 1))
                b = 2*DOT_PRODUCT(v, hmatgrid(:, 1))
                c = DOT_PRODUCT(v, v)
-               d = b*b-4*a*(c-radius**2)
+               d = b*b - 4*a*(c - radius**2)
 
                IF (d < 0) THEN
                   CYCLE
                ELSE
                   d = SQRT(d)
-                  ismin = CEILING((-b-d)/(2*a))
-                  ismax = FLOOR((-b+d)/(2*a))
+                  ismin = CEILING((-b - d)/(2*a))
+                  ismax = FLOOR((-b + d)/(2*a))
                ENDIF
                ! prepare for computing -zetp*rsq
                a = -zetp*a
                b = -zetp*b
                c = -zetp*c
-               i = ismin-1
-               exp2i = EXP((a*i+b)*i+c)
-               exp1i = EXP(2*a*i+a+b)
+               i = ismin - 1
+               exp2i = EXP((a*i + b)*i + c)
+               exp1i = EXP(2*a*i + a + b)
                exp0i = EXP(2*a)
 
                coef_xtt = 0.0_dp
 
                DO i = ismin, ismax
-                  di = i-gp(1)
+                  di = i - gp(1)
 
                   exp2i = exp2i*exp1i
                   exp1i = exp1i*exp0i
@@ -618,7 +618,7 @@ CONTAINS
 
                   dip = 1.0_dp
                   DO il = 0, lp
-                     coef_xtt(il) = coef_xtt(il)+gridval*dip
+                     coef_xtt(il) = coef_xtt(il) + gridval*dip
                      dip = dip*di
                   ENDDO
                ENDDO
@@ -626,9 +626,9 @@ CONTAINS
                lxy = 0
                djp = 1.0_dp
                DO jl = 0, lp
-                  DO il = 0, lp-jl
-                     lxy = lxy+1
-                     coef_xyt(lxy) = coef_xyt(lxy)+coef_xtt(il)*djp
+                  DO il = 0, lp - jl
+                     lxy = lxy + 1
+                     coef_xyt(lxy) = coef_xyt(lxy) + coef_xtt(il)*djp
                   ENDDO
                   djp = djp*dj
                ENDDO
@@ -639,12 +639,12 @@ CONTAINS
             dkp = 1.0_dp
             DO kl = 0, lp
                lxy = 0
-               DO jl = 0, lp-kl
-                  DO il = 0, lp-kl-jl
-                     lxyz = lxyz+1; lxy = lxy+1
-                     coef_ijk(lxyz) = coef_ijk(lxyz)+dkp*coef_xyt(lxy)
+               DO jl = 0, lp - kl
+                  DO il = 0, lp - kl - jl
+                     lxyz = lxyz + 1; lxy = lxy + 1
+                     coef_ijk(lxyz) = coef_ijk(lxyz) + dkp*coef_xyt(lxy)
                   ENDDO
-                  lxy = lxy+kl
+                  lxy = lxy + kl
                ENDDO
                dkp = dkp*dk
             ENDDO
@@ -655,31 +655,31 @@ CONTAINS
          ALLOCATE (hmatgridp(3, 3, 0:lp))
          hmatgridp(:, :, 0) = 1.0_dp
          DO k = 1, lp
-            hmatgridp(:, :, k) = hmatgridp(:, :, k-1)*hmatgrid(:, :)
+            hmatgridp(:, :, k) = hmatgridp(:, :, k - 1)*hmatgrid(:, :)
          ENDDO
 
          coef_xyz = 0.0_dp
          lpx = lp
          DO klx = 0, lpx
-         DO jlx = 0, lpx-klx
-         DO ilx = 0, lpx-klx-jlx
-            lx = ilx+jlx+klx
-            lpy = lp-lx
+         DO jlx = 0, lpx - klx
+         DO ilx = 0, lpx - klx - jlx
+            lx = ilx + jlx + klx
+            lpy = lp - lx
             DO kly = 0, lpy
-            DO jly = 0, lpy-kly
-            DO ily = 0, lpy-kly-jly
-               ly = ily+jly+kly
-               lpz = lp-lx-ly
+            DO jly = 0, lpy - kly
+            DO ily = 0, lpy - kly - jly
+               ly = ily + jly + kly
+               lpz = lp - lx - ly
                DO klz = 0, lpz
-               DO jlz = 0, lpz-klz
-               DO ilz = 0, lpz-klz-jlz
-                  lz = ilz+jlz+klz
+               DO jlz = 0, lpz - klz
+               DO ilz = 0, lpz - klz - jlz
+                  lz = ilz + jlz + klz
 
-                  il = ilx+ily+ilz
-                  jl = jlx+jly+jlz
-                  kl = klx+kly+klz
+                  il = ilx + ily + ilz
+                  jl = jlx + jly + jlz
+                  kl = klx + kly + klz
                   coef_xyz(coef_map(lx, ly, lz)) = &
-                     coef_xyz(coef_map(lx, ly, lz))+coef_ijk(coef_map(il, jl, kl))* &
+                     coef_xyz(coef_map(lx, ly, lz)) + coef_ijk(coef_map(il, jl, kl))* &
                      hmatgridp(1, 1, ilx)*hmatgridp(1, 2, jlx)*hmatgridp(1, 3, klx)* &
                      hmatgridp(2, 1, ily)*hmatgridp(2, 2, jly)*hmatgridp(2, 3, kly)* &
                      hmatgridp(3, 1, ilz)*hmatgridp(3, 2, jlz)*hmatgridp(3, 3, klz)* &
@@ -723,25 +723,25 @@ CONTAINS
          la_max_local+lb_max_local+3)/6)                 :: poly_d3
 
          periodic = 1 ! cell%perd
-         lp = la_max_local+lb_max_local
-         local_b(1, :) = rsgrid%lb_real-rsgrid%desc%lb
-         local_b(2, :) = rsgrid%ub_real-rsgrid%desc%lb
-         local_s = rsgrid%lb_real-rsgrid%lb_local
-         IF (BTEST(subpatch_pattern, 0)) local_b(1, 1) = local_b(1, 1)-rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 1)) local_b(2, 1) = local_b(2, 1)+rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 2)) local_b(1, 2) = local_b(1, 2)-rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 3)) local_b(2, 2) = local_b(2, 2)+rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 4)) local_b(1, 3) = local_b(1, 3)-rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 5)) local_b(2, 3) = local_b(2, 3)+rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 0)) local_s(1) = local_s(1)-rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 2)) local_s(2) = local_s(2)-rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 4)) local_s(3) = local_s(3)-rsgrid%desc%border
+         lp = la_max_local + lb_max_local
+         local_b(1, :) = rsgrid%lb_real - rsgrid%desc%lb
+         local_b(2, :) = rsgrid%ub_real - rsgrid%desc%lb
+         local_s = rsgrid%lb_real - rsgrid%lb_local
+         IF (BTEST(subpatch_pattern, 0)) local_b(1, 1) = local_b(1, 1) - rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 1)) local_b(2, 1) = local_b(2, 1) + rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 2)) local_b(1, 2) = local_b(1, 2) - rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 3)) local_b(2, 2) = local_b(2, 2) + rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 4)) local_b(1, 3) = local_b(1, 3) - rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 5)) local_b(2, 3) = local_b(2, 3) + rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 0)) local_s(1) = local_s(1) - rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 2)) local_s(2) = local_s(2) - rsgrid%desc%border
+         IF (BTEST(subpatch_pattern, 4)) local_s(3) = local_s(3) - rsgrid%desc%border
          CALL integrateGaussFull(h=cell%hmat, h_inv=cell%h_inv, &
                                  grid=grid, poly=poly_d3, alphai=zetp, posi=rp, max_r2=radius*radius, &
                                  periodic=periodic, gdim=ng, local_bounds=local_b, local_shift=local_s, &
                                  scale=rsgrid%desc%ngpts/ABS(cell%deth))
          ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
-         ALLOCATE (coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
+         ALLOCATE (coef_xyz(((lp + 1)*(lp + 2)*(lp + 3))/6))
          CALL poly_d32cp2k(coef_xyz, lp, poly_d3)
          CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
                                  rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
@@ -764,25 +764,25 @@ CONTAINS
 
          periodic = 1 ! cell%perd
          local_b(1, :) = 0
-         local_b(2, :) = MIN(rsgrid%desc%npts-1, rsgrid%ub_local-rsgrid%lb_local)
-         local_shift = REAL(rsgrid%desc%lb-rsgrid%lb_local, dp)/REAL(rsgrid%desc%npts, dp)
-         rShifted(1) = rp(1)+cell%hmat(1, 1)*local_shift(1) &
-                       +cell%hmat(1, 2)*local_shift(2) &
-                       +cell%hmat(1, 3)*local_shift(3)
-         rShifted(2) = rp(2)+cell%hmat(2, 1)*local_shift(1) &
-                       +cell%hmat(2, 2)*local_shift(2) &
-                       +cell%hmat(2, 3)*local_shift(3)
-         rShifted(3) = rp(3)+cell%hmat(3, 1)*local_shift(1) &
-                       +cell%hmat(3, 2)*local_shift(2) &
-                       +cell%hmat(3, 3)*local_shift(3)
-         lp = la_max_local+lb_max_local
+         local_b(2, :) = MIN(rsgrid%desc%npts - 1, rsgrid%ub_local - rsgrid%lb_local)
+         local_shift = REAL(rsgrid%desc%lb - rsgrid%lb_local, dp)/REAL(rsgrid%desc%npts, dp)
+         rShifted(1) = rp(1) + cell%hmat(1, 1)*local_shift(1) &
+                       + cell%hmat(1, 2)*local_shift(2) &
+                       + cell%hmat(1, 3)*local_shift(3)
+         rShifted(2) = rp(2) + cell%hmat(2, 1)*local_shift(1) &
+                       + cell%hmat(2, 2)*local_shift(2) &
+                       + cell%hmat(2, 3)*local_shift(3)
+         rShifted(3) = rp(3) + cell%hmat(3, 1)*local_shift(1) &
+                       + cell%hmat(3, 2)*local_shift(2) &
+                       + cell%hmat(3, 3)*local_shift(3)
+         lp = la_max_local + lb_max_local
          CALL integrateGaussFull(h=cell%hmat, h_inv=cell%h_inv, &
                                  grid=grid, poly=poly_d3, alphai=zetp, posi=rShifted, &
                                  max_r2=radius*radius, &
                                  periodic=periodic, gdim=ng, local_bounds=local_b, &
                                  scale=rsgrid%desc%ngpts/ABS(cell%deth))
          ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
-         ALLOCATE (coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
+         ALLOCATE (coef_xyz(((lp + 1)*(lp + 2)*(lp + 3))/6))
          CALL poly_d32cp2k(coef_xyz, lp, poly_d3)
          CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
                                  rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
@@ -808,9 +808,9 @@ CONTAINS
             ! point in real space
             point = MATMUL(cell%hmat, REAL((/i, j, k/), KIND=dp)/ng)
             ! skip if outside of the sphere
-            IF (SUM((point-rp)**2) > radius**2) CYCLE
+            IF (SUM((point - rp)**2) > radius**2) CYCLE
             ! point on the grid (including pbc)
-            ipoint = MODULO((/i, j, k/), ng)+1
+            ipoint = MODULO((/i, j, k/), ng) + 1
             ! integrate on the grid
             gridval = grid(ipoint(1), ipoint(2), ipoint(3))
             CALL primitive_integrate(point, gridval)
@@ -829,30 +829,30 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: dra(3), drap(3), drb(3), drbp(3), myexp
 
-         myexp = EXP(-zetp*SUM((point-rp)**2))*prefactor*gridval
-         dra = point-ra
-         drb = point-rb
+         myexp = EXP(-zetp*SUM((point - rp)**2))*prefactor*gridval
+         dra = point - ra
+         drb = point - rb
          drap(1) = 1.0_dp
          DO lxa = 0, la_max_local
             drbp(1) = 1.0_dp
             DO lxb = 0, lb_max_local
                drap(2) = 1.0_dp
-               DO lya = 0, la_max_local-lxa
+               DO lya = 0, la_max_local - lxa
                   drbp(2) = 1.0_dp
-                  DO lyb = 0, lb_max_local-lxb
+                  DO lyb = 0, lb_max_local - lxb
                      drap(3) = 1.0_dp
-                     DO lza = 1, MAX(la_min_local-lxa-lya, 0)
+                     DO lza = 1, MAX(la_min_local - lxa - lya, 0)
                         drap(3) = drap(3)*dra(3)
                      ENDDO
-                     DO lza = MAX(la_min_local-lxa-lya, 0), la_max_local-lxa-lya
+                     DO lza = MAX(la_min_local - lxa - lya, 0), la_max_local - lxa - lya
                         drbp(3) = 1.0_dp
-                        DO lzb = 1, MAX(lb_min_local-lxb-lyb, 0)
+                        DO lzb = 1, MAX(lb_min_local - lxb - lyb, 0)
                            drbp(3) = drbp(3)*drb(3)
                         ENDDO
-                        DO lzb = MAX(lb_min_local-lxb-lyb, 0), lb_max_local-lxb-lyb
+                        DO lzb = MAX(lb_min_local - lxb - lyb, 0), lb_max_local - lxb - lyb
                            ico = coset(lxa, lya, lza)
                            jco = coset(lxb, lyb, lzb)
-                           vab(ico, jco) = vab(ico, jco)+myexp*PRODUCT(drap)*PRODUCT(drbp)
+                           vab(ico, jco) = vab(ico, jco) + myexp*PRODUCT(drap)*PRODUCT(drbp)
                            drbp(3) = drbp(3)*drb(3)
                         ENDDO
                         drap(3) = drap(3)*dra(3)
@@ -895,87 +895,87 @@ CONTAINS
       REAL(KIND=dp)                                      :: vab(:, :)
 
       my_virial_a(1, 1) = my_virial_a(1, 1) &
-                          +pab*ftza*vab(coset(ax+2, ay, az), coset(bx, by, bz)) &
-                          -pab*REAL(ax, dp)*vab(coset(MAX(0, ax-1)+1, ay, az), coset(bx, by, bz))
+                          + pab*ftza*vab(coset(ax + 2, ay, az), coset(bx, by, bz)) &
+                          - pab*REAL(ax, dp)*vab(coset(MAX(0, ax - 1) + 1, ay, az), coset(bx, by, bz))
       my_virial_a(1, 2) = my_virial_a(1, 2) &
-                          +pab*ftza*vab(coset(ax+1, ay+1, az), coset(bx, by, bz)) &
-                          -pab*REAL(ax, dp)*vab(coset(MAX(0, ax-1), ay+1, az), coset(bx, by, bz))
+                          + pab*ftza*vab(coset(ax + 1, ay + 1, az), coset(bx, by, bz)) &
+                          - pab*REAL(ax, dp)*vab(coset(MAX(0, ax - 1), ay + 1, az), coset(bx, by, bz))
       my_virial_a(1, 3) = my_virial_a(1, 3) &
-                          +pab*ftza*vab(coset(ax+1, ay, az+1), coset(bx, by, bz)) &
-                          -pab*REAL(ax, dp)*vab(coset(MAX(0, ax-1), ay, az+1), coset(bx, by, bz))
+                          + pab*ftza*vab(coset(ax + 1, ay, az + 1), coset(bx, by, bz)) &
+                          - pab*REAL(ax, dp)*vab(coset(MAX(0, ax - 1), ay, az + 1), coset(bx, by, bz))
       my_virial_a(2, 1) = my_virial_a(2, 1) &
-                          +pab*ftza*vab(coset(ax+1, ay+1, az), coset(bx, by, bz)) &
-                          -pab*REAL(ay, dp)*vab(coset(ax+1, MAX(0, ay-1), az), coset(bx, by, bz))
+                          + pab*ftza*vab(coset(ax + 1, ay + 1, az), coset(bx, by, bz)) &
+                          - pab*REAL(ay, dp)*vab(coset(ax + 1, MAX(0, ay - 1), az), coset(bx, by, bz))
       my_virial_a(2, 2) = my_virial_a(2, 2) &
-                          +pab*ftza*vab(coset(ax, ay+2, az), coset(bx, by, bz)) &
-                          -pab*REAL(ay, dp)*vab(coset(ax, MAX(0, ay-1)+1, az), coset(bx, by, bz))
+                          + pab*ftza*vab(coset(ax, ay + 2, az), coset(bx, by, bz)) &
+                          - pab*REAL(ay, dp)*vab(coset(ax, MAX(0, ay - 1) + 1, az), coset(bx, by, bz))
       my_virial_a(2, 3) = my_virial_a(2, 3) &
-                          +pab*ftza*vab(coset(ax, ay+1, az+1), coset(bx, by, bz)) &
-                          -pab*REAL(ay, dp)*vab(coset(ax, MAX(0, ay-1), az+1), coset(bx, by, bz))
+                          + pab*ftza*vab(coset(ax, ay + 1, az + 1), coset(bx, by, bz)) &
+                          - pab*REAL(ay, dp)*vab(coset(ax, MAX(0, ay - 1), az + 1), coset(bx, by, bz))
       my_virial_a(3, 1) = my_virial_a(3, 1) &
-                          +pab*ftza*vab(coset(ax+1, ay, az+1), coset(bx, by, bz)) &
-                          -pab*REAL(az, dp)*vab(coset(ax+1, ay, MAX(0, az-1)), coset(bx, by, bz))
+                          + pab*ftza*vab(coset(ax + 1, ay, az + 1), coset(bx, by, bz)) &
+                          - pab*REAL(az, dp)*vab(coset(ax + 1, ay, MAX(0, az - 1)), coset(bx, by, bz))
       my_virial_a(3, 2) = my_virial_a(3, 2) &
-                          +pab*ftza*vab(coset(ax, ay+1, az+1), coset(bx, by, bz)) &
-                          -pab*REAL(az, dp)*vab(coset(ax, ay+1, MAX(0, az-1)), coset(bx, by, bz))
+                          + pab*ftza*vab(coset(ax, ay + 1, az + 1), coset(bx, by, bz)) &
+                          - pab*REAL(az, dp)*vab(coset(ax, ay + 1, MAX(0, az - 1)), coset(bx, by, bz))
       my_virial_a(3, 3) = my_virial_a(3, 3) &
-                          +pab*ftza*vab(coset(ax, ay, az+2), coset(bx, by, bz)) &
-                          -pab*REAL(az, dp)*vab(coset(ax, ay, MAX(0, az-1)+1), coset(bx, by, bz))
+                          + pab*ftza*vab(coset(ax, ay, az + 2), coset(bx, by, bz)) &
+                          - pab*REAL(az, dp)*vab(coset(ax, ay, MAX(0, az - 1) + 1), coset(bx, by, bz))
 
-      my_virial_b(1, 1) = my_virial_b(1, 1)+pab*ftzb*( &
-                          vab(coset(ax+2, ay, az), coset(bx, by, bz)) &
-                          -vab(coset(ax+1, ay, az), coset(bx, by, bz))*rab(1) &
-                          -vab(coset(ax+1, ay, az), coset(bx, by, bz))*rab(1) &
-                          +vab(coset(ax, ay, az), coset(bx, by, bz))*rab(1)*rab(1)) &
-                          -pab*REAL(bx, dp)*vab(coset(ax, ay, az), coset(MAX(0, bx-1)+1, by, bz))
-      my_virial_b(1, 2) = my_virial_b(1, 2)+pab*ftzb*( &
-                          vab(coset(ax+1, ay+1, az), coset(bx, by, bz)) &
-                          -vab(coset(ax, ay+1, az), coset(bx, by, bz))*rab(1) &
-                          -vab(coset(ax+1, ay, az), coset(bx, by, bz))*rab(2) &
-                          +vab(coset(ax, ay, az), coset(bx, by, bz))*rab(1)*rab(2)) &
-                          -pab*REAL(bx, dp)*vab(coset(ax, ay, az), coset(MAX(0, bx-1), by+1, bz))
-      my_virial_b(1, 3) = my_virial_b(1, 3)+pab*ftzb*( &
-                          vab(coset(ax+1, ay, az+1), coset(bx, by, bz)) &
-                          -vab(coset(ax, ay, az+1), coset(bx, by, bz))*rab(1) &
-                          -vab(coset(ax+1, ay, az), coset(bx, by, bz))*rab(3) &
-                          +vab(coset(ax, ay, az), coset(bx, by, bz))*rab(1)*rab(3)) &
-                          -pab*REAL(bx, dp)*vab(coset(ax, ay, az), coset(MAX(0, bx-1), by, bz+1))
-      my_virial_b(2, 1) = my_virial_b(2, 1)+pab*ftzb*( &
-                          vab(coset(ax+1, ay+1, az), coset(bx, by, bz)) &
-                          -vab(coset(ax+1, ay, az), coset(bx, by, bz))*rab(2) &
-                          -vab(coset(ax, ay+1, az), coset(bx, by, bz))*rab(1) &
-                          +vab(coset(ax, ay, az), coset(bx, by, bz))*rab(2)*rab(1)) &
-                          -pab*REAL(by, dp)*vab(coset(ax, ay, az), coset(bx+1, MAX(0, by-1), bz))
-      my_virial_b(2, 2) = my_virial_b(2, 2)+pab*ftzb*( &
-                          vab(coset(ax, ay+2, az), coset(bx, by, bz)) &
-                          -vab(coset(ax, ay+1, az), coset(bx, by, bz))*rab(2) &
-                          -vab(coset(ax, ay+1, az), coset(bx, by, bz))*rab(2) &
-                          +vab(coset(ax, ay, az), coset(bx, by, bz))*rab(2)*rab(2)) &
-                          -pab*REAL(by, dp)*vab(coset(ax, ay, az), coset(bx, MAX(0, by-1)+1, bz))
-      my_virial_b(2, 3) = my_virial_b(2, 3)+pab*ftzb*( &
-                          vab(coset(ax, ay+1, az+1), coset(bx, by, bz)) &
-                          -vab(coset(ax, ay, az+1), coset(bx, by, bz))*rab(2) &
-                          -vab(coset(ax, ay+1, az), coset(bx, by, bz))*rab(3) &
-                          +vab(coset(ax, ay, az), coset(bx, by, bz))*rab(2)*rab(3)) &
-                          -pab*REAL(by, dp)*vab(coset(ax, ay, az), coset(bx, MAX(0, by-1), bz+1))
-      my_virial_b(3, 1) = my_virial_b(3, 1)+pab*ftzb*( &
-                          vab(coset(ax+1, ay, az+1), coset(bx, by, bz)) &
-                          -vab(coset(ax+1, ay, az), coset(bx, by, bz))*rab(3) &
-                          -vab(coset(ax, ay, az+1), coset(bx, by, bz))*rab(1) &
-                          +vab(coset(ax, ay, az), coset(bx, by, bz))*rab(3)*rab(1)) &
-                          -pab*REAL(bz, dp)*vab(coset(ax, ay, az), coset(bx+1, by, MAX(0, bz-1)))
-      my_virial_b(3, 2) = my_virial_b(3, 2)+pab*ftzb*( &
-                          vab(coset(ax, ay+1, az+1), coset(bx, by, bz)) &
-                          -vab(coset(ax, ay+1, az), coset(bx, by, bz))*rab(3) &
-                          -vab(coset(ax, ay, az+1), coset(bx, by, bz))*rab(2) &
-                          +vab(coset(ax, ay, az), coset(bx, by, bz))*rab(3)*rab(2)) &
-                          -pab*REAL(bz, dp)*vab(coset(ax, ay, az), coset(bx, by+1, MAX(0, bz-1)))
-      my_virial_b(3, 3) = my_virial_b(3, 3)+pab*ftzb*( &
-                          vab(coset(ax, ay, az+2), coset(bx, by, bz)) &
-                          -vab(coset(ax, ay, az+1), coset(bx, by, bz))*rab(3) &
-                          -vab(coset(ax, ay, az+1), coset(bx, by, bz))*rab(3) &
-                          +vab(coset(ax, ay, az), coset(bx, by, bz))*rab(3)*rab(3)) &
-                          -pab*REAL(bz, dp)*vab(coset(ax, ay, az), coset(bx, by, MAX(0, bz-1)+1))
+      my_virial_b(1, 1) = my_virial_b(1, 1) + pab*ftzb*( &
+                          vab(coset(ax + 2, ay, az), coset(bx, by, bz)) &
+                          - vab(coset(ax + 1, ay, az), coset(bx, by, bz))*rab(1) &
+                          - vab(coset(ax + 1, ay, az), coset(bx, by, bz))*rab(1) &
+                          + vab(coset(ax, ay, az), coset(bx, by, bz))*rab(1)*rab(1)) &
+                          - pab*REAL(bx, dp)*vab(coset(ax, ay, az), coset(MAX(0, bx - 1) + 1, by, bz))
+      my_virial_b(1, 2) = my_virial_b(1, 2) + pab*ftzb*( &
+                          vab(coset(ax + 1, ay + 1, az), coset(bx, by, bz)) &
+                          - vab(coset(ax, ay + 1, az), coset(bx, by, bz))*rab(1) &
+                          - vab(coset(ax + 1, ay, az), coset(bx, by, bz))*rab(2) &
+                          + vab(coset(ax, ay, az), coset(bx, by, bz))*rab(1)*rab(2)) &
+                          - pab*REAL(bx, dp)*vab(coset(ax, ay, az), coset(MAX(0, bx - 1), by + 1, bz))
+      my_virial_b(1, 3) = my_virial_b(1, 3) + pab*ftzb*( &
+                          vab(coset(ax + 1, ay, az + 1), coset(bx, by, bz)) &
+                          - vab(coset(ax, ay, az + 1), coset(bx, by, bz))*rab(1) &
+                          - vab(coset(ax + 1, ay, az), coset(bx, by, bz))*rab(3) &
+                          + vab(coset(ax, ay, az), coset(bx, by, bz))*rab(1)*rab(3)) &
+                          - pab*REAL(bx, dp)*vab(coset(ax, ay, az), coset(MAX(0, bx - 1), by, bz + 1))
+      my_virial_b(2, 1) = my_virial_b(2, 1) + pab*ftzb*( &
+                          vab(coset(ax + 1, ay + 1, az), coset(bx, by, bz)) &
+                          - vab(coset(ax + 1, ay, az), coset(bx, by, bz))*rab(2) &
+                          - vab(coset(ax, ay + 1, az), coset(bx, by, bz))*rab(1) &
+                          + vab(coset(ax, ay, az), coset(bx, by, bz))*rab(2)*rab(1)) &
+                          - pab*REAL(by, dp)*vab(coset(ax, ay, az), coset(bx + 1, MAX(0, by - 1), bz))
+      my_virial_b(2, 2) = my_virial_b(2, 2) + pab*ftzb*( &
+                          vab(coset(ax, ay + 2, az), coset(bx, by, bz)) &
+                          - vab(coset(ax, ay + 1, az), coset(bx, by, bz))*rab(2) &
+                          - vab(coset(ax, ay + 1, az), coset(bx, by, bz))*rab(2) &
+                          + vab(coset(ax, ay, az), coset(bx, by, bz))*rab(2)*rab(2)) &
+                          - pab*REAL(by, dp)*vab(coset(ax, ay, az), coset(bx, MAX(0, by - 1) + 1, bz))
+      my_virial_b(2, 3) = my_virial_b(2, 3) + pab*ftzb*( &
+                          vab(coset(ax, ay + 1, az + 1), coset(bx, by, bz)) &
+                          - vab(coset(ax, ay, az + 1), coset(bx, by, bz))*rab(2) &
+                          - vab(coset(ax, ay + 1, az), coset(bx, by, bz))*rab(3) &
+                          + vab(coset(ax, ay, az), coset(bx, by, bz))*rab(2)*rab(3)) &
+                          - pab*REAL(by, dp)*vab(coset(ax, ay, az), coset(bx, MAX(0, by - 1), bz + 1))
+      my_virial_b(3, 1) = my_virial_b(3, 1) + pab*ftzb*( &
+                          vab(coset(ax + 1, ay, az + 1), coset(bx, by, bz)) &
+                          - vab(coset(ax + 1, ay, az), coset(bx, by, bz))*rab(3) &
+                          - vab(coset(ax, ay, az + 1), coset(bx, by, bz))*rab(1) &
+                          + vab(coset(ax, ay, az), coset(bx, by, bz))*rab(3)*rab(1)) &
+                          - pab*REAL(bz, dp)*vab(coset(ax, ay, az), coset(bx + 1, by, MAX(0, bz - 1)))
+      my_virial_b(3, 2) = my_virial_b(3, 2) + pab*ftzb*( &
+                          vab(coset(ax, ay + 1, az + 1), coset(bx, by, bz)) &
+                          - vab(coset(ax, ay + 1, az), coset(bx, by, bz))*rab(3) &
+                          - vab(coset(ax, ay, az + 1), coset(bx, by, bz))*rab(2) &
+                          + vab(coset(ax, ay, az), coset(bx, by, bz))*rab(3)*rab(2)) &
+                          - pab*REAL(bz, dp)*vab(coset(ax, ay, az), coset(bx, by + 1, MAX(0, bz - 1)))
+      my_virial_b(3, 3) = my_virial_b(3, 3) + pab*ftzb*( &
+                          vab(coset(ax, ay, az + 2), coset(bx, by, bz)) &
+                          - vab(coset(ax, ay, az + 1), coset(bx, by, bz))*rab(3) &
+                          - vab(coset(ax, ay, az + 1), coset(bx, by, bz))*rab(3) &
+                          + vab(coset(ax, ay, az), coset(bx, by, bz))*rab(3)*rab(3)) &
+                          - pab*REAL(bz, dp)*vab(coset(ax, ay, az), coset(bx, by, MAX(0, bz - 1) + 1))
 
    END SUBROUTINE virial_update
 
@@ -1006,21 +1006,21 @@ CONTAINS
                                                             azp1, bxm1, bym1, bzm1
 
       axpm0 = vab(coset(ax, ay, az), coset(bx, by, bz))
-      axp1 = vab(coset(ax+1, ay, az), coset(bx, by, bz))
-      axm1 = vab(coset(MAX(0, ax-1), ay, az), coset(bx, by, bz))
-      ayp1 = vab(coset(ax, ay+1, az), coset(bx, by, bz))
-      aym1 = vab(coset(ax, MAX(0, ay-1), az), coset(bx, by, bz))
-      azp1 = vab(coset(ax, ay, az+1), coset(bx, by, bz))
-      azm1 = vab(coset(ax, ay, MAX(0, az-1)), coset(bx, by, bz))
-      bxm1 = vab(coset(ax, ay, az), coset(MAX(0, bx-1), by, bz))
-      bym1 = vab(coset(ax, ay, az), coset(bx, MAX(0, by-1), bz))
-      bzm1 = vab(coset(ax, ay, az), coset(bx, by, MAX(0, bz-1)))
-      force_a(1) = force_a(1)+pab*(ftza*axp1-REAL(ax, dp)*axm1)
-      force_a(2) = force_a(2)+pab*(ftza*ayp1-REAL(ay, dp)*aym1)
-      force_a(3) = force_a(3)+pab*(ftza*azp1-REAL(az, dp)*azm1)
-      force_b(1) = force_b(1)+pab*(ftzb*(axp1-rab(1)*axpm0)-REAL(bx, dp)*bxm1)
-      force_b(2) = force_b(2)+pab*(ftzb*(ayp1-rab(2)*axpm0)-REAL(by, dp)*bym1)
-      force_b(3) = force_b(3)+pab*(ftzb*(azp1-rab(3)*axpm0)-REAL(bz, dp)*bzm1)
+      axp1 = vab(coset(ax + 1, ay, az), coset(bx, by, bz))
+      axm1 = vab(coset(MAX(0, ax - 1), ay, az), coset(bx, by, bz))
+      ayp1 = vab(coset(ax, ay + 1, az), coset(bx, by, bz))
+      aym1 = vab(coset(ax, MAX(0, ay - 1), az), coset(bx, by, bz))
+      azp1 = vab(coset(ax, ay, az + 1), coset(bx, by, bz))
+      azm1 = vab(coset(ax, ay, MAX(0, az - 1)), coset(bx, by, bz))
+      bxm1 = vab(coset(ax, ay, az), coset(MAX(0, bx - 1), by, bz))
+      bym1 = vab(coset(ax, ay, az), coset(bx, MAX(0, by - 1), bz))
+      bzm1 = vab(coset(ax, ay, az), coset(bx, by, MAX(0, bz - 1)))
+      force_a(1) = force_a(1) + pab*(ftza*axp1 - REAL(ax, dp)*axm1)
+      force_a(2) = force_a(2) + pab*(ftza*ayp1 - REAL(ay, dp)*aym1)
+      force_a(3) = force_a(3) + pab*(ftza*azp1 - REAL(az, dp)*azm1)
+      force_b(1) = force_b(1) + pab*(ftzb*(axp1 - rab(1)*axpm0) - REAL(bx, dp)*bxm1)
+      force_b(2) = force_b(2) + pab*(ftzb*(ayp1 - rab(2)*axpm0) - REAL(by, dp)*bym1)
+      force_b(3) = force_b(3) + pab*(ftzb*(azp1 - rab(3)*axpm0) - REAL(bz, dp)*bzm1)
 
    END SUBROUTINE force_update
 
@@ -1051,21 +1051,21 @@ CONTAINS
                                                             azp1, bxm1, bym1, bzm1
 
       axpm0 = vab(coset(ax, ay, az), coset(bx, by, bz))
-      axp1 = vab(coset(ax+1, ay, az), coset(bx, by, bz))
-      axm1 = vab(coset(MAX(0, ax-1), ay, az), coset(bx, by, bz))
-      ayp1 = vab(coset(ax, ay+1, az), coset(bx, by, bz))
-      aym1 = vab(coset(ax, MAX(0, ay-1), az), coset(bx, by, bz))
-      azp1 = vab(coset(ax, ay, az+1), coset(bx, by, bz))
-      azm1 = vab(coset(ax, ay, MAX(0, az-1)), coset(bx, by, bz))
-      bxm1 = vab(coset(ax, ay, az), coset(MAX(0, bx-1), by, bz))
-      bym1 = vab(coset(ax, ay, az), coset(bx, MAX(0, by-1), bz))
-      bzm1 = vab(coset(ax, ay, az), coset(bx, by, MAX(0, bz-1)))
-      der_a(1) = (ftza*axp1-REAL(ax, dp)*axm1)
-      der_a(2) = (ftza*ayp1-REAL(ay, dp)*aym1)
-      der_a(3) = (ftza*azp1-REAL(az, dp)*azm1)
-      der_b(1) = (ftzb*(axp1-rab(1)*axpm0)-REAL(bx, dp)*bxm1)
-      der_b(2) = (ftzb*(ayp1-rab(2)*axpm0)-REAL(by, dp)*bym1)
-      der_b(3) = (ftzb*(azp1-rab(3)*axpm0)-REAL(bz, dp)*bzm1)
+      axp1 = vab(coset(ax + 1, ay, az), coset(bx, by, bz))
+      axm1 = vab(coset(MAX(0, ax - 1), ay, az), coset(bx, by, bz))
+      ayp1 = vab(coset(ax, ay + 1, az), coset(bx, by, bz))
+      aym1 = vab(coset(ax, MAX(0, ay - 1), az), coset(bx, by, bz))
+      azp1 = vab(coset(ax, ay, az + 1), coset(bx, by, bz))
+      azm1 = vab(coset(ax, ay, MAX(0, az - 1)), coset(bx, by, bz))
+      bxm1 = vab(coset(ax, ay, az), coset(MAX(0, bx - 1), by, bz))
+      bym1 = vab(coset(ax, ay, az), coset(bx, MAX(0, by - 1), bz))
+      bzm1 = vab(coset(ax, ay, az), coset(bx, by, MAX(0, bz - 1)))
+      der_a(1) = (ftza*axp1 - REAL(ax, dp)*axm1)
+      der_a(2) = (ftza*ayp1 - REAL(ay, dp)*aym1)
+      der_a(3) = (ftza*azp1 - REAL(az, dp)*azm1)
+      der_b(1) = (ftzb*(axp1 - rab(1)*axpm0) - REAL(bx, dp)*bxm1)
+      der_b(2) = (ftzb*(ayp1 - rab(2)*axpm0) - REAL(by, dp)*bym1)
+      der_b(3) = (ftzb*(azp1 - rab(3)*axpm0) - REAL(bz, dp)*bzm1)
 
    END SUBROUTINE hab_derivatives
 

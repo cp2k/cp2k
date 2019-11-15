@@ -405,7 +405,7 @@ CONTAINS
             i_global = row_indices(iiB)
             IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
                trace_Qomega(i_global) = REAL(cfm_mat_Q%local_data(iiB, jjB))
-               cfm_mat_Q%local_data(iiB, jjB) = cfm_mat_Q%local_data(iiB, jjB)+z_one
+               cfm_mat_Q%local_data(iiB, jjB) = cfm_mat_Q%local_data(iiB, jjB) + z_one
             END IF
          END DO
       END DO
@@ -475,10 +475,10 @@ CONTAINS
       DO iiB = 1, dimen_RI
          IF (MODULO(iiB, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
          ! FComega=FComega+(LOG(Q_log(iiB))-trace_Qomega(iiB))/2.0_dp
-         FComega = FComega+(Q_log(iiB)-trace_Qomega(iiB))/2.0_dp
+         FComega = FComega + (Q_log(iiB) - trace_Qomega(iiB))/2.0_dp
       END DO
 
-      Erpa = Erpa+FComega*freq_weight*kp_weight
+      Erpa = Erpa + FComega*freq_weight*kp_weight
 
       DEALLOCATE (Q_log)
 
@@ -628,7 +628,7 @@ CONTAINS
          ! we have at most 3 neigboring cells per dimension and at least one because
          ! the density response at Gamma is only divided to neighboring
          IF (periodic(i_dim) == 1) THEN
-            cell_grid_P(i_dim) = MAX(MIN((kpoints%nkp_grid(i_dim)/2)*2-1, 1), 3)
+            cell_grid_P(i_dim) = MAX(MIN((kpoints%nkp_grid(i_dim)/2)*2 - 1, 1), 3)
          ELSE
             cell_grid_P(i_dim) = 1
          END IF
@@ -666,11 +666,11 @@ CONTAINS
          DO i_cell = 1, num_cells_P
 
             cell_vector(1:3) = MATMUL(hmat, REAL(index_to_cell_P(1:3, i_cell), dp))
-            rab_cell_i(1:3) = pbc(particle_set(row)%r(1:3), cell)- &
-                              (pbc(particle_set(col)%r(1:3), cell)+cell_vector(1:3))
-            abs_rab_cell(i_cell) = SQRT(rab_cell_i(1)**2+rab_cell_i(2)**2+rab_cell_i(3)**2)
+            rab_cell_i(1:3) = pbc(particle_set(row)%r(1:3), cell) - &
+                              (pbc(particle_set(col)%r(1:3), cell) + cell_vector(1:3))
+            abs_rab_cell(i_cell) = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
             IF (abs_rab_cell(i_cell)/d_0 < cutoff_exp) THEN
-               sum_exp = sum_exp+EXP(-abs_rab_cell(i_cell)/d_0)
+               sum_exp = sum_exp + EXP(-abs_rab_cell(i_cell)/d_0)
             END IF
 
          END DO
@@ -787,7 +787,7 @@ CONTAINS
 
       num_cells = SIZE(index_to_cell, 2)
 
-      CPASSERT(SIZE(mat_real_space) >= num_cells/2+1)
+      CPASSERT(SIZE(mat_real_space) >= num_cells/2 + 1)
 
       DO ik = 1, nkp
 
@@ -798,11 +798,11 @@ CONTAINS
          CALL dbcsr_reserve_all_blocks(real_mat_kp(ik)%matrix)
          CALL dbcsr_reserve_all_blocks(imag_mat_kp(ik)%matrix)
 
-         DO i_cell = 1, num_cells/2+1
+         DO i_cell = 1, num_cells/2 + 1
 
             cell(:) = index_to_cell(:, i_cell)
 
-            arg = REAL(cell(1), dp)*xkp(1, ik)+REAL(cell(2), dp)*xkp(2, ik)+REAL(cell(3), dp)*xkp(3, ik)
+            arg = REAL(cell(1), dp)*xkp(1, ik) + REAL(cell(2), dp)*xkp(2, ik) + REAL(cell(3), dp)*xkp(3, ik)
             coskl = COS(twopi*arg)
             sinkl = SIN(twopi*arg)
 
@@ -862,7 +862,7 @@ CONTAINS
 
          CPASSERT(found)
 
-         block_to_compute(:, :) = alpha*block_to_compute(:, :)+beta*data_block(:, :)
+         block_to_compute(:, :) = alpha*block_to_compute(:, :) + beta*data_block(:, :)
 
       END DO
       CALL dbcsr_iterator_stop(iter)

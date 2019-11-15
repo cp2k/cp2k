@@ -32,10 +32,10 @@ CONTAINS
 
       ! even numbers are not prime, so no point testing them, so increment by 2 each time starting
       ! from an odd number greater or equal to ii (as noted in \brief)
-      res = ii+1-MOD(ii, 2)
+      res = ii + 1 - MOD(ii, 2)
 
       DO WHILE (.NOT. is_positive_prime(res))
-         res = res+2
+         res = res + 2
       END DO
    END FUNCTION hash_table_matching_prime
 
@@ -65,11 +65,11 @@ CONTAINS
       ! and we only have to check factors less than and equal to SQRT(num)
       ii = 5
       DO WHILE (ii*ii .LE. num)
-         IF (MOD(num, ii) == 0 .OR. MOD(num, ii+2) == 0) THEN
+         IF (MOD(num, ii) == 0 .OR. MOD(num, ii + 2) == 0) THEN
             res = .FALSE.
             RETURN
          END IF
-         ii = ii+6
+         ii = ii + 6
       END DO
       res = .TRUE.
    END FUNCTION is_positive_prime

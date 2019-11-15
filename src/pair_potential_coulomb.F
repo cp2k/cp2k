@@ -50,28 +50,28 @@ CONTAINS
          IF (ewald_type == do_ewald_none) THEN
             x2 = r*beta
             potential_coulomb = erf(x2)/r
-            fscalar = fscalar+qfac*(potential_coulomb- &
-                                    two_over_sqrt_pi*EXP(-x2*x2)*beta)/r2
+            fscalar = fscalar + qfac*(potential_coulomb - &
+                                      two_over_sqrt_pi*EXP(-x2*x2)*beta)/r2
          ELSE
             x1 = alpha*r
             x2 = r*beta
-            potential_coulomb = (erf(x2)-erf(x1))/r
-            fscalar = fscalar+qfac*(potential_coulomb+ &
-                                    two_over_sqrt_pi*(EXP(-x1*x1)*alpha-EXP(-x2*x2)*beta))/r2
+            potential_coulomb = (erf(x2) - erf(x1))/r
+            fscalar = fscalar + qfac*(potential_coulomb + &
+                                      two_over_sqrt_pi*(EXP(-x1*x1)*alpha - EXP(-x2*x2)*beta))/r2
          END IF
       ELSE
          IF (ewald_type == do_ewald_none) THEN
             potential_coulomb = 1.0_dp/r
-            fscalar = fscalar+qfac*potential_coulomb/r2
+            fscalar = fscalar + qfac*potential_coulomb/r2
          ELSE
             x1 = alpha*r
             potential_coulomb = erfc(x1)/r
-            fscalar = fscalar+qfac*(potential_coulomb+ &
-                                    two_over_sqrt_pi*EXP(-x1*x1)*alpha)/r2
+            fscalar = fscalar + qfac*(potential_coulomb + &
+                                      two_over_sqrt_pi*EXP(-x1*x1)*alpha)/r2
          END IF
       END IF
 
-      potential_coulomb = qfac*(potential_coulomb-interaction_cutoff)
+      potential_coulomb = qfac*(potential_coulomb - interaction_cutoff)
 
    END FUNCTION potential_coulomb
 

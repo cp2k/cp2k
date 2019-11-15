@@ -146,7 +146,7 @@ CONTAINS
       NULLIFY (pw_grid%para%pos_of_x)
 
       ! assign a unique tag to this grid
-      grid_tag = grid_tag+1
+      grid_tag = grid_tag + 1
       pw_grid%id_nr = grid_tag
 
       ! parallel info
@@ -276,10 +276,10 @@ CONTAINS
       IF (PRESENT(bounds) .AND. PRESENT(npts)) THEN
          pw_grid%bounds = bounds
          pw_grid%npts = npts
-         CPASSERT(ALL(npts == bounds(2, :)-bounds(1, :)+1))
+         CPASSERT(ALL(npts == bounds(2, :) - bounds(1, :) + 1))
       ELSE IF (PRESENT(bounds)) THEN
          pw_grid%bounds = bounds
-         pw_grid%npts = bounds(2, :)-bounds(1, :)+1
+         pw_grid%npts = bounds(2, :) - bounds(1, :) + 1
       ELSE IF (PRESENT(npts)) THEN
          pw_grid%npts = npts
          pw_grid%bounds = pw_grid_bounds_from_n(npts)
@@ -391,7 +391,7 @@ CONTAINS
             CALL set_pw_grid_info(pw_grid, bounds=bounds, cutoff=cutoff, &
                                   spherical=my_spherical)
          ELSE
-            n = bounds(2, :)-bounds(1, :)+1
+            n = bounds(2, :) - bounds(1, :) + 1
             my_cutoff = pw_find_cutoff(n, cell_h_inv)
             my_cutoff = 0.5_dp*my_cutoff*my_cutoff
             CALL set_pw_grid_info(pw_grid, bounds=bounds, cutoff=my_cutoff, &
@@ -482,7 +482,7 @@ CONTAINS
             n = pmapn(g_hat(3, gpt))
             !ATTENTION: C-mapping [start-index=0] !!!!
             !ATTENTION: potential integer overflow !!!!
-            g_hatmap(gpt, 1) = l+npts(1)*(m+npts(2)*n)
+            g_hatmap(gpt, 1) = l + npts(1)*(m + npts(2)*n)
          END DO
          IF (pw_grid%grid_span == HALFSPACE) THEN
             DO gpt = 1, ngpts
@@ -491,29 +491,29 @@ CONTAINS
                n = nmapn(g_hat(3, gpt))
                !ATTENTION: C-mapping [start-index=0] !!!!
                !ATTENTION: potential integer overflow !!!!
-               g_hatmap(gpt, 2) = l+npts(1)*(m+npts(2)*n)
+               g_hatmap(gpt, 2) = l + npts(1)*(m + npts(2)*n)
             END DO
          END IF
       ELSE
          yzq => pw_grid%para%yzq
          DO gpt = 1, ngpts
             l = pmapl(g_hat(1, gpt))
-            m = pmapm(g_hat(2, gpt))+1
-            n = pmapn(g_hat(3, gpt))+1
+            m = pmapm(g_hat(2, gpt)) + 1
+            n = pmapn(g_hat(3, gpt)) + 1
             !ATTENTION: C-mapping [start-index=0] !!!!
             !ATTENTION: potential integer overflow !!!!
-            mn = yzq(m, n)-1
-            g_hatmap(gpt, 1) = l+npts(1)*mn
+            mn = yzq(m, n) - 1
+            g_hatmap(gpt, 1) = l + npts(1)*mn
          END DO
          IF (pw_grid%grid_span == HALFSPACE) THEN
             DO gpt = 1, ngpts
                l = nmapl(g_hat(1, gpt))
-               m = nmapm(g_hat(2, gpt))+1
-               n = nmapn(g_hat(3, gpt))+1
+               m = nmapm(g_hat(2, gpt)) + 1
+               n = nmapn(g_hat(3, gpt)) + 1
                !ATTENTION: C-mapping [start-index=0] !!!!
                !ATTENTION: potential integer overflow !!!!
-               mn = yzq(m, n)-1
-               g_hatmap(gpt, 2) = l+npts(1)*mn
+               mn = yzq(m, n) - 1
+               g_hatmap(gpt, 2) = l + npts(1)*mn
             END DO
          END IF
       END IF
@@ -955,36 +955,36 @@ CONTAINS
          ELSE
             lo = get_limit(nx, pw_grid%para%rs_dims(1), &
                            pw_grid%para%rs_pos(1))
-            pw_grid%bounds_local(:, 1) = lo+pw_grid%bounds(1, 1)-1
+            pw_grid%bounds_local(:, 1) = lo + pw_grid%bounds(1, 1) - 1
             lo = get_limit(ny, pw_grid%para%rs_dims(2), &
                            pw_grid%para%rs_pos(2))
-            pw_grid%bounds_local(:, 2) = lo+pw_grid%bounds(1, 2)-1
+            pw_grid%bounds_local(:, 2) = lo + pw_grid%bounds(1, 2) - 1
             pw_grid%bounds_local(:, 3) = pw_grid%bounds(:, 3)
          END IF
 
          pw_grid%npts_local(:) = pw_grid%bounds_local(2, :) &
-                                 -pw_grid%bounds_local(1, :)+1
+                                 - pw_grid%bounds_local(1, :) + 1
 
          !..the third distribution is needed for the second step in the FFT
-         ALLOCATE (pw_grid%para%bo(2, 3, 0:np-1, 3))
+         ALLOCATE (pw_grid%para%bo(2, 3, 0:np - 1, 3))
          rsd = pw_grid%para%rs_dims
 
          IF (PRESENT(bounds_local)) THEN
             ! axis_dist tells what portion of 1 .. nx , 1 .. ny , 1 .. nz are in the current process
             DO i = 1, 3
-               axis_dist(:, i) = bounds_local(:, i)-pw_grid%bounds(1, i)+1
+               axis_dist(:, i) = bounds_local(:, i) - pw_grid%bounds(1, i) + 1
             END DO
             ALLOCATE (axis_dist_all(2, 3, np))
             CALL mp_allgather(axis_dist, axis_dist_all, pw_grid%para%rs_group)
-            DO ip = 0, np-1
+            DO ip = 0, np - 1
                CALL mp_cart_coords(pw_grid%para%rs_group, ip, coor)
                ! distribution xyZ
-               pw_grid%para%bo(1:2, 1, ip, 1) = axis_dist_all(1:2, 1, ip+1)
-               pw_grid%para%bo(1:2, 2, ip, 1) = axis_dist_all(1:2, 2, ip+1)
+               pw_grid%para%bo(1:2, 1, ip, 1) = axis_dist_all(1:2, 1, ip + 1)
+               pw_grid%para%bo(1:2, 2, ip, 1) = axis_dist_all(1:2, 2, ip + 1)
                pw_grid%para%bo(1, 3, ip, 1) = 1
                pw_grid%para%bo(2, 3, ip, 1) = nz
                ! distribution xYz
-               pw_grid%para%bo(1:2, 1, ip, 2) = axis_dist_all(1:2, 1, ip+1)
+               pw_grid%para%bo(1:2, 1, ip, 2) = axis_dist_all(1:2, 1, ip + 1)
                pw_grid%para%bo(1, 2, ip, 2) = 1
                pw_grid%para%bo(2, 2, ip, 2) = ny
                pw_grid%para%bo(1:2, 3, ip, 2) = get_limit(nz, rsd(2), coor(2))
@@ -996,7 +996,7 @@ CONTAINS
             END DO
             DEALLOCATE (axis_dist_all)
          ELSE
-            DO ip = 0, np-1
+            DO ip = 0, np - 1
                CALL mp_cart_coords(pw_grid%para%rs_group, ip, coor)
                ! distribution xyZ
                pw_grid%para%bo(1:2, 1, ip, 1) = get_limit(nx, rsd(1), coor(1))
@@ -1018,7 +1018,7 @@ CONTAINS
          !..find the g space distribution
          pw_grid%ngpts_cut_local = 0
 
-         ALLOCATE (pw_grid%para%nyzray(0:np-1))
+         ALLOCATE (pw_grid%para%nyzray(0:np - 1))
 
          ALLOCATE (pw_grid%para%yzq(ny, nz))
 
@@ -1048,15 +1048,15 @@ CONTAINS
                gmax = yz_mask(lo(1), lo(2))
                IF (gmax == 0) CYCLE
                yz_mask(lo(1), lo(2)) = 0
-               ip = MOD(i-1, 2*np)
-               IF (ip > np-1) ip = 2*np-ip-1
+               ip = MOD(i - 1, 2*np)
+               IF (ip > np - 1) ip = 2*np - ip - 1
                IF (ip == pw_grid%para%my_pos) THEN
-                  pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local+gmax
+                  pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local + gmax
                END IF
                pw_grid%para%yzq(lo(1), lo(2)) = ip
                IF (pw_grid%grid_span == HALFSPACE) THEN
-                  m = -lo(1)-2*lby+2
-                  n = -lo(2)-2*lbz+2
+                  m = -lo(1) - 2*lby + 2
+                  n = -lo(2) - 2*lbz + 2
                   pw_grid%para%yzq(m, n) = ip
                   yz_mask(m, n) = 0
                END IF
@@ -1070,13 +1070,13 @@ CONTAINS
                DO j = 1, ny
                   ip = pw_grid%para%yzq(j, i)
                   IF (ip >= 0) pw_grid%para%nyzray(ip) = &
-                     pw_grid%para%nyzray(ip)+1
+                     pw_grid%para%nyzray(ip) + 1
                END DO
             END DO
 
             ! Allocate mapping array (y:z, nray, nproc)
-            ns = MAXVAL(pw_grid%para%nyzray(0:np-1))
-            ALLOCATE (pw_grid%para%yzp(2, ns, 0:np-1))
+            ns = MAXVAL(pw_grid%para%nyzray(0:np - 1))
+            ALLOCATE (pw_grid%para%yzp(2, ns, 0:np - 1))
 
             ! Fill mapping array, recalculate nyzray for convenience
             pw_grid%para%nyzray = 0
@@ -1085,7 +1085,7 @@ CONTAINS
                   ip = pw_grid%para%yzq(j, i)
                   IF (ip >= 0) THEN
                      pw_grid%para%nyzray(ip) = &
-                        pw_grid%para%nyzray(ip)+1
+                        pw_grid%para%nyzray(ip) + 1
                      ns = pw_grid%para%nyzray(ip)
                      pw_grid%para%yzp(1, ns, ip) = j
                      pw_grid%para%yzp(2, ns, ip) = i
@@ -1110,57 +1110,57 @@ CONTAINS
             pw_grid%para%blocked = .TRUE.
             pw_grid%para%ray_distribution = .FALSE.
 
-            DO ip = 0, np-1
-               m = pw_grid%para%bo(2, 2, ip, 3)- &
-                   pw_grid%para%bo(1, 2, ip, 3)+1
-               n = pw_grid%para%bo(2, 3, ip, 3)- &
-                   pw_grid%para%bo(1, 3, ip, 3)+1
+            DO ip = 0, np - 1
+               m = pw_grid%para%bo(2, 2, ip, 3) - &
+                   pw_grid%para%bo(1, 2, ip, 3) + 1
+               n = pw_grid%para%bo(2, 3, ip, 3) - &
+                   pw_grid%para%bo(1, 3, ip, 3) + 1
                pw_grid%para%nyzray(ip) = n*m
             END DO
 
             ipl = pw_grid%para%rs_mpo
-            l = pw_grid%para%bo(2, 1, ipl, 3)- &
-                pw_grid%para%bo(1, 1, ipl, 3)+1
-            m = pw_grid%para%bo(2, 2, ipl, 3)- &
-                pw_grid%para%bo(1, 2, ipl, 3)+1
-            n = pw_grid%para%bo(2, 3, ipl, 3)- &
-                pw_grid%para%bo(1, 3, ipl, 3)+1
+            l = pw_grid%para%bo(2, 1, ipl, 3) - &
+                pw_grid%para%bo(1, 1, ipl, 3) + 1
+            m = pw_grid%para%bo(2, 2, ipl, 3) - &
+                pw_grid%para%bo(1, 2, ipl, 3) + 1
+            n = pw_grid%para%bo(2, 3, ipl, 3) - &
+                pw_grid%para%bo(1, 3, ipl, 3) + 1
             pw_grid%ngpts_cut_local = l*m*n
             pw_grid%ngpts_local = pw_grid%ngpts_cut_local
 
             pw_grid%para%yzq = 0
-            ny = pw_grid%para%bo(2, 2, ipl, 3)- &
-                 pw_grid%para%bo(1, 2, ipl, 3)+1
+            ny = pw_grid%para%bo(2, 2, ipl, 3) - &
+                 pw_grid%para%bo(1, 2, ipl, 3) + 1
             DO n = pw_grid%para%bo(1, 3, ipl, 3), &
                pw_grid%para%bo(2, 3, ipl, 3)
-               i = n-pw_grid%para%bo(1, 3, ipl, 3)
+               i = n - pw_grid%para%bo(1, 3, ipl, 3)
                DO m = pw_grid%para%bo(1, 2, ipl, 3), &
                   pw_grid%para%bo(2, 2, ipl, 3)
-                  j = m-pw_grid%para%bo(1, 2, ipl, 3)+1
-                  pw_grid%para%yzq(m, n) = j+i*ny
+                  j = m - pw_grid%para%bo(1, 2, ipl, 3) + 1
+                  pw_grid%para%yzq(m, n) = j + i*ny
                END DO
             END DO
 
             ! Allocate mapping array (y:z, nray, nproc)
-            ns = MAXVAL(pw_grid%para%nyzray(0:np-1))
-            ALLOCATE (pw_grid%para%yzp(2, ns, 0:np-1))
+            ns = MAXVAL(pw_grid%para%nyzray(0:np - 1))
+            ALLOCATE (pw_grid%para%yzp(2, ns, 0:np - 1))
             pw_grid%para%yzp = 0
 
-            ALLOCATE (pemap(0:np-1))
+            ALLOCATE (pemap(0:np - 1))
             pemap = 0
             pemap(pw_grid%para%my_pos) = pw_grid%para%rs_mpo
             CALL mp_sum(pemap, pw_grid%para%group)
 
-            DO ip = 0, np-1
+            DO ip = 0, np - 1
                ipp = pemap(ip)
                ns = 0
                DO n = pw_grid%para%bo(1, 3, ipp, 3), &
                   pw_grid%para%bo(2, 3, ipp, 3)
-                  i = n-pw_grid%bounds(1, 3)+1
+                  i = n - pw_grid%bounds(1, 3) + 1
                   DO m = pw_grid%para%bo(1, 2, ipp, 3), &
                      pw_grid%para%bo(2, 2, ipp, 3)
-                     j = m-pw_grid%bounds(1, 2)+1
-                     ns = ns+1
+                     j = m - pw_grid%bounds(1, 2) + 1
+                     ns = ns + 1
                      pw_grid%para%yzp(1, ns, ip) = j
                      pw_grid%para%yzp(2, ns, ip) = i
                   END DO
@@ -1218,23 +1218,23 @@ CONTAINS
       mz = SIZE(yz_mask, 2)
 
       ! loop over all processors and all g vectors yz lines on this processor
-      DO ip = 0, ref_grid%para%group_size-1
+      DO ip = 0, ref_grid%para%group_size - 1
          DO ig = 1, ref_grid%para%nyzray(ip)
             ! go from mapped coordinates to original coordinates
             ! 0 .. N-1 -> -n/2 .. (n+1)/2
-            y = ref_grid%para%yzp(1, ig, ip)-1
-            IF (y > ny/2) y = y-ny
-            z = ref_grid%para%yzp(2, ig, ip)-1
-            IF (z > nz/2) z = z-nz
+            y = ref_grid%para%yzp(1, ig, ip) - 1
+            IF (y > ny/2) y = y - ny
+            z = ref_grid%para%yzp(2, ig, ip) - 1
+            IF (z > nz/2) z = z - nz
             ! check if this is inside the realm of the new grid
             IF (y < lby .OR. y > uby .OR. z < lbz .OR. z > ubz) CYCLE
             ! go to shifted coordinates
-            y = y-lby+1
-            z = z-lbz+1
+            y = y - lby + 1
+            z = z - lbz + 1
             ! this tag is outside the cutoff range of the new grid
             IF (pw_grid%grid_span == HALFSPACE) THEN
-               yp = -y-2*lby+2
-               zp = -z-2*lbz+2
+               yp = -y - 2*lby + 2
+               zp = -z - 2*lbz + 2
                ! if the referenz grid is larger than the mirror point may be
                ! outside the new grid even if the original point is inside
                IF (yp < 1 .OR. yp > my .OR. zp < 1 .OR. zp > mz) CYCLE
@@ -1251,7 +1251,7 @@ CONTAINS
                pw_grid%para%yzq(y, z) = ip
             END IF
             IF (ip == pw_grid%para%my_pos) THEN
-               pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local+gmax
+               pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local + gmax
             END IF
          END DO
       END DO
@@ -1293,47 +1293,47 @@ CONTAINS
          IF (yz_mask(ii, jj) /= 0) THEN
             yz_index(1, icount) = ii
             yz_index(2, icount) = jj
-            icount = icount+1
+            icount = icount + 1
          ENDIF
       ENDIF
-      DO im = 1, MAX(ic+1, jc+1)
-         ii = ic-im
-         DO jj = jc-im, jc+im
+      DO im = 1, MAX(ic + 1, jc + 1)
+         ii = ic - im
+         DO jj = jc - im, jc + im
             IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
                IF (yz_mask(ii, jj) /= 0) THEN
                   yz_index(1, icount) = ii
                   yz_index(2, icount) = jj
-                  icount = icount+1
+                  icount = icount + 1
                ENDIF
             ENDIF
          END DO
-         ii = ic+im
-         DO jj = jc-im, jc+im
+         ii = ic + im
+         DO jj = jc - im, jc + im
             IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
                IF (yz_mask(ii, jj) /= 0) THEN
                   yz_index(1, icount) = ii
                   yz_index(2, icount) = jj
-                  icount = icount+1
+                  icount = icount + 1
                ENDIF
             ENDIF
          END DO
-         jj = jc-im
-         DO ii = ic-im+1, ic+im-1
+         jj = jc - im
+         DO ii = ic - im + 1, ic + im - 1
             IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
                IF (yz_mask(ii, jj) /= 0) THEN
                   yz_index(1, icount) = ii
                   yz_index(2, icount) = jj
-                  icount = icount+1
+                  icount = icount + 1
                ENDIF
             ENDIF
          END DO
-         jj = jc+im
-         DO ii = ic-im+1, ic+im-1
+         jj = jc + im
+         DO ii = ic - im + 1, ic + im - 1
             IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
                IF (yz_mask(ii, jj) /= 0) THEN
                   yz_index(1, icount) = ii
                   yz_index(2, icount) = jj
-                  icount = icount+1
+                  icount = icount + 1
                ENDIF
             ENDIF
          END DO
@@ -1359,16 +1359,16 @@ CONTAINS
 
       length_x &
          = REAL(l, dp)*h_inv(1, 1) &
-           +REAL(m, dp)*h_inv(2, 1) &
-           +REAL(n, dp)*h_inv(3, 1)
+           + REAL(m, dp)*h_inv(2, 1) &
+           + REAL(n, dp)*h_inv(3, 1)
       length_y &
          = REAL(l, dp)*h_inv(1, 2) &
-           +REAL(m, dp)*h_inv(2, 2) &
-           +REAL(n, dp)*h_inv(3, 2)
+           + REAL(m, dp)*h_inv(2, 2) &
+           + REAL(n, dp)*h_inv(3, 2)
       length_z &
          = REAL(l, dp)*h_inv(1, 3) &
-           +REAL(m, dp)*h_inv(2, 3) &
-           +REAL(n, dp)*h_inv(3, 3)
+           + REAL(m, dp)*h_inv(2, 3) &
+           + REAL(n, dp)*h_inv(3, 3)
 
       ! enforce strict zero-ness in this case (compiler optimization)
       IF (l == 0 .AND. m == 0 .AND. n == 0) THEN
@@ -1381,7 +1381,7 @@ CONTAINS
       length_y = length_y*twopi
       length_z = length_z*twopi
 
-      length = length_x**2+length_y**2+length_z**2
+      length = length_x**2 + length_y**2 + length_z**2
 
    END SUBROUTINE
 
@@ -1426,18 +1426,18 @@ CONTAINS
          nlim(1) = bounds(1, 3)
          nlim(2) = n_upperlimit
       ELSE IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-         n = n_upperlimit-bounds(1, 3)+1
+         n = n_upperlimit - bounds(1, 3) + 1
          nlim = get_limit(n, pw_grid%para%group_size, pw_grid%para%my_pos)
-         nlim = nlim+bounds(1, 3)-1
+         nlim = nlim + bounds(1, 3) - 1
       ELSE
          CPABORT("para % mode not specified")
       END IF
 
       yz_mask = 0
       DO n = nlim(1), nlim(2)
-         nn = n-bounds(1, 3)+1
+         nn = n - bounds(1, 3) + 1
          DO m = bounds(1, 2), bounds(2, 2)
-            mm = m-bounds(1, 2)+1
+            mm = m - bounds(1, 2) + 1
             DO l = bounds(1, 1), bounds(2, 1)
                IF (pw_grid%grid_span == HALFSPACE .AND. n == 0) THEN
                   IF ((m == 0 .AND. l > 0) .OR. (m > 0)) CYCLE
@@ -1446,8 +1446,8 @@ CONTAINS
                CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
 
                IF (0.5_dp*length <= cutoff) THEN
-                  gpt = gpt+1
-                  yz_mask(mm, nn) = yz_mask(mm, nn)+1
+                  gpt = gpt + 1
+                  yz_mask(mm, nn) = yz_mask(mm, nn) + 1
                END IF
 
             END DO
@@ -1514,7 +1514,7 @@ CONTAINS
                   CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
 
                   IF (0.5_dp*length <= cutoff) THEN
-                     gpt = gpt+1
+                     gpt = gpt + 1
                      pw_grid%g(1, gpt) = length_x
                      pw_grid%g(2, gpt) = length_y
                      pw_grid%g(3, gpt) = length_z
@@ -1535,8 +1535,8 @@ CONTAINS
             gpt = 0
             ip = pw_grid%para%my_pos
             DO i = 1, pw_grid%para%nyzray(ip)
-               n = pw_grid%para%yzp(2, i, ip)+lbz-1
-               m = pw_grid%para%yzp(1, i, ip)+lby-1
+               n = pw_grid%para%yzp(2, i, ip) + lbz - 1
+               m = pw_grid%para%yzp(1, i, ip) + lby - 1
                IF (n > n_upperlimit) CYCLE
                DO l = bounds(1, 1), bounds(2, 1)
                   IF (pw_grid%grid_span == HALFSPACE .AND. n == 0) THEN
@@ -1546,7 +1546,7 @@ CONTAINS
                   CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
 
                   IF (0.5_dp*length <= cutoff) THEN
-                     gpt = gpt+1
+                     gpt = gpt + 1
                      pw_grid%g(1, gpt) = length_x
                      pw_grid%g(2, gpt) = length_y
                      pw_grid%g(3, gpt) = length_z
@@ -1565,29 +1565,29 @@ CONTAINS
             gpt = 0
             DO n = bounds(1, 3), bounds(2, 3)
                IF (n < 0) THEN
-                  nn = n+pw_grid%npts(3)+1
+                  nn = n + pw_grid%npts(3) + 1
                ELSE
-                  nn = n+1
+                  nn = n + 1
                END IF
                IF (nn < bol(1, 3) .OR. nn > bol(2, 3)) CYCLE
                DO m = bounds(1, 2), bounds(2, 2)
                   IF (m < 0) THEN
-                     mm = m+pw_grid%npts(2)+1
+                     mm = m + pw_grid%npts(2) + 1
                   ELSE
-                     mm = m+1
+                     mm = m + 1
                   END IF
                   IF (mm < bol(1, 2) .OR. mm > bol(2, 2)) CYCLE
                   DO l = bounds(1, 1), bounds(2, 1)
                      IF (l < 0) THEN
-                        ll = l+pw_grid%npts(1)+1
+                        ll = l + pw_grid%npts(1) + 1
                      ELSE
-                        ll = l+1
+                        ll = l + 1
                      END IF
                      IF (ll < bol(1, 1) .OR. ll > bol(2, 1)) CYCLE
 
                      CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
 
-                     gpt = gpt+1
+                     gpt = gpt + 1
                      pw_grid%g(1, gpt) = length_x
                      pw_grid%g(2, gpt) = length_y
                      pw_grid%g(3, gpt) = length_z
@@ -1660,17 +1660,17 @@ CONTAINS
          m = g_hat(2, gpt)
          n = g_hat(3, gpt)
          IF (l < 0) THEN
-            mapl%pos(l) = l+npts(1)
+            mapl%pos(l) = l + npts(1)
          ELSE
             mapl%pos(l) = l
          END IF
          IF (m < 0) THEN
-            mapm%pos(m) = m+npts(2)
+            mapm%pos(m) = m + npts(2)
          ELSE
             mapm%pos(m) = m
          END IF
          IF (n < 0) THEN
-            mapn%pos(n) = n+npts(3)
+            mapn%pos(n) = n + npts(3)
          ELSE
             mapn%pos(n) = n
          END IF
@@ -1682,17 +1682,17 @@ CONTAINS
             IF (l <= 0) THEN
                mapl%neg(l) = -l
             ELSE
-               mapl%neg(l) = npts(1)-l
+               mapl%neg(l) = npts(1) - l
             END IF
             IF (m <= 0) THEN
                mapm%neg(m) = -m
             ELSE
-               mapm%neg(m) = npts(2)-m
+               mapm%neg(m) = npts(2) - m
             END IF
             IF (n <= 0) THEN
                mapn%neg(n) = -n
             ELSE
-               mapn%neg(n) = npts(3)-n
+               mapn%neg(n) = npts(3) - n
             END IF
 
          END IF
@@ -1864,12 +1864,12 @@ CONTAINS
             IF (ng == ngr) THEN
                ! for the case pw_grid <= ref_grid
                is = it
-               DO ig = it+1, ngr
+               DO ig = it + 1, ngr
                   gig = pw_grid%gsq(ig)
                   gigr = MAX(1._dp, gig)
                   g_found = .FALSE.
-                  DO ih = is+1, SIZE(ref_grid%gsq)
-                     IF (ABS(gig-ref_grid%gsq(ih))/gigr > 1.e-12_dp) CYCLE
+                  DO ih = is + 1, SIZE(ref_grid%gsq)
+                     IF (ABS(gig - ref_grid%gsq(ih))/gigr > 1.e-12_dp) CYCLE
                      g_found = .TRUE.
                      EXIT
                   END DO
@@ -1877,9 +1877,9 @@ CONTAINS
                      WRITE (*, "(A,I10,F20.10)") "G-vector", ig, pw_grid%gsq(ig)
                      CPABORT("G vector not found")
                   END IF
-                  ip = ih-1
-                  DO ih = ip+1, SIZE(ref_grid%gsq)
-                     IF (ABS(gig-ref_grid%gsq(ih))/gigr > 1.e-12_dp) CYCLE
+                  ip = ih - 1
+                  DO ih = ip + 1, SIZE(ref_grid%gsq)
+                     IF (ABS(gig - ref_grid%gsq(ih))/gigr > 1.e-12_dp) CYCLE
                      IF (pw_grid%g_hat(1, ig) /= ref_grid%g_hat(1, ih)) CYCLE
                      IF (pw_grid%g_hat(2, ig) /= ref_grid%g_hat(2, ih)) CYCLE
                      IF (pw_grid%g_hat(3, ig) /= ref_grid%g_hat(3, ih)) CYCLE
@@ -1887,7 +1887,7 @@ CONTAINS
                      EXIT
                   END DO
                   IF (pw_grid%gidx(ig) == 0) THEN
-                     WRITE (*, "(A,2I10)") " G-Shell ", is+1, ip+1
+                     WRITE (*, "(A,2I10)") " G-Shell ", is + 1, ip + 1
                      WRITE (*, "(A,I10,3I6,F20.10)") &
                         " G-vector", ig, pw_grid%g_hat(1:3, ig), pw_grid%gsq(ig)
                      DO ih = 1, SIZE(ref_grid%gsq)
@@ -1904,12 +1904,12 @@ CONTAINS
             ELSE
                ! for the case pw_grid > ref_grid
                is = it
-               DO ig = it+1, ngr
+               DO ig = it + 1, ngr
                   gig = ref_grid%gsq(ig)
                   gigr = MAX(1._dp, gig)
                   g_found = .FALSE.
-                  DO ih = is+1, ng
-                     IF (ABS(pw_grid%gsq(ih)-gig)/gigr > 1.e-12_dp) CYCLE
+                  DO ih = is + 1, ng
+                     IF (ABS(pw_grid%gsq(ih) - gig)/gigr > 1.e-12_dp) CYCLE
                      g_found = .TRUE.
                      EXIT
                   END DO
@@ -1917,9 +1917,9 @@ CONTAINS
                      WRITE (*, "(A,I10,F20.10)") "G-vector", ig, ref_grid%gsq(ig)
                      CPABORT("G vector not found")
                   END IF
-                  ip = ih-1
-                  DO ih = ip+1, ng
-                     IF (ABS(pw_grid%gsq(ih)-gig)/gigr > 1.e-12_dp) CYCLE
+                  ip = ih - 1
+                  DO ih = ip + 1, ng
+                     IF (ABS(pw_grid%gsq(ih) - gig)/gigr > 1.e-12_dp) CYCLE
                      IF (pw_grid%g_hat(1, ih) /= ref_grid%g_hat(1, ig)) CYCLE
                      IF (pw_grid%g_hat(2, ih) /= ref_grid%g_hat(2, ig)) CYCLE
                      IF (pw_grid%g_hat(3, ih) /= ref_grid%g_hat(3, ig)) CYCLE
@@ -1927,7 +1927,7 @@ CONTAINS
                      EXIT
                   END DO
                   IF (pw_grid%gidx(ig) == 0) THEN
-                     WRITE (*, "(A,2I10)") " G-Shell ", is+1, ip+1
+                     WRITE (*, "(A,2I10)") " G-Shell ", is + 1, ip + 1
                      WRITE (*, "(A,I10,3I6,F20.10)") &
                         " G-vector", ig, ref_grid%g_hat(1:3, ig), ref_grid%gsq(ig)
                      DO ih = 1, ng
@@ -1990,7 +1990,7 @@ CONTAINS
       s2 = 0
       ig = 1
       DO ig = 1, ng
-         IF (ABS(gsq(ig)-s_begin) < small) THEN
+         IF (ABS(gsq(ig) - s_begin) < small) THEN
             s2 = ig
          ELSE
             CALL redist(g_hat, idx, s1, s2)
@@ -2026,7 +2026,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: slen
 
       IF (s2 <= s1) RETURN
-      ns = s2-s1+1
+      ns = s2 - s1 + 1
       ALLOCATE (indl(ns))
       ALLOCATE (slen(ns))
 
@@ -2035,12 +2035,12 @@ CONTAINS
          n1 = g_hat(1, ii)
          n2 = g_hat(2, ii)
          n3 = g_hat(3, ii)
-         slen(i-s1+1) = 1000.0_dp*REAL(n1, dp)+ &
-                        REAL(n2, dp)+0.001_dp*REAL(n3, dp)
+         slen(i - s1 + 1) = 1000.0_dp*REAL(n1, dp) + &
+                            REAL(n2, dp) + 0.001_dp*REAL(n3, dp)
       END DO
       CALL sort(slen, ns, indl)
       DO i = 1, ns
-         ii = indl(i)+s1-1
+         ii = indl(i) + s1 - 1
          indl(i) = idx(ii)
       END DO
       idx(s1:s2) = indl(1:ns)
@@ -2084,17 +2084,17 @@ CONTAINS
       mapn => pw_grid%mapn%pos
 
       DO gpt = 1, SIZE(pw_grid%gsq)
-         m = mapm(pw_grid%g_hat(2, gpt))+1
-         n = mapn(pw_grid%g_hat(3, gpt))+1
-         yz(m, n) = yz(m, n)+1
+         m = mapm(pw_grid%g_hat(2, gpt)) + 1
+         n = mapn(pw_grid%g_hat(3, gpt)) + 1
+         yz(m, n) = yz(m, n) + 1
       END DO
       IF (pw_grid%grid_span == HALFSPACE) THEN
          mapm => pw_grid%mapm%neg
          mapn => pw_grid%mapn%neg
          DO gpt = 1, SIZE(pw_grid%gsq)
-            m = mapm(pw_grid%g_hat(2, gpt))+1
-            n = mapn(pw_grid%g_hat(3, gpt))+1
-            yz(m, n) = yz(m, n)+1
+            m = mapm(pw_grid%g_hat(2, gpt)) + 1
+            n = mapn(pw_grid%g_hat(3, gpt)) + 1
+            yz(m, n) = yz(m, n) + 1
          END DO
       END IF
 
@@ -2103,7 +2103,7 @@ CONTAINS
       DO i = 1, nz
          DO j = 1, ny
             IF (yz(j, i) > 0) THEN
-               is = is+1
+               is = is + 1
                pw_grid%para%yzp(1, is, ip) = j
                pw_grid%para%yzp(2, is, ip) = i
                pw_grid%para%yzq(j, i) = is
@@ -2161,13 +2161,13 @@ CONTAINS
          m = twopi*REAL(pw_grid%g_hat(2, gpt), KIND=dp)
          n = twopi*REAL(pw_grid%g_hat(3, gpt), KIND=dp)
 
-         g(1, gpt) = l*cell_h_inv(1, 1)+m*cell_h_inv(2, 1)+n*cell_h_inv(3, 1)
-         g(2, gpt) = l*cell_h_inv(1, 2)+m*cell_h_inv(2, 2)+n*cell_h_inv(3, 2)
-         g(3, gpt) = l*cell_h_inv(1, 3)+m*cell_h_inv(2, 3)+n*cell_h_inv(3, 3)
+         g(1, gpt) = l*cell_h_inv(1, 1) + m*cell_h_inv(2, 1) + n*cell_h_inv(3, 1)
+         g(2, gpt) = l*cell_h_inv(1, 2) + m*cell_h_inv(2, 2) + n*cell_h_inv(3, 2)
+         g(3, gpt) = l*cell_h_inv(1, 3) + m*cell_h_inv(2, 3) + n*cell_h_inv(3, 3)
 
          pw_grid%gsq(gpt) = g(1, gpt)*g(1, gpt) &
-                            +g(2, gpt)*g(2, gpt) &
-                            +g(3, gpt)*g(3, gpt)
+                            + g(2, gpt)*g(2, gpt) &
+                            + g(3, gpt)*g(3, gpt)
 
       END DO
 
@@ -2189,7 +2189,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(pw_grid))
       CPASSERT(pw_grid%ref_count > 0)
-      pw_grid%ref_count = pw_grid%ref_count+1
+      pw_grid%ref_count = pw_grid%ref_count + 1
    END SUBROUTINE pw_grid_retain
 
 ! **************************************************************************************************
@@ -2215,7 +2215,7 @@ CONTAINS
 
       IF (ASSOCIATED(pw_grid)) THEN
          CPASSERT(pw_grid%ref_count > 0)
-         pw_grid%ref_count = pw_grid%ref_count-1
+         pw_grid%ref_count = pw_grid%ref_count - 1
          IF (pw_grid%ref_count == 0) THEN
             IF (ASSOCIATED(pw_grid%gidx)) THEN
                DEALLOCATE (pw_grid%gidx)

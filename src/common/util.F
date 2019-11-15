@@ -70,9 +70,9 @@ CONTAINS
       n = SIZE(array)
       IF (x > array(n)) RETURN
       jl = 0
-      ju = n+1
-      DO WHILE (ju-jl > 1)
-         jm = (ju+jl)/2
+      ju = n + 1
+      DO WHILE (ju - jl > 1)
+         jm = (ju + jl)/2
          IF (x >= array(jm)) THEN
             jl = jm
          ELSE
@@ -103,7 +103,7 @@ CONTAINS
       ALLOCATE (wrk(n))
       CALL sort(arr, n, wrk)
       DO i = 2, n
-         IF (arr(i) == arr(i-1)) THEN
+         IF (arr(i) == arr(i - 1)) THEN
             unique = .FALSE.
             EXIT
          END IF
@@ -215,8 +215,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: part
 
       part = REAL(m, KIND=dp)/REAL(n, KIND=dp)
-      nl = NINT(REAL(me, KIND=dp)*part)+1
-      nu = NINT(REAL(me+1, KIND=dp)*part)
+      nl = NINT(REAL(me, KIND=dp)*part) + 1
+      nu = NINT(REAL(me + 1, KIND=dp)*part)
       nlim(1) = MAX(1, nl)
       nlim(2) = MIN(m, nu)
 
@@ -256,7 +256,7 @@ CONTAINS
             found = .TRUE.
          ELSE
             IF (found) THEN
-               last = i-1
+               last = i - 1
                EXIT
             END IF
             found = .FALSE.
@@ -305,7 +305,7 @@ CONTAINS
             found = .TRUE.
          ELSE
             IF (found) THEN
-               last = i-1
+               last = i - 1
                EXIT
             END IF
             found = .FALSE.

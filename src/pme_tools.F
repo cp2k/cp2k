@@ -60,7 +60,7 @@ CONTAINS
       ub = rs%ub_real
 
       DO
-         ipart = ipart+1
+         ipart = ipart + 1
          IF (ipart > npart) EXIT
          atomic_kind => part(ipart)%atomic_kind
          CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=charge)
@@ -141,17 +141,17 @@ CONTAINS
       DO ipart = 1, SIZE(part)
          ! compute the scaled coordinate of atom ipart
          CALL real_to_scaled(s, part(ipart)%r, box)
-         s = s-NINT(s)
+         s = s - NINT(s)
          gp = REAL(npts, KIND=dp)*s
          ! find the closest grid point (on big grid)
          IF (MOD(n, 2) == 0) THEN
-            center(:, ipart) = INT(gp+rmp)-mp
+            center(:, ipart) = INT(gp + rmp) - mp
          ELSE
             center(:, ipart) = NINT(gp)
          END IF
-         center(:, ipart) = center(:, ipart)+npts(:)/2
+         center(:, ipart) = center(:, ipart) + npts(:)/2
          center(:, ipart) = MODULO(center(:, ipart), npts(:))
-         center(:, ipart) = center(:, ipart)-npts(:)/2
+         center(:, ipart) = center(:, ipart) - npts(:)/2
       END DO
 
    END SUBROUTINE get_center

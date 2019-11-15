@@ -123,14 +123,14 @@ CONTAINS
                ENDDO
             ENDDO
             CALL CPU_TIME(t1)
-            time(l, izet) = t1-t0
+            time(l, izet) = t1 - t0
          ENDDO
       ENDDO
 
       CALL mp_sum(time, para_env%group)
 
       IF (test_accuracy) THEN
-         I_diff(:, :, :, :) = ABS(I_test-I_ref)
+         I_diff(:, :, :, :) = ABS(I_test - I_ref)
       ENDIF
 
       IF (iw > 0) THEN
@@ -140,7 +140,7 @@ CONTAINS
          DO l = 0, l_max
             DO izet = 1, nzet
                IF (test_accuracy) THEN
-                  acc = MAXVAL(I_diff(ncoset(l-1)+1:ncoset(l), ncoset(l-1)+1:ncoset(l), :, izet))
+                  acc = MAXVAL(I_diff(ncoset(l - 1) + 1:ncoset(l), ncoset(l - 1) + 1:ncoset(l), :, izet))
                ELSE
                   acc = 0.0_dp
                ENDIF
@@ -155,7 +155,7 @@ CONTAINS
                MAXVAL(I_diff)
 
             IF (param%is_ortho) THEN
-               acc_check = param%err_mm+param%err_c .GE. MAXVAL(I_diff)
+               acc_check = param%err_mm + param%err_c .GE. MAXVAL(I_diff)
             ELSE
                acc_check = .TRUE.
             ENDIF
@@ -263,7 +263,7 @@ CONTAINS
          DO izeta = 1, nzet
          DO izetb = 1, nzet
          DO izetc = 1, nzet
-            nintg = nintg+1
+            nintg = nintg + 1
             IF (MOD(nintg, ns) .EQ. 0) THEN
                I_test(:, :, :) = 0.0_dp
                CALL CPU_TIME(t0)
@@ -279,7 +279,7 @@ CONTAINS
                   ENDDO
                ENDDO
                CALL CPU_TIME(t1)
-               time = t1-t0
+               time = t1 - t0
                CALL mp_sum(time, para_env%group)
                IF (iw > 0) THEN
                   WRITE (iw, '(T11, I1, 1X, I1, 1X, I1, 1X, ES9.2, 1X, ES9.2, 1X, ES9.2, 1X, ES9.2)') &
@@ -320,34 +320,34 @@ CONTAINS
                                                             h_to_c_ol
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: E_C, E_H
 
-      zetp = zeta+zetb
-      Rp = (zeta*R1+zetb*R2)/zetp
+      zetp = zeta + zetb
+      Rp = (zeta*R1 + zetb*R2)/zetp
       ALLOCATE (C1(0:l_max), H1(0:l_max))
       ALLOCATE (C2(0:m_max), H2(0:m_max))
-      ALLOCATE (C_ol(0:l_max+m_max))
-      ALLOCATE (H_ol(0:l_max+m_max))
+      ALLOCATE (C_ol(0:l_max + m_max))
+      ALLOCATE (H_ol(0:l_max + m_max))
       ALLOCATE (C_prod_ref(0:l_max, 0:m_max))
       ALLOCATE (C_prod_test(0:l_max, 0:m_max))
       ALLOCATE (H_prod_ref(0:l_max, 0:m_max))
       ALLOCATE (H_prod_test(0:l_max, 0:m_max))
 
-      ALLOCATE (E_C(-1:l_max+m_max+1, -1:l_max, -1:m_max))
-      ALLOCATE (E_H(-1:l_max+m_max+1, -1:l_max, -1:m_max))
+      ALLOCATE (E_C(-1:l_max + m_max + 1, -1:l_max, -1:m_max))
+      ALLOCATE (E_H(-1:l_max + m_max + 1, -1:l_max, -1:m_max))
       CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, zeta, zetb, R1, R2, 1, E_C)
       CALL create_gaussian_overlap_dist_to_hermite(l_max, m_max, zeta, zetb, R1, R2, 2, E_H)
-      CALL create_hermite_to_cartesian(zetp, l_max+m_max, h_to_c_ol)
+      CALL create_hermite_to_cartesian(zetp, l_max + m_max, h_to_c_ol)
       CALL create_hermite_to_cartesian(zeta, l_max, h_to_c_1)
       CALL create_hermite_to_cartesian(zetb, m_max, h_to_c_2)
 
-      DO t = 0, l_max+m_max
-         C_ol(t) = (r-Rp)**t*EXP(-zetp*(r-Rp)**2)
+      DO t = 0, l_max + m_max
+         C_ol(t) = (r - Rp)**t*EXP(-zetp*(r - Rp)**2)
       ENDDO
 
       DO l = 0, l_max
-         C1(l) = (r-R1)**l*EXP(-zeta*(r-R1)**2)
+         C1(l) = (r - R1)**l*EXP(-zeta*(r - R1)**2)
       ENDDO
       DO m = 0, m_max
-         C2(m) = (r-R2)**m*EXP(-zetb*(r-R2)**2)
+         C2(m) = (r - R2)**m*EXP(-zetb*(r - R2)**2)
       ENDDO
 
       H1(:) = MATMUL(TRANSPOSE(h_to_c_1(0:, 0:)), C1)
@@ -360,15 +360,15 @@ CONTAINS
             H_prod_ref(l, m) = H1(l)*H2(m)
             C_prod_test(l, m) = 0.0_dp
             H_prod_test(l, m) = 0.0_dp
-            DO t = 0, l+m
-               C_prod_test(l, m) = C_prod_test(l, m)+E_C(t, l, m)*H_ol(t)
-               H_prod_test(l, m) = H_prod_test(l, m)+E_H(t, l, m)*H_ol(t)
+            DO t = 0, l + m
+               C_prod_test(l, m) = C_prod_test(l, m) + E_C(t, l, m)*H_ol(t)
+               H_prod_test(l, m) = H_prod_test(l, m) + E_H(t, l, m)*H_ol(t)
             ENDDO
          ENDDO
       ENDDO
 
-      C_prod_err = MAXVAL(ABS(C_prod_test-C_prod_ref)/(0.5_dp*(ABS(C_prod_test)+ABS(C_prod_ref))+1.0_dp))
-      H_prod_err = MAXVAL(ABS(H_prod_test-H_prod_ref)/(0.5_dp*(ABS(C_prod_test)+ABS(C_prod_ref))+1.0_dp))
+      C_prod_err = MAXVAL(ABS(C_prod_test - C_prod_ref)/(0.5_dp*(ABS(C_prod_test) + ABS(C_prod_ref)) + 1.0_dp))
+      H_prod_err = MAXVAL(ABS(H_prod_test - H_prod_ref)/(0.5_dp*(ABS(C_prod_test) + ABS(C_prod_ref)) + 1.0_dp))
 
       CPASSERT(C_prod_err .LE. tolerance)
       CPASSERT(H_prod_err .LE. tolerance)

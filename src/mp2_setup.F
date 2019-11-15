@@ -349,10 +349,10 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "OPT_RI_BASIS%NUM_FUNC", &
                                 i_vals=tmplist)
       IF (tmplist(1) > 0) THEN
-         ALLOCATE (mp2_env%ri_opt_param%RI_nset_per_l(0:SIZE(tmplist)-1))
+         ALLOCATE (mp2_env%ri_opt_param%RI_nset_per_l(0:SIZE(tmplist) - 1))
          mp2_env%ri_opt_param%RI_nset_per_l = 0
          DO ival = 1, SIZE(tmplist)
-            mp2_env%ri_opt_param%RI_nset_per_l(ival-1) = tmplist(ival)
+            mp2_env%ri_opt_param%RI_nset_per_l(ival - 1) = tmplist(ival)
          END DO
       END IF
 

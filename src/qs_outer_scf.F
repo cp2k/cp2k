@@ -140,7 +140,7 @@ CONTAINS
          CPASSERT(is_constraint)
 
          scf_env%outer_scf%variables(:, ihistory) = ddapc_restraint_control%strength
-         scf_env%outer_scf%gradient(:, ihistory) = ddapc_restraint_control%ddapc_order_p- &
+         scf_env%outer_scf%gradient(:, ihistory) = ddapc_restraint_control%ddapc_order_p - &
                                                    ddapc_restraint_control%target
       CASE (outer_scf_s2_constraint)
          CPASSERT(dft_control%qs_control%s2_restraint)
@@ -149,14 +149,14 @@ CONTAINS
          CPASSERT(is_constraint)
 
          scf_env%outer_scf%variables(:, ihistory) = s2_restraint_control%strength
-         scf_env%outer_scf%gradient(:, ihistory) = s2_restraint_control%s2_order_p- &
+         scf_env%outer_scf%gradient(:, ihistory) = s2_restraint_control%s2_order_p - &
                                                    s2_restraint_control%target
       CASE (outer_scf_cdft_constraint)
          CPASSERT(dft_control%qs_control%cdft)
          cdft_control => dft_control%qs_control%cdft_control
          DO ivar = 1, SIZE(scf_env%outer_scf%gradient, 1)
             scf_env%outer_scf%variables(ivar, ihistory) = cdft_control%strength(ivar)
-            scf_env%outer_scf%gradient(ivar, ihistory) = cdft_control%value(ivar)- &
+            scf_env%outer_scf%gradient(ivar, ihistory) = cdft_control%value(ivar) - &
                                                          cdft_control%target(ivar)
          END DO
       CASE (outer_scf_basis_center_opt)
@@ -203,7 +203,7 @@ CONTAINS
       NULLIFY (inv_jacobian)
 
       IF (scf_control%outer_scf%type == outer_scf_basis_center_opt) THEN
-         scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)
+         scf_env%outer_scf%variables(:, ihistory + 1) = scf_env%outer_scf%variables(:, ihistory)
       ELSE
          DO WHILE (.TRUE.) ! if we need a different run type we'll restart here
 
@@ -215,7 +215,7 @@ CONTAINS
                ihigh = -1
                interval = HUGE(interval)
                DO i = 1, ihistory
-                  DO j = i+1, ihistory
+                  DO j = i + 1, ihistory
                      ! distrust often used points
                      IF (scf_env%outer_scf%count(i) .GT. scf_control%outer_scf%bisect_trust_count) CYCLE
                      IF (scf_env%outer_scf%count(j) .GT. scf_control%outer_scf%bisect_trust_count) CYCLE
@@ -223,7 +223,7 @@ CONTAINS
                      ! if they bracket a zero use them
                      IF (scf_env%outer_scf%gradient(1, i)* &
                          scf_env%outer_scf%gradient(1, j) < 0.0_dp) THEN
-                        tmp = ABS(scf_env%outer_scf%variables(1, i)-scf_env%outer_scf%variables(1, j))
+                        tmp = ABS(scf_env%outer_scf%variables(1, i) - scf_env%outer_scf%variables(1, j))
                         IF (tmp < interval) THEN
                            ilow = i
                            ihigh = j
@@ -236,18 +236,18 @@ CONTAINS
                   optimizer_type = outer_scf_optimizer_diis
                   CYCLE
                ENDIF
-               scf_env%outer_scf%count(ilow) = scf_env%outer_scf%count(ilow)+1
-               scf_env%outer_scf%count(ihigh) = scf_env%outer_scf%count(ihigh)+1
-               scf_env%outer_scf%variables(:, ihistory+1) = 0.5_dp*(scf_env%outer_scf%variables(:, ilow)+ &
-                                                                    scf_env%outer_scf%variables(:, ihigh))
+               scf_env%outer_scf%count(ilow) = scf_env%outer_scf%count(ilow) + 1
+               scf_env%outer_scf%count(ihigh) = scf_env%outer_scf%count(ihigh) + 1
+               scf_env%outer_scf%variables(:, ihistory + 1) = 0.5_dp*(scf_env%outer_scf%variables(:, ilow) + &
+                                                                      scf_env%outer_scf%variables(:, ihigh))
             CASE (outer_scf_optimizer_none)
-               scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)
+               scf_env%outer_scf%variables(:, ihistory + 1) = scf_env%outer_scf%variables(:, ihistory)
             CASE (outer_scf_optimizer_sd)
                ! Notice that we are just trying to find a stationary point
                ! e.g. the ddpac_constraint, one maximizes the function, so the stepsize might have
                ! to be negative
-               scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)- &
-                                                            scf_control%outer_scf%step_size*scf_env%outer_scf%gradient(:, ihistory)
+               scf_env%outer_scf%variables(:, ihistory + 1) = scf_env%outer_scf%variables(:, ihistory) - &
+                                                             scf_control%outer_scf%step_size*scf_env%outer_scf%gradient(:, ihistory)
             CASE (outer_scf_optimizer_diis)
                CPASSERT(scf_control%outer_scf%diis_buffer_length > 0)
                ! set up DIIS matrix
@@ -256,36 +256,36 @@ CONTAINS
                   optimizer_type = outer_scf_optimizer_sd
                   CYCLE
                ELSE
-                  ALLOCATE (b(nb+1, nb+1), a(nb+1, nb+1), ev(nb+1))
+                  ALLOCATE (b(nb + 1, nb + 1), a(nb + 1, nb + 1), ev(nb + 1))
                   DO I = 1, nb
                      DO J = I, nb
-                        ibuf = ihistory-nb+i
-                        jbuf = ihistory-nb+j
+                        ibuf = ihistory - nb + i
+                        jbuf = ihistory - nb + j
                         b(I, J) = DOT_PRODUCT(scf_env%outer_scf%gradient(:, ibuf), &
                                               scf_env%outer_scf%gradient(:, jbuf))
                         b(J, I) = b(I, J)
                      ENDDO
                   ENDDO
-                  b(nb+1, :) = -1.0_dp
-                  b(:, nb+1) = -1.0_dp
-                  b(nb+1, nb+1) = 0.0_dp
+                  b(nb + 1, :) = -1.0_dp
+                  b(:, nb + 1) = -1.0_dp
+                  b(nb + 1, nb + 1) = 0.0_dp
 
                   CALL diamat_all(b, ev)
                   a(:, :) = b
-                  DO I = 1, nb+1
+                  DO I = 1, nb + 1
                      IF (ABS(ev(I)) .LT. 1.0E-12_dp) THEN
                         a(:, I) = 0.0_dp
                      ELSE
                         a(:, I) = a(:, I)/ev(I)
                      ENDIF
                   END DO
-                  ev(:) = -MATMUL(a, b(nb+1, :))
+                  ev(:) = -MATMUL(a, b(nb + 1, :))
 
-                  scf_env%outer_scf%variables(:, ihistory+1) = 0.0_dp
+                  scf_env%outer_scf%variables(:, ihistory + 1) = 0.0_dp
                   DO i = 1, nb
-                     ibuf = ihistory-nb+i
-                     scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory+1)+ &
-                                                                  ev(i)*scf_env%outer_scf%variables(:, ibuf)
+                     ibuf = ihistory - nb + i
+                     scf_env%outer_scf%variables(:, ihistory + 1) = scf_env%outer_scf%variables(:, ihistory + 1) + &
+                                                                    ev(i)*scf_env%outer_scf%variables(:, ibuf)
                   ENDDO
                   DEALLOCATE (a, b, ev)
                ENDIF
@@ -299,12 +299,12 @@ CONTAINS
                   CYCLE
                END IF
                ! secant update
-               scf_env%outer_scf%variables(1, ihistory+1) = scf_env%outer_scf%variables(1, ihistory)- &
-                                                            (scf_env%outer_scf%variables(1, ihistory)- &
-                                                             scf_env%outer_scf%variables(1, ihistory-1))/ &
-                                                            (scf_env%outer_scf%gradient(1, ihistory)- &
-                                                             scf_env%outer_scf%gradient(1, ihistory-1))* &
-                                                            scf_env%outer_scf%gradient(1, ihistory)
+               scf_env%outer_scf%variables(1, ihistory + 1) = scf_env%outer_scf%variables(1, ihistory) - &
+                                                              (scf_env%outer_scf%variables(1, ihistory) - &
+                                                               scf_env%outer_scf%variables(1, ihistory - 1))/ &
+                                                              (scf_env%outer_scf%gradient(1, ihistory) - &
+                                                               scf_env%outer_scf%gradient(1, ihistory - 1))* &
+                                                              scf_env%outer_scf%gradient(1, ihistory)
             CASE (outer_scf_optimizer_broyden)
                IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
                   ! Inverse Jacobian not yet built, switch to sd
@@ -325,8 +325,8 @@ CONTAINS
                   nvar = SIZE(scf_env%outer_scf%gradient, 1)
                   ALLOCATE (f(nvar, 1), x(nvar, 1))
                   DO i = 1, nvar
-                     f(i, 1) = scf_env%outer_scf%gradient(i, ihistory)-scf_env%outer_scf%gradient(i, ihistory-1)
-                     x(i, 1) = scf_env%outer_scf%variables(i, ihistory)-scf_env%outer_scf%variables(i, ihistory-1)
+                     f(i, 1) = scf_env%outer_scf%gradient(i, ihistory) - scf_env%outer_scf%gradient(i, ihistory - 1)
+                     x(i, 1) = scf_env%outer_scf%variables(i, ihistory) - scf_env%outer_scf%variables(i, ihistory - 1)
                   END DO
                   SELECT CASE (scf_control%outer_scf%cdft_opt_control%broyden_type)
                   CASE (broyden_type_1, broyden_type_1_explicit, broyden_type_1_ls, broyden_type_1_explicit_ls)
@@ -336,15 +336,15 @@ CONTAINS
                      scale = SUM(MATMUL(TRANSPOSE(x), MATMUL(inv_jacobian, f)))
                      scale = 1.0_dp/scale
                      IF (scale < 1.0E-12_dp) scale = 1.0E-12_dp
-                     inv_jacobian = inv_jacobian+scale*MATMUL((x-MATMUL(inv_jacobian, f)), &
-                                                              MATMUL(TRANSPOSE(x), inv_jacobian))
+                     inv_jacobian = inv_jacobian + scale*MATMUL((x - MATMUL(inv_jacobian, f)), &
+                                                                MATMUL(TRANSPOSE(x), inv_jacobian))
                   CASE (broyden_type_2, broyden_type_2_explicit, broyden_type_2_ls, broyden_type_2_explicit_ls)
                      ! Broyden's 2nd method
                      ! J_(n+1)^(-1) = J_n^(-1) + (dx_n - J_n^(-1)*df_n)*(df_n^T)/(||df_n||^2)
                      scale = SUM(MATMUL(TRANSPOSE(f), f))
                      scale = 1.0_dp/scale
                      IF (scale < 1.0E-12_dp) scale = 1.0E-12_dp
-                     inv_jacobian = inv_jacobian+scale*MATMUL((x-MATMUL(inv_jacobian, f)), TRANSPOSE(inv_jacobian))
+                     inv_jacobian = inv_jacobian + scale*MATMUL((x - MATMUL(inv_jacobian, f)), TRANSPOSE(inv_jacobian))
                   CASE DEFAULT
                      CALL cp_abort(__LOCATION__, &
                                    "Unknown Broyden type: "// &
@@ -354,16 +354,16 @@ CONTAINS
                   DEALLOCATE (f, x)
                END IF
                ! Update variables x_(n+1) = x_n - J^(-1)*f(x_n)
-               scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)- &
-                                                            scf_control%outer_scf%cdft_opt_control%newton_step* &
-                                                            MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, ihistory))
+               scf_env%outer_scf%variables(:, ihistory + 1) = scf_env%outer_scf%variables(:, ihistory) - &
+                                                              scf_control%outer_scf%cdft_opt_control%newton_step* &
+                                                              MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, ihistory))
                scf_control%outer_scf%cdft_opt_control%broyden_update = .TRUE.
             CASE (outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls)
                CPASSERT(ASSOCIATED(scf_env%outer_scf%inv_jacobian))
                inv_jacobian => scf_env%outer_scf%inv_jacobian
-               scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)- &
-                                                            scf_control%outer_scf%cdft_opt_control%newton_step* &
-                                                            MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, ihistory))
+               scf_env%outer_scf%variables(:, ihistory + 1) = scf_env%outer_scf%variables(:, ihistory) - &
+                                                              scf_control%outer_scf%cdft_opt_control%newton_step* &
+                                                              MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, ihistory))
             CASE DEFAULT
                CPABORT("")
             END SELECT
@@ -413,13 +413,13 @@ CONTAINS
             is_constraint = (ddapc_restraint_control%functional_form == do_ddapc_constraint)
             IF (is_constraint) EXIT
          END DO
-         ddapc_restraint_control%strength = scf_env%outer_scf%variables(1, ihistory+1)
+         ddapc_restraint_control%strength = scf_env%outer_scf%variables(1, ihistory + 1)
       CASE (outer_scf_s2_constraint)
          s2_restraint_control => dft_control%qs_control%s2_restraint_control
-         s2_restraint_control%strength = scf_env%outer_scf%variables(1, ihistory+1)
+         s2_restraint_control%strength = scf_env%outer_scf%variables(1, ihistory + 1)
       CASE (outer_scf_cdft_constraint)
          cdft_control => dft_control%qs_control%cdft_control
-         cdft_control%strength(:) = scf_env%outer_scf%variables(:, ihistory+1)
+         cdft_control%strength(:) = scf_env%outer_scf%variables(:, ihistory + 1)
       CASE (outer_scf_basis_center_opt)
          CALL qs_update_basis_center_pos(qs_env)
       CASE DEFAULT
@@ -468,8 +468,8 @@ CONTAINS
       CPASSERT(nhistory > 0)
 
       ! add the current version of qs_env to the history
-      outer_scf_ihistory = outer_scf_ihistory+1
-      ivec = 1+MODULO(outer_scf_ihistory-1, nhistory)
+      outer_scf_ihistory = outer_scf_ihistory + 1
+      ivec = 1 + MODULO(outer_scf_ihistory - 1, nhistory)
       SELECT CASE (scf_control%outer_scf%type)
       CASE (outer_scf_none)
          outer_scf_history(1, ivec) = 0.0_dp
@@ -497,12 +497,12 @@ CONTAINS
       ! multilinear extrapolation
       nvec = MIN(nhistory, outer_scf_ihistory)
       alpha = nvec
-      ivec = 1+MODULO(outer_scf_ihistory-1, nhistory)
+      ivec = 1 + MODULO(outer_scf_ihistory - 1, nhistory)
       extrapolation(:) = alpha*outer_scf_history(:, ivec)
       DO ihis = 2, nvec
-         alpha = -1.0_dp*alpha*REAL(nvec-ihis+1, dp)/REAL(ihis, dp)
-         ivec = 1+MODULO(outer_scf_ihistory-ihis, nhistory)
-         extrapolation(:) = extrapolation+alpha*outer_scf_history(:, ivec)
+         alpha = -1.0_dp*alpha*REAL(nvec - ihis + 1, dp)/REAL(ihis, dp)
+         ivec = 1 + MODULO(outer_scf_ihistory - ihis, nhistory)
+         extrapolation(:) = extrapolation + alpha*outer_scf_history(:, ivec)
       ENDDO
 
       ! update qs_env to use this extrapolation
@@ -584,19 +584,19 @@ CONTAINS
          ! Now switch
          IF (ASSOCIATED(scf_env%outer_scf%energy)) &
             DEALLOCATE (scf_env%outer_scf%energy)
-         ALLOCATE (scf_env%outer_scf%energy(scf_control%outer_scf%max_scf+1))
+         ALLOCATE (scf_env%outer_scf%energy(scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%energy = 0.0_dp
          IF (ASSOCIATED(scf_env%outer_scf%variables)) &
             DEALLOCATE (scf_env%outer_scf%variables)
-         ALLOCATE (scf_env%outer_scf%variables(1, scf_control%outer_scf%max_scf+1))
+         ALLOCATE (scf_env%outer_scf%variables(1, scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%variables = 0.0_dp
          IF (ASSOCIATED(scf_env%outer_scf%gradient)) &
             DEALLOCATE (scf_env%outer_scf%gradient)
-         ALLOCATE (scf_env%outer_scf%gradient(1, scf_control%outer_scf%max_scf+1))
+         ALLOCATE (scf_env%outer_scf%gradient(1, scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%gradient = 0.0_dp
          IF (ASSOCIATED(scf_env%outer_scf%count)) &
             DEALLOCATE (scf_env%outer_scf%count)
-         ALLOCATE (scf_env%outer_scf%count(scf_control%outer_scf%max_scf+1))
+         ALLOCATE (scf_env%outer_scf%count(scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%count = 0
          ! OT SCF does not need Jacobian
          scf_env%outer_scf%deallocate_jacobian = .TRUE.
@@ -617,19 +617,19 @@ CONTAINS
          nvariables = SIZE(cdft_control%constraint%variables, 1)
          IF (ASSOCIATED(scf_env%outer_scf%energy)) &
             DEALLOCATE (scf_env%outer_scf%energy)
-         ALLOCATE (scf_env%outer_scf%energy(scf_control%outer_scf%max_scf+1))
+         ALLOCATE (scf_env%outer_scf%energy(scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%energy = cdft_control%constraint%energy
          IF (ASSOCIATED(scf_env%outer_scf%variables)) &
             DEALLOCATE (scf_env%outer_scf%variables)
-         ALLOCATE (scf_env%outer_scf%variables(nvariables, scf_control%outer_scf%max_scf+1))
+         ALLOCATE (scf_env%outer_scf%variables(nvariables, scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%variables = cdft_control%constraint%variables
          IF (ASSOCIATED(scf_env%outer_scf%gradient)) &
             DEALLOCATE (scf_env%outer_scf%gradient)
-         ALLOCATE (scf_env%outer_scf%gradient(nvariables, scf_control%outer_scf%max_scf+1))
+         ALLOCATE (scf_env%outer_scf%gradient(nvariables, scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%gradient = cdft_control%constraint%gradient
          IF (ASSOCIATED(scf_env%outer_scf%count)) &
             DEALLOCATE (scf_env%outer_scf%count)
-         ALLOCATE (scf_env%outer_scf%count(scf_control%outer_scf%max_scf+1))
+         ALLOCATE (scf_env%outer_scf%count(scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%count = cdft_control%constraint%count
          scf_env%outer_scf%iter_count = cdft_control%constraint%iter_count
          scf_env%outer_scf%deallocate_jacobian = cdft_control%constraint%deallocate_jacobian

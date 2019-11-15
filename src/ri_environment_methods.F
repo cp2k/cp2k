@@ -179,20 +179,20 @@ CONTAINS
             IF (iatom <= jatom) THEN
                DO ispin = 1, dft_control%nspins
                   DO j = j1, j2
-                     m = j-j1+1
+                     m = j - j1 + 1
                      DO i = i1, i2
-                        n = i-i1+1
-                        fblk(n, m) = fblk(n, m)+fout(i, ispin)*avec(j, ispin)+avec(i, ispin)*fout(j, ispin)
+                        n = i - i1 + 1
+                        fblk(n, m) = fblk(n, m) + fout(i, ispin)*avec(j, ispin) + avec(i, ispin)*fout(j, ispin)
                      END DO
                   END DO
                END DO
             ELSE
                DO ispin = 1, dft_control%nspins
                   DO i = i1, i2
-                     n = i-i1+1
+                     n = i - i1 + 1
                      DO j = j1, j2
-                        m = j-j1+1
-                        fblk(m, n) = fblk(m, n)+fout(i, ispin)*avec(j, ispin)+avec(i, ispin)*fout(j, ispin)
+                        m = j - j1 + 1
+                        fblk(m, n) = fblk(m, n) + fout(i, ispin)*avec(j, ispin) + avec(i, ispin)*fout(j, ispin)
                      END DO
                   END DO
                END DO
@@ -232,7 +232,7 @@ CONTAINS
          DO i = 1, nbas
             IF (eval(i) < 1.0e-10_dp) THEN
                eval(i) = 0.0_dp
-               izero = izero+1
+               izero = izero + 1
             ELSE
                eval(i) = SQRT(1.0_dp/eval(i))
             ENDIF
@@ -330,7 +330,7 @@ CONTAINS
          n = SIZE(vecr)
          ALLOCATE (vect(n))
          CALL ri_matvec(mat, vecx, vect, ptr)
-         vect(:) = vect(:)-vecr(:)
+         vect(:) = vect(:) - vecr(:)
          rerror = MAXVAL(ABS(vect(:)))
          DEALLOCATE (vect)
          IF (rerror > threshold) THEN
@@ -403,7 +403,7 @@ CONTAINS
             atom_a = atom_of_kind(iatom)
             i1 = bas_ptr(1, iatom)
             i2 = bas_ptr(2, iatom)
-            n = i2-i1+1
+            n = i2 - i1 + 1
             lri_coef(ikind)%acoef(atom_a, 1:n) = avec(i1:i2, ispin)
          END DO
       END DO
@@ -464,18 +464,18 @@ CONTAINS
 
       nlimit = 0
       DO isweep = 1, nsweep
-         nlimit(1:2, isweep) = get_limit(natom, nsweep, isweep-1)
+         nlimit(1:2, isweep) = get_limit(natom, nsweep, isweep - 1)
       END DO
 
       DO ispin = 1, nspin
          DO isweep = 1, nsweep
             il = nlimit(1, isweep)
             iu = nlimit(2, isweep)
-            ma = iu-il+1
+            ma = iu - il + 1
             IF (ma < 1) CYCLE
             ibl = bas_ptr(1, il)
             ibu = bas_ptr(2, iu)
-            mba = ibu-ibl+1
+            mba = ibu - ibl + 1
             ALLOCATE (ta(mba, nthread))
             ta = 0.0_dp
 
@@ -491,17 +491,17 @@ CONTAINS
             DO WHILE (o3c_iterate(o3c_iterator, mepos=mepos) == 0)
                CALL get_o3c_iterator_info(o3c_iterator, mepos=mepos, katom=katom, tvec=tvl)
                IF (katom < il .OR. katom > iu) CYCLE
-               i1 = bas_ptr(1, katom)-ibl+1
-               i2 = bas_ptr(2, katom)-ibl+1
-               m = i2-i1+1
-               ta(i1:i2, mepos+1) = ta(i1:i2, mepos+1)+tvl(1:m, ispin)
+               i1 = bas_ptr(1, katom) - ibl + 1
+               i2 = bas_ptr(2, katom) - ibl + 1
+               m = i2 - i1 + 1
+               ta(i1:i2, mepos + 1) = ta(i1:i2, mepos + 1) + tvl(1:m, ispin)
             END DO
 !$OMP END PARALLEL
             CALL o3c_iterator_release(o3c_iterator)
 
             ! sum over threads
             DO it = 1, nthread
-               tvec(ibl:ibu, ispin) = tvec(ibl:ibu, ispin)+ta(1:mba, it)
+               tvec(ibl:ibu, ispin) = tvec(ibl:ibu, ispin) + ta(1:mba, it)
             END DO
             DEALLOCATE (ta)
          END DO
@@ -565,13 +565,13 @@ CONTAINS
       DO ispin = 1, nspin
          nelec = lri_env%ri_fit%echarge(ispin)
          nrm1t = SUM(nvec(:)*rm1t(:, ispin))
-         lri_env%ri_fit%lambda(ispin) = 2.0_dp*(nrm1t-nelec)/lri_env%ri_fit%ntrm1n
+         lri_env%ri_fit%lambda(ispin) = 2.0_dp*(nrm1t - nelec)/lri_env%ri_fit%ntrm1n
       END DO
 
       ! calculate avec = rm1t - lambda/2 * rm1n
       avec => lri_env%ri_fit%avec
       DO ispin = 1, nspin
-         avec(:, ispin) = rm1t(:, ispin)-0.5_dp*lri_env%ri_fit%lambda(ispin)*rm1n(:)
+         avec(:, ispin) = rm1t(:, ispin) - 0.5_dp*lri_env%ri_fit%lambda(ispin)*rm1n(:)
       END DO
 
       CALL timestop(handle)
@@ -622,15 +622,15 @@ CONTAINS
          CALL dbcsr_iterator_next_block(iter, iatom, jatom, block)
          n1 = ptr(1, iatom)
          n2 = ptr(2, iatom)
-         nb = n2-n1+1
+         nb = n2 - n1 + 1
          m1 = ptr(1, jatom)
          m2 = ptr(2, jatom)
-         mb = m2-m1+1
+         mb = m2 - m1 + 1
          CPASSERT(nb == SIZE(block, 1))
          CPASSERT(mb == SIZE(block, 2))
-         vo(n1:n2) = vo(n1:n2)+MATMUL(block, vi(m1:m2))
+         vo(n1:n2) = vo(n1:n2) + MATMUL(block, vi(m1:m2))
          IF (symm .AND. (iatom /= jatom)) THEN
-            vo(m1:m2) = vo(m1:m2)+MATMUL(TRANSPOSE(block), vi(n1:n2))
+            vo(m1:m2) = vo(m1:m2) + MATMUL(TRANSPOSE(block), vi(n1:n2))
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)

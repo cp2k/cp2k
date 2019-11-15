@@ -194,12 +194,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_default_logger', &
          routineP = moduleN//':'//routineN
 
-      IF (stack_pointer+1 > max_stack_pointer) THEN
+      IF (stack_pointer + 1 > max_stack_pointer) THEN
          CALL cp_abort(__LOCATION__, routineP// &
                        "too many default loggers, increase max_stack_pointer in "//moduleN)
       ENDIF
 
-      stack_pointer = stack_pointer+1
+      stack_pointer = stack_pointer + 1
       NULLIFY (default_logger_stack(stack_pointer)%cp_default_logger)
 
       default_logger_stack(stack_pointer)%cp_default_logger => logger
@@ -214,14 +214,14 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE cp_rm_default_logger()
-      IF (stack_pointer-1 < 0) THEN
+      IF (stack_pointer - 1 < 0) THEN
          CALL cp_abort(__LOCATION__, moduleN//":cp_rm_default_logger"// &
                        "can not destroy default logger "//moduleN)
       ENDIF
 
       CALL cp_logger_release(default_logger_stack(stack_pointer)%cp_default_logger)
       NULLIFY (default_logger_stack(stack_pointer)%cp_default_logger)
-      stack_pointer = stack_pointer-1
+      stack_pointer = stack_pointer - 1
 
    END SUBROUTINE cp_rm_default_logger
 
@@ -309,7 +309,7 @@ CONTAINS
       NULLIFY (logger%para_env)
       NULLIFY (logger%iter_info)
       logger%ref_count = 1
-      last_logger_id_nr = last_logger_id_nr+1
+      last_logger_id_nr = last_logger_id_nr + 1
       logger%id_nr = last_logger_id_nr
 
       IF (PRESENT(template_logger)) THEN
@@ -353,7 +353,7 @@ CONTAINS
          CPABORT(routineP//" para env not associated")
       IF (logger%para_env%ref_count < 1) &
          CPABORT(routineP//" para_env%ref_count<1")
-      logger%para_env%ref_count = logger%para_env%ref_count+1
+      logger%para_env%ref_count = logger%para_env%ref_count + 1
 
       IF (PRESENT(print_level)) logger%print_level = print_level
 
@@ -421,7 +421,7 @@ CONTAINS
          CPABORT(routineP//" logger not associated")
       IF (logger%ref_count < 1) &
          CPABORT(routineP//" logger%ref_count<1")
-      logger%ref_count = logger%ref_count+1
+      logger%ref_count = logger%ref_count + 1
    END SUBROUTINE cp_logger_retain
 
 ! **************************************************************************************************
@@ -440,7 +440,7 @@ CONTAINS
       IF (ASSOCIATED(logger)) THEN
          IF (logger%ref_count < 1) &
             CPABORT(routineP//" logger%ref_count<1")
-         logger%ref_count = logger%ref_count-1
+         logger%ref_count = logger%ref_count - 1
          IF (logger%ref_count == 0) THEN
             IF (logger%close_global_unit_on_dealloc .AND. &
                 logger%default_global_unit_nr >= 0) THEN
@@ -692,7 +692,7 @@ CONTAINS
          IF (para_env%ref_count < 1) THEN
             CPABORT(routineP//" para_env%ref_count<1")
          END IF
-         para_env%ref_count = para_env%ref_count-1
+         para_env%ref_count = para_env%ref_count - 1
          IF (para_env%ref_count < 1) THEN
             IF (para_env%owns_group) THEN
                CALL mp_comm_free(para_env%group)

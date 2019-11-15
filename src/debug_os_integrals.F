@@ -75,7 +75,7 @@ CONTAINS
       lds = ncoset(maxl)
       ALLOCATE (swork(lds, lds, 1))
       sab = 0._dp
-      rab(:) = B(:)-A(:)
+      rab(:) = B(:) - A(:)
       dab = SQRT(DOT_PRODUCT(rab, rab))
       xa_work(1) = xa
       xb_work(1) = xb
@@ -92,19 +92,19 @@ CONTAINS
       DO ma = la_min, la_max
          DO mb = lb_min, lb_max
             DO iax = 0, ma
-               DO iay = 0, ma-iax
-                  iaz = ma-iax-iay
+               DO iay = 0, ma - iax
+                  iaz = ma - iax - iay
                   na(1) = iax; na(2) = iay; na(3) = iaz
                   ia1 = coset(iax, iay, iaz)
                   DO ibx = 0, mb
-                     DO iby = 0, mb-ibx
-                        ibz = mb-ibx-iby
+                     DO iby = 0, mb - ibx
+                        ibz = mb - ibx - iby
                         nb(1) = ibx; nb(2) = iby; nb(3) = ibz
                         ib1 = coset(ibx, iby, ibz)
                         res1 = os_overlap2(na, nb)
                         ! write(*,*) "la, lb,na, nb, res1", ma, mb, na, nb, res1
                         ! write(*,*) "sab ia1, ib1", ia1, ib1, sab(ia1,ib1)
-                        dmax = MAX(dmax, ABS(res1-sab(ia1, ib1)))
+                        dmax = MAX(dmax, ABS(res1 - sab(ia1, ib1)))
                      END DO
                   END DO
                END DO
@@ -163,27 +163,27 @@ CONTAINS
             DO ma = la_min, la_max
                DO mb = lb_min, lb_max
                   DO iax = 0, ma
-                     DO iay = 0, ma-iax
-                        iaz = ma-iax-iay
+                     DO iay = 0, ma - iax
+                        iaz = ma - iax - iay
                         na(1) = iax; na(2) = iay; na(3) = iaz
                         ia1 = coset(iax, iay, iaz)
                         DO ibx = 0, mb
-                           DO iby = 0, mb-ibx
-                              ibz = mb-ibx-iby
+                           DO iby = 0, mb - ibx
+                              ibz = mb - ibx - iby
                               nb(1) = ibx; nb(2) = iby; nb(3) = ibz
                               ib1 = coset(ibx, iby, ibz)
                               res1 = os_overlap2(na, nb)
-                              res2 = sab(coa+ia1, cob+ib1)
-                              dmax = MAX(dmax, ABS(res1-res2))
+                              res2 = sab(coa + ia1, cob + ib1)
+                              dmax = MAX(dmax, ABS(res1 - res2))
                            END DO
                         END DO
                      END DO
                   END DO
                END DO
             END DO
-            cob = cob+ncoset(lb_max)
+            cob = cob + ncoset(lb_max)
          END DO
-         coa = coa+ncoset(la_max)
+         coa = coa + ncoset(la_max)
       END DO
       !WRITE(*,*) "dmax overlap_ab_test", dmax
 
@@ -225,11 +225,11 @@ CONTAINS
       lc_max = 1
 
       !---------------------------------------
-      rab(:) = B(:)-A(:)
+      rab(:) = B(:) - A(:)
       dab = SQRT(DOT_PRODUCT(rab, rab))
-      rac(:) = C(:)-A(:)
+      rac(:) = C(:) - A(:)
       dac = SQRT(DOT_PRODUCT(rac, rac))
-      rbc(:) = C(:)-B(:)
+      rbc(:) = C(:) - B(:)
       dbc = SQRT(DOT_PRODUCT(rbc, rbc))
       ALLOCATE (sabc(ncoset(la_max), ncoset(lb_max), ncoset(lc_max)))
       xa_work(1) = xa
@@ -254,24 +254,24 @@ CONTAINS
          DO mc = lc_min, lc_max
             DO mb = lb_min, lb_max
                DO iax = 0, ma
-                  DO iay = 0, ma-iax
-                     iaz = ma-iax-iay
+                  DO iay = 0, ma - iax
+                     iaz = ma - iax - iay
                      na(1) = iax; na(2) = iay; na(3) = iaz
                      ia1 = coset(iax, iay, iaz)
                      DO icx = 0, mc
-                        DO icy = 0, mc-icx
-                           icz = mc-icx-icy
+                        DO icy = 0, mc - icx
+                           icz = mc - icx - icy
                            nc(1) = icx; nc(2) = icy; nc(3) = icz
                            ic1 = coset(icx, icy, icz)
                            DO ibx = 0, mb
-                              DO iby = 0, mb-ibx
-                                 ibz = mb-ibx-iby
+                              DO iby = 0, mb - ibx
+                                 ibz = mb - ibx - iby
                                  nb(1) = ibx; nb(2) = iby; nb(3) = ibz
                                  ib1 = coset(ibx, iby, ibz)
                                  res1 = os_overlap3(na, nc, nb)
                                  !write(*,*) "la, lc, lb,na,nc, nb, res1", ma, mc, mb, na, nc, nb, res1
                                  !write(*,*) "sabc ia1, ib1, ic1", ia1, ib1, ic1, sabc(ia1,ib1,ic1)
-                                 dmax = MAX(dmax, ABS(res1-sabc(ia1, ib1, ic1)))
+                                 dmax = MAX(dmax, ABS(res1 - sabc(ia1, ib1, ic1)))
                               END DO
                            END DO
                         END DO
@@ -353,23 +353,23 @@ CONTAINS
                   DO mc = lc_min, lc_max
                      DO mb = lb_min, lb_max
                         DO iax = 0, ma
-                           DO iay = 0, ma-iax
-                              iaz = ma-iax-iay
+                           DO iay = 0, ma - iax
+                              iaz = ma - iax - iay
                               na(1) = iax; na(2) = iay; na(3) = iaz
                               ia1 = coset(iax, iay, iaz)
                               DO icx = 0, mc
-                                 DO icy = 0, mc-icx
-                                    icz = mc-icx-icy
+                                 DO icy = 0, mc - icx
+                                    icz = mc - icx - icy
                                     nc(1) = icx; nc(2) = icy; nc(3) = icz
                                     ic1 = coset(icx, icy, icz)
                                     DO ibx = 0, mb
-                                       DO iby = 0, mb-ibx
-                                          ibz = mb-ibx-iby
+                                       DO iby = 0, mb - ibx
+                                          ibz = mb - ibx - iby
                                           nb(1) = ibx; nb(2) = iby; nb(3) = ibz
                                           ib1 = coset(ibx, iby, ibz)
                                           res1 = os_overlap3(na, nc, nb)
-                                          res2 = sabc(coa+ia1, cob+ib1, coc+ic1)
-                                          dmax = MAX(dmax, ABS(res1-res2))
+                                          res2 = sabc(coa + ia1, cob + ib1, coc + ic1)
+                                          dmax = MAX(dmax, ABS(res1 - res2))
                                           !IF(dmax > 1.E-10) WRITE(*,*) "dmax in loop", dmax
                                        END DO
                                     END DO
@@ -380,11 +380,11 @@ CONTAINS
                      END DO
                   END DO
                END DO
-               coc = coc+ncoset(lc_max)
+               coc = coc + ncoset(lc_max)
             END DO
-            cob = cob+ncoset(lb_max)
+            cob = cob + ncoset(lb_max)
          END DO
-         coa = coa+ncoset(la_max)
+         coa = coa + ncoset(la_max)
       END DO
       !WRITE(*,*) "dmax abc", dmax
 
@@ -430,11 +430,11 @@ CONTAINS
       !---------------------------------------
       ALLOCATE (saabb(ncoset(la_max1), ncoset(la_max2), ncoset(lb_max1), ncoset(lb_max2)))
 
-      maxl = MAX(la_max1+la_max2, lb_max1+lb_max2)
+      maxl = MAX(la_max1 + la_max2, lb_max1 + lb_max2)
       lds = ncoset(maxl)
       ALLOCATE (swork(lds, lds))
       saabb = 0._dp
-      rab(:) = B(:)-A(:)
+      rab(:) = B(:) - A(:)
       dab = SQRT(DOT_PRODUCT(rab, rab))
       xa_work1(1) = xa1
       xa_work2(1) = xa2
@@ -451,12 +451,12 @@ CONTAINS
                         asets_equal=.FALSE., bsets_equal=.FALSE., rab=rab, dab=dab, saabb=saabb, s=swork, lds=lds)
       !---------------------------------------
 
-      xa = xa1+xa2
-      xb = xb1+xb2
-      la_min = la_min1+la_min2
-      la_max = la_max1+la_max2
-      lb_min = lb_min1+lb_min2
-      lb_max = lb_max1+lb_max2
+      xa = xa1 + xa2
+      xb = xb1 + xb2
+      la_min = la_min1 + la_min2
+      la_max = la_max1 + la_max2
+      lb_min = lb_min1 + lb_min2
+      lb_max = lb_max1 + lb_max2
 
       CALL init_os_overlap2(xa, xb, A, B)
 
@@ -464,22 +464,22 @@ CONTAINS
       DO ma = la_min, la_max
          DO mb = lb_min, lb_max
             DO iax = 0, ma
-               DO iay = 0, ma-iax
-                  iaz = ma-iax-iay
+               DO iay = 0, ma - iax
+                  iaz = ma - iax - iay
                   na(1) = iax; na(2) = iay; na(3) = iaz
                   DO ibx = 0, mb
-                     DO iby = 0, mb-ibx
-                        ibz = mb-ibx-iby
+                     DO iby = 0, mb - ibx
+                        ibz = mb - ibx - iby
                         nb(1) = ibx; nb(2) = iby; nb(3) = ibz
                         res1 = os_overlap2(na, nb)
-                        DO i = ncoset(la_min1-1)+1, ncoset(la_max1)
-                           DO j = ncoset(la_min2-1)+1, ncoset(la_max2)
-                              naa = indco(1:3, i)+indco(1:3, j)
-                              DO k = ncoset(lb_min1-1)+1, ncoset(lb_max1)
-                                 DO l = ncoset(lb_min2-1)+1, ncoset(lb_max2)
-                                    nbb = indco(1:3, k)+indco(1:3, l)
+                        DO i = ncoset(la_min1 - 1) + 1, ncoset(la_max1)
+                           DO j = ncoset(la_min2 - 1) + 1, ncoset(la_max2)
+                              naa = indco(1:3, i) + indco(1:3, j)
+                              DO k = ncoset(lb_min1 - 1) + 1, ncoset(lb_max1)
+                                 DO l = ncoset(lb_min2 - 1) + 1, ncoset(lb_max2)
+                                    nbb = indco(1:3, k) + indco(1:3, l)
                                     IF (ALL(na == naa) .AND. ALL(nb == nbb)) THEN
-                                       dmax = MAX(dmax, ABS(res1-saabb(i, j, k, l)))
+                                       dmax = MAX(dmax, ABS(res1 - saabb(i, j, k, l)))
                                     END IF
                                  END DO
                               END DO
@@ -557,12 +557,12 @@ CONTAINS
                cob2 = 0
                DO lpgf = 1, npgfb2
 
-                  xa = zeta1(ipgf)+zeta2(jpgf) ! exponents
-                  xb = zetb1(kpgf)+zetb2(lpgf) ! exponents
-                  la_max = la_max1+la_max2
-                  lb_max = lb_max1+lb_max2
-                  la_min = la_min1+la_min2
-                  lb_min = lb_min1+lb_min2
+                  xa = zeta1(ipgf) + zeta2(jpgf) ! exponents
+                  xb = zetb1(kpgf) + zetb2(lpgf) ! exponents
+                  la_max = la_max1 + la_max2
+                  lb_max = lb_max1 + lb_max2
+                  la_min = la_min1 + la_min2
+                  lb_min = lb_min1 + lb_min2
 
                   A = ra !positions
                   B = rb
@@ -572,22 +572,22 @@ CONTAINS
                   DO ma = la_min, la_max
                      DO mb = lb_min, lb_max
                         DO iax = 0, ma
-                           DO iay = 0, ma-iax
-                              iaz = ma-iax-iay
+                           DO iay = 0, ma - iax
+                              iaz = ma - iax - iay
                               na(1) = iax; na(2) = iay; na(3) = iaz
                               DO ibx = 0, mb
-                                 DO iby = 0, mb-ibx
-                                    ibz = mb-ibx-iby
+                                 DO iby = 0, mb - ibx
+                                    ibz = mb - ibx - iby
                                     nb(1) = ibx; nb(2) = iby; nb(3) = ibz
                                     res1 = os_overlap2(na, nb)
-                                    DO i = ncoset(la_min1-1)+1, ncoset(la_max1)
-                                       DO j = ncoset(la_min2-1)+1, ncoset(la_max2)
-                                          naa = indco(1:3, i)+indco(1:3, j)
-                                          DO k = ncoset(lb_min1-1)+1, ncoset(lb_max1)
-                                             DO l = ncoset(lb_min2-1)+1, ncoset(lb_max2)
-                                                nbb = indco(1:3, k)+indco(1:3, l)
+                                    DO i = ncoset(la_min1 - 1) + 1, ncoset(la_max1)
+                                       DO j = ncoset(la_min2 - 1) + 1, ncoset(la_max2)
+                                          naa = indco(1:3, i) + indco(1:3, j)
+                                          DO k = ncoset(lb_min1 - 1) + 1, ncoset(lb_max1)
+                                             DO l = ncoset(lb_min2 - 1) + 1, ncoset(lb_max2)
+                                                nbb = indco(1:3, k) + indco(1:3, l)
                                                 IF (ALL(na == naa) .AND. ALL(nb == nbb)) THEN
-                                                   dmax = MAX(dmax, ABS(res1-saabb(coa1+i, coa2+j, cob1+k, cob2+l)))
+                                                   dmax = MAX(dmax, ABS(res1 - saabb(coa1 + i, coa2 + j, cob1 + k, cob2 + l)))
                                                 ENDIF
                                              END DO
                                           END DO
@@ -599,13 +599,13 @@ CONTAINS
                         END DO
                      END DO
                   END DO
-                  cob2 = cob2+ncoset(lb_max2)
+                  cob2 = cob2 + ncoset(lb_max2)
                END DO
-               cob1 = cob1+ncoset(lb_max1)
+               cob1 = cob1 + ncoset(lb_max1)
             END DO
-            coa2 = coa2+ncoset(la_max2)
+            coa2 = coa2 + ncoset(la_max2)
          END DO
-         coa1 = coa1+ncoset(la_max1)
+         coa1 = coa1 + ncoset(la_max1)
       END DO
 
       !WRITE(*,*) "dmax aabb", dmax

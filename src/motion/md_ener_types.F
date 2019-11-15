@@ -69,7 +69,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(md_ener))
       ALLOCATE (md_ener)
-      last_md_ener_id = last_md_ener_id+1
+      last_md_ener_id = last_md_ener_id + 1
       md_ener%id_nr = last_md_ener_id
 
       md_ener%ref_count = 1
@@ -96,7 +96,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(md_ener))
       CPASSERT(md_ener%ref_count > 0)
-      md_ener%ref_count = md_ener%ref_count+1
+      md_ener%ref_count = md_ener%ref_count + 1
    END SUBROUTINE retain_md_ener
 
 ! **************************************************************************************************
@@ -114,7 +114,7 @@ CONTAINS
 
       IF (ASSOCIATED(md_ener)) THEN
          CPASSERT(md_ener%ref_count > 0)
-         md_ener%ref_count = md_ener%ref_count-1
+         md_ener%ref_count = md_ener%ref_count - 1
          IF (md_ener%ref_count == 0) THEN
             IF (ASSOCIATED(md_ener%temp_kind)) THEN
                DEALLOCATE (md_ener%temp_kind)

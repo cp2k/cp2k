@@ -132,7 +132,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(eip_env))
       CPASSERT(eip_env%ref_count > 0)
-      eip_env%ref_count = eip_env%ref_count+1
+      eip_env%ref_count = eip_env%ref_count + 1
    END SUBROUTINE eip_env_retain
 
 ! **************************************************************************************************
@@ -153,7 +153,7 @@ CONTAINS
 
       IF (ASSOCIATED(eip_env)) THEN
          CPASSERT(eip_env%ref_count > 0)
-         eip_env%ref_count = eip_env%ref_count-1
+         eip_env%ref_count = eip_env%ref_count - 1
          IF (eip_env%ref_count < 1) THEN
             IF (ASSOCIATED(eip_env%eip_forces)) THEN
                DEALLOCATE (eip_env%eip_forces)
@@ -488,7 +488,7 @@ CONTAINS
       NULLIFY (eip_env%cell_ref)
 
       eip_env%ref_count = 1
-      last_eip_id = last_eip_id+1
+      last_eip_id = last_eip_id + 1
       eip_env%id_nr = last_eip_id
       eip_env%use_ref_cell = .FALSE.
       CALL eip_env_clear(eip_env)

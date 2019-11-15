@@ -41,7 +41,7 @@ CONTAINS
       pint_env%e_gle = 0._dp
       IF (ASSOCIATED(pint_env%gle)) THEN
          DO i = 1, pint_env%gle%loc_num_gle
-            pint_env%e_gle = pint_env%e_gle+pint_env%gle%nvt(i)%thermostat_energy
+            pint_env%e_gle = pint_env%e_gle + pint_env%gle%nvt(i)%thermostat_energy
          END DO
       END IF
    END SUBROUTINE
@@ -60,8 +60,8 @@ CONTAINS
       CALL gle_cholesky_stab(pint_env%gle%c_mat, cc, pint_env%gle%ndim)
       DO i = 1, pint_env%gle%loc_num_gle
          imap = pint_env%gle%map_info%index(i)
-         ib = 1+(imap-1)/pint_env%ndim
-         idim = 1+MOD(imap-1, pint_env%ndim)
+         ib = 1 + (imap - 1)/pint_env%ndim
+         idim = 1 + MOD(imap - 1, pint_env%ndim)
          mf = 1.0_dp/SQRT(pint_env%mass_fict(ib, idim))
          rng_stream => pint_env%gle%nvt(i)%gaussian_rng_stream
          DO j = 1, pint_env%gle%ndim
@@ -101,12 +101,12 @@ CONTAINS
 
       DO ideg = 1, gle%loc_num_gle
          imap = gle%map_info%index(ideg)
-         ib = 1+(imap-1)/pint_env%ndim
-         idim = 1+MOD(imap-1, pint_env%ndim)
+         ib = 1 + (imap - 1)/pint_env%ndim
+         idim = 1 + MOD(imap - 1, pint_env%ndim)
 
          gle%nvt(ideg)%s(1) = pint_env%uv_t(ib, idim)
          gle%nvt(ideg)%thermostat_energy = gle%nvt(ideg)%thermostat_energy &
-                                           +0.5_dp*pint_env%mass_fict(ib, idim)*gle%nvt(ideg)%s(1)**2
+                                           + 0.5_dp*pint_env%mass_fict(ib, idim)*gle%nvt(ideg)%s(1)**2
          s_tmp(1, imap) = gle%nvt(ideg)%s(1)
          rng_stream => gle%nvt(ideg)%gaussian_rng_stream
          rr = next_random_number(rng_stream)
@@ -135,11 +135,11 @@ CONTAINS
          DO iadd = 1, ndim
             gle%nvt(ideg)%s(iadd) = h_tmp(iadd, imap)
          END DO
-         ib = 1+(imap-1)/pint_env%ndim
-         idim = 1+MOD(imap-1, pint_env%ndim)
+         ib = 1 + (imap - 1)/pint_env%ndim
+         idim = 1 + MOD(imap - 1, pint_env%ndim)
          pint_env%uv_t(ib, idim) = gle%nvt(ideg)%s(1)
          gle%nvt(ideg)%thermostat_energy = gle%nvt(ideg)%thermostat_energy &
-                                           -0.5_dp*pint_env%mass_fict(ib, idim)*gle%nvt(ideg)%s(1)**2
+                                           - 0.5_dp*pint_env%mass_fict(ib, idim)*gle%nvt(ideg)%s(1)**2
       END DO
       pint_env%e_kin_t = 0.0_dp
       DEALLOCATE (e_tmp, s_tmp, h_tmp)

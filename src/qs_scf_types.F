@@ -142,7 +142,7 @@ CONTAINS
       ALLOCATE (scf_env)
       scf_env%ref_count = 1
       scf_env%print_count = 0
-      last_scf_env_id = last_scf_env_id+1
+      last_scf_env_id = last_scf_env_id + 1
       scf_env%id_nr = last_scf_env_id
       scf_env%print_count = 0
       scf_env%iter_count = 0
@@ -213,7 +213,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(scf_env%ref_count > 0)
-      scf_env%ref_count = scf_env%ref_count+1
+      scf_env%ref_count = scf_env%ref_count + 1
 
       CALL timestop(handle)
 
@@ -276,7 +276,7 @@ CONTAINS
 
       IF (ASSOCIATED(scf_env)) THEN
          CPASSERT(scf_env%ref_count > 0)
-         scf_env%ref_count = scf_env%ref_count-1
+         scf_env%ref_count = scf_env%ref_count - 1
          IF (scf_env%ref_count < 1) THEN
             CALL cp_fm_vect_dealloc(scf_env%scf_work1)
             CALL cp_fm_release(scf_env%scf_work2)

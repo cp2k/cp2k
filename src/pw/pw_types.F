@@ -91,7 +91,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(pw))
       CPASSERT(pw%ref_count > 0)
-      pw%ref_count = pw%ref_count+1
+      pw%ref_count = pw%ref_count + 1
    END SUBROUTINE pw_retain
 
 ! **************************************************************************************************
@@ -110,11 +110,11 @@ CONTAINS
 
       IF (ASSOCIATED(pw)) THEN
          CPASSERT(pw%ref_count > 0)
-         pw%ref_count = pw%ref_count-1
+         pw%ref_count = pw%ref_count - 1
          IF (pw%ref_count == 0) THEN
             pw%ref_count = 1
 
-            allocated_pw_count = allocated_pw_count-1
+            allocated_pw_count = allocated_pw_count - 1
             SELECT CASE (pw%in_use)
             CASE (REALDATA1D)
                DEALLOCATE (pw%cr)
@@ -185,7 +185,7 @@ CONTAINS
          END IF
       END IF
 
-      last_pw_id_nr = last_pw_id_nr+1
+      last_pw_id_nr = last_pw_id_nr + 1
       pw%id_nr = last_pw_id_nr
       pw%ref_count = 1
       NULLIFY (pw%pw_grid)
@@ -195,7 +195,7 @@ CONTAINS
       pw%in_space = NOSPACE
       bounds => pw%pw_grid%bounds_local
 
-      allocated_pw_count = allocated_pw_count+1
+      allocated_pw_count = allocated_pw_count + 1
 
       NULLIFY (pw%cr, pw%cc, pw%cr3d, pw%cc3d)
 

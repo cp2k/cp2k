@@ -183,8 +183,8 @@ CONTAINS
       DO iib = 1, dimen_RI
          IF (ABS(eigenval(iib)) .GE. thresh) THEN
             eigenval(iib) = &
-               SQRT((1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp+eigenval(iib)) &
-                    -1.0_dp/(eigenval(iib)*(eigenval(iib)+1.0_dp)))
+               SQRT((1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
+                    - 1.0_dp/(eigenval(iib)*(eigenval(iib) + 1.0_dp)))
          ELSE
             eigenval(iib) = 0.707_dp
          ENDIF
@@ -221,12 +221,12 @@ CONTAINS
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
 
-            iocc = MAX(1, i_global-1)/virtual+1
-            avirt = i_global-(iocc-1)*virtual
-            eigen_diff = eig(avirt+homo)-eig(iocc)
+            iocc = MAX(1, i_global - 1)/virtual + 1
+            avirt = i_global - (iocc - 1)*virtual
+            eigen_diff = eig(avirt + homo) - eig(iocc)
 
             fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
-                                            SQRT(eigen_diff/(eigen_diff**2+omega**2))
+                                            SQRT(eigen_diff/(eigen_diff**2 + omega**2))
 
          END DO
       END DO
@@ -254,12 +254,12 @@ CONTAINS
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
 
-            iocc = MAX(1, i_global-1)/virtual+1
-            avirt = i_global-(iocc-1)*virtual
-            eigen_diff = eig(avirt+homo)-eig(iocc)
+            iocc = MAX(1, i_global - 1)/virtual + 1
+            avirt = i_global - (iocc - 1)*virtual
+            eigen_diff = eig(avirt + homo) - eig(iocc)
 
             fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)/ &
-                                            SQRT(eigen_diff/(eigen_diff**2+omega**2))
+                                            SQRT(eigen_diff/(eigen_diff**2 + omega**2))
 
          END DO
       END DO
@@ -284,7 +284,7 @@ CONTAINS
       iitmp = get_limit(dimen_RI, ngroup, color_sub)
       my_group_L_start = iitmp(1)
       my_group_L_end = iitmp(2)
-      my_group_L_size = iitmp(2)-iitmp(1)+1
+      my_group_L_size = iitmp(2) - iitmp(1) + 1
 
       ! Copy Gamma_ia_P^3 to dbcsr matrix set
       CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
@@ -306,7 +306,7 @@ CONTAINS
 
       L_counter = 0
       DO kkb = my_group_L_start, my_group_L_end
-         L_counter = L_counter+1
+         L_counter = L_counter + 1
          ! One-index transformed Gamma_3
          ALLOCATE (dbcsr_Gamma_inu_P(L_counter)%matrix)
          CALL dbcsr_init_p(dbcsr_Gamma_inu_P(L_counter)%matrix)
@@ -325,7 +325,7 @@ CONTAINS
       !! Loup over auxiliary basis functions: multiplication
       L_counter = 0
       DO kkb = my_group_L_start, my_group_L_end
-         L_counter = L_counter+1
+         L_counter = L_counter + 1
          ! Do dbcsr multiplication: transform the virtual index
          CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(L_counter)%matrix, &
                              0.0_dp, dbcsr_Gamma_inu_P(L_counter)%matrix, filter_eps=eps_filter)
@@ -340,7 +340,7 @@ CONTAINS
       ! Gamma_3 not needed anymore
       L_counter = 0
       DO kkb = my_group_L_start, my_group_L_end
-         L_counter = L_counter+1
+         L_counter = L_counter + 1
          CALL dbcsr_release(dbcsr_Gamma_3(L_counter)%matrix)
          DEALLOCATE (dbcsr_Gamma_3(L_counter)%matrix)
       ENDDO
@@ -359,7 +359,7 @@ CONTAINS
 
       L_counter = 0
       DO kkb = my_group_L_start, my_group_L_end
-         L_counter = L_counter+1
+         L_counter = L_counter + 1
          CALL dbcsr_release(dbcsr_Gamma_inu_P(L_counter)%matrix)
          CALL dbcsr_release(dbcsr_Gamma_munu_P(L_counter)%matrix)
          DEALLOCATE (dbcsr_Gamma_inu_P(L_counter)%matrix)
@@ -443,7 +443,7 @@ CONTAINS
       P_stack_size = P_stack_size
       aux = 0
       DO kkb = my_group_L_start, my_group_L_end
-         aux = aux+1
+         aux = aux + 1
 
          CALL dbcsr_copy(rho_work_ao(1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix)
 
@@ -462,7 +462,7 @@ CONTAINS
          CALL dbcsr_multiply("T", "N", 1.0_dp, mat_2d(1, 1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix, &
                              0.0_dp, dbcsr_Gamma_munu_P(aux)%matrix, filter_eps=eps_filter)
          CALL dbcsr_trace(dbcsr_Gamma_munu_P(aux)%matrix, e_axk_p)
-         axk_corr = axk_corr+e_axk_P
+         axk_corr = axk_corr + e_axk_P
       ENDDO
 
       CALL dbcsr_release(mat_2d(1, 1)%matrix)

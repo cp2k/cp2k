@@ -180,7 +180,7 @@ CONTAINS
 
       INTEGER                                            :: coord(3)
 
-      coord = MODULO(rs_desc%rank2coord(:, rank_in)+shift, rs_desc%group_dim)
+      coord = MODULO(rs_desc%rank2coord(:, rank_in) + shift, rs_desc%group_dim)
       rank_out = rs_desc%coord2rank(coord(1), coord(2), coord(3))
    END FUNCTION rs_grid_locate_rank
 
@@ -273,7 +273,7 @@ CONTAINS
 
          ! this is the eventual border size
          IF (border_size == 0) THEN
-            nmin = (input_settings%nsmax+1)/2
+            nmin = (input_settings%nsmax + 1)/2
             nmin = MAX(0, NINT(nmin*input_settings%halo_reduction_factor))
          ELSE
             ! Set explicitly the requested border size
@@ -315,11 +315,11 @@ CONTAINS
                DO dir = 1, 3
                   IF (n_slices_tmp(dir) > 1) THEN
                      neighbours(dir) = HUGE(0)
-                     DO l = 0, n_slices_tmp(dir)-1
+                     DO l = 0, n_slices_tmp(dir) - 1
                         lb = get_limit(desc%npts(dir), n_slices_tmp(dir), l)
-                        neighbours(dir) = MIN(lb(2)-lb(1)+1, neighbours(dir))
+                        neighbours(dir) = MIN(lb(2) - lb(1) + 1, neighbours(dir))
                      ENDDO
-                     desc%neighbours(dir) = (nmin+neighbours(dir)-1)/neighbours(dir)
+                     desc%neighbours(dir) = (nmin + neighbours(dir) - 1)/neighbours(dir)
                      IF (desc%neighbours(dir) .GE. n_slices_tmp(dir)) overlap = .TRUE.
                   ELSE
                      neighbours(dir) = 0
@@ -334,7 +334,7 @@ CONTAINS
                ! volume of the box without the wings / volume of the box with the wings
                ! with prefactodesc to promote less cuts in Z dimension
                ratio = PRODUCT(REAL(desc%npts, KIND=dp)/n_slices_tmp)/ &
-                       PRODUCT(REAL(desc%npts, KIND=dp)/n_slices_tmp+ &
+                       PRODUCT(REAL(desc%npts, KIND=dp)/n_slices_tmp + &
                                MERGE((/0.0, 0.0, 0.0/), 2*(/1.06*nmin, 1.05*nmin, 1.03*nmin/), n_slices_tmp == (/1, 1, 1/)))
                IF (ratio > ratio_best) THEN
                   ratio_best = ratio
@@ -348,7 +348,7 @@ CONTAINS
             ! if the memory gain (or the gain is messages) is too small.
             IF (input_settings%distribution_type == rsgrid_automatic) THEN
                volume = PRODUCT(REAL(desc%npts, KIND=dp))
-               volume_dist = PRODUCT(REAL(desc%npts, KIND=dp)/n_slices+ &
+               volume_dist = PRODUCT(REAL(desc%npts, KIND=dp)/n_slices + &
                                      MERGE((/0, 0, 0/), 2*(/nmin, nmin, nmin/), n_slices == (/1, 1, 1/)))
                IF (volume < volume_dist*input_settings%memory_factor) THEN
                   n_slices = 1
@@ -376,10 +376,10 @@ CONTAINS
             desc%group_coor(:) = 0
             desc%my_virtual_pos = 0
 
-            ALLOCATE (desc%virtual2real(0:desc%group_size-1))
-            ALLOCATE (desc%real2virtual(0:desc%group_size-1))
+            ALLOCATE (desc%virtual2real(0:desc%group_size - 1))
+            ALLOCATE (desc%real2virtual(0:desc%group_size - 1))
             ! Start with no reordering
-            DO i = 0, desc%group_size-1
+            DO i = 0, desc%group_size - 1
                desc%virtual2real(i) = i
                desc%real2virtual(i) = i
             END DO
@@ -402,15 +402,15 @@ CONTAINS
             desc%group_head = (desc%my_pos == 0)
 
             ! set up global info about the distribution
-            ALLOCATE (desc%rank2coord(3, 0:desc%group_size-1))
-            ALLOCATE (desc%coord2rank(0:desc%group_dim(1)-1, 0:desc%group_dim(2)-1, 0:desc%group_dim(3)-1))
-            ALLOCATE (desc%lb_global(3, 0:desc%group_size-1))
-            ALLOCATE (desc%ub_global(3, 0:desc%group_size-1))
+            ALLOCATE (desc%rank2coord(3, 0:desc%group_size - 1))
+            ALLOCATE (desc%coord2rank(0:desc%group_dim(1) - 1, 0:desc%group_dim(2) - 1, 0:desc%group_dim(3) - 1))
+            ALLOCATE (desc%lb_global(3, 0:desc%group_size - 1))
+            ALLOCATE (desc%ub_global(3, 0:desc%group_size - 1))
             ALLOCATE (desc%x2coord(desc%lb(1):desc%ub(1)))
             ALLOCATE (desc%y2coord(desc%lb(2):desc%ub(2)))
             ALLOCATE (desc%z2coord(desc%lb(3):desc%ub(3)))
 
-            DO i = 0, desc%group_size-1
+            DO i = 0, desc%group_size - 1
                ! Calculate coordinates in a row-major order (to be SMP-friendly)
                desc%rank2coord(1, i) = i/(desc%group_dim(2)*desc%group_dim(3))
                desc%rank2coord(2, i) = MODULO(i, desc%group_dim(2)*desc%group_dim(3)) &
@@ -428,18 +428,18 @@ CONTAINS
                DO dir = 1, 3
                   IF (desc%group_dim(dir) .GT. 1) THEN
                      lb = get_limit(desc%npts(dir), desc%group_dim(dir), desc%rank2coord(dir, i))
-                     desc%lb_global(dir, i) = lb(1)+desc%lb(dir)-1
-                     desc%ub_global(dir, i) = lb(2)+desc%lb(dir)-1
+                     desc%lb_global(dir, i) = lb(1) + desc%lb(dir) - 1
+                     desc%ub_global(dir, i) = lb(2) + desc%lb(dir) - 1
                   ENDIF
                ENDDO
             ENDDO
 
             ! map a grid point to a CPU coord
             DO dir = 1, 3
-               DO l = 0, desc%group_dim(dir)-1
+               DO l = 0, desc%group_dim(dir) - 1
                   IF (desc%group_dim(dir) .GT. 1) THEN
                      lb = get_limit(desc%npts(dir), desc%group_dim(dir), l)
-                     lb = lb+desc%lb(dir)-1
+                     lb = lb + desc%lb(dir) - 1
                   ELSE
                      lb(1) = desc%lb(dir)
                      lb(2) = desc%ub(dir)
@@ -460,18 +460,18 @@ CONTAINS
                desc%neighbours(dir) = 0
                IF ((n_slices(dir) > 1) .OR. (border_size > 0)) THEN
                   neighbours(dir) = HUGE(0)
-                  DO l = 0, n_slices(dir)-1
+                  DO l = 0, n_slices(dir) - 1
                      lb = get_limit(desc%npts(dir), n_slices(dir), l)
-                     neighbours(dir) = MIN(lb(2)-lb(1)+1, neighbours(dir))
+                     neighbours(dir) = MIN(lb(2) - lb(1) + 1, neighbours(dir))
                   END DO
-                  desc%neighbours(dir) = (desc%border+neighbours(dir)-1)/neighbours(dir)
+                  desc%neighbours(dir) = (desc%border + neighbours(dir) - 1)/neighbours(dir)
                END IF
             END DO
 
-            ALLOCATE (desc%virtual2real(0:desc%group_size-1))
-            ALLOCATE (desc%real2virtual(0:desc%group_size-1))
+            ALLOCATE (desc%virtual2real(0:desc%group_size - 1))
+            ALLOCATE (desc%real2virtual(0:desc%group_size - 1))
             ! Start with no reordering
-            DO i = 0, desc%group_size-1
+            DO i = 0, desc%group_size - 1
                desc%virtual2real(i) = i
                desc%real2virtual(i) = i
             END DO
@@ -503,7 +503,7 @@ CONTAINS
 
       ALLOCATE (rs)
 
-      last_rs_id = last_rs_id+1
+      last_rs_id = last_rs_id + 1
       rs%id_nr = last_rs_id
       rs%ref_count = 1
       rs%desc => desc
@@ -514,9 +514,9 @@ CONTAINS
          ! All operations will be done locally
          rs%lb_real = desc%lb
          rs%ub_real = desc%ub
-         rs%lb_local = rs%lb_real-desc%border*(1-desc%perd)
-         rs%ub_local = rs%ub_real+desc%border*(1-desc%perd)
-         rs%npts_local = rs%ub_local-rs%lb_local+1
+         rs%lb_local = rs%lb_real - desc%border*(1 - desc%perd)
+         rs%ub_local = rs%ub_real + desc%border*(1 - desc%perd)
+         rs%npts_local = rs%ub_local - rs%lb_local + 1
          rs%ngpts_local = PRODUCT(rs%npts_local)
       END IF
 
@@ -525,22 +525,22 @@ CONTAINS
          !          recombination of the total density
          rs%lb_real = desc%lb
          rs%ub_real = desc%ub
-         rs%lb_local = rs%lb_real-desc%border*(1-desc%perd)
-         rs%ub_local = rs%ub_real+desc%border*(1-desc%perd)
-         rs%npts_local = rs%ub_local-rs%lb_local+1
+         rs%lb_local = rs%lb_real - desc%border*(1 - desc%perd)
+         rs%ub_local = rs%ub_real + desc%border*(1 - desc%perd)
+         rs%npts_local = rs%ub_local - rs%lb_local + 1
          rs%ngpts_local = PRODUCT(rs%npts_local)
       ELSE
          ! CASE 2 : general case
          ! extract some more derived quantities about the local grid
          rs%lb_real = desc%lb_global(:, desc%my_virtual_pos)
          rs%ub_real = desc%ub_global(:, desc%my_virtual_pos)
-         rs%lb_local = rs%lb_real-desc%border*(1-desc%perd)
-         rs%ub_local = rs%ub_real+desc%border*(1-desc%perd)
-         rs%npts_local = rs%ub_local-rs%lb_local+1
+         rs%lb_local = rs%lb_real - desc%border*(1 - desc%perd)
+         rs%ub_local = rs%ub_real + desc%border*(1 - desc%perd)
+         rs%npts_local = rs%ub_local - rs%lb_local + 1
          rs%ngpts_local = PRODUCT(rs%npts_local)
       END IF
 
-      allocated_rs_grid_count = allocated_rs_grid_count+1
+      allocated_rs_grid_count = allocated_rs_grid_count + 1
 
       ALLOCATE (rs%r(rs%lb_local(1):rs%ub_local(1), &
                      rs%lb_local(2):rs%ub_local(2), &
@@ -583,7 +583,7 @@ CONTAINS
 
       desc%real2virtual(:) = real2virtual
 
-      DO i = 0, desc%group_size-1
+      DO i = 0, desc%group_size - 1
          desc%virtual2real(desc%real2virtual(i)) = i
       END DO
 
@@ -753,25 +753,25 @@ CONTAINS
 !$OMP                             SHARED(pw,rs)
                   DO k = rs%lb_local(3), rs%ub_local(3)
                      IF (k < rs%lb_real(3)) THEN
-                        km = k+rs%desc%npts(3)
+                        km = k + rs%desc%npts(3)
                      ELSE IF (k > rs%ub_real(3)) THEN
-                        km = k-rs%desc%npts(3)
+                        km = k - rs%desc%npts(3)
                      ELSE
                         km = k
                      END IF
                      DO j = rs%lb_local(2), rs%ub_local(2)
                         IF (j < rs%lb_real(2)) THEN
-                           jm = j+rs%desc%npts(2)
+                           jm = j + rs%desc%npts(2)
                         ELSE IF (j > rs%ub_real(2)) THEN
-                           jm = j-rs%desc%npts(2)
+                           jm = j - rs%desc%npts(2)
                         ELSE
                            jm = j
                         END IF
                         DO i = rs%lb_local(1), rs%ub_local(1)
                            IF (i < rs%lb_real(1)) THEN
-                              im = i+rs%desc%npts(1)
+                              im = i + rs%desc%npts(1)
                            ELSE IF (i > rs%ub_real(1)) THEN
-                              im = i-rs%desc%npts(1)
+                              im = i - rs%desc%npts(1)
                            ELSE
                               im = i
                            END IF
@@ -790,25 +790,25 @@ CONTAINS
 !$OMP                             SHARED(pw,rs)
                   DO k = rs%lb_local(3), rs%ub_local(3)
                      IF (k < rs%lb_real(3)) THEN
-                        km = k+rs%desc%npts(3)
+                        km = k + rs%desc%npts(3)
                      ELSE IF (k > rs%ub_real(3)) THEN
-                        km = k-rs%desc%npts(3)
+                        km = k - rs%desc%npts(3)
                      ELSE
                         km = k
                      END IF
                      DO j = rs%lb_local(2), rs%ub_local(2)
                         IF (j < rs%lb_real(2)) THEN
-                           jm = j+rs%desc%npts(2)
+                           jm = j + rs%desc%npts(2)
                         ELSE IF (j > rs%ub_real(2)) THEN
-                           jm = j-rs%desc%npts(2)
+                           jm = j - rs%desc%npts(2)
                         ELSE
                            jm = j
                         END IF
                         DO i = rs%lb_local(1), rs%ub_local(1)
                            IF (i < rs%lb_real(1)) THEN
-                              im = i+rs%desc%npts(1)
+                              im = i + rs%desc%npts(1)
                            ELSE IF (i > rs%ub_real(1)) THEN
-                              im = i-rs%desc%npts(1)
+                              im = i - rs%desc%npts(1)
                            ELSE
                               im = i
                            END IF
@@ -857,15 +857,15 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
 
       np = pw%pw_grid%para%group_size
-      bo => pw%pw_grid%para%bo(1:2, 1:3, 0:np-1, 1)
+      bo => pw%pw_grid%para%bo(1:2, 1:3, 0:np - 1, 1)
       pbo => pw%pw_grid%bounds
       group = pw%pw_grid%para%rs_group
       mepos = pw%pw_grid%para%rs_mpo
-      ALLOCATE (rcount(0:np-1))
+      ALLOCATE (rcount(0:np - 1))
       DO ip = 1, np
-         rcount(ip-1) = PRODUCT(bo(2, :, ip)-bo(1, :, ip)+1)
+         rcount(ip - 1) = PRODUCT(bo(2, :, ip) - bo(1, :, ip) + 1)
       END DO
-      nma = MAXVAL(rcount(0:np-1))
+      nma = MAXVAL(rcount(0:np - 1))
       ALLOCATE (sendbuf(nma), recvbuf(nma))
       sendbuf = 1.0E99_dp; recvbuf = 1.0E99_dp ! init mpi'ed buffers to silence warnings under valgrind
       grid => rs%r
@@ -874,26 +874,26 @@ CONTAINS
       CALL m_memory()
 
       IF (dir == rs2pw) THEN
-         dest = MODULO(mepos+1, np)
-         source = MODULO(mepos-1, np)
+         dest = MODULO(mepos + 1, np)
+         source = MODULO(mepos - 1, np)
          sendbuf = 0.0_dp
 
          DO ip = 1, np
 
-            lb = pbo(1, :)+bo(1, :, MODULO(mepos-ip, np)+1)-1
-            ub = pbo(1, :)+bo(2, :, MODULO(mepos-ip, np)+1)-1
+            lb = pbo(1, :) + bo(1, :, MODULO(mepos - ip, np) + 1) - 1
+            ub = pbo(1, :) + bo(2, :, MODULO(mepos - ip, np) + 1) - 1
             ! this loop takes about the same time as the message passing call
             ! notice that the range of ix is only a small fraction of the first index of grid
             ! therefore it seems faster to have the second index as the innermost loop
             ! if this runs on many cpus
             ! tested on itanium, pentium4, opteron, ultrasparc...
-            s = ub-lb+1
+            s = ub - lb + 1
             DO iz = lb(3), ub(3)
                DO ix = lb(1), ub(1)
-                  ii = (iz-lb(3))*s(1)*s(2)+(ix-lb(1))+1
+                  ii = (iz - lb(3))*s(1)*s(2) + (ix - lb(1)) + 1
                   DO iy = lb(2), ub(2)
-                     sendbuf(ii) = sendbuf(ii)+grid(ix, iy, iz)
-                     ii = ii+s(1)
+                     sendbuf(ii) = sendbuf(ii) + grid(ix, iy, iz)
+                     ii = ii + s(1)
                   END DO
                END DO
             END DO
@@ -923,17 +923,17 @@ CONTAINS
             CPABORT("PW type not compatible")
          END IF
 
-         dest = MODULO(mepos+1, np)
-         source = MODULO(mepos-1, np)
+         dest = MODULO(mepos + 1, np)
+         source = MODULO(mepos - 1, np)
 
-         DO ip = 0, np-1
+         DO ip = 0, np - 1
             ! we must shift the buffer only np-1 times around
-            IF (ip .NE. np-1) THEN
+            IF (ip .NE. np - 1) THEN
                CALL mp_isendrecv(sendbuf, dest, recvbuf, source, &
                                  group, req(1), req(2), 13)
             ENDIF
-            lb = pbo(1, :)+bo(1, :, MODULO(mepos-ip, np)+1)-1
-            ub = pbo(1, :)+bo(2, :, MODULO(mepos-ip, np)+1)-1
+            lb = pbo(1, :) + bo(1, :, MODULO(mepos - ip, np) + 1) - 1
+            ub = pbo(1, :) + bo(2, :, MODULO(mepos - ip, np) + 1) - 1
             ii = 0
             ! this loop takes about the same time as the message passing call
             ! If I read the code correctly then:
@@ -945,12 +945,12 @@ CONTAINS
             DO iz = lb(3), ub(3)
                DO iy = lb(2), ub(2)
                   DO ix = lb(1), ub(1)
-                     ii = ii+1
+                     ii = ii + 1
                      grid(ix, iy, iz) = sendbuf(ii)
                   END DO
                END DO
             END DO
-            IF (ip .NE. np-1) THEN
+            IF (ip .NE. np - 1) THEN
                CALL mp_waitall(req)
             ENDIF
             swapptr => sendbuf
@@ -963,25 +963,25 @@ CONTAINS
 !$OMP                       SHARED(rs)
             DO k = rs%lb_local(3), rs%ub_local(3)
                IF (k < rs%lb_real(3)) THEN
-                  km = k+rs%desc%npts(3)
+                  km = k + rs%desc%npts(3)
                ELSE IF (k > rs%ub_real(3)) THEN
-                  km = k-rs%desc%npts(3)
+                  km = k - rs%desc%npts(3)
                ELSE
                   km = k
                END IF
                DO j = rs%lb_local(2), rs%ub_local(2)
                   IF (j < rs%lb_real(2)) THEN
-                     jm = j+rs%desc%npts(2)
+                     jm = j + rs%desc%npts(2)
                   ELSE IF (j > rs%ub_real(2)) THEN
-                     jm = j-rs%desc%npts(2)
+                     jm = j - rs%desc%npts(2)
                   ELSE
                      jm = j
                   END IF
                   DO i = rs%lb_local(1), rs%ub_local(1)
                      IF (i < rs%lb_real(1)) THEN
-                        im = i+rs%desc%npts(1)
+                        im = i + rs%desc%npts(1)
                      ELSE IF (i > rs%ub_real(1)) THEN
-                        im = i-rs%desc%npts(1)
+                        im = i - rs%desc%npts(1)
                      ELSE
                         im = i
                      END IF
@@ -1074,17 +1074,17 @@ CONTAINS
                dshifts = 0
 
                ! check that we don't try to send data to ourself
-               DO n_shifts = 1, MIN(rs%desc%neighbours(idir), rs%desc%group_dim(idir)-1)
+               DO n_shifts = 1, MIN(rs%desc%neighbours(idir), rs%desc%group_dim(idir) - 1)
 
                   ! need to take into account the possible varying widths of neighbouring cells
                   ! offset_up and offset_down hold the real size of the neighbouring cells
-                  position = MODULO(rs%desc%virtual_group_coor(idir)-n_shifts, rs%desc%group_dim(idir))
+                  position = MODULO(rs%desc%virtual_group_coor(idir) - n_shifts, rs%desc%group_dim(idir))
                   neighbours = get_limit(rs%desc%npts(idir), rs%desc%group_dim(idir), position)
-                  dshifts(n_shifts) = dshifts(n_shifts-1)+(neighbours(2)-neighbours(1)+1)
+                  dshifts(n_shifts) = dshifts(n_shifts - 1) + (neighbours(2) - neighbours(1) + 1)
 
-                  position = MODULO(rs%desc%virtual_group_coor(idir)+n_shifts, rs%desc%group_dim(idir))
+                  position = MODULO(rs%desc%virtual_group_coor(idir) + n_shifts, rs%desc%group_dim(idir))
                   neighbours = get_limit(rs%desc%npts(idir), rs%desc%group_dim(idir), position)
-                  ushifts(n_shifts) = ushifts(n_shifts-1)+(neighbours(2)-neighbours(1)+1)
+                  ushifts(n_shifts) = ushifts(n_shifts - 1) + (neighbours(2) - neighbours(1) + 1)
 
                   ! The border data has to be send/received from the neighbours
                   ! First we calculate the source and destination processes for the shift
@@ -1097,14 +1097,14 @@ CONTAINS
                   ub_recv_down(:) = rs%ub_local(:)
                   ub_send_down(:) = rs%ub_local(:)
 
-                  IF (dshifts(n_shifts-1) .LE. rs%desc%border) THEN
-                     ub_send_down(idir) = lb_send_down(idir)+rs%desc%border-1-dshifts(n_shifts-1)
+                  IF (dshifts(n_shifts - 1) .LE. rs%desc%border) THEN
+                     ub_send_down(idir) = lb_send_down(idir) + rs%desc%border - 1 - dshifts(n_shifts - 1)
                      lb_send_down(idir) = MAX(lb_send_down(idir), &
-                                              lb_send_down(idir)+rs%desc%border-dshifts(n_shifts))
+                                              lb_send_down(idir) + rs%desc%border - dshifts(n_shifts))
 
-                     ub_recv_down(idir) = ub_recv_down(idir)-rs%desc%border
-                     lb_recv_down(idir) = MAX(lb_recv_down(idir)+rs%desc%border, &
-                                              ub_recv_down(idir)-rs%desc%border+1+ushifts(n_shifts-1))
+                     ub_recv_down(idir) = ub_recv_down(idir) - rs%desc%border
+                     lb_recv_down(idir) = MAX(lb_recv_down(idir) + rs%desc%border, &
+                                              ub_recv_down(idir) - rs%desc%border + 1 + ushifts(n_shifts - 1))
                   ELSE
                      lb_send_down(idir) = 0
                      ub_send_down(idir) = -1
@@ -1127,18 +1127,18 @@ CONTAINS
                   CALL mp_irecv(recv_buf_3d_down, source_down, rs%desc%group, req(1))
 
                   ! now allocate, pack and send the send buffer
-                  nn = PRODUCT(ub_send_down-lb_send_down+1)
+                  nn = PRODUCT(ub_send_down - lb_send_down + 1)
                   ALLOCATE (send_buf_3d_down(lb_send_down(1):ub_send_down(1), &
                                              lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3)))
 
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          PRIVATE(lb,ub,my_id,NUM_THREADS), &
 !$OMP          SHARED(send_buf_3d_down,rs,lb_send_down,ub_send_down)
-!$                num_threads = MIN(omp_get_max_threads(), ub_send_down(3)-lb_send_down(3)+1)
+!$                num_threads = MIN(omp_get_max_threads(), ub_send_down(3) - lb_send_down(3) + 1)
 !$                my_id = omp_get_thread_num()
                   IF (my_id < num_threads) THEN
-                     lb = lb_send_down(3)+((ub_send_down(3)-lb_send_down(3)+1)*my_id)/num_threads
-                     ub = lb_send_down(3)+((ub_send_down(3)-lb_send_down(3)+1)*(my_id+1))/num_threads-1
+                     lb = lb_send_down(3) + ((ub_send_down(3) - lb_send_down(3) + 1)*my_id)/num_threads
+                     ub = lb_send_down(3) + ((ub_send_down(3) - lb_send_down(3) + 1)*(my_id + 1))/num_threads - 1
 
                      send_buf_3d_down(lb_send_down(1):ub_send_down(1), lb_send_down(2):ub_send_down(2), &
                                       lb:ub) = rs%r(lb_send_down(1):ub_send_down(1), &
@@ -1156,15 +1156,15 @@ CONTAINS
                   ub_recv_up(:) = rs%ub_local(:)
                   ub_send_up(:) = rs%ub_local(:)
 
-                  IF (ushifts(n_shifts-1) .LE. rs%desc%border) THEN
+                  IF (ushifts(n_shifts - 1) .LE. rs%desc%border) THEN
 
-                     lb_send_up(idir) = ub_send_up(idir)-rs%desc%border+1+ushifts(n_shifts-1)
+                     lb_send_up(idir) = ub_send_up(idir) - rs%desc%border + 1 + ushifts(n_shifts - 1)
                      ub_send_up(idir) = MIN(ub_send_up(idir), &
-                                            ub_send_up(idir)-rs%desc%border+ushifts(n_shifts))
+                                            ub_send_up(idir) - rs%desc%border + ushifts(n_shifts))
 
-                     lb_recv_up(idir) = lb_recv_up(idir)+rs%desc%border
-                     ub_recv_up(idir) = MIN(ub_recv_up(idir)-rs%desc%border, &
-                                            lb_recv_up(idir)+rs%desc%border-1-dshifts(n_shifts-1))
+                     lb_recv_up(idir) = lb_recv_up(idir) + rs%desc%border
+                     ub_recv_up(idir) = MIN(ub_recv_up(idir) - rs%desc%border, &
+                                            lb_recv_up(idir) + rs%desc%border - 1 - dshifts(n_shifts - 1))
                   ELSE
                      lb_send_up(idir) = 0
                      ub_send_up(idir) = -1
@@ -1187,18 +1187,18 @@ CONTAINS
                   CALL mp_irecv(recv_buf_3d_up, source_up, rs%desc%group, req(2))
 
                   ! now allocate,pack and send the send buffer
-                  nn = PRODUCT(ub_send_up-lb_send_up+1)
+                  nn = PRODUCT(ub_send_up - lb_send_up + 1)
                   ALLOCATE (send_buf_3d_up(lb_send_up(1):ub_send_up(1), &
                                            lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3)))
 
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          PRIVATE(lb,ub,my_id,NUM_THREADS), &
 !$OMP          SHARED(send_buf_3d_up,rs,lb_send_up,ub_send_up)
-!$                num_threads = MIN(omp_get_max_threads(), ub_send_up(3)-lb_send_up(3)+1)
+!$                num_threads = MIN(omp_get_max_threads(), ub_send_up(3) - lb_send_up(3) + 1)
 !$                my_id = omp_get_thread_num()
                   IF (my_id < num_threads) THEN
-                     lb = lb_send_up(3)+((ub_send_up(3)-lb_send_up(3)+1)*my_id)/num_threads
-                     ub = lb_send_up(3)+((ub_send_up(3)-lb_send_up(3)+1)*(my_id+1))/num_threads-1
+                     lb = lb_send_up(3) + ((ub_send_up(3) - lb_send_up(3) + 1)*my_id)/num_threads
+                     ub = lb_send_up(3) + ((ub_send_up(3) - lb_send_up(3) + 1)*(my_id + 1))/num_threads - 1
 
                      send_buf_3d_up(lb_send_up(1):ub_send_up(1), lb_send_up(2):ub_send_up(2), &
                                     lb:ub) = rs%r(lb_send_up(1):ub_send_up(1), &
@@ -1222,16 +1222,16 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          PRIVATE(lb,ub,my_id,NUM_THREADS), &
 !$OMP          SHARED(recv_buf_3d_down,rs,lb_recv_down,ub_recv_down)
-!$                         num_threads = MIN(omp_get_max_threads(), ub_recv_down(3)-lb_recv_down(3)+1)
+!$                         num_threads = MIN(omp_get_max_threads(), ub_recv_down(3) - lb_recv_down(3) + 1)
 !$                         my_id = omp_get_thread_num()
                            IF (my_id < num_threads) THEN
-                              lb = lb_recv_down(3)+((ub_recv_down(3)-lb_recv_down(3)+1)*my_id)/num_threads
-                              ub = lb_recv_down(3)+((ub_recv_down(3)-lb_recv_down(3)+1)*(my_id+1))/num_threads-1
+                              lb = lb_recv_down(3) + ((ub_recv_down(3) - lb_recv_down(3) + 1)*my_id)/num_threads
+                              ub = lb_recv_down(3) + ((ub_recv_down(3) - lb_recv_down(3) + 1)*(my_id + 1))/num_threads - 1
 
                               rs%r(lb_recv_down(1):ub_recv_down(1), &
                                    lb_recv_down(2):ub_recv_down(2), lb:ub) = &
                                  rs%r(lb_recv_down(1):ub_recv_down(1), &
-                                      lb_recv_down(2):ub_recv_down(2), lb:ub)+ &
+                                      lb_recv_down(2):ub_recv_down(2), lb:ub) + &
                                  recv_buf_3d_down(:, :, lb:ub)
                            END IF
 !$OMP END PARALLEL
@@ -1245,16 +1245,16 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          PRIVATE(lb,ub,my_id,NUM_THREADS), &
 !$OMP          SHARED(recv_buf_3d_up,rs,lb_recv_up,ub_recv_up)
-!$                         num_threads = MIN(omp_get_max_threads(), ub_recv_up(3)-lb_recv_up(3)+1)
+!$                         num_threads = MIN(omp_get_max_threads(), ub_recv_up(3) - lb_recv_up(3) + 1)
 !$                         my_id = omp_get_thread_num()
                            IF (my_id < num_threads) THEN
-                              lb = lb_recv_up(3)+((ub_recv_up(3)-lb_recv_up(3)+1)*my_id)/num_threads
-                              ub = lb_recv_up(3)+((ub_recv_up(3)-lb_recv_up(3)+1)*(my_id+1))/num_threads-1
+                              lb = lb_recv_up(3) + ((ub_recv_up(3) - lb_recv_up(3) + 1)*my_id)/num_threads
+                              ub = lb_recv_up(3) + ((ub_recv_up(3) - lb_recv_up(3) + 1)*(my_id + 1))/num_threads - 1
 
                               rs%r(lb_recv_up(1):ub_recv_up(1), &
                                    lb_recv_up(2):ub_recv_up(2), lb:ub) = &
                                  rs%r(lb_recv_up(1):ub_recv_up(1), &
-                                      lb_recv_up(2):ub_recv_up(2), lb:ub)+ &
+                                      lb_recv_up(2):ub_recv_up(2), lb:ub) + &
                                  recv_buf_3d_up(:, :, lb:ub)
                            END IF
 !$OMP END PARALLEL
@@ -1282,22 +1282,22 @@ CONTAINS
          END DO
 
          ! This is the real redistribution
-         ALLOCATE (bounds(0:pw%pw_grid%para%group_size-1, 1:4))
+         ALLOCATE (bounds(0:pw%pw_grid%para%group_size - 1, 1:4))
 
          ! work out the pw grid points each proc holds
-         DO i = 0, pw%pw_grid%para%group_size-1
+         DO i = 0, pw%pw_grid%para%group_size - 1
             bounds(i, 1:2) = pw%pw_grid%para%bo(1:2, 1, i, 1)
             bounds(i, 3:4) = pw%pw_grid%para%bo(1:2, 2, i, 1)
-            bounds(i, 1:2) = bounds(i, 1:2)-pw%pw_grid%npts(1)/2-1
-            bounds(i, 3:4) = bounds(i, 3:4)-pw%pw_grid%npts(2)/2-1
+            bounds(i, 1:2) = bounds(i, 1:2) - pw%pw_grid%npts(1)/2 - 1
+            bounds(i, 3:4) = bounds(i, 3:4) - pw%pw_grid%npts(2)/2 - 1
          ENDDO
 
-         ALLOCATE (send_tasks(0:pw%pw_grid%para%group_size-1, 1:6))
-         ALLOCATE (send_sizes(0:pw%pw_grid%para%group_size-1))
-         ALLOCATE (send_disps(0:pw%pw_grid%para%group_size-1))
-         ALLOCATE (recv_tasks(0:pw%pw_grid%para%group_size-1, 1:6))
-         ALLOCATE (recv_sizes(0:pw%pw_grid%para%group_size-1))
-         ALLOCATE (recv_disps(0:pw%pw_grid%para%group_size-1))
+         ALLOCATE (send_tasks(0:pw%pw_grid%para%group_size - 1, 1:6))
+         ALLOCATE (send_sizes(0:pw%pw_grid%para%group_size - 1))
+         ALLOCATE (send_disps(0:pw%pw_grid%para%group_size - 1))
+         ALLOCATE (recv_tasks(0:pw%pw_grid%para%group_size - 1, 1:6))
+         ALLOCATE (recv_sizes(0:pw%pw_grid%para%group_size - 1))
+         ALLOCATE (recv_disps(0:pw%pw_grid%para%group_size - 1))
          send_tasks(:, 1) = 1
          send_tasks(:, 2) = 0
          send_tasks(:, 3) = 1
@@ -1319,14 +1319,14 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(coords,idir,pos,lb_send,ub_send), &
 !$OMP             SHARED(rs,bounds,my_rs_rank,recv_tasks,recv_sizes)
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
 
             coords(:) = rs%desc%rank2coord(:, rs%desc%real2virtual(i))
             !calculate the rs grid points on each processor
             !coords is the part of the grid that rank i actually holds
             DO idir = 1, 3
                pos(:) = get_limit(rs%desc%npts(idir), rs%desc%group_dim(idir), coords(idir))
-               pos(:) = pos(:)-rs%desc%npts(idir)/2-1
+               pos(:) = pos(:) - rs%desc%npts(idir)/2 - 1
                lb_send(idir) = pos(1)
                ub_send(idir) = pos(2)
             ENDDO
@@ -1342,8 +1342,8 @@ CONTAINS
             recv_tasks(i, 4) = MIN(ub_send(2), bounds(my_rs_rank, 4))
             recv_tasks(i, 5) = lb_send(3)
             recv_tasks(i, 6) = ub_send(3)
-            recv_sizes(i) = (recv_tasks(i, 2)-recv_tasks(i, 1)+1)* &
-                            (recv_tasks(i, 4)-recv_tasks(i, 3)+1)*(recv_tasks(i, 6)-recv_tasks(i, 5)+1)
+            recv_sizes(i) = (recv_tasks(i, 2) - recv_tasks(i, 1) + 1)* &
+                            (recv_tasks(i, 4) - recv_tasks(i, 3) + 1)*(recv_tasks(i, 6) - recv_tasks(i, 5) + 1)
 
          ENDDO
 !$OMP END PARALLEL DO
@@ -1351,7 +1351,7 @@ CONTAINS
          coords(:) = rs%desc%rank2coord(:, rs%desc%real2virtual(my_rs_rank))
          DO idir = 1, 3
             pos(:) = get_limit(rs%desc%npts(idir), rs%desc%group_dim(idir), coords(idir))
-            pos(:) = pos(:)-rs%desc%npts(idir)/2-1
+            pos(:) = pos(:) - rs%desc%npts(idir)/2 - 1
             lb_send(idir) = pos(1)
             ub_send(idir) = pos(2)
          ENDDO
@@ -1360,7 +1360,7 @@ CONTAINS
          ub_recv(:) = ub_send(:)
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             SHARED(pw,lb_send,ub_send,bounds,send_tasks,send_sizes)
-         DO j = 0, pw%pw_grid%para%group_size-1
+         DO j = 0, pw%pw_grid%para%group_size - 1
 
             IF (lb_send(1) .GT. bounds(j, 2)) CYCLE
             IF (ub_send(1) .LT. bounds(j, 1)) CYCLE
@@ -1373,25 +1373,25 @@ CONTAINS
             send_tasks(j, 4) = MIN(ub_send(2), bounds(j, 4))
             send_tasks(j, 5) = lb_send(3)
             send_tasks(j, 6) = ub_send(3)
-            send_sizes(j) = (send_tasks(j, 2)-send_tasks(j, 1)+1)* &
-                            (send_tasks(j, 4)-send_tasks(j, 3)+1)*(send_tasks(j, 6)-send_tasks(j, 5)+1)
+            send_sizes(j) = (send_tasks(j, 2) - send_tasks(j, 1) + 1)* &
+                            (send_tasks(j, 4) - send_tasks(j, 3) + 1)*(send_tasks(j, 6) - send_tasks(j, 5) + 1)
 
          END DO
 !$OMP END PARALLEL DO
 
          send_disps(0) = 0
          recv_disps(0) = 0
-         DO i = 1, pw%pw_grid%para%group_size-1
-            send_disps(i) = send_disps(i-1)+send_sizes(i-1)
-            recv_disps(i) = recv_disps(i-1)+recv_sizes(i-1)
+         DO i = 1, pw%pw_grid%para%group_size - 1
+            send_disps(i) = send_disps(i - 1) + send_sizes(i - 1)
+            recv_disps(i) = recv_disps(i - 1) + recv_sizes(i - 1)
          ENDDO
 
-         CPASSERT(SUM(send_sizes) == PRODUCT(ub_recv-lb_recv+1))
+         CPASSERT(SUM(send_sizes) == PRODUCT(ub_recv - lb_recv + 1))
 
-         ALLOCATE (send_bufs(0:rs%desc%group_size-1))
-         ALLOCATE (recv_bufs(0:rs%desc%group_size-1))
+         ALLOCATE (send_bufs(0:rs%desc%group_size - 1))
+         ALLOCATE (recv_bufs(0:rs%desc%group_size - 1))
 
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
             IF (send_sizes(i) .NE. 0) THEN
                ALLOCATE (send_bufs(i)%array(send_sizes(i)))
             ELSE
@@ -1404,10 +1404,10 @@ CONTAINS
             END IF
          END DO
 
-         ALLOCATE (recv_reqs(0:rs%desc%group_size-1))
+         ALLOCATE (recv_reqs(0:rs%desc%group_size - 1))
          recv_reqs = mp_request_null
 
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
             IF (recv_sizes(i) .NE. 0) THEN
                CALL mp_irecv(recv_bufs(i)%array, i, rs%desc%group, recv_reqs(i))
             END IF
@@ -1417,12 +1417,12 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(k,z,y,x), &
 !$OMP             SHARED(rs,send_tasks,send_bufs,send_disps)
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
             k = 0
             DO z = send_tasks(i, 5), send_tasks(i, 6)
                DO y = send_tasks(i, 3), send_tasks(i, 4)
                   DO x = send_tasks(i, 1), send_tasks(i, 2)
-                     k = k+1
+                     k = k + 1
                      send_bufs(i)%array(k) = rs%r(x, y, z)
                   ENDDO
                ENDDO
@@ -1430,10 +1430,10 @@ CONTAINS
          ENDDO
 !$OMP END PARALLEL DO
 
-         ALLOCATE (send_reqs(0:rs%desc%group_size-1))
+         ALLOCATE (send_reqs(0:rs%desc%group_size - 1))
          send_reqs = mp_request_null
 
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
             IF (send_sizes(i) .NE. 0) THEN
                CALL mp_isend(send_bufs(i)%array, i, rs%desc%group, send_reqs(i))
             END IF
@@ -1441,16 +1441,16 @@ CONTAINS
 
          ! do unpacking
          ! no OMP here so we can unpack each message as it arrives
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
             IF (recv_sizes(i) .EQ. 0) CYCLE
 
             CALL mp_waitany(recv_reqs, completed)
             k = 0
-            DO z = recv_tasks(completed-1, 5), recv_tasks(completed-1, 6)
-               DO y = recv_tasks(completed-1, 3), recv_tasks(completed-1, 4)
-                  DO x = recv_tasks(completed-1, 1), recv_tasks(completed-1, 2)
-                     k = k+1
-                     pw%cr3d(x, y, z) = recv_bufs(completed-1)%array(k)
+            DO z = recv_tasks(completed - 1, 5), recv_tasks(completed - 1, 6)
+               DO y = recv_tasks(completed - 1, 3), recv_tasks(completed - 1, 4)
+                  DO x = recv_tasks(completed - 1, 1), recv_tasks(completed - 1, 2)
+                     k = k + 1
+                     pw%cr3d(x, y, z) = recv_bufs(completed - 1)%array(k)
                   ENDDO
                ENDDO
             ENDDO
@@ -1461,7 +1461,7 @@ CONTAINS
          DEALLOCATE (recv_reqs)
          DEALLOCATE (send_reqs)
 
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
             IF (ASSOCIATED(send_bufs(i)%array)) THEN
                DEALLOCATE (send_bufs(i)%array)
             END IF
@@ -1482,9 +1482,9 @@ CONTAINS
          IF (debug_this_module) THEN
             ! safety check, to be removed once we're absolute sure the routine is correct
             pw_sum = pw_integrate_function(pw)
-            IF (ABS(pw_sum-rs_sum)/MAX(1.0_dp, ABS(pw_sum), ABS(rs_sum)) > EPSILON(rs_sum)*1000) THEN
+            IF (ABS(pw_sum - rs_sum)/MAX(1.0_dp, ABS(pw_sum), ABS(rs_sum)) > EPSILON(rs_sum)*1000) THEN
                WRITE (error_string, '(A,6(1X,I4.4),3F25.16)') "rs_pw_transfer_distributed", &
-                  rs%desc%npts, rs%desc%group_dim, pw_sum, rs_sum, ABS(pw_sum-rs_sum)
+                  rs%desc%npts, rs%desc%group_dim, pw_sum, rs_sum, ABS(pw_sum - rs_sum)
                CALL cp_abort(__LOCATION__, &
                              error_string//" Please report this bug ... quick workaround: use "// &
                              "DISTRIBUTION_TYPE REPLICATED")
@@ -1499,21 +1499,21 @@ CONTAINS
 
          ! This is the real redistribution
 
-         ALLOCATE (bounds(0:pw%pw_grid%para%group_size-1, 1:4))
+         ALLOCATE (bounds(0:pw%pw_grid%para%group_size - 1, 1:4))
 
-         DO i = 0, pw%pw_grid%para%group_size-1
+         DO i = 0, pw%pw_grid%para%group_size - 1
             bounds(i, 1:2) = pw%pw_grid%para%bo(1:2, 1, i, 1)
             bounds(i, 3:4) = pw%pw_grid%para%bo(1:2, 2, i, 1)
-            bounds(i, 1:2) = bounds(i, 1:2)-pw%pw_grid%npts(1)/2-1
-            bounds(i, 3:4) = bounds(i, 3:4)-pw%pw_grid%npts(2)/2-1
+            bounds(i, 1:2) = bounds(i, 1:2) - pw%pw_grid%npts(1)/2 - 1
+            bounds(i, 3:4) = bounds(i, 3:4) - pw%pw_grid%npts(2)/2 - 1
          ENDDO
 
-         ALLOCATE (send_tasks(0:pw%pw_grid%para%group_size-1, 1:6))
-         ALLOCATE (send_sizes(0:pw%pw_grid%para%group_size-1))
-         ALLOCATE (send_disps(0:pw%pw_grid%para%group_size-1))
-         ALLOCATE (recv_tasks(0:pw%pw_grid%para%group_size-1, 1:6))
-         ALLOCATE (recv_sizes(0:pw%pw_grid%para%group_size-1))
-         ALLOCATE (recv_disps(0:pw%pw_grid%para%group_size-1))
+         ALLOCATE (send_tasks(0:pw%pw_grid%para%group_size - 1, 1:6))
+         ALLOCATE (send_sizes(0:pw%pw_grid%para%group_size - 1))
+         ALLOCATE (send_disps(0:pw%pw_grid%para%group_size - 1))
+         ALLOCATE (recv_tasks(0:pw%pw_grid%para%group_size - 1, 1:6))
+         ALLOCATE (recv_sizes(0:pw%pw_grid%para%group_size - 1))
+         ALLOCATE (recv_disps(0:pw%pw_grid%para%group_size - 1))
 
          send_tasks = 0
          send_tasks(:, 1) = 1
@@ -1547,14 +1547,14 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(coords,idir,pos,lb_send,ub_send), &
 !$OMP             SHARED(rs,bounds,my_rs_rank,send_tasks,send_sizes,pw)
-         DO i = 0, pw%pw_grid%para%group_size-1
+         DO i = 0, pw%pw_grid%para%group_size - 1
 
             coords(:) = rs%desc%rank2coord(:, rs%desc%real2virtual(i))
             !calculate the real rs grid points on each processor
             !coords is the part of the grid that rank i actually holds
             DO idir = 1, 3
                pos(:) = get_limit(rs%desc%npts(idir), rs%desc%group_dim(idir), coords(idir))
-               pos(:) = pos(:)-rs%desc%npts(idir)/2-1
+               pos(:) = pos(:) - rs%desc%npts(idir)/2 - 1
                lb_send(idir) = pos(1)
                ub_send(idir) = pos(2)
             ENDDO
@@ -1570,8 +1570,8 @@ CONTAINS
             send_tasks(i, 4) = MIN(ub_send(2), bounds(my_rs_rank, 4))
             send_tasks(i, 5) = lb_send(3)
             send_tasks(i, 6) = ub_send(3)
-            send_sizes(i) = (send_tasks(i, 2)-send_tasks(i, 1)+1)* &
-                            (send_tasks(i, 4)-send_tasks(i, 3)+1)*(send_tasks(i, 6)-send_tasks(i, 5)+1)
+            send_sizes(i) = (send_tasks(i, 2) - send_tasks(i, 1) + 1)* &
+                            (send_tasks(i, 4) - send_tasks(i, 3) + 1)*(send_tasks(i, 6) - send_tasks(i, 5) + 1)
 
          ENDDO
 !$OMP END PARALLEL DO
@@ -1579,7 +1579,7 @@ CONTAINS
          coords(:) = rs%desc%rank2coord(:, rs%desc%real2virtual(my_rs_rank))
          DO idir = 1, 3
             pos(:) = get_limit(rs%desc%npts(idir), rs%desc%group_dim(idir), coords(idir))
-            pos(:) = pos(:)-rs%desc%npts(idir)/2-1
+            pos(:) = pos(:) - rs%desc%npts(idir)/2 - 1
             lb_send(idir) = pos(1)
             ub_send(idir) = pos(2)
          ENDDO
@@ -1589,7 +1589,7 @@ CONTAINS
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             SHARED(pw,lb_send,ub_send,bounds,recv_tasks,recv_sizes)
-         DO j = 0, pw%pw_grid%para%group_size-1
+         DO j = 0, pw%pw_grid%para%group_size - 1
 
             IF (ub_send(1) .LT. bounds(j, 1)) CYCLE
             IF (lb_send(1) .GT. bounds(j, 2)) CYCLE
@@ -1602,25 +1602,25 @@ CONTAINS
             recv_tasks(j, 4) = MIN(ub_send(2), bounds(j, 4))
             recv_tasks(j, 5) = lb_send(3)
             recv_tasks(j, 6) = ub_send(3)
-            recv_sizes(j) = (recv_tasks(j, 2)-recv_tasks(j, 1)+1)* &
-                            (recv_tasks(j, 4)-recv_tasks(j, 3)+1)*(recv_tasks(j, 6)-recv_tasks(j, 5)+1)
+            recv_sizes(j) = (recv_tasks(j, 2) - recv_tasks(j, 1) + 1)* &
+                            (recv_tasks(j, 4) - recv_tasks(j, 3) + 1)*(recv_tasks(j, 6) - recv_tasks(j, 5) + 1)
 
          ENDDO
 !$OMP END PARALLEL DO
 
          send_disps(0) = 0
          recv_disps(0) = 0
-         DO i = 1, pw%pw_grid%para%group_size-1
-            send_disps(i) = send_disps(i-1)+send_sizes(i-1)
-            recv_disps(i) = recv_disps(i-1)+recv_sizes(i-1)
+         DO i = 1, pw%pw_grid%para%group_size - 1
+            send_disps(i) = send_disps(i - 1) + send_sizes(i - 1)
+            recv_disps(i) = recv_disps(i - 1) + recv_sizes(i - 1)
          ENDDO
 
-         CPASSERT(SUM(recv_sizes) == PRODUCT(ub_recv-lb_recv+1))
+         CPASSERT(SUM(recv_sizes) == PRODUCT(ub_recv - lb_recv + 1))
 
-         ALLOCATE (send_bufs(0:rs%desc%group_size-1))
-         ALLOCATE (recv_bufs(0:rs%desc%group_size-1))
+         ALLOCATE (send_bufs(0:rs%desc%group_size - 1))
+         ALLOCATE (recv_bufs(0:rs%desc%group_size - 1))
 
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
             IF (send_sizes(i) .NE. 0) THEN
                ALLOCATE (send_bufs(i)%array(send_sizes(i)))
             ELSE
@@ -1633,10 +1633,10 @@ CONTAINS
             END IF
          END DO
 
-         ALLOCATE (recv_reqs(0:rs%desc%group_size-1))
+         ALLOCATE (recv_reqs(0:rs%desc%group_size - 1))
          recv_reqs = mp_request_null
 
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
             IF (recv_sizes(i) .NE. 0) THEN
                CALL mp_irecv(recv_bufs(i)%array, i, rs%desc%group, recv_reqs(i))
             END IF
@@ -1646,12 +1646,12 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(k,z,y,x), &
 !$OMP             SHARED(pw,rs,send_tasks,send_bufs,send_disps)
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
             k = 0
             DO z = send_tasks(i, 5), send_tasks(i, 6)
                DO y = send_tasks(i, 3), send_tasks(i, 4)
                   DO x = send_tasks(i, 1), send_tasks(i, 2)
-                     k = k+1
+                     k = k + 1
                      send_bufs(i)%array(k) = pw%cr3d(x, y, z)
                   ENDDO
                ENDDO
@@ -1659,10 +1659,10 @@ CONTAINS
          ENDDO
 !$OMP END PARALLEL DO
 
-         ALLOCATE (send_reqs(0:rs%desc%group_size-1))
+         ALLOCATE (send_reqs(0:rs%desc%group_size - 1))
          send_reqs = mp_request_null
 
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
             IF (send_sizes(i) .NE. 0) THEN
                CALL mp_isend(send_bufs(i)%array, i, rs%desc%group, send_reqs(i))
             END IF
@@ -1671,16 +1671,16 @@ CONTAINS
          ! do unpacking
          ! no OMP here so we can unpack each message as it arrives
 
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
             IF (recv_sizes(i) .EQ. 0) CYCLE
 
             CALL mp_waitany(recv_reqs, completed)
             k = 0
-            DO z = recv_tasks(completed-1, 5), recv_tasks(completed-1, 6)
-               DO y = recv_tasks(completed-1, 3), recv_tasks(completed-1, 4)
-                  DO x = recv_tasks(completed-1, 1), recv_tasks(completed-1, 2)
-                     k = k+1
-                     rs%r(x, y, z) = recv_bufs(completed-1)%array(k)
+            DO z = recv_tasks(completed - 1, 5), recv_tasks(completed - 1, 6)
+               DO y = recv_tasks(completed - 1, 3), recv_tasks(completed - 1, 4)
+                  DO x = recv_tasks(completed - 1, 1), recv_tasks(completed - 1, 2)
+                     k = k + 1
+                     rs%r(x, y, z) = recv_bufs(completed - 1)%array(k)
                   ENDDO
                ENDDO
             ENDDO
@@ -1691,7 +1691,7 @@ CONTAINS
          DEALLOCATE (recv_reqs)
          DEALLOCATE (send_reqs)
 
-         DO i = 0, rs%desc%group_size-1
+         DO i = 0, rs%desc%group_size - 1
             IF (ASSOCIATED(send_bufs(i)%array)) THEN
                DEALLOCATE (send_bufs(i)%array)
             END IF
@@ -1726,13 +1726,13 @@ CONTAINS
                   ! need to take into account the possible varying widths of neighbouring cells
                   ! ushifts and dshifts hold the real size of the neighbouring cells
 
-                  position = MODULO(rs%desc%virtual_group_coor(idir)-n_shifts, rs%desc%group_dim(idir))
+                  position = MODULO(rs%desc%virtual_group_coor(idir) - n_shifts, rs%desc%group_dim(idir))
                   neighbours = get_limit(rs%desc%npts(idir), rs%desc%group_dim(idir), position)
-                  dshifts(n_shifts) = dshifts(n_shifts-1)+(neighbours(2)-neighbours(1)+1)
+                  dshifts(n_shifts) = dshifts(n_shifts - 1) + (neighbours(2) - neighbours(1) + 1)
 
-                  position = MODULO(rs%desc%virtual_group_coor(idir)+n_shifts, rs%desc%group_dim(idir))
+                  position = MODULO(rs%desc%virtual_group_coor(idir) + n_shifts, rs%desc%group_dim(idir))
                   neighbours = get_limit(rs%desc%npts(idir), rs%desc%group_dim(idir), position)
-                  ushifts(n_shifts) = ushifts(n_shifts-1)+(neighbours(2)-neighbours(1)+1)
+                  ushifts(n_shifts) = ushifts(n_shifts - 1) + (neighbours(2) - neighbours(1) + 1)
 
                   ! The border data has to be send/received from the neighbors
                   ! First we calculate the source and destination processes for the shift
@@ -1745,14 +1745,14 @@ CONTAINS
                   lb_recv_down(:) = rs%lb_local(:)
                   ub_recv_down(:) = rs%ub_local(:)
 
-                  IF (dshifts(n_shifts-1) .LE. rs%desc%border) THEN
-                     lb_send_down(idir) = lb_send_down(idir)+rs%desc%border
-                     ub_send_down(idir) = MIN(ub_send_down(idir)-rs%desc%border, &
-                                              lb_send_down(idir)+rs%desc%border-1-dshifts(n_shifts-1))
+                  IF (dshifts(n_shifts - 1) .LE. rs%desc%border) THEN
+                     lb_send_down(idir) = lb_send_down(idir) + rs%desc%border
+                     ub_send_down(idir) = MIN(ub_send_down(idir) - rs%desc%border, &
+                                              lb_send_down(idir) + rs%desc%border - 1 - dshifts(n_shifts - 1))
 
-                     lb_recv_down(idir) = ub_recv_down(idir)-rs%desc%border+1+ushifts(n_shifts-1)
+                     lb_recv_down(idir) = ub_recv_down(idir) - rs%desc%border + 1 + ushifts(n_shifts - 1)
                      ub_recv_down(idir) = MIN(ub_recv_down(idir), &
-                                              ub_recv_down(idir)-rs%desc%border+ushifts(n_shifts))
+                                              ub_recv_down(idir) - rs%desc%border + ushifts(n_shifts))
                   ELSE
                      lb_send_down(idir) = 0
                      ub_send_down(idir) = -1
@@ -1770,7 +1770,7 @@ CONTAINS
                   ENDDO
 
                   ! allocate the recv buffer
-                  nn = PRODUCT(ub_recv_down-lb_recv_down+1)
+                  nn = PRODUCT(ub_recv_down - lb_recv_down + 1)
                   ALLOCATE (recv_buf_3d_down(lb_recv_down(1):ub_recv_down(1), &
                                              lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3)))
 
@@ -1778,18 +1778,18 @@ CONTAINS
                   CALL mp_irecv(recv_buf_3d_down, source_down, rs%desc%group, req(1))
 
                   ! now allocate,pack and send the send buffer
-                  nn = PRODUCT(ub_send_down-lb_send_down+1)
+                  nn = PRODUCT(ub_send_down - lb_send_down + 1)
                   ALLOCATE (send_buf_3d_down(lb_send_down(1):ub_send_down(1), &
                                              lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3)))
 
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          PRIVATE(lb,ub,my_id,NUM_THREADS), &
 !$OMP          SHARED(send_buf_3d_down,rs,lb_send_down,ub_send_down)
-!$                num_threads = MIN(omp_get_max_threads(), ub_send_down(3)-lb_send_down(3)+1)
+!$                num_threads = MIN(omp_get_max_threads(), ub_send_down(3) - lb_send_down(3) + 1)
 !$                my_id = omp_get_thread_num()
                   IF (my_id < num_threads) THEN
-                     lb = lb_send_down(3)+((ub_send_down(3)-lb_send_down(3)+1)*my_id)/num_threads
-                     ub = lb_send_down(3)+((ub_send_down(3)-lb_send_down(3)+1)*(my_id+1))/num_threads-1
+                     lb = lb_send_down(3) + ((ub_send_down(3) - lb_send_down(3) + 1)*my_id)/num_threads
+                     ub = lb_send_down(3) + ((ub_send_down(3) - lb_send_down(3) + 1)*(my_id + 1))/num_threads - 1
 
                      send_buf_3d_down(lb_send_down(1):ub_send_down(1), lb_send_down(2):ub_send_down(2), &
                                       lb:ub) = rs%r(lb_send_down(1):ub_send_down(1), &
@@ -1808,14 +1808,14 @@ CONTAINS
                   lb_recv_up(:) = rs%lb_local(:)
                   ub_recv_up(:) = rs%ub_local(:)
 
-                  IF (ushifts(n_shifts-1) .LE. rs%desc%border) THEN
-                     ub_send_up(idir) = ub_send_up(idir)-rs%desc%border
-                     lb_send_up(idir) = MAX(lb_send_up(idir)+rs%desc%border, &
-                                            ub_send_up(idir)-rs%desc%border+1+ushifts(n_shifts-1))
+                  IF (ushifts(n_shifts - 1) .LE. rs%desc%border) THEN
+                     ub_send_up(idir) = ub_send_up(idir) - rs%desc%border
+                     lb_send_up(idir) = MAX(lb_send_up(idir) + rs%desc%border, &
+                                            ub_send_up(idir) - rs%desc%border + 1 + ushifts(n_shifts - 1))
 
-                     ub_recv_up(idir) = lb_recv_up(idir)+rs%desc%border-1-dshifts(n_shifts-1)
+                     ub_recv_up(idir) = lb_recv_up(idir) + rs%desc%border - 1 - dshifts(n_shifts - 1)
                      lb_recv_up(idir) = MAX(lb_recv_up(idir), &
-                                            lb_recv_up(idir)+rs%desc%border-dshifts(n_shifts))
+                                            lb_recv_up(idir) + rs%desc%border - dshifts(n_shifts))
                   ELSE
                      lb_send_up(idir) = 0
                      ub_send_up(idir) = -1
@@ -1833,7 +1833,7 @@ CONTAINS
                   ENDDO
 
                   ! allocate the recv buffer
-                  nn = PRODUCT(ub_recv_up-lb_recv_up+1)
+                  nn = PRODUCT(ub_recv_up - lb_recv_up + 1)
                   ALLOCATE (recv_buf_3d_up(lb_recv_up(1):ub_recv_up(1), &
                                            lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3)))
 
@@ -1842,18 +1842,18 @@ CONTAINS
                   CALL mp_irecv(recv_buf_3d_up, source_up, rs%desc%group, req(2))
 
                   ! now allocate,pack and send the send buffer
-                  nn = PRODUCT(ub_send_up-lb_send_up+1)
+                  nn = PRODUCT(ub_send_up - lb_send_up + 1)
                   ALLOCATE (send_buf_3d_up(lb_send_up(1):ub_send_up(1), &
                                            lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3)))
 
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          PRIVATE(lb,ub,my_id,NUM_THREADS), &
 !$OMP          SHARED(send_buf_3d_up,rs,lb_send_up,ub_send_up)
-!$                num_threads = MIN(omp_get_max_threads(), ub_send_up(3)-lb_send_up(3)+1)
+!$                num_threads = MIN(omp_get_max_threads(), ub_send_up(3) - lb_send_up(3) + 1)
 !$                my_id = omp_get_thread_num()
                   IF (my_id < num_threads) THEN
-                     lb = lb_send_up(3)+((ub_send_up(3)-lb_send_up(3)+1)*my_id)/num_threads
-                     ub = lb_send_up(3)+((ub_send_up(3)-lb_send_up(3)+1)*(my_id+1))/num_threads-1
+                     lb = lb_send_up(3) + ((ub_send_up(3) - lb_send_up(3) + 1)*my_id)/num_threads
+                     ub = lb_send_up(3) + ((ub_send_up(3) - lb_send_up(3) + 1)*(my_id + 1))/num_threads - 1
 
                      send_buf_3d_up(lb_send_up(1):ub_send_up(1), lb_send_up(2):ub_send_up(2), &
                                     lb:ub) = rs%r(lb_send_up(1):ub_send_up(1), &
@@ -1878,11 +1878,11 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          PRIVATE(lb,ub,my_id,NUM_THREADS), &
 !$OMP          SHARED(recv_buf_3d_down,rs,lb_recv_down,ub_recv_down)
-!$                         num_threads = MIN(omp_get_max_threads(), ub_recv_down(3)-lb_recv_down(3)+1)
+!$                         num_threads = MIN(omp_get_max_threads(), ub_recv_down(3) - lb_recv_down(3) + 1)
 !$                         my_id = omp_get_thread_num()
                            IF (my_id < num_threads) THEN
-                              lb = lb_recv_down(3)+((ub_recv_down(3)-lb_recv_down(3)+1)*my_id)/num_threads
-                              ub = lb_recv_down(3)+((ub_recv_down(3)-lb_recv_down(3)+1)*(my_id+1))/num_threads-1
+                              lb = lb_recv_down(3) + ((ub_recv_down(3) - lb_recv_down(3) + 1)*my_id)/num_threads
+                              ub = lb_recv_down(3) + ((ub_recv_down(3) - lb_recv_down(3) + 1)*(my_id + 1))/num_threads - 1
 
                               rs%r(lb_recv_down(1):ub_recv_down(1), lb_recv_down(2):ub_recv_down(2), &
                                    lb:ub) = recv_buf_3d_down(:, :, lb:ub)
@@ -1900,11 +1900,11 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          PRIVATE(lb,ub,my_id,NUM_THREADS), &
 !$OMP          SHARED(recv_buf_3d_up,rs,lb_recv_up,ub_recv_up)
-!$                         num_threads = MIN(omp_get_max_threads(), ub_recv_up(3)-lb_recv_up(3)+1)
+!$                         num_threads = MIN(omp_get_max_threads(), ub_recv_up(3) - lb_recv_up(3) + 1)
 !$                         my_id = omp_get_thread_num()
                            IF (my_id < num_threads) THEN
-                              lb = lb_recv_up(3)+((ub_recv_up(3)-lb_recv_up(3)+1)*my_id)/num_threads
-                              ub = lb_recv_up(3)+((ub_recv_up(3)-lb_recv_up(3)+1)*(my_id+1))/num_threads-1
+                              lb = lb_recv_up(3) + ((ub_recv_up(3) - lb_recv_up(3) + 1)*my_id)/num_threads
+                              ub = lb_recv_up(3) + ((ub_recv_up(3) - lb_recv_up(3) + 1)*(my_id + 1))/num_threads - 1
 
                               rs%r(lb_recv_up(1):ub_recv_up(1), lb_recv_up(2):ub_recv_up(2), &
                                    lb:ub) = recv_buf_3d_up(:, :, lb:ub)
@@ -1998,7 +1998,7 @@ CONTAINS
          DO k = l(3), u(3)
          DO j = l(2), u(2)
          DO i = l(1), u(1)
-            rs1%r(i, j, k) = rs1%r(i, j, k)+scalar*rs2%r(i, j, k)*rs3%r(i, j, k)
+            rs1%r(i, j, k) = rs1%r(i, j, k) + scalar*rs2%r(i, j, k)*rs3%r(i, j, k)
          ENDDO
          ENDDO
          ENDDO
@@ -2046,7 +2046,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(rs_grid))
       CPASSERT(rs_grid%ref_count > 0)
-      rs_grid%ref_count = rs_grid%ref_count+1
+      rs_grid%ref_count = rs_grid%ref_count + 1
    END SUBROUTINE rs_grid_retain
 
 ! **************************************************************************************************
@@ -2064,7 +2064,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(rs_desc))
       CPASSERT(rs_desc%ref_count > 0)
-      rs_desc%ref_count = rs_desc%ref_count+1
+      rs_desc%ref_count = rs_desc%ref_count + 1
    END SUBROUTINE rs_grid_retain_descriptor
 
 ! **************************************************************************************************
@@ -2082,12 +2082,12 @@ CONTAINS
 
       IF (ASSOCIATED(rs_grid)) THEN
          CPASSERT(rs_grid%ref_count > 0)
-         rs_grid%ref_count = rs_grid%ref_count-1
+         rs_grid%ref_count = rs_grid%ref_count - 1
          IF (rs_grid%ref_count == 0) THEN
 
             CALL rs_grid_release_descriptor(rs_grid%desc)
 
-            allocated_rs_grid_count = allocated_rs_grid_count-1
+            allocated_rs_grid_count = allocated_rs_grid_count - 1
             DEALLOCATE (rs_grid%r)
             DEALLOCATE (rs_grid%px)
             DEALLOCATE (rs_grid%py)
@@ -2112,7 +2112,7 @@ CONTAINS
 
       IF (ASSOCIATED(rs_desc)) THEN
          CPASSERT(rs_desc%ref_count > 0)
-         rs_desc%ref_count = rs_desc%ref_count-1
+         rs_desc%ref_count = rs_desc%ref_count - 1
          IF (rs_desc%ref_count == 0) THEN
 
             CALL pw_grid_release(rs_desc%pw)
@@ -2163,10 +2163,10 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: shift_coords
 
       shift_coords = rs_grid%desc%virtual_group_coor
-      shift_coords(dir) = MODULO(shift_coords(dir)+disp, rs_grid%desc%group_dim(dir))
+      shift_coords(dir) = MODULO(shift_coords(dir) + disp, rs_grid%desc%group_dim(dir))
       dest = rs_grid%desc%virtual2real(rs_grid%desc%coord2rank(shift_coords(1), shift_coords(2), shift_coords(3)))
       shift_coords = rs_grid%desc%virtual_group_coor
-      shift_coords(dir) = MODULO(shift_coords(dir)-disp, rs_grid%desc%group_dim(dir))
+      shift_coords(dir) = MODULO(shift_coords(dir) - disp, rs_grid%desc%group_dim(dir))
       source = rs_grid%desc%virtual2real(rs_grid%desc%coord2rank(shift_coords(1), shift_coords(2), shift_coords(3)))
 
    END SUBROUTINE
@@ -2197,13 +2197,13 @@ CONTAINS
          CPASSERT(PRODUCT(INT(desc%npts, KIND=int_8)) < HUGE(1))
          max_ngpts = PRODUCT(desc%npts)
       ELSE
-         DO i = 0, desc%group_size-1
+         DO i = 0, desc%group_size - 1
             lb = desc%lb_global(:, i)
             ub = desc%ub_global(:, i)
-            lb = lb-desc%border*(1-desc%perd)
-            ub = ub+desc%border*(1-desc%perd)
-            CPASSERT(PRODUCT(INT(ub-lb+1, KIND=int_8)) < HUGE(1))
-            max_ngpts = MAX(max_ngpts, PRODUCT(ub-lb+1))
+            lb = lb - desc%border*(1 - desc%perd)
+            ub = ub + desc%border*(1 - desc%perd)
+            CPASSERT(PRODUCT(INT(ub - lb + 1, KIND=int_8)) < HUGE(1))
+            max_ngpts = MAX(max_ngpts, PRODUCT(ub - lb + 1))
          END DO
       END IF
 

@@ -20,9 +20,9 @@
      res = i
      j = 0
      DO WHILE (j < res)
-        DO j = 2, res-1
+        DO j = 2, res - 1
            IF (MOD(res, j) == 0) THEN
-              res = res+1
+              res = res + 1
               EXIT
            ENDIF
         ENDDO
@@ -44,10 +44,10 @@
      ! guarantee a minimal hash table size (8), so that expansion works
 
      j = 3
-     DO WHILE (2**j-1 < table_size)
-        j = j+1
+     DO WHILE (2**j - 1 < table_size)
+        j = j + 1
      ENDDO
-     hash_table%nmax = 2**j-1
+     hash_table%nmax = 2**j - 1
      hash_table%prime = matching_prime(hash_table%nmax)
      hash_table%nele = 0
      ALLOCATE (hash_table%table(0:hash_table%nmax))
@@ -89,7 +89,7 @@
         ALLOCATE (tmp_hash(LBOUND(hash_table%table, 1):UBOUND(hash_table%table, 1)))
         tmp_hash(:) = hash_table%table
         CALL hash_table_release(hash_table)
-        CALL hash_table_create(hash_table, INT((UBOUND(tmp_hash, 1)+8)*hash_table_expand))
+        CALL hash_table_create(hash_table, INT((UBOUND(tmp_hash, 1) + 8)*hash_table_expand))
         DO i = LBOUND(tmp_hash, 1), UBOUND(tmp_hash, 1)
            IF (tmp_hash(i)%c .NE. 0) THEN
               CALL hash_table_add(hash_table, tmp_hash(i)%c, tmp_hash(i)%p)
@@ -98,7 +98,7 @@
         DEALLOCATE (tmp_hash)
      ENDIF
 
-     hash_table%nele = hash_table%nele+1
+     hash_table%nele = hash_table%nele + 1
      i = IAND(c*hash_table%prime, hash_table%nmax)
 
      DO j = i, hash_table%nmax
@@ -108,7 +108,7 @@
            RETURN
         ENDIF
      ENDDO
-     DO j = 0, i-1
+     DO j = 0, i - 1
         IF (hash_table%table(j)%c == 0 .OR. hash_table%table(j)%c == c) THEN
            hash_table%table(j)%c = c
            hash_table%table(j)%p = p
@@ -145,7 +145,7 @@
            RETURN
         ENDIF
      ENDDO
-     DO j = 0, i-1
+     DO j = 0, i - 1
         IF (hash_table%table(j)%c == 0 .OR. hash_table%table(j)%c == c) THEN
            p = hash_table%table(j)%p
            RETURN

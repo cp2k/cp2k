@@ -388,7 +388,7 @@ CONTAINS
       DO ihalo = 1, nhalos
          CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
                                  natoms=natoms_in_halo)
-         nmax = nmax+natoms_in_halo
+         nmax = nmax + natoms_in_halo
       END DO
       CALL fb_matrix_data_create(filter_mat_data, &
                                  nmax, &
@@ -584,8 +584,8 @@ CONTAINS
                               halo_atoms=halo_atoms)
 
       ! construct atomic matrix for H for atomic_halo
-      ALLOCATE (atomic_H_blk_row_start(natoms_in_halo+1), &
-                atomic_H_blk_col_start(natoms_in_halo+1), &
+      ALLOCATE (atomic_H_blk_row_start(natoms_in_halo + 1), &
+                atomic_H_blk_col_start(natoms_in_halo + 1), &
                 STAT=stat)
       CPASSERT(stat == 0)
       CALL fb_atmatrix_calc_size(H_mat, &
@@ -604,8 +604,8 @@ CONTAINS
                                  atomic_H_blk_col_start)
 
       ! construct atomic matrix for S for atomic_halo
-      ALLOCATE (atomic_S_blk_row_start(natoms_in_halo+1), &
-                atomic_S_blk_col_start(natoms_in_halo+1), &
+      ALLOCATE (atomic_S_blk_row_start(natoms_in_halo + 1), &
+                atomic_S_blk_col_start(natoms_in_halo + 1), &
                 STAT=stat)
       CPASSERT(stat == 0)
       CALL fb_atmatrix_calc_size(S_mat, &
@@ -653,7 +653,7 @@ CONTAINS
       DO ipe = 1, numprocs
          send_sizes(ipe) = 0
          DO ipair = 1, send_pair_count(ipe)
-            CALL fb_com_atom_pairs_decode(pairs_send(send_pair_disps(ipe)+ipair), &
+            CALL fb_com_atom_pairs_decode(pairs_send(send_pair_disps(ipe) + ipair), &
                                           pe, iatom_global, jatom_global, &
                                           send_encode)
             iatom_in_halo = ind_in_halo(iatom_global)
@@ -668,28 +668,28 @@ CONTAINS
 
             ! do it column-wise one trial function at a time
             DO itrial = 1, ntfns(jkind)
-               ind = send_disps(ipe)+send_sizes(ipe)+(itrial-1)*nrows_blk
+               ind = send_disps(ipe) + send_sizes(ipe) + (itrial - 1)*nrows_blk
                CALL dgemv("N", &
                           nrows_blk, &
                           ncols_atmatrix, &
                           1.0_dp, &
                           atomic_filter_mat( &
                           atomic_H_blk_row_start(iatom_in_halo): &
-                          atomic_H_blk_row_start(iatom_in_halo+1)-1, &
+                          atomic_H_blk_row_start(iatom_in_halo + 1) - 1, &
                           1:ncols_atmatrix &
                           ), &
                           nrows_blk, &
                           atomic_S( &
                           1:nrows_atmatrix, &
-                          atomic_S_blk_col_start(jatom_in_halo)+ &
-                          tfns(itrial, jkind)-1 &
+                          atomic_S_blk_col_start(jatom_in_halo) + &
+                          tfns(itrial, jkind) - 1 &
                           ), &
                           1, &
                           0.0_dp, &
-                          send_buf(ind+1:ind+nrows_blk), &
+                          send_buf(ind + 1:ind + nrows_blk), &
                           1)
             END DO ! itrial
-            send_sizes(ipe) = send_sizes(ipe)+nrows_blk*ncols_blk
+            send_sizes(ipe) = send_sizes(ipe) + nrows_blk*ncols_blk
          END DO ! ipair
       END DO ! ipe
 
@@ -726,16 +726,16 @@ CONTAINS
       DO ipe = 1, numprocs
          recv_sizes(ipe) = 0
          DO ipair = 1, recv_pair_count(ipe)
-            CALL fb_com_atom_pairs_decode(pairs_recv(recv_pair_disps(ipe)+ipair), &
+            CALL fb_com_atom_pairs_decode(pairs_recv(recv_pair_disps(ipe) + ipair), &
                                           pe, iatom_global, jatom_global, &
                                           recv_encode)
             nrows_blk = row_block_size_data(iatom_global)
             ncols_blk = col_block_size_data(jatom_global)
-            ind = recv_disps(ipe)+recv_sizes(ipe)
+            ind = recv_disps(ipe) + recv_sizes(ipe)
             CALL dbcsr_put_block(filter_mat, &
                                  iatom_global, jatom_global, &
-                                 recv_buf((ind+1):(ind+nrows_blk*ncols_blk)))
-            recv_sizes(ipe) = recv_sizes(ipe)+nrows_blk*ncols_blk
+                                 recv_buf((ind + 1):(ind + nrows_blk*ncols_blk)))
+            recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk*ncols_blk
          END DO ! ipair
       END DO ! ipe
 
@@ -843,8 +843,8 @@ CONTAINS
                               halo_atoms=halo_atoms)
 
       ! construct atomic matrix for H for atomic_halo
-      ALLOCATE (atomic_H_blk_row_start(natoms_in_halo+1), &
-                atomic_H_blk_col_start(natoms_in_halo+1), &
+      ALLOCATE (atomic_H_blk_row_start(natoms_in_halo + 1), &
+                atomic_H_blk_col_start(natoms_in_halo + 1), &
                 STAT=stat)
       CPASSERT(stat == 0)
       CALL fb_atmatrix_calc_size(H_mat, &
@@ -861,8 +861,8 @@ CONTAINS
                                    atomic_H_blk_col_start)
 
       ! construct atomic matrix for S for atomic_halo
-      ALLOCATE (atomic_S_blk_row_start(natoms_in_halo+1), &
-                atomic_S_blk_col_start(natoms_in_halo+1), &
+      ALLOCATE (atomic_S_blk_row_start(natoms_in_halo + 1), &
+                atomic_S_blk_col_start(natoms_in_halo + 1), &
                 STAT=stat)
       CPASSERT(stat == 0)
       CALL fb_atmatrix_calc_size(S_mat, &
@@ -920,14 +920,14 @@ CONTAINS
                        1.0_dp, &
                        atomic_filter_mat( &
                        atomic_H_blk_row_start(iatom_in_halo): &
-                       atomic_H_blk_row_start(iatom_in_halo+1)-1, &
+                       atomic_H_blk_row_start(iatom_in_halo + 1) - 1, &
                        1:ncols_atmatrix &
                        ), &
                        nrows_blk, &
                        atomic_S( &
                        1:nrows_atmatrix, &
-                       atomic_S_blk_col_start(jatom_in_halo)+ &
-                       tfns(itrial, jkind)-1 &
+                       atomic_S_blk_col_start(jatom_in_halo) + &
+                       tfns(itrial, jkind) - 1 &
                        ), &
                        1, &
                        0.0_dp, &
@@ -1060,7 +1060,7 @@ CONTAINS
                                        nblkrows_total)
          ! calculation of cost not implemented at the moment
          tasks_send(TASK_COST, itask) = 0
-         itask = itask+1
+         itask = itask + 1
       END DO ! iatom_in_halo
 
       CALL fb_com_tasks_create(com_tasks_recv)
@@ -1165,7 +1165,7 @@ CONTAINS
       DO ihalo = 1, nhalos
          CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
                                  natoms=natoms_in_halo)
-         ntasks_send = ntasks_send+natoms_in_halo
+         ntasks_send = ntasks_send + natoms_in_halo
       END DO ! ihalo
 
       ! allocate send tasks
@@ -1206,12 +1206,12 @@ CONTAINS
                                           nblkrows_total)
             ! calculation of cost not implemented at the moment
             tasks_send(TASK_COST, itask) = 0
-            itask = itask+1
+            itask = itask + 1
          END DO ! iatom_in_halo
       END DO ! ihalo
 
       ! get the actual number of tasks
-      ntasks_send = itask-1
+      ntasks_send = itask - 1
 
       CALL fb_com_tasks_create(com_tasks_send)
       CALL fb_com_tasks_set(com_tasks=com_tasks_send, &

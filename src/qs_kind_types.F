@@ -521,7 +521,7 @@ CONTAINS
             CALL get_gto_basis_set(gto_basis_set=tmp_basis_set, ncgf=ncgf)
          ELSE IF (ASSOCIATED(qs_kind%dftb_parameter)) THEN
             l = qs_kind%dftb_parameter%lmax
-            ncgf = ((l+1)*(l+2)*(l+3))/6
+            ncgf = ((l + 1)*(l + 2)*(l + 3))/6
          ELSE
             ncgf = 0
          END IF
@@ -892,11 +892,11 @@ CONTAINS
 
             IF (PRESENT(maxlppl) .AND. ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, nexp_ppl=n)
-               maxlppl = MAX(maxlppl, 2*(n-1))
+               maxlppl = MAX(maxlppl, 2*(n - 1))
             ELSEIF (PRESENT(maxlppl) .AND. ASSOCIATED(sgp_potential)) THEN
                CALL get_potential(potential=sgp_potential, nrloc=nrloc)
-               n = MAXVAL(nrloc)-2
-               maxlppl = MAX(maxlppl, 2*(n-1))
+               n = MAXVAL(nrloc) - 2
+               maxlppl = MAX(maxlppl, 2*(n - 1))
             END IF
 
             IF (PRESENT(maxlppnl) .AND. ASSOCIATED(gth_potential)) THEN
@@ -909,7 +909,7 @@ CONTAINS
 
             IF (PRESENT(maxpol) .AND. ASSOCIATED(tnadd_potential)) THEN
                CALL get_potential(potential=tnadd_potential, npol=n)
-               maxpol = MAX(maxpol, 2*(n-1))
+               maxpol = MAX(maxpol, 2*(n - 1))
             END IF
 
             IF (PRESENT(maxco_proj) .AND. ASSOCIATED(paw_proj_set)) THEN
@@ -939,7 +939,7 @@ CONTAINS
                   maxcgf = MAX(maxcgf, imax)
                ELSE IF (ASSOCIATED(qs_kind%dftb_parameter)) THEN
                   CALL get_dftb_atom_param(dftb_parameter=dftb_parameter, lmax=imax)
-                  imax = ((imax+1)*(imax+2)*(imax+3))/6
+                  imax = ((imax + 1)*(imax + 2)*(imax + 3))/6
                   maxcgf = MAX(maxcgf, imax)
                END IF
             END IF
@@ -1005,45 +1005,45 @@ CONTAINS
             IF (PRESENT(ncgf)) THEN
                IF (ASSOCIATED(tmp_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=tmp_basis_set, ncgf=n)
-                  ncgf = ncgf+n*qs_kind_set(ikind)%natom
+                  ncgf = ncgf + n*qs_kind_set(ikind)%natom
                ELSE IF (ASSOCIATED(qs_kind%dftb_parameter)) THEN
                   CALL get_dftb_atom_param(dftb_parameter=dftb_parameter, lmax=imax)
-                  n = ((imax+1)*(imax+2)*(imax+3))/6
-                  ncgf = ncgf+n*qs_kind_set(ikind)%natom
+                  n = ((imax + 1)*(imax + 2)*(imax + 3))/6
+                  ncgf = ncgf + n*qs_kind_set(ikind)%natom
                END IF
             END IF
 
             IF (PRESENT(npgf)) THEN
                IF (ASSOCIATED(tmp_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=tmp_basis_set, npgf_sum=n)
-                  npgf = npgf+n*qs_kind_set(ikind)%natom
+                  npgf = npgf + n*qs_kind_set(ikind)%natom
                END IF
             END IF
 
             IF (PRESENT(nset)) THEN
                IF (ASSOCIATED(tmp_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=tmp_basis_set, nset=n)
-                  nset = nset+n*qs_kind_set(ikind)%natom
+                  nset = nset + n*qs_kind_set(ikind)%natom
                END IF
             END IF
 
             IF (PRESENT(nsgf)) THEN
                IF (ASSOCIATED(tmp_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=tmp_basis_set, nsgf=n)
-                  nsgf = nsgf+n*qs_kind_set(ikind)%natom
+                  nsgf = nsgf + n*qs_kind_set(ikind)%natom
                ELSE IF (ASSOCIATED(qs_kind%dftb_parameter)) THEN
                   CALL get_dftb_atom_param(dftb_parameter=dftb_parameter, natorb=n)
-                  nsgf = nsgf+n*qs_kind_set(ikind)%natom
+                  nsgf = nsgf + n*qs_kind_set(ikind)%natom
                END IF
             END IF
 
             IF (PRESENT(nshell)) THEN
                IF (ASSOCIATED(tmp_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=tmp_basis_set, nshell_sum=n)
-                  nshell = nshell+n*qs_kind_set(ikind)%natom
+                  nshell = nshell + n*qs_kind_set(ikind)%natom
                ELSE IF (ASSOCIATED(qs_kind%dftb_parameter)) THEN
                   CALL get_dftb_atom_param(dftb_parameter=dftb_parameter, lmax=n)
-                  nshell = nshell+(n+1)*qs_kind_set(ikind)%natom
+                  nshell = nshell + (n + 1)*qs_kind_set(ikind)%natom
                END IF
             END IF
 
@@ -1061,7 +1061,7 @@ CONTAINS
                   zeff = 0.0_dp
                   zeff_correction = 0.0_dp
                END IF
-               nelectron = nelectron+qs_kind_set(ikind)%natom*NINT(zeff-zeff_correction)
+               nelectron = nelectron + qs_kind_set(ikind)%natom*NINT(zeff - zeff_correction)
             END IF
 
             IF (PRESENT(basis_rcut)) THEN
@@ -1328,10 +1328,10 @@ CONTAINS
                            DO ic = 1, nc
                               cval = cval_nlcc(ic, i)
                               coa = cval/alpha
-                              den(:, 1) = den(:, 1)+fe(:)*rc**(2*ic-2)*cval
-                              den(:, 2) = den(:, 2)-fe(:)*rc**(2*ic-1)*coa
+                              den(:, 1) = den(:, 1) + fe(:)*rc**(2*ic - 2)*cval
+                              den(:, 2) = den(:, 2) - fe(:)*rc**(2*ic - 1)*coa
                               IF (ic > 1) THEN
-                                 den(:, 2) = den(:, 2)+REAL(2*ic-2, dp)*fe(:)*rc**(2*ic-3)*coa
+                                 den(:, 2) = den(:, 2) + REAL(2*ic - 2, dp)*fe(:)*rc**(2*ic - 3)*coa
                               END IF
                            END DO
                         END DO
@@ -1350,8 +1350,8 @@ CONTAINS
                            alpha = a_nlcc(i)
                            fe(:) = EXP(-alpha*rr(:)*rr(:))
                            cval = c_nlcc(i)
-                           den(:, 1) = den(:, 1)+cval*fe(:)
-                           den(:, 2) = den(:, 2)-2.0_dp*alpha*cval*rr(:)*fe(:)
+                           den(:, 1) = den(:, 1) + cval*fe(:)
+                           den(:, 2) = den(:, 2) - 2.0_dp*alpha*cval*rr(:)*fe(:)
                         END DO
                         DEALLOCATE (rc, fe)
                      END IF
@@ -1467,7 +1467,7 @@ CONTAINS
          IF (((ipos == 2) .OR. (ipos == 3)) .AND. (INDEX(qs_kind%name, "_ghost") == 0)) THEN
             ! If the atm_name could not match any KIND section it maybe be a QM/MM link atom.
             ! ghost atoms will be treated differently.
-            akind_name = qs_kind%name(1:ipos-1)
+            akind_name = qs_kind%name(1:ipos - 1)
             CALL uppercase(akind_name)
             DO i_rep = 1, n_rep
                CALL section_vals_val_get(kind_section, "_SECTION_PARAMETERS_", &
@@ -1587,7 +1587,7 @@ CONTAINS
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="RI_AUX_BASIS_SET", c_val=ri_aux_basis_set_name)
          IF (ri_aux_basis_set_name /= "") THEN
-            nb_rep = nb_rep+1
+            nb_rep = nb_rep + 1
             CPASSERT(nb_rep <= maxbas)
             basis_set_type(nb_rep) = "RI_AUX"
             basis_set_form(nb_rep) = "GTO"
@@ -1652,7 +1652,7 @@ CONTAINS
                IF (potential_type == "") THEN
                   ipos = INDEX(potential_name, "-")
                   IF (ipos > 1) THEN
-                     potential_type = potential_name(:ipos-1)
+                     potential_type = potential_name(:ipos - 1)
                   ELSE
                      potential_type = potential_name
                   END IF
@@ -1866,7 +1866,7 @@ CONTAINS
                                          keyword_name="ORBITALS", &
                                          i_vals=orbitals)
                norbitals = SIZE(orbitals)
-               IF (norbitals <= 0 .OR. norbitals > 2*l+1) &
+               IF (norbitals <= 0 .OR. norbitals > 2*l + 1) &
                   CALL cp_abort(__LOCATION__, "DFT+U| Invalid number of ORBITALS specified: "// &
                                 "1 to 2*L+1 integer numbers are expected")
                ALLOCATE (qs_kind%dft_plus_u%orbitals(norbitals))
@@ -1971,7 +1971,7 @@ CONTAINS
          CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
          CALL init_potential(qs_kind%all_potential, itype="BARE", &
                              zeff=qs_kind%se_parameter%zeff, zeff_correction=zeff_correction)
-         qs_kind%se_parameter%zeff = qs_kind%se_parameter%zeff-zeff_correction
+         qs_kind%se_parameter%zeff = qs_kind%se_parameter%zeff - zeff_correction
 
          check = ((potential_name /= '') .OR. explicit_potential)
          IF (check) &
@@ -2055,7 +2055,7 @@ CONTAINS
          ! PW DFT
          ! Allocate and initialise the potential data set structure
          IF (potential_name /= '') THEN
-            SELECT CASE (TRIM (potential_type))
+            SELECT CASE (TRIM(potential_type))
             CASE ("ALL", "ECP")
                CALL cp_abort(__LOCATION__, &
                              "PW DFT calculations only with potential type UPF or GTH possible."// &
@@ -2104,7 +2104,7 @@ CONTAINS
          ! Allocate and initialise the basis set data set structure
          ! first external basis sets
          DO i = 1, nb_rep
-            SELECT CASE (basis_set_form (i))
+            SELECT CASE (basis_set_form(i))
             CASE ("GTO")
                NULLIFY (tmp_basis_set)
                CALL allocate_gto_basis_set(tmp_basis_set)
@@ -2147,8 +2147,8 @@ CONTAINS
                                           inumbas=i, basis_type=basis_type)
             IF (basis_type == "") CYCLE
             jj = i
-            DO j = i+1, SIZE(qs_kind%basis_sets)
-               jj = jj+1
+            DO j = i + 1, SIZE(qs_kind%basis_sets)
+               jj = jj + 1
                NULLIFY (sup_basis_set)
                CALL get_basis_from_container(qs_kind%basis_sets, basis_set=sup_basis_set, &
                                              inumbas=jj, basis_type=tmp)
@@ -2156,7 +2156,7 @@ CONTAINS
                   ! we found a match, combine the basis sets and delete the second
                   CALL combine_basis_sets(tmp_basis_set, sup_basis_set)
                   CALL remove_basis_from_container(qs_kind%basis_sets, jj)
-                  jj = jj-1
+                  jj = jj - 1
                END IF
             END DO
             NULLIFY (sup_basis_set)
@@ -2190,7 +2190,7 @@ CONTAINS
                   potential_file_name = potential_fn_kind
                END IF
                !
-               SELECT CASE (TRIM (potential_type))
+               SELECT CASE (TRIM(potential_type))
                CASE ("ALL")
                   CALL allocate_potential(qs_kind%all_potential)
                   CALL read_potential(qs_kind%element_symbol, potential_name, &
@@ -2243,7 +2243,7 @@ CONTAINS
                      nnl = sgppot%n_nonlocal
                      nppnl = 0
                      DO l = 0, sgppot%lmax
-                        nppnl = nppnl+nnl*nco(l)
+                        nppnl = nppnl + nnl*nco(l)
                      END DO
                      l = sgppot%lmax
                      ALLOCATE (a_nl(nnl), h_nl(nnl, 0:l), c_nl(nnl, nnl, 0:l))
@@ -2300,7 +2300,7 @@ CONTAINS
                      nnl = sgppot%n_nonlocal
                      nppnl = 0
                      DO l = 0, sgppot%lmax
-                        nppnl = nppnl+nnl*nco(l)
+                        nppnl = nppnl + nnl*nco(l)
                      END DO
                      l = sgppot%lmax
                      ALLOCATE (a_nl(nnl), h_nl(nnl, 0:l), c_nl(nnl, nnl, 0:l))
@@ -2360,13 +2360,13 @@ CONTAINS
             IF ((kgpot_name /= '') .OR. explicit_kgpot) THEN
                ipos = INDEX(kgpot_name, "-")
                IF (ipos > 1) THEN
-                  kgpot_type = kgpot_name(:ipos-1)
+                  kgpot_type = kgpot_name(:ipos - 1)
                ELSE
                   kgpot_type = kgpot_name
                END IF
                CALL uppercase(kgpot_type)
 
-               SELECT CASE (TRIM (kgpot_type))
+               SELECT CASE (TRIM(kgpot_type))
                CASE ("TNADD")
                   ! determine the pseudopotential file to search
                   IF (kg_potential_fn_kind == "-") THEN
@@ -2434,10 +2434,10 @@ CONTAINS
 
       INTEGER                                            :: i, istat, j
 
-      DO i = 1, LEN_TRIM(string)-2
-         IF (string(i:i+1) .NE. "-Q") CYCLE
-         j = SCAN(string(i+2:), "- ")
-         READ (string(i+2:i+j), '(I3)', iostat=istat) n
+      DO i = 1, LEN_TRIM(string) - 2
+         IF (string(i:i + 1) .NE. "-Q") CYCLE
+         j = SCAN(string(i + 2:), "- ")
+         READ (string(i + 2:i + j), '(I3)', iostat=istat) n
          IF (istat == 0) RETURN
       ENDDO
       n = -1 ! valence electron number not found
@@ -2681,7 +2681,7 @@ CONTAINS
          IF (ASSOCIATED(qs_kind%elec_conf)) THEN
             DEALLOCATE (qs_kind%elec_conf)
          ENDIF
-         ALLOCATE (qs_kind%elec_conf(0:SIZE(elec_conf)-1))
+         ALLOCATE (qs_kind%elec_conf(0:SIZE(elec_conf) - 1))
          qs_kind%elec_conf(:) = elec_conf(:)
       ENDIF
       IF (PRESENT(paw_atom)) qs_kind%paw_atom = paw_atom
@@ -3026,21 +3026,21 @@ CONTAINS
          CALL set_pseudo_state(econf, z, ncalc, ncore, nelem)
       ELSE
          DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
-            ll = 2*(2*l+1)
+            ll = 2*(2*l + 1)
             nn = ptable(z)%e_conv(l)
             ii = 0
             DO
-               ii = ii+1
+               ii = ii + 1
                IF (nn <= ll) THEN
                   nelem(l, ii) = nn
                   EXIT
                ELSE
                   nelem(l, ii) = ll
-                  nn = nn-ll
+                  nn = nn - ll
                END IF
             END DO
          END DO
-         ncalc = nelem-ncore
+         ncalc = nelem - ncore
       END IF
 
       ! readjust the occupation number of the orbitals as requested by user
@@ -3051,28 +3051,28 @@ CONTAINS
             DO i = 1, SIZE(addel, 1)
                ne = addel(i, is)
                l = laddel(i, is)
-               nn = naddel(i, is)-l
+               nn = naddel(i, is) - l
                IF (ne /= 0) THEN
                   IF (nn == 0) THEN
                      DO ii = SIZE(nelem, 2), 1, -1
                         IF (ncalc(l, ii) > 0) THEN
-                           IF ((ncalc(l, ii)+ne) < 2*(2*l+1)+1) THEN
-                              edelta(l, ii, is) = edelta(l, ii, is)+ne
+                           IF ((ncalc(l, ii) + ne) < 2*(2*l + 1) + 1) THEN
+                              edelta(l, ii, is) = edelta(l, ii, is) + ne
                               nn = ii
                            ELSE
-                              edelta(l, ii+1, is) = edelta(l, ii+1, is)+ne
-                              nn = ii+1
+                              edelta(l, ii + 1, is) = edelta(l, ii + 1, is) + ne
+                              nn = ii + 1
                            END IF
                            EXIT
                         ELSE IF (ii == 1) THEN
-                           edelta(l, ii, is) = edelta(l, ii, is)+ne
+                           edelta(l, ii, is) = edelta(l, ii, is) + ne
                            nn = ii
                         END IF
                      END DO
                   ELSE
-                     edelta(l, nn, is) = edelta(l, nn, is)+ne
+                     edelta(l, nn, is) = edelta(l, nn, is) + ne
                   END IF
-                  IF (ncalc(l, nn)+edelta(l, nn, is) < 0) THEN
+                  IF (ncalc(l, nn) + edelta(l, nn, is) < 0) THEN
                      edelta(l, nn, is) = -ncalc(l, nn)
                   END IF
                END IF
@@ -3082,12 +3082,12 @@ CONTAINS
       ELSE IF (magnetization /= 0.0_dp) THEN
          dmag = 0.5_dp*ABS(magnetization)
          DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
-            ll = 2*(2*l+1)
+            ll = 2*(2*l + 1)
             ii = 0
             DO i = 1, SIZE(ncalc, 2)
                IF (ncalc(l, i) == 0) CYCLE
                IF (ncalc(l, i) == ll) CYCLE
-               IF (ncalc(l, i) > dmag .AND. (ll-ncalc(l, i)) > dmag) THEN
+               IF (ncalc(l, i) > dmag .AND. (ll - ncalc(l, i)) > dmag) THEN
                   ii = i
                   EXIT
                END IF
@@ -3133,67 +3133,67 @@ CONTAINS
       INTEGER, DIMENSION(0:lmat)                         :: econfx
 
       econfx = 0
-      econfx(0:SIZE(econf)-1) = econf
+      econfx(0:SIZE(econf) - 1) = econf
       IF (SUM(econf) >= 0) THEN
          DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
-            ll = 2*(2*l+1)
-            nn = ptable(z)%e_conv(l)-econfx(l)
+            ll = 2*(2*l + 1)
+            nn = ptable(z)%e_conv(l) - econfx(l)
             IF (MOD(nn, ll) == 0) CYCLE
             IF (econfx(l) == 0) CYCLE
             IF (MOD(nn, 2) == 0) CYCLE
-            DO lx = 3, l+1, -1
+            DO lx = 3, l + 1, -1
                IF (econfx(lx) == 0) CYCLE
-               econfx(l) = econfx(l)+1
-               econfx(lx) = econfx(lx)-1
+               econfx(l) = econfx(l) + 1
+               econfx(lx) = econfx(lx) - 1
                EXIT
             END DO
          END DO
          DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
-            ll = 2*(2*l+1)
-            nn = ptable(z)%e_conv(l)-econfx(l)
+            ll = 2*(2*l + 1)
+            nn = ptable(z)%e_conv(l) - econfx(l)
             ii = 0
             DO
-               ii = ii+1
+               ii = ii + 1
                IF (nn <= ll) THEN
                   ncore(l, ii) = nn
                   EXIT
                ELSE
                   ncore(l, ii) = ll
-                  nn = nn-ll
+                  nn = nn - ll
                END IF
             END DO
          END DO
          DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
-            ll = 2*(2*l+1)
+            ll = 2*(2*l + 1)
             nn = ptable(z)%e_conv(l)
             ii = 0
             DO
-               ii = ii+1
+               ii = ii + 1
                IF (nn <= ll) THEN
                   nelem(l, ii) = nn
                   EXIT
                ELSE
                   nelem(l, ii) = ll
-                  nn = nn-ll
+                  nn = nn - ll
                END IF
             END DO
          END DO
-         ncalc = nelem-ncore
+         ncalc = nelem - ncore
       ELSE
          ncore = 0
          ncalc = 0
          DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
-            ll = 2*(2*l+1)
+            ll = 2*(2*l + 1)
             nn = ABS(econfx(l))
             ii = 0
             DO
-               ii = ii+1
+               ii = ii + 1
                IF (nn <= ll) THEN
                   ncalc(l, ii) = -nn
                   EXIT
                ELSE
                   ncalc(l, ii) = -ll
-                  nn = nn-ll
+                  nn = nn - ll
                END IF
             END DO
          END DO

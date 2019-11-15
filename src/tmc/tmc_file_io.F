@@ -82,7 +82,7 @@ CONTAINS
 
       ind = INDEX(file_name, ".", BACK=.TRUE.)
       IF (.NOT. ind .EQ. 0) THEN
-         WRITE (result_file_name, *) file_name(1:ind-1), ".", &
+         WRITE (result_file_name, *) file_name(1:ind - 1), ".", &
             TRIM(ADJUSTL(extra))
       ELSE
          WRITE (result_file_name, *) TRIM(file_name), ".", extra
@@ -112,7 +112,7 @@ CONTAINS
 
       ind = INDEX(file_name, ".", BACK=.TRUE.)
       IF (.NOT. ind .EQ. 0) THEN
-         WRITE (result_file_name, *) file_name(1:ind-1), "_", &
+         WRITE (result_file_name, *) file_name(1:ind - 1), "_", &
             TRIM(ADJUSTL(extra)), file_name(ind:LEN_TRIM(file_name))
       ELSE
          WRITE (result_file_name, *) TRIM(file_name), "_", extra
@@ -147,7 +147,7 @@ CONTAINS
       WRITE (rval_to_string, "(F16.2)") rvalue
       ind = INDEX(file_name, ".", BACK=.TRUE.)
       IF (.NOT. ind .EQ. 0) THEN
-         WRITE (result_file_name, *) file_name(1:ind-1), "_T", &
+         WRITE (result_file_name, *) file_name(1:ind - 1), "_T", &
             TRIM(ADJUSTL(rval_to_string)), file_name(ind:LEN_TRIM(file_name))
       ELSE
          IF (LEN(file_name) .EQ. 0) THEN
@@ -187,7 +187,7 @@ CONTAINS
       WRITE (rval_to_string, *) ivalue
       ind = INDEX(file_name, ".", BACK=.TRUE.)
       IF (.NOT. ind .EQ. 0) THEN
-         WRITE (result_file_name, *) file_name(1:ind-1), "_", &
+         WRITE (result_file_name, *) file_name(1:ind - 1), "_", &
             TRIM(ADJUSTL(rval_to_string)), file_name(ind:LEN_TRIM(file_name))
       ELSE
          IF (LEN(file_name) .EQ. 0) THEN
@@ -339,7 +339,7 @@ CONTAINS
          job_counts, &
          timings
 
-      IF (ANY(ABS(tmc_env%params%Temp(:)-tmp_temp(:)) .GE. 0.005)) &
+      IF (ANY(ABS(tmc_env%params%Temp(:) - tmp_temp(:)) .GE. 0.005)) &
          CALL cp_abort(__LOCATION__, "the temperatures differ from the previous calculation. "// &
                        "There were the following temperatures used:")
       IF (ANY(mv_weight_tmp(:) .NE. tmc_env%params%move_types%mv_weight(:))) &
@@ -500,8 +500,8 @@ CONTAINS
             WRITE (file_ptr, *) TRIM(header)
             DO i = 1, SIZE(elem%pos), tmc_params%dim_per_elem
                WRITE (file_ptr, FMT="(A4,1X,1000F20.10)") &
-                  TRIM(tmc_params%atoms((i-1)/tmc_params%dim_per_elem+1)%name), &
-                  elem%pos(i:i+tmc_params%dim_per_elem-1)*au2a
+                  TRIM(tmc_params%atoms((i - 1)/tmc_params%dim_per_elem + 1)%name), &
+                  elem%pos(i:i + tmc_params%dim_per_elem - 1)*au2a
             END DO
             CALL close_file(unit_number=file_ptr)
          END IF
@@ -516,8 +516,8 @@ CONTAINS
             WRITE (file_ptr, *) TRIM(header)
             DO i = 1, SIZE(elem%pos), tmc_params%dim_per_elem
                WRITE (file_ptr, FMT="(A4,1X,1000F20.10)") &
-                  TRIM(tmc_params%atoms((i-1)/tmc_params%dim_per_elem+1)%name), &
-                  elem%frc(i:i+tmc_params%dim_per_elem-1)
+                  TRIM(tmc_params%atoms((i - 1)/tmc_params%dim_per_elem + 1)%name), &
+                  elem%frc(i:i + tmc_params%dim_per_elem - 1)
             END DO
             CALL close_file(unit_number=file_ptr)
          END IF
@@ -569,7 +569,7 @@ CONTAINS
                               unit_number=file_ptr)
             END IF
             WRITE (file_ptr, FMT="(I8,14F20.10)") conf_nr, elem%potential, elem%e_pot_approx, &
-               elem%scf_energies(MOD(elem%scf_energies_count, 4)+1), elem%ekin
+               elem%scf_energies(MOD(elem%scf_energies_count, 4) + 1), elem%ekin
             CALL close_file(unit_number=file_ptr)
          END IF
 
@@ -789,7 +789,7 @@ CONTAINS
 
       search_next_conf: DO
          c_tmp(:) = " "
-         tmc_ana%lc_traj = tmc_ana%lc_traj+1
+         tmc_ana%lc_traj = tmc_ana%lc_traj + 1
          READ (tmc_ana%id_traj, '(A)', IOSTAT=status) c_tmp(:)
          IF (status .GT. 0) &
             CALL cp_abort(__LOCATION__, &
@@ -800,7 +800,7 @@ CONTAINS
             EXIT search_next_conf
          END IF
          IF (INDEX(c_tmp, "=") .GT. 0) THEN
-            READ (c_tmp(INDEX(c_tmp, "=")+1:), *, IOSTAT=status) i_tmp ! read the configuration number
+            READ (c_tmp(INDEX(c_tmp, "=") + 1:), *, IOSTAT=status) i_tmp ! read the configuration number
             IF (status .NE. 0) &
                CALL cp_abort(__LOCATION__, &
                              "configuration header read error (for conf nr) at line: "// &
@@ -817,9 +817,9 @@ CONTAINS
 
       IF (stat .EQ. TMC_STATUS_OK) THEN
          pos_loop: DO i = 1, SIZE(elem%pos), tmc_ana%dim_per_elem
-            tmc_ana%lc_traj = tmc_ana%lc_traj+1
+            tmc_ana%lc_traj = tmc_ana%lc_traj + 1
             READ (tmc_ana%id_traj, FMT="(A4,1X,1000F20.10)", IOSTAT=status) &
-               c_tmp, elem%pos(i:i+tmc_ana%dim_per_elem-1)
+               c_tmp, elem%pos(i:i + tmc_ana%dim_per_elem - 1)
             IF (status .NE. 0) THEN
                CALL cp_abort(__LOCATION__, &
                              "configuration pos read error at line: "// &
@@ -862,12 +862,12 @@ CONTAINS
 
       ! start the timing
       CALL timeset(routineN, handle)
-      tmc_ana%lc_dip = tmc_ana%lc_dip+1
+      tmc_ana%lc_dip = tmc_ana%lc_dip + 1
       READ (tmc_ana%id_dip, FMT="(A)", IOSTAT=status) c_tmp
       IF (status .EQ. 0) THEN
          ! skip the initial line (header)
          IF (INDEX(c_tmp, "#") .GT. 0) THEN
-            tmc_ana%lc_dip = tmc_ana%lc_dip+1
+            tmc_ana%lc_dip = tmc_ana%lc_dip + 1
             READ (tmc_ana%id_dip, FMT="(A)", IOSTAT=status) c_tmp
          END IF
       END IF
@@ -921,12 +921,12 @@ CONTAINS
       ! start the timing
       CALL timeset(routineN, handle)
 
-      tmc_ana%lc_cell = tmc_ana%lc_cell+1
+      tmc_ana%lc_cell = tmc_ana%lc_cell + 1
       READ (tmc_ana%id_cell, FMT="(A)", IOSTAT=status) c_tmp
       IF (status .EQ. 0) THEN
          ! skip the initial line (header)
          IF (INDEX(c_tmp, "#") .GT. 0) THEN
-            tmc_ana%lc_cell = tmc_ana%lc_cell+1
+            tmc_ana%lc_cell = tmc_ana%lc_cell + 1
             READ (tmc_ana%id_cell, FMT="(A)", IOSTAT=status) c_tmp
          END IF
       END IF

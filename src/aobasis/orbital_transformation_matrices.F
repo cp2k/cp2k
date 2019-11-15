@@ -128,37 +128,37 @@ CONTAINS
 !     *** (c2s, formula 15)                                   ***
 
          DO lx = 0, l
-            DO ly = 0, l-lx
-               lz = l-lx-ly
+            DO ly = 0, l - lx
+               lz = l - lx - ly
                ic = co(lx, ly, lz)
                DO m = -l, l
-                  is = l+m+1
+                  is = l + m + 1
                   ma = ABS(m)
-                  j = lx+ly-ma
+                  j = lx + ly - ma
                   IF ((j >= 0) .AND. (MODULO(j, 2) == 0)) THEN
                      j = j/2
                      s1 = 0.0_dp
-                     DO i = 0, (l-ma)/2
+                     DO i = 0, (l - ma)/2
                         s2 = 0.0_dp
                         DO k = 0, j
-                           IF (((m < 0) .AND. (MODULO(ABS(ma-lx), 2) == 1)) .OR. &
-                               ((m > 0) .AND. (MODULO(ABS(ma-lx), 2) == 0))) THEN
-                              expo = (ma-lx+2*k)/2
+                           IF (((m < 0) .AND. (MODULO(ABS(ma - lx), 2) == 1)) .OR. &
+                               ((m > 0) .AND. (MODULO(ABS(ma - lx), 2) == 0))) THEN
+                              expo = (ma - lx + 2*k)/2
                               s = (-1.0_dp)**expo*SQRT(2.0_dp)
                            ELSE IF ((m == 0) .AND. (MODULO(lx, 2) == 0)) THEN
-                              expo = k-lx/2
+                              expo = k - lx/2
                               s = (-1.0_dp)**expo
                            ELSE
                               s = 0.0_dp
                            END IF
-                           s2 = s2+binomial(j, k)*binomial(ma, lx-2*k)*s
+                           s2 = s2 + binomial(j, k)*binomial(ma, lx - 2*k)*s
                         END DO
-                        s1 = s1+binomial(l, i)*binomial(i, j)* &
-                             (-1.0_dp)**i*fac(2*l-2*i)/fac(l-ma-2*i)*s2
+                        s1 = s1 + binomial(l, i)*binomial(i, j)* &
+                             (-1.0_dp)**i*fac(2*l - 2*i)/fac(l - ma - 2*i)*s2
                      END DO
                      orbtramat(l)%c2s(is, ic) = &
-                        SQRT((fac(2*lx)*fac(2*ly)*fac(2*lz)*fac(l)*fac(l-ma))/ &
-                             (fac(lx)*fac(ly)*fac(lz)*fac(2*l)*fac(l+ma)))*s1/ &
+                        SQRT((fac(2*lx)*fac(2*ly)*fac(2*lz)*fac(l)*fac(l - ma))/ &
+                             (fac(lx)*fac(ly)*fac(lz)*fac(2*l)*fac(l + ma)))*s1/ &
                         (2.0_dp**l*fac(l))
                   ELSE
                      orbtramat(l)%c2s(is, ic) = 0.0_dp
@@ -172,18 +172,18 @@ CONTAINS
 !     *** (s2c = s*TRANSPOSE(c2s), formulas 18 and 19)          ***
 
          DO lx1 = 0, l
-            DO ly1 = 0, l-lx1
-               lz1 = l-lx1-ly1
+            DO ly1 = 0, l - lx1
+               lz1 = l - lx1 - ly1
                ic1 = co(lx1, ly1, lz1)
                s1 = SQRT((fac(lx1)*fac(ly1)*fac(lz1))/ &
                          (fac(2*lx1)*fac(2*ly1)*fac(2*lz1)))
                DO lx2 = 0, l
-                  DO ly2 = 0, l-lx2
-                     lz2 = l-lx2-ly2
+                  DO ly2 = 0, l - lx2
+                     lz2 = l - lx2 - ly2
                      ic2 = co(lx2, ly2, lz2)
-                     lx = lx1+lx2
-                     ly = ly1+ly2
-                     lz = lz1+lz2
+                     lx = lx1 + lx2
+                     ly = ly1 + ly2
+                     lz = lz1 + lz2
                      IF ((MODULO(lx, 2) == 0) .AND. &
                          (MODULO(ly, 2) == 0) .AND. &
                          (MODULO(lz, 2) == 0)) THEN
@@ -192,7 +192,7 @@ CONTAINS
                         s = fac(lx)*fac(ly)*fac(lz)*s1*s2/ &
                             (fac(lx/2)*fac(ly/2)*fac(lz/2))
                         DO is = 1, nso(l)
-                           orbtramat(l)%s2c(is, ic1) = orbtramat(l)%s2c(is, ic1)+ &
+                           orbtramat(l)%s2c(is, ic1) = orbtramat(l)%s2c(is, ic1) + &
                                                        s*orbtramat(l)%c2s(is, ic2)
                         END DO
                      END IF
@@ -203,19 +203,19 @@ CONTAINS
 
 !     *** Build up the real spherical harmonics ***
 
-         s = SQRT(0.25_dp*dfac(2*l+1)/pi)
+         s = SQRT(0.25_dp*dfac(2*l + 1)/pi)
 
          DO lx = 0, l
-            DO ly = 0, l-lx
-               lz = l-lx-ly
+            DO ly = 0, l - lx
+               lz = l - lx - ly
                ic = co(lx, ly, lz)
                DO m = -l, l
-                  is = l+m+1
+                  is = l + m + 1
 !MK         s2 = (-1.0_dp)**m*s !-> alternative S(lm) definition
                   orbtramat(l)%slm(is, ic) = &
                      s*orbtramat(l)%c2s(is, ic)/ &
                      !MK           s2*orbtramat(l)%c2s(is,ic)/&
-                     SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
+                     SQRT(dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
                END DO
             END DO
          END DO
@@ -224,22 +224,22 @@ CONTAINS
 !     *** for unnormalized functions       ***
          nc = nco(l)
          ns = nso(l)
-         lx1 = ncoset(l-1)+1
-         ly1 = nsoset(l-1)+1
+         lx1 = ncoset(l - 1) + 1
+         ly1 = nsoset(l - 1) + 1
          lx2 = ncoset(l)
          ly2 = nsoset(l)
          s2c_tramat(ly1:ly2, lx1:lx2) = orbtramat(l)%s2c(1:ns, 1:nc)
          c2s_tramat(ly1:ly2, lx1:lx2) = orbtramat(l)%c2s(1:ns, 1:nc)
 
-         s1 = 8.0_dp*pi*fac(l+1)/fac(2*l+2)
+         s1 = 8.0_dp*pi*fac(l + 1)/fac(2*l + 2)
          DO lx = 0, l
-            DO ly = 0, l-lx
-               lz = l-lx-ly
+            DO ly = 0, l - lx
+               lz = l - lx - ly
                s2 = fac(2*lx)*fac(2*ly)*fac(2*lz)/(fac(lx)*fac(ly)*fac(lz))
                s = SQRT(s1*s2)
-               ic = ncoset(l-1)+co(lx, ly, lz)
+               ic = ncoset(l - 1) + co(lx, ly, lz)
                DO m = -l, l
-                  is = nsoset(l-1)+l+m+1
+                  is = nsoset(l - 1) + l + m + 1
                   s2c_tramat(is, ic) = s2c_tramat(is, ic)*s
                   c2s_tramat(is, ic) = c2s_tramat(is, ic)/s
                END DO
@@ -271,7 +271,7 @@ CONTAINS
 
       IF (current_maxl > -1) THEN
 
-         DO l = 0, SIZE(orbtramat, 1)-1
+         DO l = 0, SIZE(orbtramat, 1) - 1
 
             DEALLOCATE (orbtramat(l)%c2s)
 
@@ -392,23 +392,23 @@ CONTAINS
 
       DO ic = 1, nc, 6
          from = ic
-         to = MIN(nc, from+5)
+         to = MIN(nc, from + 5)
          i = 1
          DO lx = l, 0, -1
-            DO ly = l-lx, 0, -1
-               lz = l-lx-ly
+            DO ly = l - lx, 0, -1
+               lz = l - lx - ly
                jc = co(lx, ly, lz)
                IF ((jc >= from) .AND. (jc <= to)) THEN
                   symbol = cgf_symbol(1, (/lx, ly, lz/))
                   WRITE (UNIT=string(i:), FMT="(A)") TRIM(symbol(3:12))
-                  i = i+12
+                  i = i + 12
                END IF
             END DO
          END DO
          WRITE (UNIT=lunit, FMT="(/,T13,A)") TRIM(string)
          symbol = ""
          DO m = -l, l
-            is = l+m+1
+            is = l + m + 1
             symbol = sgf_symbol(1, l, m)
             WRITE (UNIT=lunit, FMT="(T4,A4,6(1X,F11.6))") &
                symbol(3:6), (matrix(is, jc), jc=from, to)

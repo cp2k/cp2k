@@ -67,7 +67,7 @@ CONTAINS
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
       IF (ncalls > 0) RETURN
-      ncalls = ncalls+1
+      ncalls = ncalls + 1
 
       logger => cp_get_default_logger()
       ounit = cp_logger_get_default_io_unit(logger)
@@ -165,7 +165,7 @@ CONTAINS
          lset = 0
          DO ishell = 1, nshell(iset)
             ll = l(ishell, iset)
-            lset(ll) = lset(ll)+1
+            lset(ll) = lset(ll) + 1
          END DO
          WRITE (iunit, "(I5,2I3,I5,2X,10(I3))") n(1, iset), lmin(iset), lmax(iset), npgf(iset), &
             (lset(ll), ll=lmin(iset), lmax(iset))

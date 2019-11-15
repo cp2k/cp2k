@@ -233,14 +233,14 @@ CONTAINS
          use_md_history = .TRUE.
          ! Check that none of the history values are identical in which case we should try something different
          DO i = 1, nvar
-            IF (ABS(variable_history(i, 2)-variable_history(i, 1)) .LT. 1.0E-12_dp) &
+            IF (ABS(variable_history(i, 2) - variable_history(i, 1)) .LT. 1.0E-12_dp) &
                use_md_history = .FALSE.
          END DO
          IF (use_md_history) THEN
             ALLOCATE (jacobian(nvar, nvar))
             DO i = 1, nvar
-               jacobian(i, i) = (gradient_history(i, 2)-gradient_history(i, 1))/ &
-                                (variable_history(i, 2)-variable_history(i, 1))
+               jacobian(i, i) = (gradient_history(i, 2) - gradient_history(i, 1))/ &
+                                (variable_history(i, 2) - variable_history(i, 1))
             END DO
             IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
                ALLOCATE (scf_env%outer_scf%inv_jacobian(nvar, nvar))
@@ -263,8 +263,8 @@ CONTAINS
                           "to 3 for optimizers that build the Jacobian from SCF history.")
          ALLOCATE (jacobian(nvar, nvar))
          DO i = 1, nvar
-            jacobian(i, i) = (scf_env%outer_scf%gradient(i, ihistory)-scf_env%outer_scf%gradient(i, ihistory-1))/ &
-                             (scf_env%outer_scf%variables(i, ihistory)-scf_env%outer_scf%variables(i, ihistory-1))
+            jacobian(i, i) = (scf_env%outer_scf%gradient(i, ihistory) - scf_env%outer_scf%gradient(i, ihistory - 1))/ &
+                             (scf_env%outer_scf%variables(i, ihistory) - scf_env%outer_scf%variables(i, ihistory - 1))
          END DO
          IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
             ALLOCATE (scf_env%outer_scf%inv_jacobian(nvar, nvar))
@@ -311,7 +311,7 @@ CONTAINS
       DO i = 1, nvar
          DO j = 1, nvar
             inv_jacobian(i, j) = scf_control%outer_scf%cdft_opt_control%jacobian_vector(iwork)
-            iwork = iwork+1
+            iwork = iwork + 1
          END DO
       END DO
       DEALLOCATE (scf_control%outer_scf%cdft_opt_control%jacobian_vector)
@@ -345,7 +345,7 @@ CONTAINS
       output_unit = get_unit_number()
       project_name = logger%iter_info%project_name
       lp = LEN_TRIM(project_name)
-      project_name(lp+1:LEN(project_name)) = ".inverseJacobian"
+      project_name(lp + 1:LEN(project_name)) = ".inverseJacobian"
       CALL open_file(file_name=project_name, file_status="UNKNOWN", &
                      file_action="WRITE", file_position="APPEND", &
                      unit_number=output_unit)
@@ -383,7 +383,7 @@ CONTAINS
 
       IF (para_env%ionode) THEN
          lp = LEN_TRIM(project_name)
-         project_name(lp+1:LEN(project_name)) = suffix
+         project_name(lp + 1:LEN(project_name)) = suffix
          CALL open_file(file_name=project_name, file_status="UNKNOWN", &
                         file_action="WRITE", file_position="APPEND", &
                         unit_number=output_unit)

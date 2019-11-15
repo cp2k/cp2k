@@ -144,12 +144,12 @@ CONTAINS
 
       DO iso = 1, max_s_harm
          DO ispin = 1, nspins
-            rho_1(:, iso) = rho_1(:, iso)+rrad_h(ispin)%r_coef(:, iso)
-            rho_2(:, iso) = rho_2(:, iso)+rrad_s(ispin)%r_coef(:, iso)
+            rho_1(:, iso) = rho_1(:, iso) + rrad_h(ispin)%r_coef(:, iso)
+            rho_2(:, iso) = rho_2(:, iso) + rrad_s(ispin)%r_coef(:, iso)
          END DO
 
          l_ang = indso(1, iso)
-         prefactor = fourpi/(2._dp*l_ang+1._dp)
+         prefactor = fourpi/(2._dp*l_ang + 1._dp)
 
          rho_1(:, iso) = rho_1(:, iso)*wr(:)
          rho_2(:, iso) = rho_2(:, iso)*wr(:)
@@ -162,26 +162,26 @@ CONTAINS
          I1_up = r2l(nr, l_ang)*rho_1(nr, iso)
          I2_up = r2l(nr, l_ang)*rho_2(nr, iso)
 
-         DO ir = nr-1, 1, -1
-            I1_down = I1_down+oor2l(ir, l_ang+1)*rho_1(ir, iso)
-            I2_down = I2_down+oor2l(ir, l_ang+1)*rho_2(ir, iso)
+         DO ir = nr - 1, 1, -1
+            I1_down = I1_down + oor2l(ir, l_ang + 1)*rho_1(ir, iso)
+            I2_down = I2_down + oor2l(ir, l_ang + 1)*rho_2(ir, iso)
          END DO
 
-         vrad_h(nr, iso) = vrad_h(nr, iso)+prefactor* &
-                           (oor2l(nr, l_ang+1)*I1_up+r2l(nr, l_ang)*I1_down)
-         vrad_s(nr, iso) = vrad_s(nr, iso)+prefactor* &
-                           (oor2l(nr, l_ang+1)*I2_up+r2l(nr, l_ang)*I2_down)
+         vrad_h(nr, iso) = vrad_h(nr, iso) + prefactor* &
+                           (oor2l(nr, l_ang + 1)*I1_up + r2l(nr, l_ang)*I1_down)
+         vrad_s(nr, iso) = vrad_s(nr, iso) + prefactor* &
+                           (oor2l(nr, l_ang + 1)*I2_up + r2l(nr, l_ang)*I2_down)
 
-         DO ir = nr-1, 1, -1
-            I1_up = I1_up+r2l(ir, l_ang)*rho_1(ir, iso)
-            I1_down = I1_down-oor2l(ir, l_ang+1)*rho_1(ir, iso)
-            I2_up = I2_up+r2l(ir, l_ang)*rho_2(ir, iso)
-            I2_down = I2_down-oor2l(ir, l_ang+1)*rho_2(ir, iso)
+         DO ir = nr - 1, 1, -1
+            I1_up = I1_up + r2l(ir, l_ang)*rho_1(ir, iso)
+            I1_down = I1_down - oor2l(ir, l_ang + 1)*rho_1(ir, iso)
+            I2_up = I2_up + r2l(ir, l_ang)*rho_2(ir, iso)
+            I2_down = I2_down - oor2l(ir, l_ang + 1)*rho_2(ir, iso)
 
-            vrad_h(ir, iso) = vrad_h(ir, iso)+prefactor* &
-                              (oor2l(ir, l_ang+1)*I1_up+r2l(ir, l_ang)*I1_down)
-            vrad_s(ir, iso) = vrad_s(ir, iso)+prefactor* &
-                              (oor2l(ir, l_ang+1)*I2_up+r2l(ir, l_ang)*I2_down)
+            vrad_h(ir, iso) = vrad_h(ir, iso) + prefactor* &
+                              (oor2l(ir, l_ang + 1)*I1_up + r2l(ir, l_ang)*I1_down)
+            vrad_s(ir, iso) = vrad_s(ir, iso) + prefactor* &
+                              (oor2l(ir, l_ang + 1)*I2_up + r2l(ir, l_ang)*I2_down)
 
          END DO
 
@@ -377,13 +377,13 @@ CONTAINS
                n1 = nsoset(lmax(iset1))
                DO ipgf1 = 1, npgf(iset1)
                   gexp(1:nr) = EXP(-zet(ipgf1, iset1)*grid_atom%rad2(1:nr))*sqrtwr(1:nr)
-                  DO is1 = nsoset(lmin(iset1)-1)+1, nsoset(lmax(iset1))
-                     iso = is1+(ipgf1-1)*n1+m1
+                  DO is1 = nsoset(lmin(iset1) - 1) + 1, nsoset(lmax(iset1))
+                     iso = is1 + (ipgf1 - 1)*n1 + m1
                      l_ang = indso(1, is1)
                      gsph(1:nr, iso) = grid_atom%rad2l(1:nr, l_ang)*gexp(1:nr)
                   END DO ! is1
                END DO ! ipgf1
-               m1 = m1+maxso
+               m1 = m1 + maxso
             END DO ! iset1
 
             !     Distribute the atoms of this kind
@@ -496,15 +496,15 @@ CONTAINS
 
       DO ispin = 1, nspins
          DO iso = 1, max_iso_not0
-            Vh1_h(:, iso) = Vh1_h(:, iso)+vr_h(ispin)%r_coef(:, iso)
-            Vh1_s(:, iso) = Vh1_s(:, iso)+vr_s(ispin)%r_coef(:, iso)
+            Vh1_h(:, iso) = Vh1_h(:, iso) + vr_h(ispin)%r_coef(:, iso)
+            Vh1_s(:, iso) = Vh1_s(:, iso) + vr_s(ispin)%r_coef(:, iso)
          END DO
       END DO
 
       IF (bfactor /= 0._dp) THEN
          DO ir = 1, nr
-            Vh1_h(ir, 1) = Vh1_h(ir, 1)+bfactor*grid_atom%rad2(ir)*grid_atom%wr(ir)
-            Vh1_s(ir, 1) = Vh1_s(ir, 1)+bfactor*grid_atom%rad2(ir)*grid_atom%wr(ir)
+            Vh1_h(ir, 1) = Vh1_h(ir, 1) + bfactor*grid_atom%rad2(ir)*grid_atom%wr(ir)
+            Vh1_s(ir, 1) = Vh1_s(ir, 1) + bfactor*grid_atom%rad2(ir)*grid_atom%wr(ir)
          END DO
       END IF
 
@@ -569,7 +569,7 @@ CONTAINS
       !       Calculate the contributions to Ecoul coming from  Vh1_s*rho0
       ecoul_1_0 = 0.0_dp
       DO iso = 1, nchan_0
-         ecoul_1_0 = ecoul_1_0+0.5_dp*SUM(Vh1_s(:, iso)*rrad_0(:, iso)*grid_atom%wr(:))
+         ecoul_1_0 = ecoul_1_0 + 0.5_dp*SUM(Vh1_s(:, iso)*rrad_0(:, iso)*grid_atom%wr(:))
       END DO
 
       !       Calculate the contributions to Ecoul coming from Vh1_h*rho1_h and Vh1_s*rho1_s
@@ -577,20 +577,20 @@ CONTAINS
       ecoul_1_h = 0.0_dp
       DO ispin = 1, nspins
          DO iso = 1, max_iso_not0
-            ecoul_1_s = ecoul_1_s+0.5_dp*SUM(Vh1_s(:, iso)*r_s(ispin)%r_coef(:, iso)*grid_atom%wr(:))
-            ecoul_1_h = ecoul_1_h+0.5_dp*SUM(Vh1_h(:, iso)*r_h(ispin)%r_coef(:, iso)*grid_atom%wr(:))
+            ecoul_1_s = ecoul_1_s + 0.5_dp*SUM(Vh1_s(:, iso)*r_s(ispin)%r_coef(:, iso)*grid_atom%wr(:))
+            ecoul_1_h = ecoul_1_h + 0.5_dp*SUM(Vh1_h(:, iso)*r_h(ispin)%r_coef(:, iso)*grid_atom%wr(:))
          END DO
       END DO
 
       CALL set_ecoul_1c(ecoul_1c, iatom, ecoul_1_z=ecoul_1_z, ecoul_1_0=ecoul_1_0)
       CALL set_ecoul_1c(ecoul_1c=ecoul_1c, iatom=iatom, ecoul_1_h=ecoul_1_h, ecoul_1_s=ecoul_1_s)
 
-      energy_hartree_1c = energy_hartree_1c+ecoul_1_z-ecoul_1_0
-      energy_hartree_1c = energy_hartree_1c+ecoul_1_h-ecoul_1_s
+      energy_hartree_1c = energy_hartree_1c + ecoul_1_z - ecoul_1_0
+      energy_hartree_1c = energy_hartree_1c + ecoul_1_h - ecoul_1_s
 
       ! atomic energy contribution
       IF (atenergy) THEN
-         ate1c(iatom) = ate1c(iatom)+ecoul_1_z-ecoul_1_0
+         ate1c(iatom) = ate1c(iatom) + ecoul_1_z - ecoul_1_0
       END IF
 
    END SUBROUTINE Vh_1c_atom_energy
@@ -681,48 +681,48 @@ CONTAINS
                         is1 = cg_list(1, icg, iso)
                         is2 = cg_list(2, icg, iso)
 
-                        iso1 = is1+n1*(ipgf1-1)+m1
-                        iso2 = is2+n2*(ipgf2-1)+m2
+                        iso1 = is1 + n1*(ipgf1 - 1) + m1
+                        iso2 = is2 + n2*(ipgf2 - 1) + m2
                         gVg_h = 0.0_dp
                         gVg_s = 0.0_dp
 
                         DO ir = 1, nr
-                           gVg_h = gVg_h+gsph(ir, iso1)*gsph(ir, iso2)*Vh1_h(ir, iso)
-                           gVg_s = gVg_s+gsph(ir, iso1)*gsph(ir, iso2)*Vh1_s(ir, iso)
+                           gVg_h = gVg_h + gsph(ir, iso1)*gsph(ir, iso2)*Vh1_h(ir, iso)
+                           gVg_s = gVg_s + gsph(ir, iso1)*gsph(ir, iso2)*Vh1_s(ir, iso)
                         END DO ! ir
 
-                        aVh1b_hh(iso1, iso2) = aVh1b_hh(iso1, iso2)+gVg_h*my_CG(is1, is2, iso)
-                        aVh1b_ss(iso1, iso2) = aVh1b_ss(iso1, iso2)+gVg_s*my_CG(is1, is2, iso)
-                        aVh1b_00(iso1, iso2) = aVh1b_00(iso1, iso2)+gVg_0*Qlm_gg(iso1, iso2, iso)
+                        aVh1b_hh(iso1, iso2) = aVh1b_hh(iso1, iso2) + gVg_h*my_CG(is1, is2, iso)
+                        aVh1b_ss(iso1, iso2) = aVh1b_ss(iso1, iso2) + gVg_s*my_CG(is1, is2, iso)
+                        aVh1b_00(iso1, iso2) = aVh1b_00(iso1, iso2) + gVg_0*Qlm_gg(iso1, iso2, iso)
 
                      END DO !icg
                   END DO ! iso
                   !               without contributions to  V1_s*rho0
-                  DO iso = nchan_0+1, max_iso_not0
+                  DO iso = nchan_0 + 1, max_iso_not0
                      DO icg = 1, cg_n_list(iso)
                         is1 = cg_list(1, icg, iso)
                         is2 = cg_list(2, icg, iso)
 
-                        iso1 = is1+n1*(ipgf1-1)+m1
-                        iso2 = is2+n2*(ipgf2-1)+m2
+                        iso1 = is1 + n1*(ipgf1 - 1) + m1
+                        iso2 = is2 + n2*(ipgf2 - 1) + m2
                         gVg_h = 0.0_dp
                         gVg_s = 0.0_dp
 
                         DO ir = 1, nr
-                           gVg_h = gVg_h+gsph(ir, iso1)*gsph(ir, iso2)*Vh1_h(ir, iso)
-                           gVg_s = gVg_s+gsph(ir, iso1)*gsph(ir, iso2)*Vh1_s(ir, iso)
+                           gVg_h = gVg_h + gsph(ir, iso1)*gsph(ir, iso2)*Vh1_h(ir, iso)
+                           gVg_s = gVg_s + gsph(ir, iso1)*gsph(ir, iso2)*Vh1_s(ir, iso)
                         END DO ! ir
 
-                        aVh1b_hh(iso1, iso2) = aVh1b_hh(iso1, iso2)+gVg_h*my_CG(is1, is2, iso)
-                        aVh1b_ss(iso1, iso2) = aVh1b_ss(iso1, iso2)+gVg_s*my_CG(is1, is2, iso)
+                        aVh1b_hh(iso1, iso2) = aVh1b_hh(iso1, iso2) + gVg_h*my_CG(is1, is2, iso)
+                        aVh1b_ss(iso1, iso2) = aVh1b_ss(iso1, iso2) + gVg_s*my_CG(is1, is2, iso)
 
                      END DO !icg
                   END DO ! iso
                END DO ! ipgf2
             END DO ! ipgf1
-            m2 = m2+maxso
+            m2 = m2 + maxso
          END DO ! iset2
-         m1 = m1+maxso
+         m1 = m1 + maxso
       END DO !iset1
 
       DO ispin = 1, nspins

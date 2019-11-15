@@ -64,7 +64,7 @@ CONTAINS
             CALL xc_functionals_expand(xc_fun_section, xc_section)
             ifun = 0
             DO
-               ifun = ifun+1
+               ifun = ifun + 1
                xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
                IF (.NOT. ASSOCIATED(xc_fun)) EXIT
                IF (TRIM(xc_fun%section%name) /= "LIBXC") THEN

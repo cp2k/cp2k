@@ -185,7 +185,7 @@ CONTAINS
             ppl_radius = exp_radius(0, alpha_ppl, qs_control%eps_ppl, cerf_ppl)
 
             DO iexp_ppl = 1, nexp_ppl
-               lppl = 2*(iexp_ppl-1)
+               lppl = 2*(iexp_ppl - 1)
                ppl_radius = MAX(ppl_radius, &
                                 exp_radius(lppl, alpha_ppl, &
                                            qs_control%eps_ppl, &
@@ -200,7 +200,7 @@ CONTAINS
                                   cval_lpot=cval_lpot)
                DO j = 1, nexp_lpot
                   DO i = 1, nct_lpot(j)
-                     lppl = 2*(i-1)
+                     lppl = 2*(i - 1)
                      ppl_radius = MAX(ppl_radius, &
                                       exp_radius(lppl, alpha_lpot(j), qs_control%eps_ppl, cval_lpot(i, j)))
                   END DO
@@ -215,7 +215,7 @@ CONTAINS
                                   cval_lsd=cval_lsd)
                DO j = 1, nexp_lsd
                   DO i = 1, nct_lsd(j)
-                     lppl = 2*(i-1)
+                     lppl = 2*(i - 1)
                      ppl_radius = MAX(ppl_radius, &
                                       exp_radius(lppl, alpha_lsd(j), qs_control%eps_ppl, cval_lsd(i, j)))
                   END DO
@@ -227,7 +227,7 @@ CONTAINS
             ppnl_radius = 0.0_dp
             DO l = 0, lppnl
                DO iprj_ppnl = 1, nprj_ppnl(l)
-                  lprj_ppnl = l+2*(iprj_ppnl-1)
+                  lprj_ppnl = l + 2*(iprj_ppnl - 1)
                   ppnl_radius = MAX(ppnl_radius, &
                                     exp_radius(lprj_ppnl, alpha_ppnl(l), &
                                                qs_control%eps_pgf_orb, &
@@ -254,7 +254,7 @@ CONTAINS
             IF (ecp_local) THEN
                CALL get_potential(potential=sgp_potential, nloc=nloc, nrloc=nrloc, aloc=aloc, bloc=bloc)
                DO i = 1, nloc
-                  lppl = MAX(0, nrloc(i)-2)
+                  lppl = MAX(0, nrloc(i) - 2)
                   ppl_radius = MAX(ppl_radius, &
                                    exp_radius(lppl, bloc(i), qs_control%eps_ppl, aloc(i)))
                END DO

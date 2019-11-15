@@ -9,12 +9,12 @@
       iaxis = 3
       t_exp_1 = EXP(-zetp*dr(iaxis)**2)
       t_exp_2 = t_exp_1**2
-      t_exp_min_1 = EXP(-zetp*(+dr(iaxis)-roffset(iaxis))**2)
-      t_exp_min_2 = EXP(-2*zetp*(+dr(iaxis)-roffset(iaxis))*(-dr(iaxis)))
+      t_exp_min_1 = EXP(-zetp*(+dr(iaxis) - roffset(iaxis))**2)
+      t_exp_min_2 = EXP(-2*zetp*(+dr(iaxis) - roffset(iaxis))*(-dr(iaxis)))
       t_exp_plus_1 = EXP(-zetp*(-roffset(iaxis))**2)
       t_exp_plus_2 = EXP(-2*zetp*(-roffset(iaxis))*(+dr(iaxis)))
       DO ig = 0, lb_cube(iaxis), -1
-         rpg = REAL(ig, dp)*dr(iaxis)-roffset(iaxis)
+         rpg = REAL(ig, dp)*dr(iaxis) - roffset(iaxis)
          t_exp_min_1 = t_exp_min_1*t_exp_min_2*t_exp_1
          t_exp_min_2 = t_exp_min_2*t_exp_2
          pg = t_exp_min_1
@@ -24,7 +24,7 @@
             pg = pg*(rpg)
          ENDDO
 
-         rpg = REAL(1-ig, dp)*dr(iaxis)-roffset(iaxis)
+         rpg = REAL(1 - ig, dp)*dr(iaxis) - roffset(iaxis)
          t_exp_plus_1 = t_exp_plus_1*t_exp_plus_2*t_exp_1
          t_exp_plus_2 = t_exp_plus_2*t_exp_2
          pg = t_exp_plus_1
@@ -38,12 +38,12 @@
       iaxis = 2
       t_exp_1 = EXP(-zetp*dr(iaxis)**2)
       t_exp_2 = t_exp_1**2
-      t_exp_min_1 = EXP(-zetp*(+dr(iaxis)-roffset(iaxis))**2)
-      t_exp_min_2 = EXP(-2*zetp*(+dr(iaxis)-roffset(iaxis))*(-dr(iaxis)))
+      t_exp_min_1 = EXP(-zetp*(+dr(iaxis) - roffset(iaxis))**2)
+      t_exp_min_2 = EXP(-2*zetp*(+dr(iaxis) - roffset(iaxis))*(-dr(iaxis)))
       t_exp_plus_1 = EXP(-zetp*(-roffset(iaxis))**2)
       t_exp_plus_2 = EXP(-2*zetp*(-roffset(iaxis))*(+dr(iaxis)))
       DO ig = 0, lb_cube(iaxis), -1
-         rpg = REAL(ig, dp)*dr(iaxis)-roffset(iaxis)
+         rpg = REAL(ig, dp)*dr(iaxis) - roffset(iaxis)
          t_exp_min_1 = t_exp_min_1*t_exp_min_2*t_exp_1
          t_exp_min_2 = t_exp_min_2*t_exp_2
          pg = t_exp_min_1
@@ -53,7 +53,7 @@
             pg = pg*(rpg)
          ENDDO
 
-         rpg = REAL(1-ig, dp)*dr(iaxis)-roffset(iaxis)
+         rpg = REAL(1 - ig, dp)*dr(iaxis) - roffset(iaxis)
          t_exp_plus_1 = t_exp_plus_1*t_exp_plus_2*t_exp_1
          t_exp_plus_2 = t_exp_plus_2*t_exp_2
          pg = t_exp_plus_1
@@ -67,13 +67,13 @@
       iaxis = 1
       t_exp_1 = EXP(-zetp*dr(iaxis)**2)
       t_exp_2 = t_exp_1**2
-      t_exp_min_1 = EXP(-zetp*(+dr(iaxis)-roffset(iaxis))**2)
-      t_exp_min_2 = EXP(-2*zetp*(+dr(iaxis)-roffset(iaxis))*(-dr(iaxis)))
+      t_exp_min_1 = EXP(-zetp*(+dr(iaxis) - roffset(iaxis))**2)
+      t_exp_min_2 = EXP(-2*zetp*(+dr(iaxis) - roffset(iaxis))*(-dr(iaxis)))
       t_exp_plus_1 = EXP(-zetp*(-roffset(iaxis))**2)
       t_exp_plus_2 = EXP(-2*zetp*(-roffset(iaxis))*(+dr(iaxis)))
       DO ig = 0, lb_cube(1), -1
 
-         rpg = REAL(ig, dp)*dr(1)-roffset(1)
+         rpg = REAL(ig, dp)*dr(1) - roffset(1)
          t_exp_min_1 = t_exp_min_1*t_exp_min_2*t_exp_1
          t_exp_min_2 = t_exp_min_2*t_exp_2
          pg = t_exp_min_1
@@ -83,13 +83,13 @@
             pg = pg*(rpg)
          ENDDO
 
-         rpg = REAL(1-ig, dp)*dr(1)-roffset(1)
+         rpg = REAL(1 - ig, dp)*dr(1) - roffset(1)
          t_exp_plus_1 = t_exp_plus_1*t_exp_plus_2*t_exp_1
          t_exp_plus_2 = t_exp_plus_2*t_exp_2
          pg = t_exp_plus_1
          ! pg  = EXP(-zetp*rpg**2)
          DO icoef = 0, lp
-            pol_x(icoef, 1-ig) = pg
+            pol_x(icoef, 1 - ig) = pg
             pg = pg*(rpg)
          ENDDO
       ENDDO

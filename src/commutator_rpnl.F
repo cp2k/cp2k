@@ -117,10 +117,10 @@ CONTAINS
                               maxppnl=maxppnl)
 
          maxl = MAX(maxlgto, maxlppnl)
-         CALL init_orbital_pointers(maxl+1)
+         CALL init_orbital_pointers(maxl + 1)
 
          ldsab = MAX(maxco, ncoset(maxlppnl), maxsgf, maxppnl)
-         ldai = ncoset(maxl+1)
+         ldai = ncoset(maxl + 1)
 
          !sap_int needs to be shared as multiple threads need to access this
          ALLOCATE (sap_int(nkind*nkind))
@@ -179,7 +179,7 @@ CONTAINS
          DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
             CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=kkind, iatom=iatom, &
                                    jatom=katom, nlist=nlist, ilist=ilist, nnode=nneighbor, inode=jneighbor, cell=cell_c, r=rac)
-            iac = ikind+nkind*(kkind-1)
+            iac = ikind + nkind*(kkind - 1)
             IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
             gpot = ASSOCIATED(gpotential(kkind)%gth_potential)
             spot = ASSOCIATED(spotential(kkind)%sgp_potential)
@@ -251,8 +251,8 @@ CONTAINS
                   nprjc = nprj_ppnl(l)*nco(l)
                   IF (nprjc == 0) CYCLE
                   rprjc(1) = ppnl_radius
-                  IF (set_radius_a(iset)+rprjc(1) < dac) CYCLE
-                  lc_max = l+2*(nprj_ppnl(l)-1)
+                  IF (set_radius_a(iset) + rprjc(1) < dac) CYCLE
+                  lc_max = l + 2*(nprj_ppnl(l) - 1)
                   lc_min = l
                   zetc(1) = alpha_ppnl(l)
                   ncoc = ncoset(lc_max)
@@ -266,7 +266,7 @@ CONTAINS
                      CALL dgemm("N", "N", ncoa, nprjc, ncoc, 1.0_dp, sab(1, 1, i), ldsab, &
                                 cprj(1, prjc), SIZE(cprj, 1), 0.0_dp, work(1, 1, i), ldsab)
                   END DO
-                  prjc = prjc+nprjc
+                  prjc = prjc + nprjc
                END DO
                DO i = 1, maxder
                   ! Contraction step (basis functions)
@@ -308,7 +308,7 @@ CONTAINS
                                    jatom=jatom, nlist=nlist, ilist=ilist, nnode=nnode, inode=inode, cell=cell_b, r=rab)
             IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
             IF (.NOT. ASSOCIATED(basis_set(jkind)%gto_basis_set)) CYCLE
-            iab = ikind+nkind*(jkind-1)
+            iab = ikind + nkind*(jkind - 1)
 
             ! *** Create matrix blocks for a new matrix block column ***
             IF (iatom <= jatom) THEN
@@ -325,8 +325,8 @@ CONTAINS
             ! loop over all kinds for projector atom
             IF (ASSOCIATED(x_block) .AND. ASSOCIATED(y_block) .AND. ASSOCIATED(z_block)) THEN
                DO kkind = 1, nkind
-                  iac = ikind+nkind*(kkind-1)
-                  ibc = jkind+nkind*(kkind-1)
+                  iac = ikind + nkind*(kkind - 1)
+                  ibc = jkind + nkind*(kkind - 1)
                   IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
                   IF (.NOT. ASSOCIATED(sap_int(ibc)%alist)) CYCLE
                   CALL get_alist(sap_int(iac), alist_ac, iatom)
@@ -336,7 +336,7 @@ CONTAINS
                   DO kac = 1, alist_ac%nclist
                      DO kbc = 1, alist_bc%nclist
                         IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
-                        IF (ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0)) THEN
+                        IF (ALL(cell_b + alist_bc%clist(kbc)%cell - alist_ac%clist(kac)%cell == 0)) THEN
                            IF (alist_ac%clist(kac)%maxac*alist_bc%clist(kbc)%maxach < eps_ppnl) CYCLE
                            acint => alist_ac%clist(kac)%acint
                            bcint => alist_bc%clist(kbc)%acint

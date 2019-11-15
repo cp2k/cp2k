@@ -559,7 +559,7 @@ CONTAINS
       ndo_mo = donor_state%ndo_mo
       nocc = nelectron/2; IF (do_os) nocc = nelectron
       nocc = ndo_mo*nocc
-      first_ex = nocc+1 !where to find the first proper eigenvalue
+      first_ex = nocc + 1 !where to find the first proper eigenvalue
 
       !solve by energy_range or number of states ?
       IF (xas_tdp_control%e_range > 0.0_dp) THEN
@@ -593,7 +593,7 @@ CONTAINS
          CALL deallocate_arnoldi_data(my_arnoldi)
 
          !Now we have an estimate for lowest excitation energy => max_ev = min_ev + e_range
-         max_ev = min_ev+xas_tdp_control%e_range
+         max_ev = min_ev + xas_tdp_control%e_range
          min_ev = 0.8_dp*min_ev !for safety, in case of overestimation
 
          CALL dbcsr_release(sps)
@@ -604,7 +604,7 @@ CONTAINS
 
          do_range = .FALSE.
 
-         nevals = nspins*nao-nocc/ndo_mo
+         nevals = nspins*nao - nocc/ndo_mo
          IF (xas_tdp_control%n_excited > 0 .AND. xas_tdp_control%n_excited < nevals) THEN
             nevals = xas_tdp_control%n_excited
          END IF
@@ -637,7 +637,7 @@ CONTAINS
          ELSE IF (diag_type == xas_tdp_diag_syevr .AND. do_range) THEN
 
             !Using syevr to loko for eigenvalue in the given energy window
-            CALL cp_fm_geeig_syevr(rhs_matrix, lhs_matrix, c_sum, tmp_evals(nocc+1:nrow), &
+            CALL cp_fm_geeig_syevr(rhs_matrix, lhs_matrix, c_sum, tmp_evals(nocc + 1:nrow), &
                                    work, vlow=min_ev, vup=max_ev)
 
             !In this case, eigenvectors are from the first comlumn on
@@ -646,8 +646,8 @@ CONTAINS
          ELSE !syevr, look for eigenvalues with indices
 
             !Usgin syevr to only compute nevals
-            CALL cp_fm_geeig_syevr(rhs_matrix, lhs_matrix, c_sum, tmp_evals(nocc+1:nocc+nevals), &
-                                   work, ilow=nocc+1, iup=nocc+nevals)
+            CALL cp_fm_geeig_syevr(rhs_matrix, lhs_matrix, c_sum, tmp_evals(nocc + 1:nocc + nevals), &
+                                   work, ilow=nocc + 1, iup=nocc + nevals)
 
             !In this case, eigenvectors are from the first comlumn on
             first_ex = 1
@@ -722,16 +722,16 @@ CONTAINS
       IF (do_range) THEN
 
          WHERE (tmp_evals > max_ev) tmp_evals = 0.0_dp
-         nevals = MAXLOC(tmp_evals, 1)-nocc
+         nevals = MAXLOC(tmp_evals, 1) - nocc
 
          ALLOCATE (lr_evals(nevals))
-         lr_evals(:) = tmp_evals(nocc+1:nocc+nevals)
+         lr_evals(:) = tmp_evals(nocc + 1:nocc + nevals)
 
       ELSE
 
          !nevals is known from the start
          ALLOCATE (lr_evals(nevals))
-         lr_evals(:) = tmp_evals(nocc+1:nocc+nevals)
+         lr_evals(:) = tmp_evals(nocc + 1:nocc + nevals)
       END IF
 
 !  Reorganize the eigenvectors in array of cp_fm so that each ndo_mo columns corresponds to an
@@ -747,9 +747,9 @@ CONTAINS
             DO imo = 1, ndo_mo
 
                CALL cp_fm_to_fm_submat(msource=c_sum, mtarget=lr_coeffs, &
-                                       nrow=nao, ncol=1, s_firstrow=((ispin-1)*ndo_mo+imo-1)*nao+1, &
-                                       s_firstcol=first_ex+i-1, t_firstrow=1, &
-                                       t_firstcol=(i-1)*ndo_mo*nspins+(ispin-1)*ndo_mo+imo)
+                                       nrow=nao, ncol=1, s_firstrow=((ispin - 1)*ndo_mo + imo - 1)*nao + 1, &
+                                       s_firstcol=first_ex + i - 1, t_firstrow=1, &
+                                       t_firstcol=(i - 1)*ndo_mo*nspins + (ispin - 1)*ndo_mo + imo)
             END DO !imo
          END DO !ispin
       END DO !istate
@@ -885,9 +885,9 @@ CONTAINS
       ALLOCATE (col_dist_sub(ndo_mo*nspins*scol_dist))
 
       DO i = 1, ndo_mo*nspins
-         submat_blk_size((i-1)*nblk_row+1:i*nblk_row) = row_blk_size
-         row_dist_sub((i-1)*srow_dist+1:i*srow_dist) = row_dist
-         col_dist_sub((i-1)*scol_dist+1:i*scol_dist) = col_dist
+         submat_blk_size((i - 1)*nblk_row + 1:i*nblk_row) = row_blk_size
+         row_dist_sub((i - 1)*srow_dist + 1:i*srow_dist) = row_dist
+         col_dist_sub((i - 1)*scol_dist + 1:i*scol_dist) = col_dist
       END DO
 
 !  Create the submatrix dbcsr distribution
@@ -959,7 +959,7 @@ CONTAINS
          one_sp => xas_tdp_env%q_projector(ispin)%matrix
 
          !if spin-flip, swap the alpha-alpha and beta-beta blocks
-         IF (my_dosf) one_sp => xas_tdp_env%q_projector(3-ispin)%matrix
+         IF (my_dosf) one_sp => xas_tdp_env%q_projector(3 - ispin)%matrix
 
          CALL dbcsr_iterator_start(iter, one_sp)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -972,8 +972,8 @@ CONTAINS
             IF (found_block) THEN
 
                DO imo = 1, ndo_mo
-                  CALL dbcsr_put_block(proj_Q, ((ispin-1)*ndo_mo+imo-1)*nblk_row+iblk, &
-                                       ((ispin-1)*ndo_mo+imo-1)*nblk_row+jblk, work_block)
+                  CALL dbcsr_put_block(proj_Q, ((ispin - 1)*ndo_mo + imo - 1)*nblk_row + iblk, &
+                                       ((ispin - 1)*ndo_mo + imo - 1)*nblk_row + jblk, work_block)
                END DO
 
             END IF
@@ -1077,8 +1077,8 @@ CONTAINS
                DO imo = 1, ndo_mo
 
 !                 Put the block as it is
-                  CALL dbcsr_put_block(matrix_a, ((ispin-1)*ndo_mo+imo-1)*nblk_row+iblk, &
-                                       ((ispin-1)*ndo_mo+imo-1)*nblk_row+jblk, work_block)
+                  CALL dbcsr_put_block(matrix_a, ((ispin - 1)*ndo_mo + imo - 1)*nblk_row + iblk, &
+                                       ((ispin - 1)*ndo_mo + imo - 1)*nblk_row + jblk, work_block)
 
                END DO !imo
             END IF !found_block
@@ -1102,8 +1102,8 @@ CONTAINS
 !              Add S matrix on block diagonal as epsilon_ii*S_pq
                DO imo = 1, ndo_mo
 
-                  CALL dbcsr_put_block(work_matrix, ((ispin-1)*ndo_mo+imo-1)*nblk_row+iblk, &
-                                       ((ispin-1)*ndo_mo+imo-1)*nblk_row+jblk, &
+                  CALL dbcsr_put_block(work_matrix, ((ispin - 1)*ndo_mo + imo - 1)*nblk_row + iblk, &
+                                       ((ispin - 1)*ndo_mo + imo - 1)*nblk_row + jblk, &
                                        energy_evals(imo)*work_block)
                END DO !imo
             END IF !found block
@@ -1191,7 +1191,7 @@ CONTAINS
 
 !           Go over the diagonal of G => donor MOs ii, spin ss
             DO i = 1, ndo_mo*nspins
-               CALL dbcsr_put_block(matrix_g(1)%matrix, (i-1)*nblk_row+iblk, (i-1)*nblk_row+jblk, work_block)
+               CALL dbcsr_put_block(matrix_g(1)%matrix, (i - 1)*nblk_row + iblk, (i - 1)*nblk_row + jblk, work_block)
             END DO
 
          END IF
@@ -1232,7 +1232,7 @@ CONTAINS
 
 !              Go over the diagonal of G => donor MOs ii spin ss
                DO i = 1, ndo_mo*nspins
-                  CALL dbcsr_put_block(matrix_g(2)%matrix, (i-1)*nblk_row+iblk, (i-1)*nblk_row+jblk, work_block)
+                  CALL dbcsr_put_block(matrix_g(2)%matrix, (i - 1)*nblk_row + iblk, (i - 1)*nblk_row + jblk, work_block)
                END DO
 
             END IF
@@ -1386,11 +1386,11 @@ CONTAINS
       CASE (do_potential_truncated)
 
          !Make sure the operator is up to date
-         IF (2*maxl+1 > get_lmax_init()) THEN
+         IF (2*maxl + 1 > get_lmax_init()) THEN
             IF (para_env%mepos == 0) THEN
                CALL open_file(unit_number=unit_id, file_name=xas_tdp_control%x_t_c_filename)
             END IF
-            CALL init(2*maxl+1, unit_id, para_env%mepos, para_env%group)
+            CALL init(2*maxl + 1, unit_id, para_env%mepos, para_env%group)
             IF (para_env%mepos == 0) THEN
                CALL close_file(unit_id)
             END IF
@@ -1521,9 +1521,9 @@ CONTAINS
             sgfq = first_sgf(1, qset)
 
             DO ppgf = 1, npgf(pset)
-               op = (pset-1)*maxco+(ppgf-1)*ncoset(lmax(pset))
+               op = (pset - 1)*maxco + (ppgf - 1)*ncoset(lmax(pset))
                DO qpgf = 1, npgf(qset)
-                  oq = (qset-1)*maxco+(qpgf-1)*ncoset(lmax(qset))
+                  oq = (qset - 1)*maxco + (qpgf - 1)*ncoset(lmax(qset))
 
                   CALL eri_mme_2c_integrate(mme_param%par, lmin(pset), lmax(pset), lmin(qset), &
                                             lmax(qset), zet(ppgf, pset), zet(qpgf, qset), r, hpq, &
@@ -1533,11 +1533,11 @@ CONTAINS
             END DO ! ppgf
 
             !contraction into sgfs
-            op = (pset-1)*maxco+1
-            oq = (qset-1)*maxco+1
+            op = (pset - 1)*maxco + 1
+            oq = (qset - 1)*maxco + 1
 
-            CALL ab_contract(ri_coul2(sgfp:sgfp+nsgf(pset)-1, sgfq:sgfq+nsgf(qset)-1), &
-                             hpq(op:op+ncop-1, oq:oq+ncoq-1), sphi(:, sgfp:), sphi(:, sgfq:), &
+            CALL ab_contract(ri_coul2(sgfp:sgfp + nsgf(pset) - 1, sgfq:sgfq + nsgf(qset) - 1), &
+                             hpq(op:op + ncop - 1, oq:oq + ncoq - 1), sphi(:, sgfp:), sphi(:, sgfq:), &
                              ncop, ncoq, nsgf(pset), nsgf(qset))
 
          END DO !qset
@@ -1774,7 +1774,7 @@ CONTAINS
          nsgfb = basis_set_b(jkind)%gto_basis_set%nsgf
          nsgfc = basis_set_c(kkind)%gto_basis_set%nsgf
 
-         o3c_mem = o3c_mem+nsgfa*nsgfb*nsgfc
+         o3c_mem = o3c_mem + nsgfa*nsgfb*nsgfc
 
       END DO
 !$OMP END PARALLEL
@@ -1845,8 +1845,8 @@ CONTAINS
       CALL get_qs_env(qs_env, natom=natom, para_env=para_env, blacs_env=blacs_env, &
                       qs_kind_set=qs_kind_set, particle_set=particle_set)
 
-      myprow = blacs_env%mepos(1)+1
-      mypcol = blacs_env%mepos(2)+1
+      myprow = blacs_env%mepos(1) + 1
+      mypcol = blacs_env%mepos(2) + 1
       nprow = blacs_env%num_pe(1)
       npcol = blacs_env%num_pe(2)
 
@@ -1883,9 +1883,9 @@ CONTAINS
          cost = REAL(nsgfa*nsgfb*nsgfc, dp)
 
 !$OMP ATOMIC
-         row_cost(iatom) = row_cost(iatom)+cost
+         row_cost(iatom) = row_cost(iatom) + cost
 !$OMP ATOMIC
-         col_cost(jatom) = col_cost(jatom)+cost
+         col_cost(jatom) = col_cost(jatom) + cost
 
       END DO
 !$OMP END PARALLEL
@@ -1902,13 +1902,13 @@ CONTAINS
       DO i = 1, natom
          iatom = MAXLOC(row_cost, 1)
          ip = MINLOC(row_proc_cost, 1)
-         row_proc_cost(ip) = row_proc_cost(ip)+row_cost(iatom)
+         row_proc_cost(ip) = row_proc_cost(ip) + row_cost(iatom)
          row_dist(iatom, 1) = ip
          row_cost(iatom) = 0.0_dp
 
          iatom = MAXLOC(col_cost, 1)
          ip = MINLOC(col_proc_cost, 1)
-         col_proc_cost(ip) = col_proc_cost(ip)+col_cost(iatom)
+         col_proc_cost(ip) = col_proc_cost(ip) + col_cost(iatom)
          col_dist(iatom, 1) = ip
          col_cost(iatom) = 0.0_dp
       END DO
@@ -1922,8 +1922,8 @@ CONTAINS
       DO iatom = 1, natom
          ikind = particle_set(iatom)%atomic_kind%kind_number
 
-         IF (row_dist(iatom, 1) == myprow) nparticle_local_row(ikind) = nparticle_local_row(ikind)+1
-         IF (col_dist(iatom, 1) == mypcol) nparticle_local_col(ikind) = nparticle_local_col(ikind)+1
+         IF (row_dist(iatom, 1) == myprow) nparticle_local_row(ikind) = nparticle_local_row(ikind) + 1
+         IF (col_dist(iatom, 1) == mypcol) nparticle_local_col(ikind) = nparticle_local_col(ikind) + 1
       END DO
 
       DO ikind = 1, nkind
@@ -1939,18 +1939,18 @@ CONTAINS
          ikind = particle_set(iatom)%atomic_kind%kind_number
 
          IF (row_dist(iatom, 1) == myprow) THEN
-            nparticle_local_row(ikind) = nparticle_local_row(ikind)+1
+            nparticle_local_row(ikind) = nparticle_local_row(ikind) + 1
             local_particle_row(ikind)%array(nparticle_local_row(ikind)) = iatom
          END IF
          IF (col_dist(iatom, 1) == mypcol) THEN
-            nparticle_local_col(ikind) = nparticle_local_col(ikind)+1
+            nparticle_local_col(ikind) = nparticle_local_col(ikind) + 1
             local_particle_col(ikind)%array(nparticle_local_col(ikind)) = iatom
          END IF
       END DO
 
       !Finally create the dist_2d
-      row_dist(:, 1) = row_dist(:, 1)-1
-      col_dist(:, 1) = col_dist(:, 1)-1
+      row_dist(:, 1) = row_dist(:, 1) - 1
+      col_dist(:, 1) = col_dist(:, 1) - 1
       CALL distribution_2d_create(opt_3c_dist2d, row_distribution_ptr=row_dist, &
                                   col_distribution_ptr=col_dist, local_rows_ptr=local_particle_row, &
                                   local_cols_ptr=local_particle_col, blacs_env=blacs_env)
@@ -2155,7 +2155,7 @@ CONTAINS
             IF (ASSOCIATED(basis_c(ikind)%gto_basis_set)) THEN
                c_present(ikind) = .TRUE.
                CALL get_gto_basis_set(basis_c(ikind)%gto_basis_set, kind_radius=c_radius(ikind))
-               c_radius(ikind) = c_radius(ikind)+x_range
+               c_radius(ikind) = c_radius(ikind) + x_range
             END IF
          END DO !ikind
 
@@ -2258,7 +2258,7 @@ CONTAINS
       sf_evals => donor_state%sf_evals
       nsc = SIZE(sc_evals)
       nsf = SIZE(sf_evals)
-      ntot = 1+nsc+nsf
+      ntot = 1 + nsc + nsf
       nex = nsc !by contrutciotn nsc == nsf, but keep 2 counts for clarity
       ndo_mo = donor_state%ndo_mo
       ndo_so = 2*ndo_mo
@@ -2285,7 +2285,7 @@ CONTAINS
                                  t_firstcol=1)
          CALL cp_fm_to_fm_submat(msource=donor_state%gs_coeffs, mtarget=gs_coeffs, nrow=nao, &
                                  ncol=ndo_mo, s_firstrow=1, s_firstcol=1, t_firstrow=1, &
-                                 t_firstcol=ndo_mo+1)
+                                 t_firstcol=ndo_mo + 1)
 
          CALL cp_fm_struct_release(vec_struct)
       END IF
@@ -2298,10 +2298,10 @@ CONTAINS
 
 ! Put the excitation energies on the diagonal of the real  matrix. Element 1,1 is the ground state
       DO isc = 1, nsc
-         CALL cp_fm_set_element(real_fm, 1+isc, 1+isc, sc_evals(isc))
+         CALL cp_fm_set_element(real_fm, 1 + isc, 1 + isc, sc_evals(isc))
       END DO
       DO isf = 1, nsf
-         CALL cp_fm_set_element(real_fm, 1+nsc+isf, 1+nsc+isf, sf_evals(isf))
+         CALL cp_fm_set_element(real_fm, 1 + nsc + isf, 1 + nsc + isf, sf_evals(isf))
       END DO
 
 ! Create the bdcsr machinery
@@ -2310,8 +2310,8 @@ CONTAINS
                                   npcols=npcols, nprows=nprows)
       ALLOCATE (col_dist(nex), row_dist_new(nex))
       DO iex = 1, nex
-         col_dist(iex) = MODULO(npcols-iex, npcols)
-         row_dist_new(iex) = MODULO(nprows-iex, nprows)
+         col_dist(iex) = MODULO(npcols - iex, npcols)
+         row_dist_new(iex) = MODULO(nprows - iex, nprows)
       END DO
       ALLOCATE (coeffs_dist, prod_dist)
       CALL dbcsr_distribution_new(coeffs_dist, group=group, pgrid=pgrid, row_dist=row_dist, &
@@ -2390,7 +2390,7 @@ CONTAINS
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_z, mo_coeff, vec_work, ncol=homo)
       CALL cp_gemm('T', 'N', homo, homo, nao, 1.0_dp, mo_coeff, vec_work, 0.0_dp, prod_work)
       CALL cp_fm_get_diag(prod_work, diag)
-      gs_sum = gs_sum-SUM(diag) ! -1 because of spin integration
+      gs_sum = gs_sum - SUM(diag) ! -1 because of spin integration
 
       CALL cp_fm_release(vec_work)
       CALL cp_fm_release(prod_work)
@@ -2445,13 +2445,13 @@ CONTAINS
       CALL cp_gemm('T', 'N', nex*ndo_so, ndo_so, nao, -1.0_dp, sc_coeffs, vec_soc_z, 0.0_dp, gsex_fm)
 
       DO isc = 1, nsc
-         CALL cp_fm_get_submatrix(fm=gsex_fm, target_m=gsex_block, start_row=(isc-1)*ndo_so+1, &
+         CALL cp_fm_get_submatrix(fm=gsex_fm, target_m=gsex_block, start_row=(isc - 1)*ndo_so + 1, &
                                   start_col=1, n_rows=ndo_so, n_cols=ndo_so)
          diag(:) = get_diag(gsex_block)
-         soc = SUM(diag(1:ndo_mo))-SUM(diag(ndo_mo+1:ndo_so)) !minus sign because of spin integration
+         soc = SUM(diag(1:ndo_mo)) - SUM(diag(ndo_mo + 1:ndo_so)) !minus sign because of spin integration
 
          !purely imaginary contribution
-         CALL cp_fm_set_element(img_fm, 1, 1+isc, soc)
+         CALL cp_fm_set_element(img_fm, 1, 1 + isc, soc)
       END DO !isc
 
 !  Then ground-state/spin-flip SOC:
@@ -2461,23 +2461,23 @@ CONTAINS
       CALL cp_gemm('T', 'N', nex*ndo_so, ndo_so, nao, -1.0_dp, sc_coeffs, vec_soc_x, 0.0_dp, gsex_fm)
 
       DO isf = 1, nsf
-         CALL cp_fm_get_submatrix(fm=gsex_fm, target_m=gsex_block, start_row=(isf-1)*ndo_so+1, &
+         CALL cp_fm_get_submatrix(fm=gsex_fm, target_m=gsex_block, start_row=(isf - 1)*ndo_so + 1, &
                                   start_col=1, n_rows=ndo_so, n_cols=ndo_so)
          diag(:) = get_diag(gsex_block)
          soc = SUM(diag) !alpha and beta parts are simply added due to spin integration
-         CALL cp_fm_set_element(img_fm, 1, 1+nsc+isf, soc)
+         CALL cp_fm_set_element(img_fm, 1, 1 + nsc + isf, soc)
       END DO !isf
 
       !compute -sc_coeffs*SOC_y*gs_coeffs, real contribution
       CALL cp_gemm('T', 'N', nex*ndo_so, ndo_so, nao, -1.0_dp, sc_coeffs, vec_soc_y, 0.0_dp, gsex_fm)
 
       DO isf = 1, nsf
-         CALL cp_fm_get_submatrix(fm=gsex_fm, target_m=gsex_block, start_row=(isf-1)*ndo_so+1, &
+         CALL cp_fm_get_submatrix(fm=gsex_fm, target_m=gsex_block, start_row=(isf - 1)*ndo_so + 1, &
                                   start_col=1, n_rows=ndo_so, n_cols=ndo_so)
          diag(:) = get_diag(gsex_block)
          soc = SUM(diag(1:ndo_mo)) ! alpha-beta
-         soc = soc-SUM(diag(ndo_mo+1:ndo_so)) !beta-alpha
-         CALL cp_fm_set_element(real_fm, 1, 1+nsc+isf, soc)
+         soc = soc - SUM(diag(ndo_mo + 1:ndo_so)) !beta-alpha
+         CALL cp_fm_set_element(real_fm, 1, 1 + nsc + isf, soc)
       END DO !isf
 
       !ground-state cleanup
@@ -2535,14 +2535,14 @@ CONTAINS
 
       CALL copy_dbcsr_to_fm(dbcsr_tmp, work_fm)
       CALL cp_fm_to_fm_submat(msource=work_fm, mtarget=img_fm, nrow=nex, ncol=nex, s_firstrow=1, &
-                              s_firstcol=1, t_firstrow=1+nsc+1, t_firstcol=1+nsc+1)
+                              s_firstcol=1, t_firstrow=1 + nsc + 1, t_firstcol=1 + nsc + 1)
 
 !  Finally the spin-conserving/spin-flip interaction
 ! <Psi_Isc|SOC|Psi_Jsf> =   sum_k,sigma <psi^Isc_k,sigma|SOC|psi^Isf_k,tau>
 !                           - sum_k,l,sigma <psi^0_k,tau|SOC|psi^0_l,sigma
 
-      tas(1) = 1; tbs(1) = ndo_mo+1
-      tas(2) = ndo_mo+1; tbs(2) = 1
+      tas(1) = 1; tbs(1) = ndo_mo + 1
+      tas(2) = ndo_mo + 1; tbs(2) = 1
 
       !the overlap
       CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sf, 0.0_dp, &
@@ -2559,7 +2559,7 @@ CONTAINS
 
       CALL copy_dbcsr_to_fm(dbcsr_tmp, work_fm)
       CALL cp_fm_to_fm_submat(msource=work_fm, mtarget=img_fm, nrow=nex, ncol=nex, s_firstrow=1, &
-                              s_firstcol=1, t_firstrow=2, t_firstcol=1+nsc+1)
+                              s_firstcol=1, t_firstrow=2, t_firstcol=1 + nsc + 1)
 
       !follow up with the real contribution
       CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_y, dbcsr_sf, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
@@ -2571,7 +2571,7 @@ CONTAINS
 
       CALL copy_dbcsr_to_fm(dbcsr_tmp, work_fm)
       CALL cp_fm_to_fm_submat(msource=work_fm, mtarget=real_fm, nrow=nex, ncol=nex, s_firstrow=1, &
-                              s_firstcol=1, t_firstrow=2, t_firstcol=1+nsc+1)
+                              s_firstcol=1, t_firstrow=2, t_firstcol=1 + nsc + 1)
 
 !  Setting up the complex Hermitian perturbed matrix
       CALL cp_cfm_create(pert_cfm, full_struct)
@@ -2586,8 +2586,8 @@ CONTAINS
       CALL cp_cfm_heevd(pert_cfm, evecs_cfm, tmp_evals)
 
       !shift the energies such that the GS has zero and store all that in soc_evals (\wo the GS)
-      ALLOCATE (donor_state%soc_evals(ntot-1))
-      donor_state%soc_evals(:) = tmp_evals(2:ntot)-tmp_evals(1)
+      ALLOCATE (donor_state%soc_evals(ntot - 1))
+      donor_state%soc_evals(:) = tmp_evals(2:ntot) - tmp_evals(1)
 
 !  The SOC dipole oscillator strengths
       CALL compute_soc_dipole_fosc(evecs_cfm, dbcsr_soc_package, donor_state, xas_tdp_env, &
@@ -2693,7 +2693,7 @@ CONTAINS
       tp_evals => donor_state%tp_evals
       nsg = SIZE(sg_evals)
       ntp = SIZE(tp_evals)
-      ntot = 1+nsg+3*ntp
+      ntot = 1 + nsg + 3*ntp
       ndo_mo = donor_state%ndo_mo
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
       CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao)
@@ -2714,13 +2714,13 @@ CONTAINS
 
 !  Put the excitation energies on the diagonal of the real matrix
       DO isg = 1, nsg
-         CALL cp_fm_set_element(real_fm, 1+isg, 1+isg, sg_evals(isg))
+         CALL cp_fm_set_element(real_fm, 1 + isg, 1 + isg, sg_evals(isg))
       END DO
       DO itp = 1, ntp
          ! first T^-1, then T^0, then T^+1
-         CALL cp_fm_set_element(real_fm, 1+itp+nsg, 1+itp+nsg, tp_evals(itp))
-         CALL cp_fm_set_element(real_fm, 1+itp+ntp+nsg, 1+itp+ntp+nsg, tp_evals(itp))
-         CALL cp_fm_set_element(real_fm, 1+itp+2*ntp+nsg, 1+itp+2*ntp+nsg, tp_evals(itp))
+         CALL cp_fm_set_element(real_fm, 1 + itp + nsg, 1 + itp + nsg, tp_evals(itp))
+         CALL cp_fm_set_element(real_fm, 1 + itp + ntp + nsg, 1 + itp + ntp + nsg, tp_evals(itp))
+         CALL cp_fm_set_element(real_fm, 1 + itp + 2*ntp + nsg, 1 + itp + 2*ntp + nsg, tp_evals(itp))
       END DO
 
 !  Create the dbcsr machinery (for fast MM, the core of this routine)
@@ -2729,8 +2729,8 @@ CONTAINS
                                   npcols=npcols, nprows=nprows)
       ALLOCATE (col_dist(nex), row_dist_new(nex))
       DO iex = 1, nex
-         col_dist(iex) = MODULO(npcols-iex, npcols)
-         row_dist_new(iex) = MODULO(nprows-iex, nprows)
+         col_dist(iex) = MODULO(npcols - iex, npcols)
+         row_dist_new(iex) = MODULO(nprows - iex, nprows)
       END DO
       ALLOCATE (coeffs_dist, prod_dist)
       CALL dbcsr_distribution_new(coeffs_dist, group=group, pgrid=pgrid, row_dist=row_dist, &
@@ -2820,35 +2820,35 @@ CONTAINS
       CALL cp_gemm('T', 'N', ndo_mo*ntp, ndo_mo, nao, -1.0_dp, tp_coeffs, vec_soc_x, 0.0_dp, gstp_fm)
 
       DO itp = 1, ntp
-         CALL cp_fm_get_submatrix(fm=gstp_fm, target_m=gstp_block, start_row=(itp-1)*ndo_mo+1, &
+         CALL cp_fm_get_submatrix(fm=gstp_fm, target_m=gstp_block, start_row=(itp - 1)*ndo_mo + 1, &
                                   start_col=1, n_rows=ndo_mo, n_cols=ndo_mo)
          diag(:) = get_diag(gstp_block)
          soc_gst = SUM(diag)
-         CALL cp_fm_set_element(img_fm, 1, 1+nsg+itp, -1.0_dp*soc_gst) ! <0|H_x|T^-1>
-         CALL cp_fm_set_element(img_fm, 1, 1+nsg+2*ntp+itp, soc_gst) ! <0|H_x|T^+1>
+         CALL cp_fm_set_element(img_fm, 1, 1 + nsg + itp, -1.0_dp*soc_gst) ! <0|H_x|T^-1>
+         CALL cp_fm_set_element(img_fm, 1, 1 + nsg + 2*ntp + itp, soc_gst) ! <0|H_x|T^+1>
       END DO
 
       !gs-triplet with Ms=+-1, real part
       CALL cp_gemm('T', 'N', ndo_mo*ntp, ndo_mo, nao, -1.0_dp, tp_coeffs, vec_soc_y, 0.0_dp, gstp_fm)
 
       DO itp = 1, ntp
-         CALL cp_fm_get_submatrix(fm=gstp_fm, target_m=gstp_block, start_row=(itp-1)*ndo_mo+1, &
+         CALL cp_fm_get_submatrix(fm=gstp_fm, target_m=gstp_block, start_row=(itp - 1)*ndo_mo + 1, &
                                   start_col=1, n_rows=ndo_mo, n_cols=ndo_mo)
          diag(:) = get_diag(gstp_block)
          soc_gst = SUM(diag)
-         CALL cp_fm_set_element(real_fm, 1, 1+nsg+itp, -1.0_dp*soc_gst) ! <0|H_y|T^-1>
-         CALL cp_fm_set_element(real_fm, 1, 1+nsg+2*ntp+itp, -1.0_dp*soc_gst) ! <0|H_y|T^+1>
+         CALL cp_fm_set_element(real_fm, 1, 1 + nsg + itp, -1.0_dp*soc_gst) ! <0|H_y|T^-1>
+         CALL cp_fm_set_element(real_fm, 1, 1 + nsg + 2*ntp + itp, -1.0_dp*soc_gst) ! <0|H_y|T^+1>
       END DO
 
       !gs-triplet with Ms=0, purely imaginary
       CALL cp_gemm('T', 'N', ndo_mo*ntp, ndo_mo, nao, -1.0_dp, tp_coeffs, vec_soc_z, 0.0_dp, gstp_fm)
 
       DO itp = 1, ntp
-         CALL cp_fm_get_submatrix(fm=gstp_fm, target_m=gstp_block, start_row=(itp-1)*ndo_mo+1, &
+         CALL cp_fm_get_submatrix(fm=gstp_fm, target_m=gstp_block, start_row=(itp - 1)*ndo_mo + 1, &
                                   start_col=1, n_rows=ndo_mo, n_cols=ndo_mo)
          diag(:) = get_diag(gstp_block)
          soc_gst = sqrt2*SUM(diag)
-         CALL cp_fm_set_element(img_fm, 1, 1+nsg+ntp+itp, soc_gst)
+         CALL cp_fm_set_element(img_fm, 1, 1 + nsg + ntp + itp, soc_gst)
       END DO
 
       !gs clean-up
@@ -2878,13 +2878,13 @@ CONTAINS
       CALL copy_dbcsr_to_fm(dbcsr_tmp, tmp_fm)
       CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=img_fm, nrow=nex, ncol=nex, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=2, &
-                              t_firstcol=1+nsg+1)
+                              t_firstcol=1 + nsg + 1)
 
       !<S|H_x|T^+1> takes a minus sign
       CALL cp_fm_scale(-1.0_dp, tmp_fm)
       CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=img_fm, nrow=nex, ncol=nex, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=2, &
-                              t_firstcol=1+nsg+2*ntp+1)
+                              t_firstcol=1 + nsg + 2*ntp + 1)
 
       !singlet-triplet with Ms=+-1, real part
       CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_y, dbcsr_tp, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
@@ -2897,12 +2897,12 @@ CONTAINS
       CALL copy_dbcsr_to_fm(dbcsr_tmp, tmp_fm)
       CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=real_fm, nrow=nex, ncol=nex, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=2, &
-                              t_firstcol=1+nsg+1)
+                              t_firstcol=1 + nsg + 1)
 
       !<S|H_y|T^+1>
       CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=real_fm, nrow=nex, ncol=nex, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=2, &
-                              t_firstcol=1+nsg+2*ntp+1)
+                              t_firstcol=1 + nsg + 2*ntp + 1)
 
       !singlet-triplet with Ms=0, purely imaginary
       CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_z, dbcsr_tp, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
@@ -2915,7 +2915,7 @@ CONTAINS
       CALL copy_dbcsr_to_fm(dbcsr_tmp, tmp_fm)
       CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=img_fm, nrow=nex, ncol=nex, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=2, &
-                              t_firstcol=1+nsg+ntp+1)
+                              t_firstcol=1 + nsg + ntp + 1)
 
       !Now the triplet-triplet SOC
       !start by computing the overlap
@@ -2933,15 +2933,15 @@ CONTAINS
       !<T^0|H_x|T^+1>
       CALL copy_dbcsr_to_fm(dbcsr_tmp, tmp_fm)
       CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=img_fm, nrow=nex, ncol=nex, &
-                              s_firstrow=1, s_firstcol=1, t_firstrow=1+nsg+ntp+1, &
-                              t_firstcol=1+nsg+2*ntp+1)
+                              s_firstrow=1, s_firstcol=1, t_firstrow=1 + nsg + ntp + 1, &
+                              t_firstcol=1 + nsg + 2*ntp + 1)
 
       !<T^-1|H_x|T^0>, takes a minus sign and a transpose (because computed <T^0|H_x|T^-1>)
       CALL cp_fm_transpose(tmp_fm, work_fm)
       CALL cp_fm_scale(-1.0_dp, work_fm)
       CALL cp_fm_to_fm_submat(msource=work_fm, mtarget=img_fm, nrow=nex, ncol=nex, &
-                              s_firstrow=1, s_firstcol=1, t_firstrow=1+nsg+1, &
-                              t_firstcol=1+nsg+ntp+1)
+                              s_firstrow=1, s_firstcol=1, t_firstrow=1 + nsg + 1, &
+                              t_firstcol=1 + nsg + ntp + 1)
 
       !Ms=0 to Ms=+-1 SOC, real part
       CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_y, dbcsr_tp, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
@@ -2953,15 +2953,15 @@ CONTAINS
       !<T^0|H_y|T^+1>
       CALL copy_dbcsr_to_fm(dbcsr_tmp, tmp_fm)
       CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=real_fm, nrow=nex, ncol=nex, &
-                              s_firstrow=1, s_firstcol=1, t_firstrow=1+nsg+ntp+1, &
-                              t_firstcol=1+nsg+2*ntp+1)
+                              s_firstrow=1, s_firstcol=1, t_firstrow=1 + nsg + ntp + 1, &
+                              t_firstcol=1 + nsg + 2*ntp + 1)
 
       !<T^-1|H_y|T^0>, takes a minus sign and a transpose
       CALL cp_fm_transpose(tmp_fm, work_fm)
       CALL cp_fm_scale(-1.0_dp, work_fm)
       CALL cp_fm_to_fm_submat(msource=work_fm, mtarget=real_fm, nrow=nex, ncol=nex, &
-                              s_firstrow=1, s_firstcol=1, t_firstrow=1+nsg+1, &
-                              t_firstcol=1+nsg+ntp+1)
+                              s_firstrow=1, s_firstcol=1, t_firstrow=1 + nsg + 1, &
+                              t_firstcol=1 + nsg + ntp + 1)
 
       !Ms=1 to Ms=1 and Ms=-1 to Ms=-1 SOC, purely imaginary
       CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_z, dbcsr_tp, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
@@ -2973,14 +2973,14 @@ CONTAINS
       !<T^+1|H_z|T^+1>
       CALL copy_dbcsr_to_fm(dbcsr_tmp, tmp_fm)
       CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=img_fm, nrow=nex, ncol=nex, &
-                              s_firstrow=1, s_firstcol=1, t_firstrow=1+nsg+2*ntp+1, &
-                              t_firstcol=1+nsg+2*ntp+1)
+                              s_firstrow=1, s_firstcol=1, t_firstrow=1 + nsg + 2*ntp + 1, &
+                              t_firstcol=1 + nsg + 2*ntp + 1)
 
       !<T^-1|H_z|T^-1>, takes a minus sign
       CALL cp_fm_scale(-1.0_dp, tmp_fm)
       CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=img_fm, nrow=nex, ncol=nex, &
-                              s_firstrow=1, s_firstcol=1, t_firstrow=1+nsg+1, &
-                              t_firstcol=1+nsg+1)
+                              s_firstrow=1, s_firstcol=1, t_firstrow=1 + nsg + 1, &
+                              t_firstcol=1 + nsg + 1)
 
 !  Intermediate clean-up
       CALL cp_fm_struct_release(work_struct)
@@ -3001,8 +3001,8 @@ CONTAINS
       CALL cp_cfm_heevd(hami_cfm, evecs_cfm, tmp_evals)
 
       !  Adjust the energies so the GS has zero, and store in the donor_state (without the GS)
-      ALLOCATE (donor_state%soc_evals(ntot-1))
-      donor_state%soc_evals(:) = tmp_evals(2:ntot)-tmp_evals(1)
+      ALLOCATE (donor_state%soc_evals(ntot - 1))
+      donor_state%soc_evals(:) = tmp_evals(2:ntot) - tmp_evals(1)
 
 !  Compute the dipole oscillator strengths
       CALL compute_soc_dipole_fosc(evecs_cfm, dbcsr_soc_package, donor_state, xas_tdp_env, &
@@ -3091,7 +3091,7 @@ CONTAINS
       nsc = SIZE(donor_state%sc_evals)
       nsf = SIZE(donor_state%sf_evals)
       nex = nsc
-      ntot = 1+nsc+nsf
+      ntot = 1 + nsc + nsf
       ndo_mo = donor_state%ndo_mo
       ndo_so = 2*donor_state%ndo_mo !open-shell => nspins = 2
       CALL get_qs_env(qs_env, matrix_s=matrix_s, para_env=para_env, blacs_env=blacs_env, mos=mos)
@@ -3158,7 +3158,7 @@ CONTAINS
          CALL cp_dbcsr_sm_fm_multiply(ao_op_i, mo_coeff, vec_work, ncol=homo)
          CALL cp_gemm('T', 'N', homo, homo, nao, 1.0_dp, mo_coeff, vec_work, 0.0_dp, prod_work)
          CALL cp_fm_get_diag(prod_work, diag)
-         gsgs_op(i) = gsgs_op(i)+SUM(diag)
+         gsgs_op(i) = gsgs_op(i) + SUM(diag)
 
       END DO !i
 
@@ -3205,11 +3205,11 @@ CONTAINS
          !  Do the ground-state/spin-conserving operator
          CALL cp_gemm('T', 'N', ndo_so*nsc, ndo_so, nao, 1.0_dp, sc_coeffs, vec_work, 0.0_dp, gsex_fm)
          DO isc = 1, nsc
-            CALL cp_fm_get_submatrix(fm=gsex_fm, target_m=gsex_block, start_row=(isc-1)*ndo_so+1, &
+            CALL cp_fm_get_submatrix(fm=gsex_fm, target_m=gsex_block, start_row=(isc - 1)*ndo_so + 1, &
                                      start_col=1, n_rows=ndo_so, n_cols=ndo_so)
             diag(:) = get_diag(gsex_block)
             op = SUM(diag)
-            CALL cp_fm_set_element(amew_op_i, 1, 1+isc, op)
+            CALL cp_fm_set_element(amew_op_i, 1, 1 + isc, op)
          END DO !isc
 
          !  The spin-conserving/spin-conserving operator
@@ -3241,8 +3241,8 @@ CONTAINS
          CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sf, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
          !need to reorganize the domo_op array by swapping the alpha-alpha and the beta-beta quarter
-         tmp(1:ndo_mo, 1:ndo_mo) = domo_op(ndo_mo+1:ndo_so, ndo_mo+1:ndo_so)
-         tmp(ndo_mo+1:ndo_so, ndo_mo+1:ndo_so) = domo_op(1:ndo_mo, 1:ndo_mo)
+         tmp(1:ndo_mo, 1:ndo_mo) = domo_op(ndo_mo + 1:ndo_so, ndo_mo + 1:ndo_so)
+         tmp(ndo_mo + 1:ndo_so, ndo_mo + 1:ndo_so) = domo_op(1:ndo_mo, 1:ndo_mo)
 
          CALL os_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, tmp, pref_diaga=1.0_dp, &
                                    pref_diagb=1.0_dp, pref_tracea=-1.0_dp, pref_traceb=-1.0_dp, &
@@ -3250,7 +3250,7 @@ CONTAINS
 
          CALL copy_dbcsr_to_fm(dbcsr_tmp, tmp_fm)
          CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=amew_op_i, nrow=nex, ncol=nex, &
-                                 s_firstrow=1, s_firstcol=1, t_firstrow=1+nsc+1, t_firstcol=1+nsc+1)
+                                 s_firstrow=1, s_firstcol=1, t_firstrow=1 + nsc + 1, t_firstcol=1 + nsc + 1)
 
          !Symmetry => only upper diag explicitly built
          CALL cp_fm_upper_to_full(amew_op_i, work_fm)
@@ -3326,7 +3326,7 @@ CONTAINS
       sg_coeffs => donor_state%sg_coeffs
       nsg = SIZE(donor_state%sg_evals)
       ntp = nsg; nex = nsg !all the same by construction, keep them separate for clarity
-      ntot = 1+nsg+3*ntp
+      ntot = 1 + nsg + 3*ntp
       ndo_mo = donor_state%ndo_mo
       CALL get_qs_env(qs_env, matrix_s=matrix_s, para_env=para_env, blacs_env=blacs_env, mos=mos)
       sqrt2 = SQRT(2.0_dp)
@@ -3408,11 +3408,11 @@ CONTAINS
          ! Compute the ground-state/singlet components. ao_op*gs_coeffs already stored in vec_op
          CALL cp_gemm('T', 'N', ndo_mo*nsg, ndo_mo, nao, 1.0_dp, sg_coeffs, vec_op, 0.0_dp, sggs_fm)
          DO isg = 1, nsg
-            CALL cp_fm_get_submatrix(fm=sggs_fm, target_m=sggs_block, start_row=(isg-1)*ndo_mo+1, &
+            CALL cp_fm_get_submatrix(fm=sggs_fm, target_m=sggs_block, start_row=(isg - 1)*ndo_mo + 1, &
                                      start_col=1, n_rows=ndo_mo, n_cols=ndo_mo)
             diag(:) = get_diag(sggs_block)
             op = sqrt2*SUM(diag)
-            CALL cp_fm_set_element(amew_op_i, 1, 1+isg, op)
+            CALL cp_fm_set_element(amew_op_i, 1, 1 + isg, op)
          END DO
 
          ! do the singlet-singlet components
@@ -3449,15 +3449,15 @@ CONTAINS
          CALL copy_dbcsr_to_fm(dbcsr_tmp, tmp_fm)
          !<T^-1|op|T^-1>
          CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=amew_op_i, nrow=nex, ncol=nex, &
-                                 s_firstrow=1, s_firstcol=1, t_firstrow=1+nsg+1, t_firstcol=1+nsg+1)
+                                 s_firstrow=1, s_firstcol=1, t_firstrow=1 + nsg + 1, t_firstcol=1 + nsg + 1)
          !<T^0|op|T^0>
          CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=amew_op_i, nrow=nex, ncol=nex, &
-                                 s_firstrow=1, s_firstcol=1, t_firstrow=1+nsg+ntp+1, &
-                                 t_firstcol=1+nsg+ntp+1)
+                                 s_firstrow=1, s_firstcol=1, t_firstrow=1 + nsg + ntp + 1, &
+                                 t_firstcol=1 + nsg + ntp + 1)
          !<T^-1|op|T^-1>
          CALL cp_fm_to_fm_submat(msource=tmp_fm, mtarget=amew_op_i, nrow=nex, ncol=nex, &
-                                 s_firstrow=1, s_firstcol=1, t_firstrow=1+nsg+2*ntp+1, &
-                                 t_firstcol=1+nsg+2*ntp+1)
+                                 s_firstrow=1, s_firstcol=1, t_firstrow=1 + nsg + 2*ntp + 1, &
+                                 t_firstcol=1 + nsg + 2*ntp + 1)
 
          ! Symmetrize the matrix (only upper triangle built)
          CALL cp_fm_upper_to_full(amew_op_i, work_fm)
@@ -3534,7 +3534,7 @@ CONTAINS
       !inverse order, that is: the beta-coeffs in the alpha spot and the alpha coeffs in the
       !beta spot
       tas = 1
-      tbs = ndo_mo+1
+      tbs = ndo_mo + 1
       IF (PRESENT(tracea_start)) tas = tracea_start
       IF (PRESENT(traceb_start)) tbs = traceb_start
 
@@ -3552,20 +3552,20 @@ CONTAINS
          CALL dbcsr_get_block_p(lr_soc, iex, jex, pblock, found)
          IF (found) THEN
             diag(:) = get_diag(pblock)
-            soc_elem = soc_elem+pref_diaga*SUM(diag(1:ndo_mo))+pref_diagb*(SUM(diag(ndo_mo+1:ndo_so)))
+            soc_elem = soc_elem + pref_diaga*SUM(diag(1:ndo_mo)) + pref_diagb*(SUM(diag(ndo_mo + 1:ndo_so)))
          END IF
 
          CALL dbcsr_get_block_p(lr_overlap, iex, jex, pblock, found)
          IF (found) THEN
             soc_elem = soc_elem &
-                       +pref_tracea*SUM(pblock(tas(1):tas(1)+ndo_mo-1, tas(2):tas(2)+ndo_mo-1)* &
-                                        TRANSPOSE(domo_soc(tas(1):tas(1)+ndo_mo-1, tas(2):tas(2)+ndo_mo-1))) &
-                       +pref_traceb*SUM(pblock(tbs(1):tbs(1)+ndo_mo-1, tbs(2):tbs(2)+ndo_mo-1)* &
-                                        TRANSPOSE(domo_soc(tbs(1):tbs(1)+ndo_mo-1, tbs(2):tbs(2)+ndo_mo-1)))
+                       + pref_tracea*SUM(pblock(tas(1):tas(1) + ndo_mo - 1, tas(2):tas(2) + ndo_mo - 1)* &
+                                         TRANSPOSE(domo_soc(tas(1):tas(1) + ndo_mo - 1, tas(2):tas(2) + ndo_mo - 1))) &
+                       + pref_traceb*SUM(pblock(tbs(1):tbs(1) + ndo_mo - 1, tbs(2):tbs(2) + ndo_mo - 1)* &
+                                         TRANSPOSE(domo_soc(tbs(1):tbs(1) + ndo_mo - 1, tbs(2):tbs(2) + ndo_mo - 1)))
 
             IF (do_diags) THEN
                diag(:) = get_diag(pblock)
-               soc_elem = soc_elem+pref_diags*SUM(diag)
+               soc_elem = soc_elem + pref_diags*SUM(diag)
             END IF
          END IF
 
@@ -3630,16 +3630,16 @@ CONTAINS
          CALL dbcsr_get_block_p(lr_soc, iex, jex, pblock, found)
          IF (found) THEN
             diag(:) = get_diag(pblock)
-            soc_elem = soc_elem+SUM(diag)
+            soc_elem = soc_elem + SUM(diag)
          END IF
 
          CALL dbcsr_get_block_p(lr_overlap, iex, jex, pblock, found)
          IF (found) THEN
-            soc_elem = soc_elem+pref_trace*SUM(pblock*TRANSPOSE(domo_soc))
+            soc_elem = soc_elem + pref_trace*SUM(pblock*TRANSPOSE(domo_soc))
 
             IF (do_diags) THEN
                diag(:) = get_diag(pblock)
-               soc_elem = soc_elem+pref_diags*SUM(diag)
+               soc_elem = soc_elem + pref_diags*SUM(diag)
             END IF
          END IF
 
@@ -3697,7 +3697,7 @@ CONTAINS
       do_rcs = xas_tdp_control%do_singlet
       soc_evals => donor_state%soc_evals
       nosc = SIZE(soc_evals)
-      ntot = nosc+1 !because GS AMEW is in there
+      ntot = nosc + 1 !because GS AMEW is in there
       ALLOCATE (donor_state%soc_osc_str(nosc))
       osc_str => donor_state%soc_osc_str
       osc_str(:) = 0.0_dp
@@ -3735,7 +3735,7 @@ CONTAINS
          CALL cp_cfm_get_submatrix(dip_cfm, transdip)
 
          !transition dipoles are real numbers
-         osc_str(:) = osc_str(:)+REAL(transdip(2:ntot, 1))**2+AIMAG(transdip(2:ntot, 1))**2
+         osc_str(:) = osc_str(:) + REAL(transdip(2:ntot, 1))**2 + AIMAG(transdip(2:ntot, 1))**2
 
       END DO !i
 
@@ -3807,7 +3807,7 @@ CONTAINS
       do_rcs = xas_tdp_control%do_singlet
       soc_evals => donor_state%soc_evals
       nosc = SIZE(soc_evals)
-      ntot = nosc+1 !because GS AMEW is in there
+      ntot = nosc + 1 !because GS AMEW is in there
       ALLOCATE (donor_state%soc_quad_osc_str(nosc))
       osc_str => donor_state%soc_quad_osc_str
       osc_str(:) = 0.0_dp
@@ -3848,18 +3848,18 @@ CONTAINS
 
          !if x2, y2 or z2, need to keep track of trace
          IF (i == 1 .OR. i == 4 .OR. i == 6) THEN
-            osc_str(:) = osc_str(:)+REAL(transquad(2:ntot, 1))**2+AIMAG(transquad(2:ntot, 1))**2
-            trace(:) = trace(:)+transquad(2:ntot, 1)
+            osc_str(:) = osc_str(:) + REAL(transquad(2:ntot, 1))**2 + AIMAG(transquad(2:ntot, 1))**2
+            trace(:) = trace(:) + transquad(2:ntot, 1)
 
             !if xy, xz, or yz, need to count twice (for yx, zx and zy)
          ELSE
-            osc_str(:) = osc_str(:)+2.0_dp*(REAL(transquad(2:ntot, 1))**2+AIMAG(transquad(2:ntot, 1))**2)
+            osc_str(:) = osc_str(:) + 2.0_dp*(REAL(transquad(2:ntot, 1))**2 + AIMAG(transquad(2:ntot, 1))**2)
          END IF
 
       END DO !i
 
       !remove a third of the trace
-      osc_str(:) = osc_str(:)-1._dp/3._dp*(REAL(trace(:))**2+AIMAG(trace(:))**2)
+      osc_str(:) = osc_str(:) - 1._dp/3._dp*(REAL(trace(:))**2 + AIMAG(trace(:))**2)
 
       !multiply by the prefactor
       osc_str(:) = osc_str(:)*1._dp/20._dp*a_fine**2*soc_evals(:)**3

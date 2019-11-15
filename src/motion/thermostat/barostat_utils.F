@@ -71,7 +71,7 @@ CONTAINS
          baro_kin = 0.0_dp
          DO i = 1, 3
             DO j = 1, 3
-               baro_kin = baro_kin+0.5_dp*npt(i, j)%v**2*npt(i, j)%mass
+               baro_kin = baro_kin + 0.5_dp*npt(i, j)%v**2*npt(i, j)%mass
             END DO
          END DO
       ELSEIF (simpar%ensemble == nph_uniaxial_ensemble .OR. simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
@@ -80,7 +80,7 @@ CONTAINS
          v_shock = simpar%v_shock
 
          ! Valid only for orthorhombic cell
-         baro_pot = -0.5_dp*v_shock*v_shock*(1._dp-cell%deth*iv0)**2-simpar%p0*(v0-cell%deth)
+         baro_pot = -0.5_dp*v_shock*v_shock*(1._dp - cell%deth*iv0)**2 - simpar%p0*(v0 - cell%deth)
          ! Valid only for orthorhombic cell
          baro_kin = 0.5_dp*npt(1, 1)%v*npt(1, 1)%v*npt(1, 1)%mass
       END IF

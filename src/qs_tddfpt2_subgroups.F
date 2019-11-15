@@ -200,7 +200,7 @@ CONTAINS
       NULLIFY (sub_env%admm_A)
 
       IF (sub_env%is_split) THEN
-         ALLOCATE (sub_env%group_distribution(0:para_env_global%num_pe-1))
+         ALLOCATE (sub_env%group_distribution(0:para_env_global%num_pe - 1))
 
          CALL mp_comm_split(comm=para_env_global%group, sub_comm=sub_env%mpi_comm, ngroups=sub_env%ngroups, &
                             group_distribution=sub_env%group_distribution, subgroup_min_size=tddfpt_control%nprocs)
@@ -436,7 +436,7 @@ CONTAINS
       ELSE
          qs_control%e_cutoff(1) = qs_control%cutoff
          DO igrid = 2, ngrids
-            qs_control%e_cutoff(igrid) = qs_control%e_cutoff(igrid-1)/qs_control%progression_factor
+            qs_control%e_cutoff(igrid) = qs_control%e_cutoff(igrid - 1)/qs_control%progression_factor
          END DO
       END IF
 
@@ -711,7 +711,7 @@ CONTAINS
          igroup_local = sub_env%group_distribution(para_env_global%mepos)
          ngroups = sub_env%ngroups
 
-         DO igroup = 0, ngroups-1
+         DO igroup = 0, ngroups - 1
             IF (igroup == igroup_local) THEN
                CALL cp_fm_copy_general(fm_src, fm_dest_sub, para_env_global)
             ELSE

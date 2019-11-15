@@ -189,13 +189,13 @@ CONTAINS
 
 ! find out some bounds for mol_type
       start_mol = 1
-      DO jbox = 1, box_number-1
-         start_mol = start_mol+SUM(nchains(:, jbox))
+      DO jbox = 1, box_number - 1
+         start_mol = start_mol + SUM(nchains(:, jbox))
       ENDDO
-      end_mol = start_mol+SUM(nchains(:, box_number))-1
+      end_mol = start_mol + SUM(nchains(:, box_number)) - 1
 
 ! figure out which molecule number we are
-      end_atom = start_atom+nunits_mol-1
+      end_atom = start_atom + nunits_mol - 1
       molecule_number = 0
       atom_number = 1
       DO imolecule = 1, SUM(nchains(:, box_number))
@@ -203,7 +203,7 @@ CONTAINS
             molecule_number = imolecule
             EXIT
          ENDIF
-         atom_number = atom_number+nunits(mol_type(imolecule+start_mol-1))
+         atom_number = atom_number + nunits(mol_type(imolecule + start_mol - 1))
       ENDDO
       IF (molecule_number == 0) CPABORT('Cannot find the molecule number')
 
@@ -235,7 +235,7 @@ CONTAINS
 
 ! save the coordinates
       DO ipart = start_atom, end_atom
-         r_old(1:3, ipart-start_atom+1) = particles%els(ipart)%r(1:3)
+         r_old(1:3, ipart - start_atom + 1) = particles%els(ipart)%r(1:3)
       ENDDO
 
       IF (.NOT. ASSOCIATED(molecule_kind)) CPABORT('Cannot find the molecule type')
@@ -243,17 +243,17 @@ CONTAINS
       IF (move_type == 'bond') THEN
 
 ! record the attempt
-         moves%bond%attempts = moves%bond%attempts+1
-         move_updates%bond%attempts = move_updates%bond%attempts+1
-         moves%bias_bond%attempts = moves%bias_bond%attempts+1
-         move_updates%bias_bond%attempts = move_updates%bias_bond%attempts+1
+         moves%bond%attempts = moves%bond%attempts + 1
+         move_updates%bond%attempts = move_updates%bond%attempts + 1
+         moves%bias_bond%attempts = moves%bias_bond%attempts + 1
+         move_updates%bias_bond%attempts = move_updates%bias_bond%attempts + 1
          IF (.NOT. lbias) THEN
-            moves%bond%qsuccesses = moves%bond%qsuccesses+1
+            moves%bond%qsuccesses = moves%bond%qsuccesses + 1
             move_updates%bond%qsuccesses = &
-               move_updates%bond%qsuccesses+1
-            moves%bias_bond%qsuccesses = moves%bias_bond%qsuccesses+1
+               move_updates%bond%qsuccesses + 1
+            moves%bias_bond%qsuccesses = moves%bias_bond%qsuccesses + 1
             move_updates%bias_bond%qsuccesses = &
-               move_updates%bias_bond%qsuccesses+1
+               move_updates%bias_bond%qsuccesses + 1
          ENDIF
 
 ! do the move
@@ -263,17 +263,17 @@ CONTAINS
       ELSEIF (move_type == 'angle') THEN
 
 ! record the attempt
-         moves%angle%attempts = moves%angle%attempts+1
-         move_updates%angle%attempts = move_updates%angle%attempts+1
-         moves%bias_angle%attempts = moves%bias_angle%attempts+1
-         move_updates%bias_angle%attempts = move_updates%bias_angle%attempts+1
+         moves%angle%attempts = moves%angle%attempts + 1
+         move_updates%angle%attempts = move_updates%angle%attempts + 1
+         moves%bias_angle%attempts = moves%bias_angle%attempts + 1
+         move_updates%bias_angle%attempts = move_updates%bias_angle%attempts + 1
          IF (.NOT. lbias) THEN
-            moves%angle%qsuccesses = moves%angle%qsuccesses+1
+            moves%angle%qsuccesses = moves%angle%qsuccesses + 1
             move_updates%angle%qsuccesses = &
-               move_updates%angle%qsuccesses+1
-            moves%bias_angle%qsuccesses = moves%bias_angle%qsuccesses+1
+               move_updates%angle%qsuccesses + 1
+            moves%bias_angle%qsuccesses = moves%bias_angle%qsuccesses + 1
             move_updates%bias_angle%qsuccesses = &
-               move_updates%bias_angle%qsuccesses+1
+               move_updates%bias_angle%qsuccesses + 1
          ENDIF
 
 ! do the move
@@ -282,17 +282,17 @@ CONTAINS
          dis_length = 1.0E0_dp
       ELSE
 ! record the attempt
-         moves%dihedral%attempts = moves%dihedral%attempts+1
-         move_updates%dihedral%attempts = move_updates%dihedral%attempts+1
-         moves%bias_dihedral%attempts = moves%bias_dihedral%attempts+1
-         move_updates%bias_dihedral%attempts = move_updates%bias_dihedral%attempts+1
+         moves%dihedral%attempts = moves%dihedral%attempts + 1
+         move_updates%dihedral%attempts = move_updates%dihedral%attempts + 1
+         moves%bias_dihedral%attempts = moves%bias_dihedral%attempts + 1
+         move_updates%bias_dihedral%attempts = move_updates%bias_dihedral%attempts + 1
          IF (.NOT. lbias) THEN
-            moves%dihedral%qsuccesses = moves%dihedral%qsuccesses+1
+            moves%dihedral%qsuccesses = moves%dihedral%qsuccesses + 1
             move_updates%dihedral%qsuccesses = &
-               move_updates%dihedral%qsuccesses+1
-            moves%bias_dihedral%qsuccesses = moves%bias_dihedral%qsuccesses+1
+               move_updates%dihedral%qsuccesses + 1
+            moves%bias_dihedral%qsuccesses = moves%bias_dihedral%qsuccesses + 1
             move_updates%bias_dihedral%qsuccesses = &
-               move_updates%bias_dihedral%qsuccesses+1
+               move_updates%bias_dihedral%qsuccesses + 1
          ENDIF
 
 ! do the move
@@ -304,7 +304,7 @@ CONTAINS
 
 ! set the coordinates
       DO ipart = start_atom, end_atom
-         particles%els(ipart)%r(1:3) = r_new(1:3, ipart-start_atom+1)
+         particles%els(ipart)%r(1:3) = r_new(1:3, ipart - start_atom + 1)
       ENDDO
 
 ! check for overlap
@@ -334,7 +334,7 @@ CONTAINS
 ! accept or reject the move based on the Metropolis rule with a
 ! correction factor for the change in phase space...dis_length is
 ! made unitless in change_bond_length
-            value = -BETA*(bias_energy_new-bias_energy_old)
+            value = -BETA*(bias_energy_new - bias_energy_old)
             IF (value .GT. exp_max_val) THEN
                w = 10.0_dp
             ELSEIF (value .LT. exp_min_val) THEN
@@ -359,29 +359,29 @@ CONTAINS
 
 ! accept the move
             IF (move_type == 'bond') THEN
-               moves%bond%qsuccesses = moves%bond%qsuccesses+1
+               moves%bond%qsuccesses = moves%bond%qsuccesses + 1
                move_updates%bond%successes = &
-                  move_updates%bond%successes+1
-               moves%bias_bond%successes = moves%bias_bond%successes+1
+                  move_updates%bond%successes + 1
+               moves%bias_bond%successes = moves%bias_bond%successes + 1
                move_updates%bias_bond%successes = &
-                  move_updates%bias_bond%successes+1
+                  move_updates%bias_bond%successes + 1
             ELSEIF (move_type == 'angle') THEN
-               moves%angle%qsuccesses = moves%angle%qsuccesses+1
+               moves%angle%qsuccesses = moves%angle%qsuccesses + 1
                move_updates%angle%successes = &
-                  move_updates%angle%successes+1
-               moves%bias_angle%successes = moves%bias_angle%successes+1
+                  move_updates%angle%successes + 1
+               moves%bias_angle%successes = moves%bias_angle%successes + 1
                move_updates%bias_angle%successes = &
-                  move_updates%bias_angle%successes+1
+                  move_updates%bias_angle%successes + 1
             ELSE
-               moves%dihedral%qsuccesses = moves%dihedral%qsuccesses+1
+               moves%dihedral%qsuccesses = moves%dihedral%qsuccesses + 1
                move_updates%dihedral%successes = &
-                  move_updates%dihedral%successes+1
-               moves%bias_dihedral%successes = moves%bias_dihedral%successes+1
+                  move_updates%dihedral%successes + 1
+               moves%bias_dihedral%successes = moves%bias_dihedral%successes + 1
                move_updates%bias_dihedral%successes = &
-                  move_updates%bias_dihedral%successes+1
+                  move_updates%bias_dihedral%successes + 1
             ENDIF
 
-            bias_energy = bias_energy+bias_energy_new- &
+            bias_energy = bias_energy + bias_energy_new - &
                           bias_energy_old
 
          ELSE
@@ -391,7 +391,7 @@ CONTAINS
             CALL force_env_get(bias_env, subsys=subsys)
             CALL cp_subsys_get(subsys, particles=particles)
             DO ipart = start_atom, end_atom
-               particles%els(ipart)%r(1:3) = r_old(1:3, ipart-start_atom+1)
+               particles%els(ipart)%r(1:3) = r_old(1:3, ipart - start_atom + 1)
             ENDDO
             CALL cp_subsys_set(subsys, particles=particles)
 
@@ -477,17 +477,17 @@ CONTAINS
 
 ! find out some bounds for mol_type
       start_mol = 1
-      DO jbox = 1, box_number-1
-         start_mol = start_mol+SUM(nchains(:, jbox))
+      DO jbox = 1, box_number - 1
+         start_mol = start_mol + SUM(nchains(:, jbox))
       ENDDO
-      end_mol = start_mol+SUM(nchains(:, box_number))-1
+      end_mol = start_mol + SUM(nchains(:, box_number)) - 1
 
 ! do some allocation
       ALLOCATE (r_old(1:3, 1:nunits_tot(box_number)))
 
 ! find the index of the last atom of this molecule, and the molecule number
       nunits_mol = nunits(molecule_type)
-      end_atom = start_atom+nunits_mol-1
+      end_atom = start_atom + nunits_mol - 1
       molecule_number = 0
       atom_number = 1
       DO imolecule = 1, SUM(nchains(:, box_number))
@@ -495,7 +495,7 @@ CONTAINS
             molecule_number = imolecule
             EXIT
          ENDIF
-         atom_number = atom_number+nunits(mol_type(imolecule+start_mol-1))
+         atom_number = atom_number + nunits(mol_type(imolecule + start_mol - 1))
       ENDDO
       IF (molecule_number == 0) CPABORT('Cannot find the molecule number')
 
@@ -522,15 +522,15 @@ CONTAINS
       ENDIF
 
 ! record the attempt
-      moves%trans%attempts = moves%trans%attempts+1
-      move_updates%trans%attempts = move_updates%trans%attempts+1
-      moves%bias_trans%attempts = moves%bias_trans%attempts+1
-      move_updates%bias_trans%attempts = move_updates%bias_trans%attempts+1
+      moves%trans%attempts = moves%trans%attempts + 1
+      move_updates%trans%attempts = move_updates%trans%attempts + 1
+      moves%bias_trans%attempts = moves%bias_trans%attempts + 1
+      move_updates%bias_trans%attempts = move_updates%bias_trans%attempts + 1
       IF (.NOT. lbias) THEN
-         moves%trans%qsuccesses = moves%trans%qsuccesses+1
-         move_updates%trans%qsuccesses = move_updates%trans%qsuccesses+1
-         moves%bias_trans%qsuccesses = moves%bias_trans%qsuccesses+1
-         move_updates%bias_trans%qsuccesses = move_updates%bias_trans%qsuccesses+1
+         moves%trans%qsuccesses = moves%trans%qsuccesses + 1
+         move_updates%trans%qsuccesses = move_updates%trans%qsuccesses + 1
+         moves%bias_trans%qsuccesses = moves%bias_trans%qsuccesses + 1
+         move_updates%bias_trans%qsuccesses = move_updates%bias_trans%qsuccesses + 1
       ENDIF
 
 ! move one molecule in the system
@@ -539,17 +539,17 @@ CONTAINS
       IF (ionode) rand = next_random_number(rng_stream)
       CALL mp_bcast(rand, source, group)
       ! 1,2,3 with equal prob
-      move_direction = INT(3*rand)+1
+      move_direction = INT(3*rand) + 1
 
 ! call a random number to figure out how far we're moving
       IF (ionode) rand = next_random_number(rng_stream)
       CALL mp_bcast(rand, source, group)
-      dis_mol = rmtrans(molecule_type)*(rand-0.5E0_dp)*2.0E0_dp
+      dis_mol = rmtrans(molecule_type)*(rand - 0.5E0_dp)*2.0E0_dp
 
 ! do the move
       DO iparticle = start_atom, end_atom
          particles%els(iparticle)%r(move_direction) = &
-            particles%els(iparticle)%r(move_direction)+dis_mol
+            particles%els(iparticle)%r(move_direction) + dis_mol
       ENDDO
       CALL cp_subsys_set(subsys, particles=particles)
 
@@ -577,7 +577,7 @@ CONTAINS
             CALL force_env_get(bias_env, &
                                potential_energy=bias_energy_new)
 ! accept or reject the move based on the Metropolis rule
-            value = -BETA*(bias_energy_new-bias_energy_old)
+            value = -BETA*(bias_energy_new - bias_energy_old)
             IF (value .GT. exp_max_val) THEN
                w = 10.0_dp
             ELSEIF (value .LT. exp_min_val) THEN
@@ -599,13 +599,13 @@ CONTAINS
          IF (rand .LT. w) THEN
 
 ! accept the move
-            moves%bias_trans%successes = moves%bias_trans%successes+1
-            move_updates%bias_trans%successes = move_updates%bias_trans%successes+1
-            moves%trans%qsuccesses = moves%trans%qsuccesses+1
+            moves%bias_trans%successes = moves%bias_trans%successes + 1
+            move_updates%bias_trans%successes = move_updates%bias_trans%successes + 1
+            moves%trans%qsuccesses = moves%trans%qsuccesses + 1
             move_updates%trans%successes = &
-               move_updates%trans%successes+1
-            moves%qtrans_dis = moves%qtrans_dis+ABS(dis_mol)
-            bias_energy = bias_energy+bias_energy_new- &
+               move_updates%trans%successes + 1
+            moves%qtrans_dis = moves%qtrans_dis + ABS(dis_mol)
+            bias_energy = bias_energy + bias_energy_new - &
                           bias_energy_old
 
          ELSE
@@ -700,10 +700,10 @@ CONTAINS
 
 ! figure out some bounds for mol_type
       start_mol = 1
-      DO jbox = 1, box_number-1
-         start_mol = start_mol+SUM(nchains(:, jbox))
+      DO jbox = 1, box_number - 1
+         start_mol = start_mol + SUM(nchains(:, jbox))
       ENDDO
-      end_mol = start_mol+SUM(nchains(:, box_number))-1
+      end_mol = start_mol + SUM(nchains(:, box_number)) - 1
 
       nunits_mol = nunits(molecule_type)
 
@@ -719,7 +719,7 @@ CONTAINS
 
 ! determine what the final atom in the molecule is numbered, and which
 ! molecule number this is
-      end_atom = start_atom+nunits_mol-1
+      end_atom = start_atom + nunits_mol - 1
       molecule_number = 0
       atom_number = 1
       DO imolecule = 1, SUM(nchains(:, box_number))
@@ -727,7 +727,7 @@ CONTAINS
             molecule_number = imolecule
             EXIT
          ENDIF
-         atom_number = atom_number+nunits(mol_type(imolecule+start_mol-1))
+         atom_number = atom_number + nunits(mol_type(imolecule + start_mol - 1))
       ENDDO
       IF (molecule_number == 0) CPABORT('Cannot find the molecule number')
 
@@ -757,15 +757,15 @@ CONTAINS
       masstot = SUM(mass(1:nunits(molecule_type), molecule_type))
 
 ! record the attempt
-      moves%bias_rot%attempts = moves%bias_rot%attempts+1
-      move_updates%bias_rot%attempts = move_updates%bias_rot%attempts+1
-      moves%rot%attempts = moves%rot%attempts+1
-      move_updates%rot%attempts = move_updates%rot%attempts+1
+      moves%bias_rot%attempts = moves%bias_rot%attempts + 1
+      move_updates%bias_rot%attempts = move_updates%bias_rot%attempts + 1
+      moves%rot%attempts = moves%rot%attempts + 1
+      move_updates%rot%attempts = move_updates%rot%attempts + 1
       IF (.NOT. lbias) THEN
-         moves%rot%qsuccesses = moves%rot%qsuccesses+1
-         move_updates%rot%qsuccesses = move_updates%rot%qsuccesses+1
-         moves%bias_rot%qsuccesses = moves%bias_rot%qsuccesses+1
-         move_updates%bias_rot%qsuccesses = move_updates%bias_rot%qsuccesses+1
+         moves%rot%qsuccesses = moves%rot%qsuccesses + 1
+         move_updates%rot%qsuccesses = move_updates%rot%qsuccesses + 1
+         moves%bias_rot%qsuccesses = moves%bias_rot%qsuccesses + 1
+         move_updates%bias_rot%qsuccesses = move_updates%bias_rot%qsuccesses + 1
       ENDIF
 
 ! rotate one molecule in the system
@@ -775,7 +775,7 @@ CONTAINS
 !      CALL RANDOM_NUMBER(rand)
       CALL mp_bcast(rand, source, group)
       ! 1,2,3 with equal prob
-      dir = INT(3*rand)+1
+      dir = INT(3*rand) + 1
 
       IF (dir .EQ. 1) THEN
          lx = .TRUE.
@@ -789,9 +789,9 @@ CONTAINS
       nycm = 0.0E0_dp
       nzcm = 0.0E0_dp
       DO ii = 1, nunits_mol
-         nxcm = nxcm+particles%els(start_atom-1+ii)%r(1)*mass(ii, molecule_type)
-         nycm = nycm+particles%els(start_atom-1+ii)%r(2)*mass(ii, molecule_type)
-         nzcm = nzcm+particles%els(start_atom-1+ii)%r(3)*mass(ii, molecule_type)
+         nxcm = nxcm + particles%els(start_atom - 1 + ii)%r(1)*mass(ii, molecule_type)
+         nycm = nycm + particles%els(start_atom - 1 + ii)%r(2)*mass(ii, molecule_type)
+         nzcm = nzcm + particles%els(start_atom - 1 + ii)%r(3)*mass(ii, molecule_type)
       ENDDO
       nxcm = nxcm/masstot
       nycm = nycm/masstot
@@ -800,7 +800,7 @@ CONTAINS
 ! call a random number to figure out how far we're moving
       IF (ionode) rand = next_random_number(rng_stream)
       CALL mp_bcast(rand, source, group)
-      dgamma = rmrot(molecule_type)*(rand-0.5E0_dp)*2.0E0_dp
+      dgamma = rmrot(molecule_type)*(rand - 0.5E0_dp)*2.0E0_dp
 
 ! *** set up the rotation matrix ***
 
@@ -812,13 +812,13 @@ CONTAINS
 ! ***    ROTATE UNITS OF I AROUND X-AXIS ***
 
          DO iunit = start_atom, end_atom
-            ry = particles%els(iunit)%r(2)-nycm
-            rz = particles%els(iunit)%r(3)-nzcm
-            rynew = cosdg*ry-sindg*rz
-            rznew = cosdg*rz+sindg*ry
+            ry = particles%els(iunit)%r(2) - nycm
+            rz = particles%els(iunit)%r(3) - nzcm
+            rynew = cosdg*ry - sindg*rz
+            rznew = cosdg*rz + sindg*ry
 
-            particles%els(iunit)%r(2) = rynew+nycm
-            particles%els(iunit)%r(3) = rznew+nzcm
+            particles%els(iunit)%r(2) = rynew + nycm
+            particles%els(iunit)%r(3) = rznew + nzcm
 
          ENDDO
       ELSEIF (ly) THEN
@@ -826,13 +826,13 @@ CONTAINS
 ! ***    ROTATE UNITS OF I AROUND y-AXIS ***
 
          DO iunit = start_atom, end_atom
-            rx = particles%els(iunit)%r(1)-nxcm
-            rz = particles%els(iunit)%r(3)-nzcm
-            rxnew = cosdg*rx+sindg*rz
-            rznew = cosdg*rz-sindg*rx
+            rx = particles%els(iunit)%r(1) - nxcm
+            rz = particles%els(iunit)%r(3) - nzcm
+            rxnew = cosdg*rx + sindg*rz
+            rznew = cosdg*rz - sindg*rx
 
-            particles%els(iunit)%r(1) = rxnew+nxcm
-            particles%els(iunit)%r(3) = rznew+nzcm
+            particles%els(iunit)%r(1) = rxnew + nxcm
+            particles%els(iunit)%r(3) = rznew + nzcm
 
          ENDDO
 
@@ -841,14 +841,14 @@ CONTAINS
 ! ***    ROTATE UNITS OF I AROUND z-AXIS ***
 
          DO iunit = start_atom, end_atom
-            rx = particles%els(iunit)%r(1)-nxcm
-            ry = particles%els(iunit)%r(2)-nycm
+            rx = particles%els(iunit)%r(1) - nxcm
+            ry = particles%els(iunit)%r(2) - nycm
 
-            rxnew = cosdg*rx-sindg*ry
-            rynew = cosdg*ry+sindg*rx
+            rxnew = cosdg*rx - sindg*ry
+            rynew = cosdg*ry + sindg*rx
 
-            particles%els(iunit)%r(1) = rxnew+nxcm
-            particles%els(iunit)%r(2) = rynew+nycm
+            particles%els(iunit)%r(1) = rxnew + nxcm
+            particles%els(iunit)%r(2) = rynew + nycm
 
          ENDDO
 
@@ -880,7 +880,7 @@ CONTAINS
             CALL force_env_get(bias_env, &
                                potential_energy=bias_energy_new)
 ! accept or reject the move based on the Metropolis rule
-            value = -BETA*(bias_energy_new-bias_energy_old)
+            value = -BETA*(bias_energy_new - bias_energy_old)
             IF (value .GT. exp_max_val) THEN
                w = 10.0_dp
             ELSEIF (value .LT. exp_min_val) THEN
@@ -902,11 +902,11 @@ CONTAINS
          IF (rand .LT. w) THEN
 
 ! accept the move
-            moves%bias_rot%successes = moves%bias_rot%successes+1
-            move_updates%bias_rot%successes = move_updates%bias_rot%successes+1
-            moves%rot%qsuccesses = moves%rot%qsuccesses+1
-            move_updates%rot%successes = move_updates%rot%successes+1
-            bias_energy = bias_energy+bias_energy_new- &
+            moves%bias_rot%successes = moves%bias_rot%successes + 1
+            move_updates%bias_rot%successes = move_updates%bias_rot%successes + 1
+            moves%rot%qsuccesses = moves%rot%qsuccesses + 1
+            move_updates%rot%successes = move_updates%rot%successes + 1
+            bias_energy = bias_energy + bias_energy_new - &
                           bias_energy_old
 
          ELSE
@@ -1010,10 +1010,10 @@ CONTAINS
                                 mass=mass)
 ! figure out some bounds for mol_type
       start_mol = 1
-      DO jbox = 1, box_number-1
-         start_mol = start_mol+SUM(nchains(:, jbox))
+      DO jbox = 1, box_number - 1
+         start_mol = start_mol + SUM(nchains(:, jbox))
       ENDDO
-      end_mol = start_mol+SUM(nchains(:, box_number))-1
+      end_mol = start_mol + SUM(nchains(:, box_number)) - 1
 
       print_level = 1 ! hack, printlevel is for print_keys
 
@@ -1024,8 +1024,8 @@ CONTAINS
       ALLOCATE (r(1:3, 1:nunits_tot(box_number)))
 
 ! record the attempt
-      moves%volume%attempts = moves%volume%attempts+1
-      move_updates%volume%attempts = move_updates%volume%attempts+1
+      moves%volume%attempts = moves%volume%attempts + 1
+      move_updates%volume%attempts = move_updates%volume%attempts + 1
 
 ! now let's grab the cell length and particle positions
       CALL force_env_get(force_env, subsys=oldsys, cell=cell)
@@ -1068,7 +1068,7 @@ CONTAINS
                iside_change = CEILING(3.0_dp*rand)
                IF (discrete_array(iside_change, 1) .EQ. 1) THEN
                   new_cell_length(iside_change) = &
-                     new_cell_length(iside_change)+discrete_step
+                     new_cell_length(iside_change) + discrete_step
                   EXIT
                ENDIF
             ENDDO
@@ -1079,17 +1079,17 @@ CONTAINS
                iside_change = CEILING(3.0_dp*rand)
                IF (discrete_array(iside_change, 2) .EQ. 1) THEN
                   new_cell_length(iside_change) = &
-                     new_cell_length(iside_change)-discrete_step
+                     new_cell_length(iside_change) - discrete_step
                   EXIT
                ENDIF
             ENDDO
          ENDIF
          vol_dis = (new_cell_length(1)*new_cell_length(2)*new_cell_length(3)) &
-                   -old_cell_length(1)*old_cell_length(2)*old_cell_length(3)
+                   - old_cell_length(1)*old_cell_length(2)*old_cell_length(3)
       ELSE
 ! now for the not discrete volume move
 !!!!!!!!!!!!!!!! for E_V curves
-         vol_dis = rmvolume*(rand-0.5E0_dp)*2.0E0_dp
+         vol_dis = rmvolume*(rand - 0.5E0_dp)*2.0E0_dp
 !         WRITE(output_unit,*) '************************ be sure to change back!',&
 !                 old_cell_length(1),14.64_dp/angstrom
 !         vol_dis=-56.423592_dp/angstrom**3
@@ -1098,7 +1098,7 @@ CONTAINS
 !            WRITE(output_unit,*) 'Found the correct box length!'
 !         ENDIF
 
-         temp_var = vol_dis+ &
+         temp_var = vol_dis + &
                     old_cell_length(1)*old_cell_length(2)* &
                     old_cell_length(3)
 
@@ -1141,12 +1141,12 @@ CONTAINS
 ! center of mass
       end_atom = 0
       DO imolecule = 1, SUM(nchains(:, box_number))
-         nunits_mol = nunits(mol_type(imolecule+start_mol-1))
-         start_atom = end_atom+1
-         end_atom = start_atom+nunits_mol-1
+         nunits_mol = nunits(mol_type(imolecule + start_mol - 1))
+         start_atom = end_atom + 1
+         end_atom = start_atom + nunits_mol - 1
 ! now find the center of mass
          CALL get_center_of_mass(r(:, start_atom:end_atom), nunits_mol, &
-                                 center_of_mass(:), mass(:, mol_type(imolecule+start_mol-1)))
+                                 center_of_mass(:), mass(:, mol_type(imolecule + start_mol - 1)))
 
 ! scale the center of mass and determine the vector that points from the
 !    old COM to the new one
@@ -1156,11 +1156,11 @@ CONTAINS
          ENDDO
 
          DO idim = 1, 3
-            diff(idim) = center_of_mass_new(idim)-center_of_mass(idim)
+            diff(idim) = center_of_mass_new(idim) - center_of_mass(idim)
 ! now change the particle positions
             DO iunit = start_atom, end_atom
                particles_old%els(iunit)%r(idim) = &
-                  particles_old%els(iunit)%r(idim)+diff(idim)
+                  particles_old%els(iunit)%r(idim) + diff(idim)
             ENDDO
          ENDDO
       ENDDO
@@ -1217,13 +1217,13 @@ CONTAINS
 
 ! accept or reject the move
 ! to prevent overflows
-      energy_term = new_energy-old_energy
+      energy_term = new_energy - old_energy
       volume_term = -REAL(SUM(nchains(:, box_number)), dp)/BETA* &
                     LOG(new_cell_length(1)*new_cell_length(2)*new_cell_length(3)/ &
                         (old_cell_length(1)*old_cell_length(2)*old_cell_length(3)))
       pressure_term = pressure*vol_dis
 
-      value = -BETA*(energy_term+volume_term+pressure_term)
+      value = -BETA*(energy_term + volume_term + pressure_term)
       IF (value .GT. exp_max_val) THEN
          w = 10.0_dp
       ELSEIF (value .LT. exp_min_val) THEN
@@ -1247,11 +1247,11 @@ CONTAINS
       IF (rand .LT. w) THEN
 
 ! accept the move
-         moves%volume%successes = moves%volume%successes+1
-         move_updates%volume%successes = move_updates%volume%successes+1
+         moves%volume%successes = moves%volume%successes + 1
+         move_updates%volume%successes = move_updates%volume%successes + 1
 
 ! update energies
-         energy_check = energy_check+(new_energy-old_energy)
+         energy_check = energy_check + (new_energy - old_energy)
          old_energy = new_energy
 
          DO iatom = 1, nunits_tot(box_number)
@@ -1371,10 +1371,10 @@ CONTAINS
       DO iatom = 1, natom
          DO ibond = 1, nbond
             IF (bond_list(ibond)%a == iatom) THEN
-               counter(iatom) = counter(iatom)+1
+               counter(iatom) = counter(iatom) + 1
                connectivity(counter(iatom), iatom) = bond_list(ibond)%b
             ELSEIF (bond_list(ibond)%b == iatom) THEN
-               counter(iatom) = counter(iatom)+1
+               counter(iatom) = counter(iatom) + 1
                connectivity(counter(iatom), iatom) = bond_list(ibond)%a
             ENDIF
          ENDDO
@@ -1399,9 +1399,9 @@ CONTAINS
          CALL get_atomic_kind(particles%els(iatom)%atomic_kind, &
                               mass=atom_mass)
          IF (atom_a(iatom) == 1) THEN
-            mass_a = mass_a+atom_mass
+            mass_a = mass_a + atom_mass
          ELSE
-            mass_b = mass_b+atom_mass
+            mass_b = mass_b + atom_mass
          ENDIF
       ENDDO
 
@@ -1409,11 +1409,11 @@ CONTAINS
       IF (ionode) rand = next_random_number(rng_stream)
       CALL mp_bcast(rand, source, group)
 
-      dis_length = rmbond(molecule_type)*2.0E0_dp*(rand-0.5E0_dp)
+      dis_length = rmbond(molecule_type)*2.0E0_dp*(rand - 0.5E0_dp)
 
 ! find the bond vector that atom a will be moving
       DO i = 1, 3
-         bond_a(i) = r_new(i, bond_list(bond_number)%a)- &
+         bond_a(i) = r_new(i, bond_list(bond_number)%a) - &
                      r_new(i, bond_list(bond_number)%b)
          bond_b(i) = -bond_a(i)
       ENDDO
@@ -1421,8 +1421,8 @@ CONTAINS
 ! notice we weight by the opposite masses...therefore lighter segments
 ! will move further
       old_length = SQRT(DOT_PRODUCT(bond_a, bond_a))
-      new_length_a = dis_length*mass_b/(mass_a+mass_b)
-      new_length_b = dis_length*mass_a/(mass_a+mass_b)
+      new_length_a = dis_length*mass_b/(mass_a + mass_b)
+      new_length_b = dis_length*mass_a/(mass_a + mass_b)
 
       DO i = 1, 3
          bond_a(i) = bond_a(i)/old_length*new_length_a
@@ -1431,18 +1431,18 @@ CONTAINS
 
       DO iatom = 1, natom
          IF (atom_a(iatom) == 1) THEN
-            r_new(1, iatom) = r_new(1, iatom)+bond_a(1)
-            r_new(2, iatom) = r_new(2, iatom)+bond_a(2)
-            r_new(3, iatom) = r_new(3, iatom)+bond_a(3)
+            r_new(1, iatom) = r_new(1, iatom) + bond_a(1)
+            r_new(2, iatom) = r_new(2, iatom) + bond_a(2)
+            r_new(3, iatom) = r_new(3, iatom) + bond_a(3)
          ELSE
-            r_new(1, iatom) = r_new(1, iatom)+bond_b(1)
-            r_new(2, iatom) = r_new(2, iatom)+bond_b(2)
-            r_new(3, iatom) = r_new(3, iatom)+bond_b(3)
+            r_new(1, iatom) = r_new(1, iatom) + bond_b(1)
+            r_new(2, iatom) = r_new(2, iatom) + bond_b(2)
+            r_new(3, iatom) = r_new(3, iatom) + bond_b(3)
          ENDIF
       ENDDO
 
 ! correct the value of dis_length for the acceptance rule
-      dis_length = (old_length+dis_length)/old_length
+      dis_length = (old_length + dis_length)/old_length
 
       DEALLOCATE (connection)
       DEALLOCATE (connectivity)
@@ -1541,10 +1541,10 @@ CONTAINS
       DO iatom = 1, natom
          DO ibond = 1, nbond
             IF (bond_list(ibond)%a == iatom) THEN
-               counter(iatom) = counter(iatom)+1
+               counter(iatom) = counter(iatom) + 1
                connectivity(counter(iatom), iatom) = bond_list(ibond)%b
             ELSEIF (bond_list(ibond)%b == iatom) THEN
-               counter(iatom) = counter(iatom)+1
+               counter(iatom) = counter(iatom) + 1
                connectivity(counter(iatom), iatom) = bond_list(ibond)%a
             ENDIF
          ENDDO
@@ -1568,15 +1568,15 @@ CONTAINS
       DO iatom = 1, natom
          CALL get_atomic_kind(particles%els(iatom)%atomic_kind, &
                               mass=atom_mass)
-         IF (atom_a(iatom) == 1) mass_a = mass_a+atom_mass
-         IF (atom_c(iatom) == 1) mass_c = mass_c+atom_mass
+         IF (atom_a(iatom) == 1) mass_a = mass_a + atom_mass
+         IF (atom_c(iatom) == 1) mass_c = mass_c + atom_mass
       ENDDO
 
 ! choose a displacement
       IF (ionode) rand = next_random_number(rng_stream)
       CALL mp_bcast(rand, source, group)
 
-      dis_angle = rmangle(molecule_type)*2.0E0_dp*(rand-0.5E0_dp)
+      dis_angle = rmangle(molecule_type)*2.0E0_dp*(rand - 0.5E0_dp)
 
 ! need to find the A-B-C bisector
 
@@ -1586,9 +1586,9 @@ CONTAINS
 
 ! find the bond vectors
       DO i = 1, 3
-         bond_a(i) = r_new(i, bend_list(bend_number)%a)- &
+         bond_a(i) = r_new(i, bend_list(bend_number)%a) - &
                      r_new(i, bend_list(bend_number)%b)
-         bond_c(i) = r_new(i, bend_list(bend_number)%c)- &
+         bond_c(i) = r_new(i, bend_list(bend_number)%c) - &
                      r_new(i, bend_list(bend_number)%b)
       ENDDO
       old_length_a = SQRT(DOT_PRODUCT(bond_a, bond_a))
@@ -1596,7 +1596,7 @@ CONTAINS
       old_angle = ACOS(DOT_PRODUCT(bond_a, bond_c)/(old_length_a*old_length_c))
 
       DO i = 1, 3
-         bisector(i) = bond_a(i)/old_length_a+ & ! not yet normalized
+         bisector(i) = bond_a(i)/old_length_a + & ! not yet normalized
                        bond_c(i)/old_length_c
       ENDDO
       bis_length = SQRT(DOT_PRODUCT(bisector, bisector))
@@ -1604,15 +1604,15 @@ CONTAINS
 
 ! now we need to find the cross product of the B-A and B-C vectors and normalize
 ! it, so we have a vector that defines the bend plane
-      cross_prod(1) = bond_a(2)*bond_c(3)-bond_a(3)*bond_c(2)
-      cross_prod(2) = bond_a(3)*bond_c(1)-bond_a(1)*bond_c(3)
-      cross_prod(3) = bond_a(1)*bond_c(2)-bond_a(2)*bond_c(1)
+      cross_prod(1) = bond_a(2)*bond_c(3) - bond_a(3)*bond_c(2)
+      cross_prod(2) = bond_a(3)*bond_c(1) - bond_a(1)*bond_c(3)
+      cross_prod(3) = bond_a(1)*bond_c(2) - bond_a(2)*bond_c(1)
       cross_prod(1:3) = cross_prod(1:3)/SQRT(DOT_PRODUCT(cross_prod, cross_prod))
 
 ! we have two axis of a coordinate system...let's get the third
-      cross_prod_plane(1) = cross_prod(2)*bisector(3)-cross_prod(3)*bisector(2)
-      cross_prod_plane(2) = cross_prod(3)*bisector(1)-cross_prod(1)*bisector(3)
-      cross_prod_plane(3) = cross_prod(1)*bisector(2)-cross_prod(2)*bisector(1)
+      cross_prod_plane(1) = cross_prod(2)*bisector(3) - cross_prod(3)*bisector(2)
+      cross_prod_plane(2) = cross_prod(3)*bisector(1) - cross_prod(1)*bisector(3)
+      cross_prod_plane(3) = cross_prod(1)*bisector(2) - cross_prod(2)*bisector(1)
       cross_prod_plane(1:3) = cross_prod_plane(1:3)/ &
                               SQRT(DOT_PRODUCT(cross_prod_plane, cross_prod_plane))
 
@@ -1620,20 +1620,20 @@ CONTAINS
 ! and cross_prod is z
 ! shift the molecule so that atom b is at the origin
       DO iatom = 1, natom
-         r_new(1:3, iatom) = r_new(1:3, iatom)- &
+         r_new(1:3, iatom) = r_new(1:3, iatom) - &
                              r_old(1:3, bend_list(bend_number)%b)
       ENDDO
 
 ! figure out how much we move each side, since we're mass-weighting, by the
 ! opposite masses, so lighter moves farther..this angle is the angle between
 ! the bond vector BA or BC and the bisector
-      dis_angle_a = dis_angle*mass_c/(mass_a+mass_c)
-      dis_angle_c = dis_angle*mass_a/(mass_a+mass_c)
+      dis_angle_a = dis_angle*mass_c/(mass_a + mass_c)
+      dis_angle_c = dis_angle*mass_a/(mass_a + mass_c)
 
 ! now loop through all the atoms, moving the ones that are connected to a or c
       DO iatom = 1, natom
 ! subtract out the z component (perpendicular to the angle plane)
-         temp(1:3) = r_new(1:3, iatom)- &
+         temp(1:3) = r_new(1:3, iatom) - &
                      DOT_PRODUCT(cross_prod(1:3), r_new(1:3, iatom))* &
                      cross_prod(1:3)
          temp_length = SQRT(DOT_PRODUCT(temp, temp))
@@ -1649,20 +1649,20 @@ CONTAINS
 
 ! need to figure out the current iatom-B-bisector angle, so we know what the new angle is
                new_angle_a = ACOS(DOT_PRODUCT(bisector, temp(1:3))/ &
-                                  (temp_length))+dis_angle_a
+                                  (temp_length)) + dis_angle_a
 
-               r_new(1:3, iatom) = COS(new_angle_a)*temp_length*bisector(1:3)- &
-                                   SIN(new_angle_a)*temp_length*cross_prod_plane(1:3)+ &
+               r_new(1:3, iatom) = COS(new_angle_a)*temp_length*bisector(1:3) - &
+                                   SIN(new_angle_a)*temp_length*cross_prod_plane(1:3) + &
                                    DOT_PRODUCT(cross_prod(1:3), r_new(1:3, iatom))* &
                                    cross_prod(1:3)
             ELSE
 
 ! need to figure out the current iatom-B-bisector angle, so we know what the new angle is
                new_angle_a = ACOS(DOT_PRODUCT(bisector, temp(1:3))/ &
-                                  (temp_length))-dis_angle_a
+                                  (temp_length)) - dis_angle_a
 
-               r_new(1:3, iatom) = COS(new_angle_a)*temp_length*bisector(1:3)+ &
-                                   SIN(new_angle_a)*temp_length*cross_prod_plane(1:3)+ &
+               r_new(1:3, iatom) = COS(new_angle_a)*temp_length*bisector(1:3) + &
+                                   SIN(new_angle_a)*temp_length*cross_prod_plane(1:3) + &
                                    DOT_PRODUCT(cross_prod(1:3), r_new(1:3, iatom))* &
                                    cross_prod(1:3)
             ENDIF
@@ -1675,18 +1675,18 @@ CONTAINS
                 .LT. 0.0_dp) THEN
 ! need to figure out the current iatom-B-bisector angle, so we know what the new angle is
                new_angle_c = ACOS(DOT_PRODUCT(bisector(1:3), temp(1:3))/ &
-                                  (temp_length))-dis_angle_c
+                                  (temp_length)) - dis_angle_c
 
-               r_new(1:3, iatom) = COS(new_angle_c)*temp_length*bisector(1:3)- &
-                                   SIN(new_angle_c)*temp_length*cross_prod_plane(1:3)+ &
+               r_new(1:3, iatom) = COS(new_angle_c)*temp_length*bisector(1:3) - &
+                                   SIN(new_angle_c)*temp_length*cross_prod_plane(1:3) + &
                                    DOT_PRODUCT(cross_prod(1:3), r_new(1:3, iatom))* &
                                    cross_prod(1:3)
             ELSE
                new_angle_c = ACOS(DOT_PRODUCT(bisector(1:3), temp(1:3))/ &
-                                  (temp_length))+dis_angle_c
+                                  (temp_length)) + dis_angle_c
 
-               r_new(1:3, iatom) = COS(new_angle_c)*temp_length*bisector(1:3)+ &
-                                   SIN(new_angle_c)*temp_length*cross_prod_plane(1:3)+ &
+               r_new(1:3, iatom) = COS(new_angle_c)*temp_length*bisector(1:3) + &
+                                   SIN(new_angle_c)*temp_length*cross_prod_plane(1:3) + &
                                    DOT_PRODUCT(cross_prod(1:3), r_new(1:3, iatom))* &
                                    cross_prod(1:3)
             ENDIF
@@ -1695,7 +1695,7 @@ CONTAINS
       ENDDO
 
       DO iatom = 1, natom
-         r_new(1:3, iatom) = r_new(1:3, iatom)+ &
+         r_new(1:3, iatom) = r_new(1:3, iatom) + &
                              r_old(1:3, bend_list(bend_number)%b)
       ENDDO
 
@@ -1804,10 +1804,10 @@ CONTAINS
       DO iatom = 1, natom
          DO ibond = 1, nbond
             IF (bond_list(ibond)%a == iatom) THEN
-               counter(iatom) = counter(iatom)+1
+               counter(iatom) = counter(iatom) + 1
                connectivity(counter(iatom), iatom) = bond_list(ibond)%b
             ELSEIF (bond_list(ibond)%b == iatom) THEN
-               counter(iatom) = counter(iatom)+1
+               counter(iatom) = counter(iatom) + 1
                connectivity(counter(iatom), iatom) = bond_list(ibond)%a
             ENDIF
          ENDDO
@@ -1832,19 +1832,19 @@ CONTAINS
       DO iatom = 1, natom
          CALL get_atomic_kind(particles%els(iatom)%atomic_kind, &
                               mass=atom_mass)
-         IF (atom_a(iatom) == 1) mass_a = mass_a+atom_mass
-         IF (atom_d(iatom) == 1) mass_d = mass_d+atom_mass
+         IF (atom_a(iatom) == 1) mass_a = mass_a + atom_mass
+         IF (atom_d(iatom) == 1) mass_d = mass_d + atom_mass
       ENDDO
 
 ! choose a displacement
       IF (ionode) rand = next_random_number(rng_stream)
       CALL mp_bcast(rand, source, group)
 
-      dis_angle = rmdihedral(molecule_type)*2.0E0_dp*(rand-0.5E0_dp)
+      dis_angle = rmdihedral(molecule_type)*2.0E0_dp*(rand - 0.5E0_dp)
 
 ! find the bond vectors, B-C, so we know what to rotate around
       DO i = 1, 3
-         bond_a(i) = r_new(i, torsion_list(torsion_number)%c)- &
+         bond_a(i) = r_new(i, torsion_list(torsion_number)%c) - &
                      r_new(i, torsion_list(torsion_number)%b)
       ENDDO
       old_length_a = SQRT(DOT_PRODUCT(bond_a, bond_a))
@@ -1853,14 +1853,14 @@ CONTAINS
 ! figure out how much we move each side, since we're mass-weighting, by the
 ! opposite masses, so lighter moves farther...we take the opposite sign of d
 ! so we're not rotating both angles in the same direction
-      dis_angle_a = dis_angle*mass_d/(mass_a+mass_d)
-      dis_angle_d = -dis_angle*mass_a/(mass_a+mass_d)
+      dis_angle_a = dis_angle*mass_d/(mass_a + mass_d)
+      dis_angle_d = -dis_angle*mass_a/(mass_a + mass_d)
 
       DO iatom = 1, natom
 
          IF (atom_a(iatom) == 1) THEN
 ! shift the coords so b is at the origin
-            r_new(1:3, iatom) = r_new(1:3, iatom)- &
+            r_new(1:3, iatom) = r_new(1:3, iatom) - &
                                 r_new(1:3, torsion_list(torsion_number)%b)
 
 ! multiply by the rotation matrix
@@ -1870,21 +1870,21 @@ CONTAINS
             x = r_new(1, iatom)
             y = r_new(2, iatom)
             z = r_new(3, iatom)
-            temp(1) = (u*(u*x+v*y+w*z)+(x*(v**2+w**2)-u*(v*y+w*z))*COS(dis_angle_a)+ &
-                       SQRT(u**2+v**2+w**2)*(v*z-w*y)*SIN(dis_angle_a))/(u**2+v**2+w**2)
-            temp(2) = (v*(u*x+v*y+w*z)+(y*(u**2+w**2)-v*(u*x+w*z))*COS(dis_angle_a)+ &
-                       SQRT(u**2+v**2+w**2)*(w*x-u*z)*SIN(dis_angle_a))/(u**2+v**2+w**2)
-            temp(3) = (w*(u*x+v*y+w*z)+(z*(v**2+u**2)-w*(u*x+v*y))*COS(dis_angle_a)+ &
-                       SQRT(u**2+v**2+w**2)*(u*y-v*x)*SIN(dis_angle_a))/(u**2+v**2+w**2)
+            temp(1) = (u*(u*x + v*y + w*z) + (x*(v**2 + w**2) - u*(v*y + w*z))*COS(dis_angle_a) + &
+                       SQRT(u**2 + v**2 + w**2)*(v*z - w*y)*SIN(dis_angle_a))/(u**2 + v**2 + w**2)
+            temp(2) = (v*(u*x + v*y + w*z) + (y*(u**2 + w**2) - v*(u*x + w*z))*COS(dis_angle_a) + &
+                       SQRT(u**2 + v**2 + w**2)*(w*x - u*z)*SIN(dis_angle_a))/(u**2 + v**2 + w**2)
+            temp(3) = (w*(u*x + v*y + w*z) + (z*(v**2 + u**2) - w*(u*x + v*y))*COS(dis_angle_a) + &
+                       SQRT(u**2 + v**2 + w**2)*(u*y - v*x)*SIN(dis_angle_a))/(u**2 + v**2 + w**2)
 
 ! shift back to the original position
-            temp(1:3) = temp(1:3)+r_new(1:3, torsion_list(torsion_number)%b)
+            temp(1:3) = temp(1:3) + r_new(1:3, torsion_list(torsion_number)%b)
             r_new(1:3, iatom) = temp(1:3)
 
          ELSEIF (atom_d(iatom) == 1) THEN
 
 ! shift the coords so c is at the origin
-            r_new(1:3, iatom) = r_new(1:3, iatom)- &
+            r_new(1:3, iatom) = r_new(1:3, iatom) - &
                                 r_new(1:3, torsion_list(torsion_number)%c)
 
 ! multiply by the rotation matrix
@@ -1894,15 +1894,15 @@ CONTAINS
             x = r_new(1, iatom)
             y = r_new(2, iatom)
             z = r_new(3, iatom)
-            temp(1) = (u*(u*x+v*y+w*z)+(x*(v**2+w**2)-u*(v*y+w*z))*COS(dis_angle_d)+ &
-                       SQRT(u**2+v**2+w**2)*(v*z-w*y)*SIN(dis_angle_d))/(u**2+v**2+w**2)
-            temp(2) = (v*(u*x+v*y+w*z)+(y*(u**2+w**2)-v*(u*x+w*z))*COS(dis_angle_d)+ &
-                       SQRT(u**2+v**2+w**2)*(w*x-u*z)*SIN(dis_angle_d))/(u**2+v**2+w**2)
-            temp(3) = (w*(u*x+v*y+w*z)+(z*(v**2+u**2)-w*(u*x+v*y))*COS(dis_angle_d)+ &
-                       SQRT(u**2+v**2+w**2)*(u*y-v*x)*SIN(dis_angle_d))/(u**2+v**2+w**2)
+            temp(1) = (u*(u*x + v*y + w*z) + (x*(v**2 + w**2) - u*(v*y + w*z))*COS(dis_angle_d) + &
+                       SQRT(u**2 + v**2 + w**2)*(v*z - w*y)*SIN(dis_angle_d))/(u**2 + v**2 + w**2)
+            temp(2) = (v*(u*x + v*y + w*z) + (y*(u**2 + w**2) - v*(u*x + w*z))*COS(dis_angle_d) + &
+                       SQRT(u**2 + v**2 + w**2)*(w*x - u*z)*SIN(dis_angle_d))/(u**2 + v**2 + w**2)
+            temp(3) = (w*(u*x + v*y + w*z) + (z*(v**2 + u**2) - w*(u*x + v*y))*COS(dis_angle_d) + &
+                       SQRT(u**2 + v**2 + w**2)*(u*y - v*x)*SIN(dis_angle_d))/(u**2 + v**2 + w**2)
 
 ! shift back to the original position
-            temp(1:3) = temp(1:3)+r_new(1:3, torsion_list(torsion_number)%c)
+            temp(1:3) = temp(1:3) + r_new(1:3, torsion_list(torsion_number)%c)
             r_new(1:3, iatom) = temp(1:3)
          ENDIF
       ENDDO
@@ -1998,10 +1998,10 @@ CONTAINS
                                 mass=mass, nunits=nunits, nunits_tot=nunits_tot, mol_type=mol_type)
 ! figure out some bounds for mol_type
       start_mol = 1
-      DO jbox = 1, box_number-1
-         start_mol = start_mol+SUM(nchains(:, jbox))
+      DO jbox = 1, box_number - 1
+         start_mol = start_mol + SUM(nchains(:, jbox))
       ENDDO
-      end_mol = start_mol+SUM(nchains(:, box_number))-1
+      end_mol = start_mol + SUM(nchains(:, box_number)) - 1
 
 ! nullify some pointers
       NULLIFY (particles, subsys, molecule_kinds, molecule_kind, &
@@ -2039,19 +2039,19 @@ CONTAINS
 
 ! let's determine if the molecule to be moved is in the "in" region or the
 ! "out" region of the target
-      RIJ(1) = particles%els(start_atom_swap+avbmc_atom(molecule_type)-1)%r(1)- &
-               particles%els(target_atom)%r(1)-abc(1)*ANINT( &
-               (particles%els(start_atom_swap+avbmc_atom(molecule_type)-1)%r(1)- &
+      RIJ(1) = particles%els(start_atom_swap + avbmc_atom(molecule_type) - 1)%r(1) - &
+               particles%els(target_atom)%r(1) - abc(1)*ANINT( &
+               (particles%els(start_atom_swap + avbmc_atom(molecule_type) - 1)%r(1) - &
                 particles%els(target_atom)%r(1))/abc(1))
-      RIJ(2) = particles%els(start_atom_swap+avbmc_atom(molecule_type)-1)%r(2)- &
-               particles%els(target_atom)%r(2)-abc(2)*ANINT( &
-               (particles%els(start_atom_swap+avbmc_atom(molecule_type)-1)%r(2)- &
+      RIJ(2) = particles%els(start_atom_swap + avbmc_atom(molecule_type) - 1)%r(2) - &
+               particles%els(target_atom)%r(2) - abc(2)*ANINT( &
+               (particles%els(start_atom_swap + avbmc_atom(molecule_type) - 1)%r(2) - &
                 particles%els(target_atom)%r(2))/abc(2))
-      RIJ(3) = particles%els(start_atom_swap+avbmc_atom(molecule_type)-1)%r(3)- &
-               particles%els(target_atom)%r(3)-abc(3)*ANINT( &
-               (particles%els(start_atom_swap+avbmc_atom(molecule_type)-1)%r(3)- &
+      RIJ(3) = particles%els(start_atom_swap + avbmc_atom(molecule_type) - 1)%r(3) - &
+               particles%els(target_atom)%r(3) - abc(3)*ANINT( &
+               (particles%els(start_atom_swap + avbmc_atom(molecule_type) - 1)%r(3) - &
                 particles%els(target_atom)%r(3))/abc(3))
-      distance = SQRT(RIJ(1)**2+RIJ(2)**2+RIJ(3)**2)
+      distance = SQRT(RIJ(1)**2 + RIJ(2)**2 + RIJ(3)**2)
       IF (distance .LE. avbmc_rmax(molecule_type) .AND. distance .GE. avbmc_rmin(molecule_type)) THEN
          lin = .TRUE.
       ELSE
@@ -2063,18 +2063,18 @@ CONTAINS
       IF (lin) THEN
          IF (move_type == 'in') THEN
             moves%avbmc_inin%attempts = &
-               moves%avbmc_inin%attempts+1
+               moves%avbmc_inin%attempts + 1
          ELSE
             moves%avbmc_inout%attempts = &
-               moves%avbmc_inout%attempts+1
+               moves%avbmc_inout%attempts + 1
          ENDIF
       ELSE
          IF (move_type == 'in') THEN
             moves%avbmc_outin%attempts = &
-               moves%avbmc_outin%attempts+1
+               moves%avbmc_outin%attempts + 1
          ELSE
             moves%avbmc_outout%attempts = &
-               moves%avbmc_outout%attempts+1
+               moves%avbmc_outout%attempts + 1
          ENDIF
       ENDIF
 
@@ -2123,7 +2123,7 @@ CONTAINS
 ! the real energy for the acceptance rule...we don't do this for the
 ! lbias=.false. case because it doesn't appear in the acceptance rule, and
 ! we compensate in case of acceptance
-         bias_energy_new = bias_energy_new+bias_energy_old
+         bias_energy_new = bias_energy_new + bias_energy_old
 
       ELSE
 
@@ -2207,25 +2207,25 @@ CONTAINS
 
       ENDIF
 
-      volume_in = 4.0_dp/3.0_dp*pi*(avbmc_rmax(molecule_type)**3-avbmc_rmin(molecule_type)**3)
-      volume_out = abc(1)*abc(2)*abc(3)-volume_in
+      volume_in = 4.0_dp/3.0_dp*pi*(avbmc_rmax(molecule_type)**3 - avbmc_rmin(molecule_type)**3)
+      volume_out = abc(1)*abc(2)*abc(3) - volume_in
 
       IF (lin .AND. move_type == 'in' .OR. &
           .NOT. lin .AND. move_type == 'out') THEN
 ! standard Metropolis rule
          prefactor = 1.0_dp
       ELSEIF (.NOT. lin .AND. move_type == 'in') THEN
-         prefactor = (1.0_dp-pbias(molecule_type))*volume_in/(pbias(molecule_type)*volume_out)
+         prefactor = (1.0_dp - pbias(molecule_type))*volume_in/(pbias(molecule_type)*volume_out)
       ELSE
-         prefactor = pbias(molecule_type)*volume_out/((1.0_dp-pbias(molecule_type))*volume_in)
+         prefactor = pbias(molecule_type)*volume_out/((1.0_dp - pbias(molecule_type))*volume_in)
       ENDIF
 
       IF (lbias) THEN
 ! AVBMC with CBMC and a biasing potential...notice that if the biasing
 ! potential equals the quickstep potential, this cancels out to the
 ! acceptance below
-         del_quickstep_energy = (-BETA)*(new_energy-old_energy- &
-                                         (bias_energy_new-bias_energy_old))
+         del_quickstep_energy = (-BETA)*(new_energy - old_energy - &
+                                         (bias_energy_new - bias_energy_old))
 
          IF (del_quickstep_energy .GT. exp_max_val) THEN
             del_quickstep_energy = max_val
@@ -2258,29 +2258,29 @@ CONTAINS
          IF (lin) THEN
             IF (move_type == 'in') THEN
                moves%avbmc_inin%successes = &
-                  moves%avbmc_inin%successes+1
+                  moves%avbmc_inin%successes + 1
             ELSE
                moves%avbmc_inout%successes = &
-                  moves%avbmc_inout%successes+1
+                  moves%avbmc_inout%successes + 1
             ENDIF
          ELSE
             IF (move_type == 'in') THEN
                moves%avbmc_outin%successes = &
-                  moves%avbmc_outin%successes+1
+                  moves%avbmc_outin%successes + 1
             ELSE
                moves%avbmc_outout%successes = &
-                  moves%avbmc_outout%successes+1
+                  moves%avbmc_outout%successes + 1
             ENDIF
          ENDIF
 
 ! we need to compensate for the fact that we take the difference in
 ! generate_cbmc_config to keep the exponetials small
          IF (.NOT. lbias) THEN
-            new_energy = new_energy+old_energy
+            new_energy = new_energy + old_energy
          ENDIF
 
 ! update energies
-         energy_check = energy_check+(new_energy-old_energy)
+         energy_check = energy_check + (new_energy - old_energy)
          old_energy = new_energy
 
 ! if we're biasing the update the biasing energy
@@ -2389,8 +2389,8 @@ CONTAINS
       ALLOCATE (hmc_ekin)
 
 ! record the attempt
-      moves%hmc%attempts = moves%hmc%attempts+1
-      move_updates%hmc%attempts = move_updates%hmc%attempts+1
+      moves%hmc%attempts = moves%hmc%attempts + 1
+      move_updates%hmc%attempts = move_updates%hmc%attempts + 1
 
 ! now let's grab the particle positions
       CALL force_env_get(force_env, subsys=oldsys)
@@ -2410,7 +2410,7 @@ CONTAINS
 
 ! accept or reject the move
 ! to prevent overflows
-      energy_term = new_energy+hmc_ekin%final_ekin-old_energy-hmc_ekin%initial_ekin
+      energy_term = new_energy + hmc_ekin%final_ekin - old_energy - hmc_ekin%initial_ekin
 
       value = -BETA*(energy_term)
       IF (value .GT. exp_max_val) THEN
@@ -2432,11 +2432,11 @@ CONTAINS
       IF (rand .LT. w) THEN
 
 ! accept the move
-         moves%hmc%successes = moves%hmc%successes+1
-         move_updates%hmc%successes = move_updates%hmc%successes+1
+         moves%hmc%successes = moves%hmc%successes + 1
+         move_updates%hmc%successes = move_updates%hmc%successes + 1
 
 ! update energies
-         energy_check = energy_check+(new_energy-old_energy)
+         energy_check = energy_check + (new_energy - old_energy)
          old_energy = new_energy
 
          DO iatom = 1, nunits_tot(box_number)
@@ -2527,10 +2527,10 @@ CONTAINS
 
 ! find out some bounds for mol_type
       start_mol = 1
-      DO jbox = 1, box_number-1
-         start_mol = start_mol+SUM(nchains(:, jbox))
+      DO jbox = 1, box_number - 1
+         start_mol = start_mol + SUM(nchains(:, jbox))
       ENDDO
-      end_mol = start_mol+SUM(nchains(:, box_number))-1
+      end_mol = start_mol + SUM(nchains(:, box_number)) - 1
 
 ! do some allocation
       ALLOCATE (r_old(1:3, 1:nunits_tot(box_number)))
@@ -2574,31 +2574,31 @@ CONTAINS
       ENDIF
 
 ! record the attempt
-      moves%cltrans%attempts = moves%cltrans%attempts+1
-      move_updates%cltrans%attempts = move_updates%cltrans%attempts+1
-      moves%bias_cltrans%attempts = moves%bias_cltrans%attempts+1
-      move_updates%bias_cltrans%attempts = move_updates%bias_cltrans%attempts+1
+      moves%cltrans%attempts = moves%cltrans%attempts + 1
+      move_updates%cltrans%attempts = move_updates%cltrans%attempts + 1
+      moves%bias_cltrans%attempts = moves%bias_cltrans%attempts + 1
+      move_updates%bias_cltrans%attempts = move_updates%bias_cltrans%attempts + 1
       IF (.NOT. lbias) THEN
-         moves%cltrans%qsuccesses = moves%cltrans%qsuccesses+1
-         move_updates%cltrans%qsuccesses = move_updates%cltrans%qsuccesses+1
-         moves%bias_cltrans%qsuccesses = moves%bias_cltrans%qsuccesses+1
-         move_updates%bias_cltrans%qsuccesses = move_updates%bias_cltrans%qsuccesses+1
+         moves%cltrans%qsuccesses = moves%cltrans%qsuccesses + 1
+         move_updates%cltrans%qsuccesses = move_updates%cltrans%qsuccesses + 1
+         moves%bias_cltrans%qsuccesses = moves%bias_cltrans%qsuccesses + 1
+         move_updates%bias_cltrans%qsuccesses = move_updates%bias_cltrans%qsuccesses + 1
       ENDIF
 
 ! call a random number to figure out which direction we're moving
       IF (ionode) rand = next_random_number(rng_stream)
       CALL mp_bcast(rand, source, group)
-      move_direction = INT(3*rand)+1
+      move_direction = INT(3*rand) + 1
 
 ! call a random number to figure out how far we're moving
       IF (ionode) rand = next_random_number(rng_stream)
       CALL mp_bcast(rand, source, group)
-      dis_mol = rmcltrans*(rand-0.5E0_dp)*2.0E0_dp
+      dis_mol = rmcltrans*(rand - 0.5E0_dp)*2.0E0_dp
 
 ! choosing cluster
       IF (ionode) rand = next_random_number(rng_stream)
       CALL mp_bcast(rand, source, group)
-      jpart = INT(1+rand*total_clus)
+      jpart = INT(1 + rand*total_clus)
 
 ! do the cluster move
       DO cstart = 1, nend
@@ -2606,15 +2606,15 @@ CONTAINS
          IF (cluster(jpart, cstart) .NE. 0) THEN
             imol = cluster(jpart, cstart)
             iunit = 1
-            DO ipart = 1, imol-1
-               nunit = nunits(mol_type(ipart+start_mol-1))
-               iunit = iunit+nunit
+            DO ipart = 1, imol - 1
+               nunit = nunits(mol_type(ipart + start_mol - 1))
+               iunit = iunit + nunit
             END DO
-            nunit = nunits(mol_type(imol+start_mol-1))
-            junit = iunit+nunit-1
+            nunit = nunits(mol_type(imol + start_mol - 1))
+            junit = iunit + nunit - 1
             DO iparticle = iunit, junit
                particles%els(iparticle)%r(move_direction) = &
-                  particles%els(iparticle)%r(move_direction)+dis_mol
+                  particles%els(iparticle)%r(move_direction) + dis_mol
             ENDDO
          END IF
       END DO
@@ -2670,7 +2670,7 @@ CONTAINS
             CALL force_env_get(bias_env, &
                                potential_energy=bias_energy_new)
 ! accept or reject the move based on the Metropolis rule
-            value = -BETA*(bias_energy_new-bias_energy_old)
+            value = -BETA*(bias_energy_new - bias_energy_old)
             IF (value .GT. exp_max_val) THEN
                w = 10.0_dp
             ELSEIF (value .LT. exp_min_val) THEN
@@ -2691,13 +2691,13 @@ CONTAINS
          IF (rand .LT. w) THEN
 
 ! accept the move
-            moves%bias_cltrans%successes = moves%bias_cltrans%successes+1
-            move_updates%bias_cltrans%successes = move_updates%bias_cltrans%successes+1
-            moves%cltrans%qsuccesses = moves%cltrans%qsuccesses+1
+            moves%bias_cltrans%successes = moves%bias_cltrans%successes + 1
+            move_updates%bias_cltrans%successes = move_updates%bias_cltrans%successes + 1
+            moves%cltrans%qsuccesses = moves%cltrans%qsuccesses + 1
             move_updates%cltrans%successes = &
-               move_updates%cltrans%successes+1
-            moves%qcltrans_dis = moves%qcltrans_dis+ABS(dis_mol)
-            bias_energy = bias_energy+bias_energy_new- &
+               move_updates%cltrans%successes + 1
+            moves%qcltrans_dis = moves%qcltrans_dis + ABS(dis_mol)
+            bias_energy = bias_energy + bias_energy_new - &
                           bias_energy_old
 
          ELSE

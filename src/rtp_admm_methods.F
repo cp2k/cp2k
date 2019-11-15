@@ -340,13 +340,13 @@ CONTAINS
                          occupation_numbers=occ_num_aux)
 
          CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
-                      1.0_dp, admm_env%A, mos_new(2*ispin-1)%matrix, 0.0_dp, &
-                      rtp_coeff_aux_fit(2*ispin-1)%matrix)
+                      1.0_dp, admm_env%A, mos_new(2*ispin - 1)%matrix, 0.0_dp, &
+                      rtp_coeff_aux_fit(2*ispin - 1)%matrix)
          CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
                       1.0_dp, admm_env%A, mos_new(2*ispin)%matrix, 0.0_dp, &
                       rtp_coeff_aux_fit(2*ispin)%matrix)
 
-         CALL cp_fm_to_fm(rtp_coeff_aux_fit(2*ispin-1)%matrix, mo_coeff_aux_fit)
+         CALL cp_fm_to_fm(rtp_coeff_aux_fit(2*ispin - 1)%matrix, mo_coeff_aux_fit)
       END DO
 
       CALL timestop(handle)
@@ -376,8 +376,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      re = 2*ispin-1; im = 2*ispin
-      alpha = 3*one-REAL(SIZE(rtp_coeff_aux_fit)/2, dp)
+      re = 2*ispin - 1; im = 2*ispin
+      alpha = 3*one - REAL(SIZE(rtp_coeff_aux_fit)/2, dp)
       CALL dbcsr_set(density_matrix_aux, zero)
       CALL cp_fm_get_info(rtp_coeff_aux_fit(re)%matrix, ncol_global=ncol)
       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
@@ -480,7 +480,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      counter = counter+1
+      counter = counter + 1
       nao_aux_fit = admm_env%nao_aux_fit
       nao_orb = admm_env%nao_orb
       nmo = admm_env%nmo(ispin)

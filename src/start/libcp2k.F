@@ -66,13 +66,13 @@ CONTAINS
       INTEGER                                            :: i, n
 
       n = LEN_TRIM(cp2k_version)
-      CPASSERT(str_length >= n+1)
+      CPASSERT(str_length >= n + 1)
 
       ! copy string
       DO i = 1, n
          version_str(i) = cp2k_version(i:i)
       ENDDO
-      version_str(n+1) = C_NULL_CHAR
+      version_str(n + 1) = C_NULL_CHAR
    END SUBROUTINE cp2k_get_version
 
 ! **************************************************************************************************
@@ -429,7 +429,7 @@ CONTAINS
 
       CALL f_env_add_defaults(f_env_id, f_env)
 
-      try:BLOCK
+      try: BLOCK
          CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
          IF (.NOT. ASSOCIATED(active_space_env)) &
@@ -469,7 +469,7 @@ CONTAINS
 
       CALL f_env_add_defaults(f_env_id, f_env)
 
-      try:BLOCK
+      try: BLOCK
          CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
          IF (.NOT. ASSOCIATED(active_space_env)) &
@@ -480,11 +480,11 @@ CONTAINS
          IF (buf_len < norb*norb) &
             EXIT try
 
-         DO i = 0, norb-1
-            DO j = 0, norb-1
-               CALL cp_fm_get_element(active_space_env%fock_sub(1)%matrix, i+1, j+1, mval)
-               buf(norb*i+j) = mval
-               buf(norb*j+i) = mval
+         DO i = 0, norb - 1
+            DO j = 0, norb - 1
+               CALL cp_fm_get_element(active_space_env%fock_sub(1)%matrix, i + 1, j + 1, mval)
+               buf(norb*i + j) = mval
+               buf(norb*j + i) = mval
             END DO
          END DO
 
@@ -516,7 +516,7 @@ CONTAINS
 
       CALL f_env_add_defaults(f_env_id, f_env)
 
-      try:BLOCK
+      try: BLOCK
          CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
          IF (.NOT. ASSOCIATED(active_space_env)) &
@@ -560,7 +560,7 @@ CONTAINS
 
       CALL f_env_add_defaults(f_env_id, f_env)
 
-      try:BLOCK
+      try: BLOCK
          CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
          IF (.NOT. ASSOCIATED(active_space_env)) &
@@ -617,13 +617,13 @@ CONTAINS
       INTEGER, INTENT(in)             :: i, j, k, l
       REAL(KIND=dp), INTENT(in)       :: val
 
-      this%coords(4*(this%idx-1)+1) = i
-      this%coords(4*(this%idx-1)+2) = j
-      this%coords(4*(this%idx-1)+3) = k
-      this%coords(4*(this%idx-1)+4) = l
+      this%coords(4*(this%idx - 1) + 1) = i
+      this%coords(4*(this%idx - 1) + 2) = j
+      this%coords(4*(this%idx - 1) + 3) = k
+      this%coords(4*(this%idx - 1) + 4) = l
       this%values(this%idx) = val
 
-      this%idx = this%idx+1
+      this%idx = this%idx + 1
 
       cont = .TRUE.
    END FUNCTION eri2array_func

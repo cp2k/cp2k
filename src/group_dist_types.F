@@ -74,7 +74,7 @@ CONTAINS
       itmp = get_limit(dimen, ngroups, pos)
       this%starts = itmp(1)
       this%ends = itmp(2)
-      this%sizes = itmp(2)-itmp(1)+1
+      this%sizes = itmp(2) - itmp(1) + 1
 
    END SUBROUTINE create_group_dist_d0
 
@@ -94,18 +94,18 @@ CONTAINS
       INTEGER                                            :: iproc
       INTEGER, DIMENSION(2)                              :: itmp
 
-      ALLOCATE (this%starts(0:ngroups-1))
+      ALLOCATE (this%starts(0:ngroups - 1))
       this%starts = 0
-      ALLOCATE (this%ends(0:ngroups-1))
+      ALLOCATE (this%ends(0:ngroups - 1))
       this%ends = 0
-      ALLOCATE (this%sizes(0:ngroups-1))
+      ALLOCATE (this%sizes(0:ngroups - 1))
       this%sizes = 0
 
-      DO iproc = 0, ngroups-1
+      DO iproc = 0, ngroups - 1
          itmp = get_limit(dimen, ngroups, iproc)
          this%starts(iproc) = itmp(1)
          this%ends(iproc) = itmp(2)
-         this%sizes(iproc) = itmp(2)-itmp(1)+1
+         this%sizes(iproc) = itmp(2) - itmp(1) + 1
       END DO
 
    END SUBROUTINE create_group_dist_d1_i1
@@ -122,11 +122,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_0', &
          routineP = moduleN//':'//routineN
 
-      ALLOCATE (this%starts(0:ngroups-1))
+      ALLOCATE (this%starts(0:ngroups - 1))
       this%starts = 0
-      ALLOCATE (this%ends(0:ngroups-1))
+      ALLOCATE (this%ends(0:ngroups - 1))
       this%ends = 0
-      ALLOCATE (this%sizes(0:ngroups-1))
+      ALLOCATE (this%sizes(0:ngroups - 1))
       this%sizes = 0
 
    END SUBROUTINE create_group_dist_d1_0
@@ -151,11 +151,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (this%starts(0:para_env%num_pe-1))
+      ALLOCATE (this%starts(0:para_env%num_pe - 1))
       this%starts = 0
-      ALLOCATE (this%ends(0:para_env%num_pe-1))
+      ALLOCATE (this%ends(0:para_env%num_pe - 1))
       this%ends = 0
-      ALLOCATE (this%sizes(0:para_env%num_pe-1))
+      ALLOCATE (this%sizes(0:para_env%num_pe - 1))
       this%sizes = 0
 
       this%starts(para_env%mepos) = starts
@@ -188,11 +188,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (this%starts(0:para_env%num_pe-1))
+      ALLOCATE (this%starts(0:para_env%num_pe - 1))
       this%starts = 0
-      ALLOCATE (this%ends(0:para_env%num_pe-1))
+      ALLOCATE (this%ends(0:para_env%num_pe - 1))
       this%ends = 0
-      ALLOCATE (this%sizes(0:para_env%num_pe-1))
+      ALLOCATE (this%sizes(0:para_env%num_pe - 1))
       this%sizes = 0
 
       this%starts(para_env%mepos) = group_dist_ext%starts

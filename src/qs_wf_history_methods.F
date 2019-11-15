@@ -119,7 +119,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'wfs_create', routineP = moduleN//':'//routineN
 
       ALLOCATE (snapshot)
-      last_wfs_id = last_wfs_id+1
+      last_wfs_id = last_wfs_id + 1
       snapshot%id_nr = last_wfs_id
       NULLIFY (snapshot%wf, snapshot%rho_r, &
                snapshot%rho_g, snapshot%rho_ao, snapshot%rho_ao_kp, &
@@ -318,7 +318,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ALLOCATE (wf_history)
-      last_wfi_id = last_wfi_id+1
+      last_wfi_id = last_wfi_id + 1
       wf_history%id_nr = last_wfi_id
       wf_history%ref_count = 1
       wf_history%memory_depth = 0
@@ -358,14 +358,14 @@ CONTAINS
          IF (.NOT. has_unit_metric) wf_history%store_overlap = .TRUE.
       CASE (wfi_ps_method_nr)
          CALL cite_reference(VandeVondele2005a)
-         wf_history%memory_depth = extrapolation_order+1
+         wf_history%memory_depth = extrapolation_order + 1
          wf_history%store_wf = .TRUE.
          IF (.NOT. has_unit_metric) wf_history%store_overlap = .TRUE.
       CASE (wfi_frozen_method_nr)
          wf_history%memory_depth = 1
          wf_history%store_frozen_density = .TRUE.
       CASE (wfi_aspc_nr)
-         wf_history%memory_depth = extrapolation_order+2
+         wf_history%memory_depth = extrapolation_order + 2
          wf_history%store_wf = .TRUE.
          IF (.NOT. has_unit_metric) wf_history%store_overlap = .TRUE.
       CASE default
@@ -670,7 +670,7 @@ CONTAINS
          my_orthogonal_wf = .TRUE.
          t0 = 0.0_dp
          t1 = t1_state%dt
-         t2 = t1+dt
+         t2 = t1 + dt
          CALL qs_rho_get(rho, rho_ao=rho_ao)
          DO ispin = 1, SIZE(mos)
             CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, &
@@ -678,11 +678,11 @@ CONTAINS
             CALL cp_fm_scale_and_add(alpha=0.0_dp, &
                                      matrix_a=mo_coeff, &
                                      matrix_b=t1_state%wf(ispin)%matrix, &
-                                     beta=(t2-t0)/(t1-t0))
+                                     beta=(t2 - t0)/(t1 - t0))
             ! this copy should be unnecessary
             CALL cp_fm_scale_and_add(alpha=1.0_dp, &
                                      matrix_a=mo_coeff, &
-                                     beta=(t1-t2)/(t1-t0), matrix_b=t0_state%wf(ispin)%matrix)
+                                     beta=(t1 - t2)/(t1 - t0), matrix_b=t0_state%wf(ispin)%matrix)
             CALL reorthogonalize_vectors(qs_env, &
                                          v_matrix=mo_coeff, &
                                          n_col=nmo)
@@ -710,7 +710,7 @@ CONTAINS
 
          t0 = 0.0_dp
          t1 = t1_state%dt
-         t2 = t1+dt
+         t2 = t1 + dt
          IF (do_kpoints) THEN
             CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
             DO ispin = 1, SIZE(rho_ao_kp, 1)
@@ -720,9 +720,9 @@ CONTAINS
                      CPWARN("Change in cell neighborlist: might affect quality of initial guess")
                   ELSE
                      CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t1_state%rho_ao_kp(ispin, img)%matrix, &
-                                    alpha_scalar=0.0_dp, beta_scalar=(t2-t0)/(t1-t0)) ! this copy should be unnecessary
+                                    alpha_scalar=0.0_dp, beta_scalar=(t2 - t0)/(t1 - t0)) ! this copy should be unnecessary
                      CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t0_state%rho_ao_kp(ispin, img)%matrix, &
-                                    alpha_scalar=1.0_dp, beta_scalar=(t1-t2)/(t1-t0))
+                                    alpha_scalar=1.0_dp, beta_scalar=(t1 - t2)/(t1 - t0))
                   END IF
                END DO
             END DO
@@ -730,9 +730,9 @@ CONTAINS
             CALL qs_rho_get(rho, rho_ao=rho_ao)
             DO ispin = 1, SIZE(rho_ao)
                CALL dbcsr_add(rho_ao(ispin)%matrix, t1_state%rho_ao(ispin)%matrix, &
-                              alpha_scalar=0.0_dp, beta_scalar=(t2-t0)/(t1-t0)) ! this copy should be unnecessary
+                              alpha_scalar=0.0_dp, beta_scalar=(t2 - t0)/(t1 - t0)) ! this copy should be unnecessary
                CALL dbcsr_add(rho_ao(ispin)%matrix, t0_state%rho_ao(ispin)%matrix, &
-                              alpha_scalar=1.0_dp, beta_scalar=(t1-t2)/(t1-t0))
+                              alpha_scalar=1.0_dp, beta_scalar=(t1 - t2)/(t1 - t0))
             END DO
          END IF
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
@@ -843,7 +843,7 @@ CONTAINS
                                t1_state%wf(ispin)%matrix, 0.0_dp, csc)
                END IF
                CALL cp_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin)%matrix, csc, 0.0_dp, fm_tmp)
-               alpha = -1.0_dp*alpha*REAL(nvec-i+1, dp)/REAL(i, dp)
+               alpha = -1.0_dp*alpha*REAL(nvec - i + 1, dp)/REAL(i, dp)
                CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, alpha, fm_tmp)
             ENDDO
 
@@ -898,11 +898,11 @@ CONTAINS
             t1_state => wfi_get_snapshot(wf_history, &
                                          wf_index=1)
             CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix, mo_coeff)
-            alpha = REAL(4*nvec-2, KIND=dp)/REAL(nvec+1, KIND=dp)
+            alpha = REAL(4*nvec - 2, KIND=dp)/REAL(nvec + 1, KIND=dp)
             IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
                WRITE (UNIT=io_unit, FMT="(/,T2,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)") &
                   "Parameters for the always stable predictor-corrector (ASPC) method:", &
-                  "ASPC order: ", MAX(nvec-2, 0), &
+                  "ASPC order: ", MAX(nvec - 2, 0), &
                   "B(", 1, ") = ", alpha
             END IF
             CALL cp_fm_scale(alpha, mo_coeff)
@@ -917,8 +917,8 @@ CONTAINS
                                t1_state%wf(ispin)%matrix, 0.0_dp, csc)
                END IF
                CALL cp_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin)%matrix, csc, 0.0_dp, fm_tmp)
-               alpha = (-1.0_dp)**(i+1)*REAL(i, KIND=dp)* &
-                       binomial(2*nvec, nvec-i)/binomial(2*nvec-2, nvec-1)
+               alpha = (-1.0_dp)**(i + 1)*REAL(i, KIND=dp)* &
+                       binomial(2*nvec, nvec - i)/binomial(2*nvec - 2, nvec - 1)
                IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
                   WRITE (UNIT=io_unit, FMT="(T3,A2,I0,A4,F10.6)") &
                      "B(", i, ") = ", alpha
@@ -1009,10 +1009,10 @@ CONTAINS
       CPASSERT(ASSOCIATED(qs_env))
       CPASSERT(qs_env%ref_count > 0)
 
-      wf_history%snapshot_count = wf_history%snapshot_count+1
+      wf_history%snapshot_count = wf_history%snapshot_count + 1
       IF (wf_history%memory_depth > 0) THEN
          wf_history%last_state_index = MODULO(wf_history%snapshot_count, &
-                                              wf_history%memory_depth)+1
+                                              wf_history%memory_depth) + 1
          CALL wfs_update(snapshot=wf_history%past_states &
                          (wf_history%last_state_index)%snapshot, wf_history=wf_history, &
                          qs_env=qs_env, dt=dt)

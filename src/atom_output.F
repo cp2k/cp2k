@@ -95,7 +95,7 @@ CONTAINS
       WRITE (iw, '(/,T2,A)') "Electronic structure"
       WRITE (iw, '(T5,A,T71,F10.2)') "Total number of core electrons", SUM(state%core)
       WRITE (iw, '(T5,A,T71,F10.2)') "Total number of valence electrons", SUM(state%occ)
-      WRITE (iw, '(T5,A,T71,F10.2)') "Total number of electrons", SUM(state%occ+state%core)
+      WRITE (iw, '(T5,A,T71,F10.2)') "Total number of electrons", SUM(state%occ + state%core)
       SELECT CASE (state%multiplicity)
       CASE (-1)
          WRITE (iw, '(T5,A,T68,A)') "Multiplicity", "not specified"
@@ -133,7 +133,7 @@ CONTAINS
                mc = mm(l)
                CPASSERT(SUM(state%occ(l, 1:mc)) == 0)
                WRITE (iw, ADVANCE="no", FMT='(A5,T9,A1,10F6.2)') label(l), "[", (state%core(l, j), j=1, mc)
-               WRITE (iw, FMT='(A1,F5.2,10F6.2)') "]", (state%occ(l, j), j=mc+1, mc+mo)
+               WRITE (iw, FMT='(A1,F5.2,10F6.2)') "]", (state%occ(l, j), j=mc + 1, mc + mo)
             END IF
          END DO
       ELSE
@@ -597,7 +597,7 @@ CONTAINS
          IF (iw > 0) THEN
             ifun = 0
             DO
-               ifun = ifun+1
+               ifun = ifun + 1
                xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
                IF (.NOT. ASSOCIATED(xc_fun)) EXIT
                IF (TRIM(xc_fun%section%name) /= "LIBXC") THEN
@@ -795,14 +795,14 @@ CONTAINS
       n = 0
       DO i = lmat, 0, -1
          IF (gthpot%nl(i) > 0) THEN
-            n = i+1
+            n = i + 1
             EXIT
          END IF
       END DO
       WRITE (iw, '(I8)') n
-      DO i = 0, n-1
+      DO i = 0, n - 1
          WRITE (iw, '(F20.14,I8,5F20.14)') gthpot%rcnl(i), gthpot%nl(i), (gthpot%hnl(1, k, i), k=1, gthpot%nl(i))
-         SELECT CASE (gthpot%nl (i))
+         SELECT CASE (gthpot%nl(i))
          CASE (2)
             WRITE (iw, '(T49,F20.14)') gthpot%hnl(2, 2, i)
          CASE (3)

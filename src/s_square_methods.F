@@ -87,7 +87,7 @@ CONTAINS
 
       NULLIFY (fm_struct_tmp, matrix_sc_a, matrix_sc_b, matrix_overlap, para_env, context, local_data)
 
-      SELECT CASE (SIZE (mos))
+      SELECT CASE (SIZE(mos))
       CASE (1)
          s_square = 0.0_dp
          s_square_ideal = 0.0_dp
@@ -100,7 +100,7 @@ CONTAINS
          IF (.NOT. uniform_occupation) CPWARN("Found non-uniform occupation")
          CALL cp_fm_get_info(c_alpha, ncol_global=na)
          CALL cp_fm_get_info(c_beta, ncol_global=nb)
-         s_square_ideal = REAL((nalpha-nbeta)*(nalpha-nbeta+2), KIND=dp)/4.0_dp
+         s_square_ideal = REAL((nalpha - nbeta)*(nalpha - nbeta + 2), KIND=dp)/4.0_dp
          ! create overlap matrix
          CALL cp_fm_get_info(c_alpha, para_env=para_env, context=context)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
@@ -120,11 +120,11 @@ CONTAINS
          tmp = 0.0_dp
          DO j = 1, ncol_local
          DO i = 1, nrow_local
-            tmp = tmp+local_data(i, j)**2
+            tmp = tmp + local_data(i, j)**2
          ENDDO
          ENDDO
          CALL mp_sum(tmp, para_env%group)
-         s_square = s_square_ideal+nb-tmp
+         s_square = s_square_ideal + nb - tmp
          IF (PRESENT(mo_derivs)) THEN
             ! this gets really wrong for fractional occupations
             CPASSERT(SIZE(mo_derivs, 1) == 2)
@@ -188,7 +188,7 @@ CONTAINS
             CALL compute_s_square(mos, matrix_s, s_square, s_square_ideal, &
                                   mo_derivs, s2_restraint_control%strength)
          ENDIF
-         energy = s2_restraint_control%strength*(s_square-s2_restraint_control%target)
+         energy = s2_restraint_control%strength*(s_square - s2_restraint_control%target)
          s2_restraint_control%s2_order_p = s_square
       CASE (do_s2_restraint) ! not yet implemented
          CPABORT("")

@@ -574,7 +574,7 @@ CONTAINS
 
          rs_grid_section => section_vals_get_subs_vals(input, "DFT%MGRID%RS_GRID")
 
-         CALL init_input_type(input_settings, nsmax=2*MAX(1, return_cube_max_iradius(pw_env%cube_info(igrid_level)))+1, &
+         CALL init_input_type(input_settings, nsmax=2*MAX(1, return_cube_max_iradius(pw_env%cube_info(igrid_level))) + 1, &
                               rs_grid_section=rs_grid_section, ilevel=igrid_level, &
                               higher_grid_layout=higher_grid_layout)
 
@@ -878,18 +878,18 @@ CONTAINS
                      DO jset = 1, nsetb
                      DO jpgf = 1, npgfb(jset)
                      DO jshell = 1, nshellb(jset)
-                        zetp = zeta(ipgf, iset)+zetb(jpgf, jset)
-                        lb = lshellb(jshell, jset)+la
+                        zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
+                        lb = lshellb(jshell, jset) + la
                         lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info, zetp)
                         IF (lgrid_level .EQ. igrid_level) THEN
                            ! density (scale is at most 2)
                            maxradius = MAX(maxradius, exp_radius(lb, zetp, eps_rho, 2.0_dp))
                            ! tau, properties?
-                           maxradius = MAX(maxradius, exp_radius(lb+1, zetp, eps_rho, 2.0_dp))
+                           maxradius = MAX(maxradius, exp_radius(lb + 1, zetp, eps_rho, 2.0_dp))
                            ! potential
                            maxradius = MAX(maxradius, exp_radius(lb, zetp, eps_gvg, 2.0_dp))
                            ! forces
-                           maxradius = MAX(maxradius, exp_radius(lb+1, zetp, eps_gvg, 2.0_dp))
+                           maxradius = MAX(maxradius, exp_radius(lb + 1, zetp, eps_gvg, 2.0_dp))
                         ENDIF
                      END DO
                      END DO
@@ -1045,7 +1045,7 @@ CONTAINS
       CASE (derivative_cd7)
          border_points = 3
       END SELECT
-      CALL init_input_type(input_settings, 2*border_points+1, rs_grid_section, &
+      CALL init_input_type(input_settings, 2*border_points + 1, rs_grid_section, &
                            1, (/-1, -1, -1/))
       CALL rs_grid_create_descriptor(rs_desc, pw_grid, input_settings, &
                                      border_points=border_points)

@@ -156,7 +156,7 @@ CONTAINS
          record = TRIM(record)
 
          IF ((record == "ATOM") .OR. (record == "HETATM")) THEN
-            natom = natom+1
+            natom = natom + 1
             topology%natoms = natom
             IF (natom > SIZE(atom_info%id_atmname)) THEN
                newsize = INT(pfactor*natom)
@@ -232,7 +232,7 @@ CONTAINS
             atom_info%r(2, natom) = cp_unit_to_cp2k(atom_info%r(2, natom), "angstrom")
             atom_info%r(3, natom) = cp_unit_to_cp2k(atom_info%r(3, natom), "angstrom")
          CASE ("TER")
-            inum_mol = inum_mol+1
+            inum_mol = inum_mol + 1
             WRITE (UNIT=root_mol_name, FMT='(A3,I0)') "MOL", inum_mol
          CASE ("REMARK")
             IF (iw > 0) WRITE (UNIT=iw, FMT=*) TRIM(line)
@@ -338,7 +338,7 @@ CONTAINS
             idres = atom_info%resid(i)
          ELSE
             IF ((id1 /= atom_info%map_mol_num(i)) .OR. (id2 /= atom_info%map_mol_typ(i))) THEN
-               idres = idres+1
+               idres = idres + 1
                id1 = atom_info%map_mol_num(i)
                id2 = atom_info%map_mol_typ(i)
             END IF

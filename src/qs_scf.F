@@ -253,7 +253,7 @@ CONTAINS
             IF (used_history) used_history = .FALSE.
             ! Update a counter and check if the Jacobian should be deallocated
             IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
-               scf_control%outer_scf%cdft_opt_control%ijacobian(2) = scf_control%outer_scf%cdft_opt_control%ijacobian(2)+1
+               scf_control%outer_scf%cdft_opt_control%ijacobian(2) = scf_control%outer_scf%cdft_opt_control%ijacobian(2) + 1
                IF (scf_control%outer_scf%cdft_opt_control%ijacobian(2) .GE. &
                    scf_control%outer_scf%cdft_opt_control%jacobian_freq(2) .AND. &
                    scf_control%outer_scf%cdft_opt_control%jacobian_freq(2) > 0) &
@@ -428,13 +428,13 @@ CONTAINS
 
             CALL timeset(routineN//"_inner_loop", handle2)
 
-            scf_env%iter_count = scf_env%iter_count+1
-            iter_count = iter_count+1
+            scf_env%iter_count = scf_env%iter_count + 1
+            iter_count = iter_count + 1
             CALL cp_iterate(logger%iter_info, last=.FALSE., iter_nr=iter_count)
 
             IF (output_unit > 0) CALL m_flush(output_unit)
 
-            total_steps = total_steps+1
+            total_steps = total_steps + 1
             just_energy = energy_only
 
             CALL qs_ks_update_qs_env(qs_env, just_energy=just_energy, &
@@ -537,12 +537,12 @@ CONTAINS
 
       IF (dft_control%qs_control%cdft) &
          dft_control%qs_control%cdft_control%total_steps = &
-         dft_control%qs_control%cdft_control%total_steps+total_steps
+         dft_control%qs_control%cdft_control%total_steps + total_steps
 
       IF (.NOT. converged) CPWARN("SCF run NOT converged")
 
       IF (.NOT. converged .AND. scf_control%stop_higher_iter_level) THEN
-         logger%iter_info%last_iter(logger%iter_info%n_rlevel-1) = .TRUE.
+         logger%iter_info%last_iter(logger%iter_info%n_rlevel - 1) = .TRUE.
          CPWARN("MD iteration also stops")
       END IF
 
@@ -753,7 +753,7 @@ CONTAINS
                              broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma, &
                              qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix)
 
-            SELECT CASE (scf_env%qs_ot_env (1)%settings%preconditioner_type)
+            SELECT CASE (scf_env%qs_ot_env(1)%settings%preconditioner_type)
             CASE (ot_precond_none)
             CASE (ot_precond_full_all, ot_precond_full_single_inverse)
                ! this will rotate the MOs to be eigen states, which is not compatible with rotation
@@ -969,12 +969,12 @@ CONTAINS
             ! but the constraint optimizer keeps jumping over the optimal solution
             IF (scf_env%outer_scf%iter_count == 1 .AND. scf_env%iter_count == 1 &
                 .AND. cdft_control%total_steps /= 1) &
-               cdft_control%nreused = cdft_control%nreused-1
+               cdft_control%nreused = cdft_control%nreused - 1
             ! SCF converged in less than precond_freq steps
             IF (scf_env%outer_scf%iter_count == 1 .AND. scf_env%iter_count .LE. cdft_control%precond_freq .AND. &
                 cdft_control%total_steps /= 1 .AND. cdft_control%nreused .LT. cdft_control%max_reuse) THEN
                reuse_precond = .TRUE.
-               cdft_control%nreused = cdft_control%nreused+1
+               cdft_control%nreused = cdft_control%nreused + 1
             ELSE
                reuse_precond = .FALSE.
                cdft_control%nreused = 0
@@ -982,9 +982,9 @@ CONTAINS
          END IF
          ! Update history purging counters
          IF (first_iteration .AND. cdft_control%purge_history) THEN
-            cdft_control%istep = cdft_control%istep+1
+            cdft_control%istep = cdft_control%istep + 1
             IF (scf_env%outer_scf%iter_count .GT. 1) THEN
-               cdft_control%nbad_conv = cdft_control%nbad_conv+1
+               cdft_control%nbad_conv = cdft_control%nbad_conv + 1
                IF (cdft_control%nbad_conv .GE. cdft_control%purge_freq .AND. &
                    cdft_control%istep .GE. cdft_control%purge_offset) THEN
                   cdft_control%nbad_conv = 0
@@ -1012,7 +1012,7 @@ CONTAINS
          CALL qs_ks_did_change(ks_env, potential_changed=.TRUE.)
       END DO cdft_outer_loop
 
-      cdft_control%ienergy = cdft_control%ienergy+1
+      cdft_control%ienergy = cdft_control%ienergy + 1
 
       ! Store needed arrays for ET coupling calculation
       IF (cdft_control%do_et) THEN
@@ -1221,7 +1221,7 @@ CONTAINS
             p_rmpv => rho_ao_kp(:, 1)
             ! Allocate work
             nvar = SIZE(scf_env%outer_scf%variables, 1)
-            max_scf = scf_control%outer_scf%max_scf+1
+            max_scf = scf_control%outer_scf%max_scf + 1
             ALLOCATE (gradient(nvar, max_scf))
             gradient = scf_env%outer_scf%gradient
             ALLOCATE (energy(max_scf))
@@ -1231,7 +1231,7 @@ CONTAINS
             nsteps = cdft_control%total_steps
             ! Setup finite difference scheme
             CALL prepare_jacobian_stencil(qs_env, output_unit, nwork, pwork, coeff, step_multiplier, dh)
-            twork = pwork-nwork
+            twork = pwork - nwork
             DO i = 1, nvar
                jacobian(i, :) = coeff(0)*scf_env%outer_scf%gradient(i, iter_count)
             END DO
@@ -1248,7 +1248,7 @@ CONTAINS
                counter = 0
                DO iwork = nwork, pwork
                   IF (iwork == 0) CYCLE
-                  counter = counter+1
+                  counter = counter + 1
                   IF (output_unit > 0) THEN
                      WRITE (output_unit, FMT="(A)") " #####################################"
                      WRITE (output_unit, '(A,I3,A,I3,A)') &
@@ -1260,9 +1260,9 @@ CONTAINS
                   ELSE
                      step_size = scf_control%outer_scf%cdft_opt_control%jacobian_step(i)
                   END IF
-                  scf_env%outer_scf%variables(:, iter_count+1) = scf_env%outer_scf%variables(:, iter_count)
-                  scf_env%outer_scf%variables(i, iter_count+1) = scf_env%outer_scf%variables(i, iter_count)+ &
-                                                                 step_multiplier(iwork)*step_size
+                  scf_env%outer_scf%variables(:, iter_count + 1) = scf_env%outer_scf%variables(:, iter_count)
+                  scf_env%outer_scf%variables(i, iter_count + 1) = scf_env%outer_scf%variables(i, iter_count) + &
+                                                                   step_multiplier(iwork)*step_size
                   CALL outer_loop_update_qs_env(qs_env, scf_env)
                   CALL qs_ks_did_change(ks_env, potential_changed=.TRUE.)
                   CALL outer_loop_switch(scf_env, scf_control, cdft_control, cdft2ot)
@@ -1270,18 +1270,18 @@ CONTAINS
                                       converged=converged, should_stop=should_stop)
                   CALL outer_loop_switch(scf_env, scf_control, cdft_control, ot2cdft)
                   ! Update (iter_count + 1) element of gradient and print constraint info
-                  scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count+1
+                  scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count + 1
                   CALL outer_loop_gradient(qs_env, scf_env)
                   CALL qs_scf_cdft_info(output_unit, scf_control, scf_env, cdft_control, &
                                         energy_qs, cdft_control%total_steps, &
                                         should_stop=.FALSE., outer_loop_converged=.FALSE., cdft_loop=.FALSE.)
-                  scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count-1
+                  scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count - 1
                   ! Update Jacobian
                   DO j = 1, nvar
-                     jacobian(j, i) = jacobian(j, i)+coeff(iwork)*scf_env%outer_scf%gradient(j, iter_count+1)
+                     jacobian(j, i) = jacobian(j, i) + coeff(iwork)*scf_env%outer_scf%gradient(j, iter_count + 1)
                   END DO
                   ! Reset everything to last converged state
-                  scf_env%outer_scf%variables(:, iter_count+1) = 0.0_dp
+                  scf_env%outer_scf%variables(:, iter_count + 1) = 0.0_dp
                   scf_env%outer_scf%gradient = gradient
                   scf_env%outer_scf%energy = energy
                   cdft_control%total_steps = nsteps
@@ -1328,7 +1328,7 @@ CONTAINS
          CALL print_inverse_jacobian(logger, scf_env%outer_scf%inv_jacobian, iter_count)
       END IF
       ! Update counter
-      scf_control%outer_scf%cdft_opt_control%ijacobian(1) = scf_control%outer_scf%cdft_opt_control%ijacobian(1)+1
+      scf_control%outer_scf%cdft_opt_control%ijacobian(1) = scf_control%outer_scf%cdft_opt_control%ijacobian(1) + 1
       CALL timestop(handle)
 
    END SUBROUTINE qs_calculate_inverse_jacobian
@@ -1428,7 +1428,7 @@ CONTAINS
          nsteps = cdft_control%total_steps
          ! Allocate work
          nvar = SIZE(scf_env%outer_scf%variables, 1)
-         max_scf = scf_control%outer_scf%max_scf+1
+         max_scf = scf_control%outer_scf%max_scf + 1
          max_linesearch = scf_control%outer_scf%cdft_opt_control%max_ls
          continue_ls = scf_control%outer_scf%cdft_opt_control%continue_ls
          factor = scf_control%outer_scf%cdft_opt_control%factor_ls
@@ -1443,7 +1443,7 @@ CONTAINS
          IF (scf_control%outer_scf%cdft_opt_control%broyden_update) THEN
             CALL outer_loop_optimize(scf_env, scf_control)
             ! Reset the variables and prevent a reupdate of inv_jacobian
-            scf_env%outer_scf%variables(:, iter_count+1) = 0
+            scf_env%outer_scf%variables(:, iter_count + 1) = 0
             scf_control%outer_scf%cdft_opt_control%broyden_update = .FALSE.
          END IF
          ! Print some info
@@ -1475,8 +1475,8 @@ CONTAINS
             END IF
             inv_jacobian => scf_env%outer_scf%inv_jacobian
             ! Newton update of CDFT variables with a step size of alpha
-            scf_env%outer_scf%variables(:, iter_count+1) = scf_env%outer_scf%variables(:, iter_count)-alpha* &
-                                                           MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, iter_count))
+            scf_env%outer_scf%variables(:, iter_count + 1) = scf_env%outer_scf%variables(:, iter_count) - alpha* &
+                                                             MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, iter_count))
             ! With updated CDFT variables, perform SCF
             CALL outer_loop_update_qs_env(qs_env, scf_env)
             CALL qs_ks_did_change(ks_env, potential_changed=.TRUE.)
@@ -1485,22 +1485,22 @@ CONTAINS
                                 converged=converged, should_stop=should_stop)
             CALL outer_loop_switch(scf_env, scf_control, cdft_control, ot2cdft)
             ! Update (iter_count + 1) element of gradient and print constraint info
-            scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count+1
+            scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count + 1
             CALL outer_loop_gradient(qs_env, scf_env)
             CALL qs_scf_cdft_info(output_unit, scf_control, scf_env, cdft_control, &
                                   energy_qs, cdft_control%total_steps, &
                                   should_stop=.FALSE., outer_loop_converged=.FALSE., cdft_loop=.FALSE.)
-            scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count-1
+            scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count - 1
             ! Store sign of initial gradient for each variable for continue_ls
             IF (continue_ls .AND. .NOT. ALLOCATED(positive_sign)) THEN
                ALLOCATE (positive_sign(nvar))
                DO ispin = 1, nvar
-                  positive_sign(ispin) = scf_env%outer_scf%gradient(ispin, iter_count+1) .GE. 0.0_dp
+                  positive_sign(ispin) = scf_env%outer_scf%gradient(ispin, iter_count + 1) .GE. 0.0_dp
                END DO
             END IF
             ! Check if the L2 norm of the gradient decreased
             inv_jacobian => scf_env%outer_scf%inv_jacobian
-            IF (dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count+1), 1) .LT. &
+            IF (dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1) .LT. &
                 dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count), 1)) THEN
                ! Optimal step size found
                IF (.NOT. continue_ls) THEN
@@ -1510,7 +1510,7 @@ CONTAINS
                   ! if max number of steps is not exceeded
                   IF (found_solution) THEN
                      ! Check if the norm also decreased w.r.t. to previously found solution
-                     IF (dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count+1), 1) .GT. norm_ls) THEN
+                     IF (dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1) .GT. norm_ls) THEN
                         ! Norm increased => accept previous solution and exit
                         continue_ls_exit = .TRUE.
                      END IF
@@ -1520,13 +1520,13 @@ CONTAINS
                      should_exit = .FALSE.
                      alpha_ls = alpha
                      found_solution = .TRUE.
-                     norm_ls = dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count+1), 1)
+                     norm_ls = dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1)
                      ! Check if the sign of the gradient has changed for all variables (w.r.t initial gradient)
                      ! In this case we should exit because further line search steps will just increase the norm
                      sign_changed = .TRUE.
                      DO ispin = 1, nvar
                         sign_changed = sign_changed .AND. (positive_sign(ispin) .NEQV. &
-                                                           scf_env%outer_scf%gradient(ispin, iter_count+1) .GE. 0.0_dp)
+                                                           scf_env%outer_scf%gradient(ispin, iter_count + 1) .GE. 0.0_dp)
                      END DO
                      IF (.NOT. ASSOCIATED(mos_ls)) THEN
                         ALLOCATE (mos_ls(nspins))
@@ -1542,7 +1542,7 @@ CONTAINS
                      ! Exit on last iteration
                      IF (i == max_linesearch) continue_ls_exit = .TRUE.
                      ! Exit if constraint target is satisfied to requested tolerance
-                     IF (SQRT(MAXVAL(scf_env%outer_scf%gradient(:, scf_env%outer_scf%iter_count+1)**2)) .LT. &
+                     IF (SQRT(MAXVAL(scf_env%outer_scf%gradient(:, scf_env%outer_scf%iter_count + 1)**2)) .LT. &
                          scf_control%outer_scf%eps_scf) &
                         continue_ls_exit = .TRUE.
                      ! Exit if line search jumped over the optimal step length
@@ -1578,7 +1578,7 @@ CONTAINS
                alpha = alpha*(1.0_dp/factor)
             END IF
             ! Reset outer SCF environment to last converged state
-            scf_env%outer_scf%variables(:, iter_count+1) = 0.0_dp
+            scf_env%outer_scf%variables(:, iter_count + 1) = 0.0_dp
             scf_env%outer_scf%gradient = gradient
             scf_env%outer_scf%energy = energy
             ! Exit line search if a suitable step size was found

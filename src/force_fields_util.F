@@ -451,14 +451,14 @@ CONTAINS
             atomic_kind => atom_list(iatom)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  name=atmname, qeff=qeff, mass=mass, shell_active=shell_active, shell=shell)
-            IF (shell_active) qeff = shell%charge_core+shell%charge_shell
+            IF (shell_active) qeff = shell%charge_core + shell%charge_shell
             IF (ASSOCIATED(charges)) THEN
-               jatom = first-1+iatom
+               jatom = first - 1 + iatom
                qeff = charges(jatom)
             END IF
             IF (iw > 0) WRITE (iw, *) "      atom ", iatom, " ", TRIM(atmname), " charge = ", qeff
-            qeff_mol = qeff_mol+qeff
-            mass_mol = mass_mol+mass
+            qeff_mol = qeff_mol + qeff
+            mass_mol = mass_mol + mass
          END DO
          CALL set_molecule_kind(molecule_kind=molecule_kind, charge=qeff_mol, mass=mass_mol)
          IF (iw > 0) WRITE (iw, *) "    Mol Kind ", TRIM(molname), " charge = ", qeff_mol
@@ -472,14 +472,14 @@ CONTAINS
          atomic_kind => particle_set(iatom)%atomic_kind
          CALL get_atomic_kind(atomic_kind=atomic_kind, &
                               name=atmname, qeff=qeff, mass=mass, shell_active=shell_active, shell=shell)
-         IF (shell_active) qeff = shell%charge_core+shell%charge_shell
+         IF (shell_active) qeff = shell%charge_core + shell%charge_shell
          IF (ASSOCIATED(charges)) THEN
             qeff = charges(iatom)
          END IF
          IF (iw > 0) WRITE (iw, *) "      atom ", iatom, " ", TRIM(atmname), &
             " charge = ", qeff
-         qeff_sum = qeff_sum+qeff
-         mass_sum = mass_sum+mass
+         qeff_sum = qeff_sum + qeff
+         mass_sum = mass_sum + mass
       END DO
       IF (iw > 0) WRITE (iw, '(A,F20.10)') "    Total system charge = ", qeff_sum
       IF (iw > 0) WRITE (iw, '(A,F20.10)') "    Total system mass   = ", mass_sum
@@ -734,12 +734,12 @@ CONTAINS
                IF (unsetme) bad1(ibond) = 1
             END DO
             IF (SUM(bad1) /= 0) THEN
-               counter = SIZE(bond_kind_set)-SUM(bad1)
+               counter = SIZE(bond_kind_set) - SUM(bad1)
                CALL allocate_bond_kind_set(new_bond_kind_set, counter)
                counter = 0
                DO ibond = 1, SIZE(bond_kind_set)
                   IF (bad1(ibond) == 0) THEN
-                     counter = counter+1
+                     counter = counter + 1
                      new_bond_kind_set(counter) = bond_kind_set(ibond)
                   END IF
                END DO
@@ -753,15 +753,15 @@ CONTAINS
                   IF (unsetme) bad2(ibond) = 1
                END DO
                IF (SUM(bad2) /= 0) THEN
-                  counter = SIZE(bond_list)-SUM(bad2)
+                  counter = SIZE(bond_list) - SUM(bad2)
                   ALLOCATE (new_bond_list(counter))
                   counter = 0
                   DO ibond = 1, SIZE(bond_list)
                      IF (bad2(ibond) == 0) THEN
-                        counter = counter+1
+                        counter = counter + 1
                         new_bond_list(counter) = bond_list(ibond)
                         newkind = bond_list(ibond)%bond_kind%kind_number
-                        newkind = newkind-SUM(bad1(1:newkind))
+                        newkind = newkind - SUM(bad1(1:newkind))
                         new_bond_list(counter)%bond_kind => new_bond_kind_set(newkind)
                      END IF
                   END DO
@@ -817,12 +817,12 @@ CONTAINS
                IF (unsetme) bad1(ibend) = 1
             END DO
             IF (SUM(bad1) /= 0) THEN
-               counter = SIZE(bend_kind_set)-SUM(bad1)
+               counter = SIZE(bend_kind_set) - SUM(bad1)
                CALL allocate_bend_kind_set(new_bend_kind_set, counter)
                counter = 0
                DO ibend = 1, SIZE(bend_kind_set)
                   IF (bad1(ibend) == 0) THEN
-                     counter = counter+1
+                     counter = counter + 1
                      new_bend_kind_set(counter) = bend_kind_set(ibend)
                   END IF
                END DO
@@ -836,15 +836,15 @@ CONTAINS
                   IF (unsetme) bad2(ibend) = 1
                END DO
                IF (SUM(bad2) /= 0) THEN
-                  counter = SIZE(bend_list)-SUM(bad2)
+                  counter = SIZE(bend_list) - SUM(bad2)
                   ALLOCATE (new_bend_list(counter))
                   counter = 0
                   DO ibend = 1, SIZE(bend_list)
                      IF (bad2(ibend) == 0) THEN
-                        counter = counter+1
+                        counter = counter + 1
                         new_bend_list(counter) = bend_list(ibend)
                         newkind = bend_list(ibend)%bend_kind%kind_number
-                        newkind = newkind-SUM(bad1(1:newkind))
+                        newkind = newkind - SUM(bad1(1:newkind))
                         new_bend_list(counter)%bend_kind => new_bend_kind_set(newkind)
                      END IF
                   END DO
@@ -901,12 +901,12 @@ CONTAINS
                IF (unsetme) bad1(iub) = 1
             END DO
             IF (SUM(bad1) /= 0) THEN
-               counter = SIZE(ub_kind_set)-SUM(bad1)
+               counter = SIZE(ub_kind_set) - SUM(bad1)
                CALL allocate_ub_kind_set(new_ub_kind_set, counter)
                counter = 0
                DO iub = 1, SIZE(ub_kind_set)
                   IF (bad1(iub) == 0) THEN
-                     counter = counter+1
+                     counter = counter + 1
                      new_ub_kind_set(counter) = ub_kind_set(iub)
                   END IF
                END DO
@@ -920,15 +920,15 @@ CONTAINS
                   IF (unsetme) bad2(iub) = 1
                END DO
                IF (SUM(bad2) /= 0) THEN
-                  counter = SIZE(ub_list)-SUM(bad2)
+                  counter = SIZE(ub_list) - SUM(bad2)
                   ALLOCATE (new_ub_list(counter))
                   counter = 0
                   DO iub = 1, SIZE(ub_list)
                      IF (bad2(iub) == 0) THEN
-                        counter = counter+1
+                        counter = counter + 1
                         new_ub_list(counter) = ub_list(iub)
                         newkind = ub_list(iub)%ub_kind%kind_number
-                        newkind = newkind-SUM(bad1(1:newkind))
+                        newkind = newkind - SUM(bad1(1:newkind))
                         new_ub_list(counter)%ub_kind => new_ub_kind_set(newkind)
                      END IF
                   END DO
@@ -985,12 +985,12 @@ CONTAINS
                IF (unsetme) bad1(itorsion) = 1
             END DO
             IF (SUM(bad1) /= 0) THEN
-               counter = SIZE(torsion_kind_set)-SUM(bad1)
+               counter = SIZE(torsion_kind_set) - SUM(bad1)
                CALL allocate_torsion_kind_set(new_torsion_kind_set, counter)
                counter = 0
                DO itorsion = 1, SIZE(torsion_kind_set)
                   IF (bad1(itorsion) == 0) THEN
-                     counter = counter+1
+                     counter = counter + 1
                      new_torsion_kind_set(counter) = torsion_kind_set(itorsion)
                      i = SIZE(torsion_kind_set(itorsion)%m)
                      j = SIZE(torsion_kind_set(itorsion)%k)
@@ -1013,15 +1013,15 @@ CONTAINS
                   IF (unsetme) bad2(itorsion) = 1
                END DO
                IF (SUM(bad2) /= 0) THEN
-                  counter = SIZE(torsion_list)-SUM(bad2)
+                  counter = SIZE(torsion_list) - SUM(bad2)
                   ALLOCATE (new_torsion_list(counter))
                   counter = 0
                   DO itorsion = 1, SIZE(torsion_list)
                      IF (bad2(itorsion) == 0) THEN
-                        counter = counter+1
+                        counter = counter + 1
                         new_torsion_list(counter) = torsion_list(itorsion)
                         newkind = torsion_list(itorsion)%torsion_kind%kind_number
-                        newkind = newkind-SUM(bad1(1:newkind))
+                        newkind = newkind - SUM(bad1(1:newkind))
                         new_torsion_list(counter)%torsion_kind => new_torsion_kind_set(newkind)
                      END IF
                   END DO
@@ -1080,12 +1080,12 @@ CONTAINS
                IF (unsetme) bad1(iimpr) = 1
             END DO
             IF (SUM(bad1) /= 0) THEN
-               counter = SIZE(impr_kind_set)-SUM(bad1)
+               counter = SIZE(impr_kind_set) - SUM(bad1)
                CALL allocate_impr_kind_set(new_impr_kind_set, counter)
                counter = 0
                DO iimpr = 1, SIZE(impr_kind_set)
                   IF (bad1(iimpr) == 0) THEN
-                     counter = counter+1
+                     counter = counter + 1
                      new_impr_kind_set(counter) = impr_kind_set(iimpr)
                   END IF
                END DO
@@ -1099,15 +1099,15 @@ CONTAINS
                   IF (unsetme) bad2(iimpr) = 1
                END DO
                IF (SUM(bad2) /= 0) THEN
-                  counter = SIZE(impr_list)-SUM(bad2)
+                  counter = SIZE(impr_list) - SUM(bad2)
                   ALLOCATE (new_impr_list(counter))
                   counter = 0
                   DO iimpr = 1, SIZE(impr_list)
                      IF (bad2(iimpr) == 0) THEN
-                        counter = counter+1
+                        counter = counter + 1
                         new_impr_list(counter) = impr_list(iimpr)
                         newkind = impr_list(iimpr)%impr_kind%kind_number
-                        newkind = newkind-SUM(bad1(1:newkind))
+                        newkind = newkind - SUM(bad1(1:newkind))
                         new_impr_list(counter)%impr_kind => new_impr_kind_set(newkind)
                      END IF
                   END DO
@@ -1163,12 +1163,12 @@ CONTAINS
                IF (unsetme) bad1(iopbend) = 1
             END DO
             IF (SUM(bad1) /= 0) THEN
-               counter = SIZE(opbend_kind_set)-SUM(bad1)
+               counter = SIZE(opbend_kind_set) - SUM(bad1)
                CALL allocate_opbend_kind_set(new_opbend_kind_set, counter)
                counter = 0
                DO iopbend = 1, SIZE(opbend_kind_set)
                   IF (bad1(iopbend) == 0) THEN
-                     counter = counter+1
+                     counter = counter + 1
                      new_opbend_kind_set(counter) = opbend_kind_set(iopbend)
                   END IF
                END DO
@@ -1182,15 +1182,15 @@ CONTAINS
                   IF (unsetme) bad2(iopbend) = 1
                END DO
                IF (SUM(bad2) /= 0) THEN
-                  counter = SIZE(opbend_list)-SUM(bad2)
+                  counter = SIZE(opbend_list) - SUM(bad2)
                   ALLOCATE (new_opbend_list(counter))
                   counter = 0
                   DO iopbend = 1, SIZE(opbend_list)
                      IF (bad2(iopbend) == 0) THEN
-                        counter = counter+1
+                        counter = counter + 1
                         new_opbend_list(counter) = opbend_list(iopbend)
                         newkind = opbend_list(iopbend)%opbend_kind%kind_number
-                        newkind = newkind-SUM(bad1(1:newkind))
+                        newkind = newkind - SUM(bad1(1:newkind))
                         new_opbend_list(counter)%opbend_kind => new_opbend_kind_set(newkind)
                      END IF
                   END DO
@@ -1297,19 +1297,19 @@ CONTAINS
             isize = SIZE(my_par)
             CALL section_vals_val_get(gen_section, "PARAMETERS", i_rep_section=irep, i_rep_val=i, c_vals=my_par_tmp)
             nblank = COUNT(my_par_tmp == "")
-            CALL reallocate(my_par, 1, isize+SIZE(my_par_tmp)-nblank)
+            CALL reallocate(my_par, 1, isize + SIZE(my_par_tmp) - nblank)
             ind = 0
             DO j = 1, SIZE(my_par_tmp)
                IF (my_par_tmp(j) == "") CYCLE
-               ind = ind+1
-               my_par(isize+ind) = my_par_tmp(j)
+               ind = ind + 1
+               my_par(isize + ind) = my_par_tmp(j)
             END DO
          END DO
          DO i = 1, n_val
             isize = SIZE(my_val)
             CALL section_vals_val_get(gen_section, "VALUES", i_rep_section=irep, i_rep_val=i, r_vals=my_val_tmp)
-            CALL reallocate(my_val, 1, isize+SIZE(my_val_tmp))
-            my_val(isize+1:isize+SIZE(my_val_tmp)) = my_val_tmp
+            CALL reallocate(my_val, 1, isize + SIZE(my_val_tmp))
+            my_val(isize + 1:isize + SIZE(my_val_tmp)) = my_val_tmp
          END DO
          CPASSERT(SIZE(my_par) == SIZE(my_val))
          ! Optionally read the units for each parameter value
@@ -1319,17 +1319,17 @@ CONTAINS
                isize = SIZE(my_units)
                CALL section_vals_val_get(gen_section, "UNITS", i_rep_section=irep, i_rep_val=i, c_vals=my_units_tmp)
                nblank = COUNT(my_units_tmp == "")
-               CALL reallocate(my_units, 1, isize+SIZE(my_units_tmp)-nblank)
+               CALL reallocate(my_units, 1, isize + SIZE(my_units_tmp) - nblank)
                ind = 0
                DO j = 1, SIZE(my_units_tmp)
                   IF (my_units_tmp(j) == "") CYCLE
-                  ind = ind+1
-                  my_units(isize+ind) = my_units_tmp(j)
+                  ind = ind + 1
+                  my_units(isize + ind) = my_units_tmp(j)
                END DO
             END DO
             CPASSERT(SIZE(my_units) == SIZE(my_val))
          END IF
-         mydim = mydim+SIZE(my_val)
+         mydim = mydim + SIZE(my_val)
          IF (SIZE(my_val) == 0) THEN
             DEALLOCATE (my_par)
             DEALLOCATE (my_val)
@@ -1348,11 +1348,11 @@ CONTAINS
          END IF
          IF (ASSOCIATED(my_val)) THEN
             DO i = 1, SIZE(my_val)
-               parameters(SIZE(my_var)+i) = my_par(i)
+               parameters(SIZE(my_var) + i) = my_par(i)
                IF (n_units > 0) THEN
-                  values(SIZE(my_var)+i) = cp_unit_to_cp2k(my_val(i), TRIM(ADJUSTL(my_units(i))))
+                  values(SIZE(my_var) + i) = cp_unit_to_cp2k(my_val(i), TRIM(ADJUSTL(my_units(i))))
                ELSE
-                  values(SIZE(my_var)+i) = my_val(i)
+                  values(SIZE(my_var) + i) = my_val(i)
                END IF
             END DO
          END IF

@@ -228,7 +228,7 @@ CONTAINS
                optimizer%para_env, &
                optimizer%obj_funct)
       optimizer%ref_count = 0
-      last_lbfgs_optimizer_id = last_lbfgs_optimizer_id+1
+      last_lbfgs_optimizer_id = last_lbfgs_optimizer_id + 1
       optimizer%id_nr = last_lbfgs_optimizer_id
       n = SIZE(x0)
       optimizer%m = 4
@@ -249,7 +249,7 @@ CONTAINS
       IF (PRESENT(master)) optimizer%master = master
       IF (optimizer%master == optimizer%para_env%mepos) THEN
          !MK This has to be adapted for a new L-BFGS version possibly
-         lenwa = 2*optimizer%m*n+5*n+11*optimizer%m*optimizer%m+8*optimizer%m
+         lenwa = 2*optimizer%m*n + 5*n + 11*optimizer%m*optimizer%m + 8*optimizer%m
          ALLOCATE (optimizer%kind_of_bound(n), optimizer%i_work_array(3*n), &
                    optimizer%isave(44))
          ALLOCATE (optimizer%x(n), optimizer%lower_bound(n), &
@@ -306,7 +306,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(optimizer))
       CPASSERT(optimizer%ref_count > 0)
-      optimizer%ref_count = optimizer%ref_count+1
+      optimizer%ref_count = optimizer%ref_count + 1
    END SUBROUTINE cp_opt_gopt_retain
 
 ! **************************************************************************************************
@@ -329,7 +329,7 @@ CONTAINS
 
       IF (ASSOCIATED(optimizer)) THEN
          CPASSERT(optimizer%ref_count > 0)
-         optimizer%ref_count = optimizer%ref_count-1
+         optimizer%ref_count = optimizer%ref_count - 1
          IF (optimizer%ref_count == 0) THEN
             optimizer%status = 6
             IF (ASSOCIATED(optimizer%kind_of_bound)) THEN
@@ -637,11 +637,11 @@ CONTAINS
 
             ! Some IO and Convergence check
             t_now = m_walltime()
-            t_diff = t_now-t_old
+            t_diff = t_now - t_old
             t_old = t_now
             CALL gopt_f_io(optimizer%obj_funct, force_env, force_env%root_section, &
                            its, optimizer%f, dataunit, optimizer%eold, optimizer%emin, wildcard, gopt_param, &
-                           SIZE(optimizer%x), optimizer%x-xold, optimizer%gradient, conv, used_time=t_diff)
+                           SIZE(optimizer%x), optimizer%x - xold, optimizer%gradient, conv, used_time=t_diff)
             CALL mp_bcast(conv, optimizer%master, optimizer%para_env%group)
             CALL cp_print_key_finished_output(dataunit, logger, geo_section, &
                                               "PRINT%PROGRAM_RUN_INFO")

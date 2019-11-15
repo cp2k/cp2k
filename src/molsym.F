@@ -29,9 +29,9 @@ MODULE molsym
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molsym'
 
    INTEGER, PARAMETER :: maxcn = 20, &
-                         maxsec = maxcn+1, &
-                         maxses = 2*maxcn+1, &
-                         maxsig = maxcn+1, &
+                         maxsec = maxcn + 1, &
+                         maxses = 2*maxcn + 1, &
+                         maxsig = maxcn + 1, &
                          maxsn = 2*maxcn
 
    PUBLIC :: molsym_type
@@ -195,20 +195,20 @@ CONTAINS
       REAL(dp)                                           :: length_of_a, scapro
       REAL(dp), DIMENSION(3)                             :: d
 
-      length_of_a = SQRT(a(1)*a(1)+a(2)*a(2)+a(3)*a(3))
+      length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
       d(:) = a(:)/length_of_a
 
       ! Check, if the current Cn axis is already in the list
       DO isec = 1, sym%nsec(n)
-         scapro = sym%sec(1, isec, n)*d(1)+sym%sec(2, isec, n)*d(2)+sym%sec(3, isec, n)*d(3)
-         IF (ABS(ABS(scapro)-1.0_dp) < sym%eps_geo) RETURN
+         scapro = sym%sec(1, isec, n)*d(1) + sym%sec(2, isec, n)*d(2) + sym%sec(3, isec, n)*d(3)
+         IF (ABS(ABS(scapro) - 1.0_dp) < sym%eps_geo) RETURN
       END DO
       sym%ncn = MAX(sym%ncn, n)
 
       ! Add the new Cn axis to the list sec
       CPASSERT(sym%nsec(n) < maxsec)
-      sym%nsec(1) = sym%nsec(1)+1
-      sym%nsec(n) = sym%nsec(n)+1
+      sym%nsec(1) = sym%nsec(1) + 1
+      sym%nsec(n) = sym%nsec(n) + 1
       sym%sec(:, sym%nsec(n), n) = d(:)
 
    END SUBROUTINE addsec
@@ -234,20 +234,20 @@ CONTAINS
       REAL(dp)                                           :: length_of_a, scapro
       REAL(dp), DIMENSION(3)                             :: d
 
-      length_of_a = SQRT(a(1)*a(1)+a(2)*a(2)+a(3)*a(3))
+      length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
       d(:) = a(:)/length_of_a
 
       ! Check, if the current Sn axis is already in the list
       DO ises = 1, sym%nses(n)
-         scapro = sym%ses(1, ises, n)*d(1)+sym%ses(2, ises, n)*d(2)+sym%ses(3, ises, n)*d(3)
-         IF (ABS(ABS(scapro)-1.0_dp) < sym%eps_geo) RETURN
+         scapro = sym%ses(1, ises, n)*d(1) + sym%ses(2, ises, n)*d(2) + sym%ses(3, ises, n)*d(3)
+         IF (ABS(ABS(scapro) - 1.0_dp) < sym%eps_geo) RETURN
       END DO
       sym%nsn = MAX(sym%nsn, n)
 
       ! Add the new Sn axis to the list ses
       CPASSERT(sym%nses(n) < maxses)
-      sym%nses(1) = sym%nses(1)+1
-      sym%nses(n) = sym%nses(n)+1
+      sym%nses(1) = sym%nses(1) + 1
+      sym%nses(n) = sym%nses(n) + 1
       sym%ses(:, sym%nses(n), n) = d(:)
 
    END SUBROUTINE addses
@@ -271,18 +271,18 @@ CONTAINS
       REAL(dp)                                           :: length_of_a, scapro
       REAL(dp), DIMENSION(3)                             :: d
 
-      length_of_a = SQRT(a(1)*a(1)+a(2)*a(2)+a(3)*a(3))
+      length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
       d(:) = a(:)/length_of_a
 
       ! Check, if the normal vector of the current mirror plane is already in the list
       DO isig = 1, sym%nsig
-         scapro = sym%sig(1, isig)*d(1)+sym%sig(2, isig)*d(2)+sym%sig(3, isig)*d(3)
-         IF (ABS(ABS(scapro)-1.0_dp) < sym%eps_geo) RETURN
+         scapro = sym%sig(1, isig)*d(1) + sym%sig(2, isig)*d(2) + sym%sig(3, isig)*d(3)
+         IF (ABS(ABS(scapro) - 1.0_dp) < sym%eps_geo) RETURN
       END DO
 
       ! Add the normal vector of the new mirror plane to the list sig
       CPASSERT(sym%nsig < maxsig)
-      sym%nsig = sym%nsig+1
+      sym%nsig = sym%nsig + 1
       sym%sig(:, sym%nsig) = d(:)
 
    END SUBROUTINE addsig
@@ -366,7 +366,7 @@ CONTAINS
             IF (caxis(2, a(:), sym, coord)) CALL addsec(2, a(:), sym)
             d(:) = vector_product(a(:), sym%z_axis(:))
             IF (sigma(d(:), sym, coord)) CALL addsig(d(:), sym)
-            DO jatom = iatom+1, natoms
+            DO jatom = iatom + 1, natoms
                b(:) = coord(:, jatom)
                IF ((ABS(b(1)) > sym%eps_geo) .OR. (ABS(b(2)) > sym%eps_geo)) THEN
                   b(3) = 0.0_dp
@@ -484,24 +484,24 @@ CONTAINS
             a(:) = reflect_vector(coord(:, iatom), sym%sig(:, isig))
             iequatom = equatom(iatom, a(:), sym, coord)
             IF ((iequatom > 0) .AND. (.NOT. in_symequ_list(iequatom, sym))) THEN
-               sym%ulequatom(sym%ngroup) = sym%ulequatom(sym%ngroup)+1
+               sym%ulequatom(sym%ngroup) = sym%ulequatom(sym%ngroup) + 1
                sym%symequ_list(sym%ulequatom(sym%ngroup)) = iequatom
-               sym%nequatom(sym%ngroup) = sym%nequatom(sym%ngroup)+1
+               sym%nequatom(sym%ngroup) = sym%nequatom(sym%ngroup) + 1
             END IF
          END DO
 
          ! Loop over all Cn axes
          DO icn = 2, sym%ncn
             DO isec = 1, sym%nsec(icn)
-               DO jcn = 1, icn-1
+               DO jcn = 1, icn - 1
                   IF (newse(jcn, icn)) THEN
                      phi = 2.0_dp*pi*REAL(jcn, KIND=dp)/REAL(icn, KIND=dp)
                      a(:) = rotate_vector(coord(:, iatom), phi, sym%sec(:, isec, icn))
                      iequatom = equatom(iatom, a(:), sym, coord)
                      IF ((iequatom > 0) .AND. (.NOT. in_symequ_list(iequatom, sym))) THEN
-                        sym%ulequatom(sym%ngroup) = sym%ulequatom(sym%ngroup)+1
+                        sym%ulequatom(sym%ngroup) = sym%ulequatom(sym%ngroup) + 1
                         sym%symequ_list(sym%ulequatom(sym%ngroup)) = iequatom
-                        sym%nequatom(sym%ngroup) = sym%nequatom(sym%ngroup)+1
+                        sym%nequatom(sym%ngroup) = sym%nequatom(sym%ngroup) + 1
                      END IF
                   END IF
                END DO
@@ -511,16 +511,16 @@ CONTAINS
          ! Loop over all Sn axes
          DO isn = 2, sym%nsn
             DO ises = 1, sym%nses(isn)
-               DO jsn = 1, isn-1, incr
+               DO jsn = 1, isn - 1, incr
                   IF (newse(jsn, isn)) THEN
                      phi = 2.0_dp*pi*REAL(jsn, KIND=dp)/REAL(isn, KIND=dp)
                      a(:) = rotate_vector(coord(:, iatom), phi, sym%ses(:, ises, isn))
                      a(:) = reflect_vector(a(:), sym%ses(:, ises, isn))
                      iequatom = equatom(iatom, a(:), sym, coord)
                      IF ((iequatom > 0) .AND. (.NOT. in_symequ_list(iequatom, sym))) THEN
-                        sym%ulequatom(sym%ngroup) = sym%ulequatom(sym%ngroup)+1
+                        sym%ulequatom(sym%ngroup) = sym%ulequatom(sym%ngroup) + 1
                         sym%symequ_list(sym%ulequatom(sym%ngroup)) = iequatom
-                        sym%nequatom(sym%ngroup) = sym%nequatom(sym%ngroup)+1
+                        sym%nequatom(sym%ngroup) = sym%nequatom(sym%ngroup) + 1
                      END IF
                   END IF
                END DO
@@ -534,8 +534,8 @@ CONTAINS
          DO jatom = 2, natoms
             IF (.NOT. in_symequ_list(jatom, sym)) THEN
                iatom = jatom
-               sym%ngroup = sym%ngroup+1
-               sym%llequatom(sym%ngroup) = sym%ulequatom(sym%ngroup-1)+1
+               sym%ngroup = sym%ngroup + 1
+               sym%llequatom(sym%ngroup) = sym%ulequatom(sym%ngroup - 1) + 1
                sym%ulequatom(sym%ngroup) = sym%llequatom(sym%ngroup)
                sym%symequ_list(sym%llequatom(sym%ngroup)) = iatom
                CYCLE loop
@@ -577,7 +577,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: b
 
       caxis = .FALSE.
-      length_of_a = SQRT(a(1)*a(1)+a(2)*a(2)+a(3)*a(3))
+      length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
 
       ! Check the length of the axis vector a
       natoms = SIZE(coord, 2)
@@ -622,7 +622,7 @@ CONTAINS
 
       phidd = ATAN(0.4_dp*SQRT(5.0_dp))
       ! Angle between two adjacent atoms of the icosahedron and the dodecahedron => <(C5,C3)
-      phidi = ATAN(3.0_dp-SQRT(5.0_dp))
+      phidi = ATAN(3.0_dp - SQRT(5.0_dp))
       ! Angle between two adjacent atoms of the icosahedron <(C5,C5)
       phiii = ATAN(2.0_dp)
 
@@ -642,13 +642,13 @@ CONTAINS
 
          loop: DO iatom = 1, natoms
             a(:) = coord(:, iatom)
-            DO jatom = iatom+1, natoms
-               DO katom = jatom+1, natoms
+            DO jatom = iatom + 1, natoms
+               DO katom = jatom + 1, natoms
                   IF ((ABS(dist(coord(:, iatom), coord(:, jatom)) &
-                           -dist(coord(:, iatom), coord(:, katom))) < sym%eps_geo) .AND. &
+                           - dist(coord(:, iatom), coord(:, katom))) < sym%eps_geo) .AND. &
                       (ABS(dist(coord(:, iatom), coord(:, jatom)) &
-                           -dist(coord(:, jatom), coord(:, katom))) < sym%eps_geo)) THEN
-                     b(:) = a(:)+coord(:, jatom)+coord(:, katom)
+                           - dist(coord(:, jatom), coord(:, katom))) < sym%eps_geo)) THEN
+                     b(:) = a(:) + coord(:, jatom) + coord(:, katom)
                      IF (caxis(3, b(:), sym, coord)) THEN
                         CALL addsec(3, b(:), sym)
                         IF (sym%nsec(3) > 1) EXIT loop
@@ -693,12 +693,12 @@ CONTAINS
                a(:) = sym%sec(:, 1, 3)
                b(:) = sym%sec(:, 2, 3)
                phi1 = 0.5_dp*angle(a(:), b(:))
-               IF (phi1 < 0.5_dp*pi) phi1 = phi1-0.5_dp*pi
+               IF (phi1 < 0.5_dp*pi) phi1 = phi1 - 0.5_dp*pi
                d(:) = vector_product(a(:), b(:))
                b(:) = rotate_vector(a(:), phi1, d(:))
                c(:) = sym%sec(:, 3, 3)
                phi1 = 0.5_dp*angle(a(:), c(:))
-               IF (phi1 < 0.5_dp*pi) phi1 = phi1-0.5_dp*pi
+               IF (phi1 < 0.5_dp*pi) phi1 = phi1 - 0.5_dp*pi
                d(:) = vector_product(a(:), c(:))
                c(:) = rotate_vector(a(:), phi1, d(:))
                d(:) = vector_product(b(:), c(:))
@@ -707,7 +707,7 @@ CONTAINS
                IF (caxis(3, a(:), sym, coord)) THEN
                   CALL addsec(3, a(:), sym)
                ELSE
-                  phi2 = 0.5_dp*pi-phi1
+                  phi2 = 0.5_dp*pi - phi1
                   a(:) = rotate_vector(b(:), phi2, d(:))
                   IF (caxis(3, a(:), sym, coord)) CALL addsec(3, a(:), sym)
                END IF
@@ -733,7 +733,7 @@ CONTAINS
       DO isec = 1, sym%nsec(3)
 
          a(:) = sym%sec(:, isec, 3)
-         DO jsec = isec+1, sym%nsec(3)
+         DO jsec = isec + 1, sym%nsec(3)
             phi1 = 0.5_dp*angle(a(:), sym%sec(:, jsec, 3))
             d(:) = vector_product(a(:), sym%sec(:, jsec, 3))
 
@@ -742,7 +742,7 @@ CONTAINS
                b(:) = rotate_vector(a(:), phidi, d(:))
                IF (caxis(5, b(:), sym, coord)) THEN
                   CALL addsec(5, b(:), sym)
-                  phi1 = phidi+phiii
+                  phi1 = phidi + phiii
                   b(:) = rotate_vector(a(:), phi1, d(:))
                   IF (caxis(5, b(:), sym, coord)) CALL addsec(5, b(:), sym)
                END IF
@@ -750,7 +750,7 @@ CONTAINS
 
             ! Check for C4 (O,Oh), C2 and S2 (center of inversion) axis
             DO i = 0, 1
-               phi2 = phi1-0.5_dp*REAL(i, KIND=dp)*pi
+               phi2 = phi1 - 0.5_dp*REAL(i, KIND=dp)*pi
                b(:) = rotate_vector(a(:), phi2, d(:))
                IF (caxis(2, b(:), sym, coord)) THEN
                   CALL addsec(2, b(:), sym)
@@ -827,10 +827,10 @@ CONTAINS
       equatom = 0
       natoms = SIZE(coord, 2)
       DO iatom = 1, natoms
-         IF ((ABS(sym%ain(iatom)-sym%ain(atoma)) < TINY(0.0_dp)) .AND. &
-             (ABS(a(1)-coord(1, iatom)) < sym%eps_geo) .AND. &
-             (ABS(a(2)-coord(2, iatom)) < sym%eps_geo) .AND. &
-             (ABS(a(3)-coord(3, iatom)) < sym%eps_geo)) THEN
+         IF ((ABS(sym%ain(iatom) - sym%ain(atoma)) < TINY(0.0_dp)) .AND. &
+             (ABS(a(1) - coord(1, iatom)) < sym%eps_geo) .AND. &
+             (ABS(a(2) - coord(2, iatom)) < sym%eps_geo) .AND. &
+             (ABS(a(3) - coord(3, iatom)) < sym%eps_geo)) THEN
             equatom = iatom
             RETURN
          END IF
@@ -853,13 +853,13 @@ CONTAINS
 ! Count all symmetry elements of the symmetry group
 ! First E and all mirror planes
 
-      sym%point_group_order = 1+sym%nsig
+      sym%point_group_order = 1 + sym%nsig
 
       ! Loop over all C axes
       DO icn = 2, sym%ncn
          DO isec = 1, sym%nsec(icn)
-            DO jcn = 1, icn-1
-               IF (newse(jcn, icn)) sym%point_group_order = sym%point_group_order+1
+            DO jcn = 1, icn - 1
+               IF (newse(jcn, icn)) sym%point_group_order = sym%point_group_order + 1
             END DO
          END DO
       END DO
@@ -873,8 +873,8 @@ CONTAINS
 
       DO isn = 2, sym%nsn
          DO ises = 1, sym%nses(isn)
-            DO jsn = 1, isn-1, incr
-               IF (newse(jsn, isn)) sym%point_group_order = sym%point_group_order+1
+            DO jsn = 1, isn - 1, incr
+               IF (newse(jsn, isn)) sym%point_group_order = sym%point_group_order + 1
             END DO
          END DO
       END DO
@@ -1015,7 +1015,7 @@ CONTAINS
       END DO
 
       ! Generate atomic identification numbers (symmetry code) ***
-      sym%ain(:) = REAL(atype(:), KIND=dp)+sym%aw(:)
+      sym%ain(:) = REAL(atype(:), KIND=dp) + sym%aw(:)
 
       ! Initialize the transformation matrix for input orientation -> standard orientation
       CALL unit_matrix(sym%inptostd(:, :))
@@ -1164,10 +1164,10 @@ CONTAINS
       ! Calculate the molecular tensor of inertia
       CALL tensor(sym, coord)
       ! Use symmetry information from the eigenvalues of the molecular tensor of inertia
-      IF ((sym%tenval(3)-sym%tenval(1)) < eps_tenval) THEN
+      IF ((sym%tenval(3) - sym%tenval(1)) < eps_tenval) THEN
          ! 0 < tenval(1) = tenval(2) = tenval(3)
          sym%cubic = .TRUE.
-      ELSE IF ((sym%tenval(3)-sym%tenval(2)) < eps_tenval) THEN
+      ELSE IF ((sym%tenval(3) - sym%tenval(2)) < eps_tenval) THEN
          ! 0 < tenval(1) < tenval(2) = tenval(3)
          ! special case: 0 = tenval(1) < tenval(2) = tenval(3)
          IF (sym%tenval(1) < eps_tenval) sym%linear = .TRUE.
@@ -1246,7 +1246,7 @@ CONTAINS
 
       ! Remove redundant S2 axes
       IF (sym%nses(2) > 0) THEN
-         sym%nses(1) = sym%nses(1)-sym%nses(2)
+         sym%nses(1) = sym%nses(1) - sym%nses(2)
          sym%nses(2) = 0
          CALL addses(2, sym%z_axis(:), sym)
       END IF
@@ -1276,22 +1276,22 @@ CONTAINS
       naxis = 0
       natoms = SIZE(coord, 2)
 
-      length_of_a = SQRT(a(1)*a(1)+a(2)*a(2)+a(3)*a(3))
+      length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
 
       ! Check the length of vector a
       IF (length_of_a > sym%eps_geo) THEN
 
          DO iatom = 1, natoms
             b(:) = coord(:, iatom)
-            length_of_b = SQRT(b(1)*b(1)+b(2)*b(2)+b(3)*b(3))
+            length_of_b = SQRT(b(1)*b(1) + b(2)*b(2) + b(3)*b(3))
             ! An atom in the origin counts for each axis
             IF (length_of_b < sym%eps_geo) THEN
-               naxis = naxis+1
+               naxis = naxis + 1
             ELSE
                a_norm = a(:)/length_of_a
                b_norm = b(:)/length_of_b
-               scapro = a_norm(1)*b_norm(1)+a_norm(2)*b_norm(2)+a_norm(3)*b_norm(3)
-               IF (ABS(ABS(scapro)-1.0_dp) < sym%eps_geo) naxis = naxis+1
+               scapro = a_norm(1)*b_norm(1) + a_norm(2)*b_norm(2) + a_norm(3)*b_norm(3)
+               IF (ABS(ABS(scapro) - 1.0_dp) < sym%eps_geo) naxis = naxis + 1
             END IF
          END DO
 
@@ -1349,22 +1349,22 @@ CONTAINS
 
       nsigma = 0
 
-      length_of_a = SQRT(a(1)*a(1)+a(2)*a(2)+a(3)*a(3))
+      length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
 
       ! Check the length of vector a
       IF (length_of_a > sym%eps_geo) THEN
          natoms = SIZE(coord, 2)
          DO iatom = 1, natoms
             b(:) = coord(:, iatom)
-            length_of_b = SQRT(b(1)*b(1)+b(2)*b(2)+b(3)*b(3))
+            length_of_b = SQRT(b(1)*b(1) + b(2)*b(2) + b(3)*b(3))
             ! An atom in the origin counts for each mirror plane
             IF (length_of_b < sym%eps_geo) THEN
-               nsigma = nsigma+1
+               nsigma = nsigma + 1
             ELSE
                a_norm = a(:)/length_of_a
                b_norm = b(:)/length_of_b
-               scapro = a_norm(1)*b_norm(1)+a_norm(2)*b_norm(2)+a_norm(3)*b_norm(3)
-               IF (ABS(scapro) < sym%eps_geo) nsigma = nsigma+1
+               scapro = a_norm(1)*b_norm(1) + a_norm(2)*b_norm(2) + a_norm(3)*b_norm(3)
+               IF (ABS(scapro) < sym%eps_geo) nsigma = nsigma + 1
             END IF
          END DO
       END IF
@@ -1461,7 +1461,7 @@ CONTAINS
 
          string = "@  "
          DO isig = 1, sym%nsig
-            secount = secount+1
+            secount = secount + 1
             CALL outse(sym%sig(:, isig), sym%eps_geo)
             WRITE (iw, "(T24,2I5,2X,A3,3X,3F13.6)") &
                secount, isig, string, (sym%sig(i, isig), i=1, 3)
@@ -1474,7 +1474,7 @@ CONTAINS
                WRITE (string, "(A1,I2)") "C", icn
             END IF
             DO isec = 1, sym%nsec(icn)
-               secount = secount+1
+               secount = secount + 1
                CALL outse(sym%sec(:, isec, icn), sym%eps_geo)
                WRITE (iw, "(T24,2I5,2X,A3,3X,3F13.6)") &
                   secount, isec, string, (sym%sec(i, isec, icn), i=1, 3)
@@ -1490,7 +1490,7 @@ CONTAINS
                WRITE (string, "(A1,I2)") "S", isn
             END IF
             DO ises = 1, sym%nses(isn)
-               secount = secount+1
+               secount = secount + 1
                CALL outse(sym%ses(:, ises, isn), sym%eps_geo)
                WRITE (iw, "(T24,2I5,2X,A3,3X,3F13.6)") &
                   secount, ises, string, (sym%ses(i, ises, icn), i=1, 3)
@@ -1537,7 +1537,7 @@ CONTAINS
 
 ! Check the length of vector a
 
-      length_of_a = SQRT(a(1)*a(1)+a(2)*a(2)+a(3)*a(3))
+      length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
       IF (length_of_a > sym%eps_geo) THEN
 
          ! Build up the rotation matrix
@@ -1591,7 +1591,7 @@ CONTAINS
 
       saxis = .FALSE.
 
-      length_of_a = SQRT(a(1)*a(1)+a(2)*a(2)+a(3)*a(3))
+      length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
 
       natoms = SIZE(coord, 2)
 
@@ -1638,7 +1638,7 @@ CONTAINS
 
       sigma = .FALSE.
 
-      length_of_a = SQRT(a(1)*a(1)+a(2)*a(2)+a(3)*a(3))
+      length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
 
       ! Check the length of vector a
       IF (length_of_a > sym%eps_geo) THEN
@@ -1679,13 +1679,13 @@ CONTAINS
       sym%center_of_mass(:) = MATMUL(coord(:, 1:natoms), sym%aw(1:natoms))/SUM(sym%aw(1:natoms))
 
       ! Translate the center of mass of the molecule to the origin
-      coord(:, 1:natoms) = coord(:, 1:natoms)-SPREAD(sym%center_of_mass(:), 2, natoms)
+      coord(:, 1:natoms) = coord(:, 1:natoms) - SPREAD(sym%center_of_mass(:), 2, natoms)
 
       ! Build up the molecular tensor of inertia
 
-      sym%tenmat(1, 1) = DOT_PRODUCT(sym%aw(1:natoms), (coord(2, 1:natoms)**2+coord(3, 1:natoms)**2))
-      sym%tenmat(2, 2) = DOT_PRODUCT(sym%aw(1:natoms), (coord(3, 1:natoms)**2+coord(1, 1:natoms)**2))
-      sym%tenmat(3, 3) = DOT_PRODUCT(sym%aw(1:natoms), (coord(1, 1:natoms)**2+coord(2, 1:natoms)**2))
+      sym%tenmat(1, 1) = DOT_PRODUCT(sym%aw(1:natoms), (coord(2, 1:natoms)**2 + coord(3, 1:natoms)**2))
+      sym%tenmat(2, 2) = DOT_PRODUCT(sym%aw(1:natoms), (coord(3, 1:natoms)**2 + coord(1, 1:natoms)**2))
+      sym%tenmat(3, 3) = DOT_PRODUCT(sym%aw(1:natoms), (coord(1, 1:natoms)**2 + coord(2, 1:natoms)**2))
 
       sym%tenmat(1, 2) = -DOT_PRODUCT(sym%aw(1:natoms), (coord(1, 1:natoms)*coord(2, 1:natoms)))
       sym%tenmat(1, 3) = -DOT_PRODUCT(sym%aw(1:natoms), (coord(1, 1:natoms)*coord(3, 1:natoms)))
@@ -1702,7 +1702,7 @@ CONTAINS
       ! Secure that the principal axes are right-handed
       sym%tenvec(:, 3) = vector_product(sym%tenvec(:, 1), sym%tenvec(:, 2))
 
-      tt = SQRT(sym%tenval(1)**2+sym%tenval(2)**2+sym%tenval(3)**2)
+      tt = SQRT(sym%tenval(1)**2 + sym%tenval(2)**2 + sym%tenval(3)**2)
       CPASSERT(tt /= 0)
 
    END SUBROUTINE tensor
@@ -1753,7 +1753,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a, b
       REAL(KIND=dp)                                      :: d
 
-      d = SQRT(SUM((a-b)**2))
+      d = SQRT(SUM((a - b)**2))
 
    END FUNCTION
 ! **************************************************************************************************

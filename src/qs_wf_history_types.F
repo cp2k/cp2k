@@ -132,7 +132,7 @@ CONTAINS
 
       IF (ASSOCIATED(snapshot)) THEN
          CPASSERT(snapshot%ref_count > 0)
-         snapshot%ref_count = snapshot%ref_count-1
+         snapshot%ref_count = snapshot%ref_count - 1
          IF (snapshot%ref_count == 0) THEN
             IF (ASSOCIATED(snapshot%wf)) THEN
                DO i = 1, SIZE(snapshot%wf)
@@ -173,7 +173,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'wfi_retain', routineP = moduleN//':'//routineN
 
       CPASSERT(ASSOCIATED(wf_history))
-      wf_history%ref_count = wf_history%ref_count+1
+      wf_history%ref_count = wf_history%ref_count + 1
 
    END SUBROUTINE wfi_retain
 
@@ -194,7 +194,7 @@ CONTAINS
 
       IF (ASSOCIATED(wf_history)) THEN
          CPASSERT(wf_history%ref_count > 0)
-         wf_history%ref_count = wf_history%ref_count-1
+         wf_history%ref_count = wf_history%ref_count - 1
          IF (wf_history%ref_count == 0) THEN
             IF (ASSOCIATED(wf_history%past_states)) THEN
                DO i = 1, SIZE(wf_history%past_states)
@@ -233,8 +233,8 @@ CONTAINS
          CPABORT("")
       END IF
       res => wf_history%past_states( &
-             MODULO(wf_history%snapshot_count+1-wf_index, &
-                    wf_history%memory_depth)+1)%snapshot
+             MODULO(wf_history%snapshot_count + 1 - wf_index, &
+                    wf_history%memory_depth) + 1)%snapshot
    END FUNCTION wfi_get_snapshot
 
 END MODULE qs_wf_history_types

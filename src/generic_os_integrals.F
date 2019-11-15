@@ -191,7 +191,7 @@ CONTAINS
       CALL get_gto_basis_set(fbb, maxco=maxcob, maxl=maxlb)
       maxco = MAX(maxcoa, maxcob)
       IF (calculate_forces) THEN
-         maxl = MAX(maxla+1, maxlb)
+         maxl = MAX(maxla + 1, maxlb)
       ELSE
          maxl = MAX(maxla, maxlb)
       ENDIF
@@ -206,26 +206,26 @@ CONTAINS
       DO iset = 1, nseta
 
          ncoa = npgfa(iset)*ncoset(la_max(iset))
-         ncoap = npgfa(iset)*ncoset(la_max(iset)+1)
+         ncoap = npgfa(iset)*ncoset(la_max(iset) + 1)
          sgfa = first_sgfa(1, iset)
 
          DO jset = 1, nsetb
 
             ncob = npgfb(jset)*ncoset(lb_max(jset))
-            ncobp = npgfb(jset)*ncoset(lb_max(jset)+1)
+            ncobp = npgfb(jset)*ncoset(lb_max(jset) + 1)
             sgfb = first_sgfb(1, jset)
-            m1 = sgfa+nsgfa(iset)-1
-            m2 = sgfb+nsgfb(jset)-1
+            m1 = sgfa + nsgfa(iset) - 1
+            m2 = sgfb + nsgfb(jset) - 1
 
             ! calculate integrals
             IF (calculate_forces) THEN
-               ALLOCATE (vwork(ncoap, ncobp, la_max(iset)+lb_max(jset)+3), &
+               ALLOCATE (vwork(ncoap, ncobp, la_max(iset) + lb_max(jset) + 3), &
                          vac(ncoa, ncob), vac_plus(ncoap, ncobp), devab(ncoa, ncob, 3))
                devab = 0._dp
                vwork = 0.0_dp
                vac = 0.0_dp
-               CALL operator2(cps_operator2, la_max(iset)+1, npgfa(iset), zeta(:, iset), la_min(iset), &
-                              lb_max(jset)+1, npgfb(jset), zetb(:, jset), lb_min(jset), &
+               CALL operator2(cps_operator2, la_max(iset) + 1, npgfa(iset), zeta(:, iset), la_min(iset), &
+                              lb_max(jset) + 1, npgfb(jset), zetb(:, jset), lb_min(jset), &
                               omega, r_cutoff, rab, rab2, vac, vwork, maxder=1, vac_plus=vac_plus)
                CALL dabdr_noscreen(la_max(iset), npgfa(iset), zeta(:, iset), lb_max(jset), npgfb(jset), &
                                    vac_plus, devab(:, :, 1), devab(:, :, 2), devab(:, :, 3))
@@ -235,7 +235,7 @@ CONTAINS
                ENDDO
 
             ELSE
-               ALLOCATE (vwork(ncoa, ncob, la_max(iset)+lb_max(jset)+1), &
+               ALLOCATE (vwork(ncoa, ncob, la_max(iset) + lb_max(jset) + 1), &
                          vac(ncoa, ncob), vac_plus(ncoap, ncobp), devab(ncoa, ncob, 3))
                vwork = 0.0_dp
                vac = 0.0_dp
@@ -335,17 +335,17 @@ CONTAINS
 
       DO iset = 1, nseta
 
-         ncoa = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+         ncoa = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
          sgfa = first_sgfa(1, iset)
 
          DO jset = 1, nsetb
 
-            IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+            IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
-            ncob = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+            ncob = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
             sgfb = first_sgfb(1, jset)
-            m1 = sgfa+nsgfa(iset)-1
-            m2 = sgfb+nsgfb(jset)-1
+            m1 = sgfa + nsgfa(iset) - 1
+            m2 = sgfb + nsgfb(jset) - 1
 
             IF (calculate_forces) THEN
                CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
@@ -458,15 +458,15 @@ CONTAINS
 
       DO iset = 1, nseta
 
-         ncoa = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+         ncoa = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
          sgfa = first_sgfa(1, iset)
 
          DO jset = 1, nsetb
 
-            ncob = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+            ncob = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
             sgfb = first_sgfb(1, jset)
-            m1 = sgfa+nsgfa(iset)-1
-            m2 = sgfb+nsgfb(jset)-1
+            m1 = sgfa + nsgfa(iset) - 1
+            m2 = sgfb + nsgfb(jset) - 1
 
             CALL operator_ra2m(la_max(iset), la_min(iset), npgfa(iset), zeta(:, iset), &
                                lb_max(jset), lb_min(jset), npgfb(jset), zetb(:, jset), &
@@ -581,17 +581,17 @@ CONTAINS
 
       DO iset = 1, nseta
 
-         ncoa = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+         ncoa = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
          sgfa = first_sgfa(1, iset)
 
          DO jset = 1, nsetb
 
-            IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+            IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
-            ncob = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+            ncob = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
             sgfb = first_sgfb(1, jset)
-            m1 = sgfa+nsgfa(iset)-1
-            m2 = sgfb+nsgfb(jset)-1
+            m1 = sgfa + nsgfa(iset) - 1
+            m2 = sgfb + nsgfb(jset) - 1
 
             ! calculate integrals abaint and derivative [d(a,b,a)/dA] dabdaint if requested
             rac = 0._dp
@@ -601,11 +601,11 @@ CONTAINS
 
             DO kaset = 1, nsetca
 
-               IF (set_radius_b(jset)+set_radius_ca(kaset) < dab) CYCLE
+               IF (set_radius_b(jset) + set_radius_ca(kaset) < dab) CYCLE
 
-               ncoc = npgfca(kaset)*(ncoset(lca_max(kaset))-ncoset(lca_min(kaset)-1))
+               ncoc = npgfca(kaset)*(ncoset(lca_max(kaset)) - ncoset(lca_min(kaset) - 1))
                sgfc = first_sgfca(1, kaset)
-               m3 = sgfc+nsgfca(kaset)-1
+               m3 = sgfc + nsgfca(kaset) - 1
                IF (ncoa*ncob*ncoc > 0) THEN
                   ALLOCATE (saba(ncoa, ncob, ncoc))
                   ! integrals
@@ -743,17 +743,17 @@ CONTAINS
 
       DO iset = 1, nseta
 
-         ncoa = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+         ncoa = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
          sgfa = first_sgfa(1, iset)
 
          DO jset = 1, nsetb
 
-            IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+            IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
-            ncob = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+            ncob = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
             sgfb = first_sgfb(1, jset)
-            m1 = sgfa+nsgfa(iset)-1
-            m2 = sgfb+nsgfb(jset)-1
+            m1 = sgfa + nsgfa(iset) - 1
+            m2 = sgfb + nsgfb(jset) - 1
 
             ! calculate integrals abbint and derivative [d(a,b,b)/dA] dabbint if requested
             rac = rab
@@ -763,11 +763,11 @@ CONTAINS
 
             DO kbset = 1, nsetcb
 
-               IF (set_radius_a(iset)+set_radius_cb(kbset) < dab) CYCLE
+               IF (set_radius_a(iset) + set_radius_cb(kbset) < dab) CYCLE
 
-               ncoc = npgfcb(kbset)*(ncoset(lcb_max(kbset))-ncoset(lcb_min(kbset)-1))
+               ncoc = npgfcb(kbset)*(ncoset(lcb_max(kbset)) - ncoset(lcb_min(kbset) - 1))
                sgfc = first_sgfcb(1, kbset)
-               m3 = sgfc+nsgfcb(kbset)-1
+               m3 = sgfc + nsgfcb(kbset) - 1
                IF (ncoa*ncob*ncoc > 0) THEN
                   ALLOCATE (sabb(ncoa, ncob, ncoc))
                   IF (calculate_forces) THEN
@@ -892,25 +892,25 @@ CONTAINS
 
          ncoa1 = npgfa(iset)*ncoset(la_max(iset))
          sgfa1 = first_sgfa(1, iset)
-         m1 = sgfa1+nsgfa(iset)-1
+         m1 = sgfa1 + nsgfa(iset) - 1
 
          DO jset = iset, nseta
 
             ncoa2 = npgfa(jset)*ncoset(la_max(jset))
             sgfa2 = first_sgfa(1, jset)
-            m2 = sgfa2+nsgfa(jset)-1
+            m2 = sgfa2 + nsgfa(jset) - 1
 
             DO kset = 1, nsetb
 
                ncob1 = npgfb(kset)*ncoset(lb_max(kset))
                sgfb1 = first_sgfb(1, kset)
-               m3 = sgfb1+nsgfb(kset)-1
+               m3 = sgfb1 + nsgfb(kset) - 1
 
                DO lset = kset, nsetb
 
                   ncob2 = npgfb(lset)*ncoset(lb_max(lset))
                   sgfb2 = first_sgfb(1, lset)
-                  m4 = sgfb2+nsgfb(lset)-1
+                  m4 = sgfb2 + nsgfb(lset) - 1
 
                   ! check if sets are identical to spare some integral evaluation
                   asets_equal = .FALSE.

@@ -85,7 +85,7 @@ CONTAINS
          CALL cite_reference(Ricci2003)
          IF (simpar%noisy_gamma > 0.0_dp) CALL cite_reference(Kuhne2007)
          ! Normalization factor using a normal Gaussian random number distribution
-         simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*(simpar%gamma+simpar%noisy_gamma)
+         simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*(simpar%gamma + simpar%noisy_gamma)
          IF (iw > 0) THEN
             tmp_r1 = cp_unit_from_cp2k(simpar%gamma, "fs^-1")
             tmp_r2 = cp_unit_from_cp2k(simpar%noisy_gamma, "fs^-1")

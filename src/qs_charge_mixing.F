@@ -55,30 +55,30 @@ CONTAINS
 
       IF (mixing_method >= gspace_mixing_nr) THEN
          CPASSERT(ASSOCIATED(mixing_store))
-         mixing_store%ncall = mixing_store%ncall+1
+         mixing_store%ncall = mixing_store%ncall + 1
          ns = SIZE(charges, 2)
          ns = MIN(ns, mixing_store%max_shell)
          alpha = mixing_store%alpha
          nbuffer = mixing_store%nbuffer
-         inow = MOD(mixing_store%ncall-1, nbuffer)+1
-         imin = inow-1
+         inow = MOD(mixing_store%ncall - 1, nbuffer) + 1
+         imin = inow - 1
          IF (imin == 0) imin = nbuffer
          IF (mixing_store%ncall > nbuffer) THEN
             nvec = nbuffer
          ELSE
-            nvec = mixing_store%ncall-1
+            nvec = mixing_store%ncall - 1
          END IF
          IF (mixing_store%ncall > 1) THEN
             ! store in/out charge difference
             DO ia = 1, mixing_store%nat_local
                ii = mixing_store%atlist(ia)
-               mixing_store%dacharge(ia, 1:ns, imin) = mixing_store%acharge(ia, 1:ns, imin)-charges(ii, 1:ns)
+               mixing_store%dacharge(ia, 1:ns, imin) = mixing_store%acharge(ia, 1:ns, imin) - charges(ii, 1:ns)
             END DO
          END IF
-         IF ((iter_count == 1) .OR. (iter_count+1 <= mixing_store%nskip_mixing)) THEN
+         IF ((iter_count == 1) .OR. (iter_count + 1 <= mixing_store%nskip_mixing)) THEN
             ! skip mixing
             mixing_store%iter_method = "NoMix"
-         ELSEIF (((iter_count+1-mixing_store%nskip_mixing) <= mixing_store%n_simple_mix) .OR. (nvec == 1)) THEN
+         ELSEIF (((iter_count + 1 - mixing_store%nskip_mixing) <= mixing_store%n_simple_mix) .OR. (nvec == 1)) THEN
             CALL mix_charges_only(mixing_store, charges, alpha, imin, ns, para_env)
             mixing_store%iter_method = "Mixing"
          ELSEIF (mixing_method == gspace_mixing_nr) THEN
@@ -132,7 +132,7 @@ CONTAINS
 
       DO ia = 1, mixing_store%nat_local
          ii = mixing_store%atlist(ia)
-         charges(ii, 1:ns) = alpha*mixing_store%dacharge(ia, 1:ns, imin)-mixing_store%acharge(ia, 1:ns, imin)
+         charges(ii, 1:ns) = alpha*mixing_store%dacharge(ia, 1:ns, imin) - mixing_store%acharge(ia, 1:ns, imin)
       END DO
 
       CALL mp_sum(charges, para_env%group)
@@ -168,9 +168,9 @@ CONTAINS
 
       nbuffer = mixing_store%nbuffer
       alpha = mixing_store%alpha
-      imin = inow-1
+      imin = inow - 1
       IF (imin == 0) imin = nvec
-      nv = nvec-1
+      nv = nvec - 1
 
       ! charge vectors
       q_now => mixing_store%acharge(:, :, inow)
@@ -180,14 +180,14 @@ CONTAINS
 
       IF (nvec == nbuffer) THEN
          ! reshuffel Broyden storage n->n-1
-         DO i = 1, nv-1
-            mixing_store%wbroy(i) = mixing_store%wbroy(i+1)
-            mixing_store%dfbroy(:, :, i) = mixing_store%dfbroy(:, :, i+1)
-            mixing_store%ubroy(:, :, i) = mixing_store%ubroy(:, :, i+1)
+         DO i = 1, nv - 1
+            mixing_store%wbroy(i) = mixing_store%wbroy(i + 1)
+            mixing_store%dfbroy(:, :, i) = mixing_store%dfbroy(:, :, i + 1)
+            mixing_store%ubroy(:, :, i) = mixing_store%ubroy(:, :, i + 1)
          END DO
-         DO i = 1, nv-1
-            DO j = 1, nv-1
-               mixing_store%abroy(i, j) = mixing_store%abroy(i+1, j+1)
+         DO i = 1, nv - 1
+            DO j = 1, nv - 1
+               mixing_store%abroy(i, j) = mixing_store%abroy(i + 1, j + 1)
             END DO
          END DO
       END IF
@@ -208,7 +208,7 @@ CONTAINS
       IF (mixing_store%wbroy(nv) < minw) mixing_store%wbroy(nv) = minw
 
       ! dfbroy
-      mixing_store%dfbroy(:, :, nv) = dq_now(:, :)-dq_last(:, :)
+      mixing_store%dfbroy(:, :, nv) = dq_now(:, :) - dq_last(:, :)
       wdf = SUM(mixing_store%dfbroy(:, :, nv)**2)
       CALL mp_sum(wdf, para_env%group)
       wdf = 1.0_dp/SQRT(wdf)
@@ -234,7 +234,7 @@ CONTAINS
          DO j = 1, nv
             beta(j, i) = mixing_store%wbroy(j)*mixing_store%wbroy(i)*mixing_store%abroy(j, i)
          END DO
-         beta(i, i) = beta(i, i)+omega0*omega0
+         beta(i, i) = beta(i, i) + omega0*omega0
       END DO
 
       rskip = 1.e-12_dp
@@ -242,17 +242,17 @@ CONTAINS
       gammab(1:nv) = MATMUL(cvec(1:nv), amat(1:nv, 1:nv))
 
       ! build ubroy
-      mixing_store%ubroy(:, :, nv) = alpha*mixing_store%dfbroy(:, :, nv)+wdf*(q_now(:, :)-q_last(:, :))
+      mixing_store%ubroy(:, :, nv) = alpha*mixing_store%dfbroy(:, :, nv) + wdf*(q_now(:, :) - q_last(:, :))
 
       charges = 0.0_dp
       DO ia = 1, mixing_store%nat_local
          ii = mixing_store%atlist(ia)
-         charges(ii, 1:ns) = q_now(ia, 1:ns)+alpha*dq_now(ia, 1:ns)
+         charges(ii, 1:ns) = q_now(ia, 1:ns) + alpha*dq_now(ia, 1:ns)
       END DO
       DO i = 1, nv
          DO ia = 1, mixing_store%nat_local
             ii = mixing_store%atlist(ia)
-            charges(ii, 1:ns) = charges(ii, 1:ns)-mixing_store%wbroy(i)*gammab(i)*mixing_store%ubroy(ia, 1:ns, i)
+            charges(ii, 1:ns) = charges(ii, 1:ns) - mixing_store%wbroy(i)*gammab(i)*mixing_store%ubroy(ia, 1:ns, i)
          END DO
       END DO
       CALL mp_sum(charges, para_env%group)

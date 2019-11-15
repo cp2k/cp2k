@@ -164,22 +164,22 @@ CONTAINS
       END IF
       ! 3x3 constraints
       DO iconst = 1, n3x3con
-         index = g3x3_list(iconst)%a+first_atom-1
+         index = g3x3_list(iconst)%a + first_atom - 1
          lg3x3(iconst)%ra_old = particle_set(index)%r
-         index = g3x3_list(iconst)%b+first_atom-1
+         index = g3x3_list(iconst)%b + first_atom - 1
          lg3x3(iconst)%rb_old = particle_set(index)%r
-         index = g3x3_list(iconst)%c+first_atom-1
+         index = g3x3_list(iconst)%c + first_atom - 1
          lg3x3(iconst)%rc_old = particle_set(index)%r
       ENDDO
       ! 4x6 constraints
       DO iconst = 1, n4x6con
-         index = g4x6_list(iconst)%a+first_atom-1
+         index = g4x6_list(iconst)%a + first_atom - 1
          lg4x6(iconst)%ra_old = particle_set(index)%r
-         index = g4x6_list(iconst)%b+first_atom-1
+         index = g4x6_list(iconst)%b + first_atom - 1
          lg4x6(iconst)%rb_old = particle_set(index)%r
-         index = g4x6_list(iconst)%c+first_atom-1
+         index = g4x6_list(iconst)%c + first_atom - 1
          lg4x6(iconst)%rc_old = particle_set(index)%r
-         index = g4x6_list(iconst)%d+first_atom-1
+         index = g4x6_list(iconst)%d + first_atom - 1
          lg4x6(iconst)%rd_old = particle_set(index)%r
       ENDDO
 
@@ -258,11 +258,11 @@ CONTAINS
       END IF
       CALL mp_sum(pv, group)
       ! Symmetrize PV
-      pv(1, 2) = 0.5_dp*(pv(1, 2)+pv(2, 1))
+      pv(1, 2) = 0.5_dp*(pv(1, 2) + pv(2, 1))
       pv(2, 1) = pv(1, 2)
-      pv(1, 3) = 0.5_dp*(pv(1, 3)+pv(3, 1))
+      pv(1, 3) = 0.5_dp*(pv(1, 3) + pv(3, 1))
       pv(3, 1) = pv(1, 3)
-      pv(3, 2) = 0.5_dp*(pv(3, 2)+pv(2, 3))
+      pv(3, 2) = 0.5_dp*(pv(3, 2) + pv(2, 3))
       pv(2, 3) = pv(3, 2)
       ! Store in virial type
       virial%pv_constraint = pv
@@ -318,52 +318,52 @@ CONTAINS
          !  pv gets updated with FULL multiplier
          lambda_3x3 = lg3x3(iconst)%lambda
 
-         fc1 = lambda_3x3(1)*lg3x3(iconst)%fa+ &
+         fc1 = lambda_3x3(1)*lg3x3(iconst)%fa + &
                lambda_3x3(2)*lg3x3(iconst)%fb
-         fc2 = -lambda_3x3(1)*lg3x3(iconst)%fa+ &
+         fc2 = -lambda_3x3(1)*lg3x3(iconst)%fa + &
                lambda_3x3(3)*lg3x3(iconst)%fc
-         fc3 = -lambda_3x3(2)*lg3x3(iconst)%fb- &
+         fc3 = -lambda_3x3(2)*lg3x3(iconst)%fb - &
                lambda_3x3(3)*lg3x3(iconst)%fc
-         index_a = g3x3_list(iconst)%a+first_atom-1
-         index_b = g3x3_list(iconst)%b+first_atom-1
-         index_c = g3x3_list(iconst)%c+first_atom-1
+         index_a = g3x3_list(iconst)%a + first_atom - 1
+         index_b = g3x3_list(iconst)%b + first_atom - 1
+         index_c = g3x3_list(iconst)%c + first_atom - 1
 
          !pv(1,1)
-         pv(1, 1) = pv(1, 1)+fc1(1)*particle_set(index_a)%r(1)
-         pv(1, 1) = pv(1, 1)+fc2(1)*particle_set(index_b)%r(1)
-         pv(1, 1) = pv(1, 1)+fc3(1)*particle_set(index_c)%r(1)
+         pv(1, 1) = pv(1, 1) + fc1(1)*particle_set(index_a)%r(1)
+         pv(1, 1) = pv(1, 1) + fc2(1)*particle_set(index_b)%r(1)
+         pv(1, 1) = pv(1, 1) + fc3(1)*particle_set(index_c)%r(1)
          !pv(1,2)
-         pv(1, 2) = pv(1, 2)+fc1(1)*particle_set(index_a)%r(2)
-         pv(1, 2) = pv(1, 2)+fc2(1)*particle_set(index_b)%r(2)
-         pv(1, 2) = pv(1, 2)+fc3(1)*particle_set(index_c)%r(2)
+         pv(1, 2) = pv(1, 2) + fc1(1)*particle_set(index_a)%r(2)
+         pv(1, 2) = pv(1, 2) + fc2(1)*particle_set(index_b)%r(2)
+         pv(1, 2) = pv(1, 2) + fc3(1)*particle_set(index_c)%r(2)
          !pv(1,3)
-         pv(1, 3) = pv(1, 3)+fc1(1)*particle_set(index_a)%r(3)
-         pv(1, 3) = pv(1, 3)+fc2(1)*particle_set(index_b)%r(3)
-         pv(1, 3) = pv(1, 3)+fc3(1)*particle_set(index_c)%r(3)
+         pv(1, 3) = pv(1, 3) + fc1(1)*particle_set(index_a)%r(3)
+         pv(1, 3) = pv(1, 3) + fc2(1)*particle_set(index_b)%r(3)
+         pv(1, 3) = pv(1, 3) + fc3(1)*particle_set(index_c)%r(3)
          !pv(2,1)
-         pv(2, 1) = pv(2, 1)+fc1(2)*particle_set(index_a)%r(1)
-         pv(2, 1) = pv(2, 1)+fc2(2)*particle_set(index_b)%r(1)
-         pv(2, 1) = pv(2, 1)+fc3(2)*particle_set(index_c)%r(1)
+         pv(2, 1) = pv(2, 1) + fc1(2)*particle_set(index_a)%r(1)
+         pv(2, 1) = pv(2, 1) + fc2(2)*particle_set(index_b)%r(1)
+         pv(2, 1) = pv(2, 1) + fc3(2)*particle_set(index_c)%r(1)
          !pv(2,2)
-         pv(2, 2) = pv(2, 2)+fc1(2)*particle_set(index_a)%r(2)
-         pv(2, 2) = pv(2, 2)+fc2(2)*particle_set(index_b)%r(2)
-         pv(2, 2) = pv(2, 2)+fc3(2)*particle_set(index_c)%r(2)
+         pv(2, 2) = pv(2, 2) + fc1(2)*particle_set(index_a)%r(2)
+         pv(2, 2) = pv(2, 2) + fc2(2)*particle_set(index_b)%r(2)
+         pv(2, 2) = pv(2, 2) + fc3(2)*particle_set(index_c)%r(2)
          !pv(2,3)
-         pv(2, 3) = pv(2, 3)+fc1(2)*particle_set(index_a)%r(3)
-         pv(2, 3) = pv(2, 3)+fc2(2)*particle_set(index_b)%r(3)
-         pv(2, 3) = pv(2, 3)+fc3(2)*particle_set(index_c)%r(3)
+         pv(2, 3) = pv(2, 3) + fc1(2)*particle_set(index_a)%r(3)
+         pv(2, 3) = pv(2, 3) + fc2(2)*particle_set(index_b)%r(3)
+         pv(2, 3) = pv(2, 3) + fc3(2)*particle_set(index_c)%r(3)
          !pv(3,1)
-         pv(3, 1) = pv(3, 1)+fc1(3)*particle_set(index_a)%r(1)
-         pv(3, 1) = pv(3, 1)+fc2(3)*particle_set(index_b)%r(1)
-         pv(3, 1) = pv(3, 1)+fc3(3)*particle_set(index_c)%r(1)
+         pv(3, 1) = pv(3, 1) + fc1(3)*particle_set(index_a)%r(1)
+         pv(3, 1) = pv(3, 1) + fc2(3)*particle_set(index_b)%r(1)
+         pv(3, 1) = pv(3, 1) + fc3(3)*particle_set(index_c)%r(1)
          !pv(3,2)
-         pv(3, 2) = pv(3, 2)+fc1(3)*particle_set(index_a)%r(2)
-         pv(3, 2) = pv(3, 2)+fc2(3)*particle_set(index_b)%r(2)
-         pv(3, 2) = pv(3, 2)+fc3(3)*particle_set(index_c)%r(2)
+         pv(3, 2) = pv(3, 2) + fc1(3)*particle_set(index_a)%r(2)
+         pv(3, 2) = pv(3, 2) + fc2(3)*particle_set(index_b)%r(2)
+         pv(3, 2) = pv(3, 2) + fc3(3)*particle_set(index_c)%r(2)
          !pv(3,3)
-         pv(3, 3) = pv(3, 3)+fc1(3)*particle_set(index_a)%r(3)
-         pv(3, 3) = pv(3, 3)+fc2(3)*particle_set(index_b)%r(3)
-         pv(3, 3) = pv(3, 3)+fc3(3)*particle_set(index_c)%r(3)
+         pv(3, 3) = pv(3, 3) + fc1(3)*particle_set(index_a)%r(3)
+         pv(3, 3) = pv(3, 3) + fc2(3)*particle_set(index_b)%r(3)
+         pv(3, 3) = pv(3, 3) + fc3(3)*particle_set(index_c)%r(3)
       END DO
 
       ! 4x6
@@ -371,68 +371,68 @@ CONTAINS
          !  pv gets updated with FULL multiplier
          lambda_4x6 = lg4x6(iconst)%lambda
 
-         fc1 = lambda_4x6(1)*lg4x6(iconst)%fa+ &
-               lambda_4x6(2)*lg4x6(iconst)%fb+ &
+         fc1 = lambda_4x6(1)*lg4x6(iconst)%fa + &
+               lambda_4x6(2)*lg4x6(iconst)%fb + &
                lambda_4x6(3)*lg4x6(iconst)%fc
-         fc2 = -lambda_4x6(1)*lg4x6(iconst)%fa+ &
-               lambda_4x6(4)*lg4x6(iconst)%fd+ &
+         fc2 = -lambda_4x6(1)*lg4x6(iconst)%fa + &
+               lambda_4x6(4)*lg4x6(iconst)%fd + &
                lambda_4x6(5)*lg4x6(iconst)%fe
-         fc3 = -lambda_4x6(2)*lg4x6(iconst)%fb- &
-               lambda_4x6(4)*lg4x6(iconst)%fd+ &
+         fc3 = -lambda_4x6(2)*lg4x6(iconst)%fb - &
+               lambda_4x6(4)*lg4x6(iconst)%fd + &
                lambda_4x6(6)*lg4x6(iconst)%ff
-         fc4 = -lambda_4x6(3)*lg4x6(iconst)%fc- &
-               lambda_4x6(5)*lg4x6(iconst)%fe- &
+         fc4 = -lambda_4x6(3)*lg4x6(iconst)%fc - &
+               lambda_4x6(5)*lg4x6(iconst)%fe - &
                lambda_4x6(6)*lg4x6(iconst)%ff
-         index_a = g4x6_list(iconst)%a+first_atom-1
-         index_b = g4x6_list(iconst)%b+first_atom-1
-         index_c = g4x6_list(iconst)%c+first_atom-1
-         index_d = g4x6_list(iconst)%d+first_atom-1
+         index_a = g4x6_list(iconst)%a + first_atom - 1
+         index_b = g4x6_list(iconst)%b + first_atom - 1
+         index_c = g4x6_list(iconst)%c + first_atom - 1
+         index_d = g4x6_list(iconst)%d + first_atom - 1
 
          !pv(1,1)
-         pv(1, 1) = pv(1, 1)+fc1(1)*particle_set(index_a)%r(1)
-         pv(1, 1) = pv(1, 1)+fc2(1)*particle_set(index_b)%r(1)
-         pv(1, 1) = pv(1, 1)+fc3(1)*particle_set(index_c)%r(1)
-         pv(1, 1) = pv(1, 1)+fc4(1)*particle_set(index_d)%r(1)
+         pv(1, 1) = pv(1, 1) + fc1(1)*particle_set(index_a)%r(1)
+         pv(1, 1) = pv(1, 1) + fc2(1)*particle_set(index_b)%r(1)
+         pv(1, 1) = pv(1, 1) + fc3(1)*particle_set(index_c)%r(1)
+         pv(1, 1) = pv(1, 1) + fc4(1)*particle_set(index_d)%r(1)
          !pv(1,2)
-         pv(1, 2) = pv(1, 2)+fc1(1)*particle_set(index_a)%r(2)
-         pv(1, 2) = pv(1, 2)+fc2(1)*particle_set(index_b)%r(2)
-         pv(1, 2) = pv(1, 2)+fc3(1)*particle_set(index_c)%r(2)
-         pv(1, 2) = pv(1, 2)+fc4(1)*particle_set(index_d)%r(2)
+         pv(1, 2) = pv(1, 2) + fc1(1)*particle_set(index_a)%r(2)
+         pv(1, 2) = pv(1, 2) + fc2(1)*particle_set(index_b)%r(2)
+         pv(1, 2) = pv(1, 2) + fc3(1)*particle_set(index_c)%r(2)
+         pv(1, 2) = pv(1, 2) + fc4(1)*particle_set(index_d)%r(2)
          !pv(1,3)
-         pv(1, 3) = pv(1, 3)+fc1(1)*particle_set(index_a)%r(3)
-         pv(1, 3) = pv(1, 3)+fc2(1)*particle_set(index_b)%r(3)
-         pv(1, 3) = pv(1, 3)+fc3(1)*particle_set(index_c)%r(3)
-         pv(1, 3) = pv(1, 3)+fc4(1)*particle_set(index_d)%r(3)
+         pv(1, 3) = pv(1, 3) + fc1(1)*particle_set(index_a)%r(3)
+         pv(1, 3) = pv(1, 3) + fc2(1)*particle_set(index_b)%r(3)
+         pv(1, 3) = pv(1, 3) + fc3(1)*particle_set(index_c)%r(3)
+         pv(1, 3) = pv(1, 3) + fc4(1)*particle_set(index_d)%r(3)
          !pv(2,1)
-         pv(2, 1) = pv(2, 1)+fc1(2)*particle_set(index_a)%r(1)
-         pv(2, 1) = pv(2, 1)+fc2(2)*particle_set(index_b)%r(1)
-         pv(2, 1) = pv(2, 1)+fc3(2)*particle_set(index_c)%r(1)
-         pv(2, 1) = pv(2, 1)+fc4(2)*particle_set(index_d)%r(1)
+         pv(2, 1) = pv(2, 1) + fc1(2)*particle_set(index_a)%r(1)
+         pv(2, 1) = pv(2, 1) + fc2(2)*particle_set(index_b)%r(1)
+         pv(2, 1) = pv(2, 1) + fc3(2)*particle_set(index_c)%r(1)
+         pv(2, 1) = pv(2, 1) + fc4(2)*particle_set(index_d)%r(1)
          !pv(2,2)
-         pv(2, 2) = pv(2, 2)+fc1(2)*particle_set(index_a)%r(2)
-         pv(2, 2) = pv(2, 2)+fc2(2)*particle_set(index_b)%r(2)
-         pv(2, 2) = pv(2, 2)+fc3(2)*particle_set(index_c)%r(2)
-         pv(2, 2) = pv(2, 2)+fc4(2)*particle_set(index_d)%r(2)
+         pv(2, 2) = pv(2, 2) + fc1(2)*particle_set(index_a)%r(2)
+         pv(2, 2) = pv(2, 2) + fc2(2)*particle_set(index_b)%r(2)
+         pv(2, 2) = pv(2, 2) + fc3(2)*particle_set(index_c)%r(2)
+         pv(2, 2) = pv(2, 2) + fc4(2)*particle_set(index_d)%r(2)
          !pv(2,3)
-         pv(2, 3) = pv(2, 3)+fc1(2)*particle_set(index_a)%r(3)
-         pv(2, 3) = pv(2, 3)+fc2(2)*particle_set(index_b)%r(3)
-         pv(2, 3) = pv(2, 3)+fc3(2)*particle_set(index_c)%r(3)
-         pv(2, 3) = pv(2, 3)+fc4(2)*particle_set(index_d)%r(3)
+         pv(2, 3) = pv(2, 3) + fc1(2)*particle_set(index_a)%r(3)
+         pv(2, 3) = pv(2, 3) + fc2(2)*particle_set(index_b)%r(3)
+         pv(2, 3) = pv(2, 3) + fc3(2)*particle_set(index_c)%r(3)
+         pv(2, 3) = pv(2, 3) + fc4(2)*particle_set(index_d)%r(3)
          !pv(3,1)
-         pv(3, 1) = pv(3, 1)+fc1(3)*particle_set(index_a)%r(1)
-         pv(3, 1) = pv(3, 1)+fc2(3)*particle_set(index_b)%r(1)
-         pv(3, 1) = pv(3, 1)+fc3(3)*particle_set(index_c)%r(1)
-         pv(3, 1) = pv(3, 1)+fc4(3)*particle_set(index_d)%r(1)
+         pv(3, 1) = pv(3, 1) + fc1(3)*particle_set(index_a)%r(1)
+         pv(3, 1) = pv(3, 1) + fc2(3)*particle_set(index_b)%r(1)
+         pv(3, 1) = pv(3, 1) + fc3(3)*particle_set(index_c)%r(1)
+         pv(3, 1) = pv(3, 1) + fc4(3)*particle_set(index_d)%r(1)
          !pv(3,2)
-         pv(3, 2) = pv(3, 2)+fc1(3)*particle_set(index_a)%r(2)
-         pv(3, 2) = pv(3, 2)+fc2(3)*particle_set(index_b)%r(2)
-         pv(3, 2) = pv(3, 2)+fc3(3)*particle_set(index_c)%r(2)
-         pv(3, 2) = pv(3, 2)+fc4(3)*particle_set(index_d)%r(2)
+         pv(3, 2) = pv(3, 2) + fc1(3)*particle_set(index_a)%r(2)
+         pv(3, 2) = pv(3, 2) + fc2(3)*particle_set(index_b)%r(2)
+         pv(3, 2) = pv(3, 2) + fc3(3)*particle_set(index_c)%r(2)
+         pv(3, 2) = pv(3, 2) + fc4(3)*particle_set(index_d)%r(2)
          !pv(3,3)
-         pv(3, 3) = pv(3, 3)+fc1(3)*particle_set(index_a)%r(3)
-         pv(3, 3) = pv(3, 3)+fc2(3)*particle_set(index_b)%r(3)
-         pv(3, 3) = pv(3, 3)+fc3(3)*particle_set(index_c)%r(3)
-         pv(3, 3) = pv(3, 3)+fc4(3)*particle_set(index_d)%r(3)
+         pv(3, 3) = pv(3, 3) + fc1(3)*particle_set(index_a)%r(3)
+         pv(3, 3) = pv(3, 3) + fc2(3)*particle_set(index_b)%r(3)
+         pv(3, 3) = pv(3, 3) + fc3(3)*particle_set(index_c)%r(3)
+         pv(3, 3) = pv(3, 3) + fc4(3)*particle_set(index_d)%r(3)
       END DO
 
    END SUBROUTINE pv_constraint_low
@@ -462,7 +462,7 @@ CONTAINS
          DO i = 1, 3
             tmp = lambda*particle_set(ind)%r(i)
             DO j = 1, 3
-               pv(j, i) = pv(j, i)+f(j)*tmp
+               pv(j, i) = pv(j, i) + f(j)*tmp
             END DO
          END DO
       END DO
@@ -500,12 +500,12 @@ CONTAINS
             roll_tol = -1.E10_dp
          ELSE
             roll_tol = 0.0_dp
-            diff_shake = ABS(matrix_old-matrix)
+            diff_shake = ABS(matrix_old - matrix)
             local_tol = MAXVAL(diff_shake)
             roll_tol = MAX(roll_tol, local_tol)
             matrix_old = matrix
          END IF
-         iroll = iroll+1
+         iroll = iroll + 1
       CASE ('RATTLE')
          IF (iroll == 1) THEN
             veps_old = veps
@@ -513,12 +513,12 @@ CONTAINS
          ELSE
             roll_tol = 0.0_dp
             ! compute tolerance on veps
-            diff_rattle = ABS(veps-veps_old)
+            diff_rattle = ABS(veps - veps_old)
             local_tol = MAXVAL(diff_rattle)
             roll_tol = MAX(roll_tol, local_tol)
             veps_old = veps
          END IF
-         iroll = iroll+1
+         iroll = iroll + 1
       END SELECT
 
    END SUBROUTINE check_tol

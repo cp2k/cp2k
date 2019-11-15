@@ -187,9 +187,9 @@ CONTAINS
       gci%ng4x6_restraint = 0
       gci%nvsite_restraint = 0
       CALL setup_colvar_counters(gci%colv_list, gci%ncolv)
-      gci%nrestraint = gci%ng3x3_restraint+ &
-                       gci%ng4x6_restraint+ &
-                       gci%nvsite_restraint+ &
+      gci%nrestraint = gci%ng3x3_restraint + &
+                       gci%ng4x6_restraint + &
+                       gci%nvsite_restraint + &
                        gci%ncolv%nrestraint
       CALL timestop(handle2)
       CALL timeset(routineN//"_2", handle2)
@@ -260,7 +260,7 @@ CONTAINS
             ! on the first molecule of this kind
             molecule => molecule_set(molecule_list(1))
             CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
-            natom = last_atom-first_atom+1
+            natom = last_atom - first_atom + 1
             DO k = 1, nbond
                ishbond = .FALSE.
                j = bond_list(k)%a
@@ -282,12 +282,12 @@ CONTAINS
                   IF (.NOT. (is_qm) .AND. exclude_mm) ishbond = .FALSE.
                END IF
                IF (ishbond) THEN
-                  nhdist = nhdist+1
+                  nhdist = nhdist + 1
                END IF
             END DO
          END DO
          n_start_colv = cons_info%nconst_colv
-         cons_info%nconst_colv = nhdist+n_start_colv
+         cons_info%nconst_colv = nhdist + n_start_colv
          CALL reallocate(cons_info%const_colv_mol, 1, cons_info%nconst_colv)
          CALL reallocate(cons_info%const_colv_molname, 1, cons_info%nconst_colv)
          CALL reallocate(cons_info%const_colv_target, 1, cons_info%nconst_colv)
@@ -300,11 +300,11 @@ CONTAINS
          CALL reallocate(cons_info%colv_exclude_qm, 1, cons_info%nconst_colv)
          CALL reallocate(cons_info%colv_exclude_mm, 1, cons_info%nconst_colv)
          ! Bonds involving hydrogens are by their nature only intramolecular
-         cons_info%colv_intermolecular(n_start_colv+1:cons_info%nconst_colv) = .FALSE.
-         cons_info%colv_exclude_qm(n_start_colv+1:cons_info%nconst_colv) = .FALSE.
-         cons_info%colv_exclude_mm(n_start_colv+1:cons_info%nconst_colv) = .FALSE.
-         cons_info%colv_restraint(n_start_colv+1:cons_info%nconst_colv) = cons_info%hbonds_restraint
-         cons_info%colv_k0(n_start_colv+1:cons_info%nconst_colv) = cons_info%hbonds_k0
+         cons_info%colv_intermolecular(n_start_colv + 1:cons_info%nconst_colv) = .FALSE.
+         cons_info%colv_exclude_qm(n_start_colv + 1:cons_info%nconst_colv) = .FALSE.
+         cons_info%colv_exclude_mm(n_start_colv + 1:cons_info%nconst_colv) = .FALSE.
+         cons_info%colv_restraint(n_start_colv + 1:cons_info%nconst_colv) = cons_info%hbonds_restraint
+         cons_info%colv_k0(n_start_colv + 1:cons_info%nconst_colv) = cons_info%hbonds_k0
          !
          nhdist = 0
          DO i = 1, SIZE(molecule_kind_set)
@@ -315,8 +315,8 @@ CONTAINS
                                    molecule_list=molecule_list)
             molecule => molecule_set(molecule_list(1))
             CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
-            natom = last_atom-first_atom+1
-            offset = first_atom-1
+            natom = last_atom - first_atom + 1
+            offset = first_atom - 1
             DO k = 1, nbond
                ishbond = .FALSE.
                j = bond_list(k)%a
@@ -338,8 +338,8 @@ CONTAINS
                   IF (.NOT. (is_qm) .AND. exclude_mm) ishbond = .FALSE.
                END IF
                IF (ishbond) THEN
-                  nhdist = nhdist+1
-                  rvec = particle_set(offset+bond_list(k)%a)%r-particle_set(offset+bond_list(k)%b)%r
+                  nhdist = nhdist + 1
+                  rvec = particle_set(offset + bond_list(k)%a)%r - particle_set(offset + bond_list(k)%b)%r
                   rmod = SQRT(DOT_PRODUCT(rvec, rvec))
                   IF (ASSOCIATED(hdist)) THEN
                      IF (SIZE(hdist) > 0) THEN
@@ -357,15 +357,15 @@ CONTAINS
                         END IF
                      END IF
                   END IF
-                  cons_info%const_colv_mol(nhdist+n_start_colv) = i
-                  cons_info%const_colv_molname(nhdist+n_start_colv) = "UNDEF"
-                  cons_info%const_colv_target(nhdist+n_start_colv) = rmod
-                  cons_info%const_colv_target_growth(nhdist+n_start_colv) = 0.0_dp
-                  CALL colvar_create(cons_info%colvar_set(nhdist+n_start_colv)%colvar, &
+                  cons_info%const_colv_mol(nhdist + n_start_colv) = i
+                  cons_info%const_colv_molname(nhdist + n_start_colv) = "UNDEF"
+                  cons_info%const_colv_target(nhdist + n_start_colv) = rmod
+                  cons_info%const_colv_target_growth(nhdist + n_start_colv) = 0.0_dp
+                  CALL colvar_create(cons_info%colvar_set(nhdist + n_start_colv)%colvar, &
                                      dist_colvar_id)
-                  cons_info%colvar_set(nhdist+n_start_colv)%colvar%dist_param%i_at = bond_list(k)%a
-                  cons_info%colvar_set(nhdist+n_start_colv)%colvar%dist_param%j_at = bond_list(k)%b
-                  CALL colvar_setup(cons_info%colvar_set(nhdist+n_start_colv)%colvar)
+                  cons_info%colvar_set(nhdist + n_start_colv)%colvar%dist_param%i_at = bond_list(k)%a
+                  cons_info%colvar_set(nhdist + n_start_colv)%colvar%dist_param%j_at = bond_list(k)%b
+                  CALL colvar_setup(cons_info%colvar_set(nhdist + n_start_colv)%colvar)
                END IF
             END DO
          END DO
@@ -444,7 +444,7 @@ CONTAINS
             gci%lcolv => lcolv
             gci%ncolv = ncolv
             ! Total number of Intermolecular constraints
-            gci%ntot = gci%ncolv%ntot+gci%ntot
+            gci%ntot = gci%ncolv%ntot + gci%ntot
             DEALLOCATE (constr_x_glob)
          END IF
       END IF
@@ -498,7 +498,7 @@ CONTAINS
             gci%ng3x3 = ng3x3
             gci%ng3x3_restraint = ng3x3_restraint
             ! Total number of Intermolecular constraints
-            gci%ntot = 3*gci%ng3x3+gci%ntot
+            gci%ntot = 3*gci%ng3x3 + gci%ntot
             DEALLOCATE (constr_x_glob)
          END IF
       END IF
@@ -551,7 +551,7 @@ CONTAINS
             gci%ng4x6 = ng4x6
             gci%ng4x6_restraint = ng4x6_restraint
             ! Total number of Intermolecular constraints
-            gci%ntot = 6*gci%ng4x6+gci%ntot
+            gci%ntot = 6*gci%ng4x6 + gci%ntot
             DEALLOCATE (constr_x_glob)
          END IF
       END IF
@@ -595,7 +595,7 @@ CONTAINS
             gci%nvsite = nvsite
             gci%nvsite_restraint = nvsite_restraint
             ! Total number of Intermolecular constraints
-            gci%ntot = gci%nvsite+gci%ntot
+            gci%ntot = gci%nvsite + gci%ntot
             DEALLOCATE (constr_x_glob)
          END IF
       END IF
@@ -651,7 +651,7 @@ CONTAINS
                      END SELECT
                   END IF
                   IF (ANY(cons_info%fixed_atoms == k) .OR. fix_atom_qmmm .OR. fix_atom_molname) THEN
-                     nfixed_atoms = nfixed_atoms+1
+                     nfixed_atoms = nfixed_atoms + 1
                   END IF
                END DO
             END DO
@@ -732,7 +732,7 @@ CONTAINS
                      END IF
                      ! Let's store the atom index
                      IF (fix_fixed_atom .OR. fix_atom_qmmm .OR. fix_atom_molname) THEN
-                        kk = kk+1
+                        kk = kk + 1
                         fixd_list(kk)%fixd = k
                         fixd_list(kk)%coord = particle_set(k)%r
                         fixd_list(kk)%itype = itype
@@ -754,8 +754,8 @@ CONTAINS
                            CPABORT("")
                         END IF
                         IF (fixd_list(kk)%restraint%active) THEN
-                           nfixd_restraint = nfixd_restraint+1
-                           nfixd_restart = nfixd_restart+1
+                           nfixd_restraint = nfixd_restraint + 1
+                           nfixd_restart = nfixd_restart + 1
                            ! Check that we use the components that we really want..
                            SELECT CASE (itype)
                            CASE (use_perd_x)
@@ -845,8 +845,8 @@ CONTAINS
             END IF
             CALL set_molecule_kind(molecule_kind, nfixd=nfixed_atoms, nfixd_restraint=nfixd_restraint, &
                                    fixd_list=fixd_list)
-            fixd_list_gci(nfixd_list_gci+1:nfixd_list_gci+nfixed_atoms) = fixd_list
-            nfixd_list_gci = nfixd_list_gci+nfixed_atoms
+            fixd_list_gci(nfixd_list_gci + 1:nfixd_list_gci + nfixed_atoms) = fixd_list
+            nfixd_list_gci = nfixd_list_gci + nfixed_atoms
          END DO
          IF (iw > 0) THEN
             WRITE (iw, *) "TOTAL NUMBER OF FIXED ATOMS:", nfixd_list_gci
@@ -862,9 +862,9 @@ CONTAINS
          DEALLOCATE (fixd_list_gci)
       END IF
       ! Final setup of the number of possible restraints
-      gci%nrestraint = gci%ng3x3_restraint+ &
-                       gci%ng4x6_restraint+ &
-                       gci%nvsite_restraint+ &
+      gci%nrestraint = gci%ng3x3_restraint + &
+                       gci%ng4x6_restraint + &
+                       gci%nvsite_restraint + &
                        gci%ncolv%nrestraint
       CALL cp_print_key_finished_output(iw, logger, subsys_section, &
                                         "PRINT%TOPOLOGY_INFO/UTIL_INFO")
@@ -912,7 +912,7 @@ CONTAINS
       ncolv_mol = 0
       DO kk = 1, SIZE(ilist)
          j = ilist(kk)
-         ncolv_mol = ncolv_mol+1
+         ncolv_mol = ncolv_mol + 1
          kdim = SIZE(cons_info%colvar_set(j)%colvar%i_atom)
          ALLOCATE (colv_list(ncolv_mol)%i_atoms(kdim))
          colv_list(ncolv_mol)%inp_seq_num = j
@@ -926,7 +926,7 @@ CONTAINS
             ! Let's compute the value..
             NULLIFY (local_colvar)
             CALL colvar_clone(local_colvar, cons_info%colvar_set(j)%colvar, &
-                              i_atom_offset=first_atom-1)
+                              i_atom_offset=first_atom - 1)
             CALL colvar_eval_mol_f(local_colvar, topology%cell, particle_set)
             colv_list(ncolv_mol)%expected_value = local_colvar%ss
             CALL colvar_release(local_colvar)
@@ -937,7 +937,7 @@ CONTAINS
          ! In case of Restraint let's check for possible restart values
          IF (colv_list(ncolv_mol)%restraint%active .AND. &
              (colv_list(ncolv_mol)%expected_value_growth_speed == 0.0_dp)) THEN
-            gind = gind+1
+            gind = gind + 1
             IF (restart_restraint_clv) THEN
                CALL section_vals_val_get(colvar_rest, "_DEFAULT_KEYWORD_", &
                                          i_rep_val=gind, r_val=rmod)
@@ -989,7 +989,7 @@ CONTAINS
          ! Restraint
          g3x3_list(ng3x3)%restraint%active = cons_info%g33_restraint(j)
          g3x3_list(ng3x3)%restraint%k0 = cons_info%g33_k0(j)
-         IF (g3x3_list(ng3x3)%restraint%active) ng3x3_restraint = ng3x3_restraint+1
+         IF (g3x3_list(ng3x3)%restraint%active) ng3x3_restraint = ng3x3_restraint + 1
       END DO
 
    END SUBROUTINE setup_g3x3_list
@@ -1032,7 +1032,7 @@ CONTAINS
          ! Restraint
          g4x6_list(ng4x6)%restraint%active = cons_info%g46_restraint(j)
          g4x6_list(ng4x6)%restraint%k0 = cons_info%g46_k0(j)
-         IF (g4x6_list(ng4x6)%restraint%active) ng4x6_restraint = ng4x6_restraint+1
+         IF (g4x6_list(ng4x6)%restraint%active) ng4x6_restraint = ng4x6_restraint + 1
       END DO
 
    END SUBROUTINE setup_g4x6_list
@@ -1070,7 +1070,7 @@ CONTAINS
          ! Restraint
          vsite_list(nvsite)%restraint%active = cons_info%vsite_restraint(j)
          vsite_list(nvsite)%restraint%k0 = cons_info%vsite_k0(j)
-         IF (vsite_list(nvsite)%restraint%active) nvsite_restraint = nvsite_restraint+1
+         IF (vsite_list(nvsite)%restraint%active) nvsite_restraint = nvsite_restraint + 1
       END DO
 
    END SUBROUTINE setup_vsite_list
@@ -1118,7 +1118,7 @@ CONTAINS
          NULLIFY (lcolv(kk)%colvar, lcolv(kk)%colvar_old)
          ! Colvar
          CALL colvar_clone(lcolv(kk)%colvar, cons_info%colvar_set(k)%colvar, &
-                           i_atom_offset=first_atom-1)
+                           i_atom_offset=first_atom - 1)
 
          ! Some COLVARS may need additional information for evaluating the
          ! functional form: this is the case for COLVARS which depend on the
@@ -1126,11 +1126,11 @@ CONTAINS
          ! container in the COLVAR_RESTART section..
          IF ((lcolv(kk)%colvar%type_id == xyz_diag_colvar_id) .OR. &
              (lcolv(kk)%colvar%type_id == xyz_outerdiag_colvar_id)) THEN
-            cind = cind+1
+            cind = cind + 1
             IF (use_clv_info) THEN
                CALL section_vals_val_get(colvar_func_info, "_DEFAULT_KEYWORD_", &
                                          i_rep_val=cind, r_vals=r_vals)
-               SELECT CASE (lcolv (kk)%colvar%type_id)
+               SELECT CASE (lcolv(kk)%colvar%type_id)
                CASE (xyz_diag_colvar_id)
                   CPASSERT(SIZE(r_vals) == 3)
                   lcolv(kk)%colvar%xyz_diag_param%r0 = r_vals
@@ -1140,17 +1140,17 @@ CONTAINS
                   lcolv(kk)%colvar%xyz_outerdiag_param%r0(:, 2) = r_vals(4:6)
                END SELECT
             ELSE
-               SELECT CASE (lcolv (kk)%colvar%type_id)
+               SELECT CASE (lcolv(kk)%colvar%type_id)
                CASE (xyz_diag_colvar_id)
                   ALLOCATE (r_vals(3))
-                  ind = first_atom-1+lcolv(kk)%colvar%xyz_diag_param%i_atom
+                  ind = first_atom - 1 + lcolv(kk)%colvar%xyz_diag_param%i_atom
                   r_vals = particle_set(ind)%r
                   lcolv(kk)%colvar%xyz_diag_param%r0 = r_vals
                CASE (xyz_outerdiag_colvar_id)
                   ALLOCATE (r_vals(6))
-                  ind = first_atom-1+lcolv(kk)%colvar%xyz_outerdiag_param%i_atoms(1)
+                  ind = first_atom - 1 + lcolv(kk)%colvar%xyz_outerdiag_param%i_atoms(1)
                   r_vals(1:3) = particle_set(ind)%r
-                  ind = first_atom-1+lcolv(kk)%colvar%xyz_outerdiag_param%i_atoms(2)
+                  ind = first_atom - 1 + lcolv(kk)%colvar%xyz_outerdiag_param%i_atoms(2)
                   r_vals(4:6) = particle_set(ind)%r
                   lcolv(kk)%colvar%xyz_outerdiag_param%r0(:, 1) = r_vals(1:3)
                   lcolv(kk)%colvar%xyz_outerdiag_param%r0(:, 2) = r_vals(4:6)
@@ -1212,12 +1212,12 @@ CONTAINS
          lg3x3(kk)%vb = 0.0_dp
          lg3x3(kk)%vc = 0.0_dp
          lg3x3(kk)%lambda = 0.0_dp
-         IF ((g3x3_list(kk)%a+first_atom-1 < first_atom) .OR. &
-             (g3x3_list(kk)%b+first_atom-1 < first_atom) .OR. &
-             (g3x3_list(kk)%c+first_atom-1 < first_atom) .OR. &
-             (g3x3_list(kk)%a+first_atom-1 > last_atom) .OR. &
-             (g3x3_list(kk)%b+first_atom-1 > last_atom) .OR. &
-             (g3x3_list(kk)%c+first_atom-1 > last_atom)) THEN
+         IF ((g3x3_list(kk)%a + first_atom - 1 < first_atom) .OR. &
+             (g3x3_list(kk)%b + first_atom - 1 < first_atom) .OR. &
+             (g3x3_list(kk)%c + first_atom - 1 < first_atom) .OR. &
+             (g3x3_list(kk)%a + first_atom - 1 > last_atom) .OR. &
+             (g3x3_list(kk)%b + first_atom - 1 > last_atom) .OR. &
+             (g3x3_list(kk)%c + first_atom - 1 > last_atom)) THEN
             WRITE (*, '(T5,"|",T8,A)') "Error in constraints setup!"
             WRITE (*, '(T5,"|",T8,A)') "A constraint has been defined for a molecule type", &
                " but the atoms specified in the constraint and the atoms defined for", &
@@ -1274,14 +1274,14 @@ CONTAINS
          lg4x6(kk)%ve = 0.0_dp
          lg4x6(kk)%vf = 0.0_dp
          lg4x6(kk)%lambda = 0.0_dp
-         IF ((g4x6_list(kk)%a+first_atom-1 < first_atom) .OR. &
-             (g4x6_list(kk)%b+first_atom-1 < first_atom) .OR. &
-             (g4x6_list(kk)%c+first_atom-1 < first_atom) .OR. &
-             (g4x6_list(kk)%d+first_atom-1 < first_atom) .OR. &
-             (g4x6_list(kk)%a+first_atom-1 > last_atom) .OR. &
-             (g4x6_list(kk)%b+first_atom-1 > last_atom) .OR. &
-             (g4x6_list(kk)%c+first_atom-1 > last_atom) .OR. &
-             (g4x6_list(kk)%d+first_atom-1 > last_atom)) THEN
+         IF ((g4x6_list(kk)%a + first_atom - 1 < first_atom) .OR. &
+             (g4x6_list(kk)%b + first_atom - 1 < first_atom) .OR. &
+             (g4x6_list(kk)%c + first_atom - 1 < first_atom) .OR. &
+             (g4x6_list(kk)%d + first_atom - 1 < first_atom) .OR. &
+             (g4x6_list(kk)%a + first_atom - 1 > last_atom) .OR. &
+             (g4x6_list(kk)%b + first_atom - 1 > last_atom) .OR. &
+             (g4x6_list(kk)%c + first_atom - 1 > last_atom) .OR. &
+             (g4x6_list(kk)%d + first_atom - 1 > last_atom)) THEN
             WRITE (*, '(T5,"|",T8,A)') "Error in constraints setup!"
             WRITE (*, '(T5,"|",T8,A)') "A constrained has been defined for a molecule type", &
                " but the atoms specified in the constraint and the atoms defined for", &
@@ -1341,7 +1341,7 @@ CONTAINS
       DO i = 1, SIZE(const_mol)
          IF (const_intermolecular(i)) THEN
             ! Intermolecular constraint
-            iglob = iglob+1
+            iglob = iglob + 1
             CALL reallocate(constr_x_glob, 1, iglob)
             constr_x_glob(iglob) = i
          ELSE
@@ -1354,8 +1354,8 @@ CONTAINS
                                 " molecule index ("//cp_to_string(k)//") is out of range of the possible"// &
                                 " molecule kinds ("//cp_to_string(SIZE(molecule_kind_set))//").")
                isize = SIZE(constr_x_mol(k)%constr)
-               CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
-               constr_x_mol(k)%constr(isize+1) = i
+               CALL reallocate(constr_x_mol(k)%constr, 1, isize + 1)
+               constr_x_mol(k)%constr(isize + 1) = i
             ELSE
                myname = const_molname(i)
                found_molname = .FALSE.
@@ -1367,8 +1367,8 @@ CONTAINS
                   IF (.NOT. is_qm .AND. exclude_mm(i)) CYCLE
                   IF (name == myname) THEN
                      isize = SIZE(constr_x_mol(k)%constr)
-                     CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
-                     constr_x_mol(k)%constr(isize+1) = i
+                     CALL reallocate(constr_x_mol(k)%constr, 1, isize + 1)
+                     constr_x_mol(k)%constr(isize + 1) = i
                      found_molname = .TRUE.
                   END IF
                END DO

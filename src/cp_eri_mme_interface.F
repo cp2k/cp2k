@@ -308,8 +308,8 @@ CONTAINS
 
       INTEGER                                            :: count_2c, count_3c, unit_nr
 
-      count_2c = param%G_count_2c+param%R_count_2c
-      count_3c = param%GG_count_3c+param%GR_count_3c+param%RR_count_3c
+      count_2c = param%G_count_2c + param%R_count_2c
+      count_3c = param%GG_count_3c + param%GR_count_3c + param%RR_count_3c
 
       unit_nr = param%par%unit_nr
 
@@ -410,9 +410,9 @@ CONTAINS
             param%par%do_calib_cutoff = .TRUE.
          ELSE
             ! only calibrate cutoff if parameters (cell, basis coefficients) have changed
-            IF (ALL(ABS(param%par%hmat-hmat) < eps_changed) .AND. &
-                ABS(param%par%zet_min-zet_min) < eps_changed .AND. &
-                ABS(param%par%zet_max-zet_max) < eps_changed .AND. &
+            IF (ALL(ABS(param%par%hmat - hmat) < eps_changed) .AND. &
+                ABS(param%par%zet_min - zet_min) < eps_changed .AND. &
+                ABS(param%par%zet_max - zet_max) < eps_changed .AND. &
                 param%par%l_max_zet == l_max_zet) THEN
                param%par%do_calib_cutoff = .FALSE.
             ELSE
@@ -507,7 +507,7 @@ CONTAINS
                              basis_type=basis_type)
             DO iset = 1, basis_set%nset
                DO ipgf = 1, basis_set%npgf(iset)
-                  IF (ABS(zet_m-basis_set%zet(ipgf, iset)) .LE. (zet_m*1.0E-12_dp) &
+                  IF (ABS(zet_m - basis_set%zet(ipgf, iset)) .LE. (zet_m*1.0E-12_dp) &
                       .AND. (basis_set%lmax(iset) .GT. l_zet)) THEN
                      l_zet = basis_set%lmax(iset)
                   ENDIF
@@ -522,8 +522,8 @@ CONTAINS
 
       ! l + 1 because we may calculate forces
       ! this is probably a safe choice also for the case that forces are not needed
-      l_max_zet = l_zet+1
-      l_max = l_m+1
+      l_max_zet = l_zet + 1
+      l_max = l_m + 1
 
       CALL timestop(handle)
    END SUBROUTINE error_est_pgf_params_from_basis
@@ -566,7 +566,7 @@ CONTAINS
                WRITE (unit_nr, '(T2, A)') "ERI_MME| Estimated absolute error for normalized Hermite-Gaussian basis"
                WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Minimax error:", param%par%err_mm
                WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Cutoff error:", param%par%err_c
-               WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Total error (minimax + cutoff):", param%par%err_mm+param%par%err_c
+             WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Total error (minimax + cutoff):", param%par%err_mm + param%par%err_c
             ENDIF
             IF (param%par%print_calib) &
                WRITE (unit_nr, '(T2, A, T68, F13.10)') "ERI_MME|   Minimax scaling constant in AM-GM estimate:", param%par%C_mm
@@ -726,27 +726,27 @@ CONTAINS
 
       IF (PRESENT(G_count_2c)) THEN
          CALL mp_sum(G_count_2c, para_env%group)
-         param%G_count_2c = param%G_count_2c+G_count_2c
+         param%G_count_2c = param%G_count_2c + G_count_2c
       ENDIF
 
       IF (PRESENT(R_count_2c)) THEN
          CALL mp_sum(R_count_2c, para_env%group)
-         param%R_count_2c = param%R_count_2c+R_count_2c
+         param%R_count_2c = param%R_count_2c + R_count_2c
       ENDIF
 
       IF (PRESENT(GG_count_3c)) THEN
          CALL mp_sum(GG_count_3c, para_env%group)
-         param%GG_count_3c = param%GG_count_3c+GG_count_3c
+         param%GG_count_3c = param%GG_count_3c + GG_count_3c
       ENDIF
 
       IF (PRESENT(GR_count_3c)) THEN
          CALL mp_sum(GR_count_3c, para_env%group)
-         param%GR_count_3c = param%GR_count_3c+GR_count_3c
+         param%GR_count_3c = param%GR_count_3c + GR_count_3c
       ENDIF
 
       IF (PRESENT(RR_count_3c)) THEN
          CALL mp_sum(RR_count_3c, para_env%group)
-         param%RR_count_3c = param%RR_count_3c+RR_count_3c
+         param%RR_count_3c = param%RR_count_3c + RR_count_3c
       ENDIF
 
    END SUBROUTINE cp_eri_mme_update_local_counts
@@ -807,9 +807,9 @@ CONTAINS
 
       zet(1) = zetmin
       IF (nzet .GT. 1) THEN
-         zet_fac = (zetmax/zetmin)**(1.0_dp/(nzet-1))
-         DO i = 1, nzet-1
-            zet(i+1) = zet(i)*zet_fac
+         zet_fac = (zetmax/zetmin)**(1.0_dp/(nzet - 1))
+         DO i = 1, nzet - 1
+            zet(i + 1) = zet(i)*zet_fac
          ENDDO
       ENDIF
 
@@ -822,7 +822,7 @@ CONTAINS
       CALL init_cell(box)
 
       ! Create range of rab (atomic distances) to be tested
-      nR_xyz = CEILING(REAL(min_nR, KIND=dp)**(1.0_dp/3.0_dp)-1.0E-06)
+      nR_xyz = CEILING(REAL(min_nR, KIND=dp)**(1.0_dp/3.0_dp) - 1.0E-06)
       nR = nR_xyz**3
 
       ALLOCATE (rabc(3, nR))
@@ -830,11 +830,11 @@ CONTAINS
       DO ix = 1, nR_xyz
       DO iy = 1, nR_xyz
       DO iz = 1, nR_xyz
-         count_r = count_r+1
+         count_r = count_r + 1
          ! adding 10% of cell size to positions to avoid atoms exactly at boundary or center of a cell
          rabc(:, count_r) = pbc([ix*ABS(cell_par(1)), &
                                  iy*ABS(cell_par(2)), &
-                                 iz*ABS(cell_par(3))]/nR_xyz+ &
+                                 iz*ABS(cell_par(3))]/nR_xyz + &
                                 0.1_dp*ABS(cell_par(:)), box)
       ENDDO
       ENDDO

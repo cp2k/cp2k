@@ -146,11 +146,11 @@ CONTAINS
                DO il = 1, nlist
                   CALL section_vals_val_get(region_sections, "LIST", i_rep_section=ireg, &
                                             i_rep_val=il, i_vals=tmplist)
-                  CALL reallocate(t_region%part_index, 1, t_region%npart+SIZE(tmplist))
+                  CALL reallocate(t_region%part_index, 1, t_region%npart + SIZE(tmplist))
                   DO i = 1, SIZE(tmplist)
                      ipart = tmplist(i)
                      CPASSERT(((ipart > 0) .AND. (ipart <= particles%n_els)))
-                     t_region%npart = t_region%npart+1
+                     t_region%npart = t_region%npart + 1
                      t_region%part_index(t_region%npart) = ipart
                      particles%els(ipart)%t_region_index = ireg
                      IF (simpar%ensemble == langevin_ensemble) THEN
@@ -248,7 +248,7 @@ CONTAINS
                DO ireg = 1, nregions
                   temp(ireg) = thermal_regions%thermal_region(ireg)%temperature
                END DO
-               fmd = "(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(nregions+1)))//"F20.6)"
+               fmd = "(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(nregions + 1)))//"F20.6)"
                fmd = TRIM(fmd)
                WRITE (UNIT=unit, FMT=fmd) itimes, time, temp(0:nregions)
                DEALLOCATE (temp)

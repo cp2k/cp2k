@@ -45,7 +45,7 @@ CONTAINS
          IF (.NOT. (sx == 0 .AND. sy == 0 .AND. sz == 0)) THEN
             sxyz = [sx, sy, sz]
             R = MATMUL(hmat, sxyz)
-            R_sq = R(1)**2+R(2)**2+R(3)**2
+            R_sq = R(1)**2 + R(2)**2 + R(3)**2
             IF (R_sq < R_m .OR. R_m < EPSILON(R_m)) R_m = R_sq
          ENDIF
       ENDDO
@@ -80,7 +80,7 @@ CONTAINS
          IF (.NOT. (gx == 0 .AND. gy == 0 .AND. gz == 0)) THEN
             gxyz = [gx, gy, gz]
             G = MATMUL(H, gxyz)
-            G_sq = G(1)**2+G(2)**2+G(3)**2
+            G_sq = G(1)**2 + G(2)**2 + G(3)**2
             IF (G_sq < G_m .OR. G_m < EPSILON(G_m)) G_m = G_sq
          ENDIF
       ENDDO

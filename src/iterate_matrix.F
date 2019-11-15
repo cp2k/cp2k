@@ -159,9 +159,9 @@ CONTAINS
             order=order_lanczos, &
             eps_lanczos=eps_lanczos, &
             max_iter_lanczos=max_iter_lanczos)
-         recursion_depth = recursion_depth+1
+         recursion_depth = recursion_depth + 1
          CALL determinant(tmp3, det0, threshold)
-         recursion_depth = recursion_depth-1
+         recursion_depth = recursion_depth - 1
          det = det*det0*det0
 
       ELSE
@@ -190,7 +190,7 @@ CONTAINS
 
             ! get trace
             CALL dbcsr_trace(tmp1, trace)
-            trace = trace*sign_iter/(1.0_dp*(i+1))
+            trace = trace*sign_iter/(1.0_dp*(i + 1))
             sign_iter = -sign_iter
 
             ! update the determinant
@@ -205,8 +205,8 @@ CONTAINS
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T6,A,1X,I3,1X,F7.5,F16.10,F10.3,F11.3)') &
                   "Determinant iter", i, occ_matrix, &
-                  det, t2-t1, &
-                  flop1/(1.0E6_dp*MAX(0.001_dp, t2-t1))
+                  det, t2 - t1, &
+                  flop1/(1.0E6_dp*MAX(0.001_dp, t2 - t1))
                CALL m_flush(unit_nr)
             ENDIF
 
@@ -381,8 +381,8 @@ CONTAINS
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "Taylor iter", i, occ_matrix, &
-               maxnorm_matrix, t2-t1, &
-               flop2/(1.0E6_dp*MAX(0.001_dp, t2-t1))
+               maxnorm_matrix, t2 - t1, &
+               flop2/(1.0E6_dp*MAX(0.001_dp, t2 - t1))
             CALL m_flush(unit_nr)
          ENDIF
 
@@ -563,7 +563,7 @@ CONTAINS
          ENDIF
 
          ! 2.0 would be the correct scaling however, we should make sure here, that we are in the convergence radius
-         scalingf = 1.9_dp/(max_eV+min_eV)
+         scalingf = 1.9_dp/(max_eV + min_eV)
          CALL dbcsr_scale(tmp1, scalingf)
          CALL dbcsr_scale(matrix_inverse, scalingf)
          min_ev = min_ev*scalingf
@@ -594,14 +594,14 @@ CONTAINS
 
          ! use the scalar form of the algorithm to trace the EV
          IF (accelerator_type == 1) THEN
-            min_ev = min_ev*(2.0_dp-min_ev)
-            IF (PRESENT(norm_convergence)) maxnorm_matrix = ABS(min_eV-1.0_dp)
+            min_ev = min_ev*(2.0_dp - min_ev)
+            IF (PRESENT(norm_convergence)) maxnorm_matrix = ABS(min_eV - 1.0_dp)
          ENDIF
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "Hotelling iter", i, occ_matrix, &
-               maxnorm_matrix, t2-t1, &
-               (flop1+flop2)/(1.0E6_dp*MAX(0.001_dp, t2-t1))
+               maxnorm_matrix, t2 - t1, &
+               (flop1 + flop2)/(1.0E6_dp*MAX(0.001_dp, t2 - t1))
             CALL m_flush(unit_nr)
          ENDIF
 
@@ -612,8 +612,8 @@ CONTAINS
 
          ! scale the matrix for improved convergence
          IF (accelerator_type == 1) THEN
-            min_ev = min_ev*2.0_dp/(min_ev+1.0_dp)
-            CALL dbcsr_scale(matrix_inverse, 2.0_dp/(min_ev+1.0_dp))
+            min_ev = min_ev*2.0_dp/(min_ev + 1.0_dp)
+            CALL dbcsr_scale(matrix_inverse, 2.0_dp/(min_ev + 1.0_dp))
          ENDIF
 
          t1 = m_walltime()
@@ -718,7 +718,7 @@ CONTAINS
          ! tmp1 = X * X
          CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_sign, matrix_sign, 0.0_dp, tmp1, &
                              filter_eps=threshold, flop=flops)
-         floptot = floptot+flops
+         floptot = floptot + flops
 
          ! check convergence (frob norm of what should be the identity matrix minus identity matrix)
          frob_matrix_base = dbcsr_frobenius_norm(tmp1)
@@ -771,7 +771,7 @@ CONTAINS
             ! tmp2=y^2
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp2, 1.0_dp, tmp1, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
             prefactor = 3.0_dp/8.0_dp
 
          ELSE IF (order .EQ. 4) THEN
@@ -784,13 +784,13 @@ CONTAINS
             !
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp3, 0.0_dp, tmp2, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
 
             CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 6.0_dp/5.0_dp)
 
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 1.0_dp, tmp1, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
 
             prefactor = 5.0_dp/16.0_dp
          ELSE IF (order .EQ. -5) THEN
@@ -803,19 +803,19 @@ CONTAINS
             !
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp3, 0.0_dp, tmp2, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
 
             CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 48.0_dp/35.0_dp)
 
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp2, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
 
             CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 8.0_dp/7.0_dp)
 
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 1.0_dp, tmp1, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
 
             prefactor = 35.0_dp/128.0_dp
          ELSE IF (order .EQ. 5) THEN
@@ -838,14 +838,14 @@ CONTAINS
             CALL dbcsr_add_on_diag(tmp3, a0)
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp1, 0.0_dp, tmp3, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
             CALL dbcsr_add_on_diag(tmp3, a1)
 
             CALL dbcsr_add_on_diag(tmp1, a2)
             CALL dbcsr_add(tmp1, tmp3, 1.0_dp, 1.0_dp)
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp1, tmp3, 0.0_dp, tmp1, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
             CALL dbcsr_add_on_diag(tmp1, a3)
 
             prefactor = 35.0_dp/128.0_dp
@@ -860,25 +860,25 @@ CONTAINS
             !
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp3, 0.0_dp, tmp2, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
 
             CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 32.0_dp/21.0_dp)
 
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp2, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
 
             CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 80.0_dp/63.0_dp)
 
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp2, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
 
             CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 10.0_dp/9.0_dp)
 
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 1.0_dp, tmp1, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
 
             prefactor = 63.0_dp/256.0_dp
          ELSE IF (order .EQ. 7) THEN
@@ -901,7 +901,7 @@ CONTAINS
             CALL dbcsr_add_on_diag(tmp3, a0)
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp1, 0.0_dp, tmp3, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
             CALL dbcsr_add_on_diag(tmp3, a1)
 
             ! tmp4=w
@@ -909,14 +909,14 @@ CONTAINS
             CALL dbcsr_add_on_diag(tmp4, a2)
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp4, tmp3, 0.0_dp, tmp4, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
             CALL dbcsr_add_on_diag(tmp4, a3)
 
             CALL dbcsr_add(tmp3, tmp4, 1.0_dp, 1.0_dp)
             CALL dbcsr_add_on_diag(tmp3, a4)
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp4, 0.0_dp, tmp1, &
                                 filter_eps=threshold, flop=flops)
-            floptot = floptot+flops
+            floptot = floptot + flops
             CALL dbcsr_add_on_diag(tmp1, a5)
 
             prefactor = 231.0_dp/1024.0_dp
@@ -927,7 +927,7 @@ CONTAINS
          ! tmp2 = X * prefactor *
          CALL dbcsr_multiply("N", "N", prefactor, matrix_sign, tmp1, 0.0_dp, tmp2, &
                              filter_eps=threshold, flop=flops)
-         floptot = floptot+flops
+         floptot = floptot + flops
 
          ! done iterating
          ! CALL dbcsr_filter(tmp2,threshold)
@@ -938,8 +938,8 @@ CONTAINS
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "NS sign iter ", i, occ_matrix, &
-               frob_matrix/frob_matrix_base, t2-t1, &
-               floptot/(1.0E6_dp*MAX(0.001_dp, t2-t1))
+               frob_matrix/frob_matrix_base, t2 - t1, &
+               floptot/(1.0E6_dp*MAX(0.001_dp, t2 - t1))
             CALL m_flush(unit_nr)
          ENDIF
 
@@ -1155,7 +1155,7 @@ CONTAINS
          ENDIF
          ! conservatively assume we get a relatively large error (100*threshold_lanczos) in the estimates
          ! and adjust the scaling to be on the safe side
-         scaling = 2.0_dp/(max_ev+min_ev+100*eps_lanczos)
+         scaling = 2.0_dp/(max_ev + min_ev + 100*eps_lanczos)
 
       ENDIF
 
@@ -1216,10 +1216,10 @@ CONTAINS
             ob = 48.0_dp/35.0_dp
             oc = -64.0_dp/35.0_dp
             od = 128.0_dp/35.0_dp
-            a = (oa-1)/2
-            b = ob*(a+1)-oc-a*(a+1)**2
-            c = ob-b-a*(a+1)
-            d = od-b*c
+            a = (oa - 1)/2
+            b = ob*(a + 1) - oc - a*(a + 1)**2
+            c = ob - b - a*(a + 1)
+            d = od - b*c
             ! tmp2 = tmp1 ** 2 + a * tmp1
             CALL dbcsr_multiply("N", "N", 1.0_dp, tmp1, tmp1, 0.0_dp, tmp2, &
                                 filter_eps=threshold, flop=flop4)
@@ -1262,8 +1262,8 @@ CONTAINS
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "NS sqrt iter ", i, occ_matrix, &
-               conv, t2-t1, &
-               (flop1+flop2+flop3+flop4+flop5)/(1.0E6_dp*MAX(0.001_dp, t2-t1))
+               conv, t2 - t1, &
+               (flop1 + flop2 + flop3 + flop4 + flop5)/(1.0E6_dp*MAX(0.001_dp, t2 - t1))
             CALL m_flush(unit_nr)
          ENDIF
 
@@ -1393,7 +1393,7 @@ CONTAINS
          ENDIF
          ! conservatively assume we get a relatively large error (100*threshold_lanczos) in the estimates
          ! and adjust the scaling to be on the safe side
-         scaling = 2.0_dp/(max_ev+min_ev+100*eps_lanczos)
+         scaling = 2.0_dp/(max_ev + min_ev + 100*eps_lanczos)
          CALL dbcsr_scale(matrixS, scaling)
          CALL dbcsr_filter(matrixS, threshold)
       ELSE
@@ -1434,7 +1434,7 @@ CONTAINS
                   f = 0
                   CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, Rmat, 0.0_dp, tmp2, &
                                       filter_eps=threshold, flop=f)
-                  flop3 = flop3+f
+                  flop3 = flop3 + f
                ENDIF
                CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 1.0_dp)
             ENDDO
@@ -1456,13 +1456,13 @@ CONTAINS
             flop3 = 0
             DO j = 1, order
                !choose=factorial(order)/(factorial(j)*factorial(order-j))
-               choose = PRODUCT((/(ii, ii=1, order)/))/(PRODUCT((/(ii, ii=1, j)/))*PRODUCT((/(ii, ii=1, order-j)/)))
+               choose = PRODUCT((/(ii, ii=1, order)/))/(PRODUCT((/(ii, ii=1, j)/))*PRODUCT((/(ii, ii=1, order - j)/)))
                CALL dbcsr_add(tmp1, tmp2, 1.0_dp, -1.0_dp*(-1)**j*choose)
                IF (j .LT. order) THEN
                   f = 0
                   CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, BK2A, 0.0_dp, tmp2, &
                                       filter_eps=threshold, flop=f)
-                  flop3 = flop3+f
+                  flop3 = flop3 + f
                ENDIF
             ENDDO
             CALL dbcsr_release(BK2A)
@@ -1480,8 +1480,8 @@ CONTAINS
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "PROOT sqrt iter ", i, occ_matrix, &
-               conv, t2-t1, &
-               (flop1+flop2+flop3+flop4+flop5)/(1.0E6_dp*MAX(0.001_dp, t2-t1))
+               conv, t2 - t1, &
+               (flop1 + flop2 + flop3 + flop4 + flop5)/(1.0E6_dp*MAX(0.001_dp, t2 - t1))
             CALL m_flush(unit_nr)
          ENDIF
 
@@ -1591,7 +1591,7 @@ CONTAINS
       k = 1
       DO
          IF ((norm_scalar/2.0_dp**k) <= one) EXIT
-         k = k+1
+         k = k + 1
       END DO
 
       ! copy and scale the input matrix in matrix C and in matrix D
@@ -1620,7 +1620,7 @@ CONTAINS
       CALL dbcsr_create(D_product, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       i = 1
       DO
-         i = i+1
+         i = i + 1
          ! compute D_product=D*C
          CALL dbcsr_multiply("N", "N", one, D, C, &
                              zero, D_product, filter_eps=threshold)

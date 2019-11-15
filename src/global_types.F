@@ -126,7 +126,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(globenv))
       CPASSERT(globenv%ref_count > 0)
-      globenv%ref_count = globenv%ref_count+1
+      globenv%ref_count = globenv%ref_count + 1
    END SUBROUTINE globenv_retain
 
 ! **************************************************************************************************
@@ -142,7 +142,7 @@ CONTAINS
 
       IF (ASSOCIATED(globenv)) THEN
          CPASSERT(globenv%ref_count > 0)
-         globenv%ref_count = globenv%ref_count-1
+         globenv%ref_count = globenv%ref_count - 1
          IF (globenv%ref_count == 0) THEN
             IF (ASSOCIATED(globenv%gaussian_rng_stream)) THEN
                CALL delete_rng_stream(globenv%gaussian_rng_stream)

@@ -220,7 +220,7 @@ CONTAINS
       CALL cp_para_env_retain(para_env)
       mixed_env%para_env => para_env
       mixed_env%ref_count = 1
-      last_mixed_env_id_nr = last_mixed_env_id_nr+1
+      last_mixed_env_id_nr = last_mixed_env_id_nr + 1
       mixed_env%id_nr = last_mixed_env_id_nr
 
    END SUBROUTINE init_mixed_env
@@ -354,7 +354,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(mixed_env))
       CPASSERT(mixed_env%ref_count > 0)
-      mixed_env%ref_count = mixed_env%ref_count+1
+      mixed_env%ref_count = mixed_env%ref_count + 1
    END SUBROUTINE mixed_env_retain
 
 ! **************************************************************************************************
@@ -372,7 +372,7 @@ CONTAINS
 
       IF (ASSOCIATED(mixed_env)) THEN
          CPASSERT(mixed_env%ref_count > 0)
-         mixed_env%ref_count = mixed_env%ref_count-1
+         mixed_env%ref_count = mixed_env%ref_count - 1
          IF (mixed_env%ref_count < 1) THEN
             ngroups = SIZE(mixed_env%sub_para_env)
             DO i = 1, ngroups

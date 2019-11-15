@@ -85,7 +85,7 @@ CONTAINS
 
       IF (ASSOCIATED(ks_qmmm_env)) THEN
          CPASSERT(ks_qmmm_env%ref_count > 0)
-         ks_qmmm_env%ref_count = ks_qmmm_env%ref_count-1
+         ks_qmmm_env%ref_count = ks_qmmm_env%ref_count - 1
 
          IF (ks_qmmm_env%ref_count < 1) THEN
             CALL pw_env_get(ks_qmmm_env%pw_env, auxbas_pw_pool=pool)
@@ -121,7 +121,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(ks_qmmm_env))
       CPASSERT(ks_qmmm_env%ref_count > 0)
-      ks_qmmm_env%ref_count = ks_qmmm_env%ref_count+1
+      ks_qmmm_env%ref_count = ks_qmmm_env%ref_count + 1
    END SUBROUTINE qs_ks_qmmm_retain
 
 END MODULE qs_ks_qmmm_types

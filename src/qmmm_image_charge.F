@@ -187,7 +187,7 @@ CONTAINS
       CALL integrate_potential_ga_rspace(v_hartree_rspace, qmmm_env, qs_env, &
                                          pot_const)
       !add integral V0*ga(r)
-      pot_const(:) = -pot_const(:)+V0*SQRT((pi/eta)**3)
+      pot_const(:) = -pot_const(:) + V0*SQRT((pi/eta)**3)
 
       !solve linear system of equations T*coeff=-pot_const
       !LU factorization of T  by DGETRF done in calculate_image_matrix
@@ -253,7 +253,7 @@ CONTAINS
                                          pot_const)
 
       !add integral V0*ga(r)
-      pot_const(:) = -pot_const(:)+V0*SQRT((pi/eta)**3)
+      pot_const(:) = -pot_const(:) + V0*SQRT((pi/eta)**3)
 
       !initial guess for coeff
       coeff = 1.0_dp
@@ -271,7 +271,7 @@ CONTAINS
                                          qmmm_env=qmmm_env, qs_env=qs_env, int_res=vmetal_const)
 
       ! modify coefficients iteratively
-      r = pot_const-vmetal_const
+      r = pot_const - vmetal_const
       z = MATMUL(qs_env%image_matrix, r)
       d = z
       rsold = DOT_PRODUCT(r, z)
@@ -286,18 +286,18 @@ CONTAINS
                                             qs_env=qs_env, int_res=Ad)
 
          alpha = rsold/DOT_PRODUCT(d, Ad)
-         coeff = coeff+alpha*d
+         coeff = coeff + alpha*d
 
-         r = r-alpha*Ad
+         r = r - alpha*Ad
          z = MATMUL(qs_env%image_matrix, r)
          rsnew = DOT_PRODUCT(r, z)
-         iter_steps = iter_steps+1
+         iter_steps = iter_steps + 1
          ! SQRT(rsnew) < 1.0E-08
          IF (rsnew < 1.0E-16) THEN
             CALL pw_release(auxpot_Ad_rspace%pw)
             EXIT
          END IF
-         d = z+rsnew/rsold*d
+         d = z + rsnew/rsold*d
          rsold = rsnew
          CALL pw_release(auxpot_Ad_rspace%pw)
       ENDDO
@@ -388,7 +388,7 @@ CONTAINS
       k = 1
       IF (PRESENT(atom_num)) k = atom_num
 
-      CALL reallocate(cores, 1, natom-k+1)
+      CALL reallocate(cores, 1, natom - k + 1)
       int_res = 0.0_dp
       npme = 0
       cores = 0
@@ -397,11 +397,11 @@ CONTAINS
          IF (rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
             ! replicated realspace grid, split the atoms up between procs
             IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
-               npme = npme+1
+               npme = npme + 1
                cores(npme) = iatom
             ENDIF
          ELSE
-            npme = npme+1
+            npme = npme + 1
             cores(npme) = iatom
          ENDIF
       END DO
@@ -416,8 +416,8 @@ CONTAINS
             atom_b = qmmm_env%image_charge_pot%image_mm_list(k)
             atom_ref = qmmm_env%image_charge_pot%image_mm_list(atom_num_ref)
             ra(:) = pbc(qmmm_env%image_charge_pot%particles_all(atom_a)%r, cell) &
-                    -pbc(qmmm_env%image_charge_pot%particles_all(atom_b)%r, cell) &
-                    +pbc(qmmm_env%image_charge_pot%particles_all(atom_ref)%r, cell)
+                    - pbc(qmmm_env%image_charge_pot%particles_all(atom_b)%r, cell) &
+                    + pbc(qmmm_env%image_charge_pot%particles_all(atom_ref)%r, cell)
 
          ELSE
             ra(:) = pbc(qmmm_env%image_charge_pot%particles_all(atom_a)%r, cell)
@@ -526,11 +526,11 @@ CONTAINS
          IF (rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
             ! replicated realspace grid, split the atoms up between procs
             IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
-               npme = npme+1
+               npme = npme + 1
                cores(npme) = iatom
             ENDIF
          ELSE
-            npme = npme+1
+            npme = npme + 1
             cores(npme) = iatom
          ENDIF
       END DO
@@ -679,7 +679,7 @@ CONTAINS
          CALL DPOTRI('L', natom, qs_env%image_matrix, natom, stat)
          CPASSERT(stat == 0)
          DO j = 1, natom
-            DO k = j+1, natom
+            DO k = j + 1, natom
                qs_env%image_matrix(j, k) = qs_env%image_matrix(k, j)
             ENDDO
          ENDDO
@@ -762,7 +762,7 @@ CONTAINS
                                             qs_env, int_res, atom_num=iatom, &
                                             atom_num_ref=iatom_ref)
          image_matrix(iatom, iatom:natom) = int_res(iatom:natom)
-         image_matrix(iatom+1:natom, iatom) = int_res(iatom+1:natom)
+         image_matrix(iatom + 1:natom, iatom) = int_res(iatom + 1:natom)
       END DO
 
       CALL pw_release(vb_gspace%pw)
@@ -852,11 +852,11 @@ CONTAINS
       limits = get_limit(npgf_prod, para_env%num_pe, para_env%mepos)
 
       DO ipgf_prod = limits(1), limits(2)
-         ipgf = (ipgf_prod-1)/npgfb+1
-         jpgf = MOD(ipgf_prod-1, npgfb)+1
-         rab(:) = ra(:, ipgf)-rb(:, jpgf)
+         ipgf = (ipgf_prod - 1)/npgfb + 1
+         jpgf = MOD(ipgf_prod - 1, npgfb) + 1
+         rab(:) = ra(:, ipgf) - rb(:, jpgf)
          CALL eri_mme_2c_integrate(param%par, 0, 0, 0, 0, zeta(ipgf), &
-                                   zetb(jpgf), rab, hab, ipgf-1, jpgf-1, G_count=G_count, R_count=R_count)
+                                   zetb(jpgf), rab, hab, ipgf - 1, jpgf - 1, G_count=G_count, R_count=R_count)
       ENDDO
 
       CALL cp_eri_mme_update_local_counts(param, para_env, G_count_2c=G_count, R_count_2c=R_count)
@@ -932,7 +932,7 @@ CONTAINS
          en_vmetal_rhohartree = 0.5_dp*pw_integral_ab(v_metal_gspace%pw, &
                                                       rho_hartree_gspace%pw)
          en_external = qs_env%qmmm_env_qm%image_charge_pot%V0*total_rho_metal
-         energy%image_charge = en_vmetal_rhohartree-0.5_dp*en_external
+         energy%image_charge = en_vmetal_rhohartree - 0.5_dp*en_external
          CALL print_image_energy_terms(en_vmetal_rhohartree, en_external, &
                                        total_rho_metal, qs_env)
       ENDIF
@@ -1150,7 +1150,7 @@ CONTAINS
       natom = SIZE(qs_env%qmmm_env_qm%image_charge_pot%image_mm_list)
 
       DO iatom = 1, natom
-         sum_gradients(:) = sum_gradients(:)+forces(:, iatom)
+         sum_gradients(:) = sum_gradients(:) + forces(:, iatom)
       ENDDO
 
       CALL get_qs_env(qs_env=qs_env, input=input)
@@ -1205,7 +1205,7 @@ CONTAINS
       normalize_factor = SQRT((qs_env%qmmm_env_qm%image_charge_pot%eta/pi)**3)
 
       DO iatom = 1, natom
-         sum_coeff = sum_coeff+image_coeff(iatom)
+         sum_coeff = sum_coeff + image_coeff(iatom)
       ENDDO
 
       CALL get_qs_env(qs_env=qs_env, input=input)
@@ -1278,7 +1278,7 @@ CONTAINS
          WRITE (unit=output_unit, fmt="(T3,A,T56,F25.14)") &
             "External potential energy term [a.u.]:", -0.5_dp*en_external
          WRITE (unit=output_unit, fmt="(T3,A,T56,F25.14)") &
-            "Total image charge energy [a.u.]:", en_vmetal_rhohartree-0.5_dp*en_external
+            "Total image charge energy [a.u.]:", en_vmetal_rhohartree - 0.5_dp*en_external
       ENDIF
 
       CALL cp_print_key_finished_output(output_unit, logger, input, &

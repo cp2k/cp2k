@@ -222,8 +222,8 @@ CONTAINS
                   CALL parser_get_object(parser, param%hen(i))
                   CALL parser_get_object(parser, param%zeta(i))
                   param%nshell = i
-                  param%nval(i) = ia-48
-                  SELECT CASE (aname (2:2))
+                  param%nval(i) = ia - 48
+                  SELECT CASE (aname(2:2))
                   CASE ("s", "S")
                      param%lval(i) = 0
                   CASE ("p", "P")
@@ -255,7 +255,7 @@ CONTAINS
          param%natorb = 0
          DO i = 1, param%nshell
             l = param%lval(i)
-            param%natorb = param%natorb+(2*l+1)
+            param%natorb = param%natorb + (2*l + 1)
          END DO
          param%zeff = zval(ia)
       ELSE
@@ -309,10 +309,10 @@ CONTAINS
                CALL remove_word(line_att)
                ia = ICHAR(label(1:1))
                IF (ia >= 49 .AND. ia <= 57) THEN
-                  nshell = nshell+1
+                  nshell = nshell + 1
                   k = nshell
-                  param%nval(k) = ia-48
-                  SELECT CASE (label (2:2))
+                  param%nval(k) = ia - 48
+                  SELECT CASE (label(2:2))
                   CASE ("s", "S")
                      param%lval(k) = 0
                   CASE ("p", "P")
@@ -341,7 +341,7 @@ CONTAINS
                CALL remove_word(line_att)
                IF (label == element_symbol) THEN
                   found = .TRUE.
-                  nshell = nshell+1
+                  nshell = nshell + 1
                   k = nshell
                   READ (line_att, *) param%eta
                   CALL remove_word(line_att)
@@ -355,8 +355,8 @@ CONTAINS
                   CALL remove_word(line_att)
                   ia = ICHAR(label(1:1))
                   CPASSERT((ia >= 49 .AND. ia <= 57))
-                  param%nval(k) = ia-48
-                  SELECT CASE (label (2:2))
+                  param%nval(k) = ia - 48
+                  SELECT CASE (label(2:2))
                   CASE ("s", "S")
                      param%lval(k) = 0
                   CASE ("p", "P")
@@ -392,7 +392,7 @@ CONTAINS
             param%nshell = nshell
             DO i = 1, param%nshell
                l = param%lval(i)
-               param%natorb = param%natorb+(2*l+1)
+               param%natorb = param%natorb + (2*l + 1)
             END DO
             param%zeff = zval(ia)
          END IF
@@ -420,8 +420,8 @@ CONTAINS
          na = 0
          DO is = 1, param%nshell
             l = param%lval(is)
-            DO i = 1, 2*l+1
-               na = na+1
+            DO i = 1, 2*l + 1
+               na = na + 1
                param%nao(na) = is
                param%lao(na) = l
             END DO
@@ -435,7 +435,7 @@ CONTAINS
          ! shell occupances
          param%occupation(:) = occupation(:, i)
          ! check for consistency
-         IF (ABS(param%zeff-SUM(param%occupation)) > 1.E-10_dp) THEN
+         IF (ABS(param%zeff - SUM(param%occupation)) > 1.E-10_dp) THEN
             CALL cp_abort(__LOCATION__, "Element <"//TRIM(param%aname)//"> has inconsistent shell occupations")
          END IF
          ! orbital energies [evolt] -> [a.u.]
@@ -451,10 +451,10 @@ CONTAINS
          param%kappa(:) = 0.0_dp
          DO is = 1, param%nshell
             l = param%lval(is)
-            IF (param%kappa(l+1) == 0.0_dp) THEN
-               param%kappa(l+1) = kp(is)
+            IF (param%kappa(l + 1) == 0.0_dp) THEN
+               param%kappa(l + 1) = kp(is)
             ELSE
-               CPASSERT(ABS(param%kappa(l+1)-kp(is)) < 1.e-10_dp)
+               CPASSERT(ABS(param%kappa(l + 1) - kp(is)) < 1.e-10_dp)
             END IF
          END DO
          ! kx
@@ -505,7 +505,7 @@ CONTAINS
          ALLOCATE (symbol(1:nshell))
          symbol = ""
          DO i = 1, nshell
-            SELECT CASE (param%lval (i))
+            SELECT CASE (param%lval(i))
             CASE (0)
                WRITE (symbol(i), '(I1,A1)') param%nval(i), "S"
             CASE (1)
@@ -557,7 +557,7 @@ CONTAINS
       kab = 1.0_dp
       IF (za == 1 .OR. zb == 1) THEN
          ! hydrogen
-         z = za+zb-1
+         z = za + zb - 1
          SELECT CASE (z)
          CASE (1)
             kab = 0.96_dp
@@ -574,14 +574,14 @@ CONTAINS
          END SELECT
       ELSEIF (za == 5 .OR. zb == 5) THEN
          ! Boron
-         z = za+zb-5
+         z = za + zb - 5
          SELECT CASE (z)
          CASE (15)
             kab = 0.97_dp
          END SELECT
       ELSEIF (za == 7 .OR. zb == 7) THEN
          ! Nitrogen
-         z = za+zb-7
+         z = za + zb - 7
          SELECT CASE (z)
          CASE (14)
             !xtb orig code parameter file
@@ -595,13 +595,13 @@ CONTAINS
             kab = 1.10_dp
          ELSEIF ((zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
             ! 4d/5d/4f
-            kab = 0.50_dp*(1.20_dp+1.10_dp)
+            kab = 0.50_dp*(1.20_dp + 1.10_dp)
          END IF
       ELSEIF ((za > 38 .AND. za < 48) .OR. (za > 56 .AND. za < 80)) THEN
          ! 4d/5d/4f
          IF (zb > 20 .AND. zb < 30) THEN
             ! 3d
-            kab = 0.50_dp*(1.20_dp+1.10_dp)
+            kab = 0.50_dp*(1.20_dp + 1.10_dp)
          ELSEIF ((zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
             ! 4d/5d/4f
             kab = 1.20_dp

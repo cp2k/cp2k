@@ -78,7 +78,7 @@ CONTAINS
       NULLIFY (dg_rho0)
       CALL dg_rho0_create(dg_rho0)
       dg%dg_rho0 => dg_rho0
-      last_dg_id = last_dg_id+1
+      last_dg_id = last_dg_id + 1
       dg%id_nr = last_dg_id
       dg%ref_count = 1
 
@@ -100,7 +100,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(dg))
       CPASSERT(dg%ref_count > 0)
-      dg%ref_count = dg%ref_count+1
+      dg%ref_count = dg%ref_count + 1
    END SUBROUTINE dg_retain
 
 ! **************************************************************************************************
@@ -119,7 +119,7 @@ CONTAINS
 
       IF (ASSOCIATED(dg)) THEN
          CPASSERT(dg%ref_count > 0)
-         dg%ref_count = dg%ref_count-1
+         dg%ref_count = dg%ref_count - 1
          IF (dg%ref_count == 0) THEN
             CALL dg_rho0_release(dg%dg_rho0)
             DEALLOCATE (dg)

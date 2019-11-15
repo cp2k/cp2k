@@ -148,32 +148,32 @@ CONTAINS
          db_max = 0
       END IF
 
-      la_max = la_max_set+da_max
-      la_min = MAX(0, la_min_set-da_max)
+      la_max = la_max_set + da_max
+      la_min = MAX(0, la_min_set - da_max)
 
-      lb_max = lb_max_set+db_max
-      lb_min = MAX(0, lb_min_set-db_max)
+      lb_max = lb_max_set + db_max
+      lb_min = MAX(0, lb_min_set - db_max)
 
-      mmax = la_max+lb_max
+      mmax = la_max + lb_max
 
       ! precalculate indices for horizontal recursion
       ALLOCATE (iiap(ncoset(mmax), 3))
       DO ma = 0, mmax
          DO iax = 0, ma
-            DO iay = 0, ma-iax
-               iaz = ma-iax-iay
+            DO iay = 0, ma - iax
+               iaz = ma - iax - iay
                ia = coset(iax, iay, iaz)
                jj(1) = iax; jj(2) = iay; jj(3) = iaz
                jjp = jj
-               jjp(1) = jjp(1)+1
+               jjp(1) = jjp(1) + 1
                iap = coset(jjp(1), jjp(2), jjp(3))
                iiap(ia, 1) = iap
                jjp = jj
-               jjp(2) = jjp(2)+1
+               jjp(2) = jjp(2) + 1
                iap = coset(jjp(1), jjp(2), jjp(3))
                iiap(ia, 2) = iap
                jjp = jj
-               jjp(3) = jjp(3)+1
+               jjp(3) = jjp(3) + 1
                iap = coset(jjp(1), jjp(2), jjp(3))
                iiap(ia, 3) = iap
             END DO
@@ -187,8 +187,8 @@ CONTAINS
       DO ipgf = 1, npgfa
 
 !     *** Screening ***
-         IF (rpgfa(ipgf)+rpgfc < dac) THEN
-            na = na+ncoset(la_max_set)
+         IF (rpgfa(ipgf) + rpgfc < dac) THEN
+            na = na + ncoset(la_max_set)
             CYCLE
          END IF
 
@@ -197,21 +197,21 @@ CONTAINS
          DO jpgf = 1, npgfb
 
 !       *** Screening ***
-            IF ((rpgfb(jpgf)+rpgfc < dbc) .OR. &
-                (rpgfa(ipgf)+rpgfb(jpgf) < dab)) THEN
-               nb = nb+ncoset(lb_max_set)
+            IF ((rpgfb(jpgf) + rpgfc < dbc) .OR. &
+                (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
+               nb = nb + ncoset(lb_max_set)
                CYCLE
             END IF
 
 !       *** Calculate some prefactors ***
-            rho = zeta(ipgf)+zetb(jpgf)
+            rho = zeta(ipgf) + zetb(jpgf)
             pai(:) = zetb(jpgf)/rho*rab(:)
             pbi(:) = -zeta(ipgf)/rho*rab(:)
-            pci(:) = -(zeta(ipgf)*rac(:)+zetb(jpgf)*rbc(:))/rho
+            pci(:) = -(zeta(ipgf)*rac(:) + zetb(jpgf)*rbc(:))/rho
             orho = 0.5_dp/rho
 
-            ij = (ipgf-1)*npgfb+jpgf
-            s(1, 1, 1:mmax+1) = auxint(0:mmax, ij)
+            ij = (ipgf - 1)*npgfb + jpgf
+            s(1, 1, 1:mmax + 1) = auxint(0:mmax, ij)
 
             IF (la_max > 0) THEN
 !         *** Recurrence steps: [s|c|s] -> [a|c|s]               ***
@@ -221,90 +221,90 @@ CONTAINS
 !         ***              Ni(a-1i)/2(a+b)*[a-2i|c|s](m+1)       ***
                DO llr = 1, mmax
                   IF (llr == 1) THEN
-                     DO m = 0, mmax-llr
-                        s1 = s(1, 1, m+1)
-                        s2 = s(1, 1, m+2)
-                        s(2, 1, m+1) = pai(1)*s1-pci(1)*s2 ! [px|o|s]
-                        s(3, 1, m+1) = pai(2)*s1-pci(2)*s2 ! [py|o|s]
-                        s(4, 1, m+1) = pai(3)*s1-pci(3)*s2 ! [pz|o|s]
+                     DO m = 0, mmax - llr
+                        s1 = s(1, 1, m + 1)
+                        s2 = s(1, 1, m + 2)
+                        s(2, 1, m + 1) = pai(1)*s1 - pci(1)*s2 ! [px|o|s]
+                        s(3, 1, m + 1) = pai(2)*s1 - pci(2)*s2 ! [py|o|s]
+                        s(4, 1, m + 1) = pai(3)*s1 - pci(3)*s2 ! [pz|o|s]
                      END DO
                   ELSE IF (llr == 2) THEN
-                     DO m = 0, mmax-llr
-                        s1 = s(1, 1, m+1)-s(1, 1, m+2)
-                        s(5, 1, m+1) = pai(1)*s(2, 1, m+1)-pci(1)*s(2, 1, m+2)+orho*s1 ! [dx2|o|s]
-                        s(6, 1, m+1) = pai(1)*s(3, 1, m+1)-pci(1)*s(3, 1, m+2) ! [dxy|o|s]
-                        s(7, 1, m+1) = pai(1)*s(4, 1, m+1)-pci(1)*s(4, 1, m+2) ! [dxz|o|s]
-                        s(8, 1, m+1) = pai(2)*s(3, 1, m+1)-pci(2)*s(3, 1, m+2)+orho*s1 ! [dy2|o|s]
-                        s(9, 1, m+1) = pai(2)*s(4, 1, m+1)-pci(2)*s(4, 1, m+2) ! [dyz|o|s]
-                        s(10, 1, m+1) = pai(3)*s(4, 1, m+1)-pci(3)*s(4, 1, m+2)+orho*s1 ! [dz2|o|s]
+                     DO m = 0, mmax - llr
+                        s1 = s(1, 1, m + 1) - s(1, 1, m + 2)
+                        s(5, 1, m + 1) = pai(1)*s(2, 1, m + 1) - pci(1)*s(2, 1, m + 2) + orho*s1 ! [dx2|o|s]
+                        s(6, 1, m + 1) = pai(1)*s(3, 1, m + 1) - pci(1)*s(3, 1, m + 2) ! [dxy|o|s]
+                        s(7, 1, m + 1) = pai(1)*s(4, 1, m + 1) - pci(1)*s(4, 1, m + 2) ! [dxz|o|s]
+                        s(8, 1, m + 1) = pai(2)*s(3, 1, m + 1) - pci(2)*s(3, 1, m + 2) + orho*s1 ! [dy2|o|s]
+                        s(9, 1, m + 1) = pai(2)*s(4, 1, m + 1) - pci(2)*s(4, 1, m + 2) ! [dyz|o|s]
+                        s(10, 1, m + 1) = pai(3)*s(4, 1, m + 1) - pci(3)*s(4, 1, m + 2) + orho*s1 ! [dz2|o|s]
                      END DO
                   ELSE IF (llr == 3) THEN
-                     DO m = 0, mmax-llr
-                        s(11, 1, m+1) = pai(1)*s(5, 1, m+1)-pci(1)*s(5, 1, m+2) & ! [fx3 |o|s]
-                                        +2._dp*orho*(s(2, 1, m+1)-s(2, 1, m+2))
-                        s(12, 1, m+1) = pai(1)*s(6, 1, m+1)-pci(1)*s(6, 1, m+2) & ! [fx2y|o|s]
-                                        +orho*(s(3, 1, m+1)-s(3, 1, m+2))
-                        s(13, 1, m+1) = pai(1)*s(7, 1, m+1)-pci(1)*s(7, 1, m+2) & ! [fx2z|o|s]
-                                        +orho*(s(4, 1, m+1)-s(4, 1, m+2))
-                        s(14, 1, m+1) = pai(2)*s(6, 1, m+1)-pci(2)*s(6, 1, m+2) & ! [fxy2|o|s]
-                                        +orho*(s(2, 1, m+1)-s(2, 1, m+2))
-                        s(15, 1, m+1) = pai(1)*s(9, 1, m+1)-pci(1)*s(9, 1, m+2) ! [fxyz|o|s]
-                        s(16, 1, m+1) = pai(3)*s(7, 1, m+1)-pci(3)*s(7, 1, m+2) & ! [fxz2|o|s]
-                                        +orho*(s(2, 1, m+1)-s(2, 1, m+2))
-                        s(17, 1, m+1) = pai(2)*s(8, 1, m+1)-pci(2)*s(8, 1, m+2) & ! [fy3 |o|s]
-                                        +2._dp*orho*(s(3, 1, m+1)-s(3, 1, m+2))
-                        s(18, 1, m+1) = pai(2)*s(9, 1, m+1)-pci(2)*s(9, 1, m+2) & ! [fy2z|o|s]
-                                        +orho*(s(4, 1, m+1)-s(4, 1, m+2))
-                        s(19, 1, m+1) = pai(3)*s(9, 1, m+1)-pci(3)*s(9, 1, m+2) & ! [fyz2|o|s]
-                                        +orho*(s(3, 1, m+1)-s(3, 1, m+2))
-                        s(20, 1, m+1) = pai(3)*s(10, 1, m+1)-pci(3)*s(10, 1, m+2) & ! [fz3 |o|s]
-                                        +2._dp*orho*(s(4, 1, m+1)-s(4, 1, m+2))
+                     DO m = 0, mmax - llr
+                        s(11, 1, m + 1) = pai(1)*s(5, 1, m + 1) - pci(1)*s(5, 1, m + 2) & ! [fx3 |o|s]
+                                          + 2._dp*orho*(s(2, 1, m + 1) - s(2, 1, m + 2))
+                        s(12, 1, m + 1) = pai(1)*s(6, 1, m + 1) - pci(1)*s(6, 1, m + 2) & ! [fx2y|o|s]
+                                          + orho*(s(3, 1, m + 1) - s(3, 1, m + 2))
+                        s(13, 1, m + 1) = pai(1)*s(7, 1, m + 1) - pci(1)*s(7, 1, m + 2) & ! [fx2z|o|s]
+                                          + orho*(s(4, 1, m + 1) - s(4, 1, m + 2))
+                        s(14, 1, m + 1) = pai(2)*s(6, 1, m + 1) - pci(2)*s(6, 1, m + 2) & ! [fxy2|o|s]
+                                          + orho*(s(2, 1, m + 1) - s(2, 1, m + 2))
+                        s(15, 1, m + 1) = pai(1)*s(9, 1, m + 1) - pci(1)*s(9, 1, m + 2) ! [fxyz|o|s]
+                        s(16, 1, m + 1) = pai(3)*s(7, 1, m + 1) - pci(3)*s(7, 1, m + 2) & ! [fxz2|o|s]
+                                          + orho*(s(2, 1, m + 1) - s(2, 1, m + 2))
+                        s(17, 1, m + 1) = pai(2)*s(8, 1, m + 1) - pci(2)*s(8, 1, m + 2) & ! [fy3 |o|s]
+                                          + 2._dp*orho*(s(3, 1, m + 1) - s(3, 1, m + 2))
+                        s(18, 1, m + 1) = pai(2)*s(9, 1, m + 1) - pci(2)*s(9, 1, m + 2) & ! [fy2z|o|s]
+                                          + orho*(s(4, 1, m + 1) - s(4, 1, m + 2))
+                        s(19, 1, m + 1) = pai(3)*s(9, 1, m + 1) - pci(3)*s(9, 1, m + 2) & ! [fyz2|o|s]
+                                          + orho*(s(3, 1, m + 1) - s(3, 1, m + 2))
+                        s(20, 1, m + 1) = pai(3)*s(10, 1, m + 1) - pci(3)*s(10, 1, m + 2) & ! [fz3 |o|s]
+                                          + 2._dp*orho*(s(4, 1, m + 1) - s(4, 1, m + 2))
                      END DO
                   ELSE IF (llr == 4) THEN
-                     DO m = 0, mmax-llr
-                        s(21, 1, m+1) = pai(1)*s(11, 1, m+1)-pci(1)*s(11, 1, m+2) & ! [gx4  |s|s]
-                                        +3._dp*orho*(s(5, 1, m+1)-s(5, 1, m+2))
-                        s(22, 1, m+1) = pai(1)*s(12, 1, m+1)-pci(1)*s(12, 1, m+2) & ! [gx3y |s|s]
-                                        +2._dp*orho*(s(6, 1, m+1)-s(6, 1, m+2))
-                        s(23, 1, m+1) = pai(1)*s(13, 1, m+1)-pci(1)*s(13, 1, m+2) & ! [gx3z |s|s]
-                                        +2._dp*orho*(s(7, 1, m+1)-s(7, 1, m+2))
-                        s(24, 1, m+1) = pai(1)*s(14, 1, m+1)-pci(1)*s(14, 1, m+2) & ! [gx2y2|s|s]
-                                        +orho*(s(8, 1, m+1)-s(8, 1, m+2))
-                        s(25, 1, m+1) = pai(1)*s(15, 1, m+1)-pci(1)*s(15, 1, m+2) & ! [gx2yz|s|s]
-                                        +orho*(s(9, 1, m+1)-s(9, 1, m+2))
-                        s(26, 1, m+1) = pai(1)*s(16, 1, m+1)-pci(1)*s(16, 1, m+2) & ! [gx2z2|s|s]
-                                        +orho*(s(10, 1, m+1)-s(10, 1, m+2))
-                        s(27, 1, m+1) = pai(1)*s(17, 1, m+1)-pci(1)*s(17, 1, m+2) ! [gxy3 |s|s]
-                        s(28, 1, m+1) = pai(1)*s(18, 1, m+1)-pci(1)*s(18, 1, m+2) ! [gxy2z|s|s]
-                        s(29, 1, m+1) = pai(1)*s(19, 1, m+1)-pci(1)*s(19, 1, m+2) ! [gxyz2|s|s]
-                        s(30, 1, m+1) = pai(1)*s(20, 1, m+1)-pci(1)*s(20, 1, m+2) ! [gxz3 |s|s]
-                        s(31, 1, m+1) = pai(2)*s(17, 1, m+1)-pci(2)*s(17, 1, m+2) & ! [gy4  |s|s]
-                                        +3._dp*orho*(s(8, 1, m+1)-s(8, 1, m+2))
-                        s(32, 1, m+1) = pai(2)*s(18, 1, m+1)-pci(2)*s(18, 1, m+2) & ! [gy3z |s|s]
-                                        +2._dp*orho*(s(9, 1, m+1)-s(9, 1, m+2))
-                        s(33, 1, m+1) = pai(2)*s(19, 1, m+1)-pci(2)*s(19, 1, m+2) & ! [gy2z2|s|s]
-                                        +orho*(s(10, 1, m+1)-s(10, 1, m+2))
-                        s(34, 1, m+1) = pai(2)*s(20, 1, m+1)-pci(2)*s(20, 1, m+2) ! [gyz3 |s|s]
-                        s(35, 1, m+1) = pai(3)*s(20, 1, m+1)-pci(3)*s(20, 1, m+2) & ! [gz4  |s|s]
-                                        +3._dp*orho*(s(10, 1, m+1)-s(10, 1, m+2))
+                     DO m = 0, mmax - llr
+                        s(21, 1, m + 1) = pai(1)*s(11, 1, m + 1) - pci(1)*s(11, 1, m + 2) & ! [gx4  |s|s]
+                                          + 3._dp*orho*(s(5, 1, m + 1) - s(5, 1, m + 2))
+                        s(22, 1, m + 1) = pai(1)*s(12, 1, m + 1) - pci(1)*s(12, 1, m + 2) & ! [gx3y |s|s]
+                                          + 2._dp*orho*(s(6, 1, m + 1) - s(6, 1, m + 2))
+                        s(23, 1, m + 1) = pai(1)*s(13, 1, m + 1) - pci(1)*s(13, 1, m + 2) & ! [gx3z |s|s]
+                                          + 2._dp*orho*(s(7, 1, m + 1) - s(7, 1, m + 2))
+                        s(24, 1, m + 1) = pai(1)*s(14, 1, m + 1) - pci(1)*s(14, 1, m + 2) & ! [gx2y2|s|s]
+                                          + orho*(s(8, 1, m + 1) - s(8, 1, m + 2))
+                        s(25, 1, m + 1) = pai(1)*s(15, 1, m + 1) - pci(1)*s(15, 1, m + 2) & ! [gx2yz|s|s]
+                                          + orho*(s(9, 1, m + 1) - s(9, 1, m + 2))
+                        s(26, 1, m + 1) = pai(1)*s(16, 1, m + 1) - pci(1)*s(16, 1, m + 2) & ! [gx2z2|s|s]
+                                          + orho*(s(10, 1, m + 1) - s(10, 1, m + 2))
+                        s(27, 1, m + 1) = pai(1)*s(17, 1, m + 1) - pci(1)*s(17, 1, m + 2) ! [gxy3 |s|s]
+                        s(28, 1, m + 1) = pai(1)*s(18, 1, m + 1) - pci(1)*s(18, 1, m + 2) ! [gxy2z|s|s]
+                        s(29, 1, m + 1) = pai(1)*s(19, 1, m + 1) - pci(1)*s(19, 1, m + 2) ! [gxyz2|s|s]
+                        s(30, 1, m + 1) = pai(1)*s(20, 1, m + 1) - pci(1)*s(20, 1, m + 2) ! [gxz3 |s|s]
+                        s(31, 1, m + 1) = pai(2)*s(17, 1, m + 1) - pci(2)*s(17, 1, m + 2) & ! [gy4  |s|s]
+                                          + 3._dp*orho*(s(8, 1, m + 1) - s(8, 1, m + 2))
+                        s(32, 1, m + 1) = pai(2)*s(18, 1, m + 1) - pci(2)*s(18, 1, m + 2) & ! [gy3z |s|s]
+                                          + 2._dp*orho*(s(9, 1, m + 1) - s(9, 1, m + 2))
+                        s(33, 1, m + 1) = pai(2)*s(19, 1, m + 1) - pci(2)*s(19, 1, m + 2) & ! [gy2z2|s|s]
+                                          + orho*(s(10, 1, m + 1) - s(10, 1, m + 2))
+                        s(34, 1, m + 1) = pai(2)*s(20, 1, m + 1) - pci(2)*s(20, 1, m + 2) ! [gyz3 |s|s]
+                        s(35, 1, m + 1) = pai(3)*s(20, 1, m + 1) - pci(3)*s(20, 1, m + 2) & ! [gz4  |s|s]
+                                          + 3._dp*orho*(s(10, 1, m + 1) - s(10, 1, m + 2))
                      END DO
                   ELSE
                      DO irx = 0, llr
-                        DO iry = 0, llr-irx
-                           irz = llr-irx-iry
+                        DO iry = 0, llr - irx
+                           irz = llr - irx - iry
                            irr(1) = irx; irr(2) = iry; irr(3) = irz
                            ixx = MAXLOC(irr)
                            ix = ixx(1)
                            ir = coset(irx, iry, irz)
                            irm = irr
-                           irm(ix) = irm(ix)-1
+                           irm(ix) = irm(ix) - 1
                            aai = REAL(MAX(irm(ix), 0), dp)*orho
                            ir1 = coset(irm(1), irm(2), irm(3))
-                           irm(ix) = irm(ix)-1
+                           irm(ix) = irm(ix) - 1
                            ir2 = coset(irm(1), irm(2), irm(3))
-                           DO m = 0, mmax-llr
-                              s(ir, 1, m+1) = pai(ix)*s(ir1, 1, m+1)-pci(ix)*s(ir1, 1, m+2) &
-                                              +aai*(s(ir2, 1, m+1)-s(ir2, 1, m+2))
+                           DO m = 0, mmax - llr
+                              s(ir, 1, m + 1) = pai(ix)*s(ir1, 1, m + 1) - pci(ix)*s(ir1, 1, m + 2) &
+                                                + aai*(s(ir2, 1, m + 1) - s(ir2, 1, m + 2))
                            END DO
                         END DO
                      END DO
@@ -316,19 +316,19 @@ CONTAINS
 
                DO mb = 1, lb_max
                   DO ibx = 0, mb
-                     DO iby = 0, mb-ibx
-                        ibz = mb-ibx-iby
+                     DO iby = 0, mb - ibx
+                        ibz = mb - ibx - iby
                         ib = coset(ibx, iby, ibz)
                         ii(1) = ibx; ii(2) = iby; ii(3) = ibz
                         ixx = MAXLOC(ii)
                         ix = ixx(1)
                         abx = -rab(ix)
                         iim = ii
-                        iim(ix) = iim(ix)-1
+                        iim(ix) = iim(ix) - 1
                         ibm = coset(iim(1), iim(2), iim(3))
-                        DO ia = 1, ncoset(mmax-mb)
+                        DO ia = 1, ncoset(mmax - mb)
                            iap = iiap(ia, ix)
-                           s(ia, ib, 1) = s(iap, ibm, 1)+abx*s(ia, ibm, 1)
+                           s(ia, ib, 1) = s(iap, ibm, 1) + abx*s(ia, ibm, 1)
                         END DO
                      END DO
                   END DO
@@ -343,62 +343,62 @@ CONTAINS
 !         ***              Ni(b-1i)/2(a+b)*[s|c|b-2i](m+1)       ***
                DO llr = 1, lb_max
                   IF (llr == 1) THEN
-                     DO m = 0, lb_max-llr
-                        s1 = s(1, 1, m+1)
-                        s2 = s(1, 1, m+2)
-                        s(1, 2, m+1) = pbi(1)*s1-pci(1)*s2 ! [px|o|s]
-                        s(1, 3, m+1) = pbi(2)*s1-pci(2)*s2 ! [py|o|s]
-                        s(1, 4, m+1) = pbi(3)*s1-pci(3)*s2 ! [pz|o|s]
+                     DO m = 0, lb_max - llr
+                        s1 = s(1, 1, m + 1)
+                        s2 = s(1, 1, m + 2)
+                        s(1, 2, m + 1) = pbi(1)*s1 - pci(1)*s2 ! [px|o|s]
+                        s(1, 3, m + 1) = pbi(2)*s1 - pci(2)*s2 ! [py|o|s]
+                        s(1, 4, m + 1) = pbi(3)*s1 - pci(3)*s2 ! [pz|o|s]
                      END DO
                   ELSE IF (llr == 2) THEN
-                     DO m = 0, lb_max-llr
-                        s1 = s(1, 1, m+1)-s(1, 1, m+2)
-                        s(1, 5, m+1) = pbi(1)*s(1, 2, m+1)-pci(1)*s(1, 2, m+2)+orho*s1 ! [dx2|o|s]
-                        s(1, 6, m+1) = pbi(1)*s(1, 3, m+1)-pci(1)*s(1, 3, m+2) ! [dxy|o|s]
-                        s(1, 7, m+1) = pbi(1)*s(1, 4, m+1)-pci(1)*s(1, 4, m+2) ! [dxz|o|s]
-                        s(1, 8, m+1) = pbi(2)*s(1, 3, m+1)-pci(2)*s(1, 3, m+2)+orho*s1 ! [dy2|o|s]
-                        s(1, 9, m+1) = pbi(2)*s(1, 4, m+1)-pci(2)*s(1, 4, m+2) ! [dyz|o|s]
-                        s(1, 10, m+1) = pbi(3)*s(1, 4, m+1)-pci(3)*s(1, 4, m+2)+orho*s1 ! [dz2|o|s]
+                     DO m = 0, lb_max - llr
+                        s1 = s(1, 1, m + 1) - s(1, 1, m + 2)
+                        s(1, 5, m + 1) = pbi(1)*s(1, 2, m + 1) - pci(1)*s(1, 2, m + 2) + orho*s1 ! [dx2|o|s]
+                        s(1, 6, m + 1) = pbi(1)*s(1, 3, m + 1) - pci(1)*s(1, 3, m + 2) ! [dxy|o|s]
+                        s(1, 7, m + 1) = pbi(1)*s(1, 4, m + 1) - pci(1)*s(1, 4, m + 2) ! [dxz|o|s]
+                        s(1, 8, m + 1) = pbi(2)*s(1, 3, m + 1) - pci(2)*s(1, 3, m + 2) + orho*s1 ! [dy2|o|s]
+                        s(1, 9, m + 1) = pbi(2)*s(1, 4, m + 1) - pci(2)*s(1, 4, m + 2) ! [dyz|o|s]
+                        s(1, 10, m + 1) = pbi(3)*s(1, 4, m + 1) - pci(3)*s(1, 4, m + 2) + orho*s1 ! [dz2|o|s]
                      END DO
                   ELSE IF (llr == 3) THEN
-                     DO m = 0, lb_max-llr
-                        s(1, 11, m+1) = pbi(1)*s(1, 5, m+1)-pci(1)*s(1, 5, m+2) & ! [fx3 |o|s]
-                                        +2._dp*orho*(s(1, 2, m+1)-s(1, 2, m+2))
-                        s(1, 12, m+1) = pbi(1)*s(1, 6, m+1)-pci(1)*s(1, 6, m+2) & ! [fx2y|o|s]
-                                        +orho*(s(1, 3, m+1)-s(1, 3, m+2))
-                        s(1, 13, m+1) = pbi(1)*s(1, 7, m+1)-pci(1)*s(1, 7, m+2) & ! [fx2z|o|s]
-                                        +orho*(s(1, 4, m+1)-s(1, 4, m+2))
-                        s(1, 14, m+1) = pbi(2)*s(1, 6, m+1)-pci(2)*s(1, 6, m+2) & ! [fxy2|o|s]
-                                        +orho*(s(1, 2, m+1)-s(1, 2, m+2))
-                        s(1, 15, m+1) = pbi(1)*s(1, 9, m+1)-pci(1)*s(1, 9, m+2) ! [fxyz|o|s]
-                        s(1, 16, m+1) = pbi(3)*s(1, 7, m+1)-pci(3)*s(1, 7, m+2) & ! [fxz2|o|s]
-                                        +orho*(s(1, 2, m+1)-s(1, 2, m+2))
-                        s(1, 17, m+1) = pbi(2)*s(1, 8, m+1)-pci(2)*s(1, 8, m+2) & ! [fy3 |o|s]
-                                        +2._dp*orho*(s(1, 3, m+1)-s(1, 3, m+2))
-                        s(1, 18, m+1) = pbi(2)*s(1, 9, m+1)-pci(2)*s(1, 9, m+2) & ! [fy2z|o|s]
-                                        +orho*(s(1, 4, m+1)-s(1, 4, m+2))
-                        s(1, 19, m+1) = pbi(3)*s(1, 9, m+1)-pci(3)*s(1, 9, m+2) & ! [fyz2|o|s]
-                                        +orho*(s(1, 3, m+1)-s(1, 3, m+2))
-                        s(1, 20, m+1) = pbi(3)*s(1, 10, m+1)-pci(3)*s(1, 10, m+2) & ! [fz3 |o|s]
-                                        +2._dp*orho*(s(1, 4, m+1)-s(1, 4, m+2))
+                     DO m = 0, lb_max - llr
+                        s(1, 11, m + 1) = pbi(1)*s(1, 5, m + 1) - pci(1)*s(1, 5, m + 2) & ! [fx3 |o|s]
+                                          + 2._dp*orho*(s(1, 2, m + 1) - s(1, 2, m + 2))
+                        s(1, 12, m + 1) = pbi(1)*s(1, 6, m + 1) - pci(1)*s(1, 6, m + 2) & ! [fx2y|o|s]
+                                          + orho*(s(1, 3, m + 1) - s(1, 3, m + 2))
+                        s(1, 13, m + 1) = pbi(1)*s(1, 7, m + 1) - pci(1)*s(1, 7, m + 2) & ! [fx2z|o|s]
+                                          + orho*(s(1, 4, m + 1) - s(1, 4, m + 2))
+                        s(1, 14, m + 1) = pbi(2)*s(1, 6, m + 1) - pci(2)*s(1, 6, m + 2) & ! [fxy2|o|s]
+                                          + orho*(s(1, 2, m + 1) - s(1, 2, m + 2))
+                        s(1, 15, m + 1) = pbi(1)*s(1, 9, m + 1) - pci(1)*s(1, 9, m + 2) ! [fxyz|o|s]
+                        s(1, 16, m + 1) = pbi(3)*s(1, 7, m + 1) - pci(3)*s(1, 7, m + 2) & ! [fxz2|o|s]
+                                          + orho*(s(1, 2, m + 1) - s(1, 2, m + 2))
+                        s(1, 17, m + 1) = pbi(2)*s(1, 8, m + 1) - pci(2)*s(1, 8, m + 2) & ! [fy3 |o|s]
+                                          + 2._dp*orho*(s(1, 3, m + 1) - s(1, 3, m + 2))
+                        s(1, 18, m + 1) = pbi(2)*s(1, 9, m + 1) - pci(2)*s(1, 9, m + 2) & ! [fy2z|o|s]
+                                          + orho*(s(1, 4, m + 1) - s(1, 4, m + 2))
+                        s(1, 19, m + 1) = pbi(3)*s(1, 9, m + 1) - pci(3)*s(1, 9, m + 2) & ! [fyz2|o|s]
+                                          + orho*(s(1, 3, m + 1) - s(1, 3, m + 2))
+                        s(1, 20, m + 1) = pbi(3)*s(1, 10, m + 1) - pci(3)*s(1, 10, m + 2) & ! [fz3 |o|s]
+                                          + 2._dp*orho*(s(1, 4, m + 1) - s(1, 4, m + 2))
                      END DO
                   ELSE
                      DO irx = 0, llr
-                        DO iry = 0, llr-irx
-                           irz = llr-irx-iry
+                        DO iry = 0, llr - irx
+                           irz = llr - irx - iry
                            irr(1) = irx; irr(2) = iry; irr(3) = irz
                            ixx = MAXLOC(irr)
                            ix = ixx(1)
                            ir = coset(irx, iry, irz)
                            irm = irr
-                           irm(ix) = irm(ix)-1
+                           irm(ix) = irm(ix) - 1
                            aai = REAL(MAX(irm(ix), 0), dp)
                            ir1 = coset(irm(1), irm(2), irm(3))
-                           irm(ix) = irm(ix)-1
+                           irm(ix) = irm(ix) - 1
                            ir2 = coset(irm(1), irm(2), irm(3))
-                           DO m = 0, lb_max-llr
-                              s(1, ir, m+1) = pbi(ix)*s(1, ir1, m+1)-pci(ix)*s(1, ir1, m+2) &
-                                              +aai*orho*(s(1, ir2, m+1)-s(1, ir2, m+2))
+                           DO m = 0, lb_max - llr
+                              s(1, ir, m + 1) = pbi(ix)*s(1, ir1, m + 1) - pci(ix)*s(1, ir1, m + 2) &
+                                                + aai*orho*(s(1, ir2, m + 1) - s(1, ir2, m + 2))
                            END DO
                         END DO
                      END DO
@@ -408,45 +408,45 @@ CONTAINS
             END IF
 
 !       *** Store the primitive three-center overlap integrals ***
-            DO j = ncoset(lb_min_set-1)+1, ncoset(lb_max_set)
-               DO i = ncoset(la_min_set-1)+1, ncoset(la_max_set)
-                  vab(na+i, nb+j) = vab(na+i, nb+j)+s(i, j, 1)
+            DO j = ncoset(lb_min_set - 1) + 1, ncoset(lb_max_set)
+               DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+                  vab(na + i, nb + j) = vab(na + i, nb + j) + s(i, j, 1)
                END DO
             END DO
 
 !       *** Calculate the requested derivatives with respect  ***
 !       *** to the nuclear coordinates of the atomic center a ***
 
-            DO da = 0, da_max-1
+            DO da = 0, da_max - 1
                ftz = 2.0_dp*zeta(ipgf)
                DO dax = 0, da
-                  DO day = 0, da-dax
-                     daz = da-dax-day
+                  DO day = 0, da - dax
+                     daz = da - dax - day
                      cda = coset(dax, day, daz)
-                     cdax = coset(dax+1, day, daz)
-                     cday = coset(dax, day+1, daz)
-                     cdaz = coset(dax, day, daz+1)
+                     cdax = coset(dax + 1, day, daz)
+                     cday = coset(dax, day + 1, daz)
+                     cdaz = coset(dax, day, daz + 1)
 
 !             *** [da/dAi|c|b] = 2*zeta*[a+1i|c|b] - Ni(a)[a-1i|c|b] ***
 
-                     DO la = la_min_set, la_max-da-1
+                     DO la = la_min_set, la_max - da - 1
                         DO ax = 0, la
                            fax = REAL(ax, dp)
-                           DO ay = 0, la-ax
+                           DO ay = 0, la - ax
                               fay = REAL(ay, dp)
-                              az = la-ax-ay
+                              az = la - ax - ay
                               faz = REAL(az, dp)
                               coa = coset(ax, ay, az)
-                              coamx = coset(ax-1, ay, az)
-                              coamy = coset(ax, ay-1, az)
-                              coamz = coset(ax, ay, az-1)
-                              coapx = coset(ax+1, ay, az)
-                              coapy = coset(ax, ay+1, az)
-                              coapz = coset(ax, ay, az+1)
-                              DO cob = ncoset(lb_min_set-1)+1, ncoset(lb_max_set)
-                                 fs(coa, cob, cdax) = ftz*s(coapx, cob, cda)-fax*s(coamx, cob, cda)
-                                 fs(coa, cob, cday) = ftz*s(coapy, cob, cda)-fay*s(coamy, cob, cda)
-                                 fs(coa, cob, cdaz) = ftz*s(coapz, cob, cda)-faz*s(coamz, cob, cda)
+                              coamx = coset(ax - 1, ay, az)
+                              coamy = coset(ax, ay - 1, az)
+                              coamz = coset(ax, ay, az - 1)
+                              coapx = coset(ax + 1, ay, az)
+                              coapy = coset(ax, ay + 1, az)
+                              coapz = coset(ax, ay, az + 1)
+                              DO cob = ncoset(lb_min_set - 1) + 1, ncoset(lb_max_set)
+                                 fs(coa, cob, cdax) = ftz*s(coapx, cob, cda) - fax*s(coamx, cob, cda)
+                                 fs(coa, cob, cday) = ftz*s(coapy, cob, cda) - fay*s(coamy, cob, cda)
+                                 fs(coa, cob, cdaz) = ftz*s(coapz, cob, cda) - faz*s(coamz, cob, cda)
                               END DO
                            END DO
                         END DO
@@ -459,11 +459,11 @@ CONTAINS
 !       *** Calculate the force contribution for the atomic center a ***
 
             IF (calculate_force_a) THEN
-               DO j = ncoset(lb_min_set-1)+1, ncoset(lb_max_set)
-                  DO i = ncoset(la_min_set-1)+1, ncoset(la_max_set)
-                     force_a(1) = force_a(1)+pab(na+i, nb+j)*fs(i, j, 2)
-                     force_a(2) = force_a(2)+pab(na+i, nb+j)*fs(i, j, 3)
-                     force_a(3) = force_a(3)+pab(na+i, nb+j)*fs(i, j, 4)
+               DO j = ncoset(lb_min_set - 1) + 1, ncoset(lb_max_set)
+                  DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+                     force_a(1) = force_a(1) + pab(na + i, nb + j)*fs(i, j, 2)
+                     force_a(2) = force_a(2) + pab(na + i, nb + j)*fs(i, j, 3)
+                     force_a(3) = force_a(3) + pab(na + i, nb + j)*fs(i, j, 4)
                   END DO
                END DO
             END IF
@@ -471,36 +471,36 @@ CONTAINS
 !       *** Calculate the requested derivatives with respect  ***
 !       *** to the nuclear coordinates of the atomic center b ***
 
-            DO db = 0, db_max-1
+            DO db = 0, db_max - 1
                ftz = 2.0_dp*zetb(jpgf)
                DO dbx = 0, db
-                  DO dby = 0, db-dbx
-                     dbz = db-dbx-dby
+                  DO dby = 0, db - dbx
+                     dbz = db - dbx - dby
                      cdb = coset(dbx, dby, dbz)
-                     cdbx = coset(dbx+1, dby, dbz)
-                     cdby = coset(dbx, dby+1, dbz)
-                     cdbz = coset(dbx, dby, dbz+1)
+                     cdbx = coset(dbx + 1, dby, dbz)
+                     cdby = coset(dbx, dby + 1, dbz)
+                     cdbz = coset(dbx, dby, dbz + 1)
 
 !             *** [a|c|db/dBi] = 2*zetb*[a|c|b+1i] - Ni(b)[a|c|b-1i] ***
 
-                     DO lb = lb_min_set, lb_max-db-1
+                     DO lb = lb_min_set, lb_max - db - 1
                         DO bx = 0, lb
                            fbx = REAL(bx, dp)
-                           DO by = 0, lb-bx
+                           DO by = 0, lb - bx
                               fby = REAL(by, dp)
-                              bz = lb-bx-by
+                              bz = lb - bx - by
                               fbz = REAL(bz, dp)
                               cob = coset(bx, by, bz)
-                              cobmx = coset(bx-1, by, bz)
-                              cobmy = coset(bx, by-1, bz)
-                              cobmz = coset(bx, by, bz-1)
-                              cobpx = coset(bx+1, by, bz)
-                              cobpy = coset(bx, by+1, bz)
-                              cobpz = coset(bx, by, bz+1)
-                              DO coa = ncoset(la_min_set-1)+1, ncoset(la_max_set)
-                                 fs(coa, cob, cdbx) = ftz*s(coa, cobpx, cdb)-fbx*s(coa, cobmx, cdb)
-                                 fs(coa, cob, cdby) = ftz*s(coa, cobpy, cdb)-fby*s(coa, cobmy, cdb)
-                                 fs(coa, cob, cdbz) = ftz*s(coa, cobpz, cdb)-fbz*s(coa, cobmz, cdb)
+                              cobmx = coset(bx - 1, by, bz)
+                              cobmy = coset(bx, by - 1, bz)
+                              cobmz = coset(bx, by, bz - 1)
+                              cobpx = coset(bx + 1, by, bz)
+                              cobpy = coset(bx, by + 1, bz)
+                              cobpz = coset(bx, by, bz + 1)
+                              DO coa = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+                                 fs(coa, cob, cdbx) = ftz*s(coa, cobpx, cdb) - fbx*s(coa, cobmx, cdb)
+                                 fs(coa, cob, cdby) = ftz*s(coa, cobpy, cdb) - fby*s(coa, cobmy, cdb)
+                                 fs(coa, cob, cdbz) = ftz*s(coa, cobpz, cdb) - fbz*s(coa, cobmz, cdb)
                               END DO
                            END DO
                         END DO
@@ -513,20 +513,20 @@ CONTAINS
 !       *** Calculate the force contribution for the atomic center b ***
 
             IF (calculate_force_b) THEN
-               DO j = ncoset(lb_min_set-1)+1, ncoset(lb_max_set)
-                  DO i = ncoset(la_min_set-1)+1, ncoset(la_max_set)
-                     force_b(1) = force_b(1)+pab(na+i, nb+j)*fs(i, j, 2)
-                     force_b(2) = force_b(2)+pab(na+i, nb+j)*fs(i, j, 3)
-                     force_b(3) = force_b(3)+pab(na+i, nb+j)*fs(i, j, 4)
+               DO j = ncoset(lb_min_set - 1) + 1, ncoset(lb_max_set)
+                  DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+                     force_b(1) = force_b(1) + pab(na + i, nb + j)*fs(i, j, 2)
+                     force_b(2) = force_b(2) + pab(na + i, nb + j)*fs(i, j, 3)
+                     force_b(3) = force_b(3) + pab(na + i, nb + j)*fs(i, j, 4)
                   END DO
                END DO
             END IF
 
-            nb = nb+ncoset(lb_max_set)
+            nb = nb + ncoset(lb_max_set)
 
          END DO
 
-         na = na+ncoset(la_max_set)
+         na = na + ncoset(la_max_set)
 
       END DO
 
@@ -577,19 +577,19 @@ CONTAINS
          da_max = 0
       END IF
 
-      la_max = la_max_set+da_max
-      la_min = MAX(0, la_min_set-da_max)
+      la_max = la_max_set + da_max
+      la_min = MAX(0, la_min_set - da_max)
 
       mmax = la_max
 
-      ALLOCATE (s(ncoset(mmax), mmax+1))
+      ALLOCATE (s(ncoset(mmax), mmax + 1))
       na = 0
       DO ipgf = 1, npgfa
-         IF (rpgfa(ipgf)+rpgfc < dac) THEN
-            na = na+ncoset(la_max_set)
+         IF (rpgfa(ipgf) + rpgfc < dac) THEN
+            na = na + ncoset(la_max_set)
             CYCLE
          END IF
-         s(1, 1:mmax+1) = auxint(0:mmax, ipgf)
+         s(1, 1:mmax + 1) = auxint(0:mmax, ipgf)
          IF (la_max > 0) THEN
             ! Recurrence steps: [s|c] -> [a|c]
             ! [a|c](m) = (Ci - Ai)*[a-1i|c](m+1) +
@@ -601,69 +601,69 @@ CONTAINS
 
             DO llr = 1, mmax
                IF (llr == 1) THEN
-                  DO m = 0, mmax-llr
-                     s1 = s(1, m+2)
-                     s(2, m+1) = -rac(1)*s1 ! [px|o]
-                     s(3, m+1) = -rac(2)*s1 ! [py|o]
-                     s(4, m+1) = -rac(3)*s1 ! [pz|o]
+                  DO m = 0, mmax - llr
+                     s1 = s(1, m + 2)
+                     s(2, m + 1) = -rac(1)*s1 ! [px|o]
+                     s(3, m + 1) = -rac(2)*s1 ! [py|o]
+                     s(4, m + 1) = -rac(3)*s1 ! [pz|o]
                   END DO
                ELSE IF (llr == 2) THEN
-                  DO m = 0, mmax-llr
-                     s1 = s(1, m+1)-s(1, m+2)
-                     s(5, m+1) = -rac(1)*s(2, m+2)+orho*s1 ! [dx2|o]
-                     s(6, m+1) = -rac(1)*s(3, m+2) ! [dxy|o]
-                     s(7, m+1) = -rac(1)*s(4, m+2) ! [dxz|o]
-                     s(8, m+1) = -rac(2)*s(3, m+2)+orho*s1 ! [dy2|o]
-                     s(9, m+1) = -rac(2)*s(4, m+2) ! [dyz|o]
-                     s(10, m+1) = -rac(3)*s(4, m+2)+orho*s1 ! [dz2|o]
+                  DO m = 0, mmax - llr
+                     s1 = s(1, m + 1) - s(1, m + 2)
+                     s(5, m + 1) = -rac(1)*s(2, m + 2) + orho*s1 ! [dx2|o]
+                     s(6, m + 1) = -rac(1)*s(3, m + 2) ! [dxy|o]
+                     s(7, m + 1) = -rac(1)*s(4, m + 2) ! [dxz|o]
+                     s(8, m + 1) = -rac(2)*s(3, m + 2) + orho*s1 ! [dy2|o]
+                     s(9, m + 1) = -rac(2)*s(4, m + 2) ! [dyz|o]
+                     s(10, m + 1) = -rac(3)*s(4, m + 2) + orho*s1 ! [dz2|o]
                   END DO
                ELSE IF (llr == 3) THEN
-                  DO m = 0, mmax-llr
-                     s(11, m+1) = -rac(1)*s(5, m+2)+2._dp*orho*(s(2, m+1)-s(2, m+2)) ! [fx3 |o]
-                     s(12, m+1) = -rac(1)*s(6, m+2)+orho*(s(3, m+1)-s(3, m+2)) ! [fx2y|o]
-                     s(13, m+1) = -rac(1)*s(7, m+2)+orho*(s(4, m+1)-s(4, m+2)) ! [fx2z|o]
-                     s(14, m+1) = -rac(2)*s(6, m+2)+orho*(s(2, m+1)-s(2, m+2)) ! [fxy2|o]
-                     s(15, m+1) = -rac(1)*s(9, m+2) ! [fxyz|o]
-                     s(16, m+1) = -rac(3)*s(7, m+2)+orho*(s(2, m+1)-s(2, m+2)) ! [fxz2|o]
-                     s(17, m+1) = -rac(2)*s(8, m+2)+2._dp*orho*(s(3, m+1)-s(3, m+2)) ! [fy3 |o]
-                     s(18, m+1) = -rac(2)*s(9, m+2)+orho*(s(4, m+1)-s(4, m+2)) ! [fy2z|o]
-                     s(19, m+1) = -rac(3)*s(9, m+2)+orho*(s(3, m+1)-s(3, m+2)) ! [fyz2|o]
-                     s(20, m+1) = -rac(3)*s(10, m+2)+2._dp*orho*(s(4, m+1)-s(4, m+2)) ! [fz3 |o]
+                  DO m = 0, mmax - llr
+                     s(11, m + 1) = -rac(1)*s(5, m + 2) + 2._dp*orho*(s(2, m + 1) - s(2, m + 2)) ! [fx3 |o]
+                     s(12, m + 1) = -rac(1)*s(6, m + 2) + orho*(s(3, m + 1) - s(3, m + 2)) ! [fx2y|o]
+                     s(13, m + 1) = -rac(1)*s(7, m + 2) + orho*(s(4, m + 1) - s(4, m + 2)) ! [fx2z|o]
+                     s(14, m + 1) = -rac(2)*s(6, m + 2) + orho*(s(2, m + 1) - s(2, m + 2)) ! [fxy2|o]
+                     s(15, m + 1) = -rac(1)*s(9, m + 2) ! [fxyz|o]
+                     s(16, m + 1) = -rac(3)*s(7, m + 2) + orho*(s(2, m + 1) - s(2, m + 2)) ! [fxz2|o]
+                     s(17, m + 1) = -rac(2)*s(8, m + 2) + 2._dp*orho*(s(3, m + 1) - s(3, m + 2)) ! [fy3 |o]
+                     s(18, m + 1) = -rac(2)*s(9, m + 2) + orho*(s(4, m + 1) - s(4, m + 2)) ! [fy2z|o]
+                     s(19, m + 1) = -rac(3)*s(9, m + 2) + orho*(s(3, m + 1) - s(3, m + 2)) ! [fyz2|o]
+                     s(20, m + 1) = -rac(3)*s(10, m + 2) + 2._dp*orho*(s(4, m + 1) - s(4, m + 2)) ! [fz3 |o]
                   END DO
                ELSE IF (llr == 4) THEN
-                  DO m = 0, mmax-llr
-                     s(21, m+1) = -rac(1)*s(11, m+2)+3._dp*orho*(s(5, m+1)-s(5, m+2)) ! [gx4  |s]
-                     s(22, m+1) = -rac(1)*s(12, m+2)+2._dp*orho*(s(6, m+1)-s(6, m+2)) ! [gx3y |s]
-                     s(23, m+1) = -rac(1)*s(13, m+2)+2._dp*orho*(s(7, m+1)-s(7, m+2)) ! [gx3z |s]
-                     s(24, m+1) = -rac(1)*s(14, m+2)+orho*(s(8, m+1)-s(8, m+2)) ! [gx2y2|s]
-                     s(25, m+1) = -rac(1)*s(15, m+2)+orho*(s(9, m+1)-s(9, m+2)) ! [gx2yz|s]
-                     s(26, m+1) = -rac(1)*s(16, m+2)+orho*(s(10, m+1)-s(10, m+2)) ! [gx2z2|s]
-                     s(27, m+1) = -rac(1)*s(17, m+2) ! [gxy3 |s]
-                     s(28, m+1) = -rac(1)*s(18, m+2) ! [gxy2z|s]
-                     s(29, m+1) = -rac(1)*s(19, m+2) ! [gxyz2|s]
-                     s(30, m+1) = -rac(1)*s(20, m+2) ! [gxz3 |s]
-                     s(31, m+1) = -rac(2)*s(17, m+2)+3._dp*orho*(s(8, m+1)-s(8, m+2)) ! [gy4  |s]
-                     s(32, m+1) = -rac(2)*s(18, m+2)+2._dp*orho*(s(9, m+1)-s(9, m+2)) ! [gy3z |s]
-                     s(33, m+1) = -rac(2)*s(19, m+2)+orho*(s(10, m+1)-s(10, m+2)) ! [gy2z2|s]
-                     s(34, m+1) = -rac(2)*s(20, m+2) ! [gyz3 |s]
-                     s(35, m+1) = -rac(3)*s(20, m+2)+3._dp*orho*(s(10, m+1)-s(10, m+2)) ! [gz4  |s]
+                  DO m = 0, mmax - llr
+                     s(21, m + 1) = -rac(1)*s(11, m + 2) + 3._dp*orho*(s(5, m + 1) - s(5, m + 2)) ! [gx4  |s]
+                     s(22, m + 1) = -rac(1)*s(12, m + 2) + 2._dp*orho*(s(6, m + 1) - s(6, m + 2)) ! [gx3y |s]
+                     s(23, m + 1) = -rac(1)*s(13, m + 2) + 2._dp*orho*(s(7, m + 1) - s(7, m + 2)) ! [gx3z |s]
+                     s(24, m + 1) = -rac(1)*s(14, m + 2) + orho*(s(8, m + 1) - s(8, m + 2)) ! [gx2y2|s]
+                     s(25, m + 1) = -rac(1)*s(15, m + 2) + orho*(s(9, m + 1) - s(9, m + 2)) ! [gx2yz|s]
+                     s(26, m + 1) = -rac(1)*s(16, m + 2) + orho*(s(10, m + 1) - s(10, m + 2)) ! [gx2z2|s]
+                     s(27, m + 1) = -rac(1)*s(17, m + 2) ! [gxy3 |s]
+                     s(28, m + 1) = -rac(1)*s(18, m + 2) ! [gxy2z|s]
+                     s(29, m + 1) = -rac(1)*s(19, m + 2) ! [gxyz2|s]
+                     s(30, m + 1) = -rac(1)*s(20, m + 2) ! [gxz3 |s]
+                     s(31, m + 1) = -rac(2)*s(17, m + 2) + 3._dp*orho*(s(8, m + 1) - s(8, m + 2)) ! [gy4  |s]
+                     s(32, m + 1) = -rac(2)*s(18, m + 2) + 2._dp*orho*(s(9, m + 1) - s(9, m + 2)) ! [gy3z |s]
+                     s(33, m + 1) = -rac(2)*s(19, m + 2) + orho*(s(10, m + 1) - s(10, m + 2)) ! [gy2z2|s]
+                     s(34, m + 1) = -rac(2)*s(20, m + 2) ! [gyz3 |s]
+                     s(35, m + 1) = -rac(3)*s(20, m + 2) + 3._dp*orho*(s(10, m + 1) - s(10, m + 2)) ! [gz4  |s]
                   END DO
                ELSE
                   DO irx = 0, llr
-                     DO iry = 0, llr-irx
-                        irz = llr-irx-iry
+                     DO iry = 0, llr - irx
+                        irz = llr - irx - iry
                         irr(1) = irx; irr(2) = iry; irr(3) = irz
                         ixx = MAXLOC(irr)
                         ix = ixx(1)
                         ir = coset(irx, iry, irz)
                         irm = irr
-                        irm(ix) = irm(ix)-1
+                        irm(ix) = irm(ix) - 1
                         aai = REAL(MAX(irm(ix), 0), dp)*orho
                         ir1 = coset(irm(1), irm(2), irm(3))
-                        irm(ix) = irm(ix)-1
+                        irm(ix) = irm(ix) - 1
                         ir2 = coset(irm(1), irm(2), irm(3))
-                        DO m = 0, mmax-llr
-                           s(ir, m+1) = -rac(ix)*s(ir1, m+2)+aai*(s(ir2, m+1)-s(ir2, m+2))
+                        DO m = 0, mmax - llr
+                           s(ir, m + 1) = -rac(ix)*s(ir1, m + 2) + aai*(s(ir2, m + 1) - s(ir2, m + 2))
                         END DO
                      END DO
                   END DO
@@ -673,8 +673,8 @@ CONTAINS
          END IF
 
          ! Store the primitive three-center overlap integrals
-         DO i = ncoset(la_min_set-1)+1, ncoset(la_max_set)
-            va(na+i) = va(na+i)+s(i, 1)
+         DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+            va(na + i) = va(na + i) + s(i, 1)
          END DO
 
          ! Calculate the requested derivatives with respect  ***
@@ -685,26 +685,26 @@ CONTAINS
             DO la = la_min_set, la_max_set
                DO ax = 0, la
                   fax = REAL(ax, dp)
-                  DO ay = 0, la-ax
+                  DO ay = 0, la - ax
                      fay = REAL(ay, dp)
-                     az = la-ax-ay
+                     az = la - ax - ay
                      faz = REAL(az, dp)
                      coa = coset(ax, ay, az)
-                     coamx = coset(ax-1, ay, az)
-                     coamy = coset(ax, ay-1, az)
-                     coamz = coset(ax, ay, az-1)
-                     coapx = coset(ax+1, ay, az)
-                     coapy = coset(ax, ay+1, az)
-                     coapz = coset(ax, ay, az+1)
-                     dva(na+coa, 1) = dva(na+coa, 1)+ftz*s(coapx, 1)-fax*s(coamx, 1)
-                     dva(na+coa, 2) = dva(na+coa, 2)+ftz*s(coapy, 1)-fay*s(coamy, 1)
-                     dva(na+coa, 3) = dva(na+coa, 3)+ftz*s(coapz, 1)-faz*s(coamz, 1)
+                     coamx = coset(ax - 1, ay, az)
+                     coamy = coset(ax, ay - 1, az)
+                     coamz = coset(ax, ay, az - 1)
+                     coapx = coset(ax + 1, ay, az)
+                     coapy = coset(ax, ay + 1, az)
+                     coapz = coset(ax, ay, az + 1)
+                     dva(na + coa, 1) = dva(na + coa, 1) + ftz*s(coapx, 1) - fax*s(coamx, 1)
+                     dva(na + coa, 2) = dva(na + coa, 2) + ftz*s(coapy, 1) - fay*s(coamy, 1)
+                     dva(na + coa, 3) = dva(na + coa, 3) + ftz*s(coapz, 1) - faz*s(coamz, 1)
                   END DO
                END DO
             END DO
          END IF
 
-         na = na+ncoset(la_max_set)
+         na = na + ncoset(la_max_set)
 
       END DO
 

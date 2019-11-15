@@ -193,7 +193,7 @@ CONTAINS
 
       CALL mp_sum(matrix, group)
 
-      SELECT CASE (dbcsr_get_matrix_type (sparse_matrix))
+      SELECT CASE (dbcsr_get_matrix_type(sparse_matrix))
       CASE (dbcsr_type_symmetric)
          CALL symmetrize_matrix(matrix, "upper_to_lower")
          print_sym = .TRUE.
@@ -295,12 +295,12 @@ CONTAINS
 
       r_offset(1) = 1
       DO row = 2, nblkrows_total
-         r_offset(row) = r_offset(row-1)+row_blk_size(row-1)
+         r_offset(row) = r_offset(row - 1) + row_blk_size(row - 1)
       ENDDO
       nr = SUM(row_blk_size)
       c_offset(1) = 1
       DO col = 2, nblkcols_total
-         c_offset(col) = c_offset(col-1)+col_blk_size(col-1)
+         c_offset(col) = c_offset(col - 1) + col_blk_size(col - 1)
       ENDDO
       nc = SUM(col_blk_size)
       !<
@@ -314,7 +314,7 @@ CONTAINS
          CALL dbcsr_iterator_next_block(iter, row, col, DATA, blk)
          DO j = 1, SIZE(DATA, 2)
          DO i = 1, SIZE(DATA, 1)
-            fm(r_offset(row)+i-1, c_offset(col)+j-1) = DATA(i, j)
+            fm(r_offset(row) + i - 1, c_offset(col) + j - 1) = DATA(i, j)
          ENDDO
          ENDDO
       ENDDO
@@ -407,11 +407,11 @@ CONTAINS
          ! *** Write the variable format strings ***
          ndigits = after
 
-         width = before+ndigits+3
+         width = before + ndigits + 3
          ncol = INT(56/width)
 
-         right = MAX((ndigits-2), 1)
-         left = width-right-5
+         right = MAX((ndigits - 2), 1)
+         left = width - right - 5
 
          WRITE (UNIT=fmtstr1(11:12), FMT="(I2)") ncol
          WRITE (UNIT=fmtstr1(14:15), FMT="(I2)") left
@@ -419,18 +419,18 @@ CONTAINS
 
          IF (omit_headers) THEN
             WRITE (UNIT=fmtstr2(6:7), FMT="(I2)") ncol
-            WRITE (UNIT=fmtstr2(13:14), FMT="(I2)") width-1
+            WRITE (UNIT=fmtstr2(13:14), FMT="(I2)") width - 1
             WRITE (UNIT=fmtstr2(16:17), FMT="(I2)") ndigits
          ELSE
             WRITE (UNIT=fmtstr2(22:23), FMT="(I2)") ncol
-            WRITE (UNIT=fmtstr2(29:30), FMT="(I2)") width-1
+            WRITE (UNIT=fmtstr2(29:30), FMT="(I2)") width - 1
             WRITE (UNIT=fmtstr2(32:33), FMT="(I2)") ndigits
          END IF
 
          ! *** Write the matrix in the selected format ***
          DO icol = first_col, last_col, ncol
             from = icol
-            to = MIN((from+ncol-1), last_col)
+            to = MIN((from + ncol - 1), last_col)
             IF (.NOT. omit_headers) THEN
                WRITE (UNIT=output_unit, FMT=fmtstr1) (jcol, jcol=from, to)
             ENDIF
@@ -458,8 +458,8 @@ CONTAINS
                                     (matrix(irow, jcol), jcol=from, to)
                               END IF
                            END IF
-                           isgf = isgf+1
-                           irow = irow+1
+                           isgf = isgf + 1
+                           irow = irow + 1
                         END DO
                      END DO
                   END DO
@@ -478,7 +478,7 @@ CONTAINS
                               (matrix(irow, jcol), jcol=from, to)
                         END IF
                      END IF
-                     irow = irow+1
+                     irow = irow + 1
                   END DO
                   IF ((irow >= first_row) .AND. (irow <= last_row)) THEN
                      WRITE (UNIT=output_unit, FMT="(A)")
@@ -550,11 +550,11 @@ CONTAINS
          ! *** Write the variable format strings ***
          ndigits = after
 
-         width = before+ndigits+3
+         width = before + ndigits + 3
          ncol = INT(56/width)
 
-         right = MAX((ndigits-2), 1)
-         left = width-right-5
+         right = MAX((ndigits - 2), 1)
+         left = width - right - 5
 
          WRITE (UNIT=fmtstr1(11:12), FMT="(I2)") ncol
          WRITE (UNIT=fmtstr1(14:15), FMT="(I2)") left
@@ -562,18 +562,18 @@ CONTAINS
 
          IF (omit_headers) THEN
             WRITE (UNIT=fmtstr2(6:7), FMT="(I2)") ncol
-            WRITE (UNIT=fmtstr2(13:14), FMT="(I2)") width-1
+            WRITE (UNIT=fmtstr2(13:14), FMT="(I2)") width - 1
             WRITE (UNIT=fmtstr2(16:17), FMT="(I2)") ndigits
          ELSE
             WRITE (UNIT=fmtstr2(22:23), FMT="(I2)") ncol
-            WRITE (UNIT=fmtstr2(29:30), FMT="(I2)") width-1
+            WRITE (UNIT=fmtstr2(29:30), FMT="(I2)") width - 1
             WRITE (UNIT=fmtstr2(32:33), FMT="(I2)") ndigits
          ENDIF
 
          ! *** Write the matrix in the selected format ***
          DO icol = first_col, last_col, ncol
             from = icol
-            to = MIN((from+ncol-1), last_col)
+            to = MIN((from + ncol - 1), last_col)
             IF (.NOT. omit_headers) THEN
                WRITE (UNIT=output_unit, FMT=fmtstr1) (jcol, jcol=from, to)
             END IF
@@ -632,7 +632,7 @@ CONTAINS
 
       group = para_env%group
       ionode = para_env%ionode
-      mype = para_env%mepos+1
+      mype = para_env%mepos + 1
       npe = para_env%num_pe
 
       ! *** Allocate work storage ***
@@ -672,7 +672,7 @@ CONTAINS
 
       IF (matrix_type == dbcsr_type_symmetric .OR. &
           matrix_type == dbcsr_type_antisymmetric) THEN
-         nblock_tot = INT(natom, KIND=int_8)*INT(natom+1, KIND=int_8)/2
+         nblock_tot = INT(natom, KIND=int_8)*INT(natom + 1, KIND=int_8)/2
       ELSE
          nblock_tot = INT(natom, KIND=int_8)**2
       END IF
@@ -686,7 +686,7 @@ CONTAINS
          IF (full_output) THEN
             WRITE (UNIT=output_unit, FMT="(/,T3,A,/,/,(I9,T27,I10,T55,I10))") &
                "Process    Number of matrix blocks   Number of matrix elements", &
-               (ipe-1, nblock(ipe), nelement(ipe), ipe=1, npe)
+               (ipe - 1, nblock(ipe), nelement(ipe), ipe=1, npe)
             WRITE (UNIT=output_unit, FMT="(/,T7,A3,T27,I10,T55,I10)") &
                "Sum", nblock_sum, nelement_sum
             WRITE (UNIT=output_unit, FMT="(/,T7,A3,T27,I10,A,F5.1,A,T55,I10,A,F5.1,A)") &
@@ -695,10 +695,10 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Number  of non-zero blocks:", nblock_sum
             WRITE (UNIT=output_unit, FMT="(T15,A,T75,F6.2)") "Percentage non-zero blocks:", occupation
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Average number of blocks per CPU:", &
-               (nblock_sum+npe-1)/npe
+               (nblock_sum + npe - 1)/npe
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Maximum number of blocks per CPU:", nblock_max
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Average number of matrix elements per CPU:", &
-               (nelement_sum+npe-1)/npe
+               (nelement_sum + npe - 1)/npe
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Maximum number of matrix elements per CPU:", &
                nelement_max
          ENDIF

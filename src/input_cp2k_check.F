@@ -623,7 +623,7 @@ CONTAINS
          CALL section_vals_val_get(r_section, "RESTART_TEMPERATURE_ANNEALING", l_val=flag)
          IF (flag .AND. check_restart(input_file, restart_file, "MOTION%MD")) THEN
             CALL section_vals_val_get(input_file, "MOTION%MD%TEMPERATURE_ANNEALING", r_val=myt, explicit=explicit1)
-            IF ((.NOT. explicit1) .OR. (ABS(1._dp-myt) <= 1.E-10_dp)) THEN
+            IF ((.NOT. explicit1) .OR. (ABS(1._dp - myt) <= 1.E-10_dp)) THEN
                CALL cp_warn(__LOCATION__, &
                             "I'm about to override the input temperature "// &
                             "with the temperature found in external restart "// &
@@ -803,7 +803,7 @@ CONTAINS
 
       isize = 0
       IF (ASSOCIATED(restarted_infos)) isize = SIZE(restarted_infos)
-      isize = isize+1
+      isize = isize + 1
       CALL reallocate(restarted_infos, 1, isize)
       restarted_infos(isize) = TRIM(label)
 
@@ -836,23 +836,23 @@ CONTAINS
          WRITE (output_unit, '(1X,"*",T80,"*")')
          i = 1
          WRITE (output_unit, '(1X,"*",A,T26,A,T80,"*")') "    RESTART FILE NAME:  ", &
-            r_file_path(53*(i-1)+1:53*i)
+            r_file_path(53*(i - 1) + 1:53*i)
          DO i = 2, CEILING(REAL(LEN_TRIM(r_file_path), KIND=dp)/53.0_dp)
-            WRITE (output_unit, '(T1,1X,"*",T26,A,T80,"*")') r_file_path(53*(i-1)+1:53*i)
+            WRITE (output_unit, '(T1,1X,"*",T26,A,T80,"*")') r_file_path(53*(i - 1) + 1:53*i)
          END DO
          IF (LEN_TRIM(binary_restart_file) > 0) THEN
             i = 1
             WRITE (output_unit, '(1X,"*",A,T26,A,T80,"*")') "  BINARY RESTART FILE:  ", &
-               binary_restart_file(53*(i-1)+1:53*i)
+               binary_restart_file(53*(i - 1) + 1:53*i)
             DO i = 2, CEILING(REAL(LEN_TRIM(binary_restart_file), KIND=dp)/53.0_dp)
-               WRITE (output_unit, '(T1,1X,"*",T26,A,T80,"*")') binary_restart_file(53*(i-1)+1:53*i)
+               WRITE (output_unit, '(T1,1X,"*",T26,A,T80,"*")') binary_restart_file(53*(i - 1) + 1:53*i)
             END DO
          END IF
          WRITE (output_unit, '(1X,"*",T80,"*")')
          WRITE (output_unit, '(1X,"*", A,T80,"*")') " RESTARTED QUANTITIES:  "
          DO j = 1, SIZE(restarted_infos)
             DO i = 1, CEILING(REAL(LEN_TRIM(restarted_infos(j)), KIND=dp)/53.0_dp)
-               WRITE (output_unit, '(T1,1X,"*",T26,A,T80,"*")') restarted_infos(j) (53*(i-1)+1:53*i)
+               WRITE (output_unit, '(T1,1X,"*",T26,A,T80,"*")') restarted_infos(j) (53*(i - 1) + 1:53*i)
             END DO
          END DO
          WRITE (output_unit, '(1X,79("*"),/)')
