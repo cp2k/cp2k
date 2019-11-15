@@ -20,6 +20,7 @@ apt-get install -qq --no-install-recommends \
     nano                                    \
     pkg-config                              \
     python                                  \
+    python-numpy                            \
     python3                                 \
     unzip                                   \
     wget                                    \
