@@ -7,29 +7,15 @@ ARG LIBINT_LMAX=5
 # Installs toolchain with CUDA and MKL.
 # WARNING: The resulting image will violate the GPL and must not be distributed.
 
-# Install Ubuntu packages.
+# install Ubuntu packages.
+COPY ./install_requirements.sh .
+RUN ./install_requirements.sh
+
+# Install some more Ubuntu packages.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    autoconf \
-    autogen \
-    automake \
-    autotools-dev \
-    ca-certificates \
-    gcc \
-    g++ \
-    gfortran \
-    git \
-    less \
-    libtool \
-    make \
-    nano \
-    pkg-config \
-    python \
-    python-numpy \
-    unzip \
-    wget \
-    zlib1g-dev \
-    mpich \
-    libmpich-dev \
+    gfortran                                                          \
+    mpich                                                             \
+    libmpich-dev                                                      \
    && rm -rf /var/lib/apt/lists/*
 
 # Setup CUDA environment.

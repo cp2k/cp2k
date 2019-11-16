@@ -259,7 +259,7 @@ EOF
 # PACKAGE LIST: register all new dependent tools and libs here. Order
 # is important, the first in the list gets installed first
 # ------------------------------------------------------------------------
-tool_list="valgrind cmake gcc"
+tool_list="gcc cmake valgrind"
 mpi_list="mpich openmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm scalapack elpa plumed \
@@ -921,10 +921,10 @@ done
 if [ "$dry_run" == "__TRUE__" ] ; then
     echo "Wrote only configuration files (--dry-run)."
 else
-    ./scripts/install_valgrind.sh
-    ./scripts/install_cmake.sh
     ./scripts/install_gcc.sh
     ./scripts/setup_buildtools.sh
+    ./scripts/install_cmake.sh
+    ./scripts/install_valgrind.sh
     ./scripts/install_mpich.sh
     ./scripts/install_openmpi.sh
     ./scripts/install_mathlibs.sh
