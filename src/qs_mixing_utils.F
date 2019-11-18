@@ -197,6 +197,7 @@ CONTAINS
             CALL get_qs_env(qs_env, local_particles=distribution_1d)
             nkind = SIZE(distribution_1d%n_el)
             na = SUM(distribution_1d%n_el(:))
+            IF (ASSOCIATED(mixing_store%atlist)) DEALLOCATE (mixing_store%atlist)
             ALLOCATE (mixing_store%atlist(na))
             mixing_store%nat_local = na
             mixing_store%max_shell = max_shell
