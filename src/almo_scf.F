@@ -287,26 +287,31 @@ CONTAINS
             multip = almo_scf_env%multiplicity_of_domain(idomain)
             nelec_a = (nelec + multip - 1)/2
             nelec_b = nelec - nelec_a
-            almo_scf_env%nocc_of_domain(idomain, 1) = nelec_a
-            IF (nelec_a .NE. nelec_b) THEN
-               IF (nspins .EQ. 1) THEN
-                  WRITE (*, *) "Domain ", idomain, " out of ", ndomains, ". Electrons = ", nelec
-                  CPABORT("odd e- -- use unrestricted methods")
-               ENDIF
-               almo_scf_env%nocc_of_domain(idomain, 2) = nelec_b
-               ! RZK-warning: open-shell procedures have not been tested yet
-               ! Stop the program now
-               CPABORT("Unrestricted ALMO methods are NYI")
-            ENDIF
             !! Initializing an occupation-rescaling trick if smearing is on
             IF (almo_scf_env%smear) THEN
+               IF (multip .GT. 1) THEN
+                  CPWARN("BEWARE: Non singlet state detected, treating it as closed-shell")
+               ENDIF
                !! Save real number of electrons of each spin, as it is required for Fermi-dirac smearing
-               almo_scf_env%real_ne_of_domain(idomain, :) = REAL(almo_scf_env%nocc_of_domain(idomain, :), KIND=dp)
+               !! BEWARE : Non singlet states are allowed but treated as closed-shell
+               almo_scf_env%real_ne_of_domain(idomain, :) = REAL(nelec, KIND=dp)/2.0_dp
                !! Add a number of added_mos equal to the number of atoms in domain
                !! (since fragments were computed this way with smearing)
-               almo_scf_env%nocc_of_domain(idomain, :) = almo_scf_env%nocc_of_domain(idomain, :) &
+               almo_scf_env%nocc_of_domain(idomain, :) = CEILING(almo_scf_env%real_ne_of_domain(idomain, :)) &
                                                          + (almo_scf_env%last_atom_of_domain(idomain) &
                                                             - almo_scf_env%first_atom_of_domain(idomain) + 1)
+            ELSE
+               almo_scf_env%nocc_of_domain(idomain, 1) = nelec_a
+               IF (nelec_a .NE. nelec_b) THEN
+                  IF (nspins .EQ. 1) THEN
+                     WRITE (*, *) "Domain ", idomain, " out of ", ndomains, ". Electrons = ", nelec
+                     CPABORT("odd e- -- use unrestricted methods")
+                  ENDIF
+                  almo_scf_env%nocc_of_domain(idomain, 2) = nelec_b
+                  ! RZK-warning: open-shell procedures have not been tested yet
+                  ! Stop the program now
+                  CPABORT("Unrestricted ALMO methods are NYI")
+               ENDIF
             END IF
          ENDDO
          DO ispin = 1, nspins
