@@ -46,10 +46,19 @@ where:
 - The parallel_launcher is mpirun, mpiexec, or some variant such as aprun on Cray systems or srun when using Slurm.
 - `launcher_options` specifies parallel placement in terms of total numbers of nodes, MPI ranks/tasks, tasks per node, and OpenMP threads per task (which should be equal to the value given to OMP_NUM_THREADS). This is not necessary if parallel runtime options are picked up by the launcher from the job environment.
 
+### Obtain Benchmark Results
+
 The reported walltime for a given run can be obtained by querying the resulting `.log` file for CP2K's internal timing, as follows:
 ```
 $ grep "CP2K     "  *.log
 ```
+
+Moreover, the end of the resulting `.log` files contains some performance numbers:
+
+- `DBCSR STATISTICS`: statistics on DBCSR's computation and communication performance. First few lines: number of flops spent on different small dense block sizes, and which proportion of them ran on BLAS, Small Matrix-Matrix multiplicator (`SMM`), and GPU (`ACC`).
+- `DBCSR MESSAGE PASSING PERFORMANCE`: statistics on MPI calls in DBCSR
+- `MESSAGE PASSING PERFORMANCE`: statistics on MPI calls in CP2K
+- `T I M I N G`: timing and number of calls of CP2K functions
 
 ### Plotting
 
