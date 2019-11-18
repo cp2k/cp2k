@@ -1,0 +1,69 @@
+&GLOBAL
+   PROJECT Ru_geo
+   RUN_TYPE GEO_OPT 
+   PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+   METHOD Quickstep
+   &DFT
+      &QS
+         METHOD xTB
+         &xTB
+            DO_EWALD T
+         &END XTB
+      &END QS
+      &POISSON
+         &EWALD
+            EWALD_TYPE SPME
+         &END EWALD
+      &END POISSON
+      &KPOINTS
+         SCHEME  MONKHORST-PACK  3 3 3 
+      &END KPOINTS
+
+      &SCF
+         MAX_SCF 500
+         SCF_GUESS MOPAC
+         EPS_SCF 1.0E-7
+         ADDED_MOS 400
+         &DIAGONALIZATION
+            ALGORITHM STANDARD
+            EPS_ADAPT 0.01
+         &END DIAGONALIZATION
+         &SMEAR ON
+            METHOD FERMI_DIRAC
+            ELECTRONIC_TEMPERATURE [K] 300
+         &END SMEAR
+         &MIXING
+            METHOD BROYDEN_MIXING
+            ALPHA 0.1
+         &END
+      &END SCF
+
+      &PRINT
+         &MULLIKEN
+            FILENAME=mulliken
+            COMMON_ITERATION_LEVELS 10
+            &EACH
+               MD 1
+            &END EACH
+         &END MULLIKEN
+         &PDOS
+            NLUMO -1
+         &END
+      &END PRINT
+   &END DFT
+
+   &SUBSYS
+      &CELL
+         ABC 2.7330 2.7330 4.3140
+         ALPHA_BETA_GAMMA 90 90 120
+         PERIODIC XYZ
+      &END CELL
+      &COORD
+      Ru   0.9109 1.8221 3.2355
+      Ru   1.8221 0.9109 1.0785
+      &END
+   &END SUBSYS
+&END FORCE_EVAL
