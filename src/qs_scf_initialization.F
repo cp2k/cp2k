@@ -243,9 +243,6 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(scf_env)) THEN ! i.e. for MD this is associated on the second step (it so seems)
          CALL scf_env_create(scf_env)
-!       CALL set_qs_env(qs_env,scf_env=scf_env)
-!       CALL scf_env_release(scf_env)
-!       CALL get_qs_env(qs_env=qs_env,scf_env=scf_env)
       ELSE
          ! Reallocate mixing store, if the g space grid (cell) has changed
          SELECT CASE (scf_env%mixing_method)
@@ -256,8 +253,10 @@ CONTAINS
                ! the new grid are accidentily equal is rather low
                CALL get_qs_env(qs_env, rho=rho)
                CALL qs_rho_get(rho, rho_g=rho_g)
-               IF (SIZE(rho_g(1)%pw%pw_grid%gsq) /= SIZE(scf_env%mixing_store%rhoin(1)%cc)) &
-                  CALL mixing_storage_release(scf_env%mixing_store)
+               IF (ASSOCIATED(scf_env%mixing_store%rhoin)) THEN
+                  IF (SIZE(rho_g(1)%pw%pw_grid%gsq) /= SIZE(scf_env%mixing_store%rhoin(1)%cc)) &
+                     CALL mixing_storage_release(scf_env%mixing_store)
+               END IF
             END IF
          END SELECT
       END IF
