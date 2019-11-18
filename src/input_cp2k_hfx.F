@@ -20,6 +20,7 @@ MODULE input_cp2k_hfx
         do_potential_coulomb, do_potential_gaussian, do_potential_id, do_potential_long, &
         do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
         do_potential_truncated, ehrenfest, gaussian, hfx_ri_do_2c_diag, hfx_ri_do_2c_iter
+   USE input_cp2k_loc,                  ONLY: create_localize_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -495,9 +496,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key
+      TYPE(section_type), POINTER                        :: print_key, subsection
 
-      NULLIFY (keyword, print_key)
+      NULLIFY (keyword, print_key, subsection)
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RI", &
@@ -636,6 +637,10 @@ CONTAINS
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      CALL create_localize_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RI_INFO", &
                                        description="Controls the printing of DBCSR tensor log in RI HFX.", &

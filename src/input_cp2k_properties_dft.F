@@ -39,8 +39,8 @@ MODULE input_cp2k_properties_dft
    USE input_cp2k_atprop,               ONLY: create_atprop_section
    USE input_cp2k_dft,                  ONLY: create_ddapc_restraint_section,&
                                               create_interp_section,&
-                                              create_localize_section,&
                                               create_mgrid_section
+   USE input_cp2k_loc,                  ONLY: create_localize_section
    USE input_cp2k_resp,                 ONLY: create_resp_section
    USE input_cp2k_xc,                   ONLY: create_xc_section
    USE input_keyword_types,             ONLY: keyword_create,&

@@ -83,6 +83,7 @@ MODULE hfx_types
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_loc_types,                    ONLY: qs_loc_env_new_type
    USE qs_tensors_types,                ONLY: create_2c_tensor,&
                                               create_3c_tensor,&
                                               cyclic_tensor_dist,&
@@ -385,6 +386,11 @@ MODULE hfx_types
       ! distributions for (RI | AO AO) 3c integral tensor (non split)
       TYPE(distribution_3d_type) :: dist_3d
       TYPE(dbcsr_t_distribution_type) :: dist
+
+      ! MO localization
+      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env => NULL()
+      TYPE(section_vals_type), POINTER                   :: loc_subsection => NULL(), print_loc_subsection => NULL()
+      LOGICAL                                            :: do_loc
 
       INTEGER, DIMENSION(:), ALLOCATABLE :: dist1_AO_1, dist1_AO_2, dist1_RI
       INTEGER, DIMENSION(:), ALLOCATABLE :: dist2_AO_1, dist2_AO_2, dist2_RI
@@ -1138,6 +1144,11 @@ CONTAINS
 
       ri_data%unit_nr_dbcsr = unit_nr_dbcsr
       ri_data%unit_nr = unit_nr
+
+      ri_data%loc_subsection => section_vals_get_subs_vals(ri_section, "LOCALIZE")
+      ri_data%print_loc_subsection => section_vals_get_subs_vals(ri_data%loc_subsection, "PRINT")
+
+      CALL section_vals_val_get(ri_data%loc_subsection, "_SECTION_PARAMETERS_", l_val=ri_data%do_loc)
 
       CALL hfx_ri_init(ri_data, qs_kind_set, particle_set, para_env, auto_basis_cntrl)
 
