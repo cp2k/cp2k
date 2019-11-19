@@ -32,7 +32,7 @@
          &NON_LOCAL
            TYPE LMKLL
            KERNEL_FILE_NAME vdW_kernel_table.dat
-           CUTOFF  80
+           CUTOFF 40
          &END NON_LOCAL
       &END vdW_POTENTIAL
     &END XC
