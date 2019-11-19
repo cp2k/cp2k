@@ -39,7 +39,6 @@ MODULE mp2_ri_libint
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_energy_potential,            ONLY: coulomb4
-   USE hfx_libint_wrapper,              ONLY: cp_libint_t
    USE hfx_pair_list_methods,           ONLY: build_pair_list_mp2
    USE hfx_screening_methods,           ONLY: calc_pair_dist_radii,&
                                               calc_screening_functions
@@ -51,6 +50,7 @@ MODULE mp2_ri_libint
                                               do_potential_long
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE libint_wrapper,                  ONLY: cp_libint_t
    USE message_passing,                 ONLY: mp_sum
    USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                               mp2_biel_type,&

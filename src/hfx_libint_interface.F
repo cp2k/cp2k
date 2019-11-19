@@ -15,14 +15,6 @@ MODULE hfx_libint_interface
                                               real_to_scaled
    USE gamma,                           ONLY: fgamma => fgamma_0
    USE hfx_contraction_methods,         ONLY: contract
-   USE hfx_libint_wrapper,              ONLY: cp_libint_get_derivs,&
-                                              cp_libint_get_eris,&
-                                              cp_libint_set_params_eri,&
-                                              cp_libint_set_params_eri_deriv,&
-                                              cp_libint_set_params_eri_screen,&
-                                              cp_libint_t,&
-                                              get_ssss_f_val,&
-                                              prim_data_f_size
    USE hfx_types,                       ONLY: hfx_pgf_product_list,&
                                               hfx_potential_type
    USE input_constants,                 ONLY: &
@@ -31,6 +23,14 @@ MODULE hfx_libint_interface
         do_potential_truncated
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE libint_wrapper,                  ONLY: cp_libint_get_derivs,&
+                                              cp_libint_get_eris,&
+                                              cp_libint_set_params_eri,&
+                                              cp_libint_set_params_eri_deriv,&
+                                              cp_libint_set_params_eri_screen,&
+                                              cp_libint_t,&
+                                              get_ssss_f_val,&
+                                              prim_data_f_size
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: nco
    USE t_c_g0,                          ONLY: t_c_g0_n

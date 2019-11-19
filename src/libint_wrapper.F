@@ -10,7 +10,7 @@
 !>      10.2009 refactored [Manuel Guidon]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-MODULE hfx_libint_wrapper
+MODULE libint_wrapper
 
 #if(__LIBINT)
 #include <libint2/libint2_params.h>
@@ -29,7 +29,8 @@ MODULE hfx_libint_wrapper
    USE libint_f,                        ONLY: &
         libint2_build, libint2_build_eri, libint2_build_eri1, libint2_cleanup_eri, &
         libint2_cleanup_eri1, libint2_init_eri, libint2_init_eri1, libint2_static_cleanup, &
-        libint2_static_init, libint_t, libint2_max_am_eri, libint2_init_3eri, libint2_cleanup_3eri!,&
+        libint2_static_init, libint_t, libint2_max_am_eri, libint2_init_3eri, libint2_cleanup_3eri, &
+        libint2_init_2eri, libint2_cleanup_2eri!,&
         !libint2_build_3eri
 #endif
    USE orbital_pointers,                ONLY: nco
@@ -43,9 +44,10 @@ MODULE hfx_libint_wrapper
              cp_libint_cleanup_eri1, cp_libint_static_init, cp_libint_static_cleanup, &
              get_ssss_f_val,cp_libint_set_contrdepth,cp_libint_set_params_eri_screen,&
              cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, &
-             cp_libint_init_3eri, cp_libint_cleanup_3eri, cp_libint_get_3eris
+             cp_libint_init_3eri, cp_libint_cleanup_3eri, cp_libint_get_3eris, &
+             cp_libint_init_2eri, cp_libint_cleanup_2eri, cp_libint_get_2eris
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_wrapper'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_wrapper'
 
 #if(__LIBINT)
    INTEGER, PARAMETER :: libint_max_am = libint2_max_am_eri
@@ -70,11 +72,14 @@ MODULE hfx_libint_wrapper
    END TYPE
 
 #if(__LIBINT)
-   !Fortran 3-center integrals are bugged in libint 2.5. More specifically, the dimensions of the
-   !following array are mixed up. This should be fixed from libint 2.6 on. Then, one will be able
-   !to simply USE libint2_build_3eri, as currently commented above
+   !Fortran 2-center and 3-center integrals are bugged in libint 2.5. More specifically, the
+   !dimensions of the following array are mixed up. This should be fixed from libint 2.6 on.
+   !Then, one will be able to simply USE libint2_build_3eri & libint2_build_2eri, as currently
+   !commented above
    TYPE(C_FUNPTR), DIMENSION(0:LIBINT2_MAX_AM,0:LIBINT2_MAX_AM,0:LIBINT2_MAX_AM_3eri), &
       BIND(C) :: libint2_build_3eri
+   TYPE(C_FUNPTR), DIMENSION(0:LIBINT2_MAX_AM_2eri, 0:LIBINT2_MAX_AM_2eri), &
+      BIND(C) :: libint2_build_2eri
 #endif
 
 CONTAINS
@@ -385,6 +390,39 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param n_c ...
+!> \param n_b ...
+!> \param n_a ...
+!> \param lib ...
+!> \param p_work ...
+!> \param a_mysize ...
+! **************************************************************************************************
+   SUBROUTINE cp_libint_get_2eris(n_b, n_a, lib, p_work, a_mysize)
+      INTEGER, INTENT(IN)                                :: n_b, n_a
+      TYPE(cp_libint_t)                                  :: lib
+      REAL(dp), DIMENSION(:), POINTER                    :: p_work
+      INTEGER                                            :: a_mysize(1)
+
+#if(__LIBINT)
+      PROCEDURE(libint2_build), POINTER                  :: pbuild
+
+      CALL C_F_PROCPOINTER(libint2_build_2eri(n_b, n_a), pbuild)
+      CALL pbuild(lib%prv)
+
+      CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=a_mysize)
+#else
+      MARK_USED(n_b)
+      MARK_USED(n_a)
+      MARK_USED(lib)
+      MARK_USED(p_work)
+      MARK_USED(a_mysize)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
 !> \param n_d ...
 !> \param n_c ...
 !> \param n_b ...
@@ -502,6 +540,18 @@ CONTAINS
 #endif
    END SUBROUTINE
 
+   SUBROUTINE cp_libint_init_2eri(lib, max_am)
+      TYPE(cp_libint_t)               :: lib
+      INTEGER                         :: max_am
+#if(__LIBINT)
+      CALL libint2_init_2eri(lib%prv, max_am, C_NULL_PTR)
+#else
+      MARK_USED(lib)
+      MARK_USED(max_am)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+   END SUBROUTINE
+
    SUBROUTINE cp_libint_cleanup_eri(lib)
       TYPE(cp_libint_t)               :: lib
 #if(__LIBINT)
@@ -532,6 +582,16 @@ CONTAINS
 #endif
    END SUBROUTINE
 
+   SUBROUTINE cp_libint_cleanup_2eri(lib)
+      TYPE(cp_libint_t)               :: lib
+#if(__LIBINT)
+      CALL libint2_cleanup_2eri(lib%prv)
+#else
+      MARK_USED(lib)
+      CPABORT("This CP2K executable has not been linked against the required library libint.")
+#endif
+   END SUBROUTINE
+
    SUBROUTINE cp_libint_static_init()
 #if(__LIBINT)
       CALL libint2_static_init()
@@ -548,4 +608,4 @@ CONTAINS
 #endif
    END SUBROUTINE
 
-END MODULE hfx_libint_wrapper
+END MODULE libint_wrapper

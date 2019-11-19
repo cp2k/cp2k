@@ -55,7 +55,6 @@ MODULE xas_tdp_methods
                                               dbcsr_multiply,&
                                               dbcsr_p_type,&
                                               dbcsr_set
-   USE hfx_libint_wrapper,              ONLY: cp_libint_static_init
    USE input_constants,                 ONLY: &
         do_loc_none, do_potential_coulomb, do_potential_short, do_potential_truncated, &
         op_loc_berry, state_loc_list, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, &
@@ -69,6 +68,7 @@ MODULE xas_tdp_methods
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE libint_wrapper,                  ONLY: cp_libint_static_init
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: get_diag
    USE memory_utilities,                ONLY: reallocate

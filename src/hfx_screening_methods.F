@@ -13,7 +13,6 @@ MODULE hfx_screening_methods
    USE ao_util,                         ONLY: exp_radius_very_extended
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE hfx_libint_interface,            ONLY: evaluate_eri_screen
-   USE hfx_libint_wrapper,              ONLY: cp_libint_t
    USE hfx_types,                       ONLY: hfx_basis_type,&
                                               hfx_p_kind,&
                                               hfx_potential_type,&
@@ -22,6 +21,7 @@ MODULE hfx_screening_methods
                                               powell_min_log
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE libint_wrapper,                  ONLY: cp_libint_t
    USE machine,                         ONLY: default_output_unit
    USE orbital_pointers,                ONLY: ncoset
    USE powell,                          ONLY: opt_state_type,&

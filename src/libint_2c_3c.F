@@ -4,21 +4,22 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief 3-center electron repulsion integral routines based on libint2
+!> \brief 2- and 3-center electron repulsion integral routines based on libint2
 !>        Currently available operators: Coulomb, Truncated Coulomb, Short Range (erfc)
 !> \author A. Bussy (05.2019)
 ! **************************************************************************************************
 
-MODULE libint_3center
+MODULE libint_2c_3c
    USE gamma,                           ONLY: fgamma => fgamma_0
-   USE hfx_libint_wrapper,              ONLY: cp_libint_get_3eris,&
-                                              cp_libint_set_params_eri,&
-                                              cp_libint_t,&
-                                              prim_data_f_size
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_short,&
                                               do_potential_truncated
    USE kinds,                           ONLY: dp
+   USE libint_wrapper,                  ONLY: cp_libint_get_2eris,&
+                                              cp_libint_get_3eris,&
+                                              cp_libint_set_params_eri,&
+                                              cp_libint_t,&
+                                              prim_data_f_size
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset
@@ -29,9 +30,20 @@ MODULE libint_3center
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_3center'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_2c_3c'
 
-   PUBLIC :: eri_3center
+   PUBLIC :: eri_3center, eri_2center, cutoff_screen_factor
+
+   ! For screening of integrals with a truncated potential, it is important to use a slightly larger
+   ! cutoff radius due to the discontinuity of the truncated Coulomb potential at the cutoff radius.
+   REAL(KIND=dp), PARAMETER :: cutoff_screen_factor = 1.0001_dp
+
+   TYPE :: params_2c
+      INTEGER                               :: m_max
+      REAL(dp)                              :: ZetaInv, EtaInv, ZetapEtaInv, Rho
+      REAL(dp), DIMENSION(3)                :: W
+      REAL(dp), DIMENSION(prim_data_f_size) :: Fm
+   END TYPE
 
    TYPE :: params_3c
       INTEGER                               :: m_max
@@ -50,17 +62,23 @@ CONTAINS
 !> \param la_max ...
 !> \param npgfa ...
 !> \param zeta ...
+!> \param rpgfa ...
 !> \param ra ...
 !> \param lb_min ...
 !> \param lb_max ...
 !> \param npgfb ...
 !> \param zetb ...
+!> \param rpgfb ...
 !> \param rb ...
 !> \param lc_min ...
 !> \param lc_max ...
 !> \param npgfc ...
 !> \param zetc ...
+!> \param rpgfc ...
 !> \param rc ...
+!> \param dab ...
+!> \param dac ...
+!> \param dbc ...
 !> \param lib the libint_t object for evaluation (assume that it is initialized outside)
 !> \param op which operator to use for the integrals
 !> \param omega in case of short range erfc operator
@@ -69,21 +87,22 @@ CONTAINS
 !>       the libint library must be static initialized, and in case of truncated Coulomb operator,
 !>       the latter must be initialized too
 ! **************************************************************************************************
-   SUBROUTINE eri_3center(int_abc, la_min, la_max, npgfa, zeta, ra, &
-                          lb_min, lb_max, npgfb, zetb, rb, &
-                          lc_min, lc_max, npgfc, zetc, rc, &
-                          lib, op, omega, r_cutoff)
+   SUBROUTINE eri_3center(int_abc, la_min, la_max, npgfa, zeta, rpgfa, ra, &
+                          lb_min, lb_max, npgfb, zetb, rpgfb, rb, &
+                          lc_min, lc_max, npgfc, zetc, rpgfc, rc, &
+                          dab, dac, dbc, lib, op, omega, r_cutoff)
 
       REAL(dp), DIMENSION(:, :, :), INTENT(INOUT)        :: int_abc
       INTEGER, INTENT(IN)                                :: la_min, la_max, npgfa
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: zeta
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: zeta, rpgfa
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: ra
       INTEGER, INTENT(IN)                                :: lb_min, lb_max, npgfb
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: zetb
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: zetb, rpgfb
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rb
       INTEGER, INTENT(IN)                                :: lc_min, lc_max, npgfc
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: zetc
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: zetc, rpgfc
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rc
+      REAL(KIND=dp), INTENT(IN)                          :: dab, dac, dbc
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
       INTEGER, INTENT(IN)                                :: op
       REAL(dp), INTENT(IN), OPTIONAL                     :: omega, r_cutoff
@@ -94,12 +113,25 @@ CONTAINS
                                                             b_offset, b_start, c_offset, c_start, &
                                                             i, ipgf, j, jpgf, k, kpgf, li, lj, lk, &
                                                             ncoa, ncob, ncoc, p1, p2, p3
-      REAL(dp)                                           :: my_omega, my_r_cutoff, zeti, zetj, zetk
+      REAL(dp)                                           :: dr_ab, dr_ac, dr_bc, my_omega, &
+                                                            my_r_cutoff, zeti, zetj, zetk
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
       TYPE(params_3c), POINTER                           :: params
 
       NULLIFY (params, p_work)
       ALLOCATE (params)
+
+      dr_ab = 0.0_dp
+      dr_bc = 0.0_dp
+      dr_ac = 0.0_dp
+
+      IF (op == do_potential_truncated .OR. op == do_potential_short) THEN
+         dr_bc = r_cutoff*cutoff_screen_factor
+         dr_ac = r_cutoff*cutoff_screen_factor
+      ELSEIF (op == do_potential_coulomb) THEN
+         dr_bc = 1000000.0_dp
+         dr_ac = 1000000.0_dp
+      ENDIF
 
       !Note: we want to compute all possible integrals based on the 3-centers (ab|c) before
       !      having to switch to (ba|c) (or the other way around) due to angular momenta in libint
@@ -117,16 +149,25 @@ CONTAINS
          a_start = (ipgf-1)*ncoset(la_max)
 
          DO jpgf = 1, npgfb
+
+            ! screening
+            IF (rpgfa(ipgf)+rpgfb(jpgf)+dr_ab < dab) CYCLE
+
             zetj = zetb(jpgf)
             b_start = (jpgf-1)*ncoset(lb_max)
 
             DO kpgf = 1, npgfc
+
+               ! screening
+               IF (rpgfb(jpgf)+rpgfc(kpgf)+dr_bc < dbc) CYCLE
+               IF (rpgfa(ipgf)+rpgfc(kpgf)+dr_ac < dac) CYCLE
+
                zetk = zetc(kpgf)
                c_start = (kpgf-1)*ncoset(lc_max)
 
                !start with all the (c|ba) integrals (standard order) and keep to lb >= la
-               CALL set_params(lib, ra, rb, rc, la_max, lb_max, lc_max, zeti, zetj, zetk, op, &
-                               params_out=params, r_cutoff=my_r_cutoff, omega=my_omega)
+               CALL set_params_3c(lib, ra, rb, rc, la_max, lb_max, lc_max, zeti, zetj, zetk, op, &
+                                  params_out=params, r_cutoff=my_r_cutoff, omega=my_omega)
 
                DO li = la_min, la_max
                   a_offset = a_start+ncoset(li-1)
@@ -157,7 +198,7 @@ CONTAINS
                END DO !li
 
                !swap centers 3 and 4 to compute (c|ab) with lb < la
-               CALL set_params(lib, rb, ra, rc, params_in=params)
+               CALL set_params_3c(lib, rb, ra, rc, params_in=params)
 
                DO lj = lb_min, lb_max
                   b_offset = b_start+ncoset(lj-1)
@@ -216,8 +257,8 @@ CONTAINS
 !>       centers 3 and 4 because of angular momenta and pretty much all the parameters of libint
 !>       remain the same upon such a change => might avoid recomputing things over and over again
 ! **************************************************************************************************
-   SUBROUTINE set_params(lib, ri, rj, rk, li_max, lj_max, lk_max, zeti, zetj, zetk, &
-                         op, r_cutoff, omega, params_in, params_out)
+   SUBROUTINE set_params_3c(lib, ri, rj, rk, li_max, lj_max, lk_max, zeti, zetj, zetk, &
+                            op, r_cutoff, omega, params_in, params_out)
 
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: ri, rj, rk
@@ -227,7 +268,7 @@ CONTAINS
       REAL(dp), INTENT(IN), OPTIONAL                     :: r_cutoff, omega
       TYPE(params_3c), OPTIONAL, POINTER                 :: params_in, params_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_params', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_params_3c', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: l
       LOGICAL                                            :: use_gamma
@@ -263,13 +304,13 @@ CONTAINS
          params%W = (zetk*rk+gammaq*params%Q)*params%ZetapEtaInv
          params%Rho = zetk*gammaq/(zetk+gammaq)
 
+         params%Fm = 0.0_dp
          SELECT CASE (op)
          CASE (do_potential_coulomb)
             T = params%Rho*SUM((params%Q-rk)**2)
             S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj-ri)**2))
             prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
 
-            params%Fm = 0.0_dp
             CALL fgamma(params%m_max, T, params%Fm)
             params%Fm = prefac*params%Fm
          CASE (do_potential_truncated)
@@ -287,7 +328,6 @@ CONTAINS
             S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj-ri)**2))
             prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
 
-            params%Fm = 0.0_dp
             CALL fgamma(params%m_max, T, params%Fm)
 
             omega2 = omega**2
@@ -313,7 +353,190 @@ CONTAINS
                                     params%ZetapEtaInv, params%Rho, rk, params%Q, params%W, &
                                     params%m_max, params%Fm)
 
-   END SUBROUTINE set_params
+   END SUBROUTINE set_params_3c
 
-END MODULE libint_3center
+! **************************************************************************************************
+!> \brief Computes the 2-center electron repulsion integrals (a|b) for a given set of cartesian
+!>        gaussian orbitals
+!> \param int_ab the integrals as array of cartesian orbitals (allocated before hand)
+!> \param la_min ...
+!> \param la_max ...
+!> \param npgfa ...
+!> \param zeta ...
+!> \param ra ...
+!> \param lb_min ...
+!> \param lb_max ...
+!> \param npgfb ...
+!> \param zetb ...
+!> \param rb ...
+!> \param lib the libint_t object for evaluation (assume that it is initialized outside)
+!> \param op which operator to use for the integrals
+!> \param omega in case of short range erfc operator
+!> \param r_cutoff the cutoff radius in case of truncated Coulomb
+!> \note Prior to calling this routine, the cp_libint_t type passed as argument must be initialized,
+!>       the libint library must be static initialized, and in case of truncated Coulomb operator,
+!>       the latter must be initialized too
+! **************************************************************************************************
+   SUBROUTINE eri_2center(int_ab, la_min, la_max, npgfa, zeta, ra, &
+                          lb_min, lb_max, npgfb, zetb, rb, &
+                          lib, op, omega, r_cutoff)
+
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: int_ab
+      INTEGER, INTENT(IN)                                :: la_min, la_max, npgfa
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: zeta
+      REAL(dp), DIMENSION(3), INTENT(IN)                 :: ra
+      INTEGER, INTENT(IN)                                :: lb_min, lb_max, npgfb
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: zetb
+      REAL(dp), DIMENSION(3), INTENT(IN)                 :: rb
+      TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
+      INTEGER, INTENT(IN)                                :: op
+      REAL(dp), INTENT(IN), OPTIONAL                     :: omega, r_cutoff
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'eri_2center', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: a_mysize(1), a_offset, a_start, &
+                                                            b_offset, b_start, i, ipgf, j, jpgf, &
+                                                            li, lj, ncoa, ncob, p1, p2
+      REAL(dp)                                           :: my_omega, my_r_cutoff, zeti, zetj
+      REAL(dp), DIMENSION(:), POINTER                    :: p_work
+
+      NULLIFY (p_work)
+
+      my_r_cutoff = 0.0_dp
+      IF (PRESENT(r_cutoff)) my_r_cutoff = r_cutoff
+
+      my_omega = 0.0_dp
+      IF (PRESENT(omega)) my_omega = omega
+
+      !Looping over the pgfs
+      DO ipgf = 1, npgfa
+         zeti = zeta(ipgf)
+         a_start = (ipgf-1)*ncoset(la_max)
+
+         DO jpgf = 1, npgfb
+            zetj = zetb(jpgf)
+            b_start = (jpgf-1)*ncoset(lb_max)
+
+            CALL set_params_2c(lib, ra, rb, la_max, lb_max, zeti, zetj, op, &
+                               r_cutoff=my_r_cutoff, omega=my_omega)
+
+            DO li = la_min, la_max
+               a_offset = a_start+ncoset(li-1)
+               ncoa = nco(li)
+               DO lj = lb_min, lb_max
+                  b_offset = b_start+ncoset(lj-1)
+                  ncob = nco(lj)
+
+                  a_mysize(1) = ncoa*ncob
+                  CALL cp_libint_get_2eris(li, lj, lib, p_work, a_mysize)
+
+                  DO j = 1, ncob
+                     p1 = (j-1)*ncoa
+                     DO i = 1, ncoa
+                        p2 = p1+i
+                        int_ab(a_offset+i, b_offset+j) = p_work(p2)
+                     END DO
+                  END DO
+
+               END DO
+            END DO
+
+         END DO
+      END DO
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Sets the internals of the cp_libint_t object for integrals of type (k|j)
+!> \param lib ..
+!> \param rj ...
+!> \param rk ...
+!> \param lj_max ...
+!> \param lk_max ...
+!> \param zetj ...
+!> \param zetk ...
+!> \param op ...
+!> \param r_cutoff ...
+!> \param omega ...
+! **************************************************************************************************
+   SUBROUTINE set_params_2c(lib, rj, rk, lj_max, lk_max, zetj, zetk, &
+                            op, r_cutoff, omega)
+
+      TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
+      REAL(dp), DIMENSION(3), INTENT(IN)                 :: rj, rk
+      INTEGER, INTENT(IN)                                :: lj_max, lk_max
+      REAL(dp), INTENT(IN)                               :: zetj, zetk
+      INTEGER, INTENT(IN)                                :: op
+      REAL(dp), INTENT(IN)                               :: r_cutoff, omega
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_params_2c', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: l
+      LOGICAL                                            :: use_gamma
+      REAL(dp)                                           :: omega2, omega_corr, omega_corr2, prefac, &
+                                                            R, T, tmp
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: Fm
+      TYPE(params_2c)                                    :: params
+
+      !The internal structure of libint2 is based on 4-center integrals
+      !For 2-center, two of those are dummy centers
+      !The integral is assumed to be (k|j) where the centers are ordered as:
+      !k -> 1, j -> 3 and (the centers #2 & #4 are dummy centers)
+
+      !Note: some variable of 4-center integrals simplify due to dummy centers:
+      !      P -> rk, gammap -> zetk
+      !      Q -> rj, gammaq -> zetj
+      params%m_max = lj_max+lk_max
+      params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/zetj
+      params%ZetapEtaInv = 1._dp/(zetk+zetj)
+
+      params%W = (zetk*rk+zetj*rj)*params%ZetapEtaInv
+      params%Rho = zetk*zetj/(zetk+zetj)
+
+      params%Fm = 0.0_dp
+      SELECT CASE (op)
+      CASE (do_potential_coulomb)
+         T = params%Rho*SUM((rj-rk)**2)
+         prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
+         CALL fgamma(params%m_max, T, params%Fm)
+         params%Fm = prefac*params%Fm
+      CASE (do_potential_truncated)
+         R = r_cutoff*SQRT(params%Rho)
+         T = params%Rho*SUM((rj-rk)**2)
+         prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
+
+         CPASSERT(get_lmax_init() .GE. params%m_max) !check if truncated coulomb init correctly
+         CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
+         IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
+         params%Fm = prefac*params%Fm
+      CASE (do_potential_short)
+         T = params%Rho*SUM((rj-rk)**2)
+         prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
+
+         CALL fgamma(params%m_max, T, params%Fm)
+
+         omega2 = omega**2
+         omega_corr2 = omega2/(omega2+params%Rho)
+         omega_corr = SQRT(omega_corr2)
+         T = T*omega_corr2
+         ALLOCATE (Fm(prim_data_f_size))
+
+         CALL fgamma(params%m_max, T, Fm)
+         tmp = -omega_corr
+         DO l = 1, params%m_max+1
+            params%Fm(l) = params%Fm(l)+Fm(l)*tmp
+            tmp = tmp*omega_corr2
+         END DO
+         params%Fm = prefac*params%Fm
+      CASE DEFAULT
+         CPABORT("Requested operator NYI")
+      END SELECT
+
+      CALL cp_libint_set_params_eri(lib, rk, rk, rj, rj, params%ZetaInv, params%EtaInv, &
+                                    params%ZetapEtaInv, params%Rho, rk, rj, params%W, &
+                                    params%m_max, params%Fm)
+
+   END SUBROUTINE set_params_2c
+
+END MODULE libint_2c_3c
 

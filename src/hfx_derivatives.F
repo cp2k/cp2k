@@ -38,7 +38,6 @@ MODULE hfx_derivatives
                                               hfx_get_single_cache_element,&
                                               hfx_reset_cache_and_container
    USE hfx_libint_interface,            ONLY: evaluate_deriv_eri
-   USE hfx_libint_wrapper,              ONLY: cp_libint_t
    USE hfx_load_balance_methods,        ONLY: collect_load_balance_info,&
                                               hfx_load_balance,&
                                               hfx_update_load_balance
@@ -60,6 +59,7 @@ MODULE hfx_derivatives
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE libint_wrapper,                  ONLY: cp_libint_t
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: fac
    USE message_passing,                 ONLY: mp_sum
