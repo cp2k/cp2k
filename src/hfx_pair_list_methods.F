@@ -13,7 +13,6 @@ MODULE hfx_pair_list_methods
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE gamma,                           ONLY: fgamma => fgamma_0
-   USE hfx_libint_wrapper,              ONLY: prim_data_f_size
    USE hfx_types,                       ONLY: &
         hfx_basis_type, hfx_block_range_type, hfx_cell_type, hfx_pgf_list, hfx_pgf_product_list, &
         hfx_potential_type, hfx_screen_coeff_type, pair_list_type, pair_set_list_type
@@ -22,6 +21,7 @@ MODULE hfx_pair_list_methods
         do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, &
         do_potential_short, do_potential_truncated
    USE kinds,                           ONLY: dp
+   USE libint_wrapper,                  ONLY: prim_data_f_size
    USE mathconstants,                   ONLY: pi
    USE mp2_types,                       ONLY: pair_list_type_mp2
    USE particle_types,                  ONLY: particle_type

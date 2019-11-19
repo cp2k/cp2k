@@ -22,13 +22,13 @@ MODULE qs_o3c_methods
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE gamma,                           ONLY: init_md_ftable
-   USE hfx_libint_wrapper,              ONLY: cp_libint_cleanup_3eri,&
+   USE input_constants,                 ONLY: do_potential_truncated
+   USE kinds,                           ONLY: dp
+   USE libint_2c_3c,                    ONLY: eri_3center
+   USE libint_wrapper,                  ONLY: cp_libint_cleanup_3eri,&
                                               cp_libint_init_3eri,&
                                               cp_libint_set_contrdepth,&
                                               cp_libint_t
-   USE input_constants,                 ONLY: do_potential_truncated
-   USE kinds,                           ONLY: dp
-   USE libint_3center,                  ONLY: eri_3center
    USE orbital_pointers,                ONLY: ncoset
    USE qs_o3c_types,                    ONLY: &
         get_o3c_container, get_o3c_iterator_info, get_o3c_vec, o3c_container_type, o3c_iterate, &
@@ -352,14 +352,14 @@ CONTAINS
                                                             nsgfb, nsgfc
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb, first_sgfc
       LOGICAL                                            :: do_screen
-      REAL(dp)                                           :: max_val, my_eps_screen, my_omega, &
-                                                            my_r_cutoff
+      REAL(dp)                                           :: dij, dik, djk, max_val, my_eps_screen, &
+                                                            my_omega, my_r_cutoff
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: max_contr, max_contra, max_contrb, &
                                                             max_contrc
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: sabc
-      REAL(dp), DIMENSION(3)                             :: ri, rij, rik, rj, rk
-      REAL(dp), DIMENSION(:, :), POINTER                 :: sphi_a, sphi_b, sphi_c, tvec, zeta, &
-                                                            zetb, zetc
+      REAL(dp), DIMENSION(3)                             :: ri, rij, rik, rj, rjk, rk
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rpgf_a, rpgf_b, rpgf_c, sphi_a, sphi_b, &
+                                                            sphi_c, tvec, zeta, zetb, zetc
       REAL(dp), DIMENSION(:, :, :), POINTER              :: iabc
       TYPE(cp_libint_t)                                  :: lib
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list, basis_set_list_a, &
@@ -444,10 +444,10 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (nthread,o3c_iterator,nspin,basis_set_list_a, basis_set_list_b,basis_set_list_c,nbasis,&
 !$OMP         maxli,maxlj,maxlk,my_r_cutoff,my_omega,ncoset,op,do_screen,my_eps_screen,max_nset) &
-!$OMP PRIVATE (basis_set_a,basis_set_b,basis_set_c,mepos,ikind,jkind,kkind,iabc,tvec,rij,rik, &
-!$OMP          first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,zeta,iset,ni,ri,ncoa,sgfa,egfa,sphi_a,&
-!$OMP          first_sgfb,lb_max,lb_min,npgfb,nsetb,nsgfb,zetb,jset,nj,rj,ncob,sgfb,egfb,sphi_b,&
-!$OMP          first_sgfc,lc_max,lc_min,npgfc,nsetc,nsgfc,zetc,kset,nk,rk,ncoc,sgfc,egfc,sphi_c,&
+!$OMP PRIVATE (basis_set_a,basis_set_b,basis_set_c,mepos,ikind,jkind,kkind,iabc,tvec,rij,rik,rjk,dij,dik,djk,&
+!$OMP          first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,zeta,iset,ni,ri,ncoa,sgfa,egfa,sphi_a,rpgf_a,&
+!$OMP          first_sgfb,lb_max,lb_min,npgfb,nsetb,nsgfb,zetb,jset,nj,rj,ncob,sgfb,egfb,sphi_b,rpgf_b,&
+!$OMP          first_sgfc,lc_max,lc_min,npgfc,nsetc,nsgfc,zetc,kset,nk,rk,ncoc,sgfc,egfc,sphi_c,rpgf_c,&
 !$OMP          sabc,lib,max_contra,max_contrb,max_contrc,ibasis,i,basis_set,basis_set_list,ilist,&
 !$OMP          max_contr,max_val)
 
@@ -502,6 +502,8 @@ CONTAINS
          CALL get_o3c_iterator_info(o3c_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                     kkind=kkind, rij=rij, rik=rik, integral=iabc, tvec=tvec)
 
+         rjk = rik-rij
+
          !basis
          basis_set_a => basis_set_list_a(ikind)%gto_basis_set
          basis_set_b => basis_set_list_b(jkind)%gto_basis_set
@@ -515,6 +517,7 @@ CONTAINS
          nsgfa => basis_set_a%nsgf_set
          sphi_a => basis_set_a%sphi
          zeta => basis_set_a%zet
+         rpgf_a => basis_set_a%pgf_radius
          ! center B
          first_sgfb => basis_set_b%first_sgf
          lb_max => basis_set_b%lmax
@@ -524,6 +527,7 @@ CONTAINS
          nsgfb => basis_set_b%nsgf_set
          sphi_b => basis_set_b%sphi
          zetb => basis_set_b%zet
+         rpgf_b => basis_set_b%pgf_radius
          ! center C
          first_sgfc => basis_set_c%first_sgf
          lc_max => basis_set_c%lmax
@@ -533,6 +537,11 @@ CONTAINS
          nsgfc => basis_set_c%nsgf_set
          sphi_c => basis_set_c%sphi
          zetc => basis_set_c%zet
+         rpgf_c => basis_set_c%pgf_radius
+
+         djk = NORM2(rjk)
+         dij = NORM2(rij)
+         dik = NORM2(rik)
 
          ni = SUM(nsgfa)
          nj = SUM(nsgfb)
@@ -567,10 +576,10 @@ CONTAINS
                   ALLOCATE (sabc(ncoa, ncob, ncoc))
                   sabc = 0.0_dp
 
-                  CALL eri_3center(sabc, la_min(iset), la_max(iset), npgfa(iset), zeta(:, iset), &
-                                   ri, lb_min(jset), lb_max(jset), npgfb(jset), zetb(:, jset), &
-                                   rj, lc_min(kset), lc_max(kset), npgfc(kset), zetc(:, kset), &
-                                   rk, lib, op, omega=my_omega, r_cutoff=my_r_cutoff)
+                  CALL eri_3center(sabc, la_min(iset), la_max(iset), npgfa(iset), zeta(:, iset), rpgf_a(:, iset), &
+                                   ri, lb_min(jset), lb_max(jset), npgfb(jset), zetb(:, jset), rpgf_b(:, jset), &
+                                   rj, lc_min(kset), lc_max(kset), npgfc(kset), zetc(:, kset), rpgf_c(:, kset), &
+                                   rk, dij, dik, djk, lib, op, omega=my_omega, r_cutoff=my_r_cutoff)
 
                   IF (do_screen) THEN
                      max_val = MAXVAL(ABS(sabc))*max_contra(iset, ikind)*max_contrb(jset, jkind) &

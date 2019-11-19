@@ -24,7 +24,6 @@ MODULE xas_tdp_types
                                               dbcsr_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
-   USE hfx_libint_wrapper,              ONLY: cp_libint_static_cleanup
    USE input_constants,                 ONLY: &
         do_potential_coulomb, do_potential_short, do_potential_truncated, tddfpt_singlet, &
         tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, xas_dip_vel, xas_tdp_by_index, &
@@ -34,6 +33,7 @@ MODULE xas_tdp_types
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE libint_wrapper,                  ONLY: cp_libint_static_cleanup
    USE mathlib,                         ONLY: erfc_cutoff
    USE memory_utilities,                ONLY: reallocate
    USE physcon,                         ONLY: bohr,&

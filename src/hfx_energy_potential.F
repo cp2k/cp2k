@@ -45,7 +45,6 @@ MODULE hfx_energy_potential
                                               hfx_reset_cache_and_container
    USE hfx_contract_block,              ONLY: contract_block
    USE hfx_libint_interface,            ONLY: evaluate_eri
-   USE hfx_libint_wrapper,              ONLY: cp_libint_t
    USE hfx_load_balance_methods,        ONLY: collect_load_balance_info,&
                                               hfx_load_balance,&
                                               hfx_update_load_balance
@@ -73,6 +72,7 @@ MODULE hfx_energy_potential
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
+   USE libint_wrapper,                  ONLY: cp_libint_t
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
                                               m_walltime

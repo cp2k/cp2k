@@ -30,10 +30,10 @@ MODULE mp2_optimize_ri_basis
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
 !
-   USE hfx_libint_wrapper,              ONLY: build_eri_size
    USE hfx_types,                       ONLY: hfx_basis_info_type,&
                                               hfx_basis_type
    USE kinds,                           ONLY: dp
+   USE libint_wrapper,                  ONLY: build_eri_size
    USE machine,                         ONLY: default_output_unit
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_comm_split_direct,&

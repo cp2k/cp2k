@@ -15,7 +15,6 @@ MODULE mp2_direct_method
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE hfx_energy_potential,            ONLY: coulomb4
-   USE hfx_libint_wrapper,              ONLY: cp_libint_t
    USE hfx_load_balance_methods,        ONLY: cost_model,&
                                               p1_energy,&
                                               p2_energy,&
@@ -31,6 +30,7 @@ MODULE mp2_direct_method
    USE input_constants,                 ONLY: do_potential_TShPSC
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE libint_wrapper,                  ONLY: cp_libint_t
    USE mathconstants,                   ONLY: zero
    USE message_passing,                 ONLY: mp_max,&
                                               mp_sendrecv,&
