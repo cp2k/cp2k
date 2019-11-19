@@ -1,10 +1,10 @@
-# Quickstep Polarized Atomic Orbital - TiO2 (Regression Tests)
+# Quickstep Polarized Atomic Orbital - TiO2
 
 Large scale benchmark for PAO ML (and/or LS DFT in general).
 
 ## How to Run the Benchmark
 
-Bunzip2 all files, have [`BASIS_MOLOPT`](../../..//data/BASIS_MOLOPT) [`GTH_POTENTIALS`](../../..//data/GTH_POTENTIALS) available (from cp2k/data).
+Bunzip2 all files, have [`BASIS_MOLOPT`](../../data/BASIS_MOLOPT) and [`GTH_POTENTIALS`](../../data/GTH_POTENTIALS) available (from [cp2k/data](../../data/).
 
 For tuning purposes, the length of the full benchmark can be reduced in the following ways:
 

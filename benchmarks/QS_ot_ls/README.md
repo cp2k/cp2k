@@ -1,4 +1,4 @@
-# Quickstep - Orbital Transformation Method (Regression Test)
+# Quickstep - Orbital Transformation Method
 
 **Authors:** V. Weber and U. Borstnik
 
