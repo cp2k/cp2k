@@ -172,7 +172,6 @@ CONTAINS
                                    c_val=dispersion_env%kernel_file_name)
          CALL section_vals_val_get(nl_section, "TYPE", i_val=dispersion_env%nl_type)
          CALL section_vals_val_get(nl_section, "CUTOFF", r_val=dispersion_env%pw_cutoff)
-         dispersion_env%pw_cutoff = 0.5_dp*dispersion_env%pw_cutoff
          CALL section_vals_val_get(nl_section, "PARAMETERS", r_vals=params)
          dispersion_env%b_value = params(1)
          dispersion_env%c_value = params(2)
@@ -289,8 +288,8 @@ CONTAINS
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ','q_mesh =')")
                WRITE (output_unit, fmt="(8X,4F18.8)") (dispersion_env%q_mesh(i), i=1, dispersion_env%nqs)
                WRITE (output_unit, &
-                      fmt="(' vdW POTENTIAL| ','Density cutoff for comvolution:',T68,F10.1,' Ry')") &
-                  2.0_dp*dispersion_env%pw_cutoff
+                      fmt="(' vdW POTENTIAL| ','Density cutoff for convolution [a.u.]:',T71,F10.1)") &
+                  dispersion_env%pw_cutoff
             END IF
          END IF
       END IF

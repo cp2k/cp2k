@@ -17,7 +17,7 @@
            TYPE LMKLL
            VERBOSE_OUTPUT
            KERNEL_FILE_NAME vdW_kernel_table.dat
-           CUTOFF  100
+           CUTOFF 50
          &END NON_LOCAL
       &END vdW_POTENTIAL
     &END XC

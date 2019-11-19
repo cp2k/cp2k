@@ -51,7 +51,7 @@
            PARAMETERS 6.3 0.0093
            VERBOSE_OUTPUT
            KERNEL_FILE_NAME rVV10_kernel_table.dat
-           CUTOFF  80
+           CUTOFF 40
          &END NON_LOCAL
       &END vdW_POTENTIAL
    &END XC 
