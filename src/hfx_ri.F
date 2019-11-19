@@ -710,8 +710,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: ks_dist
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_1, pgrid_2, pgrid_2d
-      TYPE(dbcsr_t_type)                                 :: ks_t, ks_t_split, mo_coeff_t, &
-                                                            mo_coeff_t_split
+      TYPE(dbcsr_t_type)                                 :: ks_t, mo_coeff_t, mo_coeff_t_split
       TYPE(dbcsr_t_type), DIMENSION(1, 1)                :: t_3c_ctr_KS, t_3c_ctr_KS_copy, &
                                                             t_3c_ctr_RI, t_3c_int_mo_1, &
                                                             t_3c_int_mo_2, t_3c_int_mo_3
@@ -749,24 +748,24 @@ CONTAINS
          CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_2)
 
          CALL create_3c_tensor(t_3c_int_mo_1(1, 1), dist1, dist2, dist3, ri_data%pgrid_1, &
-                               ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, mo_bsizes, &
+                               ri_data%bsizes_AO, ri_data%bsizes_RI_split, mo_bsizes, &
                                [1, 2], [3], name="(AO RI | MO)")
 
          DEALLOCATE (dist1, dist2, dist3)
 
          CALL create_3c_tensor(t_3c_int_mo_2(1, 1), dist1, dist2, dist3, ri_data%pgrid_2, &
-                               mo_bsizes, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
+                               mo_bsizes, ri_data%bsizes_RI_split, ri_data%bsizes_AO, &
                                [1], [2, 3], "(MO | RI AO)")
 
          DEALLOCATE (dist1, dist2, dist3)
 
          CALL create_3c_tensor(t_3c_int_mo_3(1, 1), dist1, dist2, dist3, pgrid_2, &
-                               ri_data%bsizes_RI_split, mo_bsizes, ri_data%bsizes_AO_split, &
+                               ri_data%bsizes_RI_split, mo_bsizes, ri_data%bsizes_AO, &
                                [1], [2, 3], name="(RI | MO AO)")
 
          DEALLOCATE (dist1, dist2, dist3)
          CALL create_3c_tensor(t_3c_ctr_KS(1, 1), dist1, dist2, dist3, pgrid_2, &
-                               ri_data%bsizes_RI_split, mo_bsizes, ri_data%bsizes_AO_split, &
+                               ri_data%bsizes_RI_split, mo_bsizes, ri_data%bsizes_AO, &
                                [1, 2], [3], name="(RI MO | AO)")
          DEALLOCATE (dist1, dist2, dist3)
          CALL dbcsr_t_pgrid_destroy(pgrid_2)
@@ -781,11 +780,7 @@ CONTAINS
          CALL dbcsr_distribution_get(ks_dist, group=comm_2d, nprows=pdims_2d(1), npcols=pdims_2d(2))
          pgrid_2d = dbcsr_t_nd_mp_comm(comm_2d, [1], [2], pdims_2d=pdims_2d)
 
-         CALL create_2c_tensor(ks_t_split, dist1, dist2, pgrid_2d, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
-                               name="(AO | AO)")
-         DEALLOCATE (dist1, dist2)
-
-         CALL create_2c_tensor(mo_coeff_t_split, dist1, dist2, pgrid_2d, ri_data%bsizes_AO_split, mo_bsizes, &
+         CALL create_2c_tensor(mo_coeff_t_split, dist1, dist2, pgrid_2d, ri_data%bsizes_AO, mo_bsizes, &
                                name="(AO | MO)")
 
          DEALLOCATE (dist1, dist2)
@@ -867,7 +862,7 @@ CONTAINS
 
          CALL timeset(routineN//"_3Cx3C", handle2)
          CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), t_3c_ctr_KS(1, 1), t_3c_ctr_KS_copy(1, 1), &
-                               dbcsr_scalar(0.0_dp), ks_t_split, &
+                               dbcsr_scalar(0.0_dp), ks_t, &
                                contract_1=[1, 2], notcontract_1=[3], &
                                contract_2=[1, 2], notcontract_2=[3], &
                                map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
@@ -877,8 +872,6 @@ CONTAINS
          CALL dbcsr_t_destroy(t_3c_ctr_KS(1, 1))
          CALL dbcsr_t_destroy(t_3c_ctr_KS_copy(1, 1))
 
-         CALL dbcsr_t_copy(ks_t_split, ks_t, move_data=.TRUE.)
-         CALL dbcsr_t_destroy(ks_t_split)
          CALL dbcsr_t_filter(ks_t, ri_data%filter_eps)
          CALL dbcsr_t_copy_tensor_to_matrix(ks_t, ks_matrix(ispin, 1)%matrix, summation=.TRUE.)
          CALL dbcsr_t_destroy(ks_t)

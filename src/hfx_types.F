@@ -369,7 +369,7 @@ MODULE hfx_types
       REAL(KIND=dp) :: filter_eps, filter_eps_2c, filter_eps_3c, filter_eps_mo, &
                        eps_lanczos, eps_pgf_orb
       INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr_dbcsr, unit_nr, &
-                 max_bsize, max_bsize_mo, t2c_method, nelectron_total
+                 max_bsize_RI, max_bsize_mo, max_bsize_AO, t2c_method, nelectron_total
       LOGICAL :: check_2c_inv
 
       TYPE(libint_potential_type) :: ri_metric
@@ -1130,7 +1130,8 @@ CONTAINS
       CALL section_vals_val_get(ri_section, "MAX_ITER_LANCZOS", i_val=ri_data%max_iter_lanczos)
       CALL section_vals_val_get(ri_section, "RI_FLAVOR", i_val=ri_data%flavor)
       CALL section_vals_val_get(ri_section, "EPS_PGF_ORB", r_val=ri_data%eps_pgf_orb)
-      CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE", i_val=ri_data%max_bsize)
+      CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE_RI", i_val=ri_data%max_bsize_RI)
+      CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE_AO", i_val=ri_data%max_bsize_AO)
       CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE_MO", i_val=ri_data%max_bsize_mo)
 
       ri_data%orb_basis_type = orb_basis_type
@@ -1266,8 +1267,8 @@ CONTAINS
 
       ! initialize tensors expressed in basis representation
 
-      CALL split_block_sizes(ri_data%bsizes_AO, ri_data%bsizes_AO_split, ri_data%max_bsize)
-      CALL split_block_sizes(ri_data%bsizes_RI, ri_data%bsizes_RI_split, ri_data%max_bsize)
+      CALL split_block_sizes(ri_data%bsizes_AO, ri_data%bsizes_AO_split, ri_data%max_bsize_AO)
+      CALL split_block_sizes(ri_data%bsizes_RI, ri_data%bsizes_RI_split, ri_data%max_bsize_RI)
 
       IF (ri_data%flavor == ri_pmat) THEN
          ALLOCATE (ri_data%t_3c_int_ctr_1(1, 1))
@@ -1329,13 +1330,13 @@ CONTAINS
          CALL dbcsr_t_pgrid_create(para_env%group, pdims, ri_data%pgrid_2)
 
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
-                               ri_data%pgrid_1, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
+                               ri_data%pgrid_1, ri_data%bsizes_AO, ri_data%bsizes_RI_split, ri_data%bsizes_AO, &
                                [1, 2], [3], name="(AO RI | AO)")
 
          ALLOCATE (ri_data%t_3c_int_ctr_2(1, 1))
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), ri_data%dist2_ao_1, ri_data%dist2_ri, ri_data%dist2_ao_2, &
-                               ri_data%pgrid_2, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
-                               [1], [2, 3], name="(AO | RI AO)")
+                               ri_data%pgrid_2, ri_data%bsizes_AO, ri_data%bsizes_RI_split, ri_data%bsizes_AO, &
+                               [1], [2, 3], "(AO | RI AO)")
 
       ENDIF
       CALL timestop(handle)
@@ -2504,18 +2505,37 @@ CONTAINS
             WRITE (UNIT=iw, FMT="(T3, A, T78, A)") &
                "HFX_RI_INFO| RI flavor: ", "RHO"
          END SELECT
+         SELECT CASE (ri_data%do_loc)
+         CASE (.TRUE.)
+            WRITE (UNIT=iw, FMT="(T3, A, T80)") &
+               "HFX_RI_INFO| Localized MOs: ", "T"
+         CASE (.FALSE.)
+            WRITE (UNIT=iw, FMT="(T3, A, T80)") &
+               "HFX_RI_INFO| Localized MOs: ", "F"
+         END SELECT
          SELECT CASE (ri_data%t2c_method)
          CASE (hfx_ri_do_2c_iter)
             WRITE (UNIT=iw, FMT="(T3, A, T69, A)") &
                "HFX_RI_INFO| Matrix SQRT/INV", "DBCSR / iter"
          CASE (hfx_ri_do_2c_diag)
             WRITE (UNIT=iw, FMT="(T3, A, T65, A)") &
-               "HFX_RI_INFO| Matrix SQRT/INV", "Scalapack / diag"
+               "HFX_RI_INFO| Matrix SQRT/INV", "Dense / diag"
          END SELECT
          WRITE (UNIT=iw, FMT="(T3, A, T73, ES8.1)") &
             "HFX_RI_INFO| EPS_FILTER", ri_data%filter_eps
+         WRITE (UNIT=iw, FMT="(T3, A, T73, ES8.1)") &
+            "HFX_RI_INFO| EPS_FILTER 2-center", ri_data%filter_eps_2c
+         WRITE (UNIT=iw, FMT="(T3, A, T73, ES8.1)") &
+            "HFX_RI_INFO| EPS_FILTER 3-center", ri_data%filter_eps_3c
+         WRITE (UNIT=iw, FMT="(T3, A, T73, ES8.1)") &
+            "HFX_RI_INFO| EPS_FILTER MO", ri_data%filter_eps_mo
+         WRITE (UNIT=iw, FMT="(T3, A, T73, ES8.1)") &
+            "HFX_RI_INFO| EPS_PGF_ORB", ri_data%eps_pgf_orb
          WRITE (UNIT=iw, FMT="((T3, A, T73, ES8.1))") &
-            "HFX_INFO| EPS_SCHWARZ:     ", ri_data%eps_schwarz
+            "HFX_RI_INFO| EPS_SCHWARZ:     ", ri_data%eps_schwarz
+         WRITE (UNIT=iw, FMT="(T3, A, T70, I3, 1X, I3, 1X, I3)") &
+            "HFX_RI_INFO| Maximum block size RI, MO, AO", ri_data%max_bsize_RI, ri_data%max_bsize_mo, ri_data%max_bsize_AO
+
       ENDIF
 
    END SUBROUTINE
