@@ -58,9 +58,11 @@ run_pre_commit
 # print report
 NUM_TEST_SCRIPTS=$(( $(wc -w <<< "${ALL_TEST_SCRIPTS}") + 1 ))
 echo ""
-echo "Summary: Run ${NUM_TEST_SCRIPTS} Python test scripts, found ${ERRORS} errors."
+echo "Summary: Ran ${NUM_TEST_SCRIPTS} Python tests, found ${ERRORS} errors."
 if [ $ERRORS == 0 ]; then
     echo "Status: OK"
 else
     echo "Status: FAILED"
 fi
+
+#EOF
