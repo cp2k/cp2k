@@ -10,7 +10,7 @@ This is a single-point DFT energy calculation using Quickstep GAPW (Gaussian and
 
 - [`input_bulk_B88_3.inp`](input_bulk_B88_3.inp): needed to generate an initial wfn (wave function) file for the HFX runs (this should be run once before running the actual HFX benchmark, and is not a part of the benchmark)
 - [`input_bulk_HFX_3.inp`](input_bulk_HFX_3.inp): the actual input file for the HFX benchmark
-- the additional files [`t_c_g.dat`](../../../data/t_c_g.dat) and [`POTENTIAL`](../../..//data/POTENTIAL) are needed, and can be found in the `cp2k/data/` directory.
+- the additional files [`t_c_g.dat`](../../data/t_c_g.dat) and [`POTENTIAL`](../../data/POTENTIAL) are needed, and can be found in the `cp2k/data/` directory.
 
 ## Benchmark Requirements
 
