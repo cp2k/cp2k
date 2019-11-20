@@ -224,10 +224,8 @@ CONTAINS
       REAL(dp)                                           :: eh1, ehfx, ehfxrt
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: hf_energy
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_1d, matrix_ks_aux_fit, &
-                                                            matrix_ks_aux_fit_hfx, &
-                                                            matrix_ks_aux_fit_im, matrix_ks_im, &
-                                                            rho_ao_1d
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_1d, matrix_ks_aux_fit, &
+         matrix_ks_aux_fit_hfx, matrix_ks_aux_fit_im, matrix_ks_im, rho_ao_1d, rho_ao_resp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_ks_orb, rho_ao_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
@@ -332,7 +330,12 @@ CONTAINS
             IF (dft_control%do_admm) THEN
                CALL scale_dm(qs_env, rho_ao_orb, scale_back=.FALSE.)
             END IF
-            CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
+            IF (ASSOCIATED(qs_env%mp2_env)) THEN
+               CALL get_qs_env(qs_env, matrix_p_mp2=rho_ao_resp)
+            ELSE
+               NULLIFY (rho_ao_resp)
+            END IF
+            CALL derivatives_four_center(qs_env, rho_ao_orb, rho_ao_resp, hfx_sections, &
                                          para_env, irep, use_virial)
             !Scale auxiliary density matrix for ADMMP back with 1/gsi(ispin)
             IF (dft_control%do_admm) THEN
@@ -377,7 +380,8 @@ CONTAINS
             END DO
 
             IF (calculate_forces .AND. .NOT. do_adiabatic_rescaling) THEN
-               CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
+               NULLIFY (rho_ao_resp)
+               CALL derivatives_four_center(qs_env, rho_ao_orb, rho_ao_resp, hfx_sections, &
                                             para_env, irep, use_virial)
             END IF
 
