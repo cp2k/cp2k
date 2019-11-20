@@ -77,7 +77,12 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
             ]
 
     if filelist:
-        fileiter = [(cp2k_dir, [], filelist)]
+        # limited emulation of the os.walk generator:
+        # triples of (dir, list-of-subdirs, list-of-files)
+        fileiter = [
+            (path.join(cp2k_dir, path.dirname(f)), [], [path.basename(f)])
+            for f in filelist
+        ]
     else:
         fileiter = os.walk(path.join(cp2k_dir, "src"))
 
@@ -120,8 +125,8 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
                 for m in line.split()[1:]:
                     if re.match("[0-9]+[ulUL]*", m):
                         continue  # skip numbers
-                    if fn_ext == "h" and fn.upper().replace(".", "_") == m:
-                        continue
+                    if fn_ext in ("h", "hpp") and fn.upper().replace(".", "_") == m:
+                        continue  # ignore aptly named inclusion guards
                     flags.add(m)
 
     flags = [f for f in flags if not flag_exceptions_re.match(f)]
