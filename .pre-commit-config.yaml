@@ -41,7 +41,7 @@ repos:
         name: Run analyze_src
         entry: ./tools/conventions/analyze_src.py --fail --suppressions ./tools/conventions/conventions.supp
         language: script
-        files: '.*\.(F|fypp|c|cu|cpp|h|hpp)$'
+        files: '^src/.*\.(F|fypp|c|cu|cpp|h|hpp)$'
     -   id: regen_data
         name: Regenerate checked-in data files
         entry: make --always-make data
