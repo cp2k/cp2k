@@ -439,8 +439,6 @@ CONTAINS
 
       pw_env%pw_pools => pw_pools
 
-      CALL cp_print_key_finished_output(iounit, logger, print_section, '')
-
       ! init auxbas_grid
       DO i = 1, ngrid_level
          IF (cutoff(i) == dft_control%qs_control%cutoff) pw_env%auxbas_grid = i
@@ -467,6 +465,7 @@ CONTAINS
          CPASSERT(ASSOCIATED(old_pw_grid))
          IF (.NOT. ASSOCIATED(vdw_ref_grid)) vdw_ref_grid => old_pw_grid
          CALL pw_grid_create(vdw_grid, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(/,T2,A)") "PW_GRID| Grid for non-local vdW functional"
          CALL pw_grid_setup(my_cell%hmat, vdw_grid, grid_span=grid_span, &
                             cutoff=dispersion_env%pw_cutoff, &
                             spherical=spherical, odd=odd, fft_usage=.TRUE., &
@@ -481,6 +480,8 @@ CONTAINS
          pw_env%vdw_pw_pool => pw_pools(pw_env%auxbas_grid)%pool
          CALL pw_pool_retain(pw_env%vdw_pw_pool)
       END IF
+
+      CALL cp_print_key_finished_output(iounit, logger, print_section, '')
 
       ! complete init of the poisson_env
       IF (.NOT. ASSOCIATED(pw_env%poisson_env)) THEN
