@@ -1196,6 +1196,8 @@ CONTAINS
 !> \param pw_grid ...
 !> \param yz_mask ...
 !> \param ref_grid ...
+!> \par History
+!>      - Fix mapping bug for pw_grid eqv to ref_grid (21.11.2019, MK)
 ! **************************************************************************************************
    SUBROUTINE pre_tag(pw_grid, yz_mask, ref_grid)
 
@@ -1205,8 +1207,6 @@ CONTAINS
 
       INTEGER                                            :: gmax, ig, ip, lby, lbz, my, mz, ny, nz, &
                                                             uby, ubz, y, yp, z, zp
-
-!------------------------------------------------------------------------------
 
       ny = ref_grid%npts(2)
       nz = ref_grid%npts(3)
@@ -1221,11 +1221,11 @@ CONTAINS
       DO ip = 0, ref_grid%para%group_size - 1
          DO ig = 1, ref_grid%para%nyzray(ip)
             ! go from mapped coordinates to original coordinates
-            ! 0 .. N-1 -> -n/2 .. (n+1)/2
+            ! 1, 2, ..., n-1, n -> 0, 1, ..., (n/2)-1, -(n/2), -(n/2)+1, ..., -2, -1
             y = ref_grid%para%yzp(1, ig, ip) - 1
-            IF (y > ny/2) y = y - ny
+            IF (y >= ny/2) y = y - ny
             z = ref_grid%para%yzp(2, ig, ip) - 1
-            IF (z > nz/2) z = z - nz
+            IF (z >= nz/2) z = z - nz
             ! check if this is inside the realm of the new grid
             IF (y < lby .OR. y > uby .OR. z < lbz .OR. z > ubz) CYCLE
             ! go to shifted coordinates
@@ -1235,7 +1235,7 @@ CONTAINS
             IF (pw_grid%grid_span == HALFSPACE) THEN
                yp = -y - 2*lby + 2
                zp = -z - 2*lbz + 2
-               ! if the referenz grid is larger than the mirror point may be
+               ! if the reference grid is larger than the mirror point may be
                ! outside the new grid even if the original point is inside
                IF (yp < 1 .OR. yp > my .OR. zp < 1 .OR. zp > mz) CYCLE
                gmax = MAX(yz_mask(y, z), yz_mask(yp, zp))
@@ -1257,8 +1257,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE pre_tag
-
-   !------------------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
