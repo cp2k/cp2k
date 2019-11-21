@@ -120,6 +120,8 @@ CONTAINS
                                 l_val=mp2_env%ri_rpa%do_admm)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0", &
                                 l_val=mp2_env%ri_rpa%do_ri_g0w0)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%SCALE_RPA", &
+                                r_val=mp2_env%ri_rpa%scale_rpa)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%AXK", &
                                 l_val=mp2_env%ri_rpa%do_ri_axk)

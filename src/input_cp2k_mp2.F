@@ -648,6 +648,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="SCALE_RPA", &
+         description="Scales RPA energy contributions (RPA, AXK).", &
+         usage="SCALE_RPA 1.0", &
+         default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
       CALL create_hfx_section(subsection)
       CALL section_add_subsection(section, subsection)

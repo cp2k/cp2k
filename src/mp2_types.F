@@ -111,6 +111,7 @@ MODULE mp2_types
       REAL(KIND=dp)            :: ener_axk
       REAL(KIND=dp)            :: rse_corr_diag
       REAL(KIND=dp)            :: rse_corr
+      REAL(KIND=dp)            :: scale_rpa
    END TYPE
 
    TYPE ri_rpa_im_time_util
