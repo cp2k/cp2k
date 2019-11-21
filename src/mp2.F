@@ -672,6 +672,10 @@ CONTAINS
          CALL mp2_gpw_main(qs_env, mp2_env, Emp2, Emp2_Cou, Emp2_EX, Emp2_S, Emp2_T, &
                            mos_mp2, para_env, unit_nr, calc_forces, calc_ex, do_ri_rpa=.TRUE.)
 
+         ! Scale energy contributions
+         Emp2 = Emp2*mp2_env%ri_rpa%scale_rpa
+         mp2_env%ri_rpa%ener_axk = mp2_env%ri_rpa%ener_axk*mp2_env%ri_rpa%scale_rpa
+
       CASE (ri_mp2_laplace)
          ! perform RI-SOS-Laplace-MP2 energy calculation, most part of the code in common
          ! with the RI-RPA part
