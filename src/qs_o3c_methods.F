@@ -575,7 +575,7 @@ CONTAINS
                egfb = sgfb + nsgfb(jset) - 1
 
                !screening (overlap)
-               IF (set_radius_a(iset)+set_radius_b(jset) < dij) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dij) CYCLE
 
                DO kset = 1, nsetc
                   ncoc = npgfc(kset)*ncoset(lc_max(kset))
@@ -583,8 +583,8 @@ CONTAINS
                   egfc = sgfc + nsgfc(kset) - 1
 
                   !screening (potential)
-                  IF (set_radius_a(iset)+set_radius_c(kset)+screen_radius < dik) CYCLE
-                  IF (set_radius_b(jset)+set_radius_c(kset)+screen_radius < djk) CYCLE
+                  IF (set_radius_a(iset) + set_radius_c(kset) + screen_radius < dik) CYCLE
+                  IF (set_radius_b(jset) + set_radius_c(kset) + screen_radius < djk) CYCLE
 
                   ALLOCATE (sabc(ncoa, ncob, ncoc))
                   sabc = 0.0_dp

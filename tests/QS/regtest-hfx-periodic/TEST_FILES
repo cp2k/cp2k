@@ -11,4 +11,5 @@ CH3-trunc-auto-md.inp                                  2      1e-09            -
 CH3-coul-0.inp                                         1      9e-14            -39.399102296891009
 h2o-respa.inp                                          1      6e-13            -76.023109187259081
 h2o-respa_restart.inp                                  1      5e-12            -76.022672170936700
+H2O-id-auto.inp                                        1      1e-10            -88.00800458674919
 #EOF
