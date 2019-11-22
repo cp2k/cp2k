@@ -5,13 +5,15 @@
 
 ! **************************************************************************************************
 !> \brief 2- and 3-center electron repulsion integral routines based on libint2
-!>        Currently available operators: Coulomb, Truncated Coulomb, Short Range (erfc)
+!>        Currently available operators: Coulomb, Truncated Coulomb, Short Range (erfc), Overlap
 !> \author A. Bussy (05.2019)
 ! **************************************************************************************************
 
 MODULE libint_2c_3c
    USE gamma,                           ONLY: fgamma => fgamma_0
+   USE hfx_types,                       ONLY: hfx_potential_type
    USE input_constants,                 ONLY: do_potential_coulomb,&
+                                              do_potential_id,&
                                               do_potential_short,&
                                               do_potential_truncated
    USE kinds,                           ONLY: dp
@@ -80,9 +82,7 @@ CONTAINS
 !> \param dac ...
 !> \param dbc ...
 !> \param lib the libint_t object for evaluation (assume that it is initialized outside)
-!> \param op which operator to use for the integrals
-!> \param omega in case of short range erfc operator
-!> \param r_cutoff the cutoff radius in case of truncated Coulomb
+!> \param potential_parameter the info about the potential (as a hfx_potential_type)
 !> \note Prior to calling this routine, the cp_libint_t type passed as argument must be initialized,
 !>       the libint library must be static initialized, and in case of truncated Coulomb operator,
 !>       the latter must be initialized too
@@ -90,7 +90,7 @@ CONTAINS
    SUBROUTINE eri_3center(int_abc, la_min, la_max, npgfa, zeta, rpgfa, ra, &
                           lb_min, lb_max, npgfb, zetb, rpgfb, rb, &
                           lc_min, lc_max, npgfc, zetc, rpgfc, rc, &
-                          dab, dac, dbc, lib, op, omega, r_cutoff)
+                          dab, dac, dbc, lib, potential_parameter)
 
       REAL(dp), DIMENSION(:, :, :), INTENT(INOUT)        :: int_abc
       INTEGER, INTENT(IN)                                :: la_min, la_max, npgfa
@@ -104,17 +104,13 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rc
       REAL(KIND=dp), INTENT(IN)                          :: dab, dac, dbc
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
-      INTEGER, INTENT(IN)                                :: op
-      REAL(dp), INTENT(IN), OPTIONAL                     :: omega, r_cutoff
+      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eri_3center', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: a_mysize(1), a_offset, a_start, &
-                                                            b_offset, b_start, c_offset, c_start, &
-                                                            i, ipgf, j, jpgf, k, kpgf, li, lj, lk, &
-                                                            ncoa, ncob, ncoc, p1, p2, p3
-      REAL(dp)                                           :: dr_ab, dr_ac, dr_bc, my_omega, &
-                                                            my_r_cutoff, zeti, zetj, zetk
+      INTEGER :: a_mysize(1), a_offset, a_start, b_offset, b_start, c_offset, c_start, i, ipgf, j, &
+         jpgf, k, kpgf, li, lj, lk, ncoa, ncob, ncoc, op, p1, p2, p3
+      REAL(dp)                                           :: dr_ab, dr_ac, dr_bc, zeti, zetj, zetk
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
       TYPE(params_3c), POINTER                           :: params
 
@@ -125,9 +121,11 @@ CONTAINS
       dr_bc = 0.0_dp
       dr_ac = 0.0_dp
 
+      op = potential_parameter%potential_type
+
       IF (op == do_potential_truncated .OR. op == do_potential_short) THEN
-         dr_bc = r_cutoff*cutoff_screen_factor
-         dr_ac = r_cutoff*cutoff_screen_factor
+         dr_bc = potential_parameter%cutoff_radius*cutoff_screen_factor
+         dr_ac = potential_parameter%cutoff_radius*cutoff_screen_factor
       ELSEIF (op == do_potential_coulomb) THEN
          dr_bc = 1000000.0_dp
          dr_ac = 1000000.0_dp
@@ -136,12 +134,6 @@ CONTAINS
       !Note: we want to compute all possible integrals based on the 3-centers (ab|c) before
       !      having to switch to (ba|c) (or the other way around) due to angular momenta in libint
       !      For a triplet of centers (k|ji), we can only compute integrals for which lj >= li
-
-      my_r_cutoff = 0.0_dp
-      IF (PRESENT(r_cutoff)) my_r_cutoff = r_cutoff
-
-      my_omega = 0.0_dp
-      IF (PRESENT(omega)) my_omega = omega
 
       !Looping over the pgfs
       DO ipgf = 1, npgfa
@@ -166,8 +158,8 @@ CONTAINS
                c_start = (kpgf - 1)*ncoset(lc_max)
 
                !start with all the (c|ba) integrals (standard order) and keep to lb >= la
-               CALL set_params_3c(lib, ra, rb, rc, la_max, lb_max, lc_max, zeti, zetj, zetk, op, &
-                                  params_out=params, r_cutoff=my_r_cutoff, omega=my_omega)
+               CALL set_params_3c(lib, ra, rb, rc, la_max, lb_max, lc_max, zeti, zetj, zetk, &
+                                  potential_parameter=potential_parameter, params_out=params)
 
                DO li = la_min, la_max
                   a_offset = a_start + ncoset(li - 1)
@@ -248,9 +240,7 @@ CONTAINS
 !> \param zeti ...
 !> \param zetj ...
 !> \param zetk ...
-!> \param op ...
-!> \param r_cutoff ...
-!> \param omega ...
+!> \param potential_parameter ...
 !> \param params_in external parameters to use for libint
 !> \param params_out returns the libint parameters computed based on the other arguments
 !> \note The use of params_in and params_out comes from the fact that one might have to swap
@@ -258,14 +248,13 @@ CONTAINS
 !>       remain the same upon such a change => might avoid recomputing things over and over again
 ! **************************************************************************************************
    SUBROUTINE set_params_3c(lib, ri, rj, rk, li_max, lj_max, lk_max, zeti, zetj, zetk, &
-                            op, r_cutoff, omega, params_in, params_out)
+                            potential_parameter, params_in, params_out)
 
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: ri, rj, rk
       INTEGER, INTENT(IN), OPTIONAL                      :: li_max, lj_max, lk_max
       REAL(dp), INTENT(IN), OPTIONAL                     :: zeti, zetj, zetk
-      INTEGER, INTENT(IN), OPTIONAL                      :: op
-      REAL(dp), INTENT(IN), OPTIONAL                     :: r_cutoff, omega
+      TYPE(hfx_potential_type), INTENT(IN), OPTIONAL     :: potential_parameter
       TYPE(params_3c), OPTIONAL, POINTER                 :: params_in, params_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_params_3c', routineP = moduleN//':'//routineN
@@ -305,7 +294,7 @@ CONTAINS
          params%Rho = zetk*gammaq/(zetk + gammaq)
 
          params%Fm = 0.0_dp
-         SELECT CASE (op)
+         SELECT CASE (potential_parameter%potential_type)
          CASE (do_potential_coulomb)
             T = params%Rho*SUM((params%Q - rk)**2)
             S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
@@ -314,7 +303,7 @@ CONTAINS
             CALL fgamma(params%m_max, T, params%Fm)
             params%Fm = prefac*params%Fm
          CASE (do_potential_truncated)
-            R = r_cutoff*SQRT(params%Rho)
+            R = potential_parameter%cutoff_radius*SQRT(params%Rho)
             T = params%Rho*SUM((params%Q - rk)**2)
             S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
             prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
@@ -330,7 +319,7 @@ CONTAINS
 
             CALL fgamma(params%m_max, T, params%Fm)
 
-            omega2 = omega**2
+            omega2 = potential_parameter%omega**2
             omega_corr2 = omega2/(omega2 + params%Rho)
             omega_corr = SQRT(omega_corr2)
             T = T*omega_corr2
@@ -343,6 +332,12 @@ CONTAINS
                tmp = tmp*omega_corr2
             END DO
             params%Fm = prefac*params%Fm
+         CASE (do_potential_id)
+            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj-ri)**2) &
+                        -gammaq*zetk*params%ZetapEtaInv*SUM((params%Q-rk)**2))
+            prefac = SQRT((pi*params%ZetapEtaInv)**3)*S1234
+
+            params%Fm(:) = prefac
          CASE DEFAULT
             CPABORT("Requested operator NYI")
          END SELECT
@@ -363,50 +358,54 @@ CONTAINS
 !> \param la_max ...
 !> \param npgfa ...
 !> \param zeta ...
+!> \param rpgfa ...
 !> \param ra ...
 !> \param lb_min ...
 !> \param lb_max ...
 !> \param npgfb ...
 !> \param zetb ...
+!> \param rpgfb ...
 !> \param rb ...
+!> \param dab ...
 !> \param lib the libint_t object for evaluation (assume that it is initialized outside)
-!> \param op which operator to use for the integrals
-!> \param omega in case of short range erfc operator
-!> \param r_cutoff the cutoff radius in case of truncated Coulomb
+!> \param potential_parameter the info about the potential (as a hfx_potential_type)
 !> \note Prior to calling this routine, the cp_libint_t type passed as argument must be initialized,
 !>       the libint library must be static initialized, and in case of truncated Coulomb operator,
 !>       the latter must be initialized too
 ! **************************************************************************************************
-   SUBROUTINE eri_2center(int_ab, la_min, la_max, npgfa, zeta, ra, &
-                          lb_min, lb_max, npgfb, zetb, rb, &
-                          lib, op, omega, r_cutoff)
+   SUBROUTINE eri_2center(int_ab, la_min, la_max, npgfa, zeta, rpgfa, ra, &
+                          lb_min, lb_max, npgfb, zetb, rpgfb, rb, &
+                          dab, lib, potential_parameter)
 
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: int_ab
       INTEGER, INTENT(IN)                                :: la_min, la_max, npgfa
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: zeta
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: zeta, rpgfa
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: ra
       INTEGER, INTENT(IN)                                :: lb_min, lb_max, npgfb
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: zetb
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: zetb, rpgfb
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rb
+      REAL(dp), INTENT(IN)                               :: dab
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
-      INTEGER, INTENT(IN)                                :: op
-      REAL(dp), INTENT(IN), OPTIONAL                     :: omega, r_cutoff
+      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eri_2center', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: a_mysize(1), a_offset, a_start, &
                                                             b_offset, b_start, i, ipgf, j, jpgf, &
                                                             li, lj, ncoa, ncob, p1, p2
-      REAL(dp)                                           :: my_omega, my_r_cutoff, zeti, zetj
+      REAL(dp)                                           :: dr_ab, zeti, zetj
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
       NULLIFY (p_work)
 
-      my_r_cutoff = 0.0_dp
-      IF (PRESENT(r_cutoff)) my_r_cutoff = r_cutoff
+      dr_ab = 0.0_dp
 
-      my_omega = 0.0_dp
-      IF (PRESENT(omega)) my_omega = omega
+      IF (potential_parameter%potential_type == do_potential_truncated .OR. &
+          potential_parameter%potential_type == do_potential_short) THEN
+         dr_ab = potential_parameter%cutoff_radius*cutoff_screen_factor
+      ELSEIF (potential_parameter%potential_type == do_potential_coulomb) THEN
+         dr_ab = 1000000.0_dp
+      ENDIF
 
       !Looping over the pgfs
       DO ipgf = 1, npgfa
@@ -417,8 +416,10 @@ CONTAINS
             zetj = zetb(jpgf)
             b_start = (jpgf - 1)*ncoset(lb_max)
 
-            CALL set_params_2c(lib, ra, rb, la_max, lb_max, zeti, zetj, op, &
-                               r_cutoff=my_r_cutoff, omega=my_omega)
+            !screening
+            IF (rpgfa(ipgf)+rpgfb(jpgf)+dr_ab < dab) CYCLE
+
+            CALL set_params_2c(lib, ra, rb, la_max, lb_max, zeti, zetj, potential_parameter)
 
             DO li = la_min, la_max
                a_offset = a_start + ncoset(li - 1)
@@ -455,23 +456,19 @@ CONTAINS
 !> \param lk_max ...
 !> \param zetj ...
 !> \param zetk ...
-!> \param op ...
-!> \param r_cutoff ...
-!> \param omega ...
+!> \param potential_parameter ...
 ! **************************************************************************************************
-   SUBROUTINE set_params_2c(lib, rj, rk, lj_max, lk_max, zetj, zetk, &
-                            op, r_cutoff, omega)
+   SUBROUTINE set_params_2c(lib, rj, rk, lj_max, lk_max, zetj, zetk, potential_parameter)
 
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rj, rk
       INTEGER, INTENT(IN)                                :: lj_max, lk_max
       REAL(dp), INTENT(IN)                               :: zetj, zetk
-      INTEGER, INTENT(IN)                                :: op
-      REAL(dp), INTENT(IN)                               :: r_cutoff, omega
+      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_params_2c', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: l
+      INTEGER                                            :: l, op
       LOGICAL                                            :: use_gamma
       REAL(dp)                                           :: omega2, omega_corr, omega_corr2, prefac, &
                                                             R, T, tmp
@@ -486,6 +483,8 @@ CONTAINS
       !Note: some variable of 4-center integrals simplify due to dummy centers:
       !      P -> rk, gammap -> zetk
       !      Q -> rj, gammaq -> zetj
+
+      op = potential_parameter%potential_type
       params%m_max = lj_max + lk_max
       params%ZetaInv = 1._dp/zetk; params%EtaInv = 1._dp/zetj
       params%ZetapEtaInv = 1._dp/(zetk + zetj)
@@ -501,7 +500,7 @@ CONTAINS
          CALL fgamma(params%m_max, T, params%Fm)
          params%Fm = prefac*params%Fm
       CASE (do_potential_truncated)
-         R = r_cutoff*SQRT(params%Rho)
+         R = potential_parameter%cutoff_radius*SQRT(params%Rho)
          T = params%Rho*SUM((rj - rk)**2)
          prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
 
@@ -515,7 +514,7 @@ CONTAINS
 
          CALL fgamma(params%m_max, T, params%Fm)
 
-         omega2 = omega**2
+         omega2 = potential_parameter%omega**2
          omega_corr2 = omega2/(omega2 + params%Rho)
          omega_corr = SQRT(omega_corr2)
          T = T*omega_corr2
@@ -528,6 +527,10 @@ CONTAINS
             tmp = tmp*omega_corr2
          END DO
          params%Fm = prefac*params%Fm
+      CASE (do_potential_id)
+
+         prefac = SQRT((pi*params%ZetapEtaInv)**3)*EXP(-zetj*zetk*params%ZetapEtaInv*SUM((rk-rj)**2))
+         params%Fm(:) = prefac
       CASE DEFAULT
          CPABORT("Requested operator NYI")
       END SELECT

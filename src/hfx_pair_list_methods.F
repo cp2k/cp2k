@@ -7,6 +7,7 @@
 !> \brief Rountines for optimizing load balance between processes in HFX calculations
 !> \par History
 !>      04.2008 created [Manuel Guidon]
+!>      11.2019 fixed initial value for potential_id (A. Bussy)
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE hfx_pair_list_methods
@@ -77,10 +78,10 @@ CONTAINS
 
       INTEGER                                            :: i, j, k, l, nimages1, nimages2, tmp_i4
       LOGICAL                                            :: use_gamma
-      REAL(dp) :: C11(3), Eta, EtaInv, factor, Fm(prim_data_f_size), omega2, omega_corr, &
-         omega_corr2, P(3), pgf_max_1, pgf_max_2, PQ(3), Q(3), R, R1, R2, ra(3), rb(3), rc(3), &
-         rd(3), Rho, RhoInv, rpq2, S1234, S1234a, S1234b, shift(3), T, temp(3), temp_CC(3), &
-         temp_DD(3), tmp, tmp_D(3), W(3), Zeta1, Zeta_C, Zeta_D, ZetapEtaInv
+      REAL(dp) :: C11(3), den, Eta, EtaInv, factor, Fm(prim_data_f_size), G(3), num, omega2, &
+         omega_corr, omega_corr2, P(3), pgf_max_1, pgf_max_2, PQ(3), Q(3), R, R1, R2, ra(3), &
+         rb(3), rc(3), rd(3), Rho, RhoInv, rpq2, S1234, S1234a, S1234b, shift(3), ssss, T, &
+         temp(3), temp_CC(3), temp_DD(3), tmp, tmp_D(3), W(3), Zeta1, Zeta_C, Zeta_D, ZetapEtaInv
       TYPE(hfx_pgf_product_list), ALLOCATABLE, &
          DIMENSION(:)                                    :: tmp_product_list
 
@@ -270,11 +271,22 @@ CONTAINS
                   END DO
                   factor = 1.0_dp
                CASE (do_potential_id)
-                  product_list(nproducts)%Fm(1) = (Pi*RhoInv)**(1.5_dp)
-                  DO l = 2, m_max + 1
-                     product_list(nproducts)%Fm(l) = 0.0_dp
-                  END DO
+                  num = list1%zeta*list1%zetb
+                  den = list1%zeta+list1%zetb
+                  ssss = -num/den*SUM((ra-rb)**2)
+
+                  num = den*Zeta_C
+                  den = den+Zeta_C
+                  ssss = ssss-num/den*SUM((P-rc)**2)
+
+                  G(:) = (list1%zeta*ra(:)+list1%zetb*rb(:)+Zeta_C*rc(:))/den
+                  num = den*Zeta_D
+                  den = den+Zeta_D
+                  ssss = ssss-num/den*SUM((G-rd)**2)
+
+                  product_list(nproducts)%Fm(:) = EXP(ssss)
                   factor = 1.0_dp
+                  IF (S1234 > EPSILON(0.0_dp)) factor = 1.0_dp/S1234
                END SELECT
 
                tmp = (Pi*ZetapEtaInv)**3

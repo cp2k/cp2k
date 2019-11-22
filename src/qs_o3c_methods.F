@@ -22,9 +22,13 @@ MODULE qs_o3c_methods
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE gamma,                           ONLY: init_md_ftable
-   USE input_constants,                 ONLY: do_potential_truncated
+   USE hfx_types,                       ONLY: hfx_potential_type
+   USE input_constants,                 ONLY: do_potential_coulomb,&
+                                              do_potential_short,&
+                                              do_potential_truncated
    USE kinds,                           ONLY: dp
-   USE libint_2c_3c,                    ONLY: eri_3center
+   USE libint_2c_3c,                    ONLY: cutoff_screen_factor,&
+                                              eri_3center
    USE libint_wrapper,                  ONLY: cp_libint_cleanup_3eri,&
                                               cp_libint_init_3eri,&
                                               cp_libint_set_contrdepth,&
@@ -322,24 +326,19 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Computes the 3-center integrals of the o3c container based on libint for the given operator
 !> \param o3c the 3-center integrals container
-!> \param op the operator for the integrals
-!> \param t_c_filename the name of the file with the truncated Coulomb data
+!> \param potential_parameter info about the operator as a hfx_potential_type
 !> \param para_env ...
-!> \param r_cutoff the cutoff radius for the truncated coulomb operator
-!> \param omega the range parameter for the erfc short range operator
 !> \param eps_screen the screening threshold for sicarding integrals before contraction
 !> \note The static initialization of the libint library needs to be done before hand
 !>       In case the truncated coulomb operator is used, the potential parameter file must be read
 !>       in advance too
 ! **************************************************************************************************
-   SUBROUTINE calculate_o3c_libint_integrals(o3c, op, t_c_filename, para_env, r_cutoff, omega, &
-                                             eps_screen)
+   SUBROUTINE calculate_o3c_libint_integrals(o3c, potential_parameter, para_env, eps_screen)
 
       TYPE(o3c_container_type), POINTER                  :: o3c
-      INTEGER, INTENT(IN)                                :: op
-      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: t_c_filename
+      TYPE(hfx_potential_type)                           :: potential_parameter
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
-      REAL(dp), INTENT(IN), OPTIONAL                     :: r_cutoff, omega, eps_screen
+      REAL(dp), INTENT(IN), OPTIONAL                     :: eps_screen
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_o3c_libint_integrals', &
          routineP = moduleN//':'//routineN
@@ -353,11 +352,12 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb, first_sgfc
       LOGICAL                                            :: do_screen
       REAL(dp)                                           :: dij, dik, djk, max_val, my_eps_screen, &
-                                                            my_omega, my_r_cutoff
+                                                            screen_radius
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: max_contr, max_contra, max_contrb, &
                                                             max_contrc
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: sabc
       REAL(dp), DIMENSION(3)                             :: ri, rij, rik, rj, rjk, rk
+      REAL(dp), DIMENSION(:), POINTER                    :: set_radius_a, set_radius_b, set_radius_c
       REAL(dp), DIMENSION(:, :), POINTER                 :: rpgf_a, rpgf_b, rpgf_c, sphi_a, sphi_b, &
                                                             sphi_c, tvec, zeta, zetb, zetc
       REAL(dp), DIMENSION(:, :, :), POINTER              :: iabc
@@ -410,22 +410,24 @@ CONTAINS
          do_screen = .TRUE.
          my_eps_screen = eps_screen
       END IF
+      screen_radius = 0.0_dp
+      IF (potential_parameter%potential_type == do_potential_truncated .OR. &
+          potential_parameter%potential_type == do_potential_short) THEN
 
-      !Short range parameters
-      my_omega = 0.0_dp
-      IF (PRESENT(omega)) my_omega = omega
-      my_r_cutoff = 0.0_dp
-      IF (PRESENT(r_cutoff)) my_r_cutoff = r_cutoff
+         screen_radius = potential_parameter%cutoff_radius*cutoff_screen_factor
+      ELSE IF (potential_parameter%potential_type == do_potential_coulomb) THEN
+
+         screen_radius = 1000000.0_dp
+      END IF
 
       !Init the truncated Coulomb operator
-      IF (op == do_potential_truncated) THEN
-         CPASSERT(PRESENT(t_c_filename))
+      IF (potential_parameter%potential_type == do_potential_truncated) THEN
          CPASSERT(PRESENT(para_env))
 
          !open the file only if necessary
          IF (m_max > get_lmax_init()) THEN
             IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=t_c_filename)
+               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
             END IF
             CALL init(m_max, unit_id, para_env%mepos, para_env%group)
             IF (para_env%mepos == 0) THEN
@@ -443,13 +445,14 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (nthread,o3c_iterator,nspin,basis_set_list_a, basis_set_list_b,basis_set_list_c,nbasis,&
-!$OMP         maxli,maxlj,maxlk,my_r_cutoff,my_omega,ncoset,op,do_screen,my_eps_screen,max_nset) &
+!$OMP         maxli,maxlj,maxlk,potential_parameter,ncoset,do_screen,my_eps_screen,max_nset,&
+!$OMP         screen_radius) &
 !$OMP PRIVATE (basis_set_a,basis_set_b,basis_set_c,mepos,ikind,jkind,kkind,iabc,tvec,rij,rik,rjk,dij,dik,djk,&
 !$OMP          first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,zeta,iset,ni,ri,ncoa,sgfa,egfa,sphi_a,rpgf_a,&
 !$OMP          first_sgfb,lb_max,lb_min,npgfb,nsetb,nsgfb,zetb,jset,nj,rj,ncob,sgfb,egfb,sphi_b,rpgf_b,&
 !$OMP          first_sgfc,lc_max,lc_min,npgfc,nsetc,nsgfc,zetc,kset,nk,rk,ncoc,sgfc,egfc,sphi_c,rpgf_c,&
 !$OMP          sabc,lib,max_contra,max_contrb,max_contrc,ibasis,i,basis_set,basis_set_list,ilist,&
-!$OMP          max_contr,max_val)
+!$OMP          max_contr,max_val,set_radius_a,set_radius_b,set_radius_c)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
@@ -518,7 +521,8 @@ CONTAINS
          sphi_a => basis_set_a%sphi
          zeta => basis_set_a%zet
          rpgf_a => basis_set_a%pgf_radius
-         ! center B
+         set_radius_a => basis_set_a%set_radius
+         ! center B basis_set_a
          first_sgfb => basis_set_b%first_sgf
          lb_max => basis_set_b%lmax
          lb_min => basis_set_b%lmin
@@ -528,6 +532,7 @@ CONTAINS
          sphi_b => basis_set_b%sphi
          zetb => basis_set_b%zet
          rpgf_b => basis_set_b%pgf_radius
+         set_radius_b => basis_set_b%set_radius
          ! center C
          first_sgfc => basis_set_c%first_sgf
          lc_max => basis_set_c%lmax
@@ -538,6 +543,7 @@ CONTAINS
          sphi_c => basis_set_c%sphi
          zetc => basis_set_c%zet
          rpgf_c => basis_set_c%pgf_radius
+         set_radius_c => basis_set_c%set_radius
 
          djk = NORM2(rjk)
          dij = NORM2(rij)
@@ -568,10 +574,17 @@ CONTAINS
                sgfb = first_sgfb(1, jset)
                egfb = sgfb + nsgfb(jset) - 1
 
+               !screening (overlap)
+               IF (set_radius_a(iset)+set_radius_b(jset) < dij) CYCLE
+
                DO kset = 1, nsetc
                   ncoc = npgfc(kset)*ncoset(lc_max(kset))
                   sgfc = first_sgfc(1, kset)
                   egfc = sgfc + nsgfc(kset) - 1
+
+                  !screening (potential)
+                  IF (set_radius_a(iset)+set_radius_c(kset)+screen_radius < dik) CYCLE
+                  IF (set_radius_b(jset)+set_radius_c(kset)+screen_radius < djk) CYCLE
 
                   ALLOCATE (sabc(ncoa, ncob, ncoc))
                   sabc = 0.0_dp
@@ -579,7 +592,7 @@ CONTAINS
                   CALL eri_3center(sabc, la_min(iset), la_max(iset), npgfa(iset), zeta(:, iset), rpgf_a(:, iset), &
                                    ri, lb_min(jset), lb_max(jset), npgfb(jset), zetb(:, jset), rpgf_b(:, jset), &
                                    rj, lc_min(kset), lc_max(kset), npgfc(kset), zetc(:, kset), rpgf_c(:, kset), &
-                                   rk, dij, dik, djk, lib, op, omega=my_omega, r_cutoff=my_r_cutoff)
+                                   rk, dij, dik, djk, lib, potential_parameter)
 
                   IF (do_screen) THEN
                      max_val = MAXVAL(ABS(sabc))*max_contra(iset, ikind)*max_contrb(jset, jkind) &
@@ -604,6 +617,7 @@ CONTAINS
 
       END DO !o3c_iterator
       CALL cp_libint_cleanup_3eri(lib)
+
 !$OMP END PARALLEL
       CALL o3c_iterator_release(o3c_iterator)
 
