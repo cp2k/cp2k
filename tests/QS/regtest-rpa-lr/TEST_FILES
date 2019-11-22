@@ -1,6 +1,6 @@
-H2O-ri-rpa-lr.inp                               11         1e-8        -16.841610556455642
+H2O-ri-rpa-lr.inp                               11         1e-8        -16.847828959621648
 H2O-ri-rpa-lr-mme.inp                           11         8e-6        -16.851159582018898
-H2O-rpa-axk-lr.inp                              11         1e-8        -16.821962587950267
-H2O-rpa-cubic-lr.inp                            11         1e-8        -16.857667058995268
+H2O-rpa-axk-lr.inp                              11         1e-8        -16.840956522844035
+H2O-rpa-cubic-lr.inp                            11         1e-8        -16.867724875643752
 H2O-rpa-cubic-lr-mme.inp                        11         1e-8        -16.857667482754358
 #EOF

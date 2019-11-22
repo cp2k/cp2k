@@ -369,7 +369,7 @@ CONTAINS
       n_exp = 0
 
       omega_2 = omega*omega
-      omega_2 = 1.0_dp/omega_2
+      omega_2 = 0.25_dp/omega_2
 
       IF (pw%in_space == RECIPROCALSPACE .AND. &
           pw%in_use == COMPLEXDATA1D) THEN
