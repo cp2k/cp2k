@@ -152,7 +152,7 @@ CONTAINS
 
       NULLIFY (qs_kind_set, cell, particle_set, sab_orb)
 
-      nm = (6+11*nmoments+6*nmoments**2+nmoments**3)/6-1
+      nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
       CPASSERT(SIZE(moments) >= nm)
 
       NULLIFY (qs_kind_set, particle_set, sab_orb, cell)
@@ -247,7 +247,7 @@ CONTAINS
 
          ! fold atomic position back into unit cell
          IF (PRESENT(ref_points)) THEN
-            rc(:) = 0.5_dp*(ref_points(:, iatom)+ref_points(:, jatom))
+            rc(:) = 0.5_dp*(ref_points(:, iatom) + ref_points(:, jatom))
          ELSE IF (PRESENT(ref_point)) THEN
             rc(:) = ref_point(:)
          ELSE
@@ -255,13 +255,13 @@ CONTAINS
          END IF
          ! using PBC here might screw a molecule that fits the box (but e.g. hasn't been shifted by center_molecule)
          ! by folding around the center, such screwing can be avoided for a proper choice of center.
-         ra(:) = pbc(particle_set(iatom)%r(:)-rc, cell)+rc
-         rb(:) = pbc(particle_set(jatom)%r(:)-rc, cell)+rc
+         ra(:) = pbc(particle_set(iatom)%r(:) - rc, cell) + rc
+         rb(:) = pbc(particle_set(jatom)%r(:) - rc, cell) + rc
          ! we dont use PBC at this point
-         rab(:) = ra(:)-rb(:)
-         rac(:) = ra(:)-rc(:)
-         rbc(:) = rb(:)-rc(:)
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab(:) = ra(:) - rb(:)
+         rac(:) = ra(:) - rc(:)
+         rbc(:) = rb(:) - rc(:)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          dab = SQRT(rab2)
 
          DO iset = 1, nseta
@@ -271,7 +271,7 @@ CONTAINS
 
             DO jset = 1, nsetb
 
-               IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
@@ -481,7 +481,7 @@ CONTAINS
 
          ! fold atomic position back into unit cell
          IF (PRESENT(ref_points)) THEN
-            rc(:) = 0.5_dp*(ref_points(:, iatom)+ref_points(:, jatom))
+            rc(:) = 0.5_dp*(ref_points(:, iatom) + ref_points(:, jatom))
          ELSE IF (PRESENT(ref_point)) THEN
             rc(:) = ref_point(:)
          ELSE
@@ -489,13 +489,13 @@ CONTAINS
          END IF
          ! using PBC here might screw a molecule that fits the box (but e.g. hasn't been shifted by center_molecule)
          ! by folding around the center, such screwing can be avoided for a proper choice of center.
-         ra(:) = pbc(particle_set(iatom)%r(:)-rc, cell)+rc
-         rb(:) = pbc(particle_set(jatom)%r(:)-rc, cell)+rc
+         ra(:) = pbc(particle_set(iatom)%r(:) - rc, cell) + rc
+         rb(:) = pbc(particle_set(jatom)%r(:) - rc, cell) + rc
          ! we dont use PBC at this point
-         rab(:) = ra(:)-rb(:)
-         rac(:) = ra(:)-rc(:)
-         rbc(:) = rb(:)-rc(:)
-         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         rab(:) = ra(:) - rb(:)
+         rac(:) = ra(:) - rc(:)
+         rbc(:) = rb(:) - rc(:)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          dab = SQRT(rab2)
 
          DO iset = 1, nseta
@@ -505,7 +505,7 @@ CONTAINS
 
             DO jset = 1, nsetb
 
-               IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
@@ -681,8 +681,8 @@ CONTAINS
          IF (ASSOCIATED(cblock) .AND. ASSOCIATED(sblock)) THEN
 
             ra(:) = pbc(particle_set(iatom)%r(:), cell)
-            rb(:) = ra+rab
-            dab = SQRT(rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3))
+            rb(:) = ra + rab
+            dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
 
             DO iset = 1, nseta
 
@@ -691,7 +691,7 @@ CONTAINS
 
                DO jset = 1, nsetb
 
-                  IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+                  IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
                   ncob = npgfb(jset)*ncoset(lb_max(jset))
                   sgfb = first_sgfb(1, jset)
@@ -893,8 +893,8 @@ CONTAINS
          CPASSERT(found)
 
          ra(:) = pbc(particle_set(iatom)%r(:), cell)
-         rb(:) = ra+rab
-         dab = SQRT(rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3))
+         rb(:) = ra + rab
+         dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
 
          DO iset = 1, nseta
 
@@ -903,7 +903,7 @@ CONTAINS
 
             DO jset = 1, nsetb
 
-               IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
@@ -997,12 +997,12 @@ CONTAINS
       ! restrict maximum moment available
       nmom = MIN(nmoments, 2)
 
-      nm = (6+11*nmom+6*nmom**2+nmom**3)/6-1
+      nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
       ! rmom(:,1)=electronic
       ! rmom(:,2)=nuclear
       ! rmom(:,1)=total
-      ALLOCATE (rmom(nm+1, 3))
-      ALLOCATE (rlab(nm+1))
+      ALLOCATE (rmom(nm + 1, 3))
+      ALLOCATE (rlab(nm + 1))
       rmom = 0.0_dp
       rlab = ""
       IF (magnetic) THEN
@@ -1042,7 +1042,7 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          NULLIFY (tmp_fm_struct, mo_coeff)
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
-         nmotot = nmotot+nmo
+         nmotot = nmotot + nmo
          CALL cp_fm_create(opvec(ispin)%matrix, mo_coeff%matrix_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
@@ -1068,10 +1068,10 @@ CONTAINS
 
       ! label
       DO l = 1, nm
-         ix = indco(1, l+1)
-         iy = indco(2, l+1)
-         iz = indco(3, l+1)
-         CALL set_label(rlab(l+1), ix, iy, iz)
+         ix = indco(1, l + 1)
+         iy = indco(2, l + 1)
+         iz = indco(3, l + 1)
+         CALL set_label(rlab(l + 1), ix, iy, iz)
       END DO
 
       ! nuclear contribution
@@ -1080,7 +1080,7 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind, kind_number=ikind)
          CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost, floating=floating)
          IF (.NOT. ghost .AND. .NOT. floating) THEN
-            rmom(1, 2) = rmom(1, 2)-charge
+            rmom(1, 2) = rmom(1, 2) - charge
          ENDIF
       END DO
       ria = twopi*MATMUL(cell%h_inv, rcc)
@@ -1127,7 +1127,7 @@ CONTAINS
                ria = pbc(ria, cell)
                DO i = 1, 3
                   DO j = i, 3
-                     kvec(:) = twopi*(cell%h_inv(i, :)+cell%h_inv(j, :))
+                     kvec(:) = twopi*(cell%h_inv(i, :) + cell%h_inv(j, :))
                      dd = SUM(kvec(:)*ria(:))
                      zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)**charge
                      zij(i, j) = zij(i, j)*zdeta
@@ -1145,15 +1145,15 @@ CONTAINS
             cij = 0.5_dp*cij/twopi/twopi
             cij = MATMUL(MATMUL(cell%hmat, cij), TRANSPOSE(cell%hmat))
             DO k = 4, 9
-               ix = indco(1, k+1)
-               iy = indco(2, k+1)
-               iz = indco(3, k+1)
+               ix = indco(1, k + 1)
+               iy = indco(2, k + 1)
+               iz = indco(3, k + 1)
                IF (ix == 0) THEN
-                  rmom(k+1, 2) = cij(iy, iz)
+                  rmom(k + 1, 2) = cij(iy, iz)
                ELSE IF (iy == 0) THEN
-                  rmom(k+1, 2) = cij(ix, iz)
+                  rmom(k + 1, 2) = cij(ix, iz)
                ELSE IF (iz == 0) THEN
-                  rmom(k+1, 2) = cij(ix, iy)
+                  rmom(k + 1, 2) = cij(ix, iy)
                END IF
             END DO
          CASE (3)
@@ -1176,7 +1176,7 @@ CONTAINS
       trace = 0.0_dp
       DO ispin = 1, dft_control%nspins
          CALL dbcsr_dot(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
-         rmom(1, 1) = rmom(1, 1)+trace
+         rmom(1, 1) = rmom(1, 1) + trace
       END DO
 
       zi = 0._dp
@@ -1220,7 +1220,7 @@ CONTAINS
             CPABORT("Berry phase moments bigger than 1 not implemented")
             DO i = 1, 3
                DO j = i, 3
-                  kvec(:) = twopi*(cell%h_inv(i, :)+cell%h_inv(j, :))
+                  kvec(:) = twopi*(cell%h_inv(i, :) + cell%h_inv(j, :))
                   CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)
                   IF (qs_env%run_rtp) THEN
                      CALL get_qs_env(qs_env, rtp=rtp)
@@ -1263,8 +1263,8 @@ CONTAINS
             ! Dipole (apply periodic (2 Pi) boundary conditions)
             ci = AIMAG(LOG(zi))
             DO i = 1, 3
-               IF (qq(i)+ci(i) > pi) ci(i) = ci(i)-twopi
-               IF (qq(i)+ci(i) < -pi) ci(i) = ci(i)+twopi
+               IF (qq(i) + ci(i) > pi) ci(i) = ci(i) - twopi
+               IF (qq(i) + ci(i) < -pi) ci(i) = ci(i) + twopi
             END DO
             rmom(2:4, 1) = MATMUL(cell%hmat, ci)/twopi
          CASE (2)
@@ -1279,15 +1279,15 @@ CONTAINS
             cij = 0.5_dp*cij/twopi/twopi
             cij = MATMUL(MATMUL(cell%hmat, cij), TRANSPOSE(cell%hmat))
             DO k = 4, 9
-               ix = indco(1, k+1)
-               iy = indco(2, k+1)
-               iz = indco(3, k+1)
+               ix = indco(1, k + 1)
+               iy = indco(2, k + 1)
+               iz = indco(3, k + 1)
                IF (ix == 0) THEN
-                  rmom(k+1, 1) = cij(iy, iz)
+                  rmom(k + 1, 1) = cij(iy, iz)
                ELSE IF (iy == 0) THEN
-                  rmom(k+1, 1) = cij(ix, iz)
+                  rmom(k + 1, 1) = cij(ix, iz)
                ELSE IF (iz == 0) THEN
-                  rmom(k+1, 1) = cij(ix, iy)
+                  rmom(k + 1, 1) = cij(ix, iy)
                END IF
             END DO
          CASE (3)
@@ -1301,7 +1301,7 @@ CONTAINS
          END SELECT
       END DO
 
-      rmom(:, 3) = rmom(:, 1)+rmom(:, 2)
+      rmom(:, 3) = rmom(:, 1) + rmom(:, 2)
       description = "[DIPOLE]"
       CALL cp_results_erase(results=results, description=description)
       CALL put_results(results=results, description=description, &
@@ -1404,16 +1404,16 @@ CONTAINS
 
          CALL cp_fm_set_all(work, 0.0_dp, 0.0_dp)
          DO icol = 1, lcol
-            work%local_data(:, icol) = mos_new(2*i-1)%matrix%local_data(:, icol)
-            work%local_data(:, icol+lcol) = mos_new(2*i)%matrix%local_data(:, icol)
+            work%local_data(:, icol) = mos_new(2*i - 1)%matrix%local_data(:, icol)
+            work%local_data(:, icol + lcol) = mos_new(2*i)%matrix%local_data(:, icol)
          END DO
 
          CALL cp_dbcsr_sm_fm_multiply(cosmat, work, work1, ncol=newdim)
          CALL cp_dbcsr_sm_fm_multiply(sinmat, work, work2, ncol=newdim)
 
          DO icol = 1, lcol
-            work%local_data(:, icol) = work1%local_data(:, icol)-work2%local_data(:, icol+lcol)
-            work%local_data(:, icol+lcol) = work1%local_data(:, icol+lcol)+work2%local_data(:, icol)
+            work%local_data(:, icol) = work1%local_data(:, icol) - work2%local_data(:, icol + lcol)
+            work%local_data(:, icol + lcol) = work1%local_data(:, icol + lcol) + work2%local_data(:, icol)
          END DO
 
          CALL cp_fm_release(work1)
@@ -1427,12 +1427,12 @@ CONTAINS
 
          CALL cp_fm_create(work1, matrix_struct=newstruct1)
 
-         CALL cp_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i-1)%matrix, &
+         CALL cp_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i - 1)%matrix, &
                       work, 0.0_dp, work1)
 
          DO icol = 1, lcol
             op_fm_set(1, i)%matrix%local_data(:, icol) = work1%local_data(:, icol)
-            op_fm_set(2, i)%matrix%local_data(:, icol) = work1%local_data(:, icol+lcol)
+            op_fm_set(2, i)%matrix%local_data(:, icol) = work1%local_data(:, icol + lcol)
          END DO
 
          CALL cp_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i)%matrix, &
@@ -1440,9 +1440,9 @@ CONTAINS
 
          DO icol = 1, lcol
             op_fm_set(1, i)%matrix%local_data(:, icol) = &
-               op_fm_set(1, i)%matrix%local_data(:, icol)+work1%local_data(:, icol+lcol)
+               op_fm_set(1, i)%matrix%local_data(:, icol) + work1%local_data(:, icol + lcol)
             op_fm_set(2, i)%matrix%local_data(:, icol) = &
-               op_fm_set(2, i)%matrix%local_data(:, icol)-work1%local_data(:, icol)
+               op_fm_set(2, i)%matrix%local_data(:, icol) - work1%local_data(:, icol)
          END DO
 
          CALL cp_fm_release(work)
@@ -1506,7 +1506,7 @@ CONTAINS
       ! electronic contribution
       NULLIFY (moments, matrix_s)
       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
-      nm = (6+11*nmom+6*nmom**2+nmom**3)/6-1
+      nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
       CALL dbcsr_allocate_matrix_set(moments, nm)
       DO i = 1, nm
          ALLOCATE (moments(i)%matrix)
@@ -1530,24 +1530,24 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
       nm = SIZE(moments)
-      ALLOCATE (rmom(nm+1, 3))
-      ALLOCATE (rlab(nm+1))
+      ALLOCATE (rmom(nm + 1, 3))
+      ALLOCATE (rlab(nm + 1))
       rmom = 0.0_dp
       rlab = ""
 
       trace = 0.0_dp
       DO ispin = 1, dft_control%nspins
          CALL dbcsr_dot(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
-         rmom(1, 1) = rmom(1, 1)+trace
+         rmom(1, 1) = rmom(1, 1) + trace
       END DO
 
       DO i = 1, SIZE(moments)
          strace = 0._dp
          DO ispin = 1, dft_control%nspins
             CALL dbcsr_dot(rho_ao(ispin)%matrix, moments(i)%matrix, trace)
-            strace = strace+trace
+            strace = strace + trace
          END DO
-         rmom(i+1, 1) = strace
+         rmom(i + 1, 1) = strace
       END DO
 
       CALL dbcsr_deallocate_matrix_set(moments)
@@ -1559,28 +1559,28 @@ CONTAINS
          DO ia = 1, local_particles%n_el(ikind)
             iatom = local_particles%list(ikind)%array(ia)
             ! fold atomic positions back into unit cell
-            ria = pbc(particle_set(iatom)%r-rcc, cell)+rcc
-            ria = ria-rcc
+            ria = pbc(particle_set(iatom)%r - rcc, cell) + rcc
+            ria = ria - rcc
             atomic_kind => particle_set(iatom)%atomic_kind
             CALL get_atomic_kind(atomic_kind, kind_number=akind)
             CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
-            rmom(1, 2) = rmom(1, 2)-charge
+            rmom(1, 2) = rmom(1, 2) - charge
             DO l = 1, nm
-               ix = indco(1, l+1)
-               iy = indco(2, l+1)
-               iz = indco(3, l+1)
+               ix = indco(1, l + 1)
+               iy = indco(2, l + 1)
+               iz = indco(3, l + 1)
                dd = 1._dp
                IF (ix > 0) dd = dd*ria(1)**ix
                IF (iy > 0) dd = dd*ria(2)**iy
                IF (iz > 0) dd = dd*ria(3)**iz
-               rmom(l+1, 2) = rmom(l+1, 2)-charge*dd
-               CALL set_label(rlab(l+1), ix, iy, iz)
+               rmom(l + 1, 2) = rmom(l + 1, 2) - charge*dd
+               CALL set_label(rlab(l + 1), ix, iy, iz)
             END DO
          END DO
       END DO
       CALL mp_sum(rmom(:, 2), para_env%group)
       rmom(:, :) = -rmom(:, :)
-      rmom(:, 3) = rmom(:, 1)+rmom(:, 2)
+      rmom(:, 3) = rmom(:, 1) + rmom(:, 2)
 
       ! magnetic moments
       IF (magnetic) THEN
@@ -1610,7 +1610,7 @@ CONTAINS
                CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, magmom(i)%matrix, &
                                    0.0_dp, rho_magmom_ao)
                CALL dbcsr_trace(rho_magmom_ao, trace)
-               strace = strace+trace
+               strace = strace + trace
             END DO
             mmom(i) = strace
          END DO
@@ -1656,10 +1656,10 @@ CONTAINS
       DO i = 1, ix
          WRITE (label(i:), "(A1)") "X"
       END DO
-      DO i = ix+1, ix+iy
+      DO i = ix + 1, ix + iy
          WRITE (label(i:), "(A1)") "Y"
       END DO
-      DO i = ix+iy+1, ix+iy+iz
+      DO i = ix + iy + 1, ix + iy + iz
          WRITE (label(i:), "(A1)") "Z"
       END DO
 
@@ -1737,12 +1737,12 @@ CONTAINS
             CASE DEFAULT
                WRITE (unit_number, "(T3,A,A,I2)") "Higher moment [Debye*Angstrom**(L-1)]", &
                   "  L=", l
-               i0 = (6+11*(l-1)+6*(l-1)**2+(l-1)**3)/6
-               i1 = (6+11*l+6*l**2+l**3)/6-1
-               dd = debye/(bohr)**(l-1)
+               i0 = (6 + 11*(l - 1) + 6*(l - 1)**2 + (l - 1)**3)/6
+               i1 = (6 + 11*l + 6*l**2 + l**3)/6 - 1
+               dd = debye/(bohr)**(l - 1)
                DO i = i0, i1, 3
                   WRITE (unit_number, "(T18,3(A,A,F14.8,4X))") &
-                     (TRIM(rlab(j+1)), "=", rmom(j+1, 3)*dd, j=i, MIN(i1, i+2))
+                     (TRIM(rlab(j + 1)), "=", rmom(j + 1, 3)*dd, j=i, MIN(i1, i + 2))
                END DO
             END SELECT
          END DO
@@ -1751,7 +1751,7 @@ CONTAINS
                dd = SQRT(SUM(mmom(1:3)**2))
                WRITE (unit_number, "(T3,A)") "Magnetic Dipole Moment (only orbital contrib.) [a.u.]"
                WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
-                  (TRIM(rlab(i+1)), "=", mmom(i), i=1, 3), "Total=", dd
+                  (TRIM(rlab(i + 1)), "=", mmom(i), i=1, 3), "Total=", dd
             END IF
          END IF
       END IF

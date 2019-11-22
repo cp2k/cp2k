@@ -695,7 +695,7 @@ CONTAINS
             CALL get_potential(qs_kind%all_potential, alpha_core_charge=alpha)
             ccore = qs_kind%xtb_parameter%zeff*SQRT((alpha/pi)**3)
             CALL set_potential(qs_kind%all_potential, ccore_charge=ccore)
-            qs_kind%xtb_parameter%zeff = qs_kind%xtb_parameter%zeff-zeff_correction
+            qs_kind%xtb_parameter%zeff = qs_kind%xtb_parameter%zeff - zeff_correction
          END DO
          !
          ! check for Ewald
@@ -842,7 +842,7 @@ CONTAINS
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto_lri, basis_type="RI_XAS")
          maxlgto = MAX(maxlgto, maxlgto_lri)
       END IF
-      maxl = MAX(2*maxlgto, maxlppl, maxlppnl, lmax_sphere)+1
+      maxl = MAX(2*maxlgto, maxlppl, maxlppnl, lmax_sphere) + 1
 
       CALL init_orbital_pointers(maxl)
 
@@ -861,7 +861,7 @@ CONTAINS
       !   *** Initialize the pretabulation for the calculation of the   ***
       !   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
       CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
-      maxl = MAX(3*maxlgto+1, 0)
+      maxl = MAX(3*maxlgto + 1, 0)
       CALL init_md_ftable(maxl)
 
       !   *** Initialize the atomic interaction radii ***
@@ -1197,7 +1197,7 @@ CONTAINS
       CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao, nelectron=nelectron)
 
       ! the total number of electrons
-      nelectron = nelectron-dft_control%charge
+      nelectron = nelectron - dft_control%charge
 
       IF (dft_control%multiplicity == 0) THEN
          IF (MODULO(nelectron, 2) == 0) THEN
@@ -1242,11 +1242,11 @@ CONTAINS
             n_mo(1) = 1
             n_mo(2) = 0
          ELSE
-            IF (MODULO(nelectron+multiplicity-1, 2) /= 0) THEN
+            IF (MODULO(nelectron + multiplicity - 1, 2) /= 0) THEN
                CPABORT("LSD: try to use a different multiplicity")
             END IF
-            nelectron_spin(1) = (nelectron+multiplicity-1)/2
-            nelectron_spin(2) = (nelectron-multiplicity+1)/2
+            nelectron_spin(1) = (nelectron + multiplicity - 1)/2
+            nelectron_spin(2) = (nelectron - multiplicity + 1)/2
             IF (nelectron_spin(1) < 0) THEN
                CPABORT("LSD: too few electrons for this multiplicity")
             END IF
@@ -1264,7 +1264,7 @@ CONTAINS
             IF (MODULO(nelectron, 2) == 0) THEN
                n_mo(1) = nelectron/2
             ELSE
-               n_mo(1) = INT(nelectron/2._dp)+1
+               n_mo(1) = INT(nelectron/2._dp) + 1
             END IF
             n_mo(2) = 0
          ELSE
@@ -1272,12 +1272,12 @@ CONTAINS
 
             ! The simplist spin distribution is written here. Special cases will
             ! need additional user input
-            IF (MODULO(nelectron+multiplicity-1, 2) /= 0) THEN
+            IF (MODULO(nelectron + multiplicity - 1, 2) /= 0) THEN
                CPABORT("LSD: try to use a different multiplicity")
             END IF
 
-            nelectron_spin(1) = (nelectron+multiplicity-1)/2
-            nelectron_spin(2) = (nelectron-multiplicity+1)/2
+            nelectron_spin(1) = (nelectron + multiplicity - 1)/2
+            nelectron_spin(2) = (nelectron - multiplicity + 1)/2
 
             IF (nelectron_spin(2) < 0) THEN
                CPABORT("LSD: too few electrons for this multiplicity")
@@ -1302,10 +1302,10 @@ CONTAINS
          ELSE
             n_mo_add = scf_control%added_mos(1)
          END IF
-         IF (n_mo_add > n_ao-n_mo(2)) &
+         IF (n_mo_add > n_ao - n_mo(2)) &
             CPWARN("More added MOs requested for beta spin than available.")
-         scf_control%added_mos(2) = MIN(n_mo_add, n_ao-n_mo(2))
-         n_mo(2) = n_mo(2)+scf_control%added_mos(2)
+         scf_control%added_mos(2) = MIN(n_mo_add, n_ao - n_mo(2))
+         n_mo(2) = n_mo(2) + scf_control%added_mos(2)
       END IF
 
       ! proceed alpha orbitals after the beta orbitals; this is essential to avoid
@@ -1316,12 +1316,12 @@ CONTAINS
       ! However, if we try to proceed alpha orbitals first, this leads us n_mo(1:2) = (10,8)
       ! due to the following assignment instruction above:
       !   IF (scf_control%added_mos(2) > 0) THEN ... ELSE; n_mo_add = scf_control%added_mos(1); END IF
-      IF (scf_control%added_mos(1) > n_ao-n_mo(1)) &
+      IF (scf_control%added_mos(1) > n_ao - n_mo(1)) &
          CALL cp_warn(__LOCATION__, &
                       "More added MOs requested than available. "// &
                       "The full set of unoccupied MOs will be used.")
-      scf_control%added_mos(1) = MIN(scf_control%added_mos(1), n_ao-n_mo(1))
-      n_mo(1) = n_mo(1)+scf_control%added_mos(1)
+      scf_control%added_mos(1) = MIN(scf_control%added_mos(1), n_ao - n_mo(1))
+      n_mo(1) = n_mo(1) + scf_control%added_mos(1)
 
       IF (dft_control%nspins == 2) THEN
          IF (n_mo(2) > n_mo(1)) &
@@ -1542,7 +1542,7 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
             "TOTAL NUMBERS AND MAXIMUM NUMBERS"
 
-         IF (nset+npgf+ncgf > 0) THEN
+         IF (nset + npgf + ncgf > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,T3,A,(T30,A,T71,I10))") &
                "Total number of", &
                "- Atomic kinds:                  ", nkind, &
@@ -1552,7 +1552,7 @@ CONTAINS
                "- Primitive Cartesian functions: ", npgf, &
                "- Cartesian basis functions:     ", ncgf, &
                "- Spherical basis functions:     ", nsgf
-         ELSE IF (nshell+nsgf > 0) THEN
+         ELSE IF (nshell + nsgf > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,T3,A,(T30,A,T71,I10))") &
                "Total number of", &
                "- Atomic kinds:                  ", nkind, &
@@ -1591,7 +1591,7 @@ CONTAINS
                               nsgf=nsgf, &
                               nshell=nshell, &
                               basis_type="LRI_AUX")
-         IF (nset+npgf+ncgf > 0) THEN
+         IF (nset + npgf + ncgf > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A,(T30,A,T71,I10))") &
                "LRI_AUX Basis: ", &
                "Total number of", &
@@ -1613,7 +1613,7 @@ CONTAINS
                               nsgf=nsgf, &
                               nshell=nshell, &
                               basis_type="RI_HXC")
-         IF (nset+npgf+ncgf > 0) THEN
+         IF (nset + npgf + ncgf > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A,(T30,A,T71,I10))") &
                "RI_HXC Basis: ", &
                "Total number of", &
@@ -1635,7 +1635,7 @@ CONTAINS
                               nsgf=nsgf, &
                               nshell=nshell, &
                               basis_type="AUX_FIT")
-         IF (nset+npgf+ncgf > 0) THEN
+         IF (nset + npgf + ncgf > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A,(T30,A,T71,I10))") &
                "AUX_FIT ADMM-Basis: ", &
                "Total number of", &

@@ -224,13 +224,13 @@ CONTAINS
          CALL allocate_intgrid(kg_env%int_grid_molecules)
          ig_mol => kg_env%int_grid_molecules
          nbatch = (natom*kg_env%int_grid_atom%nbatch)/np
-         nbatch = NINT((nbatch+1)*1.2_dp)
+         nbatch = NINT((nbatch + 1)*1.2_dp)
          ALLOCATE (bid(2, nbatch))
          nbatch = 0
          DO iatom = 1, natom
             DO ib = 1, kg_env%int_grid_atom%nbatch
-               IF (para_env%mepos == MOD(iatom+ib, np)) THEN
-                  nbatch = nbatch+1
+               IF (para_env%mepos == MOD(iatom + ib, np)) THEN
+                  nbatch = nbatch + 1
                   CPASSERT(nbatch <= SIZE(bid, 2))
                   bid(1, nbatch) = iatom
                   bid(2, nbatch) = ib
@@ -451,7 +451,7 @@ CONTAINS
       IF (n > 0) THEN
          ! represent a pair of int_4 as a single int_8 number, simplifies sorting.
          sort_keys(1:n) = ISHFT(INT(pairs_buffer(1, 1:n), KIND=int_8), 8*int_4_size)
-         sort_keys(1:n) = sort_keys(1:n)+pairs_buffer(2, 1:n) !upper + lower bytes
+         sort_keys(1:n) = sort_keys(1:n) + pairs_buffer(2, 1:n) !upper + lower bytes
          CALL sort(sort_keys, n, ind)
 
          ! add first pair, the case npairs==0 was excluded above
@@ -460,8 +460,8 @@ CONTAINS
 
          ! remove duplicates from the sorted list
          DO i = 2, n
-            IF (sort_keys(i) /= sort_keys(i-1)) THEN
-               npairs = npairs+1
+            IF (sort_keys(i) /= sort_keys(i - 1)) THEN
+               npairs = npairs + 1
                work(:, npairs) = pairs_buffer(:, ind(i))
             END IF
          END DO
@@ -582,7 +582,7 @@ CONTAINS
          !IF (imol<jmol) THEN
          IF (imol .NE. jmol) THEN
 
-            npairs = npairs+2
+            npairs = npairs + 2
 
          END IF
 
@@ -604,12 +604,12 @@ CONTAINS
             ! add pair to the local list
 
             ! add both orderings - makes it easier to build the neighborlist
-            npairs = npairs+1
+            npairs = npairs + 1
 
             pairs_buffer(1, npairs) = imol
             pairs_buffer(2, npairs) = jmol
 
-            npairs = npairs+1
+            npairs = npairs + 1
 
             pairs_buffer(2, npairs) = imol
             pairs_buffer(1, npairs) = jmol
@@ -631,7 +631,7 @@ CONTAINS
       ALLOCATE (pairs(2, npairs))
 
       pairs(:, 1:npairs_local) = pairs_buffer(:, 1:npairs_local)
-      pairs(:, npairs_local+1:) = 0
+      pairs(:, npairs_local + 1:) = 0
 
       DEALLOCATE (pairs_buffer)
 
@@ -658,7 +658,7 @@ CONTAINS
 
          DO i = 1, SIZE(msg_gather, 2)
             IF (msg_gather(1, i) .NE. 0) THEN
-               npairs = npairs+1
+               npairs = npairs + 1
                msg_gather(:, npairs) = msg_gather(:, i)
             END IF
          END DO
@@ -735,7 +735,7 @@ CONTAINS
       DO i = 1, nmol ! nmol=nnodes
          color = color_of_node(i)
          kg_env%subset_of_mol(i) = color
-         nnodes_of_color(color) = nnodes_of_color(color)+1
+         nnodes_of_color(color) = nnodes_of_color(color) + 1
       END DO
 
       DEALLOCATE (nnodes_of_color)

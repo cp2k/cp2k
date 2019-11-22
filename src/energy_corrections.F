@@ -246,7 +246,7 @@ CONTAINS
             CALL harris_energy(qs_env, ec_env, my_calc_forces, unit_nr)
             !
             IF (ec_env%should_update) THEN
-               energy%nonscf_correction = ec_env%etotal-energy%total
+               energy%nonscf_correction = ec_env%etotal - energy%total
             END IF
             IF (my_calc_forces) THEN
                CALL get_qs_env(qs_env, force=ec_force)
@@ -255,7 +255,7 @@ CONTAINS
                CALL sum_qs_force(ks_force, ec_force)
                CALL set_qs_env(qs_env, force=ks_force)
             END IF
-            energy%total = energy%total+energy%nonscf_correction
+            energy%total = energy%total + energy%nonscf_correction
          CASE DEFAULT
             CPABORT("unknown energy correction")
          END SELECT
@@ -348,7 +348,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: edisp
 
       CALL calculate_dispersion_pairpot(qs_env, ec_env%dispersion_env, edisp, calculate_forces)
-      IF (.NOT. calculate_forces) ec_env%edispersion = ec_env%edispersion+edisp
+      IF (.NOT. calculate_forces) ec_env%edispersion = ec_env%edispersion + edisp
 
    END SUBROUTINE ec_disp
 
@@ -397,11 +397,6 @@ CONTAINS
       ! check for GAPW/GAPW_XC
       IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
          CPABORT("Harris functional for GAPW not implemented")
-      END IF
-
-      ! check for ADMM
-      IF (dft_control%do_admm) THEN
-         CPABORT("Harris functional for ADMM not implemented")
       END IF
 
       ! get neighbor lists, we need the full sab_orb list from the ec_env
@@ -568,9 +563,9 @@ CONTAINS
          END IF
 
          ! calclulate Int(vhxc*rho)dr and Int(vtau*tau)dr
-         evhxc = evhxc+pw_integral_ab(rho_r(ispin)%pw, v_rspace(ispin)%pw)/v_rspace(1)%pw%pw_grid%dvol
+         evhxc = evhxc + pw_integral_ab(rho_r(ispin)%pw, v_rspace(ispin)%pw)/v_rspace(1)%pw%pw_grid%dvol
          IF (ASSOCIATED(v_tau_rspace)) THEN
-            evhxc = evhxc+pw_integral_ab(tau_r(ispin)%pw, v_tau_rspace(ispin)%pw)/ &
+            evhxc = evhxc + pw_integral_ab(tau_r(ispin)%pw, v_tau_rspace(ispin)%pw)/ &
                     v_tau_rspace(ispin)%pw%pw_grid%dvol
          END IF
 
@@ -659,11 +654,6 @@ CONTAINS
          CPABORT("Harris functional for GAPW not implemented")
       END IF
 
-      ! check for ADMM
-      IF (dft_control%do_admm) THEN
-         CPABORT("Harris functional for ADMM not implemented")
-      END IF
-
       ! get neighbor lists, we need the full sab_orb list from the ec_env
       NULLIFY (sab_orb, sac_ppl, sap_ppnl)
       sab_orb => ec_env%sab_orb
@@ -694,7 +684,7 @@ CONTAINS
                                 sab_nl=sab_orb, calculate_forces=.TRUE., &
                                 matrixkp_p=ec_env%matrix_w)
       IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%overlap(1:3, 1)-fodeb(1:3)
+         fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Wout*dS    ", fodeb
          fodeb(1:3) = force(1)%kinetic(1:3, 1)
@@ -705,7 +695,7 @@ CONTAINS
                                 sab_nl=sab_orb, calculate_forces=.TRUE., &
                                 matrixkp_p=ec_env%matrix_p)
       IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%kinetic(1:3, 1)-fodeb(1:3)
+         fodeb(1:3) = force(1)%kinetic(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pout*dT    ", fodeb
       END IF
@@ -726,7 +716,7 @@ CONTAINS
                              qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
                              nimages, cell_to_index, "HARRIS")
          IF (calculate_forces .AND. debug_forces) THEN
-            fodeb(1:3) = force(1)%gth_ppl(1:3, 1)-fodeb(1:3)
+            fodeb(1:3) = force(1)%gth_ppl(1:3, 1) - fodeb(1:3)
             CALL mp_sum(fodeb, para_env%group)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pout*dH_PPL ", fodeb
          END IF
@@ -741,7 +731,7 @@ CONTAINS
                               qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
                               nimages, cell_to_index, "HARRIS")
          IF (calculate_forces .AND. debug_forces) THEN
-            fodeb(1:3) = force(1)%gth_ppnl(1:3, 1)-fodeb(1:3)
+            fodeb(1:3) = force(1)%gth_ppnl(1:3, 1) - fodeb(1:3)
             CALL mp_sum(fodeb, para_env%group)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pout*dH_PPNL", fodeb
          END IF
@@ -752,7 +742,7 @@ CONTAINS
       IF (calculate_forces .AND. debug_forces) fodeb(1:3) = force(1)%efield(1:3, 1)
       CALL ec_efield_local_operator(qs_env, ec_env, calculate_forces)
       IF (calculate_forces .AND. debug_forces) THEN
-         fodeb(1:3) = force(1)%efield(1:3, 1)-fodeb(1:3)
+         fodeb(1:3) = force(1)%efield(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pout*dEfield", fodeb
       END IF
@@ -895,7 +885,7 @@ CONTAINS
       IF (debug_forces) fodeb(1:3) = force(1)%rho_core(1:3, 1)
       CALL integrate_v_core_rspace(vtot_rspace, qs_env)
       IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%rho_core(1:3, 1)-fodeb(1:3)
+         fodeb(1:3) = force(1)%rho_core(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Vtot*dncore", fodeb
       END IF
@@ -956,7 +946,7 @@ CONTAINS
                                  calculate_forces=.TRUE.)
       END DO
       IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%rho_elec(1:3, 1)-fodeb(1:3)
+         fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dKdrho", fodeb
       END IF
@@ -1049,7 +1039,7 @@ CONTAINS
 
       END DO
       IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%rho_elec(1:3, 1)-fodeb(1:3)
+         fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pout*dVhxc ", fodeb
       END IF
@@ -1070,7 +1060,7 @@ CONTAINS
       IF (debug_forces) fodeb(1:3) = force(1)%core_overlap(1:3, 1)
       CALL calculate_ecore_overlap(qs_env, para_env, .TRUE., E_overlap_core=eovrl)
       IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%core_overlap(1:3, 1)-fodeb(1:3)
+         fodeb(1:3) = force(1)%core_overlap(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: CoreOverlap", fodeb
       END IF
@@ -1438,10 +1428,10 @@ CONTAINS
          eband = 0.0_dp
          DO ispin = 1, nspins
             CALL dbcsr_dot(ec_env%matrix_ks(ispin, 1)%matrix, ec_env%matrix_p(ispin, 1)%matrix, trace)
-            eband = eband+trace
+            eband = eband + trace
          END DO
-         ec_env%eband = eband+ec_env%efield_nuclear
-         ec_env%etotal = ec_env%eband+ec_env%ehartree+ec_env%exc-ec_env%vhxc+ec_env%edispersion
+         ec_env%eband = eband + ec_env%efield_nuclear
+         ec_env%etotal = ec_env%eband + ec_env%ehartree + ec_env%exc - ec_env%vhxc + ec_env%edispersion
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T3,A,T65,F16.10)') "Eband    ", ec_env%eband
             WRITE (unit_nr, '(T3,A,T65,F16.10)') "Ehartree ", ec_env%ehartree
@@ -1685,12 +1675,12 @@ CONTAINS
                   DO ia = 1, local_particles%n_el(ikind)
                      iatom = local_particles%list(ikind)%array(ia)
                      ! fold atomic positions back into unit cell
-                     ria = pbc(particle_set(iatom)%r-rcc, cell)+rcc
-                     ria = ria-rcc
+                     ria = pbc(particle_set(iatom)%r - rcc, cell) + rcc
+                     ria = ria - rcc
                      atomic_kind => particle_set(iatom)%atomic_kind
                      CALL get_atomic_kind(atomic_kind, kind_number=akind)
                      CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
-                     cdip(1:3) = cdip(1:3)-charge*ria(1:3)
+                     cdip(1:3) = cdip(1:3) - charge*ria(1:3)
                   END DO
                END DO
                CALL mp_sum(cdip, para_env%group)
@@ -1704,7 +1694,7 @@ CONTAINS
                   DO idir = 1, 3
                      CALL dbcsr_dot(ec_env%matrix_p(ispin, 1)%matrix, &
                                     ec_env%efield%dipmat(idir)%matrix, tmp)
-                     pdip(idir) = pdip(idir)+tmp
+                     pdip(idir) = pdip(idir) + tmp
                   END DO
                END DO
                !
@@ -1725,12 +1715,12 @@ CONTAINS
                DO ispin = 1, nspins
                   DO idir = 1, 3
                      CALL dbcsr_dot(ec_env%p_env%p1(ispin)%matrix, moments(idir)%matrix, tmp)
-                     rdip(idir) = rdip(idir)+tmp
+                     rdip(idir) = rdip(idir) + tmp
                   END DO
                END DO
                CALL dbcsr_deallocate_matrix_set(moments)
                !
-               tdip = -(rdip+pdip+cdip)
+               tdip = -(rdip + pdip + cdip)
                WRITE (unit_nr, "(T3,A)") "Dipoles are based on the traditional operator."
                dd = SQRT(SUM(tdip(1:3)**2))*debye
                WRITE (unit_nr, "(T3,A)") "Dipole moment [Debye]"

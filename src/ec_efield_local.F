@@ -207,14 +207,14 @@ CONTAINS
       DO ia = 1, natom
          CALL get_atomic_kind(particle_set(ia)%atomic_kind, kind_number=ikind)
          CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge)
-         ria = particle_set(ia)%r-rpoint
+         ria = particle_set(ia)%r - rpoint
          ria = pbc(ria, cell)
-         ci(:) = ci(:)+charge*ria(:)
+         ci(:) = ci(:) + charge*ria(:)
          IF (calculate_forces) THEN
             IF (para_env%mepos == 0) THEN
                iatom = atom_of_kind(ia)
                DO idir = 1, 3
-                  force(ikind)%efield(idir, iatom) = force(ikind)%efield(idir, iatom)-fieldpol(idir)*charge
+                  force(ikind)%efield(idir, iatom) = force(ikind)%efield(idir, iatom) - fieldpol(idir)*charge
                END DO
             END IF
          END IF
@@ -284,10 +284,10 @@ CONTAINS
             atom_a = atom_of_kind(iatom)
             atom_b = atom_of_kind(jatom)
 
-            ra(:) = particle_set(iatom)%r(:)-rpoint(:)
+            ra(:) = particle_set(iatom)%r(:) - rpoint(:)
             rac(:) = pbc(ra(:), cell)
-            rbc(:) = rac(:)+rab(:)
-            dab = SQRT(rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3))
+            rbc(:) = rac(:) + rab(:)
+            dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
 
             IF (iatom <= jatom) THEN
                irow = iatom
@@ -318,7 +318,7 @@ CONTAINS
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                sgfa = first_sgfa(1, iset)
                DO jset = 1, nsetb
-                  IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+                  IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
                   ncob = npgfb(jset)*ncoset(lb_max(jset))
                   sgfb = first_sgfb(1, jset)
                   ! Calculate the primitive integrals (da|O|b) and (a|O|db)
@@ -359,9 +359,9 @@ CONTAINS
 
             DO idir = 1, 3
                force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) &
-                                                  +fdir*fieldpol(idir)*forcea(idir, 1:3)
+                                                  + fdir*fieldpol(idir)*forcea(idir, 1:3)
                force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) &
-                                                  +fdir*fieldpol(idir)*forceb(idir, 1:3)
+                                                  + fdir*fieldpol(idir)*forceb(idir, 1:3)
             END DO
 
          END DO

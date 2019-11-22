@@ -100,6 +100,7 @@ CONTAINS
 !> \param irep ID of HFX replica
 !> \param use_virial ...
 !> \param adiabatic_rescale_factor parameter used for MCY3 hybrid
+!> \param resp_only Calculate only forces from response density
 !> \par History
 !>      06.2007 created [Manuel Guidon]
 !>      08.2007 optimized load balance [Manuel Guidon]
@@ -110,16 +111,17 @@ CONTAINS
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE derivatives_four_center(qs_env, rho_ao, rho_ao_resp, hfx_section, para_env, &
-                                      irep, use_virial, adiabatic_rescale_factor)
+                                      irep, use_virial, adiabatic_rescale_factor, resp_only)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_resp
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: irep
-      LOGICAL                                            :: use_virial
+      INTEGER, INTENT(IN)                                :: irep
+      LOGICAL, INTENT(IN)                                :: use_virial
       REAL(dp), INTENT(IN), OPTIONAL                     :: adiabatic_rescale_factor
+      LOGICAL, INTENT(IN), OPTIONAL                      :: resp_only
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center', &
          routineP = moduleN//':'//routineN
@@ -154,8 +156,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: shm_set_offset
       INTEGER, SAVE                                      :: shm_number_of_p_entries
       LOGICAL :: bins_left, buffer_overflow, do_dynamic_load_balancing, do_it, do_periodic, &
-         do_print_load_balance_info, is_anti_symmetric, screen_pmat_forces, treat_forces_in_core, &
-         use_disk_storage, with_resp_density
+         do_print_load_balance_info, is_anti_symmetric, my_resp_only, screen_pmat_forces, &
+         treat_forces_in_core, use_disk_storage, with_resp_density
       LOGICAL, DIMENSION(:, :), POINTER                  :: shm_atomic_pair_list
       REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, cartesian_estimate_virial, &
          compression_factor, eps_schwarz, eps_storage, fac, hf_fraction, ln_10, log10_eps_schwarz, &
@@ -222,6 +224,9 @@ CONTAINS
       with_resp_density = .FALSE.
       IF (ASSOCIATED(rho_ao_resp)) with_resp_density = .TRUE.
 
+      my_resp_only = .FALSE.
+      IF (PRESENT(resp_only)) my_resp_only = resp_only
+
       is_anti_symmetric = dbcsr_get_matrix_type(rho_ao(1, 1)%matrix) .EQ. dbcsr_type_antisymmetric
 
       CALL get_qs_env(qs_env, &
@@ -247,7 +252,7 @@ CONTAINS
       DO ikind = 1, nkind
          l_max = MAX(l_max, MAXVAL(qs_env%x_data(1, 1)%basis_parameter(ikind)%lmax))
       ENDDO
-      l_max = 4*l_max+1
+      l_max = 4*l_max + 1
       CALL init_md_ftable(l_max)
 
       IF (qs_env%x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
@@ -285,6 +290,7 @@ CONTAINS
 !$OMP                                  hfx_section,&
 !$OMP                                  para_env,&
 !$OMP                                  irep,&
+!$OMP                                  my_resp_only,&
 !$OMP                                  ncoset,&
 !$OMP                                  nco,&
 !$OMP                                  nso,&
@@ -365,7 +371,7 @@ CONTAINS
 
       ln_10 = LOG(10.0_dp)
       log_2 = LOG10(2.0_dp)
-      actual_x_data => qs_env%x_data(irep, i_thread+1)
+      actual_x_data => qs_env%x_data(irep, i_thread + 1)
       do_periodic = actual_x_data%periodic_parameter%do_periodic
 
       screening_parameter = actual_x_data%screening_parameter
@@ -432,7 +438,7 @@ CONTAINS
       last_sgf_global(0) = 0
       DO iatom = 1, natom
          ikind = kind_of(iatom)
-         last_sgf_global(iatom) = last_sgf_global(iatom-1)+basis_parameter(ikind)%nsgf_total
+         last_sgf_global(iatom) = last_sgf_global(iatom - 1) + basis_parameter(ikind)%nsgf_total
       END DO
 
       ALLOCATE (max_contraction(max_set, natom))
@@ -453,7 +459,7 @@ CONTAINS
             sgfb = first_sgfb(1, jset)
             ! if the primitives are assumed to be all of max_val2, max_val2*p2s_b becomes
             ! the maximum value after multiplication with sphi_b
-            max_contraction(jset, jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb+nsgfb(jset)-1)/))
+            max_contraction(jset, jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)/))
             max_pgf = MAX(max_pgf, npgfb(jset))
          ENDDO
       ENDDO
@@ -482,7 +488,7 @@ CONTAINS
 
       NULLIFY (full_density_alpha)
       NULLIFY (full_density_beta)
-      ALLOCATE (full_density_alpha(shm_block_offset(ncpu+1), nkimages))
+      ALLOCATE (full_density_alpha(shm_block_offset(ncpu + 1), nkimages))
 
       !! Get the full density from all the processors
       CALL timeset(routineN//"_getP", handle_getP)
@@ -493,7 +499,7 @@ CONTAINS
       ! for now only closed shell case
       IF (with_resp_density) THEN
          NULLIFY (full_density_resp)
-         ALLOCATE (full_density_resp(shm_block_offset(ncpu+1)))
+         ALLOCATE (full_density_resp(shm_block_offset(ncpu + 1)))
          CALL get_full_density(para_env, full_density_resp, rho_ao_resp(1)%matrix, shm_number_of_p_entries, &
                                shm_block_offset, &
                                kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
@@ -501,7 +507,7 @@ CONTAINS
       END IF
 
       IF (nspins == 2) THEN
-         ALLOCATE (full_density_beta(shm_block_offset(ncpu+1), 1))
+         ALLOCATE (full_density_beta(shm_block_offset(ncpu + 1), 1))
          CALL get_full_density(para_env, full_density_beta(:, 1), rho_ao(2, 1)%matrix, shm_number_of_p_entries, &
                                shm_block_offset, &
                                kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
@@ -509,7 +515,7 @@ CONTAINS
          ! With resp density
          IF (with_resp_density) THEN
             NULLIFY (full_density_resp_beta)
-            ALLOCATE (full_density_resp_beta(shm_block_offset(ncpu+1)))
+            ALLOCATE (full_density_resp_beta(shm_block_offset(ncpu + 1)))
             CALL get_full_density(para_env, full_density_resp_beta, rho_ao_resp(2)%matrix, shm_number_of_p_entries, &
                                   shm_block_offset, &
                                   kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
@@ -545,10 +551,10 @@ CONTAINS
       ! restore as full density the HF density
       ! maybe in the future
       IF (with_resp_density) THEN
-         full_density_alpha(:, 1) = full_density_alpha(:, 1)-full_density_resp
+         full_density_alpha(:, 1) = full_density_alpha(:, 1) - full_density_resp
          IF (nspins == 2) THEN
             full_density_beta(:, 1) = &
-               full_density_beta(:, 1)-full_density_resp_beta
+               full_density_beta(:, 1) - full_density_resp_beta
          ENDIF
          ! full_density_resp=full_density+full_density_resp
       END IF
@@ -776,13 +782,13 @@ CONTAINS
          ! ** Lets construct the task list
          shm_total_bins = 0
          DO i = 1, n_threads
-            shm_total_bins = shm_total_bins+SIZE(qs_env%x_data(irep, i)%distribution_forces)
+            shm_total_bins = shm_total_bins + SIZE(qs_env%x_data(irep, i)%distribution_forces)
          END DO
          ALLOCATE (tmp_task_list(shm_total_bins))
          shm_task_counter = 0
          DO i = 1, n_threads
             DO bin = 1, SIZE(qs_env%x_data(irep, i)%distribution_forces)
-               shm_task_counter = shm_task_counter+1
+               shm_task_counter = shm_task_counter + 1
                tmp_task_list(shm_task_counter)%thread_id = i
                tmp_task_list(shm_task_counter)%bin_id = bin
                tmp_task_list(shm_task_counter)%cost = qs_env%x_data(irep, i)%distribution_forces(bin)%cost
@@ -802,7 +808,7 @@ CONTAINS
          ALLOCATE (actual_x_data%task_list(shm_total_bins))
 
          DO i = 1, shm_total_bins
-            actual_x_data%task_list(i) = tmp_task_list(tmp_index(shm_total_bins-i+1))
+            actual_x_data%task_list(i) = tmp_task_list(tmp_index(shm_total_bins - i + 1))
          END DO
 
          shm_task_list => actual_x_data%task_list
@@ -856,7 +862,7 @@ CONTAINS
       bin = 0
       DO WHILE (bins_left)
          IF (.NOT. do_dynamic_load_balancing) THEN
-            bin = bin+1
+            bin = bin + 1
             IF (bin > my_bin_size) THEN
                do_it = .FALSE.
                bins_left = .FALSE.
@@ -867,7 +873,7 @@ CONTAINS
             END IF
          ELSE
 !$OMP CRITICAL(hfxderivatives_critical)
-            shm_task_counter = shm_task_counter+1
+            shm_task_counter = shm_task_counter + 1
             IF (shm_task_counter <= shm_total_bins) THEN
                my_thread_id = shm_task_list(shm_task_counter)%thread_id
                my_bin_id = shm_task_list(shm_task_counter)%bin_id
@@ -900,17 +906,17 @@ CONTAINS
          my_current_counter = 0
          IF (distribution_forces%number_of_atom_quartets == 0 .OR. &
              my_istart == -1_int_8) my_istart = nblocks**4
-         atomic_blocks: DO atom_block = my_istart, nblocks**4-1, n_processes
-            latom_block = INT(MODULO(atom_block, nblocks))+1
+         atomic_blocks: DO atom_block = my_istart, nblocks**4 - 1, n_processes
+            latom_block = INT(MODULO(atom_block, nblocks)) + 1
             tmp_block = atom_block/nblocks
-            katom_block = INT(MODULO(tmp_block, nblocks))+1
+            katom_block = INT(MODULO(tmp_block, nblocks)) + 1
             IF (latom_block < katom_block) CYCLE
             tmp_block = tmp_block/nblocks
-            jatom_block = INT(MODULO(tmp_block, nblocks))+1
+            jatom_block = INT(MODULO(tmp_block, nblocks)) + 1
             tmp_block = tmp_block/nblocks
-            iatom_block = INT(MODULO(tmp_block, nblocks))+1
+            iatom_block = INT(MODULO(tmp_block, nblocks)) + 1
             IF (jatom_block < iatom_block) CYCLE
-            my_current_counter = my_current_counter+1
+            my_current_counter = my_current_counter + 1
             IF (my_current_counter > distribution_forces%number_of_atom_quartets) EXIT atomic_blocks
 
             iatom_start = actual_x_data%blocks(iatom_block)%istart
@@ -922,12 +928,12 @@ CONTAINS
             latom_start = actual_x_data%blocks(latom_block)%istart
             latom_end = actual_x_data%blocks(latom_block)%iend
 
-            pmax_blocks = MAX(shm_pmax_block(katom_block, iatom_block)+ &
+            pmax_blocks = MAX(shm_pmax_block(katom_block, iatom_block) + &
                               shm_pmax_block(latom_block, jatom_block), &
-                              shm_pmax_block(latom_block, iatom_block)+ &
+                              shm_pmax_block(latom_block, iatom_block) + &
                               shm_pmax_block(katom_block, jatom_block))
 
-            IF (2.0_dp*coeffs_kind_max0+pmax_blocks < log10_eps_schwarz) CYCLE
+            IF (2.0_dp*coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
 
             CALL build_pair_list(natom, list_ij, set_list_ij, iatom_start, iatom_end, &
                                  jatom_start, jatom_end, &
@@ -989,8 +995,8 @@ CONTAINS
 
                   !All four centers equivalent => zero-contribution
 !VIIRAL            IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
-                  IF (.NOT. (katom+latom <= iatom+jatom)) CYCLE
-                  IF (((iatom+jatom) .EQ. (katom+latom)) .AND. (katom < iatom)) CYCLE
+                  IF (.NOT. (katom + latom <= iatom + jatom)) CYCLE
+                  IF (((iatom + jatom) .EQ. (katom + latom)) .AND. (katom < iatom)) CYCLE
 
                   i_set_list_kl_start = list_kl%elements(i_list_kl)%set_bounds(1)
                   i_set_list_kl_stop = list_kl%elements(i_list_kl)%set_bounds(2)
@@ -1001,18 +1007,18 @@ CONTAINS
                   rcd2 = list_kl%elements(i_list_kl)%dist2
 
                   IF (screen_pmat_forces) THEN
-                     pmax_atom = MAX(shm_pmax_atom(katom, iatom)+ &
+                     pmax_atom = MAX(shm_pmax_atom(katom, iatom) + &
                                      shm_pmax_atom(latom, jatom), &
-                                     shm_pmax_atom(latom, iatom)+ &
+                                     shm_pmax_atom(latom, iatom) + &
                                      shm_pmax_atom(katom, jatom))
                   ELSE
                      pmax_atom = 0.0_dp
                   END IF
 
-                  IF ((screen_coeffs_kind(jkind, ikind)%x(1)*rab2+ &
-                       screen_coeffs_kind(jkind, ikind)%x(2))+ &
-                      (screen_coeffs_kind(lkind, kkind)%x(1)*rcd2+ &
-                       screen_coeffs_kind(lkind, kkind)%x(2))+pmax_atom < log10_eps_schwarz) CYCLE
+                  IF ((screen_coeffs_kind(jkind, ikind)%x(1)*rab2 + &
+                       screen_coeffs_kind(jkind, ikind)%x(2)) + &
+                      (screen_coeffs_kind(lkind, kkind)%x(1)*rcd2 + &
+                       screen_coeffs_kind(lkind, kkind)%x(2)) + pmax_atom < log10_eps_schwarz) CYCLE
 
                   IF (.NOT. (shm_is_assoc_atomic_block(latom, iatom) >= 1 .AND. &
                              shm_is_assoc_atomic_block(katom, iatom) >= 1 .AND. &
@@ -1035,8 +1041,10 @@ CONTAINS
                   symm_fac = 0.25_dp
                   IF (iatom == jatom) symm_fac = symm_fac*2.0_dp
                   IF (katom == latom) symm_fac = symm_fac*2.0_dp
-                  IF (iatom == katom .AND. jatom == latom .AND. iatom /= jatom .AND. katom /= latom) symm_fac = symm_fac*2.0_dp
-                  IF (iatom == katom .AND. iatom == jatom .AND. katom == latom) symm_fac = symm_fac*2.0_dp
+                  IF (iatom == katom .AND. jatom == latom .AND. &
+                      iatom /= jatom .AND. katom /= latom) symm_fac = symm_fac*2.0_dp
+                  IF (iatom == katom .AND. iatom == jatom .AND. &
+                      katom == latom) symm_fac = symm_fac*2.0_dp
 
                   symm_fac = 1.0_dp/symm_fac
                   fac = fac*symm_fac
@@ -1100,7 +1108,7 @@ CONTAINS
                         ptr_p_1 => shm_initial_p(kind_kind_idx)%p_kind(:, :, &
                                                                        actual_x_data%map_atom_to_kind_atom(iatom), &
                                                                        actual_x_data%map_atom_to_kind_atom(katom))
-                        swap_id = swap_id+1
+                        swap_id = swap_id + 1
                      END IF
                      kind_kind_idx = INT(get_1D_idx(lkind, jkind, INT(nkind, int_8)))
                      IF (jkind >= lkind) THEN
@@ -1111,7 +1119,7 @@ CONTAINS
                         ptr_p_2 => shm_initial_p(kind_kind_idx)%p_kind(:, :, &
                                                                        actual_x_data%map_atom_to_kind_atom(jatom), &
                                                                        actual_x_data%map_atom_to_kind_atom(latom))
-                        swap_id = swap_id+2
+                        swap_id = swap_id + 2
                      END IF
                      kind_kind_idx = INT(get_1D_idx(lkind, ikind, INT(nkind, int_8)))
                      IF (ikind >= lkind) THEN
@@ -1122,7 +1130,7 @@ CONTAINS
                         ptr_p_3 => shm_initial_p(kind_kind_idx)%p_kind(:, :, &
                                                                        actual_x_data%map_atom_to_kind_atom(iatom), &
                                                                        actual_x_data%map_atom_to_kind_atom(latom))
-                        swap_id = swap_id+4
+                        swap_id = swap_id + 4
                      END IF
                      kind_kind_idx = INT(get_1D_idx(kkind, jkind, INT(nkind, int_8)))
                      IF (jkind >= kkind) THEN
@@ -1133,7 +1141,7 @@ CONTAINS
                         ptr_p_4 => shm_initial_p(kind_kind_idx)%p_kind(:, :, &
                                                                        actual_x_data%map_atom_to_kind_atom(jatom), &
                                                                        actual_x_data%map_atom_to_kind_atom(katom))
-                        swap_id = swap_id+8
+                        swap_id = swap_id + 8
                      END IF
                   END IF
 
@@ -1151,10 +1159,10 @@ CONTAINS
                         DO i = 1, n_threads
 !$OMP                   ATOMIC READ
                            tmp_i4 = qs_env%x_data(irep, i)%memory_parameter%actual_memory_usage
-                           mem_compression_counter = mem_compression_counter+ &
+                           mem_compression_counter = mem_compression_counter + &
                                                      tmp_i4*memory_parameter%cache_size
                         END DO
-                        IF (mem_compression_counter+memory_parameter%final_comp_counter_energy &
+                        IF (mem_compression_counter + memory_parameter%final_comp_counter_energy &
                             > memory_parameter%max_compression_counter) THEN
                            buffer_overflow = .TRUE.
                            IF (do_dynamic_load_balancing) THEN
@@ -1163,7 +1171,7 @@ CONTAINS
                               memory_parameter%ram_counter_forces = counter
                            END IF
                         ELSE
-                           counter = counter+1
+                           counter = counter + 1
                            buffer_overflow = .FALSE.
                         END IF
                      END IF
@@ -1173,14 +1181,14 @@ CONTAINS
                            IF (distribution_forces%ram_counter == counter) THEN
                               buffer_overflow = .TRUE.
                            ELSE
-                              counter = counter+1
+                              counter = counter + 1
                               buffer_overflow = .FALSE.
                            END IF
                         ELSE
                            IF (memory_parameter%ram_counter_forces == counter) THEN
                               buffer_overflow = .TRUE.
                            ELSE
-                              counter = counter+1
+                              counter = counter + 1
                               buffer_overflow = .FALSE.
                            END IF
                         END IF
@@ -1192,11 +1200,11 @@ CONTAINS
                      jset = set_list_ij(i_set_list_ij)%pair(2)
 
                      ncob = npgfb(jset)*ncoset(lb_max(jset))
-                     max_val1 = screen_coeffs_set(jset, iset, jkind, ikind)%x(1)*rab2+ &
+                     max_val1 = screen_coeffs_set(jset, iset, jkind, ikind)%x(1)*rab2 + &
                                 screen_coeffs_set(jset, iset, jkind, ikind)%x(2)
                      !! Near field screening
-                     IF (max_val1+(screen_coeffs_kind(lkind, kkind)%x(1)*rcd2+ &
-                                   screen_coeffs_kind(lkind, kkind)%x(2))+pmax_atom < log10_eps_schwarz) CYCLE
+                     IF (max_val1 + (screen_coeffs_kind(lkind, kkind)%x(1)*rcd2 + &
+                                     screen_coeffs_kind(lkind, kkind)%x(2)) + pmax_atom < log10_eps_schwarz) CYCLE
                      sphi_a_ext_set => sphi_a_ext(:, :, :, iset)
                      sphi_b_ext_set => sphi_b_ext(:, :, :, jset)
 
@@ -1204,12 +1212,12 @@ CONTAINS
                         kset = set_list_kl(i_set_list_kl)%pair(1)
                         lset = set_list_kl(i_set_list_kl)%pair(2)
 
-                        max_val2_set = (screen_coeffs_set(lset, kset, lkind, kkind)%x(1)*rcd2+ &
+                        max_val2_set = (screen_coeffs_set(lset, kset, lkind, kkind)%x(1)*rcd2 + &
                                         screen_coeffs_set(lset, kset, lkind, kkind)%x(2))
-                        max_val2 = max_val1+max_val2_set
+                        max_val2 = max_val1 + max_val2_set
 
                         !! Near field screening
-                        IF (max_val2+pmax_atom < log10_eps_schwarz) CYCLE
+                        IF (max_val2 + pmax_atom < log10_eps_schwarz) CYCLE
                         sphi_c_ext_set => sphi_c_ext(:, :, :, kset)
                         sphi_d_ext_set => sphi_d_ext(:, :, :, lset)
 
@@ -1218,19 +1226,19 @@ CONTAINS
                                              iset, jset, kset, lset, &
                                              pmax_tmp, swap_id)
 
-                           log10_pmax = log_2+pmax_tmp
+                           log10_pmax = log_2 + pmax_tmp
                         ELSE
                            log10_pmax = 0.0_dp
                         END IF
 
-                        max_val2 = max_val2+log10_pmax
+                        max_val2 = max_val2 + log10_pmax
                         IF (max_val2 < log10_eps_schwarz) CYCLE
 
                         pmax_entry = EXP(log10_pmax*ln_10)
                         !! store current number of integrals, update total number and number of integrals in buffer
                         current_counter = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)*12
                         IF (buffer_overflow) THEN
-                           neris_onthefly = neris_onthefly+current_counter
+                           neris_onthefly = neris_onthefly + current_counter
                         END IF
 
                         !! Get integrals from buffer and update Kohn-Sham matrix
@@ -1239,15 +1247,15 @@ CONTAINS
                            CALL hfx_get_single_cache_element(estimate_to_store_int, 6, &
                                                              maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
                                                              use_disk_storage)
-                           spherical_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int+1)
+                           spherical_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int + 1)
 !                           IF (spherical_estimate*pmax_entry < eps_schwarz) CYCLE
                            IF (.NOT. use_virial) THEN
                               IF (spherical_estimate*pmax_entry < eps_schwarz) CYCLE
                            END IF
-                           nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage))+1
+                           nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage)) + 1
                            buffer_left = nints
                            buffer_start = 1
-                           neris_incore = neris_incore+INT(nints, int_8)
+                           neris_incore = neris_incore + INT(nints, int_8)
                            DO WHILE (buffer_left > 0)
                               buffer_size = MIN(buffer_left, cache_size)
                               CALL hfx_get_mult_cache_elements(primitive_forces(buffer_start), &
@@ -1257,8 +1265,8 @@ CONTAINS
                                                                eps_storage, pmax_entry, &
                                                                memory_parameter%actual_memory_usage, &
                                                                use_disk_storage)
-                              buffer_left = buffer_left-buffer_size
-                              buffer_start = buffer_start+buffer_size
+                              buffer_left = buffer_left - buffer_size
+                              buffer_start = buffer_start + buffer_size
                            END DO
                         END IF
                         !! Calculate integrals if we run out of buffer or the geometry did change
@@ -1273,7 +1281,8 @@ CONTAINS
                            tmp_screen_pgf1 => screen_coeffs_pgf(:, :, jset, iset, jkind, ikind)
                            tmp_screen_pgf2 => screen_coeffs_pgf(:, :, lset, kset, lkind, kkind)
 
-                           CALL forces4(private_deriv, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
+                           CALL forces4(private_deriv, ra, rb, rc, rd, npgfa(iset), npgfb(jset), &
+                                        npgfc(kset), npgfd(lset), &
                                         la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                         lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset), &
                                         nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
@@ -1285,7 +1294,8 @@ CONTAINS
                                         zetc(1:npgfc(kset), kset), zetd(1:npgfd(lset), lset), &
                                         primitive_forces, &
                                         potential_parameter, &
-                                        actual_x_data%neighbor_cells, screen_coeffs_set(jset, iset, jkind, ikind)%x, &
+                                        actual_x_data%neighbor_cells, &
+                                        screen_coeffs_set(jset, iset, jkind, ikind)%x, &
                                         screen_coeffs_set(lset, kset, lkind, kkind)%x, eps_schwarz, &
                                         max_contraction_val, cartesian_estimate, cell, neris_tmp, &
                                         log10_pmax, log10_eps_schwarz, &
@@ -1297,11 +1307,12 @@ CONTAINS
                                         ede_work, ede_work2, ede_work_forces, &
                                         ede_buffer1, ede_buffer2, ede_primitives_tmp, &
                                         nimages, do_periodic, use_virial, ede_work_virial, ede_work2_virial, &
-                                        ede_primitives_tmp_virial, primitive_forces_virial, cartesian_estimate_virial)
+                                        ede_primitives_tmp_virial, primitive_forces_virial, &
+                                        cartesian_estimate_virial)
 
                            nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)*12
-                           neris_total = neris_total+nints
-                           nprim_ints = nprim_ints+neris_tmp
+                           neris_total = neris_total + nints
+                           nprim_ints = nprim_ints + neris_tmp
 !                           IF (cartesian_estimate == 0.0_dp) cartesian_estimate = TINY(cartesian_estimate)
 !                           estimate_to_store_int = EXPONENT(cartesian_estimate)
 !                           estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
@@ -1341,16 +1352,16 @@ CONTAINS
                                                                 memory_parameter%actual_memory_usage, &
                                                                 use_disk_storage, max_val_memory)
                            END IF
-                           spherical_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int+1)
+                           spherical_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int + 1)
                            IF (.NOT. use_virial) THEN
                               IF (spherical_estimate*pmax_entry < eps_schwarz) CYCLE
                            END IF
                            IF (.NOT. buffer_overflow) THEN
-                              nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage))+1
+                              nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage)) + 1
                               buffer_left = nints
                               buffer_start = 1
 !                              neris_incore = neris_incore+nints
-                              neris_incore = neris_incore+INT(nints, int_8)
+                              neris_incore = neris_incore + INT(nints, int_8)
 
                               DO WHILE (buffer_left > 0)
                                  buffer_size = MIN(buffer_left, CACHE_SIZE)
@@ -1361,8 +1372,8 @@ CONTAINS
                                                                   eps_storage, pmax_entry, &
                                                                   memory_parameter%actual_memory_usage, &
                                                                   use_disk_storage)
-                                 buffer_left = buffer_left-buffer_size
-                                 buffer_start = buffer_start+buffer_size
+                                 buffer_left = buffer_left - buffer_size
+                                 buffer_start = buffer_start + buffer_size
                               END DO
                            ELSE
                               !! In order to be consistent with in-core part, round all the eris wrt. eps_schwarz
@@ -1425,14 +1436,15 @@ CONTAINS
                         END IF
                         IF (spherical_estimate*pmax_entry >= eps_schwarz) THEN
                            DO coord = 1, 12
-                              T2 => primitive_forces((coord-1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)+1: &
+                              T2 => primitive_forces((coord - 1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset) + 1: &
                                                      coord*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset))
 
                               IF (with_resp_density) THEN
                                  CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                     pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
                                                     T2, force, forces_map, coord, &
-                                                    pbd_buf_resp, pbc_buf_resp, pad_buf_resp, pac_buf_resp)
+                                                    pbd_buf_resp, pbc_buf_resp, pad_buf_resp, pac_buf_resp, &
+                                                    my_resp_only)
                               ELSE
                                  CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                     pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
@@ -1444,7 +1456,8 @@ CONTAINS
                                                        pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, &
                                                        fac, T2, force, forces_map, coord, &
                                                        pbd_buf_resp_beta, pbc_buf_resp_beta, &
-                                                       pad_buf_resp_beta, pac_buf_resp_beta)
+                                                       pad_buf_resp_beta, pac_buf_resp_beta, &
+                                                       my_resp_only)
                                  ELSE
                                     CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                        pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
@@ -1457,8 +1470,8 @@ CONTAINS
                            DO coord = 1, 12
                               DO i = 1, 3
                                  T2 => primitive_forces_virial( &
-                                       ((i-1)*12+coord-1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)+1: &
-                                       ((i-1)*12+coord)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset))
+                                       ((i - 1)*12 + coord - 1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset) + 1: &
+                                       ((i - 1)*12 + coord)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset))
                                  IF (with_resp_density) THEN
                                     CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                        pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
@@ -1492,7 +1505,7 @@ CONTAINS
             END DO !i_list_ij
          END DO atomic_blocks
          bintime_stop = m_walltime()
-         distribution_forces%time_forces = bintime_stop-bintime_start
+         distribution_forces%time_forces = bintime_stop - bintime_start
 !$OMP MASTER
          CALL timestop(handle_bin)
 !$OMP END MASTER
@@ -1526,7 +1539,7 @@ CONTAINS
             DO j = 1, 3
                DO k = 1, 3
 !$OMP                 ATOMIC
-                  virial%pv_fock_4c(i, j) = virial%pv_fock_4c(i, j)+tmp_virial(i, k)*cell%hmat(j, k)
+                  virial%pv_fock_4c(i, j) = virial%pv_fock_4c(i, j) + tmp_virial(i, k)*cell%hmat(j, k)
                END DO
             END DO
          END DO
@@ -1535,21 +1548,21 @@ CONTAINS
 !$OMP BARRIER
       !! Get some number about ERIS
 !$OMP ATOMIC
-      shm_neris_total = shm_neris_total+neris_total
+      shm_neris_total = shm_neris_total + neris_total
 !$OMP ATOMIC
-      shm_neris_onthefly = shm_neris_onthefly+neris_onthefly
+      shm_neris_onthefly = shm_neris_onthefly + neris_onthefly
 !$OMP ATOMIC
-      shm_nprim_ints = shm_nprim_ints+nprim_ints
+      shm_nprim_ints = shm_nprim_ints + nprim_ints
 
       storage_counter_integrals = memory_parameter%actual_memory_usage* &
                                   memory_parameter%cache_size
       stor_count_max_val = max_val_memory*memory_parameter%cache_size
 !$OMP ATOMIC
-      shm_storage_counter_integrals = shm_storage_counter_integrals+storage_counter_integrals
+      shm_storage_counter_integrals = shm_storage_counter_integrals + storage_counter_integrals
 !$OMP ATOMIC
-      shm_neris_incore = shm_neris_incore+neris_incore
+      shm_neris_incore = shm_neris_incore + neris_incore
 !$OMP ATOMIC
-      shm_stor_count_max_val = shm_stor_count_max_val+stor_count_max_val
+      shm_stor_count_max_val = shm_stor_count_max_val + stor_count_max_val
 !$OMP BARRIER
 
       ! IF(with_resp_density) THEN
@@ -1570,9 +1583,9 @@ CONTAINS
          shm_neris_total = tmp_i8(4)
          shm_nprim_ints = tmp_i8(5)
          shm_stor_count_max_val = tmp_i8(6)
-         mem_eris = (shm_storage_counter_integrals+128*1024-1)/1024/128
+         mem_eris = (shm_storage_counter_integrals + 128*1024 - 1)/1024/128
          compression_factor = REAL(shm_neris_incore, dp)/REAL(shm_storage_counter_integrals, dp)
-         mem_max_val = (shm_stor_count_max_val+128*1024-1)/1024/128
+         mem_max_val = (shm_stor_count_max_val + 128*1024 - 1)/1024/128
 
          IF (shm_neris_incore == 0) THEN
             mem_eris = 0
@@ -1899,7 +1912,7 @@ CONTAINS
          cart_estimate_virial = 0.0_dp
       END IF
       neris_tmp = 0_int_8
-      max_l = la_max+lb_max+lc_max+ld_max+1
+      max_l = la_max + lb_max + lc_max + ld_max + 1
       DO list_ij = 1, nelements_ij
          Zeta_A = pgf_list_ij(list_ij)%zeta
          Zeta_B = pgf_list_ij(list_ij)%zetb
@@ -1951,23 +1964,23 @@ CONTAINS
                                                 Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv, EtaInv, &
                                                 s_offset_a, s_offset_b, s_offset_c, s_offset_d, &
                                                 nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
-                                                sphi_a_ext(1, la+1, ipgf), &
-                                                sphi_b_ext(1, lb+1, jpgf), &
-                                                sphi_c_ext(1, lc+1, kpgf), &
-                                                sphi_d_ext(1, ld+1, lpgf), &
+                                                sphi_a_ext(1, la + 1, ipgf), &
+                                                sphi_b_ext(1, lb + 1, jpgf), &
+                                                sphi_c_ext(1, lc + 1, kpgf), &
+                                                sphi_d_ext(1, ld + 1, lpgf), &
                                                 ede_work, ede_work2, ede_work_forces, &
                                                 ede_buffer1, ede_buffer2, ede_primitives_tmp, use_virial, &
                                                 ede_work_virial, ede_work2_virial, ede_primitives_tmp_virial, &
                                                 primitive_integrals_virial, cell, tmp_max_virial)
                         cart_estimate = MAX(tmp_max, cart_estimate)
                         IF (use_virial) cart_estimate_virial = MAX(tmp_max_virial, cart_estimate_virial)
-                        s_offset_d = s_offset_d+nsod*nsgfld
+                        s_offset_d = s_offset_d + nsod*nsgfld
                      END DO !ld
-                     s_offset_c = s_offset_c+nsoc*nsgflc
+                     s_offset_c = s_offset_c + nsoc*nsgflc
                   END DO !lc
-                  s_offset_b = s_offset_b+nsob*nsgflb
+                  s_offset_b = s_offset_b + nsob*nsgflb
                END DO !lb
-               s_offset_a = s_offset_a+nsoa*nsgfla
+               s_offset_a = s_offset_a + nsoa*nsgfla
             END DO !la
          END DO
       END DO
@@ -1995,7 +2008,7 @@ CONTAINS
       INTEGER(int_8)                                     :: min_ij
 
       min_ij = MIN(i, j)
-      get_1D_idx = min_ij*N+MAX(i, j)-(min_ij-1)*min_ij/2-N
+      get_1D_idx = min_ij*N + MAX(i, j) - (min_ij - 1)*min_ij/2 - N
 
    END FUNCTION get_1D_idx
 
@@ -2059,93 +2072,93 @@ CONTAINS
       IF (anti_symmetric) fac = -1.0_dp
       IF (jatom >= latom) THEN
          i = 1
-         offset_bd = offset_bd_set(jset, lset)+atomic_offset_bd-1
+         offset_bd = offset_bd_set(jset, lset) + atomic_offset_bd - 1
          j = offset_bd
          DO md = 1, md_max
             DO mb = 1, mb_max
                pbd(i) = density(j)*fac
-               i = i+1
-               j = j+1
+               i = i + 1
+               j = j + 1
             END DO
          END DO
       ELSE
          i = 1
-         offset_bd = offset_bd_set(lset, jset)+atomic_offset_bd-1
+         offset_bd = offset_bd_set(lset, jset) + atomic_offset_bd - 1
          DO md = 1, md_max
-            j = offset_bd+md-1
+            j = offset_bd + md - 1
             DO mb = 1, mb_max
                pbd(i) = density(j)
-               i = i+1
-               j = j+md_max
+               i = i + 1
+               j = j + md_max
             END DO
          END DO
       END IF
       IF (jatom >= katom) THEN
          i = 1
-         offset_bc = offset_bc_set(jset, kset)+atomic_offset_bc-1
+         offset_bc = offset_bc_set(jset, kset) + atomic_offset_bc - 1
          j = offset_bc
          DO mc = 1, mc_max
             DO mb = 1, mb_max
                pbc(i) = density(j)*fac
-               i = i+1
-               j = j+1
+               i = i + 1
+               j = j + 1
             END DO
          END DO
       ELSE
          i = 1
-         offset_bc = offset_bc_set(kset, jset)+atomic_offset_bc-1
+         offset_bc = offset_bc_set(kset, jset) + atomic_offset_bc - 1
          DO mc = 1, mc_max
-            j = offset_bc+mc-1
+            j = offset_bc + mc - 1
             DO mb = 1, mb_max
                pbc(i) = density(j)
-               i = i+1
-               j = j+mc_max
+               i = i + 1
+               j = j + mc_max
             END DO
          END DO
       END IF
       IF (iatom >= latom) THEN
          i = 1
-         offset_ad = offset_ad_set(iset, lset)+atomic_offset_ad-1
+         offset_ad = offset_ad_set(iset, lset) + atomic_offset_ad - 1
          j = offset_ad
          DO md = 1, md_max
             DO ma = 1, ma_max
                pad(i) = density(j)*fac
-               i = i+1
-               j = j+1
+               i = i + 1
+               j = j + 1
             END DO
          END DO
       ELSE
          i = 1
-         offset_ad = offset_ad_set(lset, iset)+atomic_offset_ad-1
+         offset_ad = offset_ad_set(lset, iset) + atomic_offset_ad - 1
          DO md = 1, md_max
-            j = offset_ad+md-1
+            j = offset_ad + md - 1
             DO ma = 1, ma_max
                pad(i) = density(j)
-               i = i+1
-               j = j+md_max
+               i = i + 1
+               j = j + md_max
             END DO
          END DO
       END IF
       IF (iatom >= katom) THEN
          i = 1
-         offset_ac = offset_ac_set(iset, kset)+atomic_offset_ac-1
+         offset_ac = offset_ac_set(iset, kset) + atomic_offset_ac - 1
          j = offset_ac
          DO mc = 1, mc_max
             DO ma = 1, ma_max
                pac(i) = density(j)*fac
-               i = i+1
-               j = j+1
+               i = i + 1
+               j = j + 1
             END DO
          END DO
       ELSE
          i = 1
-         offset_ac = offset_ac_set(kset, iset)+atomic_offset_ac-1
+         offset_ac = offset_ac_set(kset, iset) + atomic_offset_ac - 1
          DO mc = 1, mc_max
-            j = offset_ac+mc-1
+            j = offset_ac + mc - 1
             DO ma = 1, ma_max
                pac(i) = density(j)
-               i = i+1
-               j = j+mc_max
+               i = i + 1
+               j = j + mc_max
             END DO
          END DO
       END IF
@@ -2170,6 +2183,7 @@ CONTAINS
 !> \param pbc_resp ...
 !> \param pad_resp ...
 !> \param pac_resp ...
+!> \param resp_only ...
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -2177,7 +2191,7 @@ CONTAINS
    SUBROUTINE update_forces(ma_max, mb_max, mc_max, md_max, &
                             pbd, pbc, pad, pac, fac, &
                             prim, force, forces_map, coord, &
-                            pbd_resp, pbc_resp, pad_resp, pac_resp)
+                            pbd_resp, pbc_resp, pad_resp, pac_resp, resp_only)
 
       INTEGER, INTENT(IN)                                :: ma_max, mb_max, mc_max, md_max
       REAL(dp), DIMENSION(*), INTENT(IN)                 :: pbd, pbc, pad, pac
@@ -2187,9 +2201,10 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       INTEGER, INTENT(IN)                                :: forces_map(4, 2), coord
       REAL(dp), DIMENSION(*), INTENT(IN), OPTIONAL       :: pbd_resp, pbc_resp, pad_resp, pac_resp
+      LOGICAL, INTENT(IN), OPTIONAL                      :: resp_only
 
       INTEGER                                            :: ma, mb, mc, md, p_index
-      LOGICAL                                            :: with_resp_density
+      LOGICAL                                            :: full_force, with_resp_density
       REAL(dp)                                           :: temp1, temp1_resp, temp3, temp3_resp, &
                                                             temp4, teresp
 
@@ -2200,27 +2215,33 @@ CONTAINS
           PRESENT(pac_resp)) with_resp_density = .TRUE.
 
       IF (with_resp_density) THEN
+         full_force = .TRUE.
+         IF (PRESENT(resp_only)) full_force = .NOT. resp_only
          p_index = 0
          temp4 = 0.0_dp
          DO md = 1, md_max
             DO mc = 1, mc_max
                DO mb = 1, mb_max
-                  temp1 = pbc((mc-1)*mb_max+mb)*fac
-                  temp3 = pbd((md-1)*mb_max+mb)*fac
-                  temp1_resp = pbc_resp((mc-1)*mb_max+mb)*fac
-                  temp3_resp = pbd_resp((md-1)*mb_max+mb)*fac
+                  temp1 = pbc((mc - 1)*mb_max + mb)*fac
+                  temp3 = pbd((md - 1)*mb_max + mb)*fac
+                  temp1_resp = pbc_resp((mc - 1)*mb_max + mb)*fac
+                  temp3_resp = pbd_resp((md - 1)*mb_max + mb)*fac
                   DO ma = 1, ma_max
-                     p_index = p_index+1
+                     p_index = p_index + 1
                      ! HF-SCF
-                     teresp = temp1*pad((md-1)*ma_max+ma)+ &
-                              temp3*pac((mc-1)*ma_max+ma)
-                     ! MP2+HF
-                     teresp = teresp+ &
-                              pac((mc-1)*ma_max+ma)*temp3_resp+ &
-                              pac_resp((mc-1)*ma_max+ma)*temp3+ &
-                              pad((md-1)*ma_max+ma)*temp1_resp+ &
-                              pad_resp((md-1)*ma_max+ma)*temp1
-                     temp4 = temp4+teresp*prim(p_index)
+                     IF (full_force) THEN
+                        teresp = temp1*pad((md - 1)*ma_max + ma) + &
+                                 temp3*pac((mc - 1)*ma_max + ma)
+                     ELSE
+                        teresp = 0.0_dp
+                     END IF
+                     ! RESP+HF
+                     teresp = teresp + &
+                              pac((mc - 1)*ma_max + ma)*temp3_resp + &
+                              pac_resp((mc - 1)*ma_max + ma)*temp3 + &
+                              pad((md - 1)*ma_max + ma)*temp1_resp + &
+                              pad_resp((md - 1)*ma_max + ma)*temp1
+                     temp4 = temp4 + teresp*prim(p_index)
                   END DO !ma
                END DO !mb
             END DO !mc
@@ -2231,13 +2252,13 @@ CONTAINS
          DO md = 1, md_max
             DO mc = 1, mc_max
                DO mb = 1, mb_max
-                  temp1 = pbc((mc-1)*mb_max+mb)*fac
-                  temp3 = pbd((md-1)*mb_max+mb)*fac
+                  temp1 = pbc((mc - 1)*mb_max + mb)*fac
+                  temp3 = pbd((md - 1)*mb_max + mb)*fac
                   DO ma = 1, ma_max
-                     p_index = p_index+1
-                     teresp = temp1*pad((md-1)*ma_max+ma)+ &
-                              temp3*pac((mc-1)*ma_max+ma)
-                     temp4 = temp4+teresp*prim(p_index)
+                     p_index = p_index + 1
+                     teresp = temp1*pad((md - 1)*ma_max + ma) + &
+                              temp3*pac((mc - 1)*ma_max + ma)
+                     temp4 = temp4 + teresp*prim(p_index)
                   END DO !ma
                END DO !mb
             END DO !mc
@@ -2245,10 +2266,10 @@ CONTAINS
       END IF
 
 !$OMP ATOMIC
-      force(forces_map((coord-1)/3+1, 1))%fock_4c(MOD(coord-1, 3)+1, &
-                                                  forces_map((coord-1)/3+1, 2)) = &
-         force(forces_map((coord-1)/3+1, 1))%fock_4c(MOD(coord-1, 3)+1, &
-                                                     forces_map((coord-1)/3+1, 2))- &
+      force(forces_map((coord - 1)/3 + 1, 1))%fock_4c(MOD(coord - 1, 3) + 1, &
+                                                      forces_map((coord - 1)/3 + 1, 2)) = &
+         force(forces_map((coord - 1)/3 + 1, 1))%fock_4c(MOD(coord - 1, 3) + 1, &
+                                                         forces_map((coord - 1)/3 + 1, 2)) - &
          temp4
 
    END SUBROUTINE update_forces
@@ -2307,22 +2328,22 @@ CONTAINS
          DO md = 1, md_max
             DO mc = 1, mc_max
                DO mb = 1, mb_max
-                  temp1 = pbc((mc-1)*mb_max+mb)*fac
-                  temp3 = pbd((md-1)*mb_max+mb)*fac
-                  temp1_resp = pbc_resp((mc-1)*mb_max+mb)*fac
-                  temp3_resp = pbd_resp((md-1)*mb_max+mb)*fac
+                  temp1 = pbc((mc - 1)*mb_max + mb)*fac
+                  temp3 = pbd((md - 1)*mb_max + mb)*fac
+                  temp1_resp = pbc_resp((mc - 1)*mb_max + mb)*fac
+                  temp3_resp = pbd_resp((md - 1)*mb_max + mb)*fac
                   DO ma = 1, ma_max
-                     p_index = p_index+1
+                     p_index = p_index + 1
                      ! HF-SCF
-                     teresp = temp1*pad((md-1)*ma_max+ma)+ &
-                              temp3*pac((mc-1)*ma_max+ma)
-                     ! MP2+HF
-                     teresp = teresp+ &
-                              pac((mc-1)*ma_max+ma)*temp3_resp+ &
-                              pac_resp((mc-1)*ma_max+ma)*temp3+ &
-                              pad((md-1)*ma_max+ma)*temp1_resp+ &
-                              pad_resp((md-1)*ma_max+ma)*temp1
-                     temp4 = temp4+teresp*prim(p_index)
+                     teresp = temp1*pad((md - 1)*ma_max + ma) + &
+                              temp3*pac((mc - 1)*ma_max + ma)
+                     ! RESP+HF
+                     teresp = teresp + &
+                              pac((mc - 1)*ma_max + ma)*temp3_resp + &
+                              pac_resp((mc - 1)*ma_max + ma)*temp3 + &
+                              pad((md - 1)*ma_max + ma)*temp1_resp + &
+                              pad_resp((md - 1)*ma_max + ma)*temp1
+                     temp4 = temp4 + teresp*prim(p_index)
                   END DO !ma
                END DO !mb
             END DO !mc
@@ -2333,13 +2354,13 @@ CONTAINS
          DO md = 1, md_max
             DO mc = 1, mc_max
                DO mb = 1, mb_max
-                  temp1 = pbc((mc-1)*mb_max+mb)*fac
-                  temp3 = pbd((md-1)*mb_max+mb)*fac
+                  temp1 = pbc((mc - 1)*mb_max + mb)*fac
+                  temp3 = pbd((md - 1)*mb_max + mb)*fac
                   DO ma = 1, ma_max
-                     p_index = p_index+1
-                     teresp = temp1*pad((md-1)*ma_max+ma)+ &
-                              temp3*pac((mc-1)*ma_max+ma)
-                     temp4 = temp4+teresp*prim(p_index)
+                     p_index = p_index + 1
+                     teresp = temp1*pad((md - 1)*ma_max + ma) + &
+                              temp3*pac((mc - 1)*ma_max + ma)
+                     temp4 = temp4 + teresp*prim(p_index)
                   END DO !ma
                END DO !mb
             END DO !mc
@@ -2347,8 +2368,8 @@ CONTAINS
       END IF
 
       j = l
-      i = MOD(coord-1, 3)+1
-      tmp_virial(i, j) = tmp_virial(i, j)-temp4
+      i = MOD(coord - 1, 3) + 1
+      tmp_virial(i, j) = tmp_virial(i, j) - temp4
    END SUBROUTINE update_virial
 
 #include "hfx_get_pmax_val.f90"

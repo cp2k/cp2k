@@ -311,53 +311,53 @@ CONTAINS
       CPASSERT(ASSOCIATED(qs_force_in))
 
       DO ikind = 1, SIZE(qs_force_out)
-         qs_force_out(ikind)%all_potential(:, :) = qs_force_out(ikind)%all_potential(:, :)+ &
+         qs_force_out(ikind)%all_potential(:, :) = qs_force_out(ikind)%all_potential(:, :) + &
                                                    qs_force_in(ikind)%all_potential(:, :)
-         qs_force_out(ikind)%core_overlap(:, :) = qs_force_out(ikind)%core_overlap(:, :)+ &
+         qs_force_out(ikind)%core_overlap(:, :) = qs_force_out(ikind)%core_overlap(:, :) + &
                                                   qs_force_in(ikind)%core_overlap(:, :)
-         qs_force_out(ikind)%gth_ppl(:, :) = qs_force_out(ikind)%gth_ppl(:, :)+ &
+         qs_force_out(ikind)%gth_ppl(:, :) = qs_force_out(ikind)%gth_ppl(:, :) + &
                                              qs_force_in(ikind)%gth_ppl(:, :)
-         qs_force_out(ikind)%gth_nlcc(:, :) = qs_force_out(ikind)%gth_nlcc(:, :)+ &
+         qs_force_out(ikind)%gth_nlcc(:, :) = qs_force_out(ikind)%gth_nlcc(:, :) + &
                                               qs_force_in(ikind)%gth_nlcc(:, :)
-         qs_force_out(ikind)%gth_ppnl(:, :) = qs_force_out(ikind)%gth_ppnl(:, :)+ &
+         qs_force_out(ikind)%gth_ppnl(:, :) = qs_force_out(ikind)%gth_ppnl(:, :) + &
                                               qs_force_in(ikind)%gth_ppnl(:, :)
-         qs_force_out(ikind)%kinetic(:, :) = qs_force_out(ikind)%kinetic(:, :)+ &
+         qs_force_out(ikind)%kinetic(:, :) = qs_force_out(ikind)%kinetic(:, :) + &
                                              qs_force_in(ikind)%kinetic(:, :)
-         qs_force_out(ikind)%overlap(:, :) = qs_force_out(ikind)%overlap(:, :)+ &
+         qs_force_out(ikind)%overlap(:, :) = qs_force_out(ikind)%overlap(:, :) + &
                                              qs_force_in(ikind)%overlap(:, :)
-         qs_force_out(ikind)%overlap_admm(:, :) = qs_force_out(ikind)%overlap_admm(:, :)+ &
+         qs_force_out(ikind)%overlap_admm(:, :) = qs_force_out(ikind)%overlap_admm(:, :) + &
                                                   qs_force_in(ikind)%overlap_admm(:, :)
-         qs_force_out(ikind)%rho_core(:, :) = qs_force_out(ikind)%rho_core(:, :)+ &
+         qs_force_out(ikind)%rho_core(:, :) = qs_force_out(ikind)%rho_core(:, :) + &
                                               qs_force_in(ikind)%rho_core(:, :)
-         qs_force_out(ikind)%rho_elec(:, :) = qs_force_out(ikind)%rho_elec(:, :)+ &
+         qs_force_out(ikind)%rho_elec(:, :) = qs_force_out(ikind)%rho_elec(:, :) + &
                                               qs_force_in(ikind)%rho_elec(:, :)
-         qs_force_out(ikind)%rho_lri_elec(:, :) = qs_force_out(ikind)%rho_lri_elec(:, :)+ &
+         qs_force_out(ikind)%rho_lri_elec(:, :) = qs_force_out(ikind)%rho_lri_elec(:, :) + &
                                                   qs_force_in(ikind)%rho_lri_elec(:, :)
-         qs_force_out(ikind)%vhxc_atom(:, :) = qs_force_out(ikind)%vhxc_atom(:, :)+ &
+         qs_force_out(ikind)%vhxc_atom(:, :) = qs_force_out(ikind)%vhxc_atom(:, :) + &
                                                qs_force_in(ikind)%vhxc_atom(:, :)
-         qs_force_out(ikind)%g0s_Vh_elec(:, :) = qs_force_out(ikind)%g0s_Vh_elec(:, :)+ &
+         qs_force_out(ikind)%g0s_Vh_elec(:, :) = qs_force_out(ikind)%g0s_Vh_elec(:, :) + &
                                                  qs_force_in(ikind)%g0s_Vh_elec(:, :)
-         qs_force_out(ikind)%repulsive(:, :) = qs_force_out(ikind)%repulsive(:, :)+ &
+         qs_force_out(ikind)%repulsive(:, :) = qs_force_out(ikind)%repulsive(:, :) + &
                                                qs_force_in(ikind)%repulsive(:, :)
-         qs_force_out(ikind)%dispersion(:, :) = qs_force_out(ikind)%dispersion(:, :)+ &
+         qs_force_out(ikind)%dispersion(:, :) = qs_force_out(ikind)%dispersion(:, :) + &
                                                 qs_force_in(ikind)%dispersion(:, :)
-         qs_force_out(ikind)%gcp(:, :) = qs_force_out(ikind)%gcp(:, :)+ &
+         qs_force_out(ikind)%gcp(:, :) = qs_force_out(ikind)%gcp(:, :) + &
                                          qs_force_in(ikind)%gcp(:, :)
-         qs_force_out(ikind)%other(:, :) = qs_force_out(ikind)%other(:, :)+ &
+         qs_force_out(ikind)%other(:, :) = qs_force_out(ikind)%other(:, :) + &
                                            qs_force_in(ikind)%other(:, :)
-         qs_force_out(ikind)%fock_4c(:, :) = qs_force_out(ikind)%fock_4c(:, :)+ &
+         qs_force_out(ikind)%fock_4c(:, :) = qs_force_out(ikind)%fock_4c(:, :) + &
                                              qs_force_in(ikind)%fock_4c(:, :)
-         qs_force_out(ikind)%ehrenfest(:, :) = qs_force_out(ikind)%ehrenfest(:, :)+ &
+         qs_force_out(ikind)%ehrenfest(:, :) = qs_force_out(ikind)%ehrenfest(:, :) + &
                                                qs_force_in(ikind)%ehrenfest(:, :)
-         qs_force_out(ikind)%efield(:, :) = qs_force_out(ikind)%efield(:, :)+ &
+         qs_force_out(ikind)%efield(:, :) = qs_force_out(ikind)%efield(:, :) + &
                                             qs_force_in(ikind)%efield(:, :)
-         qs_force_out(ikind)%eev(:, :) = qs_force_out(ikind)%eev(:, :)+ &
+         qs_force_out(ikind)%eev(:, :) = qs_force_out(ikind)%eev(:, :) + &
                                          qs_force_in(ikind)%eev(:, :)
-         qs_force_out(ikind)%mp2_non_sep(:, :) = qs_force_out(ikind)%mp2_non_sep(:, :)+ &
+         qs_force_out(ikind)%mp2_non_sep(:, :) = qs_force_out(ikind)%mp2_non_sep(:, :) + &
                                                  qs_force_in(ikind)%mp2_non_sep(:, :)
-         qs_force_out(ikind)%mp2_sep(:, :) = qs_force_out(ikind)%mp2_sep(:, :)+ &
+         qs_force_out(ikind)%mp2_sep(:, :) = qs_force_out(ikind)%mp2_sep(:, :) + &
                                              qs_force_in(ikind)%mp2_sep(:, :)
-         qs_force_out(ikind)%total(:, :) = qs_force_out(ikind)%total(:, :)+ &
+         qs_force_out(ikind)%total(:, :) = qs_force_out(ikind)%total(:, :) + &
                                            qs_force_in(ikind)%total(:, :)
       END DO
 
@@ -404,28 +404,28 @@ CONTAINS
          CALL mp_sum(qs_force(ikind)%gcp, para_env%group)
          CALL mp_sum(qs_force(ikind)%ehrenfest, para_env%group)
 
-         qs_force(ikind)%total(:, :) = qs_force(ikind)%total(:, :)+ &
-                                       qs_force(ikind)%core_overlap(:, :)+ &
-                                       qs_force(ikind)%gth_ppl(:, :)+ &
-                                       qs_force(ikind)%gth_nlcc(:, :)+ &
-                                       qs_force(ikind)%gth_ppnl(:, :)+ &
-                                       qs_force(ikind)%all_potential(:, :)+ &
-                                       qs_force(ikind)%kinetic(:, :)+ &
-                                       qs_force(ikind)%overlap(:, :)+ &
-                                       qs_force(ikind)%overlap_admm(:, :)+ &
-                                       qs_force(ikind)%rho_core(:, :)+ &
-                                       qs_force(ikind)%rho_elec(:, :)+ &
-                                       qs_force(ikind)%rho_lri_elec(:, :)+ &
-                                       qs_force(ikind)%vhxc_atom(:, :)+ &
-                                       qs_force(ikind)%g0s_Vh_elec(:, :)+ &
-                                       qs_force(ikind)%fock_4c(:, :)+ &
-                                       qs_force(ikind)%mp2_non_sep(:, :)+ &
-                                       qs_force(ikind)%mp2_sep(:, :)+ &
-                                       qs_force(ikind)%repulsive(:, :)+ &
-                                       qs_force(ikind)%dispersion(:, :)+ &
-                                       qs_force(ikind)%gcp(:, :)+ &
-                                       qs_force(ikind)%ehrenfest(:, :)+ &
-                                       qs_force(ikind)%efield(:, :)+ &
+         qs_force(ikind)%total(:, :) = qs_force(ikind)%total(:, :) + &
+                                       qs_force(ikind)%core_overlap(:, :) + &
+                                       qs_force(ikind)%gth_ppl(:, :) + &
+                                       qs_force(ikind)%gth_nlcc(:, :) + &
+                                       qs_force(ikind)%gth_ppnl(:, :) + &
+                                       qs_force(ikind)%all_potential(:, :) + &
+                                       qs_force(ikind)%kinetic(:, :) + &
+                                       qs_force(ikind)%overlap(:, :) + &
+                                       qs_force(ikind)%overlap_admm(:, :) + &
+                                       qs_force(ikind)%rho_core(:, :) + &
+                                       qs_force(ikind)%rho_elec(:, :) + &
+                                       qs_force(ikind)%rho_lri_elec(:, :) + &
+                                       qs_force(ikind)%vhxc_atom(:, :) + &
+                                       qs_force(ikind)%g0s_Vh_elec(:, :) + &
+                                       qs_force(ikind)%fock_4c(:, :) + &
+                                       qs_force(ikind)%mp2_non_sep(:, :) + &
+                                       qs_force(ikind)%mp2_sep(:, :) + &
+                                       qs_force(ikind)%repulsive(:, :) + &
+                                       qs_force(ikind)%dispersion(:, :) + &
+                                       qs_force(ikind)%gcp(:, :) + &
+                                       qs_force(ikind)%ehrenfest(:, :) + &
+                                       qs_force(ikind)%efield(:, :) + &
                                        qs_force(ikind)%eev(:, :)
       END DO
 
@@ -464,7 +464,7 @@ CONTAINS
             CALL get_atomic_kind(atomic_kind=atomic_kind, natom=natom_kind)
             DO ia = 1, natom_kind
                iatom = atomic_kind%atom_list(ia)
-               qs_force(ikind)%overlap_admm(:, ia) = qs_force(ikind)%overlap_admm(:, ia)+force(:, iatom)
+               qs_force(ikind)%overlap_admm(:, ia) = qs_force(ikind)%overlap_admm(:, ia) + force(:, iatom)
             END DO
          END DO
       CASE DEFAULT
@@ -581,27 +581,27 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind=atomic_kind, natom=natom_kind)
          DO ia = 1, natom_kind
             iatom = atomic_kind%atom_list(ia)
-            force(:, iatom) = qs_force(ikind)%core_overlap(:, ia)+ &
-                              qs_force(ikind)%gth_ppl(:, ia)+ &
-                              qs_force(ikind)%gth_nlcc(:, ia)+ &
-                              qs_force(ikind)%gth_ppnl(:, ia)+ &
-                              qs_force(ikind)%all_potential(:, ia)+ &
-                              qs_force(ikind)%kinetic(:, ia)+ &
-                              qs_force(ikind)%overlap(:, ia)+ &
-                              qs_force(ikind)%overlap_admm(:, ia)+ &
-                              qs_force(ikind)%rho_core(:, ia)+ &
-                              qs_force(ikind)%rho_elec(:, ia)+ &
-                              qs_force(ikind)%rho_lri_elec(:, ia)+ &
-                              qs_force(ikind)%vhxc_atom(:, ia)+ &
-                              qs_force(ikind)%g0s_Vh_elec(:, ia)+ &
-                              qs_force(ikind)%fock_4c(:, ia)+ &
-                              qs_force(ikind)%mp2_non_sep(:, ia)+ &
-                              qs_force(ikind)%mp2_sep(:, ia)+ &
-                              qs_force(ikind)%repulsive(:, ia)+ &
-                              qs_force(ikind)%dispersion(:, ia)+ &
-                              qs_force(ikind)%gcp(:, ia)+ &
-                              qs_force(ikind)%ehrenfest(:, ia)+ &
-                              qs_force(ikind)%efield(:, ia)+ &
+            force(:, iatom) = qs_force(ikind)%core_overlap(:, ia) + &
+                              qs_force(ikind)%gth_ppl(:, ia) + &
+                              qs_force(ikind)%gth_nlcc(:, ia) + &
+                              qs_force(ikind)%gth_ppnl(:, ia) + &
+                              qs_force(ikind)%all_potential(:, ia) + &
+                              qs_force(ikind)%kinetic(:, ia) + &
+                              qs_force(ikind)%overlap(:, ia) + &
+                              qs_force(ikind)%overlap_admm(:, ia) + &
+                              qs_force(ikind)%rho_core(:, ia) + &
+                              qs_force(ikind)%rho_elec(:, ia) + &
+                              qs_force(ikind)%rho_lri_elec(:, ia) + &
+                              qs_force(ikind)%vhxc_atom(:, ia) + &
+                              qs_force(ikind)%g0s_Vh_elec(:, ia) + &
+                              qs_force(ikind)%fock_4c(:, ia) + &
+                              qs_force(ikind)%mp2_non_sep(:, ia) + &
+                              qs_force(ikind)%mp2_sep(:, ia) + &
+                              qs_force(ikind)%repulsive(:, ia) + &
+                              qs_force(ikind)%dispersion(:, ia) + &
+                              qs_force(ikind)%gcp(:, ia) + &
+                              qs_force(ikind)%ehrenfest(:, ia) + &
+                              qs_force(ikind)%efield(:, ia) + &
                               qs_force(ikind)%eev(:, ia)
          END DO
       END DO

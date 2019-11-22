@@ -191,7 +191,7 @@ CONTAINS
          END SELECT
          !
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, basis_type="HARRIS")
-         CALL init_orbital_pointers(maxlgto+1)
+         CALL init_orbital_pointers(maxlgto + 1)
          ! set functional
          SELECT CASE (ec_env%energy_functional)
          CASE (ec_functional_harris)
