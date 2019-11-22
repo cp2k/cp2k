@@ -1272,7 +1272,8 @@ CONTAINS
       IF (i_thread == 1) THEN
          IF (x_data%potential_parameter%potential_type /= do_potential_truncated .AND. &
              x_data%potential_parameter%potential_type /= do_potential_short .AND. &
-             x_data%potential_parameter%potential_type /= do_potential_mix_cl_trunc) THEN
+             x_data%potential_parameter%potential_type /= do_potential_mix_cl_trunc .AND. &
+             x_data%potential_parameter%potential_type /= do_potential_id) THEN
             CALL cp_warn(__LOCATION__, &
                          "Periodic Hartree Fock calculation requested without use "// &
                          "of a truncated or shortrange potential. This may lead to unphysical total energies. "// &

@@ -333,8 +333,8 @@ CONTAINS
             END DO
             params%Fm = prefac*params%Fm
          CASE (do_potential_id)
-            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj-ri)**2) &
-                        -gammaq*zetk*params%ZetapEtaInv*SUM((params%Q-rk)**2))
+            S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2) &
+                        - gammaq*zetk*params%ZetapEtaInv*SUM((params%Q - rk)**2))
             prefac = SQRT((pi*params%ZetapEtaInv)**3)*S1234
 
             params%Fm(:) = prefac
@@ -417,7 +417,7 @@ CONTAINS
             b_start = (jpgf - 1)*ncoset(lb_max)
 
             !screening
-            IF (rpgfa(ipgf)+rpgfb(jpgf)+dr_ab < dab) CYCLE
+            IF (rpgfa(ipgf) + rpgfb(jpgf) + dr_ab < dab) CYCLE
 
             CALL set_params_2c(lib, ra, rb, la_max, lb_max, zeti, zetj, potential_parameter)
 
@@ -529,7 +529,7 @@ CONTAINS
          params%Fm = prefac*params%Fm
       CASE (do_potential_id)
 
-         prefac = SQRT((pi*params%ZetapEtaInv)**3)*EXP(-zetj*zetk*params%ZetapEtaInv*SUM((rk-rj)**2))
+         prefac = SQRT((pi*params%ZetapEtaInv)**3)*EXP(-zetj*zetk*params%ZetapEtaInv*SUM((rk - rj)**2))
          params%Fm(:) = prefac
       CASE DEFAULT
          CPABORT("Requested operator NYI")

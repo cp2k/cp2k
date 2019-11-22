@@ -272,17 +272,17 @@ CONTAINS
                   factor = 1.0_dp
                CASE (do_potential_id)
                   num = list1%zeta*list1%zetb
-                  den = list1%zeta+list1%zetb
-                  ssss = -num/den*SUM((ra-rb)**2)
+                  den = list1%zeta + list1%zetb
+                  ssss = -num/den*SUM((ra - rb)**2)
 
                   num = den*Zeta_C
-                  den = den+Zeta_C
-                  ssss = ssss-num/den*SUM((P-rc)**2)
+                  den = den + Zeta_C
+                  ssss = ssss - num/den*SUM((P - rc)**2)
 
-                  G(:) = (list1%zeta*ra(:)+list1%zetb*rb(:)+Zeta_C*rc(:))/den
+                  G(:) = (list1%zeta*ra(:) + list1%zetb*rb(:) + Zeta_C*rc(:))/den
                   num = den*Zeta_D
-                  den = den+Zeta_D
-                  ssss = ssss-num/den*SUM((G-rd)**2)
+                  den = den + Zeta_D
+                  ssss = ssss - num/den*SUM((G - rd)**2)
 
                   product_list(nproducts)%Fm(:) = EXP(ssss)
                   factor = 1.0_dp

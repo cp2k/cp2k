@@ -239,14 +239,14 @@ CONTAINS
       CASE (do_potential_id)
          ssss = -Zeta_A*Zeta_B*ZetaInv*AB2
 
-         num = (Zeta_A+Zeta_B)*Zeta_C
-         den = Zeta_A+Zeta_B+Zeta_C
-         ssss = ssss-num/den*SUM((P-C)**2)
+         num = (Zeta_A + Zeta_B)*Zeta_C
+         den = Zeta_A + Zeta_B + Zeta_C
+         ssss = ssss - num/den*SUM((P - C)**2)
 
-         G(:) = (Zeta_A*A(:)+Zeta_B*B(:)+Zeta_C*C(:))/den
+         G(:) = (Zeta_A*A(:) + Zeta_B*B(:) + Zeta_C*C(:))/den
          num = den*Zeta_D
-         den = den+Zeta_D
-         ssss = ssss-num/den*SUM((G-D)**2)
+         den = den + Zeta_D
+         ssss = ssss - num/den*SUM((G - D)**2)
 
          F(:) = EXP(ssss)
          factor = 1.0_dp
