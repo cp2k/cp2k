@@ -630,6 +630,7 @@ CONTAINS
       ENDIF
 
       DO ispin = 1, nspins
+         mo_set => mos(ispin)%mo_set
          IF (ri_data%do_loc) THEN
             CALL copy_fm_to_dbcsr(moloc_coeff(ispin)%matrix, mo_coeff_b(ispin))
          ENDIF
