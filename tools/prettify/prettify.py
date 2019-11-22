@@ -25,7 +25,7 @@ except ImportError:
 from prettify_cp2k import normalizeFortranFile
 from prettify_cp2k import replacer
 
-sys.path.append(path.join(path.dirname(path.abspath(__file__)), "fprettify"))
+sys.path.insert(0, path.join(path.dirname(path.abspath(__file__)), "fprettify"))
 from fprettify import reformat_ffile, fparse_utils, log_exception
 
 
