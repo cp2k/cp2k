@@ -37,6 +37,7 @@ MODULE qs_tensors
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gamma,                           ONLY: init_md_ftable
+   USE hfx_types,                       ONLY: hfx_potential_type
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_short,&
@@ -102,32 +103,30 @@ CONTAINS
 !> \param ij_list 2c neighbor list for atom pairs i, j
 !> \param basis_i basis object for atoms i
 !> \param basis_j basis object for atoms j
+!> \param potential_parameter ...
 !> \param name name of 2c neighbor list
 !> \param qs_env ...
 !> \param sym_ij Symmetry in i, j (default .TRUE.)
 !> \param molecular ...
-!> \param op_ij operator
-!> \param r_cutoff in case some truncated/screened operator is used, gives its range
 !> \param dist_2d optionally a custom 2d distribution
 !> \param pot_to_rad which radius (1 for i, 2 for j) should be adapted to incorporate potential
 ! **************************************************************************************************
-   SUBROUTINE build_2c_neighbor_lists(ij_list, basis_i, basis_j, name, qs_env, &
-                                      sym_ij, molecular, op_ij, r_cutoff, dist_2d, pot_to_rad)
+   SUBROUTINE build_2c_neighbor_lists(ij_list, basis_i, basis_j, potential_parameter, name, qs_env, &
+                                      sym_ij, molecular, dist_2d, pot_to_rad)
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ij_list
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j
+      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
       CHARACTER(LEN=*), INTENT(IN)                       :: name
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: sym_ij, molecular
-      INTEGER, INTENT(IN), OPTIONAL                      :: op_ij
-      REAL(dp), INTENT(IN), OPTIONAL                     :: r_cutoff
       TYPE(distribution_2d_type), OPTIONAL, POINTER      :: dist_2d
       INTEGER, INTENT(IN), OPTIONAL                      :: pot_to_rad
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_neighbor_lists', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ikind, nkind, op_ij_prv, pot_to_rad_prv
+      INTEGER                                            :: ikind, nkind, pot_to_rad_prv
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: i_present, j_present
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
       REAL(kind=dp)                                      :: subcells
@@ -142,12 +141,6 @@ CONTAINS
 
       NULLIFY (atomic_kind_set, cell, local_particles, molecule_set, &
                particle_set, dist_2d_prv)
-
-      IF (PRESENT(op_ij)) THEN
-         op_ij_prv = op_ij
-      ELSE
-         op_ij_prv = do_potential_id
-      ENDIF
 
       IF (PRESENT(pot_to_rad)) THEN
          pot_to_rad_prv = pot_to_rad
@@ -177,7 +170,7 @@ CONTAINS
       IF (PRESENT(dist_2d)) dist_2d_prv => dist_2d
 
       !  Set up the radii, depending on the operator type
-      IF (op_ij_prv == do_potential_id) THEN
+      IF (potential_parameter%potential_type == do_potential_id) THEN
 
          !overlap => use the kind radius for both i and j
          DO ikind = 1, nkind
@@ -191,7 +184,7 @@ CONTAINS
             END IF
          END DO
 
-      ELSE IF (op_ij_prv == do_potential_coulomb) THEN
+      ELSE IF (potential_parameter%potential_type == do_potential_coulomb) THEN
 
          !Coulomb operator, virtually infinite range => set j_radius to arbitrarily large number
          DO ikind = 1, nkind
@@ -205,19 +198,20 @@ CONTAINS
             END IF
          END DO !ikind
 
-      ELSE IF (op_ij_prv == do_potential_truncated .OR. op_ij_prv == do_potential_short) THEN
+      ELSE IF (potential_parameter%potential_type == do_potential_truncated .OR. &
+               potential_parameter%potential_type == do_potential_short) THEN
 
          !Truncated coulomb/short range: set j_radius to r_cutoff + the kind_radii
          DO ikind = 1, nkind
             IF (ASSOCIATED(basis_i(ikind)%gto_basis_set)) THEN
                i_present(ikind) = .TRUE.
                CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, kind_radius=i_radius(ikind))
-               IF (pot_to_rad_prv == 1) i_radius(ikind) = i_radius(ikind) + cutoff_screen_factor*r_cutoff
+               IF (pot_to_rad_prv == 1) i_radius(ikind) = i_radius(ikind) + cutoff_screen_factor*potential_parameter%cutoff_radius
             END IF
             IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
                j_present(ikind) = .TRUE.
                CALL get_gto_basis_set(basis_j(ikind)%gto_basis_set, kind_radius=j_radius(ikind))
-               IF (pot_to_rad_prv == 2) j_radius(ikind) = j_radius(ikind) + cutoff_screen_factor*r_cutoff
+               IF (pot_to_rad_prv == 2) j_radius(ikind) = j_radius(ikind) + cutoff_screen_factor*potential_parameter%cutoff_radius
             END IF
          END DO
 
@@ -265,43 +259,58 @@ CONTAINS
 !> \param basis_j basis object for atoms j
 !> \param basis_k basis object for atoms k
 !> \param dist_3d 3d distribution object
+!> \param potential_parameter ...
 !> \param name name of 3c neighbor list
 !> \param qs_env ...
 !> \param sym_ij Symmetry in i, j (default .FALSE.)
 !> \param sym_jk Symmetry in j, k (default .FALSE.)
 !> \param sym_ik Symmetry in i, k (default .FALSE.)
 !> \param molecular ??? not tested
-!> \param op_ij operator between i and j
-!> \param op_jk operator between j and k
-!> \param r_cutoff in case some truncated/screened operator is used, gives its range
+!> \param op_pos ...
 !> \param own_dist ...
 ! **************************************************************************************************
    SUBROUTINE build_3c_neighbor_lists(ijk_list, basis_i, basis_j, basis_k, &
-                                      dist_3d, name, qs_env, sym_ij, sym_jk, sym_ik, molecular, op_ij, op_jk, &
-                                      r_cutoff, own_dist)
+                                      dist_3d, potential_parameter, name, qs_env, &
+                                      sym_ij, sym_jk, sym_ik, molecular, op_pos, own_dist)
       TYPE(neighbor_list_3c_type), INTENT(OUT)           :: ijk_list
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
       TYPE(distribution_3d_type), INTENT(IN)             :: dist_3d
+      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
       CHARACTER(LEN=*), INTENT(IN)                       :: name
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: sym_ij, sym_jk, sym_ik, molecular
-      INTEGER, INTENT(IN), OPTIONAL                      :: op_ij, op_jk
-      REAL(dp), INTENT(IN), OPTIONAL                     :: r_cutoff
+      INTEGER, INTENT(IN), OPTIONAL                      :: op_pos
       LOGICAL, INTENT(IN), OPTIONAL                      :: own_dist
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_3c_neighbor_lists', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, sym_level
+      INTEGER                                            :: handle, op_pos_prv, sym_level
+      TYPE(hfx_potential_type)                           :: pot_par_1, pot_par_2
 
       CALL timeset(routineN, handle)
 
-      CALL build_2c_neighbor_lists(ijk_list%ij_list, basis_i, basis_j, TRIM(name)//"_sub_1", &
-                                   qs_env, sym_ij=.FALSE., molecular=molecular, op_ij=op_ij, r_cutoff=r_cutoff, &
+      IF (PRESENT(op_pos)) THEN
+         op_pos_prv = op_pos
+      ELSE
+         op_pos_prv = 1
+      ENDIF
+
+      SELECT CASE (op_pos_prv)
+      CASE (1)
+         pot_par_1 = potential_parameter
+         pot_par_2%potential_type = do_potential_id
+      CASE (2)
+         pot_par_2 = potential_parameter
+         pot_par_1%potential_type = do_potential_id
+      END SELECT
+
+      CALL build_2c_neighbor_lists(ijk_list%ij_list, basis_i, basis_j, pot_par_1, TRIM(name)//"_sub_1", &
+                                   qs_env, sym_ij=.FALSE., molecular=molecular, &
                                    dist_2d=dist_3d%dist_2d_1, pot_to_rad=1)
 
-      CALL build_2c_neighbor_lists(ijk_list%jk_list, basis_j, basis_k, TRIM(name)//"_sub_2", &
-                                   qs_env, sym_ij=.FALSE., molecular=molecular, op_ij=op_jk, r_cutoff=r_cutoff, &
+      CALL build_2c_neighbor_lists(ijk_list%jk_list, basis_j, basis_k, pot_par_2, TRIM(name)//"_sub_2", &
+                                   qs_env, sym_ij=.FALSE., molecular=molecular, &
                                    dist_2d=dist_3d%dist_2d_2, pot_to_rad=2)
 
       ijk_list%sym = symmetric_none
@@ -558,25 +567,23 @@ CONTAINS
 !> \param basis_j ...
 !> \param basis_k ...
 !> \param qs_env ...
-!> \param op_ij ...
-!> \param op_jk ...
-!> \param r_cutoff ...
+!> \param potential_parameter ...
+!> \param op_pos ...
 !> \param do_kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE alloc_block_3c(t3c, nl_3c, basis_i, basis_j, basis_k, qs_env, op_ij, op_jk, r_cutoff, do_kpoints)
+   SUBROUTINE alloc_block_3c(t3c, nl_3c, basis_i, basis_j, basis_k, qs_env, potential_parameter, op_pos, do_kpoints)
       TYPE(dbcsr_t_type), DIMENSION(:, :), INTENT(INOUT) :: t3c
       TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: nl_3c
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, INTENT(IN), OPTIONAL                      :: op_ij, op_jk
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: r_cutoff
+      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
+      INTEGER, INTENT(IN), OPTIONAL                      :: op_pos
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'alloc_block_3c', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk_cnt, handle, i, i_img, iatom, iblk, &
-                                                            ikind, iproc, j_img, jatom, jcell, &
-                                                            jkind, katom, kcell, kkind, natom, nimg
+      INTEGER :: blk_cnt, handle, i, i_img, iatom, iblk, ikind, iproc, j_img, jatom, jcell, jkind, &
+         katom, kcell, kkind, natom, nimg, op_ij, op_jk, op_pos_prv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp
       INTEGER, DIMENSION(3)                              :: cell_j, cell_k
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -605,24 +612,35 @@ CONTAINS
 
       dr_ij = 0.0_dp; dr_jk = 0.0_dp; dr_ik = 0.0_dp
 
-      IF (PRESENT(op_ij)) THEN
-         IF (op_ij == do_potential_truncated .OR. op_ij == do_potential_short) THEN
-            dr_ij = r_cutoff*cutoff_screen_factor
-            dr_ik = r_cutoff*cutoff_screen_factor
-         ELSEIF (op_ij == do_potential_coulomb) THEN
-            dr_ij = 1000000.0_dp
-            dr_ik = 1000000.0_dp
-         ENDIF
+      op_ij = do_potential_id; op_jk = do_potential_id
+
+      IF (PRESENT(op_pos)) THEN
+         op_pos_prv = op_pos
+      ELSE
+         op_pos_prv = 1
       ENDIF
 
-      IF (PRESENT(op_jk)) THEN
-         IF (op_jk == do_potential_truncated .OR. op_jk == do_potential_short) THEN
-            dr_jk = r_cutoff*cutoff_screen_factor
-            dr_ik = r_cutoff*cutoff_screen_factor
-         ELSEIF (op_jk == do_potential_coulomb) THEN
-            dr_jk = 1000000.0_dp
-            dr_ik = 1000000.0_dp
-         ENDIF
+      SELECT CASE (op_pos_prv)
+      CASE (1)
+         op_ij = potential_parameter%potential_type
+      CASE (2)
+         op_jk = potential_parameter%potential_type
+      END SELECT
+
+      IF (op_ij == do_potential_truncated .OR. op_ij == do_potential_short) THEN
+         dr_ij = potential_parameter%cutoff_radius*cutoff_screen_factor
+         dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
+      ELSEIF (op_ij == do_potential_coulomb) THEN
+         dr_ij = 1000000.0_dp
+         dr_ik = 1000000.0_dp
+      ENDIF
+
+      IF (op_jk == do_potential_truncated .OR. op_jk == do_potential_short) THEN
+         dr_jk = potential_parameter%cutoff_radius*cutoff_screen_factor
+         dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
+      ELSEIF (op_jk == do_potential_coulomb) THEN
+         dr_jk = 1000000.0_dp
+         dr_ik = 1000000.0_dp
       ENDIF
 
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, natom=natom, &
@@ -767,29 +785,28 @@ CONTAINS
 !> \param basis_i ...
 !> \param basis_j ...
 !> \param basis_k ...
+!> \param potential_parameter ...
 !> \param int_eps neglect integrals smaller than int_eps
-!> \param op_ij operator between i & j
-!> \param op_jk operator between j & k
-!> \param t_c_filename ...
-!> \param r_cutoff ...
-!> \param omega ...
+!> \param op_pos operator position.
+!>        1: calculate (i|jk) integrals,
+!>        2: calculate (ij|k) integrals
 !> \param do_kpoints ...
 !> this routine requires that libint has been static initialised somewhere else
 !> \param desymmetrize ...
 ! **************************************************************************************************
    SUBROUTINE build_3c_integrals(t3c, filter_eps, qs_env, &
                                  nl_3c, basis_i, basis_j, basis_k, &
+                                 potential_parameter, &
                                  int_eps, &
-                                 op_ij, op_jk, t_c_filename, r_cutoff, omega, do_kpoints, desymmetrize)
+                                 op_pos, do_kpoints, desymmetrize)
       TYPE(dbcsr_t_type), DIMENSION(:, :), INTENT(INOUT) :: t3c
       REAL(KIND=dp), INTENT(IN)                          :: filter_eps
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: nl_3c
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
+      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: int_eps
-      INTEGER, INTENT(IN), OPTIONAL                      :: op_ij, op_jk
-      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: t_c_filename
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: r_cutoff, omega
+      INTEGER, INTENT(IN), OPTIONAL                      :: op_pos
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints, desymmetrize
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_3c_integrals', &
@@ -798,7 +815,7 @@ CONTAINS
       INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
          block_start_k, handle, handle2, i, iatom, ibasis, ikind, imax, iset, jatom, jcell, jkind, &
          jset, katom, kcell, kkind, kset, m_max, maxli, maxlj, maxlk, natom, ncoi, ncoj, ncok, &
-         nimg, nseti, nsetj, nsetk, op_ij_prv, op_jk_prv, sgfi, sgfj, sgfk, unit_id
+         nimg, nseti, nsetj, nsetk, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
       INTEGER, DIMENSION(3)                              :: blk_size, cell_j, cell_k, sp
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmax_k, lmin_i, lmin_j, &
                                                             lmin_k, npgfi, npgfj, npgfk, nsgfi, &
@@ -843,34 +860,35 @@ CONTAINS
          desymmetrize_prv = .TRUE.
       ENDIF
 
-      CPASSERT(.NOT. (PRESENT(op_ij) .AND. PRESENT(op_jk)))
+      op_ij = do_potential_id; op_jk = do_potential_id
 
-      IF (PRESENT(op_ij)) THEN
-         op_ij_prv = op_ij
+      IF (PRESENT(op_pos)) THEN
+         op_pos_prv = op_pos
       ELSE
-         op_ij_prv = do_potential_id
+         op_pos_prv = 1
       ENDIF
 
-      IF (PRESENT(op_jk)) THEN
-         op_jk_prv = op_jk
-      ELSE
-         op_jk_prv = do_potential_id
-      ENDIF
+      SELECT CASE (op_pos_prv)
+      CASE (1)
+         op_ij = potential_parameter%potential_type
+      CASE (2)
+         op_jk = potential_parameter%potential_type
+      END SELECT
 
       dr_ij = 0.0_dp; dr_jk = 0.0_dp; dr_ik = 0.0_dp
 
-      IF (op_ij_prv == do_potential_truncated .OR. op_ij_prv == do_potential_short) THEN
-         dr_ij = r_cutoff*cutoff_screen_factor
-         dr_ik = r_cutoff*cutoff_screen_factor
-      ELSEIF (op_ij_prv == do_potential_coulomb) THEN
+      IF (op_ij == do_potential_truncated .OR. op_ij == do_potential_short) THEN
+         dr_ij = potential_parameter%cutoff_radius*cutoff_screen_factor
+         dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
+      ELSEIF (op_ij == do_potential_coulomb) THEN
          dr_ij = 1000000.0_dp
          dr_ik = 1000000.0_dp
       ENDIF
 
-      IF (op_jk_prv == do_potential_truncated .OR. op_jk_prv == do_potential_short) THEN
-         dr_jk = r_cutoff*cutoff_screen_factor
-         dr_ik = r_cutoff*cutoff_screen_factor
-      ELSEIF (op_jk_prv == do_potential_coulomb) THEN
+      IF (op_jk == do_potential_truncated .OR. op_jk == do_potential_short) THEN
+         dr_jk = potential_parameter%cutoff_radius*cutoff_screen_factor
+         dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
+      ELSEIF (op_jk == do_potential_coulomb) THEN
          dr_jk = 1000000.0_dp
          dr_ik = 1000000.0_dp
       ENDIF
@@ -878,7 +896,7 @@ CONTAINS
       NULLIFY (qs_kind_set, atomic_kind_set)
 
       CALL alloc_block_3c(t3c, nl_3c, basis_i, basis_j, basis_k, qs_env, &
-                          op_ij=op_ij, op_jk=op_jk, r_cutoff=r_cutoff, do_kpoints=do_kpoints)
+                          potential_parameter, op_pos=op_pos_prv, do_kpoints=do_kpoints)
 
       ! get stuff
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
@@ -912,12 +930,11 @@ CONTAINS
       m_max = maxli + maxlj + maxlk
 
       !Init the truncated Coulomb operator
-      IF (op_ij_prv == do_potential_truncated .OR. op_jk_prv == do_potential_truncated) THEN
-         CPASSERT(PRESENT(t_c_filename))
+      IF (op_ij == do_potential_truncated .OR. op_jk == do_potential_truncated) THEN
 
          IF (m_max > get_lmax_init()) THEN
             IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=t_c_filename)
+               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
             END IF
             CALL init(m_max, unit_id, para_env%mepos, para_env%group)
             IF (para_env%mepos == 0) THEN
@@ -928,7 +945,7 @@ CONTAINS
 
       CALL init_md_ftable(nmax=m_max)
 
-      IF (op_ij_prv /= do_potential_id .OR. op_jk_prv /= do_potential_id) THEN
+      IF (op_ij /= do_potential_id .OR. op_jk /= do_potential_id) THEN
          CALL cp_libint_init_3eri(lib, MAX(maxli, maxlj, maxlk))
          CALL cp_libint_set_contrdepth(lib, 1)
       ENDIF
@@ -1008,7 +1025,7 @@ CONTAINS
 
          CALL dbcsr_t_blk_sizes(t3c(jcell, kcell), [iatom, jatom, katom], blk_size)
 
-         IF (op_ij_prv /= do_potential_id) THEN
+         IF (op_ij /= do_potential_id) THEN
             ALLOCATE (block_t(blk_size(2), blk_size(3), blk_size(1)))
          ELSE
             ALLOCATE (block_t(blk_size(1), blk_size(2), blk_size(3)))
@@ -1038,7 +1055,7 @@ CONTAINS
 
                   IF (ncoj*ncok*ncoi > 0) THEN
 
-                     IF (op_ij_prv == do_potential_id .AND. op_jk_prv == do_potential_id) THEN ! cp2k overlap integrals
+                     IF (op_ij == do_potential_id .AND. op_jk == do_potential_id) THEN ! cp2k overlap integrals
                         ALLOCATE (sijk(ncoi, ncoj, ncok))
                         sijk(:, :, :) = 0.0_dp
                         CALL overlap3(lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), &
@@ -1046,7 +1063,7 @@ CONTAINS
                                       lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), lmin_j(jset), &
                                       lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), lmin_k(kset), &
                                       rij, dij, rik, dik, rjk, djk, sijk)
-                     ELSEIF (op_jk_prv /= do_potential_id) THEN ! for everything else use libint
+                     ELSEIF (op_jk /= do_potential_id) THEN ! for everything else use libint
                         ALLOCATE (sijk(ncoi, ncoj, ncok))
                         sijk(:, :, :) = 0.0_dp
                         !need positions for libint. Only relative positions are needed => set ri to 0.0
@@ -1057,8 +1074,8 @@ CONTAINS
                                          lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
                                          lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
                                          lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
-                                         dij, dik, djk, lib, op_jk_prv, omega=omega, r_cutoff=r_cutoff)
-                     ELSEIF (op_ij_prv /= do_potential_id) THEN
+                                         dij, dik, djk, lib, potential_parameter) !op_jk, omega=omega, r_cutoff=r_cutoff)
+                     ELSEIF (op_ij /= do_potential_id) THEN
                         ALLOCATE (sijk(ncoj, ncok, ncoi))
                         sijk(:, :, :) = 0.0_dp
                         ri = 0.0_dp
@@ -1068,7 +1085,7 @@ CONTAINS
                                          lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
                                          lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
                                          lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
-                                         djk, dij, dik, lib, op_ij_prv, omega=omega, r_cutoff=r_cutoff)
+                                         djk, dij, dik, lib, potential_parameter) !op_ij, omega=omega, r_cutoff=r_cutoff)
 
                      ENDIF
                      max_contraction_val = max_contraction_i(iset)*max_contraction_j(jset)*max_contraction_k(kset)
@@ -1082,7 +1099,7 @@ CONTAINS
 
                      block_not_zero = .TRUE.
 
-                     IF (op_ij_prv /= do_potential_id) THEN
+                     IF (op_ij /= do_potential_id) THEN
                         ALLOCATE (sijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
                         CALL abc_contract(sijk_contr, sijk, &
                                           sphi_j(:, sgfj:), sphi_k(:, sgfk:), sphi_i(:, sgfi:), &
@@ -1147,7 +1164,7 @@ CONTAINS
             ENDIF
             sp = SHAPE(block_t)
 
-            IF (op_ij_prv /= do_potential_id) THEN
+            IF (op_ij /= do_potential_id) THEN
 
                sp([2, 3, 1]) = sp
 
@@ -1165,7 +1182,7 @@ CONTAINS
          DEALLOCATE (max_contraction_i, max_contraction_j, max_contraction_k)
       END DO
 
-      IF (op_ij_prv /= do_potential_id .OR. op_jk_prv /= do_potential_id) THEN
+      IF (op_ij /= do_potential_id .OR. op_jk /= do_potential_id) THEN
          CALL cp_libint_cleanup_3eri(lib)
       ENDIF
 
@@ -1266,25 +1283,20 @@ CONTAINS
 !> \param nl_2c 2-center neighborlist
 !> \param basis_i ...
 !> \param basis_j ...
-!> \param op_ij operator
-!> \param t_c_filename ...
-!> \param r_cutoff ...
-!> \param omega ...
+!> \param potential_parameter ...
 !> \param do_kpoints ...
 !> this routine requires that libint has been static initialised somewhere else
 ! **************************************************************************************************
    SUBROUTINE build_2c_integrals(t2c, filter_eps, qs_env, &
                                  nl_2c, basis_i, basis_j, &
-                                 op_ij, t_c_filename, r_cutoff, omega, do_kpoints)
+                                 potential_parameter, do_kpoints)
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: t2c
       REAL(KIND=dp), INTENT(IN)                          :: filter_eps
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j
-      INTEGER, INTENT(IN), OPTIONAL                      :: op_ij
-      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: t_c_filename
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: r_cutoff, omega
+      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_integrals', &
@@ -1324,11 +1336,7 @@ CONTAINS
          do_kpoints_prv = .FALSE.
       ENDIF
 
-      IF (PRESENT(op_ij)) THEN
-         op_prv = op_ij
-      ELSE
-         op_prv = do_potential_id
-      ENDIF
+      op_prv = potential_parameter%potential_type
 
       NULLIFY (qs_kind_set, atomic_kind_set, block_t%block)
 
@@ -1378,11 +1386,10 @@ CONTAINS
 
       !Init the truncated Coulomb operator
       IF (op_prv == do_potential_truncated) THEN
-         CPASSERT(PRESENT(t_c_filename))
 
          IF (m_max > get_lmax_init()) THEN
             IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=t_c_filename)
+               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
             END IF
             CALL init(m_max, unit_id, para_env%mepos, para_env%group)
             IF (para_env%mepos == 0) THEN
@@ -1476,8 +1483,8 @@ CONTAINS
                      rj = rij
 
                      CALL eri_2center(sij, lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), &
-                                      ri, lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), &
-                                      rj, lib, op_prv, omega=omega, r_cutoff=r_cutoff)
+                                      rpgf_i(:, iset), ri, lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), &
+                                      rpgf_j(:, jset), rj, dab, lib, potential_parameter)
 
                      CALL ab_contract(sij_contr, sij, &
                                       sphi_i(:, sgfi:), sphi_j(:, sgfj:), &
