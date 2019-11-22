@@ -1,0 +1,1590 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2019  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
+
+! **************************************************************************************************
+!> \brief Utility methods to build 3-center integral tensors of various types.
+! **************************************************************************************************
+MODULE qs_tensors
+   USE ai_contraction,                  ONLY: block_add
+   USE ai_contraction_sphi,             ONLY: ab_contract,&
+                                              abc_contract
+   USE ai_overlap,                      ONLY: overlap_ab
+   USE ai_overlap3,                     ONLY: overlap3
+   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                              gto_basis_set_p_type
+   USE block_p_types,                   ONLY: block_p_type
+   USE cell_types,                      ONLY: cell_type
+   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_filter,&
+                                              dbcsr_finalize,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_has_symmetry,&
+                                              dbcsr_type,&
+                                              dbcsr_type_real_8
+   USE dbcsr_tensor_api,                ONLY: &
+        dbcsr_t_blk_sizes, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
+        dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
+        dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_mapping_info, &
+        dbcsr_t_get_stored_coordinates, dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_type, &
+        dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_type, dbcsr_t_write_split_info
+   USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE distribution_2d_types,           ONLY: distribution_2d_type
+   USE gamma,                           ONLY: init_md_ftable
+   USE input_constants,                 ONLY: do_potential_coulomb,&
+                                              do_potential_id,&
+                                              do_potential_short,&
+                                              do_potential_truncated
+   USE input_section_types,             ONLY: section_vals_val_get
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
+   USE libint_2c_3c,                    ONLY: cutoff_screen_factor,&
+                                              eri_2center,&
+                                              eri_3center
+   USE libint_wrapper,                  ONLY: cp_libint_cleanup_2eri,&
+                                              cp_libint_cleanup_3eri,&
+                                              cp_libint_init_2eri,&
+                                              cp_libint_init_3eri,&
+                                              cp_libint_set_contrdepth,&
+                                              cp_libint_t
+   USE molecule_types,                  ONLY: molecule_type
+   USE orbital_pointers,                ONLY: ncoset
+   USE particle_types,                  ONLY: particle_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_neighbor_list_types,          ONLY: &
+        deallocate_neighbor_list_set, get_iterator_info, get_neighbor_list_set_p, &
+        neighbor_list_iterate, neighbor_list_iterator_create, neighbor_list_iterator_p_type, &
+        neighbor_list_iterator_release, neighbor_list_set_p_type, nl_sub_iterate
+   USE qs_neighbor_lists,               ONLY: atom2d_build,&
+                                              atom2d_cleanup,&
+                                              build_neighbor_lists,&
+                                              local_atoms_type,&
+                                              pair_radius_setup
+   USE qs_tensors_types,                ONLY: &
+        cyclic_tensor_dist, distribution_3d_destroy, distribution_3d_type, &
+        neighbor_list_3c_iterator_type, neighbor_list_3c_type, symmetric_ij, symmetric_ijk, &
+        symmetric_jk, symmetric_none, symmetrik_ik
+   USE t_c_g0,                          ONLY: get_lmax_init,&
+                                              init
+#include "./base/base_uses.f90"
+
+   IMPLICIT NONE
+
+   PRIVATE
+
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tensors'
+
+   PUBLIC :: build_3c_neighbor_lists, &
+             neighbor_list_3c_destroy, neighbor_list_2c_destroy, neighbor_list_3c_iterate, neighbor_list_3c_iterator_create, &
+             neighbor_list_3c_iterator_destroy, get_3c_iterator_info, build_3c_integrals, &
+             contiguous_tensor_dist, &
+             build_2c_neighbor_lists, build_2c_integrals, cutoff_screen_factor, tensor_change_pgrid
+
+   TYPE one_dim_int_array
+      INTEGER, DIMENSION(:), ALLOCATABLE    :: array
+   END TYPE
+
+CONTAINS
+
+! **************************************************************************************************
+!> \brief Build 2-center neighborlists adapted to different operators
+!>        This mainly wraps build_neighbor_lists for consistency with build_3c_neighbor_lists
+!> \param ij_list 2c neighbor list for atom pairs i, j
+!> \param basis_i basis object for atoms i
+!> \param basis_j basis object for atoms j
+!> \param name name of 2c neighbor list
+!> \param qs_env ...
+!> \param sym_ij Symmetry in i, j (default .TRUE.)
+!> \param molecular ...
+!> \param op_ij operator
+!> \param r_cutoff in case some truncated/screened operator is used, gives its range
+!> \param dist_2d optionally a custom 2d distribution
+!> \param pot_to_rad which radius (1 for i, 2 for j) should be adapted to incorporate potential
+! **************************************************************************************************
+   SUBROUTINE build_2c_neighbor_lists(ij_list, basis_i, basis_j, name, qs_env, &
+                                      sym_ij, molecular, op_ij, r_cutoff, dist_2d, pot_to_rad)
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: ij_list
+      TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j
+      CHARACTER(LEN=*), INTENT(IN)                       :: name
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: sym_ij, molecular
+      INTEGER, INTENT(IN), OPTIONAL                      :: op_ij
+      REAL(dp), INTENT(IN), OPTIONAL                     :: r_cutoff
+      TYPE(distribution_2d_type), OPTIONAL, POINTER      :: dist_2d
+      INTEGER, INTENT(IN), OPTIONAL                      :: pot_to_rad
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_neighbor_lists', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ikind, nkind, op_ij_prv, pot_to_rad_prv
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: i_present, j_present
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
+      REAL(kind=dp)                                      :: subcells
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: i_radius, j_radius
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(distribution_2d_type), POINTER                :: dist_2d_prv
+      TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      NULLIFY (atomic_kind_set, cell, local_particles, molecule_set, &
+               particle_set, dist_2d_prv)
+
+      IF (PRESENT(op_ij)) THEN
+         op_ij_prv = op_ij
+      ELSE
+         op_ij_prv = do_potential_id
+      ENDIF
+
+      IF (PRESENT(pot_to_rad)) THEN
+         pot_to_rad_prv = pot_to_rad
+      ELSE
+         pot_to_rad_prv = 1
+      ENDIF
+
+      CALL get_qs_env(qs_env, &
+                      nkind=nkind, &
+                      cell=cell, &
+                      particle_set=particle_set, &
+                      atomic_kind_set=atomic_kind_set, &
+                      local_particles=local_particles, &
+                      distribution_2d=dist_2d_prv, &
+                      molecule_set=molecule_set)
+
+      CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
+
+      ALLOCATE (i_present(nkind), j_present(nkind))
+      ALLOCATE (i_radius(nkind), j_radius(nkind))
+
+      i_present = .FALSE.
+      j_present = .FALSE.
+      i_radius = 0.0_dp
+      j_radius = 0.0_dp
+
+      IF (PRESENT(dist_2d)) dist_2d_prv => dist_2d
+
+      !  Set up the radii, depending on the operator type
+      IF (op_ij_prv == do_potential_id) THEN
+
+         !overlap => use the kind radius for both i and j
+         DO ikind = 1, nkind
+            IF (ASSOCIATED(basis_i(ikind)%gto_basis_set)) THEN
+               i_present(ikind) = .TRUE.
+               CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, kind_radius=i_radius(ikind))
+            END IF
+            IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
+               j_present(ikind) = .TRUE.
+               CALL get_gto_basis_set(basis_j(ikind)%gto_basis_set, kind_radius=j_radius(ikind))
+            END IF
+         END DO
+
+      ELSE IF (op_ij_prv == do_potential_coulomb) THEN
+
+         !Coulomb operator, virtually infinite range => set j_radius to arbitrarily large number
+         DO ikind = 1, nkind
+            IF (ASSOCIATED(basis_i(ikind)%gto_basis_set)) THEN
+               i_present(ikind) = .TRUE.
+               IF (pot_to_rad_prv == 1) i_radius(ikind) = 1000000.0_dp
+            ENDIF
+            IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
+               j_present(ikind) = .TRUE.
+               IF (pot_to_rad_prv == 2) j_radius(ikind) = 1000000.0_dp
+            END IF
+         END DO !ikind
+
+      ELSE IF (op_ij_prv == do_potential_truncated .OR. op_ij_prv == do_potential_short) THEN
+
+         !Truncated coulomb/short range: set j_radius to r_cutoff + the kind_radii
+         DO ikind = 1, nkind
+            IF (ASSOCIATED(basis_i(ikind)%gto_basis_set)) THEN
+               i_present(ikind) = .TRUE.
+               CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, kind_radius=i_radius(ikind))
+               IF (pot_to_rad_prv == 1) i_radius(ikind) = i_radius(ikind) + cutoff_screen_factor*r_cutoff
+            END IF
+            IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
+               j_present(ikind) = .TRUE.
+               CALL get_gto_basis_set(basis_j(ikind)%gto_basis_set, kind_radius=j_radius(ikind))
+               IF (pot_to_rad_prv == 2) j_radius(ikind) = j_radius(ikind) + cutoff_screen_factor*r_cutoff
+            END IF
+         END DO
+
+      ELSE
+         CPABORT("Operator not implemented.")
+      END IF
+
+      ALLOCATE (pair_radius(nkind, nkind))
+      pair_radius = 0.0_dp
+      CALL pair_radius_setup(i_present, j_present, i_radius, j_radius, pair_radius)
+
+      ALLOCATE (atom2d(nkind))
+
+      CALL atom2d_build(atom2d, local_particles, dist_2d_prv, atomic_kind_set, &
+                        molecule_set, molecule_only=.FALSE., particle_set=particle_set)
+      CALL build_neighbor_lists(ij_list, particle_set, atom2d, cell, pair_radius, subcells, &
+                                symmetric=sym_ij, molecular=molecular, nlname=TRIM(name))
+
+      CALL atom2d_cleanup(atom2d)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ij_list ...
+! **************************************************************************************************
+   SUBROUTINE neighbor_list_2c_destroy(ij_list)
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: ij_list
+
+      INTEGER                                            :: i
+
+      DO i = 1, SIZE(ij_list)
+         CALL deallocate_neighbor_list_set(ij_list(i)%neighbor_list_set)
+      END DO
+
+      DEALLOCATE (ij_list)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Build a 3-center neighbor list
+!> \param ijk_list 3c neighbor list for atom triples i, j, k
+!> \param basis_i basis object for atoms i
+!> \param basis_j basis object for atoms j
+!> \param basis_k basis object for atoms k
+!> \param dist_3d 3d distribution object
+!> \param name name of 3c neighbor list
+!> \param qs_env ...
+!> \param sym_ij Symmetry in i, j (default .FALSE.)
+!> \param sym_jk Symmetry in j, k (default .FALSE.)
+!> \param sym_ik Symmetry in i, k (default .FALSE.)
+!> \param molecular ??? not tested
+!> \param op_ij operator between i and j
+!> \param op_jk operator between j and k
+!> \param r_cutoff in case some truncated/screened operator is used, gives its range
+!> \param own_dist ...
+! **************************************************************************************************
+   SUBROUTINE build_3c_neighbor_lists(ijk_list, basis_i, basis_j, basis_k, &
+                                      dist_3d, name, qs_env, sym_ij, sym_jk, sym_ik, molecular, op_ij, op_jk, &
+                                      r_cutoff, own_dist)
+      TYPE(neighbor_list_3c_type), INTENT(OUT)           :: ijk_list
+      TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
+      TYPE(distribution_3d_type), INTENT(IN)             :: dist_3d
+      CHARACTER(LEN=*), INTENT(IN)                       :: name
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: sym_ij, sym_jk, sym_ik, molecular
+      INTEGER, INTENT(IN), OPTIONAL                      :: op_ij, op_jk
+      REAL(dp), INTENT(IN), OPTIONAL                     :: r_cutoff
+      LOGICAL, INTENT(IN), OPTIONAL                      :: own_dist
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_3c_neighbor_lists', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, sym_level
+
+      CALL timeset(routineN, handle)
+
+      CALL build_2c_neighbor_lists(ijk_list%ij_list, basis_i, basis_j, TRIM(name)//"_sub_1", &
+                                   qs_env, sym_ij=.FALSE., molecular=molecular, op_ij=op_ij, r_cutoff=r_cutoff, &
+                                   dist_2d=dist_3d%dist_2d_1, pot_to_rad=1)
+
+      CALL build_2c_neighbor_lists(ijk_list%jk_list, basis_j, basis_k, TRIM(name)//"_sub_2", &
+                                   qs_env, sym_ij=.FALSE., molecular=molecular, op_ij=op_jk, r_cutoff=r_cutoff, &
+                                   dist_2d=dist_3d%dist_2d_2, pot_to_rad=2)
+
+      ijk_list%sym = symmetric_none
+
+      sym_level = 0
+      IF (PRESENT(sym_ij)) THEN
+         IF (sym_ij) THEN
+            ijk_list%sym = symmetric_ij
+            sym_level = sym_level + 1
+         ENDIF
+      ENDIF
+
+      IF (PRESENT(sym_jk)) THEN
+         IF (sym_jk) THEN
+            ijk_list%sym = symmetric_jk
+            sym_level = sym_level + 1
+         ENDIF
+      ENDIF
+
+      IF (PRESENT(sym_ik)) THEN
+         IF (sym_ik) THEN
+            ijk_list%sym = symmetrik_ik
+            sym_level = sym_level + 1
+         ENDIF
+      ENDIF
+
+      IF (sym_level >= 2) THEN
+         ijk_list%sym = symmetric_ijk
+      ENDIF
+
+      ijk_list%dist_3d = dist_3d
+      IF (PRESENT(own_dist)) THEN
+         ijk_list%owns_dist = own_dist
+      ELSE
+         ijk_list%owns_dist = .FALSE.
+      ENDIF
+
+      CALL timestop(handle)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Symmetry criterion
+!> \param a ...
+!> \param b ...
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION include_symmetric(a, b)
+      INTEGER, INTENT(IN)                                :: a, b
+      LOGICAL                                            :: include_symmetric
+
+      IF (a > b) THEN
+         include_symmetric = (MODULO(a + b, 2) /= 0)
+      ELSE
+         include_symmetric = (MODULO(a + b, 2) == 0)
+      END IF
+
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief Destroy 3c neighborlist
+!> \param ijk_list ...
+! **************************************************************************************************
+   SUBROUTINE neighbor_list_3c_destroy(ijk_list)
+      TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: ijk_list
+
+      CALL neighbor_list_2c_destroy(ijk_list%ij_list)
+      CALL neighbor_list_2c_destroy(ijk_list%jk_list)
+
+      IF (ijk_list%owns_dist) THEN
+         CALL distribution_3d_destroy(ijk_list%dist_3d)
+      ENDIF
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Create a 3-center neighborlist iterator
+!> \param iterator ...
+!> \param ijk_nl ...
+! **************************************************************************************************
+   SUBROUTINE neighbor_list_3c_iterator_create(iterator, ijk_nl)
+      TYPE(neighbor_list_3c_iterator_type), INTENT(OUT)  :: iterator
+      TYPE(neighbor_list_3c_type), INTENT(IN)            :: ijk_nl
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'neighbor_list_3c_iterator_create', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+      CALL neighbor_list_iterator_create(iterator%iter_ij, ijk_nl%ij_list)
+      CALL neighbor_list_iterator_create(iterator%iter_jk, ijk_nl%jk_list, search=.TRUE.)
+      iterator%iter_level = 0
+      iterator%ijk_nl = ijk_nl
+
+      CALL timestop(handle)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Destroy 3c-nl iterator
+!> \param iterator ...
+! **************************************************************************************************
+   SUBROUTINE neighbor_list_3c_iterator_destroy(iterator)
+      TYPE(neighbor_list_3c_iterator_type), &
+         INTENT(INOUT)                                   :: iterator
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'neighbor_list_3c_iterator_destroy', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+      CALL neighbor_list_iterator_release(iterator%iter_ij)
+      CALL neighbor_list_iterator_release(iterator%iter_jk)
+      NULLIFY (iterator%iter_ij)
+      NULLIFY (iterator%iter_jk)
+
+      CALL timestop(handle)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Iterate 3c-nl iterator
+!> \param iterator ...
+!> \return 0 if successful; 1 if end was reached
+! **************************************************************************************************
+   RECURSIVE FUNCTION neighbor_list_3c_iterate(iterator) RESULT(iter_stat)
+      TYPE(neighbor_list_3c_iterator_type), &
+         INTENT(INOUT)                                   :: iterator
+      INTEGER                                            :: iter_stat
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'neighbor_list_3c_iterate', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: iatom, iter_level, jatom, jatom_1, &
+                                                            jatom_2, katom
+      LOGICAL                                            :: skip_this
+
+      iter_level = iterator%iter_level
+
+      IF (iter_level == 0) THEN
+         iter_stat = neighbor_list_iterate(iterator%iter_ij)
+
+         IF (iter_stat /= 0) THEN
+            RETURN
+         ENDIF
+      ENDIF
+      iter_stat = nl_sub_iterate(iterator%iter_jk, iterator%iter_ij)
+      IF (iter_stat /= 0) THEN
+         iterator%iter_level = 0
+         iter_stat = neighbor_list_3c_iterate(iterator)
+         RETURN
+      ELSE
+         iterator%iter_level = 1
+      ENDIF
+
+      CPASSERT(iter_stat == 0)
+      CPASSERT(iterator%iter_level == 1)
+      CALL get_iterator_info(iterator%iter_ij, iatom=iatom, jatom=jatom_1)
+      CALL get_iterator_info(iterator%iter_jk, iatom=jatom_2, jatom=katom)
+
+      CPASSERT(jatom_1 == jatom_2)
+      jatom = jatom_1
+
+      skip_this = .TRUE.
+      SELECT CASE (iterator%ijk_nl%sym)
+      CASE (symmetric_none)
+         skip_this = .FALSE.
+      CASE (symmetric_ij)
+         skip_this = .NOT. include_symmetric(iatom, jatom)
+      CASE (symmetric_jk)
+         skip_this = .NOT. include_symmetric(jatom, katom)
+      CASE (symmetrik_ik)
+         skip_this = .NOT. include_symmetric(iatom, katom)
+      CASE (symmetric_ijk)
+         skip_this = .NOT. include_symmetric(iatom, jatom) .OR. .NOT. include_symmetric(jatom, katom)
+      CASE DEFAULT
+         CPABORT("should not happen")
+      END SELECT
+
+      IF (skip_this) THEN
+         iter_stat = neighbor_list_3c_iterate(iterator)
+         RETURN
+      ENDIF
+
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief Get info of current iteration
+!> \param iterator ...
+!> \param ikind ...
+!> \param jkind ...
+!> \param kkind ...
+!> \param nkind ...
+!> \param iatom ...
+!> \param jatom ...
+!> \param katom ...
+!> \param rij ...
+!> \param rjk ...
+!> \param rik ...
+!> \param cell_j ...
+!> \param cell_k ...
+!> \return ...
+! **************************************************************************************************
+   SUBROUTINE get_3c_iterator_info(iterator, ikind, jkind, kkind, nkind, iatom, jatom, katom, &
+                                   rij, rjk, rik, cell_j, cell_k)
+      TYPE(neighbor_list_3c_iterator_type), &
+         INTENT(INOUT)                                   :: iterator
+      INTEGER, INTENT(OUT), OPTIONAL                     :: ikind, jkind, kkind, nkind, iatom, &
+                                                            jatom, katom
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: rij, rjk, rik
+      INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: cell_j, cell_k
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_3c_iterator_info', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER, DIMENSION(2)                              :: atoms_1, atoms_2, kinds_1, kinds_2
+      INTEGER, DIMENSION(3)                              :: cell_1, cell_2
+      REAL(KIND=dp), DIMENSION(3)                        :: r_1, r_2
+
+      CPASSERT(iterator%iter_level == 1)
+
+      CALL get_iterator_info(iterator%iter_ij, &
+                             ikind=kinds_1(1), jkind=kinds_1(2), nkind=nkind, &
+                             iatom=atoms_1(1), jatom=atoms_1(2), r=r_1, &
+                             cell=cell_1)
+
+      CALL get_iterator_info(iterator%iter_jk, &
+                             ikind=kinds_2(1), jkind=kinds_2(2), &
+                             iatom=atoms_2(1), jatom=atoms_2(2), r=r_2, &
+                             cell=cell_2)
+
+      IF (PRESENT(ikind)) ikind = kinds_1(1)
+      IF (PRESENT(jkind)) jkind = kinds_1(2)
+      IF (PRESENT(kkind)) kkind = kinds_2(2)
+      IF (PRESENT(iatom)) iatom = atoms_1(1)
+      IF (PRESENT(jatom)) jatom = atoms_1(2)
+      IF (PRESENT(katom)) katom = atoms_2(2)
+
+      IF (PRESENT(rij)) rij = r_1
+      IF (PRESENT(rjk)) rjk = r_2
+      IF (PRESENT(rik)) rik = r_1 + r_2
+
+      IF (PRESENT(cell_j)) cell_j = cell_1
+      IF (PRESENT(cell_k)) cell_k = cell_1 + cell_2
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Allocate blocks of a 3-center tensor based on neighborlist
+!> \param t3c empty DBCSR tensor
+!>            Should be of shape (1,1) if no kpoints are used and of shape (nimages, nimages)
+!>            if k-points are used
+!> \param nl_3c 3-center neighborlist
+!> \param basis_i ...
+!> \param basis_j ...
+!> \param basis_k ...
+!> \param qs_env ...
+!> \param op_ij ...
+!> \param op_jk ...
+!> \param r_cutoff ...
+!> \param do_kpoints ...
+! **************************************************************************************************
+   SUBROUTINE alloc_block_3c(t3c, nl_3c, basis_i, basis_j, basis_k, qs_env, op_ij, op_jk, r_cutoff, do_kpoints)
+      TYPE(dbcsr_t_type), DIMENSION(:, :), INTENT(INOUT) :: t3c
+      TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: nl_3c
+      TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN), OPTIONAL                      :: op_ij, op_jk
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: r_cutoff
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'alloc_block_3c', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: blk_cnt, handle, i, i_img, iatom, iblk, &
+                                                            ikind, iproc, j_img, jatom, jcell, &
+                                                            jkind, katom, kcell, kkind, natom, nimg
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp
+      INTEGER, DIMENSION(3)                              :: cell_j, cell_k
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: do_kpoints_prv, new_block
+      REAL(KIND=dp)                                      :: dij, dik, djk, dr_ij, dr_ik, dr_jk, &
+                                                            kind_radius_i, kind_radius_j, &
+                                                            kind_radius_k
+      REAL(KIND=dp), DIMENSION(3)                        :: rij, rik, rjk
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(neighbor_list_3c_iterator_type)               :: nl_3c_iter
+      TYPE(one_dim_int_array), ALLOCATABLE, &
+         DIMENSION(:, :)                                 :: alloc_i, alloc_j, alloc_k
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
+      NULLIFY (qs_kind_set, atomic_kind_set)
+
+      IF (PRESENT(do_kpoints)) THEN
+         do_kpoints_prv = do_kpoints
+      ELSE
+         do_kpoints_prv = .FALSE.
+      ENDIF
+
+      dr_ij = 0.0_dp; dr_jk = 0.0_dp; dr_ik = 0.0_dp
+
+      IF (PRESENT(op_ij)) THEN
+         IF (op_ij == do_potential_truncated .OR. op_ij == do_potential_short) THEN
+            dr_ij = r_cutoff*cutoff_screen_factor
+            dr_ik = r_cutoff*cutoff_screen_factor
+         ELSEIF (op_ij == do_potential_coulomb) THEN
+            dr_ij = 1000000.0_dp
+            dr_ik = 1000000.0_dp
+         ENDIF
+      ENDIF
+
+      IF (PRESENT(op_jk)) THEN
+         IF (op_jk == do_potential_truncated .OR. op_jk == do_potential_short) THEN
+            dr_jk = r_cutoff*cutoff_screen_factor
+            dr_ik = r_cutoff*cutoff_screen_factor
+         ELSEIF (op_jk == do_potential_coulomb) THEN
+            dr_jk = 1000000.0_dp
+            dr_ik = 1000000.0_dp
+         ENDIF
+      ENDIF
+
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, natom=natom, &
+                      dft_control=dft_control, kpoints=kpoints, para_env=para_env)
+
+      IF (do_kpoints_prv) THEN
+         nimg = dft_control%nimages
+         CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
+      ELSE
+         nimg = 1
+      END IF
+
+      ALLOCATE (alloc_i(nimg, nimg))
+      ALLOCATE (alloc_j(nimg, nimg))
+      ALLOCATE (alloc_k(nimg, nimg))
+
+      CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
+      DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
+         CALL get_3c_iterator_info(nl_3c_iter, ikind=ikind, jkind=jkind, kkind=kkind, &
+                                   iatom=iatom, jatom=jatom, katom=katom, &
+                                   rij=rij, rjk=rjk, rik=rik, cell_j=cell_j, cell_k=cell_k)
+
+         IF (do_kpoints_prv) THEN
+
+            jcell = cell_to_index(cell_j(1), cell_j(2), cell_j(3))
+            IF (jcell > nimg) CYCLE
+
+            kcell = cell_to_index(cell_k(1), cell_k(2), cell_k(3))
+            IF (kcell > nimg) CYCLE
+         ELSE
+            jcell = 1; kcell = 1
+         END IF
+
+         djk = NORM2(rjk)
+         dij = NORM2(rij)
+         dik = NORM2(rik)
+
+         CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, kind_radius=kind_radius_i)
+         CALL get_gto_basis_set(basis_j(jkind)%gto_basis_set, kind_radius=kind_radius_j)
+         CALL get_gto_basis_set(basis_k(kkind)%gto_basis_set, kind_radius=kind_radius_k)
+
+         IF (kind_radius_j + kind_radius_i + dr_ij < dij) CYCLE
+         IF (kind_radius_j + kind_radius_k + dr_jk < djk) CYCLE
+         IF (kind_radius_k + kind_radius_i + dr_ik < dik) CYCLE
+
+         ! tensor is not symmetric therefore need to allocate rows and columns in
+         ! correspondence with neighborlist. Note that this only allocates half
+         ! of the blocks (since neighborlist is symmetric). After filling the blocks,
+         ! tensor will be added to its transposed
+
+         ASSOCIATE (ai=>alloc_i(jcell, kcell))
+            ASSOCIATE (aj=>alloc_j(jcell, kcell))
+               ASSOCIATE (ak=>alloc_k(jcell, kcell))
+
+                  new_block = .TRUE.
+                  IF (ALLOCATED(aj%array)) THEN
+                     DO iblk = 1, SIZE(aj%array)
+                        IF (ai%array(iblk) == iatom .AND. &
+                            aj%array(iblk) == jatom .AND. &
+                            ak%array(iblk) == katom) THEN
+                           new_block = .FALSE.
+                           EXIT
+                        ENDIF
+                     ENDDO
+                  ENDIF
+                  IF (.NOT. new_block) CYCLE
+
+                  IF (ALLOCATED(ai%array)) THEN
+                     blk_cnt = SIZE(ai%array)
+                     ALLOCATE (tmp(blk_cnt))
+                     tmp(:) = ai%array(:)
+                     DEALLOCATE (ai%array)
+                     ALLOCATE (ai%array(blk_cnt + 1))
+                     ai%array(1:blk_cnt) = tmp(:)
+                     ai%array(blk_cnt + 1) = iatom
+                  ELSE
+                     ALLOCATE (ai%array(1))
+                     ai%array(1) = iatom
+                  ENDIF
+
+                  IF (ALLOCATED(aj%array)) THEN
+                     tmp(:) = aj%array(:)
+                     DEALLOCATE (aj%array)
+                     ALLOCATE (aj%array(blk_cnt + 1))
+                     aj%array(1:blk_cnt) = tmp(:)
+                     aj%array(blk_cnt + 1) = jatom
+                  ELSE
+                     ALLOCATE (aj%array(1))
+                     aj%array(1) = jatom
+                  ENDIF
+
+                  IF (ALLOCATED(ak%array)) THEN
+                     tmp(:) = ak%array(:)
+                     DEALLOCATE (ak%array)
+                     ALLOCATE (ak%array(blk_cnt + 1))
+                     ak%array(1:blk_cnt) = tmp(:)
+                     ak%array(blk_cnt + 1) = katom
+                  ELSE
+                     ALLOCATE (ak%array(1))
+                     ak%array(1) = katom
+                  ENDIF
+
+                  IF (ALLOCATED(tmp)) DEALLOCATE (tmp)
+               END ASSOCIATE
+            END ASSOCIATE
+         END ASSOCIATE
+      ENDDO
+
+      CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
+
+      DO i_img = 1, nimg
+         DO j_img = 1, nimg
+            IF (ALLOCATED(alloc_i(i_img, j_img)%array)) THEN
+               DO i = 1, SIZE(alloc_i(i_img, j_img)%array)
+                  CALL dbcsr_t_get_stored_coordinates(t3c(i_img, j_img), &
+                                                      [alloc_i(i_img, j_img)%array(i), alloc_j(i_img, j_img)%array(i), &
+                                                       alloc_k(i_img, j_img)%array(i)], &
+                                                      iproc)
+                  CPASSERT(iproc .EQ. para_env%mepos)
+               ENDDO
+
+               CALL dbcsr_t_reserve_blocks(t3c(i_img, j_img), &
+                                           alloc_i(i_img, j_img)%array, &
+                                           alloc_j(i_img, j_img)%array, &
+                                           alloc_k(i_img, j_img)%array)
+            ENDIF
+         ENDDO
+      ENDDO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Build 3-center integral tensor
+!> \param t3c empty DBCSR tensor
+!>            Should be of shape (1,1) if no kpoints are used and of shape (nimages, nimages)
+!>            if k-points are used
+!> \param filter_eps Filter threshold for tensor blocks
+!> \param qs_env ...
+!> \param nl_3c 3-center neighborlist
+!> \param basis_i ...
+!> \param basis_j ...
+!> \param basis_k ...
+!> \param int_eps neglect integrals smaller than int_eps
+!> \param op_ij operator between i & j
+!> \param op_jk operator between j & k
+!> \param t_c_filename ...
+!> \param r_cutoff ...
+!> \param omega ...
+!> \param do_kpoints ...
+!> this routine requires that libint has been static initialised somewhere else
+!> \param desymmetrize ...
+! **************************************************************************************************
+   SUBROUTINE build_3c_integrals(t3c, filter_eps, qs_env, &
+                                 nl_3c, basis_i, basis_j, basis_k, &
+                                 int_eps, &
+                                 op_ij, op_jk, t_c_filename, r_cutoff, omega, do_kpoints, desymmetrize)
+      TYPE(dbcsr_t_type), DIMENSION(:, :), INTENT(INOUT) :: t3c
+      REAL(KIND=dp), INTENT(IN)                          :: filter_eps
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: nl_3c
+      TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: int_eps
+      INTEGER, INTENT(IN), OPTIONAL                      :: op_ij, op_jk
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: t_c_filename
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: r_cutoff, omega
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints, desymmetrize
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_3c_integrals', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
+         block_start_k, handle, handle2, i, iatom, ibasis, ikind, imax, iset, jatom, jcell, jkind, &
+         jset, katom, kcell, kkind, kset, m_max, maxli, maxlj, maxlk, natom, ncoi, ncoj, ncok, &
+         nimg, nseti, nsetj, nsetk, op_ij_prv, op_jk_prv, sgfi, sgfj, sgfk, unit_id
+      INTEGER, DIMENSION(3)                              :: blk_size, cell_j, cell_k, sp
+      INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmax_k, lmin_i, lmin_j, &
+                                                            lmin_k, npgfi, npgfj, npgfk, nsgfi, &
+                                                            nsgfj, nsgfk
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_i, first_sgf_j, first_sgf_k
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: block_not_zero, debug, desymmetrize_prv, &
+                                                            do_kpoints_prv, found
+      REAL(KIND=dp)                                      :: dij, dik, djk, dr_ij, dr_ik, dr_jk, &
+                                                            kind_radius_i, kind_radius_j, &
+                                                            kind_radius_k, max_contraction_val, &
+                                                            prefac
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: max_contraction_i, max_contraction_j, &
+                                                            max_contraction_k
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_t, dummy_block_t, sijk, sijk_contr
+      REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rik, rj, rjk, rk
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_i, set_radius_j, set_radius_k
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgf_i, rpgf_j, rpgf_k, sphi_i, sphi_j, &
+                                                            sphi_k, zeti, zetj, zetk
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_libint_t)                                  :: lib
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_t_type)                                 :: t_3c_tmp
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(neighbor_list_3c_iterator_type)               :: nl_3c_iter
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
+
+      debug = .FALSE.
+
+      IF (PRESENT(do_kpoints)) THEN
+         do_kpoints_prv = do_kpoints
+      ELSE
+         do_kpoints_prv = .FALSE.
+      ENDIF
+
+      IF (PRESENT(desymmetrize)) THEN
+         desymmetrize_prv = desymmetrize
+      ELSE
+         desymmetrize_prv = .TRUE.
+      ENDIF
+
+      CPASSERT(.NOT. (PRESENT(op_ij) .AND. PRESENT(op_jk)))
+
+      IF (PRESENT(op_ij)) THEN
+         op_ij_prv = op_ij
+      ELSE
+         op_ij_prv = do_potential_id
+      ENDIF
+
+      IF (PRESENT(op_jk)) THEN
+         op_jk_prv = op_jk
+      ELSE
+         op_jk_prv = do_potential_id
+      ENDIF
+
+      dr_ij = 0.0_dp; dr_jk = 0.0_dp; dr_ik = 0.0_dp
+
+      IF (op_ij_prv == do_potential_truncated .OR. op_ij_prv == do_potential_short) THEN
+         dr_ij = r_cutoff*cutoff_screen_factor
+         dr_ik = r_cutoff*cutoff_screen_factor
+      ELSEIF (op_ij_prv == do_potential_coulomb) THEN
+         dr_ij = 1000000.0_dp
+         dr_ik = 1000000.0_dp
+      ENDIF
+
+      IF (op_jk_prv == do_potential_truncated .OR. op_jk_prv == do_potential_short) THEN
+         dr_jk = r_cutoff*cutoff_screen_factor
+         dr_ik = r_cutoff*cutoff_screen_factor
+      ELSEIF (op_jk_prv == do_potential_coulomb) THEN
+         dr_jk = 1000000.0_dp
+         dr_ik = 1000000.0_dp
+      ENDIF
+
+      NULLIFY (qs_kind_set, atomic_kind_set)
+
+      CALL alloc_block_3c(t3c, nl_3c, basis_i, basis_j, basis_k, qs_env, &
+                          op_ij=op_ij, op_jk=op_jk, r_cutoff=r_cutoff, do_kpoints=do_kpoints)
+
+      ! get stuff
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                      natom=natom, kpoints=kpoints, dft_control=dft_control, para_env=para_env)
+
+      IF (do_kpoints_prv) THEN
+         nimg = dft_control%nimages
+         CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
+      ELSE
+         nimg = 1
+      END IF
+
+      CPASSERT(ALL(SHAPE(t3c) == [nimg, nimg]))
+
+      !Need the max l for each basis for libint
+      maxli = 0
+      DO ibasis = 1, SIZE(basis_i)
+         CALL get_gto_basis_set(gto_basis_set=basis_i(ibasis)%gto_basis_set, maxl=imax)
+         maxli = MAX(maxli, imax)
+      END DO
+      maxlj = 0
+      DO ibasis = 1, SIZE(basis_j)
+         CALL get_gto_basis_set(gto_basis_set=basis_j(ibasis)%gto_basis_set, maxl=imax)
+         maxlj = MAX(maxlj, imax)
+      END DO
+      maxlk = 0
+      DO ibasis = 1, SIZE(basis_k)
+         CALL get_gto_basis_set(gto_basis_set=basis_k(ibasis)%gto_basis_set, maxl=imax)
+         maxlk = MAX(maxlk, imax)
+      END DO
+      m_max = maxli + maxlj + maxlk
+
+      !Init the truncated Coulomb operator
+      IF (op_ij_prv == do_potential_truncated .OR. op_jk_prv == do_potential_truncated) THEN
+         CPASSERT(PRESENT(t_c_filename))
+
+         IF (m_max > get_lmax_init()) THEN
+            IF (para_env%mepos == 0) THEN
+               CALL open_file(unit_number=unit_id, file_name=t_c_filename)
+            END IF
+            CALL init(m_max, unit_id, para_env%mepos, para_env%group)
+            IF (para_env%mepos == 0) THEN
+               CALL close_file(unit_id)
+            END IF
+         END IF
+      END IF
+
+      CALL init_md_ftable(nmax=m_max)
+
+      IF (op_ij_prv /= do_potential_id .OR. op_jk_prv /= do_potential_id) THEN
+         CALL cp_libint_init_3eri(lib, MAX(maxli, maxlj, maxlk))
+         CALL cp_libint_set_contrdepth(lib, 1)
+      ENDIF
+
+      CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
+      DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
+         CALL get_3c_iterator_info(nl_3c_iter, ikind=ikind, jkind=jkind, kkind=kkind, &
+                                   iatom=iatom, jatom=jatom, katom=katom, &
+                                   rij=rij, rjk=rjk, rik=rik, cell_j=cell_j, cell_k=cell_k)
+
+         IF (do_kpoints_prv) THEN
+            prefac = 0.5_dp
+         ELSEIF (nl_3c%sym == symmetric_jk) THEN
+            IF (jatom == katom) THEN
+               ! factor 0.5 due to double-counting of diagonal blocks
+               ! (we desymmetrize by adding transpose)
+               prefac = 0.5_dp
+            ELSE
+               prefac = 1.0_dp
+            ENDIF
+         ELSE
+            prefac = 1.0_dp
+         ENDIF
+
+         IF (do_kpoints_prv) THEN
+
+            jcell = cell_to_index(cell_j(1), cell_j(2), cell_j(3))
+            IF (jcell > nimg) CYCLE
+
+            kcell = cell_to_index(cell_k(1), cell_k(2), cell_k(3))
+            IF (kcell > nimg) CYCLE
+
+         ELSE
+            jcell = 1; kcell = 1
+         END IF
+
+         CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, first_sgf=first_sgf_i, lmax=lmax_i, lmin=lmin_i, &
+                                npgf=npgfi, nset=nseti, nsgf_set=nsgfi, pgf_radius=rpgf_i, set_radius=set_radius_i, &
+                                sphi=sphi_i, zet=zeti, kind_radius=kind_radius_i)
+
+         CALL get_gto_basis_set(basis_j(jkind)%gto_basis_set, first_sgf=first_sgf_j, lmax=lmax_j, lmin=lmin_j, &
+                                npgf=npgfj, nset=nsetj, nsgf_set=nsgfj, pgf_radius=rpgf_j, set_radius=set_radius_j, &
+                                sphi=sphi_j, zet=zetj, kind_radius=kind_radius_j)
+
+         CALL get_gto_basis_set(basis_k(kkind)%gto_basis_set, first_sgf=first_sgf_k, lmax=lmax_k, lmin=lmin_k, &
+                                npgf=npgfk, nset=nsetk, nsgf_set=nsgfk, pgf_radius=rpgf_k, set_radius=set_radius_k, &
+                                sphi=sphi_k, zet=zetk, kind_radius=kind_radius_k)
+
+         djk = NORM2(rjk)
+         dij = NORM2(rij)
+         dik = NORM2(rik)
+
+         IF (kind_radius_j + kind_radius_i + dr_ij < dij) CYCLE
+         IF (kind_radius_j + kind_radius_k + dr_jk < djk) CYCLE
+         IF (kind_radius_k + kind_radius_i + dr_ik < dik) CYCLE
+
+         ALLOCATE (max_contraction_i(nseti))
+         max_contraction_i = 0.0_dp
+         DO iset = 1, nseti
+            sgfi = first_sgf_i(1, iset)
+            max_contraction_i(iset) = MAXVAL((/(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)/))
+         ENDDO
+
+         ALLOCATE (max_contraction_j(nsetj))
+         max_contraction_j = 0.0_dp
+         DO jset = 1, nsetj
+            sgfj = first_sgf_j(1, jset)
+            max_contraction_j(jset) = MAXVAL((/(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)/))
+         ENDDO
+
+         ALLOCATE (max_contraction_k(nsetk))
+         max_contraction_k = 0.0_dp
+         DO kset = 1, nsetk
+            sgfk = first_sgf_k(1, kset)
+            max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
+         ENDDO
+
+         CALL dbcsr_t_blk_sizes(t3c(jcell, kcell), [iatom, jatom, katom], blk_size)
+
+         IF (op_ij_prv /= do_potential_id) THEN
+            ALLOCATE (block_t(blk_size(2), blk_size(3), blk_size(1)))
+         ELSE
+            ALLOCATE (block_t(blk_size(1), blk_size(2), blk_size(3)))
+         ENDIF
+
+         block_t = 0.0_dp
+         block_not_zero = .FALSE.
+
+         DO iset = 1, nseti
+
+            DO jset = 1, nsetj
+
+               IF (set_radius_j(jset) + set_radius_i(iset) + dr_ij < dij) CYCLE
+
+               DO kset = 1, nsetk
+
+                  IF (set_radius_j(jset) + set_radius_k(kset) + dr_jk < djk) CYCLE
+                  IF (set_radius_k(kset) + set_radius_i(iset) + dr_ik < dik) CYCLE
+
+                  ncoi = npgfi(iset)*ncoset(lmax_i(iset))
+                  ncoj = npgfj(jset)*ncoset(lmax_j(jset))
+                  ncok = npgfk(kset)*ncoset(lmax_k(kset))
+
+                  sgfi = first_sgf_i(1, iset)
+                  sgfj = first_sgf_j(1, jset)
+                  sgfk = first_sgf_k(1, kset)
+
+                  IF (ncoj*ncok*ncoi > 0) THEN
+
+                     IF (op_ij_prv == do_potential_id .AND. op_jk_prv == do_potential_id) THEN ! cp2k overlap integrals
+                        ALLOCATE (sijk(ncoi, ncoj, ncok))
+                        sijk(:, :, :) = 0.0_dp
+                        CALL overlap3(lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), &
+                                      lmin_i(iset), &
+                                      lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), lmin_j(jset), &
+                                      lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), lmin_k(kset), &
+                                      rij, dij, rik, dik, rjk, djk, sijk)
+                     ELSEIF (op_jk_prv /= do_potential_id) THEN ! for everything else use libint
+                        ALLOCATE (sijk(ncoi, ncoj, ncok))
+                        sijk(:, :, :) = 0.0_dp
+                        !need positions for libint. Only relative positions are needed => set ri to 0.0
+                        ri = 0.0_dp
+                        rj = rij ! ri + rij
+                        rk = rik ! ri + rik
+                        CALL eri_3center(sijk, &
+                                         lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
+                                         lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
+                                         lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
+                                         dij, dik, djk, lib, op_jk_prv, omega=omega, r_cutoff=r_cutoff)
+                     ELSEIF (op_ij_prv /= do_potential_id) THEN
+                        ALLOCATE (sijk(ncoj, ncok, ncoi))
+                        sijk(:, :, :) = 0.0_dp
+                        ri = 0.0_dp
+                        rj = rij ! ri + rij
+                        rk = rik ! ri + rik
+                        CALL eri_3center(sijk, &
+                                         lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
+                                         lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
+                                         lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
+                                         djk, dij, dik, lib, op_ij_prv, omega=omega, r_cutoff=r_cutoff)
+
+                     ENDIF
+                     max_contraction_val = max_contraction_i(iset)*max_contraction_j(jset)*max_contraction_k(kset)
+
+                     IF (PRESENT(int_eps)) THEN
+                        IF (MAXVAL(ABS(sijk))*max_contraction_val < int_eps) THEN
+                           DEALLOCATE (sijk)
+                           CYCLE
+                        ENDIF
+                     ENDIF
+
+                     block_not_zero = .TRUE.
+
+                     IF (op_ij_prv /= do_potential_id) THEN
+                        ALLOCATE (sijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
+                        CALL abc_contract(sijk_contr, sijk, &
+                                          sphi_j(:, sgfj:), sphi_k(:, sgfk:), sphi_i(:, sgfi:), &
+                                          ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), nsgfi(iset))
+                        DEALLOCATE (sijk)
+
+                        block_start_j = sgfj
+                        block_end_j = sgfj + nsgfj(jset) - 1
+                        block_start_k = sgfk
+                        block_end_k = sgfk + nsgfk(kset) - 1
+                        block_start_i = sgfi
+                        block_end_i = sgfi + nsgfi(iset) - 1
+
+                        block_t(block_start_j:block_end_j, &
+                                block_start_k:block_end_k, &
+                                block_start_i:block_end_i) = &
+                           block_t(block_start_j:block_end_j, &
+                                   block_start_k:block_end_k, &
+                                   block_start_i:block_end_i) + &
+                           prefac*sijk_contr(:, :, :)
+                        DEALLOCATE (sijk_contr)
+                     ELSE
+                        ALLOCATE (sijk_contr(nsgfi(iset), nsgfj(jset), nsgfk(kset)))
+
+                        CALL abc_contract(sijk_contr, sijk, &
+                                          sphi_i(:, sgfi:), sphi_j(:, sgfj:), sphi_k(:, sgfk:), &
+                                          ncoi, ncoj, ncok, nsgfi(iset), nsgfj(jset), nsgfk(kset))
+
+                        DEALLOCATE (sijk)
+                        block_start_j = sgfj
+                        block_end_j = sgfj + nsgfj(jset) - 1
+                        block_start_k = sgfk
+                        block_end_k = sgfk + nsgfk(kset) - 1
+                        block_start_i = sgfi
+                        block_end_i = sgfi + nsgfi(iset) - 1
+
+                        block_t(block_start_i:block_end_i, &
+                                block_start_j:block_end_j, &
+                                block_start_k:block_end_k) = &
+                           block_t(block_start_i:block_end_i, &
+                                   block_start_j:block_end_j, &
+                                   block_start_k:block_end_k) + &
+                           prefac*sijk_contr(:, :, :)
+                        DEALLOCATE (sijk_contr)
+
+                     ENDIF
+
+                  END IF ! number of triples > 0
+
+               END DO
+
+            END DO
+
+         END DO
+
+         IF (block_not_zero) THEN
+            CALL timeset(routineN//"_put_dbcsr", handle2)
+            IF (debug) THEN
+               CALL dbcsr_t_get_block(t3c(jcell, kcell), &
+                                      [iatom, jatom, katom], dummy_block_t, found=found)
+               CPASSERT(found)
+            ENDIF
+            sp = SHAPE(block_t)
+
+            IF (op_ij_prv /= do_potential_id) THEN
+
+               sp([2, 3, 1]) = sp
+
+               CALL dbcsr_t_put_block(t3c(jcell, kcell), &
+                                      [iatom, jatom, katom], sp, RESHAPE(block_t, SHAPE=sp, ORDER=[2, 3, 1]), summation=.TRUE.)
+            ELSE
+               CALL dbcsr_t_put_block(t3c(jcell, kcell), &
+                                      [iatom, jatom, katom], sp, block_t, summation=.TRUE.)
+            ENDIF
+            CALL timestop(handle2)
+         ENDIF
+
+         DEALLOCATE (block_t)
+
+         DEALLOCATE (max_contraction_i, max_contraction_j, max_contraction_k)
+      END DO
+
+      IF (op_ij_prv /= do_potential_id .OR. op_jk_prv /= do_potential_id) THEN
+         CALL cp_libint_cleanup_3eri(lib)
+      ENDIF
+
+      CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
+
+      IF (nl_3c%sym == symmetric_jk .OR. do_kpoints_prv) THEN
+         DO jcell = 1, nimg
+            DO kcell = 1, nimg
+               ! need half of filter eps because afterwards we add transposed tensor
+               CALL dbcsr_t_filter(t3c(jcell, kcell), filter_eps/2)
+            ENDDO
+         ENDDO
+
+         IF (desymmetrize_prv) THEN
+            ! add transposed of overlap integrals
+            CALL dbcsr_t_create(t3c(1, 1), t_3c_tmp)
+            DO jcell = 1, nimg
+               DO kcell = 1, jcell
+                  CALL dbcsr_t_copy(t3c(jcell, kcell), t_3c_tmp)
+                  CALL dbcsr_t_copy(t_3c_tmp, t3c(kcell, jcell), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
+                  CALL dbcsr_t_filter(t3c(kcell, jcell), filter_eps)
+               ENDDO
+            ENDDO
+            DO jcell = 1, nimg
+               DO kcell = jcell + 1, nimg
+                  CALL dbcsr_t_copy(t3c(jcell, kcell), t_3c_tmp)
+                  CALL dbcsr_t_copy(t_3c_tmp, t3c(kcell, jcell), order=[1, 3, 2], summation=.FALSE., move_data=.TRUE.)
+                  CALL dbcsr_t_filter(t3c(kcell, jcell), filter_eps)
+               ENDDO
+            ENDDO
+            CALL dbcsr_t_destroy(t_3c_tmp)
+         ENDIF
+      ELSEIF (nl_3c%sym == symmetric_none) THEN
+         DO jcell = 1, nimg
+            DO kcell = 1, nimg
+               CALL dbcsr_t_filter(t3c(jcell, kcell), filter_eps)
+            ENDDO
+         ENDDO
+      ELSE
+         CPABORT("requested symmetric case not implemented")
+      ENDIF
+
+      CALL timestop(handle)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief contiguous distribution of weighted elements
+!> \param nel ...
+!> \param nbin ...
+!> \param weights ...
+!> \param limits_start ...
+!> \param limits_end ...
+!> \param dist ...
+! **************************************************************************************************
+   SUBROUTINE contiguous_tensor_dist(nel, nbin, weights, limits_start, limits_end, dist)
+      INTEGER, INTENT(IN)                                :: nel, nbin
+      INTEGER, DIMENSION(nel), INTENT(IN)                :: weights
+      INTEGER, DIMENSION(nbin), INTENT(OUT), OPTIONAL    :: limits_start, limits_end
+      INTEGER, DIMENSION(nel), INTENT(OUT), OPTIONAL     :: dist
+
+      INTEGER                                            :: el_end, el_start, end_weight, ibin, &
+                                                            nel_div, nel_rem, nel_split, nel_w, &
+                                                            w_partialsum
+
+      nel_w = SUM(weights)
+      nel_div = nel_w/nbin
+      nel_rem = MOD(nel_w, nbin)
+
+      w_partialsum = 0
+      el_end = 0
+      end_weight = 0
+      DO ibin = 1, nbin
+         nel_split = nel_div
+         IF (ibin <= nel_rem) THEN
+            nel_split = nel_split + 1
+         ENDIF
+         el_start = el_end + 1
+         el_end = el_start
+         w_partialsum = w_partialsum + weights(el_end)
+         end_weight = end_weight + nel_split
+         DO WHILE (w_partialsum < end_weight)
+            !IF (ABS(w_partialsum + weights(el_end) - end_weight) > ABS(w_partialsum - end_weight)) EXIT
+            el_end = el_end + 1
+            w_partialsum = w_partialsum + weights(el_end)
+         ENDDO
+         IF (PRESENT(dist)) dist(el_start:el_end) = ibin - 1
+         IF (PRESENT(limits_start)) limits_start(ibin) = el_start
+         IF (PRESENT(limits_end)) limits_end(ibin) = el_end
+      ENDDO
+
+   END SUBROUTINE contiguous_tensor_dist
+
+! **************************************************************************************************
+!> \brief ...
+!> \param t2c empty DBCSR matrix
+!> \param filter_eps Filter threshold for matrix blocks
+!> \param qs_env ...
+!> \param nl_2c 2-center neighborlist
+!> \param basis_i ...
+!> \param basis_j ...
+!> \param op_ij operator
+!> \param t_c_filename ...
+!> \param r_cutoff ...
+!> \param omega ...
+!> \param do_kpoints ...
+!> this routine requires that libint has been static initialised somewhere else
+! **************************************************************************************************
+   SUBROUTINE build_2c_integrals(t2c, filter_eps, qs_env, &
+                                 nl_2c, basis_i, basis_j, &
+                                 op_ij, t_c_filename, r_cutoff, omega, do_kpoints)
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: t2c
+      REAL(KIND=dp), INTENT(IN)                          :: filter_eps
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: nl_2c
+      TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j
+      INTEGER, INTENT(IN), OPTIONAL                      :: op_ij
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: t_c_filename
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: r_cutoff, omega
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_integrals', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: handle, iatom, ibasis, icol, ikind, imax, img, irow, iset, jatom, jkind, jset, &
+         m_max, maxli, maxlj, n1, n2, natom, ncoi, ncoj, nimg, nseti, nsetj, offi, offj, op_prv, &
+         sgfi, sgfj, unit_id
+      INTEGER, DIMENSION(3)                              :: cell
+      INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmin_i, lmin_j, npgfi, &
+                                                            npgfj, nsgfi, nsgfj
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_i, first_sgf_j
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: do_kpoints_prv, do_symmetric, found, &
+                                                            trans
+      REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sij, sij_contr, sij_rs
+      REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rj
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_i, set_radius_j
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgf_i, rpgf_j, scon_i, scon_j, sphi_i, &
+                                                            sphi_j, zeti, zetj
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(block_p_type)                                 :: block_t
+      TYPE(cp_libint_t)                                  :: lib
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
+
+      IF (PRESENT(do_kpoints)) THEN
+         do_kpoints_prv = do_kpoints
+      ELSE
+         do_kpoints_prv = .FALSE.
+      ENDIF
+
+      IF (PRESENT(op_ij)) THEN
+         op_prv = op_ij
+      ELSE
+         op_prv = do_potential_id
+      ENDIF
+
+      NULLIFY (qs_kind_set, atomic_kind_set, block_t%block)
+
+      ! check for symmetry
+      CPASSERT(SIZE(nl_2c) > 0)
+      CALL get_neighbor_list_set_p(neighbor_list_sets=nl_2c, symmetric=do_symmetric)
+
+      IF (do_symmetric) THEN
+         DO img = 1, SIZE(t2c)
+            CPASSERT(dbcsr_has_symmetry(t2c(img)))
+         ENDDO
+      ELSE
+         DO img = 1, SIZE(t2c)
+            CPASSERT(.NOT. dbcsr_has_symmetry(t2c(img)))
+         ENDDO
+      ENDIF
+
+      DO img = 1, SIZE(t2c)
+         CALL cp_dbcsr_alloc_block_from_nbl(t2c(img), nl_2c)
+      ENDDO
+
+      ! get stuff
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                      natom=natom, kpoints=kpoints, dft_control=dft_control, para_env=para_env)
+
+      IF (do_kpoints_prv) THEN
+         nimg = dft_control%nimages
+         CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
+      ELSE
+         nimg = 1
+      END IF
+
+      CPASSERT(ALL(SHAPE(t2c) == [nimg]))
+
+      maxli = 0
+      DO ibasis = 1, SIZE(basis_i)
+         CALL get_gto_basis_set(gto_basis_set=basis_i(ibasis)%gto_basis_set, maxl=imax)
+         maxli = MAX(maxli, imax)
+      END DO
+      maxlj = 0
+      DO ibasis = 1, SIZE(basis_j)
+         CALL get_gto_basis_set(gto_basis_set=basis_j(ibasis)%gto_basis_set, maxl=imax)
+         maxlj = MAX(maxlj, imax)
+      END DO
+
+      m_max = maxli + maxlj
+
+      !Init the truncated Coulomb operator
+      IF (op_prv == do_potential_truncated) THEN
+         CPASSERT(PRESENT(t_c_filename))
+
+         IF (m_max > get_lmax_init()) THEN
+            IF (para_env%mepos == 0) THEN
+               CALL open_file(unit_number=unit_id, file_name=t_c_filename)
+            END IF
+            CALL init(m_max, unit_id, para_env%mepos, para_env%group)
+            IF (para_env%mepos == 0) THEN
+               CALL close_file(unit_id)
+            END IF
+         END IF
+      END IF
+
+      CALL init_md_ftable(nmax=m_max)
+
+      IF (op_prv /= do_potential_id) THEN
+         CALL cp_libint_init_2eri(lib, MAX(maxli, maxlj))
+         CALL cp_libint_set_contrdepth(lib, 1)
+      ENDIF
+
+      CALL neighbor_list_iterator_create(nl_iterator, nl_2c)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                iatom=iatom, jatom=jatom, r=rij, cell=cell)
+         IF (do_kpoints_prv) THEN
+            img = cell_to_index(cell(1), cell(2), cell(3))
+            IF (img > nimg) CYCLE
+         ELSE
+            img = 1
+         END IF
+
+         CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, first_sgf=first_sgf_i, lmax=lmax_i, lmin=lmin_i, &
+                                npgf=npgfi, nset=nseti, nsgf_set=nsgfi, pgf_radius=rpgf_i, set_radius=set_radius_i, &
+                                sphi=sphi_i, zet=zeti, scon=scon_i)
+
+         CALL get_gto_basis_set(basis_j(jkind)%gto_basis_set, first_sgf=first_sgf_j, lmax=lmax_j, lmin=lmin_j, &
+                                npgf=npgfj, nset=nsetj, nsgf_set=nsgfj, pgf_radius=rpgf_j, set_radius=set_radius_j, &
+                                sphi=sphi_j, zet=zetj, scon=scon_j)
+
+         IF (do_symmetric) THEN
+            IF (iatom <= jatom) THEN
+               irow = iatom
+               icol = jatom
+            ELSE
+               irow = jatom
+               icol = iatom
+            END IF
+         ELSE
+            irow = iatom
+            icol = jatom
+         END IF
+
+         dab = NORM2(rij)
+
+         CALL dbcsr_get_block_p(matrix=t2c(img), &
+                                row=irow, col=icol, BLOCK=block_t%block, found=found)
+         CPASSERT(found)
+         trans = do_symmetric .AND. (iatom > jatom)
+
+         DO iset = 1, nseti
+
+            ncoi = npgfi(iset)*ncoset(lmax_i(iset))
+            n1 = npgfi(iset)*(ncoset(lmax_i(iset)) - ncoset(lmin_i(iset) - 1))
+            sgfi = first_sgf_i(1, iset)
+            offi = ncoset(lmin_i(iset) - 1) + 1
+
+            DO jset = 1, nsetj
+
+               ncoj = npgfj(jset)*ncoset(lmax_j(jset))
+               n2 = npgfj(jset)*(ncoset(lmax_j(jset)) - ncoset(lmin_j(jset) - 1))
+               sgfj = first_sgf_j(1, jset)
+               offj = ncoset(lmin_j(jset) - 1) + 1
+
+               IF (ncoi*ncoj > 0) THEN
+                  ALLOCATE (sij_contr(nsgfi(iset), nsgfj(jset)))
+                  sij_contr(:, :) = 0.0_dp
+
+                  IF (op_prv == do_potential_id) THEN
+                     ALLOCATE (sij(n1, n2))
+                     sij(:, :) = 0.0_dp
+
+                     CALL overlap_ab(lmax_i(iset), lmin_i(iset), npgfi(iset), rpgf_i(:, iset), zeti(:, iset), &
+                                     lmax_j(jset), lmin_j(jset), npgfj(jset), rpgf_j(:, jset), zetj(:, jset), &
+                                     rij, sab=sij(:, :))
+
+                     CALL ab_contract(sij_contr, sij, &
+                                      scon_i(:, sgfi:), scon_j(:, sgfj:), &
+                                      n1, n2, nsgfi(iset), nsgfj(jset))
+
+                  ELSE
+                     ALLOCATE (sij(ncoi, ncoj))
+                     sij(:, :) = 0.0_dp
+
+                     ri = 0.0_dp
+                     rj = rij
+
+                     CALL eri_2center(sij, lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), &
+                                      ri, lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), &
+                                      rj, lib, op_prv, omega=omega, r_cutoff=r_cutoff)
+
+                     CALL ab_contract(sij_contr, sij, &
+                                      sphi_i(:, sgfi:), sphi_j(:, sgfj:), &
+                                      ncoi, ncoj, nsgfi(iset), nsgfj(jset))
+                  ENDIF
+
+                  DEALLOCATE (sij)
+                  IF (trans) THEN
+                     ALLOCATE (sij_rs(nsgfj(jset), nsgfi(iset)))
+                     sij_rs(:, :) = TRANSPOSE(sij_contr)
+                  ELSE
+                     ALLOCATE (sij_rs(nsgfi(iset), nsgfj(jset)))
+                     sij_rs(:, :) = sij_contr
+                  ENDIF
+
+                  DEALLOCATE (sij_contr)
+
+                  CALL block_add("IN", sij_rs, &
+                                 nsgfi(iset), nsgfj(jset), block_t%block, &
+                                 sgfi, sgfj, trans=trans)
+                  DEALLOCATE (sij_rs)
+               ENDIF
+            END DO
+         END DO
+      ENDDO
+
+      IF (op_prv /= do_potential_id) THEN
+         CALL cp_libint_cleanup_2eri(lib)
+      ENDIF
+
+      CALL neighbor_list_iterator_release(nl_iterator)
+      DO img = 1, SIZE(t2c)
+         CALL dbcsr_finalize(t2c(img))
+         CALL dbcsr_filter(t2c(img), filter_eps)
+      ENDDO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Change process grid of tensor, a load balanced default distribution adapted to the new grid
+!>        is chosen automatically.
+!> \param t_3c ...
+!> \param pgrid ...
+!> \param nodata ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE tensor_change_pgrid(t_3c, pgrid, nodata, unit_nr)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                  :: t_3c
+      TYPE(dbcsr_t_pgrid_type), INTENT(IN)               :: pgrid
+      LOGICAL, INTENT(IN), OPTIONAL                      :: nodata
+      INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tensor_change_pgrid', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(default_string_length)                   :: name
+      INTEGER                                            :: handle
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bs1, bs2, bs3, dist1, dist2, dist3, &
+                                                            map1, map2
+      INTEGER, DIMENSION(3)                              :: pcoord, pcoord_ref, pdims, pdims_ref, &
+                                                            tdims
+      TYPE(dbcsr_t_distribution_type)                    :: dist
+      TYPE(dbcsr_t_type)                                 :: t_tmp
+
+      CALL dbcsr_t_mp_environ_pgrid(pgrid, pdims, pcoord)
+      CALL dbcsr_t_mp_environ_pgrid(t_3c%pgrid, pdims_ref, pcoord_ref)
+
+      IF (ALL(pdims == pdims_ref)) RETURN
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_t_get_info(t_3c, nblks_total=tdims, blk_size_1=bs1, blk_size_2=bs2, blk_size_3=bs3, &
+                            name=name)
+
+      ALLOCATE (dist1(tdims(1)))
+      ALLOCATE (dist2(tdims(2)))
+      ALLOCATE (dist3(tdims(3)))
+
+      CALL cyclic_tensor_dist(tdims(1), pdims(1), bs1, dist1)
+      CALL cyclic_tensor_dist(tdims(2), pdims(2), bs2, dist2)
+      CALL cyclic_tensor_dist(tdims(3), pdims(3), bs3, dist3)
+
+      CALL dbcsr_t_get_mapping_info(t_3c%nd_index_blk, map1_2d=map1, map2_2d=map2)
+      CALL dbcsr_t_distribution_new(dist, pgrid, map1, map2, dist1, dist2, dist3)
+      CALL dbcsr_t_create(t_tmp, name, dist, map1, map2, dbcsr_type_real_8, bs1, bs2, bs3)
+      CALL dbcsr_t_distribution_destroy(dist)
+
+      IF (PRESENT(nodata)) THEN
+         IF (.NOT. nodata) CALL dbcsr_t_copy(t_3c, t_tmp, move_data=.TRUE.)
+      ELSE
+         CALL dbcsr_t_copy(t_3c, t_tmp, move_data=.TRUE.)
+      ENDIF
+
+      CALL dbcsr_t_destroy(t_3c)
+      t_3c = t_tmp
+
+      IF (PRESENT(unit_nr)) THEN
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, "(T2,A,1X,A)") "OPTIMIZED PGRID INFO FOR", TRIM(t_3c%name)
+            WRITE (unit_nr, "(T4,A,1X,3I6)") "process grid dimensions:", pdims
+            CALL dbcsr_t_write_split_info(pgrid, unit_nr)
+         ENDIF
+      ENDIF
+
+      CALL timestop(handle)
+   END SUBROUTINE
+
+END MODULE
