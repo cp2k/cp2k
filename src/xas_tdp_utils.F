@@ -74,6 +74,7 @@ MODULE xas_tdp_utils
    USE eri_mme_types,                   ONLY: eri_mme_init,&
                                               eri_mme_release
    USE generic_os_integrals,            ONLY: int_operators_r12_ab_os
+   USE hfx_types,                       ONLY: hfx_potential_type
    USE input_constants,                 ONLY: &
         do_potential_coulomb, do_potential_id, do_potential_short, do_potential_truncated, &
         tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, xas_dip_len, &
@@ -1567,6 +1568,7 @@ CONTAINS
       INTEGER                                            :: handle, nkind
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
+      TYPE(hfx_potential_type)                           :: pot
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list, ac_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1612,7 +1614,8 @@ CONTAINS
       !only one spin needed for coulomb integrals
       CALL init_o3c_container(xas_tdp_env%ri_o3c_coul, 1, basis_set_orb, basis_set_orb, &
                               basis_set_ri, ab_list, ac_list, only_bc_same_center=.TRUE.)
-      CALL calculate_o3c_libint_integrals(xas_tdp_env%ri_o3c_coul, op=do_potential_coulomb)
+      pot%potential_type = do_potential_coulomb
+      CALL calculate_o3c_libint_integrals(xas_tdp_env%ri_o3c_coul, potential_parameter=pot)
 
 ! Clean-up
       CALL release_sab(ab_list)
@@ -1651,6 +1654,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: exat
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
+      TYPE(hfx_potential_type)                           :: pot
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list, ac_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1691,11 +1695,12 @@ CONTAINS
       ALLOCATE (xas_tdp_env%ri_o3c_ex)
       CALL init_o3c_container(xas_tdp_env%ri_o3c_ex, 1, basis_set_orb, basis_set_orb, &
                               basis_set_ri, ab_list, ac_list)
-      CALL calculate_o3c_libint_integrals(xas_tdp_env%ri_o3c_ex, op=xas_tdp_control%x_op, &
-                                          para_env=para_env, r_cutoff=xas_tdp_control%x_range, &
-                                          omega=xas_tdp_control%x_omega, &
-                                          t_c_filename=xas_tdp_control%x_t_c_filename, &
-                                          eps_screen=xas_tdp_control%eps_screen)
+      pot%potential_type = xas_tdp_control%x_op
+      pot%cutoff_radius = xas_tdp_control%x_range
+      pot%omega = xas_tdp_control%x_omega
+      pot%filename = xas_tdp_control%x_t_c_filename
+      CALL calculate_o3c_libint_integrals(xas_tdp_env%ri_o3c_ex, potential_parameter=pot, &
+                                          para_env=para_env, eps_screen=xas_tdp_control%eps_screen)
 
 ! Clean-up
       CALL release_sab(ab_list)

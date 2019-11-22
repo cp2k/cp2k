@@ -7,6 +7,7 @@
 !> \brief Interface to the Libint-Library
 !> \par History
 !>      11.2006 created [Manuel Guidon]
+!>      11.2019 Fixed potential_id initial values (A. Bussy)
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE hfx_libint_interface
@@ -86,9 +87,9 @@ CONTAINS
 
       INTEGER                                            :: i
       LOGICAL                                            :: use_gamma
-      REAL(KIND=dp) :: AB(3), AB2, CD(3), CD2, Eta, EtaInv, factor, omega2, omega_corr, &
-         omega_corr2, P(3), PQ(3), PQ2, Q(3), R, R1, R2, Rho, RhoInv, S1234, T, tmp, W(3), Zeta, &
-         ZetaInv, ZetapEtaInv
+      REAL(KIND=dp) :: AB(3), AB2, CD(3), CD2, den, Eta, EtaInv, factor, G(3), num, omega2, &
+         omega_corr, omega_corr2, P(3), PQ(3), PQ2, Q(3), R, R1, R2, Rho, RhoInv, S1234, ssss, T, &
+         tmp, W(3), Zeta, ZetaInv, ZetapEtaInv
       REAL(KIND=dp), DIMENSION(prim_data_f_size)         :: F, Fm
 
       Zeta = Zeta_A + Zeta_B
@@ -236,9 +237,20 @@ CONTAINS
          END DO
          factor = 1.0_dp
       CASE (do_potential_id)
-         F(1) = (Pi*RhoInv)**(1.5_dp)
-         F(2:m_max + 1) = 0.0_dp
+         ssss = -Zeta_A*Zeta_B*ZetaInv*AB2
+
+         num = (Zeta_A+Zeta_B)*Zeta_C
+         den = Zeta_A+Zeta_B+Zeta_C
+         ssss = ssss-num/den*SUM((P-C)**2)
+
+         G(:) = (Zeta_A*A(:)+Zeta_B*B(:)+Zeta_C*C(:))/den
+         num = den*Zeta_D
+         den = den+Zeta_D
+         ssss = ssss-num/den*SUM((G-D)**2)
+
+         F(:) = EXP(ssss)
          factor = 1.0_dp
+         IF (S1234 > EPSILON(0.0_dp)) factor = 1.0_dp/S1234
       END SELECT
 
       tmp = (Pi*ZetapEtaInv)**3
