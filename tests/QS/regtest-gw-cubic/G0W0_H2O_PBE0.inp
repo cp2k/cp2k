@@ -58,7 +58,6 @@
         ERI_METHOD OS
         IM_TIME
         &IM_TIME
-          DO_DBCSR_T .FALSE.
           GROUP_SIZE_3c 1
           GROUP_SIZE_P 1
         &END

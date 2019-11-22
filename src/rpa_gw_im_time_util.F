@@ -13,6 +13,7 @@ MODULE rpa_gw_im_time_util
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                              cp_dbcsr_m_by_n_from_row_template,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -26,14 +27,21 @@ MODULE rpa_gw_im_time_util
         dbcsr_get_stored_coordinates, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, dbcsr_reserve_all_blocks, &
-        dbcsr_reserve_blocks, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_reserve_blocks, dbcsr_scalar, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry
+   USE dbcsr_tensor_api,                ONLY: &
+        dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
+        dbcsr_t_destroy, dbcsr_t_get_info, dbcsr_t_pgrid_create, dbcsr_t_pgrid_type, dbcsr_t_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_alltoall,&
+                                              mp_dims_create,&
                                               mp_sum
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_tensors_types,                ONLY: create_3c_tensor,&
+                                              split_block_sizes
    USE rpa_communication,               ONLY: communicate_buffer
 #include "./base/base_uses.f90"
 
@@ -45,7 +53,7 @@ MODULE rpa_gw_im_time_util
 
    PUBLIC :: get_mat_3c_overl_int_gw, &
              replicate_mat_to_subgroup_simple, &
-             fill_mat_3c_overl_int_gw
+             fill_mat_3c_overl_int_gw, get_mat_3c_overl_int_gw_t
 CONTAINS
 
 ! **************************************************************************************************
@@ -133,6 +141,7 @@ CONTAINS
 
       NULLIFY (mat_mo_coeff_gw)
       CALL dbcsr_init_p(mat_mo_coeff_gw)
+
       CALL dbcsr_create(matrix=mat_mo_coeff_gw, &
                         template=matrix_s(1)%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -266,6 +275,150 @@ CONTAINS
       CALL dbcsr_release_p(mat_mo_coeff_gw_local)
       CALL cp_fm_release(fm_mat_mo_coeff_gw)
       CALL dbcsr_deallocate_matrix_set(mat_3c_overl_int_gw_for_mult)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param t_3c_overl_int ...
+!> \param t_3c_overl_int_gw_RI ...
+!> \param t_3c_overl_int_gw_AO ...
+!> \param mo_coeff ...
+!> \param matrix_s ...
+!> \param gw_corr_lev_occ ...
+!> \param gw_corr_lev_virt ...
+!> \param homo ...
+!> \param nmo ...
+!> \param para_env ...
+!> \param do_ic_model ...
+!> \param do_ic_opt_homo_lumo ...
+!> \param qs_env ...
+!> \param unit_nr ...
+!> \param do_beta ...
+! **************************************************************************************************
+   SUBROUTINE get_mat_3c_overl_int_gw_t(t_3c_overl_int, &
+                                        t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
+                                        mo_coeff, matrix_s, &
+                                        gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
+                                        para_env, &
+                                        do_ic_model, &
+                                        do_ic_opt_homo_lumo, &
+                                        qs_env, unit_nr, do_beta)
+
+      TYPE(dbcsr_t_type), DIMENSION(:, :)                :: t_3c_overl_int
+      TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_gw_RI, &
+                                                            t_3c_overl_int_gw_AO
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, homo, &
+                                                            nmo
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: do_ic_model, do_ic_opt_homo_lumo
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_beta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mat_3c_overl_int_gw_t', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, icol_global, irow_global, &
+                                                            sqrt_max_bsize
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist3, sizes_AO, &
+                                                            sizes_AO_split, sizes_RI, &
+                                                            sizes_RI_split
+      INTEGER, DIMENSION(2, 1)                           :: bounds
+      INTEGER, DIMENSION(3)                              :: pdims
+      INTEGER, DIMENSION(:), POINTER                     :: sizes_MO
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_mo_coeff_gw
+      TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d, pgrid_3d
+      TYPE(dbcsr_t_type)                                 :: mo_coeff_gw_t, t_3c_overl_int_ctr, &
+                                                            t_3c_overl_int_gw
+      TYPE(dbcsr_type), POINTER                          :: mat_mo_coeff_gw
+
+      MARK_USED(do_ic_opt_homo_lumo)
+      MARK_USED(do_ic_model)
+      MARK_USED(do_beta)
+      MARK_USED(unit_nr)
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (fm_mat_mo_coeff_gw)
+      CALL cp_fm_create(fm_mat_mo_coeff_gw, mo_coeff%matrix_struct)
+      CALL cp_fm_to_fm(mo_coeff, fm_mat_mo_coeff_gw)
+
+      ! set MO coeffs to zero where
+      DO irow_global = 1, nmo
+         DO icol_global = 1, homo - gw_corr_lev_occ
+            CALL cp_fm_set_element(fm_mat_mo_coeff_gw, irow_global, icol_global, 0.0_dp)
+         END DO
+         DO icol_global = homo + gw_corr_lev_virt + 1, nmo
+            CALL cp_fm_set_element(fm_mat_mo_coeff_gw, irow_global, icol_global, 0.0_dp)
+         END DO
+      END DO
+
+      NULLIFY (mat_mo_coeff_gw)
+      CALL dbcsr_init_p(mat_mo_coeff_gw)
+
+      CALL cp_dbcsr_m_by_n_from_row_template(mat_mo_coeff_gw, template=matrix_s(1)%matrix, n=nmo, &
+                                             sym=dbcsr_type_no_symmetry)
+
+      CALL copy_fm_to_dbcsr(fm_mat_mo_coeff_gw, &
+                            mat_mo_coeff_gw, &
+                            keep_sparsity=.FALSE.)
+
+      ! just remove the blocks which have been set to zero
+      CALL dbcsr_filter(mat_mo_coeff_gw, 1.0E-20_dp)
+
+      sqrt_max_bsize = qs_env%mp2_env%ri_rpa_im_time%max_bsize_sqrt
+
+      CALL dbcsr_t_get_info(t_3c_overl_int(1, 1), blk_size_1=sizes_RI, blk_size_2=sizes_AO)
+      CALL split_block_sizes(sizes_AO, sizes_AO_split, sqrt_max_bsize)
+      CALL split_block_sizes(sizes_RI, sizes_RI_split, sqrt_max_bsize)
+      pdims = 0
+      CALL mp_dims_create(para_env%num_pe, pdims(1:2))
+      pdims(3) = 1
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_3d)
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims(1:2), pgrid_2d)
+
+      NULLIFY (sizes_MO)
+      CALL dbcsr_get_info(mat_mo_coeff_gw, col_blk_size=sizes_MO)
+      CALL create_3c_tensor(t_3c_overl_int_ctr, dist1, dist2, dist3, pgrid_3d, &
+                            sizes_RI_split, sizes_AO_split, sizes_AO, [1, 2], [3], "(RI AO | AO)")
+      DEALLOCATE (dist1, dist2, dist3)
+      CALL dbcsr_t_copy(t_3c_overl_int(1, 1), t_3c_overl_int_ctr)
+      CALL create_3c_tensor(t_3c_overl_int_gw, dist1, dist2, dist3, pgrid_3d, &
+                            sizes_RI_split, sizes_AO_split, sizes_MO, [1, 2], [3], "(RI AO | MO)")
+      DEALLOCATE (dist1, dist2, dist3)
+
+      CALL create_3c_tensor(t_3c_overl_int_gw_RI, dist1, dist2, dist3, pgrid_3d, &
+                            sizes_RI, sizes_AO_split, sizes_MO, [1], [2, 3], "(RI | AO MO)")
+      DEALLOCATE (dist1, dist2, dist3)
+
+      CALL create_3c_tensor(t_3c_overl_int_gw_AO, dist1, dist2, dist3, pgrid_3d, &
+                            sizes_AO, sizes_RI_split, sizes_MO, [1], [2, 3], "(AO | RI MO)")
+      DEALLOCATE (dist1, dist2, dist3)
+
+      CALL dbcsr_t_create(mat_mo_coeff_gw, mo_coeff_gw_t, name="MO coeffs")
+      CALL dbcsr_t_copy_matrix_to_tensor(mat_mo_coeff_gw, mo_coeff_gw_t)
+
+      bounds(1, 1) = homo - gw_corr_lev_occ + 1
+      bounds(2, 1) = homo + gw_corr_lev_virt
+
+      CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), mo_coeff_gw_t, t_3c_overl_int_ctr, dbcsr_scalar(0.0_dp), &
+                            t_3c_overl_int_gw, contract_1=[1], notcontract_1=[2], &
+                            contract_2=[3], notcontract_2=[1, 2], map_1=[3], map_2=[1, 2], &
+                            bounds_2=bounds, move_data=.TRUE.)
+
+      CALL dbcsr_t_destroy(t_3c_overl_int_ctr)
+      CALL dbcsr_t_destroy(mo_coeff_gw_t)
+      CALL dbcsr_t_copy(t_3c_overl_int_gw, t_3c_overl_int_gw_RI)
+      CALL dbcsr_t_copy(t_3c_overl_int_gw, t_3c_overl_int_gw_AO, order=[2, 1, 3])
+      CALL dbcsr_t_destroy(t_3c_overl_int_gw)
+
+      CALL dbcsr_release_p(mat_mo_coeff_gw)
+      CALL cp_fm_release(fm_mat_mo_coeff_gw)
 
       CALL timestop(handle)
 

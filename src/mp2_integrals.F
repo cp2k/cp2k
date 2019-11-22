@@ -179,6 +179,7 @@ CONTAINS
 !> \param kpoints ...
 !> \param mat_3c_overl_int ...
 !> \param do_dbcsr_t ...
+!> \param t_3c_overl_int ...
 !> \param t_3c_M ...
 !> \param t_3c_O ...
 !> \param mat_3c_overl_int_mao_for_occ ...
@@ -209,7 +210,7 @@ CONTAINS
                                     gd_B_all, starts_array_mc_t, ends_array_mc_t, &
                                     gw_corr_lev_occ, gw_corr_lev_virt, &
                                     do_im_time, do_mao, do_kpoints_cubic_RPA, kpoints, &
-                                    mat_3c_overl_int, do_dbcsr_t, t_3c_M, t_3c_O, mat_3c_overl_int_mao_for_occ, &
+                                    mat_3c_overl_int, do_dbcsr_t, t_3c_overl_int, t_3c_M, t_3c_O, mat_3c_overl_int_mao_for_occ, &
                                     mat_3c_overl_int_mao_for_virt, mao_coeff_occ, mao_coeff_virt, &
                                     ri_metric, gd_B_occ_bse, gd_B_virt_bse, BIb_C_beta, BIb_C_gw_beta, &
                                     gd_B_virtual_beta, homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
@@ -249,6 +250,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int
       LOGICAL, INTENT(IN)                                :: do_dbcsr_t
+      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_overl_int
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: t_3c_M
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: t_3c_O
@@ -298,7 +300,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local_L
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_t3c_M, pgrid_t3c_overl
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_template
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_overl_int
       TYPE(dbcsr_type) :: matrix_bse_ab, matrix_bse_anu, matrix_bse_ij, matrix_bse_inu, &
          matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, matrix_ia_jnu_beta, matrix_in_jm, &
          matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
@@ -872,9 +873,8 @@ CONTAINS
             DO i = 1, SIZE(t_3c_overl_int, 1)
                DO j = 1, SIZE(t_3c_overl_int, 2)
 
-                  CALL dbcsr_t_copy(t_3c_overl_int(i, j), t_3c_O(i, j), order=[1, 3, 2], move_data=.TRUE.)
+                  CALL dbcsr_t_copy(t_3c_overl_int(i, j), t_3c_O(i, j), order=[1, 3, 2], move_data=.FALSE.)
                   CALL dbcsr_t_filter(t_3c_O(i, j), qs_env%mp2_env%mp2_gpw%eps_filter)
-                  CALL dbcsr_t_destroy(t_3c_overl_int(i, j))
                ENDDO
             ENDDO
             CALL timestop(handle4)

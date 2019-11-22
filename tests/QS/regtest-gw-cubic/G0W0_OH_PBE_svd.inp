@@ -48,7 +48,6 @@
         RI OVERLAP
         IM_TIME
         &IM_TIME
-          DO_DBCSR_T .FALSE.
         &END IM_TIME
         &RI_RPA
           &HF

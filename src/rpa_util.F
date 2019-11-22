@@ -1810,6 +1810,7 @@ CONTAINS
 !> \param mat_3c_overl_int_cut ...
 !> \param mat_3c_overl_int_mao_for_occ_cut ...
 !> \param mat_3c_overl_int_mao_for_virt_cut ...
+!> \param t_3c_overl_int ...
 !> \param t_3c_M ...
 !> \param t_3c_O ...
 !> \param mat_dm_loc_occ ...
@@ -1828,7 +1829,8 @@ CONTAINS
                               fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, &
                               mat_P_global_copy, mat_SinvVSinv, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, mat_P_omega, mat_P_omega_kp, &
                               mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, mat_3c_overl_int_cut, mat_3c_overl_int_mao_for_occ_cut, &
-                              mat_3c_overl_int_mao_for_virt_cut, t_3c_M, t_3c_O, mat_dm_loc_occ, mat_dm_loc_virt, mat_work, &
+                              mat_3c_overl_int_mao_for_virt_cut, t_3c_overl_int, t_3c_M, t_3c_O, &
+                              mat_dm_loc_occ, mat_dm_loc_virt, mat_work, &
                               fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mat_P_omega_beta)
 
       LOGICAL, INTENT(IN)                                :: do_mao, do_dbcsr_t, do_ri_sos_laplace_mp2
@@ -1869,6 +1871,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_dm_loc_occ_cut, mat_dm_loc_virt_cut
       TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER :: mat_3c_overl_int_cut, &
          mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut
+      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_overl_int
       TYPE(dbcsr_t_type)                                 :: t_3c_M
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
       TYPE(dbcsr_type), POINTER                          :: mat_dm_loc_occ, mat_dm_loc_virt, mat_work
@@ -1970,10 +1973,11 @@ CONTAINS
          DO i_size = 1, SIZE(t_3c_O, 1)
             DO j_size = 1, SIZE(t_3c_O, 2)
                CALL dbcsr_t_destroy(t_3c_O(i_size, j_size))
+               CALL dbcsr_t_destroy(t_3c_overl_int(i_size, j_size))
             ENDDO
          ENDDO
 
-         DEALLOCATE (t_3c_O)
+         DEALLOCATE (t_3c_O, t_3c_overl_int)
          CALL dbcsr_t_destroy(t_3c_M)
       ENDIF
 
