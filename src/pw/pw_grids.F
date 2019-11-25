@@ -700,6 +700,10 @@ CONTAINS
          IF (info >= 0) THEN
             WRITE (info, '(/,A,T71,I10)') &
                " PW_GRID| Information for grid number ", pw_grid%id_nr
+            IF (pw_grid%reference > 0) THEN
+               WRITE (info, '(A,T71,I10)') &
+                  " PW_GRID| Number of the reference grid ", pw_grid%reference
+            END IF
             WRITE (info, '(" PW_GRID| Cutoff [a.u.]",T71,f10.1)') pw_grid%cutoff
             IF (pw_grid%spherical) THEN
                WRITE (info, '(A,T78,A)') " PW_GRID| spherical cutoff: ", "YES"
@@ -743,6 +747,10 @@ CONTAINS
          IF (pw_grid%para%group_head .AND. info >= 0) THEN
             WRITE (info, '(/,A,T71,I10)') &
                " PW_GRID| Information for grid number ", pw_grid%id_nr
+            IF (pw_grid%reference > 0) THEN
+               WRITE (info, '(A,T71,I10)') &
+                  " PW_GRID| Number of the reference grid ", pw_grid%reference
+            END IF
             WRITE (info, '(A,T60,I10,A)') &
                " PW_GRID| Grid distributed over ", pw_grid%para%group_size, &
                " processors"
