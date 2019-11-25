@@ -1,13 +1,13 @@
-# Tested with: GFortran 7.4.0, FFTW 3.3, LAPACK 3.8.0, Libint 2.5.0, Libxc 4.3.4
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, July 2019)
+# Tested with: GFortran 7.4.0, FFTW 3.3, LAPACK 3.8.0, Libint 2.6.0, Libxc 4.3.4
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, November 2019)
 CC         = gcc
 FC         = gfortran
 LD         = gfortran
 AR         = ar -r
 FFTW_INC   = $(GNU_PATH)/fftw/3.3-regtest/include
 FFTW_LIB   = $(GNU_PATH)/fftw/3.3-regtest/lib
-LIBINT_INC = $(GNU_PATH)/libint/2.5.0-lmax-4-regtest/include
-LIBINT_LIB = $(GNU_PATH)/libint/2.5.0-lmax-4-regtest/lib
+LIBINT_INC = $(GNU_PATH)/libint/2.6.0-lmax-4-regtest/include
+LIBINT_LIB = $(GNU_PATH)/libint/2.6.0-lmax-4-regtest/lib
 LIBXC_INC  = $(GNU_PATH)/libxc/4.3.4-regtest/include
 LIBXC_LIB  = $(GNU_PATH)/libxc/4.3.4-regtest/lib
 DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC -D__CHECK_DIAG
