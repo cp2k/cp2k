@@ -544,10 +544,10 @@ CONTAINS
          CALL section_vals_val_get(mgrid_section, "MULTIGRID_CUTOFF", r_vals=cutofflist)
          IF (ASSOCIATED(cutofflist)) THEN
             IF (SIZE(cutofflist, 1) /= ngrid_level) &
-               CPABORT("Inconsistent values for number of multi grids")
+               CPABORT("Number of multi-grids (NGRIDS) requested and number of cutoff values do not match")
             DO igrid_level = 1, ngrid_level
-               qs_control%e_cutoff(igrid_level) = cutofflist(igrid_level)*0.5_dp
-            ENDDO
+               qs_control%e_cutoff(igrid_level) = cutofflist(igrid_level)
+            END DO
          END IF
          ! set cutoff to smallest value in multgrid available with >= cutoff
          DO igrid_level = ngrid_level, 1, -1
@@ -564,15 +564,16 @@ CONTAINS
          IF (qs_control%commensurate_mgrids) qs_control%progression_factor = 4.0_dp
          qs_control%e_cutoff(1) = qs_control%cutoff
          DO igrid_level = 2, ngrid_level
-            qs_control%e_cutoff(igrid_level) = qs_control%e_cutoff(igrid_level - 1) &
-                                               /qs_control%progression_factor
+            qs_control%e_cutoff(igrid_level) = qs_control%e_cutoff(igrid_level - 1)/ &
+                                               qs_control%progression_factor
          END DO
       END IF
       ! check that multigrids are ordered
       DO igrid_level = 2, ngrid_level
-         IF (qs_control%e_cutoff(igrid_level) > &
-             qs_control%e_cutoff(igrid_level - 1)) THEN
-            CPABORT("Multi-grids not ordered")
+         IF (qs_control%e_cutoff(igrid_level) > qs_control%e_cutoff(igrid_level - 1)) THEN
+            CPABORT("The cutoff values for the multi-grids are not ordered from large to small")
+         ELSE IF (qs_control%e_cutoff(igrid_level) == qs_control%e_cutoff(igrid_level - 1)) THEN
+            CPABORT("The same cutoff value was specified for two multi-grids")
          END IF
       END DO
       CALL timestop(handle)
