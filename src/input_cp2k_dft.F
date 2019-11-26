@@ -6450,7 +6450,10 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MULTIGRID_CUTOFF", &
                           variants=(/"CUTOFF_LIST"/), &
                           description="List of cutoff values to set up multigrids manually", &
-                          usage="MULTIGRID_CUTOFF 200.0 100.0 ", n_var=-1, type_of_var=real_t)
+                          usage="MULTIGRID_CUTOFF 200.0 100.0 ", &
+                          n_var=-1, &
+                          type_of_var=real_t, &
+                          unit_str="Ry")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
