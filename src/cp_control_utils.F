@@ -543,8 +543,9 @@ CONTAINS
 
          CALL section_vals_val_get(mgrid_section, "MULTIGRID_CUTOFF", r_vals=cutofflist)
          IF (ASSOCIATED(cutofflist)) THEN
-            IF (SIZE(cutofflist, 1) /= ngrid_level) &
+            IF (SIZE(cutofflist, 1) /= ngrid_level) THEN
                CPABORT("Number of multi-grids (NGRIDS) requested and number of cutoff values do not match")
+            END IF
             DO igrid_level = 1, ngrid_level
                qs_control%e_cutoff(igrid_level) = cutofflist(igrid_level)
             END DO
