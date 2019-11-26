@@ -37,7 +37,6 @@ MODULE qs_tensors
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gamma,                           ONLY: init_md_ftable
-   USE hfx_types,                       ONLY: hfx_potential_type
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_short,&
@@ -49,7 +48,8 @@ MODULE qs_tensors
                                               kpoint_type
    USE libint_2c_3c,                    ONLY: cutoff_screen_factor,&
                                               eri_2center,&
-                                              eri_3center
+                                              eri_3center,&
+                                              libint_potential_type
    USE libint_wrapper,                  ONLY: cp_libint_cleanup_2eri,&
                                               cp_libint_cleanup_3eri,&
                                               cp_libint_init_2eri,&
@@ -116,7 +116,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ij_list
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j
-      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       CHARACTER(LEN=*), INTENT(IN)                       :: name
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: sym_ij, molecular
@@ -275,7 +275,7 @@ CONTAINS
       TYPE(neighbor_list_3c_type), INTENT(OUT)           :: ijk_list
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
       TYPE(distribution_3d_type), INTENT(IN)             :: dist_3d
-      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       CHARACTER(LEN=*), INTENT(IN)                       :: name
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: sym_ij, sym_jk, sym_ik, molecular
@@ -286,7 +286,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, op_pos_prv, sym_level
-      TYPE(hfx_potential_type)                           :: pot_par_1, pot_par_2
+      TYPE(libint_potential_type)                        :: pot_par_1, pot_par_2
 
       CALL timeset(routineN, handle)
 
@@ -576,7 +576,7 @@ CONTAINS
       TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: nl_3c
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       INTEGER, INTENT(IN), OPTIONAL                      :: op_pos
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints
 
@@ -804,7 +804,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: nl_3c
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
-      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: int_eps
       INTEGER, INTENT(IN), OPTIONAL                      :: op_pos
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints, desymmetrize
@@ -1296,7 +1296,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j
-      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_integrals', &

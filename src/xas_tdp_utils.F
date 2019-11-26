@@ -74,7 +74,6 @@ MODULE xas_tdp_utils
    USE eri_mme_types,                   ONLY: eri_mme_init,&
                                               eri_mme_release
    USE generic_os_integrals,            ONLY: int_operators_r12_ab_os
-   USE hfx_types,                       ONLY: hfx_potential_type
    USE input_constants,                 ONLY: &
         do_potential_coulomb, do_potential_id, do_potential_short, do_potential_truncated, &
         tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, xas_dip_len, &
@@ -82,6 +81,7 @@ MODULE xas_tdp_utils
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_memory_details
    USE mathlib,                         ONLY: get_diag,&
                                               invmat_symm
@@ -1568,7 +1568,7 @@ CONTAINS
       INTEGER                                            :: handle, nkind
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
-      TYPE(hfx_potential_type)                           :: pot
+      TYPE(libint_potential_type)                        :: pot
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list, ac_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1654,7 +1654,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: exat
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
-      TYPE(hfx_potential_type)                           :: pot
+      TYPE(libint_potential_type)                        :: pot
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list, ac_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
