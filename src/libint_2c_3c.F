@@ -11,12 +11,12 @@
 
 MODULE libint_2c_3c
    USE gamma,                           ONLY: fgamma => fgamma_0
-   USE hfx_types,                       ONLY: hfx_potential_type
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_short,&
                                               do_potential_truncated
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_path_length,&
+                                              dp
    USE libint_wrapper,                  ONLY: cp_libint_get_2eris,&
                                               cp_libint_get_3eris,&
                                               cp_libint_set_params_eri,&
@@ -34,7 +34,7 @@ MODULE libint_2c_3c
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_2c_3c'
 
-   PUBLIC :: eri_3center, eri_2center, cutoff_screen_factor
+   PUBLIC :: eri_3center, eri_2center, cutoff_screen_factor, libint_potential_type
 
    ! For screening of integrals with a truncated potential, it is important to use a slightly larger
    ! cutoff radius due to the discontinuity of the truncated Coulomb potential at the cutoff radius.
@@ -52,6 +52,15 @@ MODULE libint_2c_3c
       REAL(dp)                              :: ZetaInv, EtaInv, ZetapEtaInv, Rho
       REAL(dp), DIMENSION(3)                :: Q, W
       REAL(dp), DIMENSION(prim_data_f_size) :: Fm
+   END TYPE
+
+   ! A potential type based on the hfx_potential_type concept, but only for implemented
+   ! 2- and 3-center operators
+   TYPE :: libint_potential_type
+      INTEGER                               :: potential_type
+      REAL(dp)                              :: omega !SR: erfc(w*r)/r
+      REAL(dp)                              :: cutoff_radius !TC cutoff/effective SR range
+      CHARACTER(default_path_length)        :: filename
    END TYPE
 
 CONTAINS
@@ -82,7 +91,7 @@ CONTAINS
 !> \param dac ...
 !> \param dbc ...
 !> \param lib the libint_t object for evaluation (assume that it is initialized outside)
-!> \param potential_parameter the info about the potential (as a hfx_potential_type)
+!> \param potential_parameter the info about the potential
 !> \note Prior to calling this routine, the cp_libint_t type passed as argument must be initialized,
 !>       the libint library must be static initialized, and in case of truncated Coulomb operator,
 !>       the latter must be initialized too
@@ -104,7 +113,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rc
       REAL(KIND=dp), INTENT(IN)                          :: dab, dac, dbc
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
-      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eri_3center', routineP = moduleN//':'//routineN
 
@@ -254,7 +263,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: ri, rj, rk
       INTEGER, INTENT(IN), OPTIONAL                      :: li_max, lj_max, lk_max
       REAL(dp), INTENT(IN), OPTIONAL                     :: zeti, zetj, zetk
-      TYPE(hfx_potential_type), INTENT(IN), OPTIONAL     :: potential_parameter
+      TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
       TYPE(params_3c), OPTIONAL, POINTER                 :: params_in, params_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_params_3c', routineP = moduleN//':'//routineN
@@ -368,7 +377,7 @@ CONTAINS
 !> \param rb ...
 !> \param dab ...
 !> \param lib the libint_t object for evaluation (assume that it is initialized outside)
-!> \param potential_parameter the info about the potential (as a hfx_potential_type)
+!> \param potential_parameter the info about the potential
 !> \note Prior to calling this routine, the cp_libint_t type passed as argument must be initialized,
 !>       the libint library must be static initialized, and in case of truncated Coulomb operator,
 !>       the latter must be initialized too
@@ -386,7 +395,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rb
       REAL(dp), INTENT(IN)                               :: dab
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
-      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eri_2center', routineP = moduleN//':'//routineN
 
@@ -464,7 +473,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rj, rk
       INTEGER, INTENT(IN)                                :: lj_max, lk_max
       REAL(dp), INTENT(IN)                               :: zetj, zetk
-      TYPE(hfx_potential_type), INTENT(IN)               :: potential_parameter
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_params_2c', routineP = moduleN//':'//routineN
 

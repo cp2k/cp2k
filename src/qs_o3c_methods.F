@@ -22,13 +22,13 @@ MODULE qs_o3c_methods
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE gamma,                           ONLY: init_md_ftable
-   USE hfx_types,                       ONLY: hfx_potential_type
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_short,&
                                               do_potential_truncated
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: cutoff_screen_factor,&
-                                              eri_3center
+                                              eri_3center,&
+                                              libint_potential_type
    USE libint_wrapper,                  ONLY: cp_libint_cleanup_3eri,&
                                               cp_libint_init_3eri,&
                                               cp_libint_set_contrdepth,&
@@ -326,7 +326,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Computes the 3-center integrals of the o3c container based on libint for the given operator
 !> \param o3c the 3-center integrals container
-!> \param potential_parameter info about the operator as a hfx_potential_type
+!> \param potential_parameter info about the operator as a libint_potential_type
 !> \param para_env ...
 !> \param eps_screen the screening threshold for sicarding integrals before contraction
 !> \note The static initialization of the libint library needs to be done before hand
@@ -336,7 +336,7 @@ CONTAINS
    SUBROUTINE calculate_o3c_libint_integrals(o3c, potential_parameter, para_env, eps_screen)
 
       TYPE(o3c_container_type), POINTER                  :: o3c
-      TYPE(hfx_potential_type)                           :: potential_parameter
+      TYPE(libint_potential_type)                        :: potential_parameter
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       REAL(dp), INTENT(IN), OPTIONAL                     :: eps_screen
 

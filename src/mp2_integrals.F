@@ -56,7 +56,6 @@ MODULE mp2_integrals
                                               get_group_dist,&
                                               group_dist_d1_type,&
                                               release_group_dist
-   USE hfx_types,                       ONLY: hfx_potential_type
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
                                               do_eri_os,&
@@ -67,6 +66,7 @@ MODULE mp2_integrals
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
+   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_cart_create,&
@@ -304,7 +304,7 @@ CONTAINS
          matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_ao, basis_set_ri_aux
-      TYPE(hfx_potential_type)                           :: pot_par
+      TYPE(libint_potential_type)                        :: pot_par
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_p_type)                                    :: pot_g, psi_L, rho_g, rho_r
@@ -1083,7 +1083,7 @@ CONTAINS
       LOGICAL                                            :: kp
       TYPE(dbcsr_t_distribution_type)                    :: dist
       TYPE(distribution_3d_type)                         :: dist_3d
-      TYPE(hfx_potential_type)                           :: pot_par
+      TYPE(libint_potential_type)                        :: pot_par
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       IF (PRESENT(do_kpoints)) THEN
