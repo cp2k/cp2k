@@ -21,7 +21,8 @@ MODULE cp_fm_types
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_retain,&
-                                              cp_fm_struct_type
+                                              cp_fm_struct_type,&
+                                              cp_fm_struct_write_info
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp,&
@@ -79,7 +80,8 @@ MODULE cp_fm_types
              cp_fm_write_formatted, & ! writes a full matrix to an open unit
              cp_fm_read_unformatted, & ! reads a full matrix from an open unit
              cp_fm_setup, & ! allows to set flags for fms
-             cp_fm_get_mm_type
+             cp_fm_get_mm_type, &
+             cp_fm_write_info
 
    PUBLIC :: cp_fm_indxg2p, &
              cp_fm_indxg2l, &
@@ -872,23 +874,18 @@ CONTAINS
                              row_indices, col_indices, local_data, context, &
                              nrow_locals, ncol_locals, matrix_struct, para_env)
 
-      TYPE(cp_fm_type), POINTER                  :: matrix
-      CHARACTER(LEN=*), OPTIONAL, INTENT(OUT)    :: name
-      INTEGER, OPTIONAL, INTENT(OUT)             :: ncol_block, ncol_global, &
-                                                    nrow_block, nrow_global, &
-                                                    nrow_local, ncol_local
-      INTEGER, OPTIONAL, DIMENSION(:), POINTER   :: row_indices, col_indices, &
-                                                    nrow_locals, ncol_locals
-      TYPE(cp_para_env_type), POINTER, OPTIONAL  :: para_env
-      TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
-      TYPE(cp_fm_struct_type), POINTER, OPTIONAL   :: matrix_struct
-      REAL(KIND=dp), DIMENSION(:, :), POINTER, OPTIONAL :: local_data
+      TYPE(cp_fm_type), POINTER                          :: matrix
+      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: name
+      INTEGER, INTENT(OUT), OPTIONAL                     :: nrow_global, ncol_global, nrow_block, &
+                                                            ncol_block, nrow_local, ncol_local
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: row_indices, col_indices
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: local_data
+      TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: context
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nrow_locals, ncol_locals
+      TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: matrix_struct
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_get_info', &
-                                     routineP = moduleN//':'//routineN
-#if defined(__SCALAPACK)
-      INTEGER, EXTERNAL :: indxl2g
-#endif
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_get_info', routineP = moduleN//':'//routineN
 
       IF (PRESENT(name)) name = matrix%name
       IF (PRESENT(context)) context => matrix%matrix_struct%context
@@ -915,6 +912,19 @@ CONTAINS
       IF (PRESENT(para_env)) para_env => matrix%matrix_struct%para_env
 
    END SUBROUTINE cp_fm_get_info
+
+! **************************************************************************************************
+!> \brief Write nicely formatted info about the FM to the given I/O unit (including the underlying FM struct)
+!> \param matrix a cp_fm_type instance
+!> \param io_unit the I/O unit to use for writing
+! **************************************************************************************************
+   SUBROUTINE cp_fm_write_info(matrix, io_unit)
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: matrix
+      INTEGER, INTENT(IN)                                :: io_unit
+
+      WRITE (io_unit, '(/,A,A12)') "CP_FM | Name:                           ", matrix%name
+      CALL cp_fm_struct_write_info(matrix%matrix_struct, io_unit)
+   END SUBROUTINE cp_fm_write_info
 
 ! **************************************************************************************************
 !> \brief find the maximum absolute value of the matrix element

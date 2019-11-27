@@ -91,7 +91,7 @@ CONTAINS
 
       WRITE (io_unit, '(/,A,I10)') "CP_FM_DIAG| Matrix order:           ", self%matrix_order
       WRITE (io_unit, '(A,I6,A)') "CP_FM_DIAG| Matrix distributed on ", self%num_pe_old, " processes"
-      WRITE (io_unit, '(A,I5)') "CP_FM_DIAG| Optimal number of CPUs: ", self%num_pe_opt
+      WRITE (io_unit, '(A,I5)') "CP_FM_DIAG| Optimal number of CPUs:      ", self%num_pe_opt
       IF (self%num_pe_max_nz_col < 0) THEN
          WRITE (io_unit, '(A,A)') "CP_FM_DIAG| Max number of CPUs (with non-zero columns): ", "<N/A>"
       ELSE
