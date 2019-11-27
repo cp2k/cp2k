@@ -44,8 +44,8 @@ MODULE cp_fm_struct
    PUBLIC :: cp_fm_struct_create, cp_fm_struct_retain, cp_fm_struct_release, &
              cp_fm_struct_equivalent, &
              cp_fm_struct_get, cp_fm_struct_double, cp_fm_struct_config, &
-             cp_fm_struct_get_nrow_block, cp_fm_struct_get_ncol_block
-!***
+             cp_fm_struct_get_nrow_block, cp_fm_struct_get_ncol_block, &
+             cp_fm_struct_write_info
 
 ! **************************************************************************************************
 !> \brief keeps the information about the structure of a full matrix
@@ -501,6 +501,42 @@ CONTAINS
 
       ENDIF
    END SUBROUTINE cp_fm_struct_get
+
+! **************************************************************************************************
+!> \brief Write nicely formatted info about the FM struct to the given I/O unit
+!> \param fmstruct a cp_fm_struct_type instance
+!> \param io_unit the I/O unit to use for writing
+! **************************************************************************************************
+   SUBROUTINE cp_fm_struct_write_info(fmstruct, io_unit)
+      TYPE(cp_fm_struct_type), INTENT(IN), POINTER       :: fmstruct
+      INTEGER, INTENT(IN)                                :: io_unit
+
+      INTEGER, PARAMETER                                 :: oblock_size = 8
+
+      CHARACTER(len=30)                                  :: fm
+      INTEGER                                            :: oblock
+
+      WRITE (fm, "(A,I2,A)") "(A,I5,A,I5,A,", oblock_size, "I6)"
+
+      WRITE (io_unit, '(A,I12)') "CP_FM_STRUCT | No. of matrix columns:   ", fmstruct%ncol_global
+      WRITE (io_unit, '(A,I12)') "CP_FM_STRUCT | No. of matrix rows:      ", fmstruct%nrow_global
+      WRITE (io_unit, '(A,I12)') "CP_FM_STRUCT | No. of block columns:    ", fmstruct%ncol_block
+      WRITE (io_unit, '(A,I12)') "CP_FM_STRUCT | No. of block rows:       ", fmstruct%nrow_block
+
+      WRITE (io_unit, '(A)') "CP_FM_STRUCT | Number of local columns: "
+      DO oblock = 0, (SIZE(fmstruct%ncol_locals) - 1)/oblock_size
+         WRITE (io_unit, fm) "CP_FM_STRUCT | CPUs ", &
+            oblock*oblock_size, "..", (oblock + 1)*oblock_size - 1, ": ", &
+            fmstruct%ncol_locals(oblock*oblock_size:MIN(SIZE(fmstruct%ncol_locals), (oblock + 1)*oblock_size) - 1)
+      END DO
+
+      WRITE (io_unit, '(A)') "CP_FM_STRUCT | Number of local rows:    "
+      DO oblock = 0, (SIZE(fmstruct%nrow_locals) - 1)/oblock_size
+         WRITE (io_unit, fm) "CP_FM_STRUCT | CPUs ", &
+            oblock*oblock_size, "..", (oblock + 1)*oblock_size - 1, ": ", &
+            fmstruct%nrow_locals(oblock*oblock_size:MIN(SIZE(fmstruct%nrow_locals), (oblock + 1)*oblock_size) - 1)
+      END DO
+   END SUBROUTINE cp_fm_struct_write_info
 
 ! **************************************************************************************************
 !> \brief creates a struct with twice the number of blocks on each core.
