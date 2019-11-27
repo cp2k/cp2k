@@ -40,7 +40,10 @@ case "$with_scalapack" in
             mkdir -p "scalapack-${scalapack_ver}/build"
             pushd "scalapack-${scalapack_ver}/build" >/dev/null
 
-            cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DCMAKE_INSTALL_LIBDIR="lib" -DCMAKE_BUILD_TYPE=Release .. > configure.log 2>&1
+            cmake -DCMAKE_FIND_ROOT_PATH="$ROOTDIR" \
+                  -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+                  -DCMAKE_INSTALL_LIBDIR="lib" \
+                  -DCMAKE_BUILD_TYPE=Release .. > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install >> make.log 2>&1
 
