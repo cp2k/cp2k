@@ -271,14 +271,14 @@ CONTAINS
 
       CALL create_libxc_section(subsection, "LIBXC", &
                                 "Uses functionals from LIBXC, see also "// &
-                                "https://gitlab.com/libxc/libxc/wikis/Functionals-list-4.0.4", &
+                                "https://www.tddft.org/programs/libxc/functionals/", &
                                 "FUNCTIONAL GGA_X_PBE")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
       CALL create_libxc_section(subsection, "KE_LIBXC", &
                                 "To be used for KG runs. Uses kinetic energy functionals from LIBXC, "// &
-                                "https://gitlab.com/libxc/libxc/wikis/Functionals-list-4.0.4", &
+                                "https://www.tddft.org/programs/libxc/functionals/", &
                                 "FUNCTIONAL GGA_K_LLP")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -756,7 +756,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="FUNCTIONAL", &
                           description="name of the functional, see also "// &
-                          "https://gitlab.com/libxc/libxc/wikis/Functionals-list-4.0.4 "// &
+                          "https://www.tddft.org/programs/libxc/functionals/ "// &
                           "The precise list of available functionals depends on "// &
                           "the version of the linked libxc.", &
                           usage=usage, type_of_var=char_t)
