@@ -11,12 +11,14 @@ MODULE cp_fm_elpa
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_diag_utils,                ONLY: cp_fm_redistribute_start,&
-                                              cp_fm_redistribute_end
+                                              cp_fm_redistribute_end,&
+                                              cp_fm_redistribute_info
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get
    USE cp_fm_types,                     ONLY: cp_fm_type, &
                                               cp_fm_to_fm, &
                                               cp_fm_release, &
-                                              cp_fm_create
+                                              cp_fm_create, &
+                                              cp_fm_write_info
    USE cp_log_handling,                 ONLY: cp_get_default_logger, &
                                               cp_logger_get_default_io_unit, &
                                               cp_logger_type
@@ -286,6 +288,7 @@ $: "#endif"
 #if defined(__ELPA)
       INTEGER                                  :: handle
       TYPE(cp_fm_type), POINTER                :: eigenvectors_new, matrix_new
+      TYPE(cp_fm_redistribute_info)            :: rdinfo
 
       CALL timeset(routineN, handle)
 
@@ -294,11 +297,11 @@ $: "#endif"
       ! The redistributed matrix is stored in matrix_new, which is just a pointer
       ! to the original matrix if no redistribution is required.
       ! With ELPA, we have to make sure that all processor columns have nonzero width
-      CALL cp_fm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new, caller_is_elpa=.TRUE.)
+      CALL cp_fm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new, caller_is_elpa=.TRUE., redist_info=rdinfo)
 
       ! Call ELPA on CPUs that hold the new matrix
       IF (ASSOCIATED(matrix_new)) &
-         CALL cp_fm_diag_elpa_base(matrix_new, eigenvectors_new, eigenvalues)
+         CALL cp_fm_diag_elpa_base(matrix_new, eigenvectors_new, eigenvalues, rdinfo)
 
       ! Redistribute results and clean up
       CALL cp_fm_redistribute_end(matrix, eigenvectors, eigenvalues, matrix_new, eigenvectors_new)
@@ -321,10 +324,11 @@ $: "#endif"
 !> \param eigenvectors eigenvectors of the input matrix
 !> \param eigenvalues eigenvalues of the input matrix
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_diag_elpa_base(matrix, eigenvectors, eigenvalues)
+   SUBROUTINE cp_fm_diag_elpa_base(matrix, eigenvectors, eigenvalues, rdinfo)
 
-      TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:)              :: eigenvalues
+      TYPE(cp_fm_type), POINTER, INTENT(INOUT) :: matrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: eigenvalues
+      TYPE(cp_fm_redistribute_info), INTENT(IN) :: rdinfo
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_diag_elpa_base'
 
@@ -342,9 +346,11 @@ $: "#endif"
       TYPE(cp_fm_type), POINTER                :: matrix_noqr, eigenvectors_noqr
       TYPE(cp_logger_type), POINTER            :: logger
       REAL(KIND=dp), PARAMETER                 :: th = 1.0E-14_dp
+      INTEGER, DIMENSION(:), POINTER           :: ncol_locals
 
       CALL timeset(routineN, handle)
       NULLIFY(logger)
+      NULLIFY (ncol_locals)
 
       check_eigenvalues = .FALSE.
 
@@ -364,11 +370,15 @@ $: "#endif"
       CALL cp_fm_struct_get(matrix%matrix_struct, &
                             local_leading_dimension=n_rows, &
                             ncol_local=n_cols, &
-                            nrow_block=nblk)
+                            nrow_block=nblk, &
+                            ncol_locals=ncol_locals)
 
       ! ELPA will fail in 'solve_tridi', with no useful error message, fail earlier
-      IF (n_cols == 0) &
+      IF (io_unit > 0 .AND. ANY(ncol_locals == 0)) THEN
+         CALL rdinfo%write(io_unit)
+         CALL cp_fm_write_info(matrix, io_unit)
          CPABORT("ELPA [pre-fail]: Problem contains processor column with zero width.")
+      END IF
 
       neig = SIZE(eigenvalues, 1)
       ! Decide if matrix is suitable for ELPA to use QR
