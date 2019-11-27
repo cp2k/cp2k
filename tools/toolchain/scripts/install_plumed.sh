@@ -43,6 +43,7 @@ case "$with_plumed" in
             CXX="${MPICXX}" ./configure --prefix=${pkg_install_dir} > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         PLUMED_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         ;;
