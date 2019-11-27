@@ -40,7 +40,7 @@ case "$with_plumed" in
 
             echo "Installing from scratch into ${pkg_install_dir}"
             cd plumed-${plumed_ver}
-            CXX="${MPICXX}" ./configure --prefix=${pkg_install_dir} > configure.log 2>&1
+            ./configure CXX="${MPICXX}" --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
