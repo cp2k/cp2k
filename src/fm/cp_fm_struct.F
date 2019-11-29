@@ -106,8 +106,10 @@ CONTAINS
 !> \param context the blacs context of this matrix
 !> \param nrow_global the number of row of the full matrix
 !> \param ncol_global the number of colums of the full matrix
-!> \param nrow_block the number of rows of a block of the matrix ! useful defaults are in, do not specify
-!> \param ncol_block the number of colums of a block of the matrix ! useful defaults are in, do not specify
+!> \param nrow_block the number of rows of a block of the matrix,
+!>        omit or set to -1 to use the built-in defaults
+!> \param ncol_block the number of colums of a block of the matrix,
+!>        omit or set to -1 to use the built-in defaults
 !> \param descriptor the scalapack descriptor of the matrix (if not given
 !>        a new one is allocated
 !> \param first_p_pos ...
@@ -196,7 +198,8 @@ CONTAINS
 
       ! try to avoid small left-over blocks (anyway naive)
       IF (PRESENT(nrow_block)) THEN
-         fmstruct%nrow_block = nrow_block
+         IF (nrow_block > 0) & ! allows setting the number of blocks to -1 to explicitly set to auto
+            fmstruct%nrow_block = nrow_block
       END IF
       IF (.NOT. my_force_block) THEN
          dumblock = CEILING(REAL(fmstruct%nrow_global, KIND=dp)/ &
@@ -204,7 +207,8 @@ CONTAINS
          fmstruct%nrow_block = MAX(1, MIN(fmstruct%nrow_block, dumblock))
       END IF
       IF (PRESENT(ncol_block)) THEN
-         fmstruct%ncol_block = ncol_block
+         IF (ncol_block > 0) & ! allows setting the number of blocks to -1 to explicitly set to auto
+            fmstruct%ncol_block = ncol_block
       END IF
       IF (.NOT. my_force_block) THEN
          dumblock = CEILING(REAL(fmstruct%ncol_global, KIND=dp)/ &
