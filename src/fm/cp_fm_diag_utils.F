@@ -297,7 +297,7 @@ CONTAINS
 #if defined(__SCALAPACK)
       REAL(KIND=dp)                            :: fake_local_data(1, 1)
       INTEGER                                  :: fake_descriptor(9), mepos_old, &
-                                                  io_unit, ngroups
+                                                  io_unit, ngroups, ncol_block
       TYPE(cp_fm_struct_type), POINTER         :: fm_struct_new
       TYPE(cp_para_env_type), POINTER          :: para_env
       TYPE(cp_logger_type), POINTER            :: logger
@@ -327,6 +327,7 @@ CONTAINS
       ! we take a multiple of 4, and approximately n/60
       para_env => matrix%matrix_struct%para_env
       mepos_old = para_env%mepos
+      ncol_block = -1 ! normally we also want to adjust the block size according to the optimal # of CPUs
 
       rdinfo%matrix_order = matrix%matrix_struct%nrow_global
       rdinfo%num_pe_old = para_env%num_pe
@@ -352,6 +353,11 @@ CONTAINS
          ELSE IF (rdinfo%num_pe_old > rdinfo%num_pe_max_nz_col) THEN
             ! Otherwise, only redistribute if we have to
             rdinfo%num_pe_new = rdinfo%num_pe_max_nz_col
+            ! do NOT let cp_fm_struct_create automatically adjust the block size because the
+            ! calculated number of processors such that no block has 0 columns wouldn't match (see #578):
+            ! if the automatically chosen block size is larger than the present one we would still end
+            ! up with empty processors
+            CALL cp_fm_get_info(matrix, ncol_block=ncol_block)
          END IF
       END IF
 
@@ -392,7 +398,8 @@ CONTAINS
             CALL cp_fm_struct_create(fmstruct=fm_struct_new, &
                                      para_env=work_redistribute%para_env_new, &
                                      context=work_redistribute%blacs_env_new, &
-                                     nrow_global=rdinfo%matrix_order, ncol_global=rdinfo%matrix_order)
+                                     nrow_global=rdinfo%matrix_order, ncol_global=rdinfo%matrix_order, &
+                                     ncol_block=ncol_block)
             CALL cp_fm_create(matrix_new, matrix_struct=fm_struct_new, name="yevd_new_mat")
             CALL cp_fm_create(eigenvectors_new, matrix_struct=fm_struct_new, name="yevd_new_vec")
             CALL cp_fm_struct_release(fm_struct_new)
