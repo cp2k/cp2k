@@ -55,6 +55,8 @@ PROGRAM cp2k
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_section_types,             ONLY: section_release,&
                                               section_type
+   USE iso_fortran_env,                 ONLY: compiler_options,&
+                                              compiler_version
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
    USE machine,                         ONLY: default_output_unit
@@ -65,6 +67,7 @@ PROGRAM cp2k
    CHARACTER(LEN=default_path_length)   :: input_file_name, output_file_name, &
                                            arg_att, command
    CHARACTER(LEN=default_string_length) :: dev_flag
+   CHARACTER(LEN=*), PARAMETER          :: compiler_options_string = compiler_options()
    INTEGER                              :: output_unit, l, i
    INTEGER                              :: ierr, i_arg
    LOGICAL                              :: check, usage, echo_input, command_line_error
@@ -236,11 +239,18 @@ PROGRAM cp2k
          IF (print_version) THEN
             IF (default_para_env%ionode) THEN
                dev_flag = ""
-               IF (id_cp2k_version == id_development_version) dev_flag = " (Development Version)"
+               IF (id_cp2k_version == id_development_version) &
+                  dev_flag = " (Development Version)"
                WRITE (output_unit, "(T2,A)") &
                   cp2k_version//TRIM(dev_flag), &
                   "Source code revision "//TRIM(compile_revision), &
                   TRIM(cp2k_flags())
+               WRITE (output_unit, "(T2,A,A)") "compiler: ", compiler_version()
+               WRITE (output_unit, "(T2,A)") "compiler options:"
+               DO i = 0, (LEN(compiler_options_string) - 1)/68
+                  WRITE (output_unit, "(T4,A)") &
+                     compiler_options_string(i*68 + 1:MIN(LEN(compiler_options_string), (i + 1)*68))
+               END DO
             ENDIF
          ENDIF
 
