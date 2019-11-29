@@ -27,11 +27,11 @@ echo -e "\n========== Running Benchmarks =========="
 ARTIFACTS="/workspace/artifacts/benchmarks/"
 mkdir -p ${ARTIFACTS}
 
-export OMP_NUM_THREADS=8
 NPROC=$(nproc)
+OMP_NUM_THREADS=8
 NUM_MPI_RANKS=$(( NPROC / OMP_NUM_THREADS ))
 echo "Found ${NPROC} processors, using ${NUM_MPI_RANKS} MPI ranks with ${OMP_NUM_THREADS} OpenMP threads each."
-CP2K="mpiexec -np ${NUM_MPI_RANKS} /workspace/cp2k/exe/${ARCH}/cp2k.psmp"
+CP2K="OMP_NUM_THREADS=${OMP_NUM_THREADS} mpiexec -np ${NUM_MPI_RANKS} /workspace/cp2k/exe/${ARCH}/cp2k.psmp"
 
 echo "Running benchmarks/QS/H2O-64.inp ..."
 T1=$(date +%s)
