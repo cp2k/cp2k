@@ -128,6 +128,8 @@ CONTAINS
 !> \param t_3c_overl_int_gw_AO ...
 !> \param mat_3c_overl_nnP_ic ...
 !> \param mat_3c_overl_nnP_ic_reflected ...
+!> \param t_3c_overl_nnP_ic ...
+!> \param t_3c_overl_nnP_ic_reflected ...
 !> \param matrix_s ...
 !> \param mat_W ...
 !> \param mat_3c_overl_int ...
@@ -145,6 +147,8 @@ CONTAINS
 !> \param t_3c_overl_int_gw_AO_beta ...
 !> \param mat_3c_overl_nnP_ic_beta ...
 !> \param mat_3c_overl_nnP_ic_reflected_beta ...
+!> \param t_3c_overl_nnP_ic_beta ...
+!> \param t_3c_overl_nnP_ic_reflected_beta ...
 ! **************************************************************************************************
    SUBROUTINE allocate_matrices_gw_im_time(cut_RI, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, homo, nmo, &
                                            num_integ_points, unit_nr, my_group_L_sizes_im_time, my_group_L_starts_im_time, &
@@ -153,6 +157,7 @@ CONTAINS
                                            mo_coeff, mat_dm_virt_local, mat_3c_overl_int_gw, &
                                            do_dbcsr_t, t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                            mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, &
+                                           t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                            matrix_s, mat_W, mat_3c_overl_int, t_3c_overl_int, &
                                            mat_contr_gf_occ, mat_contr_gf_virt, &
                                            mat_contr_W, qs_env, &
@@ -160,7 +165,8 @@ CONTAINS
                                            mo_coeff_beta, mat_3c_overl_int_gw_beta, &
                                            t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
                                            mat_3c_overl_nnP_ic_beta, &
-                                           mat_3c_overl_nnP_ic_reflected_beta)
+                                           mat_3c_overl_nnP_ic_reflected_beta, &
+                                           t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta)
 
       INTEGER, INTENT(IN)                                :: cut_RI, gw_corr_lev_occ, &
                                                             gw_corr_lev_tot, gw_corr_lev_virt, &
@@ -178,8 +184,10 @@ CONTAINS
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_gw_RI, &
                                                             t_3c_overl_int_gw_AO
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_nnP_ic, &
-                                                            mat_3c_overl_nnP_ic_reflected, &
-                                                            matrix_s, mat_W
+                                                            mat_3c_overl_nnP_ic_reflected
+      TYPE(dbcsr_t_type)                                 :: t_3c_overl_nnP_ic, &
+                                                            t_3c_overl_nnP_ic_reflected
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, mat_W
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int
       TYPE(dbcsr_t_type), DIMENSION(:, :)                :: t_3c_overl_int
       TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ, mat_contr_gf_virt, &
@@ -194,6 +202,7 @@ CONTAINS
                                                             t_3c_overl_int_gw_AO_beta
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: mat_3c_overl_nnP_ic_beta, &
          mat_3c_overl_nnP_ic_reflected_beta
+      TYPE(dbcsr_t_type), OPTIONAL :: t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_matrices_gw_im_time', &
          routineP = moduleN//':'//routineN
@@ -267,7 +276,7 @@ CONTAINS
                                         gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
                                         para_env, &
                                         do_ic_model, &
-                                        do_ic_opt_homo_lumo, &
+                                        t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                         qs_env, unit_nr)
       ENDIF
 
@@ -328,7 +337,7 @@ CONTAINS
                                            gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, nmo, &
                                            para_env, &
                                            do_ic_model, &
-                                           do_ic_opt_homo_lumo, &
+                                           t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta, &
                                            qs_env, unit_nr)
          ENDIF
 
@@ -876,6 +885,8 @@ CONTAINS
 !> \param mat_greens_fct_virt ...
 !> \param mat_3c_overl_nnP_ic ...
 !> \param mat_3c_overl_nnP_ic_reflected ...
+!> \param t_3c_overl_nnP_ic ...
+!> \param t_3c_overl_nnP_ic_reflected ...
 !> \param mat_W ...
 !> \param mat_3c_overl_int ...
 !> \param mat_contr_gf_occ ...
@@ -888,6 +899,8 @@ CONTAINS
 !> \param t_3c_overl_int_gw_AO_beta ...
 !> \param mat_3c_overl_nnP_ic_beta ...
 !> \param mat_3c_overl_nnP_ic_reflected_beta ...
+!> \param t_3c_overl_nnP_ic_beta ...
+!> \param t_3c_overl_nnP_ic_reflected_beta ...
 !> \param mat_greens_fct_occ_beta ...
 !> \param mat_greens_fct_virt_beta ...
 ! **************************************************************************************************
@@ -895,11 +908,13 @@ CONTAINS
                                              do_dbcsr_t, &
                                              fm_mat_W_tau, mat_3c_overl_int_gw, t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                              mat_greens_fct_occ, mat_greens_fct_virt, &
-                                             mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, mat_W, mat_3c_overl_int, &
+                                             mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, &
+                                             t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
+                                             mat_W, mat_3c_overl_int, &
                                              mat_contr_gf_occ, mat_contr_gf_virt, mat_contr_W, ikp_local, cfm_mat_W_kp_tau, &
                                              mat_3c_overl_int_gw_beta, t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
-                                             mat_3c_overl_nnP_ic_beta, &
-                                             mat_3c_overl_nnP_ic_reflected_beta, &
+                                             mat_3c_overl_nnP_ic_beta, mat_3c_overl_nnP_ic_reflected_beta, &
+                                             t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta, &
                                              mat_greens_fct_occ_beta, mat_greens_fct_virt_beta)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
@@ -913,7 +928,10 @@ CONTAINS
                                                             t_3c_overl_int_gw_AO
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_greens_fct_occ, mat_greens_fct_virt, &
                                                             mat_3c_overl_nnP_ic, &
-                                                            mat_3c_overl_nnP_ic_reflected, mat_W
+                                                            mat_3c_overl_nnP_ic_reflected
+      TYPE(dbcsr_t_type)                                 :: t_3c_overl_nnP_ic, &
+                                                            t_3c_overl_nnP_ic_reflected
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_W
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int
       TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ, mat_contr_gf_virt, &
                                                             mat_contr_W
@@ -924,7 +942,11 @@ CONTAINS
       TYPE(dbcsr_t_type), OPTIONAL                       :: t_3c_overl_int_gw_RI_beta, &
                                                             t_3c_overl_int_gw_AO_beta
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: mat_3c_overl_nnP_ic_beta, &
-         mat_3c_overl_nnP_ic_reflected_beta, mat_greens_fct_occ_beta, mat_greens_fct_virt_beta
+         mat_3c_overl_nnP_ic_reflected_beta
+      TYPE(dbcsr_t_type), OPTIONAL :: t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: mat_greens_fct_occ_beta, &
+                                                            mat_greens_fct_virt_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_gw_im_time', &
          routineP = moduleN//':'//routineN
@@ -996,6 +1018,12 @@ CONTAINS
          CALL dbcsr_t_destroy(t_3c_overl_int_gw_AO)
          IF (PRESENT(t_3c_overl_int_gw_RI_beta)) CALL dbcsr_t_destroy(t_3c_overl_int_gw_RI_beta)
          IF (PRESENT(t_3c_overl_int_gw_AO_beta)) CALL dbcsr_t_destroy(t_3c_overl_int_gw_AO_beta)
+         IF (do_ic_model) THEN
+            CALL dbcsr_t_destroy(t_3c_overl_nnP_ic)
+            CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_reflected)
+            IF (PRESENT(t_3c_overl_nnP_ic_beta)) CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_beta)
+            IF (PRESENT(t_3c_overl_nnP_ic_reflected_beta)) CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_reflected_beta)
+         ENDIF
       ENDIF
 
       CALL timestop(handle)
@@ -5325,7 +5353,7 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: t3c_1, t3c_2
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_Sigma
       INTEGER, DIMENSION(2), INTENT(IN)                  :: mo_bounds
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER                                            :: blk, n, n_end, n_end_block, n_start, &
                                                             n_start_block

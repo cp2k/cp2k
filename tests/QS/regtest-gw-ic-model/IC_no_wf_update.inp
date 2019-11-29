@@ -55,7 +55,6 @@
         RI OVERLAP
         IM_TIME
         &IM_TIME
-          DO_DBCSR_T .FALSE.
         &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  5

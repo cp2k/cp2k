@@ -1508,10 +1508,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_dm_loc_occ_cut, mat_dm_loc_virt_cut
       TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER :: mat_3c_overl_int_cut, &
          mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut
-      TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_gw_AO, &
-                                                            t_3c_overl_int_gw_AO_beta, &
-                                                            t_3c_overl_int_gw_RI, &
-                                                            t_3c_overl_int_gw_RI_beta
+      TYPE(dbcsr_t_type) :: t_3c_overl_int_gw_AO, t_3c_overl_int_gw_AO_beta, t_3c_overl_int_gw_RI, &
+         t_3c_overl_int_gw_RI_beta, t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_beta, &
+         t_3c_overl_nnP_ic_reflected, t_3c_overl_nnP_ic_reflected_beta
       TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ, mat_contr_gf_virt, &
                                                             mat_contr_W, mat_dm_loc_occ, &
                                                             mat_dm_loc_virt, mat_work
@@ -1626,6 +1625,7 @@ CONTAINS
                                                     mo_coeff, mat_dm_virt_local, mat_3c_overl_int_gw, &
                                                     do_dbcsr_t, t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                                     mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, &
+                                                    t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                                     matrix_s, mat_W, mat_3c_overl_int, t_3c_overl_int, &
                                                     mat_contr_gf_occ, mat_contr_gf_virt, &
                                                     mat_contr_W, qs_env, &
@@ -1633,7 +1633,8 @@ CONTAINS
                                                     mo_coeff_beta, mat_3c_overl_int_gw_beta, &
                                                     t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
                                                     mat_3c_overl_nnP_ic_beta, &
-                                                    mat_3c_overl_nnP_ic_reflected_beta)
+                                                    mat_3c_overl_nnP_ic_reflected_beta, &
+                                                    t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta)
                ELSE
                   CALL allocate_matrices_gw_im_time(cut_RI, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, homo, nmo, &
                                                    num_integ_points, unit_nr, my_group_L_sizes_im_time, my_group_L_starts_im_time, &
@@ -1642,6 +1643,7 @@ CONTAINS
                                                     mo_coeff, mat_dm_virt_local, mat_3c_overl_int_gw, &
                                                     do_dbcsr_t, t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                                     mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, &
+                                                    t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                                     matrix_s, mat_W, mat_3c_overl_int, t_3c_overl_int, &
                                                     mat_contr_gf_occ, mat_contr_gf_virt, &
                                                     mat_contr_W, qs_env)
@@ -2154,19 +2156,25 @@ CONTAINS
          IF (my_open_shell) THEN
 
             CALL calculate_ic_correction(Eigenval, mat_SinvVSinv, mat_3c_overl_nnP_ic, &
-                                         mat_3c_overl_nnP_ic_reflected, mat_contr_gf_occ, matrix_s, gw_corr_lev_tot, &
+                                         mat_3c_overl_nnP_ic_reflected, do_dbcsr_t, &
+                                         t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
+                                         mat_contr_gf_occ, matrix_s, gw_corr_lev_tot, &
                                          gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, dimen_RI, unit_nr, print_ic_values, &
                                          do_ic_opt_homo_lumo, fm_mat_Q, para_env, mp2_env, do_alpha=.TRUE.)
 
             CALL calculate_ic_correction(Eigenval_beta, mat_SinvVSinv, mat_3c_overl_nnP_ic_beta, &
-                                         mat_3c_overl_nnP_ic_reflected_beta, mat_contr_gf_occ, matrix_s, gw_corr_lev_tot, &
+                                         mat_3c_overl_nnP_ic_reflected_beta, &
+                                         do_dbcsr_t, t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta, &
+                                         mat_contr_gf_occ, matrix_s, gw_corr_lev_tot, &
                                          gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, nmo, dimen_RI, unit_nr, &
                                          print_ic_values, do_ic_opt_homo_lumo, fm_mat_Q, para_env, mp2_env, do_beta=.TRUE.)
 
          ELSE
 
             CALL calculate_ic_correction(Eigenval, mat_SinvVSinv, mat_3c_overl_nnP_ic, &
-                                         mat_3c_overl_nnP_ic_reflected, mat_contr_gf_occ, matrix_s, gw_corr_lev_tot, &
+                                         mat_3c_overl_nnP_ic_reflected, do_dbcsr_t, &
+                                         t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
+                                         mat_contr_gf_occ, matrix_s, gw_corr_lev_tot, &
                                          gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, dimen_RI, unit_nr, print_ic_values, &
                                          do_ic_opt_homo_lumo, fm_mat_Q, para_env, mp2_env)
 
@@ -2258,11 +2266,13 @@ CONTAINS
                                                    t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                                    mat_greens_fct_occ, &
                                                    mat_greens_fct_virt, mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, &
+                                                   t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                                    mat_W, mat_3c_overl_int, mat_contr_gf_occ, mat_contr_gf_virt, mat_contr_W, &
                                                    ikp_local, cfm_mat_W_kp_tau, &
                                                    mat_3c_overl_int_gw_beta, t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
                                                    mat_3c_overl_nnP_ic_beta, &
                                                    mat_3c_overl_nnP_ic_reflected_beta, &
+                                                   t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta, &
                                                    mat_greens_fct_occ_beta, mat_greens_fct_virt_beta)
             ELSE
                CALL deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, &
@@ -2270,6 +2280,7 @@ CONTAINS
                                                    t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                                    mat_greens_fct_occ, &
                                                    mat_greens_fct_virt, mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, &
+                                                   t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                                    mat_W, mat_3c_overl_int, mat_contr_gf_occ, mat_contr_gf_virt, mat_contr_W, &
                                                    ikp_local, cfm_mat_W_kp_tau)
             END IF
