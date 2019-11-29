@@ -28,7 +28,8 @@ ARTIFACTS="/workspace/artifacts/benchmarks/"
 mkdir -p ${ARTIFACTS}
 
 export OMP_NUM_THREADS=8
-NUM_MPI_RANKS=$(( $(nproc) / OMP_NUM_THREADS ))
+NPROC=$(nproc)
+NUM_MPI_RANKS=$(( NPROC / OMP_NUM_THREADS ))
 echo "Using ${NUM_MPI_RANKS} MPI ranks and ${OMP_NUM_THREADS} OpenMP threads."
 CP2K="mpiexec -np ${NUM_MPI_RANKS} /workspace/cp2k/exe/${ARCH}/cp2k.psmp"
 
