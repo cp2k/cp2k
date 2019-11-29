@@ -19,7 +19,7 @@ if [ -n "${GIT_REF}" ]; then
     echo -e "\n========== Fetching Git Commit =========="
     cd /workspace/cp2k
     git fetch --quiet origin "${GIT_BRANCH}"
-    git reset --quiet --hard "${GIT_REF}"
+    git -c advice.detachedHead=false checkout "${GIT_REF}"
     git submodule update --init --recursive
     git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n'
 
