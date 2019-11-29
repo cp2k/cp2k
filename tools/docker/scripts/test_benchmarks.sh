@@ -30,7 +30,7 @@ mkdir -p ${ARTIFACTS}
 export OMP_NUM_THREADS=8
 NPROC=$(nproc)
 NUM_MPI_RANKS=$(( NPROC / OMP_NUM_THREADS ))
-echo "Using ${NUM_MPI_RANKS} MPI ranks and ${OMP_NUM_THREADS} OpenMP threads."
+echo "Found ${NPROC} processors, using ${NUM_MPI_RANKS} MPI ranks with ${OMP_NUM_THREADS} OpenMP threads each."
 CP2K="mpiexec -np ${NUM_MPI_RANKS} /workspace/cp2k/exe/${ARCH}/cp2k.psmp"
 
 echo "Running benchmarks/QS/H2O-64.inp ..."
