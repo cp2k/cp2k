@@ -102,7 +102,7 @@ CONTAINS
                ENDIF
                ! add MP2 energy if necessary
                IF (ASSOCIATED(qs_env%mp2_env)) THEN
-                  energy%total = energy%total+energy%mp2
+                  energy%total = energy%total + energy%mp2
                END IF
             END IF
          END IF
