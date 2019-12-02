@@ -104,6 +104,7 @@ cp_lbfgs.F: Found WRITE statement with hardcoded unit in "subsm"
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_int_to_string"
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_logger_get_default_unit_nr"
 cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive"
+cp2k.F: Integer division truncated to constant * at (1) [-Winteger-division]
 cube_utils.F: Found WRITE statement with hardcoded unit in "return_cube_nonortho"
 d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random"
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral"
