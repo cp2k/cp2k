@@ -241,6 +241,7 @@ else
 fi
 
 export OMP_NUM_THREADS=${numthreads}
+export CP2K_DATA_DIR=${cp2k_data_dir:-"${dir_base}/${cp2k_dir}/data"}
 
 #
 # these should not be needed
