@@ -1598,7 +1598,7 @@ CONTAINS
                                              num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                              mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                              first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
-                                             do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw)
+                                             do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw, unit_nr)
 
          IF (my_open_shell) THEN
 
@@ -1617,7 +1617,7 @@ CONTAINS
                                                 num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                                 mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                                 first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
-                                                do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw_beta, do_beta=.TRUE.)
+                                                do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw_beta, unit_nr, do_beta=.TRUE.)
 
          END IF
 
@@ -4870,6 +4870,7 @@ CONTAINS
 !> \param do_GW_corr ...
 !> \param do_ri_Sigma_x ...
 !> \param vec_Sigma_x_gw ...
+!> \param unit_nr ...
 !> \param do_beta ...
 ! **************************************************************************************************
    SUBROUTINE compute_self_energy_im_time_gw(num_integ_points, nmo, tau_tj, tj, mat_greens_fct_occ, mat_greens_fct_virt, &
@@ -4884,7 +4885,7 @@ CONTAINS
                                              num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                              mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                              first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
-                                             do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw, do_beta)
+                                             do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw, unit_nr, do_beta)
       INTEGER, INTENT(IN)                                :: num_integ_points, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj, tj
@@ -4928,6 +4929,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_ri_Sigma_x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_x_gw
+      INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_self_energy_im_time_gw', &
@@ -4937,8 +4939,9 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: delta_corr_omega
       INTEGER                                            :: gw_lev_end, gw_lev_start, handle, &
                                                             handle3, iquad, jquad, mo_end, &
-                                                            mo_start, n_level_gw, n_level_gw_ref
-      LOGICAL                                            :: my_do_beta
+                                                            mo_start, n_level_gw, n_level_gw_ref, &
+                                                            unit_nr_prv
+      LOGICAL                                            :: memory_info, my_do_beta
       REAL(KIND=dp)                                      :: ext_scaling, omega, omega_i, omega_sign, &
                                                             sign_occ_virt, t_i_Clenshaw, tau, &
                                                             weight_cos, weight_i, weight_sin
@@ -4948,6 +4951,13 @@ CONTAINS
       TYPE(dbcsr_t_type)                                 :: t_3c_ctr_RI
 
       CALL timeset(routineN, handle)
+
+      memory_info = mp2_env%ri_rpa_im_time%memory_info
+      IF (memory_info) THEN
+         unit_nr_prv = unit_nr
+      ELSE
+         unit_nr_prv = 0
+      ENDIF
 
       my_do_beta = .FALSE.
       IF (PRESENT(do_beta)) my_do_beta = do_beta
@@ -4990,12 +5000,12 @@ CONTAINS
 
             CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
                                   mat_greens_fct_occ(jquad)%matrix, mat_W(jquad)%matrix, [1.0_dp, -1.0_dp], &
-                                  vec_Sigma_c_gw_neg_tau(:, jquad), [mo_start, mo_end], para_env, &
+                                  vec_Sigma_c_gw_neg_tau(:, jquad), [mo_start, mo_end], para_env, unit_nr_prv, &
                                   t_3c_ctr_RI=t_3c_ctr_RI, t_3c_ctr_in=.FALSE.)
 
             CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
                                   mat_greens_fct_virt(jquad)%matrix, mat_W(jquad)%matrix, [1.0_dp, 1.0_dp], &
-                                  vec_Sigma_c_gw_pos_tau(:, jquad), [mo_start, mo_end], para_env, &
+                                  vec_Sigma_c_gw_pos_tau(:, jquad), [mo_start, mo_end], para_env, unit_nr_prv, &
                                   t_3c_ctr_RI=t_3c_ctr_RI, t_3c_ctr_in=.TRUE.)
 
             CALL dbcsr_t_destroy(t_3c_ctr_RI)
@@ -5129,7 +5139,7 @@ CONTAINS
          IF (do_dbcsr_t) THEN
             CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
                                   mat_dm%matrix, mat_SinvVSinv%matrix, [1.0_dp, -1.0_dp], &
-                                  vec_Sigma_x_gw(mo_start:mo_end, 1), [mo_start, mo_end], para_env)
+                                  vec_Sigma_x_gw(mo_start:mo_end, 1), [mo_start, mo_end], para_env, unit_nr_prv)
          ELSE
 
             DO n_level_gw = 1, gw_corr_lev_tot
@@ -5265,12 +5275,13 @@ CONTAINS
 !> \param vec_Sigma ...
 !> \param mo_bounds ...
 !> \param para_env ...
+!> \param unit_nr ...
 !> \param t_3c_ctr_RI ...
 !> \param t_3c_ctr_in ...
 ! **************************************************************************************************
    SUBROUTINE compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
                                mat_AO, mat_RI, prefac, &
-                               vec_Sigma, mo_bounds, para_env, &
+                               vec_Sigma, mo_bounds, para_env, unit_nr, &
                                t_3c_ctr_RI, t_3c_ctr_in)
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: t_3c_overl_int_gw_AO, &
                                                             t_3c_overl_int_gw_RI
@@ -5279,6 +5290,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_Sigma
       INTEGER, DIMENSION(2), INTENT(IN)                  :: mo_bounds
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(dbcsr_t_type), INTENT(INOUT), OPTIONAL        :: t_3c_ctr_RI
       LOGICAL, INTENT(IN), OPTIONAL                      :: t_3c_ctr_in
 
@@ -5306,7 +5318,8 @@ CONTAINS
                                t_3c_overl_int_gw_copy, &
                                contract_1=[2], notcontract_1=[1], &
                                contract_2=[1], notcontract_2=[2, 3], &
-                               map_1=[1], map_2=[2, 3])
+                               map_1=[1], map_2=[2, 3], &
+                               unit_nr=unit_nr)
 
          CALL dbcsr_t_create(t_3c_overl_int_gw_AO, t_3c_ctr_RI_prv)
          CALL dbcsr_t_copy(t_3c_overl_int_gw_copy, t_3c_ctr_RI_prv, order=[2, 1, 3])
@@ -5323,7 +5336,8 @@ CONTAINS
                             t_3c_overl_int_gw_copy, &
                             contract_1=[2], notcontract_1=[1], &
                             contract_2=[1], notcontract_2=[2, 3], &
-                            map_1=[1], map_2=[2, 3])
+                            map_1=[1], map_2=[2, 3], &
+                            unit_nr=unit_nr)
 
       CALL trace_sigma_gw(t_3c_ctr_RI_prv, t_3c_overl_int_gw_copy, vec_sigma, mo_bounds, para_env)
       CALL dbcsr_t_destroy(t_3c_overl_int_gw_copy)

@@ -32,10 +32,10 @@ MODULE rpa_gw_im_time_util
         dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_type, dbcsr_type_no_symmetry
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
-        dbcsr_t_destroy, dbcsr_t_get_info, dbcsr_t_pgrid_create, dbcsr_t_pgrid_type, dbcsr_t_type
+        dbcsr_t_destroy, dbcsr_t_get_info, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, &
+        dbcsr_t_pgrid_type, dbcsr_t_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_alltoall,&
-                                              mp_dims_create,&
                                               mp_sum
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE particle_types,                  ONLY: particle_type
@@ -329,7 +329,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, icol_global, imo, irow_global, &
-                                                            npcols, nprows, size_MO, sqrt_max_bsize
+                                                            npcols, nprows, size_MO, &
+                                                            sqrt_max_bsize, unit_nr_prv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist3, sizes_AO, &
                                                             sizes_AO_split, sizes_RI, &
                                                             sizes_RI_split
@@ -337,11 +338,11 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: pdims
       INTEGER, DIMENSION(:), POINTER                     :: distp_1, distp_2, sizes_MO, sizes_MO_p1, &
                                                             sizes_MO_p2
-      LOGICAL                                            :: my_do_beta
+      LOGICAL                                            :: memory_info, my_do_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: norm
       TYPE(cp_fm_type), POINTER                          :: fm_mat_mo_coeff_gw
       TYPE(dbcsr_distribution_type)                      :: dist, dist_templ
-      TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d, pgrid_3d
+      TYPE(dbcsr_t_pgrid_type)                           :: pgrid, pgrid_ic
       TYPE(dbcsr_t_type)                                 :: mo_coeff_gw_t, t_3c_overl_int_ao_ao, &
                                                             t_3c_overl_int_ao_mo, &
                                                             t_3c_overl_int_mo_ao, &
@@ -351,7 +352,12 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: mat_mo_coeff_gw, &
                                                             mat_mo_coeff_gw_reflected
 
-      MARK_USED(unit_nr)
+      memory_info = qs_env%mp2_env%ri_rpa_im_time%memory_info
+      IF (memory_info) THEN
+         unit_nr_prv = unit_nr
+      ELSE
+         unit_nr_prv = 0
+      ENDIF
 
       my_do_beta = .FALSE.
       IF (PRESENT(do_beta)) my_do_beta = do_beta
@@ -391,28 +397,27 @@ CONTAINS
       CALL split_block_sizes(sizes_AO, sizes_AO_split, sqrt_max_bsize)
       CALL split_block_sizes(sizes_RI, sizes_RI_split, sqrt_max_bsize)
       pdims = 0
-      CALL mp_dims_create(para_env%num_pe, pdims(1:2))
-      pdims(3) = 1
-      CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_3d)
-      CALL dbcsr_t_pgrid_create(para_env%group, pdims(1:2), pgrid_2d)
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid)
 
       NULLIFY (sizes_MO)
       CALL dbcsr_get_info(mat_mo_coeff_gw, col_blk_size=sizes_MO)
-      CALL create_3c_tensor(t_3c_overl_int_ao_ao, dist1, dist2, dist3, pgrid_3d, &
+      CALL create_3c_tensor(t_3c_overl_int_ao_ao, dist1, dist2, dist3, pgrid, &
                             sizes_RI_split, sizes_AO_split, sizes_AO, [1, 2], [3], "(RI AO | AO)")
       DEALLOCATE (dist1, dist2, dist3)
       CALL dbcsr_t_copy(t_3c_overl_int(1, 1), t_3c_overl_int_ao_ao)
-      CALL create_3c_tensor(t_3c_overl_int_ao_mo, dist1, dist2, dist3, pgrid_3d, &
+      CALL create_3c_tensor(t_3c_overl_int_ao_mo, dist1, dist2, dist3, pgrid, &
                             sizes_RI_split, sizes_AO_split, sizes_MO, [1, 2], [3], "(RI AO | MO)")
       DEALLOCATE (dist1, dist2, dist3)
 
-      CALL create_3c_tensor(t_3c_overl_int_gw_RI, dist1, dist2, dist3, pgrid_3d, &
+      CALL create_3c_tensor(t_3c_overl_int_gw_RI, dist1, dist2, dist3, pgrid, &
                             sizes_RI, sizes_AO_split, sizes_MO, [1], [2, 3], "(RI | AO MO)")
       DEALLOCATE (dist1, dist2, dist3)
 
-      CALL create_3c_tensor(t_3c_overl_int_gw_AO, dist1, dist2, dist3, pgrid_3d, &
+      CALL create_3c_tensor(t_3c_overl_int_gw_AO, dist1, dist2, dist3, pgrid, &
                             sizes_AO, sizes_RI_split, sizes_MO, [1], [2, 3], "(AO | RI MO)")
       DEALLOCATE (dist1, dist2, dist3)
+
+      CALL dbcsr_t_pgrid_destroy(pgrid)
 
       CALL dbcsr_t_create(mat_mo_coeff_gw, mo_coeff_gw_t, name="MO coeffs")
       CALL dbcsr_t_copy_matrix_to_tensor(mat_mo_coeff_gw, mo_coeff_gw_t)
@@ -423,7 +428,7 @@ CONTAINS
       CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), mo_coeff_gw_t, t_3c_overl_int_ao_ao, dbcsr_scalar(0.0_dp), &
                             t_3c_overl_int_ao_mo, contract_1=[1], notcontract_1=[2], &
                             contract_2=[3], notcontract_2=[1, 2], map_1=[3], map_2=[1, 2], &
-                            bounds_2=bounds, move_data=.FALSE.)
+                            bounds_2=bounds, move_data=.FALSE., unit_nr=unit_nr_prv)
 
       CALL dbcsr_t_copy(t_3c_overl_int_ao_mo, t_3c_overl_int_gw_RI)
       CALL dbcsr_t_copy(t_3c_overl_int_ao_mo, t_3c_overl_int_gw_AO, order=[2, 1, 3])
@@ -431,23 +436,27 @@ CONTAINS
       CALL cp_fm_release(fm_mat_mo_coeff_gw)
 
       IF (do_ic_model) THEN
+         pdims = 0
+         CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_ic)
 
-         CALL create_3c_tensor(t_3c_overl_int_mo_ao, dist1, dist2, dist3, pgrid_3d, &
+         CALL create_3c_tensor(t_3c_overl_int_mo_ao, dist1, dist2, dist3, pgrid_ic, &
                                sizes_RI_split, sizes_MO, sizes_AO, [1, 2], [3], "(RI MO | AO)")
          DEALLOCATE (dist1, dist2, dist3)
-         CALL create_3c_tensor(t_3c_overl_int_mo_mo, dist1, dist2, dist3, pgrid_3d, &
+         CALL create_3c_tensor(t_3c_overl_int_mo_mo, dist1, dist2, dist3, pgrid_ic, &
                                sizes_RI_split, sizes_MO, sizes_MO, [1, 2], [3], "(RI MO | MO)")
          DEALLOCATE (dist1, dist2, dist3)
          CALL dbcsr_t_create(t_3c_overl_int_mo_mo, t_3c_overl_nnP_ic)
-         CALL create_3c_tensor(t_3c_overl_nnP_ic_reflected, dist1, dist2, dist3, pgrid_3d, &
+         CALL create_3c_tensor(t_3c_overl_nnP_ic_reflected, dist1, dist2, dist3, pgrid_ic, &
                                sizes_RI_split, sizes_MO, sizes_MO, [1], [2, 3], "(RI | MO MO)")
          DEALLOCATE (dist1, dist2, dist3)
+
+         CALL dbcsr_t_pgrid_destroy(pgrid_ic)
 
          CALL dbcsr_t_copy(t_3c_overl_int_ao_mo, t_3c_overl_int_mo_ao, order=[1, 3, 2])
          CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), mo_coeff_gw_t, t_3c_overl_int_mo_ao, dbcsr_scalar(0.0_dp), &
                                t_3c_overl_int_mo_mo, contract_1=[1], notcontract_1=[2], &
                                contract_2=[3], notcontract_2=[1, 2], map_1=[3], map_2=[1, 2], &
-                               bounds_2=bounds, move_data=.FALSE.)
+                               bounds_2=bounds, move_data=.FALSE., unit_nr=unit_nr_prv)
          CALL dbcsr_t_copy(t_3c_overl_int_mo_mo, t_3c_overl_nnP_ic)
 
          NULLIFY (mat_mo_coeff_gw_reflected)
@@ -514,13 +523,13 @@ CONTAINS
          CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), mo_coeff_gw_t, t_3c_overl_int_ao_ao, dbcsr_scalar(0.0_dp), &
                                t_3c_overl_int_ao_mo, contract_1=[1], notcontract_1=[2], &
                                contract_2=[3], notcontract_2=[1, 2], map_1=[3], map_2=[1, 2], &
-                               bounds_2=bounds, move_data=.FALSE.)
+                               bounds_2=bounds, move_data=.FALSE., unit_nr=unit_nr_prv)
 
          CALL dbcsr_t_copy(t_3c_overl_int_ao_mo, t_3c_overl_int_mo_ao, order=[1, 3, 2])
          CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), mo_coeff_gw_t, t_3c_overl_int_mo_ao, dbcsr_scalar(0.0_dp), &
                                t_3c_overl_int_mo_mo, contract_1=[1], notcontract_1=[2], &
                                contract_2=[3], notcontract_2=[1, 2], map_1=[3], map_2=[1, 2], &
-                               bounds_2=bounds, move_data=.FALSE.)
+                               bounds_2=bounds, move_data=.FALSE., unit_nr=unit_nr_prv)
          CALL dbcsr_t_copy(t_3c_overl_int_mo_mo, t_3c_overl_nnP_ic_reflected)
          CALL dbcsr_t_destroy(t_3c_overl_int_mo_ao)
          CALL dbcsr_t_destroy(t_3c_overl_int_mo_mo)
