@@ -45,7 +45,7 @@ case "$with_openblas" in
             cd OpenBLAS-${openblas_ver}
 
             for patch in "${PATCHES[@]}" ; do
-                patch -p1 < "${SCRIPT_DIR}/${patch}" || [ $(getenforce) = 'Enforcing' ] && true || false
+                patch -p1 < "${SCRIPT_DIR}/${patch}" || command -v getenforce >/dev/null && [ $(getenforce) = 'Enforcing' ] && true || false
             done
 
             # First attempt to make openblas using auto detected
