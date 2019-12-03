@@ -1,5 +1,5 @@
 # Tested with: GFortran 7.4.0, MPICH 3.3, LAPACK 3.8.0, ScaLAPACK 2.0.2, FFTW 3.3, Libint 2.6.0, Libxc 4.3.4, ELPA 2019.05.001, PLUMED 2.5.2
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, November 2019)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, Dezember 2019)
 CC         = mpicc
 FC         = mpif90
 LD         = mpif90
@@ -20,7 +20,7 @@ DFLAGS     = -D__ELPA -D__FFTW3 -D__LIBINT -D__LIBXC \
              -D__parallel -D__SCALAPACK -D__CHECK_DIAG
 WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion \
              -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation \
-             -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow \
+             -Wno-tabs -Wrealloc-lhs -Wtarget-lifetime -Wunderflow \
              -Wunused-but-set-variable -Wunused-dummy-argument -Wunused-variable \
              -Werror
 FCFLAGS    = $(CFLAGS) -std=f2008 \
