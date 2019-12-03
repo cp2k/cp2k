@@ -43,7 +43,8 @@ MODULE rpa_gw_im_time_util
                                               qs_environment_type
    USE qs_tensors_types,                ONLY: create_3c_tensor,&
                                               cyclic_tensor_dist,&
-                                              split_block_sizes
+                                              split_block_sizes,&
+                                              create_2c_tensor
    USE rpa_communication,               ONLY: communicate_buffer
 #include "./base/base_uses.f90"
 
@@ -336,14 +337,17 @@ CONTAINS
                                                             sizes_RI_split
       INTEGER, DIMENSION(2, 1)                           :: bounds
       INTEGER, DIMENSION(3)                              :: pdims
-      INTEGER, DIMENSION(:), POINTER                     :: distp_1, distp_2, sizes_MO, sizes_MO_p1, &
+      INTEGER, DIMENSION(2)                              :: pdims_2d
+      INTEGER, DIMENSION(:), POINTER                     :: distp_1, distp_2, sizes_MO_p1, &
                                                             sizes_MO_p2
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: sizes_MO
       LOGICAL                                            :: memory_info, my_do_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: norm
       TYPE(cp_fm_type), POINTER                          :: fm_mat_mo_coeff_gw
       TYPE(dbcsr_distribution_type)                      :: dist, dist_templ
-      TYPE(dbcsr_t_pgrid_type)                           :: pgrid, pgrid_ic
-      TYPE(dbcsr_t_type)                                 :: mo_coeff_gw_t, t_3c_overl_int_ao_ao, &
+      TYPE(dbcsr_t_pgrid_type)                           :: pgrid, pgrid_2d, pgrid_ic
+      TYPE(dbcsr_t_type)                                 :: mo_coeff_gw_t, mo_coeff_gw_t_tmp, &
+                                                            t_3c_overl_int_ao_ao, &
                                                             t_3c_overl_int_ao_mo, &
                                                             t_3c_overl_int_mo_ao, &
                                                             t_3c_overl_int_mo_mo
@@ -397,10 +401,17 @@ CONTAINS
       CALL split_block_sizes(sizes_AO, sizes_AO_split, sqrt_max_bsize)
       CALL split_block_sizes(sizes_RI, sizes_RI_split, sqrt_max_bsize)
       pdims = 0
-      CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid)
 
-      NULLIFY (sizes_MO)
-      CALL dbcsr_get_info(mat_mo_coeff_gw, col_blk_size=sizes_MO)
+      ALLOCATE(sizes_MO(nmo))
+      sizes_MO = 1
+
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid, &
+                                tensor_dims=[SIZE(sizes_RI_split), SIZE(sizes_AO_split), SIZE(sizes_MO)])
+
+      pdims_2d = 0
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims_2d, pgrid_2d, &
+                                tensor_dims=[SIZE(sizes_AO), SIZE(sizes_MO)])
+
       CALL create_3c_tensor(t_3c_overl_int_ao_ao, dist1, dist2, dist3, pgrid, &
                             sizes_RI_split, sizes_AO_split, sizes_AO, [1, 2], [3], "(RI AO | AO)")
       DEALLOCATE (dist1, dist2, dist3)
@@ -419,8 +430,14 @@ CONTAINS
 
       CALL dbcsr_t_pgrid_destroy(pgrid)
 
-      CALL dbcsr_t_create(mat_mo_coeff_gw, mo_coeff_gw_t, name="MO coeffs")
-      CALL dbcsr_t_copy_matrix_to_tensor(mat_mo_coeff_gw, mo_coeff_gw_t)
+      CALL create_2c_tensor(mo_coeff_gw_t, dist1, dist2, pgrid_2d, sizes_AO, sizes_MO, name="(AO|MO)")
+      DEALLOCATE(dist1, dist2)
+      CALL dbcsr_t_pgrid_destroy(pgrid_2d)
+
+      CALL dbcsr_t_create(mat_mo_coeff_gw, mo_coeff_gw_t_tmp, name="MO coeffs")
+      CALL dbcsr_t_copy_matrix_to_tensor(mat_mo_coeff_gw, mo_coeff_gw_t_tmp)
+
+      CALL dbcsr_t_copy(mo_coeff_gw_t_tmp, mo_coeff_gw_t)
 
       bounds(1, 1) = homo - gw_corr_lev_occ + 1
       bounds(2, 1) = homo + gw_corr_lev_virt
@@ -437,7 +454,8 @@ CONTAINS
 
       IF (do_ic_model) THEN
          pdims = 0
-         CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_ic)
+         CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_ic, &
+                                   tensor_dims=[SIZE(sizes_RI_split), SIZE(sizes_MO), SIZE(sizes_MO)])
 
          CALL create_3c_tensor(t_3c_overl_int_mo_ao, dist1, dist2, dist3, pgrid_ic, &
                                sizes_RI_split, sizes_MO, sizes_AO, [1, 2], [3], "(RI MO | AO)")
@@ -517,8 +535,9 @@ CONTAINS
 
          CALL dbcsr_filter(mat_mo_coeff_gw_reflected_norm, 1.0E-20_dp)
 
-         CALL dbcsr_t_copy_matrix_to_tensor(mat_mo_coeff_gw_reflected_norm, mo_coeff_gw_t)
+         CALL dbcsr_t_copy_matrix_to_tensor(mat_mo_coeff_gw_reflected_norm, mo_coeff_gw_t_tmp)
          CALL dbcsr_release(mat_mo_coeff_gw_reflected_norm)
+         CALL dbcsr_t_copy(mo_coeff_gw_t_tmp, mo_coeff_gw_t)
 
          CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), mo_coeff_gw_t, t_3c_overl_int_ao_ao, dbcsr_scalar(0.0_dp), &
                                t_3c_overl_int_ao_mo, contract_1=[1], notcontract_1=[2], &
@@ -542,6 +561,7 @@ CONTAINS
 
       CALL dbcsr_t_destroy(t_3c_overl_int_ao_ao)
       CALL dbcsr_t_destroy(mo_coeff_gw_t)
+      CALL dbcsr_t_destroy(mo_coeff_gw_t_tmp)
       CALL dbcsr_t_destroy(t_3c_overl_int_ao_mo)
 
       CALL timestop(handle)
