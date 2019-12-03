@@ -8,21 +8,21 @@ source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
-libint_ver="2.6.0"
+libint_ver="2.7.0-beta.2"
 libint_pkg="libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tgz"
 
 case "$LIBINT_LMAX" in
     4)
-        libint_sha256="7c8d28bfb03920936231228b79686ba0fd87ea922c267199789bc131cf21ac08"
+        libint_sha256="5717515af65e805c3808d889d91c4effa8d84dcbdc02a31e6f4d9027e3444261"
         ;;
     5)
-        libint_sha256="1cd72206afddb232bcf2179c6229fbf6e42e4ba8440e701e6aa57ff1e871e9db"
+        libint_sha256="0c9606b64bd4ebf3f40528437b1618b54677b04475f87e5d4dc6fe28a68bf69f"
         ;;
     6)
-        libint_sha256="bea76a433cd32bde280879f73b5fc8228c78b62e3ea57ace4c6d74b65910b8af"
+        libint_sha256="75047b9114e04ada4dbe8ec4990427571ea3ae9b5b26d77b0d80e8cc28e00669"
         ;;
     7)
-        libint_sha256="3bcdcc55e1dbafe38a785d4af171df8e300bb8b7775894b57186cdf35807c334"
+        libint_sha256="8357102a9de1c577264a20d3d2d7baeb414d73ef08fb2cee16d394fd32d4ce33"
         ;;
     *)
        report_error "Unsupported value --libint-lmax=${LIBINT_LMAX}."
@@ -63,21 +63,11 @@ case "$with_libint" in
             # level 2 (default for -g flag) leads to very large binary size
             LIBINT_CXXFLAGS="$CXXFLAGS -g1"
 
-            # cmake build broken with libint 2.6, uncomment for libint 2.7 and above
-            #cmake . -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-            #        -DCMAKE_CXX_COMPILER="$CXX" \
-            #        -DLIBINT2_INSTALL_LIBDIR="${pkg_install_dir}/lib" \
-            #        -DENABLE_FORTRAN=ON \
-            #        -DCXXFLAGS="$LIBINT_CXXFLAGS" > configure.log 2>&1
-            #cmake --build . > cmake.log 2>&1
-            #cmake --build . --target install > install.log 2>&1
-
-            ./configure --prefix=${pkg_install_dir} \
-                        --with-cxx="$CXX $LIBINT_CXXFLAGS" \
-                        --with-cxx-optflags="$LIBINT_CXXFLAGS" \
-                        --enable-fortran \
-                        --libdir="${pkg_install_dir}/lib" \
-                        > configure.log 2>&1
+            cmake . -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+                    -DCMAKE_CXX_COMPILER="$CXX" \
+                    -DLIBINT2_INSTALL_LIBDIR="${pkg_install_dir}/lib" \
+                    -DENABLE_FORTRAN=ON \
+                    -DCXXFLAGS="$LIBINT_CXXFLAGS" > configure.log 2>&1
 
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
