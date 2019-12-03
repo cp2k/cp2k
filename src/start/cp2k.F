@@ -67,7 +67,7 @@ PROGRAM cp2k
    CHARACTER(LEN=default_path_length)   :: input_file_name, output_file_name, &
                                            arg_att, command
    CHARACTER(LEN=default_string_length) :: dev_flag
-   CHARACTER(LEN=*), PARAMETER          :: compiler_options_string = compiler_options()
+   CHARACTER(LEN=:), ALLOCATABLE        :: compiler_options_string
    INTEGER                              :: output_unit, l, i
    INTEGER                              :: ierr, i_arg
    LOGICAL                              :: check, usage, echo_input, command_line_error
@@ -245,6 +245,7 @@ PROGRAM cp2k
                   cp2k_version//TRIM(dev_flag), &
                   "Source code revision "//TRIM(compile_revision), &
                   TRIM(cp2k_flags())
+               compiler_options_string = compiler_options()
                WRITE (output_unit, "(T2,A,A)") "compiler: ", compiler_version()
                WRITE (output_unit, "(T2,A)") "compiler options:"
                DO i = 0, (LEN(compiler_options_string) - 1)/68
