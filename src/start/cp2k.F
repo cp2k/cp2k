@@ -252,8 +252,9 @@ PROGRAM cp2k
                   WRITE (output_unit, "(T4,A)") &
                      compiler_options_string(i*68 + 1:MIN(LEN(compiler_options_string), (i + 1)*68))
                END DO
-            ENDIF
-         ENDIF
+               DEALLOCATE (compiler_options_string)
+            END IF
+         END IF
 
          ! write the license
          IF (print_license) THEN
