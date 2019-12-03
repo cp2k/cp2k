@@ -297,7 +297,7 @@ fi
 with_acml=__SYSTEM__
 with_mkl=__SYSTEM__
 with_openblas=__INSTALL__
-with_reflapack=__INSTALL__
+with_reflapack=__DONTUSE__
 
 # sirius is activated by default
 with_sirius="__INSTALL__"

@@ -113,4 +113,4 @@ load "${BUILDDIR}/setup_reflapack"
 export -p > "${INSTALLDIR}/toolchain.env"
 
 cd "${ROOTDIR}"
-report_timing "relapack"
+report_timing "reflapack"
