@@ -558,11 +558,15 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER                                            :: blk, n, n_end, n_end_block, n_start, &
-                                                            n_start_block
+                                                            n_start_block, handle
       INTEGER, DIMENSION(3)                              :: boff, bsize, ind
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_1, block_2
       TYPE(dbcsr_t_iterator_type)                        :: iter
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_ic_gw', &
+         routineP = moduleN//':'//routineN
+
+      CALL timeset(routineN, handle)
 
       CALL dbcsr_t_iterator_start(iter, t3c_1)
       DO WHILE (dbcsr_t_iterator_blocks_left(iter))
@@ -599,6 +603,8 @@ CONTAINS
       CALL dbcsr_t_iterator_stop(iter)
 
       CALL mp_sum(Delta_Sigma_Neaton, para_env%group)
+
+      CALL timestop(handle)
 
    END SUBROUTINE
 ! **************************************************************************************************

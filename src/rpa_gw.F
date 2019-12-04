@@ -5297,6 +5297,12 @@ CONTAINS
       LOGICAL                                            :: t_3c_ctr_in_prv
       TYPE(dbcsr_t_type)                                 :: t_3c_ctr_RI_prv, t_3c_overl_int_gw_copy, &
                                                             t_AO, t_RI
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_sigma_gw', &
+         routineP = moduleN//':'//routineN
+      INTEGER :: handle
+
+      CALL timeset(routineN, handle)
+
 
       IF (PRESENT(t_3c_ctr_in)) THEN
          t_3c_ctr_in_prv = t_3c_ctr_in
@@ -5353,6 +5359,8 @@ CONTAINS
 
       CALL dbcsr_t_destroy(t_AO)
 
+      CALL timestop(handle)
+
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -5370,12 +5378,17 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER                                            :: blk, n, n_end, n_end_block, n_start, &
-                                                            n_start_block
+                                                            n_start_block, handle
       INTEGER, DIMENSION(1)                              :: trace_shape
       INTEGER, DIMENSION(3)                              :: boff, bsize, ind
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_1, block_2
       TYPE(dbcsr_t_iterator_type)                        :: iter
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_sigma_gw', &
+         routineP = moduleN//':'//routineN
+
+
+      CALL timeset(routineN, handle)
 
       CALL dbcsr_t_iterator_start(iter, t3c_1)
       DO WHILE (dbcsr_t_iterator_blocks_left(iter))
@@ -5412,6 +5425,8 @@ CONTAINS
       CALL dbcsr_t_iterator_stop(iter)
 
       CALL mp_sum(vec_Sigma, para_env%group)
+
+      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************
