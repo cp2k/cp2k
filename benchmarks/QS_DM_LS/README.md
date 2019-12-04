@@ -41,7 +41,7 @@ Following results were obtained in the following conditions:
 - CP2K flags: omp libint fftw3 libxc elpa parallel mpi3 scalapack acc pw_cuda xsmm dbcsr_acc max_contr=4
 - Machine: Piz Daint (GPU partition), CSCS
 - Slurm configuration: 2 MPI ranks per node, 12 OpenMP threads per MPI rank
-- The cell contents specify the runtime measured in seconds, while the cells marked with an `X` crashed with out-of-memory errors, and the cells left empty either weren't measured.
+- The cell contents specify the runtime (`grep 'CP2K    ' output.out`) in seconds, while the cells marked with an `X` crashed with out-of-memory errors, and the cells left empty weren't measured.
 
 |  nodes / NREP | NREP=1 | NREP=2 | NREP=3 | NREP=4 | NREP=6 | NREP=8 | NREP=9 |
 | ------------- | -----  | -----  | -----  | -----  | -----  | -----  | -----  |
@@ -58,4 +58,10 @@ Following results were obtained in the following conditions:
 | 48 nodes      |  24.5  |  34.1  |  42.0  |  84.1  | 277.9  |   X    |        |
 | 64 nodes      |  24.9  |  29.0  |  40.4  |  79.7  | 257.5  |   X    |        |
 | 128 nodes     |  26.3  |  32.8  |  36.6  |  62.5  | 181.9  | 400.6  |   X    |
+
+|  nodes / NREP | NREP=6 | NREP=8 | NREP=9 | NREP=10 | NREP=11 | NREP=12 | NREP=13 | NREP=14 | NREP=16 | NREP=18 | NREP=19 | NREP=20 |
+| ------------- | -----  | -----  | -----  | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
+|  256 nodes    |  132.6 |  262.3 |  359.2 |   498.8 |   647.1 |    X    |         |         |         |         |         |         |
+|  512 nodes    |  106.0 |  212.5 |  290.2 |   409.2 |   534.0 |   732.3 |   875.2 |  1030.1 |    X    |         |         |         |
+| 1024 nodes    |   98.1 |  168.9 |        |   284.7 |         |   510.8 |         |   786.5 |  1161.1 |  1607.3 |  1872.8 |    X    |
 

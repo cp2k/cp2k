@@ -24,6 +24,7 @@
 | ---------------------- | ---------- | ------------:| ---------------:| ------------------- | ------- |
 | H2O-128-PBE-TZ.inp     | 2019-08-19 | 4519a8ad7    | 4 nodes         | 12 MPI x 1 OMP      | ~2 min  |
 | H2O-128-RI-dRPA-TZ.inp | 2019-08-19 | 4519a8ad7    | 128 nodes       | 2 MPI x 6 OMP       | 80 min  |
+| H2O-128-RI-dRPA-TZ.inp | 2019-12-03 | 78cea8eee    | 1024 nodes      | 2 MPI x 6 OMP       | 487 sec |
 
 *) The timings have been obtained on CRAY-XC50 (PizDaint@CSCS, GPU partition)
 
