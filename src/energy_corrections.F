@@ -54,23 +54,36 @@ MODULE energy_corrections
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, &
         dbcsr_dot, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
+   USE dm_ls_scf_methods,               ONLY: density_matrix_sign,&
+                                              density_matrix_tc2,&
+                                              density_matrix_trs4
    USE ec_efield_local,                 ONLY: ec_efield_integrals,&
                                               ec_efield_local_operator
    USE ec_env_types,                    ONLY: energy_correction_type
    USE external_potential_types,        ONLY: get_potential,&
                                               gth_potential_type,&
                                               sgp_potential_type
-   USE input_constants,                 ONLY: ec_diagonalization,&
-                                              ec_functional_harris
+   USE input_constants,                 ONLY: ec_curvy_steps,&
+                                              ec_diagonalization,&
+                                              ec_functional_harris,&
+                                              ec_matrix_sign,&
+                                              ec_matrix_tc2,&
+                                              ec_matrix_trs4,&
+                                              ls_s_sqrt_ns,&
+                                              ls_s_sqrt_proot
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
                                               section_get_rval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE iterate_matrix,                  ONLY: invert_Hotelling,&
+                                              matrix_sqrt_Newton_Schulz,&
+                                              matrix_sqrt_proot
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -1142,6 +1155,8 @@ CONTAINS
       SELECT CASE (ec_env%ks_solver)
       CASE (ec_diagonalization)
          CALL ec_diag_solver(qs_env, ksmat, smat, pmat, wmat)
+      CASE (ec_curvy_steps, ec_matrix_sign, ec_matrix_trs4, ec_matrix_tc2)
+         CALL ec_ls_solver(qs_env, ec_env%ks_solver, ksmat, smat, pmat, wmat)
       CASE DEFAULT
          CPASSERT(.FALSE.)
       END SELECT
@@ -1403,6 +1418,155 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ec_diag_solver
+
+! **************************************************************************************************
+!> \brief Solve KS equation using linear scaling methods
+!> \param qs_env ...
+!> \param ls_method ...
+!> \param matrix_ks ...
+!> \param matrix_s ...
+!> \param matrix_p ...
+!> \param matrix_w ...
+!> \par History
+!>      12.2019 created [JGH]
+!> \author JGH
+! **************************************************************************************************
+
+   SUBROUTINE ec_ls_solver(qs_env, ls_method, matrix_ks, matrix_s, matrix_p, matrix_w)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: ls_method
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_p, matrix_w
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_ls_solver', routineP = moduleN//':'//routineN
+
+      INTEGER :: cluster_type, extrapolation_order, handle, ispin, max_iter_lanczos, nelectron, &
+         nspins, s_inversion_type, s_preconditioner_type, s_sqrt_method, s_sqrt_order, &
+         sign_method, sign_order
+      INTEGER, DIMENSION(2)                              :: nmo
+      LOGICAL                                            :: check_s_inv, converged, &
+                                                            dynamic_threshold, fixed_mu, &
+                                                            non_monotonic, report_all_sparsities, &
+                                                            single_precision
+      REAL(KIND=dp)                                      :: eps_filter, eps_lanczos, mu
+      REAL(KIND=dp), DIMENSION(2)                        :: e_homo, e_lumo, mu_spin
+      TYPE(dbcsr_type)                                   :: matrix_s_inv, matrix_s_sqrt, &
+                                                            matrix_s_sqrt_inv
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(section_vals_type), POINTER                   :: input, solver_section
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ls_method > 0)
+      CPASSERT(ASSOCIATED(qs_env))
+      CPASSERT(ASSOCIATED(matrix_ks))
+      CPASSERT(ASSOCIATED(matrix_s))
+      CPASSERT(ASSOCIATED(matrix_p))
+      CPASSERT(ASSOCIATED(matrix_w))
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, input=input)
+      nspins = dft_control%nspins
+      !
+      solver_section => section_vals_get_subs_vals(input, "DFT%ENERGY_CORRECTION%LS_SOLVER")
+      CALL section_vals_val_get(solver_section, "EPS_FILTER", r_val=eps_filter)
+      CALL section_vals_val_get(solver_section, "MU", r_val=mu)
+      CALL section_vals_val_get(solver_section, "FIXED_MU", l_val=fixed_mu)
+      mu_spin = mu
+      CALL section_vals_val_get(solver_section, "S_PRECONDITIONER", i_val=s_preconditioner_type)
+      CALL section_vals_val_get(solver_section, "MATRIX_CLUSTER_TYPE", i_val=cluster_type)
+      CALL section_vals_val_get(solver_section, "SINGLE_PRECISION_MATRICES", l_val=single_precision)
+      CALL section_vals_val_get(solver_section, "S_INVERSION", i_val=s_inversion_type)
+      CALL section_vals_val_get(solver_section, "CHECK_S_INV", l_val=check_s_inv)
+      CALL section_vals_val_get(solver_section, "REPORT_ALL_SPARSITIES", l_val=report_all_sparsities)
+      CALL section_vals_val_get(solver_section, "SIGN_METHOD", i_val=sign_method)
+      CALL section_vals_val_get(solver_section, "SIGN_ORDER", i_val=sign_order)
+      CALL section_vals_val_get(solver_section, "DYNAMIC_THRESHOLD", l_val=dynamic_threshold)
+      CALL section_vals_val_get(solver_section, "NON_MONOTONIC", l_val=non_monotonic)
+      CALL section_vals_val_get(solver_section, "S_SQRT_METHOD", i_val=s_sqrt_method)
+      CALL section_vals_val_get(solver_section, "S_SQRT_ORDER", i_val=s_sqrt_order)
+      CALL section_vals_val_get(solver_section, "EXTRAPOLATION_ORDER", i_val=extrapolation_order)
+      CALL section_vals_val_get(solver_section, "EPS_LANCZOS", r_val=eps_lanczos)
+      CALL section_vals_val_get(solver_section, "MAX_ITER_LANCZOS", i_val=max_iter_lanczos)
+      !
+      nmo = 0
+      CALL get_qs_env(qs_env=qs_env, nelectron_spin=nmo)
+      IF (nspins == 1) nmo(1) = nmo(1)/2
+      e_homo = -0.1_dp
+      e_lumo = 0.1_dp
+
+      SELECT CASE (ls_method)
+      CASE (ec_curvy_steps)
+!
+      CASE (ec_matrix_sign)
+         CALL dbcsr_create(matrix_s_inv, template=matrix_s(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL invert_Hotelling(matrix_s_inv, matrix_s(1, 1)%matrix, eps_filter)
+      CASE (ec_matrix_trs4, ec_matrix_tc2)
+         CALL dbcsr_create(matrix_s_sqrt, template=matrix_s(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_create(matrix_s_sqrt_inv, template=matrix_s(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_no_symmetry)
+         SELECT CASE (s_sqrt_method)
+         CASE (ls_s_sqrt_proot)
+            CALL matrix_sqrt_proot(matrix_s_sqrt, matrix_s_sqrt_inv, &
+                                   matrix_s(1, 1)%matrix, eps_filter, &
+                                   s_sqrt_order, eps_lanczos, max_iter_lanczos, symmetrize=.TRUE.)
+         CASE (ls_s_sqrt_ns)
+            CALL matrix_sqrt_Newton_Schulz(matrix_s_sqrt, matrix_s_sqrt_inv, &
+                                           matrix_s(1, 1)%matrix, eps_filter, &
+                                           s_sqrt_order, eps_lanczos, max_iter_lanczos)
+         CASE DEFAULT
+            CPABORT("Unkown sqrt method.")
+         END SELECT
+         CALL dbcsr_release(matrix_s_sqrt)
+      CASE DEFAULT
+         CPABORT("Wrong ls_method")
+      END SELECT
+
+      DO ispin = 1, nspins
+         nelectron = nmo(ispin)
+
+         SELECT CASE (ls_method)
+         CASE (ec_curvy_steps)
+            CPABORT("Curvy Step Method not available")
+         CASE (ec_matrix_sign)
+            CALL density_matrix_sign(matrix_p(ispin, 1)%matrix, mu_spin(ispin), fixed_mu, &
+                                     sign_method, sign_order, matrix_ks(ispin, 1)%matrix, &
+                                     matrix_s(1, 1)%matrix, matrix_s_inv, nelectron, eps_filter)
+         CASE (ec_matrix_trs4)
+            CALL density_matrix_trs4(matrix_p(ispin, 1)%matrix, matrix_ks(ispin, 1)%matrix, &
+                                     matrix_s_sqrt_inv, nelectron, eps_filter, &
+                                     e_homo(ispin), e_lumo(ispin), mu_spin(ispin), &
+                                     max_iter_lanczos=max_iter_lanczos, &
+                                     eps_lanczos=eps_lanczos, converged=converged)
+         CASE (ec_matrix_tc2)
+            CALL density_matrix_tc2(matrix_p(ispin, 1)%matrix, matrix_ks(ispin, 1)%matrix, &
+                                    matrix_s_sqrt_inv, nelectron, eps_filter, &
+                                    e_homo(ispin), e_lumo(ispin), &
+                                    non_monotonic, eps_lanczos, max_iter_lanczos)
+         CASE DEFAULT
+            CPABORT("Wrong ls_method")
+         END SELECT
+      END DO
+
+      SELECT CASE (ls_method)
+      CASE (ec_curvy_steps)
+!
+      CASE (ec_matrix_sign)
+         CALL dbcsr_release(matrix_s_inv)
+      CASE (ec_matrix_trs4, ec_matrix_tc2)
+         CALL dbcsr_release(matrix_s_sqrt_inv)
+      CASE DEFAULT
+         CPABORT("Wrong ls_method")
+      END SELECT
+
+      IF (nspins == 1) THEN
+         CALL dbcsr_scale(matrix_p(1, 1)%matrix, 2.0_dp)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE ec_ls_solver
 
 ! **************************************************************************************************
 !> \brief Calculate the energy correction

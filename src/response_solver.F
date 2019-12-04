@@ -690,7 +690,6 @@ CONTAINS
             DEALLOCATE (dbwork)
             CALL dbcsr_deallocate_matrix_set(mhz)
             DEALLOCATE (mpz)
-            CPABORT("B")
          END IF
       END IF
 

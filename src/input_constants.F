@@ -1022,8 +1022,12 @@ MODULE input_constants
 
    INTEGER, PARAMETER, PUBLIC               :: kg_cholesky = 3001
 
-   ! kg energy corrections
-   INTEGER, PARAMETER, PUBLIC               :: ec_diagonalization = 1001
+   ! non-scf energy corrections
+   INTEGER, PARAMETER, PUBLIC               :: ec_diagonalization = 1001, &
+                                               ec_curvy_steps = 1002, &
+                                               ec_matrix_sign = 1003, &
+                                               ec_matrix_trs4 = 1004, &
+                                               ec_matrix_tc2 = 1005
    INTEGER, PARAMETER, PUBLIC               :: ec_functional_harris = 2001
 
    ! swarm parameters
