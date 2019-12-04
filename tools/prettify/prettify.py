@@ -449,7 +449,9 @@ def main(argv):
         logger.setLevel(level)
         sh = logging.StreamHandler()
         sh.setLevel(level)
-        formatter = logging.Formatter("%(levelname)s - %(message)s")
+        formatter = logging.Formatter(
+            "%(levelname)s %(ffilename)s:%(fline)s: %(message)s"
+        )
         sh.setFormatter(formatter)
         logger.addHandler(sh)
 
