@@ -5294,15 +5294,15 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(INOUT), OPTIONAL        :: t_3c_ctr_RI
       LOGICAL, INTENT(IN), OPTIONAL                      :: t_3c_ctr_in
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_sigma_gw', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
       LOGICAL                                            :: t_3c_ctr_in_prv
       TYPE(dbcsr_t_type)                                 :: t_3c_ctr_RI_prv, t_3c_overl_int_gw_copy, &
                                                             t_AO, t_RI
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_sigma_gw', &
-         routineP = moduleN//':'//routineN
-      INTEGER :: handle
 
       CALL timeset(routineN, handle)
-
 
       IF (PRESENT(t_3c_ctr_in)) THEN
          t_3c_ctr_in_prv = t_3c_ctr_in
@@ -5377,16 +5377,15 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(IN)                  :: mo_bounds
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
-      INTEGER                                            :: blk, n, n_end, n_end_block, n_start, &
-                                                            n_start_block, handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_sigma_gw', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: blk, handle, n, n_end, n_end_block, &
+                                                            n_start, n_start_block
       INTEGER, DIMENSION(1)                              :: trace_shape
       INTEGER, DIMENSION(3)                              :: boff, bsize, ind
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_1, block_2
       TYPE(dbcsr_t_iterator_type)                        :: iter
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_sigma_gw', &
-         routineP = moduleN//':'//routineN
-
 
       CALL timeset(routineN, handle)
 

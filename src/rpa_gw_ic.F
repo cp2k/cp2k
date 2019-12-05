@@ -557,14 +557,14 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(IN)                  :: mo_bounds
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
-      INTEGER                                            :: blk, n, n_end, n_end_block, n_start, &
-                                                            n_start_block, handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_ic_gw', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: blk, handle, n, n_end, n_end_block, &
+                                                            n_start, n_start_block
       INTEGER, DIMENSION(3)                              :: boff, bsize, ind
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_1, block_2
       TYPE(dbcsr_t_iterator_type)                        :: iter
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_ic_gw', &
-         routineP = moduleN//':'//routineN
 
       CALL timeset(routineN, handle)
 

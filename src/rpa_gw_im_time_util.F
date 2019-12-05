@@ -41,10 +41,10 @@ MODULE rpa_gw_im_time_util
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_tensors_types,                ONLY: create_3c_tensor,&
+   USE qs_tensors_types,                ONLY: create_2c_tensor,&
+                                              create_3c_tensor,&
                                               cyclic_tensor_dist,&
-                                              split_block_sizes,&
-                                              create_2c_tensor
+                                              split_block_sizes
    USE rpa_communication,               ONLY: communicate_buffer
 #include "./base/base_uses.f90"
 
@@ -333,24 +333,20 @@ CONTAINS
                                                             npcols, nprows, size_MO, &
                                                             sqrt_max_bsize, unit_nr_prv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist3, sizes_AO, &
-                                                            sizes_AO_split, sizes_RI, &
+                                                            sizes_AO_split, sizes_MO, sizes_RI, &
                                                             sizes_RI_split
+      INTEGER, DIMENSION(2)                              :: pdims_2d
       INTEGER, DIMENSION(2, 1)                           :: bounds
       INTEGER, DIMENSION(3)                              :: pdims
-      INTEGER, DIMENSION(2)                              :: pdims_2d
-      INTEGER, DIMENSION(:), POINTER                     :: distp_1, distp_2, sizes_MO_p1, &
-                                                            sizes_MO_p2
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: sizes_MO
+      INTEGER, DIMENSION(:), POINTER                     :: distp_1, distp_2, sizes_MO_blocked, &
+                                                            sizes_MO_p1, sizes_MO_p2
       LOGICAL                                            :: memory_info, my_do_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: norm
       TYPE(cp_fm_type), POINTER                          :: fm_mat_mo_coeff_gw
       TYPE(dbcsr_distribution_type)                      :: dist, dist_templ
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid, pgrid_2d, pgrid_ic
-      TYPE(dbcsr_t_type)                                 :: mo_coeff_gw_t, mo_coeff_gw_t_tmp, &
-                                                            t_3c_overl_int_ao_ao, &
-                                                            t_3c_overl_int_ao_mo, &
-                                                            t_3c_overl_int_mo_ao, &
-                                                            t_3c_overl_int_mo_mo
+      TYPE(dbcsr_t_type) :: mo_coeff_gw_t, mo_coeff_gw_t_tmp, t_3c_overl_int_ao_ao, &
+         t_3c_overl_int_ao_mo, t_3c_overl_int_mo_ao, t_3c_overl_int_mo_mo
       TYPE(dbcsr_type)                                   :: mat_mo_coeff_gw_reflected_norm, &
                                                             mat_norm, mat_norm_diag, mat_work
       TYPE(dbcsr_type), POINTER                          :: mat_mo_coeff_gw, &
@@ -395,14 +391,14 @@ CONTAINS
       ! just remove the blocks which have been set to zero
       CALL dbcsr_filter(mat_mo_coeff_gw, 1.0E-20_dp)
 
-      sqrt_max_bsize = qs_env%mp2_env%ri_rpa_im_time%max_bsize_sqrt ! todo: this should be explicit input
+      sqrt_max_bsize = qs_env%mp2_env%ri_rpa_im_time%max_bsize_sqrt
 
       CALL dbcsr_t_get_info(t_3c_overl_int(1, 1), blk_size_1=sizes_RI, blk_size_2=sizes_AO)
       CALL split_block_sizes(sizes_AO, sizes_AO_split, sqrt_max_bsize)
       CALL split_block_sizes(sizes_RI, sizes_RI_split, sqrt_max_bsize)
       pdims = 0
 
-      ALLOCATE(sizes_MO(nmo))
+      ALLOCATE (sizes_MO(nmo))
       sizes_MO = 1
 
       CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid, &
@@ -431,7 +427,7 @@ CONTAINS
       CALL dbcsr_t_pgrid_destroy(pgrid)
 
       CALL create_2c_tensor(mo_coeff_gw_t, dist1, dist2, pgrid_2d, sizes_AO, sizes_MO, name="(AO|MO)")
-      DEALLOCATE(dist1, dist2)
+      DEALLOCATE (dist1, dist2)
       CALL dbcsr_t_pgrid_destroy(pgrid_2d)
 
       CALL dbcsr_t_create(mat_mo_coeff_gw, mo_coeff_gw_t_tmp, name="MO coeffs")
@@ -489,20 +485,19 @@ CONTAINS
          ! of the image molecule are not exactly reflected at the image plane (sign problem in p_z function)
          CALL dbcsr_create(matrix=mat_work, template=mat_mo_coeff_gw_reflected, matrix_type=dbcsr_type_no_symmetry)
 
-         CALL dbcsr_get_info(mat_work, distribution=dist_templ)
+         CALL dbcsr_get_info(mat_work, distribution=dist_templ, nblkcols_total=size_MO, col_blk_size=sizes_MO_blocked)
 
          CALL dbcsr_distribution_get(dist_templ, nprows=nprows, npcols=npcols)
 
-         size_MO = SIZE(sizes_MO)
          ALLOCATE (distp_1(size_MO), distp_2(size_MO))
-         CALL cyclic_tensor_dist(size_MO, nprows, sizes_MO, distp_1)
-         CALL cyclic_tensor_dist(size_MO, npcols, sizes_MO, distp_2)
+         CALL cyclic_tensor_dist(size_MO, nprows, sizes_MO_blocked, distp_1)
+         CALL cyclic_tensor_dist(size_MO, npcols, sizes_MO_blocked, distp_2)
          CALL dbcsr_distribution_new(dist, template=dist_templ, row_dist=distp_1, col_dist=distp_2, reuse_arrays=.TRUE.)
 
          ALLOCATE (sizes_MO_p1(size_MO))
          ALLOCATE (sizes_MO_p2(size_MO))
-         sizes_MO_p1(:) = sizes_MO
-         sizes_MO_p2(:) = sizes_MO
+         sizes_MO_p1(:) = sizes_MO_blocked
+         sizes_MO_p2(:) = sizes_MO_blocked
          CALL dbcsr_create(mat_norm, "mo norm", dist, dbcsr_type_no_symmetry, sizes_MO_p1, sizes_MO_p2, &
                            reuse_arrays=.TRUE.)
          CALL dbcsr_distribution_release(dist)
