@@ -267,16 +267,22 @@ CONTAINS
       ENDIF
       CALL sort(ival, nref, irank)
 
-      IF (FORMAT .EQ. print_format_html) THEN
+      SELECT CASE (FORMAT)
+      CASE (print_format_isi)
+      CASE (print_format_journal)
+         WRITE (unit, '(A)') ""
+      CASE (print_format_html)
          WRITE (unit, '(A)') '<TABLE border="1">'
-      ENDIF
+      CASE DEFAULT
+         CPABORT("print_reference: wrong format")
+      END SELECT
+
       DO I = 1, nref
          irecord = indx(irank(I))
          IF (.NOT. cited_only .OR. thebib(irecord)%ref%is_cited) THEN
             SELECT CASE (FORMAT)
             CASE (print_format_isi)
             CASE (print_format_journal)
-               WRITE (unit, '(A)') ""
             CASE (print_format_html)
                WRITE (unit, '(A)') "<TR><TD>"//'['//TRIM(thebib(irecord)%ref%citation_key)//']'//"</TD><TD>"
             CASE DEFAULT
@@ -394,7 +400,12 @@ CONTAINS
          WRITE (unit, '(T2,A)', ADVANCE="NO") ""
          ipos_line = 2
       ENDIF
-      WRITE (unit, '(A)', ADVANCE="NO") TRIM(journal)
+      IF (ipos_line + LEN_TRIM(journal) > 71) THEN
+         WRITE (unit, '(A)') TRIM(journal(1:69))
+         WRITE (unit, '(A)', ADVANCE="NO") TRIM(journal(69:))
+      ELSE
+         WRITE (unit, '(A)', ADVANCE="NO") TRIM(journal)
+      END IF
 
       WRITE (unit, '(T2,A)') ""
       ! Title
