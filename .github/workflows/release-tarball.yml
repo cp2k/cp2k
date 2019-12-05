@@ -1,0 +1,46 @@
+name: Create Release
+
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*'  # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v1
+        with:
+          submodules: recursive
+      - name: Set release tarball name
+        run: echo ::set-env name=TARBALL_NAME::$(echo cp2k-${GITHUB_REF##*/v}.tar.bz2)
+      - name: Install prerequisites
+        run: |
+          pip install git-archive-all
+      - name: Build release tarball
+        run: |
+          mkdir -p dist/
+          ~/.local/bin/git-archive-all ./dist/${TARBALL_NAME}
+      - name: Create Release Draft
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: CP2K ${{ github.ref }}
+          draft: true
+          prerelease: false
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}  # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./dist/${{ env.TARBALL_NAME }}
+          asset_name: ${{ env.TARBALL_NAME }}
+          asset_content_type: application/x-gtar
