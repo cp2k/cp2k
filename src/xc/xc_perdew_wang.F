@@ -13,6 +13,7 @@
 !> \see functionals_utilities
 ! **************************************************************************************************
 MODULE xc_perdew_wang
+#:include "xc_perdew_wang.fypp"
 
    USE kinds,                           ONLY: dp
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -34,14 +35,10 @@ MODULE xc_perdew_wang
    IMPLICIT NONE
    PRIVATE
 
-   LOGICAL :: initialized = .FALSE.
-   REAL(KIND=dp), DIMENSION(-1:1) :: A, a1, b1, b2, b3, b4
-   REAL(KIND=dp), DIMENSION(-1:1) :: c0, c1, c2, c3
-   REAL(KIND=dp), DIMENSION(-1:1) :: d0, d1
+@: global_var_pw92()
    REAL(KIND=dp), PARAMETER :: &
       epsilon = 5.E-13_dp, &
       fpp = 0.584822362263464620726223866376013788782_dp ! d^2f(0)/dz^2
-   REAL(KIND=dp) :: eps_rho
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_wang'
 
    PUBLIC :: perdew_wang_info, perdew_wang_lda_eval, perdew_wang_lsd_eval
@@ -121,79 +118,7 @@ CONTAINS
 
    END SUBROUTINE perdew_wang_info
 
-! **************************************************************************************************
-!> \brief Initializes the functionals
-!> \param method name of the method used for parameters
-!> \param cutoff the cutoff density
-! **************************************************************************************************
-   SUBROUTINE perdew_wang_init(method, cutoff)
-
-      INTEGER, INTENT(IN)                                :: method
-      REAL(KIND=dp), INTENT(IN)                          :: cutoff
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_init', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: k
-
-      CALL set_util(cutoff)
-
-      eps_rho = cutoff
-
-      initialized = .FALSE.
-
-      ! values for -ac are the same for all methods
-      A(-1) = 0.016887_dp
-      a1(-1) = 0.11125_dp
-      b1(-1) = 10.357_dp
-      b2(-1) = 3.6231_dp
-      b3(-1) = 0.88026_dp
-      b4(-1) = 0.49671_dp
-
-      SELECT CASE (method)
-
-      CASE DEFAULT
-         CPABORT("Unknown method")
-
-      CASE (pw_orig)
-         A(0) = 0.031091_dp; A(1) = 0.015545_dp
-         a1(0) = 0.21370_dp; a1(1) = 0.20548_dp
-         b1(0) = 7.5957_dp; b1(1) = 14.1189_dp
-         b2(0) = 3.5876_dp; b2(1) = 6.1977_dp
-         b3(0) = 1.6382_dp; b3(1) = 3.3662_dp
-         b4(0) = 0.49294_dp; b4(1) = 0.62517_dp
-
-      CASE (pw_dmc)
-         A(0) = 0.031091_dp; A(1) = 0.015545_dp
-         a1(0) = 0.026481_dp; a1(1) = 0.022465_dp
-         b1(0) = 7.5957_dp; b1(1) = 14.1189_dp
-         b2(0) = 3.5876_dp; b2(1) = 6.1977_dp
-         b3(0) = -0.46647_dp; b3(1) = -0.56043_dp
-         b4(0) = 0.13354_dp; b4(1) = 0.11313_dp
-
-      CASE (pw_vmc)
-         A(0) = 0.031091_dp; A(1) = 0.015545_dp
-         a1(0) = -0.002257_dp; a1(1) = -0.009797_dp
-         b1(0) = 7.5957_dp; b1(1) = 14.1189_dp
-         b2(0) = 3.5876_dp; b2(1) = 6.1977_dp
-         b3(0) = -0.52669_dp; b3(1) = -0.91381_dp
-         b4(0) = 0.03755_dp; b4(1) = 0.01538_dp
-
-      END SELECT
-
-      DO k = -1, 1, 1
-         c0(k) = A(k)
-         c1(k) = -2.0_dp*c0(k)*LOG(2.0_dp*A(k)*b1(k))
-         c2(k) = A(k)*a1(k)
-         c3(k) = -2.0_dp*A(k)*(a1(k)*LOG(2.0_dp*A(k)*b1(k)) &
-                               - (b2(k)/b1(k))**2 + (b3(k)/b1(k)))
-         d0(k) = a1(k)/b4(k)
-         d1(k) = a1(k)*b3(k)/(b4(k)**2)
-      END DO
-
-      initialized = .TRUE.
-
-   END SUBROUTINE perdew_wang_init
+@: init_pw92()
 
 ! **************************************************************************************************
 !> \brief Calculate the correlation energy and its derivatives
@@ -500,110 +425,7 @@ CONTAINS
 
    END SUBROUTINE perdew_wang_lsd_calc
 
-! **************************************************************************************************
-!> \brief ...
-!> \param r ...
-!> \param z ...
-!> \param g ...
-!> \param order ...
-! **************************************************************************************************
-   SUBROUTINE calc_g(r, z, g, order)
-
-!   Calculates g and its derivatives wrt r up to 3rd order, where:
-!
-!   g = .... for r < 1
-!   g = .... for r > 100 and everywhere else
-!   g = 2A(1+a1*r)ln(1+1/(2A(b1*r^1/2 + b2*r + b3*r^(3/2) + b4*r^2))).
-
-      REAL(KIND=dp), INTENT(IN)                          :: r
-      INTEGER, INTENT(IN)                                :: z
-      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: g
-      INTEGER, INTENT(IN)                                :: order
-
-      REAL(KIND=dp)                                      :: a1_, A_, b1_, b2_, b3_, b4_, rr, rsr, &
-                                                            sr, t11, t12, t14, t15, t16, t20, t22, &
-                                                            t3, t40, t44, t45, t47, t48, t55, t56
-
-      A_ = A(z); a1_ = a1(z)
-      b1_ = b1(z); b2_ = b2(z); b3_ = b3(z); b4_ = b4(z)
-
-      sr = SQRT(r)
-      rsr = r*sr
-      rr = r*r
-
-      IF (r < 1.0_dp) THEN
-
-         ! order 0 must always be calculated
-         g(0) = c0(z)*LOG(r) - c1(z) + c2(z)*r*LOG(r) - c3(z)*r
-         IF (order >= 1) g(1) = c0(z)/r + c2(z)*LOG(r) + c2(z) - c3(z)
-         IF (order >= 2) g(2) = -c0(z)/rr + c2(z)/r
-         IF (order >= 3) g(3) = 2.0_dp*c0(z)/(rr*r) - c2(z)/rr
-
-      ELSE IF (r <= 100.0_dp) THEN
-
-         t3 = 1.0_dp + a1_*r
-         t11 = b1_*sr + b2_*r + b3_*rsr + b4_*rr
-         t12 = t11**2
-         t15 = 1.0_dp + 0.5_dp/A_/t11
-         t16 = LOG(t15)
-         t20 = 0.5_dp*b1_/sr + b2_ + 1.5_dp*b3_*sr + 2.0_dp*b4_*r
-
-         ! order 0 must always be calculated
-         g(0) = -2.0_dp*A_*t3*t16
-
-         IF (order >= 1) THEN
-
-            g(1) = -2.0_dp*A_*a1_*t16 + t3*t20/(t12*t15)
-
-         END IF
-
-         IF (order >= 2) THEN
-
-            t40 = -0.25_dp*b1_/rsr + 0.75_dp*b3_/sr + 2.0_dp*b4_
-
-            g(2) = 2.0_dp*a1_*t20/(t12*t15) &
-                   - 2.0_dp*(t20**2)*t3/(t12*t11*t15) &
-                   + t3*t40/(t12*t15) &
-                   + 0.5_dp*t3*(t20**2)/(A_*(t12**2)*(t15**2))
-
-         END IF
-
-         IF (order >= 3) THEN
-
-            t14 = 1.0_dp/t12/t11
-            t22 = t20**2
-            t56 = t22*t20
-            t47 = t15**2
-            t48 = 1.0_dp/t47
-
-            t44 = t12**2
-            t45 = 1.0_dp/t44
-            t55 = t3*t45
-
-            g(3) = &
-               -6.0_dp*a1_*t14*t22/t15 &
-               + 3.0_dp*a1_*t40/(t15*t12) &
-               + 1.5_dp*a1_*t45*t22*t48/A_ &
-               + 6.0_dp*t55*t56/t15 &
-               - 6.0_dp*t3*t14*t20*t40/t15 &
-               - 3.0_dp*t3*t56*t48/(A_*t44*t11) &
-               + 0.375_dp*t3*(b1_/(rr*sr) - b3_/rsr)/(t12*t15) &
-               + 1.5_dp*t55*t40*t48*t20/A_ &
-               + 0.5_dp*t3*t56/((A_**2)*t44*t12*t47*t15)
-
-         END IF
-
-      ELSE
-
-         ! order 0 must always be calculated
-         g(0) = -d0(z)/r + d1(z)/rsr
-         IF (order >= 1) g(1) = d0(z)/rr - 1.5_dp*d1(z)/(rsr*r)
-         IF (order >= 2) g(2) = -2.0_dp*d0(z)/(rr*r) + 3.75_dp*d1(z)/(rsr*rr)
-         IF (order >= 3) g(3) = 6.0_dp*d0(z)/(rr*rr) - 13.125_dp*d1(z)/(rsr*rr*r)
-
-      END IF
-
-   END SUBROUTINE calc_g
+@:calc_g()
 
 ! **************************************************************************************************
 !> \brief ...
