@@ -1074,7 +1074,7 @@ CONTAINS
                                          lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
                                          lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
                                          lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
-                                         dij, dik, djk, lib, potential_parameter) !op_jk, omega=omega, r_cutoff=r_cutoff)
+                                         dij, dik, djk, lib, potential_parameter)
                      ELSEIF (op_ij /= do_potential_id) THEN
                         ALLOCATE (sijk(ncoj, ncok, ncoi))
                         sijk(:, :, :) = 0.0_dp
@@ -1085,7 +1085,7 @@ CONTAINS
                                          lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
                                          lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
                                          lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
-                                         djk, dij, dik, lib, potential_parameter) !op_ij, omega=omega, r_cutoff=r_cutoff)
+                                         djk, dij, dik, lib, potential_parameter)
 
                      ENDIF
                      max_contraction_val = max_contraction_i(iset)*max_contraction_j(jset)*max_contraction_k(kset)
@@ -1338,25 +1338,7 @@ CONTAINS
 
       op_prv = potential_parameter%potential_type
 
-      NULLIFY (qs_kind_set, atomic_kind_set, block_t%block)
-
-      ! check for symmetry
-      CPASSERT(SIZE(nl_2c) > 0)
-      CALL get_neighbor_list_set_p(neighbor_list_sets=nl_2c, symmetric=do_symmetric)
-
-      IF (do_symmetric) THEN
-         DO img = 1, SIZE(t2c)
-            CPASSERT(dbcsr_has_symmetry(t2c(img)))
-         ENDDO
-      ELSE
-         DO img = 1, SIZE(t2c)
-            CPASSERT(.NOT. dbcsr_has_symmetry(t2c(img)))
-         ENDDO
-      ENDIF
-
-      DO img = 1, SIZE(t2c)
-         CALL cp_dbcsr_alloc_block_from_nbl(t2c(img), nl_2c)
-      ENDDO
+      NULLIFY (qs_kind_set, atomic_kind_set, block_t%block, cell_to_index)
 
       ! get stuff
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
@@ -1370,6 +1352,24 @@ CONTAINS
       END IF
 
       CPASSERT(ALL(SHAPE(t2c) == [nimg]))
+
+      ! check for symmetry
+      CPASSERT(SIZE(nl_2c) > 0)
+      CALL get_neighbor_list_set_p(neighbor_list_sets=nl_2c, symmetric=do_symmetric)
+
+      IF (do_symmetric) THEN
+         DO img = 1, nimg
+            CPASSERT(dbcsr_has_symmetry(t2c(img)))
+         ENDDO
+      ELSE
+         DO img = 1, nimg
+            CPASSERT(.NOT. dbcsr_has_symmetry(t2c(img)))
+         ENDDO
+      ENDIF
+
+      DO img = 1, nimg
+         CALL cp_dbcsr_alloc_block_from_nbl(t2c(img), nl_2c)
+      ENDDO
 
       maxli = 0
       DO ibasis = 1, SIZE(basis_i)
@@ -1516,7 +1516,7 @@ CONTAINS
       ENDIF
 
       CALL neighbor_list_iterator_release(nl_iterator)
-      DO img = 1, SIZE(t2c)
+      DO img = 1, nimg
          CALL dbcsr_finalize(t2c(img))
          CALL dbcsr_filter(t2c(img), filter_eps)
       ENDDO

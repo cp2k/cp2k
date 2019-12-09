@@ -896,7 +896,7 @@ CONTAINS
 
       IF (unit_nr > 0 .AND. mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T64,F12.6,A5)') 'Truncated MP2 method, Rt=', &
-            mp2_env%potential_parameter%truncation_radius, ' Bohr'
+            mp2_env%potential_parameter%cutoff_radius, ' Bohr'
       END IF
 
       ! create the local para env
