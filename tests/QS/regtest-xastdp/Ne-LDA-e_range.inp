@@ -34,6 +34,7 @@
 
       TAMM_DANCOFF 
       GRID Ne 150 150
+      ENERGY_RANGE 40.0
 
       &KERNEL
          &XC_FUNCTIONAL
@@ -43,9 +44,6 @@
          &END XC_FUNCTIONAL
       &END KERNEL
 
-      &DIAGONALIZATION
-         ENERGY_RANGE 40.0
-      &END DIAGONALIZATION
     &END XAS_TDP
 
   &END DFT

@@ -95,8 +95,8 @@ MODULE input_cp2k_dft
         wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, &
         xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, &
         xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, &
-        xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tdp_diag_std, xas_tdp_diag_syevr, &
-        xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tp_fh, xas_tp_flex, xas_tp_hh, &
+        xas_tp_xfh, xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
@@ -7891,7 +7891,7 @@ CONTAINS
                           description="XAS simulations using linear-response TDDFT. Excitation from "// &
                           "specified core orbitals are considered one at a time. In case of high "// &
                           "symmetry structures, donor core orbitals should be localized.", &
-                          n_keywords=13, n_subsections=4, repeats=.FALSE.)
+                          n_keywords=15, n_subsections=3, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -8110,14 +8110,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-!  The diagonalization subsection
-      CALL section_create(subsection, __LOCATION__, name="DIAGONALIZATION", &
-                          description="Set the choice of method and parameters for solving the "// &
-                          "XAS TDP eigenvalue problem.", &
-                          n_keywords=3, &
-                          n_subsections=0, &
-                          repeats=.FALSE.)
-
       CALL keyword_create(keyword, __LOCATION__, name="N_EXCITED", &
                           variants=(/"N_ROOTS"/), &
                           description="The number of excited states to compute per donor "// &
@@ -8126,42 +8118,20 @@ CONTAINS
                           "If N_EXCITED is set to -1, all excitations are considered", &
                           usage="N_EXCITED {integer}", &
                           default_i_val=-1)
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_RANGE", &
                           variants=s2a("E_RANGE"), &
                           description="The energy range in eV for which excitations are considered. "// &
                           "Only excitated states within the range of: first excitation "// &
-                          "energy + ENERGY_RANGE are kept/computed. If ENERGY_RANGE "// &
+                          "energy + ENERGY_RANGE are kept. If ENERGY_RANGE "// &
                           "and N_EXCITED are specified, the former has priority. "// &
                           "Negative values are ignored and N_EXCITED takes over.", &
                           usage="ENERGY_RANGE {real}", &
                           default_r_val=-1.0_dp)
-      CALL section_add_keyword(subsection, keyword)
+      CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="DIAGONALIZATION_TYPE", &
-                          variants=s2a("DIAG_TYPE", "DIAG"), &
-                          description="Which digonalization procedure to use", &
-                          usage="DIAGONALIZATION_TYPE {string}", &
-                          enum_c_vals=s2a("STD", "SYEVR"), &
-                          enum_desc=s2a("The standard used everywhere else in CP2K (usually ELPA), "// &
-                                        "all eigenvectors are computed but only N_EXCITED are kept.", &
-                                        "Using the PDSYEVR routine of ScalaPACK which allows to "// &
-                                        "only solve for N_EXCITED eigenvectors. Can be considerably "// &
-                                        "faster than the standard for large problems, but might "// &
-                                        "crash for smaller problems due to a ScalaPACK bug (PDORMTR)."// &
-                                        " Requires version 2 of ScalaPACK. Final note: "// &
-                                        "ELPA is known to scale better with the number of MPI ranks."), &
-                          enum_i_vals=(/xas_tdp_diag_std, xas_tdp_diag_syevr/), &
-                          default_i_val=xas_tdp_diag_std)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-!  End of the diagonalization subsection
 
 !  The KERNEL subsection
       CALL section_create(subsection, __LOCATION__, name="KERNEL", &

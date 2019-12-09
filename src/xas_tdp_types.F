@@ -24,16 +24,16 @@ MODULE xas_tdp_types
                                               dbcsr_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
-   USE hfx_types,                       ONLY: hfx_potential_type
    USE input_constants,                 ONLY: &
         do_potential_coulomb, do_potential_short, do_potential_truncated, tddfpt_singlet, &
         tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, xas_dip_vel, xas_tdp_by_index, &
-        xas_tdp_by_kind, xas_tdp_diag_std
+        xas_tdp_by_kind
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE libint_wrapper,                  ONLY: cp_libint_static_cleanup
    USE mathlib,                         ONLY: erfc_cutoff
    USE memory_utilities,                ONLY: reallocate
@@ -87,7 +87,6 @@ MODULE xas_tdp_types
 !> \param state_types columns correspond to the states to excite for each atom kind/index
 !>                    the number of rows is the number of times the keyword is repeated
 !> \param grid_info the information about the atomic grids used for the xc kernel integrals
-!> \param diag_type which of the CP2K standard or syevr
 !> \param is_periodic self-explanatory
 !> \param batch_size how many procs are allocated to the XC treatment of excited atoms
 ! **************************************************************************************************
@@ -103,8 +102,8 @@ MODULE xas_tdp_types
       REAL(dp)                                :: eps_screen
       REAL(dp)                                :: eps_pgf
       REAL(dp)                                :: eps_filter
-      TYPE(hfx_potential_type)                :: x_potential
-      TYPE(hfx_potential_type)                :: ri_m_potential
+      TYPE(libint_potential_type)             :: x_potential
+      TYPE(libint_potential_type)             :: ri_m_potential
       REAL(dp)                                :: ri_radius
       LOGICAL                                 :: do_hfx
       LOGICAL                                 :: do_xc
@@ -121,7 +120,6 @@ MODULE xas_tdp_types
       LOGICAL                                 :: do_triplet
       LOGICAL                                 :: do_spin_cons
       LOGICAL                                 :: do_spin_flip
-      INTEGER                                 :: diag_type
       LOGICAL                                 :: is_periodic
       INTEGER, DIMENSION(:), POINTER          :: list_ex_atoms
       CHARACTER(len=default_string_length), &
@@ -370,7 +368,6 @@ CONTAINS
       xas_tdp_control%do_triplet = .FALSE.
       xas_tdp_control%do_spin_cons = .FALSE.
       xas_tdp_control%do_spin_flip = .FALSE.
-      xas_tdp_control%diag_type = xas_tdp_diag_std
       xas_tdp_control%is_periodic = .FALSE.
       xas_tdp_control%n_excited = -1
       xas_tdp_control%e_range = -1.0_dp
@@ -475,6 +472,13 @@ CONTAINS
          IF (excitation == tddfpt_spin_cons) xas_tdp_control%do_spin_cons = .TRUE.
          IF (excitation == tddfpt_spin_flip) xas_tdp_control%do_spin_flip = .TRUE.
       END DO
+
+      CALL section_vals_val_get(xas_tdp_section, "N_EXCITED", &
+                                i_val=xas_tdp_control%n_excited)
+      CALL section_vals_val_get(xas_tdp_section, "ENERGY_RANGE", &
+                                r_val=xas_tdp_control%e_range)
+      !store the range in Hartree, not eV
+      xas_tdp_control%e_range = xas_tdp_control%e_range/evolt
 
 !  Deal with the DONOR_STATES subsection
 
@@ -620,16 +624,6 @@ CONTAINS
          !then no coulomb either and go full DFT
          xas_tdp_control%do_coulomb = .FALSE.
       END IF
-
-!  Deal with the diagonalization subsection
-      CALL section_vals_val_get(xas_tdp_section, "DIAGONALIZATION%N_EXCITED", &
-                                i_val=xas_tdp_control%n_excited)
-      CALL section_vals_val_get(xas_tdp_section, "DIAGONALIZATION%DIAGONALIZATION_TYPE", &
-                                i_val=xas_tdp_control%diag_type)
-      CALL section_vals_val_get(xas_tdp_section, "DIAGONALIZATION%ENERGY_RANGE", &
-                                r_val=xas_tdp_control%e_range)
-      !store the range in Hartree, not eV
-      xas_tdp_control%e_range = xas_tdp_control%e_range/evolt
 
    END SUBROUTINE read_xas_tdp_control
 
