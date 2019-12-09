@@ -12,8 +12,9 @@
 MODULE input_cp2k_xc
    USE bibliography,                    ONLY: &
         Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, Grimme2010, Grimme2011, &
-        Heyd2004, Kruse2012, Lee1988, Lehtola2018, Marques2012, Ortiz1994, Perdew1981, Perdew1996, &
-        Perdew2008, Proynov2007, Tao2003, Tran2013, Vosko1980, Wellendorff2012, Zhang1998
+        Heyd2004, Kruse2012, Lee1988, Lehtola2018, Marques2012, Ortiz1994, Paziani2006, &
+        Perdew1981, Perdew1996, Perdew2008, Proynov2007, Tao2003, Toulouse2004, Tran2013, &
+        Vosko1980, Wellendorff2012, Zhang1998
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level
@@ -725,6 +726,46 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+
+      CALL section_create(subsection, __LOCATION__, name="SRLDA", &
+                          description="Uses the short-range LDA functional", &
+                          n_keywords=0, n_subsections=0, repeats=.FALSE., &
+                          citations=(/Paziani2006, Toulouse2004/))
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="activates the functional", &
+                          lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="scale_x", &
+                          description="scales the exchange part of the functional", &
+                          default_r_val=1._dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="scale_c", &
+                          description="scales the correlation part of the functional", &
+                          default_r_val=1._dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="omega", &
+                          description="provide the range-separation parameter of the functional", &
+                          default_r_val=1._dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETRIZATION", &
+                          description="Which one parametrizations of the underlying PW92 functional should be used", &
+                          usage="PARAMETRIZATION DMC", &
+                          enum_c_vals=(/ &
+                          "ORIGINAL", &
+                          "DMC     ", &
+                          "VMC     "/), &
+                          enum_i_vals=(/c_pw92, c_pw92dmc, c_pw92vmc/), &
+                          default_i_val=c_pw92)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_xc_fun_section
 
 ! **************************************************************************************************
