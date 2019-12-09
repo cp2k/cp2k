@@ -59,7 +59,7 @@ MODULE xas_tdp_methods
         do_loc_none, do_potential_coulomb, do_potential_id, do_potential_short, &
         do_potential_truncated, op_loc_berry, state_loc_list, tddfpt_singlet, tddfpt_spin_cons, &
         tddfpt_spin_flip, tddfpt_triplet, xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len, &
-        xas_dip_vel, xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tdp_diag_syevr
+        xas_dip_vel, xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind
    USE input_cp2k_dft,                  ONLY: create_localize_section
    USE input_section_types,             ONLY: &
         section_release, section_type, section_vals_create, section_vals_duplicate, &
@@ -407,15 +407,6 @@ CONTAINS
 
 !              Do main calculations here
                CALL setup_xas_tdp_prob(current_state, qs_env, xas_tdp_env, xas_tdp_control)
-
-!              Warn against possible failure of SYEVR if this is the solver of choice
-               IF (output_unit > 0 .AND. xas_tdp_control%diag_type == xas_tdp_diag_syevr) THEN
-                  WRITE (UNIT=output_unit, FMT="(/T5,A,/,T5,A,/,T5,A)") &
-                     "Diagonalizing using ScaLAPACK's PDSYEVR routine. This routine is not always", &
-                     "stable and might lead to a crash. If it so happens, switch back to the", &
-                     "default DIAG_TYPE STD keyword."
-                  CALL m_flush(output_unit)
-               END IF
 
                IF (xas_tdp_control%do_spin_cons) THEN
                   CALL solve_xas_tdp_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &

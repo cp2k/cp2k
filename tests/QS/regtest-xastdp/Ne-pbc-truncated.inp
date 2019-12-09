@@ -44,6 +44,7 @@
 
       TAMM_DANCOFF 
       GRID Ne 150 150
+      N_EXCITED 10
 
       &KERNEL
          &XC_FUNCTIONAL 
@@ -64,9 +65,6 @@
          &END EXACT_EXCHANGE
       &END KERNEL
 
-      &DIAGONALIZATION
-         N_EXCITED 10
-      &END DIAGONALIZATION
     &END XAS_TDP
 
   &END DFT

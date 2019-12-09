@@ -35,6 +35,7 @@
       TAMM_DANCOFF
       DIPOLE_FORM LENGTH
       GRID C 200 200
+      N_EXCITED 12
       
       &KERNEL
          RI_REGION 3.0
@@ -49,9 +50,6 @@
          &END XC_FUNCTIONAL
       &END KERNEL
 
-      &DIAGONALIZATION
-         N_EXCITED 12
-      &END DIAGONALIZATION
     &END XAS_TDP
 
   &END DFT

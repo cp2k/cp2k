@@ -10,11 +10,6 @@
 
 MODULE xas_tdp_utils
    USE ai_contraction_sphi,             ONLY: ab_contract
-   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
-                                              arnoldi_ev,&
-                                              deallocate_arnoldi_data,&
-                                              get_selected_ritz_val,&
-                                              setup_arnoldi_data
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_p_type,&
@@ -48,7 +43,6 @@ MODULE xas_tdp_utils
                                               cp_fm_upper_to_full
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_geeig,&
-                                              cp_fm_geeig_syevr,&
                                               cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -59,12 +53,12 @@ MODULE xas_tdp_utils
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
-        dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_all_blocks, &
-        dbcsr_set, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
+        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_set, &
+        dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                               distribution_2d_type
@@ -74,17 +68,16 @@ MODULE xas_tdp_utils
    USE generic_os_integrals,            ONLY: int_operators_r12_ab_os
    USE input_constants,                 ONLY: &
         do_potential_coulomb, do_potential_id, do_potential_short, do_potential_truncated, &
-        tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, xas_dip_len, &
-        xas_tdp_diag_std, xas_tdp_diag_syevr
+        tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, xas_dip_len
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libint_2c_3c,                    ONLY: eri_2center
+   USE libint_2c_3c,                    ONLY: eri_2center,&
+                                              libint_potential_type
    USE libint_wrapper,                  ONLY: cp_libint_cleanup_2eri,&
                                               cp_libint_init_2eri,&
                                               cp_libint_set_contrdepth,&
-                                              cp_libint_t,&
-                                              libint_potential_type
+                                              cp_libint_t
    USE machine,                         ONLY: m_memory_details
    USE mathlib,                         ONLY: get_diag,&
                                               invmat_symm
@@ -516,27 +509,24 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'solve_xas_tdp_prob', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: diag_type, first_ex, handle, i, imo, &
-                                                            ispin, nao, ndo_mo, nelectron, nevals, &
-                                                            nocc, nrow, nspins
+      INTEGER                                            :: first_ex, handle, i, imo, ispin, nao, &
+                                                            ndo_mo, nelectron, nevals, nocc, nrow, &
+                                                            nspins
       LOGICAL                                            :: do_os, do_range, do_sf
-      REAL(dp)                                           :: max_ev, min_ev, shift
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: scaling, tmp_evals
       REAL(dp), DIMENSION(:), POINTER                    :: lr_evals
-      TYPE(arnoldi_data_type)                            :: my_arnoldi
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: ex_struct, fm_struct
       TYPE(cp_fm_type), POINTER                          :: c_diff, c_sum, lhs_matrix, lr_coeffs, &
                                                             rhs_matrix, work
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(2)                   :: matrices
-      TYPE(dbcsr_type)                                   :: proj_Q, tmp_mat
-      TYPE(dbcsr_type), POINTER                          :: matrix_tdp, sps
+      TYPE(dbcsr_type)                                   :: tmp_mat
+      TYPE(dbcsr_type), POINTER                          :: matrix_tdp
 
       CALL timeset(routineN, handle)
 
       NULLIFY (para_env, blacs_env, fm_struct, rhs_matrix, matrix_tdp, lhs_matrix, work)
-      NULLIFY (c_diff, c_sum, ex_struct, lr_evals, lr_coeffs, sps)
+      NULLIFY (c_diff, c_sum, ex_struct, lr_evals, lr_coeffs)
       CPASSERT(ASSOCIATED(xas_tdp_env))
 
       do_os = .FALSE.
@@ -557,7 +547,6 @@ CONTAINS
 
 !     Initialization
       nspins = 1; IF (do_os) nspins = 2
-      diag_type = xas_tdp_control%diag_type
       CALL cp_fm_get_info(donor_state%gs_coeffs, nrow_global=nao)
       CALL dbcsr_get_info(matrix_tdp, nfullrows_total=nrow)
       ndo_mo = donor_state%ndo_mo
@@ -566,55 +555,8 @@ CONTAINS
       first_ex = nocc + 1 !where to find the first proper eigenvalue
 
       !solve by energy_range or number of states ?
-      IF (xas_tdp_control%e_range > 0.0_dp) THEN
-
-         !Need to find out what the first excitation energy is => project out 0 eigenvalues
-         !then use arnoldi
-         do_range = .TRUE.
-
-         !Need to add shift*SPS to matrix_tdp. Q = 1-SP => SPS = (1-Q)*S (symmetric matrix)
-         !shift = 2*(E_homo - E-lomo) should be safe
-
-         ALLOCATE (sps)
-         CALL get_q_projector(proj_Q, donor_state, do_os, xas_tdp_env)
-         CALL dbcsr_create(matrix=sps, template=matrix_tdp, matrix_type="S")
-
-         CALL dbcsr_add_on_diag(proj_Q, -1.0_dp) ! -SP
-         CALL dbcsr_multiply('N', 'N', -1.0_dp, proj_Q, donor_state%metric(1)%matrix, &
-                             0.0_dp, sps, filter_eps=xas_tdp_control%eps_filter)
-
-         shift = 2.0_dp*MAXVAL(ABS(donor_state%energy_evals))
-         CALL dbcsr_add(sps, matrix_tdp, shift, 1.0_dp) ! store it in sps not to mess-up matrix_tdp
-
-         !estimating the first eigenvalue now
-         matrices(1)%matrix => sps
-         matrices(2)%matrix => donor_state%metric(1)%matrix
-         CALL setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=1.0E-3_dp, &
-                                 selection_crit=3, nval_request=1, nrestarts=10, &
-                                 generalized_ev=.TRUE., iram=.FALSE.)
-         CALL arnoldi_ev(matrices, my_arnoldi)
-         min_ev = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
-         CALL deallocate_arnoldi_data(my_arnoldi)
-
-         !Now we have an estimate for lowest excitation energy => max_ev = min_ev + e_range
-         max_ev = min_ev + xas_tdp_control%e_range
-         min_ev = 0.8_dp*min_ev !for safety, in case of overestimation
-
-         CALL dbcsr_release(sps)
-         CALL dbcsr_release(proj_Q)
-         DEALLOCATE (sps)
-
-      ELSE !number of states
-
-         do_range = .FALSE.
-
-         nevals = nspins*nao - nocc/ndo_mo
-         IF (xas_tdp_control%n_excited > 0 .AND. xas_tdp_control%n_excited < nevals) THEN
-            nevals = xas_tdp_control%n_excited
-         END IF
-         nevals = ndo_mo*nevals !as in input description, multiply by # of donor MOs
-
-      END IF
+      do_range = .FALSE.
+      IF (xas_tdp_control%e_range > 0.0_dp) do_range = .TRUE.
 
       ! create the fm infrastructure
       ALLOCATE (tmp_evals(nrow))
@@ -634,28 +576,8 @@ CONTAINS
          CALL cp_fm_create(lhs_matrix, fm_struct)
          CALL copy_dbcsr_to_fm(donor_state%metric(1)%matrix, lhs_matrix)
 
-         IF (diag_type == xas_tdp_diag_std) THEN
-            !Diagonalisation (Cholesky decomposition). In TDA, c_sum = c^-
-            CALL cp_fm_geeig(rhs_matrix, lhs_matrix, c_sum, tmp_evals, work)
-
-         ELSE IF (diag_type == xas_tdp_diag_syevr .AND. do_range) THEN
-
-            !Using syevr to loko for eigenvalue in the given energy window
-            CALL cp_fm_geeig_syevr(rhs_matrix, lhs_matrix, c_sum, tmp_evals(nocc + 1:nrow), &
-                                   work, vlow=min_ev, vup=max_ev)
-
-            !In this case, eigenvectors are from the first comlumn on
-            first_ex = 1
-
-         ELSE !syevr, look for eigenvalues with indices
-
-            !Usgin syevr to only compute nevals
-            CALL cp_fm_geeig_syevr(rhs_matrix, lhs_matrix, c_sum, tmp_evals(nocc + 1:nocc + nevals), &
-                                   work, ilow=nocc + 1, iup=nocc + nevals)
-
-            !In this case, eigenvectors are from the first comlumn on
-            first_ex = 1
-         END IF
+         !Diagonalisation (Cholesky decomposition). In TDA, c_sum = c^-
+         CALL cp_fm_geeig(rhs_matrix, lhs_matrix, c_sum, tmp_evals, work)
 
 !        TDA specific clean-up
          CALL cp_fm_release(lhs_matrix)
@@ -725,17 +647,23 @@ CONTAINS
 !  first element is the first eval. Need a case study on do_range
       IF (do_range) THEN
 
-         WHERE (tmp_evals > max_ev) tmp_evals = 0.0_dp
+         WHERE (tmp_evals > tmp_evals(first_ex) + xas_tdp_control%e_range) tmp_evals = 0.0_dp
          nevals = MAXLOC(tmp_evals, 1) - nocc
 
          ALLOCATE (lr_evals(nevals))
-         lr_evals(:) = tmp_evals(nocc + 1:nocc + nevals)
+         lr_evals(:) = tmp_evals(first_ex:nocc + nevals)
 
       ELSE
 
-         !nevals is known from the start
+         !Determine the number of evals to keep base on N_EXCITED
+         nevals = nspins*nao - nocc/ndo_mo
+         IF (xas_tdp_control%n_excited > 0 .AND. xas_tdp_control%n_excited < nevals) THEN
+            nevals = xas_tdp_control%n_excited
+         END IF
+         nevals = ndo_mo*nevals !as in input description, multiply by # of donor MOs
+
          ALLOCATE (lr_evals(nevals))
-         lr_evals(:) = tmp_evals(nocc + 1:nocc + nevals)
+         lr_evals(:) = tmp_evals(first_ex:nocc + nevals)
       END IF
 
 !  Reorganize the eigenvectors in array of cp_fm so that each ndo_mo columns corresponds to an
