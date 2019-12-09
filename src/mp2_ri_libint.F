@@ -1219,7 +1219,7 @@ CONTAINS
             END IF
             init_TShPSC_lmax = l_max
          END IF
-         mp2_potential_parameter%cutoff_radius = mp2_env%potential_parameter%truncation_radius/2.0_dp
+         mp2_potential_parameter%cutoff_radius = mp2_env%potential_parameter%cutoff_radius/2.0_dp
       ELSE IF (mp2_env%potential_parameter%potential_type == do_potential_long) THEN
          mp2_potential_parameter%omega = mp2_env%potential_parameter%omega
       END IF

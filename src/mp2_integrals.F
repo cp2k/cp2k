@@ -61,7 +61,9 @@ MODULE mp2_integrals
                                               do_eri_os,&
                                               do_potential_coulomb,&
                                               do_potential_id,&
-                                              do_potential_long
+                                              do_potential_long,&
+                                              do_potential_short,&
+                                              do_potential_truncated
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -257,7 +259,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int_mao_for_occ, &
                                                             mat_3c_overl_int_mao_for_virt
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coeff_occ, mao_coeff_virt
-      INTEGER, INTENT(IN)                                :: ri_metric
+      TYPE(libint_potential_type), INTENT(IN)            :: ri_metric
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_B_occ_bse, gd_B_virt_bse
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT), OPTIONAL                           :: BIb_C_beta, BIb_C_gw_beta
@@ -277,7 +279,7 @@ CONTAINS
          my_B_virt_bse_start, my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, &
          my_B_virtual_start_beta, my_group_L_end, my_group_L_size, my_group_L_start, natom, ngroup
       INTEGER :: ngroup_im_time, ngroup_im_time_P, nimg, nkind, num_diff_blk, num_small_eigen, &
-         potential_type, sqrt_max_bsize, virtual, virtual_beta
+         potential_type, ri_metric_type, sqrt_max_bsize, virtual, virtual_beta
       INTEGER, ALLOCATABLE, DIMENSION(:) :: local_atoms_for_mao_basis, my_group_L_ends_im_time, &
          my_group_L_sizes_im_time, my_group_L_starts_im_time, sizes_AO, sizes_AO_split, sizes_RI, &
          sizes_RI_split, sub_proc_map
@@ -288,7 +290,7 @@ CONTAINS
                                                             do_kpoints_from_Gamma, do_svd, &
                                                             impose_split, memory_info
       REAL(KIND=dp)                                      :: cond_num, cutoff_old, eps_svd, &
-                                                            mem_for_iaK, omega_metric, omega_pot, &
+                                                            mem_for_iaK, omega_pot, &
                                                             relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
@@ -305,7 +307,6 @@ CONTAINS
          matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_ao, basis_set_ri_aux
-      TYPE(libint_potential_type)                        :: pot_par
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_p_type)                                    :: pot_g, psi_L, rho_g, rho_r
@@ -326,8 +327,10 @@ CONTAINS
           PRESENT(mo_coeff_o_beta) .AND. &
           PRESENT(mo_coeff_v_beta)) do_alpha_beta = .TRUE.
 
-      ! imag. time only without Coulomb metric implemented
-      CPASSERT(.NOT. (ri_metric == do_potential_coulomb .AND. do_im_time))
+      IF ((ri_metric%potential_type == do_potential_short .OR. ri_metric%potential_type == do_potential_truncated) &
+          .AND. .NOT. do_im_time) THEN
+         CPABORT("TRUNCATED and SHORTRANGE RI metrics not yet implemented")
+      ENDIF
 
       virtual = nmo - homo
       gw_corr_lev_total = gw_corr_lev_virt + gw_corr_lev_occ
@@ -337,13 +340,14 @@ CONTAINS
       do_svd = qs_env%mp2_env%do_svd
       eps_svd = qs_env%mp2_env%eps_svd
       potential_type = qs_env%mp2_env%potential_parameter%potential_type
+      ri_metric_type = ri_metric%potential_type
       omega_pot = qs_env%mp2_env%potential_parameter%omega
-      omega_metric = qs_env%mp2_env%omega_metric
 
       ! whether we need gpw integrals (plus pw stuff)
-      do_gpw = (eri_method == do_eri_gpw) .OR. ((potential_type == do_potential_long .OR. ri_metric == do_potential_long) &
-                                                .AND. qs_env%mp2_env%eri_method == do_eri_os) &
-               .OR. (ri_metric == do_potential_id .AND. qs_env%mp2_env%eri_method == do_eri_mme)
+      do_gpw = (eri_method == do_eri_gpw) .OR. &
+               ((potential_type == do_potential_long .OR. ri_metric_type == do_potential_long) &
+                .AND. qs_env%mp2_env%eri_method == do_eri_os) &
+               .OR. (ri_metric_type == do_potential_id .AND. qs_env%mp2_env%eri_method == do_eri_mme)
 
       IF (do_svd .AND. calc_forces) THEN
          CPABORT("SVD not implemented for forces.!")
@@ -351,7 +355,6 @@ CONTAINS
 
       do_kpoints_from_Gamma = SUM(qs_env%mp2_env%ri_rpa_im_time%kp_grid) > 0
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
-         CPASSERT(eri_method == do_eri_os)
          CALL get_qs_env(qs_env=qs_env, &
                          kpoints=kpoints)
       END IF
@@ -460,7 +463,8 @@ CONTAINS
                             fm_matrix_L, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, mo_coeff, &
                             my_group_L_size, my_group_L_start, my_group_L_end, &
                             gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, cond_num, do_svd, eps_svd, &
-                            num_small_eigen, potential_type, ri_metric, omega_pot, omega_metric, fm_matrix_L_RI_metric, &
+                            num_small_eigen, qs_env%mp2_env%potential_parameter, ri_metric, &
+                            fm_matrix_L_RI_metric, &
                             do_im_time, do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
                             atomic_kind_set, qs_kind_set, sab_orb_sub)
 
@@ -572,8 +576,9 @@ CONTAINS
 
          CALL timeset(routineN//"_loop", handle2)
 
-         IF (eri_method == do_eri_mme .AND. (ri_metric == do_potential_coulomb .OR. ri_metric == do_potential_long) .OR. &
-             eri_method == do_eri_os .AND. ri_metric == do_potential_coulomb) THEN
+         IF (eri_method == do_eri_mme .AND. &
+             (ri_metric%potential_type == do_potential_coulomb .OR. ri_metric%potential_type == do_potential_long) .OR. &
+             eri_method == do_eri_os .AND. ri_metric%potential_type == do_potential_coulomb) THEN
 
             NULLIFY (mat_munu_local_L)
             ALLOCATE (mat_munu_local_L(my_group_L_size))
@@ -583,7 +588,7 @@ CONTAINS
                CALL dbcsr_copy(mat_munu_local_L(LLL)%matrix, mat_munu%matrix)
                CALL dbcsr_set(mat_munu_local_L(LLL)%matrix, 0.0_dp)
             ENDDO
-            CALL mp2_eri_3c_integrate(eri_param, ri_metric, omega_metric, para_env_sub, qs_env, &
+            CALL mp2_eri_3c_integrate(eri_param, ri_metric%potential_type, ri_metric%omega, para_env_sub, qs_env, &
                                       first_c=my_group_L_start, last_c=my_group_L_end, &
                                       mat_ab=mat_munu_local_L, &
                                       basis_type_a="ORB", basis_type_b="ORB", &
@@ -676,7 +681,7 @@ CONTAINS
 
                CALL mp2_eri_3c_integrate_gpw(mo_coeff, psi_L, rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, &
                                              particle_set, pw_env_sub, my_Lrows(:, i_counter), poisson_env, rho_r, pot_g, &
-                                             ri_metric, omega_metric, mat_munu, qs_env, task_list_sub)
+                                             ri_metric%potential_type, ri_metric%omega, mat_munu, qs_env, task_list_sub)
 
                CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_ia_jnu, matrix_ia_jb, &
                                          fm_BIb_jb, BIb_C(i_counter, 1:my_B_size, 1:homo), &
@@ -796,11 +801,9 @@ CONTAINS
             CALL basis_set_list_setup(basis_set_ao, "ORB", qs_kind_set)
             CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=basis_set_ao)
 
-            ! 1) create t_3c_overl_int
-
             CALL create_tensor_O_3c(t_3c_overl_int_template, pgrid_t3c_overl, &
                                     sizes_AO, sizes_AO, sizes_RI, &
-                                    nl_3c=nl_3c, qs_env=qs_env, &
+                                    ri_metric=ri_metric, nl_3c=nl_3c, qs_env=qs_env, &
                                     basis_ao_1=basis_set_ao, basis_ao_2=basis_set_ao, basis_RI=basis_set_ri_aux, &
                                     do_kpoints=do_kpoints_cubic_RPA)
 
@@ -857,14 +860,13 @@ CONTAINS
                ENDDO
             ENDDO
 
-            pot_par%potential_type = do_potential_id
             CALL build_3c_integrals(t_3c_overl_int, &
                                     qs_env%mp2_env%mp2_gpw%eps_filter, &
                                     qs_env, &
                                     nl_3c, &
                                     basis_i=basis_set_ri_aux, &
                                     basis_j=basis_set_ao, basis_k=basis_set_ao, &
-                                    potential_parameter=pot_par, &
+                                    potential_parameter=ri_metric, &
                                     do_kpoints=do_kpoints_cubic_RPA)
 
             DEALLOCATE (basis_set_ri_aux, basis_set_ao)
@@ -1057,6 +1059,7 @@ CONTAINS
 !> \param ao_sizes_1 block sizes of first AO index
 !> \param ao_sizes_2 block sizes of second AO index
 !> \param sizes_RI block sizes of RI index
+!> \param ri_metric ...
 !> \param nl_3c 3c-neighborlist - if present, the sizes arguments must refer to atomic blocks
 !> \param qs_env needed for nl_3c
 !> \param basis_ao_1 needed for nl_3c
@@ -1065,11 +1068,12 @@ CONTAINS
 !> \param do_kpoints ...
 ! **************************************************************************************************
    SUBROUTINE create_tensor_O_3c(t_3c_O, mp_comm_t3c, ao_sizes_1, ao_sizes_2, sizes_RI, &
-                                 nl_3c, qs_env, basis_ao_1, basis_ao_2, basis_RI, &
+                                 ri_metric, nl_3c, qs_env, basis_ao_1, basis_ao_2, basis_RI, &
                                  do_kpoints)
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: t_3c_O
       TYPE(dbcsr_t_pgrid_type), INTENT(IN)               :: mp_comm_t3c
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_sizes_1, ao_sizes_2, sizes_RI
+      TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: ri_metric
       TYPE(neighbor_list_3c_type), INTENT(OUT), OPTIONAL :: nl_3c
       TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), &
@@ -1083,7 +1087,6 @@ CONTAINS
       LOGICAL                                            :: kp
       TYPE(dbcsr_t_distribution_type)                    :: dist
       TYPE(distribution_3d_type)                         :: dist_3d
-      TYPE(libint_potential_type)                        :: pot_par
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       IF (PRESENT(do_kpoints)) THEN
@@ -1108,6 +1111,7 @@ CONTAINS
 
       IF (PRESENT(nl_3c)) THEN
          CPASSERT(PRESENT(qs_env))
+         CPASSERT(PRESENT(ri_metric))
          CALL get_qs_env(qs_env, nkind=nkind, particle_set=particle_set)
          CPASSERT(PRESENT(basis_RI))
          CPASSERT(PRESENT(basis_ao_1))
@@ -1117,10 +1121,8 @@ CONTAINS
          CALL distribution_3d_create(dist_3d, dist_RI, dist_ao_1, dist_ao_2, &
                                      nkind, particle_set, mp_comm_t3c_2, own_comm=.TRUE.)
 
-         ! we rely on symmetry of the two AO-indices only if no k-points
-         pot_par%potential_type = do_potential_id
          CALL build_3c_neighbor_lists(nl_3c, basis_RI, basis_ao_1, basis_ao_2, &
-                                      dist_3d, pot_par, "RPA_3c_nl", qs_env, &
+                                      dist_3d, ri_metric, "RPA_3c_nl", qs_env, &
                                       sym_jk=.NOT. kp, own_dist=.TRUE.)
       ENDIF
 

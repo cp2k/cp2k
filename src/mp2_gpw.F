@@ -76,6 +76,8 @@ MODULE mp2_gpw
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
+   USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
+                                              cp_libint_static_init
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
    USE mao_basis,                       ONLY: mao_generate_basis
@@ -163,7 +165,7 @@ CONTAINS
          dimen_RI, dimen_RI_red, eri_method, group_size_3c, group_size_P, gw_corr_lev_occ, &
          gw_corr_lev_occ_beta, gw_corr_lev_virt, gw_corr_lev_virt_beta, handle, homo, homo_beta, &
          i, local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, nelectron, &
-         nelectron_beta, nmo, nspins, ri_metric
+         nelectron_beta, nmo, nspins, potential_type, ri_metric_type
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array_mc_t, starts_array_mc_t
       LOGICAL :: blacs_repeatable, do_bse, do_dbcsr_t, do_gpw, do_im_time, do_kpoints_cubic_RPA, &
          do_mao, my_do_gw, my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2
@@ -345,14 +347,15 @@ CONTAINS
             blacs_env_sub_mat_munu => blacs_env_sub_im_time_3c
          END IF
 
-         ! in imaginary time, we do overlap metric if no short range metric is specified
-         IF ((mp2_env%ri_metric == ri_default) .OR. (mp2_env%ri_metric == do_potential_coulomb)) &
-            mp2_env%ri_metric = do_potential_id
+         IF (mp2_env%ri_metric%potential_type == ri_default) mp2_env%ri_metric%potential_type = do_potential_id
+
+         ! statically initialize libint
+         CALL cp_libint_static_init()
 
       END IF
 
-      IF (mp2_env%ri_metric == ri_default) THEN
-         mp2_env%ri_metric = do_potential_coulomb
+      IF (mp2_env%ri_metric%potential_type == ri_default) THEN
+         mp2_env%ri_metric%potential_type = do_potential_coulomb
       END IF
 
       ! get stuff
@@ -387,13 +390,16 @@ CONTAINS
       END IF
 
       ! which RI metric we want to have
-      ri_metric = mp2_env%ri_metric
+      ri_metric_type = mp2_env%ri_metric%potential_type
+
+      ! which interaction potential
+      potential_type = mp2_env%potential_parameter%potential_type
 
       ! whether we need gpw integrals (plus pw stuff)
       do_gpw = (eri_method == do_eri_gpw) .OR. &
-               ((mp2_env%potential_parameter%potential_type == do_potential_long .OR. ri_metric == do_potential_long) &
+               ((potential_type == do_potential_long .OR. ri_metric_type == do_potential_long) &
                 .AND. eri_method == do_eri_os) &
-               .OR. (ri_metric == do_potential_id .AND. eri_method == do_eri_mme)
+               .OR. (ri_metric_type == do_potential_id .AND. eri_method == do_eri_mme)
 
       ! check if we want to do ri-g0w0 on top of ri-rpa
       my_do_gw = mp2_env%ri_rpa%do_ri_g0w0
@@ -451,7 +457,7 @@ CONTAINS
                do_im_time, do_mao, do_kpoints_cubic_RPA, kpoints, &
                mat_3c_overl_int, do_dbcsr_t, t_3c_overl_int, t_3c_M, t_3c_O, &
                mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, &
-               mao_coeff_occ, mao_coeff_virt, ri_metric, &
+               mao_coeff_occ, mao_coeff_virt, mp2_env%ri_metric, &
                gd_B_occ_bse, gd_B_virt_bse, &
                BIb_C_beta, BIb_C_gw_beta, gd_B_virtual_beta, &
                homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, mo_coeff_all_beta, mo_coeff_gw_beta)
@@ -471,7 +477,7 @@ CONTAINS
                                        do_im_time, do_mao, do_kpoints_cubic_RPA, kpoints, &
                                        mat_3c_overl_int, do_dbcsr_t, t_3c_overl_int, t_3c_M, t_3c_O, mat_3c_overl_int_mao_for_occ, &
                                        mat_3c_overl_int_mao_for_virt, mao_coeff_occ, mao_coeff_virt, &
-                                       ri_metric, gd_B_occ_bse, gd_B_virt_bse)
+                                       mp2_env%ri_metric, gd_B_occ_bse, gd_B_virt_bse)
 
          END IF
       ELSE
@@ -676,6 +682,7 @@ CONTAINS
                                      para_env_sub_im_time_P, mao_coeff_occ, mao_coeff_virt, &
                                      mao_coeff_occ_A, mao_coeff_virt_A, mp2_env)
             ENDIF
+            CALL cp_libint_static_cleanup()
          END IF
 
          ! Release some memory for AXK

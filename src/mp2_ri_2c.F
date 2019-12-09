@@ -12,7 +12,8 @@
 MODULE mp2_ri_2c
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
-   USE basis_set_types,                 ONLY: gto_basis_set_type
+   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
+                                              gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
    USE constants_operator,              ONLY: operator_coulomb
@@ -31,6 +32,7 @@ MODULE mp2_ri_2c
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              cp_dbcsr_dist2d_to_dist,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param
@@ -50,9 +52,10 @@ MODULE mp2_ri_2c
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_p_type, &
-        dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_p_type, dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE distribution_2d_types,           ONLY: distribution_2d_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
@@ -68,6 +71,7 @@ MODULE mp2_ri_2c
    USE kpoint_methods,                  ONLY: rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
+   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_bcast,&
                                               mp_comm_split_direct,&
@@ -76,15 +80,19 @@ MODULE mp2_ri_2c
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
    USE mp2_eri_gpw,                     ONLY: mp2_eri_2c_integrate_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type
+   USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_interactions,                 ONLY: init_interaction_radii
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: set_ks_env
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_overlap,                      ONLY: build_overlap_matrix
+   USE qs_tensors,                      ONLY: build_2c_integrals,&
+                                              build_2c_neighbor_lists,&
+                                              neighbor_list_2c_destroy
    USE rpa_communication,               ONLY: communicate_buffer
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
@@ -125,10 +133,8 @@ CONTAINS
 !> \param do_svd ...
 !> \param eps_svd ...
 !> \param num_small_eigen ...
-!> \param potential_type ...
+!> \param potential ...
 !> \param ri_metric ...
-!> \param omega_pot ...
-!> \param omega_metric ...
 !> \param fm_matrix_L_RI_metric ...
 !> \param do_im_time ...
 !> \param do_kpoints ...
@@ -141,7 +147,8 @@ CONTAINS
                                fm_matrix_L, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, mo_coeff, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                gd_array, calc_PQ_cond_num, cond_num, do_svd, eps_svd, &
-                               num_small_eigen, potential_type, ri_metric, omega_pot, omega_metric, fm_matrix_L_RI_metric, &
+                               num_small_eigen, potential, ri_metric, &
+                               fm_matrix_L_RI_metric, &
                                do_im_time, do_kpoints, mp2_eps_pgf_orb_S, atomic_kind_set, qs_kind_set, sab_orb_sub)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -162,8 +169,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_svd
       REAL(KIND=dp), INTENT(IN)                          :: eps_svd
       INTEGER, INTENT(OUT)                               :: num_small_eigen
-      INTEGER, INTENT(IN)                                :: potential_type, ri_metric
-      REAL(KIND=dp), INTENT(IN)                          :: omega_pot, omega_metric
+      TYPE(libint_potential_type)                        :: potential, ri_metric
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       LOGICAL, INTENT(IN)                                :: do_im_time, do_kpoints
       REAL(KIND=dp), INTENT(IN)                          :: mp2_eps_pgf_orb_S
@@ -188,11 +194,11 @@ CONTAINS
                                 fm_matrix_L, ngroup, color_sub, dimen_RI, mo_coeff, &
                                 my_group_L_size, my_group_L_start, my_group_L_end, &
                                 gd_array, calc_PQ_cond_num, cond_num, &
-                                num_small_eigen, potential_type, omega_pot, sab_orb_sub, do_im_time=do_im_time)
+                                num_small_eigen, potential, sab_orb_sub, do_im_time=do_im_time)
 
       dimen_RI_red = dimen_RI
 
-      IF (ri_metric == potential_type) THEN
+      IF (ri_metric%potential_type == potential%potential_type .AND. .NOT. do_im_time) THEN
          CALL decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
                            dimen_RI, dimen_RI_red, para_env)
       ELSE
@@ -206,8 +212,8 @@ CONTAINS
             dft_control%qs_control%eps_pgf_orb = mp2_eps_pgf_orb_S
             CALL init_interaction_radii(dft_control%qs_control, atomic_kind_set, qs_kind_set)
 
-            ! Gamma-point overlap matrix or kpoint dependent overlap matrix
-            CALL Obara_Saika_overlap_mat(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI, do_kpoints, kpoints)
+            CALL RI_2c_integral_mat(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI, ri_metric, &
+                                    do_kpoints, kpoints)
 
             ! re-init the radii to previous values
             dft_control%qs_control%eps_pgf_orb = eps_pgf_orb_old
@@ -226,7 +232,7 @@ CONTAINS
                                       fm_matrix_L_RI_metric(1, 1)%matrix, ngroup, color_sub, dimen_RI, mo_coeff, &
                                       my_group_L_size, my_group_L_start, my_group_L_end, &
                                       gd_array, calc_PQ_cond_num, cond_num, &
-                                      num_small_eigen, ri_metric, omega_metric, sab_orb_sub, &
+                                      num_small_eigen, ri_metric, sab_orb_sub, &
                                       fm_matrix_L_extern=fm_matrix_L)
 
          END IF
@@ -466,51 +472,103 @@ CONTAINS
 !> \param fm_matrix_L_RI_metric ...
 !> \param fm_matrix_L ...
 !> \param dimen_RI ...
+!> \param ri_metric ...
 !> \param do_kpoints ...
 !> \param kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE Obara_Saika_overlap_mat(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI, &
-                                      do_kpoints, kpoints)
+   SUBROUTINE RI_2c_integral_mat(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI, &
+                                 ri_metric, do_kpoints, kpoints)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: dimen_RI
+      TYPE(libint_potential_type)                        :: ri_metric
       LOGICAL, INTENT(IN)                                :: do_kpoints
       TYPE(kpoint_type), POINTER                         :: kpoints
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'Obara_Saika_overlap_mat', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'RI_2c_integral_mat', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i_real_imag, i_size, ikp, &
-                                                            n_real_imag, nkp
+      INTEGER                                            :: handle, i_real_imag, i_size, ikp, img, &
+                                                            n_real_imag, natom, nimg, nkind, nkp
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_RI
+      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_S_global
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_RI_aux_transl
+      TYPE(dbcsr_type), DIMENSION(:), POINTER            :: mat_2c
       TYPE(dbcsr_type), POINTER                          :: cmatrix, matrix_s_RI_aux_desymm, &
                                                             rmatrix, tmpmat
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(distribution_2d_type), POINTER                :: dist_2d
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_RI
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
+         POINTER                                         :: sab_orb, sab_RI
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (sab_orb, matrix_s_RI_aux_transl)
+      NULLIFY (sab_RI, matrix_s_RI_aux_transl)
 
       CALL get_qs_env(qs_env=qs_env, &
                       sab_orb=sab_orb, &
                       para_env=para_env, &
                       blacs_env=blacs_env, &
-                      matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)
+                      matrix_s_RI_aux_kp=matrix_s_RI_aux_transl, &
+                      nkind=nkind, &
+                      distribution_2d=dist_2d, &
+                      qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set, &
+                      dft_control=dft_control, &
+                      natom=natom)
 
-      CALL build_overlap_matrix(qs_env%ks_env, &
-                                matrixkp_s=matrix_s_RI_aux_transl, &
-                                basis_type_a='RI_AUX', &
-                                basis_type_b='RI_AUX', &
-                                sab_nl=sab_orb)
+      ALLOCATE (sizes_RI(natom))
+      ALLOCATE (basis_set_RI(nkind))
+
+      CALL basis_set_list_setup(basis_set_RI, 'RI_AUX', qs_kind_set)
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_RI, basis=basis_set_RI)
+
+      CALL build_2c_neighbor_lists(sab_RI, basis_set_RI, basis_set_RI, ri_metric, "RPA_2c_nl_RI", qs_env, &
+                                   sym_ij=.TRUE., dist_2d=dist_2d)
+
+      CALL cp_dbcsr_dist2d_to_dist(dist_2d, dbcsr_dist)
+      ALLOCATE (row_bsize(SIZE(sizes_RI)))
+      ALLOCATE (col_bsize(SIZE(sizes_RI)))
+      row_bsize(:) = sizes_RI
+      col_bsize(:) = sizes_RI
+
+      IF (do_kpoints) THEN
+         nimg = dft_control%nimages
+      ELSE
+         nimg = 1
+      ENDIF
+
+      ALLOCATE (mat_2c(nimg))
+      CALL dbcsr_create(mat_2c(1), "(RI|RI)", dbcsr_dist, dbcsr_type_symmetric, &
+                        row_bsize, col_bsize, reuse_arrays=.TRUE.)
+
+      DO img = 2, nimg
+         CALL dbcsr_create(mat_2c(img), template=mat_2c(1))
+      ENDDO
+
+      CALL build_2c_integrals(mat_2c, 0.0_dp, qs_env, sab_RI, basis_set_RI, basis_set_RI, &
+                              ri_metric, do_kpoints=do_kpoints)
+
+      CALL dbcsr_distribution_release(dbcsr_dist)
+      CALL neighbor_list_2c_destroy(sab_RI)
+      DEALLOCATE (basis_set_RI)
+
+      CALL dbcsr_allocate_matrix_set(matrix_s_RI_aux_transl, 1, nimg)
+      DO img = 1, nimg
+         matrix_s_RI_aux_transl(1, img)%matrix => mat_2c(img)
+      ENDDO
 
       CALL set_ks_env(qs_env%ks_env, matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)
 
@@ -604,7 +662,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE Obara_Saika_overlap_mat
+   END SUBROUTINE RI_2c_integral_mat
 
 ! **************************************************************************************************
 !> \brief ...
@@ -627,8 +685,7 @@ CONTAINS
 !> \param calc_PQ_cond_num ...
 !> \param cond_num ...
 !> \param num_small_eigen ...
-!> \param ri_metric ...
-!> \param omega ...
+!> \param potential ...
 !> \param sab_orb_sub ...
 !> \param do_im_time ...
 !> \param fm_matrix_L_extern ...
@@ -636,7 +693,7 @@ CONTAINS
    SUBROUTINE compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                                    fm_matrix_L, ngroup, color_sub, dimen_RI, mo_coeff, &
                                    my_group_L_size, my_group_L_start, my_group_L_end, &
-                                   gd_array, calc_PQ_cond_num, cond_num, num_small_eigen, ri_metric, omega, &
+                                   gd_array, calc_PQ_cond_num, cond_num, num_small_eigen, potential, &
                                    sab_orb_sub, do_im_time, fm_matrix_L_extern)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -654,8 +711,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       INTEGER, INTENT(OUT)                               :: num_small_eigen
-      INTEGER, INTENT(IN)                                :: ri_metric
-      REAL(KIND=dp), INTENT(IN)                          :: omega
+      TYPE(libint_potential_type), INTENT(IN)            :: potential
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time
@@ -666,8 +722,8 @@ CONTAINS
 
       INTEGER :: best_group_size, color_L, comm_exchange, comm_L, group_size, handle, handle2, i, &
          i_global, iatom, iiB, ikind, iproc, j_global, jjB, natom, ncol_local, nkind, nrow_local, &
-         nsgf, proc_receive, proc_receive_static, proc_send, proc_send_static, proc_shift, &
-         rec_L_end, rec_L_size, rec_L_start, strat_group_size, sub_sub_color
+         nsgf, potential_type, proc_receive, proc_receive_static, proc_send, proc_send_static, &
+         proc_shift, rec_L_end, rec_L_size, rec_L_start, strat_group_size, sub_sub_color
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: my_do_im_time
@@ -725,20 +781,24 @@ CONTAINS
       ALLOCATE (L_local_col(dimen_RI, my_group_L_size))
       L_local_col = 0.0_dp
 
-      IF ((eri_method .EQ. do_eri_mme .OR. eri_method .EQ. do_eri_os) &
-          .AND. ri_metric .EQ. do_potential_coulomb .OR. &
-          (eri_method .EQ. do_eri_mme .AND. ri_metric .EQ. do_potential_long)) THEN
+      potential_type = potential%potential_type
 
-         CALL mp2_eri_2c_integrate(eri_param, ri_metric, omega, para_env_sub, qs_env, &
+      IF ((eri_method .EQ. do_eri_mme .OR. eri_method .EQ. do_eri_os) &
+          .AND. potential_type .EQ. do_potential_coulomb .OR. &
+          (eri_method .EQ. do_eri_mme .AND. potential_type .EQ. do_potential_long)) THEN
+
+         CALL mp2_eri_2c_integrate(eri_param, potential_type, potential%omega, para_env_sub, qs_env, &
                                    basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
                                    hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end, &
                                    eri_method=eri_method)
 
-      ELSEIF (eri_method .EQ. do_eri_gpw .OR. (ri_metric == do_potential_long .AND. qs_env%mp2_env%eri_method == do_eri_os) &
-              .OR. (ri_metric == do_potential_id .AND. qs_env%mp2_env%eri_method == do_eri_mme)) THEN
+      ELSEIF (eri_method .EQ. do_eri_gpw .OR. &
+              (potential_type == do_potential_long .AND. qs_env%mp2_env%eri_method == do_eri_os) &
+              .OR. (potential_type == do_potential_id .AND. qs_env%mp2_env%eri_method == do_eri_mme)) THEN
 
-         CALL mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, dimen_RI, mo_coeff, my_group_L_start, my_group_L_end, ri_metric, &
-                                       natom, omega, sab_orb_sub, L_local_col, kind_of)
+         CALL mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, dimen_RI, mo_coeff, my_group_L_start, my_group_L_end, &
+                                       potential_type, &
+                                       natom, potential%omega, sab_orb_sub, L_local_col, kind_of)
 
       ELSE
          CPABORT("unknown ERI method")
