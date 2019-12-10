@@ -195,7 +195,7 @@ CONTAINS
                                                             mat_3c_overl_int_mao_for_occ, &
                                                             mat_3c_overl_int_mao_for_virt
       TYPE(dbcsr_t_type)                                 :: t_3c_M
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
+      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O, t_3c_overl_int
       TYPE(dbcsr_type), POINTER :: mo_coeff_all, mo_coeff_all_beta, mo_coeff_gw, mo_coeff_gw_beta, &
          mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, mo_coeff_v_beta
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -449,7 +449,7 @@ CONTAINS
                mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw .AND. .NOT. do_im_time, &
                do_bse, gd_B_all, starts_array_mc_t, ends_array_mc_t, gw_corr_lev_occ, gw_corr_lev_virt, &
                do_im_time, do_mao, do_kpoints_cubic_RPA, kpoints, &
-               mat_3c_overl_int, do_dbcsr_t, t_3c_M, t_3c_O, &
+               mat_3c_overl_int, do_dbcsr_t, t_3c_overl_int, t_3c_M, t_3c_O, &
                mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, &
                mao_coeff_occ, mao_coeff_virt, ri_metric, &
                gd_B_occ_bse, gd_B_virt_bse, &
@@ -469,7 +469,7 @@ CONTAINS
                                        starts_array_mc_t, ends_array_mc_t, &
                                        gw_corr_lev_occ, gw_corr_lev_virt, &
                                        do_im_time, do_mao, do_kpoints_cubic_RPA, kpoints, &
-                                       mat_3c_overl_int, do_dbcsr_t, t_3c_M, t_3c_O, mat_3c_overl_int_mao_for_occ, &
+                                       mat_3c_overl_int, do_dbcsr_t, t_3c_overl_int, t_3c_M, t_3c_O, mat_3c_overl_int_mao_for_occ, &
                                        mat_3c_overl_int_mao_for_virt, mao_coeff_occ, mao_coeff_virt, &
                                        ri_metric, gd_B_occ_bse, gd_B_virt_bse)
 
@@ -634,7 +634,7 @@ CONTAINS
                                    mao_coeff_occ, mao_coeff_virt, mao_coeff_occ_A, mao_coeff_virt_A, &
                                    mat_munu, mat_dm_occ_local, mat_dm_virt_local, &
                                    mat_P_local, mat_P_global, mat_M, &
-                                   mat_3c_overl_int, do_dbcsr_t, t_3c_M, t_3c_O, starts_array_mc_t, &
+                                   mat_3c_overl_int, do_dbcsr_t, t_3c_overl_int, t_3c_M, t_3c_O, starts_array_mc_t, &
                                    ends_array_mc_t, &
                                    mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, &
                                    mp2_env%mp2_gpw%eps_filter, BIb_C_beta, homo_beta, Eigenval_beta, &
@@ -655,7 +655,7 @@ CONTAINS
                                    mao_coeff_occ, mao_coeff_virt, mao_coeff_occ_A, mao_coeff_virt_A, &
                                    mat_munu, mat_dm_occ_local, mat_dm_virt_local, &
                                    mat_P_local, mat_P_global, mat_M, &
-                                   mat_3c_overl_int, do_dbcsr_t, t_3c_M, t_3c_O, &
+                                   mat_3c_overl_int, do_dbcsr_t, t_3c_overl_int, t_3c_M, t_3c_O, &
                                    starts_array_mc_t, ends_array_mc_t, &
                                    mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, &
                                    mp2_env%mp2_gpw%eps_filter)

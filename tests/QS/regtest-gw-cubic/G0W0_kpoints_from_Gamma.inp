@@ -53,7 +53,6 @@
           GROUP_SIZE_P  1
           KPOINTS 1 1 4
           EPS_FILTER_IM_TIME 1.0E-7
-          DO_DBCSR_T FALSE
         &END IM_TIME
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6

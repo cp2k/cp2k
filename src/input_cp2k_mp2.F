@@ -1340,7 +1340,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="DO_DBCSR_T", &
-         description="Uses DBCSR tensors for cubic scaling RPA/L-SOS-MP2", &
+         description="Uses DBCSR tensors for cubic scaling RPA/L-SOS-MP2/GW", &
          usage="DO_DBCSR_T", &
          default_l_val=.TRUE., &
          lone_keyword_l_val=.TRUE.)
