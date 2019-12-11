@@ -105,7 +105,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:num_integ_points), &
          INTENT(IN)                                      :: tau_tj
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tj, wj
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: weights_cos_tf_w_to_t
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(IN)                                      :: weights_cos_tf_w_to_t
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp_W
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_ri_Sigma_x, &
                                                             do_kpoints_from_Gamma, &
