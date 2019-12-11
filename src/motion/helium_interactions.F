@@ -10,8 +10,10 @@
 ! **************************************************************************************************
 MODULE helium_interactions
 
-   USE helium_common,                   ONLY: helium_eval_expansion,&
-                                              helium_pbc
+   USE helium_common,                   ONLY: helium_eval_chain,&
+                                              helium_eval_expansion,&
+                                              helium_pbc,&
+                                              helium_spline
    USE helium_types,                    ONLY: e_id_interact,&
                                               e_id_kinetic,&
                                               e_id_potential,&
@@ -27,7 +29,7 @@ MODULE helium_interactions
    USE physcon,                         ONLY: angstrom,&
                                               kelvin
    USE pint_types,                      ONLY: pint_env_type
-   USE splines_types,                   ONLY: spline_data_p_type
+   USE splines_types,                   ONLY: spline_data_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -44,6 +46,7 @@ MODULE helium_interactions
    PUBLIC :: helium_solute_e_f
    PUBLIC :: helium_bead_solute_e_f
    PUBLIC :: helium_intpot_scan
+   PUBLIC :: helium_vij
 
 CONTAINS
 
@@ -62,18 +65,20 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_energy', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: b, bead, c, i, j, n
+      INTEGER                                            :: b, bead, i, j, n
       INTEGER, DIMENSION(:), POINTER                     :: perm
       LOGICAL                                            :: nperiodic
       REAL(KIND=dp)                                      :: a, cell_size, en, interac, kin, pot, &
                                                             rmax, rmin, vkin
-      REAL(KIND=dp), DIMENSION(3)                        :: r, rp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work2, work3
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
+      REAL(KIND=dp), DIMENSION(3)                        :: r
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pos
-      TYPE(spline_data_p_type), DIMENSION(:, :), POINTER :: eij
+      TYPE(spline_data_type), POINTER                    :: e0
 
       pos => helium%pos
       perm => helium%permutation
-      eij => helium%eij
+      e0 => helium%e0
       cell_size = 0.5_dp*helium%cell_size
       nperiodic = .NOT. helium%periodic
       n = helium%atoms
@@ -82,42 +87,27 @@ CONTAINS
       pot = 0.0_dp
       rmin = 1.0e20_dp
       rmax = 0.0_dp
+      ALLOCATE (work(3, helium%beads + 1), &
+                work2(helium%beads + 1), &
+                work3(SIZE(helium%uoffdiag, 1) + 1))
       DO i = 1, n - 1
          DO j = i + 1, n
-            rp(:) = pos(:, i, 1) - pos(:, j, 1)
-            CALL helium_pbc(helium, rp)
-            DO bead = 2, b
-               a = 0.0_dp
-               DO c = 1, 3
-                  r(c) = rp(c)
-                  a = a + r(c)**2
-                  rp(c) = pos(c, i, bead) - pos(c, j, bead)
-               END DO
-               CALL helium_pbc(helium, rp)
-               en = en + helium_eval_expansion(helium, r, rp, eij, 0)
-               a = SQRT(a)
+            DO bead = 1, b
+               work(:, bead) = pos(:, i, bead) - pos(:, j, bead)
+            END DO
+            work(:, b + 1) = pos(:, perm(i), 1) - pos(:, perm(j), 1)
+            en = en + helium_eval_chain(helium, work, b + 1, work2, work3, energy=.TRUE.)
+            DO bead = 1, b
+               a = work2(bead)
                IF (a < rmin) rmin = a
                IF (a > rmax) rmax = a
                IF ((a < cell_size) .OR. nperiodic) THEN
-                  pot = pot + helium_vij(a)
+                  pot = pot + helium_spline(helium%vij, a)
                END IF
             END DO
-            a = 0.0_dp
-            DO c = 1, 3
-               r(c) = rp(c)
-               a = a + r(c)**2
-               rp(c) = pos(c, perm(i), 1) - pos(c, perm(j), 1)
-            END DO
-            CALL helium_pbc(helium, rp)
-            en = en + helium_eval_expansion(helium, r, rp, eij, 0)
-            a = SQRT(a)
-            IF (a < rmin) rmin = a
-            IF (a > rmax) rmax = a
-            IF ((a < cell_size) .OR. nperiodic) THEN
-               pot = pot + helium_vij(a)
-            END IF
          END DO
       END DO
+      DEALLOCATE (work, work2, work3)
       pot = pot/b
       en = en/b
 
@@ -227,8 +217,10 @@ CONTAINS
 
       INTEGER                                            :: iatom, ibead, jatom, opatom, patom
       INTEGER, DIMENSION(:), POINTER                     :: perm
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work3
       REAL(KIND=dp), DIMENSION(3)                        :: r, rp
 
+      ALLOCATE (work3(SIZE(helium%uoffdiag, 1) + 1))
       perm => helium%permutation
       pairaction = 0.0_dp
 
@@ -238,7 +230,7 @@ CONTAINS
             DO jatom = iatom + 1, helium%atoms
                r(:) = helium%pos(:, iatom, ibead) - helium%pos(:, jatom, ibead)
                rp(:) = helium%pos(:, iatom, ibead + 1) - helium%pos(:, jatom, ibead + 1)
-               pairaction = pairaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               pairaction = pairaction + helium_eval_expansion(helium, r, rp, work3)
             END DO
          END DO
       END DO
@@ -247,7 +239,7 @@ CONTAINS
          DO jatom = iatom + 1, helium%atoms
             r(:) = helium%pos(:, iatom, helium%beads) - helium%pos(:, jatom, helium%beads)
             rp(:) = helium%pos(:, perm(iatom), 1) - helium%pos(:, perm(jatom), 1)
-            pairaction = pairaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            pairaction = pairaction + helium_eval_expansion(helium, r, rp, work3)
          END DO
       END DO
 
@@ -265,11 +257,11 @@ CONTAINS
                ! substract pair action for closed link
                r(:) = helium%pos(:, iatom, 1) - helium%pos(:, jatom, 1)
                rp(:) = helium%pos(:, patom, helium%beads) - helium%pos(:, opatom, helium%beads)
-               pairaction = pairaction - helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               pairaction = pairaction - helium_eval_expansion(helium, r, rp, work3)
                ! and add corrected extra link
                ! rp stays the same
                r(:) = helium%worm_xtra_bead(:) - helium%pos(:, jatom, 1)
-               pairaction = pairaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               pairaction = pairaction + helium_eval_expansion(helium, r, rp, work3)
             END DO
          ELSE
             ! bead stays constant
@@ -280,14 +272,15 @@ CONTAINS
                ! substract pair action for closed link
                r(:) = helium%pos(:, iatom, ibead) - helium%pos(:, jatom, ibead)
                rp(:) = helium%pos(:, iatom, ibead - 1) - helium%pos(:, jatom, ibead - 1)
-               pairaction = pairaction - helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               pairaction = pairaction - helium_eval_expansion(helium, r, rp, work3)
                ! and add corrected extra link
                ! rp stays the same
                r(:) = helium%worm_xtra_bead(:) - helium%pos(:, jatom, ibead)
-               pairaction = pairaction + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               pairaction = pairaction + helium_eval_expansion(helium, r, rp, work3)
             END DO
          END IF
       END IF
+      DEALLOCATE (work3)
 
       RETURN
    END FUNCTION helium_total_pair_action
@@ -742,7 +735,9 @@ CONTAINS
 
       INTEGER                                            :: c, j
       REAL(KIND=dp)                                      :: r(3), rp(3), s, t
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work3
 
+      ALLOCATE (work3(SIZE(helium%uoffdiag, 1) + 1))
       s = 0.0_dp
       t = 0.0_dp
       IF (n < helium%beads) THEN
@@ -756,18 +751,14 @@ CONTAINS
                r(c) = helium%pos(c, i, n) - helium%pos(c, j, n)
                rp(c) = helium%pos(c, i, n + 1) - helium%pos(c, j, n + 1)
             END DO
-            CALL helium_pbc(helium, r)
-            CALL helium_pbc(helium, rp)
-            s = s + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            s = s + helium_eval_expansion(helium, r, rp, work3)
          END DO
          DO j = i + 1, helium%atoms
             DO c = 1, 3
                r(c) = helium%pos(c, i, n) - helium%pos(c, j, n)
                rp(c) = helium%pos(c, i, n + 1) - helium%pos(c, j, n + 1)
             END DO
-            CALL helium_pbc(helium, r)
-            CALL helium_pbc(helium, rp)
-            s = s + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            s = s + helium_eval_expansion(helium, r, rp, work3)
          END DO
       ELSE
          DO c = 1, 3
@@ -780,23 +771,20 @@ CONTAINS
                r(c) = helium%pos(c, i, n) - helium%pos(c, j, n)
                rp(c) = helium%pos(c, helium%permutation(i), 1) - helium%pos(c, helium%permutation(j), 1)
             END DO
-            CALL helium_pbc(helium, r)
-            CALL helium_pbc(helium, rp)
-            s = s + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            s = s + helium_eval_expansion(helium, r, rp, work3)
          END DO
          DO j = i + 1, helium%atoms
             DO c = 1, 3
                r(c) = helium%pos(c, i, n) - helium%pos(c, j, n)
                rp(c) = helium%pos(c, helium%permutation(i), 1) - helium%pos(c, helium%permutation(j), 1)
             END DO
-            CALL helium_pbc(helium, r)
-            CALL helium_pbc(helium, rp)
-            s = s + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            s = s + helium_eval_expansion(helium, r, rp, work3)
          END DO
       END IF
       t = t/(2.0_dp*helium%tau*helium%hb2m)
       s = s*0.5_dp
       res = s + t
+      DEALLOCATE (work3)
       RETURN
 
    END FUNCTION helium_atom_action
@@ -815,7 +803,9 @@ CONTAINS
 
       INTEGER                                            :: c, i, j
       REAL(KIND=dp)                                      :: r(3), rp(3), s, t
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work3
 
+      ALLOCATE (work3(SIZE(helium%uoffdiag, 1) + 1))
       s = 0.0_dp
       t = 0.0_dp
       IF (n < helium%beads) THEN
@@ -830,9 +820,7 @@ CONTAINS
                   r(c) = helium%pos(c, i, n) - helium%pos(c, j, n)
                   rp(c) = helium%pos(c, i, n + 1) - helium%pos(c, j, n + 1)
                END DO
-               CALL helium_pbc(helium, r)
-               CALL helium_pbc(helium, rp)
-               s = s + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               s = s + helium_eval_expansion(helium, r, rp, work3)
             END DO
          END DO
       ELSE
@@ -847,14 +835,13 @@ CONTAINS
                   r(c) = helium%pos(c, i, n) - helium%pos(c, j, n)
                   rp(c) = helium%pos(c, helium%permutation(i), 1) - helium%pos(c, helium%permutation(j), 1)
                END DO
-               CALL helium_pbc(helium, r)
-               CALL helium_pbc(helium, rp)
-               s = s + helium_eval_expansion(helium, r, rp, helium%uij, 1)
+               s = s + helium_eval_expansion(helium, r, rp, work3)
             END DO
          END DO
       END IF
       t = t/(2.0_dp*helium%tau*helium%hb2m)
       res = s + t
+      DEALLOCATE (work3)
       RETURN
 
    END FUNCTION helium_link_action

@@ -22,7 +22,6 @@ MODULE helium_common
    USE input_constants,                 ONLY: denominator_inertia,&
                                               denominator_natoms,&
                                               denominator_rperp2,&
-                                              helium_cell_shape_cube,&
                                               helium_cell_shape_octahedron
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -34,8 +33,7 @@ MODULE helium_common
    USE pint_public,                     ONLY: pint_com_pos
    USE pint_types,                      ONLY: pint_env_type
    USE splines_methods,                 ONLY: spline_value
-   USE splines_types,                   ONLY: spline_data_p_type,&
-                                              spline_data_type
+   USE splines_types,                   ONLY: spline_data_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -52,6 +50,7 @@ MODULE helium_common
    PUBLIC :: helium_calc_plength
    PUBLIC :: helium_rotate
    PUBLIC :: helium_eval_expansion
+   PUBLIC :: helium_eval_chain
    PUBLIC :: helium_update_transition_matrix
    PUBLIC :: helium_update_coord_system
    PUBLIC :: helium_spline
@@ -72,10 +71,10 @@ CONTAINS
 !> \param helium ...
 !> \param r ...
 !> \param enforce ...
-!> \date   2009-09-30
-!> \author Lukasz Walewski
-!> \note  Check wheather PBC should be applied, if yes call low level
-!>         routine according to the unit cell shape.
+!> \date   2019-12-09
+!> \author Harald Forbert
+!> \note  Apply periodic boundary conditions as needed
+!> \note  Combines several older routines into a single simpler/faster routine
 ! **************************************************************************************************
    SUBROUTINE helium_pbc(helium, r, enforce)
 
@@ -83,134 +82,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: r
       LOGICAL, OPTIONAL                                  :: enforce
 
-      IF (.NOT. helium%periodic) THEN
-         IF (.NOT. PRESENT(enforce)) THEN
-            RETURN
-         END IF
-      END IF
-
-      SELECT CASE (helium%cell_shape)
-      CASE (helium_cell_shape_cube)
-         CALL helium_pbc_cube(helium, r)
-      CASE (helium_cell_shape_octahedron)
-         CALL helium_pbc_trocta_opt(helium, r)
-      CASE DEFAULT
-         CPABORT("we should never get here")
-      END SELECT
-
-      RETURN
-   END SUBROUTINE helium_pbc
-
-! ***************************************************************************
-!> \brief  Wrap r back to the helium box (if helium box is periodic)
-!> \param    helium   helium environment for which to wrap
-!> \param    r        3D vector to be wraped back to periodic box
-!> \par History
-!>      2009-10-02 renamed, originally was helium_box
-!>      2009-10-02 redesigned so it is now called as a subroutine [lwalewski]
-!>      2009-10-02 redesigned so it now gets/returns a 3D vector [lwalewski]
-!> \author hforbert
-! **************************************************************************************************
-   SUBROUTINE helium_pbc_cube(helium, r)
-
-      TYPE(helium_solvent_type), POINTER                 :: helium
-      REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: r
-
-      REAL(KIND=dp)                                      :: s
-
-! x coordinate
-
-      s = helium%cell_size_inv*r(1)
-      IF (s > 0.5_dp) THEN
-         s = s - REAL(INT(s + 0.5_dp), dp)
-      ELSEIF (s < -0.5_dp) THEN
-         s = s - REAL(INT(s - 0.5_dp), dp)
-      END IF
-      r(1) = s*helium%cell_size
-
-      ! y coordinate
-      s = helium%cell_size_inv*r(2)
-      IF (s > 0.5_dp) THEN
-         s = s - REAL(INT(s + 0.5_dp), dp)
-      ELSEIF (s < -0.5_dp) THEN
-         s = s - REAL(INT(s - 0.5_dp), dp)
-      END IF
-      r(2) = s*helium%cell_size
-
-      ! z coordinate
-      s = helium%cell_size_inv*r(3)
-      IF (s > 0.5_dp) THEN
-         s = s - REAL(INT(s + 0.5_dp), dp)
-      ELSEIF (s < -0.5_dp) THEN
-         s = s - REAL(INT(s - 0.5_dp), dp)
-      END IF
-      r(3) = s*helium%cell_size
-
-      RETURN
-   END SUBROUTINE helium_pbc_cube
-
-#if 0
-
-! ***************************************************************************
-!> \brief  Apply PBC within truncated octahedral unit cell.
-!> \param helium ...
-!> \param r ...
-!> \date   2009-10-02
-!> \author Lukasz Walewski
-!> \note   Original Allen & Tildesley routine adapted for our helium code.
-! **************************************************************************************************
-   SUBROUTINE helium_pbc_trocta(helium, r)
-
-      TYPE(helium_solvent_type), POINTER                 :: helium
-      REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: r
-
-      REAL(KIND=dp)                                      :: corr, r75, rx, ry, rz
-
-! ** PERIODIC BOUNDARY CONDITIONS FOR A TRUNCATED OCTAHEDRON       **
-! **                                                               **
-! ** THE BOX IS CENTRED AT THE ORIGIN. THE AXES PASS THROUGH THE   **
-! ** CENTRES OF THE SIX SQUARE FACES OF THE TRUNCATED OCTAHEDRON   **
-! ** (SEE F1G. 1.10(A)). THE CONTAINING CUBE IS OF UNIT LENGTH     **
-
-      PARAMETER(r75=4.0_dp/3.0_dp)
-
-      rx = r(1)*helium%cell_size_inv
-      ry = r(2)*helium%cell_size_inv
-      rz = r(3)*helium%cell_size_inv
-
-      rx = rx - ANINT(rx)
-      ry = ry - ANINT(ry)
-      rz = rz - ANINT(rz)
-      corr = 0.5_dp*AINT(r75*(ABS(rx) + ABS(ry) + ABS(rz)))
-      rx = rx - SIGN(corr, rx)
-      ry = ry - SIGN(corr, ry)
-      rz = rz - SIGN(corr, rz)
-
-      r(1) = rx*helium%cell_size
-      r(2) = ry*helium%cell_size
-      r(3) = rz*helium%cell_size
-
-      RETURN
-   END SUBROUTINE helium_pbc_trocta
-
-#endif
-
-! ***************************************************************************
-!> \brief  Apply PBC within truncated octahedral unit cell.
-!> \param helium ...
-!> \param r ...
-!> \date   2009-10-22
-!> \author hforbert
-!> \note   Version of the original Allen & Tildesley routine optimized for
-!>         g95 and intel compilers on x86-64.
-! **************************************************************************************************
-   SUBROUTINE helium_pbc_trocta_opt(helium, r)
-
-      TYPE(helium_solvent_type), POINTER                 :: helium
-      REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: r
-
       REAL(KIND=dp)                                      :: cell_size, cell_size_inv, corr, rx, ry, &
                                                             rz, sx, sy, sz
+
+      IF (.NOT. (helium%periodic .OR. PRESENT(enforce))) RETURN
 
       cell_size = helium%cell_size
       cell_size_inv = helium%cell_size_inv
@@ -236,32 +111,34 @@ CONTAINS
          rz = rz - REAL(INT(rz - 0.5_dp), dp)
       END IF
 
-      corr = 0.0_dp
-      IF (rx > 0.0_dp) THEN
-         corr = corr + rx
-         sx = 0.5_dp
-      ELSE
-         corr = corr - rx
-         sx = -0.5_dp
-      END IF
-      IF (ry > 0.0_dp) THEN
-         corr = corr + ry
-         sy = 0.5_dp
-      ELSE
-         corr = corr - ry
-         sy = -0.5_dp
-      END IF
-      IF (rz > 0.0_dp) THEN
-         corr = corr + rz
-         sz = 0.5_dp
-      ELSE
-         corr = corr - rz
-         sz = -0.5_dp
-      END IF
-      IF (corr > 0.75_dp) THEN
-         rx = rx - sx
-         ry = ry - sy
-         rz = rz - sz
+      IF (helium%cell_shape == helium_cell_shape_octahedron) THEN
+         corr = 0.0_dp
+         IF (rx > 0.0_dp) THEN
+            corr = corr + rx
+            sx = 0.5_dp
+         ELSE
+            corr = corr - rx
+            sx = -0.5_dp
+         END IF
+         IF (ry > 0.0_dp) THEN
+            corr = corr + ry
+            sy = 0.5_dp
+         ELSE
+            corr = corr - ry
+            sy = -0.5_dp
+         END IF
+         IF (rz > 0.0_dp) THEN
+            corr = corr + rz
+            sz = 0.5_dp
+         ELSE
+            corr = corr - rz
+            sz = -0.5_dp
+         END IF
+         IF (corr > 0.75_dp) THEN
+            rx = rx - sx
+            ry = ry - sy
+            rz = rz - sz
+         END IF
       END IF
 
       r(1) = rx*cell_size
@@ -269,7 +146,48 @@ CONTAINS
       r(3) = rz*cell_size
 
       RETURN
-   END SUBROUTINE helium_pbc_trocta_opt
+   END SUBROUTINE helium_pbc
+
+! ***************************************************************************
+!> \brief  find distance squared of nearest image
+!> \param helium ...
+!> \param r ...
+!> \return ...
+!> \date   2019-12-09
+!> \author Harald Forbert
+!> \note   Given a distance vector r, return the distance squared
+!>         of the nearest image. Cell information is taken from the
+!>         helium environment argument.
+! **************************************************************************************************
+
+   PURE FUNCTION helium_pbc_r2(helium, r)
+
+      TYPE(helium_solvent_type), POINTER                 :: helium
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
+      REAL(KIND=dp)                                      :: helium_pbc_r2
+
+      REAL(KIND=dp)                                      :: cell_size_inv, corr, rx, ry, rz
+
+      IF (helium%periodic) THEN
+         cell_size_inv = helium%cell_size_inv
+         rx = ABS(r(1)*cell_size_inv)
+         rx = ABS(rx - REAL(INT(rx + 0.5_dp), dp))
+         ry = ABS(r(2)*cell_size_inv)
+         ry = ABS(ry - REAL(INT(ry + 0.5_dp), dp))
+         rz = ABS(r(3)*cell_size_inv)
+         rz = ABS(rz - REAL(INT(rz + 0.5_dp), dp))
+         IF (helium%cell_shape == helium_cell_shape_octahedron) THEN
+            corr = rx + ry + rz - 0.75_dp
+            IF (corr < 0.0_dp) corr = 0.0_dp
+            helium_pbc_r2 = helium%cell_size**2*(rx*rx + ry*ry + rz*rz - corr)
+         ELSE
+            helium_pbc_r2 = helium%cell_size**2*(rx*rx + ry*ry + rz*rz)
+         END IF
+      ELSE
+         helium_pbc_r2 = (r(1)*r(1) + r(2)*r(2) + r(3)*r(3))
+      END IF
+      RETURN
+   END FUNCTION helium_pbc_r2
 
 ! ***************************************************************************
 !> \brief  Calculate the point equidistant from two other points a and b
@@ -925,74 +843,233 @@ CONTAINS
 !> \param helium ...
 !> \param r ...
 !> \param rp ...
-!> \param tab ...
-!> \param cut ...
+!> \param work ...
+!> \param action ...
 !> \return ...
 !> \author Harald Forbert
 ! **************************************************************************************************
-   FUNCTION helium_eval_expansion(helium, r, rp, tab, cut) RESULT(res)
+   FUNCTION helium_eval_expansion(helium, r, rp, work, action) RESULT(res)
 
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r, rp
-      TYPE(spline_data_p_type), DIMENSION(:, :), POINTER :: tab
-      INTEGER, INTENT(IN)                                :: cut
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), &
+         INTENT(INOUT)                                   :: work
+      LOGICAL, INTENT(IN), OPTIONAL                      :: action
       REAL(KIND=dp)                                      :: res
 
-      INTEGER                                            :: i, j
-      REAL(KIND=dp)                                      :: ar, arp, q, s, v, z
-      REAL(KIND=dp), DIMENSION(3)                        :: br, brp
+      INTEGER                                            :: i, j, nsp, tline
+      LOGICAL                                            :: nocut
+      REAL(KIND=dp)                                      :: a, ar, arp, b, h26, q, s, v, z
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: offdiagsplines
+      TYPE(spline_data_type), POINTER                    :: endpspline
 
-      br(:) = r(:)
-      brp(:) = rp(:)
-      CALL helium_pbc(helium, br)
-      CALL helium_pbc(helium, brp)
+      endpspline => helium%u0
+      offdiagsplines => helium%uoffdiag
+      nocut = .TRUE.
+      IF (PRESENT(action)) THEN
+         IF (.NOT. action) THEN
+            endpspline => helium%e0
+            offdiagsplines => helium%eoffdiag
+            nocut = .FALSE.
+         END IF
+      END IF
 
-      ar = SQRT(br(1)**2 + br(2)**2 + br(3)**2)
-      arp = SQRT(brp(1)**2 + brp(2)**2 + brp(3)**2)
-      q = 0.5_dp*(ar + arp)
+      ar = SQRT(helium_pbc_r2(helium, r))
+      arp = SQRT(helium_pbc_r2(helium, rp))
 
       IF (helium%periodic .AND. ((ar > 0.5_dp*helium%cell_size) &
                                  .OR. (arp > 0.5_dp*helium%cell_size))) THEN
          v = 0.0_dp
          IF (arp > 0.5_dp*helium%cell_size) THEN
-            v = v + REAL(cut, dp)*helium_spline(tab(1, 1)%spline_data, 0.5_dp*helium%cell_size)
+            IF (nocut) v = v + helium_spline(endpspline, 0.5_dp*helium%cell_size)
          ELSE
-            v = v + helium_spline(tab(1, 1)%spline_data, arp)
+            v = v + helium_spline(endpspline, arp)
          END IF
          IF (ar > 0.5_dp*helium%cell_size) THEN
-            v = v + REAL(cut, dp)*helium_spline(tab(1, 1)%spline_data, 0.5_dp*helium%cell_size)
+            IF (nocut) v = v + helium_spline(endpspline, 0.5_dp*helium%cell_size)
          ELSE
-            v = v + helium_spline(tab(1, 1)%spline_data, ar)
+            v = v + helium_spline(endpspline, ar)
          END IF
          res = 0.5_dp*v
       ELSE
          ! end-point action (first term):
-         v = 0.5_dp*(helium_spline(tab(1, 1)%spline_data, ar) + helium_spline(tab(1, 1)%spline_data, arp))
-         DO i = 1, 3
-            br(i) = br(i) - brp(i)
-         END DO
-         CALL helium_pbc(helium, br)
-         s = br(1)**2 + br(2)**2 + br(3)**2
+         v = 0.5_dp*(helium_spline(endpspline, ar) + helium_spline(endpspline, arp))
+         s = helium_pbc_r2(helium, r - rp)
+         q = 0.5_dp*(ar + arp)
          z = (ar - arp)**2
-         arp = 1.0_dp
-         ! j=0 terms
-         DO i = 2, SIZE(tab, 1)
-            arp = arp*s
-            v = v + arp*helium_spline(tab(i, 1)%spline_data, q)
-         END DO
-         ar = 1.0_dp
-         DO j = 2, SIZE(tab, 2)
-            ar = ar*z
-            arp = ar
-            DO i = j, SIZE(tab, 1)
-               v = v + arp*helium_spline(tab(i, j)%spline_data, q)
-               arp = arp*s
+         nsp = ((helium%pdx + 2)*(helium%pdx + 1))/2 - 1
+         a = endpspline%x1
+         b = endpspline%invh
+         IF (q < a) THEN
+            b = b*(q - a)
+            a = 1.0_dp - b
+            work(1:nsp) = a*offdiagsplines(1:nsp, 1, 1) + b*(offdiagsplines(1:nsp, 1, 2) - &
+                                                             offdiagsplines(1:nsp, 2, 2)*endpspline%h26)
+         ELSE IF (q > endpspline%xn) THEN
+            b = b*(q - endpspline%xn) + 1.0_dp
+            a = 1.0_dp - b
+            tline = endpspline%n
+            work(1:nsp) = b*offdiagsplines(1:nsp, 1, tline) + a*(offdiagsplines(1:nsp, 1, tline - 1) - &
+                                                                 offdiagsplines(1:nsp, 2, tline - 1)*endpspline%h26)
+         ELSE
+            a = (a - q)*b
+            tline = INT(1.0_dp - a)
+            a = a + REAL(tline, kind=dp)
+            b = 1.0_dp - a
+            h26 = -a*b*endpspline%h26
+            work(1:nsp) = a*offdiagsplines(1:nsp, 1, tline) + b*offdiagsplines(1:nsp, 1, tline + 1) + &
+                          h26*((a + 1.0_dp)*offdiagsplines(1:nsp, 2, tline) + (b + 1.0_dp)* &
+                               offdiagsplines(1:nsp, 2, tline + 1))
+         END IF
+         work(nsp + 1) = v
+         tline = 1
+         v = work(1)
+         DO i = 1, helium%pdx
+            v = v*z
+            tline = tline + 1
+            b = work(tline)
+            DO j = 1, i
+               tline = tline + 1
+               b = b*s + work(tline)
             END DO
+            v = v + b
          END DO
          res = v
       END IF
       RETURN
    END FUNCTION helium_eval_expansion
+
+! ***************************************************************************
+!> \brief  Calculate the pair-product action or energy by evaluating the
+!>         power series expansion according to Eq. 4.46 in Ceperley 1995.
+!> \param helium ...
+!> \param rchain ...
+!> \param nchain ...
+!> \param aij ...
+!> \param vcoef ...
+!> \param energy ...
+!> \return ...
+!> \author Harald Forbert
+!> \note This version calculates the action/energy for a chain segment
+! **************************************************************************************************
+   FUNCTION helium_eval_chain(helium, rchain, nchain, aij, vcoef, energy) RESULT(res)
+
+      TYPE(helium_solvent_type), POINTER                 :: helium
+      INTEGER, INTENT(IN)                                :: nchain
+      REAL(KIND=dp), DIMENSION(3, nchain), INTENT(INOUT) :: rchain
+      REAL(KIND=dp), DIMENSION(nchain), INTENT(INOUT)    :: aij
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vcoef
+      LOGICAL, INTENT(IN), OPTIONAL                      :: energy
+      REAL(KIND=dp)                                      :: res
+
+      INTEGER                                            :: chainpos, i, j, ndim, nsp, tline
+      LOGICAL                                            :: nocut
+      REAL(KIND=dp)                                      :: a, ar, arp, b, ch, h26, q, s, totalv, v, &
+                                                            z
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: offdiagsplines
+      TYPE(spline_data_type), POINTER                    :: endpspline
+
+      endpspline => helium%u0
+      offdiagsplines => helium%uoffdiag
+      nocut = .TRUE.
+      IF (PRESENT(energy)) THEN
+         IF (energy) THEN
+            endpspline => helium%e0
+            offdiagsplines => helium%eoffdiag
+            nocut = .FALSE.
+         END IF
+      END IF
+
+      ndim = helium%pdx
+      nsp = ((ndim + 2)*(ndim + 1))/2 - 1
+      vcoef(1:nsp + 1) = 0.0_dp
+      totalv = 0.0_dp
+      DO i = 1, nchain
+         aij(i) = SQRT(helium_pbc_r2(helium, rchain(:, i)))
+      END DO
+      DO i = 2, nchain
+         rchain(:, i - 1) = rchain(:, i - 1) - rchain(:, i)
+         rchain(1, i - 1) = helium_pbc_r2(helium, rchain(:, i - 1))
+      END DO
+      !
+      IF (helium%periodic) THEN
+         ch = 0.5_dp*helium%cell_size
+         IF (nocut) THEN
+            DO i = 2, nchain - 1
+               totalv = totalv + helium_spline(endpspline, MIN(aij(i), ch))
+            END DO
+            totalv = totalv + 0.5_dp*helium_spline(endpspline, MIN(aij(1), ch))
+            totalv = totalv + 0.5_dp*helium_spline(endpspline, MIN(aij(nchain), ch))
+         ELSE
+            DO i = 2, nchain - 1
+               ar = aij(i)
+               IF (ar < ch) totalv = totalv + helium_spline(endpspline, ar)
+            END DO
+            ar = aij(1)
+            IF (ar < ch) totalv = totalv + 0.5_dp*helium_spline(endpspline, ar)
+            ar = aij(nchain)
+            IF (ar < ch) totalv = totalv + 0.5_dp*helium_spline(endpspline, ar)
+         END IF
+      ELSE
+         DO i = 2, nchain - 1
+            totalv = totalv + helium_spline(endpspline, aij(i))
+         END DO
+         totalv = totalv + 0.5_dp*helium_spline(endpspline, aij(1))
+         totalv = totalv + 0.5_dp*helium_spline(endpspline, aij(nchain))
+      END IF
+
+      DO chainpos = 1, nchain - 1
+         ar = aij(chainpos)
+         arp = aij(chainpos + 1)
+         IF (helium%periodic .AND. ((ar > 0.5_dp*helium%cell_size) &
+                                    .OR. (arp > 0.5_dp*helium%cell_size))) THEN
+            CYCLE
+         ELSE
+            q = 0.5_dp*(ar + arp)
+            s = rchain(1, chainpos)
+            z = (ar - arp)**2
+            a = endpspline%x1
+            b = endpspline%invh
+            IF (q < a) THEN
+               b = b*(q - a)
+               a = 1.0_dp - b
+               vcoef(1:nsp) = a*offdiagsplines(1:nsp, 1, 1) + b*(offdiagsplines(1:nsp, 1, 2) - &
+                                                                 offdiagsplines(1:nsp, 2, 2)*endpspline%h26)
+            ELSE IF (q > endpspline%xn) THEN
+               b = b*(q - endpspline%xn) + 1.0_dp
+               a = 1.0_dp - b
+               tline = endpspline%n
+               vcoef(1:nsp) = b*offdiagsplines(1:nsp, 1, tline) + a*(offdiagsplines(1:nsp, 1, tline - 1) - &
+                                                                     offdiagsplines(1:nsp, 2, tline - 1)*endpspline%h26)
+            ELSE
+               a = (a - q)*b
+               tline = INT(1.0_dp - a)
+               a = a + REAL(tline, kind=dp)
+               b = 1.0_dp - a
+               h26 = -a*b*endpspline%h26
+               vcoef(1:nsp) = a*offdiagsplines(1:nsp, 1, tline) + b*offdiagsplines(1:nsp, 1, tline + 1) + &
+                              h26*((a + 1.0_dp)*offdiagsplines(1:nsp, 2, tline) + (b + 1.0_dp)* &
+                                   offdiagsplines(1:nsp, 2, tline + 1))
+            END IF
+            tline = 1
+            v = vcoef(1)
+            DO i = 1, ndim
+               tline = tline + 1
+               b = vcoef(tline)
+               DO j = 1, i
+                  tline = tline + 1
+                  b = b*s + vcoef(tline)
+               END DO
+               v = v*z + b
+            END DO
+            totalv = totalv + v
+         END IF
+      END DO
+      res = totalv
+      RETURN
+   END FUNCTION helium_eval_chain
 
 ! **************************************************************************************************
 !> \brief ...

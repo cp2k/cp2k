@@ -28,12 +28,18 @@ MODULE helium_methods
    USE force_env_types,                 ONLY: force_env_get
    USE helium_common,                   ONLY: helium_com,&
                                               helium_pbc
+   USE helium_interactions,             ONLY: helium_vij
    USE helium_io,                       ONLY: helium_write_line,&
                                               helium_write_setup
    USE helium_sampling,                 ONLY: helium_sample
-   USE helium_types,                    ONLY: &
-        he_mass, helium_solvent_p_type, helium_solvent_type, rho_atom_number, &
-        rho_moment_of_inertia, rho_num, rho_projected_area, rho_winding_cycle, rho_winding_number
+   USE helium_types,                    ONLY: helium_solvent_p_type,&
+                                              helium_solvent_type,&
+                                              rho_atom_number,&
+                                              rho_moment_of_inertia,&
+                                              rho_num,&
+                                              rho_projected_area,&
+                                              rho_winding_cycle,&
+                                              rho_winding_number
    USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                               helium_cell_shape_octahedron,&
                                               helium_sampling_ceperley,&
@@ -74,8 +80,7 @@ MODULE helium_methods
    USE splines_methods,                 ONLY: init_spline,&
                                               init_splinexy
    USE splines_types,                   ONLY: spline_data_create,&
-                                              spline_data_release,&
-                                              spline_data_retain
+                                              spline_data_release
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -115,9 +120,9 @@ CONTAINS
                                                             ntab, num_env, pdx
       INTEGER, DIMENSION(:), POINTER                     :: env_all
       LOGICAL                                            :: expl_cell, expl_dens, expl_nats, &
-                                                            explicit, ltmp
-      REAL(KIND=dp)                                      :: cgeof, dx, mHe, rtmp, T, tau, tcheck, &
-                                                            x1, x_spline
+                                                            expl_pot, explicit, ltmp
+      REAL(KIND=dp)                                      :: cgeof, dx, he_mass, mHe, rtmp, T, tau, &
+                                                            tcheck, x1, x_spline
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pot_transfer
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: helium_section, input_worm
@@ -204,7 +209,9 @@ CONTAINS
                      helium_env(k)%helium%ltmp_3_atoms_beads_3d, &
                      helium_env(k)%helium%tmatrix, helium_env(k)%helium%pmatrix, &
                      helium_env(k)%helium%nmatrix, helium_env(k)%helium%ipmatrix, &
-                     helium_env(k)%helium%uij, helium_env(k)%helium%eij, &
+                     helium_env(k)%helium%u0, helium_env(k)%helium%e0, &
+                     helium_env(k)%helium%uoffdiag, helium_env(k)%helium%eoffdiag, &
+                     helium_env(k)%helium%vij, &
                      helium_env(k)%helium%rdf_inst, &
                      helium_env(k)%helium%plength_avrg, &
                      helium_env(k)%helium%plength_inst, &
@@ -382,8 +389,138 @@ CONTAINS
 
             END SELECT
 
-            ! hard coded He4 directly (mass so i get my original hb2m value)
-            ! He4 mass defined as a constant in helium_types.F now [lwalewski]
+         END DO ! k
+
+         IF (logger%para_env%ionode) THEN
+            CALL section_vals_val_get(helium_section, "POTENTIAL_FILE_NAME", &
+                                      c_val=potential_file_name)
+            CALL open_file(file_name=TRIM(potential_file_name), &
+                           file_action="READ", file_status="OLD", unit_number=input_unit)
+            READ (input_unit, "(A)") msg_str
+            READ (msg_str, *, IOSTAT=i) nlines, pdx, tau, &
+               x_spline, dx, he_mass
+            IF (i /= 0) THEN
+               ! old style potential file, use default mass and potential
+               he_mass = 4.00263037059764_dp !< 4He mass in [u]
+               expl_pot = .FALSE.
+               READ (msg_str, *, IOSTAT=i) nlines, pdx, tau, &
+                  x_spline, dx
+               IF (i /= 0) THEN
+                  msg_str = "Format/Read Error from Solvent POTENTIAL_FILE"
+                  CPABORT(msg_str)
+               END IF
+            ELSE
+               expl_pot = .TRUE.
+               ! in file really hb2m in kelvin angstrom**2
+               he_mass = angstrom**2*kelvin/massunit/he_mass
+               ! tau might be negative to get older versions of cp2k,
+               ! that cannot handle the new potential file format to
+               ! crash and not run a calculation with wrong mass/potential
+               tau = ABS(tau)
+            END IF
+            tau = kelvin/tau
+            x_spline = x_spline/angstrom
+            dx = dx/angstrom
+         END IF
+
+         CALL mp_bcast(nlines, logger%para_env%source, &
+                       helium_env(1)%comm)
+         CALL mp_bcast(pdx, logger%para_env%source, &
+                       helium_env(1)%comm)
+         CALL mp_bcast(tau, logger%para_env%source, &
+                       helium_env(1)%comm)
+         CALL mp_bcast(x_spline, logger%para_env%source, &
+                       helium_env(1)%comm)
+         CALL mp_bcast(dx, logger%para_env%source, &
+                       helium_env(1)%comm)
+         CALL mp_bcast(he_mass, logger%para_env%source, &
+                       helium_env(1)%comm)
+         isize = (pdx + 1)*(pdx + 2) + 1
+         ALLOCATE (pot_transfer(nlines, isize))
+         IF (logger%para_env%ionode) THEN
+            IF (expl_pot) THEN
+               DO i = 1, nlines
+                  READ (input_unit, *) pot_transfer(i, :)
+               END DO
+            ELSE
+               DO i = 1, nlines
+                  READ (input_unit, *) pot_transfer(i, 1:isize - 1)
+                  ! potential implicit, calculate it here now:
+                  pot_transfer(i, isize) = helium_vij(x_spline + (i - 1)*dx)*kelvin
+               END DO
+            END IF
+            CALL close_file(unit_number=input_unit)
+         END IF
+         CALL mp_bcast(pot_transfer, logger%para_env%source, &
+                       helium_env(1)%comm)
+
+         CALL spline_data_create(helium_env(1)%helium%vij)
+         CALL init_splinexy(helium_env(1)%helium%vij, nlines)
+         helium_env(1)%helium%vij%x1 = x_spline
+
+         CALL spline_data_create(helium_env(1)%helium%u0)
+         CALL init_splinexy(helium_env(1)%helium%u0, nlines)
+         helium_env(1)%helium%u0%x1 = x_spline
+
+         CALL spline_data_create(helium_env(1)%helium%e0)
+         CALL init_splinexy(helium_env(1)%helium%e0, nlines)
+         helium_env(1)%helium%e0%x1 = x_spline
+
+         isize = pdx + 1
+         ntab = ((isize + 1)*isize)/2 - 1   ! -1 because endpoint approx treated separately
+         ALLOCATE (helium_env(1)%helium%uoffdiag(ntab, 2, nlines))
+         ALLOCATE (helium_env(1)%helium%eoffdiag(ntab, 2, nlines))
+         DO j = 1, isize
+            DO i = j, isize
+               IF (i + j == 2) CYCLE ! endpoint approx later separately
+               k = ((i - 1)*i)/2 + j
+               helium_env(1)%helium%vij%y(:) = pot_transfer(:, k)*angstrom**(2*i - 2)
+               CALL init_spline(helium_env(1)%helium%vij, dx=dx)
+               helium_env(1)%helium%uoffdiag(ntab, 1, :) = helium_env(1)%helium%vij%y(:)
+               helium_env(1)%helium%uoffdiag(ntab, 2, :) = helium_env(1)%helium%vij%y2(:)
+               k = k + ((isize + 1)*isize)/2
+               helium_env(1)%helium%vij%y(:) = pot_transfer(:, k)*angstrom**(2*i - 2)/kelvin
+               CALL init_spline(helium_env(1)%helium%vij, dx=dx)
+               helium_env(1)%helium%eoffdiag(ntab, 1, :) = helium_env(1)%helium%vij%y(:)
+               helium_env(1)%helium%eoffdiag(ntab, 2, :) = helium_env(1)%helium%vij%y2(:)
+               ntab = ntab - 1
+            END DO
+         END DO
+
+         ntab = SIZE(pot_transfer, 2)
+         helium_env(1)%helium%vij%y(:) = pot_transfer(:, ntab)/kelvin
+         CALL init_spline(helium_env(1)%helium%vij, dx=dx)
+
+         helium_env(1)%helium%u0%y(:) = pot_transfer(:, 1)
+         CALL init_spline(helium_env(1)%helium%u0, dx=dx)
+         k = ((isize + 1)*isize)/2 + 1
+         helium_env(1)%helium%e0%y(:) = pot_transfer(:, k)/kelvin
+         CALL init_spline(helium_env(1)%helium%e0, dx=dx)
+
+         DO k = 2, mepos
+            helium_env(k)%helium%vij => helium_env(1)%helium%vij
+            helium_env(k)%helium%u0 => helium_env(1)%helium%u0
+            helium_env(k)%helium%e0 => helium_env(1)%helium%e0
+            helium_env(k)%helium%uoffdiag => helium_env(1)%helium%uoffdiag
+            helium_env(k)%helium%eoffdiag => helium_env(1)%helium%eoffdiag
+         END DO
+
+         DO k = 1, mepos
+
+            helium_env(k)%helium%pdx = pdx
+            helium_env(k)%helium%tau = tau
+
+            ! boltzmann : Boltzmann constant [J/K]
+            ! h_bar     : Planck constant [J*s]
+            ! J = kg*m^2/s^2
+            ! 4He mass in [kg]
+            mHe = he_mass*a_mass
+            ! physical temperature [K]
+            T = kelvin/helium_env(k)%helium%tau/helium_env(k)%helium%beads
+            ! prefactors for calculating superfluid fractions [Angstrom^-2]
+            helium_env(k)%helium%wpref = (((1e-20/h_bar)*mHe)/h_bar)*boltzmann*T
+            helium_env(k)%helium%apref = (((4e-20/h_bar)*mHe)/h_bar)*boltzmann*T
+
             helium_env(k)%helium%he_mass_au = he_mass*massunit
             helium_env(k)%helium%hb2m = 1.0_dp/helium_env(k)%helium%he_mass_au
             helium_env(k)%helium%pweight = 0.0_dp
@@ -530,97 +667,6 @@ CONTAINS
                msg_str = "Unknown helium sampling method!"
                CPABORT(msg_str)
             END SELECT
-
-         END DO
-
-         IF (logger%para_env%ionode) THEN
-            CALL section_vals_val_get(helium_section, "POTENTIAL_FILE_NAME", &
-                                      c_val=potential_file_name)
-            CALL open_file(file_name=TRIM(potential_file_name), &
-                           file_action="READ", file_status="OLD", unit_number=input_unit)
-            READ (input_unit, *) nlines, pdx, tau, &
-               x_spline, dx
-            tau = kelvin/tau
-            x_spline = x_spline/angstrom
-            dx = dx/angstrom
-         END IF
-
-         CALL mp_bcast(nlines, logger%para_env%source, &
-                       helium_env(1)%comm)
-         CALL mp_bcast(pdx, logger%para_env%source, &
-                       helium_env(1)%comm)
-         CALL mp_bcast(tau, logger%para_env%source, &
-                       helium_env(1)%comm)
-         CALL mp_bcast(x_spline, logger%para_env%source, &
-                       helium_env(1)%comm)
-         CALL mp_bcast(dx, logger%para_env%source, &
-                       helium_env(1)%comm)
-         isize = (pdx + 1)*(pdx + 2)
-         ALLOCATE (pot_transfer(nlines, isize))
-         IF (logger%para_env%ionode) THEN
-            DO i = 1, nlines
-               READ (input_unit, *) pot_transfer(i, :)
-            END DO
-            CALL close_file(unit_number=input_unit)
-         END IF
-         CALL mp_bcast(pot_transfer, logger%para_env%source, &
-                       helium_env(1)%comm)
-
-         DO k = 1, mepos
-            helium_env(k)%helium%pdx = pdx
-            helium_env(k)%helium%tau = tau
-
-            ! boltzmann : Boltzmann constant [J/K]
-            ! h_bar     : Planck constant [J*s]
-            ! J = kg*m^2/s^2
-            ! 4He mass in [kg]
-            mHe = he_mass*a_mass
-            ! physical temperature [K]
-            T = kelvin/helium_env(k)%helium%tau/helium_env(k)%helium%beads
-            ! prefactors for calculating superfluid fractions [Angstrom^-2]
-            helium_env(k)%helium%wpref = (((1e-20/h_bar)*mHe)/h_bar)*boltzmann*T
-            helium_env(k)%helium%apref = (((4e-20/h_bar)*mHe)/h_bar)*boltzmann*T
-
-            isize = helium_env(k)%helium%pdx + 1
-            ALLOCATE (helium_env(k)%helium%uij(isize, isize))
-            ALLOCATE (helium_env(k)%helium%eij(isize, isize))
-            DO i = 1, isize
-               DO j = 1, i
-                  CALL spline_data_create(helium_env(k)%helium%uij(i, j)%spline_data)
-                  CALL init_splinexy(helium_env(k)%helium%uij(i, j)%spline_data, nlines)
-                  helium_env(k)%helium%uij(i, j)%spline_data%x1 = x_spline
-                  CALL spline_data_create(helium_env(k)%helium%eij(i, j)%spline_data)
-                  CALL init_splinexy(helium_env(k)%helium%eij(i, j)%spline_data, nlines)
-                  helium_env(k)%helium%eij(i, j)%spline_data%x1 = x_spline
-               END DO
-            END DO
-            DO i = 1, isize - 1
-               DO j = i + 1, isize
-                  helium_env(k)%helium%uij(i, j) = helium_env(k)%helium%uij(j, i)
-                  CALL spline_data_retain(helium_env(k)%helium%uij(i, j)%spline_data)
-                  helium_env(k)%helium%eij(i, j) = helium_env(k)%helium%eij(j, i)
-                  CALL spline_data_retain(helium_env(k)%helium%eij(i, j)%spline_data)
-               END DO
-            END DO
-
-            isize = helium_env(k)%helium%pdx + 1
-            ntab = 1
-            DO i = 1, isize
-               DO j = 1, i
-                  helium_env(k)%helium%uij(i, j)%spline_data%y(:) = pot_transfer(:, ntab)* &
-                                                                    angstrom**(2*i - 2)
-                  CALL init_spline(helium_env(k)%helium%uij(i, j)%spline_data, dx=dx)
-                  ntab = ntab + 1
-               END DO
-            END DO
-            DO i = 1, isize
-               DO j = 1, i
-                  helium_env(k)%helium%eij(i, j)%spline_data%y(:) = pot_transfer(:, ntab)* &
-                                                                    angstrom**(2*i - 2)/kelvin
-                  CALL init_spline(helium_env(k)%helium%eij(i, j)%spline_data, dx=dx)
-                  ntab = ntab + 1
-               END DO
-            END DO
 
             ! ALLOCATE helium-related arrays
             i = helium_env(k)%helium%atoms
@@ -781,7 +827,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_release', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, j, k
+      INTEGER                                            :: k
 
       IF (ASSOCIATED(helium_env)) THEN
          DO k = 1, SIZE(helium_env)
@@ -908,21 +954,18 @@ CONTAINS
                   helium_env(k)%helium%pos &
                   )
 
-               DO i = 1, SIZE(helium_env(k)%helium%eij, 1)
-                  DO j = 1, SIZE(helium_env(k)%helium%eij, 1)
-                     CALL spline_data_release(helium_env(k)%helium%eij(i, j)%spline_data)
-                     CALL spline_data_release(helium_env(k)%helium%uij(i, j)%spline_data)
-                     !TODO: shouldn't that be done in spline_data_release??
-                     NULLIFY (helium_env(k)%helium%eij(i, j)%spline_data, &
-                              helium_env(k)%helium%uij(i, j)%spline_data)
-                  END DO
-               END DO
-
-               DEALLOCATE (helium_env(k)%helium%eij)
-               NULLIFY (helium_env(k)%helium%eij)
-
-               DEALLOCATE (helium_env(k)%helium%uij)
-               NULLIFY (helium_env(k)%helium%uij)
+               IF (k == 1) THEN
+                  CALL spline_data_release(helium_env(k)%helium%vij)
+                  CALL spline_data_release(helium_env(k)%helium%u0)
+                  CALL spline_data_release(helium_env(k)%helium%e0)
+                  DEALLOCATE (helium_env(k)%helium%uoffdiag)
+                  DEALLOCATE (helium_env(k)%helium%eoffdiag)
+               END IF
+               NULLIFY (helium_env(k)%helium%uoffdiag, &
+                        helium_env(k)%helium%eoffdiag, &
+                        helium_env(k)%helium%vij, &
+                        helium_env(k)%helium%u0, &
+                        helium_env(k)%helium%e0)
 
                CALL delete_rng_stream(helium_env(k)%helium%rng_stream_uniform)
                CALL delete_rng_stream(helium_env(k)%helium%rng_stream_gaussian)
