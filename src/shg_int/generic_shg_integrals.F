@@ -98,7 +98,8 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: r12_operator
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dvab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
+         OPTIONAL                                        :: dvab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: scona_shg, sconb_shg
@@ -426,7 +427,7 @@ CONTAINS
 
       PROCEDURE(ab_sint_shg), POINTER                    :: s_operator_ab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dvab
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, INTENT(INOUT)   :: dvab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: scona_shg, sconb_shg

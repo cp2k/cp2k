@@ -413,35 +413,37 @@ CONTAINS
          WRITE (unit_nr, '(T2,A)') ""
       ENDIF
 
-      ASSOCIATE (ri_metric=>mp2_env%ri_metric)
-         SELECT CASE (ri_metric%potential_type)
-         CASE (do_potential_coulomb)
-            WRITE (unit_nr, FMT="(/T2,A,T74,A)") &
-               "RI_INFO| RI metric: ", "COULOMB"
-         CASE (do_potential_short)
-            WRITE (unit_nr, FMT="(T2,A,T71,A)") &
-               "RI_INFO| RI metric: ", "SHORTRANGE"
-            WRITE (unit_nr, '(T2,A,T61,F20.10)') &
-               "RI_INFO| Omega:     ", ri_metric%omega
-            rc_ang = cp_unit_from_cp2k(ri_metric%cutoff_radius, "angstrom")
-            WRITE (unit_nr, '(T2,A,T61,F20.10)') &
-               "RI_INFO| Cutoff Radius [angstrom]:     ", rc_ang
-         CASE (do_potential_long)
-            WRITE (unit_nr, FMT="(T2,A,T72,A)") &
-               "RI_INFO| RI metric: ", "LONGRANGE"
-            WRITE (unit_nr, '(T2,A,T61,F20.10)') &
-               "RI_INFO| Omega:     ", ri_metric%omega
-         CASE (do_potential_id)
-            WRITE (unit_nr, FMT="(T2,A,T73,A)") &
-               "RI_INFO| RI metric: ", "IDENTITY"
-         CASE (do_potential_truncated)
-            WRITE (unit_nr, FMT="(T2,A,T72,A)") &
-               "RI_INFO| RI metric: ", "TRUNCATED"
-            rc_ang = cp_unit_from_cp2k(ri_metric%cutoff_radius, "angstrom")
-            WRITE (unit_nr, '(T2,A,T61,F20.10)') &
-               "RI_INFO| Cutoff Radius [angstrom]:     ", rc_ang
-         END SELECT
-      END ASSOCIATE
+      IF (unit_nr > 0) THEN
+         ASSOCIATE (ri_metric=>mp2_env%ri_metric)
+            SELECT CASE (ri_metric%potential_type)
+            CASE (do_potential_coulomb)
+               WRITE (unit_nr, FMT="(/T2,A,T74,A)") &
+                  "RI_INFO| RI metric: ", "COULOMB"
+            CASE (do_potential_short)
+               WRITE (unit_nr, FMT="(T2,A,T71,A)") &
+                  "RI_INFO| RI metric: ", "SHORTRANGE"
+               WRITE (unit_nr, '(T2,A,T61,F20.10)') &
+                  "RI_INFO| Omega:     ", ri_metric%omega
+               rc_ang = cp_unit_from_cp2k(ri_metric%cutoff_radius, "angstrom")
+               WRITE (unit_nr, '(T2,A,T61,F20.10)') &
+                  "RI_INFO| Cutoff Radius [angstrom]:     ", rc_ang
+            CASE (do_potential_long)
+               WRITE (unit_nr, FMT="(T2,A,T72,A)") &
+                  "RI_INFO| RI metric: ", "LONGRANGE"
+               WRITE (unit_nr, '(T2,A,T61,F20.10)') &
+                  "RI_INFO| Omega:     ", ri_metric%omega
+            CASE (do_potential_id)
+               WRITE (unit_nr, FMT="(T2,A,T73,A)") &
+                  "RI_INFO| RI metric: ", "IDENTITY"
+            CASE (do_potential_truncated)
+               WRITE (unit_nr, FMT="(T2,A,T72,A)") &
+                  "RI_INFO| RI metric: ", "TRUNCATED"
+               rc_ang = cp_unit_from_cp2k(ri_metric%cutoff_radius, "angstrom")
+               WRITE (unit_nr, '(T2,A,T61,F20.10)') &
+                  "RI_INFO| Cutoff Radius [angstrom]:     ", rc_ang
+            END SELECT
+         END ASSOCIATE
+      ENDIF
 
       CALL cp_print_key_finished_output(unit_nr, logger, mp2_section, &
                                         "MP2_INFO")

@@ -344,7 +344,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       REAL(dp), DIMENSION(3)                             :: ra, rab_L, rb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: contr_a, contr_b, dummy_force
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: contr_a, contr_b
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
 
@@ -384,8 +384,8 @@ CONTAINS
 
          blocks_of_v_L(i_block)%block = 0.0_dp
 
-         CALL int_operators_r12_ab_shg(operator_type, blocks_of_v_L(i_block)%block, dummy_force, rab_L, &
-                                       basis_set_a, basis_set_b, contr_a, contr_b, omega=cutoff, &
+         CALL int_operators_r12_ab_shg(operator_type, blocks_of_v_L(i_block)%block, rab=rab_L, &
+                                       fba=basis_set_a, fbb=basis_set_b, scona_shg=contr_a, sconb_shg=contr_b, omega=cutoff, &
                                        calculate_forces=.FALSE.)
 
          i_block = i_block + 1

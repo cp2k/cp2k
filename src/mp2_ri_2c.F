@@ -502,14 +502,14 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_RI_aux_transl
-      TYPE(dbcsr_type), DIMENSION(:), POINTER            :: mat_2c
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: mat_2c
       TYPE(dbcsr_type), POINTER                          :: cmatrix, matrix_s_RI_aux_desymm, &
                                                             rmatrix, tmpmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_2d_type), POINTER                :: dist_2d
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_RI
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sab_RI
+         POINTER                                         :: sab_RI
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -518,10 +518,8 @@ CONTAINS
       NULLIFY (sab_RI, matrix_s_RI_aux_transl)
 
       CALL get_qs_env(qs_env=qs_env, &
-                      sab_orb=sab_orb, &
                       para_env=para_env, &
                       blacs_env=blacs_env, &
-                      matrix_s_RI_aux_kp=matrix_s_RI_aux_transl, &
                       nkind=nkind, &
                       distribution_2d=dist_2d, &
                       qs_kind_set=qs_kind_set, &
@@ -562,12 +560,12 @@ CONTAINS
                               ri_metric, do_kpoints=do_kpoints)
 
       CALL dbcsr_distribution_release(dbcsr_dist)
-      CALL neighbor_list_2c_destroy(sab_RI)
       DEALLOCATE (basis_set_RI)
 
       CALL dbcsr_allocate_matrix_set(matrix_s_RI_aux_transl, 1, nimg)
       DO img = 1, nimg
-         matrix_s_RI_aux_transl(1, img)%matrix => mat_2c(img)
+         ALLOCATE (matrix_s_RI_aux_transl(1, img)%matrix)
+         matrix_s_RI_aux_transl(1, img)%matrix = mat_2c(img)
       ENDDO
 
       CALL set_ks_env(qs_env%ks_env, matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)
@@ -607,8 +605,8 @@ CONTAINS
                            matrix_type=dbcsr_type_antisymmetric)
          CALL dbcsr_create(tmpmat, template=matrix_s_RI_aux_transl(1, 1)%matrix, &
                            matrix_type=dbcsr_type_no_symmetry)
-         CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_orb)
-         CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_orb)
+         CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_RI)
+         CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_RI)
 
          DO ikp = 1, nkp
 
@@ -617,7 +615,7 @@ CONTAINS
             CALL dbcsr_set(cmatrix, 0.0_dp)
 
             CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s_RI_aux_transl, ispin=1, &
-                                xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_orb)
+                                xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_RI)
 
             CALL dbcsr_set(tmpmat, 0.0_dp)
             CALL dbcsr_desymmetrize(rmatrix, tmpmat)
@@ -655,6 +653,8 @@ CONTAINS
          CALL dbcsr_deallocate_matrix(matrix_s_RI_aux_desymm)
 
       END IF
+
+      CALL neighbor_list_2c_destroy(sab_RI)
 
       CALL cp_fm_struct_release(fm_struct)
 
