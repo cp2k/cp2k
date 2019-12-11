@@ -1451,7 +1451,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_filter, eps_lanczos, mu
       REAL(KIND=dp), DIMENSION(2)                        :: e_homo, e_lumo, mu_spin
       TYPE(dbcsr_type)                                   :: matrix_s_inv, matrix_s_sqrt, &
-                                                            matrix_s_sqrt_inv
+                                                            matrix_s_sqrt_inv, matrix_tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: input, solver_section
 
@@ -1496,7 +1496,7 @@ CONTAINS
 
       SELECT CASE (ls_method)
       CASE (ec_curvy_steps)
-!
+         CPABORT("Curvy Step Method not available")
       CASE (ec_matrix_sign)
          CALL dbcsr_create(matrix_s_inv, template=matrix_s(1, 1)%matrix, &
                            matrix_type=dbcsr_type_no_symmetry)
@@ -1540,6 +1540,7 @@ CONTAINS
                                      max_iter_lanczos=max_iter_lanczos, &
                                      eps_lanczos=eps_lanczos, converged=converged)
          CASE (ec_matrix_tc2)
+            CPABORT("TC2 Method not available")
             CALL density_matrix_tc2(matrix_p(ispin, 1)%matrix, matrix_ks(ispin, 1)%matrix, &
                                     matrix_s_sqrt_inv, nelectron, eps_filter, &
                                     e_homo(ispin), e_lumo(ispin), &
@@ -1551,7 +1552,7 @@ CONTAINS
 
       SELECT CASE (ls_method)
       CASE (ec_curvy_steps)
-!
+         CPABORT("Curvy Step Method not available")
       CASE (ec_matrix_sign)
          CALL dbcsr_release(matrix_s_inv)
       CASE (ec_matrix_trs4, ec_matrix_tc2)
@@ -1560,8 +1561,19 @@ CONTAINS
          CPABORT("Wrong ls_method")
       END SELECT
 
+      ! W matrix
+      CALL dbcsr_create(matrix_tmp, template=matrix_s(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
+      DO ispin = 1, nspins
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_p(ispin, 1)%matrix, matrix_ks(ispin, 1)%matrix, &
+                             0.0_dp, matrix_tmp, filter_eps=eps_filter)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp, matrix_p(ispin, 1)%matrix, &
+                             0.0_dp, matrix_w(ispin, 1)%matrix, filter_eps=eps_filter)
+      ENDDO
+      CALL dbcsr_release(matrix_tmp)
+
       IF (nspins == 1) THEN
          CALL dbcsr_scale(matrix_p(1, 1)%matrix, 2.0_dp)
+         CALL dbcsr_scale(matrix_w(1, 1)%matrix, 2.0_dp)
       END IF
 
       CALL timestop(handle)

@@ -187,7 +187,7 @@ CONTAINS
                END IF
             END DO
          CASE DEFAULT
-            CPABORT("Unknown KG energy correction basis")
+            CPABORT("Unknown basis set for energy correction (Harris functional)")
          END SELECT
          !
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, basis_type="HARRIS")
