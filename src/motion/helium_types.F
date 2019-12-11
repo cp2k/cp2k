@@ -19,7 +19,7 @@ MODULE helium_types
                                               dp,&
                                               int_8
    USE parallel_rng_types,              ONLY: rng_stream_type
-   USE splines_types,                   ONLY: spline_data_p_type
+   USE splines_types,                   ONLY: spline_data_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -28,8 +28,6 @@ MODULE helium_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_types'
-
-   REAL(KIND=dp), PARAMETER, PUBLIC :: he_mass = 4.00263037059764_dp !< 4He mass in [u]
 
    !> Energy contributions - symbolic names for indexing energy arrays
    INTEGER, PARAMETER, PUBLIC :: &
@@ -186,8 +184,12 @@ MODULE helium_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: ipmatrix
       INTEGER, DIMENSION(:, :), POINTER :: nmatrix
 
-      TYPE(spline_data_p_type), DIMENSION(:, :), POINTER :: uij !< pair density matrix coefficients (action)
-      TYPE(spline_data_p_type), DIMENSION(:, :), POINTER :: eij !< pair density matrix coefficients (energy)
+      TYPE(spline_data_type), POINTER :: vij !< physical pair potential energy
+      TYPE(spline_data_type), POINTER :: u0 !< pair density matrix coefficient (action) endpoint approx
+      TYPE(spline_data_type), POINTER :: e0 !< pair density matrix coefficient (energy) endpoint approx
+      !< raw spline data for pair density matrix off diagonal expansion beyond endpoint approx:
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: uoffdiag !< (action)
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: eoffdiag !< (energy)
 
       ! calculated properties
       !

@@ -47,7 +47,7 @@ MODULE helium_sampling
    USE physcon,                         ONLY: angstrom
    USE pint_public,                     ONLY: pint_com_pos
    USE pint_types,                      ONLY: pint_env_type
-   USE splines_types,                   ONLY: spline_data_p_type
+   USE splines_types,                   ONLY: spline_data_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -753,9 +753,10 @@ CONTAINS
       LOGICAL                                            :: nperiodic, should_reject
       REAL(KIND=dp)                                      :: cell_size, ds, dtk, e1, e2, pds, &
                                                             prev_ds, r, rtmp, rtmpo, sigma, x
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work3
       REAL(KIND=dp), DIMENSION(3)                        :: bis, biso, new_com, rm1, rm2, tmp1, tmp2
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pos, work
-      TYPE(spline_data_p_type), DIMENSION(:, :), POINTER :: uij
+      TYPE(spline_data_type), POINTER                    :: u0
 
 ! trial permutation implicit in p
 ! since we (momentarily) only use cyclic permutations:
@@ -784,7 +785,7 @@ CONTAINS
       pos => helium%pos
       work => helium%work
       perm => helium%permutation
-      uij => helium%uij
+      u0 => helium%u0
       cell_size = (0.5_dp*helium%cell_size)**2
       nperiodic = .NOT. helium%periodic
 
@@ -909,14 +910,14 @@ CONTAINS
                      r = tmp1(1)*tmp1(1) + tmp1(2)*tmp1(2) + tmp1(3)*tmp1(3)
                      IF ((r < cell_size) .OR. nperiodic) THEN
                         r = SQRT(r)
-                        ds = ds + REAL(stride/2, dp)*helium_spline(uij(1, 1)%spline_data, r)
+                        ds = ds + REAL(stride/2, dp)*helium_spline(u0, r)
                      END IF
                      tmp1(:) = work(:, p(k), pk1) - work(:, l, pk1)
                      CALL helium_pbc(helium, tmp1)
                      r = tmp1(1)*tmp1(1) + tmp1(2)*tmp1(2) + tmp1(3)*tmp1(3)
                      IF ((r < cell_size) .OR. nperiodic) THEN
                         r = SQRT(r)
-                        ds = ds - REAL(stride/2, dp)*helium_spline(uij(1, 1)%spline_data, r)
+                        ds = ds - REAL(stride/2, dp)*helium_spline(u0, r)
                      END IF
                   END IF
                END DO
@@ -928,14 +929,14 @@ CONTAINS
                      r = tmp1(1)*tmp1(1) + tmp1(2)*tmp1(2) + tmp1(3)*tmp1(3)
                      IF ((r < cell_size) .OR. nperiodic) THEN
                         r = SQRT(r)
-                        ds = ds - REAL(stride/2, dp)*helium_spline(uij(1, 1)%spline_data, r)
+                        ds = ds - REAL(stride/2, dp)*helium_spline(u0, r)
                      END IF
                      tmp1(:) = work(:, p(k), pk1) - work(:, p(l), pk1)
                      CALL helium_pbc(helium, tmp1)
                      r = tmp1(1)*tmp1(1) + tmp1(2)*tmp1(2) + tmp1(3)*tmp1(3)
                      IF ((r < cell_size) .OR. nperiodic) THEN
                         r = SQRT(r)
-                        ds = ds + REAL(stride/2, dp)*helium_spline(uij(1, 1)%spline_data, r)
+                        ds = ds + REAL(stride/2, dp)*helium_spline(u0, r)
                      END IF
                   END DO
                END IF
@@ -1040,6 +1041,7 @@ CONTAINS
             END DO
          END DO
       END IF
+      ALLOCATE (work3(SIZE(helium%uoffdiag, 1) + 1))
       x = 1.0_dp/(helium%tau*helium%hb2m*stride)
       DO j = ifix, helium%beads - 1
          pk1 = j + 1
@@ -1054,10 +1056,10 @@ CONTAINS
                IF (l /= p(k)) THEN
                   rm1(:) = pos(:, p(k), j) - pos(:, l, j)
                   rm2(:) = pos(:, p(k), pk1) - pos(:, l, pk1)
-                  ds = ds + helium_eval_expansion(helium, rm1, rm2, uij, 1)
+                  ds = ds + helium_eval_expansion(helium, rm1, rm2, work3)
                   rm1(:) = work(:, p(k), j) - work(:, l, j)
                   rm2(:) = work(:, p(k), pk1) - work(:, l, pk1)
-                  ds = ds - helium_eval_expansion(helium, rm1, rm2, uij, 1)
+                  ds = ds - helium_eval_expansion(helium, rm1, rm2, work3)
                END IF
             END DO
             ! counted p[k], p[m] twice. subtract those again
@@ -1065,10 +1067,10 @@ CONTAINS
                DO l = k + 1, cyclen
                   rm1(:) = pos(:, p(k), j) - pos(:, p(l), j)
                   rm2(:) = pos(:, p(k), pk1) - pos(:, p(l), pk1)
-                  ds = ds - helium_eval_expansion(helium, rm1, rm2, uij, 1)
+                  ds = ds - helium_eval_expansion(helium, rm1, rm2, work3)
                   rm1(:) = work(:, p(k), j) - work(:, p(l), j)
                   rm2(:) = work(:, p(k), pk1) - work(:, p(l), pk1)
-                  ds = ds + helium_eval_expansion(helium, rm1, rm2, uij, 1)
+                  ds = ds + helium_eval_expansion(helium, rm1, rm2, work3)
                END DO
             END IF
          END DO
@@ -1086,7 +1088,7 @@ CONTAINS
             IF (l /= p(k)) THEN
                rm1(:) = pos(:, p(k), j) - pos(:, l, j)
                rm2(:) = pos(:, perm(p(k)), 1) - pos(:, perm(l), 1)
-               ds = ds + helium_eval_expansion(helium, rm1, rm2, uij, 1)
+               ds = ds + helium_eval_expansion(helium, rm1, rm2, work3)
             END IF
          END DO
          ! counted p[k], p[m] twice. subtract those again
@@ -1094,7 +1096,7 @@ CONTAINS
             DO l = k + 1, cyclen
                rm1(:) = pos(:, p(k), j) - pos(:, p(l), j)
                rm2(:) = pos(:, perm(p(k)), pk1) - pos(:, perm(p(l)), pk1)
-               ds = ds - helium_eval_expansion(helium, rm1, rm2, uij, 1)
+               ds = ds - helium_eval_expansion(helium, rm1, rm2, work3)
             END DO
          END IF
       END DO
@@ -1111,7 +1113,7 @@ CONTAINS
             IF (l /= p(k)) THEN
                rm1(:) = work(:, p(k), j) - work(:, l, j)
                rm2(:) = work(:, perm(p(k)), 1) - work(:, perm(l), 1)
-               ds = ds - helium_eval_expansion(helium, rm1, rm2, uij, 1)
+               ds = ds - helium_eval_expansion(helium, rm1, rm2, work3)
             END IF
          END DO
          ! counted p[k], p[m] twice. subtract those again
@@ -1119,10 +1121,11 @@ CONTAINS
             DO l = k + 1, cyclen
                rm1(:) = work(:, p(k), j) - work(:, p(l), j)
                rm2(:) = work(:, perm(p(k)), 1) - work(:, perm(p(l)), 1)
-               ds = ds + helium_eval_expansion(helium, rm1, rm2, uij, 1)
+               ds = ds + helium_eval_expansion(helium, rm1, rm2, work3)
             END DO
          END IF
       END DO
+      DEALLOCATE (work3)
       ! ok now accept or reject:
       rtmp = next_random_number(helium%rng_stream_uniform)
 !   IF ((dtk+ds-pds<0.0_dp).AND.(EXP(dtk+ds-pds)<rtmp)) THEN

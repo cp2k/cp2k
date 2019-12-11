@@ -57,7 +57,8 @@ MODULE helium_io
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_gather,&
                                               mp_sum
-   USE physcon,                         ONLY: angstrom
+   USE physcon,                         ONLY: angstrom,&
+                                              massunit
    USE pint_types,                      ONLY: pint_env_type
 #include "../base/base_uses.f90"
 
@@ -226,6 +227,11 @@ CONTAINS
                                   unit_str)
          WRITE (unit_nr, '(T2,A,F12.6)') TRIM(my_label)//" Density   ["// &
             TRIM(unit_str)//"]:", rtmp
+
+         unit_str = "a.m.u."
+         rtmp = helium%he_mass_au/massunit
+         WRITE (unit_nr, '(T2,A,F12.6)') TRIM(my_label)//" He Mass   ["// &
+            TRIM(unit_str)//"]: ", rtmp
 
          unit_str = "angstrom"
          rtmp = cp_unit_from_cp2k(helium%cell_size, &
