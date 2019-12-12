@@ -867,9 +867,9 @@ CONTAINS
 !> \brief ...
 !> \param upfpot ...
 ! **************************************************************************************************
-   SUBROUTINE atom_release_upf(upfpot)
+   PURE SUBROUTINE atom_release_upf(upfpot)
 
-      TYPE(atom_upfpot_type)                             :: upfpot
+      TYPE(atom_upfpot_type), INTENT(INOUT)              :: upfpot
 
       IF (ALLOCATED(upfpot%r)) DEALLOCATE (upfpot%r)
       IF (ALLOCATED(upfpot%rab)) DEALLOCATE (upfpot%rab)
