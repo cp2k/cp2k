@@ -35,7 +35,8 @@ MODULE rpa_gw_ic
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
         dbcsr_t_destroy, dbcsr_t_get_block, dbcsr_t_iterator_blocks_left, &
         dbcsr_t_iterator_next_block, dbcsr_t_iterator_start, dbcsr_t_iterator_stop, &
-        dbcsr_t_iterator_type, dbcsr_t_pgrid_create, dbcsr_t_pgrid_type, dbcsr_t_type
+        dbcsr_t_iterator_type, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
+        dbcsr_t_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_dims_create,&
@@ -176,6 +177,8 @@ CONTAINS
             CALL create_2c_tensor(t_SinvVSinv, dist_1, dist_2, pgrid_2d, sizes_RI_split, sizes_RI_split, &
                                   name="(RI|RI)")
             DEALLOCATE (dist_1, dist_2)
+            CALL dbcsr_t_pgrid_destroy(pgrid_2d)
+
             CALL dbcsr_t_copy(t_SinvVSinv_tmp, t_SinvVSinv)
             CALL dbcsr_t_destroy(t_SinvVSinv_tmp)
             CALL dbcsr_t_create(t_3c_overl_nnP_ic_reflected, t_3c_overl_nnP_ic_reflected_ctr)
