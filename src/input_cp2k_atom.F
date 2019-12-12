@@ -119,7 +119,7 @@ CONTAINS
                                         "SEMI_ANALYTIC            ", &
                                         "NUMERIC                  "/), &
                           enum_i_vals=(/do_analytic, do_semi_analytic, do_numeric/), &
-                          enum_desc=s2a("Use analytical method", &
+                          enum_desc=s2a("Use analytical method. Not available for longrange Hartree-Fock", &
                                         "Use semi-analytical method", &
                                         "Use numerical method"))
       CALL section_add_keyword(section, keyword)
@@ -151,6 +151,21 @@ CONTAINS
                           description="Specifies the number of states calculated per l value", &
                           usage="CALCULATE_STATES  5 5 5 3 ", repeats=.FALSE., &
                           default_i_val=0, n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="USE_GAUSS_HERMITE", &
+                          description="Whether a Gauss-Hermite grid is to be used for the numerical integration of "// &
+                          "longrange exchange integrals", &
+                          usage="USE_GAUSS_HERMITE TRUE", repeats=.FALSE., &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="GRID_POINTS_GH", &
+                          description="Number of grid points for Gauss-Hermite grid", &
+                          usage="GRID_POINTS_GH 100", repeats=.FALSE., &
+                          default_i_val=100)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -14,6 +14,9 @@ MODULE atom_types
    USE atom_upf,                        ONLY: atom_read_upf,&
                                               atom_release_upf,&
                                               atom_upfpot_type
+   USE bessel_lib,                      ONLY: bessel0
+   USE bibliography,                    ONLY: Limpanuparb2011,&
+                                              cite_reference
    USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
@@ -25,8 +28,10 @@ MODULE atom_types
                                               parser_create,&
                                               parser_release
    USE input_constants,                 ONLY: &
-        barrier_conf, contracted_gto, do_gapw_log, ecp_pseudo, gaussian, geometrical_gto, &
-        gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, sgp_pseudo, slater, upf_pseudo
+        barrier_conf, contracted_gto, do_gapw_log, do_numeric, do_potential_coulomb, &
+        do_potential_long, do_potential_mix_cl, do_potential_short, do_semi_analytic, ecp_pseudo, &
+        gaussian, geometrical_gto, gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, &
+        sgp_pseudo, slater, upf_pseudo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_list_get,&
@@ -38,7 +43,8 @@ MODULE atom_types
                                               dp
    USE mathconstants,                   ONLY: dfac,&
                                               fac,&
-                                              pi
+                                              pi,&
+                                              rootpi
    USE periodic_table,                  ONLY: get_ptable_info,&
                                               ptable
    USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
@@ -170,6 +176,18 @@ MODULE atom_types
       TYPE(atom_sgppot_type)                        :: sgp_pot
    END TYPE atom_potential_type
 
+!> \brief Provides info about hartree-fock exchange (For now, we only support potentials that can be represented
+!>        with Coulomb and longrange-coulomb potential)
+! **************************************************************************************************
+   TYPE atom_hfx_type
+      REAL(KIND=dp)                                 :: scale_coulomb
+      REAL(KIND=dp)                                 :: scale_longrange
+      REAL(KIND=dp)                                 :: omega
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: kernel
+      LOGICAL                                       :: do_gh
+      INTEGER                                       :: nr_gh
+   END TYPE atom_hfx_type
+
 !> \brief Provides all information on states and occupation
 ! **************************************************************************************************
    TYPE atom_state
@@ -294,6 +312,7 @@ MODULE atom_types
       TYPE(atom_optimization_type)                  :: optimization
       TYPE(section_vals_type), POINTER              :: xc_section, zmp_section
       TYPE(opmat_type), POINTER                     :: fmat
+      TYPE(atom_hfx_type)                           :: hfx_pot
    END TYPE atom_type
 ! **************************************************************************************************
    TYPE atom_p_type
@@ -302,7 +321,7 @@ MODULE atom_types
 
    PUBLIC :: lmat
    PUBLIC :: atom_p_type, atom_type, atom_basis_type, atom_state, atom_integrals
-   PUBLIC :: atom_orbitals, eri, atom_potential_type
+   PUBLIC :: atom_orbitals, eri, atom_potential_type, atom_hfx_type
    PUBLIC :: atom_gthpot_type, atom_ecppot_type, atom_sgppot_type
    PUBLIC :: atom_optimization_type
    PUBLIC :: atom_compare_grids
@@ -316,6 +335,7 @@ MODULE atom_types
    PUBLIC :: opmat_type, create_opmat, release_opmat
    PUBLIC :: opgrid_type, create_opgrid, release_opgrid
    PUBLIC :: no_pseudo, gth_pseudo, sgp_pseudo, upf_pseudo, ecp_pseudo
+   PUBLIC :: setup_hf_section
 
 ! **************************************************************************************************
 
@@ -945,6 +965,9 @@ CONTAINS
       atom%doread = .FALSE.
       atom%read_vxc = .FALSE.
       atom%dm = .FALSE.
+      atom%hfx_pot%scale_coulomb = 0.0_dp
+      atom%hfx_pot%scale_longrange = 0.0_dp
+      atom%hfx_pot%omega = 0.0_dp
 
    END SUBROUTINE create_atom_type
 
@@ -1156,6 +1179,166 @@ CONTAINS
       DEALLOCATE (orbs)
 
    END SUBROUTINE release_atom_orbs
+
+! **************************************************************************************************
+!> \brief ...
+!> \param hf_frac ...
+!> \param do_hfx ...
+!> \param atom ...
+!> \param xc_section ...
+!> \param extype ...
+! **************************************************************************************************
+   SUBROUTINE setup_hf_section(hf_frac, do_hfx, atom, xc_section, extype)
+      REAL(KIND=dp), INTENT(OUT)                         :: hf_frac
+      LOGICAL, INTENT(OUT)                               :: do_hfx
+      TYPE(atom_type), INTENT(IN), POINTER               :: atom
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      INTEGER, INTENT(IN)                                :: extype
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_hf_section', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, j, nr, nu, pot_type
+      REAL(KIND=dp)                                      :: scale_coulomb, scale_longrange
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: abscissa, weights
+      TYPE(section_vals_type), POINTER                   :: hf_sub_section, hfx_sections
+
+      hf_frac = 0._dp
+      IF (ASSOCIATED(atom%xc_section)) THEN
+         xc_section => atom%xc_section
+         hfx_sections => section_vals_get_subs_vals(xc_section, "HF")
+         CALL section_vals_get(hfx_sections, explicit=do_hfx)
+
+         ! If nothing has been set explicitly, assume a Coulomb potential
+         atom%hfx_pot%scale_longrange = 0.0_dp
+         atom%hfx_pot%scale_coulomb = 1.0_dp
+
+         IF (do_hfx) THEN
+            CALL section_vals_val_get(hfx_sections, "FRACTION", r_val=hf_frac)
+
+            ! Get potential info
+            hf_sub_section => section_vals_get_subs_vals(hfx_sections, "INTERACTION_POTENTIAL", i_rep_section=1)
+            CALL section_vals_val_get(hf_sub_section, "POTENTIAL_TYPE", i_val=pot_type)
+            CALL section_vals_val_get(hf_sub_section, "OMEGA", r_val=atom%hfx_pot%omega)
+            CALL section_vals_val_get(hf_sub_section, "SCALE_COULOMB", r_val=scale_coulomb)
+            CALL section_vals_val_get(hf_sub_section, "SCALE_LONGRANGE", r_val=scale_longrange)
+
+            ! Setup atomic hfx potential
+            SELECT CASE (pot_type)
+            CASE DEFAULT
+               CPWARN("Potential not implemented, use Coulomb instead!")
+            CASE (do_potential_coulomb)
+               atom%hfx_pot%scale_longrange = 0.0_dp
+               atom%hfx_pot%scale_coulomb = scale_coulomb
+            CASE (do_potential_long)
+               atom%hfx_pot%scale_coulomb = 0.0_dp
+               atom%hfx_pot%scale_longrange = scale_longrange
+            CASE (do_potential_short)
+               atom%hfx_pot%scale_coulomb = 1.0_dp
+               atom%hfx_pot%scale_longrange = -1.0_dp
+            CASE (do_potential_mix_cl)
+               atom%hfx_pot%scale_coulomb = scale_coulomb
+               atom%hfx_pot%scale_longrange = scale_longrange
+            END SELECT
+         END IF
+
+         ! Check whether extype is supported
+         IF (atom%hfx_pot%scale_longrange /= 0.0_dp .AND. extype /= do_numeric .AND. extype /= do_semi_analytic) THEN
+            CPABORT("Only numerical and semi-analytic lrHF exchange available!")
+         END IF
+
+         IF (atom%hfx_pot%scale_longrange /= 0.0_dp .AND. extype == do_numeric .AND. .NOT. ALLOCATED(atom%hfx_pot%kernel)) THEN
+            CALL cite_reference(Limpanuparb2011)
+
+            IF (atom%hfx_pot%do_gh) THEN
+               ! Setup kernel for Ewald operator
+               ! Because of the high computational costs of its calculation, we precalculate it here
+               ! Use Gauss-Hermite grid instead of the external grid
+               ALLOCATE (weights(atom%hfx_pot%nr_gh), abscissa(atom%hfx_pot%nr_gh))
+               CALL get_gauss_hermite_weights(abscissa, weights, atom%hfx_pot%nr_gh)
+
+               nr = atom%basis%grid%nr
+               ALLOCATE (atom%hfx_pot%kernel(nr, atom%hfx_pot%nr_gh, 0:atom%state%maxl_calc + atom%state%maxl_occ))
+               atom%hfx_pot%kernel = 0.0_dp
+               DO nu = 0, atom%state%maxl_calc + atom%state%maxl_occ
+                  DO i = 1, atom%hfx_pot%nr_gh
+                     DO j = 1, nr
+                        atom%hfx_pot%kernel(j, i, nu) = bessel0(2.0_dp*atom%hfx_pot%omega &
+                                                                *abscissa(i)*atom%basis%grid%rad(j), nu)*SQRT(weights(i))
+                     END DO
+                  END DO
+               END DO
+            ELSE
+               ! Setup kernel for Ewald operator
+               ! Because of the high computational costs of its calculation, we precalculate it here
+               ! Choose it symmetric to further reduce the costs
+               nr = atom%basis%grid%nr
+               ALLOCATE (atom%hfx_pot%kernel(nr, nr, 0:atom%state%maxl_calc + atom%state%maxl_occ))
+               atom%hfx_pot%kernel = 0.0_dp
+               DO nu = 0, atom%state%maxl_calc + atom%state%maxl_occ
+                  DO i = 1, nr
+                     DO j = 1, i
+                        atom%hfx_pot%kernel(j, i, nu) = bessel0(2.0_dp*atom%hfx_pot%omega &
+                                                                *atom%basis%grid%rad(i)*atom%basis%grid%rad(j), nu)
+                     END DO
+                  END DO
+               END DO
+            END IF
+         END IF
+      ELSE
+         NULLIFY (xc_section)
+         do_hfx = .FALSE.
+      END IF
+
+   END SUBROUTINE setup_hf_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param abscissa ...
+!> \param weights ...
+!> \param nn ...
+! **************************************************************************************************
+   SUBROUTINE get_gauss_hermite_weights(abscissa, weights, nn)
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: abscissa, weights
+      INTEGER, INTENT(IN)                                :: nn
+
+      INTEGER                                            :: counter, ii, info, liwork, lwork
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag, subdiag, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvec
+
+      ALLOCATE (work(1), iwork(1), diag(2*nn), subdiag(2*nn - 1), eigenvec(2*nn, 2*nn))
+      lwork = -1
+      liwork = -1
+      diag = 0.0_dp
+      DO ii = 1, 2*nn - 1
+         subdiag(ii) = SQRT(REAL(ii, KIND=dp)/2.0_dp)
+      END DO
+
+      CALL DSTEVD('V', 2*nn, diag, subdiag, eigenvec, 2*nn, work, lwork, iwork, liwork, info)
+      CPASSERT(info == 0)
+
+      lwork = INT(work(1))
+      liwork = iwork(1)
+      DEALLOCATE (work, iwork)
+      ALLOCATE (work(lwork), iwork(liwork))
+
+      CALL DSTEVD('V', 2*nn, diag, subdiag, eigenvec, 2*nn, work, lwork, iwork, liwork, info)
+      CPASSERT(info == 0)
+
+      DEALLOCATE (work, iwork, subdiag)
+
+      counter = 0
+      DO ii = 1, 2*nn
+         IF (diag(ii) > 0.0_dp) THEN
+            counter = counter + 1
+            abscissa(counter) = diag(ii)
+            weights(counter) = rootpi*eigenvec(1, ii)**2
+         END IF
+      END DO
+      CPASSERT(counter == nn)
+
+   END SUBROUTINE get_gauss_hermite_weights
 
 ! **************************************************************************************************
 !> \brief ...

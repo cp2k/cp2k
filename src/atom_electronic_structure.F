@@ -15,7 +15,8 @@ MODULE atom_electronic_structure
                                               atom_print_zmp_iteration
    USE atom_types,                      ONLY: &
         atom_type, create_opgrid, create_opmat, ecp_pseudo, gth_pseudo, lmat, no_pseudo, &
-        opgrid_type, opmat_type, release_opgrid, release_opmat, set_atom, sgp_pseudo, upf_pseudo
+        opgrid_type, opmat_type, release_opgrid, release_opmat, set_atom, setup_hf_section, &
+        sgp_pseudo, upf_pseudo
    USE atom_utils,                      ONLY: &
         atom_denmat, atom_density, atom_read_external_density, atom_read_external_vxc, &
         atom_read_zmp_restart, atom_solve, atom_trace, ceri_contract, coulomb_potential_analytic, &
@@ -31,8 +32,7 @@ MODULE atom_electronic_structure
         do_uhf_atom, do_uks_atom, do_zoramp_atom
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_type
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -139,7 +139,7 @@ CONTAINS
       TYPE(atom_history_type)                            :: history
       TYPE(opgrid_type), POINTER                         :: cpot, density
       TYPE(opmat_type), POINTER                          :: fmat, hcore, jmat, kmat, xcmat
-      TYPE(section_vals_type), POINTER                   :: hfx_sections, xc_section
+      TYPE(section_vals_type), POINTER                   :: xc_section
 
       CALL timeset(routineN, handle)
 
@@ -149,18 +149,7 @@ CONTAINS
          doguess = .TRUE.
       END IF
 
-      hf_frac = 0._dp
-      IF (ASSOCIATED(atom%xc_section)) THEN
-         xc_section => atom%xc_section
-         hfx_sections => section_vals_get_subs_vals(xc_section, "HF")
-         CALL section_vals_get(hfx_sections, explicit=do_hfx)
-         IF (do_hfx) THEN
-            CALL section_vals_val_get(hfx_sections, "FRACTION", r_val=hf_frac)
-         END IF
-      ELSE
-         NULLIFY (xc_section)
-         do_hfx = .FALSE.
-      END IF
+      CALL setup_hf_section(hf_frac, do_hfx, atom, xc_section, atom%exchange_integral_type)
 
       method = atom%method_type
       max_iter = atom%optimization%max_iter
@@ -337,9 +326,9 @@ CONTAINS
             CASE (do_analytic)
                CALL eeri_contract(kmat%op, atom%integrals%eeri, atom%orbitals%pmat, atom%integrals%n)
             CASE (do_semi_analytic)
-               CALL exchange_semi_analytic(kmat%op, atom%state, atom%state%occupation, atom%orbitals%wfn, atom%basis)
+               CALL exchange_semi_analytic(kmat%op, atom%state, atom%state%occupation, atom%orbitals%wfn, atom%basis, atom%hfx_pot)
             CASE (do_numeric)
-               CALL exchange_numeric(kmat%op, atom%state, atom%state%occupation, atom%orbitals%wfn, atom%basis)
+               CALL exchange_numeric(kmat%op, atom%state, atom%state%occupation, atom%orbitals%wfn, atom%basis, atom%hfx_pot)
             END SELECT
             atom%energy%eexchange = hf_frac*0.5_dp*atom_trace(kmat%op, atom%orbitals%pmat)
             kmat%op = hf_frac*kmat%op
@@ -469,7 +458,7 @@ CONTAINS
       TYPE(opgrid_type), POINTER                         :: cpot, density, rhoa, rhob
       TYPE(opmat_type), POINTER                          :: fmata, fmatb, hcore, hlsd, jmat, kmata, &
                                                             kmatb, xcmata, xcmatb
-      TYPE(section_vals_type), POINTER                   :: hfx_sections, xc_section
+      TYPE(section_vals_type), POINTER                   :: xc_section
 
       CALL timeset(routineN, handle)
 
@@ -479,18 +468,7 @@ CONTAINS
          doguess = .TRUE.
       END IF
 
-      hf_frac = 0._dp
-      IF (ASSOCIATED(atom%xc_section)) THEN
-         xc_section => atom%xc_section
-         hfx_sections => section_vals_get_subs_vals(xc_section, "HF")
-         CALL section_vals_get(hfx_sections, explicit=do_hfx)
-         IF (do_hfx) THEN
-            CALL section_vals_val_get(hfx_sections, "FRACTION", r_val=hf_frac)
-         END IF
-      ELSE
-         NULLIFY (xc_section)
-         do_hfx = .FALSE.
-      END IF
+      CALL setup_hf_section(hf_frac, do_hfx, atom, xc_section, atom%exchange_integral_type)
 
       method = atom%method_type
       max_iter = atom%optimization%max_iter
@@ -693,11 +671,11 @@ CONTAINS
                CALL eeri_contract(kmata%op, atom%integrals%eeri, atom%orbitals%pmata, atom%integrals%n)
                CALL eeri_contract(kmatb%op, atom%integrals%eeri, atom%orbitals%pmatb, atom%integrals%n)
             CASE (do_semi_analytic)
-               CALL exchange_semi_analytic(kmata%op, atom%state, atom%state%occa, atom%orbitals%wfna, atom%basis)
-               CALL exchange_semi_analytic(kmatb%op, atom%state, atom%state%occb, atom%orbitals%wfnb, atom%basis)
+               CALL exchange_semi_analytic(kmata%op, atom%state, atom%state%occa, atom%orbitals%wfna, atom%basis, atom%hfx_pot)
+               CALL exchange_semi_analytic(kmatb%op, atom%state, atom%state%occb, atom%orbitals%wfnb, atom%basis, atom%hfx_pot)
             CASE (do_numeric)
-               CALL exchange_numeric(kmata%op, atom%state, atom%state%occa, atom%orbitals%wfna, atom%basis)
-               CALL exchange_numeric(kmatb%op, atom%state, atom%state%occb, atom%orbitals%wfnb, atom%basis)
+               CALL exchange_numeric(kmata%op, atom%state, atom%state%occa, atom%orbitals%wfna, atom%basis, atom%hfx_pot)
+               CALL exchange_numeric(kmatb%op, atom%state, atom%state%occb, atom%orbitals%wfnb, atom%basis, atom%hfx_pot)
             END SELECT
             atom%energy%eexchange = hf_frac*(atom_trace(kmata%op, atom%orbitals%pmata) + &
                                              atom_trace(kmatb%op, atom%orbitals%pmatb))

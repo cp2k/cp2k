@@ -44,6 +44,7 @@ MODULE mathlib
 
    PUBLIC :: angle, &
              binomial, &
+             binomial_gen, &
              multinomial, &
              det_3x3, &
              dihedral_angle, &
@@ -170,7 +171,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION angle(a, b) RESULT(angle_ab)
+   PURE FUNCTION angle(a, b) RESULT(angle_ab)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a, b
       REAL(KIND=dp)                                      :: angle_ab
@@ -201,7 +202,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION binomial(n, k) RESULT(n_over_k)
+   ELEMENTAL FUNCTION binomial(n, k) RESULT(n_over_k)
 
       INTEGER, INTENT(IN)                                :: n, k
       REAL(KIND=dp)                                      :: n_over_k
@@ -215,13 +216,44 @@ CONTAINS
    END FUNCTION binomial
 
 ! **************************************************************************************************
+!> \brief   The generalized binomial coefficient z over k for 0 <= k <= n is calculated.
+!>            (z)   z*(z-1)*...*(z-k+2)*(z-k+1)
+!>            ( ) = ---------------------------
+!>            (k)                 k!
+!> \param z ...
+!> \param k ...
+!> \return ...
+!> \date    11.11.2019
+!> \author  FS
+!> \version 1.0
+! **************************************************************************************************
+   ELEMENTAL FUNCTION binomial_gen(z, k) RESULT(z_over_k)
+
+      REAL(KIND=dp), INTENT(IN)                          :: z
+      INTEGER, INTENT(IN)                                :: k
+      REAL(KIND=dp)                                      :: z_over_k
+
+      INTEGER                                            :: i
+
+      IF (k >= 0) THEN
+         z_over_k = 1.0_dp
+         DO i = 1, k
+            z_over_k = z_over_k*(z - i + 1)/REAL(i, dp)
+         END DO
+      ELSE
+         z_over_k = 0.0_dp
+      END IF
+
+   END FUNCTION binomial_gen
+
+! **************************************************************************************************
 !> \brief Calculates the multinomial coefficients
 !> \param n ...
 !> \param k ...
 !> \return ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   FUNCTION multinomial(n, k) RESULT(res)
+   PURE FUNCTION multinomial(n, k) RESULT(res)
 
       INTEGER, INTENT(IN)                                :: n
       INTEGER, DIMENSION(:), INTENT(IN)                  :: k
@@ -253,7 +285,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE build_rotmat(phi, a, rotmat)
+   PURE SUBROUTINE build_rotmat(phi, a, rotmat)
       REAL(KIND=dp), INTENT(IN)                          :: phi
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: rotmat
@@ -294,7 +326,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION det_3x3_1(a) RESULT(det_a)
+   PURE FUNCTION det_3x3_1(a) RESULT(det_a)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a
       REAL(KIND=dp)                                      :: det_a
 
@@ -314,7 +346,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION det_3x3_2(a1, a2, a3) RESULT(det_a)
+   PURE FUNCTION det_3x3_2(a1, a2, a3) RESULT(det_a)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a1, a2, a3
       REAL(KIND=dp)                                      :: det_a
 
@@ -436,7 +468,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION dihedral_angle(ab, bc, cd) RESULT(dihedral_angle_abcd)
+   PURE FUNCTION dihedral_angle(ab, bc, cd) RESULT(dihedral_angle_abcd)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ab, bc, cd
       REAL(KIND=dp)                                      :: dihedral_angle_abcd
 
@@ -461,7 +493,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION get_diag(a) RESULT(a_diag)
+   PURE FUNCTION get_diag(a) RESULT(a_diag)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: a
       REAL(KIND=dp), &
          DIMENSION(MIN(SIZE(a, 1), SIZE(a, 2)))          :: a_diag
@@ -484,7 +516,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION inv_3x3(a) RESULT(a_inv)
+   PURE FUNCTION inv_3x3(a) RESULT(a_inv)
 
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a
       REAL(KIND=dp), DIMENSION(3, 3)                     :: a_inv
@@ -1078,7 +1110,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION reflect_vector(a, b) RESULT(a_mirror)
+   PURE FUNCTION reflect_vector(a, b) RESULT(a_mirror)
 
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a, b
       REAL(KIND=dp), DIMENSION(3)                        :: a_mirror
@@ -1117,7 +1149,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION rotate_vector(a, phi, b) RESULT(a_rot)
+   PURE FUNCTION rotate_vector(a, phi, b) RESULT(a_rot)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a
       REAL(KIND=dp), INTENT(IN)                          :: phi
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: b
@@ -1151,7 +1183,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE set_diag_scalar_d(a, b)
+   PURE SUBROUTINE set_diag_scalar_d(a, b)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: a
       REAL(KIND=dp), INTENT(IN)                          :: b
 
@@ -1169,7 +1201,7 @@ CONTAINS
 !> \param a ...
 !> \param b ...
 ! **************************************************************************************************
-   SUBROUTINE set_diag_scalar_z(a, b)
+   PURE SUBROUTINE set_diag_scalar_z(a, b)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: a
       COMPLEX(KIND=dp), INTENT(IN)                       :: b
 
@@ -1230,7 +1262,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE unit_matrix_d(a)
+   PURE SUBROUTINE unit_matrix_d(a)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: a
 
       a(:, :) = 0.0_dp
@@ -1242,7 +1274,7 @@ CONTAINS
 !> \brief ...
 !> \param a ...
 ! **************************************************************************************************
-   SUBROUTINE unit_matrix_z(a)
+   PURE SUBROUTINE unit_matrix_z(a)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: a
 
       a(:, :) = (0.0_dp, 0.0_dp)
@@ -1385,7 +1417,7 @@ CONTAINS
 !> \param mat2 ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION matmul_3x3(mat1, mat2)
+   PURE FUNCTION matmul_3x3(mat1, mat2)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mat1, mat2
       REAL(KIND=dp), DIMENSION(3, 3)                     :: matmul_3x3
 
@@ -1406,7 +1438,7 @@ CONTAINS
 !> \param mat ...
 !> \param vec ...
 ! **************************************************************************************************
-   SUBROUTINE matvec_3x3(res, mat, vec)
+   PURE SUBROUTINE matvec_3x3(res, mat, vec)
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: res
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mat
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: vec
@@ -1422,7 +1454,7 @@ CONTAINS
 !> \param vec2 ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION dotprod_3d(vec1, vec2)
+   PURE FUNCTION dotprod_3d(vec1, vec2)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: vec1, vec2
       REAL(KIND=dp)                                      :: dotprod_3d
 
@@ -1437,7 +1469,7 @@ CONTAINS
 !> \param mat ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION transpose_3d(mat)
+   PURE FUNCTION transpose_3d(mat)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mat
       REAL(KIND=dp), DIMENSION(3, 3)                     :: transpose_3d
 
@@ -1649,7 +1681,7 @@ CONTAINS
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
 ! **************************************************************************************************
-   SUBROUTINE jrotate(a, b, ss, tt)
+   PURE SUBROUTINE jrotate(a, b, ss, tt)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: a, b
       REAL(KIND=dp), INTENT(IN)                          :: ss, tt
 
@@ -1698,7 +1730,7 @@ CONTAINS
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
 ! **************************************************************************************************
-   SUBROUTINE swap_scalar(a, b)
+   ELEMENTAL SUBROUTINE swap_scalar(a, b)
       REAL(KIND=dp), INTENT(INOUT)                       :: a, b
 
       REAL(KIND=dp)                                      :: c
@@ -1788,7 +1820,7 @@ CONTAINS
 !> \param fn ...
 !> \param df ...
 ! **************************************************************************************************
-      SUBROUTINE eval_transc_func(r, eps, omega, fn, df)
+      ELEMENTAL SUBROUTINE eval_transc_func(r, eps, omega, fn, df)
       REAL(dp), INTENT(in)                               :: r, eps, omega
       REAL(dp), INTENT(out)                              :: fn, df
 

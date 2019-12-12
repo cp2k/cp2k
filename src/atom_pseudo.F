@@ -70,10 +70,11 @@ CONTAINS
          DIMENSION(:), POINTER                           :: tmpstringlist
       INTEGER                                            :: ads, do_eric, do_erie, handle, i, im, &
                                                             in, iw, k, l, maxl, mb, method, mo, &
-                                                            n_meth, n_rep, reltyp, zcore, zval, zz
+                                                            n_meth, n_rep, nr_gh, reltyp, zcore, &
+                                                            zval, zz
       INTEGER, DIMENSION(0:lmat)                         :: maxn
       INTEGER, DIMENSION(:), POINTER                     :: cn
-      LOGICAL                                            :: eri_c, eri_e, pp_calc
+      LOGICAL                                            :: do_gh, eri_c, eri_e, pp_calc
       REAL(KIND=dp)                                      :: ne, nm
       REAL(KIND=dp), DIMENSION(0:lmat, 10)               :: pocc
       TYPE(atom_basis_type), POINTER                     :: ae_basis, pp_basis
@@ -152,6 +153,8 @@ CONTAINS
       eri_e = .FALSE.
       CALL section_vals_val_get(atom_section, "EXCHANGE_INTEGRALS", i_val=do_erie)
       IF (do_erie == do_analytic) eri_e = .TRUE.
+      CALL section_vals_val_get(atom_section, "USE_GAUSS_HERMITE", l_val=do_gh)
+      CALL section_vals_val_get(atom_section, "GRID_POINTS_GH", i_val=nr_gh)
 
       ! information on the states to be calculated
       CALL section_vals_val_get(atom_section, "MAX_ANGULAR_MOMENTUM", i_val=maxl)
@@ -320,6 +323,10 @@ CONTAINS
                           exchange_integral_type=do_erie)
             CALL set_atom(atom_refs(in, im)%atom, coulomb_integral_type=do_eric, &
                           exchange_integral_type=do_erie)
+            atom_info(in, im)%atom%hfx_pot%do_gh = do_gh
+            atom_info(in, im)%atom%hfx_pot%nr_gh = nr_gh
+            atom_refs(in, im)%atom%hfx_pot%do_gh = do_gh
+            atom_refs(in, im)%atom%hfx_pot%nr_gh = nr_gh
 
             CALL set_atom(atom_info(in, im)%atom, state=statepp)
             NULLIFY (orbitals)
