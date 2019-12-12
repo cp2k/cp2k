@@ -51,7 +51,7 @@ CONTAINS
 !>    * 08.2016 new structure element: density matrix [Juerg Hutter]
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE atom_history_init(history, optimization, matrix)
+   PURE SUBROUTINE atom_history_init(history, optimization, matrix)
       TYPE(atom_history_type), INTENT(INOUT)             :: history
       TYPE(atom_optimization_type), INTENT(IN)           :: optimization
       REAL(dp), DIMENSION(:, :, :), INTENT(IN)           :: matrix
@@ -101,7 +101,7 @@ CONTAINS
 !>    * 08.2016 new formal argument: density matrix [Juerg Hutter]
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE atom_history_update(history, pmat, fmat, emat, energy, error)
+   PURE SUBROUTINE atom_history_update(history, pmat, fmat, emat, energy, error)
       TYPE(atom_history_type), INTENT(INOUT)             :: history
       REAL(dp), DIMENSION(:, :, :), INTENT(IN)           :: pmat, fmat, emat
       REAL(dp), INTENT(IN)                               :: energy, error
@@ -133,7 +133,7 @@ CONTAINS
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE atom_history_release(history)
+   PURE SUBROUTINE atom_history_release(history)
       TYPE(atom_history_type), INTENT(INOUT)             :: history
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_history_release', &

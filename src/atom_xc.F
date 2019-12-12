@@ -1226,9 +1226,10 @@ CONTAINS
 !> \par History
 !>    * 12.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE lda_pade(rho, exc, vxc)
+   PURE SUBROUTINE lda_pade(rho, exc, vxc)
 
-      REAL(dp), DIMENSION(:)                             :: rho, exc, vxc
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: rho
+      REAL(dp), DIMENSION(:), INTENT(OUT)                :: exc, vxc
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lda_pade', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER :: a0 = 0.4581652932831429E+0_dp, a1 = 0.2217058676663745E+1_dp, &
@@ -1273,9 +1274,10 @@ CONTAINS
 !> \par History
 !>    * 02.2010 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE lsd_pade(rhoa, rhob, exc, vxca, vxcb)
+   PURE SUBROUTINE lsd_pade(rhoa, rhob, exc, vxca, vxcb)
 
-      REAL(dp), DIMENSION(:)                             :: rhoa, rhob, exc, vxca, vxcb
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: rhoa, rhob
+      REAL(dp), DIMENSION(:), INTENT(OUT)                :: exc, vxca, vxcb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lsd_pade', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER :: a0 = 0.4581652932831429E+0_dp, a1 = 0.2217058676663745E+1_dp, &

@@ -2043,10 +2043,10 @@ CONTAINS
 !> \param np ...
 !> \param ng ...
 ! **************************************************************************************************
-   SUBROUTINE getvar(xvar, cvar, np, ng)
+   PURE SUBROUTINE getvar(xvar, cvar, np, ng)
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: xvar
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: cvar
-      INTEGER                                            :: np, ng
+      INTEGER, INTENT(IN)                                :: np, ng
 
       INTEGER                                            :: ig, ii, ip
 
@@ -2069,10 +2069,10 @@ CONTAINS
 !> \param np ...
 !> \param ng ...
 ! **************************************************************************************************
-   SUBROUTINE putvar(xvar, cvar, np, ng)
+   PURE SUBROUTINE putvar(xvar, cvar, np, ng)
       REAL(KIND=dp), DIMENSION(:), INTENT(inout)         :: xvar
       REAL(KIND=dp), DIMENSION(:, :), INTENT(in)         :: cvar
-      INTEGER                                            :: np, ng
+      INTEGER, INTENT(IN)                                :: np, ng
 
       INTEGER                                            :: ig, ii, ip
 

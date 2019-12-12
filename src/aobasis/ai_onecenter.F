@@ -471,17 +471,14 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lcd
 
       INTEGER                                            :: handle, ia, ib, ic, id, jab, jcd, na, nc
-      REAL(KIND=dp)                                      :: cc1, cc2, p, q, r, s, sab, scd, slab, &
-                                                            slcd, ss, vab1, vab2, vab3, vcd1, &
-                                                            vcd2, vcd3, xab, xcd
+      REAL(KIND=dp)                                      :: cc1, cc2, ee, p, q, r, s, vab1, vab3, &
+                                                            vcd1, vcd3, xab, xcd
 
       CALL timeset("sg_coulomb", handle)
 
       na = SIZE(pa)
       nc = SIZE(pc)
-      ss = 2.0_dp*SQRT(2.0_dp/pi)
-      slab = SQRT(pi)*dfac(2*lab + 1)/2.0_dp**(lab + 2)
-      slcd = SQRT(pi)*dfac(2*lcd + 1)/2.0_dp**(lcd + 2)
+      ee = SQRT(2.0_dp*pi)/2.0_dp**(2*(lab + lcd) + 6)
       jab = 0
       DO ia = 1, na
          p = pa(ia)
@@ -489,9 +486,7 @@ CONTAINS
             jab = jab + 1
             q = pa(ib)
             xab = 0.5_dp*(p + q)
-            sab = slab/(p + q)**(lab + 1.5_dp)
             vab1 = vgau(2*lab - nu + 1, xab)
-            vab2 = vgau(2*lab + 2, xab)
             vab3 = vgau(2*lab + nu + 2, xab)
             jcd = 0
             DO ic = 1, nc
@@ -500,14 +495,12 @@ CONTAINS
                   jcd = jcd + 1
                   s = pc(id)
                   xcd = 0.5_dp*(r + s)
-                  scd = slcd/(r + s)**(lcd + 1.5_dp)
                   vcd1 = vgau(2*lcd + nu + 2, xcd)
-                  vcd2 = vgau(2*lcd + 2, xcd)
                   vcd3 = vgau(2*lcd - nu + 1, xcd)
                   cc1 = cgau(2*lab - nu + 1, 2*lcd + nu + 2, xab/xcd)
                   cc2 = cgau(2*lcd - nu + 1, 2*lab + nu + 2, xcd/xab)
 
-                  eri(jab, jcd) = ss*sab*scd/(vab2*vcd2)*(cc1*vab1*vcd1 + cc2*vab3*vcd3)
+                  eri(jab, jcd) = ee*(cc1*vab1*vcd1 + cc2*vab3*vcd3)
 
                END DO
             END DO
@@ -544,28 +537,22 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'sg_exchange', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ia, ib, ic, id, jac, jbd, na, nb
-      REAL(KIND=dp)                                      :: cc1, cc2, cc3, cc4, ee, p, q, r, s, sac, &
-                                                            sbd, slac, slbd, ss, v1pr, v1ps, v1qr, &
-                                                            v1qs, v2pr, v2ps, v2qr, v2qs, vpq, &
-                                                            vrs, xab, xac, xad, xbc, xbd, xcd
+      REAL(KIND=dp)                                      :: cc1, cc2, cc3, cc4, ee, p, q, r, s, &
+                                                            v1pr, v1ps, v1qr, v1qs, v2pr, v2ps, &
+                                                            v2qr, v2qs, xab, xad, xbc, xcd
 
       CALL timeset("sg_exchange", handle)
 
       eri = 0.0_dp
       na = SIZE(pa)
       nb = SIZE(pb)
-      ss = 2.0_dp*SQRT(2.0_dp/pi)
-      slac = SQRT(pi)*dfac(2*lac + 1)/2.0_dp**(lac + 2)
-      slbd = SQRT(pi)*dfac(2*lbd + 1)/2.0_dp**(lbd + 2)
+      ee = SQRT(2.0_dp*pi)/2.0_dp**(2*(lac + lbd) + 7)
       jac = 0
       DO ia = 1, na
          p = pa(ia)
          DO ic = ia, na
             jac = jac + 1
             q = pa(ic)
-            xac = 0.5_dp*(p + q)
-            sac = slac/(p + q)**(lac + 1.5_dp)
-            vpq = vgau(2*lac + 2, xac)
             jbd = 0
             DO ib = 1, nb
                r = pb(ib)
@@ -574,11 +561,8 @@ CONTAINS
                DO id = ib, nb
                   jbd = jbd + 1
                   s = pb(id)
-                  xbd = 0.5_dp*(r + s)
                   xcd = 0.5_dp*(q + s)
                   xad = 0.5_dp*(p + s)
-                  sbd = slbd/(r + s)**(lbd + 1.5_dp)
-                  vrs = vgau(2*lbd + 2, xbd)
                   v1pr = vgau(lac + lbd - nu + 1, xab)
                   v1qs = vgau(lac + lbd - nu + 1, xcd)
                   v1ps = vgau(lac + lbd - nu + 1, xad)
@@ -592,7 +576,6 @@ CONTAINS
                   cc3 = cgau(lac + lbd - nu + 1, lac + lbd + nu + 2, xad/xbc)
                   cc4 = cgau(lac + lbd - nu + 1, lac + lbd + nu + 2, xbc/xad)
 
-                  ee = 0.5_dp*ss*sac*sbd/(vpq*vrs)
                   eri(jac, jbd) = ee*(v1pr*v2qs*cc1 + v1qs*v2pr*cc2 + &
                                       v1ps*v2qr*cc3 + v1qr*v2ps*cc4)
 
@@ -654,7 +637,7 @@ CONTAINS
 !> \param x ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION vgau(n, x) RESULT(v)
+   ELEMENTAL FUNCTION vgau(n, x) RESULT(v)
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), INTENT(IN)                          :: x
       REAL(KIND=dp)                                      :: v
@@ -670,7 +653,7 @@ CONTAINS
 !> \param t ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cgau(a, b, t) RESULT(c)
+   ELEMENTAL FUNCTION cgau(a, b, t) RESULT(c)
       INTEGER, INTENT(IN)                                :: a, b
       REAL(KIND=dp), INTENT(IN)                          :: t
       REAL(KIND=dp)                                      :: c
@@ -874,7 +857,7 @@ CONTAINS
 !> \param x ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION vsto(n, x) RESULT(v)
+   ELEMENTAL FUNCTION vsto(n, x) RESULT(v)
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), INTENT(IN)                          :: x
       REAL(KIND=dp)                                      :: v
@@ -890,7 +873,7 @@ CONTAINS
 !> \param x ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION wsto(n, m, x) RESULT(w)
+   ELEMENTAL FUNCTION wsto(n, m, x) RESULT(w)
       INTEGER, INTENT(IN)                                :: n, m
       REAL(KIND=dp), INTENT(IN)                          :: x
       REAL(KIND=dp)                                      :: w
