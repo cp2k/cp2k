@@ -38,7 +38,7 @@ MODULE rpa_gw
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_dot, dbcsr_filter, &
+        dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
         dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release_p, dbcsr_scalar, dbcsr_scale, dbcsr_set, dbcsr_type, &
@@ -84,8 +84,7 @@ MODULE rpa_gw
                                               release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: setup_neighbor_list
    USE qs_overlap,                      ONLY: build_overlap_matrix_simple
-   USE rpa_gw_im_time_util,             ONLY: get_mat_3c_overl_int_gw,&
-                                              get_mat_3c_overl_int_gw_t
+   USE rpa_gw_im_time_util,             ONLY: get_tensor_3c_overl_int_gw
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -101,245 +100,105 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param cut_RI ...
 !> \param gw_corr_lev_occ ...
-!> \param gw_corr_lev_tot ...
 !> \param gw_corr_lev_virt ...
 !> \param homo ...
 !> \param nmo ...
 !> \param num_integ_points ...
 !> \param unit_nr ...
-!> \param my_group_L_sizes_im_time ...
-!> \param my_group_L_starts_im_time ...
-!> \param row_from_LLL ...
-!> \param prim_blk_sizes ...
 !> \param RI_blk_sizes ...
 !> \param do_ic_model ...
-!> \param do_ic_opt_homo_lumo ...
 !> \param para_env ...
-!> \param para_env_sub ...
 !> \param fm_mat_W_tau ...
 !> \param fm_mat_Q ...
 !> \param mo_coeff ...
-!> \param mat_dm_virt_local ...
-!> \param mat_3c_overl_int_gw ...
-!> \param do_dbcsr_t ...
 !> \param t_3c_overl_int_gw_RI ...
 !> \param t_3c_overl_int_gw_AO ...
-!> \param mat_3c_overl_nnP_ic ...
-!> \param mat_3c_overl_nnP_ic_reflected ...
 !> \param t_3c_overl_nnP_ic ...
 !> \param t_3c_overl_nnP_ic_reflected ...
 !> \param matrix_s ...
 !> \param mat_W ...
-!> \param mat_3c_overl_int ...
 !> \param t_3c_overl_int ...
-!> \param mat_contr_gf_occ ...
-!> \param mat_contr_gf_virt ...
-!> \param mat_contr_W ...
 !> \param qs_env ...
 !> \param gw_corr_lev_occ_beta ...
 !> \param gw_corr_lev_virt_beta ...
 !> \param homo_beta ...
 !> \param mo_coeff_beta ...
-!> \param mat_3c_overl_int_gw_beta ...
 !> \param t_3c_overl_int_gw_RI_beta ...
 !> \param t_3c_overl_int_gw_AO_beta ...
-!> \param mat_3c_overl_nnP_ic_beta ...
-!> \param mat_3c_overl_nnP_ic_reflected_beta ...
 !> \param t_3c_overl_nnP_ic_beta ...
 !> \param t_3c_overl_nnP_ic_reflected_beta ...
 ! **************************************************************************************************
-   SUBROUTINE allocate_matrices_gw_im_time(cut_RI, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, homo, nmo, &
-                                           num_integ_points, unit_nr, my_group_L_sizes_im_time, my_group_L_starts_im_time, &
-                                           row_from_LLL, prim_blk_sizes, RI_blk_sizes, do_ic_model, do_ic_opt_homo_lumo, &
-                                           para_env, para_env_sub, fm_mat_W_tau, fm_mat_Q, &
-                                           mo_coeff, mat_dm_virt_local, mat_3c_overl_int_gw, &
-                                           do_dbcsr_t, t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                           mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, &
+   SUBROUTINE allocate_matrices_gw_im_time(gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
+                                           num_integ_points, unit_nr, &
+                                           RI_blk_sizes, do_ic_model, &
+                                           para_env, fm_mat_W_tau, fm_mat_Q, &
+                                           mo_coeff, &
+                                           t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                            t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
-                                           matrix_s, mat_W, mat_3c_overl_int, t_3c_overl_int, &
-                                           mat_contr_gf_occ, mat_contr_gf_virt, &
-                                           mat_contr_W, qs_env, &
+                                           matrix_s, mat_W, t_3c_overl_int, &
+                                           qs_env, &
                                            gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
-                                           mo_coeff_beta, mat_3c_overl_int_gw_beta, &
+                                           mo_coeff_beta, &
                                            t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
-                                           mat_3c_overl_nnP_ic_beta, &
-                                           mat_3c_overl_nnP_ic_reflected_beta, &
                                            t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta)
 
-      INTEGER, INTENT(IN)                                :: cut_RI, gw_corr_lev_occ, &
-                                                            gw_corr_lev_tot, gw_corr_lev_virt, &
-                                                            homo, nmo, num_integ_points, unit_nr
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: my_group_L_sizes_im_time, &
-                                                            my_group_L_starts_im_time, row_from_LLL
-      INTEGER, DIMENSION(:), POINTER                     :: prim_blk_sizes, RI_blk_sizes
-      LOGICAL, INTENT(IN)                                :: do_ic_model, do_ic_opt_homo_lumo
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
+      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, homo, &
+                                                            nmo, num_integ_points, unit_nr
+      INTEGER, DIMENSION(:), POINTER                     :: RI_blk_sizes
+      LOGICAL, INTENT(IN)                                :: do_ic_model
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, mo_coeff
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_dm_virt_local
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_int_gw
-      LOGICAL, INTENT(IN)                                :: do_dbcsr_t
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_gw_RI, &
-                                                            t_3c_overl_int_gw_AO
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_nnP_ic, &
-                                                            mat_3c_overl_nnP_ic_reflected
-      TYPE(dbcsr_t_type)                                 :: t_3c_overl_nnP_ic, &
+                                                            t_3c_overl_int_gw_AO, &
+                                                            t_3c_overl_nnP_ic, &
                                                             t_3c_overl_nnP_ic_reflected
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, mat_W
-      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int
       TYPE(dbcsr_t_type), DIMENSION(:, :)                :: t_3c_overl_int
-      TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ, mat_contr_gf_virt, &
-                                                            mat_contr_W
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN), OPTIONAL                      :: gw_corr_lev_occ_beta, &
                                                             gw_corr_lev_virt_beta, homo_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff_beta
-      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mat_3c_overl_int_gw_beta
-      TYPE(dbcsr_t_type), OPTIONAL                       :: t_3c_overl_int_gw_RI_beta, &
-                                                            t_3c_overl_int_gw_AO_beta
-      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: mat_3c_overl_nnP_ic_beta, &
-         mat_3c_overl_nnP_ic_reflected_beta
-      TYPE(dbcsr_t_type), OPTIONAL :: t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta
+      TYPE(dbcsr_t_type), OPTIONAL :: t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
+         t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_matrices_gw_im_time', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, jquad, n_level_gw
+      INTEGER                                            :: handle, jquad
       LOGICAL                                            :: my_open_shell
 
       CALL timeset(routineN, handle)
 
       my_open_shell = .FALSE.
       IF (PRESENT(gw_corr_lev_occ_beta) .AND. PRESENT(gw_corr_lev_virt_beta) .AND. PRESENT(homo_beta) .AND. &
-          PRESENT(mo_coeff_beta) .AND. PRESENT(mat_3c_overl_int_gw_beta) .AND. PRESENT(mat_3c_overl_nnP_ic_beta) &
-          .AND. PRESENT(mat_3c_overl_nnP_ic_reflected_beta)) THEN
+          PRESENT(mo_coeff_beta) .AND. PRESENT(t_3c_overl_int_gw_RI_beta) .AND. PRESENT(t_3c_overl_int_gw_AO_beta) .AND. &
+          PRESENT(t_3c_overl_nnP_ic_beta) &
+          .AND. PRESENT(t_3c_overl_nnP_ic_reflected_beta)) THEN
          my_open_shell = .TRUE.
-      END IF
-
-      NULLIFY (mat_3c_overl_int_gw)
-      CALL dbcsr_allocate_matrix_set(mat_3c_overl_int_gw, gw_corr_lev_tot)
-
-      IF (do_ic_model) THEN
-
-         NULLIFY (mat_3c_overl_nnP_ic)
-         CALL dbcsr_allocate_matrix_set(mat_3c_overl_nnP_ic, gw_corr_lev_tot)
-
-         NULLIFY (mat_3c_overl_nnP_ic_reflected)
-         CALL dbcsr_allocate_matrix_set(mat_3c_overl_nnP_ic_reflected, gw_corr_lev_tot)
 
       END IF
 
-      DO n_level_gw = 1, gw_corr_lev_tot
-
-         ALLOCATE (mat_3c_overl_int_gw(n_level_gw)%matrix)
-         CALL dbcsr_create(matrix=mat_3c_overl_int_gw(n_level_gw)%matrix, &
-                           template=matrix_s(1)%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           row_blk_size=RI_blk_sizes, &
-                           col_blk_size=prim_blk_sizes)
-
-         IF (do_ic_model) THEN
-            ALLOCATE (mat_3c_overl_nnP_ic(n_level_gw)%matrix)
-            CALL dbcsr_create(matrix=mat_3c_overl_nnP_ic(n_level_gw)%matrix, &
-                              template=matrix_s(1)%matrix, &
-                              matrix_type=dbcsr_type_no_symmetry, &
-                              row_blk_size=RI_blk_sizes, &
-                              col_blk_size=prim_blk_sizes)
-
-            ALLOCATE (mat_3c_overl_nnP_ic_reflected(n_level_gw)%matrix)
-            CALL dbcsr_create(matrix=mat_3c_overl_nnP_ic_reflected(n_level_gw)%matrix, &
-                              template=matrix_s(1)%matrix, &
-                              matrix_type=dbcsr_type_no_symmetry, &
-                              row_blk_size=RI_blk_sizes, &
-                              col_blk_size=prim_blk_sizes)
-
-         END IF
-
-      END DO
-
-      IF (.NOT. do_dbcsr_t) THEN
-         CALL get_mat_3c_overl_int_gw(mat_3c_overl_int, &
-                                      mat_3c_overl_int_gw, &
+      CALL get_tensor_3c_overl_int_gw(t_3c_overl_int, &
+                                      t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                       mo_coeff, matrix_s, &
-                                      gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, mat_dm_virt_local, &
-                                      para_env, para_env_sub, cut_RI, row_from_LLL, &
-                                      my_group_L_starts_im_time, my_group_L_sizes_im_time, do_ic_model, &
-                                      do_ic_opt_homo_lumo, mat_3c_overl_nnP_ic, &
-                                      mat_3c_overl_nnP_ic_reflected, qs_env, unit_nr)
-      ELSE
-         CALL get_mat_3c_overl_int_gw_t(t_3c_overl_int, &
-                                        t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                        mo_coeff, matrix_s, &
-                                        gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
-                                        para_env, &
-                                        do_ic_model, &
-                                        t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
-                                        qs_env, unit_nr)
-      ENDIF
+                                      gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
+                                      para_env, &
+                                      do_ic_model, &
+                                      t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
+                                      qs_env, unit_nr)
 
       IF (my_open_shell) THEN
 
-         NULLIFY (mat_3c_overl_int_gw_beta)
-         CALL dbcsr_allocate_matrix_set(mat_3c_overl_int_gw_beta, gw_corr_lev_tot)
-
-         IF (do_ic_model) THEN
-
-            NULLIFY (mat_3c_overl_nnP_ic_beta)
-            CALL dbcsr_allocate_matrix_set(mat_3c_overl_nnP_ic_beta, gw_corr_lev_tot)
-
-            NULLIFY (mat_3c_overl_nnP_ic_reflected_beta)
-            CALL dbcsr_allocate_matrix_set(mat_3c_overl_nnP_ic_reflected_beta, gw_corr_lev_tot)
-
-         END IF
-
-         DO n_level_gw = 1, gw_corr_lev_tot
-
-            ALLOCATE (mat_3c_overl_int_gw_beta(n_level_gw)%matrix)
-            CALL dbcsr_create(matrix=mat_3c_overl_int_gw_beta(n_level_gw)%matrix, &
-                              template=matrix_s(1)%matrix, &
-                              matrix_type=dbcsr_type_no_symmetry, &
-                              row_blk_size=RI_blk_sizes, &
-                              col_blk_size=prim_blk_sizes)
-
-            IF (do_ic_model) THEN
-               ALLOCATE (mat_3c_overl_nnP_ic_beta(n_level_gw)%matrix)
-               CALL dbcsr_create(matrix=mat_3c_overl_nnP_ic_beta(n_level_gw)%matrix, &
-                                 template=matrix_s(1)%matrix, &
-                                 matrix_type=dbcsr_type_no_symmetry, &
-                                 row_blk_size=RI_blk_sizes, &
-                                 col_blk_size=prim_blk_sizes)
-
-               ALLOCATE (mat_3c_overl_nnP_ic_reflected_beta(n_level_gw)%matrix)
-               CALL dbcsr_create(matrix=mat_3c_overl_nnP_ic_reflected_beta(n_level_gw)%matrix, &
-                                 template=matrix_s(1)%matrix, &
-                                 matrix_type=dbcsr_type_no_symmetry, &
-                                 row_blk_size=RI_blk_sizes, &
-                                 col_blk_size=prim_blk_sizes)
-            END IF
-
-         END DO
-
-         IF (.NOT. do_dbcsr_t) THEN
-            CALL get_mat_3c_overl_int_gw(mat_3c_overl_int, mat_3c_overl_int_gw_beta, &
+         CALL get_tensor_3c_overl_int_gw(t_3c_overl_int, &
+                                         t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
                                          mo_coeff_beta, matrix_s, &
-                                         gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, nmo, mat_dm_virt_local, &
-                                         para_env, para_env_sub, cut_RI, row_from_LLL, &
-                                         my_group_L_starts_im_time, my_group_L_sizes_im_time, do_ic_model, &
-                                         do_ic_opt_homo_lumo, mat_3c_overl_nnP_ic_beta, &
-                                         mat_3c_overl_nnP_ic_reflected_beta, qs_env, unit_nr, do_beta=.TRUE.)
-         ELSE
-            CALL get_mat_3c_overl_int_gw_t(t_3c_overl_int, &
-                                           t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
-                                           mo_coeff_beta, matrix_s, &
-                                           gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, nmo, &
-                                           para_env, &
-                                           do_ic_model, &
-                                           t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta, &
-                                           qs_env, unit_nr)
-         ENDIF
+                                         gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, nmo, &
+                                         para_env, &
+                                         do_ic_model, &
+                                         t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta, &
+                                         qs_env, unit_nr)
 
       END IF
 
@@ -355,27 +214,12 @@ CONTAINS
 
       END DO
 
-      NULLIFY (mat_contr_gf_occ)
-      CALL dbcsr_init_p(mat_contr_gf_occ)
-      CALL dbcsr_create(matrix=mat_contr_gf_occ, &
-                        template=mat_3c_overl_int_gw(1)%matrix)
-
-      NULLIFY (mat_contr_gf_virt)
-      CALL dbcsr_init_p(mat_contr_gf_virt)
-      CALL dbcsr_create(matrix=mat_contr_gf_virt, &
-                        template=mat_3c_overl_int_gw(1)%matrix)
-
-      NULLIFY (mat_contr_W)
-      CALL dbcsr_init_p(mat_contr_W)
-      CALL dbcsr_create(matrix=mat_contr_W, &
-                        template=mat_3c_overl_int_gw(1)%matrix)
-
       NULLIFY (mat_W)
       ALLOCATE (mat_W(num_integ_points))
       DO jquad = 1, num_integ_points
          ALLOCATE (mat_W(jquad)%matrix)
          CALL dbcsr_create(matrix=mat_W(jquad)%matrix, &
-                           template=mat_3c_overl_int_gw(1)%matrix, &
+                           template=matrix_s(1)%matrix, &
                            matrix_type=dbcsr_type_no_symmetry, &
                            row_blk_size=RI_blk_sizes, &
                            col_blk_size=RI_blk_sizes)
@@ -405,7 +249,6 @@ CONTAINS
 !> \param do_ri_Sigma_x ...
 !> \param my_do_gw ...
 !> \param first_cycle_periodic_correction ...
-!> \param do_GW_corr ...
 !> \param a_scaling ...
 !> \param Eigenval ...
 !> \param tj ...
@@ -440,7 +283,7 @@ CONTAINS
                                    nmo, num_integ_points, num_integ_group, unit_nr, &
                                    gw_corr_lev_tot, num_fit_points, omega_max_fit, &
                                    do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, &
-                                   first_cycle_periodic_correction, do_GW_corr, &
+                                   first_cycle_periodic_correction, &
                                    a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                    delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
                                    fm_mat_S_gw, fm_mat_S_gw_work, &
@@ -459,7 +302,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_periodic, &
                                                             do_ri_Sigma_x, my_do_gw
       LOGICAL, INTENT(OUT) :: first_cycle_periodic_correction
-      LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: do_GW_corr
       REAL(KIND=dp), INTENT(IN)                          :: a_scaling
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -623,9 +465,6 @@ CONTAINS
 
       END IF
 
-      ALLOCATE (do_GW_corr(1:gw_corr_lev_tot))
-      do_GW_corr(:) = .TRUE.
-
       IF (do_ri_Sigma_x) THEN
          ALLOCATE (vec_Sigma_x_gw(nmo, nkp_self_energy))
          vec_Sigma_x_gw = 0.0_dp
@@ -771,7 +610,6 @@ CONTAINS
 !> \param matrix_berry_re_mo_mo ...
 !> \param matrix_berry_im_mo_mo ...
 !> \param kpoints ...
-!> \param do_GW_corr ...
 !> \param do_ri_Sigma_x ...
 !> \param vec_Sigma_x_gw ...
 !> \param my_do_gw ...
@@ -785,7 +623,7 @@ CONTAINS
    SUBROUTINE deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, &
                                      vec_Sigma_x_minus_vxc_gw, Eigenval_last, &
                                      Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, kpoints, &
-                                     do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw, my_do_gw, &
+                                     do_ri_Sigma_x, vec_Sigma_x_gw, my_do_gw, &
                                      fm_mat_S_gw_work_beta, vec_W_gw_beta, &
                                      vec_Sigma_c_gw_beta, Eigenval_last_beta, Eigenval_scf_beta, vec_Sigma_x_gw_beta)
 
@@ -804,7 +642,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_re_mo_mo, &
                                                             matrix_berry_im_mo_mo
       TYPE(kpoint_type), POINTER                         :: kpoints
-      LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
       LOGICAL, INTENT(IN)                                :: do_ri_Sigma_x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_x_gw
@@ -858,7 +695,6 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(matrix_berry_im_mo_mo)
          CALL kpoint_release(kpoints)
       END IF
-      DEALLOCATE (do_GW_corr)
       IF (do_ri_Sigma_x) THEN
          DEALLOCATE (vec_Sigma_x_gw)
          IF (my_open_shell) THEN
@@ -876,74 +712,48 @@ CONTAINS
 !> \param weights_sin_tf_t_to_w ...
 !> \param do_ic_model ...
 !> \param do_kpoints_cubic_RPA ...
-!> \param do_dbcsr_t ...
 !> \param fm_mat_W_tau ...
-!> \param mat_3c_overl_int_gw ...
 !> \param t_3c_overl_int_gw_RI ...
 !> \param t_3c_overl_int_gw_AO ...
 !> \param mat_greens_fct_occ ...
 !> \param mat_greens_fct_virt ...
-!> \param mat_3c_overl_nnP_ic ...
-!> \param mat_3c_overl_nnP_ic_reflected ...
 !> \param t_3c_overl_nnP_ic ...
 !> \param t_3c_overl_nnP_ic_reflected ...
 !> \param mat_W ...
-!> \param mat_3c_overl_int ...
-!> \param mat_contr_gf_occ ...
-!> \param mat_contr_gf_virt ...
-!> \param mat_contr_W ...
 !> \param ikp_local ...
 !> \param cfm_mat_W_kp_tau ...
-!> \param mat_3c_overl_int_gw_beta ...
 !> \param t_3c_overl_int_gw_RI_beta ...
 !> \param t_3c_overl_int_gw_AO_beta ...
-!> \param mat_3c_overl_nnP_ic_beta ...
-!> \param mat_3c_overl_nnP_ic_reflected_beta ...
 !> \param t_3c_overl_nnP_ic_beta ...
 !> \param t_3c_overl_nnP_ic_reflected_beta ...
 !> \param mat_greens_fct_occ_beta ...
 !> \param mat_greens_fct_virt_beta ...
 ! **************************************************************************************************
    SUBROUTINE deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, do_kpoints_cubic_RPA, &
-                                             do_dbcsr_t, &
-                                             fm_mat_W_tau, mat_3c_overl_int_gw, t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
+                                             fm_mat_W_tau, t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                              mat_greens_fct_occ, mat_greens_fct_virt, &
-                                             mat_3c_overl_nnP_ic, mat_3c_overl_nnP_ic_reflected, &
                                              t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
-                                             mat_W, mat_3c_overl_int, &
-                                             mat_contr_gf_occ, mat_contr_gf_virt, mat_contr_W, ikp_local, cfm_mat_W_kp_tau, &
-                                             mat_3c_overl_int_gw_beta, t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
-                                             mat_3c_overl_nnP_ic_beta, mat_3c_overl_nnP_ic_reflected_beta, &
+                                             mat_W, &
+                                             ikp_local, cfm_mat_W_kp_tau, &
+                                             t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
                                              t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta, &
                                              mat_greens_fct_occ_beta, mat_greens_fct_virt_beta)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
-      LOGICAL, INTENT(IN)                                :: do_ic_model, do_kpoints_cubic_RPA, &
-                                                            do_dbcsr_t
+      LOGICAL, INTENT(IN)                                :: do_ic_model, do_kpoints_cubic_RPA
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_int_gw
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_gw_RI, &
                                                             t_3c_overl_int_gw_AO
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_greens_fct_occ, mat_greens_fct_virt, &
-                                                            mat_3c_overl_nnP_ic, &
-                                                            mat_3c_overl_nnP_ic_reflected
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_greens_fct_occ, mat_greens_fct_virt
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_nnP_ic, &
                                                             t_3c_overl_nnP_ic_reflected
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_W
-      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: mat_3c_overl_int
-      TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ, mat_contr_gf_virt, &
-                                                            mat_contr_W
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: ikp_local
       TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: cfm_mat_W_kp_tau
-      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mat_3c_overl_int_gw_beta
-      TYPE(dbcsr_t_type), OPTIONAL                       :: t_3c_overl_int_gw_RI_beta, &
-                                                            t_3c_overl_int_gw_AO_beta
-      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: mat_3c_overl_nnP_ic_beta, &
-         mat_3c_overl_nnP_ic_reflected_beta
-      TYPE(dbcsr_t_type), OPTIONAL :: t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta
+      TYPE(dbcsr_t_type), OPTIONAL :: t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
+         t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mat_greens_fct_occ_beta, &
                                                             mat_greens_fct_virt_beta
@@ -957,8 +767,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       my_open_shell = .FALSE.
-      IF (PRESENT(mat_3c_overl_int_gw_beta) .AND. PRESENT(mat_3c_overl_nnP_ic_beta) &
-          .AND. PRESENT(mat_3c_overl_nnP_ic_reflected_beta)) THEN
+      IF (PRESENT(t_3c_overl_int_gw_RI_beta) .AND. PRESENT(t_3c_overl_int_gw_AO_beta) .AND. PRESENT(t_3c_overl_nnP_ic_beta) &
+          .AND. PRESENT(t_3c_overl_nnP_ic_reflected_beta)) THEN
          my_open_shell = .TRUE.
       END IF
 
@@ -966,7 +776,6 @@ CONTAINS
       DEALLOCATE (weights_sin_tf_t_to_w)
 
       IF (.NOT. do_kpoints_cubic_RPA) THEN
-         CALL dbcsr_deallocate_matrix_set(mat_3c_overl_int_gw)
 
          IF (.NOT. do_ic_model) THEN
             CALL dbcsr_deallocate_matrix_set(mat_greens_fct_occ)
@@ -979,30 +788,15 @@ CONTAINS
 
          DEALLOCATE (fm_mat_W_tau)
          IF (my_open_shell) THEN
-            CALL dbcsr_deallocate_matrix_set(mat_3c_overl_int_gw_beta)
             IF (.NOT. do_ic_model) THEN
                CALL dbcsr_deallocate_matrix_set(mat_greens_fct_occ_beta)
                CALL dbcsr_deallocate_matrix_set(mat_greens_fct_virt_beta)
             END IF
          END IF
 
-         CALL dbcsr_release_P(mat_contr_gf_occ)
-         CALL dbcsr_release_P(mat_contr_gf_virt)
-         CALL dbcsr_release_P(mat_contr_W)
          CALL dbcsr_deallocate_matrix_set(mat_W)
 
-         IF (do_ic_model) THEN
-            CALL dbcsr_deallocate_matrix_set(mat_3c_overl_nnP_ic)
-            CALL dbcsr_deallocate_matrix_set(mat_3c_overl_nnP_ic_reflected)
-            IF (my_open_shell) THEN
-               CALL dbcsr_deallocate_matrix_set(mat_3c_overl_nnP_ic_beta)
-               CALL dbcsr_deallocate_matrix_set(mat_3c_overl_nnP_ic_reflected_beta)
-            END IF
-         END IF
-
       ELSE
-         CALL dbcsr_deallocate_matrix_set(mat_3c_overl_int)
-
          DO jquad = 1, SIZE(cfm_mat_W_kp_tau, 2)
             DO ikp = 1, SIZE(cfm_mat_W_kp_tau, 1)
                IF (.NOT. (ANY(ikp_local(:) == ikp))) CYCLE
@@ -1013,17 +807,15 @@ CONTAINS
 
       END IF
 
-      IF (do_dbcsr_t) THEN
-         CALL dbcsr_t_destroy(t_3c_overl_int_gw_RI)
-         CALL dbcsr_t_destroy(t_3c_overl_int_gw_AO)
-         IF (PRESENT(t_3c_overl_int_gw_RI_beta)) CALL dbcsr_t_destroy(t_3c_overl_int_gw_RI_beta)
-         IF (PRESENT(t_3c_overl_int_gw_AO_beta)) CALL dbcsr_t_destroy(t_3c_overl_int_gw_AO_beta)
-         IF (do_ic_model) THEN
-            CALL dbcsr_t_destroy(t_3c_overl_nnP_ic)
-            CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_reflected)
-            IF (PRESENT(t_3c_overl_nnP_ic_beta)) CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_beta)
-            IF (PRESENT(t_3c_overl_nnP_ic_reflected_beta)) CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_reflected_beta)
-         ENDIF
+      CALL dbcsr_t_destroy(t_3c_overl_int_gw_RI)
+      CALL dbcsr_t_destroy(t_3c_overl_int_gw_AO)
+      IF (PRESENT(t_3c_overl_int_gw_RI_beta)) CALL dbcsr_t_destroy(t_3c_overl_int_gw_RI_beta)
+      IF (PRESENT(t_3c_overl_int_gw_AO_beta)) CALL dbcsr_t_destroy(t_3c_overl_int_gw_AO_beta)
+      IF (do_ic_model) THEN
+         CALL dbcsr_t_destroy(t_3c_overl_nnP_ic)
+         CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_reflected)
+         IF (PRESENT(t_3c_overl_nnP_ic_beta)) CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_beta)
+         IF (PRESENT(t_3c_overl_nnP_ic_reflected_beta)) CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_reflected_beta)
       ENDIF
 
       CALL timestop(handle)
@@ -1399,7 +1191,6 @@ CONTAINS
 !> \param do_periodic ...
 !> \param do_ri_Sigma_x ...
 !> \param first_cycle_periodic_correction ...
-!> \param do_GW_corr ...
 !> \param e_fermi ...
 !> \param eps_filter ...
 !> \param fermi_level_offset ...
@@ -1427,8 +1218,6 @@ CONTAINS
 !> \param para_env_RPA ...
 !> \param mat_dm ...
 !> \param mat_SinvVSinv ...
-!> \param mat_3c_overl_int_gw ...
-!> \param do_dbcsr_t ...
 !> \param t_3c_overl_int_gw_RI ...
 !> \param t_3c_overl_int_gw_AO ...
 !> \param matrix_berry_im_mo_mo ...
@@ -1437,9 +1226,6 @@ CONTAINS
 !> \param mat_greens_fct_virt ...
 !> \param mat_W ...
 !> \param matrix_s ...
-!> \param mat_contr_gf_occ ...
-!> \param mat_contr_gf_virt ...
-!> \param mat_contr_W ...
 !> \param kpoints ...
 !> \param mp2_env ...
 !> \param qs_env ...
@@ -1460,7 +1246,6 @@ CONTAINS
 !> \param ic_corr_list_beta ...
 !> \param fm_mo_coeff_occ_beta ...
 !> \param fm_mo_coeff_virt_beta ...
-!> \param mat_3c_overl_int_gw_beta ...
 !> \param t_3c_overl_int_gw_RI_beta ...
 !> \param t_3c_overl_int_gw_AO_beta ...
 !> \param mat_greens_fct_occ_beta ...
@@ -1471,7 +1256,7 @@ CONTAINS
                                 nmo, num_fit_points, num_integ_points, &
                                 num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
                                 do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, &
-                                do_GW_corr, e_fermi, eps_filter, &
+                                e_fermi, eps_filter, &
                                 fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
                                 Eigenval_last, Eigenval_scf, tau_tj, tj, &
                                 vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
@@ -1479,15 +1264,14 @@ CONTAINS
                                 fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
                                 fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
                                 mo_coeff, fm_mat_W_tau, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
-                                mat_3c_overl_int_gw, do_dbcsr_t, &
                                 t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, matrix_berry_im_mo_mo, &
                                 matrix_berry_re_mo_mo, mat_greens_fct_occ, mat_greens_fct_virt, mat_W, matrix_s, &
-                                mat_contr_gf_occ, mat_contr_gf_virt, mat_contr_W, kpoints, mp2_env, qs_env, &
+                                kpoints, mp2_env, qs_env, &
                                 nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp, iter_ev_sc, &
                                 vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
                                 e_fermi_beta, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, &
                                 vec_Sigma_x_gw_beta, ic_corr_list_beta, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
-                                mat_3c_overl_int_gw_beta, t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
+                                t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
                                 mat_greens_fct_occ_beta, mat_greens_fct_virt_beta)
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
@@ -1499,7 +1283,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_apply_ic_corr_to_gw, do_im_time, &
                                                             do_periodic, do_ri_Sigma_x
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
-      LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: do_GW_corr
       REAL(KIND=dp), INTENT(IN)                          :: e_fermi, eps_filter, fermi_level_offset, &
                                                             stabilize_exp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -1519,16 +1302,12 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_dm, mat_SinvVSinv
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_int_gw
-      LOGICAL, INTENT(IN)                                :: do_dbcsr_t
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_gw_RI, &
                                                             t_3c_overl_int_gw_AO
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_im_mo_mo, &
                                                             matrix_berry_re_mo_mo, &
                                                             mat_greens_fct_occ, &
                                                             mat_greens_fct_virt, mat_W, matrix_s
-      TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ, mat_contr_gf_virt, &
-                                                            mat_contr_W
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1551,8 +1330,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: ic_corr_list_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mo_coeff_occ_beta, &
                                                             fm_mo_coeff_virt_beta
-      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mat_3c_overl_int_gw_beta
       TYPE(dbcsr_t_type), OPTIONAL                       :: t_3c_overl_int_gw_RI_beta, &
                                                             t_3c_overl_int_gw_AO_beta
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -1578,46 +1355,46 @@ CONTAINS
           PRESENT(homo_beta) .AND. PRESENT(e_fermi_beta) .AND. PRESENT(Eigenval_beta) .AND. PRESENT(Eigenval_last_beta) &
           .AND. PRESENT(Eigenval_scf_beta) .AND. PRESENT(vec_Sigma_x_gw_beta) .AND. &
           PRESENT(ic_corr_list_beta) .AND. PRESENT(fm_mo_coeff_occ_beta) .AND. PRESENT(fm_mo_coeff_virt_beta) .AND. &
-          PRESENT(mat_3c_overl_int_gw_beta) .AND. PRESENT(mat_greens_fct_occ_beta) .AND. PRESENT(mat_greens_fct_virt_beta)) THEN
-         my_open_shell = .TRUE.
+          PRESENT(t_3c_overl_int_gw_RI_beta) .AND. PRESENT(t_3c_overl_int_gw_AO_beta) .AND. PRESENT(mat_greens_fct_occ_beta) &
+          .AND. PRESENT(mat_greens_fct_virt_beta)) THEN
+         my_open_shell = .TRUE. ! todo: this should be refactored (and any similar occurence of my_open_shell)
       END IF
 
       ! postprocessing for cubic scaling GW calculation
       IF (do_im_time .AND. .NOT. do_kpoints_cubic_RPA) THEN
          num_points_corr = mp2_env%ri_g0w0%num_omega_points
 
-         CALL compute_self_energy_im_time_gw(num_integ_points, nmo, tau_tj, tj, mat_greens_fct_occ, mat_greens_fct_virt, &
+         CALL compute_self_energy_im_time_gw(num_integ_points, nmo, tau_tj, tj, mat_greens_fct_occ, &
+                                             mat_greens_fct_virt, &
                                              matrix_s, fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
                                              fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
                                              fm_scaled_dm_virt_tau, Eigenval, eps_filter, e_fermi, fm_mat_W_tau, &
-                                             gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, count_ev_sc_GW, &
-                                             mat_3c_overl_int_gw, do_dbcsr_t, t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                             mat_contr_gf_occ, mat_contr_gf_virt, &
-                                             mat_contr_W, mat_W, mat_SinvVSinv, mat_dm, stabilize_exp, &
+                                             gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, &
+                                             count_ev_sc_GW, &
+                                             t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
+                                             mat_W, mat_SinvVSinv, mat_dm, stabilize_exp, &
                                              weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw, do_periodic, &
                                              num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                              mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                              first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
-                                             do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw, unit_nr)
+                                             do_ri_Sigma_x, vec_Sigma_x_gw, unit_nr)
 
          IF (my_open_shell) THEN
 
-            CALL compute_self_energy_im_time_gw(num_integ_points, nmo, tau_tj, tj, &
-                                                mat_greens_fct_occ_beta, mat_greens_fct_virt_beta, &
+            CALL compute_self_energy_im_time_gw(num_integ_points, nmo, tau_tj, tj, mat_greens_fct_occ_beta, &
+                                                mat_greens_fct_virt_beta, &
                                                 matrix_s, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, fm_mo_coeff_occ_scaled, &
                                                 fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
                                                 fm_scaled_dm_virt_tau, Eigenval_beta, eps_filter, e_fermi_beta, fm_mat_W_tau, &
                                                 gw_corr_lev_tot, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
-                                                count_ev_sc_GW, mat_3c_overl_int_gw_beta, &
-                                                do_dbcsr_t, &
+                                                count_ev_sc_GW, &
                                                 t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
-                                                mat_contr_gf_occ, mat_contr_gf_virt, &
-                                                mat_contr_W, mat_W, mat_SinvVSinv, mat_dm, stabilize_exp, &
+                                                mat_W, mat_SinvVSinv, mat_dm, stabilize_exp, &
                                                 weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw_beta, do_periodic, &
                                                 num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                                 mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                                 first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
-                                                do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw_beta, unit_nr, do_beta=.TRUE.)
+                                                do_ri_Sigma_x, vec_Sigma_x_gw_beta, unit_nr, do_beta=.TRUE.)
 
          END IF
 
@@ -4824,13 +4601,8 @@ CONTAINS
 !> \param gw_corr_lev_virt ...
 !> \param homo ...
 !> \param count_ev_sc_GW ...
-!> \param mat_3c_overl_int_gw ...
-!> \param do_dbcsr_t ...
 !> \param t_3c_overl_int_gw_RI ...
 !> \param t_3c_overl_int_gw_AO ...
-!> \param mat_contr_gf_occ ...
-!> \param mat_contr_gf_virt ...
-!> \param mat_contr_W ...
 !> \param mat_W ...
 !> \param mat_SinvVSinv ...
 !> \param mat_dm ...
@@ -4851,7 +4623,6 @@ CONTAINS
 !> \param kpoints ...
 !> \param num_fit_points ...
 !> \param mo_coeff ...
-!> \param do_GW_corr ...
 !> \param do_ri_Sigma_x ...
 !> \param vec_Sigma_x_gw ...
 !> \param unit_nr ...
@@ -4862,14 +4633,13 @@ CONTAINS
                                              fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
                                              fm_scaled_dm_virt_tau, Eigenval, eps_filter, e_fermi, fm_mat_W_tau, &
                                              gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, count_ev_sc_GW, &
-                                             mat_3c_overl_int_gw, do_dbcsr_t, t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                             mat_contr_gf_occ, mat_contr_gf_virt, mat_contr_W, &
+                                             t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                              mat_W, mat_SinvVSinv, mat_dm, stabilize_exp, &
                                              weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw, do_periodic, &
                                              num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                              mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
                                              first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
-                                             do_GW_corr, do_ri_Sigma_x, vec_Sigma_x_gw, unit_nr, do_beta)
+                                             do_ri_Sigma_x, vec_Sigma_x_gw, unit_nr, do_beta)
       INTEGER, INTENT(IN)                                :: num_integ_points, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj, tj
@@ -4882,12 +4652,8 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
       INTEGER, INTENT(IN)                                :: gw_corr_lev_tot, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, homo, count_ev_sc_GW
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_int_gw
-      LOGICAL, INTENT(IN)                                :: do_dbcsr_t
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_gw_RI, &
                                                             t_3c_overl_int_gw_AO
-      TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ, mat_contr_gf_virt, &
-                                                            mat_contr_W
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_W
       TYPE(dbcsr_p_type)                                 :: mat_SinvVSinv, mat_dm
       REAL(KIND=dp), INTENT(IN)                          :: stabilize_exp
@@ -4909,7 +4675,6 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: num_fit_points
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: do_GW_corr
       LOGICAL, INTENT(IN)                                :: do_ri_Sigma_x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_x_gw
@@ -4980,93 +4745,23 @@ CONTAINS
 
          CALL copy_fm_to_dbcsr(fm_mat_W_tau(jquad)%matrix, mat_W(jquad)%matrix, keep_sparsity=.FALSE.)
 
-         IF (do_dbcsr_t) THEN
+         CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
+                               mat_greens_fct_occ(jquad)%matrix, mat_W(jquad)%matrix, [1.0_dp, -1.0_dp], &
+                               vec_Sigma_c_gw_neg_tau(:, jquad), [mo_start, mo_end], para_env, unit_nr_prv, &
+                               t_3c_ctr_RI=t_3c_ctr_RI, t_3c_ctr_in=.FALSE.)
 
-            CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
-                                  mat_greens_fct_occ(jquad)%matrix, mat_W(jquad)%matrix, [1.0_dp, -1.0_dp], &
-                                  vec_Sigma_c_gw_neg_tau(:, jquad), [mo_start, mo_end], para_env, unit_nr_prv, &
-                                  t_3c_ctr_RI=t_3c_ctr_RI, t_3c_ctr_in=.FALSE.)
+         CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
+                               mat_greens_fct_virt(jquad)%matrix, mat_W(jquad)%matrix, [1.0_dp, 1.0_dp], &
+                               vec_Sigma_c_gw_pos_tau(:, jquad), [mo_start, mo_end], para_env, unit_nr_prv, &
+                               t_3c_ctr_RI=t_3c_ctr_RI, t_3c_ctr_in=.TRUE.)
 
-            CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
-                                  mat_greens_fct_virt(jquad)%matrix, mat_W(jquad)%matrix, [1.0_dp, 1.0_dp], &
-                                  vec_Sigma_c_gw_pos_tau(:, jquad), [mo_start, mo_end], para_env, unit_nr_prv, &
-                                  t_3c_ctr_RI=t_3c_ctr_RI, t_3c_ctr_in=.TRUE.)
+         CALL dbcsr_t_destroy(t_3c_ctr_RI)
 
-            CALL dbcsr_t_destroy(t_3c_ctr_RI)
+         vec_Sigma_c_gw_cos_tau(:, jquad) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, jquad) + &
+                                                    vec_Sigma_c_gw_neg_tau(:, jquad))
 
-            vec_Sigma_c_gw_cos_tau(:, jquad) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, jquad) + &
-                                                       vec_Sigma_c_gw_neg_tau(:, jquad))
-
-            vec_Sigma_c_gw_sin_tau(:, jquad) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, jquad) - &
-                                                       vec_Sigma_c_gw_neg_tau(:, jquad))
-
-         ELSE
-
-            DO n_level_gw = 1, gw_corr_lev_tot
-
-               IF (.NOT. do_GW_corr(n_level_gw)) CYCLE
-
-               ! the following formulas are partially taken from Liu et al. PRB 94, 165109 (2016), Eq. (63) - (69)
-
-               CALL timeset(routineN//"_cubic_GW_operation_1", handle3)
-
-               ! the occ Gf has no minus, but already include the minus from Sigma = -GW
-               CALL dbcsr_multiply("N", "N", -1.0_dp, mat_3c_overl_int_gw(n_level_gw)%matrix, &
-                                   mat_greens_fct_occ(jquad)%matrix, &
-                                   0.0_dp, mat_contr_gf_occ)
-
-               CALL timestop(handle3)
-
-               CALL timeset(routineN//"_cubic_GW_operation_2", handle3)
-
-               ! the virt Gf has a minus, but already include the minus from Sigma = -GW
-               CALL dbcsr_multiply("N", "N", 1.0_dp, mat_3c_overl_int_gw(n_level_gw)%matrix, &
-                                   mat_greens_fct_virt(jquad)%matrix, &
-                                   0.0_dp, mat_contr_gf_virt)
-
-               CALL timestop(handle3)
-
-               CALL timeset(routineN//"_cubic_GW_operation_3", handle3)
-
-               CALL dbcsr_multiply("N", "N", 1.0_dp, mat_W(jquad)%matrix, mat_3c_overl_int_gw(n_level_gw)%matrix, &
-                                   0.0_dp, mat_contr_W)
-
-               CALL timestop(handle3)
-
-               CALL timeset(routineN//"_cubic_GW_operation_4", handle3)
-
-               CALL dbcsr_dot(mat_contr_gf_virt, &
-                              mat_contr_W, &
-                              vec_Sigma_c_gw_pos_tau(n_level_gw, jquad))
-
-               CALL timestop(handle3)
-
-               CALL timeset(routineN//"_cubic_GW_operation_5", handle3)
-
-               CALL dbcsr_dot(mat_contr_gf_occ, &
-                              mat_contr_W, &
-                              vec_Sigma_c_gw_neg_tau(n_level_gw, jquad))
-
-               CALL timestop(handle3)
-
-               CALL timeset(routineN//"_cubic_GW_operation_5", handle3)
-
-               n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
-
-               CALL timestop(handle3)
-
-               CALL timeset(routineN//"_cubic_GW_operation_7", handle3)
-
-               vec_Sigma_c_gw_cos_tau(n_level_gw, jquad) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(n_level_gw, jquad) + &
-                                                                   vec_Sigma_c_gw_neg_tau(n_level_gw, jquad))
-
-               vec_Sigma_c_gw_sin_tau(n_level_gw, jquad) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(n_level_gw, jquad) - &
-                                                                   vec_Sigma_c_gw_neg_tau(n_level_gw, jquad))
-
-               CALL timestop(handle3)
-
-            END DO ! n_levl_gw
-         ENDIF
+         vec_Sigma_c_gw_sin_tau(:, jquad) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, jquad) - &
+                                                    vec_Sigma_c_gw_neg_tau(:, jquad))
 
          CALL dbcsr_set(mat_W(jquad)%matrix, 0.0_dp)
 
@@ -5120,43 +4815,9 @@ CONTAINS
 
          CALL timestop(handle3)
 
-         IF (do_dbcsr_t) THEN
-            CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
-                                  mat_dm%matrix, mat_SinvVSinv%matrix, [1.0_dp, -1.0_dp], &
-                                  vec_Sigma_x_gw(mo_start:mo_end, 1), [mo_start, mo_end], para_env, unit_nr_prv)
-         ELSE
-
-            DO n_level_gw = 1, gw_corr_lev_tot
-
-               IF (.NOT. do_GW_corr(n_level_gw)) CYCLE
-
-               CALL timeset(routineN//"_RI_HFX_operation_3", handle3)
-
-               ! the occ Gf has no minus, but already include the minus from Sigma = -GW
-               CALL dbcsr_multiply("N", "N", -1.0_dp, mat_3c_overl_int_gw(n_level_gw)%matrix, mat_dm%matrix, &
-                                   0.0_dp, mat_contr_gf_occ)
-
-               CALL timestop(handle3)
-
-               CALL timeset(routineN//"_RI_HFX_operation_4", handle3)
-
-               CALL dbcsr_multiply("N", "N", 1.0_dp, mat_SinvVSinv%matrix, mat_3c_overl_int_gw(n_level_gw)%matrix, &
-                                   0.0_dp, mat_contr_W)
-
-               CALL timestop(handle3)
-
-               CALL timeset(routineN//"_RI_HFX_operation_5", handle3)
-
-               n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
-
-               CALL dbcsr_dot(mat_contr_gf_occ, &
-                              mat_contr_W, &
-                              vec_Sigma_x_gw(n_level_gw_ref, 1))
-
-               CALL timestop(handle3)
-
-            END DO
-         ENDIF
+         CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
+                               mat_dm%matrix, mat_SinvVSinv%matrix, [1.0_dp, -1.0_dp], &
+                               vec_Sigma_x_gw(mo_start:mo_end, 1), [mo_start, mo_end], para_env, unit_nr_prv)
 
          IF (my_do_beta) THEN
 

@@ -22,8 +22,7 @@ MODULE mp2_setup
                                               do_potential_long,&
                                               do_potential_short,&
                                               do_potential_truncated
-   USE input_section_types,             ONLY: section_vals_get,&
-                                              section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -62,13 +61,10 @@ CONTAINS
 
       INTEGER                                            :: handle, ival, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
-      LOGICAL                                            :: explicit_k_laplace, explicit_k_rpa, &
-                                                            explicit_k_wfc, explicit_laplace, &
-                                                            explicit_rpa, explicit_wfc
-      REAL(dp)                                           :: rc_ang
+      REAL(dp)                                           :: eps_filter_factor, rc_ang
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: eri_mme_section, im_time_section, &
-                                                            mp2_section
+                                                            im_time_test_section, mp2_section
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -84,20 +80,17 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "DIRECT_CANONICAL%BIG_SEND", l_val=mp2_env%direct_canonical%big_send)
       CALL section_vals_val_get(mp2_section, "ROW_BLOCK", i_val=mp2_env%block_size_row)
       CALL section_vals_val_get(mp2_section, "COL_BLOCK", i_val=mp2_env%block_size_col)
-      CALL section_vals_val_get(mp2_section, "RI_METRIC", i_val=mp2_env%ri_metric%potential_type)
+      CALL section_vals_val_get(mp2_section, "RI_METRIC%POTENTIAL_TYPE", i_val=mp2_env%ri_metric%potential_type)
       CALL section_vals_val_get(mp2_section, "CALC_COND_NUM", l_val=mp2_env%calc_PQ_cond_num)
       CALL section_vals_val_get(mp2_section, "DO_SVD", l_val=mp2_env%do_svd)
       CALL section_vals_val_get(mp2_section, "EPS_SVD", r_val=mp2_env%eps_svd)
-      CALL section_vals_val_get(mp2_section, "OMEGA_METRIC", r_val=mp2_env%ri_metric%omega)
-      CALL section_vals_val_get(mp2_section, "EPS_RANGE_METRIC", r_val=mp2_env%eps_range)
-      CALL section_vals_val_get(mp2_section, "CUTOFF_RADIUS_METRIC", r_val=mp2_env%ri_metric%cutoff_radius)
+      CALL section_vals_val_get(mp2_section, "RI_METRIC%OMEGA", r_val=mp2_env%ri_metric%omega)
+      CALL section_vals_val_get(mp2_section, "RI_METRIC%EPS_RANGE", r_val=mp2_env%eps_range)
+      CALL section_vals_val_get(mp2_section, "RI_METRIC%CUTOFF_RADIUS", r_val=mp2_env%ri_metric%cutoff_radius)
+      CALL section_vals_val_get(mp2_section, "RI_METRIC%T_C_G_DATA", c_val=mp2_env%ri_metric%filename)
       IF (mp2_env%ri_metric%potential_type == do_potential_short) THEN
          CALL erfc_cutoff(mp2_env%eps_range, mp2_env%ri_metric%omega, mp2_env%ri_metric%cutoff_radius)
       ENDIF
-
-      ! hardcoding filename for truncated coulomb operator integral data, there is no reason why this
-      ! should be configurable
-      mp2_env%ri_metric%filename = "t_c_g.dat"
 
       CALL section_vals_val_get(mp2_section, "INTERACTION_POTENTIAL%POTENTIAL_TYPE", &
                                 i_val=mp2_env%potential_parameter%potential_type)
@@ -202,12 +195,6 @@ CONTAINS
                                 l_val=mp2_env%ri_g0w0%print_ic_values)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC%EPS_DIST", &
                                 r_val=mp2_env%ri_g0w0%eps_dist)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC%OPTIMIZE_HOMO_LUMO", &
-                                l_val=mp2_env%ri_g0w0%do_opt_homo_lumo)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC%GW_EIGENVALUES", &
-                                r_vals=mp2_env%ri_g0w0%gw_eigenvalues)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%IC%GW_EIGENVALUES_BETA", &
-                                r_vals=mp2_env%ri_g0w0%gw_eigenvalues_beta)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC", &
                                 l_val=mp2_env%ri_g0w0%do_periodic)
@@ -232,94 +219,21 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%NUM_OMEGA_POINTS", &
                                 i_val=mp2_env%ri_g0w0%num_omega_points)
 
-      CALL section_vals_val_get(mp2_section, "IM_TIME", explicit=explicit_k_wfc)
-      CALL section_vals_val_get(mp2_section, "RI_LAPLACE%IM_TIME", explicit=explicit_k_laplace)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME", explicit=explicit_k_rpa)
-
-      ! Ensure that at most one IM_TIME keyword is used
-      IF (explicit_k_wfc .AND. explicit_k_laplace) CPABORT("Use only one IM_TIME keyword!")
-      IF (explicit_k_wfc .AND. explicit_k_rpa) CPABORT("Use only one IM_TIME keyword!")
-      IF (explicit_k_rpa .AND. explicit_k_laplace) CPABORT("Use only one IM_TIME keyword!")
-
-      ! Determine the explicitly called IM_TIME sections
       NULLIFY (im_time_section)
       im_time_section => section_vals_get_subs_vals(mp2_section, "IM_TIME")
-      CALL section_vals_get(im_time_section, explicit=explicit_wfc)
-      im_time_section => section_vals_get_subs_vals(mp2_section, "RI_LAPLACE%IM_TIME")
-      CALL section_vals_get(im_time_section, explicit=explicit_laplace)
-      im_time_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%IM_TIME")
-      CALL section_vals_get(im_time_section, explicit=explicit_rpa)
-
-      ! Ensure that the IM_TIME section matches the keyword
-      IF (explicit_k_wfc) explicit_wfc = .TRUE.
-      IF (explicit_k_rpa) explicit_rpa = .TRUE.
-      IF (explicit_k_laplace) explicit_laplace = .TRUE.
-
-      ! Ensure that at most one IM_TIME section is called
-      IF (explicit_wfc .AND. explicit_laplace) &
-         CPABORT("Use only one IM_TIME section or the IM_TIME section to the keyword!")
-      IF (explicit_wfc .AND. explicit_rpa) &
-         CPABORT("Use only one IM_TIME section or the IM_TIME section to the keyword!")
-      IF (explicit_rpa .AND. explicit_laplace) &
-         CPABORT("Use only one IM_TIME section or the IM_TIME section to the keyword!")
-
-      ! Find what keyword/ section pair is used, set up the section pointer and do_im_time. If none is used, copy from wfc.
-      NULLIFY (im_time_section)
-      IF (explicit_laplace) THEN
-         im_time_section => section_vals_get_subs_vals(mp2_section, "RI_LAPLACE%IM_TIME")
-         IF (explicit_k_laplace) THEN
-            CALL section_vals_val_get(mp2_section, "RI_LAPLACE%IM_TIME", &
-                                      l_val=mp2_env%do_im_time)
-         END IF
-      ELSE IF (explicit_rpa) THEN
-         im_time_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%IM_TIME")
-         IF (explicit_k_rpa) THEN
-            CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME", &
-                                      l_val=mp2_env%do_im_time)
-         END IF
-      ELSE
-         im_time_section => section_vals_get_subs_vals(mp2_section, "IM_TIME")
-         IF (explicit_k_wfc) THEN
-            CALL section_vals_val_get(mp2_section, "IM_TIME", &
-                                      l_val=mp2_env%do_im_time, explicit=explicit_wfc)
-         END IF
-      END IF
-      ! If no keyword was used, take the info from the IM_TIME section.
-      IF (.NOT. (explicit_k_laplace .OR. explicit_k_rpa .OR. explicit_k_wfc)) THEN
-         CALL section_vals_val_get(im_time_section, "_SECTION_PARAMETERS_", &
-                                   l_val=mp2_env%do_im_time)
-      END IF
+      CALL section_vals_val_get(im_time_section, "_SECTION_PARAMETERS_", &
+                                l_val=mp2_env%do_im_time)
 
       CALL section_vals_val_get(im_time_section, "MEMORY_CUT", &
                                 i_val=mp2_env%ri_rpa_im_time%cut_memory)
       CALL section_vals_val_get(im_time_section, "MEMORY_INFO", &
                                 l_val=mp2_env%ri_rpa_im_time%memory_info)
-      CALL section_vals_val_get(im_time_section, "MAO", &
-                                l_val=mp2_env%ri_rpa_im_time%do_mao)
-      CALL section_vals_val_get(im_time_section, "MAO%MAO_OCC", &
-                                i_vals=mp2_env%ri_rpa_im_time%nmao_occ)
-      CALL section_vals_val_get(im_time_section, "MAO%MAO_VIRT", &
-                                i_vals=mp2_env%ri_rpa_im_time%nmao_virt)
-      CALL section_vals_val_get(im_time_section, "MAO%MAX_ITER_OCC", &
-                                i_val=mp2_env%ri_rpa_im_time%max_iter_occ)
-      CALL section_vals_val_get(im_time_section, "MAO%MAX_ITER_VIRT", &
-                                i_val=mp2_env%ri_rpa_im_time%max_iter_virt)
-      CALL section_vals_val_get(im_time_section, "MAO%EPS_GRAD_OCC", &
-                                r_val=mp2_env%ri_rpa_im_time%eps_grad_occ)
-      CALL section_vals_val_get(im_time_section, "MAO%EPS_GRAD_VIRT", &
-                                r_val=mp2_env%ri_rpa_im_time%eps_grad_virt)
-      CALL section_vals_val_get(im_time_section, "MAO%OPTIMIZE_SCALED_OCC_DM", &
-                                l_val=mp2_env%ri_rpa_im_time%opt_sc_dm_occ)
-      CALL section_vals_val_get(im_time_section, "MAO%OPTIMIZE_SCALED_VIRT_DM", &
-                                l_val=mp2_env%ri_rpa_im_time%opt_sc_dm_virt)
-      CALL section_vals_val_get(im_time_section, "GROUP_SIZE_3c", &
-                                i_val=mp2_env%ri_rpa_im_time%group_size_3c)
-      CALL section_vals_val_get(im_time_section, "GROUP_SIZE_P", &
-                                i_val=mp2_env%ri_rpa_im_time%group_size_P)
       CALL section_vals_val_get(im_time_section, "POINTS_PER_MAGNITUDE", &
                                 i_val=mp2_env%ri_rpa_im_time%num_points_per_magnitude)
-      CALL section_vals_val_get(im_time_section, "EPS_FILTER_IM_TIME", &
-                                r_val=mp2_env%ri_rpa_im_time%eps_filter_im_time)
+      CALL section_vals_val_get(im_time_section, "EPS_FILTER_FACTOR", &
+                                r_val=eps_filter_factor)
+      mp2_env%ri_rpa_im_time%eps_filter_im_time = eps_filter_factor*mp2_env%mp2_gpw%eps_filter
+
       CALL section_vals_val_get(im_time_section, "STABILIZE_EXP", &
                                 r_val=mp2_env%ri_rpa_im_time%stabilize_exp)
       CALL section_vals_val_get(im_time_section, "DO_KPOINTS", &
@@ -331,12 +245,23 @@ CONTAINS
       CALL section_vals_val_get(im_time_section, "EXP_KPOINTS", &
                                 r_val=mp2_env%ri_rpa_im_time%exp_kpoints)
 
-      CALL section_vals_val_get(mp2_section, "IM_TIME%DO_DBCSR_T", &
-                                l_val=mp2_env%ri_rpa_im_time%do_dbcsr_t)
-      CALL section_vals_val_get(mp2_section, "IM_TIME%MAX_BLOCK_SIZE_SQRT", &
+      CALL section_vals_val_get(im_time_section, "MAX_BLOCK_SIZE_SQRT", &
                                 i_val=mp2_env%ri_rpa_im_time%max_bsize_sqrt)
-      CALL section_vals_val_get(mp2_section, "IM_TIME%GROUP_SIZE_INTERNAL", &
+
+      NULLIFY (im_time_test_section)
+      im_time_test_section => section_vals_get_subs_vals(im_time_section, "TEST")
+
+      CALL section_vals_val_get(im_time_test_section, "_SECTION_PARAMETERS_", &
                                 l_val=mp2_env%ri_rpa_im_time%group_size_internal)
+
+      mp2_env%ri_rpa_im_time%group_size_internal = .NOT. mp2_env%ri_rpa_im_time%group_size_internal
+
+      IF (.NOT. mp2_env%ri_rpa_im_time%group_size_internal) THEN
+         CALL section_vals_val_get(im_time_test_section, "GROUP_SIZE_3c", &
+                                   i_val=mp2_env%ri_rpa_im_time%group_size_3c)
+         CALL section_vals_val_get(im_time_test_section, "GROUP_SIZE_P", &
+                                   i_val=mp2_env%ri_rpa_im_time%group_size_P)
+      ENDIF
 
       CALL section_vals_val_get(mp2_section, "RI_LAPLACE%QUADRATURE_POINTS", &
                                 i_val=mp2_env%ri_laplace%n_quadrature)

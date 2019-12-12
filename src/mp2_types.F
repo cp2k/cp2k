@@ -96,7 +96,6 @@ MODULE mp2_types
       LOGICAL                  :: minimax_quad
       LOGICAL                  :: do_ri_g0w0
       LOGICAL                  :: do_admm
-      LOGICAL                  :: do_RI_overlap
       LOGICAL                  :: do_ri_axk
       LOGICAL                  :: do_rse
       TYPE(dbcsr_type), POINTER             :: mo_coeff_o, &
@@ -107,48 +106,17 @@ MODULE mp2_types
       REAL(KIND=dp)            :: scale_rpa
    END TYPE
 
-   TYPE ri_rpa_im_time_util
-      INTEGER                  :: color_sub_row
-      INTEGER                  :: color_sub_col
-      INTEGER                  :: color_sub_P
-      INTEGER                  :: n_group_row
-      INTEGER                  :: n_group_col
-      INTEGER                  :: n_group_P
-      INTEGER                  :: cut_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:)  :: sizes_array_prim_row, starts_array_prim_row, &
-                                             ends_array_prim_row, sizes_array_prim_col, &
-                                             starts_array_prim_col, ends_array_prim_col, &
-                                             sizes_array_prim_fullrow, starts_array_prim_fullrow, &
-                                             ends_array_prim_fullrow, sizes_array_prim_fullcol, &
-                                             starts_array_prim_fullcol, ends_array_prim_fullcol, &
-                                             start_row_data_block, end_row_data_block, &
-                                             start_col_data_block, end_col_data_block, &
-                                             my_group_L_starts_im_time, my_group_L_ends_im_time, &
-                                             my_group_L_sizes_im_time, mepos_P_from_RI_row, &
-                                             row_blk_offset_RI
-   END TYPE
-
-   TYPE ri_rpa_im_time_2d_util
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)  :: offset_combi_block
-   END TYPE
-
    TYPE ri_rpa_im_time_type
       INTEGER                  :: cut_memory
-      LOGICAL                  :: memory_info, do_mao, opt_sc_dm_occ, opt_sc_dm_virt, do_lr
-      REAL(KIND=dp)            :: eps_filter_im_time, eps_grad_occ, eps_grad_virt, lr_fraction, cutoff, &
+      LOGICAL                  :: memory_info
+      REAL(KIND=dp)            :: eps_filter_im_time, cutoff, &
                                   exp_kpoints
-      INTEGER                  :: group_size_P, group_size_3c, num_points_per_magnitude, extrapol_fac, &
-                                  max_iter_occ, max_iter_virt, group_size_Q
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: sizes_array_cm, starts_array_cm, &
-                                            ends_array_cm, sizes_array_cm_mao_occ, &
-                                            starts_array_cm_mao_occ, ends_array_cm_mao_occ, &
-                                            sizes_array_cm_mao_virt, starts_array_cm_mao_virt, &
-                                            ends_array_cm_mao_virt
-      INTEGER, DIMENSION(:), POINTER     :: nmao_occ, nmao_virt, kp_grid
+      INTEGER                  :: group_size_P, group_size_3c, num_points_per_magnitude
+      INTEGER, DIMENSION(:), POINTER     :: kp_grid
       LOGICAL                  :: do_im_time_kpoints
       REAL(KIND=dp)            :: stabilize_exp
-      LOGICAL  :: do_dbcsr_t, group_size_internal
-      INTEGER  :: max_bsize_sqrt
+      LOGICAL                  :: group_size_internal
+      INTEGER                  :: max_bsize_sqrt
    END TYPE
 
    TYPE ri_g0w0_type
@@ -185,10 +153,9 @@ MODULE mp2_types
       REAL(KIND=dp)            :: eps_charge
       INTEGER                  :: num_z_vectors, max_iter_bse
       REAL(KIND=dp)            :: eps_min_trans
-      LOGICAL                  :: do_ic_model, print_ic_values, do_opt_homo_lumo
+      LOGICAL                  :: do_ic_model, print_ic_values
       REAL(KIND=dp)            :: eps_dist
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta, &
-                                                            gw_eigenvalues, gw_eigenvalues_beta
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta
       INTEGER :: print_exx
       LOGICAL :: do_gamma_only_sigma
    END TYPE
@@ -225,12 +192,6 @@ MODULE mp2_types
       TYPE(mp2_gpw_type)       :: mp2_gpw
       TYPE(ri_mp2_type)        :: ri_mp2
       TYPE(ri_rpa_type)        :: ri_rpa
-      TYPE(ri_rpa_im_time_util), &
-         DIMENSION(:), &
-         ALLOCATABLE            :: ri_rpa_im_time_util
-      TYPE(ri_rpa_im_time_2d_util), &
-         DIMENSION(:, :), &
-         ALLOCATABLE            :: ri_rpa_im_time_2d_util
       TYPE(ri_rpa_im_time_type) &
          :: ri_rpa_im_time
       TYPE(ri_g0w0_type)       :: ri_g0w0

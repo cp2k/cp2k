@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  RI_RPA_H2O
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -38,7 +38,9 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        RI OVERLAP
+        &RI_METRIC
+          POTENTIAL_TYPE IDENTITY
+        &END
         &WFC_GPW
           CUTOFF  100
           REL_CUTOFF 20
