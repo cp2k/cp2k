@@ -84,13 +84,11 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: filename
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
-      INTEGER                                            :: do_eric, do_erie, handle, i, im, in, iw, &
-                                                            k, maxl, mb, method, mo, n_meth, &
-                                                            n_rep, nder, num_gau, num_gto, &
-                                                            num_pol, reltyp, zcore, zval, zz
+      INTEGER :: do_eric, do_erie, handle, i, im, in, iw, k, maxl, mb, method, mo, n_meth, n_rep, &
+         nder, nr_gh, num_gau, num_gto, num_pol, reltyp, zcore, zval, zz
       INTEGER, DIMENSION(0:lmat)                         :: maxn
       INTEGER, DIMENSION(:), POINTER                     :: cn
-      LOGICAL                                            :: dm, do_zmp, doread, eri_c, eri_e, &
+      LOGICAL                                            :: dm, do_gh, do_zmp, doread, eri_c, eri_e, &
                                                             had_ae, had_pp, lcomp, lcond, pp_calc, &
                                                             read_vxc
       REAL(KIND=dp)                                      :: crad, delta, lambda
@@ -157,6 +155,8 @@ CONTAINS
       eri_e = .FALSE.
       CALL section_vals_val_get(atom_section, "EXCHANGE_INTEGRALS", i_val=do_erie)
       IF (do_erie == do_analytic) eri_e = .TRUE.
+      CALL section_vals_val_get(atom_section, "USE_GAUSS_HERMITE", l_val=do_gh)
+      CALL section_vals_val_get(atom_section, "GRID_POINTS_GH", i_val=nr_gh)
 
       ! information on the states to be calculated
       CALL section_vals_val_get(atom_section, "MAX_ANGULAR_MOMENTUM", i_val=maxl)
@@ -315,6 +315,8 @@ CONTAINS
 
             CALL set_atom(atom_info(in, im)%atom, coulomb_integral_type=do_eric, &
                           exchange_integral_type=do_erie)
+            atom_info(in, im)%atom%hfx_pot%do_gh = do_gh
+            atom_info(in, im)%atom%hfx_pot%nr_gh = nr_gh
 
             NULLIFY (orbitals)
             mo = MAXVAL(state%maxn_calc)

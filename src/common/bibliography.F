@@ -84,7 +84,8 @@ MODULE bibliography
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
                             Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2017, Kondov2007, &
-                            Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, Paziani2006, Toulouse2004
+                            Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, Paziani2006, &
+                            Toulouse2004, Limpanuparb2011
 
 CONTAINS
 
@@ -4238,6 +4239,24 @@ CONTAINS
                          "UT WOS:000224788600025", &
                          "ER"), &
                          DOI="10.1002/qua.20259")
+
+      CALL add_reference(key=Limpanuparb2011, ISI_record=s2a( &
+                         "AU Limpanuparb, Taweetham", &
+                         "   Gill, Peter M. W.", &
+                         "TI Resolutions of the Coulomb Operator: V. The Long-Range Ewald Operator", &
+                         "SO Journal of Chemical Theory and Computation", &
+                         "DT Article", &
+                         "PY 2011", &
+                         "VL 7", &
+                         "JO J. Chem. Theory Comput.", &
+                         "SP 2353", &
+                         "EP 2357", &
+                         "VL 7", &
+                         "IS 8", &
+                         "PB American Chemical Society", &
+                         "SN 1549-9618", &
+                         "ER"), &
+                         DOI="10.1021/ct200305n")
 
    END SUBROUTINE add_all_references
 

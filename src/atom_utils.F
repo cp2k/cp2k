@@ -18,8 +18,8 @@ MODULE atom_utils
    USE ao_util,                         ONLY: exp_radius
    USE atom_types,                      ONLY: &
         CGTO_BASIS, GTO_BASIS, NUM_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, &
-        atom_potential_type, atom_state, atom_type, ecp_pseudo, eri, gth_pseudo, lmat, no_pseudo, &
-        sgp_pseudo, upf_pseudo
+        atom_hfx_type, atom_potential_type, atom_state, atom_type, ecp_pseudo, eri, gth_pseudo, &
+        lmat, no_pseudo, sgp_pseudo, upf_pseudo
    USE basis_set_types,                 ONLY: srules
    USE cp_files,                        ONLY: close_file,&
                                               get_unit_number,&
@@ -37,8 +37,10 @@ MODULE atom_utils
                                               fac,&
                                               fourpi,&
                                               maxfac,&
+                                              pi,&
                                               rootpi
-   USE mathlib,                         ONLY: invmat_symm
+   USE mathlib,                         ONLY: binomial_gen,&
+                                              invmat_symm
    USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&
                                               init_orbital_pointers
    USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics,&
@@ -277,8 +279,8 @@ CONTAINS
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   FUNCTION get_maxl_occ(occupation) RESULT(maxl)
-      REAL(Kind=dp), DIMENSION(0:lmat, 10)               :: occupation
+   PURE FUNCTION get_maxl_occ(occupation) RESULT(maxl)
+      REAL(Kind=dp), DIMENSION(0:lmat, 10), INTENT(IN)   :: occupation
       INTEGER                                            :: maxl
 
       INTEGER                                            :: l
@@ -297,8 +299,8 @@ CONTAINS
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   FUNCTION get_maxn_occ(occupation) RESULT(maxn)
-      REAL(Kind=dp), DIMENSION(0:lmat, 10)               :: occupation
+   PURE FUNCTION get_maxn_occ(occupation) RESULT(maxn)
+      REAL(Kind=dp), DIMENSION(0:lmat, 10), INTENT(IN)   :: occupation
       INTEGER, DIMENSION(0:lmat)                         :: maxn
 
       INTEGER                                            :: k, l
@@ -323,7 +325,7 @@ CONTAINS
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE atom_denmat(pmat, wfn, nbas, occ, maxl, maxn)
+   PURE SUBROUTINE atom_denmat(pmat, wfn, nbas, occ, maxl, maxn)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: pmat
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: wfn
       INTEGER, DIMENSION(0:lmat), INTENT(IN)             :: nbas
@@ -665,7 +667,7 @@ CONTAINS
 !> \param l ...
 !> \param basis ...
 ! **************************************************************************************************
-   SUBROUTINE atom_orbital_charge(charge, wfn, rcov, l, basis)
+   PURE SUBROUTINE atom_orbital_charge(charge, wfn, rcov, l, basis)
       REAL(KIND=dp), INTENT(OUT)                         :: charge
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wfn
       REAL(KIND=dp), INTENT(IN)                          :: rcov
@@ -817,7 +819,7 @@ CONTAINS
 !> \param gthpot ...
 !> \param rr ...
 ! **************************************************************************************************
-   SUBROUTINE atom_local_potential(locpot, gthpot, rr)
+   PURE SUBROUTINE atom_local_potential(locpot, gthpot, rr)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: locpot
       TYPE(atom_gthpot_type), INTENT(IN)                 :: gthpot
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rr
@@ -863,7 +865,7 @@ CONTAINS
 !> \param l ...
 !> \param basis ...
 ! **************************************************************************************************
-   SUBROUTINE atom_orbital_max(rmax, wfn, rcov, l, basis)
+   PURE SUBROUTINE atom_orbital_max(rmax, wfn, rcov, l, basis)
       REAL(KIND=dp), INTENT(OUT)                         :: rmax
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wfn
       REAL(KIND=dp), INTENT(IN)                          :: rcov
@@ -905,7 +907,7 @@ CONTAINS
 !> \param l ...
 !> \param basis ...
 ! **************************************************************************************************
-   SUBROUTINE atom_orbital_nodes(node, wfn, rcov, l, basis)
+   PURE SUBROUTINE atom_orbital_nodes(node, wfn, rcov, l, basis)
       INTEGER, INTENT(OUT)                               :: node
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wfn
       REAL(KIND=dp), INTENT(IN)                          :: rcov
@@ -943,7 +945,7 @@ CONTAINS
 !> \param wfn ...
 !> \param basis ...
 ! **************************************************************************************************
-   SUBROUTINE atom_wfnr0(value, wfn, basis)
+   PURE SUBROUTINE atom_wfnr0(value, wfn, basis)
       REAL(KIND=dp), INTENT(OUT)                         :: value
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wfn
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
@@ -1044,9 +1046,9 @@ CONTAINS
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   FUNCTION integrate_grid_function1(fun, grid) RESULT(integral)
+   PURE FUNCTION integrate_grid_function1(fun, grid) RESULT(integral)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: fun
-      TYPE(grid_atom_type)                               :: grid
+      TYPE(grid_atom_type), INTENT(IN)                   :: grid
       REAL(KIND=dp)                                      :: integral
 
       INTEGER                                            :: nc
@@ -1065,9 +1067,9 @@ CONTAINS
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   FUNCTION integrate_grid_function2(fun1, fun2, grid) RESULT(integral)
+   PURE FUNCTION integrate_grid_function2(fun1, fun2, grid) RESULT(integral)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: fun1, fun2
-      TYPE(grid_atom_type)                               :: grid
+      TYPE(grid_atom_type), INTENT(IN)                   :: grid
       REAL(KIND=dp)                                      :: integral
 
       INTEGER                                            :: nc
@@ -1087,9 +1089,9 @@ CONTAINS
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   FUNCTION integrate_grid_function3(fun1, fun2, fun3, grid) RESULT(integral)
+   PURE FUNCTION integrate_grid_function3(fun1, fun2, fun3, grid) RESULT(integral)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: fun1, fun2, fun3
-      TYPE(grid_atom_type)                               :: grid
+      TYPE(grid_atom_type), INTENT(IN)                   :: grid
       REAL(KIND=dp)                                      :: integral
 
       INTEGER                                            :: nc
@@ -1251,15 +1253,17 @@ CONTAINS
 !> \param occ    occupation numbers
 !> \param wfn    wavefunctions
 !> \param basis  atomic basis set
+!> \param hfx_pot potential parameters from Hartree-Fock section
 !> \par History
 !>    * 01.2009 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE exchange_numeric(kmat, state, occ, wfn, basis)
+   SUBROUTINE exchange_numeric(kmat, state, occ, wfn, basis, hfx_pot)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: kmat
       TYPE(atom_state), INTENT(IN)                       :: state
       REAL(KIND=dp), DIMENSION(0:, :), INTENT(IN)        :: occ
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: wfn
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
+      TYPE(atom_hfx_type), INTENT(IN)                    :: hfx_pot
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exchange_numeric', &
          routineP = moduleN//':'//routineN
@@ -1267,7 +1271,7 @@ CONTAINS
       INTEGER                                            :: i, ia, ib, k, lad, lbc, lh, ll, nbas, &
                                                             norb, nr, nu
       REAL(KIND=dp)                                      :: almn
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpot, nai, nbi
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpot, nai, nbi, pot
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: orb
       REAL(KIND=dp), DIMENSION(0:maxfac)                 :: arho
 
@@ -1280,7 +1284,7 @@ CONTAINS
       kmat = 0._dp
 
       nr = basis%grid%nr
-      ALLOCATE (nai(nr), nbi(nr), cpot(nr))
+      ALLOCATE (nai(nr), nbi(nr), cpot(nr), pot(nr))
 
       DO lad = 0, state%maxl_calc
          DO lbc = 0, state%maxl_occ
@@ -1295,13 +1299,23 @@ CONTAINS
                END DO
             END DO
             DO nu = ABS(lad - lbc), lad + lbc, 2
-          almn = arho(-lad + lbc + nu)*arho(lad - lbc + nu)*arho(lad + lbc - nu)/(REAL(lad + lbc + nu + 1, dp)*arho(lad + lbc + nu))
+               almn = arho(-lad + lbc + nu)*arho(lad - lbc + nu)*arho(lad + lbc - nu)/(REAL(lad + lbc + nu + 1, dp) &
+                                                                                       *arho(lad + lbc + nu))
                almn = -0.5_dp*almn
 
                DO ia = 1, basis%nbas(lad)
                   DO i = 1, norb
                      nai(:) = orb(:, i)*basis%bf(:, ia, lad)
-                     CALL potential_numeric(cpot, nai, nu, basis%grid)
+                     cpot = 0.0_dp
+                     IF (hfx_pot%scale_coulomb /= 0.0_dp) THEN
+                        CALL potential_coulomb_numeric(pot, nai, nu, basis%grid)
+                        cpot(:) = cpot(:) + pot(:)*hfx_pot%scale_coulomb
+                     END IF
+                     IF (hfx_pot%scale_longrange /= 0.0_dp) THEN
+                        CALL potential_longrange_numeric(pot, nai, nu, basis%grid, hfx_pot%omega, &
+                                                         hfx_pot%kernel(:, :, nu), hfx_pot%do_gh)
+                        cpot(:) = cpot(:) + pot(:)*hfx_pot%scale_longrange
+                     END IF
                      DO ib = 1, basis%nbas(lad)
                         kmat(ia, ib, lad) = kmat(ia, ib, lad) + almn*occ(lbc, i)* &
                                             integrate_grid(cpot, orb(:, i), basis%bf(:, ib, lad), basis%grid)
@@ -1325,15 +1339,17 @@ CONTAINS
 !> \param occ    occupation numbers
 !> \param wfn    wavefunctions
 !> \param basis  atomic basis set
+!> \param hfx_pot properties of the Hartree-Fock potential
 !> \par History
 !>    * 01.2009 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE exchange_semi_analytic(kmat, state, occ, wfn, basis)
+   SUBROUTINE exchange_semi_analytic(kmat, state, occ, wfn, basis, hfx_pot)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: kmat
       TYPE(atom_state), INTENT(IN)                       :: state
       REAL(KIND=dp), DIMENSION(0:, :), INTENT(IN)        :: occ
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: wfn
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
+      TYPE(atom_hfx_type), INTENT(IN)                    :: hfx_pot
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exchange_semi_analytic', &
          routineP = moduleN//':'//routineN
@@ -1372,11 +1388,12 @@ CONTAINS
                END DO
             END DO
             DO nu = ABS(lad - lbc), lad + lbc, 2
-          almn = arho(-lad + lbc + nu)*arho(lad - lbc + nu)*arho(lad + lbc - nu)/(REAL(lad + lbc + nu + 1, dp)*arho(lad + lbc + nu))
+               almn = arho(-lad + lbc + nu)*arho(lad - lbc + nu) &
+                      *arho(lad + lbc - nu)/(REAL(lad + lbc + nu + 1, dp)*arho(lad + lbc + nu))
                almn = -0.5_dp*almn
                ! calculate potential for basis function pair (lad,lbc)
                pot = 0._dp
-               CALL potential_analytic(pot, lad, lbc, nu, basis)
+               CALL potential_analytic(pot, lad, lbc, nu, basis, hfx_pot)
                DO ia = 1, basis%nbas(lad)
                   DO i = 1, norb
                      cpot = 0._dp
@@ -1409,13 +1426,13 @@ CONTAINS
 !> \par History
 !>    * 01.2009 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE potential_numeric(cpot, density, nu, grid)
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: cpot
+   SUBROUTINE potential_coulomb_numeric(cpot, density, nu, grid)
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: cpot
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: density
       INTEGER, INTENT(IN)                                :: nu
       TYPE(grid_atom_type), INTENT(IN)                   :: grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'potential_numeric', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'potential_coulomb_numeric', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, nc
@@ -1438,32 +1455,96 @@ CONTAINS
          int2 = int2 + density(i)*wr(i)/r(i)**(nu + 1)
       END DO
 
-   END SUBROUTINE potential_numeric
+   END SUBROUTINE potential_coulomb_numeric
+
+! **************************************************************************************************
+!> \brief ...
+!> \param cpot ...
+!> \param density ...
+!> \param nu ...
+!> \param grid ...
+!> \param omega ...
+!> \param kernel ...
+!> \param do_gh ...
+! **************************************************************************************************
+   SUBROUTINE potential_longrange_numeric(cpot, density, nu, grid, omega, kernel, do_gh)
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: cpot
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: density
+      INTEGER, INTENT(IN)                                :: nu
+      TYPE(grid_atom_type), INTENT(IN)                   :: grid
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: kernel
+      LOGICAL, INTENT(IN)                                :: do_gh
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'potential_longrange_numeric', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: n_max, nc, nc_kernel, nr_kernel
+      REAL(dp), DIMENSION(:), POINTER                    :: r, wr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work_inp, work_out
+
+      nc = MIN(SIZE(cpot), SIZE(density))
+      r => grid%rad
+      wr => grid%wr
+
+      nc_kernel = SIZE(kernel, 1)
+      nr_kernel = SIZE(kernel, 2)
+      n_max = MAX(nc, nc_kernel, nr_kernel)
+
+      ALLOCATE (work_inp(n_max), work_out(n_max))
+
+      cpot = 0.0_dp
+
+      IF (do_gh) THEN
+         ! First Bessel transform
+         work_inp(:nc) = density(:nc)*wr(:nc)
+         CALL DGEMV('T', nc_kernel, nr_kernel, 1.0_dp, kernel, nc_kernel, work_inp, 1, 0.0_dp, work_out, 1)
+
+         ! Second Bessel transform
+         work_inp(:nr_kernel) = work_out(:nr_kernel)
+         CALL DGEMV('N', nc_kernel, nr_kernel, 1.0_dp, kernel, nc_kernel, work_inp, 1, 0.0_dp, work_out, 1)
+      ELSE
+         ! First Bessel transform
+         work_inp(:nc) = density(:nc)*wr(:nc)
+         CALL DSYMV('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
+
+         ! Second Bessel transform
+         work_inp(:nc) = work_out(:nc)*EXP(-r(:nc)**2)/r(:nc)**2*wr(:nc)
+         CALL DSYMV('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
+      END IF
+
+      cpot(:nc) = work_out(:nc)*(2.0_dp*REAL(nu, dp) + 1.0_dp)*4.0_dp/pi*omega
+
+   END SUBROUTINE potential_longrange_numeric
 
 ! **************************************************************************************************
 !> \brief Calculate the electrostatic potential using analytical expressions.
+!>        The interaction potential has the form
+!>        V(r)=scale_coulomb*1/r+scale_lr*erf(omega*r)/r
 !> \param cpot   computed potential
 !> \param la     angular momentum of the calculated state
 !> \param lb     angular momentum of the occupied state
 !> \param nu     integer parameter [ABS(la-lb) .. la+lb] with the parity of 'la+lb'
 !> \param basis  atomic basis set
+!> \param hfx_pot properties of the Hartree-Fock potential
 !> \par History
 !>    * 01.2009 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE potential_analytic(cpot, la, lb, nu, basis)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: cpot
+   SUBROUTINE potential_analytic(cpot, la, lb, nu, basis, hfx_pot)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: cpot
       INTEGER, INTENT(IN)                                :: la, lb, nu
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
+      TYPE(atom_hfx_type), INTENT(IN)                    :: hfx_pot
 
       CHARACTER(len=*), PARAMETER :: routineN = 'potential_analytic', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, j, k, l, ll, m
-      REAL(KIND=dp)                                      :: a, b, oab, sab
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: erfa, expa, z
+      REAL(KIND=dp)                                      :: a, b
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: erfa, pot
 
       m = SIZE(cpot, 1)
-      ALLOCATE (erfa(1:m), expa(1:m), z(1:m))
+      ALLOCATE (erfa(1:m))
 
       ll = la + lb
 
@@ -1477,161 +1558,45 @@ CONTAINS
             DO j = 1, basis%nbas(lb)
                a = basis%am(i, la)
                b = basis%am(j, lb)
-               sab = SQRT(a + b)
-               oab = dfac(ll + nu + 1)*rootpi/(sab**(ll + 2))/(2._dp**((ll + nu)/2 + 2))
-               z(:) = sab*basis%grid%rad(:)
-               DO k = 1, SIZE(erfa)
-                  erfa(k) = oab*erf(z(k))/z(k)**(nu + 1)
-               END DO
-               cpot(:, i, j) = erfa(:)
-               expa(:) = EXP(-z(:)**2)/(sab**(ll + 2))/(2._dp**((ll + nu)/2 + 2))
-               SELECT CASE (ll)
-               CASE DEFAULT
-                  CPABORT("")
-               CASE (0)
-                  CPASSERT(nu == 0)
-               CASE (1)
-                  CPASSERT(nu == 1)
-                  cpot(:, i, j) = cpot(:, i, j) - 6._dp*expa(:)/z(:)
-               CASE (2)
-                  SELECT CASE (nu)
-                  CASE DEFAULT
-                     CPABORT("")
-                  CASE (0)
-                     cpot(:, i, j) = cpot(:, i, j) - 2._dp*expa(:)
-                  CASE (2)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(20._dp + 30._dp/z(:)**2)
-                  END SELECT
-               CASE (3)
-                  SELECT CASE (nu)
-                  CASE DEFAULT
-                     CPABORT("")
-                  CASE (1)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(12._dp*z(:) + 30._dp/z(:))
-                  CASE (3)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(56._dp*z(:) + 140._dp/z(:) + 210._dp*z(:)**3)
-                  END SELECT
-               CASE (4)
-                  SELECT CASE (nu)
-                  CASE DEFAULT
-                     CPABORT("")
-                  CASE (0)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(4._dp*z(:)**2 + 14._dp)
-                  CASE (2)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(40._dp*z(:)**2 + 140._dp + 210._dp/z(:)**2)
-                  CASE (4)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(144._dp*z(:)**2 + 504._dp + 1260._dp/z(:)**2 + 1890._dp/z(:)**4)
-                  END SELECT
-               CASE (5)
-                  SELECT CASE (nu)
-                  CASE DEFAULT
-                     CPABORT("")
-                  CASE (1)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(24._dp*z(:)**3 + 108._dp*z(:) + 210._dp/z(:))
-                  CASE (3)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(112._dp*z(:)**3 + 504._dp*z(:) + 1260._dp/z(:) + 1890._dp/z(:)**3)
-                  CASE (5)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(352._dp*z(:)**3 + 1584._dp*z(:) + 5544._dp/z(:) + &
-                                                              13860._dp/z(:)**3 + 20790._dp/z(:)**5)
-                  END SELECT
-               CASE (6)
-                  SELECT CASE (nu)
-                  CASE DEFAULT
-                     CPABORT("")
-                  CASE (0)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(8._dp*z(:)**4 + 44._dp*z(:)**2 + 114._dp)
-                  CASE (2)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(80._dp*z(:)**4 + 440._dp*z(:)**2 + 1260._dp + 1896._dp/z(:)**2)
-                  CASE (4)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(288._dp*z(:)**4 + 1584._dp*z(:)**2 + 5544._dp + &
-                                                              13860._dp/z(:)**2 + 20790._dp/z(:)**4)
-                  CASE (6)
-                     cpot(:, i, j) = cpot(:, i, j) - expa(:)*(832._dp*z(:)**4 + 4576._dp*z(:)**2 + 20592._dp + &
-                                                              72072._dp/z(:)**2 + 180180._dp/z(:)**4 + 270270._dp/z(:)**6)
-                  END SELECT
-               END SELECT
+
+               IF (hfx_pot%scale_coulomb /= 0.0_dp) THEN
+                  CALL potential_coulomb_analytic(erfa, a, b, ll, nu, basis%grid%rad)
+
+                  cpot(:, i, j) = cpot(:, i, j) + erfa(:)*hfx_pot%scale_coulomb
+               END IF
+
+               IF (hfx_pot%scale_longrange /= 0.0_dp) THEN
+                  CALL potential_longrange_analytic(erfa, a, b, ll, nu, basis%grid%rad, hfx_pot%omega)
+
+                  cpot(:, i, j) = cpot(:, i, j) + erfa(:)*hfx_pot%scale_longrange
+               END IF
             END DO
          END DO
       CASE (CGTO_BASIS)
+         ALLOCATE (pot(1:m))
+
          DO i = 1, basis%nprim(la)
             DO j = 1, basis%nprim(lb)
                a = basis%am(i, la)
                b = basis%am(j, lb)
-               sab = SQRT(a + b)
-               oab = dfac(ll + nu + 1)*rootpi/sab**(ll + 2)/2._dp**((ll + nu)/2 + 2)
-               z(:) = sab*basis%grid%rad(:)
-               DO k = 1, SIZE(erfa)
-                  erfa(k) = oab*erf(z(k))/z(k)**(nu + 1)
-               END DO
-               expa(:) = EXP(-z(:)**2)/sab**(ll + 2)/2._dp**((ll + nu)/2 + 2)
-               SELECT CASE (ll)
-               CASE DEFAULT
-                  CPABORT("")
-               CASE (0)
-                  CPASSERT(nu == 0)
-               CASE (1)
-                  CPASSERT(nu == 1)
-                  erfa(:) = erfa(:) - 6._dp*expa(:)/z(:)
-               CASE (2)
-                  SELECT CASE (nu)
-                  CASE DEFAULT
-                     CPABORT("")
-                  CASE (0)
-                     erfa(:) = erfa(:) - 2._dp*expa(:)
-                  CASE (2)
-                     erfa(:) = erfa(:) - expa(:)*(20._dp + 30._dp/z(:)**2)
-                  END SELECT
-               CASE (3)
-                  SELECT CASE (nu)
-                  CASE DEFAULT
-                     CPABORT("")
-                  CASE (1)
-                     erfa(:) = erfa(:) - expa(:)*(12._dp*z(:) + 30._dp/z(:))
-                  CASE (3)
-                     erfa(:) = erfa(:) - expa(:)*(56._dp*z(:) + 140._dp/z(:) + 210._dp*z(:)**3)
-                  END SELECT
-               CASE (4)
-                  SELECT CASE (nu)
-                  CASE DEFAULT
-                     CPABORT("")
-                  CASE (0)
-                     erfa(:) = erfa(:) - expa(:)*(4._dp*z(:)**2 + 14._dp)
-                  CASE (2)
-                     erfa(:) = erfa(:) - expa(:)*(40._dp*z(:)**2 + 140._dp + 210._dp/z(:)**2)
-                  CASE (4)
-                     erfa(:) = erfa(:) - expa(:)*(144._dp*z(:)**2 + 504._dp + 1260._dp/z(:)**2 + 1890._dp/z(:)**4)
-                  END SELECT
-               CASE (5)
-                  SELECT CASE (nu)
-                  CASE DEFAULT
-                     CPABORT("")
-                  CASE (1)
-                     erfa(:) = erfa(:) - expa(:)*(24._dp*z(:)**3 + 108._dp*z(:) + 210._dp/z(:))
-                  CASE (3)
-                     erfa(:) = erfa(:) - expa(:)*(112._dp*z(:)**3 + 504._dp*z(:) + 1260._dp/z(:) + 1890._dp/z(:)**3)
-                  CASE (5)
-                     erfa(:) = erfa(:) - expa(:)*(352._dp*z(:)**3 + 1584._dp*z(:) + 5544._dp/z(:) + &
-                                                  13860._dp/z(:)**3 + 20790._dp/z(:)**5)
-                  END SELECT
-               CASE (6)
-                  SELECT CASE (nu)
-                  CASE DEFAULT
-                     CPABORT("")
-                  CASE (0)
-                     erfa(:) = erfa(:) - expa(:)*(8._dp*z(:)**4 + 44._dp*z(:)**2 + 114._dp)
-                  CASE (2)
-                     erfa(:) = erfa(:) - expa(:)*(80._dp*z(:)**4 + 440._dp*z(:)**2 + 1260._dp + 1896._dp/z(:)**2)
-                  CASE (4)
-                     erfa(:) = erfa(:) - expa(:)*(288._dp*z(:)**4 + 1584._dp*z(:)**2 + 5544._dp + &
-                                                  13860._dp/z(:)**2 + 20790._dp/z(:)**4)
-                  CASE (6)
-                     erfa(:) = erfa(:) - expa(:)*(832._dp*z(:)**4 + 4576._dp*z(:)**2 + 20592._dp + &
-                                                  72072._dp/z(:)**2 + 180180._dp/z(:)**4 + 270270._dp/z(:)**6)
-                  END SELECT
-               END SELECT
+
+               pot = 0.0_dp
+
+               IF (hfx_pot%scale_coulomb /= 0.0_dp) THEN
+                  CALL potential_coulomb_analytic(erfa, a, b, ll, nu, basis%grid%rad)
+
+                  pot(:) = pot(:) + erfa(:)*hfx_pot%scale_coulomb
+               END IF
+
+               IF (hfx_pot%scale_longrange /= 0.0_dp) THEN
+                  CALL potential_longrange_analytic(erfa, a, b, ll, nu, basis%grid%rad, hfx_pot%omega)
+
+                  pot(:) = pot(:) + erfa(:)*hfx_pot%scale_longrange
+               END IF
+
                DO k = 1, basis%nbas(la)
                   DO l = 1, basis%nbas(lb)
-                     cpot(:, k, l) = cpot(:, k, l) + erfa(:)*basis%cm(i, k, la)*basis%cm(j, l, lb)
+                     cpot(:, k, l) = cpot(:, k, l) + pot(:)*basis%cm(i, k, la)*basis%cm(j, l, lb)
                   END DO
                END DO
             END DO
@@ -1639,9 +1604,243 @@ CONTAINS
 
       END SELECT
 
-      DEALLOCATE (erfa, expa, z)
+      DEALLOCATE (erfa)
 
    END SUBROUTINE potential_analytic
+
+! **************************************************************************************************
+!> \brief ...
+!> \param erfa Array will contain the potential
+!> \param a Exponent of first Gaussian charge distribution
+!> \param b Exponent of second Gaussian charge distribution
+!> \param ll Sum of angular momentum quantum numbers building one charge distribution
+!> \param nu Angular momentum of interaction, (ll-nu) should be even.
+!> \param rad Radial grid
+! **************************************************************************************************
+   SUBROUTINE potential_coulomb_analytic(erfa, a, b, ll, nu, rad)
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: erfa
+      REAL(KIND=dp), INTENT(IN)                          :: a, b
+      INTEGER, INTENT(IN)                                :: ll, nu
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rad
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'potential_coulomb_analytic', &
+         routineP = moduleN//':'//routineN
+
+      REAL(KIND=dp)                                      :: oab, sab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: expa, z
+
+      ALLOCATE (expa, SOURCE=rad)
+      ALLOCATE (z, SOURCE=rad)
+
+      sab = SQRT(a + b)
+      oab = dfac(ll + nu + 1)*rootpi/sab**(ll + 2)/2._dp**((ll + nu)/2 + 2)
+      z(:) = sab*rad(:)
+      erfa(:) = oab*erf(z(:))/z(:)**(nu + 1)
+      expa(:) = EXP(-z(:)**2)/sab**(ll + 2)/2._dp**((ll + nu)/2 + 2)
+      SELECT CASE (ll)
+      CASE DEFAULT
+         CPABORT("")
+      CASE (0)
+         CPASSERT(nu == 0)
+      CASE (1)
+         CPASSERT(nu == 1)
+         erfa(:) = erfa(:) - 6._dp*expa(:)/z(:)
+      CASE (2)
+         SELECT CASE (nu)
+         CASE DEFAULT
+            CPABORT("")
+         CASE (0)
+            erfa(:) = erfa(:) - 2._dp*expa(:)
+         CASE (2)
+            erfa(:) = erfa(:) - expa(:)*(20._dp + 30._dp/z(:)**2)
+         END SELECT
+      CASE (3)
+         SELECT CASE (nu)
+         CASE DEFAULT
+            CPABORT("")
+         CASE (1)
+            erfa(:) = erfa(:) - expa(:)*(12._dp*z(:) + 30._dp/z(:))
+         CASE (3)
+            erfa(:) = erfa(:) - expa(:)*(56._dp*z(:) + 140._dp/z(:) + 210._dp*z(:)**3)
+         END SELECT
+      CASE (4)
+         SELECT CASE (nu)
+         CASE DEFAULT
+            CPABORT("")
+         CASE (0)
+            erfa(:) = erfa(:) - expa(:)*(4._dp*z(:)**2 + 14._dp)
+         CASE (2)
+            erfa(:) = erfa(:) - expa(:)*(40._dp*z(:)**2 + 140._dp + 210._dp/z(:)**2)
+         CASE (4)
+            erfa(:) = erfa(:) - expa(:)*(144._dp*z(:)**2 + 504._dp + 1260._dp/z(:)**2 + 1890._dp/z(:)**4)
+         END SELECT
+      CASE (5)
+         SELECT CASE (nu)
+         CASE DEFAULT
+            CPABORT("")
+         CASE (1)
+            erfa(:) = erfa(:) - expa(:)*(24._dp*z(:)**3 + 108._dp*z(:) + 210._dp/z(:))
+         CASE (3)
+            erfa(:) = erfa(:) - expa(:)*(112._dp*z(:)**3 + 504._dp*z(:) + 1260._dp/z(:) + 1890._dp/z(:)**3)
+         CASE (5)
+            erfa(:) = erfa(:) - expa(:)*(352._dp*z(:)**3 + 1584._dp*z(:) + 5544._dp/z(:) + &
+                                         13860._dp/z(:)**3 + 20790._dp/z(:)**5)
+         END SELECT
+      CASE (6)
+         SELECT CASE (nu)
+         CASE DEFAULT
+            CPABORT("")
+         CASE (0)
+            erfa(:) = erfa(:) - expa(:)*(8._dp*z(:)**4 + 44._dp*z(:)**2 + 114._dp)
+         CASE (2)
+            erfa(:) = erfa(:) - expa(:)*(80._dp*z(:)**4 + 440._dp*z(:)**2 + 1260._dp + 1896._dp/z(:)**2)
+         CASE (4)
+            erfa(:) = erfa(:) - expa(:)*(288._dp*z(:)**4 + 1584._dp*z(:)**2 + 5544._dp + &
+                                         13860._dp/z(:)**2 + 20790._dp/z(:)**4)
+         CASE (6)
+            erfa(:) = erfa(:) - expa(:)*(832._dp*z(:)**4 + 4576._dp*z(:)**2 + 20592._dp + &
+                                         72072._dp/z(:)**2 + 180180._dp/z(:)**4 + 270270._dp/z(:)**6)
+         END SELECT
+      END SELECT
+
+      DEALLOCATE (expa, z)
+
+   END SUBROUTINE potential_coulomb_analytic
+
+! **************************************************************************************************
+!> \brief This routine calculates the longrange Coulomb potential of a product of two Gaussian with given angular momentum
+!> \param erfa Array will contain the potential
+!> \param a Exponent of first Gaussian charge distribution
+!> \param b Exponent of second Gaussian charge distribution
+!> \param ll Sum of angular momentum quantum numbers building one charge distribution
+!> \param nu Angular momentum of interaction, (ll-nu) should be even.
+!> \param rad Radial grid
+!> \param omega Range-separation parameter
+! **************************************************************************************************
+   PURE SUBROUTINE potential_longrange_analytic(erfa, a, b, ll, nu, rad, omega)
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: erfa
+      REAL(KIND=dp), INTENT(IN)                          :: a, b
+      INTEGER, INTENT(IN)                                :: ll, nu
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rad
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'potential_longrange_analytic', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, lambda
+      REAL(KIND=dp)                                      :: ab, oab, pab, prel, sab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: expa, z
+
+      IF (MOD(ll - nu, 2) == 0 .AND. ll >= nu .AND. nu >= 0) THEN
+         ALLOCATE (expa, SOURCE=rad)
+         ALLOCATE (z, SOURCE=rad)
+
+         lambda = (ll - nu)/2
+         ab = a + b
+         sab = SQRT(ab)
+         pab = omega**2*ab/(omega**2 + ab)
+         prel = pab/ab
+         z(:) = SQRT(pab)*rad(:)
+         oab = fac(lambda)/SQRT(ab)**(ll + 2)/4.0_dp*SQRT(prel)**(nu + 1)*(2.0_dp*REAL(nu, KIND=dp) + 1.0_dp)
+         expa(:) = EXP(-z(:)**2)
+         lambda = (ll - nu)/2
+
+         IF (lambda > 0) THEN
+            erfa = 0.0_dp
+            DO i = 1, lambda
+               erfa = erfa + (-prel)**i/REAL(i, KIND=dp)*binomial_gen(lambda + nu + 0.5_dp, lambda - i)* &
+                      assoc_laguerre(z, REAL(nu, KIND=dp) + 0.5_dp, i - 1)
+            END DO
+            erfa = erfa*expa*z**nu
+
+            erfa = erfa + 2.0_dp*binomial_gen(lambda + nu + 0.5_dp, lambda)*znFn(z, expa, nu)
+         ELSE
+            erfa = 2.0_dp*znFn(z, expa, nu)
+         END IF
+
+         erfa = erfa*oab
+      ELSE
+         erfa = 0.0_dp
+      END IF
+
+      DEALLOCATE (expa, z)
+
+   END SUBROUTINE potential_longrange_analytic
+
+! **************************************************************************************************
+!> \brief Boys' function times z**n
+!> \param z ...
+!> \param expa ...
+!> \param n ...
+!> \return ...
+! **************************************************************************************************
+   ELEMENTAL FUNCTION znFn(z, expa, n) RESULT(res)
+
+      REAL(KIND=dp), INTENT(IN)                          :: z, expa
+      INTEGER, INTENT(IN)                                :: n
+      REAL(KIND=dp)                                      :: res
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'znFn', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: z_exp
+
+      IF (n >= 0) THEN
+         IF (ABS(z) < 1.0E-20) THEN
+            res = z**n/(2.0_dp*REAL(n, KIND=dp) + 1.0_dp)
+         ELSE IF (n == 0) THEN
+            res = rootpi/2.0_dp*ERF(z)/z
+         ELSE
+            res = rootpi/4.0_dp*ERF(z)/z**2 - expa/z/2.0_dp
+            z_exp = -expa*0.5_dp
+
+            DO i = 2, n
+               res = (REAL(i, KIND=dp) - 0.5_dp)*res/z + z_exp
+               z_exp = z_exp*z
+            END DO
+         END IF
+      ELSE ! Set it to zero (no Boys' function, to keep the ELEMENTAL keyword)
+         res = 0.0_dp
+      END IF
+
+   END FUNCTION znFn
+
+! **************************************************************************************************
+!> \brief ...
+!> \param z ...
+!> \param a ...
+!> \param n ...
+!> \return ...
+! **************************************************************************************************
+   ELEMENTAL FUNCTION assoc_laguerre(z, a, n) RESULT(res)
+
+      REAL(KIND=dp), INTENT(IN)                          :: z, a
+      INTEGER, INTENT(IN)                                :: n
+      REAL(KIND=dp)                                      :: res
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'assoc_laguerre', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: f0, f1
+
+      IF (n == 0) THEN
+         res = 1.0_dp
+      ELSE IF (n == 1) THEN
+         res = a + 1.0_dp - z
+      ELSE IF (n > 0) THEN
+         f0 = 1.0_dp
+         f1 = a + 1.0_dp - z
+
+         DO i = 3, n
+            res = (2.0_dp + (a - 1.0_dp - z)/REAL(i, dp))*f1 - (1.0_dp + (a - 1.0_dp)/REAL(i, dp))*f0
+            f0 = f1
+            f1 = res
+         END DO
+      ELSE ! n is negative, set it zero (no polynomials, to keep the ELEMENTAL keyword)
+         res = 0.0_dp
+      END IF
+
+   END FUNCTION assoc_laguerre
 
 ! **************************************************************************************************
 !> \brief Compute Trace[opmat * pmat] == Trace[opmat * pmat^T] .
@@ -1732,7 +1931,7 @@ CONTAINS
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE ceri_contract(jmat, erint, pmat, nsize, all_nu)
+   PURE SUBROUTINE ceri_contract(jmat, erint, pmat, nsize, all_nu)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: jmat
       TYPE(eri), DIMENSION(:), INTENT(IN)                :: erint
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: pmat
@@ -1808,7 +2007,7 @@ CONTAINS
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE eeri_contract(kmat, erint, pmat, nsize)
+   PURE SUBROUTINE eeri_contract(kmat, erint, pmat, nsize)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: kmat
       TYPE(eri), DIMENSION(:), INTENT(IN)                :: erint
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: pmat
@@ -1887,7 +2086,7 @@ CONTAINS
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE err_matrix(emat, demax, kmat, pmat, umat, upmat, nval, nbs)
+   PURE SUBROUTINE err_matrix(emat, demax, kmat, pmat, umat, upmat, nval, nbs)
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(OUT)    :: emat
       REAL(KIND=dp), INTENT(OUT)                         :: demax
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: kmat, pmat, umat, upmat
@@ -1999,7 +2198,7 @@ CONTAINS
 !>    * 12.2008 created [Juerg Hutter]
 !> \note  A model XC-potential to guess atomic orbitals.
 ! **************************************************************************************************
-   SUBROUTINE wigner_slater_functional(rho, vxc)
+   PURE SUBROUTINE wigner_slater_functional(rho, vxc)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rho
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: vxc
 
@@ -2032,7 +2231,7 @@ CONTAINS
 !> \par History
 !>    * 11.2009 unrestricted KS and HF methods [Juerg Hutter]
 ! **************************************************************************************************
-   FUNCTION atom_consistent_method(method, multiplicity) RESULT(consistent)
+   PURE FUNCTION atom_consistent_method(method, multiplicity) RESULT(consistent)
       INTEGER, INTENT(IN)                                :: method, multiplicity
       LOGICAL                                            :: consistent
 
@@ -2411,7 +2610,8 @@ CONTAINS
                                  IF (basis%basis_type == GTO_BASIS) THEN
                                     ja = ibptr(ia, la)
                                     jb = ibptr(ib, lb)
-                                 smat(ja:ja + nna - 1, jb:jb + nnb - 1) = smat(ja:ja + nna - 1, jb:jb + nnb - 1) + sab(1:nna, 1:nnb)
+                                    smat(ja:ja + nna - 1, jb:jb + nnb - 1) = smat(ja:ja + nna - 1, jb:jb + nnb - 1) &
+                                                                             + sab(1:nna, 1:nnb)
                                  ELSEIF (basis%basis_type == CGTO_BASIS) THEN
                                     DO ka = 1, basis%nbas(la)
                                        DO kb = 1, basis%nbas(lb)
@@ -2559,7 +2759,7 @@ CONTAINS
 !> \param vec  resulting vector
 !> \param n    size of the matrix
 ! **************************************************************************************************
-   SUBROUTINE ipack(mat, vec, n)
+   PURE SUBROUTINE ipack(mat, vec, n)
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: mat
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: vec
       INTEGER, INTENT(IN)                                :: n
@@ -2582,7 +2782,7 @@ CONTAINS
 !> \param vec  vector to unpack
 !> \param n    size of the matrix
 ! **************************************************************************************************
-   SUBROUTINE iunpack(mat, vec, n)
+   PURE SUBROUTINE iunpack(mat, vec, n)
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: mat
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: vec
       INTEGER, INTENT(IN)                                :: n
