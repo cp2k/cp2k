@@ -3,7 +3,6 @@ Cubic_RPA_H2O_check_filtering.inp                     11      1e-08            -
 Cubic_RPA_H2O_check_group_sizes.inp                   11      1e-08            -17.157441957209130
 Cubic_RPA_2x_H2_check_filtering.inp                   11      1e-08             -2.119159936957426
 Cubic_RPA_CH3.inp                                     11      3e-07             -7.415770007082211
-Cubic_RPA_check_PAOs.inp                              11      1e-03            -17.145199052654597
 Cubic_RPA_H2O_standard_svd.inp                        11      1e-08            -17.160037461527960
 Cubic_RPA_H2O_trunc.inp                               11      1e-08            -17.160104846593164
 RPA_kpoints_H2O.inp                                   11      1e-08            -17.384611923474342

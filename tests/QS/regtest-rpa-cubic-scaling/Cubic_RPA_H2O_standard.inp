@@ -38,7 +38,9 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        RI OVERLAP
+        &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+        &END
         &WFC_GPW
           ! normally, this EPS_FILTER controls the accuracy and
           ! the time for the cubic_scaling RPA calculation
@@ -46,7 +48,8 @@
         &END
 !        ERI_METHOD MME
         ERI_METHOD OS
-        IM_TIME
+        &IM_TIME
+        &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
           MINIMAX

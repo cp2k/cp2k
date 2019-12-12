@@ -45,8 +45,9 @@
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
         ERI_METHOD OS
-        RI OVERLAP
-        IM_TIME
+        &RI_METRIC
+          POTENTIAL_TYPE IDENTITY
+        &END
         &IM_TIME
         &END IM_TIME
         &RI_RPA

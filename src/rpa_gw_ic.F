@@ -10,27 +10,16 @@
 ! **************************************************************************************************
 MODULE rpa_gw_ic
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              cp_dbcsr_m_by_n_from_row_template,&
-                                              cp_dbcsr_m_by_n_from_template,&
-                                              dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
+                                              cp_dbcsr_m_by_n_from_template
+   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_create, dbcsr_dot, dbcsr_get_info, dbcsr_get_stored_coordinates, &
-        dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, &
+        dbcsr_add, dbcsr_create, dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_init_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release_p, &
         dbcsr_reserve_all_blocks, dbcsr_scalar, dbcsr_set, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_default
+        dbcsr_type_no_symmetry
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
         dbcsr_t_destroy, dbcsr_t_get_block, dbcsr_t_iterator_blocks_left, &
@@ -63,49 +52,32 @@ CONTAINS
 !> \brief ...
 !> \param Eigenval ...
 !> \param mat_SinvVSinv ...
-!> \param mat_3c_overl_nnP_ic ...
-!> \param mat_3c_overl_nnP_ic_reflected ...
-!> \param do_dbcsr_t ...
 !> \param t_3c_overl_nnP_ic ...
 !> \param t_3c_overl_nnP_ic_reflected ...
-!> \param mat_work ...
-!> \param matrix_s ...
 !> \param gw_corr_lev_tot ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
 !> \param homo ...
-!> \param nmo ...
-!> \param dimen_RI ...
 !> \param unit_nr ...
 !> \param print_ic_values ...
-!> \param do_ic_opt_homo_lumo ...
-!> \param fm_mat_Q ...
 !> \param para_env ...
 !> \param mp2_env ...
 !> \param do_alpha ...
 !> \param do_beta ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_ic_correction(Eigenval, mat_SinvVSinv, mat_3c_overl_nnP_ic, &
-                                      mat_3c_overl_nnP_ic_reflected, do_dbcsr_t, &
-                                      t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, mat_work, matrix_s, gw_corr_lev_tot, &
-                                      gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, dimen_RI, unit_nr, &
-                                      print_ic_values, do_ic_opt_homo_lumo, fm_mat_Q, para_env, mp2_env, &
+   SUBROUTINE calculate_ic_correction(Eigenval, mat_SinvVSinv, &
+                                      t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, gw_corr_lev_tot, &
+                                      gw_corr_lev_occ, gw_corr_lev_virt, homo, unit_nr, &
+                                      print_ic_values, para_env, mp2_env, &
                                       do_alpha, do_beta)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_nnP_ic, &
-                                                            mat_3c_overl_nnP_ic_reflected
-      LOGICAL, INTENT(IN)                                :: do_dbcsr_t
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_nnP_ic, &
                                                             t_3c_overl_nnP_ic_reflected
-      TYPE(dbcsr_type), POINTER                          :: mat_work
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER, INTENT(IN)                                :: gw_corr_lev_tot, gw_corr_lev_occ, &
-                                                            gw_corr_lev_virt, homo, nmo, dimen_RI, &
-                                                            unit_nr
-      LOGICAL, INTENT(IN)                                :: print_ic_values, do_ic_opt_homo_lumo
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Q
+                                                            gw_corr_lev_virt, homo, unit_nr
+      LOGICAL, INTENT(IN)                                :: print_ic_values
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type), POINTER                            :: mp2_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
@@ -115,26 +87,14 @@ CONTAINS
 
       CHARACTER(4)                                       :: occ_virt
       INTEGER                                            :: handle, mo_end, mo_start, n_level_gw, &
-                                                            n_level_gw_ref, sc_iter, sqrt_max_bsize
+                                                            n_level_gw_ref, sqrt_max_bsize
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist_1, dist_2, sizes_RI_split
       INTEGER, DIMENSION(2)                              :: pdims
       INTEGER, DIMENSION(:), POINTER                     :: sizes_RI
-      LOGICAL                                            :: do_closed_shell, do_neaton, my_do_alpha, &
-                                                            my_do_beta
-      REAL(KIND=dp)                                      :: alpha, old_energy
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coeff_homo, coeff_lumo, &
-                                                            Delta_Sigma_Neaton, Eigenval_M_occ, &
-                                                            Eigenval_M_virt, vec_P_occ, vec_P_virt
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_occ, fm_struct_virt
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_M_occ, fm_mat_M_virt, &
-                                                            fm_mat_U_occ, fm_mat_U_virt
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_B_nm_P, mat_N_occ_dbcsr, &
-                                                            mat_N_virt_dbcsr
+      LOGICAL                                            :: do_closed_shell, my_do_alpha, my_do_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Delta_Sigma_Neaton
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d
       TYPE(dbcsr_t_type) :: t_3c_overl_nnP_ic_reflected_ctr, t_SinvVSinv, t_SinvVSinv_tmp
-      TYPE(dbcsr_type), POINTER                          :: coeff_homo_dbcsr, coeff_lumo_dbcsr, &
-                                                            temp_RI_vector, vec_P_occ_dbcsr, &
-                                                            vec_P_virt_dbcsr
 
       CALL timeset(routineN, handle)
 
@@ -152,395 +112,116 @@ CONTAINS
 
       do_closed_shell = .NOT. (my_do_alpha .OR. my_do_beta)
 
-      do_neaton = .NOT. do_ic_opt_homo_lumo
+      ALLOCATE (Delta_Sigma_Neaton(gw_corr_lev_tot))
+      Delta_Sigma_Neaton = 0.0_dp
 
-      IF (do_neaton) THEN
+      mo_start = homo - gw_corr_lev_occ + 1
+      mo_end = homo + gw_corr_lev_virt
+      CPASSERT(mo_end - mo_start + 1 == gw_corr_lev_tot)
 
-         ALLOCATE (Delta_Sigma_Neaton(gw_corr_lev_tot))
-         Delta_Sigma_Neaton = 0.0_dp
+      sqrt_max_bsize = mp2_env%ri_rpa_im_time%max_bsize_sqrt
+      CALL dbcsr_get_info(mat_SinvVSinv%matrix, row_blk_size=sizes_RI)
+      CALL split_block_sizes(sizes_RI, sizes_RI_split, sqrt_max_bsize)
 
-         IF (do_dbcsr_t) THEN
+      CALL dbcsr_t_create(mat_SinvVSinv%matrix, t_SinvVSinv_tmp)
+      CALL dbcsr_t_copy_matrix_to_tensor(mat_SinvVSinv%matrix, t_SinvVSinv_tmp)
+      pdims = 0
+      CALL mp_dims_create(para_env%num_pe, pdims)
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_2d)
+      CALL create_2c_tensor(t_SinvVSinv, dist_1, dist_2, pgrid_2d, sizes_RI_split, sizes_RI_split, &
+                            name="(RI|RI)")
+      DEALLOCATE (dist_1, dist_2)
+      CALL dbcsr_t_pgrid_destroy(pgrid_2d)
 
-            mo_start = homo - gw_corr_lev_occ + 1
-            mo_end = homo + gw_corr_lev_virt
-            CPASSERT(mo_end - mo_start + 1 == gw_corr_lev_tot)
+      CALL dbcsr_t_copy(t_SinvVSinv_tmp, t_SinvVSinv)
+      CALL dbcsr_t_destroy(t_SinvVSinv_tmp)
+      CALL dbcsr_t_create(t_3c_overl_nnP_ic_reflected, t_3c_overl_nnP_ic_reflected_ctr)
+      CALL dbcsr_t_contract(dbcsr_scalar(0.5_dp), t_SinvVSinv, t_3c_overl_nnP_ic_reflected, &
+                            dbcsr_scalar(0.0_dp), t_3c_overl_nnP_ic_reflected_ctr, &
+                            contract_1=[2], notcontract_1=[1], &
+                            contract_2=[1], notcontract_2=[2, 3], &
+                            map_1=[1], map_2=[2, 3])
 
-            sqrt_max_bsize = mp2_env%ri_rpa_im_time%max_bsize_sqrt
-            CALL dbcsr_get_info(mat_SinvVSinv%matrix, row_blk_size=sizes_RI)
-            CALL split_block_sizes(sizes_RI, sizes_RI_split, sqrt_max_bsize)
+      CALL trace_ic_gw(t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected_ctr, Delta_Sigma_Neaton, [mo_start, mo_end], para_env)
 
-            CALL dbcsr_t_create(mat_SinvVSinv%matrix, t_SinvVSinv_tmp)
-            CALL dbcsr_t_copy_matrix_to_tensor(mat_SinvVSinv%matrix, t_SinvVSinv_tmp)
-            pdims = 0
-            CALL mp_dims_create(para_env%num_pe, pdims)
-            CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_2d)
-            CALL create_2c_tensor(t_SinvVSinv, dist_1, dist_2, pgrid_2d, sizes_RI_split, sizes_RI_split, &
-                                  name="(RI|RI)")
-            DEALLOCATE (dist_1, dist_2)
-            CALL dbcsr_t_pgrid_destroy(pgrid_2d)
+      Delta_Sigma_Neaton(gw_corr_lev_occ + 1:) = -Delta_Sigma_Neaton(gw_corr_lev_occ + 1:)
 
-            CALL dbcsr_t_copy(t_SinvVSinv_tmp, t_SinvVSinv)
-            CALL dbcsr_t_destroy(t_SinvVSinv_tmp)
-            CALL dbcsr_t_create(t_3c_overl_nnP_ic_reflected, t_3c_overl_nnP_ic_reflected_ctr)
-            CALL dbcsr_t_contract(dbcsr_scalar(0.5_dp), t_SinvVSinv, t_3c_overl_nnP_ic_reflected, &
-                                  dbcsr_scalar(0.0_dp), t_3c_overl_nnP_ic_reflected_ctr, &
-                                  contract_1=[2], notcontract_1=[1], &
-                                  contract_2=[1], notcontract_2=[2, 3], &
-                                  map_1=[1], map_2=[2, 3])
+      CALL dbcsr_t_destroy(t_SinvVSinv)
+      CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_reflected_ctr)
 
-            CALL trace_ic_gw(t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected_ctr, Delta_Sigma_Neaton, [mo_start, mo_end], para_env)
+      IF (unit_nr > 0) THEN
 
-            Delta_Sigma_Neaton(gw_corr_lev_occ + 1:) = -Delta_Sigma_Neaton(gw_corr_lev_occ + 1:)
+         WRITE (unit_nr, *) ' '
 
-            CALL dbcsr_t_destroy(t_SinvVSinv)
-            CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_reflected_ctr)
-
-         ELSE
-            DO n_level_gw = 1, gw_corr_lev_tot
-
-               IF (n_level_gw > gw_corr_lev_occ) THEN
-                  alpha = -0.5_dp
-               ELSE
-                  alpha = 0.5_dp
-               END IF
-
-               CALL dbcsr_multiply("N", "N", alpha, mat_SinvVSinv%matrix, &
-                                   mat_3c_overl_nnP_ic(n_level_gw)%matrix, 0.0_dp, mat_work)
-
-               CALL dbcsr_dot(mat_work, &
-                              mat_3c_overl_nnP_ic_reflected(n_level_gw)%matrix, &
-                              Delta_Sigma_Neaton(n_level_gw))
-
-            END DO
-         ENDIF
-
-         IF (unit_nr > 0) THEN
-
-            WRITE (unit_nr, *) ' '
-
-            IF (do_closed_shell) THEN
-               WRITE (unit_nr, '(T3,A)') 'Single-electron energies with image charge (ic) correction'
-               WRITE (unit_nr, '(T3,A)') '----------------------------------------------------------'
-            ELSE IF (my_do_alpha) THEN
-               WRITE (unit_nr, '(T3,A)') 'Single-electron energies of alpha spins with image charge (ic) correction'
-               WRITE (unit_nr, '(T3,A)') '-------------------------------------------------------------------------'
-            ELSE IF (my_do_beta) THEN
-               WRITE (unit_nr, '(T3,A)') 'Single-electron energies of beta spins with image charge (ic) correction'
-               WRITE (unit_nr, '(T3,A)') '------------------------------------------------------------------------'
-            END IF
-
-            WRITE (unit_nr, *) ' '
-            WRITE (unit_nr, '(T3,A)') 'Reference for the ic: Neaton et al., PRL 97, 216405 (2006)'
-            WRITE (unit_nr, *) ' '
-
-            WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T14,2A)') 'MO     E_n before ic corr           Delta E_ic', &
-               '    E_n after ic corr'
-
-            DO n_level_gw = 1, gw_corr_lev_tot
-               n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
-               IF (n_level_gw <= gw_corr_lev_occ) THEN
-                  occ_virt = 'occ'
-               ELSE
-                  occ_virt = 'vir'
-               END IF
-
-               WRITE (unit_nr, '(T4,I4,3A,3F21.3)') &
-                  n_level_gw_ref, ' ( ', occ_virt, ')  ', &
-                  Eigenval(n_level_gw_ref)*evolt, &
-                  Delta_Sigma_Neaton(n_level_gw)*evolt, &
-                  (Eigenval(n_level_gw_ref) + Delta_Sigma_Neaton(n_level_gw))*evolt
-
-            END DO
-
-            IF (do_closed_shell) THEN
-               WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F57.2)') 'IC HOMO-LUMO gap (eV)', (Eigenval(homo + 1) + &
-                                                                         Delta_Sigma_Neaton(gw_corr_lev_occ + 1) - &
-                                                                         Eigenval(homo) - &
-                                                                         Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
-            ELSE IF (my_do_alpha) THEN
-               WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F51.2)') 'Alpha IC HOMO-LUMO gap (eV)', (Eigenval(homo + 1) + &
-                                                                               Delta_Sigma_Neaton(gw_corr_lev_occ + 1) - &
-                                                                               Eigenval(homo) - &
-                                                                               Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
-            ELSE IF (my_do_beta) THEN
-               WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F52.2)') 'Beta IC HOMO-LUMO gap (eV)', (Eigenval(homo + 1) + &
-                                                                              Delta_Sigma_Neaton(gw_corr_lev_occ + 1) - &
-                                                                              Eigenval(homo) - &
-                                                                              Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
-            END IF
-
-            IF (print_ic_values) THEN
-
-               WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A)') 'Horizontal list for copying the image charge corrections for use as input:'
-               WRITE (unit_nr, '(*(F7.3))') (Delta_Sigma_Neaton(n_level_gw)*evolt, &
-                                             n_level_gw=1, gw_corr_lev_tot)
-
-            END IF
-
+         IF (do_closed_shell) THEN
+            WRITE (unit_nr, '(T3,A)') 'Single-electron energies with image charge (ic) correction'
+            WRITE (unit_nr, '(T3,A)') '----------------------------------------------------------'
+         ELSE IF (my_do_alpha) THEN
+            WRITE (unit_nr, '(T3,A)') 'Single-electron energies of alpha spins with image charge (ic) correction'
+            WRITE (unit_nr, '(T3,A)') '-------------------------------------------------------------------------'
+         ELSE IF (my_do_beta) THEN
+            WRITE (unit_nr, '(T3,A)') 'Single-electron energies of beta spins with image charge (ic) correction'
+            WRITE (unit_nr, '(T3,A)') '------------------------------------------------------------------------'
          END IF
 
-         Eigenval(homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt) = Eigenval(homo - gw_corr_lev_occ + 1: &
-                                                                                 homo + gw_corr_lev_virt) &
-                                                                        + Delta_Sigma_Neaton(1:gw_corr_lev_tot)
+         WRITE (unit_nr, *) ' '
+         WRITE (unit_nr, '(T3,A)') 'Reference for the ic: Neaton et al., PRL 97, 216405 (2006)'
+         WRITE (unit_nr, *) ' '
 
-      END IF
-
-      IF (do_ic_opt_homo_lumo) THEN
-
-         IF (SIZE(mp2_env%ri_g0w0%gw_eigenvalues) > 1) THEN
-
-            CPASSERT(SIZE(mp2_env%ri_g0w0%gw_eigenvalues) == gw_corr_lev_tot)
-
-            Eigenval(homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt) = mp2_env%ri_g0w0%gw_eigenvalues(1:gw_corr_lev_tot)
-
-         END IF
-
-         ALLOCATE (coeff_homo(homo))
-         coeff_homo = 0.0_dp
-         ! initial guess
-         coeff_homo(homo) = 1.0_dp
-
-         ALLOCATE (coeff_lumo(nmo - homo))
-         coeff_lumo = 0.0_dp
-         ! initial guess
-         coeff_lumo(1) = 1.0_dp
-
-         ALLOCATE (vec_P_occ(dimen_RI))
-         ALLOCATE (vec_P_virt(dimen_RI))
-
-         NULLIFY (mat_B_nm_P)
-         CALL dbcsr_allocate_matrix_set(mat_B_nm_P, gw_corr_lev_tot)
+         WRITE (unit_nr, '(T3,A)') ' '
+         WRITE (unit_nr, '(T14,2A)') 'MO     E_n before ic corr           Delta E_ic', &
+            '    E_n after ic corr'
 
          DO n_level_gw = 1, gw_corr_lev_tot
-
-            ALLOCATE (mat_B_nm_P(n_level_gw)%matrix)
-            CALL dbcsr_create(matrix=mat_B_nm_P(n_level_gw)%matrix, &
-                              template=mat_3c_overl_nnP_ic(1)%matrix, &
-                              matrix_type=dbcsr_type_no_symmetry)
-
-            IF (n_level_gw > gw_corr_lev_occ) THEN
-               alpha = -0.5_dp
+            n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
+            IF (n_level_gw <= gw_corr_lev_occ) THEN
+               occ_virt = 'occ'
             ELSE
-               alpha = 0.5_dp
+               occ_virt = 'vir'
             END IF
 
-            CALL dbcsr_multiply("N", "N", alpha, mat_SinvVSinv%matrix, &
-                                mat_3c_overl_nnP_ic(n_level_gw)%matrix, 0.0_dp, &
-                                mat_B_nm_P(n_level_gw)%matrix)
+            WRITE (unit_nr, '(T4,I4,3A,3F21.3)') &
+               n_level_gw_ref, ' ( ', occ_virt, ')  ', &
+               Eigenval(n_level_gw_ref)*evolt, &
+               Delta_Sigma_Neaton(n_level_gw)*evolt, &
+               (Eigenval(n_level_gw_ref) + Delta_Sigma_Neaton(n_level_gw))*evolt
 
          END DO
 
-         NULLIFY (coeff_homo_dbcsr)
-         CALL dbcsr_init_p(coeff_homo_dbcsr)
-         CALL cp_dbcsr_m_by_n_from_row_template(coeff_homo_dbcsr, template=matrix_s(1)%matrix, n=1, &
-                                                sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_default)
-         CALL dbcsr_reserve_all_blocks(coeff_homo_dbcsr)
-         CALL dbcsr_set(coeff_homo_dbcsr, 0.0_dp)
+         IF (do_closed_shell) THEN
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A,F57.2)') 'IC HOMO-LUMO gap (eV)', (Eigenval(homo + 1) + &
+                                                                      Delta_Sigma_Neaton(gw_corr_lev_occ + 1) - &
+                                                                      Eigenval(homo) - &
+                                                                      Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
+         ELSE IF (my_do_alpha) THEN
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A,F51.2)') 'Alpha IC HOMO-LUMO gap (eV)', (Eigenval(homo + 1) + &
+                                                                            Delta_Sigma_Neaton(gw_corr_lev_occ + 1) - &
+                                                                            Eigenval(homo) - &
+                                                                            Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
+         ELSE IF (my_do_beta) THEN
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A,F52.2)') 'Beta IC HOMO-LUMO gap (eV)', (Eigenval(homo + 1) + &
+                                                                           Delta_Sigma_Neaton(gw_corr_lev_occ + 1) - &
+                                                                           Eigenval(homo) - &
+                                                                           Delta_Sigma_Neaton(gw_corr_lev_occ))*evolt
+         END IF
 
-         NULLIFY (coeff_lumo_dbcsr)
-         CALL dbcsr_init_p(coeff_lumo_dbcsr)
-         CALL cp_dbcsr_m_by_n_from_row_template(coeff_lumo_dbcsr, template=matrix_s(1)%matrix, n=1, &
-                                                sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_default)
-         CALL dbcsr_reserve_all_blocks(coeff_lumo_dbcsr)
-         CALL dbcsr_set(coeff_lumo_dbcsr, 0.0_dp)
+         IF (print_ic_values) THEN
 
-         NULLIFY (vec_P_occ_dbcsr)
-         CALL dbcsr_init_p(vec_P_occ_dbcsr)
-         CALL cp_dbcsr_m_by_n_from_row_template(vec_P_occ_dbcsr, template=mat_SinvVSinv%matrix, n=1, &
-                                                sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_default)
-         CALL dbcsr_reserve_all_blocks(vec_P_occ_dbcsr)
-         CALL dbcsr_set(vec_P_occ_dbcsr, 0.0_dp)
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A)') 'Horizontal list for copying the image charge corrections for use as input:'
+            WRITE (unit_nr, '(*(F7.3))') (Delta_Sigma_Neaton(n_level_gw)*evolt, &
+                                          n_level_gw=1, gw_corr_lev_tot)
 
-         NULLIFY (vec_P_virt_dbcsr)
-         CALL dbcsr_init_p(vec_P_virt_dbcsr)
-         CALL cp_dbcsr_m_by_n_from_row_template(vec_P_virt_dbcsr, template=mat_SinvVSinv%matrix, n=1, &
-                                                sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_default)
-         CALL dbcsr_reserve_all_blocks(vec_P_virt_dbcsr)
-         CALL dbcsr_set(vec_P_virt_dbcsr, 0.0_dp)
-
-         NULLIFY (temp_RI_vector)
-         CALL dbcsr_init_p(temp_RI_vector)
-         CALL dbcsr_create(matrix=temp_RI_vector, &
-                           template=vec_P_occ_dbcsr, &
-                           matrix_type=dbcsr_type_no_symmetry)
-
-         NULLIFY (mat_N_occ_dbcsr)
-         CALL dbcsr_allocate_matrix_set(mat_N_occ_dbcsr, gw_corr_lev_occ)
-
-         DO n_level_gw = 1, gw_corr_lev_occ
-
-            ALLOCATE (mat_N_occ_dbcsr(n_level_gw)%matrix)
-            CALL dbcsr_create(matrix=mat_N_occ_dbcsr(n_level_gw)%matrix, &
-                              template=coeff_homo_dbcsr, &
-                              matrix_type=dbcsr_type_no_symmetry)
-
-         END DO
-
-         NULLIFY (mat_N_virt_dbcsr)
-         CALL dbcsr_allocate_matrix_set(mat_N_virt_dbcsr, gw_corr_lev_virt)
-
-         DO n_level_gw = 1, gw_corr_lev_virt
-
-            ALLOCATE (mat_N_virt_dbcsr(n_level_gw)%matrix)
-            CALL dbcsr_create(matrix=mat_N_virt_dbcsr(n_level_gw)%matrix, &
-                              template=coeff_lumo_dbcsr, &
-                              matrix_type=dbcsr_type_no_symmetry)
-
-         END DO
-
-         NULLIFY (fm_struct_occ)
-         CALL cp_fm_struct_create(fm_struct_occ, context=fm_mat_Q%matrix_struct%context, nrow_global=gw_corr_lev_occ, &
-                                  ncol_global=gw_corr_lev_occ, para_env=fm_mat_Q%matrix_struct%para_env)
-
-         NULLIFY (fm_mat_M_occ)
-         CALL cp_fm_create(fm_mat_M_occ, fm_struct_occ)
-         CALL cp_fm_set_all(fm_mat_M_occ, 0.0_dp)
-
-         NULLIFY (fm_mat_U_occ)
-         CALL cp_fm_create(fm_mat_U_occ, fm_struct_occ)
-         CALL cp_fm_set_all(fm_mat_U_occ, 0.0_dp)
-
-         NULLIFY (fm_struct_virt)
-         CALL cp_fm_struct_create(fm_struct_virt, context=fm_mat_Q%matrix_struct%context, nrow_global=gw_corr_lev_virt, &
-                                  ncol_global=gw_corr_lev_virt, para_env=fm_mat_Q%matrix_struct%para_env)
-
-         NULLIFY (fm_mat_M_virt)
-         CALL cp_fm_create(fm_mat_M_virt, fm_struct_virt)
-         CALL cp_fm_set_all(fm_mat_M_virt, 0.0_dp)
-
-         NULLIFY (fm_mat_U_virt)
-         CALL cp_fm_create(fm_mat_U_virt, fm_struct_virt)
-         CALL cp_fm_set_all(fm_mat_U_virt, 0.0_dp)
-
-         ALLOCATE (Eigenval_M_occ(gw_corr_lev_occ))
-
-         ALLOCATE (Eigenval_M_virt(gw_corr_lev_virt))
-
-         old_energy = Eigenval(homo)
-
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T40,F41.2)') 'Gas phase HOMO (eV): ', Eigenval(homo)*evolt
-
-         DO sc_iter = 1, 20
-
-            CALL fill_coeff_dbcsr_occ(coeff_homo_dbcsr, coeff_homo, homo)
-
-            CALL dbcsr_set(vec_P_occ_dbcsr, 0.0_dp)
-
-            ! build vec_P_occ
-            DO n_level_gw = 1, gw_corr_lev_occ
-
-               n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
-
-               CALL dbcsr_multiply("N", "N", 1.0_dp, mat_B_nm_P(n_level_gw)%matrix, &
-                                   coeff_homo_dbcsr, 0.0_dp, temp_RI_vector)
-
-               CALL dbcsr_add(vec_P_occ_dbcsr, temp_RI_vector, 1.0_dp, coeff_homo(n_level_gw_ref))
-
-            END DO
-
-            ! build N matrix
-            DO n_level_gw = 1, gw_corr_lev_occ
-
-               CALL dbcsr_multiply("T", "N", 1.0_dp, mat_3c_overl_nnP_ic_reflected(n_level_gw)%matrix, &
-                                   vec_P_occ_dbcsr, 0.0_dp, mat_N_occ_dbcsr(n_level_gw)%matrix)
-
-            END DO
-
-            CALL fill_fm_mat_M_occ(fm_mat_M_occ, mat_N_occ_dbcsr, matrix_s, Eigenval, gw_corr_lev_occ, homo, para_env)
-
-            IF (sc_iter == 1) THEN
-               CALL print_Neaton_value(fm_mat_M_occ, unit_nr, gw_corr_lev_occ, para_env, do_homo=.TRUE.)
-            END IF
-
-            CALL cp_fm_scale(-1.0_dp, fm_mat_M_occ)
-
-            CALL choose_eigv_solver(fm_mat_M_occ, fm_mat_U_occ, Eigenval_M_occ)
-
-            IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,I5,A,F35.2)') 'HOMO SCF Cycle: ', sc_iter, &
-               '   HOMO with IC (eV): ', &
-               -Eigenval_M_occ(1)*evolt
-
-            IF (ABS(old_energy + Eigenval_M_occ(1)) < 1.0E-5) EXIT
-
-            old_energy = -Eigenval_M_occ(1)
-
-            CALL update_coeff_homo(coeff_homo, fm_mat_U_occ, para_env, homo, gw_corr_lev_occ)
-
-         END DO
-
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T40,F41.2)') 'Gas phase LUMO (eV): ', Eigenval(homo + 1)*evolt
-
-         DO sc_iter = 1, 20
-
-            CALL fill_coeff_dbcsr_virt(coeff_lumo_dbcsr, coeff_lumo, homo)
-
-            CALL dbcsr_set(vec_P_virt_dbcsr, 0.0_dp)
-
-            ! build vec_P_virt
-            DO n_level_gw = gw_corr_lev_occ + 1, gw_corr_lev_tot
-
-               n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
-
-               CALL dbcsr_multiply("N", "N", 1.0_dp, mat_B_nm_P(n_level_gw)%matrix, &
-                                   coeff_lumo_dbcsr, 0.0_dp, temp_RI_vector)
-
-               CALL dbcsr_add(vec_P_virt_dbcsr, temp_RI_vector, 1.0_dp, coeff_lumo(n_level_gw_ref - homo))
-
-            END DO
-
-            ! build N matrix
-            DO n_level_gw = 1, gw_corr_lev_virt
-
-               CALL dbcsr_multiply("T", "N", 1.0_dp, mat_3c_overl_nnP_ic_reflected(n_level_gw + gw_corr_lev_occ)%matrix, &
-                                   vec_P_virt_dbcsr, 0.0_dp, mat_N_virt_dbcsr(n_level_gw)%matrix)
-
-            END DO
-
-            CALL fill_fm_mat_M_virt(fm_mat_M_virt, mat_N_virt_dbcsr, matrix_s, Eigenval, gw_corr_lev_virt, homo, para_env)
-
-            IF (sc_iter == 1) THEN
-               CALL print_Neaton_value(fm_mat_M_virt, unit_nr, 1, para_env, do_lumo=.TRUE.)
-            END IF
-
-            CALL choose_eigv_solver(fm_mat_M_virt, fm_mat_U_virt, Eigenval_M_virt)
-
-            IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,I5,A,F35.2)') 'LUMO SCF Cycle: ', sc_iter, &
-               '   LUMO with IC (eV): ', &
-               Eigenval_M_virt(1)*evolt
-
-            IF (ABS(old_energy - Eigenval_M_virt(1)) < 1.0E-5) EXIT
-
-            old_energy = Eigenval_M_virt(1)
-
-            CALL update_coeff_homo(coeff_lumo, fm_mat_U_virt, para_env, nmo - homo, &
-                                   gw_corr_lev_virt, do_lumo=.TRUE.)
-
-         END DO
-
-         DEALLOCATE (coeff_homo, coeff_lumo)
-         DEALLOCATE (Eigenval_M_occ)
-         DEALLOCATE (vec_P_occ, vec_P_virt)
-         CALL dbcsr_deallocate_matrix_set(mat_B_nm_P)
-         CALL dbcsr_deallocate_matrix_set(mat_N_occ_dbcsr)
-         CALL dbcsr_deallocate_matrix_set(mat_N_virt_dbcsr)
-         CALL dbcsr_release_p(coeff_homo_dbcsr)
-         CALL dbcsr_release_p(coeff_lumo_dbcsr)
-         CALL dbcsr_release_p(vec_P_occ_dbcsr)
-         CALL dbcsr_release_p(vec_P_virt_dbcsr)
-         CALL dbcsr_release_p(temp_RI_vector)
-         CALL cp_fm_release(fm_mat_M_occ)
-         CALL cp_fm_release(fm_mat_M_virt)
-         CALL cp_fm_release(fm_mat_U_occ)
-         CALL cp_fm_release(fm_mat_U_virt)
-         CALL cp_fm_struct_release(fm_struct_occ)
-         CALL cp_fm_struct_release(fm_struct_virt)
+         END IF
 
       END IF
+
+      Eigenval(homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt) = Eigenval(homo - gw_corr_lev_occ + 1: &
+                                                                              homo + gw_corr_lev_virt) &
+                                                                     + Delta_Sigma_Neaton(1:gw_corr_lev_tot)
 
       CALL timestop(handle)
 

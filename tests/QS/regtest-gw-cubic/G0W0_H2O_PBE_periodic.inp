@@ -45,14 +45,13 @@
         &WFC_GPW
           ! normally, this EPS_FILTER controls the accuracy and
           ! the time for the cubic_scaling RPA calculation
-          EPS_FILTER  1.0E-6
+          EPS_FILTER  1.0E-7
         &END
-        RI OVERLAP
+        &RI_METRIC
+          POTENTIAL_TYPE IDENTITY
+        &END
         ERI_METHOD OS
-        IM_TIME
         &IM_TIME
-          GROUP_SIZE_3c 1
-          GROUP_SIZE_P 1
         &END
         &RI_RPA
           &HF

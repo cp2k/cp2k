@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  RI_laplace_MP2_H2O
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -37,15 +37,16 @@
         FRACTION 1.0000000
         &SCREENING
           EPS_SCHWARZ 1.0E-8
-          SCREEN_ON_INITIAL_P FALSE 
+          SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF
       &WF_CORRELATION
         METHOD  RI_SOS_LAPLACE
         &RI_LAPLACE
-          QUADRATURE_POINTS  5 
+          QUADRATURE_POINTS  5
         &END
-        IM_TIME
+        &IM_TIME
+        &END
         &WFC_GPW
           CUTOFF  100
           REL_CUTOFF 20

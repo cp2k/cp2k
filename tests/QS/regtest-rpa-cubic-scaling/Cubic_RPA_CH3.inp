@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  RI_RPA_H2O_minimax
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -40,16 +40,19 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        RI OVERLAP
+        &RI_METRIC
+          POTENTIAL_TYPE IDENTITY
+        &END
         &WFC_GPW
-          ! normally, this EPS_FILTER controls the accuracy and 
+          ! normally, this EPS_FILTER controls the accuracy and
           ! the time for the cubic_scaling RPA calculation
-          EPS_FILTER  1.0E-4
+          EPS_FILTER  1.0E-6
           EPS_GRID    1.0E-4
         &END
 !        ERI_METHOD MME
         ERI_METHOD OS
-        IM_TIME
+        &IM_TIME
+        &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
           MINIMAX
