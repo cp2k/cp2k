@@ -382,7 +382,7 @@ CONTAINS
 !> \param sx ...
 !> \param sc ...
 ! **************************************************************************************************
-   ELEMENTAL IMPURE SUBROUTINE ldasr(rs, mu, excsr, vxcsr, sx, sc)
+   ELEMENTAL SUBROUTINE ldasr(rs, mu, excsr, vxcsr, sx, sc)
       REAL(KIND=dp), INTENT(IN)                          :: rs, mu
       REAL(KIND=dp), INTENT(OUT)                         :: excsr, vxcsr
       REAL(KIND=dp), INTENT(IN)                          :: sx, sc
