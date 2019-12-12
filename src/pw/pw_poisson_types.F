@@ -18,9 +18,7 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE pw_poisson_types
-   USE bessel_lib,                      ONLY: bessj0,&
-                                              bessj1,&
-                                              bessk0,&
+   USE bessel_lib,                      ONLY: bessk0,&
                                               bessk1
    USE dielectric_types,                ONLY: dielectric_parameters
    USE dirichlet_bc_types,              ONLY: dirichlet_bc_parameters
@@ -379,8 +377,8 @@ CONTAINS
             g3d = fourpi/g2
             gxy = SQRT(MAX(0.0_dp, g2 - grid%g(iz, ig)*grid%g(iz, ig)))
             gz = ABS(grid%g(iz, ig))
-            j0g = bessj0(rlength*gxy)
-            j1g = bessj1(rlength*gxy)
+            j0g = BESSEL_J0(rlength*gxy)
+            j1g = BESSEL_J1(rlength*gxy)
             IF (gz > 0) THEN
                k0g = bessk0(rlength*gz)
                k1g = bessk1(rlength*gz)
