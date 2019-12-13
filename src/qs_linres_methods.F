@@ -1316,7 +1316,8 @@ CONTAINS
          ns = SIZE(rho_ao)
          psmat(1:ns, 1:1) => rho_ao(1:ns)
 
-         CALL update_ks_atom(qs_env, ksmat, psmat, .FALSE., .TRUE., p_env)
+         CALL update_ks_atom(qs_env, ksmat, psmat, forces=.FALSE., tddft=.TRUE., &
+                             rho_atom_external=p_env%local_rho_set%rho_atom_set)
 
       END IF
 
@@ -1693,6 +1694,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_aux_g, rho1_aux_r, tau_pw, v_xc
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
+      TYPE(task_list_type), POINTER                      :: task_list_aux_fit
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type), POINTER                     :: rho1_set
 
@@ -1702,7 +1704,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(v))
       CPASSERT(ASSOCIATED(Av))
 
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, task_list_aux_fit=task_list_aux_fit)
 
       IF (dft_control%do_admm) THEN
          IF (dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
@@ -1779,7 +1781,8 @@ CONTAINS
                CALL dbcsr_copy(xcmat%matrix, matrix_s(1)%matrix)
                CALL dbcsr_set(xcmat%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=v_xc(ispin), hmat=xcmat, qs_env=qs_env, &
-                                       calculate_forces=.FALSE., basis_type="AUX_FIT")
+                                       calculate_forces=.FALSE., basis_type="AUX_FIT", &
+                                       task_list_external=task_list_aux_fit)
                CALL cp_fm_get_info(c0(ispin)%matrix, nrow_global=nao, ncol_global=ncol)
                CALL cp_gemm('N', 'N', nao_aux, ncol, nao, 1.0_dp, admm_env%A, &
                             c0(ispin)%matrix, 0.0_dp, tc0)

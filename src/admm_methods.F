@@ -7,13 +7,18 @@
 !> \brief Contains ADMM methods which require molecular orbitals
 !> \par History
 !>      04.2008 created [Manuel Guidon]
+!>      12.2019 Made GAPW compatible [A. Bussy]
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE admm_methods
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_gapw_type,&
+                                              admm_type
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                              gto_basis_set_type
    USE bibliography,                    ONLY: Merlot2014,&
                                               cite_reference
+   USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -48,6 +53,8 @@ MODULE admm_methods
         dbcsr_dot, dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, &
         dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE distribution_2d_types,           ONLY: distribution_2d_type
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot,&
                                               do_admm_exch_scaling_none,&
                                               do_admm_purify_cauchy,&
@@ -57,7 +64,12 @@ MODULE admm_methods
                                               do_admm_purify_none
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
+   USE molecule_types,                  ONLY: molecule_type
+   USE particle_types,                  ONLY: particle_type
+   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
+                                              paw_proj_set_type
    USE pw_types,                        ONLY: pw_p_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -65,16 +77,40 @@ MODULE admm_methods
                                               qs_environment_type
    USE qs_force_types,                  ONLY: add_qs_force,&
                                               qs_force_type
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_gapw_densities,               ONLY: prepare_gapw_den
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
+   USE qs_ks_atom,                      ONLY: update_ks_atom
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type
+   USE qs_local_rho_types,              ONLY: local_rho_set_create,&
+                                              local_rho_set_release,&
+                                              local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&
                                               mo_set_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
+   USE qs_neighbor_lists,               ONLY: atom2d_build,&
+                                              atom2d_cleanup,&
+                                              build_neighbor_lists,&
+                                              local_atoms_type,&
+                                              pair_radius_setup
+   USE qs_oce_methods,                  ONLY: build_oce_matrices
+   USE qs_oce_types,                    ONLY: allocate_oce_set,&
+                                              create_oce_set
    USE qs_overlap,                      ONLY: build_overlap_force
+   USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
+                                              calculate_rho_atom_coeff
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_set,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
+   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
+   USE task_list_methods,               ONLY: generate_qs_task_list
+   USE task_list_types,                 ONLY: allocate_task_list,&
+                                              deallocate_task_list,&
+                                              task_list_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -85,9 +121,9 @@ MODULE admm_methods
              admm_mo_merge_derivs, &
              calc_mixed_overlap_force, &
              calc_aux_mo_derivs_none, &
-             scale_dm
-
-   PUBLIC :: admm_fit_mo_coeffs
+             scale_dm, &
+             admm_fit_mo_coeffs, &
+             admm_update_ks_atom
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_methods'
 
@@ -103,8 +139,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'admm_mo_calc_rho_aux', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, ispin
-      LOGICAL                                            :: s_mstruct_changed
+      LOGICAL                                            :: gapw, s_mstruct_changed
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r_aux
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -113,15 +150,18 @@ CONTAINS
                                                             rho_ao_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux_fit
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_aux, rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
+      TYPE(task_list_type), POINTER                      :: task_list
 
       CALL timeset(routineN, handle)
 
       NULLIFY (ks_env, admm_env, mos, mos_aux_fit, matrix_s_aux_fit, &
                matrix_s_aux_fit_vs_orb, matrix_s, rho, rho_aux_fit, para_env)
-      NULLIFY (rho_g_aux, rho_r_aux, rho_ao, rho_ao_aux, tot_rho_r_aux)
+      NULLIFY (rho_g_aux, rho_r_aux, rho_ao, rho_ao_aux, tot_rho_r_aux, task_list, sab_aux_fit)
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -144,6 +184,8 @@ CONTAINS
                       rho_r=rho_r_aux, &
                       tot_rho_r=tot_rho_r_aux)
 
+      gapw = admm_env%do_gapw
+
       ! convert mos from full to dbcsr matrices
       DO ispin = 1, dft_control%nspins
          IF (mos(ispin)%mo_set%use_mo_coeff_b) THEN
@@ -154,6 +196,9 @@ CONTAINS
       ! fit mo coeffcients
       CALL admm_fit_mo_coeffs(admm_env, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
                               mos, mos_aux_fit, s_mstruct_changed)
+
+      ! update the GAPW internals if structure has changed
+      IF (s_mstruct_changed .AND. gapw) CALL update_admm_gapw(qs_env)
 
       DO ispin = 1, dft_control%nspins
          IF (admm_env%block_dm) THEN
@@ -183,14 +228,38 @@ CONTAINS
                                   ispin=ispin, &
                                   blocked=admm_env%block_dm)
 
+         !GPW is the default, PW density is computed using the AUX_FIT basis and task_list
+         !If GAPW, the we use the AUX_FIT_SOFT basis and task list
+         basis_type = "AUX_FIT"
+         CALL get_ks_env(ks_env, task_list_aux_fit=task_list)
+         IF (gapw) THEN
+            basis_type = "AUX_FIT_SOFT"
+            task_list => admm_env%admm_gapw_env%task_list
+         END IF
+
          CALL calculate_rho_elec(ks_env=ks_env, &
                                  matrix_p=rho_ao_aux(ispin)%matrix, &
                                  rho=rho_r_aux(ispin), &
                                  rho_gspace=rho_g_aux(ispin), &
                                  total_rho=tot_rho_r_aux(ispin), &
                                  soft_valid=.FALSE., &
-                                 basis_type="AUX_FIT")
+                                 basis_type=basis_type, &
+                                 task_list_external=task_list)
+
       END DO
+
+      !If GAPW, also need to prepare the atomic densities
+      IF (gapw) THEN
+         CALL get_qs_env(qs_env, sab_aux_fit=sab_aux_fit)
+
+         CALL calculate_rho_atom_coeff(qs_env, rho_ao_aux, &
+                                       rho_atom_external=admm_env%admm_gapw_env%local_rho_set%rho_atom_set, &
+                                       kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
+                                       oce_external=admm_env%admm_gapw_env%oce, sab_external=sab_aux_fit)
+
+         CALL prepare_gapw_den(qs_env, local_rho_set=admm_env%admm_gapw_env%local_rho_set, &
+                               do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
+      END IF
 
       IF (dft_control%nspins == 1) THEN
          admm_env%gsi(3) = admm_env%gsi(1)
@@ -203,6 +272,166 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE admm_mo_calc_rho_aux
+
+! **************************************************************************************************
+!> \brief Adds the GAPW exchange contribution to the aux_fit ks matrices
+!> \param qs_env ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE admm_update_ks_atom(qs_env, calculate_forces)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'admm_update_ks_atom', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ispin
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit, &
+                                                            matrix_ks_aux_fit_dft, &
+                                                            matrix_ks_aux_fit_hfx, rho_ao_aux
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux_fit
+      TYPE(qs_rho_type), POINTER                         :: rho_aux_fit
+
+      NULLIFY (matrix_ks_aux_fit, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, rho_ao_aux, rho_aux_fit)
+      NULLIFY (sab_aux_fit, admm_env, dft_control)
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, rho_aux_fit=rho_aux_fit, matrix_ks_aux_fit=matrix_ks_aux_fit, &
+                      matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft, sab_aux_fit=sab_aux_fit, &
+                      matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx, admm_env=admm_env, &
+                      dft_control=dft_control)
+      CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
+
+      CALL update_ks_atom(qs_env, matrix_ks_aux_fit, rho_ao_aux, calculate_forces, tddft=.FALSE., &
+                          rho_atom_external=admm_env%admm_gapw_env%local_rho_set%rho_atom_set, &
+                          kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
+                          oce_external=admm_env%admm_gapw_env%oce, &
+                          sab_external=sab_aux_fit)
+
+      !Following the logic of sum_up_and_integrate to recover the pure DFT exchange contribution
+      DO ispin = 1, dft_control%nspins
+         CALL dbcsr_add(matrix_ks_aux_fit_dft(ispin)%matrix, matrix_ks_aux_fit(ispin)%matrix, 0.0_dp, -1.0_dp)
+         CALL dbcsr_add(matrix_ks_aux_fit_dft(ispin)%matrix, matrix_ks_aux_fit_hfx(ispin)%matrix, 1.0_dp, 1.0_dp)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE admm_update_ks_atom
+
+! **************************************************************************************************
+!> \brief Update the admm_gapw_env internals to the current qs_env (i.e. atomic positions)
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE update_admm_gapw(qs_env)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'update_admm_gapw', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ikind, nkind
+      LOGICAL                                            :: paw_atom
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: aux_present, oce_present
+      REAL(dp)                                           :: subcells
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: aux_radius, oce_radius
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
+      TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(distribution_1d_type), POINTER                :: distribution_1d
+      TYPE(distribution_2d_type), POINTER                :: distribution_2d
+      TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis
+      TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux_fit, sap_oce
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: admm_kind_set, qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+
+      NULLIFY (ks_env, sab_aux_fit, qs_kind_set, admm_kind_set, aux_fit_basis, cell, distribution_1d)
+      NULLIFY (distribution_2d, paw_proj, particle_set, molecule_set, admm_env, admm_gapw_env)
+      NULLIFY (dft_control, atomic_kind_set, sap_oce)
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, ks_env=ks_env, qs_kind_set=qs_kind_set, admm_env=admm_env, &
+                      dft_control=dft_control)
+      admm_gapw_env => admm_env%admm_gapw_env
+      admm_kind_set => admm_gapw_env%admm_kind_set
+      nkind = SIZE(qs_kind_set)
+
+      !Update the task lisft for the AUX_FIT_SOFT basis
+      CALL get_ks_env(ks_env, sab_aux_fit=sab_aux_fit)
+      IF (ASSOCIATED(admm_gapw_env%task_list)) CALL deallocate_task_list(admm_gapw_env%task_list)
+      CALL allocate_task_list(admm_gapw_env%task_list)
+
+      !note: we set soft_valid to .FALSE. want to use AUX_FIT_SOFT and not the normal ORB SOFT basis
+      CALL generate_qs_task_list(ks_env, admm_gapw_env%task_list, reorder_rs_grid_ranks=.FALSE., &
+                                 soft_valid=.FALSE., basis_type="AUX_FIT_SOFT", &
+                                 skip_load_balance_distributed=dft_control%qs_control%skip_load_balance_distributed, &
+                                 sab_orb_external=sab_aux_fit)
+
+      !Update the precomputed oce integrals
+      !a sap_oce neighbor list is required => build it here
+      ALLOCATE (aux_present(nkind), oce_present(nkind))
+      aux_present = .FALSE.; oce_present = .FALSE.
+      ALLOCATE (aux_radius(nkind), oce_radius(nkind))
+      aux_radius = 0.0_dp; oce_radius = 0.0_dp
+
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis, basis_type="AUX_FIT")
+         IF (ASSOCIATED(aux_fit_basis)) THEN
+            aux_present(ikind) = .TRUE.
+            CALL get_gto_basis_set(aux_fit_basis, kind_radius=aux_radius(ikind))
+         END IF
+
+         !note: get oce info from admm_kind_set
+         CALL get_qs_kind(admm_kind_set(ikind), paw_atom=paw_atom, paw_proj_set=paw_proj)
+         IF (paw_atom) THEN
+            oce_present(ikind) = .TRUE.
+            CALL get_paw_proj_set(paw_proj, rcprj=oce_radius(ikind))
+         END IF
+      END DO
+
+      ALLOCATE (pair_radius(nkind, nkind))
+      pair_radius = 0.0_dp
+      CALL pair_radius_setup(aux_present, oce_present, aux_radius, oce_radius, pair_radius)
+
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
+                      distribution_2d=distribution_2d, local_particles=distribution_1d, &
+                      particle_set=particle_set, molecule_set=molecule_set)
+      CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
+
+      ALLOCATE (atom2d(nkind))
+      CALL atom2d_build(atom2d, distribution_1d, distribution_2d, atomic_kind_set, &
+                        molecule_set, .FALSE., particle_set)
+      CALL build_neighbor_lists(sap_oce, particle_set, atom2d, cell, pair_radius, &
+                                subcells=subcells, operator_type="ABBA", nlname="AUX_PAW-PRJ")
+      CALL atom2d_cleanup(atom2d)
+
+      !actually compute the oce matrices
+      CALL create_oce_set(admm_gapw_env%oce)
+      CALL allocate_oce_set(admm_gapw_env%oce, nkind)
+
+      !always compute the derivitive, cheap anyways
+      CALL build_oce_matrices(admm_gapw_env%oce%intac, calculate_forces=.TRUE., nder=1, &
+                              qs_kind_set=admm_kind_set, particle_set=particle_set, &
+                              sap_oce=sap_oce, eps_fit=dft_control%qs_control%gapw_control%eps_fit)
+
+      CALL release_neighbor_list_sets(sap_oce)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE update_admm_gapw
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1153,8 +1382,8 @@ CONTAINS
       INTEGER                                            :: blk, handle, iatom, ispin, jatom, &
                                                             nao_aux_fit, nao_orb, nmo
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
-      REAL(KIND=dp)                                      :: ener_k(2), ener_x(2), gsi_square, &
-                                                            trace_tmp, trace_tmp_two
+      REAL(KIND=dp)                                      :: ener_k(2), ener_x(2), ener_x1(2), &
+                                                            gsi_square, trace_tmp, trace_tmp_two
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -1277,13 +1506,16 @@ CONTAINS
                      (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
                IF (dft_control%nspins == 2) THEN
                   CALL calc_spin_dep_aux_exch_ener(qs_env=qs_env, admm_env=admm_env, ener_k_ispin=ener_k(ispin), &
-                                                   ener_x_ispin=ener_x(ispin), ispin=ispin)
+                                                   ener_x_ispin=ener_x(ispin), ener_x1_ispin=ener_x1(ispin), &
+                                                   ispin=ispin)
                   admm_env%lambda_merlot(ispin) = 2.0_dp*(admm_env%gsi(ispin))**2* &
-                                                  (ener_k(ispin) + ener_x(ispin))/(admm_env%n_large_basis(ispin))
+                                                  (ener_k(ispin) + ener_x(ispin) + ener_x1(ispin))/ &
+                                                  (admm_env%n_large_basis(ispin))
 
                ELSE
                   admm_env%lambda_merlot(ispin) = 2.0_dp*(admm_env%gsi(ispin))**2* &
-                                                  (energy%ex + energy%exc_aux_fit)/(admm_env%n_large_basis(ispin))
+                                                  (energy%ex + energy%exc_aux_fit + energy%exc1_aux_fit) &
+                                                  /(admm_env%n_large_basis(ispin))
                ENDIF
 
             ELSE IF (admm_env%charge_constrain .AND. &
@@ -1293,15 +1525,17 @@ CONTAINS
                ! For ADMMS open-shell case we need k and x (Merlot) separately since gsi(a)\=gsi(b)
                IF (dft_control%nspins == 2) THEN
                   CALL calc_spin_dep_aux_exch_ener(qs_env=qs_env, admm_env=admm_env, ener_k_ispin=ener_k(ispin), &
-                                                   ener_x_ispin=ener_x(ispin), ispin=ispin)
+                                                   ener_x_ispin=ener_x(ispin), ener_x1_ispin=ener_x1(ispin), &
+                                                   ispin=ispin)
                   admm_env%lambda_merlot(ispin) = &
-                     (trace_tmp + 2.0_dp/3.0_dp*((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))*ener_x(ispin) - &
-                      ((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))*trace_tmp_two)/(admm_env%n_large_basis(ispin))
+                     (trace_tmp + 2.0_dp/3.0_dp*((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))* &
+                      (ener_x(ispin) + ener_x1(ispin)) - ((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))* &
+                      trace_tmp_two)/(admm_env%n_large_basis(ispin))
 
                ELSE
                   admm_env%lambda_merlot(ispin) = (trace_tmp + (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)* &
-                                                   (2.0_dp/3.0_dp*energy%exc_aux_fit - trace_tmp_two))/ &
-                                                  (admm_env%n_large_basis(ispin))
+                                                   (2.0_dp/3.0_dp*(energy%exc_aux_fit + energy%exc1_aux_fit) - &
+                                                    trace_tmp_two))/(admm_env%n_large_basis(ispin))
                END IF
             END IF
 
@@ -1361,24 +1595,30 @@ CONTAINS
             !        PRINT *, 'energy%ex = ', energy%ex
             IF (dft_control%nspins == 2) THEN
                energy%exc_aux_fit = 0.0_dp
+               energy%exc1_aux_fit = 0.0_dp
                energy%ex = 0.0_dp
                DO ispin = 1, dft_control%nspins
                   energy%exc_aux_fit = energy%exc_aux_fit + (admm_env%gsi(ispin))**2.0_dp*ener_x(ispin)
+                  energy%exc1_aux_fit = energy%exc1_aux_fit + (admm_env%gsi(ispin))**2.0_dp*ener_x1(ispin)
                   energy%ex = energy%ex + (admm_env%gsi(ispin))**2.0_dp*ener_k(ispin)
                END DO
             ELSE
                energy%exc_aux_fit = (admm_env%gsi(1))**2.0_dp*energy%exc_aux_fit
+               energy%exc1_aux_fit = (admm_env%gsi(1))**2.0_dp*energy%exc1_aux_fit
                energy%ex = (admm_env%gsi(1))**2.0_dp*energy%ex
             END IF
 
          ELSE IF (admm_env%charge_constrain) THEN
             IF (dft_control%nspins == 2) THEN
                energy%exc_aux_fit = 0.0_dp
+               energy%exc1_aux_fit = 0.0_dp
                DO ispin = 1, dft_control%nspins
                   energy%exc_aux_fit = energy%exc_aux_fit + (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)*ener_x(ispin)
+                  energy%exc1_aux_fit = energy%exc1_aux_fit + (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)*ener_x1(ispin)
                END DO
             ELSE
                energy%exc_aux_fit = (admm_env%gsi(1))**(2.0_dp/3.0_dp)*energy%exc_aux_fit
+               energy%exc1_aux_fit = (admm_env%gsi(1))**(2.0_dp/3.0_dp)*energy%exc1_aux_fit
             END IF
          END IF
       END IF
@@ -1393,36 +1633,44 @@ CONTAINS
 !> \param admm_env ...
 !> \param ener_k_ispin exact ispin (Fock) exchange in auxiliary basis
 !> \param ener_x_ispin ispin DFT exchange in auxiliary basis
+!> \param ener_x1_ispin ispin DFT exchange in auxiliary basis, due to the GAPW atomic contributions
 !> \param ispin ...
 !> \author Jan Wilhelm, 12/2014
 ! **************************************************************************************************
    SUBROUTINE calc_spin_dep_aux_exch_ener(qs_env, admm_env, ener_k_ispin, ener_x_ispin, &
-                                          ispin)
+                                          ener_x1_ispin, ispin)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(admm_type), POINTER                           :: admm_env
-      REAL(dp), INTENT(INOUT)                            :: ener_k_ispin, ener_x_ispin
+      REAL(dp), INTENT(INOUT)                            :: ener_k_ispin, ener_x_ispin, ener_x1_ispin
       INTEGER, INTENT(IN)                                :: ispin
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_spin_dep_aux_exch_ener', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, myspin
+      LOGICAL                                            :: gapw
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
+      TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit_hfx, rho_ao_aux, &
                                                             rho_ao_aux_buffer
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(local_rho_type), POINTER                      :: local_rho_buffer
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux_fit
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, v_rspace_dummy, &
                                                             v_tau_rspace_dummy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit, rho_aux_fit_buffer
       TYPE(section_vals_type), POINTER                   :: xc_section_aux
+      TYPE(task_list_type), POINTER                      :: task_list
 
       CALL timeset(routineN, handle)
 
       NULLIFY (ks_env, rho_aux_fit, rho_aux_fit_buffer, &
                xc_section_aux, v_rspace_dummy, v_tau_rspace_dummy, &
-               rho_ao_aux, rho_ao_aux_buffer, dft_control, &
-               matrix_ks_aux_fit_hfx)
+               rho_ao_aux, rho_ao_aux_buffer, dft_control, sab_aux_fit, &
+               matrix_ks_aux_fit_hfx, task_list, local_rho_buffer, admm_gapw_env)
 
       NULLIFY (rho_g, rho_r, tot_rho_r)
 
@@ -1442,21 +1690,33 @@ CONTAINS
                       rho_r=rho_r, &
                       tot_rho_r=tot_rho_r)
 
+      gapw = admm_env%do_gapw
+
 !   Calculate rho_buffer = rho_aux(ispin) to get exchange of ispin electrons
       CALL dbcsr_set(rho_ao_aux_buffer(1)%matrix, 0.0_dp)
       CALL dbcsr_set(rho_ao_aux_buffer(2)%matrix, 0.0_dp)
       CALL dbcsr_add(rho_ao_aux_buffer(ispin)%matrix, &
                      rho_ao_aux(ispin)%matrix, 0.0_dp, 1.0_dp)
 
+      ! By default use standard AUX_FIT basis and task_list. IF GAPW use the soft ones
+      basis_type = "AUX_FIT"
+      CALL get_ks_env(ks_env, task_list_aux_fit=task_list)
+      IF (gapw) THEN
+         basis_type = "AUX_FIT_SOFT"
+         task_list => admm_env%admm_gapw_env%task_list
+      END IF
+
       ! integration for getting the spin dependent density has to done for both spins!
       DO myspin = 1, dft_control%nspins
+
          CALL calculate_rho_elec(ks_env=ks_env, &
                                  matrix_p=rho_ao_aux_buffer(myspin)%matrix, &
                                  rho=rho_r(myspin), &
                                  rho_gspace=rho_g(myspin), &
                                  total_rho=tot_rho_r(myspin), &
                                  soft_valid=.FALSE., &
-                                 basis_type="AUX_FIT")
+                                 basis_type="AUX_FIT", &
+                                 task_list_external=task_list)
 
       END DO
 
@@ -1470,6 +1730,31 @@ CONTAINS
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_aux_fit_buffer, xc_section=xc_section_aux, &
                          vxc_rho=v_rspace_dummy, vxc_tau=v_tau_rspace_dummy, exc=ener_x_ispin, &
                          just_energy=.TRUE.)
+
+      !atomic contributions: use the atomic density as stored in admm_env%gapw_env
+      ener_x1_ispin = 0.0_dp
+      IF (gapw) THEN
+
+         admm_gapw_env => admm_env%admm_gapw_env
+         CALL get_qs_env(qs_env, sab_aux_fit=sab_aux_fit)
+
+         CALL local_rho_set_create(local_rho_buffer)
+         CALL allocate_rho_atom_internals(qs_env, local_rho_buffer%rho_atom_set, admm_gapw_env%admm_kind_set)
+
+         CALL calculate_rho_atom_coeff(qs_env, rho_ao_aux_buffer, &
+                                       rho_atom_external=local_rho_buffer%rho_atom_set, &
+                                       kind_set_external=admm_gapw_env%admm_kind_set, &
+                                       oce_external=admm_gapw_env%oce, sab_external=sab_aux_fit)
+         CALL prepare_gapw_den(qs_env, local_rho_set=local_rho_buffer, do_rho0=.FALSE., &
+                               kind_set_external=admm_gapw_env%admm_kind_set)
+
+         CALL calculate_vxc_atom(qs_env, energy_only=.TRUE., exc1=ener_x1_ispin, &
+                                 kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
+                                 xc_section_external=xc_section_aux, &
+                                 rho_atom_set_external=local_rho_buffer%rho_atom_set)
+
+         CALL local_rho_set_release(local_rho_buffer)
+      END IF
 
       ener_k_ispin = 0.0_dp
 

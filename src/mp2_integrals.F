@@ -466,7 +466,7 @@ CONTAINS
                             num_small_eigen, qs_env%mp2_env%potential_parameter, ri_metric, &
                             fm_matrix_L_RI_metric, &
                             do_im_time, do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
-                            atomic_kind_set, qs_kind_set, sab_orb_sub)
+                            qs_kind_set, sab_orb_sub)
 
       IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
          "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe

@@ -418,7 +418,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL init_interaction_radii(dft_control%qs_control, atomic_kind_set, qs_kind_set)
+      CALL init_interaction_radii(dft_control%qs_control, qs_kind_set)
 
    END SUBROUTINE update_basis_set
 

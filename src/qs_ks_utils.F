@@ -59,7 +59,8 @@ MODULE qs_ks_utils
                                               section_vals_type,&
                                               section_vals_val_get
    USE kahan_sum,                       ONLY: accurate_sum
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE lri_environment_methods,         ONLY: v_int_ppl_update
@@ -114,6 +115,7 @@ MODULE qs_ks_utils
                                               mo_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_exc_calc,&
                                               xc_vxc_pw_create1
@@ -986,7 +988,11 @@ CONTAINS
       IF (output_unit > 0) THEN
          IF (dft_control%do_admm) THEN
             WRITE (UNIT=output_unit, FMT="((T3,A,T60,F20.10))") &
-               "Wfn fit exchange-correlation energy:           ", energy%exc_aux_fit
+               "Wfn fit exchange-correlation energy:            ", energy%exc_aux_fit
+            IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+               WRITE (UNIT=output_unit, FMT="((T3,A,T60,F20.10))") &
+                  "Wfn fit soft/hard atomic rho1 Exc contribution: ", energy%exc1_aux_fit
+            END IF
          END IF
          IF (dft_control%do_admm) THEN
             IF (psolver .EQ. pw_poisson_implicit) THEN
@@ -1067,12 +1073,12 @@ CONTAINS
             "gCP energy:                                    ", energy%gcp
          IF (dft_control%qs_control%gapw) THEN
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T61,F20.10))") &
-               "GAPW| Exc from hard and soft atomic rho1:      ", energy%exc1, &
+               "GAPW| Exc from hard and soft atomic rho1:      ", energy%exc1 + energy%exc1_aux_fit, &
                "GAPW| local Eh = 1 center integrals:           ", energy%hartree_1c
          END IF
          IF (dft_control%qs_control%gapw_xc) THEN
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T61,F20.10))") &
-               "GAPW| Exc from hard and soft atomic rho1:      ", energy%exc1
+               "GAPW| Exc from hard and soft atomic rho1:      ", energy%exc1 + energy%exc1_aux_fit
          END IF
          IF (dft_control%dft_plus_u) THEN
             WRITE (UNIT=output_unit, FMT="(T3,A,T61,F20.10)") &
@@ -1215,6 +1221,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'sum_up_and_integrate', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, igroup, ikind, ispin, nkind, &
                                                             nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -1239,13 +1246,14 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit
+      TYPE(task_list_type), POINTER                      :: task_list
 
       CALL timeset(routineN, handle)
 
       NULLIFY (auxbas_pw_pool, dft_control, pw_env, matrix_ks_aux_fit, &
                v_rspace%pw, rho_aux_fit, vee, rho_ao, rho_ao_kp, rho_ao_aux, &
                ksmat, matrix_ks_aux_fit_dft, lri_env, lri_density, atomic_kind_set, &
-               rho_ao_nokp, ks_env, admm_env)
+               rho_ao_nokp, ks_env, admm_env, task_list)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -1578,6 +1586,15 @@ CONTAINS
                ! Add potential to ks_matrix aux_fit, skip integration if no DFT correction
 
                IF (admm_env%aux_exch_func .NE. do_admm_aux_exch_func_none) THEN
+
+                  !GPW by default. IF GAPW, then take relevant task list and basis
+                  CALL get_qs_env(qs_env, task_list_aux_fit=task_list)
+                  basis_type = "AUX_FIT"
+                  IF (admm_env%do_gapw) THEN
+                     task_list => admm_env%admm_gapw_env%task_list
+                     basis_type = "AUX_FIT_SOFT"
+                  END IF
+
                   CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin), &
                                           pmat=rho_ao_aux(ispin), &
                                           hmat=matrix_ks_aux_fit(ispin), &
@@ -1585,8 +1602,9 @@ CONTAINS
                                           calculate_forces=calculate_forces, &
                                           force_adm=.TRUE., &
                                           ispin=ispin, &
-                                          gapw=gapw_xc, &
-                                          basis_type="AUX_FIT")
+                                          gapw=.FALSE., & !even if actual GAPW calculation, want to use AUX_FIT_SOFT
+                                          basis_type=basis_type, &
+                                          task_list_external=task_list)
                END IF
 
                ! matrix_ks_aux_fit_dft(x_DFT)=matrix_ks_aux_fit_dft(old,k_HF)-matrix_ks_aux_fit(k_HF-x_DFT)

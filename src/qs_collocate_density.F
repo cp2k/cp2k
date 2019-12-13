@@ -1412,6 +1412,7 @@ CONTAINS
 !> \par History
 !>      IAB (15-Feb-2010): Added OpenMP parallelisation to task loop
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
+!>      Anything that is not the default ORB basis_type requires an external_task_list 12.2019, (A.Bussy)
 !> \note
 !>      both rho and rho_gspace contain the new rho
 !>      (in real and g-space respectively)
@@ -1529,16 +1530,13 @@ CONTAINS
                       particle_set=particle_set, &
                       pw_env=pw_env)
 
-      SELECT CASE (my_basis_type)
-      CASE ("ORB")
-         CALL get_ks_env(ks_env, &
-                         task_list=task_list, &
-                         task_list_soft=task_list_soft)
-      CASE ("AUX_FIT")
-         CALL get_ks_env(ks_env, &
-                         task_list_aux_fit=task_list, &
-                         task_list_soft=task_list_soft)
-      END SELECT
+      !take the default ORB basis task lists
+      CALL get_ks_env(ks_env, task_list=task_list, task_list_soft=task_list_soft)
+
+      !if any other basis_type is used, need to provide an external task_list => for generality
+      IF (.NOT. my_basis_type == "ORB") THEN
+         CPASSERT(PRESENT(task_list_external))
+      END IF
 
       nimages = dft_control%nimages
       CPASSERT(nimages == 1 .OR. do_kp)

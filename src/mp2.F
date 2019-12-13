@@ -1200,11 +1200,13 @@ CONTAINS
       END DO
 
       ! Remove the Exchange-correlation energy contributions from the total energy
-      energy%total = energy%total - (energy%exc + energy%exc1 + energy%ex + energy%exc_aux_fit)
+      energy%total = energy%total - (energy%exc + energy%exc1 + energy%ex + &
+                                     energy%exc_aux_fit + energy%exc1_aux_fit)
 
       energy%exc = 0.0_dp
       energy%exc1 = 0.0_dp
       energy%exc_aux_fit = 0.0_dp
+      energy%exc1_aux_fit = 0.0_dp
       energy%ex = 0.0_dp
 
       ! take the exact exchange energy from GW or calculate it

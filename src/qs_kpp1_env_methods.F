@@ -466,7 +466,8 @@ CONTAINS
          ksmat(1:ns, 1:1) => k_p_p1(1:ns)
          ns = SIZE(rho_ao)
          psmat(1:ns, 1:1) => rho_ao(1:ns)
-         CALL update_ks_atom(qs_env, ksmat, psmat, .FALSE., .TRUE., p_env)
+         CALL update_ks_atom(qs_env, ksmat, psmat, forces=.FALSE., tddft=.TRUE., &
+                             rho_atom_external=p_env%local_rho_set%rho_atom_set)
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)

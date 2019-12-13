@@ -32,8 +32,7 @@ MODULE qs_rho_atom_methods
    USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                               paw_proj_set_type
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type,&
-                                              set_qs_env
+                                              qs_environment_type
    USE qs_grid_atom,                    ONLY: create_grid_atom,&
                                               grid_atom_type
    USE qs_harmonics_atom,               ONLY: create_harmonics_atom,&
@@ -95,20 +94,18 @@ CONTAINS
 !> \param rho_atom_set ...
 !> \param qs_kind ...
 !> \param atom_list ...
-!> \param grid_atom ...
 !> \param natom ...
 !> \param nspins ...
 !> \param tot_rho1_h ...
 !> \param tot_rho1_s ...
 ! **************************************************************************************************
    SUBROUTINE calculate_rho_atom(para_env, rho_atom_set, qs_kind, atom_list, &
-                                 grid_atom, natom, nspins, tot_rho1_h, tot_rho1_s)
+                                 natom, nspins, tot_rho1_h, tot_rho1_s)
 
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_list
-      TYPE(grid_atom_type), INTENT(IN)                   :: grid_atom
       INTEGER, INTENT(IN)                                :: natom, nspins
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: tot_rho1_h, tot_rho1_s
 
@@ -132,6 +129,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: coeff, zet
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG, my_dCG
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: my_CG_dxyz
+      TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
@@ -139,10 +137,10 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (orb_basis)
-      NULLIFY (harmonics)
+      NULLIFY (harmonics, grid_atom)
       NULLIFY (lmin, lmax, npgf, zet, my_CG, my_dCG, my_CG_dxyz, coeff)
 
-      CALL get_qs_kind(qs_kind, basis_set=orb_basis, &
+      CALL get_qs_kind(qs_kind, basis_set=orb_basis, grid_atom=grid_atom, &
                        paw_proj_set=paw_proj, harmonics=harmonics)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis, lmax=lmax, lmin=lmin, &
@@ -461,17 +459,27 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param rho_ao ...
-!> \param rho_atom_set ...
+!> \param rho_atom_external ...
+!> \param kind_set_external ...
+!> \param oce_external ...
+!> \param sab_external ...
 !> \par History
 !>      Add OpenMP [Apr 2016, EPCC]
 !>      Use automatic arrays [Sep 2016, M Tucker]
+!>      Allow for external non-default kind_set, oce and sab [Dec 2019, A Bussy]
 ! **************************************************************************************************
-   SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_set)
+   SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_external, kind_set_external, &
+                                       oce_external, sab_external)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(*)                   :: rho_ao
       TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: rho_atom_set
+         POINTER                                         :: rho_atom_external
+      TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: kind_set_external
+      TYPE(oce_matrix_type), OPTIONAL, POINTER           :: oce_external
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: sab_external
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom_coeff', &
          routineP = moduleN//':'//routineN
@@ -501,12 +509,12 @@ CONTAINS
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
-      TYPE(oce_matrix_type), POINTER                     :: oce
+         POINTER                                         :: my_sab
+      TYPE(oce_matrix_type), POINTER                     :: my_oce
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: my_kind_set
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: p_block_spin
-      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: my_rho_atom
 
 !$    INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
 !$    INTEGER                                            :: lock, number_of_locks
@@ -514,23 +522,26 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control)
-      NULLIFY (qs_kind_set)
-      NULLIFY (oce)
-      NULLIFY (sab_orb)
-      NULLIFY (rho_atom)
+      NULLIFY (my_kind_set)
+      NULLIFY (my_oce)
+      NULLIFY (my_sab)
+      NULLIFY (my_rho_atom)
       NULLIFY (orb_basis_set)
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
                       atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, &
+                      qs_kind_set=my_kind_set, &
                       para_env=para_env, &
-                      oce=oce, sab_orb=sab_orb, &
-                      rho_atom_set=rho_atom)
+                      oce=my_oce, sab_orb=my_sab, &
+                      rho_atom_set=my_rho_atom)
 
       eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 
-      IF (PRESENT(rho_atom_set)) rho_atom => rho_atom_set
+      IF (PRESENT(rho_atom_external)) my_rho_atom => rho_atom_external
+      IF (PRESENT(kind_set_external)) my_kind_set => kind_set_external
+      IF (PRESENT(oce_external)) my_oce => oce_external
+      IF (PRESENT(sab_external)) my_sab => sab_external
 
       nspins = dft_control%nspins
       nimages = dft_control%nimages
@@ -542,20 +553,20 @@ CONTAINS
       END IF
 
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-      CALL get_qs_kind_set(qs_kind_set, maxsgf=max_nsgf, maxgtops=max_gau)
+      CALL get_qs_kind_set(my_kind_set, maxsgf=max_nsgf, maxgtops=max_gau)
 
       nkind = SIZE(atomic_kind_set)
 !   Initialize to 0 the CPC coefficients and the local density arrays
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=a_list, natom=nat_kind)
-         CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
+         CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom)
 
          IF (.NOT. paw_atom) CYCLE
          DO i = 1, nat_kind
             iatom = a_list(i)
             DO ispin = 1, nspins
-               rho_atom(iatom)%cpc_h(ispin)%r_coef = 0.0_dp
-               rho_atom(iatom)%cpc_s(ispin)%r_coef = 0.0_dp
+               my_rho_atom(iatom)%cpc_h(ispin)%r_coef = 0.0_dp
+               my_rho_atom(iatom)%cpc_s(ispin)%r_coef = 0.0_dp
             ENDDO ! ispin
          ENDDO ! i
 
@@ -565,15 +576,15 @@ CONTAINS
          DO i = bo(1), bo(2)
             iatom = a_list(i)
             DO ispin = 1, nspins
-               rho_atom(iatom)%ga_Vlocal_gb_h(ispin)%r_coef = 0.0_dp
-               rho_atom(iatom)%ga_Vlocal_gb_s(ispin)%r_coef = 0.0_dp
+               my_rho_atom(iatom)%ga_Vlocal_gb_h(ispin)%r_coef = 0.0_dp
+               my_rho_atom(iatom)%ga_Vlocal_gb_s(ispin)%r_coef = 0.0_dp
             ENDDO ! ispin
          ENDDO ! i
       END DO ! ikind
 
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set_a)
+         CALL get_qs_kind(my_kind_set(ikind), basis_set=basis_set_a)
          IF (ASSOCIATED(basis_set_a)) THEN
             basis_set_list(ikind)%gto_basis_set => basis_set_a
          ELSE
@@ -586,7 +597,7 @@ CONTAINS
 
       num_pe = 1
 !$    num_pe = omp_get_max_threads()
-      CALL neighbor_list_iterator_create(nl_iterator, sab_orb, nthread=num_pe)
+      CALL neighbor_list_iterator_create(nl_iterator, my_sab, nthread=num_pe)
 
 !$OMP PARALLEL DEFAULT( NONE )                            &
 !$OMP           SHARED( max_nsgf, max_gau                 &
@@ -594,9 +605,9 @@ CONTAINS
 !$OMP                 , nl_iterator, basis_set_list       &
 !$OMP                 , nimages, cell_to_index            &
 !$OMP                 , nspins, rho_ao                    &
-!$OMP                 , nkind, qs_kind_set                &
-!$OMP                 , oce, eps_cpc                      &
-!$OMP                 , rho_atom                          &
+!$OMP                 , nkind, my_kind_set                &
+!$OMP                 , my_oce, eps_cpc                      &
+!$OMP                 , my_rho_atom                          &
 !$OMP                 , natom, locks, number_of_locks     &
 !$OMP                 )                                   &
 !$OMP          PRIVATE( p_block_spin, ispin               &
@@ -669,14 +680,14 @@ CONTAINS
 
          DO ispin = 1, nspins
             NULLIFY (p_block_spin(ispin)%r_coef)
-            CALL dbcsr_get_block_p(matrix=rho_ao(ispin, img)%matrix, &
+            CALL dbcsr_get_block_p(matrix=rho_ao(nspins*(img - 1) + ispin)%matrix, &
                                    row=irow, col=icol, BLOCK=p_block_spin(ispin)%r_coef, &
                                    found=found)
             pmax = pmax + MAXVAL(ABS(p_block_spin(ispin)%r_coef))
          ENDDO
 
          DO kkind = 1, nkind
-            CALL get_qs_kind(qs_kind_set(kkind), &
+            CALL get_qs_kind(my_kind_set(kkind), &
                              basis_set=orb_basis_set, &
                              paw_proj_set=paw_proj, paw_atom=paw_atom)
 
@@ -689,11 +700,11 @@ CONTAINS
 
             iac = ikind + nkind*(kkind - 1)
             ibc = jkind + nkind*(kkind - 1)
-            IF (.NOT. ASSOCIATED(oce%intac(iac)%alist)) CYCLE
-            IF (.NOT. ASSOCIATED(oce%intac(ibc)%alist)) CYCLE
+            IF (.NOT. ASSOCIATED(my_oce%intac(iac)%alist)) CYCLE
+            IF (.NOT. ASSOCIATED(my_oce%intac(ibc)%alist)) CYCLE
 
-            CALL get_alist(oce%intac(iac), alist_ac, iatom)
-            CALL get_alist(oce%intac(ibc), alist_bc, jatom)
+            CALL get_alist(my_oce%intac(iac), alist_ac, iatom)
+            CALL get_alist(my_oce%intac(ibc), alist_bc, jatom)
             IF (.NOT. ASSOCIATED(alist_ac)) CYCLE
             IF (.NOT. ASSOCIATED(alist_bc)) CYCLE
 
@@ -748,8 +759,8 @@ CONTAINS
                         factor = 1.0_dp
                         IF (iatom == jatom) factor = 0.5_dp
 
-                        r_coef_h => rho_atom(katom)%cpc_h(ispin)%r_coef
-                        r_coef_s => rho_atom(katom)%cpc_s(ispin)%r_coef
+                        r_coef_h => my_rho_atom(katom)%cpc_h(ispin)%r_coef
+                        r_coef_s => my_rho_atom(katom)%cpc_s(ispin)%r_coef
 
 !$                      CALL omp_set_lock(locks((katom - 1)*nspins + ispin))
                         IF (iatom <= jatom) THEN
@@ -796,11 +807,11 @@ CONTAINS
          ikind = kind_of(iatom)
 
          DO ispin = 1, nspins
-            IF (ASSOCIATED(rho_atom(iatom)%cpc_h(ispin)%r_coef)) THEN
-               CALL mp_sum(rho_atom(iatom)%cpc_h(ispin)%r_coef, para_env%group)
-               CALL mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef, para_env%group)
-               r_coef_h => rho_atom(iatom)%cpc_h(ispin)%r_coef
-               r_coef_s => rho_atom(iatom)%cpc_s(ispin)%r_coef
+            IF (ASSOCIATED(my_rho_atom(iatom)%cpc_h(ispin)%r_coef)) THEN
+               CALL mp_sum(my_rho_atom(iatom)%cpc_h(ispin)%r_coef, para_env%group)
+               CALL mp_sum(my_rho_atom(iatom)%cpc_s(ispin)%r_coef, para_env%group)
+               r_coef_h => my_rho_atom(iatom)%cpc_h(ispin)%r_coef
+               r_coef_s => my_rho_atom(iatom)%cpc_s(ispin)%r_coef
                r_coef_h(:, :) = r_coef_h(:, :) + TRANSPOSE(r_coef_h(:, :))
                r_coef_s(:, :) = r_coef_s(:, :) + TRANSPOSE(r_coef_s(:, :))
             END IF
@@ -816,11 +827,17 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param rho_atom_set the type to initialize
+!> \param qs_kind_set the kind set from which to take quantum numbers and basis info
 !> \param qs_env ...
 !> \param gapw_control ...
+!> \par History:
+!>      - Generalizaed by providing the rho_atom set and the qs_kind_set 12.2019 (A.Bussy)
 ! **************************************************************************************************
-   SUBROUTINE init_rho_atom(qs_env, gapw_control)
+   SUBROUTINE init_rho_atom(rho_atom_set, qs_kind_set, qs_env, gapw_control)
 
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(gapw_control_type), POINTER                   :: gapw_control
 
@@ -838,20 +855,20 @@ CONTAINS
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (rho_atom_set)
-      NULLIFY (qs_kind_set, atomic_kind_set)
+      NULLIFY (atomic_kind_set)
       NULLIFY (dft_control)
       NULLIFY (orb_basis_set)
       NULLIFY (my_CG, grid_atom, harmonics, atom_list)
 
-      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set, &
+      CPASSERT(ASSOCIATED(qs_kind_set))
+
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
                       dft_control=dft_control)
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
+
       CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
 
       nspins = dft_control%nspins
@@ -965,9 +982,7 @@ CONTAINS
       CALL deallocate_lebedev_grids()
       DEALLOCATE (my_CG)
 
-      CALL allocate_rho_atom_internals(qs_env, rho_atom_set)
-
-      CALL set_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set)
+      CALL allocate_rho_atom_internals(qs_env, rho_atom_set, qs_kind_set)
 
       CALL timestop(handle)
 
@@ -977,11 +992,13 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param rho_atom_set ...
+!> \param qs_kind_set ...
 ! **************************************************************************************************
-   SUBROUTINE allocate_rho_atom_internals(qs_env, rho_atom_set)
+   SUBROUTINE allocate_rho_atom_internals(qs_env, rho_atom_set, qs_kind_set)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_internals', &
          routineP = moduleN//':'//routineN
@@ -997,14 +1014,12 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (qs_kind_set, para_env, rho_atom_set, dft_control)
+      NULLIFY (para_env, dft_control)
 
       CALL get_qs_env(qs_env, &
-                      qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set, &
                       para_env=para_env, &
                       dft_control=dft_control)

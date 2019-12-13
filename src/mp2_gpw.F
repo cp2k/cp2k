@@ -799,7 +799,7 @@ CONTAINS
       dft_control%qs_control%eps_pgf_orb = eps_pgf_orb_old
       dft_control%qs_control%eps_rho_rspace = eps_rho_rspace_old
       dft_control%qs_control%eps_gvg_rspace = eps_gvg_rspace_old
-      CALL init_interaction_radii(dft_control%qs_control, atomic_kind_set, qs_kind_set)
+      CALL init_interaction_radii(dft_control%qs_control, qs_kind_set)
 
       CALL cp_blacs_env_release(blacs_env_sub)
 
@@ -1253,7 +1253,7 @@ CONTAINS
       dft_control%qs_control%eps_pgf_orb = mp2_env%mp2_gpw%eps_grid
       dft_control%qs_control%eps_rho_rspace = mp2_env%mp2_gpw%eps_grid
       dft_control%qs_control%eps_gvg_rspace = mp2_env%mp2_gpw%eps_grid
-      CALL init_interaction_radii(dft_control%qs_control, atomic_kind_set, qs_kind_set)
+      CALL init_interaction_radii(dft_control%qs_control, qs_kind_set)
 
       ! get a distribution_1d
       NULLIFY (local_particles_sub, local_molecules_sub)

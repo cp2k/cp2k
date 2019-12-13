@@ -282,16 +282,12 @@ CONTAINS
       ! task lists have to be in sync with basis sets
       ! there is an option to provide the task list from outside (not through qs_env)
       ! outside option has highest priority
-      SELECT CASE (my_basis_type)
-      CASE ("ORB")
-         CALL get_qs_env(qs_env=qs_env, &
-                         task_list=task_list, &
-                         task_list_soft=task_list_soft)
-      CASE ("AUX_FIT")
-         CALL get_qs_env(qs_env=qs_env, &
-                         task_list_aux_fit=task_list, &
-                         task_list_soft=task_list_soft)
-      END SELECT
+      CALL get_qs_env(qs_env=qs_env, &
+                      task_list=task_list, &
+                      task_list_soft=task_list_soft)
+      IF (.NOT. my_basis_type == "ORB") THEN
+         CPASSERT(PRESENT(task_list_external))
+      END IF
       IF (my_gapw) task_list => task_list_soft
       IF (PRESENT(task_list_external)) task_list => task_list_external
       CPASSERT(ASSOCIATED(task_list))

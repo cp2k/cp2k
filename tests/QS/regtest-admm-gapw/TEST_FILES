@@ -1,0 +1,17 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+# These tests are a representative set of the GPW ADMM tests, but run under GAPW. The results differ
+# because of the highly non-convreged nature of the calculations (but agree for converged parameters) 
+CH3-BP-MO_DIAG.inp                                     1      1e-12              -7.34857884918408
+CH3-BP-MO_NO_DIAG.inp                                  1      1e-12              -7.34857884918410
+CH3-BP-CAUCHY.inp                                      1      1e-12              -7.34857884918407
+CH4-BP-CAUCHY_SUBSPACE.inp                             1      1e-12              -8.05244367959413
+H2+-BLOCKED-PURIFY-FULL.inp                            1      1e-12              -0.50560527586196
+H2O-ADMMP-OPTX.inp                                     1      1e-12              -16.84585714177486
+O2-triplet-ADMMS.inp                                   1      1e-10              -31.32005439185767
+MD-1.inp                                               1      5e-10              -8.05212222523879
+# these tests are only possible under GAPW since they involve ALL electron calculations
+H2-geo-ALL.inp                                         1      5e-10              -1.15504228285553
+MD-2-ALL.inp                                           1      5e-10              -8.05318571814679
+#EOF

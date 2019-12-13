@@ -169,7 +169,7 @@ CONTAINS
 
             ! Calculate vxc and rescale it
             IF (gapw .OR. gapw_xc) THEN
-               CALL calculate_vxc_atom(qs_env, just_energy, adiabatic_rescale_factor=scale_dDFA)
+               CALL calculate_vxc_atom(qs_env, just_energy, energy%exc1, adiabatic_rescale_factor=scale_dDFA)
             END IF
             !! Hack for the total energy expression
             energy%ex = 0.0_dp
