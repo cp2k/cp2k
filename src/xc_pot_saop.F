@@ -614,7 +614,7 @@ CONTAINS
                          "orbital density")
       END DO
       CALL local_rho_set_create(local_rho_set)
-      CALL allocate_rho_atom_internals(qs_env, local_rho_set%rho_atom_set)
+      CALL allocate_rho_atom_internals(qs_env, local_rho_set%rho_atom_set, qs_kind_set)
 
       DO ikind = 1, SIZE(atomic_kind_set)
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
@@ -1022,7 +1022,7 @@ CONTAINS
       ns = SIZE(rho_struct_ao)
       psmat(1:ns, 1:1) => rho_struct_ao(1:ns)
 
-      CALL update_ks_atom(qs_env, ksmat, psmat, .FALSE.)
+      CALL update_ks_atom(qs_env, ksmat, psmat, forces=.FALSE.)
 
       !---------!
       ! Cleanup !

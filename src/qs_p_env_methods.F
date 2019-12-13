@@ -64,6 +64,7 @@ MODULE qs_p_env_methods
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_kpp1_env_methods,             ONLY: kpp1_calc_k_p_p1,&
                                               kpp1_calc_k_p_p1_fdiff,&
                                               kpp1_create,&
@@ -136,6 +137,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
 ! code
 
@@ -256,7 +258,8 @@ CONTAINS
       !----------------------!
       IF (dft_control%qs_control%gapw) THEN
          CALL local_rho_set_create(p_env%local_rho_set)
-         CALL allocate_rho_atom_internals(qs_env, p_env%local_rho_set%rho_atom_set)
+         CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+         CALL allocate_rho_atom_internals(qs_env, p_env%local_rho_set%rho_atom_set, qs_kind_set)
          CALL init_rho0(qs_env, dft_control%qs_control%gapw_control, &
                         .TRUE., p_env%local_rho_set)
          CALL hartree_local_create(p_env%hartree_local)

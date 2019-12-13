@@ -32,6 +32,7 @@ MODULE qs_energy_types
                        exc, &
                        exc_aux_fit, &
                        exc1, &
+                       exc1_aux_fit, & !the GAPW contribution to ADMM
                        hartree, &
                        hartree_1c, &
                        e_hartree, & ! contains the hartree energy of electrons only
@@ -163,6 +164,7 @@ CONTAINS
          qs_energy%exc = 0.0_dp
          qs_energy%exc_aux_fit = 0.0_dp
          qs_energy%exc1 = 0.0_dp
+         qs_energy%exc1_aux_fit = 0.0_dp
          qs_energy%e_hartree = 0.0_dp
          qs_energy%hartree = 0.0_dp
          qs_energy%hartree_1c = 0.0_dp

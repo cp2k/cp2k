@@ -1212,26 +1212,33 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param qs_control ...
 !> \param force_env_section ...
+!> \param modify_qs_control  whether the qs_control should be modified
 ! **************************************************************************************************
-   SUBROUTINE init_gapw_basis_set(qs_kind_set, qs_control, force_env_section)
+   SUBROUTINE init_gapw_basis_set(qs_kind_set, qs_control, force_env_section, modify_qs_control)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_control_type), POINTER                     :: qs_control
       TYPE(section_vals_type), POINTER                   :: force_env_section
+      LOGICAL, OPTIONAL                                  :: modify_qs_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_gapw_basis_set', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ikind, nkind
-      LOGICAL                                            :: gpw, paw_atom
+      LOGICAL                                            :: gpw, my_mod_control, paw_atom
       REAL(dp)                                           :: max_rad_local_type, rc
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
+      my_mod_control = .TRUE.
+      IF (PRESENT(modify_qs_control)) THEN
+         my_mod_control = modify_qs_control
+      END IF
+
       IF (ASSOCIATED(qs_kind_set)) THEN
 
-         qs_control%gapw_control%non_paw_atoms = .FALSE.
+         IF (my_mod_control) qs_control%gapw_control%non_paw_atoms = .FALSE.
          nkind = SIZE(qs_kind_set)
 
          DO ikind = 1, nkind
@@ -1260,7 +1267,7 @@ CONTAINS
                CALL projectors(paw_proj, orb_basis, rc, qs_control, max_rad_local_type, &
                                force_env_section)
             ELSE
-               qs_control%gapw_control%non_paw_atoms = .TRUE.
+               IF (my_mod_control) qs_control%gapw_control%non_paw_atoms = .TRUE.
             END IF
 
             ! grid_atom and harmonics are allocated even if NOT PAW_ATOM
@@ -1270,10 +1277,12 @@ CONTAINS
 
          END DO
 
-         IF (qs_control%gapw_control%non_paw_atoms) THEN
-            qs_control%gapw_control%nopaw_as_gpw = .TRUE.
-         ELSE
-            qs_control%gapw_control%nopaw_as_gpw = .FALSE.
+         IF (my_mod_control) THEN
+            IF (qs_control%gapw_control%non_paw_atoms) THEN
+               qs_control%gapw_control%nopaw_as_gpw = .TRUE.
+            ELSE
+               qs_control%gapw_control%nopaw_as_gpw = .FALSE.
+            END IF
          END IF
       ELSE
          CPABORT("The pointer qs_kind_set is not associated")

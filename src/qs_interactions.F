@@ -40,7 +40,6 @@ MODULE qs_interactions
                                               paw_proj_set_type,&
                                               set_paw_proj_set
    USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              get_qs_kind_set,&
                                               qs_kind_type
    USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
@@ -65,23 +64,21 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief   Initialize all the atomic kind radii for a given threshold value.
 !> \param qs_control ...
-!> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \date    24.09.2002
 !> \author  GT
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE init_interaction_radii(qs_control, atomic_kind_set, qs_kind_set)
+   SUBROUTINE init_interaction_radii(qs_control, qs_kind_set)
 
       TYPE(qs_control_type), INTENT(IN)                  :: qs_control
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_interaction_radii', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: handle, i, iexp_ppl, ikind, ip, iprj_ppnl, j, l, lppl, lppnl, lprj, lprj_ppnl, &
-         maxl, maxnset, n_local, nexp_lpot, nexp_lsd, nexp_ppl, nkind, nloc
+         maxl, n_local, nexp_lpot, nexp_lsd, nexp_ppl, nkind, nloc
       INTEGER, DIMENSION(1:10)                           :: nrloc
       INTEGER, DIMENSION(:), POINTER                     :: nct_lpot, nct_lsd, nprj, nprj_ppnl
       LOGICAL                                            :: ecp_local, llsd, lpot, paw_atom
@@ -110,9 +107,7 @@ CONTAINS
       NULLIFY (nprj_ppnl, nprj)
       NULLIFY (alpha_ppnl, cexp_ppl, cprj_ppnl, zet)
 
-      nkind = SIZE(atomic_kind_set)
-      CALL get_qs_kind_set(qs_kind_set, maxnset=maxnset)
-
+      nkind = SIZE(qs_kind_set)
       nexp_ppl = 0
 
       DO ikind = 1, nkind

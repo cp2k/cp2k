@@ -167,6 +167,7 @@ MODULE qs_environment
    USE qs_rho0_methods,                 ONLY: init_rho0
    USE qs_rho0_types,                   ONLY: rho0_mpole_type
    USE qs_rho_atom_methods,             ONLY: init_rho_atom
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_subsys_methods,               ONLY: qs_subsys_create
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_release,&
@@ -537,6 +538,7 @@ CONTAINS
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, et_ddapc_section, &
@@ -865,7 +867,7 @@ CONTAINS
       CALL init_md_ftable(maxl)
 
       !   *** Initialize the atomic interaction radii ***
-      CALL init_interaction_radii(dft_control%qs_control, atomic_kind_set, qs_kind_set)
+      CALL init_interaction_radii(dft_control%qs_control, qs_kind_set)
       !
       IF (dft_control%qs_control%method_id == do_method_xtb) THEN
          ! cutoff radius
@@ -982,8 +984,10 @@ CONTAINS
       IF (dft_control%qs_control%method_id == do_method_gapw .OR. &
           dft_control%qs_control%method_id == do_method_gapw_xc) THEN
          !     *** Allocate and initialize the set of atomic densities ***
+         NULLIFY (rho_atom_set)
          gapw_control => dft_control%qs_control%gapw_control
-         CALL init_rho_atom(qs_env, gapw_control)
+         CALL init_rho_atom(rho_atom_set, qs_kind_set, qs_env, gapw_control)
+         CALL set_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set)
          IF (dft_control%qs_control%method_id /= do_method_gapw_xc) THEN
             CALL get_qs_env(qs_env=qs_env, natom=natom)
             !       *** Allocate and initialize the compensation density rho0 ***

@@ -228,7 +228,8 @@ MODULE external_potential_types
              read_potential, &
              set_potential, &
              set_default_all_potential, &
-             write_potential
+             write_potential, &
+             copy_potential
 
    ! Public data types
 
@@ -289,6 +290,12 @@ MODULE external_potential_types
          write_local_potential, &
          write_gth_potential, &
          write_sgp_potential
+   END INTERFACE
+
+   INTERFACE copy_potential
+      MODULE PROCEDURE copy_all_potential, &
+         copy_gth_potential, &
+         copy_sgp_potential
    END INTERFACE
 
 CONTAINS
@@ -3011,5 +3018,242 @@ CONTAINS
    END SUBROUTINE write_sgp_potential
 
 ! **************************************************************************************************
+!> \brief Copy an all_potential_type to a new, unallocated variable
+!> \param pot_in the input potential to copy
+!> \param pot_out the newly copied and allocated potential
+!> \par History: created 12.2019 (A. Bussy)
+! **************************************************************************************************
+   SUBROUTINE copy_all_potential(pot_in, pot_out)
+
+      TYPE(all_potential_type), INTENT(IN), POINTER      :: pot_in
+      TYPE(all_potential_type), INTENT(INOUT), POINTER   :: pot_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'copy_all_potential', &
+         routineP = moduleN//':'//routineN
+
+      CPASSERT(ASSOCIATED(pot_in))
+      CALL allocate_all_potential(pot_out)
+
+      pot_out%name = pot_in%name
+      pot_out%alpha_core_charge = pot_in%alpha_core_charge
+      pot_out%ccore_charge = pot_in%ccore_charge
+      pot_out%core_charge_radius = pot_in%core_charge_radius
+      pot_out%zeff = pot_in%zeff
+      pot_out%zeff_correction = pot_in%zeff_correction
+      pot_out%z = pot_in%z
+
+      IF (ASSOCIATED(pot_in%elec_conf)) THEN
+         ALLOCATE (pot_out%elec_conf(LBOUND(pot_in%elec_conf, 1):UBOUND(pot_in%elec_conf, 1)))
+         pot_out%elec_conf(:) = pot_in%elec_conf(:)
+      END IF
+
+   END SUBROUTINE copy_all_potential
+
+! **************************************************************************************************
+!> \brief Copy a gth_potential_type to a new, unallocated variable
+!> \param pot_in the input potential to copy
+!> \param pot_out the newly copied and allocated potential
+!> \par History: created 12.2019 (A. Bussy)
+! **************************************************************************************************
+   SUBROUTINE copy_gth_potential(pot_in, pot_out)
+
+      TYPE(gth_potential_type), INTENT(IN), POINTER      :: pot_in
+      TYPE(gth_potential_type), INTENT(INOUT), POINTER   :: pot_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'copy_gth_potential', &
+         routineP = moduleN//':'//routineN
+
+      CPASSERT(ASSOCIATED(pot_in))
+      CALL allocate_gth_potential(pot_out)
+
+      pot_out%name = pot_in%name
+      pot_out%aliases = pot_in%aliases
+      pot_out%alpha_core_charge = pot_in%alpha_core_charge
+      pot_out%alpha_ppl = pot_in%alpha_ppl
+      pot_out%ccore_charge = pot_in%ccore_charge
+      pot_out%cerf_ppl = pot_in%cerf_ppl
+      pot_out%zeff = pot_in%zeff
+      pot_out%core_charge_radius = pot_in%core_charge_radius
+      pot_out%ppl_radius = pot_in%ppl_radius
+      pot_out%ppnl_radius = pot_in%ppnl_radius
+      pot_out%zeff_correction = pot_in%zeff_correction
+      pot_out%lppnl = pot_in%lppnl
+      pot_out%lprj_ppnl_max = pot_in%lprj_ppnl_max
+      pot_out%nexp_ppl = pot_in%nexp_ppl
+      pot_out%nppnl = pot_in%nppnl
+      pot_out%nprj_ppnl_max = pot_in%nprj_ppnl_max
+      pot_out%z = pot_in%z
+      pot_out%nlcc = pot_in%nlcc
+      pot_out%nexp_nlcc = pot_in%nexp_nlcc
+      pot_out%lsdpot = pot_in%lsdpot
+      pot_out%nexp_lsd = pot_in%nexp_lsd
+      pot_out%lpotextended = pot_in%lpotextended
+      pot_out%nexp_lpot = pot_in%nexp_lpot
+
+      IF (ASSOCIATED(pot_in%alpha_ppnl)) THEN
+         ALLOCATE (pot_out%alpha_ppnl(LBOUND(pot_in%alpha_ppnl, 1):UBOUND(pot_in%alpha_ppnl, 1)))
+         pot_out%alpha_ppnl(:) = pot_in%alpha_ppnl(:)
+      END IF
+      IF (ASSOCIATED(pot_in%cexp_ppl)) THEN
+         ALLOCATE (pot_out%cexp_ppl(LBOUND(pot_in%cexp_ppl, 1):UBOUND(pot_in%cexp_ppl, 1)))
+         pot_out%cexp_ppl(:) = pot_in%cexp_ppl(:)
+      END IF
+      IF (ASSOCIATED(pot_in%elec_conf)) THEN
+         ALLOCATE (pot_out%elec_conf(LBOUND(pot_in%elec_conf, 1):UBOUND(pot_in%elec_conf, 1)))
+         pot_out%elec_conf(:) = pot_in%elec_conf(:)
+      END IF
+      IF (ASSOCIATED(pot_in%nprj_ppnl)) THEN
+         ALLOCATE (pot_out%nprj_ppnl(LBOUND(pot_in%nprj_ppnl, 1):UBOUND(pot_in%nprj_ppnl, 1)))
+         pot_out%nprj_ppnl(:) = pot_in%nprj_ppnl(:)
+      END IF
+      IF (ASSOCIATED(pot_in%cprj)) THEN
+         ALLOCATE (pot_out%cprj(LBOUND(pot_in%cprj, 1):UBOUND(pot_in%cprj, 1), &
+                                LBOUND(pot_in%cprj, 2):UBOUND(pot_in%cprj, 2)))
+         pot_out%cprj(:, :) = pot_in%cprj(:, :)
+      END IF
+      IF (ASSOCIATED(pot_in%cprj_ppnl)) THEN
+         ALLOCATE (pot_out%cprj_ppnl(LBOUND(pot_in%cprj_ppnl, 1):UBOUND(pot_in%cprj_ppnl, 1), &
+                                     LBOUND(pot_in%cprj_ppnl, 2):UBOUND(pot_in%cprj_ppnl, 2)))
+         pot_out%cprj_ppnl(:, :) = pot_in%cprj_ppnl(:, :)
+      END IF
+      IF (ASSOCIATED(pot_in%vprj_ppnl)) THEN
+         ALLOCATE (pot_out%vprj_ppnl(LBOUND(pot_in%vprj_ppnl, 1):UBOUND(pot_in%vprj_ppnl, 1), &
+                                     LBOUND(pot_in%vprj_ppnl, 2):UBOUND(pot_in%vprj_ppnl, 2)))
+         pot_out%vprj_ppnl(:, :) = pot_in%vprj_ppnl(:, :)
+      END IF
+      IF (ASSOCIATED(pot_in%hprj_ppnl)) THEN
+         ALLOCATE (pot_out%hprj_ppnl(LBOUND(pot_in%hprj_ppnl, 1):UBOUND(pot_in%hprj_ppnl, 1), &
+                                     LBOUND(pot_in%hprj_ppnl, 2):UBOUND(pot_in%hprj_ppnl, 2), &
+                                     LBOUND(pot_in%hprj_ppnl, 3):UBOUND(pot_in%hprj_ppnl, 3)))
+         pot_out%hprj_ppnl(:, :, :) = pot_in%hprj_ppnl(:, :, :)
+      END IF
+      IF (ASSOCIATED(pot_in%alpha_nlcc)) THEN
+         ALLOCATE (pot_out%alpha_nlcc(LBOUND(pot_in%alpha_nlcc, 1):UBOUND(pot_in%alpha_nlcc, 1)))
+         pot_out%alpha_nlcc(:) = pot_in%alpha_nlcc(:)
+      END IF
+      IF (ASSOCIATED(pot_in%nct_nlcc)) THEN
+         ALLOCATE (pot_out%nct_nlcc(LBOUND(pot_in%nct_nlcc, 1):UBOUND(pot_in%nct_nlcc, 1)))
+         pot_out%nct_nlcc(:) = pot_in%nct_nlcc(:)
+      END IF
+      IF (ASSOCIATED(pot_in%cval_nlcc)) THEN
+         ALLOCATE (pot_out%cval_nlcc(LBOUND(pot_in%cval_nlcc, 1):UBOUND(pot_in%cval_nlcc, 1), &
+                                     LBOUND(pot_in%cval_nlcc, 2):UBOUND(pot_in%cval_nlcc, 2)))
+         pot_out%cval_nlcc(:, :) = pot_in%cval_nlcc(:, :)
+      END IF
+      IF (ASSOCIATED(pot_in%alpha_lsd)) THEN
+         ALLOCATE (pot_out%alpha_lsd(LBOUND(pot_in%alpha_lsd, 1):UBOUND(pot_in%alpha_lsd, 1)))
+         pot_out%alpha_lsd(:) = pot_in%alpha_lsd(:)
+      END IF
+      IF (ASSOCIATED(pot_in%nct_lsd)) THEN
+         ALLOCATE (pot_out%nct_lsd(LBOUND(pot_in%nct_lsd, 1):UBOUND(pot_in%nct_lsd, 1)))
+         pot_out%nct_lsd(:) = pot_in%nct_lsd(:)
+      END IF
+      IF (ASSOCIATED(pot_in%cval_lsd)) THEN
+         ALLOCATE (pot_out%cval_lsd(LBOUND(pot_in%cval_lsd, 1):UBOUND(pot_in%cval_lsd, 1), &
+                                    LBOUND(pot_in%cval_lsd, 2):UBOUND(pot_in%cval_lsd, 2)))
+         pot_out%cval_lsd(:, :) = pot_in%cval_lsd(:, :)
+      END IF
+      IF (ASSOCIATED(pot_in%alpha_lpot)) THEN
+         ALLOCATE (pot_out%alpha_lpot(LBOUND(pot_in%alpha_lpot, 1):UBOUND(pot_in%alpha_lpot, 1)))
+         pot_out%alpha_lpot(:) = pot_in%alpha_lpot(:)
+      END IF
+      IF (ASSOCIATED(pot_in%nct_lpot)) THEN
+         ALLOCATE (pot_out%nct_lpot(LBOUND(pot_in%nct_lpot, 1):UBOUND(pot_in%nct_lpot, 1)))
+         pot_out%nct_lpot(:) = pot_in%nct_lpot(:)
+      END IF
+      IF (ASSOCIATED(pot_in%cval_lpot)) THEN
+         ALLOCATE (pot_out%cval_lpot(LBOUND(pot_in%cval_lpot, 1):UBOUND(pot_in%cval_lpot, 1), &
+                                     LBOUND(pot_in%cval_lpot, 2):UBOUND(pot_in%cval_lpot, 2)))
+         pot_out%cval_lpot(:, :) = pot_in%cval_lpot(:, :)
+      END IF
+
+   END SUBROUTINE copy_gth_potential
+
+! **************************************************************************************************
+!> \brief Copy a sgp_potential_type to a new, unallocated variable
+!> \param pot_in the input potential to copy
+!> \param pot_out the newly copied and allocated potential
+!> \par History: created 12.2019 (A. Bussy)
+! **************************************************************************************************
+   SUBROUTINE copy_sgp_potential(pot_in, pot_out)
+
+      TYPE(sgp_potential_type), INTENT(IN), POINTER      :: pot_in
+      TYPE(sgp_potential_type), INTENT(INOUT), POINTER   :: pot_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'copy_sgp_potential', &
+         routineP = moduleN//':'//routineN
+
+      CPASSERT(ASSOCIATED(pot_in))
+      CALL allocate_sgp_potential(pot_out)
+
+      pot_out%name = pot_in%name
+      pot_out%aliases = pot_in%aliases
+      pot_out%z = pot_in%z
+      pot_out%zeff = pot_in%zeff
+      pot_out%zeff_correction = pot_in%zeff_correction
+      pot_out%alpha_core_charge = pot_in%alpha_core_charge
+      pot_out%ccore_charge = pot_in%ccore_charge
+      pot_out%core_charge_radius = pot_in%core_charge_radius
+      pot_out%ppl_radius = pot_in%ppl_radius
+      pot_out%ppnl_radius = pot_in%ppnl_radius
+      pot_out%ecp_local = pot_in%ecp_local
+      pot_out%n_local = pot_in%n_local
+      pot_out%nloc = pot_in%nloc
+      pot_out%nrloc = pot_in%nrloc
+      pot_out%aloc = pot_in%aloc
+      pot_out%bloc = pot_in%bloc
+      pot_out%n_nonlocal = pot_in%n_nonlocal
+      pot_out%nppnl = pot_in%nppnl
+      pot_out%lmax = pot_in%lmax
+      pot_out%is_nonlocal = pot_in%is_nonlocal
+      pot_out%has_nlcc = pot_in%has_nlcc
+      pot_out%n_nlcc = pot_in%n_nlcc
+
+      IF (ASSOCIATED(pot_in%elec_conf)) THEN
+         ALLOCATE (pot_out%elec_conf(LBOUND(pot_in%elec_conf, 1):UBOUND(pot_in%elec_conf, 1)))
+         pot_out%elec_conf(:) = pot_in%elec_conf(:)
+      END IF
+      IF (ASSOCIATED(pot_in%a_local)) THEN
+         ALLOCATE (pot_out%a_local(LBOUND(pot_in%a_local, 1):UBOUND(pot_in%a_local, 1)))
+         pot_out%a_local(:) = pot_in%a_local(:)
+      END IF
+      IF (ASSOCIATED(pot_in%c_local)) THEN
+         ALLOCATE (pot_out%c_local(LBOUND(pot_in%c_local, 1):UBOUND(pot_in%c_local, 1)))
+         pot_out%c_local(:) = pot_in%c_local(:)
+      END IF
+      IF (ASSOCIATED(pot_in%a_nonlocal)) THEN
+         ALLOCATE (pot_out%a_nonlocal(LBOUND(pot_in%a_nonlocal, 1):UBOUND(pot_in%a_nonlocal, 1)))
+         pot_out%a_nonlocal(:) = pot_in%a_nonlocal(:)
+      END IF
+      IF (ASSOCIATED(pot_in%h_nonlocal)) THEN
+         ALLOCATE (pot_out%h_nonlocal(LBOUND(pot_in%h_nonlocal, 1):UBOUND(pot_in%h_nonlocal, 1), &
+                                      LBOUND(pot_in%h_nonlocal, 2):UBOUND(pot_in%h_nonlocal, 2)))
+         pot_out%h_nonlocal(:, :) = pot_in%h_nonlocal(:, :)
+      END IF
+      IF (ASSOCIATED(pot_in%c_nonlocal)) THEN
+         ALLOCATE (pot_out%c_nonlocal(LBOUND(pot_in%c_nonlocal, 1):UBOUND(pot_in%c_nonlocal, 1), &
+                                      LBOUND(pot_in%c_nonlocal, 2):UBOUND(pot_in%c_nonlocal, 2), &
+                                      LBOUND(pot_in%c_nonlocal, 3):UBOUND(pot_in%c_nonlocal, 3)))
+         pot_out%c_nonlocal(:, :, :) = pot_in%c_nonlocal(:, :, :)
+      END IF
+      IF (ASSOCIATED(pot_in%cprj_ppnl)) THEN
+         ALLOCATE (pot_out%cprj_ppnl(LBOUND(pot_in%cprj_ppnl, 1):UBOUND(pot_in%cprj_ppnl, 1), &
+                                     LBOUND(pot_in%cprj_ppnl, 2):UBOUND(pot_in%cprj_ppnl, 2)))
+         pot_out%cprj_ppnl(:, :) = pot_in%cprj_ppnl(:, :)
+      END IF
+      IF (ASSOCIATED(pot_in%vprj_ppnl)) THEN
+         ALLOCATE (pot_out%vprj_ppnl(LBOUND(pot_in%vprj_ppnl, 1):UBOUND(pot_in%vprj_ppnl, 1)))
+         pot_out%vprj_ppnl(:) = pot_in%vprj_ppnl(:)
+      END IF
+      IF (ASSOCIATED(pot_in%a_nlcc)) THEN
+         ALLOCATE (pot_out%a_nlcc(LBOUND(pot_in%a_nlcc, 1):UBOUND(pot_in%a_nlcc, 1)))
+         pot_out%a_nlcc(:) = pot_in%a_nlcc(:)
+      END IF
+      IF (ASSOCIATED(pot_in%c_nlcc)) THEN
+         ALLOCATE (pot_out%c_nlcc(LBOUND(pot_in%c_nlcc, 1):UBOUND(pot_in%c_nlcc, 1)))
+         pot_out%c_nlcc(:) = pot_in%c_nlcc(:)
+      END IF
+
+   END SUBROUTINE copy_sgp_potential
 
 END MODULE external_potential_types

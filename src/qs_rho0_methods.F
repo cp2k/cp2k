@@ -168,29 +168,21 @@ CONTAINS
 !> \param rho0_atom_set ...
 !> \param rho0_mp ...
 !> \param a_list ...
-!> \param g_atom ...
-!> \param paw_atom ...
 !> \param natom ...
 !> \param ikind ...
 !> \param qs_kind ...
-!> \param harmonics ...
 !> \param rho0_h_tot ...
 ! **************************************************************************************************
    SUBROUTINE calculate_rho0_atom(gapw_control, rho_atom_set, rho0_atom_set, &
-                                  rho0_mp, a_list, g_atom, &
-                                  paw_atom, natom, ikind, qs_kind, harmonics, &
-                                  rho0_h_tot)
+                                  rho0_mp, a_list, natom, ikind, qs_kind, rho0_h_tot)
 
       TYPE(gapw_control_type), POINTER                   :: gapw_control
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(rho0_atom_type), DIMENSION(:), POINTER        :: rho0_atom_set
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mp
       INTEGER, DIMENSION(:), INTENT(IN)                  :: a_list
-      TYPE(grid_atom_type), INTENT(IN)                   :: g_atom
-      LOGICAL, INTENT(IN)                                :: paw_atom
       INTEGER, INTENT(IN)                                :: natom, ikind
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
-      TYPE(harmonics_atom_type), POINTER                 :: harmonics
       REAL(dp), INTENT(INOUT)                            :: rho0_h_tot
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho0_atom', &
@@ -199,10 +191,13 @@ CONTAINS
       INTEGER                                            :: handle, iat, iatom, ic, ico, ir, is, &
                                                             iso, ispin, l, lmax0, lshell, lx, ly, &
                                                             lz, nr, nsotot, nspins
+      LOGICAL                                            :: paw_atom
       REAL(dp)                                           :: sum1
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: cpc_ah, cpc_as
       REAL(dp), DIMENSION(:), POINTER                    :: norm_g0l_h
       REAL(dp), DIMENSION(:, :), POINTER                 :: g0_h, vg0_h
+      TYPE(grid_atom_type), POINTER                      :: g_atom
+      TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(mpole_gau_overlap), POINTER                   :: mpole_gau
       TYPE(mpole_rho_atom), POINTER                      :: mpole_rho
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: cpc_h, cpc_s
@@ -212,14 +207,16 @@ CONTAINS
 
       NULLIFY (mpole_gau)
       NULLIFY (mpole_rho)
-      NULLIFY (g0_h, vg0_h)
-      NULLIFY (norm_g0l_h)
+      NULLIFY (g0_h, vg0_h, g_atom)
+      NULLIFY (norm_g0l_h, harmonics)
 
       CALL get_rho0_mpole(rho0_mpole=rho0_mp, ikind=ikind, &
                           l0_ikind=lmax0, mp_gau_ikind=mpole_gau, &
                           g0_h=g0_h, &
                           vg0_h=vg0_h, &
                           norm_g0l_h=norm_g0l_h)
+
+      CALL get_qs_kind(qs_kind, harmonics=harmonics, paw_atom=paw_atom, grid_atom=g_atom)
 
       nr = g_atom%nr
 

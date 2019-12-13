@@ -73,16 +73,28 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param energy_only ...
+!> \param exc1 the on-body ex energy contribution
 !> \param gradient_atom_set ...
 !> \param adiabatic_rescale_factor ...
+!> \param kind_set_external provides a non-default kind_set to use
+!> \param rho_atom_set_external provides a non-default atomic density set to use
+!> \param xc_section_external provides an external non-default XC
 ! **************************************************************************************************
-   SUBROUTINE calculate_vxc_atom(qs_env, energy_only, gradient_atom_set, adiabatic_rescale_factor)
+   SUBROUTINE calculate_vxc_atom(qs_env, energy_only, exc1, gradient_atom_set, &
+                                 adiabatic_rescale_factor, kind_set_external, &
+                                 rho_atom_set_external, xc_section_external)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: energy_only
+      REAL(dp), INTENT(INOUT)                            :: exc1
       TYPE(nablavks_atom_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: gradient_atom_set
       REAL(dp), INTENT(IN), OPTIONAL                     :: adiabatic_rescale_factor
+      TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: kind_set_external
+      TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: rho_atom_set_external
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: xc_section_external
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
          routineP = moduleN//':'//routineN
@@ -105,14 +117,13 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
-      TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: my_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr_h, dr_s, r_h, r_s
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r_h_d, r_s_d, trho_h, trho_s
-      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: my_rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho_atom
-      TYPE(section_vals_type), POINTER                   :: input, xc_fun_section, xc_section
+      TYPE(section_vals_type), POINTER                   :: input, my_xc_section, xc_fun_section
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type), POINTER                     :: rho_set_h, rho_set_s
@@ -121,18 +132,19 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      !TODO: make sure we use the right xc_section
+
       NULLIFY (atom_list)
-      NULLIFY (qs_kind_set)
+      NULLIFY (my_kind_set)
       NULLIFY (atomic_kind_set)
       NULLIFY (qs_kind)
       NULLIFY (deriv_set)
-      NULLIFY (energy)
       NULLIFY (grid_atom)
       NULLIFY (harmonics)
       NULLIFY (input)
       NULLIFY (para_env)
       NULLIFY (rho_atom)
-      NULLIFY (rho_atom_set)
+      NULLIFY (my_rho_atom_set)
       NULLIFY (rho_set_h)
       NULLIFY (rho_set_s)
 
@@ -150,34 +162,39 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
                       para_env=para_env, &
-                      energy=energy, &
                       atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, &
+                      qs_kind_set=my_kind_set, &
                       input=input, &
-                      rho_atom_set=rho_atom_set)
+                      rho_atom_set=my_rho_atom_set)
 
-      nlcc = has_nlcc(qs_kind_set)
+      IF (PRESENT(kind_set_external)) my_kind_set => kind_set_external
+      IF (PRESENT(rho_atom_set_external)) my_rho_atom_set => rho_atom_set_external
+
+      nlcc = has_nlcc(my_kind_set)
 
       IF (epr_xc) THEN
-         xc_section => section_vals_get_subs_vals(input, &
-                                                  "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC")
+         my_xc_section => section_vals_get_subs_vals(input, &
+                                                     "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC")
       ELSE
-         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+         my_xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       END IF
-      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+
+      IF (PRESENT(xc_section_external)) my_xc_section => xc_section_external
+
+      xc_fun_section => section_vals_get_subs_vals(my_xc_section, "XC_FUNCTIONAL")
       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", &
                                 i_val=myfun)
 
       IF (myfun == xc_none) THEN
-         energy%exc1 = 0.0_dp
-         rho_atom_set(:)%exc_h = 0.0_dp
-         rho_atom_set(:)%exc_s = 0.0_dp
+         exc1 = 0.0_dp
+         my_rho_atom_set(:)%exc_h = 0.0_dp
+         my_rho_atom_set(:)%exc_s = 0.0_dp
       ELSE
-         CALL section_vals_val_get(xc_section, "DENSITY_CUTOFF", &
+         CALL section_vals_val_get(my_xc_section, "DENSITY_CUTOFF", &
                                    r_val=density_cut)
-         CALL section_vals_val_get(xc_section, "GRADIENT_CUTOFF", &
+         CALL section_vals_val_get(my_xc_section, "GRADIENT_CUTOFF", &
                                    r_val=gradient_cut)
-         CALL section_vals_val_get(xc_section, "TAU_CUTOFF", &
+         CALL section_vals_val_get(my_xc_section, "TAU_CUTOFF", &
                                    r_val=tau_cut)
 
          lsd = dft_control%lsd
@@ -193,7 +210,7 @@ CONTAINS
          tau_f = (needs%tau .OR. needs%tau_spin)
 
          ! Initialize energy contribution from the one center XC terms to zero
-         energy%exc1 = 0.0_dp
+         exc1 = 0.0_dp
 
          ! Nullify some pointers for work-arrays
          NULLIFY (rho_h, drho_h, rho_s, drho_s, weight)
@@ -205,7 +222,7 @@ CONTAINS
 
          DO ikind = 1, SIZE(atomic_kind_set)
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
-            CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom, &
+            CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom, &
                              harmonics=harmonics, grid_atom=grid_atom)
 
             IF (.NOT. paw_atom) CYCLE
@@ -258,7 +275,7 @@ CONTAINS
             donlcc = .FALSE.
             IF (nlcc) THEN
                NULLIFY (rho_nlcc)
-               rho_nlcc => qs_kind_set(ikind)%nlcc_pot
+               rho_nlcc => my_kind_set(ikind)%nlcc_pot
                IF (ASSOCIATED(rho_nlcc)) donlcc = .TRUE.
             END IF
 
@@ -271,10 +288,10 @@ CONTAINS
             DO iat = bo(1), bo(2)
                iatom = atom_list(iat)
 
-               rho_atom_set(iatom)%exc_h = 0.0_dp
-               rho_atom_set(iatom)%exc_s = 0.0_dp
+               my_rho_atom_set(iatom)%exc_h = 0.0_dp
+               my_rho_atom_set(iatom)%exc_s = 0.0_dp
 
-               rho_atom => rho_atom_set(iatom)
+               rho_atom => my_rho_atom_set(iatom)
                IF (gradient_f) THEN
                   NULLIFY (r_h, r_s, dr_h, dr_s, r_h_d, r_s_d)
                   CALL get_rho_atom(rho_atom=rho_atom, rho_rad_h=r_h, &
@@ -345,14 +362,14 @@ CONTAINS
 
                ! Add contributions to the exc energy
 
-               energy%exc1 = energy%exc1 + rho_atom%exc_h - rho_atom%exc_s
+               exc1 = exc1 + rho_atom%exc_h - rho_atom%exc_s
 
                ! Integration to get the matrix elements relative to the vxc_atom
                ! here the products with the primitives is done: gaVxcgb
                ! internal transformation to get the integral in cartesian Gaussians
 
                IF (.NOT. energy_only) THEN
-                  qs_kind => qs_kind_set(ikind)
+                  qs_kind => my_kind_set(ikind)
                   IF (gradient_f) THEN
                      CALL gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, qs_kind, &
                                      rho_atom, nspins)
@@ -373,7 +390,7 @@ CONTAINS
 
          END DO ! ikind
 
-         CALL mp_sum(energy%exc1, para_env%group)
+         CALL mp_sum(exc1, para_env%group)
 
          IF (ASSOCIATED(rho_h)) THEN
             DEALLOCATE (rho_h)

@@ -120,8 +120,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: gapw, gapw_xc, gth_gspace, ionode, &
                                                             make_soft, mpi_io, paw_atom
-      REAL(KIND=dp) :: alpha, alpha_core, arg, charge, ehartree, exc, exp_rap, gapw_max_alpha, &
-         hard_radius, hard_value, soft_value, sqrt_alpha, sqrt_rap
+      REAL(KIND=dp) :: alpha, alpha_core, arg, charge, ehartree, exc, exc1, exp_rap, &
+         gapw_max_alpha, hard_radius, hard_value, soft_value, sqrt_alpha, sqrt_rap
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vh1_rad_h, vh1_rad_s
       REAL(KIND=dp), DIMENSION(3)                        :: rap, ratom, roffset, rpoint
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cexp_ppl, rho_rad_z
@@ -946,7 +946,7 @@ CONTAINS
       DEALLOCATE (v_xc_rtemp)
 
       IF (gapw .OR. gapw_xc) THEN
-         CALL calculate_vxc_atom(qs_env=qs_env, energy_only=.FALSE., &
+         CALL calculate_vxc_atom(qs_env=qs_env, energy_only=.FALSE., exc1=exc1, &
                                  gradient_atom_set=nablavks_atom_set)
       END IF
 

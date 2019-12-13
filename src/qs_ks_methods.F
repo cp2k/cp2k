@@ -22,7 +22,8 @@ MODULE qs_ks_methods
                                               admm_dm_merge_ks_matrix
    USE admm_methods,                    ONLY: admm_mo_calc_rho_aux,&
                                               admm_mo_merge_derivs,&
-                                              admm_mo_merge_ks_matrix
+                                              admm_mo_merge_ks_matrix,&
+                                              admm_update_ks_atom
    USE admm_types,                      ONLY: admm_type
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -249,14 +250,13 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
-      NULLIFY (admm_env, cell, dft_control, logger, &
-               mo_derivs, my_rho, rho_struct, para_env, pw_env, virial, &
-               vppl_rspace, v_hartree_rspace%pw, adiabatic_rescaling_section, &
-               hfx_sections, input, scf_section, xc_section, matrix_h, matrix_s, &
-               auxbas_pw_pool, poisson_env, v_rspace_new, &
-               v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
-               matrix_vxc, vee, rho_nlcc, ks_env, &
-               ks_matrix, rho, energy, rho_xc, rho_r, rho_ao, rho_core)
+      NULLIFY (admm_env, cell, dft_control, logger, mo_derivs, my_rho, &
+               rho_struct, para_env, pw_env, virial, vppl_rspace, &
+               v_hartree_rspace%pw, adiabatic_rescaling_section, hfx_sections, &
+               input, scf_section, xc_section, matrix_h, matrix_s, &
+               auxbas_pw_pool, poisson_env, v_rspace_new, v_rspace_new_aux_fit, &
+               v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, &
+               ks_env, ks_matrix, rho, energy, rho_xc, rho_r, rho_ao, rho_core)
 
       CPASSERT(ASSOCIATED(qs_env))
 
@@ -527,6 +527,7 @@ CONTAINS
       ! calculate the density matrix for the fitted mo_coeffs
       IF (dft_control%do_admm) THEN
          CALL hfx_admm_init(qs_env)
+
          IF (dft_control%do_admm_mo) THEN
             IF (qs_env%run_rtp) THEN
                CALL rtp_admm_calc_rho_aux(qs_env)
@@ -547,16 +548,21 @@ CONTAINS
       IF (dft_control%do_admm) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env)
          xc_section => admm_env%xc_section_aux
-         IF (gapw_xc) THEN
-            CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct)
-         ELSE
-            CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_struct)
-         END IF
+         CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_struct)
 
          ! here we ignore a possible vdW section in admm_env%xc_section_aux
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                             vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
                             just_energy=just_energy_xc)
+
+         IF (admm_env%do_gapw) THEN
+            !compute the potential due to atomic densities
+            CALL calculate_vxc_atom(qs_env, energy_only=just_energy_xc, exc1=energy%exc1_aux_fit, &
+                                    kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
+                                    xc_section_external=xc_section, &
+                                    rho_atom_set_external=admm_env%admm_gapw_env%local_rho_set%rho_atom_set)
+
+         END IF
 
          NULLIFY (rho_struct)
 
@@ -599,7 +605,7 @@ CONTAINS
          ENDIF
 
          IF (gapw .OR. gapw_xc) THEN
-            CALL calculate_vxc_atom(qs_env, just_energy_xc)
+            CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
          ENDIF
 
       ENDIF
@@ -763,6 +769,11 @@ CONTAINS
       IF (gapw .OR. gapw_xc) THEN
          ! Single atom contributions in the KS matrix ***
          CALL update_ks_atom(qs_env, ks_matrix, rho_ao, calculate_forces)
+
+         IF (dft_control%do_admm) THEN
+            !Single atom contribution to the AUX matrices
+            CALL admm_update_ks_atom(qs_env, calculate_forces)
+         END IF
       END IF
 
       !Calculation of Mulliken restraint, if requested
@@ -862,7 +873,7 @@ CONTAINS
                      energy%dft_plus_u + energy%kTS + &
                      energy%efield + energy%efield_core + energy%ee + &
                      energy%ee_core + energy%exc_aux_fit + energy%image_charge + &
-                     energy%sccs_pol + energy%sccs_mpc + energy%cdft
+                     energy%sccs_pol + energy%sccs_mpc + energy%cdft + energy%exc1_aux_fit
 
       IF (dft_control%apply_embed_pot) energy%total = energy%total + energy%embed_corr
 

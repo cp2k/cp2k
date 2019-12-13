@@ -298,8 +298,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: bc, handle, ispin, psolver
-      REAL(kind=dp)                                      :: exc_energy, implicit_ps_ehartree, &
-                                                            tot1_h, tot1_s
+      REAL(kind=dp)                                      :: exc1_energy, exc_energy, &
+                                                            implicit_ps_ehartree, tot1_h, tot1_s
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(pw_env_type), POINTER                         :: pw_env
 
@@ -383,8 +383,10 @@ CONTAINS
          ELSE
             IF (dft_control%do_admm) THEN
                exc_energy = energy%exc + energy%exc_aux_fit
+               IF (gapw .OR. gapw_xc) exc1_energy = energy%exc1 + energy%exc1_aux_fit
             ELSE
                exc_energy = energy%exc
+               IF (gapw .OR. gapw_xc) exc1_energy = energy%exc1
             END IF
 
             IF (psolver .EQ. pw_poisson_implicit) THEN
@@ -430,12 +432,12 @@ CONTAINS
                "gCP energy:                                    ", energy%gcp
             IF (gapw) THEN
                WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
-                  "GAPW| Exc from hard and soft atomic rho1:      ", energy%exc1, &
+                  "GAPW| Exc from hard and soft atomic rho1:      ", exc1_energy, &
                   "GAPW| local Eh = 1 center integrals:           ", energy%hartree_1c
             END IF
             IF (gapw_xc) THEN
                WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
-                  "GAPW_XC| Exc from hard and soft atomic rho1:      ", energy%exc1
+                  "GAPW_XC| Exc from hard and soft atomic rho1:      ", exc1_energy
             END IF
          END IF
          IF (dft_control%smear) THEN

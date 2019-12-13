@@ -52,6 +52,7 @@ MODULE rtp_admm_methods
                                               qs_rho_type
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
+   USE task_list_types,                 ONLY: task_list_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -93,11 +94,12 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(task_list_type), POINTER                      :: task_list_aux_fit
 
       CALL timeset(routineN, handle)
       NULLIFY (admm_env, matrix_p_aux, matrix_p_aux_im, mos, &
                mos_aux_fit, para_env, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, rho, &
-               ks_env, dft_control, tot_rho_r_aux, rho_r_aux, rho_g_aux)
+               ks_env, dft_control, tot_rho_r_aux, rho_r_aux, rho_g_aux, task_list_aux_fit)
 
       CALL get_qs_env(qs_env, &
                       admm_env=admm_env, &
@@ -111,7 +113,12 @@ CONTAINS
                       rtp=rtp, &
                       rho=rho, &
                       rho_aux_fit=rho_aux_fit, &
-                      s_mstruct_changed=s_mstruct_changed)
+                      s_mstruct_changed=s_mstruct_changed, &
+                      task_list_aux_fit=task_list_aux_fit)
+
+      IF (admm_env%do_gapw) THEN
+         CPABORT("GAPW ADMM not implemented for real time propagation")
+      END IF
 
       nspins = dft_control%nspins
 
@@ -139,7 +146,8 @@ CONTAINS
                                  rho_gspace=rho_g_aux(ispin), &
                                  total_rho=tot_rho_r_aux(ispin), &
                                  ks_env=ks_env, soft_valid=.FALSE., &
-                                 basis_type="AUX_FIT")
+                                 basis_type="AUX_FIT", &
+                                 task_list_external=task_list_aux_fit)
       END DO
       CALL set_qs_env(qs_env, admm_env=admm_env)
       CALL qs_rho_set(rho_aux_fit, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
