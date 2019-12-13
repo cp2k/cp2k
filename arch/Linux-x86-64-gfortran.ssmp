@@ -1,31 +1,46 @@
-# Tested with: GFortran 7.4.0, LAPACK 3.8.0, FFTW 3.3, Libint 1.1.6, Libxc 4.3.4, libxsmm 1.12
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, June 2019)
+# Tested with: GFortran 7.4.0, LAPACK 3.8.0, FFTW 3.3, Libint 2.6.0, Libxc 4.3.4, libxsmm 1.14, SPGLIB 1.12.2
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2019)
+
 CC          = gcc
 FC          = gfortran
 LD          = gfortran
 AR          = ar -r
-FFTW_INC    = $(GCC_DIR)/fftw/3.3/include
-FFTW_LIB    = $(GCC_DIR)/fftw/3.3/lib
-LIBINT_INC  = $(GCC_DIR)/libint/1.1.6-LARGE_L/include
-LIBINT_LIB  = $(GCC_DIR)/libint/1.1.6-LARGE_L/lib
-LIBXC_INC   = $(GCC_DIR)/libxc/4.3.4/include
-LIBXC_LIB   = $(GCC_DIR)/libxc/4.3.4/lib
-LIBXSMM_INC = $(GCC_DIR)/libxsmm/1.12/include
-LIBXSMM_LIB = $(GCC_DIR)/libxsmm/1.12/lib
-DFLAGS      = -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM \
-              -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4
-FCFLAGS     = $(DFLAGS) -O2 -ffree-form -ffree-line-length-none \
-              -fopenmp -ftree-vectorize -funroll-loops -mtune=native -std=f2008 \
-              -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) -I$(LIBXSMM_INC)
+
+FFTW_INC    = $(GNU_PATH)/fftw/3.3/include
+FFTW_LIB    = $(GNU_PATH)/fftw/3.3/lib
+
+LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-6/include
+LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
+
+LIBXC_INC   = $(GNU_PATH)/libxc/4.3.4/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/4.3.4/lib
+
+LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.14/include
+LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.14/lib
+
+SPGLIB_INC  = $(GNU_PATH)/spglib/1.12.2/include
+SPGLIB_LIB  = $(GNU_PATH)/spglib/1.12.2/lib
+
+CFLAGS      = -O2 -g -mtune=native
+
+DFLAGS      = -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM -D__SPGLIB
+
+FCFLAGS     = $(CFLAGS) $(DFLAGS)
+FCFLAGS    += -ffree-form -ffree-line-length-none
+FCFLAGS    += -fopenmp
+FCFLAGS    += -ftree-vectorize -funroll-loops -std=f2008
+FCFLAGS    += -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) -I$(LIBXSMM_INC)
+
 LDFLAGS     = $(FCFLAGS) -static
-LIBS        = $(LIBXC_LIB)/libxcf03.a \
-              $(LIBXC_LIB)/libxc.a \
-              $(LIBINT_LIB)/libderiv.a \
-              $(LIBINT_LIB)/libint.a \
-              $(FFTW_LIB)/libfftw3.a \
-              $(FFTW_LIB)/libfftw3_threads.a \
-              $(LIBXSMM_LIB)/libxsmmf.a \
-              $(LIBXSMM_LIB)/libxsmm.a \
-              $(LIBPATH)/liblapack.a \
-              $(LIBPATH)/libblas.a \
-              -ldl -lpthread
+
+LIBS        = $(LIBXC_LIB)/libxcf03.a
+LIBS       += $(LIBXC_LIB)/libxc.a
+LIBS       += $(LIBINT_LIB)/libint2.a
+LIBS       += $(SPGLIB_LIB)/libsymspg.a
+LIBS       += $(FFTW_LIB)/libfftw3.a
+LIBS       += $(FFTW_LIB)/libfftw3_threads.a
+LIBS       += $(LIBXSMM_LIB)/libxsmmf.a
+LIBS       += $(LIBXSMM_LIB)/libxsmm.a
+LIBS       += $(LIBPATH)/liblapack.a
+LIBS       += $(LIBPATH)/libblas.a
+LIBS       += -ldl -lpthread -lstdc++

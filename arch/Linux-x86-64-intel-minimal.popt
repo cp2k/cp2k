@@ -4,29 +4,34 @@
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.3.199 Build 20190206
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.4.243 Build 20190416
 #              Intel MPI, MKL
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, November 2019)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2019)
 
-CC          = mpiicc
-FC          = mpiifort
-LD          = mpiifort
-AR          = ar -r
-DFLAGS      = -D__FFTW3 -D__MKL -D__MPI_VERSION=3 \
-              -D__parallel -D__SCALAPACK
-CFLAGS      = $(DFLAGS) -O2
-FCFLAGS     = $(DFLAGS) -O2 -xHost
-FCFLAGS    += -fpp -fp-model precise -free -funroll-loops
-FCFLAGS    += -g -traceback
-FCFLAGS    += -I${MKLROOT}/include -I${MKLROOT}/include/fftw
-LDFLAGS     = $(FCFLAGS) -static-intel -static_mpi
-LDFLAGS_C   = $(FCFLAGS) -static-intel -nofor_main
-MKL_LIB     = ${MKLROOT}/lib/intel64
-LIBS        = $(MKL_LIB)/libmkl_scalapack_lp64.a \
-              -Wl,--start-group \
-              $(MKL_LIB)/libmkl_intel_lp64.a \
-              ${MKL_LIB}/libmkl_sequential.a \
-      	     $(MKL_LIB)/libmkl_core.a \
-              ${MKL_LIB}/libmkl_blacs_intelmpi_lp64.a \
-              -Wl,--end-group
+CC        = mpiicc
+FC        = mpiifort
+LD        = mpiifort
+AR        = ar -r
+
+CFLAGS    = -O2 -g -traceback -xHost
+
+DFLAGS    = -D__FFTW3 -D__MKL -D__MPI_VERSION=3
+DFLAGS   += -D__parallel -D__SCALAPACK
+
+FCFLAGS   = $(CFLAGS) $(DFLAGS)
+FCFLAGS  += -fpp -fp-model precise -free -funroll-loops
+FCFLAGS  += -I${MKLROOT}/include -I${MKLROOT}/include/fftw
+
+LDFLAGS   = $(FCFLAGS) -static-intel -static_mpi
+LDFLAGS_C = -nofor_main
+
+MKL_LIB   = ${MKLROOT}/lib/intel64
+
+LIBS      = $(MKL_LIB)/libmkl_scalapack_lp64.a
+LIBS     += -Wl,--start-group
+LIBS     += $(MKL_LIB)/libmkl_intel_lp64.a
+LIBS     += ${MKL_LIB}/libmkl_sequential.a
+LIBS     += $(MKL_LIB)/libmkl_core.a
+LIBS     += ${MKL_LIB}/libmkl_blacs_intelmpi_lp64.a
+LIBS     += -Wl,--end-group
 
 # Required due to memory leak that occurs if high optimisations are used
 mp2_optimize_ri_basis.o: mp2_optimize_ri_basis.F
