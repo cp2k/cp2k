@@ -79,7 +79,7 @@ QS/regtest-plus_u
 QS/regtest-ps-implicit-1-3                                  fftw3
 QS/regtest-admm-4                                           libint
 ATOM/regtest-1
-QS/regtest-gw-ic-model
+QS/regtest-gw-ic-model                                      libint
 QS/regtest-almo-md
 QS/regtest-pao-1
 QS/regtest-ri-mp2                                           libint
