@@ -1666,6 +1666,10 @@ CONTAINS
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
+      ! initialize iteration info
+      CALL cp_iterate(logger%iter_info, iter_nr=pint_env%first_step)
+      CALL cp_iterate(pint_env%logger%iter_info, iter_nr=pint_env%first_step)
+
       CALL pint_x2u(pint_env)
       CALL pint_calc_uf_h(pint_env=pint_env, e_h=e_h)
       CALL pint_calc_f(pint_env)
@@ -1763,7 +1767,6 @@ CONTAINS
                               f_env=f_env)
       NULLIFY (logger)
       logger => cp_get_default_logger()
-      CALL cp_add_iter_level(logger%iter_info, "PINT")
       CALL cp_iterate(logger%iter_info, &
                       iter_nr=pint_env%first_step)
       CALL f_env_rm_defaults(f_env)
@@ -1838,7 +1841,6 @@ CONTAINS
 
       ! remove iteration level
       CALL cp_rm_iter_level(pint_env%logger%iter_info, "PINT")
-      CALL cp_rm_iter_level(logger%iter_info, "PINT")
 
       RETURN
    END SUBROUTINE pint_do_run
