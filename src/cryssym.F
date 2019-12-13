@@ -16,6 +16,7 @@ MODULE cryssym
         spg_get_international, spg_get_ir_reciprocal_mesh, spg_get_major_version, &
         spg_get_micro_version, spg_get_minor_version, spg_get_multiplicity, spg_get_pointgroup, &
         spg_get_schoenflies, spg_get_symmetry
+   USE string_utilities,                ONLY: strip_control_codes
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -189,6 +190,9 @@ CONTAINS
             ierr = spg_get_pointgroup(csym%pointgroup_symbol, tra_mat, &
                                       csym%rotations, csym%n_operations)
          END IF
+         CALL strip_control_codes(csym%international_symbol)
+         CALL strip_control_codes(csym%schoenflies)
+         CALL strip_control_codes(csym%pointgroup_symbol)
       END IF
       csym%symlib = spglib
 

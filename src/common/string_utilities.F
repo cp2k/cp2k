@@ -76,6 +76,7 @@ MODULE string_utilities
              s2a, a2s, &
              str_comp, &
              string_to_ascii, &
+             strip_control_codes, &
              substitute_special_xml_tokens, &
              typo_match, &
              uppercase, &
@@ -1948,5 +1949,25 @@ CONTAINS
       resval = .FALSE.
       IF (ANY(default_blank_character == testchar)) resval = .TRUE.
    END FUNCTION is_whitespace
+
+! **************************************************************************************************
+!> \brief Strip control codes and extended characters from a string, i.e. replace them with blanks
+!> \param string ...
+!> \date    13.12.2019
+!> \author  MK
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE strip_control_codes(string)
+
+      CHARACTER(LEN=*), INTENT(INOUT)                    :: string
+
+      INTEGER                                            :: i, iascii
+
+      DO i = 1, LEN(string)
+         iascii = ICHAR(string(i:i))
+         IF ((iascii < 32) .OR. (iascii > 126)) string(i:i) = " "
+      END DO
+
+   END SUBROUTINE strip_control_codes
 
 END MODULE string_utilities
