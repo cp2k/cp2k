@@ -1,32 +1,47 @@
-# Tested with: GFortran 7.4.0, FFTW 3.3, LAPACK 3.8.0, Libint 2.6.0, Libxc 4.3.4
+# Tested with: GFortran 7.4.0, FFTW 3.3, LAPACK 3.8.0, Libint 2.6.0, Libxc 4.3.4, SPGLIB 1.12.2
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, Dezember 2019)
+
 CC         = gcc
 FC         = gfortran
 LD         = gfortran
 AR         = ar -r
+
 FFTW_INC   = $(GNU_PATH)/fftw/3.3-regtest/include
 FFTW_LIB   = $(GNU_PATH)/fftw/3.3-regtest/lib
+
 LIBINT_INC = $(GNU_PATH)/libint/2.6.0-lmax-4-regtest/include
 LIBINT_LIB = $(GNU_PATH)/libint/2.6.0-lmax-4-regtest/lib
+
 LIBXC_INC  = $(GNU_PATH)/libxc/4.3.4-regtest/include
 LIBXC_LIB  = $(GNU_PATH)/libxc/4.3.4-regtest/lib
-DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC -D__CHECK_DIAG
-CFLAGS     = -fopenmp -g -march=native
-WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion \
-             -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation \
-             -Wno-tabs -Wrealloc-lhs -Wtarget-lifetime -Wunderflow \
-             -Wunused-but-set-variable -Wunused-dummy-argument -Wunused-variable \
-             -Werror
-FCFLAGS    = $(CFLAGS) -std=f2008 \
-             $(DFLAGS) -O1 -fcheck=bounds,do,recursion,pointer -ffree-form \
-             -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer \
-             -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) $(WFLAGS)
+
+SPGLIB_INC = $(GNU_PATH)/spglib/1.12.2/include
+SPGLIB_LIB = $(GNU_PATH)/spglib/1.12.2/lib
+
+CFLAGS     = -O1 -g -mtune=generic
+
+DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC -D__SPGLIB -D__CHECK_DIAG
+
+WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion
+WFLAGS    += -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation
+WFLAGS    += -Wno-tabs -Wrealloc-lhs -Wtarget-lifetime -Wunderflow
+WFLAGS    += -Wunused-but-set-variable -Wunused-dummy-argument -Wunused-variable
+WFLAGS    += -Werror
+
+FCFLAGS    = $(CFLAGS) $(DFLAGS) $(WFLAGS)
+FCFLAGS   += -fcheck=bounds,do,recursion,pointer -ffree-form
+FCFLAGS   += -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer
+FCFLAGS   += -fopenmp -std=f2008
+FCFLAGS   += -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC)
+
 LDFLAGS    = $(FCFLAGS) -fsanitize=leak
-LIBS       = $(LIBXC_LIB)/libxcf03.a \
-             $(LIBXC_LIB)/libxc.a \
-             $(LIBINT_LIB)/libint2.a \
-             $(FFTW_LIB)/libfftw3.a \
-             $(FFTW_LIB)/libfftw3_threads.a \
-             $(LIBPATH)/liblapack-regtest.a \
-             $(LIBPATH)/libblas-regtest.a \
-             -lstdc++
+
+LIBS       = $(LIBXC_LIB)/libxcf03.a
+LIBS      += $(LIBXC_LIB)/libxc.a
+LIBS      += $(LIBINT_LIB)/libint2.a
+LIBS      += $(SPGLIB_LIB)/libsymspg.a
+LIBS      += $(FFTW_LIB)/libfftw3.a
+LIBS      += $(FFTW_LIB)/libfftw3_threads.a
+LIBS      += $(LIBPATH)/liblapack-regtest.a
+LIBS      += $(LIBPATH)/libblas-regtest.a
+LIBS      += -lstdc++
