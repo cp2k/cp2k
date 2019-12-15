@@ -89,13 +89,12 @@ def gen_frontpage(config, log, status_fn, outdir):
     output += '</div>\n'
     output += '<table border="1" cellspacing="3" cellpadding="5">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
-    output += '<th>Commit</th><th>Summary</th><th>Last OK</th><th>Issues</th></tr>\n\n'
+    output += '<th>Commit</th><th>Summary</th><th>Last OK</th></tr>\n\n'
 
     def get_sortkey(s):
         return config.getint(s, "sortkey")
 
     now = datetime.utcnow().replace(microsecond=0)
-    issues = requests.get("https://api.github.com/repos/cp2k/cp2k/issues").json()
 
     for s in sorted(config.sections(), key=get_sortkey):
         print("Working on summary entry of: "+s)
@@ -149,18 +148,6 @@ def gen_frontpage(config, log, status_fn, outdir):
             output += commit_cell(status[s]['last_ok'], log)
         else:
             output += '<td></td>'
-
-        #Issues
-        matching_issues = []
-        for issue in issues:
-            link_pattern = "dashboard.cp2k.org/archive/{}/".format(s)
-            matching_labels = [label for label in issue['labels'] if s in label['name']]
-            if "pull_request" in issue:
-                continue  # GitHub's REST API v3 considers every pull request an issue.
-            if link_pattern in issue['body'] or any(matching_labels):
-                issue_tmpl = '<a href="{}">#{}</a>'
-                matching_issues.append(issue_tmpl.format(issue['html_url'], issue['number']))
-        output += '<td>{}</td>'.format(', '.join(matching_issues))
 
         output += '</tr>\n\n'
 
