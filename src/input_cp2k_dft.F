@@ -1660,6 +1660,17 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="VEL_REPRS", &
+                          description="Calculate expectation values the el. multipole moments in their velocity"// &
+                          "representation during RTP. Implemented up to el. quadrupole moment", &
+                          usage="VEL_REPS yes", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

@@ -99,6 +99,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_setup', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: aspc_order
+      LOGICAL                                            :: magnetic, vel_reprs
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -145,11 +146,12 @@ CONTAINS
       CALL section_vals_val_get(ls_scf_section, "MAX_ITER_LANCZOS", i_val=rtp%lanzcos_max_iter)
       CALL section_vals_val_get(ls_scf_section, "SIGN_SQRT_ORDER", i_val=rtp%newton_schulz_order)
       CALL section_vals_get(hfx_sections, explicit=rtp%do_hfx)
-      CALL section_vals_val_get(print_moments_section, "MAGNETIC", l_val=rtp%magnetic)
-
+      CALL section_vals_val_get(print_moments_section, "MAGNETIC", l_val=magnetic)
+      CALL section_vals_val_get(print_moments_section, "VEL_REPRS", l_val=vel_reprs)
+      rtp%track_imag_density = magnetic .OR. vel_reprs
       ! Hmm, not really like to initialize with the structure of S but I reckon it is
       ! done everywhere like this
-      IF (rtp%do_hfx .OR. rtp%magnetic) &
+      IF (rtp%do_hfx .OR. rtp%track_imag_density) &
          CALL rtp_hfx_rebuild(qs_env)
 
       CALL init_propagation_run(qs_env)
