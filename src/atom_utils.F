@@ -1697,7 +1697,7 @@ CONTAINS
          CASE (1)
             erfa(:) = erfa(:) - expa(:)*(12._dp*z(:) + 30._dp/z(:))
          CASE (3)
-            erfa(:) = erfa(:) - expa(:)*(56._dp*z(:) + 140._dp/z(:) + 210._dp*z(:)**3)
+            erfa(:) = erfa(:) - expa(:)*(56._dp*z(:) + 140._dp/z(:) + 210._dp/z(:)**3)
          END SELECT
       CASE (4)
          SELECT CASE (nu)
