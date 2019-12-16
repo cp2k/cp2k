@@ -91,6 +91,8 @@ CONTAINS
          iw = cp_print_key_unit_nr(logger, print_section, "", &
                                    extension=".molden", file_status='REPLACE')
 
+         print_warn = .TRUE.
+
          CALL section_vals_val_get(print_section, "NDIGITS", i_val=ndigits)
          IF (ndigits < 1) ndigits = 3
          IF (ndigits > 92) ndigits = 92
