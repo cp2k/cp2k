@@ -1312,8 +1312,13 @@ CONTAINS
                         cpot(:) = cpot(:) + pot(:)*hfx_pot%scale_coulomb
                      END IF
                      IF (hfx_pot%scale_longrange /= 0.0_dp) THEN
-                        CALL potential_longrange_numeric(pot, nai, nu, basis%grid, hfx_pot%omega, &
-                                                         hfx_pot%kernel(:, :, nu), hfx_pot%do_gh)
+                        IF (hfx_pot%do_gh) THEN
+                           CALL potential_longrange_numeric_gh(pot, nai, nu, basis%grid, hfx_pot%omega, &
+                                                               hfx_pot%kernel(:, :, nu))
+                        ELSE
+                           CALL potential_longrange_numeric(pot, nai, nu, basis%grid, hfx_pot%omega, &
+                                                            hfx_pot%kernel(:, :, nu))
+                        END IF
                         cpot(:) = cpot(:) + pot(:)*hfx_pot%scale_longrange
                      END IF
                      DO ib = 1, basis%nbas(lad)
@@ -1465,26 +1470,67 @@ CONTAINS
 !> \param grid ...
 !> \param omega ...
 !> \param kernel ...
-!> \param do_gh ...
 ! **************************************************************************************************
-   SUBROUTINE potential_longrange_numeric(cpot, density, nu, grid, omega, kernel, do_gh)
+   SUBROUTINE potential_longrange_numeric(cpot, density, nu, grid, omega, kernel)
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: cpot
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: density
       INTEGER, INTENT(IN)                                :: nu
       TYPE(grid_atom_type), INTENT(IN)                   :: grid
       REAL(KIND=dp), INTENT(IN)                          :: omega
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: kernel
-      LOGICAL, INTENT(IN)                                :: do_gh
 
       CHARACTER(len=*), PARAMETER :: routineN = 'potential_longrange_numeric', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: n_max, nc, nc_kernel, nr_kernel
+      INTEGER                                            :: nc
       REAL(dp), DIMENSION(:), POINTER                    :: r, wr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work_inp, work_out
 
       nc = MIN(SIZE(cpot), SIZE(density))
       r => grid%rad
+      wr => grid%wr
+
+      ALLOCATE (work_inp(nc), work_out(nc))
+
+      cpot = 0.0_dp
+
+      ! First Bessel transform
+      work_inp(:nc) = density(:nc)*wr(:nc)
+      CALL DSYMV('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
+
+      ! Second Bessel transform
+      work_inp(:nc) = work_out(:nc)*EXP(-r(:nc)**2)/r(:nc)**2*wr(:nc)
+      CALL DSYMV('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
+
+      cpot(:nc) = work_out(:nc)*(2.0_dp*REAL(nu, dp) + 1.0_dp)*4.0_dp/pi*omega
+
+   END SUBROUTINE potential_longrange_numeric
+
+! **************************************************************************************************
+!> \brief ...
+!> \param cpot ...
+!> \param density ...
+!> \param nu ...
+!> \param grid ...
+!> \param omega ...
+!> \param kernel ...
+! **************************************************************************************************
+   SUBROUTINE potential_longrange_numeric_gh(cpot, density, nu, grid, omega, kernel)
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: cpot
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: density
+      INTEGER, INTENT(IN)                                :: nu
+      TYPE(grid_atom_type), INTENT(IN)                   :: grid
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: kernel
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'potential_longrange_numeric_gh', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: n_max, nc, nc_kernel, nr_kernel
+      REAL(dp), DIMENSION(:), POINTER                    :: wr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work_inp, work_out
+
+      nc = MIN(SIZE(cpot), SIZE(density))
       wr => grid%wr
 
       nc_kernel = SIZE(kernel, 1)
@@ -1495,27 +1541,17 @@ CONTAINS
 
       cpot = 0.0_dp
 
-      IF (do_gh) THEN
-         ! First Bessel transform
-         work_inp(:nc) = density(:nc)*wr(:nc)
-         CALL DGEMV('T', nc_kernel, nr_kernel, 1.0_dp, kernel, nc_kernel, work_inp, 1, 0.0_dp, work_out, 1)
+      ! First Bessel transform
+      work_inp(:nc) = density(:nc)*wr(:nc)
+      CALL DGEMV('T', nc_kernel, nr_kernel, 1.0_dp, kernel, nc_kernel, work_inp, 1, 0.0_dp, work_out, 1)
 
-         ! Second Bessel transform
-         work_inp(:nr_kernel) = work_out(:nr_kernel)
-         CALL DGEMV('N', nc_kernel, nr_kernel, 1.0_dp, kernel, nc_kernel, work_inp, 1, 0.0_dp, work_out, 1)
-      ELSE
-         ! First Bessel transform
-         work_inp(:nc) = density(:nc)*wr(:nc)
-         CALL DSYMV('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
-
-         ! Second Bessel transform
-         work_inp(:nc) = work_out(:nc)*EXP(-r(:nc)**2)/r(:nc)**2*wr(:nc)
-         CALL DSYMV('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
-      END IF
+      ! Second Bessel transform
+      work_inp(:nr_kernel) = work_out(:nr_kernel)
+      CALL DGEMV('N', nc_kernel, nr_kernel, 1.0_dp, kernel, nc_kernel, work_inp, 1, 0.0_dp, work_out, 1)
 
       cpot(:nc) = work_out(:nc)*(2.0_dp*REAL(nu, dp) + 1.0_dp)*4.0_dp/pi*omega
 
-   END SUBROUTINE potential_longrange_numeric
+   END SUBROUTINE potential_longrange_numeric_gh
 
 ! **************************************************************************************************
 !> \brief Calculate the electrostatic potential using analytical expressions.
@@ -1759,11 +1795,12 @@ CONTAINS
          END IF
 
          erfa = erfa*oab
+
+         DEALLOCATE (expa, z)
       ELSE
+         ! Contribution to potential is zero (properties of spherical harmonics)
          erfa = 0.0_dp
       END IF
-
-      DEALLOCATE (expa, z)
 
    END SUBROUTINE potential_longrange_analytic
 
