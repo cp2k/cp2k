@@ -1103,7 +1103,7 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: handle, maxmom, reference, unit_nr
-      LOGICAL                                            :: do_kpoints, magnetic, periodic
+      LOGICAL                                            :: do_kpoints, magnetic, periodic, vel_reprs
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -1122,6 +1122,8 @@ CONTAINS
                                       keyword_name="DFT%PRINT%MOMENTS%REFERENCE")
          magnetic = section_get_lval(section_vals=input, &
                                      keyword_name="DFT%PRINT%MOMENTS%MAGNETIC")
+         vel_reprs = section_get_lval(section_vals=input, &
+                                      keyword_name="DFT%PRINT%MOMENTS%VEL_REPRS")
          NULLIFY (ref_point)
          CALL section_vals_val_get(input, "DFT%PRINT%MOMENTS%REF_POINT", r_vals=ref_point)
          unit_nr = cp_print_key_unit_nr(logger=logger, basis_section=input, &
@@ -1147,7 +1149,7 @@ CONTAINS
             IF (periodic) THEN
                CALL qs_moment_berry_phase(qs_env, magnetic, maxmom, reference, ref_point, unit_nr)
             ELSE
-               CALL qs_moment_locop(qs_env, magnetic, maxmom, reference, ref_point, unit_nr)
+               CALL qs_moment_locop(qs_env, magnetic, maxmom, reference, ref_point, unit_nr, vel_reprs)
             END IF
          END IF
 

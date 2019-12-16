@@ -1462,14 +1462,16 @@ CONTAINS
 !> \param reference ...
 !> \param ref_point ...
 !> \param unit_number ...
+!> \param vel_reprs ...
 ! **************************************************************************************************
-   SUBROUTINE qs_moment_locop(qs_env, magnetic, nmoments, reference, ref_point, unit_number)
+   SUBROUTINE qs_moment_locop(qs_env, magnetic, nmoments, reference, ref_point, unit_number, vel_reprs)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: magnetic
       INTEGER, INTENT(IN)                                :: nmoments, reference
       REAL(dp), DIMENSION(:), POINTER                    :: ref_point
       INTEGER, INTENT(IN)                                :: unit_number
+      LOGICAL, INTENT(IN), OPTIONAL                      :: vel_reprs
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_locop', &
          routineP = moduleN//':'//routineN
@@ -1477,9 +1479,9 @@ CONTAINS
       CHARACTER(LEN=8), ALLOCATABLE, DIMENSION(:)        :: rlab
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: akind, handle, i, ia, iatom, ikind, &
-                                                            ispin, ix, iy, iz, l, nm, nmom
+                                                            ispin, ix, iy, iz, l, nm, nmm, nmom
       REAL(dp)                                           :: charge, dd, strace, trace
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, rmom_vel
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
       REAL(dp), DIMENSION(3)                             :: rcc, ria
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -1586,8 +1588,8 @@ CONTAINS
       IF (magnetic) THEN
          NULLIFY (magmom)
          CALL build_local_magmom_matrix(qs_env, magmom, nmom, ref_point=rcc)
-         nm = SIZE(magmom)
-         ALLOCATE (mmom(nm))
+         nmm = SIZE(magmom)
+         ALLOCATE (mmom(nmm))
 
          ! Allocate matrices to store the matrix product to be traced (dbcsr_dot only works for products of
          ! symmetric matrices)
@@ -1618,6 +1620,14 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(magmom)
          CALL dbcsr_deallocate_matrix(rho_magmom_ao)
       END IF
+
+      IF (PRESENT(vel_reprs)) THEN
+         IF (vel_reprs) THEN
+            ALLOCATE (rmom_vel(nm))
+            rmom_vel = 0.0_dp
+
+         ENDIF
+      ENDIF
 
       description = "[DIPOLE]"
       CALL cp_results_erase(results=results, description=description)
@@ -1759,4 +1769,3 @@ CONTAINS
    END SUBROUTINE print_moments
 
 END MODULE qs_moments
-

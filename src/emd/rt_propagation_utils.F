@@ -396,7 +396,7 @@ CONTAINS
       END DO
       CALL qs_rho_update_rho(rho, qs_env)
 
-      IF (rtp%do_hfx .OR. rtp%magnetic) THEN
+      IF (rtp%do_hfx .OR. rtp%track_imag_density) THEN
          CALL qs_rho_get(rho_struct=rho, rho_ao_im=rho_ao_im)
          CALL calculate_P_imaginary(qs_env, rtp, rho_ao_im, keep_sparsity=.TRUE.)
          CALL qs_rho_set(rho, rho_ao_im=rho_ao_im)
@@ -440,11 +440,13 @@ CONTAINS
       rtp_control => dft_control%rtp_control
       CALL get_rtp(rtp=rtp, rho_new=rho_new)
       CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao)
-      IF (rtp%do_hfx .OR. rtp%magnetic) CALL qs_rho_get(rho_struct=rho, rho_ao_im=rho_ao_im)
+      IF (rtp%do_hfx .OR. rtp%track_imag_density) CALL qs_rho_get(rho_struct=rho, rho_ao_im=rho_ao_im)
       DO ispin = 1, SIZE(rho_ao)
          CALL dbcsr_set(rho_ao(ispin)%matrix, zero)
          CALL dbcsr_copy_into_existing(rho_ao(ispin)%matrix, rho_new(ispin*2 - 1)%matrix)
-         IF (rtp%do_hfx .OR. rtp%magnetic) CALL dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix)
+         IF (rtp%do_hfx .OR. rtp%track_imag_density) THEN
+            CALL dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix)
+         ENDIF
       END DO
 
       CALL qs_rho_update_rho(rho, qs_env)
