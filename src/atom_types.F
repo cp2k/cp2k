@@ -1307,6 +1307,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag, subdiag, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvec
 
+      ! Setup matrix for Golub-Welsch-algorithm to determine roots and weights of Gauss-Hermite quadrature
+      ! If necessary, one can setup matrices differently for other quadratures
       ALLOCATE (work(1), iwork(1), diag(2*nn), subdiag(2*nn - 1), eigenvec(2*nn, 2*nn))
       lwork = -1
       liwork = -1
@@ -1315,19 +1317,30 @@ CONTAINS
          subdiag(ii) = SQRT(REAL(ii, KIND=dp)/2.0_dp)
       END DO
 
+      ! Get correct size for working matrices
       CALL DSTEVD('V', 2*nn, diag, subdiag, eigenvec, 2*nn, work, lwork, iwork, liwork, info)
-      CPASSERT(info == 0)
+      IF (info /= 0) THEN
+         ! This should not happen!
+         CPABORT('Finding size of working matrices failed!')
+      END IF
 
+      ! Setup working matrices with their respective optimal sizes
       lwork = INT(work(1))
       liwork = iwork(1)
       DEALLOCATE (work, iwork)
       ALLOCATE (work(lwork), iwork(liwork))
 
+      ! Perform the actual eigenvalue decomposition
       CALL DSTEVD('V', 2*nn, diag, subdiag, eigenvec, 2*nn, work, lwork, iwork, liwork, info)
-      CPASSERT(info == 0)
+      IF (info /= 0) THEN
+         ! This should not happen for the usual values of nn! (Checked for nn = 2000)
+         CPABORT('Eigenvalue decomposition failed!')
+      END IF
 
       DEALLOCATE (work, iwork, subdiag)
 
+      ! Identify positive roots of hermite polynomials (zeros of Hermite polynomials are symmetric wrt the origin)
+      ! We will only keep the positive roots
       counter = 0
       DO ii = 1, 2*nn
          IF (diag(ii) > 0.0_dp) THEN
@@ -1336,7 +1349,9 @@ CONTAINS
             weights(counter) = rootpi*eigenvec(1, ii)**2
          END IF
       END DO
-      CPASSERT(counter == nn)
+      IF (counter /= nn) THEN
+         CPABORT('Have not found enough or too many zeros!')
+      END IF
 
    END SUBROUTINE get_gauss_hermite_weights
 
