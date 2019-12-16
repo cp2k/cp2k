@@ -10,10 +10,6 @@
       SCF_GUESS MOPAC
       MAX_SCF  100
       EPS_SCF 1.e-8
-      &PRINT
-         &MOS_MOLDEN
-         &END
-      &END
     &END SCF
     &PRINT
        &V_HARTREE_CUBE
@@ -21,6 +17,8 @@
        &TOT_DENSITY_CUBE
        &END
        &EFIELD_CUBE
+       &END
+       &MO_MOLDEN
        &END
     &END PRINT
   &END DFT

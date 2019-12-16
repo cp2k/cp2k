@@ -7,10 +7,6 @@
       SCF_GUESS MOPAC
       MAX_SCF  100
       EPS_SCF 1.e-8
-      &PRINT
-         &MOS_MOLDEN
-         &END
-      &END
     &END SCF
     &PRINT
      &MOMENTS
@@ -42,6 +38,8 @@
         RANGE 0.4
         N_WINDOWS 10
         PRINT_CUBES
+     &END
+     &MO_MOLDEN
      &END
     &END PRINT
   &END DFT

@@ -60,9 +60,9 @@ MODULE input_cp2k_dft
         embed_fa, embed_grid_angstrom, embed_grid_bohr, embed_level_shift, embed_none, &
         embed_quasi_newton, embed_resp, embed_steep_desc, eri_method_full_gpw, eri_method_gpw_ht, &
         eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, &
-        eri_operator_yukawa, gaussian, general_roks, hf_model, high_spin_roks, history_guess, &
-        jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, jacobian_fd2, &
-        jacobian_fd2_backward, kg_cholesky, kg_color_dsatur, kg_color_greedy, &
+        eri_operator_yukawa, gaussian, general_roks, gto_cartesian, gto_spherical, hf_model, &
+        high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, &
+        jacobian_fd2, jacobian_fd2_backward, kg_cholesky, kg_color_dsatur, kg_color_greedy, &
         kg_ec_diagonalization, kg_ec_functional_harris, kg_tnadd_atomic, kg_tnadd_embed, &
         kg_tnadd_embed_ri, kg_tnadd_none, ls_2pnt, ls_3pnt, ls_gold, ls_none, mao_basis_ext, &
         mao_basis_orb, mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, &
@@ -1285,6 +1285,28 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MO_MOLDEN", &
+                                       description="Write the molecular orbitals in Molden file format, for visualisation.", &
+                                       print_level=debug_print_level + 1, add_last=add_last_numeric, filename="MOS")
+      CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
+                          description="Specifies the number of significant digits retained. 3 is OK for visualization.", &
+                          usage="NDIGITS {int}", &
+                          default_i_val=3)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="GTO_KIND", &
+                          description="Representation of Gaussian-type orbitals", &
+                          default_i_val=gto_spherical, &
+                          enum_c_vals=s2a("CARTESIAN", "SPHERICAL"), &
+                          enum_desc=s2a( &
+                          "Cartesian Gaussian orbitals. Use with caution", &
+                          "Spherical Gaussian orbitals. Incompatible with VMD"), &
+                          enum_i_vals=(/gto_cartesian, gto_spherical/))
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
       CALL create_mo_cubes_section(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -1863,13 +1885,23 @@ CONTAINS
       CALL section_release(sub_print_key)
 
       NULLIFY (sub_print_key)
-      CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "MOS_MOLDEN", &
+      CALL cp_print_key_section_create(sub_print_key, __LOCATION__, "MINBAS_MOLDEN", &
                                        description="Write the minimal basis in Molden file format, for visualisation.", &
                                        print_level=debug_print_level + 1, add_last=add_last_numeric, filename="MINBAS")
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
-                          description="Specifies the number of signficiant digits retained. 3 is OK for visualization.", &
+                          description="Specifies the number of significant digits retained. 3 is OK for visualization.", &
                           usage="NDIGITS {int}", &
                           default_i_val=3)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="GTO_KIND", &
+                          description="Representation of Gaussian-type orbitals", &
+                          default_i_val=gto_spherical, &
+                          enum_c_vals=s2a("CARTESIAN", "SPHERICAL"), &
+                          enum_desc=s2a( &
+                          "Cartesian Gaussian orbitals. Use with caution", &
+                          "Spherical Gaussian orbitals. Incompatible with VMD"), &
+                          enum_i_vals=(/gto_cartesian, gto_spherical/))
       CALL section_add_keyword(sub_print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_key, sub_print_key)
@@ -5113,18 +5145,6 @@ CONTAINS
                           usage="DM_RESTART_WRITE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "MOS_MOLDEN", &
-                                       description="Write the molecular orbitals in Molden file format, for visualisation.", &
-                                       print_level=debug_print_level + 1, add_last=add_last_numeric, filename="MOS")
-      CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
-                          description="Specifies the number of signficiant digits retained. 3 is OK for visualization.", &
-                          usage="NDIGITS {int}", &
-                          default_i_val=3)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-      CALL section_add_subsection(subsection, print_key)
-      CALL section_release(print_key)
 
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

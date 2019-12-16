@@ -1124,4 +1124,8 @@ MODULE input_constants
                                                embed_fa = 2, &
                                                embed_resp = 3
 
+   ! MOLDEN format
+   INTEGER, PARAMETER, PUBLIC               :: gto_cartesian = 1, &
+                                               gto_spherical = 2
+
 END MODULE input_constants
