@@ -882,7 +882,7 @@ CONTAINS
          CASE ("DFTB")
             !
          CASE ("xTB")
-            sprint_section => section_vals_get_subs_vals(dft_section, "SCF%PRINT")
+            sprint_section => section_vals_get_subs_vals(dft_section, "PRINT%MO_MOLDEN")
             CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section)
          CASE DEFAULT
             CPABORT("unknown TB type")
