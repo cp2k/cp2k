@@ -137,8 +137,9 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(section_vals_type), POINTER                   :: molden_section
 
-      ! only do MINBAS analysis if explicitely requested
+      ! only do MINBAS analysis if explicitly requested
       CALL section_vals_get(input_section, explicit=explicit)
       IF (.NOT. explicit) RETURN
 
@@ -370,7 +371,8 @@ CONTAINS
             CALL post_minbas_cubes(qs_env, input_section, fm_mos, ispin)
          END DO
          ! Print basis functions: molden format
-         CALL write_mos_molden(mbas, qs_kind_set, particle_set, input_section)
+         molden_section => section_vals_get_subs_vals(input_section, "MINBAS_MOLDEN")
+         CALL write_mos_molden(mbas, qs_kind_set, particle_set, molden_section)
          DO ispin = 1, nspin
             CALL deallocate_mo_set(mbas(ispin)%mo_set)
          END DO
