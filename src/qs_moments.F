@@ -13,6 +13,7 @@ MODULE qs_moments
    USE ai_angmom,                       ONLY: angmom
    USE ai_moments,                      ONLY: contract_cossin,&
                                               cossin,&
+                                              diff_momop,&
                                               moment
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
@@ -50,7 +51,7 @@ MODULE qs_moments
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_distribution_type, dbcsr_dot, dbcsr_get_block_p, dbcsr_init_p, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_symmetric
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -348,19 +349,19 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moments_der_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, iatom, icol, idir, ikind, &
-                                                            inode, irow, jatom, jkind, last_jatom, &
-                                                            M_dim, maxco, maxsgf, nkind, nm, &
-                                                            nseta, nsetb
+      INTEGER :: handle, i, iatom, icol, idir, ikind, inode, irow, iset, jatom, jkind, jset, &
+         last_jatom, M_dim, maxco, maxsgf, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: dab, rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: difmab
-      REAL(KIND=dp), DIMENSION(3)                        :: rab, rc
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, rb, rbc, rc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mab
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: mom_block
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:, :)   :: mom_block_der
       TYPE(cell_type), POINTER                           :: cell
@@ -369,7 +370,7 @@ CONTAINS
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
+         POINTER                                         :: sab_all
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
@@ -381,18 +382,22 @@ CONTAINS
       nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
       CPASSERT(SIZE(moments) >= nm)
 
-      NULLIFY (qs_kind_set, particle_set, sab_orb, cell)
+      NULLIFY (qs_kind_set, particle_set, sab_all, cell)
       CALL get_qs_env(qs_env=qs_env, &
                       qs_kind_set=qs_kind_set, &
                       particle_set=particle_set, &
                       cell=cell, &
-                      sab_orb=sab_orb)
+                      sab_all=sab_all)
 
       nkind = SIZE(qs_kind_set)
 
       ! Work storage
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
                            maxco=maxco, maxsgf=maxsgf)
+
+      NULLIFY (mab)
+      ALLOCATE (mab(maxco, maxco, nm))
+      mab(:, :, :) = 0.0_dp
 
       M_dim = ncoset(nmoments) - 1
       CPASSERT(M_dim <= SIZE(moments, 1))
@@ -428,7 +433,7 @@ CONTAINS
       NULLIFY (first_sgfa, la_max, la_min, npgfa, nsgfa, set_radius_a, sphi_a, zeta)
       NULLIFY (first_sgfb, lb_max, lb_min, npgfb, nsgfb, set_radius_b, sphi_b, zetb)
       NULLIFY (nl_iterator)
-      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_all)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
                                 iatom=iatom, jatom=jatom, r=rab)
@@ -465,6 +470,16 @@ CONTAINS
          ELSE
             rc(:) = 0._dp
          ENDIF
+         ! using PBC here might screw a molecule that fits the box (but e.g. hasn't been shifted by center_molecule)
+         ! by folding around the center, such screwing can be avoided for a proper choice of center.
+         ra(:) = pbc(particle_set(iatom)%r(:) - rc, cell) + rc
+         rb(:) = pbc(particle_set(jatom)%r(:) - rc, cell) + rc
+         ! we dont use PBC at this point
+         rab(:) = ra(:) - rb(:)
+         rac(:) = ra(:) - rc(:)
+         rbc(:) = rb(:) - rc(:)
+         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+         dab = SQRT(rab2)
 
          ! get blocks
          IF (inode == 1) last_jatom = 0
@@ -475,13 +490,8 @@ CONTAINS
 
          last_jatom = jatom
 
-         IF (iatom <= jatom) THEN
-            irow = iatom
-            icol = jatom
-         ELSE
-            irow = jatom
-            icol = iatom
-         END IF
+         irow = iatom
+         icol = jatom
 
          DO i = 1, 3
             NULLIFY (mom_block(i)%block)
@@ -489,6 +499,7 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix=moments(i)%matrix, &
                                    row=irow, col=icol, BLOCK=mom_block(i)%block, found=found)
             CPASSERT(found .AND. ASSOCIATED(mom_block(i)%block))
+            mom_block(i)%block = 0._dp
             DO idir = 1, 3
                NULLIFY (mom_block_der(i, idir)%block)
                CALL dbcsr_get_block_p(matrix=moments_der(i, idir)%matrix, &
@@ -500,10 +511,69 @@ CONTAINS
             ENDDO
          END DO
 
+         DO iset = 1, nseta
+
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            sgfa = first_sgfa(1, iset)
+
+            DO jset = 1, nsetb
+
+               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+
+               ncob = npgfb(jset)*ncoset(lb_max(jset))
+               sgfb = first_sgfb(1, jset)
+
+               ! Calculate the primitive integrals
+               CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), &
+                           rpgfa(:, iset), la_min(iset), &
+                           lb_max(jset), npgfb(jset), zetb(:, jset), &
+                           rpgfb(:, jset), nmoments, rac, rbc, mab)
+
+               CALL diff_momop(la_max(iset), npgfa(iset), zeta(:, iset), &
+                               rpgfa(:, iset), la_min(iset), &
+                               lb_max(jset), npgfb(jset), zetb(:, jset), &
+                               rpgfb(:, jset), lb_min(jset), &
+                               nmoments, rac, rbc, difmab, mab_ext=mab)
+
+               ! Contraction step
+               DO i = 1, 3
+
+                  CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
+                             1.0_dp, mab(1, 1, i), SIZE(mab, 1), &
+                             sphi_b(1, sgfb), SIZE(sphi_b, 1), &
+                             0.0_dp, work(1, 1), SIZE(work, 1))
+
+                  CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
+                             1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                             work(1, 1), SIZE(work, 1), &
+                             1.0_dp, mom_block(i)%block(sgfa, sgfb), &
+                             SIZE(mom_block(i)%block, 1))
+
+                  DO idir = 1, 3
+                     CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
+                                1.0_dp, difmab(1, 1, i, idir), SIZE(difmab, 1), &
+                                sphi_b(1, sgfb), SIZE(sphi_b, 1), &
+                                0._dp, work(1, 1), SIZE(work, 1))
+
+                     CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
+                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                work(1, 1), SIZE(work, 1), &
+                                1._dp, mom_block_der(i, idir)%block(sgfa, sgfb), &
+                                SIZE(mom_block_der(i, idir)%block, 1))
+
+                  ENDDO
+
+               END DO
+
+            END DO
+         END DO
+
       ENDDO
+      CALL neighbor_list_iterator_release(nl_iterator)
 
       ! deallocations
       DEALLOCATE (basis_set_list)
+      DEALLOCATE (mab)
       DEALLOCATE (difmab)
       DEALLOCATE (work)
       DO i = 1, nm
@@ -1752,6 +1822,8 @@ CONTAINS
          rmom(i + 1, 1) = strace
       END DO
 
+      CALL dbcsr_deallocate_matrix_set(moments)
+
       ! nuclear contribution
       CALL get_qs_env(qs_env=qs_env, &
                       local_particles=local_particles)
@@ -1823,12 +1895,12 @@ CONTAINS
       IF (my_velreprs) THEN
          ALLOCATE (rmom_vel(nm))
          rmom_vel = 0.0_dp
-         NULLIFY (sab_orb)
-         CALL get_qs_env(qs_env, sab_orb=sab_orb)
 
          DO order = 1, nmom
             SELECT CASE (order)
-            CASE (1)
+            CASE (1) ! expectation value of momentum
+               NULLIFY (sab_orb)
+               CALL get_qs_env(qs_env, sab_orb=sab_orb)
                NULLIFY (momentum)
                CALL dbcsr_allocate_matrix_set(momentum, 3)
                DO i = 1, 3
@@ -1840,29 +1912,37 @@ CONTAINS
                ENDDO
 
                CALL dbcsr_deallocate_matrix_set(momentum)
-            CASE (2)
-               NULLIFY (moments_vel)
+            CASE (2) ! expectation value of quadrupole moment in vel. reprs.
+               NULLIFY (sab_orb)
+               CALL get_qs_env(qs_env, sab_all=sab_orb)
+               NULLIFY (moments, moments_vel)
+               CALL dbcsr_allocate_matrix_set(moments, 3)
                CALL dbcsr_allocate_matrix_set(moments_vel, 3, 3)
                DO i = 1, 3 ! x, y, z
+                  CALL dbcsr_init_p(moments(i)%matrix)
+                  CALL dbcsr_create(moments(i)%matrix, template=matrix_s(1)%matrix, &
+                                    matrix_type=dbcsr_type_no_symmetry)
+                  CALL cp_dbcsr_alloc_block_from_nbl(moments(i)%matrix, sab_orb)
+                  CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
+
                   DO idir = 1, 3 ! d/dx, d/dy, d/dz
                      CALL dbcsr_init_p(moments_vel(i, idir)%matrix)
                      CALL dbcsr_create(moments_vel(i, idir)%matrix, template=matrix_s(1)%matrix, &
-                                       matrix_type=dbcsr_type_antisymmetric)
+                                       matrix_type=dbcsr_type_no_symmetry)
                      CALL cp_dbcsr_alloc_block_from_nbl(moments_vel(i, idir)%matrix, sab_orb)
                      CALL dbcsr_set(moments_vel(i, idir)%matrix, 0.0_dp)
                   ENDDO
                END DO
 
-               ! CALL build_local_moments_der_matrix(qs_env, moments, moments_vel, nmom, rcc)
+               CALL build_local_moments_der_matrix(qs_env, moments, moments_vel, 1, rcc)
 
+               CALL dbcsr_deallocate_matrix_set(moments)
                CALL dbcsr_deallocate_matrix_set(moments_vel)
             CASE DEFAULT
             END SELECT
          ENDDO
 
       ENDIF
-
-      CALL dbcsr_deallocate_matrix_set(moments)
 
       description = "[DIPOLE]"
       CALL cp_results_erase(results=results, description=description)
