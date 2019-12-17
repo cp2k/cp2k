@@ -1662,11 +1662,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'potential_coulomb_analytic', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: nr
       REAL(KIND=dp)                                      :: oab, sab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: expa, z
 
-      ALLOCATE (expa, SOURCE=rad)
-      ALLOCATE (z, SOURCE=rad)
+      nr = SIZE(rad)
+      ALLOCATE (expa(nr), z(nr))
 
       sab = SQRT(a + b)
       oab = dfac(ll + nu + 1)*rootpi/sab**(ll + 2)/2._dp**((ll + nu)/2 + 2)
@@ -1763,13 +1764,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'potential_longrange_analytic', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, lambda
+      INTEGER                                            :: i, lambda, nr
       REAL(KIND=dp)                                      :: ab, oab, pab, prel, sab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: expa, z
 
       IF (MOD(ll - nu, 2) == 0 .AND. ll >= nu .AND. nu >= 0) THEN
-         ALLOCATE (expa, SOURCE=rad)
-         ALLOCATE (z, SOURCE=rad)
+         nr = SIZE(rad)
+         ALLOCATE (expa(nr), z(nr))
 
          lambda = (ll - nu)/2
          ab = a + b
