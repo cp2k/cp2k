@@ -507,7 +507,7 @@ CONTAINS
          maxlppnl, method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, n_mo_add, natom, &
          nelectron, ngauss, nkind, output_unit, sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
-      LOGICAL :: all_potential_present, be_silent, do_kpoints, do_wfc_im_time, do_ri_hfx, e1terms, &
+      LOGICAL :: all_potential_present, be_silent, do_kpoints, do_ri_hfx, do_wfc_im_time, e1terms, &
          has_unit_metric, lribas, mp2_present, orb_gradient
       REAL(dp)                                           :: alpha, ccore, ewald_rcut, maxocc, &
                                                             verlet_skin, zeff_correction
