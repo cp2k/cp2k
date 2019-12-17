@@ -48,8 +48,9 @@ MODULE qs_moments
    USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_distribution_type, dbcsr_dot, dbcsr_get_block_p, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_symmetric
+        dbcsr_distribution_type, dbcsr_dot, dbcsr_get_block_p, dbcsr_init_p, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -1480,6 +1481,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: akind, handle, i, ia, iatom, ikind, &
                                                             ispin, ix, iy, iz, l, nm, nmm, nmom
+      LOGICAL                                            :: my_velreprs
       REAL(dp)                                           :: charge, dd, strace, trace
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, rmom_vel
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
@@ -1488,7 +1490,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_result_type), POINTER                      :: results
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: magmom, matrix_s, moments, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: magmom, matrix_s, moments, moments_vel, &
+                                                            rho_ao
       TYPE(dbcsr_type), POINTER                          :: rho_magmom_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
@@ -1499,6 +1502,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(qs_env))
 
       CALL timeset(routineN, handle)
+
+      my_velreprs = .FALSE.
+      IF (PRESENT(vel_reprs)) my_velreprs = vel_reprs
 
       ! reference point
       CALL get_reference_point(rcc, qs_env=qs_env, reference=reference, ref_point=ref_point)
@@ -1621,20 +1627,31 @@ CONTAINS
          CALL dbcsr_deallocate_matrix(rho_magmom_ao)
       END IF
 
-      IF (PRESENT(vel_reprs)) THEN
-         IF (vel_reprs) THEN
-            ALLOCATE (rmom_vel(nm))
-            rmom_vel = 0.0_dp
-
-         ENDIF
+      IF (my_velreprs) THEN
+         ALLOCATE (rmom_vel(nm))
+         rmom_vel = 0.0_dp
+         NULLIFY (moments_vel)
+         CALL dbcsr_allocate_matrix_set(moments_vel, nm)
+         DO i = 1, nm
+            CALL dbcsr_init_p(moments_vel(i)%matrix)
+            CALL dbcsr_create(moments_vel(i)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_antisymmetric)
+            CALL dbcsr_set(moments_vel(i)%matrix, 0.0_dp)
+         END DO
+         CALL dbcsr_deallocate_matrix_set(moments_vel)
       ENDIF
 
       description = "[DIPOLE]"
       CALL cp_results_erase(results=results, description=description)
       CALL put_results(results=results, description=description, &
                        values=rmom(2:4, 3))
-      IF (magnetic) THEN
+
+      IF (magnetic .AND. my_velreprs) THEN
+         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., mmom=mmom, rmom_vel=rmom_vel)
+      ELSE IF (magnetic .AND. .NOT. my_velreprs) THEN
          CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., mmom=mmom)
+      ELSE IF (my_velreprs .AND. .NOT. magnetic) THEN
+         CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., rmom_vel=rmom_vel)
       ELSE
          CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE.)
       END IF
@@ -1644,6 +1661,9 @@ CONTAINS
       IF (magnetic) THEN
          DEALLOCATE (mmom)
       END IF
+      IF (my_velreprs) THEN
+         DEALLOCATE (rmom_vel)
+      ENDIF
 
       CALL timestop(handle)
 
@@ -1685,15 +1705,16 @@ CONTAINS
 !> \param cell ...
 !> \param periodic ...
 !> \param mmom ...
+!> \param rmom_vel ...
 ! **************************************************************************************************
-   SUBROUTINE print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic, mmom)
+   SUBROUTINE print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic, mmom, rmom_vel)
       INTEGER, INTENT(IN)                                :: unit_number, nmom
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: rmom
       CHARACTER(LEN=8), DIMENSION(:)                     :: rlab
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rcc
       TYPE(cell_type), POINTER                           :: cell
       LOGICAL                                            :: periodic
-      REAL(dp), DIMENSION(:), INTENT(IN), OPTIONAL       :: mmom
+      REAL(dp), DIMENSION(:), INTENT(IN), OPTIONAL       :: mmom, rmom_vel
 
       INTEGER                                            :: i, i0, i1, j, l
       REAL(dp)                                           :: dd
@@ -1764,6 +1785,24 @@ CONTAINS
                   (TRIM(rlab(i + 1)), "=", mmom(i), i=1, 3), "Total=", dd
             END IF
          END IF
+         IF (PRESENT(rmom_vel)) THEN
+            DO l = 1, nmom
+               SELECT CASE (l)
+               CASE (1)
+                  dd = SQRT(SUM(rmom_vel(1:3)**2))
+                  WRITE (unit_number, "(T3,A)") "Expectation value of momentum operator [a. u.]"
+                  WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
+                     (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=1, 3), "Total=", dd
+               CASE (2)
+                  WRITE (unit_number, "(T3,A)") "Expectation value of quadrupole operator in vel. repr. [a. u.]"
+                  WRITE (unit_number, "(T17,3(A,A,F14.8,9X))") &
+                     (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=4, 6)
+                  WRITE (unit_number, "(T17,3(A,A,F14.8,9X))") &
+                     (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=7, 9)
+               CASE DEFAULT
+               END SELECT
+            ENDDO
+         ENDIF
       END IF
 
    END SUBROUTINE print_moments
