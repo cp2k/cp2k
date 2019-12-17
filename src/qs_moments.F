@@ -330,6 +330,196 @@ CONTAINS
    END SUBROUTINE build_local_moment_matrix
 
 ! **************************************************************************************************
+!> \brief Calculate derivatives of multipole moments assuming the moments are already calculated
+!>        Note that the multipole moments are symmetric while their derivatives are anti-symmetric
+!> \param qs_env ...
+!> \param moments contains the multipole moments, already calculated
+!> \param moments_der will contain the derivatives of the multipole moments
+!> \param nmoments order of the multipole moments
+!> \param ref_point ...
+! **************************************************************************************************
+   SUBROUTINE build_local_moments_der_matrix(qs_env, moments, moments_der, nmoments, ref_point)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: moments
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: moments_der
+      INTEGER, INTENT(IN)                                :: nmoments
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: ref_point
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moments_der_matrix', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, iatom, icol, idir, ikind, &
+                                                            inode, irow, jatom, jkind, last_jatom, &
+                                                            M_dim, maxco, maxsgf, nkind, nm, &
+                                                            nseta, nsetb
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      LOGICAL                                            :: found
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: difmab
+      REAL(KIND=dp), DIMENSION(3)                        :: rab, rc
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
+      TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: mom_block
+      TYPE(block_p_type), ALLOCATABLE, DIMENSION(:, :)   :: mom_block_der
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_kind_type), POINTER                        :: qs_kind
+
+      CALL timeset(routineN, handle)
+
+      IF (nmoments < 1) RETURN
+
+      nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
+      CPASSERT(SIZE(moments) >= nm)
+
+      NULLIFY (qs_kind_set, particle_set, sab_orb, cell)
+      CALL get_qs_env(qs_env=qs_env, &
+                      qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set, &
+                      cell=cell, &
+                      sab_orb=sab_orb)
+
+      nkind = SIZE(qs_kind_set)
+
+      ! Work storage
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
+                           maxco=maxco, maxsgf=maxsgf)
+
+      M_dim = ncoset(nmoments) - 1
+      CPASSERT(M_dim <= SIZE(moments, 1))
+      ALLOCATE (difmab(maxco, maxco, M_dim, 3))
+      difmab(:, :, :, :) = 0.0_dp
+
+      ALLOCATE (work(maxco, maxsgf))
+      work(:, :) = 0.0_dp
+
+      ALLOCATE (mom_block(nm))
+      ALLOCATE (mom_block_der(M_dim, 3))
+      DO i = 1, nm
+         NULLIFY (mom_block(i)%block)
+         DO idir = 1, 3
+            NULLIFY (mom_block_der(i, idir)%block)
+         ENDDO
+      END DO
+
+      NULLIFY (basis_set_a, basis_set_b, basis_set_list)
+      NULLIFY (qs_kind)
+      ALLOCATE (basis_set_list(nkind))
+      DO ikind = 1, nkind
+         qs_kind => qs_kind_set(ikind)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a)
+         IF (ASSOCIATED(basis_set_a)) THEN
+            basis_set_list(ikind)%gto_basis_set => basis_set_a
+         ELSE
+            NULLIFY (basis_set_list(ikind)%gto_basis_set)
+         END IF
+      END DO
+
+      ! Calculate derivatives looping over neighbour list
+      NULLIFY (first_sgfa, la_max, la_min, npgfa, nsgfa, set_radius_a, sphi_a, zeta)
+      NULLIFY (first_sgfb, lb_max, lb_min, npgfb, nsgfb, set_radius_b, sphi_b, zetb)
+      NULLIFY (nl_iterator)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
+                                iatom=iatom, jatom=jatom, r=rab)
+         basis_set_a => basis_set_list(ikind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         basis_set_b => basis_set_list(jkind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+         ! basis ikind
+         first_sgfa => basis_set_a%first_sgf
+         la_max => basis_set_a%lmax
+         la_min => basis_set_a%lmin
+         npgfa => basis_set_a%npgf
+         nseta = basis_set_a%nset
+         nsgfa => basis_set_a%nsgf_set
+         rpgfa => basis_set_a%pgf_radius
+         set_radius_a => basis_set_a%set_radius
+         sphi_a => basis_set_a%sphi
+         zeta => basis_set_a%zet
+         ! basis jkind
+         first_sgfb => basis_set_b%first_sgf
+         lb_max => basis_set_b%lmax
+         lb_min => basis_set_b%lmin
+         npgfb => basis_set_b%npgf
+         nsetb = basis_set_b%nset
+         nsgfb => basis_set_b%nsgf_set
+         rpgfb => basis_set_b%pgf_radius
+         set_radius_b => basis_set_b%set_radius
+         sphi_b => basis_set_b%sphi
+         zetb => basis_set_b%zet
+
+         ! reference point
+         IF (PRESENT(ref_point)) THEN
+            rc(:) = ref_point(:)
+         ELSE
+            rc(:) = 0._dp
+         ENDIF
+
+         ! get blocks
+         IF (inode == 1) last_jatom = 0
+
+         IF (jatom == last_jatom) THEN
+            CYCLE
+         END IF
+
+         last_jatom = jatom
+
+         IF (iatom <= jatom) THEN
+            irow = iatom
+            icol = jatom
+         ELSE
+            irow = jatom
+            icol = iatom
+         END IF
+
+         DO i = 1, 3
+            NULLIFY (mom_block(i)%block)
+            ! get block from pre calculated overlap matrix
+            CALL dbcsr_get_block_p(matrix=moments(i)%matrix, &
+                                   row=irow, col=icol, BLOCK=mom_block(i)%block, found=found)
+            CPASSERT(found .AND. ASSOCIATED(mom_block(i)%block))
+            DO idir = 1, 3
+               NULLIFY (mom_block_der(i, idir)%block)
+               CALL dbcsr_get_block_p(matrix=moments_der(i, idir)%matrix, &
+                                      row=irow, col=icol, &
+                                      block=mom_block_der(i, idir)%block, &
+                                      found=found)
+               CPASSERT(found .AND. ASSOCIATED(mom_block_der(i, idir)%block))
+               mom_block_der(i, idir)%block = 0._dp
+            ENDDO
+         END DO
+
+      ENDDO
+
+      ! deallocations
+      DEALLOCATE (basis_set_list)
+      DEALLOCATE (difmab)
+      DEALLOCATE (work)
+      DO i = 1, nm
+         NULLIFY (mom_block(i)%block)
+         DO idir = 1, 3
+            NULLIFY (mom_block_der(i, idir)%block)
+         ENDDO
+      END DO
+      DEALLOCATE (mom_block)
+      DEALLOCATE (mom_block_der)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE build_local_moments_der_matrix
+
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param magmom ...
@@ -1479,8 +1669,9 @@ CONTAINS
 
       CHARACTER(LEN=8), ALLOCATABLE, DIMENSION(:)        :: rlab
       CHARACTER(LEN=default_string_length)               :: description
-      INTEGER                                            :: akind, handle, i, ia, iatom, ikind, &
-                                                            ispin, ix, iy, iz, l, nm, nmm, nmom
+      INTEGER                                            :: akind, handle, i, ia, iatom, idir, &
+                                                            ikind, ispin, ix, iy, iz, l, nm, nmm, &
+                                                            nmom, order
       LOGICAL                                            :: my_velreprs
       REAL(dp)                                           :: charge, dd, strace, trace
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, rmom_vel
@@ -1490,11 +1681,14 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_result_type), POINTER                      :: results
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: magmom, matrix_s, moments, moments_vel, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: magmom, matrix_s, moments, momentum, &
                                                             rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: moments_vel
       TYPE(dbcsr_type), POINTER                          :: rho_magmom_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1557,8 +1751,6 @@ CONTAINS
          END DO
          rmom(i + 1, 1) = strace
       END DO
-
-      CALL dbcsr_deallocate_matrix_set(moments)
 
       ! nuclear contribution
       CALL get_qs_env(qs_env=qs_env, &
@@ -1627,19 +1819,50 @@ CONTAINS
          CALL dbcsr_deallocate_matrix(rho_magmom_ao)
       END IF
 
+      ! velocity representations
       IF (my_velreprs) THEN
          ALLOCATE (rmom_vel(nm))
          rmom_vel = 0.0_dp
-         NULLIFY (moments_vel)
-         CALL dbcsr_allocate_matrix_set(moments_vel, nm)
-         DO i = 1, nm
-            CALL dbcsr_init_p(moments_vel(i)%matrix)
-            CALL dbcsr_create(moments_vel(i)%matrix, template=matrix_s(1)%matrix, &
-                              matrix_type=dbcsr_type_antisymmetric)
-            CALL dbcsr_set(moments_vel(i)%matrix, 0.0_dp)
-         END DO
-         CALL dbcsr_deallocate_matrix_set(moments_vel)
+         NULLIFY (sab_orb)
+         CALL get_qs_env(qs_env, sab_orb=sab_orb)
+
+         DO order = 1, nmom
+            SELECT CASE (order)
+            CASE (1)
+               NULLIFY (momentum)
+               CALL dbcsr_allocate_matrix_set(momentum, 3)
+               DO i = 1, 3
+                  CALL dbcsr_init_p(momentum(i)%matrix)
+                  CALL dbcsr_create(momentum(i)%matrix, template=matrix_s(1)%matrix, &
+                                    matrix_type=dbcsr_type_antisymmetric)
+                  CALL cp_dbcsr_alloc_block_from_nbl(momentum(i)%matrix, sab_orb)
+                  CALL dbcsr_set(momentum(i)%matrix, 0.0_dp)
+               ENDDO
+
+               CALL dbcsr_deallocate_matrix_set(momentum)
+            CASE (2)
+               NULLIFY (moments_vel)
+               CALL dbcsr_allocate_matrix_set(moments_vel, 3, 3)
+               DO i = 1, 3 ! x, y, z
+                  DO idir = 1, 3 ! d/dx, d/dy, d/dz
+                     CALL dbcsr_init_p(moments_vel(i, idir)%matrix)
+                     CALL dbcsr_create(moments_vel(i, idir)%matrix, template=matrix_s(1)%matrix, &
+                                       matrix_type=dbcsr_type_antisymmetric)
+                     CALL cp_dbcsr_alloc_block_from_nbl(moments_vel(i, idir)%matrix, sab_orb)
+                     CALL dbcsr_set(moments_vel(i, idir)%matrix, 0.0_dp)
+                  ENDDO
+               END DO
+
+               ! CALL build_local_moments_der_matrix(qs_env, moments, moments_vel, nmom, rcc)
+
+               CALL dbcsr_deallocate_matrix_set(moments_vel)
+            CASE DEFAULT
+            END SELECT
+         ENDDO
+
       ENDIF
+
+      CALL dbcsr_deallocate_matrix_set(moments)
 
       description = "[DIPOLE]"
       CALL cp_results_erase(results=results, description=description)
