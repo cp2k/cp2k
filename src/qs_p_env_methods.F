@@ -730,7 +730,12 @@ CONTAINS
             CALL dbcsr_copy(rho1_ao(ispin)%matrix, p1(ispin)%matrix)
          ENDIF
       ENDDO
-      CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env)
+
+      IF (ASSOCIATED(p_env%local_rho_set)) THEN
+         CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env, local_rho_set=p_env%local_rho_set)
+      ELSE
+         CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env)
+      END IF
 
       IF (fdiff) THEN
          CALL kpp1_calc_k_p_p1_fdiff(qs_env=qs_env, &
