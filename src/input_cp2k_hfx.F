@@ -643,6 +643,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CUT", &
+                          description="Memory reduction factor.", &
+                          default_i_val=10)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL create_localize_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

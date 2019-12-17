@@ -37,14 +37,10 @@ MODULE hfx_types
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
-                                              dbcsr_t_distribution_destroy,&
-                                              dbcsr_t_distribution_new,&
-                                              dbcsr_t_distribution_type,&
-                                              dbcsr_t_pgrid_create,&
-                                              dbcsr_t_pgrid_destroy,&
-                                              dbcsr_t_pgrid_type,&
-                                              dbcsr_t_type
+   USE dbcsr_tensor_api,                ONLY: &
+        dbcsr_t_batched_contract_finalize, dbcsr_t_destroy, dbcsr_t_distribution_destroy, &
+        dbcsr_t_distribution_new, dbcsr_t_distribution_type, dbcsr_t_mp_dims_create, &
+        dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_type
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
    USE input_constants,                 ONLY: &
@@ -71,7 +67,6 @@ MODULE hfx_types
                                               m_getcwd
    USE mathlib,                         ONLY: erfc_cutoff
    USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_dims_create,&
                                               mp_environ
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset,&
@@ -90,10 +85,10 @@ MODULE hfx_types
                                               distribution_3d_create,&
                                               distribution_3d_destroy,&
                                               distribution_3d_type,&
+                                              libcusmm_maxblocksize,&
                                               split_block_sizes
    USE string_utilities,                ONLY: compress
    USE t_c_g0,                          ONLY: free_C0
-   USE util,                            ONLY: sort
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -398,13 +393,13 @@ MODULE hfx_types
       INTEGER, DIMENSION(:), ALLOCATABLE :: dist4_AO_1, dist4_AO_2, dist4_RI
 
       ! block sizes for RI and AO tensor dimensions (split)
-      INTEGER, DIMENSION(:), ALLOCATABLE :: bsizes_RI, bsizes_AO, bsizes_RI_split, bsizes_AO_split
+      INTEGER, DIMENSION(:), ALLOCATABLE :: bsizes_RI, bsizes_AO, bsizes_RI_split, bsizes_AO_split, bsizes_RI_fit, bsizes_AO_fit
 
       ! Note: changed static DIMENSION(1,1) of dbcsr_t_type to allocatables as workaround for gfortran 8.3.0,
       ! with static dimension gfortran gets stuck during compilation
 
       ! 2c tensor in (RI | RI) format for contraction
-      TYPE(dbcsr_t_type), DIMENSION(:), ALLOCATABLE    :: t_2c_int
+      TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE    :: t_2c_int
 
       ! 3c integral tensor in default format
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int
@@ -421,6 +416,11 @@ MODULE hfx_types
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_3
       TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_3 => NULL()
 
+      ! 3c integral tensor in (RI | MO AO ) format for contraction
+      TYPE(dbcsr_t_type), DIMENSION(:, :, :), ALLOCATABLE :: t_3c_int_mo
+      TYPE(dbcsr_t_type), DIMENSION(:, :, :), ALLOCATABLE :: t_3c_ctr_RI
+      TYPE(dbcsr_t_type), DIMENSION(:, :, :), ALLOCATABLE :: t_3c_ctr_KS
+      TYPE(dbcsr_t_type), DIMENSION(:, :, :), ALLOCATABLE :: t_3c_ctr_KS_copy
       ! 3c integral tensor in ( RI AO | AO ) format for contraction
       !TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_4
       !TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_4 => NULL()
@@ -432,6 +432,9 @@ MODULE hfx_types
 
       ! types of primary and auxiliary basis
       CHARACTER(len=default_string_length) :: orb_basis_type, ri_basis_type
+
+      ! memory reduction factor
+      INTEGER :: n_mem
    END TYPE
 
 ! **************************************************************************************************
@@ -1133,6 +1136,7 @@ CONTAINS
       CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE_RI", i_val=ri_data%max_bsize_RI)
       CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE_AO", i_val=ri_data%max_bsize_AO)
       CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE_MO", i_val=ri_data%max_bsize_mo)
+      CALL section_vals_val_get(ri_section, "MEMORY_CUT", i_val=ri_data%n_mem)
 
       ri_data%orb_basis_type = orb_basis_type
       ri_data%ri_basis_type = ri_basis_type
@@ -1174,12 +1178,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ikind, iproc, mp_comm_3d, natom, &
-                                                            nkind, nproc, pdims_rem
+      INTEGER                                            :: handle, ikind, iproc, MO_dim, &
+                                                            mp_comm_3d, natom, nkind, nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist_AO_1, dist_AO_2, &
                                                             dist_RI
       INTEGER, DIMENSION(2)                              :: pdims_2d
-      INTEGER, DIMENSION(3)                              :: pcoord, pdims, pdims_sort, sort_ind
+      INTEGER, DIMENSION(3)                              :: pcoord, pdims
       LOGICAL                                            :: same_op
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d
       TYPE(distribution_3d_type)                         :: dist_3d
@@ -1268,7 +1272,9 @@ CONTAINS
       ! initialize tensors expressed in basis representation
 
       CALL split_block_sizes(ri_data%bsizes_AO, ri_data%bsizes_AO_split, ri_data%max_bsize_AO)
+      CALL split_block_sizes(ri_data%bsizes_AO, ri_data%bsizes_AO_fit, libcusmm_maxblocksize)
       CALL split_block_sizes(ri_data%bsizes_RI, ri_data%bsizes_RI_split, ri_data%max_bsize_RI)
+      CALL split_block_sizes(ri_data%bsizes_RI, ri_data%bsizes_RI_fit, libcusmm_maxblocksize)
 
       IF (ri_data%flavor == ri_pmat) THEN
          ALLOCATE (ri_data%t_3c_int_ctr_1(1, 1))
@@ -1289,12 +1295,12 @@ CONTAINS
 
       ELSEIF (ri_data%flavor == ri_mo) THEN
          ALLOCATE (ri_data%t_3c_int(1, 1))
-         ALLOCATE (ri_data%t_2c_int(1))
+         ALLOCATE (ri_data%t_2c_int(2, 1))
 
          pdims_2d = 0
          CALL dbcsr_t_pgrid_create(para_env%group, pdims_2d, pgrid_2d)
 
-         CALL create_2c_tensor(ri_data%t_2c_int(1), dist1, dist2, pgrid_2d, ri_data%bsizes_RI_split, ri_data%bsizes_RI_split, &
+         CALL create_2c_tensor(ri_data%t_2c_int(1, 1), dist1, dist2, pgrid_2d, ri_data%bsizes_RI_fit, ri_data%bsizes_RI_fit, &
                                name="(RI | RI)")
          CALL dbcsr_t_pgrid_destroy(pgrid_2d)
 
@@ -1305,26 +1311,16 @@ CONTAINS
          ALLOCATE (ri_data%pgrid_1)
          ALLOCATE (ri_data%pgrid_2)
          pdims = 0
-         CALL mp_dims_create(nproc, pdims)
-         pdims_sort = pdims
-         CALL sort(pdims_sort, SIZE(pdims), sort_ind)
 
-         pdims_rem = nproc
-         IF (pdims_sort(1) >= ri_data%nelectron_total/2) THEN
-            pdims_sort(1) = ri_data%nelectron_total/2
-            DO WHILE (MOD(pdims_sort(1), pdims_rem) .NE. 0)
-               pdims_sort(1) = pdims_sort(1) - 1
-            ENDDO
-            pdims_rem = pdims_rem/pdims_sort(1)
-            pdims_sort(2) = ri_data%nelectron_total/2
-            DO WHILE (MOD(pdims_sort(2), pdims_rem) .NE. 0)
-               pdims_sort(2) = pdims_sort(2) - 1
-            ENDDO
-            pdims_rem = pdims_rem/pdims_sort(2)
-            pdims_sort(3) = pdims_rem
-         ENDIF
+         IF (ri_data%n_mem > ri_data%nelectron_total/2) ri_data%n_mem = MAX(ri_data%nelectron_total/2, 1)
+         ! Size of dimension corresponding to MOs is nelectron/2 and divided by the memory factor
+         ! we are using ceiling of that division to make sure that no MO dimension (after memory cut)
+         ! is larger than this (it is however not a problem for load balancing if actual MO dimension
+         ! is slightly smaller)
+         MO_dim = MAX((ri_data%nelectron_total/2 - 1)/ri_data%n_mem + 1, 1)
 
-         pdims = pdims_sort([1, 3, 2])
+         pdims = [1, nproc, 1]
+         CALL dbcsr_t_mp_dims_create(nproc, pdims, [MO_dim, SIZE(ri_data%bsizes_RI_split), MO_dim])
 
          CALL dbcsr_t_pgrid_create(para_env%group, pdims, ri_data%pgrid_1)
          CALL dbcsr_t_pgrid_create(para_env%group, pdims, ri_data%pgrid_2)
@@ -1336,7 +1332,7 @@ CONTAINS
          ALLOCATE (ri_data%t_3c_int_ctr_2(1, 1))
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), ri_data%dist2_ao_1, ri_data%dist2_ri, ri_data%dist2_ao_2, &
                                ri_data%pgrid_2, ri_data%bsizes_AO, ri_data%bsizes_RI_split, ri_data%bsizes_AO, &
-                               [1], [2, 3], "(AO | RI AO)")
+                               [1], [2, 3], name="(AO | RI AO)")
 
       ENDIF
       CALL timestop(handle)
@@ -1352,7 +1348,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_release', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, ispin
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -1392,8 +1388,20 @@ CONTAINS
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_2(1, 1))
          DEALLOCATE (ri_data%t_3c_int_ctr_1)
          DEALLOCATE (ri_data%t_3c_int_ctr_2)
-         CALL dbcsr_t_destroy(ri_data%t_2c_int(1))
+
+         DO ispin = 1, SIZE(ri_data%t_3c_int_mo, 1)
+            CALL dbcsr_t_destroy(ri_data%t_3c_int_mo(ispin, 1, 1))
+            CALL dbcsr_t_destroy(ri_data%t_3c_ctr_RI(ispin, 1, 1))
+            CALL dbcsr_t_destroy(ri_data%t_3c_ctr_KS(ispin, 1, 1))
+            CALL dbcsr_t_destroy(ri_data%t_3c_ctr_KS_copy(ispin, 1, 1))
+            CALL dbcsr_t_batched_contract_finalize(ri_data%t_2c_int(ispin, 1))
+            CALL dbcsr_t_destroy(ri_data%t_2c_int(ispin, 1))
+         ENDDO
          DEALLOCATE (ri_data%t_2c_int)
+         DEALLOCATE (ri_data%t_3c_int_mo)
+         DEALLOCATE (ri_data%t_3c_ctr_RI)
+         DEALLOCATE (ri_data%t_3c_ctr_KS)
+         DEALLOCATE (ri_data%t_3c_ctr_KS_copy)
       ENDIF
 
       IF (ASSOCIATED(ri_data%ri_section)) THEN
@@ -2507,10 +2515,10 @@ CONTAINS
          END SELECT
          SELECT CASE (ri_data%do_loc)
          CASE (.TRUE.)
-            WRITE (UNIT=iw, FMT="(T3, A, T80)") &
+            WRITE (UNIT=iw, FMT="(T3, A, T80, A)") &
                "HFX_RI_INFO| Localized MOs: ", "T"
          CASE (.FALSE.)
-            WRITE (UNIT=iw, FMT="(T3, A, T80)") &
+            WRITE (UNIT=iw, FMT="(T3, A, T80, A)") &
                "HFX_RI_INFO| Localized MOs: ", "F"
          END SELECT
          SELECT CASE (ri_data%t2c_method)
@@ -2535,7 +2543,8 @@ CONTAINS
             "HFX_RI_INFO| EPS_SCHWARZ:     ", ri_data%eps_schwarz
          WRITE (UNIT=iw, FMT="(T3, A, T70, I3, 1X, I3, 1X, I3)") &
             "HFX_RI_INFO| Maximum block size RI, MO, AO", ri_data%max_bsize_RI, ri_data%max_bsize_mo, ri_data%max_bsize_AO
-
+         WRITE (UNIT=iw, FMT="(T3, A, T79, I2)") &
+            "HFX_RI_INFO| Memory reduction factor", ri_data%n_mem
       ENDIF
 
    END SUBROUTINE
