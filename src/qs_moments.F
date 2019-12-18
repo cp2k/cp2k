@@ -340,6 +340,8 @@ CONTAINS
 !> \param nmoments order of the multipole moments
 !> \param nders ...
 !> \param ref_point ...
+!> \note
+!>        Adapted from rRc_xyz_der_ao in qs_operators_ao
 ! **************************************************************************************************
    SUBROUTINE build_local_moments_der_matrix(qs_env, moments, moments_der, nmoments, nders, ref_point)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -351,8 +353,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moments_der_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, i, iatom, icol, idir, ikind, inode, irow, iset, jatom, jkind, jset, &
-         last_jatom, M_dim, maxco, maxsgf, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
+      INTEGER :: handle, i, iatom, icol, idir, ii, ikind, inode, ipgf, irow, iset, j, jatom, &
+         jkind, jpgf, jset, last_jatom, M_dim, maxco, maxsgf, na, nb, ncoa, ncob, nda, ndb, nkind, &
+         nm, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -363,7 +366,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, rb, rbc, rc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mab
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mab, mab_tmp
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: mom_block
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:, :)   :: mom_block_der
       TYPE(cell_type), POINTER                           :: cell
@@ -383,7 +386,7 @@ CONTAINS
 
       nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
       CPASSERT(SIZE(moments) >= nm)
-
+      CPASSERT(nmoments >= nders)
       NULLIFY (qs_kind_set, particle_set, sab_all, cell)
       CALL get_qs_env(qs_env=qs_env, &
                       qs_kind_set=qs_kind_set, &
@@ -529,18 +532,42 @@ CONTAINS
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
 
-               ! Calculate the primitive integrals
-               CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), &
+               ALLOCATE (mab_tmp(npgfa(iset)*ncoset(la_max(iset) + 1), &
+                                 npgfb(jset)*ncoset(lb_max(jset) + 1), ncoset(nmoments) - 1))
+
+               ! Calculate the primitive integrals (need l+1 for derivatives)
+               CALL moment(la_max(iset) + 1, npgfa(iset), zeta(:, iset), &
                            rpgfa(:, iset), la_min(iset), &
-                           lb_max(jset), npgfb(jset), zetb(:, jset), &
-                           rpgfb(:, jset), nmoments, rac, rbc, mab)
+                           lb_max(jset) + 1, npgfb(jset), zetb(:, jset), &
+                           rpgfb(:, jset), nmoments, rac, rbc, mab_tmp)
 
                CALL diff_momop(la_max(iset), npgfa(iset), zeta(:, iset), &
                                rpgfa(:, iset), la_min(iset), &
                                lb_max(jset), npgfb(jset), zetb(:, jset), &
                                rpgfb(:, jset), lb_min(jset), &
-                               nders, rac, rbc, difmab) !, mab_ext=mab
+                               nders, rac, rbc, difmab, mab_ext=mab_tmp)
+               ! copy subset of mab_tmp (l+1) to mab (l)
+               mab = 0.0_dp
+               DO ii = 1, nm
+                  na = 0
+                  nda = 0
+                  DO ipgf = 1, npgfa(iset)
+                     nb = 0
+                     ndb = 0
+                     DO jpgf = 1, npgfb(jset)
+                        DO j = 1, ncoset(lb_max(jset))
+                           DO i = 1, ncoset(la_max(iset))
+                              mab(i + na, j + nb, ii) = mab_tmp(i + nda, j + ndb, ii)
+                           END DO ! i
+                        END DO ! j
+                        nb = nb + ncoset(lb_max(jset))
+                        ndb = ndb + ncoset(lb_max(jset) + 1)
+                     END DO ! jpgf
+                     na = na + ncoset(la_max(iset))
+                     nda = nda + ncoset(la_max(iset) + 1)
+                  END DO ! ipgf
 
+               ENDDO
                ! Contraction step
                DO i = 1, nm
 
@@ -567,14 +594,11 @@ CONTAINS
                                 work(1, 1), SIZE(work, 1), &
                                 1._dp, mom_block_der(i, idir)%block(sgfa, sgfb), &
                                 SIZE(mom_block_der(i, idir)%block, 1))
-
                   ENDDO
-
                END DO
-
+               DEALLOCATE (mab_tmp)
             END DO
          END DO
-
       ENDDO
       CALL neighbor_list_iterator_release(nl_iterator)
 
@@ -1750,7 +1774,7 @@ CONTAINS
                                                             ikind, ispin, ix, iy, iz, l, nm, nmm, &
                                                             nmom, order
       LOGICAL                                            :: my_velreprs
-      REAL(dp)                                           :: charge, dd, exp_s, strace, trace
+      REAL(dp)                                           :: charge, dd, strace, trace
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, qupole_der, rmom_vel
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
       REAL(dp), DIMENSION(3)                             :: rcc, ria
@@ -1783,19 +1807,7 @@ CONTAINS
       ! only allow for moments up to maxl set by basis
       nmom = MIN(nmoments, current_maxl)
       ! electronic contribution
-      NULLIFY (moments, matrix_s)
-      CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
-      nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
-      CALL dbcsr_allocate_matrix_set(moments, nm)
-      DO i = 1, nm
-         ALLOCATE (moments(i)%matrix)
-         CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments")
-         CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
-      END DO
-
-      CALL build_local_moment_matrix(qs_env, moments, nmom, ref_point=rcc)
-
-      NULLIFY (dft_control, rho, cell, particle_set, qs_kind_set, results, para_env, matrix_s, rho_ao)
+      NULLIFY (dft_control, rho, cell, particle_set, qs_kind_set, results, para_env, matrix_s, rho_ao, sab_orb)
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
                       rho=rho, &
@@ -1804,15 +1816,56 @@ CONTAINS
                       particle_set=particle_set, &
                       qs_kind_set=qs_kind_set, &
                       para_env=para_env, &
-                      matrix_s=matrix_s)
+                      matrix_s=matrix_s, &
+                      sab_all=sab_orb)
+
+      NULLIFY (moments)
+      nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
+      CALL dbcsr_allocate_matrix_set(moments, nm)
+      DO i = 1, nm
+         ALLOCATE (moments(i)%matrix)
+         IF (my_velreprs .AND. (nmom >= 2)) THEN
+            CALL dbcsr_create(moments(i)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL cp_dbcsr_alloc_block_from_nbl(moments(i)%matrix, sab_orb)
+         ELSE
+            CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments")
+         ENDIF
+         CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
+      END DO
+
+      ! calculate derivatives if quadrupole in vel. reprs. is requested
+      IF (my_velreprs .AND. (nmom >= 2)) THEN
+         NULLIFY (moments_der)
+         CALL dbcsr_allocate_matrix_set(moments_der, 3, 3)
+         DO i = 1, 3 ! x, y, z
+            DO idir = 1, 3 ! d/dx, d/dy, d/dz
+               CALL dbcsr_init_p(moments_der(i, idir)%matrix)
+               CALL dbcsr_create(moments_der(i, idir)%matrix, template=matrix_s(1)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+               CALL cp_dbcsr_alloc_block_from_nbl(moments_der(i, idir)%matrix, sab_orb)
+               CALL dbcsr_set(moments_der(i, idir)%matrix, 0.0_dp)
+            ENDDO
+         END DO
+         CALL build_local_moments_der_matrix(qs_env, moments, moments_der, 2, 1, rcc)
+      ELSE
+         CALL build_local_moment_matrix(qs_env, moments, nmom, ref_point=rcc)
+      ENDIF
 
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
-      nm = SIZE(moments)
       ALLOCATE (rmom(nm + 1, 3))
       ALLOCATE (rlab(nm + 1))
       rmom = 0.0_dp
       rlab = ""
+
+      IF ((my_velreprs .AND. (nmoments >= 2)) .OR. magnetic) THEN
+         ! Allocate matrix to store the matrix product to be traced (dbcsr_dot only works for products of
+         ! symmetric matrices)
+         NULLIFY (tmp_ao)
+         ALLOCATE (tmp_ao)
+         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, tmp_ao)
+      ENDIF
 
       trace = 0.0_dp
       DO ispin = 1, dft_control%nspins
@@ -1823,7 +1876,13 @@ CONTAINS
       DO i = 1, SIZE(moments)
          strace = 0._dp
          DO ispin = 1, dft_control%nspins
-            CALL dbcsr_dot(rho_ao(ispin)%matrix, moments(i)%matrix, trace)
+            IF (my_velreprs .AND. nmoments >= 2) THEN
+               CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, moments(i)%matrix, &
+                                   0.0_dp, tmp_ao)
+               CALL dbcsr_trace(tmp_ao, trace)
+            ELSE
+               CALL dbcsr_dot(rho_ao(ispin)%matrix, moments(i)%matrix, trace)
+            ENDIF
             strace = strace + trace
          END DO
          rmom(i + 1, 1) = strace
@@ -1868,12 +1927,6 @@ CONTAINS
          nmm = SIZE(magmom)
          ALLOCATE (mmom(nmm))
 
-         ! Allocate matrices to store the matrix product to be traced (dbcsr_dot only works for products of
-         ! symmetric matrices)
-         NULLIFY (tmp_ao)
-         ALLOCATE (tmp_ao)
-         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, tmp_ao)
-
          IF (qs_env%run_rtp) THEN
             ! get imaginary part of the density in rho_ao (the real part is not needed since the trace of the product
             ! of a symmetric (REAL(rho_ao)) and an anti-symmetric (L_AO) matrix is zero)
@@ -1895,17 +1948,12 @@ CONTAINS
          END DO
 
          CALL dbcsr_deallocate_matrix_set(magmom)
-         CALL dbcsr_deallocate_matrix(tmp_ao)
       END IF
 
       ! velocity representations
       IF (my_velreprs) THEN
          ALLOCATE (rmom_vel(nm))
          rmom_vel = 0.0_dp
-
-         NULLIFY (tmp_ao)
-         ALLOCATE (tmp_ao)
-         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, tmp_ao)
 
          DO order = 1, nmom
             SELECT CASE (order)
@@ -1944,43 +1992,6 @@ CONTAINS
                CALL dbcsr_deallocate_matrix_set(momentum)
 
             CASE (2) ! expectation value of quadrupole moment in vel. reprs.
-               NULLIFY (sab_orb)
-               CALL get_qs_env(qs_env, sab_all=sab_orb)
-
-               ! Allocate matrices
-               NULLIFY (moments, moments_der)
-               CALL dbcsr_allocate_matrix_set(moments, nm)
-               CALL dbcsr_allocate_matrix_set(moments_der, 3, 3)
-               DO i = 1, nm
-                  CALL dbcsr_init_p(moments(i)%matrix)
-                  CALL dbcsr_create(moments(i)%matrix, template=matrix_s(1)%matrix, &
-                                    matrix_type=dbcsr_type_no_symmetry)
-                  CALL cp_dbcsr_alloc_block_from_nbl(moments(i)%matrix, sab_orb)
-                  CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
-               ENDDO
-               DO i = 1, 3 ! x, y, z
-                  DO idir = 1, 3 ! d/dx, d/dy, d/dz
-                     CALL dbcsr_init_p(moments_der(i, idir)%matrix)
-                     CALL dbcsr_create(moments_der(i, idir)%matrix, template=matrix_s(1)%matrix, &
-                                       matrix_type=dbcsr_type_no_symmetry)
-                     CALL cp_dbcsr_alloc_block_from_nbl(moments_der(i, idir)%matrix, sab_orb)
-                     CALL dbcsr_set(moments_der(i, idir)%matrix, 0.0_dp)
-                  ENDDO
-               END DO
-
-               ! get derivatives, e. g. x d/dy in ao basis
-               CALL build_local_moments_der_matrix(qs_env, moments, moments_der, 2, 1, rcc)
-
-               ! Expectation value of overlap matrix (identity operator) should give number of electrons
-               NULLIFY (rho_ao)
-               CALL qs_rho_get(rho, rho_ao=rho_ao)
-               exp_s = 0._dp
-               trace = 0.0_dp
-               DO ispin = 1, dft_control%nspins
-                  CALL dbcsr_dot(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
-                  exp_s = exp_s + trace
-               END DO
-
                ALLOCATE (qupole_der(9)) ! will contain the expectation values of r_\alpha * d/d r_\beta
                qupole_der = 0._dp
 
@@ -2023,22 +2034,24 @@ CONTAINS
                ENDIF
 
                ! calculate vel. reprs. of quadrupole moment from derivatives
-               rmom_vel(4) = -2*qupole_der(1) + exp_s
+               rmom_vel(4) = -2*qupole_der(1) - rmom(1, 1)
                rmom_vel(5) = -qupole_der(2) - qupole_der(4)
                rmom_vel(6) = -qupole_der(3) - qupole_der(7)
-               rmom_vel(7) = -2*(qupole_der(5)) + exp_s
+               rmom_vel(7) = -2*(qupole_der(5)) - rmom(1, 1)
                rmom_vel(8) = -qupole_der(6) - qupole_der(8)
-               rmom_vel(9) = -2*qupole_der(9) + exp_s
+               rmom_vel(9) = -2*qupole_der(9) - rmom(1, 1)
 
                DEALLOCATE (qupole_der)
-               CALL dbcsr_deallocate_matrix_set(moments)
-               CALL dbcsr_deallocate_matrix_set(moments_der)
             CASE DEFAULT
             END SELECT
          ENDDO
+      ENDIF
 
+      IF ((my_velreprs .AND. (nmoments >= 2)) .OR. magnetic) THEN
          CALL dbcsr_deallocate_matrix(tmp_ao)
-
+      ENDIF
+      IF (my_velreprs .AND. (nmoments >= 2)) THEN
+         CALL dbcsr_deallocate_matrix_set(moments_der)
       ENDIF
 
       description = "[DIPOLE]"
