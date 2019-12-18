@@ -16,6 +16,7 @@ GIT_HEAD="${GIT_DIR}/HEAD"
 
 if [ ! -s "${GIT_HEAD}" ] ; then
   echo "<unknown revision>"
+  >&2 echo "WARNING: $0 failed to determine the Git commit and no REVISION file available"
   exit 1
 fi
 
