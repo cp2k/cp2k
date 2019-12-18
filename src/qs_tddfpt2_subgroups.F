@@ -60,8 +60,8 @@ MODULE qs_tddfpt2_subgroups
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
-                                              neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: atom2d_build,&
                                               atom2d_cleanup,&
                                               build_neighbor_lists,&
@@ -320,19 +320,8 @@ CONTAINS
          IF (ASSOCIATED(sub_env%task_list_orb)) &
             CALL deallocate_task_list(sub_env%task_list_orb)
 
-         IF (ASSOCIATED(sub_env%sab_aux_fit)) THEN
-            DO i = SIZE(sub_env%sab_aux_fit), 1, -1
-               CALL deallocate_neighbor_list_set(sub_env%sab_aux_fit(i)%neighbor_list_set)
-            END DO
-            DEALLOCATE (sub_env%sab_aux_fit)
-         END IF
-
-         IF (ASSOCIATED(sub_env%sab_orb)) THEN
-            DO i = SIZE(sub_env%sab_orb), 1, -1
-               CALL deallocate_neighbor_list_set(sub_env%sab_orb(i)%neighbor_list_set)
-            END DO
-            DEALLOCATE (sub_env%sab_orb)
-         END IF
+         CALL release_neighbor_list_sets(sub_env%sab_aux_fit)
+         CALL release_neighbor_list_sets(sub_env%sab_orb)
 
          IF (ASSOCIATED(sub_env%dbcsr_dist)) THEN
             CALL dbcsr_distribution_release(sub_env%dbcsr_dist)

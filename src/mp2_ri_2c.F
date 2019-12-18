@@ -89,10 +89,10 @@ MODULE mp2_ri_2c
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: set_ks_env
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_tensors,                      ONLY: build_2c_integrals,&
-                                              build_2c_neighbor_lists,&
-                                              neighbor_list_2c_destroy
+                                              build_2c_neighbor_lists
    USE rpa_communication,               ONLY: communicate_buffer
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
@@ -654,7 +654,7 @@ CONTAINS
 
       END IF
 
-      CALL neighbor_list_2c_destroy(sab_RI)
+      CALL release_neighbor_list_sets(sab_RI)
 
       CALL cp_fm_struct_release(fm_struct)
 

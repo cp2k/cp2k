@@ -93,10 +93,10 @@ MODULE xas_tdp_utils
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_ks_types,                     ONLY: release_sab
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: atom2d_build,&
                                               atom2d_cleanup,&
                                               build_neighbor_lists,&
@@ -1613,8 +1613,8 @@ CONTAINS
                                qs_env, excited_atoms=xas_tdp_env%ex_atom_indices)
       CALL get_opt_3c_dist2d(xas_tdp_env%opt_dist2d_coul, ab_list, ac_list, basis_set_orb, &
                              basis_set_orb, basis_set_ri, qs_env)
-      CALL release_sab(ab_list)
-      CALL release_sab(ac_list)
+      CALL release_neighbor_list_sets(ab_list)
+      CALL release_neighbor_list_sets(ac_list)
 
 !  Build a neighbor list for the ab centers. Assume (aI|c) = sum_b c_bI (ab|c), with c_bI only
 !  non-zero for b centered on the same atom as c => build overlap nl, but only keeping b if centered
@@ -1638,8 +1638,8 @@ CONTAINS
       CALL calculate_o3c_libint_integrals(xas_tdp_env%ri_o3c_coul, potential_parameter=pot)
 
 ! Clean-up
-      CALL release_sab(ab_list)
-      CALL release_sab(ac_list)
+      CALL release_neighbor_list_sets(ab_list)
+      CALL release_neighbor_list_sets(ac_list)
       DEALLOCATE (basis_set_ri, basis_set_orb)
 
       !not strictly necessary but avoid having any load unbalance here being reported in the
@@ -1701,8 +1701,8 @@ CONTAINS
 
       CALL get_opt_3c_dist2d(xas_tdp_env%opt_dist2d_ex, ab_list, ac_list, basis_set_orb, &
                              basis_set_orb, basis_set_ri, qs_env)
-      CALL release_sab(ab_list)
-      CALL release_sab(ac_list)
+      CALL release_neighbor_list_sets(ab_list)
+      CALL release_neighbor_list_sets(ac_list)
 
 !  Build the ab and ac centers neighbor lists based on the optimize distribution
       CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env, &
@@ -1721,8 +1721,8 @@ CONTAINS
                                           para_env=para_env, eps_screen=xas_tdp_control%eps_screen)
 
 ! Clean-up
-      CALL release_sab(ab_list)
-      CALL release_sab(ac_list)
+      CALL release_neighbor_list_sets(ab_list)
+      CALL release_neighbor_list_sets(ac_list)
       DEALLOCATE (basis_set_ri, basis_set_orb)
 
       !not strictly necessary but avoid having any load unbalance here being reported in the

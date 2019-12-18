@@ -11,8 +11,8 @@ MODULE qs_gcp_types
 
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
-                                              neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -67,16 +67,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_gcp_release', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iab
-
       IF (ASSOCIATED(gcp_env)) THEN
 
-         IF (ASSOCIATED(gcp_env%sab_gcp)) THEN
-            DO iab = 1, SIZE(gcp_env%sab_gcp)
-               CALL deallocate_neighbor_list_set(gcp_env%sab_gcp(iab)%neighbor_list_set)
-            END DO
-            DEALLOCATE (gcp_env%sab_gcp)
-         END IF
+         CALL release_neighbor_list_sets(gcp_env%sab_gcp)
          IF (ASSOCIATED(gcp_env%kind_type)) THEN
             DEALLOCATE (gcp_env%kind_type)
          END IF

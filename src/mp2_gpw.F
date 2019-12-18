@@ -103,8 +103,8 @@ MODULE mp2_gpw
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
-   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
-                                              neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: atom2d_build,&
                                               atom2d_cleanup,&
                                               build_neighbor_lists,&
@@ -164,7 +164,7 @@ CONTAINS
       INTEGER :: blacs_grid_layout, color_sub, color_sub_3c, comm_sub, comm_sub_3c, dimen, &
          dimen_RI, dimen_RI_red, eri_method, group_size_3c, group_size_P, gw_corr_lev_occ, &
          gw_corr_lev_occ_beta, gw_corr_lev_virt, gw_corr_lev_virt_beta, handle, homo, homo_beta, &
-         i, local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, nelectron, &
+         local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, nelectron, &
          nelectron_beta, nmo, nspins, potential_type, ri_metric_type
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array_mc_t, starts_array_mc_t
       LOGICAL :: blacs_repeatable, do_bse, do_dbcsr_t, do_gpw, do_im_time, do_kpoints_cubic_RPA, &
@@ -575,10 +575,7 @@ CONTAINS
             CALL dbcsr_release(mat_munu%matrix)
             DEALLOCATE (mat_munu%matrix)
 
-            DO i = 1, SIZE(sab_orb_sub)
-               CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
-            END DO
-            DEALLOCATE (sab_orb_sub)
+            CALL release_neighbor_list_sets(sab_orb_sub)
 
          ENDIF
 
@@ -598,10 +595,7 @@ CONTAINS
             END IF
 
             ! release sab_orb_all
-            DO i = 1, SIZE(sab_orb_all)
-               CALL deallocate_neighbor_list_set(sab_orb_all(i)%neighbor_list_set)
-            END DO
-            DEALLOCATE (sab_orb_all)
+            CALL release_neighbor_list_sets(sab_orb_all)
 
             group_size_P = mp2_env%ri_rpa_im_time%group_size_P
 
@@ -614,9 +608,11 @@ CONTAINS
                CALL create_matrix_P(mat_P_global, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, &
                                     qs_kind_set, atom2d, molecule_kind_set, molecule_set, particle_set, cell)
             ELSE
-               CALL create_dbcsr_matrices_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, mat_dm_occ_global_mao, &
-                                                  mat_dm_virt_global_mao, mat_dm_occ_local, mat_dm_virt_local, &
-                                                  do_mao, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, qs_kind_set, &
+               CALL create_dbcsr_matrices_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, &
+                                                  mat_dm_occ_global_mao, mat_dm_virt_global_mao, &
+                                                  mat_dm_occ_local, mat_dm_virt_local, &
+                                                  do_mao, qs_env, mp2_env, para_env, dft_control, &
+                                                  atomic_kind_set, qs_kind_set, &
                                                   atom2d, molecule_kind_set, molecule_set, particle_set, cell, &
                                                   para_env_sub_im_time_P, blacs_env_sub_RPA)
             ENDIF
@@ -691,10 +687,7 @@ CONTAINS
             CALL dbcsr_release(mat_munu%matrix)
             DEALLOCATE (mat_munu%matrix)
 
-            DO i = 1, SIZE(sab_orb_sub)
-               CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
-            END DO
-            DEALLOCATE (sab_orb_sub)
+            CALL release_neighbor_list_sets(sab_orb_sub)
 
          END IF
 
@@ -768,10 +761,7 @@ CONTAINS
                CALL dbcsr_release(mat_munu%matrix)
                DEALLOCATE (mat_munu%matrix)
 
-               DO i = 1, SIZE(sab_orb_sub)
-                  CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
-               END DO
-               DEALLOCATE (sab_orb_sub)
+               CALL release_neighbor_list_sets(sab_orb_sub)
 
             END IF
          END IF
@@ -1518,7 +1508,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_matrix_P', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blacs_grid_layout, handle, i
+      INTEGER                                            :: blacs_grid_layout, handle
       LOGICAL                                            :: blacs_repeatable
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1541,10 +1531,7 @@ CONTAINS
       CALL dbcsr_reserve_all_blocks(mat_P_global%matrix)
       CALL cp_blacs_env_release(blacs_env_global)
 
-      DO i = 1, SIZE(sab_orb_sub)
-         CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
-      END DO
-      DEALLOCATE (sab_orb_sub)
+      CALL release_neighbor_list_sets(sab_orb_sub)
 
       CALL timestop(handle)
 
@@ -1606,7 +1593,7 @@ CONTAINS
 
       INTEGER :: blacs_grid_layout, blk_end, blk_start, col_end_local, col_start_local, &
          color_sub_col, color_sub_P, color_sub_row, comm_sub_P, cut_memory, end_col, &
-         end_col_data_block, end_row, end_row_data_block, group_size_P, handle, i, i_mem, icol, &
+         end_col_data_block, end_row, end_row_data_block, group_size_P, handle, i_mem, icol, &
          igroup, itmp(2), j_mem, n_group_col, n_group_P, n_group_row, n_local_col_prim, &
          n_local_row_prim, nblkrows_RI, nblkrows_total, nblkrows_total_mao_occ, &
          nblkrows_total_mao_virt, nfullcols_to_split, nfullcols_total, nfullrows_to_split, &
@@ -1643,10 +1630,7 @@ CONTAINS
                                blacs_grid_layout, &
                                blacs_repeatable)
 
-      DO i = 1, SIZE(sab_orb_sub)
-         CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
-      END DO
-      DEALLOCATE (sab_orb_sub)
+      CALL release_neighbor_list_sets(sab_orb_sub)
 
       CALL create_mat_munu(mat_P_local, qs_env, mp2_env, para_env, dft_control, &
                            atomic_kind_set, qs_kind_set, atom2d, molecule_kind_set, &
@@ -2049,10 +2033,7 @@ CONTAINS
                                blacs_grid_layout, &
                                blacs_repeatable)
 
-      DO i = 1, SIZE(sab_orb_sub)
-         CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
-      END DO
-      DEALLOCATE (sab_orb_sub)
+      CALL release_neighbor_list_sets(sab_orb_sub)
 
       CALL create_mat_munu(mat_P_global, qs_env, mp2_env, para_env, dft_control, &
                            atomic_kind_set, qs_kind_set, atom2d, molecule_kind_set, &
@@ -2063,10 +2044,7 @@ CONTAINS
 
       CALL cp_blacs_env_release(blacs_env_global)
 
-      DO i = 1, SIZE(sab_orb_sub)
-         CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
-      END DO
-      DEALLOCATE (sab_orb_sub)
+      CALL release_neighbor_list_sets(sab_orb_sub)
 
       IF (do_mao) THEN
          CALL dbcsr_get_info(mat_dm_occ_global_mao%matrix, &

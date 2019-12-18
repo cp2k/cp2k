@@ -26,8 +26,8 @@ MODULE kg_environment_types
                                               qs_dispersion_type
    USE qs_grid_atom,                    ONLY: atom_integration_grid_type,&
                                               deallocate_atom_int_grid
-   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
-                                              neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE task_list_types,                 ONLY: deallocate_task_list,&
                                               task_list_type
 #include "./base/base_uses.f90"
@@ -138,34 +138,21 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_env_release', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iab, isub
+      INTEGER                                            :: handle, isub
 
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(kg_env))
 
-      IF (ASSOCIATED(kg_env%sab_orb_full)) THEN
-         DO iab = 1, SIZE(kg_env%sab_orb_full)
-            CALL deallocate_neighbor_list_set(kg_env%sab_orb_full(iab)%neighbor_list_set)
-         END DO
-         DEALLOCATE (kg_env%sab_orb_full)
-      ENDIF
-      IF (ASSOCIATED(kg_env%sac_kin)) THEN
-         DO iab = 1, SIZE(kg_env%sac_kin)
-            CALL deallocate_neighbor_list_set(kg_env%sac_kin(iab)%neighbor_list_set)
-         END DO
-         DEALLOCATE (kg_env%sac_kin)
-      END IF
+      CALL release_neighbor_list_sets(kg_env%sab_orb_full)
+      CALL release_neighbor_list_sets(kg_env%sac_kin)
 
       IF (ASSOCIATED(kg_env%tnadd_mat)) THEN
          CALL dbcsr_deallocate_matrix_set(kg_env%tnadd_mat)
       ENDIF
 
       DO isub = 1, kg_env%nsubsets
-         DO iab = 1, SIZE(kg_env%subset(isub)%sab_orb)
-            CALL deallocate_neighbor_list_set(kg_env%subset(isub)%sab_orb(iab)%neighbor_list_set)
-         END DO
-         DEALLOCATE (kg_env%subset(isub)%sab_orb)
+         CALL release_neighbor_list_sets(kg_env%subset(isub)%sab_orb)
          CALL deallocate_task_list(kg_env%subset(isub)%task_list)
       END DO
 
@@ -195,24 +182,9 @@ CONTAINS
       ! energy correction
       IF (kg_env%energy_correction) THEN
          ! neighbor lists
-         IF (ASSOCIATED(kg_env%ec_env%sab_orb)) THEN
-            DO iab = 1, SIZE(kg_env%ec_env%sab_orb)
-               CALL deallocate_neighbor_list_set(kg_env%ec_env%sab_orb(iab)%neighbor_list_set)
-            END DO
-            DEALLOCATE (kg_env%ec_env%sab_orb)
-         END IF
-         IF (ASSOCIATED(kg_env%ec_env%sac_ppl)) THEN
-            DO iab = 1, SIZE(kg_env%ec_env%sac_ppl)
-               CALL deallocate_neighbor_list_set(kg_env%ec_env%sac_ppl(iab)%neighbor_list_set)
-            END DO
-            DEALLOCATE (kg_env%ec_env%sac_ppl)
-         END IF
-         IF (ASSOCIATED(kg_env%ec_env%sap_ppnl)) THEN
-            DO iab = 1, SIZE(kg_env%ec_env%sap_ppnl)
-               CALL deallocate_neighbor_list_set(kg_env%ec_env%sap_ppnl(iab)%neighbor_list_set)
-            END DO
-            DEALLOCATE (kg_env%ec_env%sap_ppnl)
-         END IF
+         CALL release_neighbor_list_sets(kg_env%ec_env%sab_orb)
+         CALL release_neighbor_list_sets(kg_env%ec_env%sac_ppl)
+         CALL release_neighbor_list_sets(kg_env%ec_env%sap_ppnl)
          ! operator matrices
          IF (ASSOCIATED(kg_env%ec_env%matrix_ks)) CALL dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_ks)
          IF (ASSOCIATED(kg_env%ec_env%matrix_h)) CALL dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_h)

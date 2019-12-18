@@ -81,11 +81,10 @@ MODULE qs_neighbor_lists
                                               qs_ks_env_type,&
                                               set_ks_env
    USE qs_neighbor_list_types,          ONLY: &
-        add_neighbor_list, add_neighbor_node, allocate_neighbor_list_set, &
-        deallocate_neighbor_list_set, get_iterator_info, neighbor_list_iterate, &
-        neighbor_list_iterator_create, neighbor_list_iterator_p_type, &
+        add_neighbor_list, add_neighbor_node, allocate_neighbor_list_set, get_iterator_info, &
+        neighbor_list_iterate, neighbor_list_iterator_create, neighbor_list_iterator_p_type, &
         neighbor_list_iterator_release, neighbor_list_p_type, neighbor_list_set_p_type, &
-        neighbor_list_set_type
+        neighbor_list_set_type, release_neighbor_list_sets
    USE string_utilities,                ONLY: compress
    USE subcell_types,                   ONLY: allocate_subcell,&
                                               deallocate_subcell,&
@@ -1048,14 +1047,9 @@ CONTAINS
          my_sort_atomb = .TRUE.
       END IF
 
-      ! Deallocate the old neighbor list structure
-      IF (ASSOCIATED(ab_list)) THEN
-         DO iab = 1, SIZE(ab_list)
-            CALL deallocate_neighbor_list_set(ab_list(iab)%neighbor_list_set)
-         END DO
-         DEALLOCATE (ab_list)
-      END IF
       nkind = SIZE(atom)
+      ! Deallocate the old neighbor list structure
+      CALL release_neighbor_list_sets(ab_list)
       ! Allocate and initialize the new neighbor list structure
       ALLOCATE (ab_list(nkind*nkind))
       DO iab = 1, SIZE(ab_list)
@@ -1355,6 +1349,19 @@ CONTAINS
       DEALLOCATE (kind_a, pres_a, pres_b, lista, listb, nlista, nlistb)
       DEALLOCATE (index_list)
       DEALLOCATE (r_pbc)
+
+!deb
+!     CALL neighbor_list_iterator_create(nl_iterator, ab)
+!     DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+!        CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, nnode=nnode)
+!        IF (inode == 1) THEN
+!           n = nnsgf(ikind)*nnsgf(jkind)
+!           nblock(mype) = nblock(mype) + nnode
+!           nelement(mype) = nelement(mype) + n*nnode
+!        END IF
+!     END DO
+!     CALL neighbor_list_iterator_release(nl_iterator)
+!deb
 
       CALL timestop(handle)
 
