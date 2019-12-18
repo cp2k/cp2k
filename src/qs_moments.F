@@ -83,6 +83,7 @@ MODULE qs_moments
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
+   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE rt_propagation_types,            ONLY: get_rtp,&
@@ -337,13 +338,14 @@ CONTAINS
 !> \param moments contains the multipole moments, already calculated
 !> \param moments_der will contain the derivatives of the multipole moments
 !> \param nmoments order of the multipole moments
+!> \param nders ...
 !> \param ref_point ...
 ! **************************************************************************************************
-   SUBROUTINE build_local_moments_der_matrix(qs_env, moments, moments_der, nmoments, ref_point)
+   SUBROUTINE build_local_moments_der_matrix(qs_env, moments, moments_der, nmoments, nders, ref_point)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: moments
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: moments_der
-      INTEGER, INTENT(IN)                                :: nmoments
+      INTEGER, INTENT(IN)                                :: nmoments, nders
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: ref_point
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moments_der_matrix', &
@@ -399,8 +401,8 @@ CONTAINS
       ALLOCATE (mab(maxco, maxco, nm))
       mab(:, :, :) = 0.0_dp
 
-      M_dim = ncoset(nmoments) - 1
-      CPASSERT(M_dim <= SIZE(moments, 1))
+      M_dim = ncoset(nders) - 1
+      ! CPASSERT(M_dim <= SIZE(moments, 1))
       ALLOCATE (difmab(maxco, maxco, M_dim, 3))
       difmab(:, :, :, :) = 0.0_dp
 
@@ -411,6 +413,8 @@ CONTAINS
       ALLOCATE (mom_block_der(M_dim, 3))
       DO i = 1, nm
          NULLIFY (mom_block(i)%block)
+      ENDDO
+      DO i = 1, M_dim
          DO idir = 1, 3
             NULLIFY (mom_block_der(i, idir)%block)
          ENDDO
@@ -493,13 +497,15 @@ CONTAINS
          irow = iatom
          icol = jatom
 
-         DO i = 1, 3
+         DO i = 1, nm
             NULLIFY (mom_block(i)%block)
             ! get block from pre calculated overlap matrix
             CALL dbcsr_get_block_p(matrix=moments(i)%matrix, &
                                    row=irow, col=icol, BLOCK=mom_block(i)%block, found=found)
             CPASSERT(found .AND. ASSOCIATED(mom_block(i)%block))
             mom_block(i)%block = 0._dp
+         ENDDO
+         DO i = 1, M_dim
             DO idir = 1, 3
                NULLIFY (mom_block_der(i, idir)%block)
                CALL dbcsr_get_block_p(matrix=moments_der(i, idir)%matrix, &
@@ -533,10 +539,10 @@ CONTAINS
                                rpgfa(:, iset), la_min(iset), &
                                lb_max(jset), npgfb(jset), zetb(:, jset), &
                                rpgfb(:, jset), lb_min(jset), &
-                               nmoments, rac, rbc, difmab, mab_ext=mab)
+                               nders, rac, rbc, difmab) !, mab_ext=mab
 
                ! Contraction step
-               DO i = 1, 3
+               DO i = 1, nm
 
                   CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
                              1.0_dp, mab(1, 1, i), SIZE(mab, 1), &
@@ -548,7 +554,8 @@ CONTAINS
                              work(1, 1), SIZE(work, 1), &
                              1.0_dp, mom_block(i)%block(sgfa, sgfb), &
                              SIZE(mom_block(i)%block, 1))
-
+               ENDDO
+               DO i = 1, M_dim
                   DO idir = 1, 3
                      CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
                                 1.0_dp, difmab(1, 1, i, idir), SIZE(difmab, 1), &
@@ -1743,8 +1750,8 @@ CONTAINS
                                                             ikind, ispin, ix, iy, iz, l, nm, nmm, &
                                                             nmom, order
       LOGICAL                                            :: my_velreprs
-      REAL(dp)                                           :: charge, dd, strace, trace
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, rmom_vel
+      REAL(dp)                                           :: charge, dd, exp_s, strace, trace
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, qupole_der, rmom_vel
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
       REAL(dp), DIMENSION(3)                             :: rcc, ria
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -1753,8 +1760,8 @@ CONTAINS
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: magmom, matrix_s, moments, momentum, &
                                                             rho_ao
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: moments_vel
-      TYPE(dbcsr_type), POINTER                          :: rho_magmom_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: moments_der
+      TYPE(dbcsr_type), POINTER                          :: tmp_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1863,9 +1870,9 @@ CONTAINS
 
          ! Allocate matrices to store the matrix product to be traced (dbcsr_dot only works for products of
          ! symmetric matrices)
-         NULLIFY (rho_magmom_ao)
-         ALLOCATE (rho_magmom_ao)
-         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, rho_magmom_ao)
+         NULLIFY (tmp_ao)
+         ALLOCATE (tmp_ao)
+         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, tmp_ao)
 
          IF (qs_env%run_rtp) THEN
             ! get imaginary part of the density in rho_ao (the real part is not needed since the trace of the product
@@ -1878,17 +1885,17 @@ CONTAINS
          DO i = 1, SIZE(magmom)
             strace = 0._dp
             DO ispin = 1, dft_control%nspins
-               CALL dbcsr_set(rho_magmom_ao, 0.0_dp)
+               CALL dbcsr_set(tmp_ao, 0.0_dp)
                CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, magmom(i)%matrix, &
-                                   0.0_dp, rho_magmom_ao)
-               CALL dbcsr_trace(rho_magmom_ao, trace)
+                                   0.0_dp, tmp_ao)
+               CALL dbcsr_trace(tmp_ao, trace)
                strace = strace + trace
             END DO
             mmom(i) = strace
          END DO
 
          CALL dbcsr_deallocate_matrix_set(magmom)
-         CALL dbcsr_deallocate_matrix(rho_magmom_ao)
+         CALL dbcsr_deallocate_matrix(tmp_ao)
       END IF
 
       ! velocity representations
@@ -1896,8 +1903,13 @@ CONTAINS
          ALLOCATE (rmom_vel(nm))
          rmom_vel = 0.0_dp
 
+         NULLIFY (tmp_ao)
+         ALLOCATE (tmp_ao)
+         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, tmp_ao)
+
          DO order = 1, nmom
             SELECT CASE (order)
+
             CASE (1) ! expectation value of momentum
                NULLIFY (sab_orb)
                CALL get_qs_env(qs_env, sab_orb=sab_orb)
@@ -1910,37 +1922,122 @@ CONTAINS
                   CALL cp_dbcsr_alloc_block_from_nbl(momentum(i)%matrix, sab_orb)
                   CALL dbcsr_set(momentum(i)%matrix, 0.0_dp)
                ENDDO
+               CALL build_lin_mom_matrix(qs_env, momentum)
+
+               ! imaginary part of the density for RTP, real part gives 0 since momentum is antisymmetric
+               IF (qs_env%run_rtp) THEN
+                  NULLIFY (rho_ao)
+                  CALL qs_rho_get(rho, rho_ao_im=rho_ao)
+                  DO idir = 1, SIZE(momentum)
+                     strace = 0._dp
+                     DO ispin = 1, dft_control%nspins
+                        CALL dbcsr_set(tmp_ao, 0.0_dp)
+                        CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, momentum(idir)%matrix, &
+                                            0.0_dp, tmp_ao)
+                        CALL dbcsr_trace(tmp_ao, trace)
+                        strace = strace + trace
+                     END DO
+                     rmom_vel(idir) = rmom_vel(idir) + strace
+                  ENDDO
+               ENDIF
 
                CALL dbcsr_deallocate_matrix_set(momentum)
+
             CASE (2) ! expectation value of quadrupole moment in vel. reprs.
                NULLIFY (sab_orb)
                CALL get_qs_env(qs_env, sab_all=sab_orb)
-               NULLIFY (moments, moments_vel)
-               CALL dbcsr_allocate_matrix_set(moments, 3)
-               CALL dbcsr_allocate_matrix_set(moments_vel, 3, 3)
-               DO i = 1, 3 ! x, y, z
+
+               ! Allocate matrices
+               NULLIFY (moments, moments_der)
+               CALL dbcsr_allocate_matrix_set(moments, nm)
+               CALL dbcsr_allocate_matrix_set(moments_der, 3, 3)
+               DO i = 1, nm
                   CALL dbcsr_init_p(moments(i)%matrix)
                   CALL dbcsr_create(moments(i)%matrix, template=matrix_s(1)%matrix, &
                                     matrix_type=dbcsr_type_no_symmetry)
                   CALL cp_dbcsr_alloc_block_from_nbl(moments(i)%matrix, sab_orb)
                   CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
-
+               ENDDO
+               DO i = 1, 3 ! x, y, z
                   DO idir = 1, 3 ! d/dx, d/dy, d/dz
-                     CALL dbcsr_init_p(moments_vel(i, idir)%matrix)
-                     CALL dbcsr_create(moments_vel(i, idir)%matrix, template=matrix_s(1)%matrix, &
+                     CALL dbcsr_init_p(moments_der(i, idir)%matrix)
+                     CALL dbcsr_create(moments_der(i, idir)%matrix, template=matrix_s(1)%matrix, &
                                        matrix_type=dbcsr_type_no_symmetry)
-                     CALL cp_dbcsr_alloc_block_from_nbl(moments_vel(i, idir)%matrix, sab_orb)
-                     CALL dbcsr_set(moments_vel(i, idir)%matrix, 0.0_dp)
+                     CALL cp_dbcsr_alloc_block_from_nbl(moments_der(i, idir)%matrix, sab_orb)
+                     CALL dbcsr_set(moments_der(i, idir)%matrix, 0.0_dp)
                   ENDDO
                END DO
 
-               CALL build_local_moments_der_matrix(qs_env, moments, moments_vel, 1, rcc)
+               ! get derivatives, e. g. x d/dy in ao basis
+               CALL build_local_moments_der_matrix(qs_env, moments, moments_der, 2, 1, rcc)
 
+               ! Expectation value of overlap matrix (identity operator) should give number of electrons
+               NULLIFY (rho_ao)
+               CALL qs_rho_get(rho, rho_ao=rho_ao)
+               exp_s = 0._dp
+               trace = 0.0_dp
+               DO ispin = 1, dft_control%nspins
+                  CALL dbcsr_dot(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
+                  exp_s = exp_s + trace
+               END DO
+
+               ALLOCATE (qupole_der(9)) ! will contain the expectation values of r_\alpha * d/d r_\beta
+               qupole_der = 0._dp
+
+               NULLIFY (rho_ao)
+               CALL qs_rho_get(rho, rho_ao=rho_ao)
+
+               ! Calculate expectation value over real part
+               trace = 0._dp
+               DO i = 1, 3
+                  DO idir = 1, 3
+                     strace = 0._dp
+                     DO ispin = 1, dft_control%nspins
+                        CALL dbcsr_set(tmp_ao, 0._dp)
+                        CALL dbcsr_multiply("T", "N", 1._dp, rho_ao(ispin)%matrix, moments_der(i, idir)%matrix, 0._dp, tmp_ao)
+                        CALL dbcsr_trace(tmp_ao, trace)
+                        strace = strace + trace
+                     ENDDO
+                     qupole_der((i - 1)*3 + idir) = qupole_der((i - 1)*3 + idir) + strace
+                  ENDDO
+               ENDDO
+
+               IF (qs_env%run_rtp) THEN
+                  NULLIFY (rho_ao)
+                  CALL qs_rho_get(rho, rho_ao_im=rho_ao)
+
+                  ! Calculate expectation value over imaginary part
+                  trace = 0._dp
+                  DO i = 1, 3
+                     DO idir = 1, 3
+                        strace = 0._dp
+                        DO ispin = 1, dft_control%nspins
+                           CALL dbcsr_set(tmp_ao, 0._dp)
+                           CALL dbcsr_multiply("T", "N", 1._dp, rho_ao(ispin)%matrix, moments_der(i, idir)%matrix, 0._dp, tmp_ao)
+                           CALL dbcsr_trace(tmp_ao, trace)
+                           strace = strace + trace
+                        ENDDO
+                        qupole_der((i - 1)*3 + idir) = qupole_der((i - 1)*3 + idir) + strace
+                     ENDDO
+                  ENDDO
+               ENDIF
+
+               ! calculate vel. reprs. of quadrupole moment from derivatives
+               rmom_vel(4) = -2*qupole_der(1) + exp_s
+               rmom_vel(5) = -qupole_der(2) - qupole_der(4)
+               rmom_vel(6) = -qupole_der(3) - qupole_der(7)
+               rmom_vel(7) = -2*(qupole_der(5)) + exp_s
+               rmom_vel(8) = -qupole_der(6) - qupole_der(8)
+               rmom_vel(9) = -2*qupole_der(9) + exp_s
+
+               DEALLOCATE (qupole_der)
                CALL dbcsr_deallocate_matrix_set(moments)
-               CALL dbcsr_deallocate_matrix_set(moments_vel)
+               CALL dbcsr_deallocate_matrix_set(moments_der)
             CASE DEFAULT
             END SELECT
          ENDDO
+
+         CALL dbcsr_deallocate_matrix(tmp_ao)
 
       ENDIF
 
