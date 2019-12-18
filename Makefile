@@ -379,7 +379,7 @@ doxygen: doxygen/clean
 	@echo "<html><body>Sorry, the Doxygen documentation is currently being updated. Please try again in a few minutes.</body></html>" > $(DOXYGENDIR)/html/index.html
 	cp $(ALL_SRC_FILES) $(DOXYGENDIR)
 	@for i in $(DOXYGENDIR)/*.F ; do mv $${i}  $${i%%.*}.f90; done ;
-	@cat $(TOOLSRC)/doxify/Doxyfile.template | sed "s/#revision#/`$(TOOLSRC)/build_utils/get_revision_number $(CP2KHOME)`/"  >$(DOXYGENDIR)/Doxyfile
+	@sed -e "s/#revision#/$(REVISION)/" $(TOOLSRC)/doxify/Doxyfile.template >$(DOXYGENDIR)/Doxyfile
 	cd $(DOXYGENDIR); doxygen ./Doxyfile 2>&1 | tee ./html/doxygen.out
 TOOL_HELP += "doxygen : Generate the doxygen documentation"
 
@@ -442,7 +442,7 @@ GIT_REF := ${MAINOBJDIR}/git-ref
 # use a force (fake) target to always rebuild this file but have Make consider this updated
 # iff it was actually rewritten (a .PHONY target is always considered new)
 $(GIT_REF): FORCE
-	@$(CP2KHOME)/tools/build_utils/get_revision_number $(SRCDIR) > "$@.tmp"
+	echo $(REVISION) > "$@.tmp"
 	@cmp "$@.tmp" "$@" || mv -f "$@.tmp" "$@"
 
 FORCE: ;
