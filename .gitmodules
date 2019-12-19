@@ -1,7 +1,7 @@
 [submodule "exts/dbcsr"]
 	path = exts/dbcsr
-	url = https://github.com/cp2k/dbcsr
-	branch = master
+    url = https://github.com/dithillobothrium/dbcsr-1.git
+    branch = tight_binding
 [submodule "tools/prettify/fprettify"]
 	path = tools/prettify/fprettify
 	url = https://github.com/pseewald/fprettify.git
