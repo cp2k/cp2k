@@ -15,6 +15,8 @@ MODULE commutator_rpnl
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE block_p_types,                   ONLY: block_p_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE external_potential_types,        ONLY: gth_potential_p_type,&
@@ -25,6 +27,7 @@ MODULE commutator_rpnl
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               nco,&
                                               ncoset
+   USE particle_types,                  ONLY: particle_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
@@ -409,8 +412,11 @@ CONTAINS
 !> \param matrix_rxrv ...
 !> \param matrix_rrv ...
 !> \param ref_point ...
+!> \param particle_set ...
+!> \param cell ...
 ! **************************************************************************************************
-   SUBROUTINE build_com_mom_nl(matrix_rv, qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rxrv, matrix_rrv, ref_point)
+   SUBROUTINE build_com_mom_nl(matrix_rv, qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rxrv, matrix_rrv, ref_point, &
+                               particle_set, cell)
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_rv
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -420,6 +426,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_rxrv, matrix_rrv
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: ref_point
+      TYPE(particle_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: particle_set
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_com_mom_nl', &
          routineP = moduleN//':'//routineN
@@ -433,11 +442,12 @@ CONTAINS
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: asso_rrv, asso_rv, asso_rxrv, found, go, &
-                                                            gpot, ppnl_present, spot
+                                                            gpot, my_ref, my_rrv, my_rxrv, &
+                                                            ppnl_present, spot
       REAL(KIND=dp)                                      :: dac, ppnl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work, sab, work
       REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
-      REAL(KIND=dp), DIMENSION(3)                        :: rab, rac, rcc
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, raf, rc, rcf, rf
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_ppnl, set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, rpgfa, sphi_a, vprj_ppnl, zeta
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint
@@ -505,7 +515,12 @@ CONTAINS
             END IF
          END DO
 
-         IF (PRESENT(matrix_rxrv) .OR. PRESENT(matrix_rrv)) THEN
+         my_rxrv = .FALSE.
+         my_rrv = .FALSE.
+         IF (PRESENT(matrix_rxrv)) my_rxrv = .TRUE.
+         IF (PRESENT(matrix_rrv)) my_rrv = .TRUE.
+
+         IF (my_rxrv .OR. my_rrv) THEN
             maxder = 10
             order = 2
             CPASSERT(PRESENT(ref_point))
@@ -514,8 +529,13 @@ CONTAINS
             order = 1
          ENDIF
 
+         my_ref = .FALSE.
          IF (PRESENT(ref_point)) THEN
-            rcc = ref_point
+            CPASSERT((PRESENT(cell) .AND. PRESENT(particle_set)))
+            rf = ref_point
+            my_ref = .TRUE.
+         ELSE
+            rf(:) = 0._dp
          ENDIF
 
          nthread = 1
@@ -526,12 +546,12 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (nl_iterator, basis_set, spotential, gpotential, maxder, ncoset, &
-!$OMP          sap_int, nkind, ldsab,  ldai, nco, order) &
+!$OMP          sap_int, nkind, ldsab,  ldai, nco, cell, particle_set, order, rf, my_ref) &
 !$OMP PRIVATE (mepos, ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
 !$OMP          cell_c, rac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, &
 !$OMP          sphi_a, zeta, cprj, lppnl, nppnl, nprj_ppnl, &
 !$OMP          clist, iset, ncoa, sgfa, prjc, work, sab, ai_work, nprjc,  ppnl_radius, &
-!$OMP          ncoc, rpgfa, vprj_ppnl, i, l, gpot, spot, &
+!$OMP          ncoc, rpgfa, vprj_ppnl, i, l, gpot, spot, raf, rcf, ra, rc, &
 !$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl)
          mepos = 0
 !$       mepos = omp_get_thread_num()
@@ -607,6 +627,14 @@ CONTAINS
             clist%achint = 0._dp
             clist%nsgf_cnt = 0
             NULLIFY (clist%sgf_list)
+
+            IF (my_ref) THEN
+               ra(:) = pbc(particle_set(iatom)%r(:) - rf, cell) + rf
+               rc(:) = pbc(particle_set(katom)%r(:) - rf, cell) + rf
+               raf(:) = ra(:) - rf(:)
+               rcf(:) = rc(:) - rf(:)
+            ENDIF
+
             DO iset = 1, nseta
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                sgfa = first_sgfa(1, iset)
@@ -624,8 +652,13 @@ CONTAINS
                   ! Calculate the primitive overlap and dipole moment integrals
                   CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                lc_max, lc_min, 1, rprjc, zetc, rac, dac, sab(:, :, 1), 0, .FALSE., ai_work, ldai)
-                  CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                              lc_max, 1, zetc, rprjc, order, rac, (/0._dp, 0._dp, 0._dp/), sab(:, :, 2:maxder))
+                  IF (.NOT. my_ref) THEN
+                     CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                                 lc_max, 1, zetc, rprjc, order, -rac, (/0._dp, 0._dp, 0._dp/), sab(:, :, 2:maxder))
+                  ELSE
+                     CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                                 lc_max, 1, zetc, rprjc, order, raf, rcf, sab(:, :, 2:maxder))
+                  ENDIF
                   ! *** Transformation step projector functions (cartesian->spherical) ***
                   DO i = 1, maxder
                      CALL dgemm("N", "N", ncoa, nprjc, ncoc, 1.0_dp, sab(1, 1, i), ldsab, &
@@ -659,7 +692,7 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (nl_iterator, basis_set, matrix_rv, matrix_rxrv, matrix_rrv, &
-!$OMP          sap_int, nkind, eps_ppnl ) &
+!$OMP          sap_int, nkind, eps_ppnl, my_rxrv, my_rrv ) &
 !$OMP PRIVATE (mepos, ikind, jkind, iatom, jatom, nlist, ilist, nnode, inode, cell_b, rab, &
 !$OMP          iab, irow, icol, blocks_rv, blocks_rxrv, blocks_rrv, &
 !$OMP          found, iac, ibc, alist_ac, alist_bc, acint, bcint, &
@@ -672,10 +705,10 @@ CONTAINS
          NULLIFY (blocks_rv, blocks_rxrv, blocks_rrv)
          ALLOCATE (blocks_rv(3))
 
-         IF (PRESENT(matrix_rxrv)) THEN
+         IF (my_rxrv) THEN
             ALLOCATE (blocks_rxrv(3))
          ENDIF
-         IF (PRESENT(matrix_rxrv)) THEN
+         IF (my_rxrv) THEN
             ALLOCATE (blocks_rrv(6))
          ENDIF
 
@@ -694,13 +727,13 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix_rv(ind)%matrix, irow, icol, blocks_rv(ind)%block, found)
             ENDDO
 
-            IF (PRESENT(matrix_rxrv)) THEN
+            IF (my_rxrv) THEN
                DO ind = 1, 3
                   CALL dbcsr_get_block_p(matrix_rxrv(ind)%matrix, irow, icol, blocks_rxrv(ind)%block, found)
                ENDDO
             ENDIF
 
-            IF (PRESENT(matrix_rrv)) THEN
+            IF (my_rrv) THEN
                DO ind = 1, 3
                   CALL dbcsr_get_block_p(matrix_rrv(ind)%matrix, irow, icol, blocks_rrv(ind)%block, found)
                ENDDO
@@ -711,13 +744,13 @@ CONTAINS
                        ASSOCIATED(blocks_rv(3)%block))
             go = asso_rv
 
-            IF (PRESENT(matrix_rxrv)) THEN
+            IF (my_rxrv) THEN
                asso_rxrv = (ASSOCIATED(blocks_rxrv(1)%block) .AND. ASSOCIATED(blocks_rxrv(2)%block) .AND. &
                             ASSOCIATED(blocks_rxrv(1)%block))
                go = go .AND. asso_rxrv
             ENDIF
 
-            IF (PRESENT(matrix_rxrv)) THEN
+            IF (my_rxrv) THEN
                asso_rrv = (ASSOCIATED(blocks_rrv(1)%block) .AND. ASSOCIATED(blocks_rrv(2)%block) .AND. &
                            ASSOCIATED(blocks_rrv(1)%block) .AND. ASSOCIATED(blocks_rrv(2)%block) .AND. &
                            ASSOCIATED(blocks_rrv(1)%block) .AND. ASSOCIATED(blocks_rrv(2)%block))
@@ -763,7 +796,7 @@ CONTAINS
                            CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
                                       bcint(1, 1, 4), nb, 1.0_dp, blocks_rv(3)%block, SIZE(blocks_rv(3)%block, 1)) ! -Vz
 
-                           IF (PRESENT(matrix_rxrv)) THEN
+                           IF (my_rxrv) THEN
                               ! x-component (y [z,Vnl] - z [y, Vnl])
                               CALL dgemm("N", "T", na, nb, np, 1.0_dp, achint(1, 1, 9), na, &
                                          bcint(1, 1, 1), nb, 1.0_dp, blocks_rxrv(1)%block, SIZE(blocks_rxrv(1)%block, 1)) ! yzV
@@ -795,7 +828,7 @@ CONTAINS
                                          bcint(1, 1, 2), nb, 1.0_dp, blocks_rxrv(3)%block, SIZE(blocks_rxrv(3)%block, 1)) ! yVx
                            ENDIF
 
-                           IF (PRESENT(matrix_rrv)) THEN
+                           IF (my_rrv) THEN
                               ! r_alpha * r_beta * Vnl
                               CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 5), na, &
                                          bcint(1, 1, 1), nb, 1.0_dp, blocks_rrv(1)%block, SIZE(blocks_rrv(1)%block, 1)) ! xxV
@@ -832,11 +865,20 @@ CONTAINS
                END DO
             ENDIF
          END DO
+         DO ind = 1, 3
+            NULLIFY (blocks_rv(ind)%block)
+         ENDDO
          DEALLOCATE (blocks_rv)
-         IF (PRESENT(matrix_rxrv)) THEN
+         IF (my_rxrv) THEN
+            DO ind = 1, 3
+               NULLIFY (blocks_rxrv(ind)%block)
+            ENDDO
             DEALLOCATE (blocks_rxrv)
          ENDIF
-         IF (PRESENT(matrix_rxrv)) THEN
+         IF (my_rrv) THEN
+            DO ind = 1, 6
+               NULLIFY (blocks_rrv(ind)%block)
+            ENDDO
             DEALLOCATE (blocks_rrv)
          ENDIF
 !$OMP END PARALLEL
