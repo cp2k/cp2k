@@ -29,7 +29,7 @@ MODULE rt_make_propagators
                                               do_pade,&
                                               do_taylor
    USE kinds,                           ONLY: dp
-   USE ls_matrix_exp,                   ONLY: bch_expansion_complex_propagator,&
+   USE dbcsr_ls_matrix_exp,                   ONLY: bch_expansion_complex_propagator,&
                                               bch_expansion_imaginary_propagator,&
                                               cp_complex_dbcsr_gemm_3,&
                                               taylor_full_complex_dbcsr,&
