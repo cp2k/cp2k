@@ -63,7 +63,11 @@ MODULE qs_neighbor_list_types
 
 ! **************************************************************************************************
    TYPE neighbor_list_set_p_type
-      TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
+      TYPE(neighbor_list_set_type), POINTER                :: neighbor_list_set
+      INTEGER                                              :: nl_size
+      INTEGER                                              :: nl_start
+      INTEGER                                              :: nl_end
+      TYPE(neighbor_list_task_type), DIMENSION(:), POINTER :: nlist_task
    END TYPE neighbor_list_set_p_type
 
 ! **************************************************************************************************
@@ -1144,6 +1148,9 @@ CONTAINS
          DO i = 1, SIZE(nlists)
             CALL deallocate_neighbor_list_set(nlists(i)%neighbor_list_set)
          END DO
+         IF(ASSOCIATED(nlists(1)%nlist_task)) THEN
+            DEALLOCATE(nlists(1)%nlist_task)
+         END IF
          DEALLOCATE (nlists)
       END IF
    END SUBROUTINE release_neighbor_list_sets

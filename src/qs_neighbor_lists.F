@@ -1054,6 +1054,10 @@ CONTAINS
       ALLOCATE (ab_list(nkind*nkind))
       DO iab = 1, SIZE(ab_list)
          NULLIFY (ab_list(iab)%neighbor_list_set)
+         ab_list(iab)%nl_size = -1
+         ab_list(iab)%nl_start = -1
+         ab_list(iab)%nl_end = -1
+         NULLIFY (ab_list(iab)%nlist_task)
       END DO
 
       ! Allocate and initialize the kind availability
