@@ -1755,15 +1755,16 @@ CONTAINS
 !> \param ref_point ...
 !> \param unit_number ...
 !> \param vel_reprs ...
+!> \param com_nl ...
 ! **************************************************************************************************
-   SUBROUTINE qs_moment_locop(qs_env, magnetic, nmoments, reference, ref_point, unit_number, vel_reprs)
+   SUBROUTINE qs_moment_locop(qs_env, magnetic, nmoments, reference, ref_point, unit_number, vel_reprs, com_nl)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: magnetic
       INTEGER, INTENT(IN)                                :: nmoments, reference
       REAL(dp), DIMENSION(:), POINTER                    :: ref_point
       INTEGER, INTENT(IN)                                :: unit_number
-      LOGICAL, INTENT(IN), OPTIONAL                      :: vel_reprs
+      LOGICAL, INTENT(IN), OPTIONAL                      :: vel_reprs, com_nl
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_locop', &
          routineP = moduleN//':'//routineN
@@ -1773,7 +1774,7 @@ CONTAINS
       INTEGER                                            :: akind, handle, i, ia, iatom, idir, &
                                                             ikind, ispin, ix, iy, iz, l, nm, nmm, &
                                                             nmom, order
-      LOGICAL                                            :: my_velreprs
+      LOGICAL                                            :: my_com_nl, my_velreprs
       REAL(dp)                                           :: charge, dd, strace, trace
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, qupole_der, rmom_vel
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
@@ -1800,6 +1801,7 @@ CONTAINS
 
       my_velreprs = .FALSE.
       IF (PRESENT(vel_reprs)) my_velreprs = vel_reprs
+      IF (PRESENT(com_nl)) my_com_nl = com_nl
 
       ! reference point
       CALL get_reference_point(rcc, qs_env=qs_env, reference=reference, ref_point=ref_point)
