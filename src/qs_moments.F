@@ -22,6 +22,7 @@ MODULE qs_moments
    USE block_p_types,                   ONLY: block_p_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE commutator_rpnl,                 ONLY: build_com_mom_nl
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
@@ -1776,7 +1777,8 @@ CONTAINS
                                                             nmom, order
       LOGICAL                                            :: my_com_nl, my_velreprs
       REAL(dp)                                           :: charge, dd, strace, trace
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, qupole_der, rmom_vel
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, nlcom_rrv, nlcom_rv, nlcom_rxrv, &
+                                                            qupole_der, rmom_vel
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
       REAL(dp), DIMENSION(3)                             :: rcc, ria
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -1821,6 +1823,23 @@ CONTAINS
                       matrix_s=matrix_s, &
                       sab_all=sab_orb)
 
+      IF (my_com_nl) THEN
+         IF ((nmom >= 1) .AND. my_velreprs) THEN
+            ALLOCATE (nlcom_rv(3))
+            nlcom_rv(:) = 0._dp
+         ENDIF
+         IF ((nmom >= 2) .AND. my_velreprs) THEN
+            ALLOCATE (nlcom_rrv(6))
+            nlcom_rrv(:) = 0._dp
+         ENDIF
+         IF (magnetic) THEN
+            ALLOCATE (nlcom_rxrv(3))
+            nlcom_rxrv = 0._dp
+         ENDIF
+         ! Calculate non local correction terms
+         CALL calculate_commutator_nl_terms(qs_env, nlcom_rv, nlcom_rxrv, nlcom_rrv, rcc)
+      ENDIF
+
       NULLIFY (moments)
       nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
       CALL dbcsr_allocate_matrix_set(moments, nm)
@@ -1861,7 +1880,7 @@ CONTAINS
       rmom = 0.0_dp
       rlab = ""
 
-      IF ((my_velreprs .AND. (nmoments >= 2)) .OR. magnetic) THEN
+      IF ((my_velreprs .AND. (nmoments >= 1)) .OR. magnetic) THEN
          ! Allocate matrix to store the matrix product to be traced (dbcsr_dot only works for products of
          ! symmetric matrices)
          NULLIFY (tmp_ao)
@@ -2049,7 +2068,7 @@ CONTAINS
          ENDDO
       ENDIF
 
-      IF ((my_velreprs .AND. (nmoments >= 2)) .OR. magnetic) THEN
+      IF ((my_velreprs .AND. (nmoments >= 1)) .OR. magnetic) THEN
          CALL dbcsr_deallocate_matrix(tmp_ao)
       ENDIF
       IF (my_velreprs .AND. (nmoments >= 2)) THEN
@@ -2070,6 +2089,32 @@ CONTAINS
       ELSE
          CALL print_moments(unit_number, nmom, rmom, rlab, rcc, cell, periodic=.FALSE.)
       END IF
+
+      IF (my_com_nl) THEN
+         IF (magnetic) THEN
+            mmom = mmom + nlcom_rxrv
+         ENDIF
+         IF (my_velreprs .AND. (nmom >= 1)) THEN
+            rmom_vel(1:3) = rmom_vel(1:3) + nlcom_rv
+         ENDIF
+         IF (my_velreprs .AND. (nmom >= 2)) THEN
+            rmom_vel(4:9) = rmom_vel(4:9) + nlcom_rrv
+         ENDIF
+         IF (magnetic .AND. .NOT. my_velreprs) THEN
+            CALL print_moments_nl(unit_number, nmom, rlab, mmom)
+         ELSE IF (my_velreprs .AND. .NOT. magnetic) THEN
+            CALL print_moments_nl(unit_number, nmom, rlab, rmom_vel)
+         ELSE IF (my_velreprs .AND. magnetic) THEN
+            CALL print_moments_nl(unit_number, nmom, rlab, mmom, rmom_vel)
+         ENDIF
+
+      ENDIF
+
+      IF (my_com_nl) THEN
+         IF (nmom >= 1 .AND. my_velreprs) DEALLOCATE (nlcom_rv)
+         IF (nmom >= 2 .AND. my_velreprs) DEALLOCATE (nlcom_rrv)
+         IF (magnetic) DEALLOCATE (nlcom_rxrv)
+      ENDIF
 
       DEALLOCATE (rmom)
       DEALLOCATE (rlab)
@@ -2221,5 +2266,287 @@ CONTAINS
       END IF
 
    END SUBROUTINE print_moments
+
+! **************************************************************************************************
+!> \brief ...
+!> \param unit_number ...
+!> \param nmom ...
+!> \param rlab ...
+!> \param mmom ...
+!> \param rmom_vel ...
+! **************************************************************************************************
+   SUBROUTINE print_moments_nl(unit_number, nmom, rlab, mmom, rmom_vel)
+      INTEGER, INTENT(IN)                                :: unit_number, nmom
+      CHARACTER(LEN=8), DIMENSION(:)                     :: rlab
+      REAL(dp), DIMENSION(:), INTENT(IN), OPTIONAL       :: mmom, rmom_vel
+
+      INTEGER                                            :: i, l
+      REAL(dp)                                           :: dd
+
+      IF (unit_number > 0) THEN
+         IF (PRESENT(mmom)) THEN
+            IF (nmom >= 1) THEN
+               dd = SQRT(SUM(mmom(1:3)**2))
+               WRITE (unit_number, "(T3,A)") "Magnetic Dipole Moment (only orbital contrib.) [a.u.] incl. com_nl"
+               WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
+                  (TRIM(rlab(i + 1)), "=", mmom(i), i=1, 3), "Total=", dd
+            END IF
+         END IF
+         IF (PRESENT(rmom_vel)) THEN
+            DO l = 1, nmom
+               SELECT CASE (l)
+               CASE (1)
+                  dd = SQRT(SUM(rmom_vel(1:3)**2))
+                  WRITE (unit_number, "(T3,A)") "Expectation value of momentum operator [a. u.] incl. com_nl"
+                  WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
+                     (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=1, 3), "Total=", dd
+               CASE (2)
+                  WRITE (unit_number, "(T3,A)") "Expectation value of quadrupole operator in vel. repr. [a. u.] incl. com_nl"
+                  WRITE (unit_number, "(T17,3(A,A,F14.8,9X))") &
+                     (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=4, 6)
+                  WRITE (unit_number, "(T17,3(A,A,F14.8,9X))") &
+                     (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=7, 9)
+               CASE DEFAULT
+               END SELECT
+            ENDDO
+         ENDIF
+      END IF
+
+   END SUBROUTINE print_moments_nl
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param nlcom_rv ...
+!> \param nlcom_rxrv ...
+!> \param nlcom_rrv ...
+!> \param ref_point ...
+! **************************************************************************************************
+   SUBROUTINE calculate_commutator_nl_terms(qs_env, nlcom_rv, nlcom_rxrv, nlcom_rrv, ref_point)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(dp), ALLOCATABLE, DIMENSION(:), OPTIONAL      :: nlcom_rv, nlcom_rxrv, nlcom_rrv
+      REAL(dp), DIMENSION(3)                             :: ref_point
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_commutator_nl_terms', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ind, ispin
+      LOGICAL                                            :: calc_rrv, calc_rv, calc_rxrv
+      REAL(dp)                                           :: eps_ppnl, strace, trace
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_rrv, matrix_rv, matrix_rxrv, &
+                                                            matrix_s, rho_ao
+      TYPE(dbcsr_type), POINTER                          :: tmp_ao
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_all, sap_ppnl
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      CALL timeset(routineN, handle)
+
+      calc_rv = .FALSE.
+      calc_rxrv = .FALSE.
+      calc_rrv = .FALSE.
+
+      IF (ALLOCATED(nlcom_rv)) calc_rv = .TRUE.
+      IF (ALLOCATED(nlcom_rrv)) calc_rrv = .TRUE.
+      IF (ALLOCATED(nlcom_rxrv)) calc_rxrv = .TRUE.
+
+      ! WRITE (*, *) calc_rv, calc_rrv, calc_rxrv
+
+      IF (.NOT. (calc_rv .OR. calc_rrv .OR. calc_rxrv)) RETURN
+
+      NULLIFY (cell, matrix_s, particle_set, qs_kind_set, rho, sab_all, sap_ppnl)
+      CALL get_qs_env(qs_env, &
+                      cell=cell, &
+                      dft_control=dft_control, &
+                      matrix_s=matrix_s, &
+                      particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set, &
+                      rho=rho, &
+                      sab_all=sab_all, &
+                      sap_ppnl=sap_ppnl)
+
+      eps_ppnl = dft_control%qs_control%eps_ppnl
+
+      ! Allocate storage
+      NULLIFY (matrix_rv, matrix_rrv, matrix_rxrv)
+      IF (calc_rv) THEN
+         CALL dbcsr_allocate_matrix_set(matrix_rv, 3)
+         DO ind = 1, 3
+            CALL dbcsr_init_p(matrix_rv(ind)%matrix)
+            CALL dbcsr_create(matrix_rv(ind)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_rv(ind)%matrix, sab_all)
+            CALL dbcsr_set(matrix_rv(ind)%matrix, 0._dp)
+         ENDDO
+      ENDIF
+
+      IF (calc_rrv) THEN
+         CALL dbcsr_allocate_matrix_set(matrix_rrv, 6)
+         DO ind = 1, 6
+            CALL dbcsr_init_p(matrix_rrv(ind)%matrix)
+            CALL dbcsr_create(matrix_rrv(ind)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_rrv(ind)%matrix, sab_all)
+            CALL dbcsr_set(matrix_rrv(ind)%matrix, 0._dp)
+         ENDDO
+      ENDIF
+
+      IF (calc_rxrv) THEN
+         CALL dbcsr_allocate_matrix_set(matrix_rxrv, 3)
+         DO ind = 1, 3
+            CALL dbcsr_init_p(matrix_rxrv(ind)%matrix)
+            CALL dbcsr_create(matrix_rxrv(ind)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_rxrv(ind)%matrix, sab_all)
+            CALL dbcsr_set(matrix_rxrv(ind)%matrix, 0._dp)
+         ENDDO
+      ENDIF
+
+      ! calculate commutators in AO basis
+      IF (calc_rv .AND. calc_rrv .AND. .NOT. calc_rxrv) THEN
+         CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rv=matrix_rv, matrix_rrv=matrix_rrv, &
+                               ref_point=ref_point, particle_set=particle_set, cell=cell)
+      ELSE IF (calc_rv .AND. calc_rxrv .AND. .NOT. calc_rrv) THEN
+         CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rv=matrix_rv, matrix_rxrv=matrix_rxrv, &
+                               ref_point=ref_point, particle_set=particle_set, cell=cell)
+      ELSE IF (calc_rrv .AND. calc_rxrv .AND. .NOT. calc_rv) THEN
+         CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rxrv=matrix_rxrv, matrix_rrv=matrix_rrv, &
+                               ref_point=ref_point, particle_set=particle_set, cell=cell)
+      ELSE IF (calc_rv .AND. calc_rxrv .AND. calc_rrv) THEN
+         CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rv=matrix_rv, matrix_rxrv=matrix_rxrv, &
+                               matrix_rrv=matrix_rrv, ref_point=ref_point, particle_set=particle_set, cell=cell)
+      ELSE IF (calc_rv .AND. .NOT. calc_rrv .AND. .NOT. calc_rxrv) THEN
+         CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rv=matrix_rv)
+      ELSE IF (calc_rrv .AND. .NOT. calc_rv .AND. .NOT. calc_rxrv) THEN
+         CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rrv=matrix_rrv, &
+                               ref_point=ref_point, particle_set=particle_set, cell=cell)
+      ELSE IF (calc_rxrv .AND. .NOT. calc_rv .AND. .NOT. calc_rrv) THEN
+         CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rxrv=matrix_rxrv, &
+                               ref_point=ref_point, particle_set=particle_set, cell=cell)
+      ENDIF
+
+      ! calculate expectation values
+      ! real part
+      NULLIFY (rho_ao)
+      CALL qs_rho_get(rho, rho_ao=rho_ao)
+
+      NULLIFY (tmp_ao)
+      ALLOCATE (tmp_ao)
+      CALL dbcsr_desymmetrize(matrix_s(1)%matrix, tmp_ao)
+
+      IF (calc_rv) THEN
+         trace = 0._dp
+         DO ind = 1, SIZE(matrix_rv)
+            strace = 0._dp
+            DO ispin = 1, dft_control%nspins
+               CALL dbcsr_set(tmp_ao, 0.0_dp)
+               CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, matrix_rv(ind)%matrix, &
+                                   0.0_dp, tmp_ao)
+               CALL dbcsr_trace(tmp_ao, trace)
+               strace = strace + trace
+            END DO
+            nlcom_rv(ind) = nlcom_rv(ind) + strace
+         ENDDO
+         ! WRITE (*, *) nlcom_rv
+      ENDIF
+
+      IF (calc_rrv) THEN
+         trace = 0._dp
+         DO ind = 1, SIZE(matrix_rrv)
+            strace = 0._dp
+            DO ispin = 1, dft_control%nspins
+               CALL dbcsr_set(tmp_ao, 0.0_dp)
+               CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, matrix_rrv(ind)%matrix, &
+                                   0.0_dp, tmp_ao)
+               CALL dbcsr_trace(tmp_ao, trace)
+               strace = strace + trace
+            END DO
+            nlcom_rrv(ind) = nlcom_rrv(ind) + strace
+         ENDDO
+         ! WRITE (*, *) nlcom_rrv
+      ENDIF
+
+      IF (calc_rxrv) THEN
+         trace = 0._dp
+         DO ind = 1, SIZE(matrix_rxrv)
+            strace = 0._dp
+            DO ispin = 1, dft_control%nspins
+               CALL dbcsr_set(tmp_ao, 0.0_dp)
+               CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, matrix_rxrv(ind)%matrix, &
+                                   0.0_dp, tmp_ao)
+               CALL dbcsr_trace(tmp_ao, trace)
+               strace = strace + trace
+            END DO
+            nlcom_rxrv(ind) = nlcom_rxrv(ind) + strace
+         ENDDO
+         ! WRITE (*, *) nlcom_rxrv
+      ENDIF
+
+      ! imaginary part
+      IF (qs_env%run_rtp) THEN
+         NULLIFY (rho_ao)
+         CALL qs_rho_get(rho, rho_ao_im=rho_ao)
+
+         IF (calc_rv) THEN
+            trace = 0._dp
+            DO ind = 1, SIZE(matrix_rv)
+               strace = 0._dp
+               DO ispin = 1, dft_control%nspins
+                  CALL dbcsr_set(tmp_ao, 0.0_dp)
+                  CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, matrix_rv(ind)%matrix, &
+                                      0.0_dp, tmp_ao)
+                  CALL dbcsr_trace(tmp_ao, trace)
+                  strace = strace + trace
+               END DO
+               nlcom_rv(ind) = nlcom_rv(ind) + strace
+            ENDDO
+            ! WRITE (*, *) nlcom_rv
+         ENDIF
+
+         IF (calc_rrv) THEN
+            trace = 0._dp
+            DO ind = 1, SIZE(matrix_rrv)
+               strace = 0._dp
+               DO ispin = 1, dft_control%nspins
+                  CALL dbcsr_set(tmp_ao, 0.0_dp)
+                  CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, matrix_rrv(ind)%matrix, &
+                                      0.0_dp, tmp_ao)
+                  CALL dbcsr_trace(tmp_ao, trace)
+                  strace = strace + trace
+               END DO
+               nlcom_rrv(ind) = nlcom_rrv(ind) + strace
+            ENDDO
+            ! WRITE (*, *) nlcom_rrv
+         ENDIF
+
+         IF (calc_rxrv) THEN
+            trace = 0._dp
+            DO ind = 1, SIZE(matrix_rxrv)
+               strace = 0._dp
+               DO ispin = 1, dft_control%nspins
+                  CALL dbcsr_set(tmp_ao, 0.0_dp)
+                  CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, matrix_rxrv(ind)%matrix, &
+                                      0.0_dp, tmp_ao)
+                  CALL dbcsr_trace(tmp_ao, trace)
+                  strace = strace + trace
+               END DO
+               nlcom_rxrv(ind) = nlcom_rxrv(ind) + strace
+            ENDDO
+            ! WRITE (*, *) nlcom_rxrv
+         ENDIF
+      ENDIF ! qs_env%run_rtp
+
+      CALL dbcsr_deallocate_matrix(tmp_ao)
+      IF (calc_rv) CALL dbcsr_deallocate_matrix_set(matrix_rv)
+      IF (calc_rrv) CALL dbcsr_deallocate_matrix_set(matrix_rrv)
+      IF (calc_rxrv) CALL dbcsr_deallocate_matrix_set(matrix_rxrv)
+
+      CALL timestop(handle)
+   END SUBROUTINE calculate_commutator_nl_terms
 
 END MODULE qs_moments
