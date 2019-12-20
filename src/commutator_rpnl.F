@@ -404,27 +404,26 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param matrix_rv ...
 !> \param qs_kind_set ...
 !> \param sab_all ...
 !> \param sap_ppnl ...
 !> \param eps_ppnl ...
+!> \param matrix_rv ...
 !> \param matrix_rxrv ...
 !> \param matrix_rrv ...
 !> \param ref_point ...
 !> \param particle_set ...
 !> \param cell ...
 ! **************************************************************************************************
-   SUBROUTINE build_com_mom_nl(matrix_rv, qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rxrv, matrix_rrv, ref_point, &
+   SUBROUTINE build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rv, matrix_rxrv, matrix_rrv, ref_point, &
                                particle_set, cell)
 
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_rv
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all, sap_ppnl
       REAL(KIND=dp), INTENT(IN)                          :: eps_ppnl
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: matrix_rxrv, matrix_rrv
+         POINTER                                         :: matrix_rv, matrix_rxrv, matrix_rrv
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: ref_point
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
@@ -442,7 +441,7 @@ CONTAINS
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: asso_rrv, asso_rv, asso_rxrv, found, go, &
-                                                            gpot, my_ref, my_rrv, my_rxrv, &
+                                                            gpot, my_ref, my_rrv, my_rv, my_rxrv, &
                                                             ppnl_present, spot
       REAL(KIND=dp)                                      :: dac, ppnl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work, sab, work
@@ -465,6 +464,14 @@ CONTAINS
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       CALL timeset(routineN, handle)
+
+      my_rxrv = .FALSE.
+      my_rrv = .FALSE.
+      my_rv = .FALSE.
+      IF (PRESENT(matrix_rxrv)) my_rxrv = .TRUE.
+      IF (PRESENT(matrix_rrv)) my_rrv = .TRUE.
+      IF (PRESENT(matrix_rv)) my_rv = .TRUE.
+      IF (.NOT. (my_rv .OR. my_rxrv .OR. my_rrv)) RETURN
 
       ppnl_present = ASSOCIATED(sap_ppnl)
 
@@ -514,11 +521,6 @@ CONTAINS
                NULLIFY (spotential(ikind)%sgp_potential)
             END IF
          END DO
-
-         my_rxrv = .FALSE.
-         my_rrv = .FALSE.
-         IF (PRESENT(matrix_rxrv)) my_rxrv = .TRUE.
-         IF (PRESENT(matrix_rrv)) my_rrv = .TRUE.
 
          IF (my_rxrv .OR. my_rrv) THEN
             maxder = 10
@@ -692,7 +694,7 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (nl_iterator, basis_set, matrix_rv, matrix_rxrv, matrix_rrv, &
-!$OMP          sap_int, nkind, eps_ppnl, my_rxrv, my_rrv ) &
+!$OMP          sap_int, nkind, eps_ppnl, my_rv, my_rxrv, my_rrv ) &
 !$OMP PRIVATE (mepos, ikind, jkind, iatom, jatom, nlist, ilist, nnode, inode, cell_b, rab, &
 !$OMP          iab, irow, icol, blocks_rv, blocks_rxrv, blocks_rrv, &
 !$OMP          found, iac, ibc, alist_ac, alist_bc, acint, bcint, &
@@ -703,12 +705,14 @@ CONTAINS
 !$       mepos = omp_get_thread_num()
 
          NULLIFY (blocks_rv, blocks_rxrv, blocks_rrv)
-         ALLOCATE (blocks_rv(3))
+         IF (my_rv) THEN
+            ALLOCATE (blocks_rv(3))
+         ENDIF
 
          IF (my_rxrv) THEN
             ALLOCATE (blocks_rxrv(3))
          ENDIF
-         IF (my_rxrv) THEN
+         IF (my_rrv) THEN
             ALLOCATE (blocks_rrv(6))
          ENDIF
 
@@ -723,9 +727,11 @@ CONTAINS
             irow = iatom
             icol = jatom
 
-            DO ind = 1, 3
-               CALL dbcsr_get_block_p(matrix_rv(ind)%matrix, irow, icol, blocks_rv(ind)%block, found)
-            ENDDO
+            IF (my_rv) THEN
+               DO ind = 1, 3
+                  CALL dbcsr_get_block_p(matrix_rv(ind)%matrix, irow, icol, blocks_rv(ind)%block, found)
+               ENDDO
+            ENDIF
 
             IF (my_rxrv) THEN
                DO ind = 1, 3
@@ -734,26 +740,29 @@ CONTAINS
             ENDIF
 
             IF (my_rrv) THEN
-               DO ind = 1, 3
+               DO ind = 1, 6
                   CALL dbcsr_get_block_p(matrix_rrv(ind)%matrix, irow, icol, blocks_rrv(ind)%block, found)
                ENDDO
             ENDIF
 
             ! check whether all blocks are associated
-            asso_rv = (ASSOCIATED(blocks_rv(1)%block) .AND. ASSOCIATED(blocks_rv(2)%block) .AND. &
-                       ASSOCIATED(blocks_rv(3)%block))
-            go = asso_rv
-
-            IF (my_rxrv) THEN
-               asso_rxrv = (ASSOCIATED(blocks_rxrv(1)%block) .AND. ASSOCIATED(blocks_rxrv(2)%block) .AND. &
-                            ASSOCIATED(blocks_rxrv(1)%block))
-               go = go .AND. asso_rxrv
+            go = .TRUE.
+            IF (my_rv) THEN
+               asso_rv = (ASSOCIATED(blocks_rv(1)%block) .AND. ASSOCIATED(blocks_rv(2)%block) .AND. &
+                          ASSOCIATED(blocks_rv(3)%block))
+               go = go .AND. asso_rv
             ENDIF
 
             IF (my_rxrv) THEN
+               asso_rxrv = (ASSOCIATED(blocks_rxrv(1)%block) .AND. ASSOCIATED(blocks_rxrv(2)%block) .AND. &
+                            ASSOCIATED(blocks_rxrv(3)%block))
+               go = go .AND. asso_rxrv
+            ENDIF
+
+            IF (my_rrv) THEN
                asso_rrv = (ASSOCIATED(blocks_rrv(1)%block) .AND. ASSOCIATED(blocks_rrv(2)%block) .AND. &
-                           ASSOCIATED(blocks_rrv(1)%block) .AND. ASSOCIATED(blocks_rrv(2)%block) .AND. &
-                           ASSOCIATED(blocks_rrv(1)%block) .AND. ASSOCIATED(blocks_rrv(2)%block))
+                           ASSOCIATED(blocks_rrv(3)%block) .AND. ASSOCIATED(blocks_rrv(4)%block) .AND. &
+                           ASSOCIATED(blocks_rrv(5)%block) .AND. ASSOCIATED(blocks_rrv(6)%block))
                go = go .AND. asso_rrv
             ENDIF
             ! loop over all kinds for projector atom
@@ -781,21 +790,23 @@ CONTAINS
                            nb = SIZE(bcint, 1)
 !$OMP CRITICAL(h_block_critical)
                            ! r*Vnl
-                           CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 2), na, &
-                                      bcint(1, 1, 1), nb, 1.0_dp, blocks_rv(1)%block, SIZE(blocks_rv(1)%block, 1)) ! xV
-                           CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 3), na, &
-                                      bcint(1, 1, 1), nb, 1.0_dp, blocks_rv(2)%block, SIZE(blocks_rv(2)%block, 1)) ! yV
-                           CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 4), na, &
-                                      bcint(1, 1, 1), nb, 1.0_dp, blocks_rv(3)%block, SIZE(blocks_rv(3)%block, 1)) ! zV
+                           IF (my_rv) THEN
+                              CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 2), na, &
+                                         bcint(1, 1, 1), nb, 1.0_dp, blocks_rv(1)%block, SIZE(blocks_rv(1)%block, 1)) ! xV
+                              CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 3), na, &
+                                         bcint(1, 1, 1), nb, 1.0_dp, blocks_rv(2)%block, SIZE(blocks_rv(2)%block, 1)) ! yV
+                              CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 4), na, &
+                                         bcint(1, 1, 1), nb, 1.0_dp, blocks_rv(3)%block, SIZE(blocks_rv(3)%block, 1)) ! zV
 
-                           ! -Vnl r
-                           CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
-                                      bcint(1, 1, 2), nb, 1.0_dp, blocks_rv(1)%block, SIZE(blocks_rv(1)%block, 1)) ! -Vx
-                           CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
-                                      bcint(1, 1, 3), nb, 1.0_dp, blocks_rv(2)%block, SIZE(blocks_rv(2)%block, 1)) ! -Vy
-                           CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
-                                      bcint(1, 1, 4), nb, 1.0_dp, blocks_rv(3)%block, SIZE(blocks_rv(3)%block, 1)) ! -Vz
+                              ! -Vnl r
+                              CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
+                                         bcint(1, 1, 2), nb, 1.0_dp, blocks_rv(1)%block, SIZE(blocks_rv(1)%block, 1)) ! -Vx
+                              CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
+                                         bcint(1, 1, 3), nb, 1.0_dp, blocks_rv(2)%block, SIZE(blocks_rv(2)%block, 1)) ! -Vy
+                              CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
+                                         bcint(1, 1, 4), nb, 1.0_dp, blocks_rv(3)%block, SIZE(blocks_rv(3)%block, 1)) ! -Vz
 
+                           ENDIF
                            IF (my_rxrv) THEN
                               ! x-component (y [z,Vnl] - z [y, Vnl])
                               CALL dgemm("N", "T", na, nb, np, 1.0_dp, achint(1, 1, 9), na, &
@@ -865,10 +876,12 @@ CONTAINS
                END DO
             ENDIF
          END DO
-         DO ind = 1, 3
-            NULLIFY (blocks_rv(ind)%block)
-         ENDDO
-         DEALLOCATE (blocks_rv)
+         IF (my_rv) THEN
+            DO ind = 1, 3
+               NULLIFY (blocks_rv(ind)%block)
+            ENDDO
+            DEALLOCATE (blocks_rv)
+         ENDIF
          IF (my_rxrv) THEN
             DO ind = 1, 3
                NULLIFY (blocks_rxrv(ind)%block)
