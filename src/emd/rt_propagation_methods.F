@@ -741,7 +741,7 @@ CONTAINS
                                 ncol_local=ncol_local)
 
             CALL cp_fm_struct_create(matrix_struct_new, &
-                                     template_fmstruct=matrix_struct, &
+                                     template_fmstruct=mos_new(2*i)%matrix%matrix_struct, &
                                      nrow_global=k, &
                                      ncol_global=k)
             CALL cp_cfm_create(csc, matrix_struct_new)
@@ -752,7 +752,6 @@ CONTAINS
             ! first the most recent
 
 ! reorthogonalize vectors
-
             DO icol_local = 1, ncol_local
                fm_tmp%local_data(:, icol_local) = mos_new(2*i - 1)%matrix%local_data(:, icol_local)
                fm_tmp%local_data(:, icol_local + ncol_local) = mos_new(2*i)%matrix%local_data(:, icol_local)

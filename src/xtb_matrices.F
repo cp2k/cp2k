@@ -1031,7 +1031,7 @@ CONTAINS
          ELSE
             p_matrix => matrix_p(:, 1)
             s_matrix => matrix_s(1, 1)%matrix
-            CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
+            CALL ao_charges(p_matrix, s_matrix, aocg, para_env)
          END IF
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)

@@ -559,13 +559,14 @@ CONTAINS
    SUBROUTINE cp_fm_struct_double(fmstruct, struct, context, col, row)
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, struct
       TYPE(cp_blacs_env_type), POINTER                   :: context
-      LOGICAL                                            :: col, row
+      LOGICAL, INTENT(in)                                :: col, row
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_double', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: nblocks, ncol_block, ncol_global, nempty, newdim_col, newdim_row, nfilled, &
-         nprocs_col, nprocs_row, nrow_block, nrow_global
+      INTEGER :: n_doubled_items_in_partially_filled_block, ncol_block, ncol_global, newdim_col, &
+         newdim_row, nfilled_blocks, nfilled_blocks_remain, nprocs_col, nprocs_row, nrow_block, &
+         nrow_global
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL cp_fm_struct_get(struct, nrow_global=nrow_global, &
@@ -581,11 +582,38 @@ CONTAINS
          IF (ncol_global == 0) THEN
             newdim_col = 0
          ELSE
-            !Divide ncol_global by ncol_block and round up
-            nblocks = (ncol_global + ncol_block - 1)/ncol_block
-            nfilled = MOD(nblocks, nprocs_col)
-            nempty = MOD(nprocs_col - nfilled, nprocs_col)
-            newdim_col = 2*ncol_global + 2*nempty*ncol_block + 2*MOD(ncol_block - MOD(ncol_global, ncol_block), ncol_block)
+            ! ncol_block            nfilled_blocks_remain * ncol_block
+            !     |<--->|           |<--->|
+            !     |-----|-----|-----|-----|---|
+            !     |  0  |  1  |  2  |  0  | 1 | <- context%mepos(2)
+            !     |-----|-----|-----|-----|---|
+            !     |<--- nfilled_blocks -->|<->  -- items (columns) in partially filled blocks
+            !     |     * ncol_block      |
+            n_doubled_items_in_partially_filled_block = 2*MOD(ncol_global, ncol_block)
+            nfilled_blocks = ncol_global/ncol_block
+            nfilled_blocks_remain = MOD(nfilled_blocks, nprocs_col)
+            newdim_col = 2*(nfilled_blocks/nprocs_col)
+            IF (n_doubled_items_in_partially_filled_block > ncol_block) THEN
+               ! doubled number of columns in a partially filled block does not fit into a single block.
+               ! Due to cyclic distribution of ScaLAPACK blocks, an extra block for each core needs to be added
+               ! |-----|-----|-----|----|     |-----|-----|-----|-----|-----|-----|-----|-----|-----|---|
+               ! |  0  |  1  |  2  |  0 | --> |  0  |  1  |  2  |  0  |  1  |  2  |  0  |  1  |  2  |  0|
+               ! |-----|-----|-----|----|     |-----|-----|-----|-----|-----|-----|-----|-----|-----|---|
+               !    a     a     a     b          a1    a1    a1    a2    a2    a2    b1  empty empty  b2
+               newdim_col = newdim_col + 1
+
+               ! the number of columns which does not fit into the added extra block
+               n_doubled_items_in_partially_filled_block = n_doubled_items_in_partially_filled_block - ncol_block
+            ELSE IF (nfilled_blocks_remain > 0) THEN
+               ! |-----|-----|-----|-----|--|    |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+               ! |  0  |  1  |  2  |  0  | 1| -> |  0  |  1  |  2  |  0  |  1  |  2  |  0  |  1  |  2  |  0  |
+               ! |-----|-----|-----|-----|--|    |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+               !    a     a     a     b    b        a1    a1    a1    a2    a2    a2    b1  b1 b2 empty   b2
+               newdim_col = newdim_col + 1
+               n_doubled_items_in_partially_filled_block = 0
+            END IF
+
+            newdim_col = (newdim_col*nprocs_col + nfilled_blocks_remain)*ncol_block + n_doubled_items_in_partially_filled_block
          END IF
       END IF
 
@@ -593,20 +621,31 @@ CONTAINS
          IF (nrow_global == 0) THEN
             newdim_row = 0
          ELSE
-            !Divide nrow_global by nrow_block and round up
-            nblocks = (nrow_global + nrow_block - 1)/nrow_block
-            nfilled = MOD(nblocks, nprocs_row)
-            nempty = MOD(nprocs_row - nfilled, nprocs_row)
-            newdim_row = 2*nrow_global + 2*nempty*nrow_block + 2*MOD(nrow_block - MOD(nrow_global, nrow_block), nrow_block)
+            n_doubled_items_in_partially_filled_block = 2*MOD(nrow_global, nrow_block)
+            nfilled_blocks = nrow_global/nrow_block
+            nfilled_blocks_remain = MOD(nfilled_blocks, nprocs_row)
+            newdim_row = 2*(nfilled_blocks/nprocs_row)
+            IF (n_doubled_items_in_partially_filled_block > nrow_block) THEN
+               newdim_row = newdim_row + 1
+               n_doubled_items_in_partially_filled_block = n_doubled_items_in_partially_filled_block - nrow_block
+            ELSE IF (nfilled_blocks_remain > 0) THEN
+               newdim_row = newdim_row + 1
+               n_doubled_items_in_partially_filled_block = 0
+            END IF
+
+            newdim_row = (newdim_row*nprocs_row + nfilled_blocks_remain)*nrow_block + n_doubled_items_in_partially_filled_block
          END IF
       END IF
 
+      ! square_blocks=.FALSE. ensures that matrix blocks of the doubled matrix will have
+      ! nrow_block x ncol_block shape even in case of a square doubled matrix
       CALL cp_fm_struct_create(fmstruct=fmstruct, para_env=para_env, &
                                context=context, &
                                nrow_global=newdim_row, &
                                ncol_global=newdim_col, &
                                ncol_block=ncol_block, &
-                               nrow_block=nrow_block)
+                               nrow_block=nrow_block, &
+                               square_blocks=.FALSE.)
 
    END SUBROUTINE cp_fm_struct_double
 ! **************************************************************************************************
