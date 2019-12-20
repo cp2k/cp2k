@@ -9,6 +9,7 @@
 
 MODULE rt_delta_pulse
    USE cell_types,                      ONLY: cell_type
+   USE commutator_rpnl,                 ONLY: build_com_mom_nl
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_gemm
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
@@ -17,9 +18,12 @@ MODULE rt_delta_pulse
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                               cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -38,18 +42,20 @@ MODULE rt_delta_pulse
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_deallocate_matrix,&
-                                              dbcsr_filter,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_init_p, &
+        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE input_section_types,             ONLY: section_get_lval,&
+                                              section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_moments,                      ONLY: build_berry_moment_matrix
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
 #include "../base/base_uses.f90"
@@ -85,7 +91,8 @@ CONTAINS
                                                             ncol_local, nmo, nrow_global, &
                                                             nrow_local, nvirt
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: factor
+      LOGICAL                                            :: com_nl
+      REAL(KIND=dp)                                      :: eps_ppnl, factor
       REAL(KIND=dp), DIMENSION(3)                        :: kvec
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
@@ -95,15 +102,19 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: eigenvectors, mat_ks, mat_tmp, momentum, &
                                                             oo_1, oo_2, S_chol, S_inv_fm, tmpS, &
                                                             virtuals
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_rv, matrix_s
       TYPE(dbcsr_type), POINTER                          :: S_inv
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_all, sap_ppnl
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(section_vals_type), POINTER                   :: input
 
-      NULLIFY (dft_control)
       CALL timeset(routineN, handle)
 
+      NULLIFY (cell, mos, rtp, matrix_s, matrix_ks, input, dft_control)
       ! we need the overlap and ks matrix for a full diagionalization
       CALL get_qs_env(qs_env, &
                       cell=cell, &
@@ -111,7 +122,9 @@ CONTAINS
                       rtp=rtp, &
                       matrix_s=matrix_s, &
                       matrix_ks=matrix_ks, &
-                      dft_control=dft_control)
+                      dft_control=dft_control, &
+                      input=input)
+      com_nl = section_get_lval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%COM_NL")
       CALL get_rtp(rtp=rtp, S_inv=S_inv)
       CALL cp_fm_create(S_chol, matrix_struct=rtp%ao_ao_fmstruct, name="S_chol")
       CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="S_inv_fm")
@@ -124,6 +137,27 @@ CONTAINS
       NULLIFY (mat_ks, eigenvectors, mat_tmp)
       CALL cp_fm_create(mat_ks, matrix_struct=S_inv_fm%matrix_struct, name="mat_ks")
       CALL cp_fm_create(eigenvectors, matrix_struct=S_inv_fm%matrix_struct, name="eigenvectors")
+
+      ! calculate non-local commutator
+      IF (com_nl) THEN
+         NULLIFY (qs_kind_set, sab_all, sap_ppnl)
+         CALL get_qs_env(qs_env, &
+                         sap_ppnl=sap_ppnl, &
+                         sab_all=sab_all, &
+                         qs_kind_set=qs_kind_set)
+         eps_ppnl = dft_control%qs_control%eps_ppnl
+
+         NULLIFY (matrix_rv)
+         CALL dbcsr_allocate_matrix_set(matrix_rv, 3)
+         DO idir = 1, 3
+            CALL dbcsr_init_p(matrix_rv(idir)%matrix)
+            CALL dbcsr_create(matrix_rv(idir)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_rv(idir)%matrix, sab_all)
+            CALL dbcsr_set(matrix_rv(idir)%matrix, 0._dp)
+         ENDDO
+         CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rv=matrix_rv)
+      ENDIF
 
       DO ispin = 1, SIZE(matrix_ks)
          ALLOCATE (eigenvalues(nrow_global))
@@ -166,6 +200,12 @@ CONTAINS
                CALL cp_dbcsr_sm_fm_multiply(matrix_s(idir + 1)%matrix, mos_old(2*ispin - 1)%matrix, &
                                             mos_old(2*ispin)%matrix, ncol=nmo)
                CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1)%matrix, factor, mos_old(2*ispin)%matrix)
+               IF (com_nl) THEN
+                  CALL cp_fm_set_all(mos_old(2*ispin)%matrix, 0.0_dp)
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_rv(idir)%matrix, mos_old(2*ispin - 1)%matrix, &
+                                               mos_old(2*ispin)%matrix, ncol=nmo)
+                  CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1)%matrix, factor, mos_old(2*ispin)%matrix)
+               ENDIF
             ENDIF
          ENDDO
 
@@ -251,6 +291,8 @@ CONTAINS
       CALL cp_fm_release(S_chol)
       CALL cp_fm_release(mat_ks)
       CALL cp_fm_release(eigenvectors)
+
+      IF (com_nl) CALL dbcsr_deallocate_matrix_set(matrix_rv)
 
 !***************************************************************
 !remove later
