@@ -98,6 +98,11 @@ CONTAINS
                       matrix_ks=matrix_ks, &
                       matrix_ks_im=matrix_ks_im)
 
+      IF (dft_control%qs_control%xtb) THEN
+         CALL cp_abort(__LOCATION__, "Real-time propergation with xTB is not yet supported. "// &
+                       "See https://github.com/cp2k/cp2k/issues/673 for details.")
+      ENDIF
+
       rtp_control => dft_control%rtp_control
       CALL get_rtp(rtp=rtp, exp_H_old=exp_H_old, exp_H_new=exp_H_new, &
                    propagator_matrix=propagator_matrix, dt=dt)
