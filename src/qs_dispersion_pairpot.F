@@ -900,6 +900,8 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       energy = 0._dp
+      ! make valgrind happy
+      use_virial = .FALSE.
 
       IF (dispersion_env%type .NE. xc_vdw_fun_pairpot) THEN
          RETURN

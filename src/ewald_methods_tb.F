@@ -88,7 +88,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       TYPE(cell_type), POINTER                           :: box
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: gmcharge
-      REAL(KIND=dp), DIMENSION(:), INTENT(inout)         :: mcharge
+      REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: mcharge
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(virial_type), POINTER                         :: virial
       LOGICAL, INTENT(in)                                :: use_virial
