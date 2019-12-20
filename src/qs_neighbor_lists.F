@@ -82,9 +82,9 @@ MODULE qs_neighbor_lists
                                               set_ks_env
    USE qs_neighbor_list_types,          ONLY: &
         add_neighbor_list, add_neighbor_node, allocate_neighbor_list_set, get_iterator_info, &
-        neighbor_list_iterate, neighbor_list_iterator_create, neighbor_list_iterator_p_type, &
-        neighbor_list_iterator_release, neighbor_list_p_type, neighbor_list_set_p_type, &
-        neighbor_list_set_type, release_neighbor_list_sets
+        get_iterator_task, neighbor_list_iterate, neighbor_list_iterator_create, &
+        neighbor_list_iterator_p_type, neighbor_list_iterator_release, neighbor_list_p_type, &
+        neighbor_list_set_p_type, neighbor_list_set_type, release_neighbor_list_sets
    USE string_utilities,                ONLY: compress
    USE subcell_types,                   ONLY: allocate_subcell,&
                                               deallocate_subcell,&
@@ -990,26 +990,28 @@ CONTAINS
       TYPE local_lists
          INTEGER, DIMENSION(:), POINTER           :: list
       END TYPE local_lists
+
       INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
                  iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
-                 kcell, maxat, mol_a, mol_b, nkind, otype, natom
-      INTEGER, DIMENSION(3)                    :: cell_b, ncell, &
-                                                  nsubcell, periodic
-      INTEGER, DIMENSION(:), POINTER           :: index_list
-      LOGICAL                                  :: include_ab, my_mic, &
-                                                  my_molecular, my_symmetric, my_sort_atomb
-      LOGICAL, ALLOCATABLE, DIMENSION(:)       :: pres_a, pres_b
-      REAL(dp)                                 :: rab2, rab2_max, rab_max, rabm, deth, subcell_scale
-      REAL(dp), DIMENSION(3)                   :: r, rab, ra, rb, sab_max, sb, &
-                                                  sb_pbc, sb_min, sb_max, rab_pbc, pd, sab_max_guard
-      INTEGER, ALLOCATABLE, DIMENSION(:)       :: nlista, nlistb
-      TYPE(local_lists), DIMENSION(:), POINTER :: lista, listb
+                 kcell, maxat, mol_a, mol_b, nkind, otype, natom, inode, nnode, nentry
+      INTEGER, DIMENSION(3)                              :: cell_b, ncell, nsubcell, periodic
+      INTEGER, DIMENSION(:), POINTER                     :: index_list
+      LOGICAL                                            :: include_ab, my_mic, &
+                                                            my_molecular, my_symmetric, my_sort_atomb
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: pres_a, pres_b
+      REAL(dp)                                           :: rab2, rab2_max, rab_max, rabm, deth, subcell_scale
+      REAL(dp), DIMENSION(3)                             :: r, rab, ra, rb, sab_max, sb, &
+                                                            sb_pbc, sb_min, sb_max, rab_pbc, pd, sab_max_guard
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nlista, nlistb
+      TYPE(local_lists), DIMENSION(:), POINTER           :: lista, listb
       TYPE(neighbor_list_p_type), &
-         ALLOCATABLE, DIMENSION(:)              :: kind_a
-      TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+         ALLOCATABLE, DIMENSION(:)                       :: kind_a
+      TYPE(neighbor_list_set_type), POINTER              :: neighbor_list_set
       TYPE(subcell_type), DIMENSION(:, :, :), &
-         POINTER                                :: subcell
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: r_pbc
+         POINTER                                         :: subcell
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: r_pbc
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
 
       CALL timeset(routineN//"_"//TRIM(nlname), handle)
 
@@ -1355,16 +1357,37 @@ CONTAINS
       DEALLOCATE (r_pbc)
 
 !deb
-!     CALL neighbor_list_iterator_create(nl_iterator, ab)
-!     DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-!        CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, nnode=nnode)
-!        IF (inode == 1) THEN
-!           n = nnsgf(ikind)*nnsgf(jkind)
-!           nblock(mype) = nblock(mype) + nnode
-!           nelement(mype) = nelement(mype) + n*nnode
-!        END IF
-!     END DO
-!     CALL neighbor_list_iterator_release(nl_iterator)
+      nentry = 0
+      CALL neighbor_list_iterator_create(nl_iterator, ab_list)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, inode=inode, nnode=nnode)
+         IF (inode == 1) nentry = nentry + nnode
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+      !
+      ALLOCATE (ab_list(1)%nlist_task(nentry))
+      ab_list(1)%nl_size = nentry
+      DO iab = 2, SIZE(ab_list)
+         ab_list(iab)%nl_size = nentry
+         ab_list(iab)%nlist_task => ab_list(1)%nlist_task
+      END DO
+      !
+      nentry = 0
+      CALL neighbor_list_iterator_create(nl_iterator, ab_list)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         nentry = nentry + 1
+         CALL get_iterator_task(nl_iterator, ab_list(1)%nlist_task(nentry))
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, nkind=nkind)
+         iab = (ikind - 1)*nkind + jkind
+         IF (ab_list(iab)%nl_start < 0) ab_list(iab)%nl_start = nentry
+         IF (ab_list(iab)%nl_end < 0) THEN
+            ab_list(iab)%nl_end = nentry
+         ELSE
+            CPASSERT(ab_list(iab)%nl_end + 1 == nentry)
+            ab_list(iab)%nl_end = nentry
+         END IF
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
 !deb
 
       CALL timestop(handle)

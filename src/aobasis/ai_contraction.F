@@ -10,7 +10,7 @@
 !>        Trace matrices to get forces
 !>        Block copy and add matrices
 !> \par History
-!>      none
+!>      Replace dgemm by MATMUL: Massive speedups in openMP loops (JGH, 12.2019)
 !> \author JGH (01.07.2014)
 ! **************************************************************************************************
 MODULE ai_contraction
@@ -137,11 +137,14 @@ CONTAINS
          ! Full transform
          ALLOCATE (work(nal, mbl))
          ldw = nal
-         CALL dgemm("N", "N", nal, mbl, nbl, 1.0_dp, sab(1, 1), lds, cb(1, 1), ldb, 0.0_dp, work(1, 1), ldw)
+!dg      CALL dgemm("N", "N", nal, mbl, nbl, 1.0_dp, sab(1, 1), lds, cb(1, 1), ldb, 0.0_dp, work(1, 1), ldw)
+         work(1:nal, 1:mbl) = MATMUL(sab(1:nal, 1:nbl), cb(1:nbl, 1:mbl))
          IF (my_trans) THEN
-            CALL dgemm("T", "N", mbl, mal, nal, fs, work(1, 1), ldw, ca(1, 1), lda, 0.0_dp, qab(1, 1), ldq)
+!dg         CALL dgemm("T", "N", mbl, mal, nal, fs, work(1, 1), ldw, ca(1, 1), lda, 0.0_dp, qab(1, 1), ldq)
+            qab(1:mbl, 1:mal) = fs*MATMUL(TRANSPOSE(work(1:nal, 1:mbl)), ca(1:nal, 1:mal))
          ELSE
-            CALL dgemm("T", "N", mal, mbl, nal, fs, ca(1, 1), lda, work(1, 1), ldw, 0.0_dp, qab(1, 1), ldq)
+!dg         CALL dgemm("T", "N", mal, mbl, nal, fs, ca(1, 1), lda, work(1, 1), ldw, 0.0_dp, qab(1, 1), ldq)
+            qab(1:mal, 1:mbl) = fs*MATMUL(TRANSPOSE(ca(1:nal, 1:mal)), work(1:nal, 1:mbl))
          END IF
          DEALLOCATE (work)
       ELSE IF (PRESENT(ca)) THEN
@@ -151,9 +154,11 @@ CONTAINS
             nbl = SIZE(sab, 2)
          END IF
          IF (my_trans) THEN
-            CALL dgemm("T", "N", nbl, mal, nal, fs, sab(1, 1), lds, ca(1, 1), lda, 0.0_dp, qab(1, 1), ldq)
+!dg         CALL dgemm("T", "N", nbl, mal, nal, fs, sab(1, 1), lds, ca(1, 1), lda, 0.0_dp, qab(1, 1), ldq)
+            qab(1:nbl, 1:mal) = fs*MATMUL(TRANSPOSE(sab(1:nal, 1:nbl)), ca(1:nal, 1:mal))
          ELSE
-            CALL dgemm("T", "N", mal, nbl, nal, fs, ca(1, 1), lda, sab(1, 1), lds, 0.0_dp, qab(1, 1), ldq)
+!dg         CALL dgemm("T", "N", mal, nbl, nal, fs, ca(1, 1), lda, sab(1, 1), lds, 0.0_dp, qab(1, 1), ldq)
+            qab(1:mal, 1:nbl) = fs*MATMUL(TRANSPOSE(ca(1:nal, 1:mal)), sab(1:nal, 1:nbl))
          END IF
       ELSE IF (PRESENT(cb)) THEN
          IF (PRESENT(na)) THEN
@@ -162,9 +167,11 @@ CONTAINS
             nal = SIZE(sab, 1)
          END IF
          IF (my_trans) THEN
-            CALL dgemm("N", "N", nal, mbl, nbl, fs, sab(1, 1), lds, cb(1, 1), ldb, 0.0_dp, qab, ldq)
+!dg         CALL dgemm("N", "N", nal, mbl, nbl, fs, sab(1, 1), lds, cb(1, 1), ldb, 0.0_dp, qab, ldq)
+            qab(1:nal, 1:mbl) = fs*MATMUL(sab(1:nal, 1:nbl), cb(1:nbl, 1:mbl))
          ELSE
-            CALL dgemm("T", "T", mbl, nal, nbl, fs, cb(1, 1), ldb, sab(1, 1), lds, 0.0_dp, qab, ldq)
+!dg         CALL dgemm("T", "T", mbl, nal, nbl, fs, cb(1, 1), ldb, sab(1, 1), lds, 0.0_dp, qab, ldq)
+            qab(1:mbl, 1:nal) = fs*MATMUL(TRANSPOSE(cb(1:nbl, 1:mbl)), TRANSPOSE(sab(1:nal, 1:nbl)))
          END IF
       ELSE
          ! Copy of arrays is not covered here
@@ -260,15 +267,18 @@ CONTAINS
          work1(1:nal, 1:nbl, 1:ncl) = sabc(1:nal, 1:nbl, 1:ncl)
          !
          ALLOCATE (work2(nbl, ncl, mal))
-         CALL dgemm("T", "N", nbl*ncl, mal, nal, 1.0_dp, work1(1, 1, 1), nal, ca(1, 1), lda, 0.0_dp, work2(1, 1, 1), nbl*ncl)
+         CALL dgemm("T", "N", nbl*ncl, mal, nal, 1.0_dp, work1(1, 1, 1), nal, ca(1, 1), lda, &
+                    0.0_dp, work2(1, 1, 1), nbl*ncl)
          !
          ALLOCATE (work3(ncl, mal, mbl))
-         CALL dgemm("T", "N", ncl*mal, mbl, nbl, 1.0_dp, work2(1, 1, 1), nbl, cb(1, 1), ldb, 0.0_dp, work3(1, 1, 1), ncl*mal)
+         CALL dgemm("T", "N", ncl*mal, mbl, nbl, 1.0_dp, work2(1, 1, 1), nbl, cb(1, 1), ldb, &
+                    0.0_dp, work3(1, 1, 1), ncl*mal)
          !
          ALLOCATE (work4(mal, mbl, mcl))
-         CALL dgemm("T", "N", mal*mbl, mcl, ncl, 1.0_dp, work3(1, 1, 1), ncl, cc(1, 1), ldc, 0.0_dp, work4(1, 1, 1), mal*mbl)
+         CALL dgemm("T", "N", mal*mbl, mcl, ncl, 1.0_dp, work3(1, 1, 1), ncl, cc(1, 1), ldc, &
+                    0.0_dp, work4(1, 1, 1), mal*mbl)
          !
-         work4(1:mal, 1:mbl, 1:mcl) = qabc(1:mal, 1:mbl, 1:mcl)
+         qabc(1:mal, 1:mbl, 1:mcl) = work4(1:mal, 1:mbl, 1:mcl)
          !
          DEALLOCATE (work1, work2, work3, work4)
          !
@@ -323,8 +333,7 @@ CONTAINS
       LOGICAL                                            :: my_trans
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
 
-! Should input matrix be transposed?
-
+      ! Should input matrix be transposed?
       IF (PRESENT(trans)) THEN
          my_trans = trans
       ELSE
@@ -340,11 +349,14 @@ CONTAINS
       ldw = na
 
       IF (my_trans) THEN
-         CALL dgemm("N", "T", na, mb, ma, 1.0_dp, ca, lda, sab, lds, 0.0_dp, work, ldw)
+!dg      CALL dgemm("N", "T", na, mb, ma, 1.0_dp, ca, lda, sab, lds, 0.0_dp, work, ldw)
+         work(1:na, 1:mb) = MATMUL(ca(1:na, 1:ma), TRANSPOSE(sab(1:mb, 1:ma)))
       ELSE
-         CALL dgemm("N", "N", na, mb, ma, 1.0_dp, ca, lda, sab, lds, 0.0_dp, work, ldw)
+!dg      CALL dgemm("N", "N", na, mb, ma, 1.0_dp, ca, lda, sab, lds, 0.0_dp, work, ldw)
+         work(1:na, 1:mb) = MATMUL(ca(1:na, 1:ma), sab(1:ma, 1:mb))
       END IF
-      CALL dgemm("N", "T", na, nb, mb, 1.0_dp, work, ldw, cb, ldb, 0.0_dp, qab, ldq)
+!dg   CALL dgemm("N", "T", na, nb, mb, 1.0_dp, work, ldw, cb, ldb, 0.0_dp, qab, ldq)
+      qab(1:na, 1:nb) = MATMUL(work(1:na, 1:mb), TRANSPOSE(cb(1:nb, 1:mb)))
 
       DEALLOCATE (work)
 

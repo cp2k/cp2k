@@ -1148,8 +1148,8 @@ CONTAINS
          DO i = 1, SIZE(nlists)
             CALL deallocate_neighbor_list_set(nlists(i)%neighbor_list_set)
          END DO
-         IF(ASSOCIATED(nlists(1)%nlist_task)) THEN
-            DEALLOCATE(nlists(1)%nlist_task)
+         IF (ASSOCIATED(nlists(1)%nlist_task)) THEN
+            DEALLOCATE (nlists(1)%nlist_task)
          END IF
          DEALLOCATE (nlists)
       END IF
