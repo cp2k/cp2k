@@ -134,9 +134,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_a, atom_b, handle, i, iatom, ic, icol, ikind, irow, iset, jatom, jkind, &
-         jset, ldsab, maxder, maxs, n1, n2, natom, ncoa, ncob, nder, nimg, nkind, nseta, nsetb, &
-         sgfa, sgfb, slot
+      INTEGER :: atom_a, handle, i, iatom, ic, icol, ikind, irow, iset, jatom, jkind, jset, ldsab, &
+         maxder, maxs, n1, n2, natom, ncoa, ncob, nder, nimg, nkind, nseta, nsetb, sgfa, sgfb, slot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
@@ -193,10 +192,6 @@ CONTAINS
       nimg = dft_control%nimages
       nkind = SIZE(qs_kind_set)
 
-      ALLOCATE (atom_of_kind(natom), kind_of(natom))
-      CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, &
-                               kind_of=kind_of)
-
       IF (PRESENT(calculate_forces)) THEN
          do_forces = calculate_forces
       ELSE
@@ -237,10 +232,10 @@ CONTAINS
          CALL get_ks_env(ks_env=ks_env, force=force, virial=virial)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
          pv_loc = virial%pv_virial
-         pv_thread = 0.0_dp
       END IF
       ALLOCATE (force_thread(3, natom))
       force_thread = 0.0_dp
+      pv_thread = 0.0_dp
 
       ldsab = get_memory_usage(qs_kind_set, basis_type_a, basis_type_b)
       IF (do_forces) THEN
@@ -256,11 +251,11 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (do_forces, ldsab, maxder, use_cell_mapping, do_symmetric, maxs, dokp, &
-!$OMP         ncoset, nder, use_virial, force, virial, ndod, sab_nl, &
-!$OMP         matrix_s, matrix_p,basis_set_list_a, basis_set_list_b, atom_of_kind, cell_to_index, &
+!$OMP         ncoset, nder, use_virial, ndod, sab_nl, &
+!$OMP         matrix_s, matrix_p,basis_set_list_a, basis_set_list_b, cell_to_index, &
 !$OMP         matrixkp_s, matrixkp_p, locks, natom)  &
 !$OMP PRIVATE (oint, owork, pmat, sint, ikind, jkind, iatom, jatom, rab, cell, &
-!$OMP          basis_set_a, basis_set_b, atom_a, atom_b, &
+!$OMP          basis_set_a, basis_set_b, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, f,  &
 !$OMP          zetb, scon_a, scon_b, ic, irow, icol, f0, ff, found, trans, rab2, n1, n2, sgfa, sgfb, iset, jset, &
@@ -294,14 +289,14 @@ CONTAINS
          jatom = sab_nl(1)%nlist_task(slot)%jatom
          cell(:) = sab_nl(1)%nlist_task(slot)%cell(:)
          rab(1:3) = sab_nl(1)%nlist_task(slot)%r(1:3)
-!$       hash1 = MOD((iatom - 1)*natom + jatom, nlock) + 1
 
          basis_set_a => basis_set_list_a(ikind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
          basis_set_b => basis_set_list_b(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-         atom_a = atom_of_kind(iatom)
-         atom_b = atom_of_kind(jatom)
+
+!$       hash1 = MOD((iatom - 1)*natom + jatom, nlock) + 1
+
          ! basis ikind
          first_sgfa => basis_set_a%first_sgf
          la_max => basis_set_a%lmax
@@ -457,6 +452,9 @@ CONTAINS
 !$OMP END PARALLEL
 
       IF (do_forces) THEN
+         ALLOCATE (atom_of_kind(natom), kind_of(natom))
+         CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, &
+                                  kind_of=kind_of)
 !$OMP DO
          DO iatom = 1, natom
             atom_a = atom_of_kind(iatom)
@@ -464,6 +462,7 @@ CONTAINS
             force(ikind)%overlap(:, atom_a) = force(ikind)%overlap(:, atom_a) + force_thread(:, iatom)
          END DO
 !$OMP END DO
+         DEALLOCATE (atom_of_kind, kind_of)
       END IF
       DEALLOCATE (force_thread)
       IF (do_forces .AND. use_virial) THEN
@@ -488,7 +487,6 @@ CONTAINS
       END IF
 
       ! *** Release work storage ***
-      DEALLOCATE (atom_of_kind, kind_of)
       DEALLOCATE (basis_set_list_a, basis_set_list_b)
 
       CALL timestop(handle)
