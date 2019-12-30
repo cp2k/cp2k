@@ -102,10 +102,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ppl', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: nexp_max = 30
 
-      INTEGER :: atom_a, handle, i, iatom, icol, ikind, img, inode, irow, iset, jatom, jkind, &
-         jset, katom, kkind, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlppl, maxnset, maxsgf, &
-         mepos, n_local, natom, ncoa, ncob, nexp_lpot, nexp_ppl, nkind, nloc, nseta, nsetb, &
-         nthread, sgfa, sgfb, slot
+      INTEGER :: atom_a, handle, i, iatom, icol, ikind, img, irow, iset, jatom, jkind, jset, &
+         katom, kkind, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlppl, maxnset, maxsgf, mepos, &
+         n_local, natom, ncoa, ncob, nexp_lpot, nexp_ppl, nkind, nloc, nseta, nsetb, nthread, &
+         sgfa, sgfb, slot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(1:10)                           :: nrloc
       INTEGER, DIMENSION(3)                              :: cellind
@@ -203,7 +203,7 @@ CONTAINS
 !$OMP          sab_orb, sac_ppl, nthread, ncoset, nkind, cell_to_index, &
 !$OMP          slot, ldsab,  maxnset, maxder, &
 !$OMP          maxlgto, nder, maxco, dokp, locks, natom) &
-!$OMP PRIVATE (ikind, jkind, inode, iatom, jatom, rab, basis_set_a, basis_set_b, &
+!$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, basis_set_a, basis_set_b, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
 !$OMP          zetb, dab, irow, icol, h_block, found, iset, ncoa, &
@@ -245,7 +245,6 @@ CONTAINS
          jkind = sab_orb(1)%nlist_task(slot)%jkind
          iatom = sab_orb(1)%nlist_task(slot)%iatom
          jatom = sab_orb(1)%nlist_task(slot)%jatom
-         inode = sab_orb(1)%nlist_task(slot)%inode
          cellind(:) = sab_orb(1)%nlist_task(slot)%cell(:)
          rab(1:3) = sab_orb(1)%nlist_task(slot)%r(1:3)
 
@@ -573,8 +572,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: nexp_max = 30
 
-      INTEGER :: atom_a, handle, i, iatom, ikind, inode, iset, katom, kkind, maxco, maxsgf, &
-         n_local, natom, ncoa, nexp_lpot, nexp_ppl, nfun, nkind, nloc, nseta, sgfa, sgfb, slot
+      INTEGER :: atom_a, handle, i, iatom, ikind, iset, katom, kkind, maxco, maxsgf, n_local, &
+         natom, ncoa, nexp_lpot, nexp_ppl, nfun, nkind, nloc, nseta, sgfa, sgfb, slot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(1:10)                           :: nrloc
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, nct_lpot, npgfa, nsgfa
@@ -634,7 +633,7 @@ CONTAINS
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (maxco,maxsgf,basis_set_list,calculate_forces,lri_ppl_coef,qs_kind_set,&
 !$OMP          locks,atom_a,natom,use_virial,virial,ncoset,atom_of_kind,sac_ppl,slot) &
-!$OMP PRIVATE (ikind,kkind,inode,iatom,katom,rac,va,dva,dvas,basis_set,&
+!$OMP PRIVATE (ikind,kkind,iatom,katom,rac,va,dva,dvas,basis_set,&
 !$OMP          first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,rpgfa,set_radius_a,&
 !$OMP          sphi_a,zeta,gth_potential,sgp_potential,alpha,cexp_ppl,lpotextended,ppl_radius,&
 !$OMP          nexp_ppl,alpha_ppl,nct_ppl,cval_ppl,nloc,n_local,nrloc,a_local,aloc,bloc,c_local,nfun,work,&
@@ -663,7 +662,6 @@ CONTAINS
          kkind = sac_ppl(1)%nlist_task(slot)%jkind
          iatom = sac_ppl(1)%nlist_task(slot)%iatom
          katom = sac_ppl(1)%nlist_task(slot)%jatom
-         inode = sac_ppl(1)%nlist_task(slot)%inode
          rac(1:3) = sac_ppl(1)%nlist_task(slot)%r(1:3)
 
          basis_set => basis_set_list(ikind)%gto_basis_set
