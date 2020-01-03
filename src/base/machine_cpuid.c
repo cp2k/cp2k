@@ -1,7 +1,7 @@
-/*------------------------------------------------------------------------------------------------*
- * CP2K: A general program to perform molecular dynamics simulations                              *
- * Copyright (C) 2019 - 2019  CP2K developers group                                               *
- *------------------------------------------------------------------------------------------------*/
+/*****************************************************************************
+ *  CP2K: A general program to perform molecular dynamics simulations        *
+ *  Copyright (C) 2000 - 2020  CP2K developers group                         *
+ *****************************************************************************/
 
 /* shared between C and Fortran */
 #include "machine_cpuid.h"

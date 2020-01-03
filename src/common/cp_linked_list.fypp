@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!   CP2K: A general program to perform molecular dynamics simulations                             !
-#!   Copyright (C) 2000 - 2019  CP2K developers group                                              !
+#!   Copyright (C) 2000 - 2020  CP2K developers group                                              !
 #!-------------------------------------------------------------------------------------------------!
 #:mute
 #:def inst(nametype1, type1, type1in, type1out, eq, arrayeq, type1arrayEl, arrayEl, private_routines)
