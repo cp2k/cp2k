@@ -9,11 +9,11 @@ import os.path
 
 reldir = r"www.mis.mpg.de/scicomp/EXP_SUM/1_x/"
 
-txt = open(reldir + 'tabelle', 'r')
+txt = open(reldir + "tabelle", "r")
 
-re_header = re.compile('k =  \| *(?P<kval>([\d]+ *)+)')
-re_body = re.compile('(?P<Rc>\dE\d\d) \|(?P<err>[\w\.\- ]+)')
-re_sep = re.compile('[\-]{50,100}')
+re_header = re.compile("k =  \| *(?P<kval>([\d]+ *)+)")
+re_body = re.compile("(?P<Rc>\dE\d\d) \|(?P<err>[\w\.\- ]+)")
+re_sep = re.compile("[\-]{50,100}")
 
 read_header = True
 read_sep1 = False
@@ -39,8 +39,7 @@ for l, line in enumerate(txt.readlines()):
 
     if read_header:
         if re_header.match(line):
-            kvals = [int(_)
-                     for _ in re_header.match(line).group('kval').split()]
+            kvals = [int(_) for _ in re_header.match(line).group("kval").split()]
             read_sep1 = True
             read_header = False
             continue
@@ -53,26 +52,28 @@ for l, line in enumerate(txt.readlines()):
 
     if read_body:
         if re_body.match(line):
-            Rcval = float(re_body.match(line).group('Rc'))
-            Rcstr = re_body.match(line).group('Rc')
+            Rcval = float(re_body.match(line).group("Rc"))
+            Rcstr = re_body.match(line).group("Rc")
             # slight change of notation e.g. 6E09 --> 6E9
-            Rcstr = re.sub('E0(?=\d)', 'E', Rcstr)
+            Rcstr = re.sub("E0(?=\d)", "E", Rcstr)
             errvals = [
-                float(_) if _ != '--' else 0.0 for _ in re_body.match(line).group('err').split()]
+                float(_) if _ != "--" else 0.0
+                for _ in re_body.match(line).group("err").split()
+            ]
 
             for i, errval in enumerate(errvals):
                 if errval > 0.0:
                     # hack: slight change of notation e.g. 1 --> 01
                     kstr = str(kvals[i])
                     if len(kstr) == 1:
-                        kstr = '0' + kstr
-                    filename = reldir + '1_xk' + kstr + '_' + Rcstr
+                        kstr = "0" + kstr
+                    filename = reldir + "1_xk" + kstr + "_" + Rcstr
                     if not os.path.isfile(filename):
                         missing.append(filename)
                         continue
 
                     # read parameters
-                    txt2 = open(filename, 'r')
+                    txt2 = open(filename, "r")
                     ww = []
                     aa = []
                     for l2, line2 in enumerate(txt2.readlines()):
@@ -129,13 +130,16 @@ k_p.append(len(k) + 1)
 # 3) generate fortran file #
 ############################
 
-out = open('../../src/minimax/minimax_exp_k53.F', 'w')
-out.write('!--------------------------------------------------------------------------------------------------!\n\
+out = open("../../src/minimax/minimax_exp_k53.F", "w")
+out.write(
+    "!--------------------------------------------------------------------------------------------------!\n\
 !   CP2K: A general program to perform molecular dynamics simulations                              !\n\
 !   Copyright (C) 2000 - 2020  CP2K developers group                                               !\n\
-!--------------------------------------------------------------------------------------------------!\n\n')
+!--------------------------------------------------------------------------------------------------!\n\n"
+)
 
-out.write('! **************************************************************************************************\n\
+out.write(
+    "! **************************************************************************************************\n\
 !> \\brief Routines to calculate the minimax coefficients in order to\n\
 !>        approximate 1/x as a sum over exponential functions\n\
 !>        1/x ~ SUM_{i}^{K} w_i EXP(-a_i * x) for x belonging to [1:Rc].\n\
@@ -145,89 +149,91 @@ out.write('! *******************************************************************
 !>        This module should not be modified manually and should not be used anywhere\n\
 !>        except in main minimax module.\n\
 !>        This file was created using the scripts in cp2k/tools/minimax_tools.\n\
-! **************************************************************************************************\n\n')
+! **************************************************************************************************\n\n"
+)
 
-out.write('MODULE minimax_exp_k53\n')
-out.write('USE kinds, ONLY: dp\n')
+out.write("MODULE minimax_exp_k53\n")
+out.write("USE kinds, ONLY: dp\n")
 
-out.write('IMPLICIT NONE\n')
-out.write('PRIVATE\n')
-out.write('PUBLIC :: R_max, R_mm, err_mm, get_minimax_coeff_low, k_max, k_mm, k_p, n_approx\n\n')
-
-out.write('INTEGER, PARAMETER :: n_approx = {}\n'.format(len(k)))
-out.write('INTEGER, PARAMETER :: n_k = {}\n'.format(len(k_p) - 1))
-out.write('INTEGER, PARAMETER :: k_max = {}\n'.format((max(k))))
+out.write("IMPLICIT NONE\n")
+out.write("PRIVATE\n")
 out.write(
-    'REAL(KIND=dp), PARAMETER :: R_max = {:.1E}_dp\n\n'.format((max(Rc))))
+    "PUBLIC :: R_max, R_mm, err_mm, get_minimax_coeff_low, k_max, k_mm, k_p, n_approx\n\n"
+)
 
-out.write('INTEGER, PARAMETER, DIMENSION(n_k+1) :: k_p = &\n[ ')
+out.write("INTEGER, PARAMETER :: n_approx = {}\n".format(len(k)))
+out.write("INTEGER, PARAMETER :: n_k = {}\n".format(len(k_p) - 1))
+out.write("INTEGER, PARAMETER :: k_max = {}\n".format((max(k))))
+out.write("REAL(KIND=dp), PARAMETER :: R_max = {:.1E}_dp\n\n".format((max(Rc))))
+
+out.write("INTEGER, PARAMETER, DIMENSION(n_k+1) :: k_p = &\n[ ")
 for i, kkp in enumerate(k_p):
     if i % 5 == 0 and i > 0:
-        out.write('&\n  ')
-    out.write('{:3}'.format(kkp))
+        out.write("&\n  ")
+    out.write("{:3}".format(kkp))
     if not i + 1 == len(k_p):
-        out.write(',')
-    out.write(' ')
-out.write(']\n\n')
+        out.write(",")
+    out.write(" ")
+out.write("]\n\n")
 
-out.write('INTEGER, PARAMETER, DIMENSION(n_approx) :: k_mm = &\n[ ')
+out.write("INTEGER, PARAMETER, DIMENSION(n_approx) :: k_mm = &\n[ ")
 for i, kk in enumerate(k):
     if i % 5 == 0 and i > 0:
-        out.write('&\n  ')
-    out.write('{:2}'.format(kk))
+        out.write("&\n  ")
+    out.write("{:2}".format(kk))
     if not i + 1 == len(k):
-        out.write(',')
-    out.write(' ')
-out.write(']\n\n')
+        out.write(",")
+    out.write(" ")
+out.write("]\n\n")
 
-out.write('REAL(KIND=dp), PARAMETER, DIMENSION(n_approx) :: R_mm = &\n[ ')
+out.write("REAL(KIND=dp), PARAMETER, DIMENSION(n_approx) :: R_mm = &\n[ ")
 for i, RR in enumerate(Rc):
     if i % 5 == 0 and i > 0:
-        out.write('&\n  ')
-    out.write('{:.1E}_dp'.format(RR))
+        out.write("&\n  ")
+    out.write("{:.1E}_dp".format(RR))
     if not i + 1 == len(Rc):
-        out.write(',')
-    out.write(' ')
-out.write(']\n\n')
+        out.write(",")
+    out.write(" ")
+out.write("]\n\n")
 
-out.write('REAL(KIND=dp), PARAMETER, DIMENSION(n_approx) :: err_mm = &\n[ ')
+out.write("REAL(KIND=dp), PARAMETER, DIMENSION(n_approx) :: err_mm = &\n[ ")
 for i, EE in enumerate(err):
     if i % 5 == 0 and i > 0:
-        out.write('&\n  ')
-    out.write('{:.3E}_dp'.format(EE))
+        out.write("&\n  ")
+    out.write("{:.3E}_dp".format(EE))
     if not i + 1 == len(err):
-        out.write(',')
-    out.write(' ')
-out.write(']\n\n')
+        out.write(",")
+    out.write(" ")
+out.write("]\n\n")
 
-out.write('CONTAINS\n\n')
-out.write('SUBROUTINE get_minimax_coeff_low(i, aw)\n')
-out.write('INTEGER, INTENT(IN) :: i\n')
-out.write('REAL(KIND=dp), DIMENSION(k_mm(i)*2), INTENT(OUT) :: aw\n\n')
+out.write("CONTAINS\n\n")
+out.write("SUBROUTINE get_minimax_coeff_low(i, aw)\n")
+out.write("INTEGER, INTENT(IN) :: i\n")
+out.write("REAL(KIND=dp), DIMENSION(k_mm(i)*2), INTENT(OUT) :: aw\n\n")
 
-out.write('SELECT CASE(i)\n\n')
+out.write("SELECT CASE(i)\n\n")
 for i, (kk, RR, EE, CC) in enumerate(zip(k, Rc, err, coeff_file)):
 
-    out.write('CASE({})\n\n'.format(i + 1))
+    out.write("CASE({})\n\n".format(i + 1))
     # out.write(''.format(i))
-    out.write('  aw(:) = & ! a\n[ ')
+    out.write("  aw(:) = & ! a\n[ ")
 
     offset = len(a[i])
     for j, aa in enumerate(a[i]):
         if j % 3 == 0 and j > 0:
-            out.write('&\n  ')
-        out.write('{}_dp, '.format(repr(aa)))
-    out.write('&\n            ! w\n  ')
+            out.write("&\n  ")
+        out.write("{}_dp, ".format(repr(aa)))
+    out.write("&\n            ! w\n  ")
     for j, ww in enumerate(w[i]):
         if j % 3 == 0 and j > 0:
-            out.write('&\n  ')
-        out.write('{}_dp'.format(repr(ww)))
+            out.write("&\n  ")
+        out.write("{}_dp".format(repr(ww)))
         if not j + 1 == offset:
-            out.write(',')
-        out.write(' ')
-    out.write(']\n\n')
+            out.write(",")
+        out.write(" ")
+    out.write("]\n\n")
 
-out.write('END SELECT\n\n')
-out.write('END SUBROUTINE get_minimax_coeff_low\n')
-out.write('END MODULE minimax_exp_k53\n')
+out.write("END SELECT\n\n")
+out.write("END SUBROUTINE get_minimax_coeff_low\n")
+out.write("END MODULE minimax_exp_k53\n")
 out.close()
