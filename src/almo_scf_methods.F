@@ -2189,9 +2189,9 @@ CONTAINS
 !>       2013.01 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! **************************************************************************************************
-   SUBROUTINE construct_domain_preconditioner(matrix_main, subm_s_inv, subm_s_inv_half, subm_s_half, &
-                                              subm_r_down, matrix_trimmer, dpattern, map, node_of_domain, preconditioner, &
-                                              bad_modes_projector_down, use_trimmer, eps_zero_eigenvalues, my_action)
+   SUBROUTINE construct_domain_preconditioner(matrix_main, subm_s_inv, subm_s_inv_half, & 
+      subm_s_half, subm_r_down, matrix_trimmer, dpattern, map, node_of_domain, preconditioner, &
+      bad_modes_projector_down, use_trimmer, eps_zero_eigenvalues, my_action, skip_inversion)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_main
       TYPE(domain_submatrix_type), DIMENSION(:), &
@@ -2205,7 +2205,7 @@ CONTAINS
          INTENT(INOUT)                                   :: preconditioner
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT), OPTIONAL                         :: bad_modes_projector_down
-      LOGICAL, INTENT(IN), OPTIONAL                      :: use_trimmer
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_trimmer, skip_inversion
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_zero_eigenvalues
       INTEGER, INTENT(IN)                                :: my_action
 
@@ -2216,8 +2216,14 @@ CONTAINS
                                                             index1_start, n_domain_mos, naos, &
                                                             nblkrows_tot, ndomains, neighbor, row
       INTEGER, DIMENSION(:), POINTER                     :: nmos
-      LOGICAL :: eps_zero_eigenvalues_required, matrix_r_required, matrix_s_half_required, &
-         matrix_s_inv_half_required, matrix_s_inv_required, matrix_trimmer_required, my_use_trimmer
+      LOGICAL                                            :: eps_zero_eigenvalues_required, &
+                                                            matrix_r_required, &
+                                                            matrix_s_half_required, &
+                                                            matrix_s_inv_half_required, &
+                                                            matrix_s_inv_required, &
+                                                            matrix_trimmer_required, &
+                                                            my_use_trimmer, &
+                                                            my_skip_inversion
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Minv, proj_array
       TYPE(domain_submatrix_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: subm_main, subm_tmp, subm_tmp2
@@ -2227,6 +2233,11 @@ CONTAINS
       my_use_trimmer = .FALSE.
       IF (PRESENT(use_trimmer)) THEN
          my_use_trimmer = use_trimmer
+      ENDIF
+
+      my_skip_inversion = .FALSE.
+      IF (PRESENT(skip_inversion)) THEN
+         my_skip_inversion = skip_inversion
       ENDIF
 
       matrix_s_inv_half_required = .FALSE.
@@ -2310,87 +2321,92 @@ CONTAINS
          DEALLOCATE (subm_tmp)
       ENDIF
 
-      ! loop over domains - perform inversion
-      DO idomain = 1, ndomains
+      IF (my_skip_inversion) THEN
+         CALL copy_submatrices(subm_main, preconditioner, .TRUE.)
+      ELSE
+         ! loop over domains - perform inversion
+         DO idomain = 1, ndomains
 
-         ! check if the submatrix exists
-         IF (subm_main(idomain)%domain .GT. 0) THEN
+            ! check if the submatrix exists
+            IF (subm_main(idomain)%domain .GT. 0) THEN
 
-            ! find sizes of MO submatrices
-            IF (idomain .EQ. 1) THEN
-               index1_start = 1
-            ELSE
-               index1_start = map%index1(idomain - 1)
-            ENDIF
-            index1_end = map%index1(idomain) - 1
+               ! find sizes of MO submatrices
+               IF (idomain .EQ. 1) THEN
+                  index1_start = 1
+               ELSE
+                  index1_start = map%index1(idomain - 1)
+               ENDIF
+               index1_end = map%index1(idomain) - 1
 
-            n_domain_mos = 0
-            DO row = index1_start, index1_end
-               neighbor = map%pairs(row, 1)
-               n_domain_mos = n_domain_mos + nmos(neighbor)
-            ENDDO
+               n_domain_mos = 0
+               DO row = index1_start, index1_end
+                  neighbor = map%pairs(row, 1)
+                  n_domain_mos = n_domain_mos + nmos(neighbor)
+               ENDDO
 
-            naos = subm_main(idomain)%nrows
-            !WRITE(*,*) "Domain, mo_self_and_neig, ao_domain: ", idomain, n_domain_mos, naos
+               naos = subm_main(idomain)%nrows
+               !WRITE(*,*) "Domain, mo_self_and_neig, ao_domain: ", idomain, n_domain_mos, naos
 
-            ALLOCATE (Minv(naos, naos))
+               ALLOCATE (Minv(naos, naos))
 
-            !!!TRIM IF (my_use_trimmer) THEN
-            !!!TRIM    ! THIS IS SUPER EXPENSIVE (ELIMINATE)
-            !!!TRIM    ! trim the main matrix before inverting
-            !!!TRIM    ! assume that the trimmer columns are different (i.e. the main matrix is different for each MO)
-            !!!TRIM    allocate(tmp(naos,nmos(idomain)))
-            !!!TRIM    DO ii=1, nmos(idomain)
-            !!!TRIM       ! transform the main matrix using the trimmer for the current MO
-            !!!TRIM       DO jj=1, naos
-            !!!TRIM          DO kk=1, naos
-            !!!TRIM             Mstore(jj,kk)=sumb_main(idomain)%mdata(jj,kk)*&
-            !!!TRIM                subm_trimmer(idomain)%mdata(jj,ii)*&
-            !!!TRIM                subm_trimmer(idomain)%mdata(kk,ii)
-            !!!TRIM          ENDDO
-            !!!TRIM       ENDDO
-            !!!TRIM       ! invert the main matrix (exclude some eigenvalues, shift some)
-            !!!TRIM       CALL pseudo_invert_matrix(A=Mstore,Ainv=Minv,N=naos,method=1,&
-            !!!TRIM               !range1_thr=1.0E-9_dp,range2_thr=1.0E-9_dp,&
-            !!!TRIM               shift=1.0E-5_dp,&
-            !!!TRIM               range1=nmos(idomain),range2=nmos(idomain),&
-            !!!TRIM
-            !!!TRIM       ! apply the inverted matrix
-            !!!TRIM       ! RZK-warning this is only possible when the preconditioner is applied
-            !!!TRIM       tmp(:,ii)=MATMUL(Minv,subm_in(idomain)%mdata(:,ii))
-            !!!TRIM    ENDDO
-            !!!TRIM    subm_out=MATMUL(tmp,sigma)
-            !!!TRIM    deallocate(tmp)
-            !!!TRIM ELSE
+               !!!TRIM IF (my_use_trimmer) THEN
+               !!!TRIM    ! THIS IS SUPER EXPENSIVE (ELIMINATE)
+               !!!TRIM    ! trim the main matrix before inverting
+               !!!TRIM    ! assume that the trimmer columns are different (i.e. the main matrix is different for each MO)
+               !!!TRIM    allocate(tmp(naos,nmos(idomain)))
+               !!!TRIM    DO ii=1, nmos(idomain)
+               !!!TRIM       ! transform the main matrix using the trimmer for the current MO
+               !!!TRIM       DO jj=1, naos
+               !!!TRIM          DO kk=1, naos
+               !!!TRIM             Mstore(jj,kk)=sumb_main(idomain)%mdata(jj,kk)*&
+               !!!TRIM                subm_trimmer(idomain)%mdata(jj,ii)*&
+               !!!TRIM                subm_trimmer(idomain)%mdata(kk,ii)
+               !!!TRIM          ENDDO
+               !!!TRIM       ENDDO
+               !!!TRIM       ! invert the main matrix (exclude some eigenvalues, shift some)
+               !!!TRIM       CALL pseudo_invert_matrix(A=Mstore,Ainv=Minv,N=naos,method=1,&
+               !!!TRIM               !range1_thr=1.0E-9_dp,range2_thr=1.0E-9_dp,&
+               !!!TRIM               shift=1.0E-5_dp,&
+               !!!TRIM               range1=nmos(idomain),range2=nmos(idomain),&
+               !!!TRIM
+               !!!TRIM       ! apply the inverted matrix
+               !!!TRIM       ! RZK-warning this is only possible when the preconditioner is applied
+               !!!TRIM       tmp(:,ii)=MATMUL(Minv,subm_in(idomain)%mdata(:,ii))
+               !!!TRIM    ENDDO
+               !!!TRIM    subm_out=MATMUL(tmp,sigma)
+               !!!TRIM    deallocate(tmp)
+               !!!TRIM ELSE
 
-            IF (PRESENT(bad_modes_projector_down)) THEN
-               ALLOCATE (proj_array(naos, naos))
-               CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
-                                         range1=nmos(idomain), range2=n_domain_mos, &
-                                         range1_thr=eps_zero_eigenvalues, &
-                                         bad_modes_projector_down=proj_array, &
-                                         s_inv_half=subm_s_inv_half(idomain)%mdata, &
-                                         s_half=subm_s_half(idomain)%mdata &
-                                         )
-            ELSE
-               CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
-                                         range1=nmos(idomain), range2=n_domain_mos)
-            ENDIF
-            !!!TRIM ENDIF
+               IF (PRESENT(bad_modes_projector_down)) THEN
+                  ALLOCATE (proj_array(naos, naos))
+                  CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
+                                            range1=nmos(idomain), range2=n_domain_mos, &
+                                            range1_thr=eps_zero_eigenvalues, &
+                                            bad_modes_projector_down=proj_array, &
+                                            s_inv_half=subm_s_inv_half(idomain)%mdata, &
+                                            s_half=subm_s_half(idomain)%mdata &
+                                            )
+               ELSE
+                  CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
+                                            range1=nmos(idomain), range2=n_domain_mos)
+               ENDIF
+               !!!TRIM ENDIF
 
-            CALL copy_submatrices(subm_main(idomain), preconditioner(idomain), .FALSE.)
-            CALL copy_submatrix_data(Minv, preconditioner(idomain))
-            DEALLOCATE (Minv)
+               CALL copy_submatrices(subm_main(idomain), preconditioner(idomain), .FALSE.)
+               CALL copy_submatrix_data(Minv, preconditioner(idomain))
+               DEALLOCATE (Minv)
 
-            IF (PRESENT(bad_modes_projector_down)) THEN
-               CALL copy_submatrices(subm_main(idomain), bad_modes_projector_down(idomain), .FALSE.)
-               CALL copy_submatrix_data(proj_array, bad_modes_projector_down(idomain))
-               DEALLOCATE (proj_array)
-            ENDIF
+               IF (PRESENT(bad_modes_projector_down)) THEN
+                  CALL copy_submatrices(subm_main(idomain), bad_modes_projector_down(idomain), .FALSE.)
+                  CALL copy_submatrix_data(proj_array, bad_modes_projector_down(idomain))
+                  DEALLOCATE (proj_array)
+               ENDIF
 
-         ENDIF ! submatrix for the domain exists
+            ENDIF ! submatrix for the domain exists
 
-      ENDDO ! loop over domains
+         ENDDO ! loop over domains
+
+      ENDIF
 
       CALL release_submatrices(subm_main)
       DEALLOCATE (subm_main)
