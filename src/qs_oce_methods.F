@@ -206,8 +206,9 @@ CONTAINS
                         n = ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1)
 !                       CALL DGEMM("N", "N", nso(lprj), n, nco(lprj), 1._dp, c2s, lds, spa_tmp(lpoint, ig1), msab, &
 !                                  0._dp, ovs(m, igau), np_sph)
-                        ovs(m:m + nso(lprj) - 1, igau:igau + n - 1) = MATMUL(c2s(1:nso(lprj), 1:nco(lprj)), &
-                                                                            spa_tmp(lpoint:lpoint + nco(lprj) - 1, ig1:ig1 + n - 1))
+                         ovs(m:m + nso(lprj) - 1, igau:igau + n - 1) = &
+                             MATMUL(c2s(1:nso(lprj), 1:nco(lprj)), &
+                                    spa_tmp(lpoint:lpoint + nco(lprj) - 1, ig1:ig1 + n - 1))
                      ENDDO
                   ENDDO
                ENDDO
@@ -236,8 +237,9 @@ CONTAINS
 !                         1.0_dp, ovs(1, first_col), SIZE(ovs, 1), &
 !                         sphi_b(1, isgfb), SIZE(sphi_b, 1), &
 !                         0.0_dp, spa_sb(1, isgfb), SIZE(spa_sb, 1))
-               spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1) = MATMUL(ovs(1:np_sph, first_col:first_col + ncob - 1), &
-                                                                        sphi_b(1:ncob, isgfb:isgfb + nsgfb(jset) - 1))
+                spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1) = &
+                   MATMUL(ovs(1:np_sph, first_col:first_col + ncob - 1), &
+                          sphi_b(1:ncob, isgfb:isgfb + nsgfb(jset) - 1))
 
 !              CALL dgemm("T", "N", nsatbas, nsgfb(jset), np_sph, &
 !                         1.0_dp, csprj(1, 1), SIZE(csprj, 1), &
@@ -245,7 +247,8 @@ CONTAINS
 !                         1.0_dp, oces(ider)%block(1, isgfb_cnt), SIZE(oces(ider)%block, 1))
                oces(ider)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) = &
                   oces(ider)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) + &
-                  MATMUL(TRANSPOSE(csprj(1:np_sph, 1:nsatbas)), spa_sb(1:np_sph, isgfb:isgfb_cnt + nsgfb(jset) - 1))
+                  MATMUL(TRANSPOSE(csprj(1:np_sph, 1:nsatbas)), &
+                         spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1))
             ENDDO
             isgfb_cnt = isgfb_cnt + nsgfb(jset)
          END IF ! radius

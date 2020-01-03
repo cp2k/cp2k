@@ -127,8 +127,8 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER :: cindex, curr_tasks, handle, i, iatom, iatom_old, igrid_level, igrid_level_old, &
-         ikind, ilevel, img, img_old, inode, ipair, ipgf, iset, itask, jatom, jatom_old, jkind, &
-         jpgf, jset, maxpgf, maxset, natoms, nimages, nkind, nseta, nsetb
+         ikind, ilevel, img, img_old, ipair, ipgf, iset, itask, jatom, jatom_old, jkind, &
+         jpgf, jset, maxpgf, maxset, natoms, nimages, nkind, nseta, nsetb, slot
       INTEGER(kind=int_8), DIMENSION(:, :), POINTER      :: tasks
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: blocks
       INTEGER, DIMENSION(3)                              :: cellind
@@ -147,8 +147,6 @@ CONTAINS
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, orb_basis_set
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -241,10 +239,23 @@ CONTAINS
             NULLIFY (basis_set_list(ikind)%gto_basis_set)
          END IF
       END DO
-      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
-                                iatom=iatom, jatom=jatom, r=rab, cell=cellind)
+!!$OMP PARALLEL DEFAULT(NONE) &
+!!$OMP SHARED (sab_orb, dokp, basis_set_list, task_list, rs_descs, dft_control, cube_info, gridlevel_info,  &
+!!$OMP         curr_tasks, maxpgf, maxset, natoms, nimages, particle_set, cell_to_index, cell) &
+!!$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, cellind, basis_set_a, basis_set_b, ra, &
+!!$OMP          la_max, la_min, npgfa, nseta, rpgfa, set_radius_a, kind_radius_a, zeta, &
+!!$OMP          lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, kind_radius_b, zetb, &
+!!$OMP          cindex, slot)
+      ! Loop over neighbor list
+!!$OMP DO SCHEDULE(GUIDED)
+      DO slot = 1, sab_orb(1)%nl_size
+         ikind = sab_orb(1)%nlist_task(slot)%ikind
+         jkind = sab_orb(1)%nlist_task(slot)%jkind
+         iatom = sab_orb(1)%nlist_task(slot)%iatom
+         jatom = sab_orb(1)%nlist_task(slot)%jatom
+         rab(1:3) = sab_orb(1)%nlist_task(slot)%r(1:3)
+         cellind(1:3) = sab_orb(1)%nlist_task(slot)%cell(1:3)
+
          basis_set_a => basis_set_list(ikind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
          basis_set_b => basis_set_list(jkind)%gto_basis_set
@@ -281,7 +292,7 @@ CONTAINS
                                    la_max, la_min, lb_max, lb_min, npgfa, npgfb, maxpgf, maxset, natoms, nimages, nseta, nsetb)
 
       END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
+!!$OMP END PARALLEL
 
       DEALLOCATE (basis_set_list)
 
@@ -735,11 +746,16 @@ CONTAINS
       LOGICAL                                            :: is_ortho
       REAL(KIND=dp)                                      :: tfraction
 
+!$OMP SINGLE
       ntasks = ntasks + 1
       IF (ntasks > curr_tasks) THEN
          curr_tasks = INT((curr_tasks + add_tasks)*mult_tasks)
          CALL reallocate(tasks, 1, 6, 1, curr_tasks)
       END IF
+      IF (SIZE(dist_ab, 2) .NE. SIZE(tasks, 2)) THEN
+         CALL reallocate(dist_ab, 1, 3, 1, SIZE(tasks, 2))
+      ENDIF
+!$OMP END SINGLE
 
       IF (rs_desc%distributed) THEN
 
@@ -753,10 +769,6 @@ CONTAINS
          tasks(4, ntasks) = 0
          tasks(6, ntasks) = 0
          added_tasks = 1
-      ENDIF
-
-      IF (SIZE(dist_ab, 2) .NE. SIZE(tasks, 2)) THEN
-         CALL reallocate(dist_ab, 1, 3, 1, SIZE(tasks, 2))
       ENDIF
 
       lmax = la_max + lb_max
