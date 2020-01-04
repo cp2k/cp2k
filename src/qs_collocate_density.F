@@ -1784,29 +1784,13 @@ CONTAINS
                sgfb = first_sgfb(1, jset)
 
                IF (iatom <= jatom) THEN
-!                 CALL dgemm("N", "N", ncoa, nsgfb(jset), nsgfa(iset), &
-!                            1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-!                            p_block(sgfa, sgfb), SIZE(p_block, 1), &
-!                            0.0_dp, work(1, 1), maxco)
                   work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa+nsgfa(iset)-1),&
                                                        p_block(sgfa:sgfa+nsgfa(iset)-1, sgfb:sgfb+nsgfb(jset)-1))
-!                 CALL dgemm("N", "T", ncoa, ncob, nsgfb(jset), &
-!                            1.0_dp, work(1, 1), maxco, &
-!                            sphi_b(1, sgfb), SIZE(sphi_b, 1), &
-!                            0.0_dp, pab(1, 1), maxco)
                   pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgfb(jset)),&
                                                TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb+nsgfb(jset)-1)))
                ELSE
-!                 CALL dgemm("N", "N", ncob, nsgfa(iset), nsgfb(jset), &
-!                            1.0_dp, sphi_b(1, sgfb), SIZE(sphi_b, 1), &
-!                            p_block(sgfb, sgfa), SIZE(p_block, 1), &
-!                            0.0_dp, work(1, 1), maxco)
                   work(1:ncob, 1:nsgfa(iset)) = MATMUL(sphi_b(1:ncob, sgfb:sgfb+nsgfb(jset)-1),&
                                                        p_block(sgfb:sgfb+nsgfb(jset)-1, sgfa:sgfa+nsgfa(iset)-1))
-!                 CALL dgemm("N", "T", ncob, ncoa, nsgfa(iset), &
-!                            1.0_dp, work(1, 1), maxco, &
-!                            sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-!                            0.0_dp, pab(1, 1), maxco)
                   pab(1:ncob, 1:ncoa) = MATMUL(work(1:ncob, 1:nsgfa(iset)),&
                                                TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa+nsgfa(iset)-1)))
                END IF

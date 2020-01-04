@@ -1304,7 +1304,7 @@ CONTAINS
 
       IF (PRESENT(scale)) THEN
 
-!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts, mapl,mapm,mapn,ghat,scale,pw,c)
+!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts,mapl,mapm,mapn,ghat,scale,pw,c)
          DO gpt = 1, ngpts
 
             l = mapl(ghat(1, gpt)) + 1
@@ -1316,7 +1316,7 @@ CONTAINS
 
       ELSE
 
-!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts, mapl,mapm,mapn,ghat,pw,c)
+!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts,mapl,mapm,mapn,ghat,pw,c)
          DO gpt = 1, ngpts
 
             l = mapl(ghat(1, gpt)) + 1
