@@ -201,7 +201,7 @@ CONTAINS
 !$OMP SHARED  (ap_iterator, basis_set_list, calculate_forces, use_virial, &
 !$OMP          matrix_h, matrix_p, atomic_kind_set, qs_kind_set, particle_set, &
 !$OMP          sab_orb, sac_ppl, nthread, ncoset, nkind, cell_to_index, &
-!$OMP          slot, ldsab,  maxnset, maxder, &
+!$OMP          ldsab,  maxnset, maxder, &
 !$OMP          maxlgto, nder, maxco, dokp, locks, natom) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, basis_set_a, basis_set_b, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, &
@@ -212,7 +212,7 @@ CONTAINS
 !$OMP          ppl_radius, nexp_lpot, nexp_ppl, alpha_ppl, alpha_lpot, nct_ppl, &
 !$OMP          nct_lpot, cval_ppl, cval_lpot, rac, dac, rbc, dbc, &
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &
-!$OMP          f0, katom, ppl_work, cellind, img, ecp_local, &
+!$OMP          slot, f0, katom, ppl_work, cellind, img, ecp_local, &
 !$OMP          nloc, nrloc, aloc, bloc, n_local, a_local, c_local, ldai, hash, hash1, hash2) &
 !$OMP REDUCTION (+ : pv_thread, force_thread )
 
@@ -632,8 +632,8 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (maxco,maxsgf,basis_set_list,calculate_forces,lri_ppl_coef,qs_kind_set,&
-!$OMP          locks,atom_a,natom,use_virial,virial,ncoset,atom_of_kind,sac_ppl,slot) &
-!$OMP PRIVATE (ikind,kkind,iatom,katom,rac,va,dva,dvas,basis_set,&
+!$OMP          locks,natom,use_virial,virial,ncoset,atom_of_kind,sac_ppl) &
+!$OMP PRIVATE (ikind,kkind,iatom,katom,atom_a,rac,va,dva,dvas,basis_set,slot,&
 !$OMP          first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,rpgfa,set_radius_a,&
 !$OMP          sphi_a,zeta,gth_potential,sgp_potential,alpha,cexp_ppl,lpotextended,ppl_radius,&
 !$OMP          nexp_ppl,alpha_ppl,nct_ppl,cval_ppl,nloc,n_local,nrloc,a_local,aloc,bloc,c_local,nfun,work,&
@@ -663,6 +663,7 @@ CONTAINS
          iatom = sac_ppl(1)%nlist_task(slot)%iatom
          katom = sac_ppl(1)%nlist_task(slot)%jatom
          rac(1:3) = sac_ppl(1)%nlist_task(slot)%r(1:3)
+         atom_a = atom_of_kind(iatom)
 
          basis_set => basis_set_list(ikind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set)) CYCLE
@@ -758,7 +759,6 @@ CONTAINS
                force_a(3) = force_a(3) + SUM(lri_ppl_coef(ikind)%acoef(atom_a, sgfa:sgfb)*dvas(1:nsgfa(iset), 3))
             END IF
          END DO
-         atom_a = atom_of_kind(iatom)
 !$       hash = MOD(iatom, nlock) + 1
 !$       CALL omp_set_lock(locks(hash))
          lri_ppl_coef(ikind)%v_int(atom_a, 1:nfun) = lri_ppl_coef(ikind)%v_int(atom_a, 1:nfun) + work(1:nfun)
@@ -784,13 +784,13 @@ CONTAINS
 !$OMP END PARALLEL
 
       IF (calculate_forces) THEN
-!$OMP DO
          DO iatom = 1, natom
             atom_a = atom_of_kind(iatom)
             ikind = kind_of(iatom)
-            force(ikind)%gth_ppl(:, atom_a) = force(ikind)%gth_ppl(:, atom_a) + force_thread(:, iatom)
+            force(ikind)%gth_ppl(1, atom_a) = force(ikind)%gth_ppl(1, atom_a) + force_thread(1, iatom)
+            force(ikind)%gth_ppl(2, atom_a) = force(ikind)%gth_ppl(2, atom_a) + force_thread(2, iatom)
+            force(ikind)%gth_ppl(3, atom_a) = force(ikind)%gth_ppl(3, atom_a) + force_thread(3, iatom)
          END DO
-!$OMP END DO
       END IF
       DEALLOCATE (force_thread)
       DEALLOCATE (atom_of_kind, kind_of)

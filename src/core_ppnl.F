@@ -248,10 +248,10 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (basis_set, gpotential, spotential, maxder, ncoset, &
-!$OMP          slot, sap_ppnl, sap_int, nkind, ldsab, ldai, nder, nco ) &
+!$OMP          sap_ppnl, sap_int, nkind, ldsab, ldai, nder, nco ) &
 !$OMP PRIVATE (ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
 !$OMP          cell_c, rac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, &
-!$OMP          sphi_a, zeta, cprj, hprj, lppnl, nppnl, nprj_ppnl, &
+!$OMP          slot, sphi_a, zeta, cprj, hprj, lppnl, nppnl, nprj_ppnl, &
 !$OMP          clist, iset, ncoa, sgfa, prjc, work, sab, ai_work, nprjc,  ppnl_radius, &
 !$OMP          ncoc, rpgfa, first_col, vprj_ppnl, i, j, l, dogth, &
 !$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl, &
@@ -429,10 +429,10 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (dokp, basis_set, matrix_h, cell_to_index,&
-!$OMP          slot, sab_orb, matrix_p, sap_int, nkind, eps_ppnl, force, &
+!$OMP          sab_orb, matrix_p, sap_int, nkind, eps_ppnl, force, &
 !$OMP          locks, virial, use_virial, calculate_forces) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
-!$OMP          iab, atom_a, f0, irow, icol, h_block, &
+!$OMP          slot, iab, atom_a, f0, irow, icol, h_block, &
 !$OMP          found,p_block, iac, ibc, alist_ac, alist_bc, acint, bcint, &
 !$OMP          achint, bchint, na, np, nb, katom, j, fa, fb, rbc, rac, &
 !$OMP          kkind, kac, kbc, i, img, hash, natom) &
