@@ -26,6 +26,18 @@ MODULE input_cp2k_pwdft
                                   section_create, &
                                   section_release, &
                                   section_type
+   USE input_val_types, ONLY: char_t, &
+                              integer_t, &
+                              lchar_t, &
+                              logical_t, &
+                              real_t
+   USE cp_output_handling, ONLY: add_last_numeric, &
+                                 cp_print_key_section_create, &
+                                 debug_print_level, &
+                                 high_print_level, &
+                                 low_print_level, &
+                                 medium_print_level, &
+                                 silent_print_level
    USE kinds, ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -74,22 +86,26 @@ CONTAINS
       CALL create_sirius_section(subsection, section_name)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+
       section_name = ''
       section_name = 'parameters'
-
       CALL create_sirius_section(subsection, section_name)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+
       section_name = ''
       section_name = 'mixer'
-
       CALL create_sirius_section(subsection, section_name)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+
       section_name = ''
       section_name = 'iterative_solver'
-
       CALL create_sirius_section(subsection, section_name)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_print_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -263,6 +279,67 @@ CONTAINS
          CALL keyword_release(keyword)
       END DO
    END SUBROUTINE fill_in_section
+
+! **************************************************************************************************
+!> \brief Create the print section for sirius
+!> \param section the section to create
+!> \author jgh
+! **************************************************************************************************
+   SUBROUTINE create_print_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(section_type), POINTER                        :: print_key
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="PRINT", &
+                          description="Section of possible print options in PW_DFT code.", &
+                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
+
+      NULLIFY (print_key)
+      CALL create_dos_section(print_key)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+   END SUBROUTINE create_print_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param print_key ...
+! **************************************************************************************************
+   SUBROUTINE create_dos_section(print_key)
+
+      TYPE(section_type), POINTER                        :: print_key
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_dos_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      NULLIFY (keyword)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DOS", &
+                                       description="Print Density of States (DOS) (only available states from SCF)", &
+                                       print_level=debug_print_level, common_iter_levels=1, filename="")
+
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="Append the DOS obtained at different iterations to the output file."// &
+                          "By defaut the file is overwritten", &
+                          usage="APPEND", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_E", &
+                          description="Histogramm energy spacing.", &
+                          usage="DELTA_E 0.0005", type_of_var=real_t, default_r_val=0.001_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_dos_section
+
 #else
 ! **************************************************************************************************
 !> \brief ...
