@@ -84,8 +84,8 @@ MODULE xas_tdp_atom
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_ks_types,                     ONLY: release_sab
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_o3c_methods,                  ONLY: calculate_o3c_integrals,&
                                               contract12_o3c
    USE qs_o3c_types,                    ONLY: get_o3c_iterator_info,&
@@ -917,7 +917,7 @@ CONTAINS
       CALL build_xas_tdp_ovlp_nl(sab_ri, basis_set_ri, basis_set_ri, qs_env)
       CALL build_overlap_matrix_simple(qs_env%ks_env, overlap, basis_set_ri, basis_set_ri, sab_ri)
       ri_mats => overlap(1)%matrix
-      CALL release_sab(sab_ri)
+      CALL release_neighbor_list_sets(sab_ri)
 
 !  Get the neighbors of the excited atoms (= all the atoms where density coeffs are needed)
       CALL find_neighbors(xas_atom_env%excited_atoms, ri_mats, xas_atom_env%ri_radius, &
@@ -961,8 +961,8 @@ CONTAINS
                                qs_env, excited_atoms=all_ri_atoms)
       CALL get_o3c_memory(o3c_mem, free_mem, ab_list, ac_list, basis_set_orb, basis_set_orb, &
                           basis_set_ri, qs_env)
-      CALL release_sab(ab_list)
-      CALL release_sab(ac_list)
+      CALL release_neighbor_list_sets(ab_list)
+      CALL release_neighbor_list_sets(ac_list)
 
       mem_per_exat = o3c_mem/nex
       IF (mem_per_exat > FLOOR(0.65_dp*REAL(free_mem, dp), KIND=int_8)) &
@@ -996,8 +996,8 @@ CONTAINS
                                   qs_env, excited_atoms=batch_atoms)
          CALL get_opt_3c_dist2d(opt_dist2d, ab_list, ac_list, basis_set_orb, basis_set_orb, &
                                 basis_set_ri, qs_env)
-         CALL release_sab(ab_list)
-         CALL release_sab(ac_list)
+         CALL release_neighbor_list_sets(ab_list)
+         CALL release_neighbor_list_sets(ac_list)
 
          !get the ab and ac neighbor lists based on the optimized distribution
          CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env, ext_dist2d=opt_dist2d)
@@ -1113,8 +1113,8 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(rho_redist)
          CALL dbcsr_distribution_release(opt_dbcsr_dist)
          CALL release_o3c_container(o3c)
-         CALL release_sab(ab_list)
-         CALL release_sab(ac_list)
+         CALL release_neighbor_list_sets(ab_list)
+         CALL release_neighbor_list_sets(ac_list)
          DEALLOCATE (batch_atoms, o3c)
       END DO !ibatch
 

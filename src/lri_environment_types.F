@@ -25,13 +25,13 @@ MODULE lri_environment_types
                                               dp,&
                                               sp
    USE mathlib,                         ONLY: pswitch
-   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
-                                              get_iterator_info,&
+   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
-                                              neighbor_list_set_p_type
+                                              neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_o3c_types,                    ONLY: o3c_container_type,&
                                               release_o3c_container
 #include "./base/base_uses.f90"
@@ -465,24 +465,9 @@ CONTAINS
             END DO
             DEALLOCATE (lri_env%ri_basis)
          END IF
-         IF (ASSOCIATED(lri_env%soo_list)) THEN
-            DO i = 1, SIZE(lri_env%soo_list)
-               CALL deallocate_neighbor_list_set(lri_env%soo_list(i)%neighbor_list_set)
-            END DO
-            DEALLOCATE (lri_env%soo_list)
-         END IF
-         IF (ASSOCIATED(lri_env%saa_list)) THEN
-            DO i = 1, SIZE(lri_env%saa_list)
-               CALL deallocate_neighbor_list_set(lri_env%saa_list(i)%neighbor_list_set)
-            END DO
-            DEALLOCATE (lri_env%saa_list)
-         END IF
-         IF (ASSOCIATED(lri_env%soa_list)) THEN
-            DO i = 1, SIZE(lri_env%soa_list)
-               CALL deallocate_neighbor_list_set(lri_env%soa_list(i)%neighbor_list_set)
-            END DO
-            DEALLOCATE (lri_env%soa_list)
-         END IF
+         CALL release_neighbor_list_sets(lri_env%soo_list)
+         CALL release_neighbor_list_sets(lri_env%saa_list)
+         CALL release_neighbor_list_sets(lri_env%soa_list)
          IF (ASSOCIATED(lri_env%lri_ints)) THEN
             CALL deallocate_lri_ints(lri_env%lri_ints)
          END IF

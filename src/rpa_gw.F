@@ -80,8 +80,8 @@ MODULE rpa_gw
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_moments,                      ONLY: build_berry_moment_matrix
-   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
-                                              neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: setup_neighbor_list
    USE qs_overlap,                      ONLY: build_overlap_matrix_simple
    USE rpa_gw_im_time_util,             ONLY: get_mat_3c_overl_int_gw,&
@@ -2100,9 +2100,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_berry_phase', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: col_index, handle, i_col_local, iab, &
-                                                            ikind, ikp, nao_aux, ncol_local, &
-                                                            nkind, nkp, nmo_for_aux_bas
+      INTEGER                                            :: col_index, handle, i_col_local, ikind, &
+                                                            ikp, nao_aux, ncol_local, nkind, nkp, &
+                                                            nmo_for_aux_bas
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
       REAL(dp)                                           :: abs_kpoint, correct_kpoint(3), &
                                                             scale_kpoint
@@ -2546,12 +2546,7 @@ CONTAINS
       CALL dbcsr_release_p(sinmat_desymm)
       DEALLOCATE (orb_basis_set_list)
 
-      IF (ASSOCIATED(sab_orb_mic)) THEN
-         DO iab = 1, SIZE(sab_orb_mic)
-            CALL deallocate_neighbor_list_set(sab_orb_mic(iab)%neighbor_list_set)
-         END DO
-         DEALLOCATE (sab_orb_mic)
-      END IF
+      CALL release_neighbor_list_sets(sab_orb_mic)
 
       IF (do_aux_bas) THEN
 
@@ -2577,19 +2572,8 @@ CONTAINS
          CALL cp_fm_release(fm_mat_P_sqrt_inv)
 
          ! Deallocate the neighbor list structure
-         IF (ASSOCIATED(sgwgw_list)) THEN
-            DO iab = 1, SIZE(sgwgw_list)
-               CALL deallocate_neighbor_list_set(sgwgw_list(iab)%neighbor_list_set)
-            END DO
-            DEALLOCATE (sgwgw_list)
-         END IF
-
-         IF (ASSOCIATED(sgworb_list)) THEN
-            DO iab = 1, SIZE(sgworb_list)
-               CALL deallocate_neighbor_list_set(sgworb_list(iab)%neighbor_list_set)
-            END DO
-            DEALLOCATE (sgworb_list)
-         END IF
+         CALL release_neighbor_list_sets(sgwgw_list)
+         CALL release_neighbor_list_sets(sgworb_list)
 
       END IF
 

@@ -33,12 +33,7 @@ MODULE qs_oce_methods
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
-                                              neighbor_list_iterate,&
-                                              neighbor_list_iterator_create,&
-                                              neighbor_list_iterator_p_type,&
-                                              neighbor_list_iterator_release,&
-                                              neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE sap_kind_types,                  ONLY: clist_type,&
                                               sap_int_type,&
                                               sap_sort
@@ -209,8 +204,11 @@ CONTAINS
                         igau = isp + ic + m1 + ncoset(lb_min(jset) - 1) + 1
                         ig1 = is + ic + ncoset(lb_min(jset) - 1) + 1
                         n = ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1)
-                        CALL DGEMM("N", "N", nso(lprj), n, nco(lprj), 1._dp, c2s, lds, spa_tmp(lpoint, ig1), msab, &
-                                   0._dp, ovs(m, igau), np_sph)
+!                       CALL DGEMM("N", "N", nso(lprj), n, nco(lprj), 1._dp, c2s, lds, spa_tmp(lpoint, ig1), msab, &
+!                                  0._dp, ovs(m, igau), np_sph)
+                        ovs(m:m + nso(lprj) - 1, igau:igau + n - 1) = &
+                           MATMUL(c2s(1:nso(lprj), 1:nco(lprj)), &
+                                  spa_tmp(lpoint:lpoint + nco(lprj) - 1, ig1:ig1 + n - 1))
                      ENDDO
                   ENDDO
                ENDDO
@@ -235,15 +233,22 @@ CONTAINS
             ! *** Contraction step (integrals and derivatives)
             DO ider = 1, maxder
                first_col = (ider - 1)*maxcob*nsetb + 1 + m1
-               CALL dgemm("N", "N", np_sph, nsgfb(jset), ncob, &
-                          1.0_dp, ovs(1, first_col), SIZE(ovs, 1), &
-                          sphi_b(1, isgfb), SIZE(sphi_b, 1), &
-                          0.0_dp, spa_sb(1, isgfb), SIZE(spa_sb, 1))
+!              CALL dgemm("N", "N", np_sph, nsgfb(jset), ncob, &
+!                         1.0_dp, ovs(1, first_col), SIZE(ovs, 1), &
+!                         sphi_b(1, isgfb), SIZE(sphi_b, 1), &
+!                         0.0_dp, spa_sb(1, isgfb), SIZE(spa_sb, 1))
+               spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1) = &
+                  MATMUL(ovs(1:np_sph, first_col:first_col + ncob - 1), &
+                         sphi_b(1:ncob, isgfb:isgfb + nsgfb(jset) - 1))
 
-               CALL dgemm("T", "N", nsatbas, nsgfb(jset), np_sph, &
-                          1.0_dp, csprj(1, 1), SIZE(csprj, 1), &
-                          spa_sb(1, isgfb), SIZE(spa_sb, 1), &
-                          1.0_dp, oces(ider)%block(1, isgfb_cnt), SIZE(oces(ider)%block, 1))
+!              CALL dgemm("T", "N", nsatbas, nsgfb(jset), np_sph, &
+!                         1.0_dp, csprj(1, 1), SIZE(csprj, 1), &
+!                         spa_sb(1, isgfb), SIZE(spa_sb, 1), &
+!                         1.0_dp, oces(ider)%block(1, isgfb_cnt), SIZE(oces(ider)%block, 1))
+               oces(ider)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) = &
+                  oces(ider)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) + &
+                  MATMUL(TRANSPOSE(csprj(1:np_sph, 1:nsatbas)), &
+                         spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1))
             ENDDO
             isgfb_cnt = isgfb_cnt + nsgfb(jset)
          END IF ! radius
@@ -364,7 +369,7 @@ CONTAINS
 
       INTEGER :: atom_a, atom_b, handle, i, iac, ikind, ilist, jkind, jneighbor, ldai, ldsab, &
          maxco, maxder, maxl, maxlgto, maxlprj, maxprj, maxsgf, maxsoa, maxsob, mlprj, natom, &
-         ncoa_sum, nkind, nlist, nneighbor, nsatbas, nseta, nsetb, nsgf_cnt, nsgfa, nsobtot
+         ncoa_sum, nkind, nlist, nneighbor, nsatbas, nseta, nsetb, nsgf_cnt, nsgfa, nsobtot, slot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sgf_list
       INTEGER, DIMENSION(3)                              :: cell_b
       INTEGER, DIMENSION(:), POINTER                     :: fp_car, fp_sph, la_max, la_min, npgfa, &
@@ -380,8 +385,6 @@ CONTAINS
       TYPE(block_p_type), DIMENSION(:), POINTER          :: oceh, oces
       TYPE(clist_type), POINTER                          :: clist
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_paw, orb_basis_set
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_b
       TYPE(qs_kind_type), POINTER                        :: at_a, at_b, qs_kind
 
@@ -408,25 +411,77 @@ CONTAINS
          maxl = MAX(maxlgto, maxlprj)
          CALL init_orbital_pointers(maxl + nder + 1)
 
-         ldsab = MAX(maxco, ncoset(maxlprj), maxsgf, maxprj)
-         ldai = ncoset(maxl + nder + 1)
-         ALLOCATE (sab(ldsab, ldsab*maxder), work(ldsab, ldsab*maxder))
-         sab = 0.0_dp
-         ALLOCATE (ai_work(ldai, ldai, ncoset(nder + 1)))
-         ai_work = 0.0_dp
-
-         ALLOCATE (oceh(maxder), oces(maxder))
-
          DO i = 1, nkind*nkind
             NULLIFY (intac(i)%alist, intac(i)%asort, intac(i)%aindex)
             intac(i)%nalist = 0
          END DO
 
+         ! Allocate memory list
+         DO slot = 1, sap_oce(1)%nl_size
+            ikind = sap_oce(1)%nlist_task(slot)%ikind
+            jkind = sap_oce(1)%nlist_task(slot)%jkind
+            atom_a = sap_oce(1)%nlist_task(slot)%iatom
+            nlist = sap_oce(1)%nlist_task(slot)%nlist
+            ilist = sap_oce(1)%nlist_task(slot)%ilist
+            nneighbor = sap_oce(1)%nlist_task(slot)%nnode
+
+            iac = ikind + nkind*(jkind - 1)
+
+            qs_kind => qs_kind_set(ikind)
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_set)
+            IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
+            qs_kind => qs_kind_set(jkind)
+            NULLIFY (paw_proj_b)
+            CALL get_qs_kind(qs_kind=qs_kind, paw_proj_set=paw_proj_b, paw_atom=paw_atom_b)
+            IF (.NOT. paw_atom_b) CYCLE
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_paw)
+            IF (.NOT. ASSOCIATED(orb_basis_paw)) CYCLE
+            IF (.NOT. ASSOCIATED(intac(iac)%alist)) THEN
+               intac(iac)%a_kind = ikind
+               intac(iac)%p_kind = jkind
+               intac(iac)%nalist = nlist
+               ALLOCATE (intac(iac)%alist(nlist))
+               DO i = 1, nlist
+                  NULLIFY (intac(iac)%alist(i)%clist)
+                  intac(iac)%alist(i)%aatom = 0
+                  intac(iac)%alist(i)%nclist = 0
+               END DO
+            END IF
+            IF (.NOT. ASSOCIATED(intac(iac)%alist(ilist)%clist)) THEN
+               intac(iac)%alist(ilist)%aatom = atom_a
+               intac(iac)%alist(ilist)%nclist = nneighbor
+               ALLOCATE (intac(iac)%alist(ilist)%clist(nneighbor))
+            END IF
+         END DO
+
+         ldsab = MAX(maxco, ncoset(maxlprj), maxsgf, maxprj)
+         ldai = ncoset(maxl + nder + 1)
+
          !calculate the overlap integrals <a|p>
-         CALL neighbor_list_iterator_create(nl_iterator, sap_oce)
-         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=atom_a, jatom=atom_b, &
-                                   nlist=nlist, ilist=ilist, nnode=nneighbor, inode=jneighbor, cell=cell_b, r=rab)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED (intac, ldsab, ldai, nder, nkind, maxder, ncoset, sap_oce, qs_kind_set, eps_fit) &
+!$OMP PRIVATE (sab, work, ai_work, oceh, oces, slot, ikind, jkind, atom_a, atom_b, ilist, jneighbor, rab, cell_b, &
+!$OMP          iac, dab, qs_kind, orb_basis_set, first_sgfa, la_max, la_min, ncoa_sum, maxsoa, npgfa, nseta, &
+!$OMP          nsgfa, nsgf_seta, rpgfa, set_radius_a, sphi_a, zeta, paw_proj_b, paw_atom_b, orb_basis_paw, &
+!$OMP          maxsob, nsetb, mlprj, nprjla, nsatbas, rcprj, fp_car, fp_sph, rzetprj, zetb, nsobtot, clist, &
+!$OMP          sgf_list, at_a, at_b, local, i, sgf_soft_only, nsgf_cnt)
+
+         ALLOCATE (sab(ldsab, ldsab*maxder), work(ldsab, ldsab*maxder))
+         sab = 0.0_dp
+         ALLOCATE (ai_work(ldai, ldai, ncoset(nder + 1)))
+         ai_work = 0.0_dp
+         ALLOCATE (oceh(maxder), oces(maxder))
+
+!$OMP DO SCHEDULE(GUIDED)
+         DO slot = 1, sap_oce(1)%nl_size
+            ikind = sap_oce(1)%nlist_task(slot)%ikind
+            jkind = sap_oce(1)%nlist_task(slot)%jkind
+            atom_a = sap_oce(1)%nlist_task(slot)%iatom
+            atom_b = sap_oce(1)%nlist_task(slot)%jatom
+            ilist = sap_oce(1)%nlist_task(slot)%ilist
+            jneighbor = sap_oce(1)%nlist_task(slot)%inode
+            rab(1:3) = sap_oce(1)%nlist_task(slot)%r(1:3)
+            cell_b(1:3) = sap_oce(1)%nlist_task(slot)%cell(1:3)
 
             iac = ikind + nkind*(jkind - 1)
             dab = SQRT(SUM(rab*rab))
@@ -471,23 +526,6 @@ CONTAINS
                                   zetprj=zetb)
 
             nsobtot = nsatbas
-
-            IF (.NOT. ASSOCIATED(intac(iac)%alist)) THEN
-               intac(iac)%a_kind = ikind
-               intac(iac)%p_kind = jkind
-               intac(iac)%nalist = nlist
-               ALLOCATE (intac(iac)%alist(nlist))
-               DO i = 1, nlist
-                  NULLIFY (intac(iac)%alist(i)%clist)
-                  intac(iac)%alist(i)%aatom = 0
-                  intac(iac)%alist(i)%nclist = 0
-               END DO
-            END IF
-            IF (.NOT. ASSOCIATED(intac(iac)%alist(ilist)%clist)) THEN
-               intac(iac)%alist(ilist)%aatom = atom_a
-               intac(iac)%alist(ilist)%nclist = nneighbor
-               ALLOCATE (intac(iac)%alist(ilist)%clist(nneighbor))
-            END IF
 
             clist => intac(iac)%alist(ilist)%clist(jneighbor)
             clist%catom = atom_b
@@ -558,10 +596,10 @@ CONTAINS
             DEALLOCATE (sgf_list)
 
          END DO
-         CALL neighbor_list_iterator_release(nl_iterator)
 
          DEALLOCATE (sab, work, ai_work)
          DEALLOCATE (oceh, oces)
+!$OMP END PARALLEL
 
          ! set up sort index
          CALL sap_sort(intac)

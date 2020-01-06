@@ -67,13 +67,13 @@ MODULE kg_environment
    USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
-                                              get_iterator_info,&
+   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
-                                              neighbor_list_set_p_type
+                                              neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: atom2d_build,&
                                               atom2d_cleanup,&
                                               build_neighbor_lists,&
@@ -687,9 +687,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_build_subsets', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: color, handle, i, iab, iatom, imol, &
-                                                            isub, jatom, jmol, nmol, npairs, &
-                                                            npairs_local
+      INTEGER                                            :: color, handle, i, iatom, imol, isub, &
+                                                            jatom, jmol, nmol, npairs, npairs_local
       INTEGER(KIND=int_4)                                :: ncolors
       INTEGER(KIND=int_4), ALLOCATABLE, DIMENSION(:)     :: color_of_node
       INTEGER(KIND=int_4), ALLOCATABLE, DIMENSION(:, :)  :: msg_gather, pairs, pairs_buffer
@@ -837,10 +836,7 @@ CONTAINS
          ! deallocate stuff if necessary
          IF (ASSOCIATED(kg_env%subset)) THEN
             DO isub = 1, kg_env%nsubsets
-               DO iab = 1, SIZE(kg_env%subset(isub)%sab_orb)
-                  CALL deallocate_neighbor_list_set(kg_env%subset(isub)%sab_orb(iab)%neighbor_list_set)
-               END DO
-               DEALLOCATE (kg_env%subset(isub)%sab_orb)
+               CALL release_neighbor_list_sets(kg_env%subset(isub)%sab_orb)
                CALL deallocate_task_list(kg_env%subset(isub)%task_list)
             END DO
             DEALLOCATE (kg_env%subset)

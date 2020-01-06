@@ -12,8 +12,8 @@ MODULE qs_dispersion_types
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
-                                              neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -128,7 +128,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_release', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, iab
+      INTEGER                                            :: i
 
       IF (ASSOCIATED(dispersion_env)) THEN
          IF (ASSOCIATED(dispersion_env%maxci)) THEN
@@ -163,18 +163,8 @@ CONTAINS
             DEALLOCATE (dispersion_env%d2y_dx2)
          END IF
          ! neighborlists
-         IF (ASSOCIATED(dispersion_env%sab_vdw)) THEN
-            DO iab = 1, SIZE(dispersion_env%sab_vdw)
-               CALL deallocate_neighbor_list_set(dispersion_env%sab_vdw(iab)%neighbor_list_set)
-            END DO
-            DEALLOCATE (dispersion_env%sab_vdw)
-         END IF
-         IF (ASSOCIATED(dispersion_env%sab_cn)) THEN
-            DO iab = 1, SIZE(dispersion_env%sab_cn)
-               CALL deallocate_neighbor_list_set(dispersion_env%sab_cn(iab)%neighbor_list_set)
-            END DO
-            DEALLOCATE (dispersion_env%sab_cn)
-         END IF
+         CALL release_neighbor_list_sets(dispersion_env%sab_vdw)
+         CALL release_neighbor_list_sets(dispersion_env%sab_cn)
 
          DEALLOCATE (dispersion_env)
 

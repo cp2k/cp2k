@@ -16,6 +16,6 @@ HF-dfield-gopt.inp                                     1      1e-09             
 HF-dfield.inp                                          1      1e-12              -5.66099020967573
 HF-dfield-debug.inp                                    0      1e-12
 HF-loc-field.inp                                       1      1e-12              -5.65286303322644
-HF-loc-field-gopt.inp                                  1      5e-10              -5.669762483711
+HF-loc-field-gopt.inp                                  1      5e-09              -5.669762483711
 HF-loc-field-debug.inp                                 0      1e-12
 #EOF

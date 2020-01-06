@@ -33,8 +33,8 @@ MODULE mao_basis
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
-   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
-                                              neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: setup_neighbor_list
    USE qs_overlap,                      ONLY: build_overlap_matrix_simple
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -268,18 +268,8 @@ CONTAINS
       CALL mao_optimize(mao_coef, matrix_q, matrix_smm, electra, mao_max_iter, mao_eps_grad, eps1, iw)
 
       ! Deallocate the neighbor list structure
-      IF (ASSOCIATED(smm_list)) THEN
-         DO iab = 1, SIZE(smm_list)
-            CALL deallocate_neighbor_list_set(smm_list(iab)%neighbor_list_set)
-         END DO
-         DEALLOCATE (smm_list)
-      END IF
-      IF (ASSOCIATED(smo_list)) THEN
-         DO iab = 1, SIZE(smo_list)
-            CALL deallocate_neighbor_list_set(smo_list(iab)%neighbor_list_set)
-         END DO
-         DEALLOCATE (smo_list)
-      END IF
+      CALL release_neighbor_list_sets(smm_list)
+      CALL release_neighbor_list_sets(smo_list)
 
       DEALLOCATE (mao_basis_set_list, orb_basis_set_list)
 

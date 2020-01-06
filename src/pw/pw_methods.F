@@ -100,16 +100,32 @@ CONTAINS
       CPASSERT(pw%ref_count > 0)
       IF (pw%in_use == REALDATA1D) THEN
          ns = SIZE(pw%cr)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw)
+!$OMP WORKSHARE
          pw%cr(:) = 0._dp
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
       ELSE IF (pw%in_use == COMPLEXDATA1D) THEN
          ns = SIZE(pw%cc)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw)
+!$OMP WORKSHARE
          pw%cc(:) = CMPLX(0._dp, 0._dp, KIND=dp)
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
       ELSE IF (pw%in_use == REALDATA3D) THEN
          ns = SIZE(pw%cr3d)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw)
+!$OMP WORKSHARE
          pw%cr3d(:, :, :) = 0._dp
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
       ELSE IF (pw%in_use == COMPLEXDATA3D) THEN
          ns = SIZE(pw%cc3d)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw)
+!$OMP WORKSHARE
          pw%cc3d(:, :, :) = CMPLX(0._dp, 0._dp, KIND=dp)
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
       ELSE
          CPABORT("No possible data field!")
       END IF
@@ -278,11 +294,19 @@ CONTAINS
             END DO
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
             ns = SIZE(pw1%cr3d)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
+!$OMP WORKSHARE
             pw2%cr3d(:, :, :) = pw1%cr3d(:, :, :)
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
          ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
                   pw2%in_use == COMPLEXDATA3D) THEN
             ns = SIZE(pw1%cc3d)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
+!$OMP WORKSHARE
             pw2%cc3d(:, :, :) = pw1%cc3d(:, :, :)
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
          ELSE
             CPABORT("No suitable data field")
          END IF
@@ -318,16 +342,32 @@ CONTAINS
       SELECT CASE (pw%in_use)
       CASE (REALDATA1D)
          ns = SIZE(pw%cr)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw,A)
+!$OMP WORKSHARE
          pw%cr(:) = a*pw%cr(:)
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
       CASE (COMPLEXDATA1D)
          ns = 2*SIZE(pw%cc)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw,A)
+!$OMP WORKSHARE
          pw%cc(:) = a*pw%cc(:)
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
       CASE (REALDATA3D)
          ns = SIZE(pw%cr3d)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw,A)
+!$OMP WORKSHARE
          pw%cr3d(:, :, :) = a*pw%cr3d(:, :, :)
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
       CASE (COMPLEXDATA3D)
          ns = 2*SIZE(pw%cc3d)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw,A)
+!$OMP WORKSHARE
          pw%cc3d(:, :, :) = a*pw%cc3d(:, :, :)
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
       CASE DEFAULT
          CPABORT("No suitable data field")
       END SELECT
@@ -798,19 +838,35 @@ CONTAINS
             END IF
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
+!$OMP WORKSHARE
                pw2%cr3d = pw2%cr3d+pw1%cr3d
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
                flop = REAL(SIZE(pw2%cr3d), KIND=dp)
             ELSE
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
+!$OMP WORKSHARE
                pw2%cr3d = pw2%cr3d+my_alpha*pw1%cr3d
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
                flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
                   pw2%in_use == COMPLEXDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
+!$OMP WORKSHARE
                pw2%cc3d = pw2%cc3d+pw1%cc3d
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
                flop = REAL(2*SIZE(pw2%cc3d), KIND=dp)
             ELSE
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
+!$OMP WORKSHARE
                pw2%cc3d = pw2%cc3d+my_alpha*pw1%cc3d
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
                flop = REAL(4*SIZE(pw2%cc3d), KIND=dp)
             END IF
          ELSE
@@ -979,39 +1035,71 @@ CONTAINS
          IF (pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D .AND. &
              pw_out%in_use == REALDATA1D) THEN
             IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
+!$OMP WORKSHARE
                pw_out%cr = pw_out%cr + pw1%cr + pw2%cr
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
                flop = REAL(2*SIZE(pw2%cr), KIND=dp)
             ELSE
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
+!$OMP WORKSHARE
                pw_out%cr = pw_out%cr + my_alpha*pw1%cr*pw2%cr
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
                flop = REAL(3*SIZE(pw2%cr), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. &
                   pw2%in_use == COMPLEXDATA1D .AND. &
                   pw_out%in_use == COMPLEXDATA1D) THEN
             IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
+!$OMP WORKSHARE
                pw_out%cc = pw_out%cc + pw1%cc*pw2%cc
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
                flop = REAL(3*SIZE(pw2%cc), KIND=dp)
             ELSE
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
+!$OMP WORKSHARE
                pw_out%cc = pw_out%cc + my_alpha*pw1%cc*pw2%cc
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
                flop = REAL(6*SIZE(pw2%cc), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
                   pw_out%in_use == REALDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
+!$OMP WORKSHARE
                pw_out%cr3d = pw_out%cr3d+pw1%cr3d*pw2%cr3d
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
                flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
             ELSE
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
+!$OMP WORKSHARE
                pw_out%cr3d = pw_out%cr3d+my_alpha*pw1%cr3d*pw2%cr3d
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
                flop = REAL(3*SIZE(pw2%cr3d), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
                   pw2%in_use == COMPLEXDATA3D .AND. &
                   pw_out%in_use == COMPLEXDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
+!$OMP WORKSHARE
                pw_out%cc3d = pw_out%cc3d+pw1%cc3d*pw2%cc3d
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
                flop = REAL(3*SIZE(pw2%cc3d), KIND=dp)
             ELSE
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
+!$OMP WORKSHARE
                pw_out%cc3d = pw_out%cc3d+my_alpha*pw1%cc3d*pw2%cc3d
+!$OMP END WORKSHARE
+!$OMP END PARALLEL
                flop = REAL(6*SIZE(pw2%cc3d), KIND=dp)
             END IF
          ELSE
@@ -1222,7 +1310,7 @@ CONTAINS
 
       IF (PRESENT(scale)) THEN
 
-!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts, mapl,mapm,mapn,ghat,scale,pw,c)
+!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts,mapl,mapm,mapn,ghat,scale,pw,c)
          DO gpt = 1, ngpts
 
             l = mapl(ghat(1, gpt)) + 1
@@ -1234,7 +1322,7 @@ CONTAINS
 
       ELSE
 
-!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts, mapl,mapm,mapn,ghat,pw,c)
+!$OMP PARALLEL DO PRIVATE(gpt,l,m,n) DEFAULT(NONE) SHARED(ngpts,mapl,mapm,mapn,ghat,pw,c)
          DO gpt = 1, ngpts
 
             l = mapl(ghat(1, gpt)) + 1
@@ -1922,6 +2010,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_ab', routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
       IF (pw1%pw_grid%id_nr /= pw2%pw_grid%id_nr) THEN
          CPABORT("Grids incompatible")
       END IF
@@ -1974,6 +2065,7 @@ CONTAINS
 
       IF (pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
          CALL mp_sum(integral_value, pw1%pw_grid%para%group)
+      CALL timestop(handle)
 
    END FUNCTION pw_integral_ab
 
@@ -1991,6 +2083,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_a2b', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
       IF (pw1%pw_grid%id_nr /= pw2%pw_grid%id_nr) THEN
          CPABORT("Grids incompatible")
       END IF
@@ -2017,6 +2112,7 @@ CONTAINS
 
       IF (pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
          CALL mp_sum(integral_value, pw1%pw_grid%para%group)
+      CALL timestop(handle)
 
    END FUNCTION pw_integral_a2b
 

@@ -63,9 +63,10 @@ MODULE qs_tensors
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_neighbor_list_types,          ONLY: &
-        deallocate_neighbor_list_set, get_iterator_info, get_neighbor_list_set_p, &
-        neighbor_list_iterate, neighbor_list_iterator_create, neighbor_list_iterator_p_type, &
-        neighbor_list_iterator_release, neighbor_list_set_p_type, nl_sub_iterate
+        get_iterator_info, get_neighbor_list_set_p, neighbor_list_iterate, &
+        neighbor_list_iterator_create, neighbor_list_iterator_p_type, &
+        neighbor_list_iterator_release, neighbor_list_set_p_type, nl_sub_iterate, &
+        release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: atom2d_build,&
                                               atom2d_cleanup,&
                                               build_neighbor_lists,&
@@ -86,7 +87,7 @@ MODULE qs_tensors
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tensors'
 
    PUBLIC :: build_3c_neighbor_lists, &
-             neighbor_list_3c_destroy, neighbor_list_2c_destroy, neighbor_list_3c_iterate, neighbor_list_3c_iterator_create, &
+             neighbor_list_3c_destroy, neighbor_list_3c_iterate, neighbor_list_3c_iterator_create, &
              neighbor_list_3c_iterator_destroy, get_3c_iterator_info, build_3c_integrals, &
              contiguous_tensor_dist, &
              build_2c_neighbor_lists, build_2c_integrals, cutoff_screen_factor, tensor_change_pgrid
@@ -235,24 +236,6 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param ij_list ...
-! **************************************************************************************************
-   SUBROUTINE neighbor_list_2c_destroy(ij_list)
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: ij_list
-
-      INTEGER                                            :: i
-
-      DO i = 1, SIZE(ij_list)
-         CALL deallocate_neighbor_list_set(ij_list(i)%neighbor_list_set)
-      END DO
-
-      DEALLOCATE (ij_list)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
 !> \brief Build a 3-center neighbor list
 !> \param ijk_list 3c neighbor list for atom triples i, j, k
 !> \param basis_i basis object for atoms i
@@ -376,8 +359,8 @@ CONTAINS
    SUBROUTINE neighbor_list_3c_destroy(ijk_list)
       TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: ijk_list
 
-      CALL neighbor_list_2c_destroy(ijk_list%ij_list)
-      CALL neighbor_list_2c_destroy(ijk_list%jk_list)
+      CALL release_neighbor_list_sets(ijk_list%ij_list)
+      CALL release_neighbor_list_sets(ijk_list%jk_list)
 
       IF (ijk_list%owns_dist) THEN
          CALL distribution_3d_destroy(ijk_list%dist_3d)
