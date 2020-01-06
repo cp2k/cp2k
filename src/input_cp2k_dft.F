@@ -87,15 +87,16 @@ MODULE input_cp2k_dft
         sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
         smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, tddfpt_davidson, &
         tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, &
-        tddfpt_triplet, use_coulomb, use_diff, use_no, use_restart_wfn, use_rt_restart, &
-        use_scf_wfn, wannier_projection, weight_type_mass, weight_type_unit, wfi_aspc_nr, &
-        wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
-        wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, &
-        xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, &
-        xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, &
-        xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tp_fh, xas_tp_flex, xas_tp_hh, &
-        xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        tddfpt_triplet, use_coulomb, use_diff, use_mom_ref_coac, use_mom_ref_com, &
+        use_mom_ref_user, use_mom_ref_zero, use_no, use_restart_wfn, use_rt_restart, use_scf_wfn, &
+        wannier_projection, weight_type_mass, weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, &
+        wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
+        wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
+        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, &
+        xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, &
+        xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_not_excited, &
+        xas_tdp_by_index, xas_tdp_by_kind, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, &
+        xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
@@ -1715,6 +1716,42 @@ CONTAINS
                           n_var=1, &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="SECOND_REFERENCE_POINT", &
+                          description="Use second reference point", &
+                          usage="SECOND_REFERENCE_POINT .TRUE.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_2", &
+                          variants=s2a("REF_2"), &
+                          description="Define a second reference point for the calculation of the electrostatic moment.", &
+                          usage="REFERENCE_2 COM", &
+                          enum_c_vals=s2a("COM", "COAC", "USER_DEFINED", "ZERO"), &
+                          enum_desc=s2a("Use Center of Mass", &
+                                        "Use Center of Atomic Charges", &
+                                        "Use User Defined Point (Keyword:REF_POINT)", &
+                                        "Use Origin of Coordinate System"), &
+                          enum_i_vals=(/use_mom_ref_com, &
+                                        use_mom_ref_coac, &
+                                        use_mom_ref_user, &
+                                        use_mom_ref_zero/), &
+                          default_i_val=use_mom_ref_zero)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_POINT_2", &
+                          variants=s2a("REF_POINT_2"), &
+                          description="Fixed second reference point for the calculations of the electrostatic moment.", &
+                          usage="REFERENCE_POINT_2 x y z", &
+                          repeats=.FALSE., &
+                          n_var=3, default_r_vals=(/0._dp, 0._dp, 0._dp/), &
+                          type_of_var=real_t, &
+                          unit_str='bohr')
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
