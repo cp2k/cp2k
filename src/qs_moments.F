@@ -2058,7 +2058,7 @@ CONTAINS
                rmom_vel(4) = -2*qupole_der(1) - rmom(1, 1)
                rmom_vel(5) = -qupole_der(2) - qupole_der(4)
                rmom_vel(6) = -qupole_der(3) - qupole_der(7)
-               rmom_vel(7) = -2*(qupole_der(5)) - rmom(1, 1)
+               rmom_vel(7) = -2*qupole_der(5) - rmom(1, 1)
                rmom_vel(8) = -qupole_der(6) - qupole_der(8)
                rmom_vel(9) = -2*qupole_der(9) - rmom(1, 1)
 
@@ -2287,7 +2287,7 @@ CONTAINS
          IF (PRESENT(mmom)) THEN
             IF (nmom >= 1) THEN
                dd = SQRT(SUM(mmom(1:3)**2))
-               WRITE (unit_number, "(T3,A)") "Magnetic Dipole Moment (only orbital contrib.) [a.u.] incl. com_nl"
+               WRITE (unit_number, "(T3,A)") "Orbital angular momentum [a.u.] incl. com_nl"
                WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
                   (TRIM(rlab(i + 1)), "=", mmom(i), i=1, 3), "Total=", dd
             END IF
