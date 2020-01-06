@@ -1678,7 +1678,6 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_xc_admm', routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: h = 0.001_dp
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, ncol, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo

@@ -22,8 +22,8 @@ MODULE ec_env_types
                                               qs_dispersion_type
    USE qs_force_types,                  ONLY: deallocate_qs_force,&
                                               qs_force_type
-   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
-                                              neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_p_env_types,                  ONLY: p_env_release,&
                                               qs_p_env_type
    USE qs_period_efield_types,          ONLY: efield_berry_release,&
@@ -109,24 +109,9 @@ CONTAINS
 
       IF (ASSOCIATED(ec_env)) THEN
          ! neighbor lists
-         IF (ASSOCIATED(ec_env%sab_orb)) THEN
-            DO iab = 1, SIZE(ec_env%sab_orb)
-               CALL deallocate_neighbor_list_set(ec_env%sab_orb(iab)%neighbor_list_set)
-            END DO
-            DEALLOCATE (ec_env%sab_orb)
-         END IF
-         IF (ASSOCIATED(ec_env%sac_ppl)) THEN
-            DO iab = 1, SIZE(ec_env%sac_ppl)
-               CALL deallocate_neighbor_list_set(ec_env%sac_ppl(iab)%neighbor_list_set)
-            END DO
-            DEALLOCATE (ec_env%sac_ppl)
-         END IF
-         IF (ASSOCIATED(ec_env%sap_ppnl)) THEN
-            DO iab = 1, SIZE(ec_env%sap_ppnl)
-               CALL deallocate_neighbor_list_set(ec_env%sap_ppnl(iab)%neighbor_list_set)
-            END DO
-            DEALLOCATE (ec_env%sap_ppnl)
-         END IF
+         CALL release_neighbor_list_sets(ec_env%sab_orb)
+         CALL release_neighbor_list_sets(ec_env%sac_ppl)
+         CALL release_neighbor_list_sets(ec_env%sap_ppnl)
          ! forces
          IF (ASSOCIATED(ec_env%force)) CALL deallocate_qs_force(ec_env%force)
          ! operator matrices
