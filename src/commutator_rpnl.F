@@ -789,8 +789,8 @@ CONTAINS
                            np = SIZE(acint, 2)
                            nb = SIZE(bcint, 1)
 !$OMP CRITICAL(h_block_critical)
-                           ! r*Vnl
                            IF (my_rv) THEN
+                              ! r*Vnl
                               CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 2), na, &
                                          bcint(1, 1, 1), nb, 1.0_dp, blocks_rv(1)%block, SIZE(blocks_rv(1)%block, 1)) ! xV
                               CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 3), na, &
@@ -805,8 +805,8 @@ CONTAINS
                                          bcint(1, 1, 3), nb, 1.0_dp, blocks_rv(2)%block, SIZE(blocks_rv(2)%block, 1)) ! -Vy
                               CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
                                          bcint(1, 1, 4), nb, 1.0_dp, blocks_rv(3)%block, SIZE(blocks_rv(3)%block, 1)) ! -Vz
-
                            ENDIF
+
                            IF (my_rxrv) THEN
                               ! x-component (y [z,Vnl] - z [y, Vnl])
                               CALL dgemm("N", "T", na, nb, np, 1.0_dp, achint(1, 1, 9), na, &
