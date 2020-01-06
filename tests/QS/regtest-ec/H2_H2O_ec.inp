@@ -4,15 +4,11 @@
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
-      CUTOFF 100
-      &RS_GRID
-         MAX_DISTRIBUTED_LEVEL 5
-      &END
-      SKIP_LOAD_BALANCE_DISTRIBUTED
+      CUTOFF 200
     &END MGRID
     &QS
-      EPS_DEFAULT 5.8E-9
-      EPS_KG_ORB 1.0E-6
+      EPS_DEFAULT 1.E-10
+      EPS_KG_ORB 1.0E-5
       LS_SCF
       KG_METHOD
     &END QS
@@ -26,25 +22,22 @@
     &KG_METHOD
        &XC
          &XC_FUNCTIONAL
-           &KE_GGA
-             FUNCTIONAL LLP
+           &TF
            &END
          &END
-         &XC_GRID
-           XC_DERIV SPLINE2
-         &END
        &END XC
-       &ENERGY_CORRECTION
-          &XC
-            &XC_FUNCTIONAL
-              &PADE
-              &END
-            &END
-          &END XC
-       &END ENERGY_CORRECTION
     &END KG_METHOD
+    &ENERGY_CORRECTION
+      HARRIS_BASIS HARRIS
+      &XC
+        &XC_FUNCTIONAL 
+           &PBE
+           &END
+        &END
+      &END XC
+    &END ENERGY_CORRECTION
     &SCF
-      EPS_SCF 1.0E-8
+      EPS_SCF 1.0E-5
       SCF_GUESS ATOMIC 
     &END
     &XC
@@ -52,14 +45,11 @@
         &PADE
         &END
       &END
-      &XC_GRID
-        XC_DERIV SPLINE2
-      &END
     &END XC
   &END DFT
   &SUBSYS
     &CELL
-      ABC 4.0 6.0 3.0
+      ABC 6.0 6.0 6.0
     &END CELL
     &COORD
     O   0.000000    0.000000   -0.065587 H2O
@@ -69,11 +59,13 @@
     H   2.000000   -2.500000    0.000000 H2
     &END COORD
     &KIND H
-      BASIS_SET SZV-MOLOPT-GTH
+      BASIS_SET ORB SZV-MOLOPT-GTH
+      BASIS_SET HARRIS TZV2P-MOLOPT-GTH
       POTENTIAL GTH-PADE-q1
     &END KIND
     &KIND O
-      BASIS_SET DZVP-MOLOPT-GTH
+      BASIS_SET ORB SZV-MOLOPT-GTH
+      BASIS_SET HARRIS TZV2P-MOLOPT-GTH
       POTENTIAL GTH-PADE-q6
     &END KIND
   &END SUBSYS
@@ -81,6 +73,5 @@
 &GLOBAL
   PROJECT H2
   RUN_TYPE ENERGY
-  PRINT_LEVEL MEDIUM
-  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
+  PRINT_LEVEL LOW
 &END GLOBAL

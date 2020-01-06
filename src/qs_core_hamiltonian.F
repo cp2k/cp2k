@@ -287,19 +287,17 @@ CONTAINS
                                       sab_nl=sab_orb, calculate_forces=.TRUE., &
                                       matrixkp_p=matrix_p, &
                                       eps_filter=eps_filter)
-         IF (calculate_forces) THEN
-            ! *** If LSD, then recover alpha density and beta density     ***
-            ! *** from the total density (1) and the spin density (2)     ***
-            ! *** The W matrix is neglected, since it will be destroyed   ***
-            ! *** in the calling force routine after leaving this routine ***
-            IF (SIZE(matrix_p, 1) == 2) THEN
-               DO img = 1, nimages
-                  CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
-                                 alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
-                  CALL dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
-                                 alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
-               END DO
-            END IF
+         ! *** If LSD, then recover alpha density and beta density     ***
+         ! *** from the total density (1) and the spin density (2)     ***
+         ! *** The W matrix is neglected, since it will be destroyed   ***
+         ! *** in the calling force routine after leaving this routine ***
+         IF (SIZE(matrix_p, 1) == 2) THEN
+            DO img = 1, nimages
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                              alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
+               CALL dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
+                              alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+            END DO
          END IF
       ELSE
          ! S matrix

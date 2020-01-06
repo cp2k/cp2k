@@ -7,38 +7,19 @@
       CUTOFF 200
     &END MGRID
     &QS
-      EPS_DEFAULT 1.E-14
+      EPS_DEFAULT 1.E-10
       EPS_KG_ORB 1.0E-5
-      LS_SCF
-      KG_METHOD
     &END QS
-    &LS_SCF
-      MAX_SCF     40
-      EPS_FILTER  1.0E-6
-      EPS_SCF     1.0E-7
-      MU         -0.1
-      PURIFICATION_METHOD TRS4
-    &END
-    &KG_METHOD
+    &ENERGY_CORRECTION
+      ENERGY_FUNCTIONAL HARRIS
+      HARRIS_BASIS ORBITAL 
       &XC
-        &XC_FUNCTIONAL
-          &TF
-          &END
+        &XC_FUNCTIONAL 
+           &PBE 
+           &END
         &END
       &END XC
-       &ENERGY_CORRECTION
-         HARRIS_BASIS HARRIS
-         MAO
-         MAO_MAX_ITER 2000
-         MAO_EPS_GRAD 1.e-7
-         &XC
-           &XC_FUNCTIONAL 
-              &PBE
-              &END
-           &END
-         &END XC
-       &END ENERGY_CORRECTION
-    &END KG_METHOD
+    &END ENERGY_CORRECTION
     &SCF
       EPS_SCF 1.0E-5
       SCF_GUESS ATOMIC 
@@ -52,15 +33,12 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 10.0 10.0 10.0
+      ABC 6.0 6.0 6.0
     &END CELL
     &COORD
     O     0.000000     0.000000     0.000000    H2O1
     H     0.000000     0.000000     1.000000    H2O1
     H     0.942809     0.000000    -0.333333    H2O1
-    O    -1.617979    -0.948062    -2.341650    H2O2
-    H    -2.529195    -1.296822    -2.122437    H2O2
-    H    -1.534288    -0.833088    -3.331486    H2O2
     &END COORD
     &KIND H
       BASIS_SET ORB DZVP-GTH-BLYP
@@ -77,7 +55,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT 2H2O
-  RUN_TYPE ENERGY
+  PROJECT H2O
+  RUN_TYPE ENERGY_FORCE
   PRINT_LEVEL LOW
 &END GLOBAL

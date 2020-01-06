@@ -56,6 +56,7 @@ MODULE qs_energy_types
                        ktS, & ! electronic entropic contribution
                        efermi, & ! Fermi energy
                        dftb3, & ! DFTB 3rd order correction
+                       nonscf_correction, & ! e.g. Harris correction
                        mp2, &
                        ! single excitations correction for all
                        ! non-scf orbital(density) corrections
@@ -188,6 +189,7 @@ CONTAINS
          qs_energy%surf_dipole = 0.0_dp
          qs_energy%total = 0.0_dp
          qs_energy%singles_corr = 0.0_dp
+         qs_energy%nonscf_correction = 0.0_dp
          IF (.NOT. ASSOCIATED(qs_energy%ddapc_restraint)) THEN
             ALLOCATE (qs_energy%ddapc_restraint(1))
          END IF

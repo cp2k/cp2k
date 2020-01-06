@@ -84,6 +84,7 @@ CONTAINS
                                                             scale_dDFA, scale_ddW0, scale_dEx1, &
                                                             scale_dEx2, total_energy_xc
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_resp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -93,7 +94,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (para_env, dft_control, adiabatic_rescaling_section, hfx_sections, &
-               input, xc_section, rho_xc, ks_env, rho_ao)
+               input, xc_section, rho_xc, ks_env, rho_ao, rho_ao_resp)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -146,9 +147,11 @@ CONTAINS
             IF (calculate_forces) THEN
                CPASSERT(.NOT. use_virial)
                !! we also have to scale the forces!!!!
-               CALL derivatives_four_center(qs_env, rho_ao, hfx_sections, para_env, 1, use_virial, &
+               CALL derivatives_four_center(qs_env, rho_ao, rho_ao_resp, hfx_sections, &
+                                            para_env, 1, use_virial, &
                                             adiabatic_rescale_factor=scale_dEx1)
-               CALL derivatives_four_center(qs_env, rho_ao, hfx_sections, para_env, 2, use_virial, &
+               CALL derivatives_four_center(qs_env, rho_ao, rho_ao_resp, hfx_sections, &
+                                            para_env, 2, use_virial, &
                                             adiabatic_rescale_factor=scale_dEx2)
             END IF
 

@@ -24,6 +24,7 @@ MODULE hfx_admm_utils
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
@@ -223,10 +224,8 @@ CONTAINS
       REAL(dp)                                           :: eh1, ehfx, ehfxrt
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: hf_energy
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_1d, matrix_ks_aux_fit, &
-                                                            matrix_ks_aux_fit_hfx, &
-                                                            matrix_ks_aux_fit_im, matrix_ks_im, &
-                                                            rho_ao_1d
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_1d, matrix_ks_aux_fit, &
+         matrix_ks_aux_fit_hfx, matrix_ks_aux_fit_im, matrix_ks_im, rho_ao_1d, rho_ao_resp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_ks_orb, rho_ao_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
@@ -331,7 +330,12 @@ CONTAINS
             IF (dft_control%do_admm) THEN
                CALL scale_dm(qs_env, rho_ao_orb, scale_back=.FALSE.)
             END IF
-            CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
+            IF (ASSOCIATED(qs_env%mp2_env)) THEN
+               CALL get_qs_env(qs_env, matrix_p_mp2=rho_ao_resp)
+            ELSE
+               NULLIFY (rho_ao_resp)
+            END IF
+            CALL derivatives_four_center(qs_env, rho_ao_orb, rho_ao_resp, hfx_sections, &
                                          para_env, irep, use_virial)
             !Scale auxiliary density matrix for ADMMP back with 1/gsi(ispin)
             IF (dft_control%do_admm) THEN
@@ -376,7 +380,8 @@ CONTAINS
             END DO
 
             IF (calculate_forces .AND. .NOT. do_adiabatic_rescaling) THEN
-               CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
+               NULLIFY (rho_ao_resp)
+               CALL derivatives_four_center(qs_env, rho_ao_orb, rho_ao_resp, hfx_sections, &
                                             para_env, irep, use_virial)
             END IF
 
@@ -618,14 +623,17 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_admm_xc_section', &
          routineP = moduleN//':'//routineN
+      LOGICAL, PARAMETER                                 :: debug_functional = .FALSE.
 
       CHARACTER(LEN=20)                                  :: name_x_func
-      INTEGER                                            :: hfx_potential_type, ifun, nfun
+      INTEGER                                            :: hfx_potential_type, ifun, iounit, nfun
       LOGICAL                                            :: funct_found
       REAL(dp)                                           :: cutoff_radius, hfx_fraction, omega, &
                                                             scale_x
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: xc_fun, xc_fun_section
 
+      logger => cp_get_default_logger()
       NULLIFY (admm_env%xc_section_aux, admm_env%xc_section_primary)
 
       CALL get_qs_env(qs_env)
@@ -905,8 +913,11 @@ CONTAINS
 
       END IF
 
-      IF (1 == 0) THEN
-         WRITE (*, *) "primary"
+      IF (debug_functional) THEN
+         iounit = cp_logger_get_default_io_unit(logger)
+         IF (iounit > 0) THEN
+            WRITE (iounit, "(A)") " ADMM Primary Basis Set Functional"
+         END IF
          xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_primary, "XC_FUNCTIONAL")
          ifun = 0
          funct_found = .FALSE.
@@ -917,20 +928,23 @@ CONTAINS
 
             scale_x = -1000.0_dp
             IF (xc_fun%section%name /= "LYP" .AND. xc_fun%section%name /= "VWN") THEN
-               CALL section_vals_val_get(xc_fun, "SCALE_X", &
-                                         r_val=scale_x)
+               CALL section_vals_val_get(xc_fun, "SCALE_X", r_val=scale_x)
             END IF
             IF (xc_fun%section%name == "XWPBE") THEN
-               CALL section_vals_val_get(xc_fun, "SCALE_X0", &
-                                         r_val=hfx_fraction)
-
-               WRITE (*, *) xc_fun%section%name, scale_x, hfx_fraction
+               CALL section_vals_val_get(xc_fun, "SCALE_X0", r_val=hfx_fraction)
+               IF (iounit > 0) THEN
+                  WRITE (iounit, "(T5,A,T25,2F10.3)") TRIM(xc_fun%section%name), scale_x, hfx_fraction
+               END IF
             ELSE
-               WRITE (*, *) xc_fun%section%name, scale_x
+               IF (iounit > 0) THEN
+                  WRITE (iounit, "(T5,A,T25,F10.3)") TRIM(xc_fun%section%name), scale_x
+               END IF
             END IF
          END DO
 
-         WRITE (*, *) "auxiliary"
+         IF (iounit > 0) THEN
+            WRITE (iounit, "(A)") " Auxiliary Basis Set Functional"
+         END IF
          xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_aux, "XC_FUNCTIONAL")
          ifun = 0
          funct_found = .FALSE.
@@ -940,16 +954,17 @@ CONTAINS
             IF (.NOT. ASSOCIATED(xc_fun)) EXIT
             scale_x = -1000.0_dp
             IF (xc_fun%section%name /= "LYP" .AND. xc_fun%section%name /= "VWN") THEN
-               CALL section_vals_val_get(xc_fun, "SCALE_X", &
-                                         r_val=scale_x)
+               CALL section_vals_val_get(xc_fun, "SCALE_X", r_val=scale_x)
             END IF
             IF (xc_fun%section%name == "XWPBE") THEN
-               CALL section_vals_val_get(xc_fun, "SCALE_X0", &
-                                         r_val=hfx_fraction)
-
-               WRITE (*, *) xc_fun%section%name, scale_x, hfx_fraction
+               CALL section_vals_val_get(xc_fun, "SCALE_X0", r_val=hfx_fraction)
+               IF (iounit > 0) THEN
+                  WRITE (iounit, "(T5,A,T25,2F10.3)") TRIM(xc_fun%section%name), scale_x, hfx_fraction
+               END IF
             ELSE
-               WRITE (*, *) xc_fun%section%name, scale_x
+               IF (iounit > 0) THEN
+                  WRITE (iounit, "(T5,A,T25,F10.3)") TRIM(xc_fun%section%name), scale_x
+               END IF
             END IF
          END DO
       END IF

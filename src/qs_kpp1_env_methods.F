@@ -114,8 +114,8 @@ CONTAINS
 
       ALLOCATE (kpp1_env)
       NULLIFY (kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r, &
-               kpp1_env%rho_set, &
-               kpp1_env%deriv_set, kpp1_env%spin_pot, kpp1_env%grad_pot, &
+               kpp1_env%rho_set, kpp1_env%deriv_set, kpp1_env%spin_pot, kpp1_env%grad_pot, &
+               kpp1_env%rho_set_admm, kpp1_env%deriv_set_admm, &
                kpp1_env%ndiag_term)
       kpp1_env%ref_count = 1
       last_kpp1_id_nr = last_kpp1_id_nr + 1
@@ -660,11 +660,9 @@ CONTAINS
          END IF
 
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-         CALL section_vals_val_get(input, "DFT%EXCITATIONS", &
-                                   i_val=excitations)
+         CALL section_vals_val_get(input, "DFT%EXCITATIONS", i_val=excitations)
          IF (excitations == tddfpt_excitations) THEN
             xc_section => section_vals_get_subs_vals(input, "DFT%TDDFPT%XC")
-!FM this check should already had happened and section made explicit, give an error?
             CALL section_vals_get(xc_section, explicit=explicit)
             IF (.NOT. explicit) THEN
                xc_section => section_vals_get_subs_vals(input, "DFT%XC")

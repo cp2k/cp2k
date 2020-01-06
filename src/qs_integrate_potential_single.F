@@ -503,7 +503,7 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
-      NULLIFY (virial, atprop, dft_control)
+      NULLIFY (virial, force, atprop, dft_control)
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
 
@@ -553,16 +553,9 @@ CONTAINS
                              alpha_core_charge=alpha_core_charge, &
                              ccore_charge=ccore_charge)
 
-            IF (paw_atom) THEN
-               force(ikind)%rho_core(:, :) = 0.0_dp
-               CYCLE
-            END IF
+            IF (paw_atom) CYCLE
+
             pab(1, 1) = -ccore_charge
-
-            IF (ASSOCIATED(force)) THEN
-               force(ikind)%rho_core = 0.0_dp
-            ENDIF
-
             IF (alpha_core_charge == 0.0_dp .OR. pab(1, 1) == 0.0_dp) CYCLE
 
             CALL reallocate(cores, 1, natom_of_kind)
@@ -606,10 +599,8 @@ CONTAINS
                                                  my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
 
                IF (ASSOCIATED(force)) THEN
-                  force(ikind)%rho_core(:, iatom) = &
-                     force(ikind)%rho_core(:, iatom) + force_a(:)
-               ENDIF
-
+                  force(ikind)%rho_core(:, iatom) = force(ikind)%rho_core(:, iatom) + force_a(:)
+               END IF
                IF (use_virial) THEN
                   virial%pv_virial = virial%pv_virial + my_virial_a
                   virial%pv_hartree = virial%pv_hartree + my_virial_a

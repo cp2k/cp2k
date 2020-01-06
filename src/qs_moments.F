@@ -107,8 +107,9 @@ CONTAINS
 !> \param nmoments ...
 !> \param ref_point ...
 !> \param ref_points ...
+!> \param basis_type ...
 ! **************************************************************************************************
-   SUBROUTINE build_local_moment_matrix(qs_env, moments, nmoments, ref_point, ref_points)
+   SUBROUTINE build_local_moment_matrix(qs_env, moments, nmoments, ref_point, ref_points, basis_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: moments
@@ -116,6 +117,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: ref_point
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: ref_points
+      CHARACTER(len=*), OPTIONAL                         :: basis_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moment_matrix', &
          routineP = moduleN//':'//routineN
@@ -164,7 +166,8 @@ CONTAINS
 
       ! Allocate work storage
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
-                           maxco=maxco, maxsgf=maxsgf)
+                           maxco=maxco, maxsgf=maxsgf, &
+                           basis_type=basis_type)
 
       ALLOCATE (mab(maxco, maxco, nm))
       mab(:, :, :) = 0.0_dp
@@ -180,7 +183,7 @@ CONTAINS
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a, basis_type=basis_type)
          IF (ASSOCIATED(basis_set_a)) THEN
             basis_set_list(ikind)%gto_basis_set => basis_set_a
          ELSE
@@ -332,8 +335,9 @@ CONTAINS
 !> \param nmoments ...
 !> \param ref_point ...
 !> \param ref_points ...
+!> \param basis_type ...
 ! **************************************************************************************************
-   SUBROUTINE build_local_magmom_matrix(qs_env, magmom, nmoments, ref_point, ref_points)
+   SUBROUTINE build_local_magmom_matrix(qs_env, magmom, nmoments, ref_point, ref_points, basis_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: magmom
@@ -341,6 +345,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: ref_point
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: ref_points
+      CHARACTER(len=*), OPTIONAL                         :: basis_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_magmom_matrix', &
          routineP = moduleN//':'//routineN
@@ -416,7 +421,7 @@ CONTAINS
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a, basis_type=basis_type)
          IF (ASSOCIATED(basis_set_a)) THEN
             basis_set_list(ikind)%gto_basis_set => basis_set_a
          ELSE
@@ -723,12 +728,14 @@ CONTAINS
 !> \param cosmat ...
 !> \param sinmat ...
 !> \param kvec ...
+!> \param basis_type ...
 ! **************************************************************************************************
-   SUBROUTINE build_berry_kpoint_matrix(qs_env, cosmat, sinmat, kvec)
+   SUBROUTINE build_berry_kpoint_matrix(qs_env, cosmat, sinmat, kvec, basis_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: cosmat, sinmat
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: kvec
+      CHARACTER(len=*), OPTIONAL                         :: basis_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_kpoint_matrix', &
          routineP = moduleN//':'//routineN
@@ -785,7 +792,7 @@ CONTAINS
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type=basis_type)
          IF (ASSOCIATED(basis_set)) THEN
             basis_set_list(ikind)%gto_basis_set => basis_set
          ELSE

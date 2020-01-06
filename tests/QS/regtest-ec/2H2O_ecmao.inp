@@ -26,17 +26,17 @@
            &END
          &END
        &END XC
-       &ENERGY_CORRECTION
-         HARRIS_BASIS HARRIS
-         MAO
-         &XC
-           &XC_FUNCTIONAL 
-              &PBE
-              &END
-           &END
-         &END XC
-       &END ENERGY_CORRECTION
     &END KG_METHOD
+    &ENERGY_CORRECTION
+      HARRIS_BASIS HARRIS
+      MAO
+      &XC
+        &XC_FUNCTIONAL 
+           &PBE
+           &END
+        &END
+      &END XC
+    &END ENERGY_CORRECTION
     &SCF
       EPS_SCF 1.0E-5
       SCF_GUESS ATOMIC 

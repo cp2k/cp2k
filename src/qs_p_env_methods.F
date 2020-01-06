@@ -152,6 +152,7 @@ CONTAINS
       ALLOCATE (p_env)
       NULLIFY (p_env%kpp1, &
                p_env%p1, &
+               p_env%w1, &
                p_env%m_epsilon, &
                p_env%psi0d, &
                p_env%S_psi0, &

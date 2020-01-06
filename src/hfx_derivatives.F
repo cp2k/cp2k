@@ -94,11 +94,13 @@ CONTAINS
 !>      forces%fock_4c arrays. Uses all 8 eri symmetries
 !> \param qs_env ...
 !> \param rho_ao density matrix
+!> \param rho_ao_resp relaxed density matrix from response
 !> \param hfx_section HFX input section
 !> \param para_env para_env
 !> \param irep ID of HFX replica
 !> \param use_virial ...
 !> \param adiabatic_rescale_factor parameter used for MCY3 hybrid
+!> \param resp_only Calculate only forces from response density
 !> \par History
 !>      06.2007 created [Manuel Guidon]
 !>      08.2007 optimized load balance [Manuel Guidon]
@@ -108,16 +110,18 @@ CONTAINS
 !>              [Tobias Binninger + Valery Weber]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE derivatives_four_center(qs_env, rho_ao, hfx_section, para_env, &
-                                      irep, use_virial, adiabatic_rescale_factor)
+   SUBROUTINE derivatives_four_center(qs_env, rho_ao, rho_ao_resp, hfx_section, para_env, &
+                                      irep, use_virial, adiabatic_rescale_factor, resp_only)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_resp
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: irep
-      LOGICAL                                            :: use_virial
+      INTEGER, INTENT(IN)                                :: irep
+      LOGICAL, INTENT(IN)                                :: use_virial
       REAL(dp), INTENT(IN), OPTIONAL                     :: adiabatic_rescale_factor
+      LOGICAL, INTENT(IN), OPTIONAL                      :: resp_only
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center', &
          routineP = moduleN//':'//routineN
@@ -152,8 +156,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: shm_set_offset
       INTEGER, SAVE                                      :: shm_number_of_p_entries
       LOGICAL :: bins_left, buffer_overflow, do_dynamic_load_balancing, do_it, do_periodic, &
-         do_print_load_balance_info, is_anti_symmetric, screen_pmat_forces, treat_forces_in_core, &
-         use_disk_storage, with_mp2_density
+         do_print_load_balance_info, is_anti_symmetric, my_resp_only, screen_pmat_forces, &
+         treat_forces_in_core, use_disk_storage, with_resp_density
       LOGICAL, DIMENSION(:, :), POINTER                  :: shm_atomic_pair_list
       REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, cartesian_estimate_virial, &
          compression_factor, eps_schwarz, eps_storage, fac, hf_fraction, ln_10, log10_eps_schwarz, &
@@ -163,12 +167,12 @@ CONTAINS
          tmp_virial(3, 3)
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: ede_buffer1, ede_buffer2, ede_primitives_tmp, &
          ede_primitives_tmp_virial, ede_work, ede_work2, ede_work2_virial, ede_work_forces, &
-         ede_work_virial, pac_buf, pac_buf_beta, pac_buf_mp2, pac_buf_mp2_beta, pad_buf, &
-         pad_buf_beta, pad_buf_mp2, pad_buf_mp2_beta, pbc_buf, pbc_buf_beta, pbc_buf_mp2, &
-         pbc_buf_mp2_beta, pbd_buf, pbd_buf_beta, pbd_buf_mp2, pbd_buf_mp2_beta
+         ede_work_virial, pac_buf, pac_buf_beta, pac_buf_resp, pac_buf_resp_beta, pad_buf, &
+         pad_buf_beta, pad_buf_resp, pad_buf_resp_beta, pbc_buf, pbc_buf_beta, pbc_buf_resp, &
+         pbc_buf_resp_beta, pbd_buf, pbd_buf_beta, pbd_buf_resp, pbd_buf_resp_beta
       REAL(dp), ALLOCATABLE, DIMENSION(:), TARGET        :: primitive_forces, primitive_forces_virial
-      REAL(dp), DIMENSION(:), POINTER                    :: full_density_mp2, full_density_mp2_beta, &
-                                                            T2
+      REAL(dp), DIMENSION(:), POINTER                    :: full_density_resp, &
+                                                            full_density_resp_beta, T2
       REAL(dp), DIMENSION(:, :), POINTER :: full_density_alpha, full_density_beta, &
          max_contraction, ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, shm_pmax_atom, shm_pmax_block, &
          sphi_b, zeta, zetb, zetc, zetd
@@ -182,7 +186,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_libint_t)                                  :: private_deriv
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_mp2
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_basis_info_type), POINTER                 :: basis_info
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
@@ -218,10 +221,12 @@ CONTAINS
 
       NULLIFY (dft_control, admm_env)
 
-      with_mp2_density = .FALSE.
-      IF (ASSOCIATED(qs_env%mp2_env)) with_mp2_density = .TRUE.
+      with_resp_density = .FALSE.
+      IF (ASSOCIATED(rho_ao_resp)) with_resp_density = .TRUE.
 
-      IF (with_mp2_density) CALL get_qs_env(qs_env, matrix_p_mp2=rho_ao_mp2)
+      my_resp_only = .FALSE.
+      IF (PRESENT(resp_only)) my_resp_only = resp_only
+
       is_anti_symmetric = dbcsr_get_matrix_type(rho_ao(1, 1)%matrix) .EQ. dbcsr_type_antisymmetric
 
       CALL get_qs_env(qs_env, &
@@ -280,18 +285,19 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE) SHARED(qs_env,&
 !$OMP                                  rho_ao,&
-!$OMP                                  rho_ao_mp2,&
-!$OMP                                  with_mp2_density,&
+!$OMP                                  rho_ao_resp,&
+!$OMP                                  with_resp_density,&
 !$OMP                                  hfx_section,&
 !$OMP                                  para_env,&
 !$OMP                                  irep,&
+!$OMP                                  my_resp_only,&
 !$OMP                                  ncoset,&
 !$OMP                                  nco,&
 !$OMP                                  nso,&
 !$OMP                                  n_threads,&
 !$OMP                                  full_density_alpha,&
-!$OMP                                  full_density_mp2,&
-!$OMP                                  full_density_mp2_beta,&
+!$OMP                                  full_density_resp,&
+!$OMP                                  full_density_resp_beta,&
 !$OMP                                  full_density_beta,&
 !$OMP                                  shm_initial_p,&
 !$OMP                                  shm_is_assoc_atomic_block,&
@@ -347,9 +353,9 @@ CONTAINS
 !$OMP  neris_total,nimages,nints,nneighbors,npgfa,npgfb,npgfc,npgfd,&
 !$OMP  nprim_ints,n_processes,nseta,nsetb,nsgfa,nsgfb,nsgfc,nsgfd,&
 !$OMP  nsgfl_a,nsgfl_b,nsgfl_c,nsgfl_d,nsgf_max,offset_ac_set,offset_ad_set,&
-!$OMP  offset_bc_set,offset_bd_set,pac_buf,pac_buf_beta,pac_buf_mp2,pac_buf_mp2_beta,pad_buf,pad_buf_beta,pad_buf_mp2,&
-!$OMP  pad_buf_mp2_beta,particle_set,pbc_buf,pbc_buf_beta,pbc_buf_mp2,pbc_buf_mp2_beta,pbd_buf,pbd_buf_beta, &
-!$OMP  pbd_buf_mp2, pbd_buf_mp2_beta, pgf_list_ij,&
+!$OMP  offset_bc_set,offset_bd_set,pac_buf,pac_buf_beta,pac_buf_resp,pac_buf_resp_beta,pad_buf,pad_buf_beta,pad_buf_resp,&
+!$OMP  pad_buf_resp_beta,particle_set,pbc_buf,pbc_buf_beta,pbc_buf_resp,pbc_buf_resp_beta,pbd_buf,pbd_buf_beta, &
+!$OMP  pbd_buf_resp, pbd_buf_resp_beta, pgf_list_ij,&
 !$OMP  pgf_list_kl,pgf_product_list,pmax_atom,pmax_blocks,pmax_entry,pmax_tmp,potential_parameter,primitive_forces,&
 !$OMP  primitive_forces_virial,private_deriv,ptr_p_1,ptr_p_2,ptr_p_3,ptr_p_4,ra,rab2,&
 !$OMP  rb,rc,rcd2,rd,screening_parameter,screen_pmat_forces,set_list_ij,set_list_kl,&
@@ -376,7 +382,7 @@ CONTAINS
       load_balance_parameter => actual_x_data%load_balance_parameter
       basis_parameter => actual_x_data%basis_parameter
 
-      ! IF(with_mp2_density) THEN
+      ! IF(with_resp_density) THEN
       !   ! here we also do a copy of the original load_balance_parameter
       !   ! since if MP2 forces are required after the calculation of the HFX
       !   ! derivatives we need to calculate again the SCF energy.
@@ -491,10 +497,10 @@ CONTAINS
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
                             antisymmetric=is_anti_symmetric)
       ! for now only closed shell case
-      IF (with_mp2_density) THEN
-         NULLIFY (full_density_mp2)
-         ALLOCATE (full_density_mp2(shm_block_offset(ncpu + 1)))
-         CALL get_full_density(para_env, full_density_mp2, rho_ao_mp2(1)%matrix, shm_number_of_p_entries, &
+      IF (with_resp_density) THEN
+         NULLIFY (full_density_resp)
+         ALLOCATE (full_density_resp(shm_block_offset(ncpu + 1)))
+         CALL get_full_density(para_env, full_density_resp, rho_ao_resp(1)%matrix, shm_number_of_p_entries, &
                                shm_block_offset, &
                                kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
                                antisymmetric=is_anti_symmetric)
@@ -506,11 +512,11 @@ CONTAINS
                                shm_block_offset, &
                                kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
                                antisymmetric=is_anti_symmetric)
-         ! With mp2 density
-         IF (with_mp2_density) THEN
-            NULLIFY (full_density_mp2_beta)
-            ALLOCATE (full_density_mp2_beta(shm_block_offset(ncpu + 1)))
-            CALL get_full_density(para_env, full_density_mp2_beta, rho_ao_mp2(2)%matrix, shm_number_of_p_entries, &
+         ! With resp density
+         IF (with_resp_density) THEN
+            NULLIFY (full_density_resp_beta)
+            ALLOCATE (full_density_resp_beta(shm_block_offset(ncpu + 1)))
+            CALL get_full_density(para_env, full_density_resp_beta, rho_ao_resp(2)%matrix, shm_number_of_p_entries, &
                                   shm_block_offset, &
                                   kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
                                   antisymmetric=is_anti_symmetric)
@@ -544,13 +550,13 @@ CONTAINS
 
       ! restore as full density the HF density
       ! maybe in the future
-      IF (with_mp2_density) THEN
-         full_density_alpha(:, 1) = full_density_alpha(:, 1) - full_density_mp2
+      IF (with_resp_density) THEN
+         full_density_alpha(:, 1) = full_density_alpha(:, 1) - full_density_resp
          IF (nspins == 2) THEN
             full_density_beta(:, 1) = &
-               full_density_beta(:, 1) - full_density_mp2_beta
+               full_density_beta(:, 1) - full_density_resp_beta
          ENDIF
-         ! full_density_mp2=full_density+full_density_mp2
+         ! full_density_resp=full_density+full_density_resp
       END IF
 
       screen_coeffs_set => actual_x_data%screen_funct_coeffs_set
@@ -623,22 +629,22 @@ CONTAINS
       ALLOCATE (pbc_buf(nsgf_max**2))
       ALLOCATE (pad_buf(nsgf_max**2))
       ALLOCATE (pac_buf(nsgf_max**2))
-      IF (with_mp2_density) THEN
-         ALLOCATE (pbd_buf_mp2(nsgf_max**2))
-         ALLOCATE (pbc_buf_mp2(nsgf_max**2))
-         ALLOCATE (pad_buf_mp2(nsgf_max**2))
-         ALLOCATE (pac_buf_mp2(nsgf_max**2))
+      IF (with_resp_density) THEN
+         ALLOCATE (pbd_buf_resp(nsgf_max**2))
+         ALLOCATE (pbc_buf_resp(nsgf_max**2))
+         ALLOCATE (pad_buf_resp(nsgf_max**2))
+         ALLOCATE (pac_buf_resp(nsgf_max**2))
       END IF
       IF (nspins == 2) THEN
          ALLOCATE (pbd_buf_beta(nsgf_max**2))
          ALLOCATE (pbc_buf_beta(nsgf_max**2))
          ALLOCATE (pad_buf_beta(nsgf_max**2))
          ALLOCATE (pac_buf_beta(nsgf_max**2))
-         IF (with_mp2_density) THEN
-            ALLOCATE (pbd_buf_mp2_beta(nsgf_max**2))
-            ALLOCATE (pbc_buf_mp2_beta(nsgf_max**2))
-            ALLOCATE (pad_buf_mp2_beta(nsgf_max**2))
-            ALLOCATE (pac_buf_mp2_beta(nsgf_max**2))
+         IF (with_resp_density) THEN
+            ALLOCATE (pbd_buf_resp_beta(nsgf_max**2))
+            ALLOCATE (pbc_buf_resp_beta(nsgf_max**2))
+            ALLOCATE (pad_buf_resp_beta(nsgf_max**2))
+            ALLOCATE (pac_buf_resp_beta(nsgf_max**2))
          END IF
       END IF
 
@@ -1035,8 +1041,10 @@ CONTAINS
                   symm_fac = 0.25_dp
                   IF (iatom == jatom) symm_fac = symm_fac*2.0_dp
                   IF (katom == latom) symm_fac = symm_fac*2.0_dp
-                  IF (iatom == katom .AND. jatom == latom .AND. iatom /= jatom .AND. katom /= latom) symm_fac = symm_fac*2.0_dp
-                  IF (iatom == katom .AND. iatom == jatom .AND. katom == latom) symm_fac = symm_fac*2.0_dp
+                  IF (iatom == katom .AND. jatom == latom .AND. &
+                      iatom /= jatom .AND. katom /= latom) symm_fac = symm_fac*2.0_dp
+                  IF (iatom == katom .AND. iatom == jatom .AND. &
+                      katom == latom) symm_fac = symm_fac*2.0_dp
 
                   symm_fac = 1.0_dp/symm_fac
                   fac = fac*symm_fac
@@ -1273,7 +1281,8 @@ CONTAINS
                            tmp_screen_pgf1 => screen_coeffs_pgf(:, :, jset, iset, jkind, ikind)
                            tmp_screen_pgf2 => screen_coeffs_pgf(:, :, lset, kset, lkind, kkind)
 
-                           CALL forces4(private_deriv, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
+                           CALL forces4(private_deriv, ra, rb, rc, rd, npgfa(iset), npgfb(jset), &
+                                        npgfc(kset), npgfd(lset), &
                                         la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                         lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset), &
                                         nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
@@ -1285,7 +1294,8 @@ CONTAINS
                                         zetc(1:npgfc(kset), kset), zetd(1:npgfd(lset), lset), &
                                         primitive_forces, &
                                         potential_parameter, &
-                                        actual_x_data%neighbor_cells, screen_coeffs_set(jset, iset, jkind, ikind)%x, &
+                                        actual_x_data%neighbor_cells, &
+                                        screen_coeffs_set(jset, iset, jkind, ikind)%x, &
                                         screen_coeffs_set(lset, kset, lkind, kkind)%x, eps_schwarz, &
                                         max_contraction_val, cartesian_estimate, cell, neris_tmp, &
                                         log10_pmax, log10_eps_schwarz, &
@@ -1297,7 +1307,8 @@ CONTAINS
                                         ede_work, ede_work2, ede_work_forces, &
                                         ede_buffer1, ede_buffer2, ede_primitives_tmp, &
                                         nimages, do_periodic, use_virial, ede_work_virial, ede_work2_virial, &
-                                        ede_primitives_tmp_virial, primitive_forces_virial, cartesian_estimate_virial)
+                                        ede_primitives_tmp_virial, primitive_forces_virial, &
+                                        cartesian_estimate_virial)
 
                            nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)*12
                            neris_total = neris_total + nints
@@ -1379,7 +1390,7 @@ CONTAINS
                               END IF
                            END IF
                         END IF
-                        IF (with_mp2_density) THEN
+                        IF (with_resp_density) THEN
                            CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                         full_density_alpha(:, 1), pbd_buf, pbc_buf, pad_buf, pac_buf, &
                                                         iatom, jatom, katom, latom, &
@@ -1387,7 +1398,7 @@ CONTAINS
                                                         offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc, &
                                                         atomic_offset_ad, atomic_offset_ac, is_anti_symmetric)
                            CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                                        full_density_mp2, pbd_buf_mp2, pbc_buf_mp2, pad_buf_mp2, pac_buf_mp2, &
+                                                        full_density_resp, pbd_buf_resp, pbc_buf_resp, pad_buf_resp, pac_buf_resp, &
                                                         iatom, jatom, katom, latom, &
                                                         iset, jset, kset, lset, offset_bd_set, offset_bc_set, &
                                                         offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc, &
@@ -1401,7 +1412,7 @@ CONTAINS
                                                         atomic_offset_ad, atomic_offset_ac, is_anti_symmetric)
                         END IF
                         IF (nspins == 2) THEN
-                           IF (with_mp2_density) THEN
+                           IF (with_resp_density) THEN
                               CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                            full_density_beta(:, 1), pbd_buf_beta, pbc_buf_beta, &
                                                            pad_buf_beta, pac_buf_beta, iatom, jatom, katom, latom, &
@@ -1409,8 +1420,8 @@ CONTAINS
                                                            offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc, &
                                                            atomic_offset_ad, atomic_offset_ac, is_anti_symmetric)
                               CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                                           full_density_mp2_beta, pbd_buf_mp2_beta, pbc_buf_mp2_beta, &
-                                                           pad_buf_mp2_beta, pac_buf_mp2_beta, iatom, jatom, katom, latom, &
+                                                           full_density_resp_beta, pbd_buf_resp_beta, pbc_buf_resp_beta, &
+                                                           pad_buf_resp_beta, pac_buf_resp_beta, iatom, jatom, katom, latom, &
                                                            iset, jset, kset, lset, offset_bd_set, offset_bc_set, &
                                                            offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc, &
                                                            atomic_offset_ad, atomic_offset_ac, is_anti_symmetric)
@@ -1428,23 +1439,25 @@ CONTAINS
                               T2 => primitive_forces((coord - 1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset) + 1: &
                                                      coord*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset))
 
-                              IF (with_mp2_density) THEN
+                              IF (with_resp_density) THEN
                                  CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                     pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
                                                     T2, force, forces_map, coord, &
-                                                    pbd_buf_mp2, pbc_buf_mp2, pad_buf_mp2, pac_buf_mp2)
+                                                    pbd_buf_resp, pbc_buf_resp, pad_buf_resp, pac_buf_resp, &
+                                                    my_resp_only)
                               ELSE
                                  CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                     pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
                                                     T2, force, forces_map, coord)
                               END IF
                               IF (nspins == 2) THEN
-                                 IF (with_mp2_density) THEN
+                                 IF (with_resp_density) THEN
                                     CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                        pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, &
                                                        fac, T2, force, forces_map, coord, &
-                                                       pbd_buf_mp2_beta, pbc_buf_mp2_beta, &
-                                                       pad_buf_mp2_beta, pac_buf_mp2_beta)
+                                                       pbd_buf_resp_beta, pbc_buf_resp_beta, &
+                                                       pad_buf_resp_beta, pac_buf_resp_beta, &
+                                                       my_resp_only)
                                  ELSE
                                     CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                        pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
@@ -1459,26 +1472,27 @@ CONTAINS
                                  T2 => primitive_forces_virial( &
                                        ((i - 1)*12 + coord - 1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset) + 1: &
                                        ((i - 1)*12 + coord)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset))
-                                 IF (with_mp2_density) THEN
+                                 IF (with_resp_density) THEN
                                     CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                        pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
                                                        T2, tmp_virial, coord, i, &
-                                                       pbd_buf_mp2, pbc_buf_mp2, pad_buf_mp2, pac_buf_mp2)
+                                                       pbd_buf_resp, pbc_buf_resp, pad_buf_resp, pac_buf_resp)
                                  ELSE
                                     CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                        pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
                                                        T2, tmp_virial, coord, i)
                                  END IF
                                  IF (nspins == 2) THEN
-                                    IF (with_mp2_density) THEN
+                                    IF (with_resp_density) THEN
                                        CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                                          pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
-                                                          T2, tmp_virial, coord, i, &
-                                                          pbd_buf_mp2_beta, pbc_buf_mp2_beta, pad_buf_mp2_beta, pac_buf_mp2_beta)
+                                                          pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, &
+                                                          fac, T2, tmp_virial, coord, i, &
+                                                          pbd_buf_resp_beta, pbc_buf_resp_beta, &
+                                                          pad_buf_resp_beta, pac_buf_resp_beta)
                                     ELSE
                                        CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                                          pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
-                                                          T2, tmp_virial, coord, i)
+                                                          pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, &
+                                                          fac, T2, tmp_virial, coord, i)
                                     ENDIF
                                  END IF
                               END DO
@@ -1551,7 +1565,7 @@ CONTAINS
       shm_stor_count_max_val = shm_stor_count_max_val + stor_count_max_val
 !$OMP BARRIER
 
-      ! IF(with_mp2_density) THEN
+      ! IF(with_resp_density) THEN
       !   ! restore original load_balance_parameter
       !   actual_x_data%load_balance_parameter = load_balance_parameter_energy
       !   DEALLOCATE(load_balance_parameter_energy)
@@ -1662,13 +1676,13 @@ CONTAINS
       DEALLOCATE (last_sgf_global)
 !$OMP MASTER
       DEALLOCATE (full_density_alpha)
-      IF (with_mp2_density) THEN
-         DEALLOCATE (full_density_mp2)
+      IF (with_resp_density) THEN
+         DEALLOCATE (full_density_resp)
       END IF
       IF (nspins == 2) THEN
          DEALLOCATE (full_density_beta)
-         IF (with_mp2_density) THEN
-            DEALLOCATE (full_density_mp2_beta)
+         IF (with_resp_density) THEN
+            DEALLOCATE (full_density_resp_beta)
          END IF
       END IF
       IF (do_dynamic_load_balancing) THEN
@@ -1683,11 +1697,11 @@ CONTAINS
       DEALLOCATE (pad_buf)
       DEALLOCATE (pac_buf)
 
-      IF (with_mp2_density) THEN
-         DEALLOCATE (pbd_buf_mp2)
-         DEALLOCATE (pbc_buf_mp2)
-         DEALLOCATE (pad_buf_mp2)
-         DEALLOCATE (pac_buf_mp2)
+      IF (with_resp_density) THEN
+         DEALLOCATE (pbd_buf_resp)
+         DEALLOCATE (pbc_buf_resp)
+         DEALLOCATE (pad_buf_resp)
+         DEALLOCATE (pac_buf_resp)
       END IF
 
       DO i = 1, max_pgf**2
@@ -1711,11 +1725,11 @@ CONTAINS
 
       IF (nspins == 2) THEN
          DEALLOCATE (pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta)
-         IF (with_mp2_density) THEN
-            DEALLOCATE (pbd_buf_mp2_beta)
-            DEALLOCATE (pbc_buf_mp2_beta)
-            DEALLOCATE (pad_buf_mp2_beta)
-            DEALLOCATE (pac_buf_mp2_beta)
+         IF (with_resp_density) THEN
+            DEALLOCATE (pbd_buf_resp_beta)
+            DEALLOCATE (pbc_buf_resp_beta)
+            DEALLOCATE (pad_buf_resp_beta)
+            DEALLOCATE (pac_buf_resp_beta)
          END IF
       END IF
 
@@ -2165,10 +2179,11 @@ CONTAINS
 !> \param force storage loacation for forces
 !> \param forces_map index table
 !> \param coord which of the 12 coords to be updated
-!> \param pbd_mp2 ...
-!> \param pbc_mp2 ...
-!> \param pad_mp2 ...
-!> \param pac_mp2 ...
+!> \param pbd_resp ...
+!> \param pbc_resp ...
+!> \param pad_resp ...
+!> \param pac_resp ...
+!> \param resp_only ...
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -2176,7 +2191,7 @@ CONTAINS
    SUBROUTINE update_forces(ma_max, mb_max, mc_max, md_max, &
                             pbd, pbc, pad, pac, fac, &
                             prim, force, forces_map, coord, &
-                            pbd_mp2, pbc_mp2, pad_mp2, pac_mp2)
+                            pbd_resp, pbc_resp, pad_resp, pac_resp, resp_only)
 
       INTEGER, INTENT(IN)                                :: ma_max, mb_max, mc_max, md_max
       REAL(dp), DIMENSION(*), INTENT(IN)                 :: pbd, pbc, pad, pac
@@ -2185,20 +2200,23 @@ CONTAINS
          INTENT(IN)                                      :: prim
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       INTEGER, INTENT(IN)                                :: forces_map(4, 2), coord
-      REAL(dp), DIMENSION(*), INTENT(IN), OPTIONAL       :: pbd_mp2, pbc_mp2, pad_mp2, pac_mp2
+      REAL(dp), DIMENSION(*), INTENT(IN), OPTIONAL       :: pbd_resp, pbc_resp, pad_resp, pac_resp
+      LOGICAL, INTENT(IN), OPTIONAL                      :: resp_only
 
       INTEGER                                            :: ma, mb, mc, md, p_index
-      LOGICAL                                            :: with_mp2_density
-      REAL(dp)                                           :: temp1, temp1_mp2, temp2, temp3, &
-                                                            temp3_mp2, temp4
+      LOGICAL                                            :: full_force, with_resp_density
+      REAL(dp)                                           :: temp1, temp1_resp, temp3, temp3_resp, &
+                                                            temp4, teresp
 
-      with_mp2_density = .FALSE.
-      IF (PRESENT(pbd_mp2) .AND. &
-          PRESENT(pbc_mp2) .AND. &
-          PRESENT(pad_mp2) .AND. &
-          PRESENT(pac_mp2)) with_mp2_density = .TRUE.
+      with_resp_density = .FALSE.
+      IF (PRESENT(pbd_resp) .AND. &
+          PRESENT(pbc_resp) .AND. &
+          PRESENT(pad_resp) .AND. &
+          PRESENT(pac_resp)) with_resp_density = .TRUE.
 
-      IF (with_mp2_density) THEN
+      IF (with_resp_density) THEN
+         full_force = .TRUE.
+         IF (PRESENT(resp_only)) full_force = .NOT. resp_only
          p_index = 0
          temp4 = 0.0_dp
          DO md = 1, md_max
@@ -2206,20 +2224,24 @@ CONTAINS
                DO mb = 1, mb_max
                   temp1 = pbc((mc - 1)*mb_max + mb)*fac
                   temp3 = pbd((md - 1)*mb_max + mb)*fac
-                  temp1_mp2 = pbc_mp2((mc - 1)*mb_max + mb)*fac
-                  temp3_mp2 = pbd_mp2((md - 1)*mb_max + mb)*fac
+                  temp1_resp = pbc_resp((mc - 1)*mb_max + mb)*fac
+                  temp3_resp = pbd_resp((md - 1)*mb_max + mb)*fac
                   DO ma = 1, ma_max
                      p_index = p_index + 1
                      ! HF-SCF
-                     temp2 = temp1*pad((md - 1)*ma_max + ma) + &
-                             temp3*pac((mc - 1)*ma_max + ma)
-                     ! MP2+HF
-                     temp2 = temp2 + &
-                             pac((mc - 1)*ma_max + ma)*temp3_mp2 + &
-                             pac_mp2((mc - 1)*ma_max + ma)*temp3 + &
-                             pad((md - 1)*ma_max + ma)*temp1_mp2 + &
-                             pad_mp2((md - 1)*ma_max + ma)*temp1
-                     temp4 = temp4 + temp2*prim(p_index)
+                     IF (full_force) THEN
+                        teresp = temp1*pad((md - 1)*ma_max + ma) + &
+                                 temp3*pac((mc - 1)*ma_max + ma)
+                     ELSE
+                        teresp = 0.0_dp
+                     END IF
+                     ! RESP+HF
+                     teresp = teresp + &
+                              pac((mc - 1)*ma_max + ma)*temp3_resp + &
+                              pac_resp((mc - 1)*ma_max + ma)*temp3 + &
+                              pad((md - 1)*ma_max + ma)*temp1_resp + &
+                              pad_resp((md - 1)*ma_max + ma)*temp1
+                     temp4 = temp4 + teresp*prim(p_index)
                   END DO !ma
                END DO !mb
             END DO !mc
@@ -2234,9 +2256,9 @@ CONTAINS
                   temp3 = pbd((md - 1)*mb_max + mb)*fac
                   DO ma = 1, ma_max
                      p_index = p_index + 1
-                     temp2 = temp1*pad((md - 1)*ma_max + ma) + &
-                             temp3*pac((mc - 1)*ma_max + ma)
-                     temp4 = temp4 + temp2*prim(p_index)
+                     teresp = temp1*pad((md - 1)*ma_max + ma) + &
+                              temp3*pac((mc - 1)*ma_max + ma)
+                     temp4 = temp4 + teresp*prim(p_index)
                   END DO !ma
                END DO !mb
             END DO !mc
@@ -2267,10 +2289,10 @@ CONTAINS
 !> \param tmp_virial ...
 !> \param coord which of the 12 coords to be updated
 !> \param l ...
-!> \param pbd_mp2 ...
-!> \param pbc_mp2 ...
-!> \param pad_mp2 ...
-!> \param pac_mp2 ...
+!> \param pbd_resp ...
+!> \param pbc_resp ...
+!> \param pad_resp ...
+!> \param pac_resp ...
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -2278,7 +2300,7 @@ CONTAINS
    SUBROUTINE update_virial(ma_max, mb_max, mc_max, md_max, &
                             pbd, pbc, pad, pac, fac, &
                             prim, tmp_virial, coord, l, &
-                            pbd_mp2, pbc_mp2, pad_mp2, pac_mp2)
+                            pbd_resp, pbc_resp, pad_resp, pac_resp)
 
       INTEGER, INTENT(IN)                                :: ma_max, mb_max, mc_max, md_max
       REAL(dp), DIMENSION(*), INTENT(IN)                 :: pbd, pbc, pad, pac
@@ -2287,20 +2309,20 @@ CONTAINS
          INTENT(IN)                                      :: prim
       REAL(dp)                                           :: tmp_virial(3, 3)
       INTEGER, INTENT(IN)                                :: coord, l
-      REAL(dp), DIMENSION(*), INTENT(IN), OPTIONAL       :: pbd_mp2, pbc_mp2, pad_mp2, pac_mp2
+      REAL(dp), DIMENSION(*), INTENT(IN), OPTIONAL       :: pbd_resp, pbc_resp, pad_resp, pac_resp
 
       INTEGER                                            :: i, j, ma, mb, mc, md, p_index
-      LOGICAL                                            :: with_mp2_density
-      REAL(dp)                                           :: temp1, temp1_mp2, temp2, temp3, &
-                                                            temp3_mp2, temp4
+      LOGICAL                                            :: with_resp_density
+      REAL(dp)                                           :: temp1, temp1_resp, temp3, temp3_resp, &
+                                                            temp4, teresp
 
-      with_mp2_density = .FALSE.
-      IF (PRESENT(pbd_mp2) .AND. &
-          PRESENT(pbc_mp2) .AND. &
-          PRESENT(pad_mp2) .AND. &
-          PRESENT(pac_mp2)) with_mp2_density = .TRUE.
+      with_resp_density = .FALSE.
+      IF (PRESENT(pbd_resp) .AND. &
+          PRESENT(pbc_resp) .AND. &
+          PRESENT(pad_resp) .AND. &
+          PRESENT(pac_resp)) with_resp_density = .TRUE.
 
-      IF (with_mp2_density) THEN
+      IF (with_resp_density) THEN
          p_index = 0
          temp4 = 0.0_dp
          DO md = 1, md_max
@@ -2308,20 +2330,20 @@ CONTAINS
                DO mb = 1, mb_max
                   temp1 = pbc((mc - 1)*mb_max + mb)*fac
                   temp3 = pbd((md - 1)*mb_max + mb)*fac
-                  temp1_mp2 = pbc_mp2((mc - 1)*mb_max + mb)*fac
-                  temp3_mp2 = pbd_mp2((md - 1)*mb_max + mb)*fac
+                  temp1_resp = pbc_resp((mc - 1)*mb_max + mb)*fac
+                  temp3_resp = pbd_resp((md - 1)*mb_max + mb)*fac
                   DO ma = 1, ma_max
                      p_index = p_index + 1
                      ! HF-SCF
-                     temp2 = temp1*pad((md - 1)*ma_max + ma) + &
-                             temp3*pac((mc - 1)*ma_max + ma)
-                     ! MP2+HF
-                     temp2 = temp2 + &
-                             pac((mc - 1)*ma_max + ma)*temp3_mp2 + &
-                             pac_mp2((mc - 1)*ma_max + ma)*temp3 + &
-                             pad((md - 1)*ma_max + ma)*temp1_mp2 + &
-                             pad_mp2((md - 1)*ma_max + ma)*temp1
-                     temp4 = temp4 + temp2*prim(p_index)
+                     teresp = temp1*pad((md - 1)*ma_max + ma) + &
+                              temp3*pac((mc - 1)*ma_max + ma)
+                     ! RESP+HF
+                     teresp = teresp + &
+                              pac((mc - 1)*ma_max + ma)*temp3_resp + &
+                              pac_resp((mc - 1)*ma_max + ma)*temp3 + &
+                              pad((md - 1)*ma_max + ma)*temp1_resp + &
+                              pad_resp((md - 1)*ma_max + ma)*temp1
+                     temp4 = temp4 + teresp*prim(p_index)
                   END DO !ma
                END DO !mb
             END DO !mc
@@ -2336,9 +2358,9 @@ CONTAINS
                   temp3 = pbd((md - 1)*mb_max + mb)*fac
                   DO ma = 1, ma_max
                      p_index = p_index + 1
-                     temp2 = temp1*pad((md - 1)*ma_max + ma) + &
-                             temp3*pac((mc - 1)*ma_max + ma)
-                     temp4 = temp4 + temp2*prim(p_index)
+                     teresp = temp1*pad((md - 1)*ma_max + ma) + &
+                              temp3*pac((mc - 1)*ma_max + ma)
+                     temp4 = temp4 + teresp*prim(p_index)
                   END DO !ma
                END DO !mb
             END DO !mc
