@@ -1824,7 +1824,7 @@ CONTAINS
                                         middle_name="moments", log_filename=.FALSE.)
 
          IF (iounit > 0) THEN
-            IF (unit_nr /= iounit) THEN
+            IF (unit_nr /= iounit .AND. unit_nr > 0) THEN
                INQUIRE (UNIT=unit_nr, NAME=filename)
                WRITE (UNIT=iounit, FMT="(/,T2,A,2(/,T3,A),/)") &
                   "MOMENTS", "The electric/magnetic moments are written to file:", &
@@ -1896,12 +1896,14 @@ CONTAINS
                END DO
                CALL dbcsr_deallocate_matrix_set(moments)
                !
-               tdip = -(rdip + pdip + cdip)
-               WRITE (unit_nr, "(T3,A)") "Dipoles are based on the traditional operator."
-               dd = SQRT(SUM(tdip(1:3)**2))*debye
-               WRITE (unit_nr, "(T3,A)") "Dipole moment [Debye]"
-               WRITE (unit_nr, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
-                  (TRIM(rlab(i)), "=", tdip(i)*debye, i=1, 3), "Total=", dd
+               IF (unit_nr > 0) THEN
+                  tdip = -(rdip + pdip + cdip)
+                  WRITE (unit_nr, "(T3,A)") "Dipoles are based on the traditional operator."
+                  dd = SQRT(SUM(tdip(1:3)**2))*debye
+                  WRITE (unit_nr, "(T3,A)") "Dipole moment [Debye]"
+                  WRITE (unit_nr, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
+                     (TRIM(rlab(i)), "=", tdip(i)*debye, i=1, 3), "Total=", dd
+               END IF
             ENDIF
          END IF
 

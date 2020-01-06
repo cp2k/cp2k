@@ -297,11 +297,7 @@ CONTAINS
                                       in_space=RECIPROCALSPACE)
                CALL pw_copy(rhog, tmpg)
             END IF
-!$OMP PARALLEL DEFAULT(NONE) SHARED(rhog, poisson_env)
-!$OMP WORKSHARE
             rhog%cc(:) = rhog%cc(:)*poisson_env%green_fft%influence_fn%cc(:)
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
             IF (PRESENT(vhartree)) THEN
                CALL pw_transfer(rhog, vhartree)
                IF (PRESENT(ehartree)) THEN
