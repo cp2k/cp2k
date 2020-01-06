@@ -148,11 +148,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_string_length)               :: my_basis_type
-      INTEGER :: atom_a, bcol, brow, handle, i, iatom, igrid_level, ikind, ikind_old, &
-         ilevel, img, ipair, ipgf, ipgf_new, iset, iset_new, iset_old, itask, ithread, jatom, &
-         jkind, jkind_old, jpgf, jpgf_new, jset, jset_new, jset_old, maxco, maxpgf, maxset, &
-         maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, nthread, &
-         offs_dv, sgfa, sgfb
+      INTEGER :: atom_a, bcol, brow, handle, i, iatom, igrid_level, ikind, ikind_old, ilevel, img, &
+         ipair, ipgf, ipgf_new, iset, iset_new, iset_old, itask, ithread, jatom, jkind, jkind_old, &
+         jpgf, jpgf_new, jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, na1, na2, &
+         natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, nthread, offs_dv, sgfa, sgfb
       INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
       INTEGER(kind=int_8), DIMENSION(:, :), POINTER      :: tasks
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
@@ -165,9 +164,9 @@ CONTAINS
          p_duplicated, pab_required, scatter, use_subpatch, use_virial
       REAL(KIND=dp)                                      :: admm_scal_fac, dab, eps_gvg_rspace, &
                                                             rab2, scalef, zetp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: force_thread
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b, pv_thread
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: force_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dist_ab, h_block, hab, p_block, pab, &
                                                             rpgfa, rpgfb, sphi_a, sphi_b, work, &
@@ -305,7 +304,7 @@ CONTAINS
       natom = SIZE(particle_set)
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       pv_thread = 0.0_dp
-      ALLOCATE(force_thread(3,natom))
+      ALLOCATE (force_thread(3, natom))
       force_thread = 0.0_dp
 
       map_consistent = dft_control%qs_control%map_consistent
@@ -581,13 +580,13 @@ CONTAINS
                sgfb = first_sgfb(1, jset)
                IF (pab_required) THEN
                   IF (iatom <= jatom) THEN
-                     work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa+nsgfa(iset)-1), &
-                                                          p_block(sgfa:sgfa+nsgfa(iset)-1, sgfb:sgfb+nsgfb(jset)-1))
-                     pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgfb(jset)), TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb+nsgfb(jset)-1)))
+                     work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), &
+                                                          p_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1))
+                   pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgfb(jset)), TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1)))
                   ELSE
-                     work(1:ncob, 1:nsgfa(iset)) = MATMUL(sphi_b(1:ncob, sgfb:sgfb+nsgfb(jset)-1), &
-                                                          p_block(sgfb:sgfb+nsgfb(jset)-1, sgfa:sgfa+nsgfa(iset)-1))
-                     pab(1:ncob, 1:ncoa) = MATMUL(work(1:ncob, 1:nsgfa(iset)), TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa+nsgfa(iset)-1)))
+                     work(1:ncob, 1:nsgfa(iset)) = MATMUL(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1), &
+                                                          p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1))
+                   pab(1:ncob, 1:ncoa) = MATMUL(work(1:ncob, 1:nsgfa(iset)), TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1)))
                   END IF
                END IF
 
@@ -704,15 +703,15 @@ CONTAINS
             ! contract the block into h if we're done with the current set pair
             IF (new_set_pair_coming) THEN
                IF (iatom <= jatom) THEN
-                  work(1:ncoa, 1:nsgfb(jset)) = MATMUL(hab(1:ncoa, 1:ncob),sphi_b(1:ncob, sgfb:sgfb+nsgfb(jset)-1))
-                  h_block(sgfa:sgfa+nsgfa(iset)-1, sgfb:sgfb+nsgfb(jset)-1) = &
-                     h_block(sgfa:sgfa+nsgfa(iset)-1, sgfb:sgfb+nsgfb(jset)-1) + &
-                     MATMUL(TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa+nsgfa(iset)-1)),work(1:ncoa, 1:nsgfb(jset)))
+                  work(1:ncoa, 1:nsgfb(jset)) = MATMUL(hab(1:ncoa, 1:ncob), sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1))
+                  h_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1) = &
+                     h_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1) + &
+                     MATMUL(TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1)), work(1:ncoa, 1:nsgfb(jset)))
                ELSE
-                  work(1:ncob, 1:nsgfa(iset)) = MATMUL(hab(1:ncob, 1:ncoa),sphi_a(1:ncoa, sgfa:sgfa+nsgfa(iset)-1))
-                  h_block(sgfb:sgfb+nsgfb(jset)-1, sgfa:sgfa+nsgfa(iset)-1) = &
-                     h_block(sgfb:sgfb+nsgfb(jset)-1, sgfa:sgfa+nsgfa(iset)-1) + &
-                     MATMUL(TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb+nsgfb(jset)-1)),work(1:ncob, 1:nsgfa(iset)))
+                  work(1:ncob, 1:nsgfa(iset)) = MATMUL(hab(1:ncob, 1:ncoa), sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1))
+                  h_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1) = &
+                     h_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1) + &
+                     MATMUL(TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1)), work(1:ncob, 1:nsgfa(iset)))
                END IF
             END IF
 

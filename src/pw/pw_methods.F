@@ -100,28 +100,28 @@ CONTAINS
       CPASSERT(pw%ref_count > 0)
       IF (pw%in_use == REALDATA1D) THEN
          ns = SIZE(pw%cr)
-!$OMP PARALLEL SHARED(pw)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw)
 !$OMP WORKSHARE
          pw%cr(:) = 0._dp
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
       ELSE IF (pw%in_use == COMPLEXDATA1D) THEN
          ns = SIZE(pw%cc)
-!$OMP PARALLEL SHARED(pw)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw)
 !$OMP WORKSHARE
          pw%cc(:) = CMPLX(0._dp, 0._dp, KIND=dp)
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
       ELSE IF (pw%in_use == REALDATA3D) THEN
          ns = SIZE(pw%cr3d)
-!$OMP PARALLEL SHARED(pw)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw)
 !$OMP WORKSHARE
          pw%cr3d(:, :, :) = 0._dp
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
       ELSE IF (pw%in_use == COMPLEXDATA3D) THEN
          ns = SIZE(pw%cc3d)
-!$OMP PARALLEL SHARED(pw)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw)
 !$OMP WORKSHARE
          pw%cc3d(:, :, :) = CMPLX(0._dp, 0._dp, KIND=dp)
 !$OMP END WORKSHARE
@@ -294,15 +294,19 @@ CONTAINS
             END DO
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
             ns = SIZE(pw1%cr3d)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
 !$OMP WORKSHARE
             pw2%cr3d(:, :, :) = pw1%cr3d(:, :, :)
 !$OMP END WORKSHARE
+!$OMP END PARALLEL
          ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
                   pw2%in_use == COMPLEXDATA3D) THEN
             ns = SIZE(pw1%cc3d)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
 !$OMP WORKSHARE
             pw2%cc3d(:, :, :) = pw1%cc3d(:, :, :)
 !$OMP END WORKSHARE
+!$OMP END PARALLEL
          ELSE
             CPABORT("No suitable data field")
          END IF
@@ -338,26 +342,28 @@ CONTAINS
       SELECT CASE (pw%in_use)
       CASE (REALDATA1D)
          ns = SIZE(pw%cr)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw,A)
 !$OMP WORKSHARE
          pw%cr(:) = a*pw%cr(:)
 !$OMP END WORKSHARE
+!$OMP END PARALLEL
       CASE (COMPLEXDATA1D)
          ns = 2*SIZE(pw%cc)
-!$OMP PARALLEL SHARED(pw,a)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw,A)
 !$OMP WORKSHARE
          pw%cc(:) = a*pw%cc(:)
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
       CASE (REALDATA3D)
          ns = SIZE(pw%cr3d)
-!$OMP PARALLEL SHARED(pw,a)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw,A)
 !$OMP WORKSHARE
          pw%cr3d(:, :, :) = a*pw%cr3d(:, :, :)
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
       CASE (COMPLEXDATA3D)
          ns = 2*SIZE(pw%cc3d)
-!$OMP PARALLEL SHARED(pw,a)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw,A)
 !$OMP WORKSHARE
          pw%cc3d(:, :, :) = a*pw%cc3d(:, :, :)
 !$OMP END WORKSHARE
@@ -832,35 +838,35 @@ CONTAINS
             END IF
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL SHARED(pw1, pw2)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
 !$OMP WORKSHARE
                pw2%cr3d = pw2%cr3d+pw1%cr3d
 !$OMP END WORKSHARE
-!$OMP END PARALLEL 
+!$OMP END PARALLEL
                flop = REAL(SIZE(pw2%cr3d), KIND=dp)
             ELSE
-!$OMP PARALLEL SHARED(pw1, pw2, alpha)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
 !$OMP WORKSHARE
                pw2%cr3d = pw2%cr3d+my_alpha*pw1%cr3d
 !$OMP END WORKSHARE
-!$OMP END PARALLEL 
+!$OMP END PARALLEL
                flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
                   pw2%in_use == COMPLEXDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL SHARED(pw1, pw2)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
 !$OMP WORKSHARE
                pw2%cc3d = pw2%cc3d+pw1%cc3d
 !$OMP END WORKSHARE
-!$OMP END PARALLEL 
+!$OMP END PARALLEL
                flop = REAL(2*SIZE(pw2%cc3d), KIND=dp)
             ELSE
-!$OMP PARALLEL SHARED(pw1, pw2, alpha)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
 !$OMP WORKSHARE
                pw2%cc3d = pw2%cc3d+my_alpha*pw1%cc3d
 !$OMP END WORKSHARE
-!$OMP END PARALLEL 
+!$OMP END PARALLEL
                flop = REAL(4*SIZE(pw2%cc3d), KIND=dp)
             END IF
          ELSE
@@ -1029,14 +1035,14 @@ CONTAINS
          IF (pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D .AND. &
              pw_out%in_use == REALDATA1D) THEN
             IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL SHARED(pw_out, pw1, pw2)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
 !$OMP WORKSHARE
                pw_out%cr = pw_out%cr + pw1%cr + pw2%cr
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
                flop = REAL(2*SIZE(pw2%cr), KIND=dp)
             ELSE
-!$OMP PARALLEL SHARED(pw_out, pw1, pw2, my_alpha)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
 !$OMP WORKSHARE
                pw_out%cr = pw_out%cr + my_alpha*pw1%cr*pw2%cr
 !$OMP END WORKSHARE
@@ -1047,14 +1053,14 @@ CONTAINS
                   pw2%in_use == COMPLEXDATA1D .AND. &
                   pw_out%in_use == COMPLEXDATA1D) THEN
             IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL SHARED(pw_out, pw1, pw2)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
 !$OMP WORKSHARE
                pw_out%cc = pw_out%cc + pw1%cc*pw2%cc
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
                flop = REAL(3*SIZE(pw2%cc), KIND=dp)
             ELSE
-!$OMP PARALLEL SHARED(pw_out, pw1, pw2, my_alpha)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
 !$OMP WORKSHARE
                pw_out%cc = pw_out%cc + my_alpha*pw1%cc*pw2%cc
 !$OMP END WORKSHARE
@@ -1064,14 +1070,14 @@ CONTAINS
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
                   pw_out%in_use == REALDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL SHARED(pw_out, pw1, pw2)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
 !$OMP WORKSHARE
                pw_out%cr3d = pw_out%cr3d+pw1%cr3d*pw2%cr3d
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
                flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
             ELSE
-!$OMP PARALLEL SHARED(pw_out, pw1, pw2, my_alpha)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
 !$OMP WORKSHARE
                pw_out%cr3d = pw_out%cr3d+my_alpha*pw1%cr3d*pw2%cr3d
 !$OMP END WORKSHARE
@@ -1082,14 +1088,14 @@ CONTAINS
                   pw2%in_use == COMPLEXDATA3D .AND. &
                   pw_out%in_use == COMPLEXDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL SHARED(pw_out, pw1, pw2)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
 !$OMP WORKSHARE
                pw_out%cc3d = pw_out%cc3d+pw1%cc3d*pw2%cc3d
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
                flop = REAL(3*SIZE(pw2%cc3d), KIND=dp)
             ELSE
-!$OMP PARALLEL SHARED(pw_out, pw1, pw2, my_alpha)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
 !$OMP WORKSHARE
                pw_out%cc3d = pw_out%cc3d+my_alpha*pw1%cc3d*pw2%cc3d
 !$OMP END WORKSHARE

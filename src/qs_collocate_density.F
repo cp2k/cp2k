@@ -1784,15 +1784,15 @@ CONTAINS
                sgfb = first_sgfb(1, jset)
 
                IF (iatom <= jatom) THEN
-                  work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa+nsgfa(iset)-1),&
-                                                       p_block(sgfa:sgfa+nsgfa(iset)-1, sgfb:sgfb+nsgfb(jset)-1))
-                  pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgfb(jset)),&
-                                               TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb+nsgfb(jset)-1)))
+                  work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), &
+                                                       p_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1))
+                  pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgfb(jset)), &
+                                               TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1)))
                ELSE
-                  work(1:ncob, 1:nsgfa(iset)) = MATMUL(sphi_b(1:ncob, sgfb:sgfb+nsgfb(jset)-1),&
-                                                       p_block(sgfb:sgfb+nsgfb(jset)-1, sgfa:sgfa+nsgfa(iset)-1))
-                  pab(1:ncob, 1:ncoa) = MATMUL(work(1:ncob, 1:nsgfa(iset)),&
-                                               TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa+nsgfa(iset)-1)))
+                  work(1:ncob, 1:nsgfa(iset)) = MATMUL(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1), &
+                                                       p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1))
+                  pab(1:ncob, 1:ncoa) = MATMUL(work(1:ncob, 1:nsgfa(iset)), &
+                                               TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1)))
                END IF
 
                iset_old = iset
