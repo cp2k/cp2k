@@ -19,7 +19,7 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-6
-      SCF_GUESS RESTART
+      SCF_GUESS ATOMIC
       MAX_SCF  25
       &MIXING
           METHOD DIRECT_P_MIXING

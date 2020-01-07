@@ -208,7 +208,7 @@ CONTAINS
       INTEGER                                            :: handle, i, ik, iounit, ispin, iterstep, &
                                                             iv, iw, nhist, nmo(2), nspins
       LOGICAL                                            :: append, ionode, should_output
-      REAL(KIND=dp)                                      :: de, e1, e2, e_fermi(2), emax, emin, &
+      REAL(KIND=dp)                                      :: de, e1, e2, emax, emin, &
                                                             eval, wkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ehist, hist, occval
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
@@ -303,13 +303,11 @@ CONTAINS
                                 file_form="FORMATTED")
       IF (iw > 0) THEN
          IF (nspins == 2) THEN
-            WRITE (UNIT=iw, FMT="(T2,A,I0,A,2F12.6)") &
-               "# DOS at iteration step i = ", iterstep, ", E_Fermi[a.u.] = ", e_fermi(1:2)
+            WRITE (UNIT=iw, FMT="(T2,A,I0)") "# DOS at iteration step i = ", iterstep
             WRITE (UNIT=iw, FMT="(T2,A, A)") "   Energy[a.u.]  Alpha_Density     Occupation", &
                "   Beta_Density      Occupation"
          ELSE
-            WRITE (UNIT=iw, FMT="(T2,A,I0,A,F12.6)") &
-               "# DOS at iteration step i = ", iterstep, ", E_Fermi[a.u.] = ", e_fermi(1)
+            WRITE (UNIT=iw, FMT="(T2,A,I0)") "# DOS at iteration step i = ", iterstep
             WRITE (UNIT=iw, FMT="(T2,A)") "   Energy[a.u.]       Density     Occupation"
          END IF
          DO i = 1, nhist
