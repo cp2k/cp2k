@@ -4065,7 +4065,6 @@ CONTAINS
                          "ER"), &
                          DOI="10.1063/1.3700154")
 
-<<<<<<< HEAD
       CALL add_reference(key=Ren2011, ISI_record=s2a( &
                          "AU Ren,Xinguo", &
                          "   Tkatchenko,Aleksandre", &
@@ -4095,7 +4094,7 @@ CONTAINS
                          "BP 035120", &
                          "ER"), &
                          DOI="10.1103/PhysRevB.88.035120")
-=======
+
       CALL add_reference(key=Martin2003, ISI_record=s2a( &
                          "AU Martin,Richard L.", &
                          "AF Martin,Richard L.Holger", &
@@ -4109,7 +4108,6 @@ CONTAINS
                          "DI 10.1063/1.1558471", &
                          "ER"), &
                          DOI="10.1063/1.1558471")
->>>>>>> NTO bibliography
 
       CALL add_reference(key=Cohen2000, ISI_record=s2a( &
                          "AU Cohen, Morrel H.", &
