@@ -208,8 +208,7 @@ CONTAINS
       INTEGER                                            :: handle, i, ik, iounit, ispin, iterstep, &
                                                             iv, iw, nhist, nmo(2), nspins
       LOGICAL                                            :: append, ionode, should_output
-      REAL(KIND=dp)                                      :: de, e1, e2, emax, emin, &
-                                                            eval, wkp
+      REAL(KIND=dp)                                      :: de, e1, e2, emax, emin, eval, wkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ehist, hist, occval
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
       TYPE(cp_logger_type), POINTER                      :: logger
