@@ -63,12 +63,14 @@ MODULE sirius_interface
         sirius_create_context, sirius_create_ground_state, sirius_create_kset_from_grid, &
         sirius_dump_runtime_setup, sirius_finalize, sirius_find_ground_state, &
         sirius_get_band_energies, sirius_get_band_occupancies, sirius_get_energy, &
-        sirius_get_forces, sirius_get_stress_tensor, sirius_import_parameters, sirius_initialize, &
-        sirius_initialize_context, sirius_option_add_string_to, sirius_option_get_length, &
-        sirius_option_get_name_and_type, sirius_option_set_double, sirius_option_set_int, &
-        sirius_option_set_logical, sirius_option_set_string, sirius_set_atom_position, &
-        sirius_set_atom_type_dion, sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, &
-        sirius_update_ground_state, string
+        sirius_get_forces, sirius_get_kpoint_properties, sirius_get_num_bands, &
+        sirius_get_num_kpoints, sirius_get_num_spin_components, sirius_get_stress_tensor, &
+        sirius_import_parameters, sirius_initialize, sirius_initialize_context, &
+        sirius_option_add_string_to, sirius_option_get_length, sirius_option_get_name_and_type, &
+        sirius_option_set_double, sirius_option_set_int, sirius_option_set_logical, &
+        sirius_option_set_string, sirius_set_atom_position, sirius_set_atom_type_dion, &
+        sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, sirius_update_ground_state, &
+        string
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -649,13 +651,15 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
       INTEGER                                            :: i, ik, iounit, ispn, iterstep, iv, iw, &
                                                             nbands, nhist, nkpts, nspins
+      INTEGER(KIND=C_INT)                                :: cint
       LOGICAL                                            :: append, dos, ionode
+      REAL(KIND=C_DOUBLE)                                :: creal
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:)     :: slist
       REAL(KIND=dp)                                      :: de, e_fermi(2), emax, emin, eval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wkpt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ehist, hist, occval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: energies, occupations
-      TYPE(C_PTR)                                        :: ks_handler
+      TYPE(C_PTR)                                        :: gs_handler, ks_handler, sctx
       TYPE(cp_logger_type), POINTER                      :: logger
 
       NULLIFY (logger)
@@ -666,35 +670,39 @@ CONTAINS
       ! Density of States
       dos = BTEST(cp_print_key_should_output(logger%iter_info, print_section, "DOS"), cp_p_file)
       IF (dos) THEN
+         ks_handler = C_NULL_PTR
          CALL pwdft_env_get(pwdft_env, ks_handler=ks_handler)
+         gs_handler = C_NULL_PTR
+         CALL pwdft_env_get(pwdft_env, gs_handler=gs_handler)
+         sctx = C_NULL_PTR
+         CALL pwdft_env_get(pwdft_env, sctx=sctx)
 
          CALL section_vals_val_get(print_section, "DOS%DELTA_E", r_val=de)
          CALL section_vals_val_get(print_section, "DOS%APPEND", l_val=append)
 
-!deb
-         nbands = 26
-         nspins = 2
-         nkpts = 4
+         CALL sirius_get_num_kpoints(ks_handler, cint)
+         nkpts = cint
+         CALL sirius_get_num_bands(sctx, cint)
+         nbands = cint
+         CALL sirius_get_num_spin_components(sctx, cint)
+         nspins = cint
          e_fermi(:) = 0.0_dp
-!deb
          ALLOCATE (energies(nbands, nspins, nkpts))
          energies = 0.0_dp
          ALLOCATE (occupations(nbands, nspins, nkpts))
          occupations = 0.0_dp
          ALLOCATE (wkpt(nkpts))
          ALLOCATE (slist(nbands))
-!deb
-         wkpt(1) = 0.125_dp
-         wkpt(2) = 0.375_dp
-         wkpt(3) = 0.375_dp
-         wkpt(4) = 0.125_dp
-!deb
+         DO ik = 0, nkpts - 1
+            CALL sirius_get_kpoint_properties(ks_handler, ik, creal)
+            wkpt(ik + 1) = creal
+         END DO
          DO ik = 1, nkpts
-            DO ispn = 0, nspins-1
+            DO ispn = 0, nspins - 1
                CALL sirius_get_band_energies(ks_handler, ik, ispn, slist(1))
-               energies(1:nbands, ispn+1, ik) = slist(1:nbands)
+               energies(1:nbands, ispn + 1, ik) = slist(1:nbands)
                CALL sirius_get_band_occupancies(ks_handler, ik, ispn, slist(1))
-               occupations(1:nbands, ispn+1, ik) = slist(1:nbands)
+               occupations(1:nbands, ispn + 1, ik) = slist(1:nbands)
             END DO
          END DO
          emin = MINVAL(energies)
