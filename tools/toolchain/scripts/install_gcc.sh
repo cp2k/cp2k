@@ -162,6 +162,9 @@ leak:blacs_gridmap_
 leak:PPEXSIDFTDriver
 # leaks in SuperLU
 leak:symbfact_distributeMatrix
+# leak due to compiler bug triggered by combination of OOP and ALLOCATABLE
+leak:__dbcsr_tensor_types_MOD___copy_dbcsr_tensor_types_Dbcsr_tas_dist_t
+leak:__dbcsr_tensor_types_MOD___copy_dbcsr_tensor_types_Dbcsr_tas_blk_size_t
 EOF
 cat << EOF >> ${INSTALLDIR}/tsan.supp
 # tsan bugs likely related to gcc
