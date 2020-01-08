@@ -59,7 +59,7 @@ CONTAINS
       IF (PRESENT(source)) para_env%source = source
       IF (PRESENT(owns_group)) para_env%owns_group = owns_group
       IF (.NOT. (PRESENT(mepos) .AND. PRESENT(num_pe))) THEN
-         CALL cp_para_env_update(para_env)
+         CALL mp_environ(taskid=para_env%mepos, numtask=para_env%num_pe, groupid=group)
       ELSE
          para_env%mepos = mepos
          para_env%num_pe = num_pe
@@ -115,26 +115,6 @@ CONTAINS
       END IF
       NULLIFY (para_env)
    END SUBROUTINE cp_para_env_release
-
-! **************************************************************************************************
-!> \brief gets again the position and size of the group from the mpi_group
-!> \param para_env the new group
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE cp_para_env_update(para_env)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_update', &
-         routineP = moduleN//':'//routineN
-
-      CPASSERT(ASSOCIATED(para_env))
-      CPASSERT(para_env%ref_count > 0)
-      CALL mp_environ(taskid=para_env%mepos, numtask=para_env%num_pe, &
-                      groupid=para_env%group)
-      para_env%ionode = para_env%mepos == para_env%source
-   END SUBROUTINE cp_para_env_update
 
 ! **************************************************************************************************
 !> \brief creates a cart (multidimensional parallel environment)
