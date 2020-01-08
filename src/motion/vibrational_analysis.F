@@ -414,7 +414,7 @@ CONTAINS
                      Hint1(j, i) = Hessian(j, i)*rmass(i)*rmass(j)*1.0E-6_dp
                   END DO
                END DO
-               nfrozen = SIZE(particles)-natoms
+               nfrozen = SIZE(particles) - natoms
                CALL write_grrm(print_grrm, f_env%force_env, particles, minimum_energy, &
                                hessian=Hint1, fixed_atoms=nfrozen)
                DEALLOCATE (Hint1, rmass)

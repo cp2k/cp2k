@@ -451,7 +451,7 @@ CONTAINS
          DO ikind = 1, nkind
             molecule_kind => molecule_kind_set(ikind)
             CALL get_molecule_kind(molecule_kind, nfixd=nfixed_atoms)
-            nfixed_atoms_total = nfixed_atoms_total+nfixed_atoms
+            nfixed_atoms_total = nfixed_atoms_total + nfixed_atoms
          END DO
          !
          CALL write_grrm(print_grrm, force_env, particles%els, e_pot, fixed_atoms=nfixed_atoms_total)
