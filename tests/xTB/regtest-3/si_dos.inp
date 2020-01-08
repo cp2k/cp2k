@@ -1,0 +1,58 @@
+@SET NREP 1
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD xTB
+      &xTB
+         DO_EWALD T
+      &END XTB
+    &END QS
+    &KPOINTS
+       SCHEME  MONKHORST-PACK  2 2 2
+    &END KPOINTS
+    &SCF
+      SCF_GUESS MOPAC
+      MAX_SCF  100
+      EPS_SCF 1.e-6
+      &MIXING
+          METHOD BROYDEN_MIXING
+          ALPHA   0.40
+          NBUFFER 10
+      &END
+      &SMEAR
+         METHOD FERMI_DIRAC
+         ELECTRONIC_TEMPERATURE  1000
+      &END
+      ADDED_MOS 100
+    &END SCF
+    &PRINT
+     &DOS
+     &END 
+    &END PRINT
+  &END DFT
+  &SUBSYS
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END
+    &CELL
+      ABC 5.431 5.431 5.431
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END CELL
+    &COORD
+     SCALED
+     Si     0.000000    0.000000    0.000000
+     Si     0.490000    0.500000    0.000000
+     Si     0.500000    0.000000    0.500000
+     Si     0.000000    0.500000    0.500000
+     Si     0.255000    0.250000    0.250000
+     Si     0.250000    0.755000    0.750000
+     Si     0.750000    0.250000    0.755000
+     Si     0.750000    0.750000    0.255000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT Si
+  RUN_TYPE ENERGY    
+  PRINT_LEVEL LOW
+&END GLOBAL

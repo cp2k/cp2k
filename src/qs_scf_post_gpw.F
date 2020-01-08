@@ -132,6 +132,8 @@ MODULE qs_scf_post_gpw
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_commutators,                  ONLY: build_com_hr_matrix
    USE qs_core_energies,                ONLY: calculate_ptrace
+   USE qs_dos,                          ONLY: calculate_dos,&
+                                              calculate_dos_kp
    USE qs_electric_field_gradient,      ONLY: qs_efg_calc
    USE qs_elf_methods,                  ONLY: qs_elf_calc
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -1646,6 +1648,18 @@ CONTAINS
                END DO
             END IF
          END IF
+
+         ! *** at the end of scf print out dos
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%DOS") &
+                   , cp_p_file)) THEN
+            IF (do_kpoints) THEN
+               CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
+               CALL calculate_dos_kp(kpoints, qs_env, dft_section)
+            ELSE
+               CALL get_qs_env(qs_env, mos=mos)
+               CALL calculate_dos(mos, qs_env, dft_section)
+            ENDIF
+         ENDIF
 
          ! *** at the end of scf print out the projected dos per kind
          IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%PDOS") &

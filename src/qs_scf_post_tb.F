@@ -102,6 +102,8 @@ MODULE qs_scf_post_tb
                                               calculate_wavefunction
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
+   USE qs_dos,                          ONLY: calculate_dos,&
+                                              calculate_dos_kp
    USE qs_elf_methods,                  ONLY: qs_elf_calc
    USE qs_energy_window,                ONLY: energy_windows
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -187,6 +189,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -375,6 +378,19 @@ CONTAINS
          CALL section_vals_get(wfn_mix_section, explicit=explicit)
          IF (explicit .AND. .NOT. qs_env%run_rtp) CALL wfn_mix_tb(qs_env, dft_section, scf_env)
       END IF
+
+      IF (.NOT. no_mos) THEN
+         print_key => section_vals_get_subs_vals(print_section, "DOS")
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+            IF (do_kpoints) THEN
+               CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
+               CALL calculate_dos_kp(kpoints, qs_env, dft_section)
+            ELSE
+               CALL get_qs_env(qs_env, mos=mos)
+               CALL calculate_dos(mos, qs_env, dft_section)
+            ENDIF
+         ENDIF
+      ENDIF
 
       ! PDOS
       IF (.NOT. no_mos) THEN

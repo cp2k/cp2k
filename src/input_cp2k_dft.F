@@ -1625,6 +1625,10 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      CALL create_dos_section(print_key)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
       CALL create_pdos_section(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -1632,7 +1636,7 @@ CONTAINS
       CALL create_wannier_section(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
-!
+
       !Printing of Moments
       CALL create_dipoles_section(print_key, "MOMENTS", high_print_level)
       CALL keyword_create( &
@@ -2395,6 +2399,41 @@ CONTAINS
 !> \brief ...
 !> \param print_key ...
 ! **************************************************************************************************
+   SUBROUTINE create_dos_section(print_key)
+
+      TYPE(section_type), POINTER                        :: print_key
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_dos_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      NULLIFY (keyword)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DOS", &
+                                       description="Print Density of States (DOS) (only available states from SCF)", &
+                                       print_level=debug_print_level, common_iter_levels=1, filename="")
+
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="Append the DOS obtained at different iterations to the output file."// &
+                          "By defaut the file is overwritten", &
+                          usage="APPEND", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_E", &
+                          description="Histogramm energy spacing.", &
+                          usage="DELTA_E 0.0005", type_of_var=real_t, default_r_val=0.001_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_dos_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param print_key ...
+! **************************************************************************************************
    SUBROUTINE create_pdos_section(print_key)
 
       TYPE(section_type), POINTER                        :: print_key
@@ -2436,7 +2475,7 @@ CONTAINS
                           usage="OUT_EACH_MO integer", default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-!
+
       CALL section_create(subsection, __LOCATION__, name="LDOS", &
                           description="Controls the printing of local PDOS, projected on subsets"// &
                           " of atoms given through lists", &
