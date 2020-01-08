@@ -50,8 +50,8 @@ PROGRAM dumpdcd
                          xyz_input_unit = 10
 
    REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
-   REAL(KIND=dp), PARAMETER :: angstrom = 0.52917720859_dp, &              ! [a.u.] -> [Angstrom]
-                               degree = 180.0_dp/pi, &                   ! [rad]  -> [degree]
+!  REAL(KIND=dp), PARAMETER :: angstrom = 0.52917720859_dp, &              ! [a.u.] -> [Angstrom]
+   REAL(KIND=dp), PARAMETER :: degree = 180.0_dp/pi, &                   ! [rad]  -> [degree]
                                kelvin = 315774.647902944_dp, &           ! [a.u.] -> [K]
                                massunit = 1822.88484264550_dp             ! [u]    -> [a.u.]
 
