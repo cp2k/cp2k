@@ -173,12 +173,12 @@ def prettifyFile(
     does not close the input file"""
     max_pretty_iter = 5
 
-    logger = logging.getLogger("fprettify-logger")
+    logger = logging.getLogger("prettify-logger")
 
     if is_fypp(infile):
         logger.warning(
             "fypp directives not fully supported, running only fprettify",
-            extra={"ffilename": filename, "fline": 0},
+            extra={"ffilename": filename},
         )
         replace = False
         normalize_use = False
@@ -190,80 +190,73 @@ def prettifyFile(
     hash_prev = md5(inbuf.getvalue().encode("utf8"))
 
     for _ in range(max_pretty_iter):
-        try:
-            if replace:
-                outbuf = StringIO()
-                replacer.replaceWords(inbuf, outbuf)
+        if replace:
+            outbuf = StringIO()
+            replacer.replaceWords(inbuf, outbuf)
+            outbuf.seek(0)
+            inbuf.close()
+            inbuf = outbuf
+
+        if reformat:  # reformat needs to be done first
+            outbuf = StringIO()
+            try:
+                reformat_ffile(
+                    inbuf,
+                    outbuf,
+                    indent_size=indent,
+                    whitespace=whitespace,
+                    orig_filename=filename,
+                )
+            except fparse_utils.FprettifyParseException as e:
+                log_exception(
+                    e, "fprettify could not parse file, file is not prettified"
+                )
+                outbuf.close()
+                inbuf.seek(0)
+            else:
                 outbuf.seek(0)
                 inbuf.close()
                 inbuf = outbuf
 
-            if reformat:  # reformat needs to be done first
-                outbuf = StringIO()
-                try:
-                    reformat_ffile(
-                        inbuf,
-                        outbuf,
-                        indent_size=indent,
-                        whitespace=whitespace,
-                        orig_filename=filename,
-                    )
-                except fparse_utils.FprettifyParseException as e:
-                    log_exception(
-                        e, "fprettify could not parse file, file is not prettified"
-                    )
-                    outbuf.close()
-                    inbuf.seek(0)
-                else:
-                    outbuf.seek(0)
-                    inbuf.close()
-                    inbuf = outbuf
+        normalize_use_succeeded = True
 
-            normalize_use_succeeded = True
-
-            if normalize_use:
-                outbuf = StringIO()
-                try:
-                    normalizeFortranFile.rewriteFortranFile(
-                        inbuf,
-                        outbuf,
-                        indent,
-                        decl_linelength,
-                        decl_offset,
-                        orig_filename=filename,
-                    )
-                except normalizeFortranFile.InputStreamError as exc:
-                    logger.error(
-                        "normalizeFortranFile could not parse file, file is not normalized",
-                        extra={"ffilename": filename, "fline": 0},
-                    )
-                    outbuf.close()
-                    inbuf.seek(0)
-                    normalize_use_succeeded = False
-                else:
-                    outbuf.seek(0)
-                    inbuf.close()
-                    inbuf = outbuf
-
-            if upcase_keywords and normalize_use_succeeded:
-                outbuf = StringIO()
-                upcaseKeywords(inbuf, outbuf, upcase_omp)
+        if normalize_use:
+            outbuf = StringIO()
+            try:
+                normalizeFortranFile.rewriteFortranFile(
+                    inbuf,
+                    outbuf,
+                    indent,
+                    decl_linelength,
+                    decl_offset,
+                    orig_filename=filename,
+                )
+            except normalizeFortranFile.InputStreamError as exc:
+                logger.exception(
+                    "normalizeFortranFile could not parse file, file is not normalized",
+                    extra={"ffilename": filename},
+                )
+                outbuf.close()
+                inbuf.seek(0)
+                normalize_use_succeeded = False
+            else:
                 outbuf.seek(0)
                 inbuf.close()
                 inbuf = outbuf
 
-            hash_new = md5(inbuf.getvalue().encode("utf8"))
+        if upcase_keywords and normalize_use_succeeded:
+            outbuf = StringIO()
+            upcaseKeywords(inbuf, outbuf, upcase_omp)
+            outbuf.seek(0)
+            inbuf.close()
+            inbuf = outbuf
 
-            if hash_prev.digest() == hash_new.digest():
-                return inbuf
+        hash_new = md5(inbuf.getvalue().encode("utf8"))
 
-            hash_prev = hash_new
+        if hash_prev.digest() == hash_new.digest():
+            return inbuf
 
-        except:
-            logger.critical(
-                "error processing file", extra={"ffilename": filename, "fline": 0}
-            )
-            raise
+        hash_prev = hash_new
 
     else:
         raise RuntimeError(
@@ -431,6 +424,34 @@ def main(argv):
     if args.do_backup and not (args.stdout or args.files == ["stdin"]):
         mkdir_p(args.backup_dir)
 
+    level = logging.CRITICAL
+
+    if args.report_errors:
+        if args.debug:
+            level = logging.DEBUG
+        else:
+            level = logging.INFO
+
+    # the fprettify logger provides filename and line number in case of errors
+    shandler = logging.StreamHandler()
+    shandler.setLevel(level)
+    shandler.setFormatter(
+        logging.Formatter("%(levelname)s %(ffilename)s:%(fline)s: %(message)s")
+    )
+
+    fprettify_logger = logging.getLogger("fprettify-logger")
+    fprettify_logger.setLevel(level)
+    fprettify_logger.addHandler(shandler)
+
+    # the prettify_cp2k loggers only provide the filename in their messages
+    shandler = logging.StreamHandler()
+    shandler.setLevel(level)
+    shandler.setFormatter(logging.Formatter("%(levelname)s %(ffilename)s: %(message)s"))
+
+    prettify_logger = logging.getLogger("prettify-logger")
+    prettify_logger.setLevel(level)
+    prettify_logger.addHandler(shandler)
+
     failure = 0
 
     for filename in args.files:
@@ -438,24 +459,6 @@ def main(argv):
             eprint("file '{}' does not exist!".format(filename))
             failure += 1
             continue
-
-        level = logging.CRITICAL
-
-        if args.report_errors:
-            if args.debug:
-                level = logging.DEBUG
-            else:
-                level = logging.INFO
-
-        logger = logging.getLogger("fprettify-logger")
-        logger.setLevel(level)
-        sh = logging.StreamHandler()
-        sh.setLevel(level)
-        formatter = logging.Formatter(
-            "%(levelname)s %(ffilename)s:%(fline)s: %(message)s"
-        )
-        sh.setFormatter(formatter)
-        logger.addHandler(sh)
 
         try:
             prettifyInplace(
@@ -473,10 +476,7 @@ def main(argv):
                 replace=args.replace,
             )
         except:
-            eprint("-" * 60)
-            traceback.print_exc(file=sys.stderr)
-            eprint("-" * 60)
-            eprint("Processing file '{}'".format(filename))
+            logger.exception("processing file failed", extra={"ffilename": filename})
             failure += 1
 
     return failure > 0
