@@ -18,7 +18,7 @@ MODULE input_cp2k_dft
         Krack2002, Kunert2003, Lippert1997, Lippert1999, Lu2004, Perdew1981, Repasky2002, &
         Rocha2006, Schenter2008, Schiffmann2015, Stewart1982, Stewart1989, Stewart2007, Thiel1992, &
         Tozer1996, VanVoorhis2015, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
-        VandeVondele2006, Weber2008, Zhao1994
+        VandeVondele2006, Weber2008, Yin2017, Zhao1994
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -2166,7 +2166,7 @@ CONTAINS
          filename="__STD_OUT__", &
          each_iter_names=s2a("QS_SCF"), &
          each_iter_values=(/0/), &
-         citations=(/Fattebert2002, Andreussi2012/))
+         citations=(/Fattebert2002, Andreussi2012, Yin2017/))
 
       NULLIFY (sub_print_key)
 
@@ -2209,7 +2209,66 @@ CONTAINS
          filename="", &
          each_iter_names=s2a("QS_SCF"), &
          each_iter_values=(/0/), &
-         citations=(/Fattebert2002, Andreussi2012/))
+         citations=(/Fattebert2002, Andreussi2012, Yin2017/))
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 "// &
+                          "numbers (for X,Y,Z) or 1 number valid for all components.", &
+                          n_var=-1, &
+                          default_i_vals=(/2, 2, 2/), &
+                          type_of_var=integer_t, &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="Append the cube files when they already exist", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE., &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
+
+      CALL cp_print_key_section_create( &
+         sub_print_key, __LOCATION__, name="TOTAL_CHARGE_DENSITY", &
+         description="Controls the printing of the cube files with the "// &
+         "total charge density &rho;<sup>tot</sup> used by the SCCS model.", &
+         print_level=debug_print_level, &
+         filename="", &
+         each_iter_names=s2a("QS_SCF"), &
+         each_iter_values=(/0/), &
+         citations=(/Fattebert2002, Andreussi2012, Yin2017/))
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 "// &
+                          "numbers (for X,Y,Z) or 1 number valid for all components.", &
+                          n_var=-1, &
+                          default_i_vals=(/2, 2, 2/), &
+                          type_of_var=integer_t, &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="Append the cube files when they already exist", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE., &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
+
+      CALL cp_print_key_section_create( &
+         sub_print_key, __LOCATION__, name="POLARISATION_CHARGE_DENSITY", &
+         description="Controls the printing of the cube files with the "// &
+         "polarisation charge density &rho;<sup>pol</sup> used by the SCCS model with the "// &
+         "total charge density &rho;<sup>tot</sup> = &rho;<sup>sol</sup> + &rho;<sup>pol</sup>", &
+         print_level=debug_print_level, &
+         filename="", &
+         each_iter_names=s2a("QS_SCF"), &
+         each_iter_values=(/0/), &
+         citations=(/Fattebert2002, Andreussi2012, Yin2017/))
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 "// &
@@ -2233,13 +2292,13 @@ CONTAINS
       CALL cp_print_key_section_create( &
          sub_print_key, __LOCATION__, name="POLARISATION_POTENTIAL", &
          description="Controls the printing of the cube files with the "// &
-         "polarisation potential &phi;<sup>pol</sup> used by the SCCS model with "// &
+         "polarisation potential &phi;<sup>pol</sup> used by the SCCS model with the "// &
          "total potential &phi;<sup>tot</sup> = &phi;<sup>sol</sup> + &phi;<sup>pol</sup>", &
          print_level=debug_print_level, &
          filename="", &
          each_iter_names=s2a("QS_SCF"), &
          each_iter_values=(/0/), &
-         citations=(/Fattebert2002, Andreussi2012/))
+         citations=(/Fattebert2002, Andreussi2012, Yin2017/))
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 "// &
@@ -8782,7 +8841,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, &
                           name="SCCS", &
                           description="Define the parameters for self-consistent continuum solvation (SCCS) model", &
-                          citations=(/Fattebert2002, Andreussi2012/), &
+                          citations=(/Fattebert2002, Andreussi2012, Yin2017/), &
                           n_keywords=8, &
                           n_subsections=2, &
                           repeats=.FALSE.)

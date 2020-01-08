@@ -414,7 +414,7 @@ CONTAINS
                      dft_control%qs_control%semi_empirical))) THEN
             DO dir = 1, 3
                virial%pv_virial(dir, dir) = virial%pv_virial(dir, dir) - energy%exc &
-                                            - 2.0_dp*energy%hartree
+                                            - 2.0_dp*(energy%hartree + energy%sccs_pol)
                IF (dft_control%do_admm) THEN
                   virial%pv_virial(dir, dir) = virial%pv_virial(dir, dir) - energy%exc_aux_fit
                END IF

@@ -11,7 +11,7 @@ MODULE cp_control_utils
         Andreussi2012, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, Grimme2017, Hu2007, &
         Krack2000, Lippert1997, Lippert1999, Porezag1995, Repasky2002, Rocha2006, Schenter2008, &
         Seifert1996, Souza2002, Stengel2009, Stewart1989, Stewart2007, Thiel1992, Umari2002, &
-        VanVoorhis2015, VandeVondele2005a, VandeVondele2005b, Zhechkov2005, cite_reference
+        VanVoorhis2015, VandeVondele2005a, VandeVondele2005b, Yin2017, Zhechkov2005, cite_reference
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, qs_control_type, sccs_control_create, &
@@ -416,7 +416,7 @@ CONTAINS
       tmp_section => section_vals_get_subs_vals(dft_section, "EXTERNAL_POTENTIAL")
       CALL section_vals_get(tmp_section, explicit=dft_control%apply_external_potential)
 
-      !MK Read the SCCS input section if present
+      ! Read the SCCS input section if present
       sccs_section => section_vals_get_subs_vals(dft_section, "SCCS")
       CALL section_vals_get(sccs_section, explicit=is_present)
       IF (is_present) THEN
@@ -459,6 +459,7 @@ CONTAINS
                                 "The SCCS parameter RHO_MAX is smaller than RHO_MIN. "// &
                                 "Please, check your input!")
                END IF
+               CALL cite_reference(Andreussi2012)
             CASE (sccs_fattebert_gygi)
                tmp_section => section_vals_get_subs_vals(sccs_section, "FATTEBERT-GYGI")
                CALL section_vals_val_get(tmp_section, "BETA", &
@@ -470,11 +471,11 @@ CONTAINS
                END IF
                CALL section_vals_val_get(tmp_section, "RHO_ZERO", &
                                          r_val=dft_control%sccs_control%rho_zero)
+               CALL cite_reference(Fattebert2002)
             CASE DEFAULT
                CPABORT("Invalid SCCS model specified. Please, check your input!")
             END SELECT
-            CALL cite_reference(Fattebert2002)
-            CALL cite_reference(Andreussi2012)
+            CALL cite_reference(Yin2017)
          END IF
       END IF
 

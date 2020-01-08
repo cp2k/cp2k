@@ -219,7 +219,7 @@ CONTAINS
       IF (PRESENT(h_stress)) THEN
          calculate_stress_tensor = .TRUE.
          h_stress(:, :) = 0.0_dp
-         CPABORT("No stress tensor is implemented for SCCS models yet")
+         CPWARN("The stress tensor for SCCS has not yet been fully validated")
       ELSE
          calculate_stress_tensor = .FALSE.
       END IF
@@ -337,8 +337,9 @@ CONTAINS
             ELSE
                filename = mpi_filename
             END IF
-            WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-               "The dielectric function is written in cube file format to the file:", TRIM(filename)
+            WRITE (UNIT=output_unit, FMT="(T3,A)") &
+               "SCCS| The dielectric function is written in cube file format to the file:", &
+               "SCCS| "//TRIM(filename)
          END IF
          CALL cp_pw_to_cube(eps_elec, cube_unit, TRIM(filename), particles=particles, &
                             stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), &
@@ -421,8 +422,9 @@ CONTAINS
                ELSE
                   filename = mpi_filename
                END IF
-               WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                  "The norm of the density gradient is written in cube file format to the file:", TRIM(filename)
+               WRITE (UNIT=output_unit, FMT="(T3,A)") &
+                  "SCCS| The norm of the density gradient is written in cube file format to the file:", &
+                  "SCCS| "//TRIM(filename)
             END IF
             CALL cp_pw_to_cube(norm_drho_elec, cube_unit, TRIM(filename), particles=particles, &
                                stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), &
@@ -524,7 +526,7 @@ CONTAINS
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
-               IF (eps_elec%cr3d(i, j, k) < 1.0E-12_dp) THEN
+               IF (eps_elec%cr3d(i, j, k) < 1.0_dp) THEN
                   WRITE (UNIT=message, FMT="(A,ES12.3,A,3(I0,A))") &
                      "SCCS| Invalid dielectric function value ", eps_elec%cr3d(i, j, k), &
                      " encountered at grid point (", i, ",", j, ",", k, ")"
@@ -555,7 +557,7 @@ CONTAINS
       ! Print header for the SCCS cycle
       IF (should_output .AND. (output_unit > 0)) THEN
          IF (print_level > low_print_level) THEN
-            WRITE (UNIT=output_unit, FMT="(/,(T3,A,T61,F20.10))") &
+            WRITE (UNIT=output_unit, FMT="(T3,A,T61,F20.10)") &
                "SCCS| Total electronic charge density ", -tot_rho_elec, &
                "SCCS| Total charge density (solute)   ", -tot_rho_solute
             WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.3)") &
@@ -570,7 +572,7 @@ CONTAINS
                cp_unit_from_cp2k(cell_volume, "angstrom^3")
             WRITE (UNIT=output_unit, FMT="(T3,A)") &
                "SCCS|", &
-               "SCCS|   Step    Average residual    Maximum residual"
+               "SCCS|   Step    Average residual    Maximum residual      E(Hartree) [Hartree]"
          END IF
       END IF
 
@@ -612,6 +614,7 @@ CONTAINS
          ! Calculate derivative of the current total potential in r-space
          CALL pw_poisson_solve(poisson_env=poisson_env, &
                                density=rho_tot, &
+                               ehartree=energy%sccs_hartree, &
                                dvhartree=dphi_tot)
 
          ! Update total charge density (solute plus polarisation) in r-space
@@ -651,11 +654,11 @@ CONTAINS
             IF (print_level > low_print_level) THEN
                IF ((ABS(rho_delta_avg) < 1.0E-8_dp) .OR. &
                    (ABS(rho_delta_avg) >= 1.0E5_dp)) THEN
-                  WRITE (UNIT=output_unit, FMT="(T3,A,I6,4X,ES16.4,4X,ES16.4)") &
-                     "SCCS| ", iter, rho_delta_avg, rho_delta_max
+                  WRITE (UNIT=output_unit, FMT="(T3,A,I6,4X,ES16.4,4X,ES16.4,1X,F25.12)") &
+                     "SCCS| ", iter, rho_delta_avg, rho_delta_max, energy%sccs_hartree
                ELSE
-                  WRITE (UNIT=output_unit, FMT="(T3,A,I6,4X,F16.8,4X,F16.8)") &
-                     "SCCS| ", iter, rho_delta_avg, rho_delta_max
+                  WRITE (UNIT=output_unit, FMT="(T3,A,I6,4X,F16.8,4X,F16.8,1X,F25.12)") &
+                     "SCCS| ", iter, rho_delta_avg, rho_delta_max, energy%sccs_hartree
                END IF
             END IF
          END IF
@@ -670,6 +673,33 @@ CONTAINS
          END IF
 
       END DO iter_loop
+
+      ! Optional output of the total charge density in cube file format
+      filename = "TOTAL_CHARGE_DENSITY"
+      cube_path = TRIM(print_path)//"%"//TRIM(filename)
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), cp_p_file)) THEN
+         append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
+         my_pos_cube = "REWIND"
+         IF (append_cube) my_pos_cube = "APPEND"
+         mpi_io = .TRUE.
+         cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
+                                          extension=".cube", middle_name=TRIM(filename), &
+                                          file_position=my_pos_cube, log_filename=.FALSE., &
+                                          mpi_io=mpi_io, fout=mpi_filename)
+         IF (output_unit > 0) THEN
+            IF (.NOT. mpi_io) THEN
+               INQUIRE (UNIT=cube_unit, NAME=filename)
+            ELSE
+               filename = mpi_filename
+            END IF
+            WRITE (UNIT=output_unit, FMT="(T3,A)") &
+               "SCCS| The total SCCS charge density is written in cube file format to the file:", &
+               "SCCS| "//TRIM(filename)
+         END IF
+         CALL cp_pw_to_cube(rho_tot, cube_unit, TRIM(filename), particles=particles, &
+                            stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), mpi_io=mpi_io)
+         CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
+      END IF
 
       ! Calculate the total Hartree energy, potential, and its derivatives of
       ! the solute and the implicit solvent
@@ -688,7 +718,11 @@ CONTAINS
                                vhartree=v_hartree_gspace, &
                                dvhartree=dphi_tot)
       END IF
+
+      ! Prepare the calculation of the polarisation potential phi_pol
       phi_pol => work_r3d(5)%pw
+      CALL pw_zero(phi_pol)
+      ! Calculate and store the total potential in phi_pol
       CALL pw_transfer(v_hartree_gspace, phi_pol)
 
       ! Calculate the Hartree energy and potential of the solute only
@@ -704,12 +738,7 @@ CONTAINS
       ! phi_pol = phi_tot - phi_solute
       CALL pw_axpy(phi_solute, phi_pol, alpha=-1.0_dp)
 
-      ! Calculate the polarisation charge
-      ! rho_pol = rho_tot - rho_solute
-      CALL pw_axpy(rho_solute, rho_tot, alpha=-1.0_dp)
-      polarisation_charge = accurate_sum(rho_tot%cr3d)*dvol
-      CALL mp_sum(polarisation_charge, para_env%group)
-
+      ! Optional output of the SCCS polarisation potential in cube file format
       filename = "POLARISATION_POTENTIAL"
       cube_path = TRIM(print_path)//"%"//TRIM(filename)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), &
@@ -728,10 +757,46 @@ CONTAINS
             ELSE
                filename = mpi_filename
             END IF
-            WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-               "The SCCS polarisation potential is written in cube file format to the file:", TRIM(filename)
+            WRITE (UNIT=output_unit, FMT="(T3,A)") &
+               "SCCS| The SCCS polarisation potential is written in cube file format to the file:", &
+               "SCCS| "//TRIM(filename)
          END IF
          CALL cp_pw_to_cube(phi_pol, cube_unit, TRIM(filename), particles=particles, &
+                            stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), mpi_io=mpi_io)
+         CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
+      END IF
+
+      ! Calculate the polarisation charge
+      ! rho_pol = rho_tot - rho_solute
+      CALL pw_axpy(rho_solute, rho_tot, alpha=-1.0_dp)
+      ! Note: rho_tot contains now the polarisation charge rho_pol
+      polarisation_charge = accurate_sum(rho_tot%cr3d)*dvol
+      CALL mp_sum(polarisation_charge, para_env%group)
+
+      ! Optional output of the SCCS polarisation charge in cube file format
+      filename = "POLARISATION_CHARGE_DENSITY"
+      cube_path = TRIM(print_path)//"%"//TRIM(filename)
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), &
+                cp_p_file)) THEN
+         append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
+         my_pos_cube = "REWIND"
+         IF (append_cube) my_pos_cube = "APPEND"
+         mpi_io = .TRUE.
+         cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
+                                          extension=".cube", middle_name=TRIM(filename), &
+                                          file_position=my_pos_cube, log_filename=.FALSE., &
+                                          mpi_io=mpi_io, fout=mpi_filename)
+         IF (output_unit > 0) THEN
+            IF (.NOT. mpi_io) THEN
+               INQUIRE (UNIT=cube_unit, NAME=filename)
+            ELSE
+               filename = mpi_filename
+            END IF
+            WRITE (UNIT=output_unit, FMT="(T3,A)") &
+               "SCCS| The SCCS polarisation charge density is written in cube file format to the file:", &
+               "SCCS| "//TRIM(filename)
+         END IF
+         CALL cp_pw_to_cube(rho_tot, cube_unit, TRIM(filename), particles=particles, &
                             stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
       END IF
@@ -778,8 +843,8 @@ CONTAINS
       f = -0.25_dp*dvol/twopi
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP             PRIVATE(dphi2,i,j,k) &
-!$OMP             SHARED(calculate_stress_tensor,f,deps_elec,dphi_tot) &
-!$OMP             SHARED(dvol,lb,ub,v_sccs)
+!$OMP             SHARED(f,deps_elec,dphi_tot) &
+!$OMP             SHARED(lb,ub,v_sccs)
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
@@ -1014,7 +1079,7 @@ CONTAINS
          CALL rs_grid_create_descriptor(rs_desc, f%pw_grid, input_settings, &
                                         border_points=border_points)
          CALL rs_grid_create(rs_grid, rs_desc)
-!MK    CALL rs_grid_print(rs_grid,6)
+!MK      CALL rs_grid_print(rs_grid, 6)
       CASE (sccs_derivative_fft)
          lb(1:3) = f%pw_grid%bounds_local(1, 1:3)
          ub(1:3) = f%pw_grid%bounds_local(2, 1:3)
