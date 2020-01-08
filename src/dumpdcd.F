@@ -1,7 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2020  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
+
 PROGRAM dumpdcd
 
-! Copyright (C) 2012 - 2016  Matthias Krack (MK)
-!
 ! Version: 3.0
 ! Author:  Matthias Krack (MK)
 ! History: - Creation (13.02.2012,MK)
