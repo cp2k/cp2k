@@ -105,8 +105,8 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, iparticle1, &
-         iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, nRotTrM, nvib, output_unit, &
-         output_unit_eig, prep, print_grrm, proc_dist_type
+         iparticle2, iseq, iw, j, k, natoms, ncoord, nfrozen, nrep, nres, nRotTrM, nvib, &
+         output_unit, output_unit_eig, prep, print_grrm, proc_dist_type
       INTEGER, DIMENSION(:), POINTER                     :: Clist, Mlist
       LOGICAL                                            :: calc_intens, calc_thchdata, &
                                                             do_mode_tracking, keep_rotations, &
@@ -414,7 +414,9 @@ CONTAINS
                      Hint1(j, i) = Hessian(j, i)*rmass(i)*rmass(j)*1.0E-6_dp
                   END DO
                END DO
-               CALL write_grrm(print_grrm, particles, minimum_energy, hessian=Hint1)
+               nfrozen = SIZE(particles) - natoms
+               CALL write_grrm(print_grrm, f_env%force_env, particles, minimum_energy, &
+                               hessian=Hint1, fixed_atoms=nfrozen)
                DEALLOCATE (Hint1, rmass)
             END IF
             CALL cp_print_key_finished_output(print_grrm, logger, force_env_section, "PRINT%GRRM")
