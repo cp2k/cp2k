@@ -138,7 +138,10 @@ CONTAINS
             DEALLOCATE (ec_env%cpmos)
             NULLIFY (ec_env%cpmos)
          END IF
+
          IF (ASSOCIATED(ec_env%matrix_hz)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_hz)
+         NULLIFY (ec_env%matrix_hz)
+
          IF (ASSOCIATED(ec_env%p_env)) THEN
             CALL p_env_release(ec_env%p_env)
          END IF

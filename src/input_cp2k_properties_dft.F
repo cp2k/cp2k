@@ -21,18 +21,21 @@ MODULE input_cp2k_properties_dft
                                               Weber2009
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
+                                              debug_print_level,&
                                               high_print_level,&
                                               low_print_level,&
-                                              medium_print_level
+                                              medium_print_level,&
+                                              silent_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         current_gauge_atom, current_gauge_r, current_gauge_r_and_step_func, &
         current_orb_center_atom, current_orb_center_box, current_orb_center_common, &
         current_orb_center_wannier, do_et_ddapc, do_full_density, do_no_et, do_spin_density, &
+        gto_cartesian, gto_spherical, oe_gllb, oe_lb, oe_none, oe_saop, oe_shift, &
         ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity, use_mom_ref_coac, &
-        use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero
+        tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity, tddfpt_kernel_full, &
+        tddfpt_kernel_stda, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero
    USE input_cp2k_atprop,               ONLY: create_atprop_section
    USE input_cp2k_dft,                  ONLY: create_ddapc_restraint_section,&
                                               create_interp_section,&
@@ -1151,7 +1154,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="TDDFPT", &
-                          description="Parameters needed to set up the Time-Dependent Density Functional Perturbation Theory. "// &
+                          description="Parameters needed to set up the Time-Dependent "// &
+                          "Density Functional Perturbation Theory. "// &
                           "Current implementation works for hybrid functionals. "// &
                           "Can be used with Gaussian and Plane Waves (GPW) method only.", &
                           n_keywords=12, n_subsections=4, repeats=.FALSE., &
@@ -1206,6 +1210,50 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      ! kernel type
+      CALL keyword_create(keyword, __LOCATION__, name="KERNEL", &
+                          description="Options to compute the kernel", &
+                          usage="KERNEL FULL", &
+                          enum_c_vals=s2a("FULL", "sTDA"), &
+                          enum_i_vals=(/tddfpt_kernel_full, tddfpt_kernel_stda/), &
+                          default_i_val=tddfpt_kernel_full)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OE_CORR", &
+                          description="Orbital energy correction potential.", &
+                          enum_c_vals=s2a("NONE", "LB94", "GLLB", "SAOP", "SHIFT"), &
+                          enum_i_vals=(/oe_none, oe_lb, oe_gllb, oe_saop, oe_shift/), &
+                          enum_desc=s2a("No orbital correction scheme is used", &
+                                        "van Leeuwen and Baerends. PRA, 49:2421, 1994", &
+                                        "Gritsenko, van Leeuwen, van Lenthe, Baerends. PRA, 51:1944, 1995", &
+                                        "Gritsenko, Schipper, Baerends. Chem. Phys. Lett., 302:199, 1999", &
+                                        "Constant shift of virtual and/or open-shell orbitals"), &
+                          default_i_val=oe_none)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! SHIFTS
+      CALL keyword_create(keyword, __LOCATION__, name="EV_SHIFT", &
+                          variants=s2a("VIRTUAL_SHIFT"), &
+                          description="Constant shift of virtual state eigenvalues.", &
+                          usage="EV_SHIFT 0.500", &
+                          n_var=1, type_of_var=real_t, &
+                          unit_str="eV", &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, __LOCATION__, name="EOS_SHIFT", &
+                          variants=s2a("OPEN_SHELL_SHIFT"), &
+                          description="Constant shift of open shell eigenvalues.", &
+                          usage="EOS_SHIFT 0.200", &
+                          n_var=1, type_of_var=real_t, &
+                          unit_str="eV", &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Real
       CALL keyword_create(keyword, __LOCATION__, name="CONVERGENCE", &
                           description="Target accuracy for excited state energies.", &
@@ -1223,8 +1271,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ORTHOGONAL_EPS", &
                           description="The largest possible overlap between the ground state and "// &
-                          "orthogonalised excited state wave-functions. Davidson iterations will be restarted "// &
-                          "when the overlap goes beyond this threshold in order to prevent numerical instability.", &
+                          "orthogonalised excited state wave-functions. Davidson iterations "// &
+                          "will be restarted when the overlap goes beyond this threshold in "// &
+                          "order to prevent numerical instability.", &
                           n_var=1, type_of_var=real_t, &
                           default_r_val=1.0e-4_dp)
       CALL section_add_keyword(section, keyword)
@@ -1308,31 +1357,42 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      ! sTDA subsection
+      CALL create_stda_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       ! PRINT subsection
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Printing of information during the TDDFT run.", repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "GUESS_VECTORS", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="PROGRAM_BANNER", &
+                                       description="Controls the printing of the banner for TDDFPT program", &
+                                       print_level=silent_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="GUESS_VECTORS", &
                                        description="Controls the printing of initial guess vectors.", &
                                        print_level=low_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "ITERATION_INFO", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="ITERATION_INFO", &
                                        description="Controls the printing of basic iteration information "// &
                                        "during the TDDFT run.", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "DETAILED_ENERGY", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="DETAILED_ENERGY", &
                                        description="Controls the printing of detailed energy information "// &
                                        "during the TDDFT run.", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="RESTART", &
                                        description="Controls the dumping of the MO restart file during TDDFPT. "// &
                                        "By default keeps a short history of three restarts.", &
                                        print_level=low_print_level, common_iter_levels=3, &
@@ -1347,8 +1407,105 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="NTO_ANALYSIS", &
+                                       description="Perform a natural transition orbital analysis.", &
+                                       print_level=medium_print_level)
+      CALL keyword_create(keyword, __LOCATION__, name="THRESHOLD", &
+                          description="Threshold for sum of NTO eigenvalues considered", &
+                          usage="Threshold 0.95", &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=0.975_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="CUBE_FILES", &
+                          description="Print NTOs on Cube Files", &
+                          usage="CUBE_FILES {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). Provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MOS_MOLDEN", &
+                                       description="Write the NTO in Molden file format, for visualisation.", &
+                                       print_level=debug_print_level + 1, add_last=add_last_numeric, filename="MOS")
+      CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
+                          description="Specifies the number of signficiant digits retained. 3 is OK for visualization.", &
+                          usage="NDIGITS {int}", &
+                          default_i_val=3)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="GTO_KIND", &
+                          description="Representation of Gaussian-type orbitals", &
+                          default_i_val=gto_spherical, &
+                          enum_c_vals=s2a("CARTESIAN", "SPHERICAL"), &
+                          enum_desc=s2a( &
+                          "Cartesian Gaussian orbitals. Use with caution", &
+                          "Spherical Gaussian orbitals. Incompatible with VMD"), &
+                          enum_i_vals=(/gto_cartesian, gto_spherical/))
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+
    END SUBROUTINE create_tddfpt2_section
+
+! **************************************************************************************************
+!> \brief creates the stda input section (simplified Tamm Dancoff Approximation)
+!> \param section the section to create
+! **************************************************************************************************
+   SUBROUTINE create_stda_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_stda_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="sTDA", &
+                          description="parameters needed and setup for sTDA calculations", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FRACTION", &
+                          variants=(/"HFX_FRACTION"/), &
+                          description="The fraction of Hartree-Fock to add to the total energy. "// &
+                          "1.0 implies standard Hartree-Fock if used with XC_FUNCTIONAL NONE. "// &
+                          "NOTE: In a mixed potential calculation this should be set to 1.0, otherwise "// &
+                          "all parts are multiplied with this factor. ", &
+                          usage="FRACTION 0.0", default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DO_EWALD", &
+                          description="Use Ewald type method for Coulomb interaction", &
+                          usage="DO_EWALD", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_TD_FILTER", &
+                          description="Threshold for filtering the transition density matrix", &
+                          usage="EPS_TD_FILTER", default_r_val=1.e-10_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_stda_section
 
 END MODULE input_cp2k_properties_dft

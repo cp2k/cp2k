@@ -42,6 +42,8 @@ MODULE qs_tddfpt2_subgroups
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
    USE distribution_methods,            ONLY: distribute_molecules_2d
+   USE input_constants,                 ONLY: tddfpt_kernel_full,&
+                                              tddfpt_kernel_stda
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
@@ -157,14 +159,16 @@ CONTAINS
 !> \param sub_env  parallel group environment (initialised on exit)
 !> \param qs_env   Quickstep environment
 !> \param mos_occ  ground state molecular orbitals in primary atomic basis set
+!> \param kernel   Type of kernel (full/sTDA) that will be used
 !> \par History
 !>    * 01.2017 (sub)group-related code has been moved here from the main subroutine tddfpt()
 !>              [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_sub_env_init(sub_env, qs_env, mos_occ)
+   SUBROUTINE tddfpt_sub_env_init(sub_env, qs_env, mos_occ, kernel)
       TYPE(tddfpt_subgroup_env_type), INTENT(out)        :: sub_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: mos_occ
+      INTEGER, INTENT(in)                                :: kernel
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_sub_env_init', &
          routineP = moduleN//':'//routineN
@@ -192,7 +196,8 @@ CONTAINS
       qs_control => dft_control%qs_control
 
       ! ++ split mpi communicator if
-      !    a) the requested number of processors per group > 0 (means that the split has been requested explicitly), and
+      !    a) the requested number of processors per group > 0
+      !       (means that the split has been requested explicitly), and
       !    b) the number of subgroups is >= 2
       sub_env%is_split = tddfpt_control%nprocs > 0 .AND. tddfpt_control%nprocs*2 <= para_env_global%num_pe
 
@@ -255,46 +260,74 @@ CONTAINS
          END IF
       END IF
 
-      ! ++ allocate a new plane wave environment
-      sub_env%is_mgrid = sub_env%is_split .OR. tddfpt_control%mgrid_is_explicit
+      IF (kernel == tddfpt_kernel_full) THEN
+         ! ++ allocate a new plane wave environment
+         sub_env%is_mgrid = sub_env%is_split .OR. tddfpt_control%mgrid_is_explicit
 
-      NULLIFY (sub_env%dbcsr_dist, sub_env%dist_2d)
-      NULLIFY (sub_env%sab_orb, sub_env%sab_aux_fit)
-      NULLIFY (sub_env%task_list_orb, sub_env%task_list_aux_fit)
+         NULLIFY (sub_env%dbcsr_dist, sub_env%dist_2d)
+         NULLIFY (sub_env%sab_orb, sub_env%sab_aux_fit)
+         NULLIFY (sub_env%task_list_orb, sub_env%task_list_aux_fit)
 
-      IF (sub_env%is_mgrid) THEN
-         IF (tddfpt_control%mgrid_is_explicit) &
-            CALL init_tddfpt_mgrid(qs_control, tddfpt_control, mgrid_saved)
+         IF (sub_env%is_mgrid) THEN
+            IF (tddfpt_control%mgrid_is_explicit) &
+               CALL init_tddfpt_mgrid(qs_control, tddfpt_control, mgrid_saved)
 
-         NULLIFY (sub_env%pw_env)
+            NULLIFY (sub_env%pw_env)
 
-         CALL pw_env_create(sub_env%pw_env)
-         CALL pw_env_rebuild(sub_env%pw_env, qs_env, sub_env%para_env)
+            CALL pw_env_create(sub_env%pw_env)
+            CALL pw_env_rebuild(sub_env%pw_env, qs_env, sub_env%para_env)
 
-         CALL tddfpt_build_distribution_2d(distribution_2d=sub_env%dist_2d, dbcsr_dist=sub_env%dbcsr_dist, &
-                                           blacs_env=sub_env%blacs_env, qs_env=qs_env)
-         CALL tddfpt_build_tasklist(task_list=sub_env%task_list_orb, sab=sub_env%sab_orb, basis_type="ORB", &
-                                    distribution_2d=sub_env%dist_2d, pw_env=sub_env%pw_env, qs_env=qs_env, &
-                                    skip_load_balance=qs_control%skip_load_balance_distributed, reorder_grid_ranks=.TRUE.)
-
-         IF (dft_control%do_admm) &
-            CALL tddfpt_build_tasklist(task_list=sub_env%task_list_aux_fit, sab=sub_env%sab_aux_fit, basis_type="AUX_FIT", &
+            CALL tddfpt_build_distribution_2d(distribution_2d=sub_env%dist_2d, dbcsr_dist=sub_env%dbcsr_dist, &
+                                              blacs_env=sub_env%blacs_env, qs_env=qs_env)
+            CALL tddfpt_build_tasklist(task_list=sub_env%task_list_orb, sab=sub_env%sab_orb, basis_type="ORB", &
                                        distribution_2d=sub_env%dist_2d, pw_env=sub_env%pw_env, qs_env=qs_env, &
-                                       skip_load_balance=qs_control%skip_load_balance_distributed, reorder_grid_ranks=.FALSE.)
+                                       skip_load_balance=qs_control%skip_load_balance_distributed, &
+                                       reorder_grid_ranks=.TRUE.)
 
-         IF (tddfpt_control%mgrid_is_explicit) &
-            CALL restore_qs_mgrid(qs_control, mgrid_saved)
+            IF (dft_control%do_admm) &
+               CALL tddfpt_build_tasklist(task_list=sub_env%task_list_aux_fit, sab=sub_env%sab_aux_fit, &
+                                          basis_type="AUX_FIT", distribution_2d=sub_env%dist_2d, &
+                                          pw_env=sub_env%pw_env, qs_env=qs_env, &
+                                          skip_load_balance=qs_control%skip_load_balance_distributed, &
+                                          reorder_grid_ranks=.FALSE.)
+
+            IF (tddfpt_control%mgrid_is_explicit) &
+               CALL restore_qs_mgrid(qs_control, mgrid_saved)
+         ELSE
+            CALL pw_env_retain(pw_env_global)
+            sub_env%pw_env => pw_env_global
+
+            CALL get_qs_env(qs_env, dbcsr_dist=sub_env%dbcsr_dist, &
+                            sab_orb=sub_env%sab_orb, task_list=sub_env%task_list_orb)
+
+            IF (dft_control%do_admm) &
+               CALL get_qs_env(qs_env, sab_aux_fit=sub_env%sab_aux_fit, task_list_aux_fit=sub_env%task_list_aux_fit)
+         END IF
+
+      ELSE IF (kernel == tddfpt_kernel_stda) THEN
+         sub_env%is_mgrid = .FALSE.
+         NULLIFY (sub_env%dbcsr_dist, sub_env%dist_2d)
+         NULLIFY (sub_env%sab_orb, sub_env%sab_aux_fit)
+         NULLIFY (sub_env%task_list_orb, sub_env%task_list_aux_fit)
+         NULLIFY (sub_env%pw_env)
+         IF (sub_env%is_split) THEN
+            CALL tddfpt_build_distribution_2d(distribution_2d=sub_env%dist_2d, dbcsr_dist=sub_env%dbcsr_dist, &
+                                              blacs_env=sub_env%blacs_env, qs_env=qs_env)
+            ! maybe we don't need task_list, just sab_orb
+            CALL tddfpt_build_tasklist(task_list=sub_env%task_list_orb, sab=sub_env%sab_orb, basis_type="ORB", &
+                                       distribution_2d=sub_env%dist_2d, pw_env=sub_env%pw_env, qs_env=qs_env, &
+                                       skip_load_balance=qs_control%skip_load_balance_distributed, &
+                                       reorder_grid_ranks=.TRUE.)
+            CPABORT('subsys missing')
+         ELSE
+            CALL get_qs_env(qs_env, dbcsr_dist=sub_env%dbcsr_dist, sab_orb=sub_env%sab_orb)
+         END IF
       ELSE
-         CALL pw_env_retain(pw_env_global)
-         sub_env%pw_env => pw_env_global
-
-         CALL get_qs_env(qs_env, dbcsr_dist=sub_env%dbcsr_dist, sab_orb=sub_env%sab_orb, task_list=sub_env%task_list_orb)
-
-         IF (dft_control%do_admm) &
-            CALL get_qs_env(qs_env, sab_aux_fit=sub_env%sab_aux_fit, task_list_aux_fit=sub_env%task_list_aux_fit)
+         CPABORT("Unknown kernel type")
       END IF
 
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt_sub_env_init
 
 ! **************************************************************************************************
@@ -360,6 +393,7 @@ CONTAINS
       sub_env%is_split = .FALSE.
 
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt_sub_env_release
 
 ! **************************************************************************************************
@@ -648,6 +682,7 @@ CONTAINS
       CALL cp_dbcsr_alloc_block_from_nbl(matrix, sab)
 
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt_dbcsr_create_by_dist
 
 ! **************************************************************************************************

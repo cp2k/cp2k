@@ -1109,39 +1109,64 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief summing up all the elements along the matrix's i-th index
 !>        \f$ \mathrm{sum}_{j} = \sum_{i} A_{ij} \f$
+!>        or
+!>        \f$ \mathrm{sum}_{i} = \sum_{j} A_{ij} \f$
 !> \param matrix     an input matrix A
-!> \param sum_array  sums of elements in each column
+!> \param sum_array  sums of elements in each column/row
+!> \param dir ...
 !> \note  forked from cp_fm_vectorsnorm() to be used with
 !>        the maximum overlap method
+!>        added row variation
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_vectorssum(matrix, sum_array)
+   SUBROUTINE cp_fm_vectorssum(matrix, sum_array, dir)
       TYPE(cp_fm_type), POINTER                          :: matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: sum_array
+      CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: dir
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vectorssum', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, j, ncol_global, ncol_local, &
-                                                            nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices
+      INTEGER                                            :: handle, i, j, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: docol
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: my_block
 
       CALL timeset(routineN, handle)
+
+      IF (PRESENT(dir)) THEN
+         IF (dir == 'c' .OR. dir == 'C') THEN
+            docol = .TRUE.
+         ELSEIF (dir == 'r' .OR. dir == 'R') THEN
+            docol = .FALSE.
+         ELSE
+            CPABORT('Wrong argument DIR')
+         END IF
+      ELSE
+         docol = .TRUE.
+      END IF
 
       my_block => matrix%local_data
 
       CPASSERT(.NOT. matrix%use_sp)
 
-      CALL cp_fm_get_info(matrix, col_indices=col_indices, ncol_global=ncol_global, &
+      CALL cp_fm_get_info(matrix, col_indices=col_indices, row_indices=row_indices, &
                           nrow_local=nrow_local, ncol_local=ncol_local)
 
       ! the efficiency could be improved by making use of the row-col distribution of scalapack
       sum_array(:) = 0.0_dp
+      IF (docol) THEN
       DO j = 1, ncol_local
          DO i = 1, nrow_local
             sum_array(col_indices(j)) = sum_array(col_indices(j)) + my_block(i, j)
          ENDDO
       ENDDO
+      ELSE
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            sum_array(row_indices(i)) = sum_array(row_indices(i)) + my_block(i, j)
+         ENDDO
+      ENDDO
+      END IF
       CALL mp_sum(sum_array, matrix%matrix_struct%para_env%group)
 
       CALL timestop(handle)

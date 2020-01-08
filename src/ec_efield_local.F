@@ -305,11 +305,11 @@ CONTAINS
             ! density matrix
             NULLIFY (p_block_a)
             CALL dbcsr_get_block_p(ec_env%matrix_p(1, 1)%matrix, irow, icol, p_block_a, found)
-            IF (.NOT. found) CYCLE
+!deb        IF (.NOT. found) CYCLE
             IF (SIZE(matrix_p, 1) > 1) THEN
                NULLIFY (p_block_b)
                CALL dbcsr_get_block_p(ec_env%matrix_p(2, 1)%matrix, irow, icol, p_block_b, found)
-               CPASSERT(found)
+!deb           CPASSERT(found)
             END IF
             forcea = 0.0_dp
             forceb = 0.0_dp
@@ -332,6 +332,7 @@ CONTAINS
                      ELSE
                         pblock => p_block_b
                      END IF
+                     IF (.NOT. ASSOCIATED(pblock)) CYCLE
                      IF (trans) THEN
                         CALL dgemm("N", "T", ncoa, nsgfb(jset), nsgfa(iset), &
                                    1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
