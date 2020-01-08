@@ -86,7 +86,7 @@ MODULE bibliography
                             Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2013, Grimme2016, &
                             Grimme2017, Kondov2007, &
                             Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, Paziani2006, &
-                            Toulouse2004, Limpanuparb2011, Martin2003
+                            Toulouse2004, Limpanuparb2011, Martin2003, Yin2017
 
 CONTAINS
 
@@ -4302,6 +4302,23 @@ CONTAINS
                          "SN 1549-9618", &
                          "ER"), &
                          DOI="10.1021/ct200305n")
+
+      CALL add_reference(key=Yin2017, ISI_record=s2a( &
+                         "AU Yin, Wen-Jin", &
+                         "   Krack, Matthias", &
+                         "   Li, Xibo", &
+                         "   Chen, Li-Zhen", &
+                         "   Liu, Li-Min", &
+                         "TI Periodic continuum solvation model integrated with first-principles", &
+                         "   calculations for solid surfaces", &
+                         "SO Prog. Nat. Sci.", &
+                         "PY 2017", &
+                         "VL 27", &
+                         "IS 2", &
+                         "BP 283", &
+                         "EP 288", &
+                         "ER"), &
+                         DOI="10.1016/j.pnsc.2017.03.003")
 
    END SUBROUTINE add_all_references
 
