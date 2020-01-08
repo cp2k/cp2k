@@ -8,8 +8,6 @@ try:
 except ImportError:
     from io import StringIO
 
-R_USE = 0
-R_VAR = 0
 VAR_RE = re.compile(
     r" *(?P<var>[a-zA-Z_0-9]+) *(?P<rest>(?:\((?P<param>(?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*)\))? *(?:= *(?P<value>(:?[^\"',()]+|\((?:[^()\"']+|\([^()\"']*\)|\"[^\"]*\"|'[^']*')*\)|\"[^\"]*\"|'[^']*')+))?)? *(?:(?P<continue>,)|\n?) *",
     re.IGNORECASE,
@@ -161,7 +159,7 @@ class InputStream(object):
         lines = []
         continuation = 0
 
-        while 1:
+        while True:
             if not self.line_buffer:
                 line = self.infile.readline().replace("\t", 8 * " ")
                 self.line_nr += 1
@@ -231,9 +229,8 @@ class InputStream(object):
         return (joinedLine, comments, lines)
 
 
-def parseRoutine(inFile):
+def parseRoutine(inFile, logger):
     """Parses a routine"""
-    logger = logging.getLogger("prettify-logger")
 
     routine = {
         "preRoutine": [],
@@ -255,7 +252,7 @@ def parseRoutine(inFile):
         "use": [],
     }
     stream = InputStream(inFile)
-    while 1:
+    while True:
         (jline, _, lines) = stream.nextFortranLine()
         if len(lines) == 0:
             break
@@ -267,7 +264,7 @@ def parseRoutine(inFile):
             try:
                 subF = open(m.group("file"), "r")
                 subStream = InputStream(subF)
-                while 1:
+                while True:
                     (subjline, _, sublines) = subStream.nextFortranLine()
                     if not sublines:
                         break
@@ -276,12 +273,15 @@ def parseRoutine(inFile):
             except:
                 import traceback
 
-                logger.debug("error trying to follow include " + m.group("file") + "\n")
                 logger.debug(
-                    "warning this might lead to the removal of used variables\n"
+                    "error trying to follow include '{}', this might lead to the removal of used variables".format(
+                        m.group("file")
+                    )
                 )
+
                 if logger.isEnabledFor(logging.DEBUG):
                     traceback.print_exc()
+
     if jline:
         routine["begin"] = lines
         m = START_ROUTINE_RE.match(jline)
@@ -297,7 +297,8 @@ def parseRoutine(inFile):
             routine["result"] = m.group("result")
         if (not routine["result"]) and (routine["kind"].lower() == "function"):
             routine["result"] = routine["name"]
-    while 1:
+
+    while True:
         (jline, comment_list, lines) = stream.nextFortranLine()
         comments = "\n".join(_ for _ in comment_list)
         if len(lines) == 0:
@@ -341,7 +342,7 @@ def parseRoutine(inFile):
                     )
                     str = str[m2.span()[1] :]
                 str = m.group("vars")
-                while 1:
+                while True:
                     m2 = VAR_RE.match(str)
                     if not m2:
                         raise SyntaxError(
@@ -368,7 +369,7 @@ def parseRoutine(inFile):
             elif INTERFACE_START_RE.match(jline):
                 istart = lines
                 interfaceDeclFile = StringIO()
-                while 1:
+                while True:
                     (jline, _, lines) = stream.nextFortranLine()
                     if INTERFACE_END_RE.match(jline):
                         iend = lines
@@ -376,8 +377,8 @@ def parseRoutine(inFile):
                     interfaceDeclFile.writelines(lines)
                 interfaceDeclFile = StringIO(interfaceDeclFile.getvalue())
                 iroutines = []
-                while 1:
-                    iroutine = parseRoutine(interfaceDeclFile)
+                while True:
+                    iroutine = parseRoutine(interfaceDeclFile, logger)
                     if not iroutine["kind"]:
                         if len(iroutines) == 0:
                             interfaceDeclFile.seek(0)
@@ -427,7 +428,7 @@ def parseRoutine(inFile):
             try:
                 subF = open(m.group("file"), "r")
                 subStream = InputStream(subF)
-                while 1:
+                while True:
                     (subjline, _, sublines) = subStream.nextFortranLine()
                     if not sublines:
                         break
@@ -436,12 +437,15 @@ def parseRoutine(inFile):
             except:
                 import traceback
 
-                logger.debug("error trying to follow include " + m.group("file") + "\n")
                 logger.debug(
-                    "warning this might lead to the removal of used variables\n"
+                    "error trying to follow include '{}', this might lead to the removal of used variables".format(
+                        m.group("file")
+                    )
                 )
+
                 if logger.isEnabledFor(logging.DEBUG):
                     traceback.print_exc()
+
         (jline, _, lines) = stream.nextFortranLine()
     return routine
 
@@ -689,16 +693,14 @@ def writeDeclarations(parsedDeclarations, file):
             writeExtendedDeclaration(d, file)
 
 
-def cleanDeclarations(routine):
+def cleanDeclarations(routine, logger):
     """cleans up the declaration part of the given parsed routine
     removes unused variables"""
-    logger = logging.getLogger("prettify-logger")
 
-    global R_VAR
     if routine["core"]:
         if CONTAINS_RE.match(routine["core"][-1]):
             logger.debug(
-                "routine %s contains other routines\ndeclarations not cleaned\n"
+                "routine %s contains other routines, declarations not cleaned"
                 % (routine["name"])
             )
             return
@@ -711,16 +713,15 @@ def cleanDeclarations(routine):
     if routine["core"]:
         if re.match(" *type *[a-zA-Z_]+ *$", routine["core"][0], re.IGNORECASE):
             logger.debug(
-                "routine %s contains local types, not fully cleaned\n"
-                % (routine["name"])
+                "routine %s contains local types, not fully cleaned" % (routine["name"])
             )
         if re.match(" *import+ *$", routine["core"][0], re.IGNORECASE):
             logger.debug(
-                "routine %s contains import, not fully cleaned\n" % (routine["name"])
+                "routine %s contains import, not fully cleaned" % (routine["name"])
             )
     if re.search("^#", "".join(routine["declarations"]), re.MULTILINE):
         logger.debug(
-            "routine %s declarations contain preprocessor directives\ndeclarations not cleaned\n"
+            "routine %s declarations contain preprocessor directives, declarations not cleaned"
             % (routine["name"])
         )
         return
@@ -809,7 +810,6 @@ def cleanDeclarations(routine):
                         logger.info(
                             "removed var %s in routine %s\n" % (lowerV, routine["name"])
                         )
-                        R_VAR += 1
             if len(localD["vars"]):
                 localDecl.append(localD)
         argDecl = []
@@ -818,12 +818,11 @@ def cleanDeclarations(routine):
                 argDecl.append(argDeclDict[arg])
             else:
                 logger.debug(
-                    "warning, implicitly typed argument '"
-                    + arg
-                    + "' in routine "
-                    + routine["name"]
-                    + "\n"
+                    "warning, implicitly typed argument '{}' in routine '{}'".format(
+                        arg, routine["name"]
+                    )
                 )
+
         if routine["kind"].lower() == "function":
             aDecl = argDecl[:-1]
         else:
@@ -876,7 +875,7 @@ def cleanDeclarations(routine):
     except:
         if "name" in routine.keys():
             logger.critical("exception cleaning routine " + routine["name"])
-        logger.critical("parsedDeclartions=" + str(routine["parsedDeclarations"]))
+        logger.critical("parsedDeclartions={}".format(routine["parsedDeclarations"]))
         raise
 
     newDecl = StringIO()
@@ -971,7 +970,7 @@ def parseUse(inFile):
     origLines = []
     commonUses = ""
     stream = InputStream(inFile)
-    while 1:
+    while True:
         (jline, comment_list, lines) = stream.nextFortranLine()
         comments = "\n".join(_ for _ in comment_list if _)
         lineNr = lineNr + len(lines)
@@ -1125,22 +1124,20 @@ def prepareImplicitUses(modules):
     return mods
 
 
-def cleanUse(modulesDict, rest, implicitUses=None):
+def cleanUse(modulesDict, rest, implicitUses, logger):
     """Removes the unneded modules (the ones that are not used in rest)"""
-    logger = logging.getLogger("prettify-logger")
 
-    global R_USE
     exceptions = {}
     modules = modulesDict["modules"]
     rest = rest.lower()
+
     for i in range(len(modules) - 1, -1, -1):
         m_att = {}
         m_name = modules[i]["module"].lower()
         if implicitUses and m_name in implicitUses.keys():
             m_att = implicitUses[m_name]
         if "_WHOLE_" in m_att.keys() and m_att["_WHOLE_"]:
-            R_USE += 1
-            logger.info("removed USE of module " + m_name + "\n")
+            logger.info("removed USE of module " + m_name)
             del modules[i]
         elif "only" in modules[i].keys():
             els = modules[i]["only"]
@@ -1150,17 +1147,11 @@ def cleanUse(modulesDict, rest, implicitUses=None):
                     raise SyntaxError("could not parse use only:" + repr(els[j]))
                 impAtt = m.group("localName").lower()
                 if impAtt in m_att.keys():
-                    R_USE += 1
-                    logger.info(
-                        "removed USE " + m_name + ", only: " + repr(els[j]) + "\n"
-                    )
+                    logger.info("removed USE " + m_name + ", only: " + repr(els[j]))
                     del els[j]
                 elif impAtt not in exceptions.keys():
                     if findWord(impAtt, rest) == -1:
-                        R_USE += 1
-                        logger.info(
-                            "removed USE " + m_name + ", only: " + repr(els[j]) + "\n"
-                        )
+                        logger.info("removed USE " + m_name + ", only: " + repr(els[j]))
                         del els[j]
             if len(modules[i]["only"]) == 0:
                 if modules[i]["comments"]:
@@ -1189,8 +1180,6 @@ def rewriteFortranFile(
     It sorts them and removes the repetitions."""
     import os.path
 
-    logger = logging.getLogger("prettify-logger")
-
     global INDENT_SIZE
     global DECL_OFFSET
     global DECL_LINELENGTH
@@ -1199,7 +1188,7 @@ def rewriteFortranFile(
     DECL_LINELENGTH = decl_linelength
 
     coreLines = []
-    while 1:
+    while True:
         line = inFile.readline()
         if not line:
             break
@@ -1213,68 +1202,67 @@ def rewriteFortranFile(
             fn = os.path.basename(orig_filename).rsplit(".", 1)[0]
             break
 
-    try:
-        modulesDict = parseUse(inFile)
-        routines = []
-        coreLines.append(modulesDict["postLine"])
-        routine = parseRoutine(inFile)
-        coreLines.extend(routine["preRoutine"])
-        if m:
-            resetModuleN(m.group("moduleName"), routine["preRoutine"])
+    logger = logging.LoggerAdapter(
+        logging.getLogger("prettify-logger"), {"ffilename": orig_filename}
+    )
+
+    modulesDict = parseUse(inFile)
+    routines = []
+    coreLines.append(modulesDict["postLine"])
+    routine = parseRoutine(inFile, logger)
+    coreLines.extend(routine["preRoutine"])
+
+    if m:
+        resetModuleN(m.group("moduleName"), routine["preRoutine"])
+
+    routines.append(routine)
+
+    while routine["kind"]:
+        routine = parseRoutine(inFile, logger)
         routines.append(routine)
-        while routine["kind"]:
-            routine = parseRoutine(inFile)
-            routines.append(routine)
-        for routine in routines:
-            cleanDeclarations(routine)  # in-place modification of 'routine'
-            coreLines.extend(routine["declarations"])
-            coreLines.extend(routine["strippedCore"])
-        rest = "".join(coreLines)
-        nonStPrep = 0
-        for line in modulesDict["origLines"]:
-            if re.search("^#", line) and not COMMON_USES_RE.match(line):
-                logger.debug("noMatch " + repr(line) + "\n")  # what does it mean?
-                nonStPrep = 1
-        if nonStPrep:
-            logger.debug(
-                "use statements contains preprocessor directives, not cleaning\n"
-            )
-            outFile.writelines(modulesDict["origLines"])
-        else:
-            implicitUses = None
-            if modulesDict["commonUses"]:
-                try:
-                    inc_fn = COMMON_USES_RE.match(modulesDict["commonUses"]).group(1)
-                    inc_absfn = os.path.join(os.path.dirname(orig_filename), inc_fn)
-                    f = open(inc_absfn, "r")
-                    implicitUsesRaw = parseUse(f)
-                    f.close()
-                    implicitUses = prepareImplicitUses(implicitUsesRaw["modules"])
-                except:
-                    logger.critical(
-                        "ERROR trying to parse use statements contained in common uses precompiler file "
-                        + inc_absfn
-                        + "\n"
+
+    for routine in routines:
+        cleanDeclarations(routine, logger)  # in-place modification of 'routine'
+        coreLines.extend(routine["declarations"])
+        coreLines.extend(routine["strippedCore"])
+
+    rest = "".join(coreLines)
+    nonStPrep = 0
+
+    for line in modulesDict["origLines"]:
+        if re.search("^#", line) and not COMMON_USES_RE.match(line):
+            logger.debug("noMatch " + repr(line) + "\n")  # what does it mean?
+            nonStPrep = 1
+
+    if nonStPrep:
+        logger.debug("use statements contains preprocessor directives, not cleaning")
+        outFile.writelines(modulesDict["origLines"])
+    else:
+        implicitUses = None
+        if modulesDict["commonUses"]:
+            try:
+                inc_fn = COMMON_USES_RE.match(modulesDict["commonUses"]).group(1)
+                inc_absfn = os.path.join(os.path.dirname(orig_filename), inc_fn)
+                with open(inc_absfn, "r") as fhandle:
+                    implicitUsesRaw = parseUse(fhandle)
+                implicitUses = prepareImplicitUses(implicitUsesRaw["modules"])
+            except:
+                logger.critical(
+                    "failed to parse use statements contained in common uses precompiler file {}".format(
+                        inc_absfn
                     )
-                    raise
-            cleanUse(modulesDict, rest, implicitUses=implicitUses)
-            normalizeModules(modulesDict["modules"])
-            outFile.writelines(modulesDict["preComments"])
-            writeUses(modulesDict["modules"], outFile)
-            outFile.write(modulesDict["commonUses"])
-            if modulesDict["modules"]:
-                outFile.write("\n")
-        outFile.write(modulesDict["postLine"])
-        for routine in routines:
-            writeRoutine(routine, outFile)
-    except:
-        import traceback
+                )
+                raise
 
-        logger.critical("-" * 60 + "\n")
-        traceback.print_exc(file=sys.stderr)
-        logger.critical("-" * 60 + "\n")
-        logger.critical("Processing file '" + orig_filename + "'\n")
-        raise
+        cleanUse(modulesDict, rest, implicitUses, logger)
+        normalizeModules(modulesDict["modules"])
+        outFile.writelines(modulesDict["preComments"])
+        writeUses(modulesDict["modules"], outFile)
+        outFile.write(modulesDict["commonUses"])
+        if modulesDict["modules"]:
+            outFile.write("\n")
 
+    outFile.write(modulesDict["postLine"])
 
-# EOF
+    for routine in routines:
+        writeRoutine(routine, outFile)
