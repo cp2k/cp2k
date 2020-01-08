@@ -47,7 +47,7 @@ MODULE qs_scf_initialization
         broy_mix, broy_mix_new, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
         diag_block_davidson, diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, &
         direct_p_mix, kerker_mix, multisec_mix, no_mix, ot2cdft, outer_scf_none, plus_u_lowdin, &
-        pulay_mix, wfi_frozen_method_nr, wfi_use_guess_method_nr
+        pulay_mix, wfi_frozen_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -1137,9 +1137,14 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".scfLog")
       IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+         WRITE (UNIT=output_unit, FMT="(/,T2,A,I0)") &
             "Extrapolation method: "// &
             TRIM(wfi_get_method_label(extrapolation_method_nr))
+         IF (extrapolation_method_nr == wfi_ps_method_nr) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,I0,A)") &
+               "Extrapolation order:  ", &
+               MAX((MIN(qs_env%wf_history%memory_depth, qs_env%wf_history%snapshot_count) - 1), 0)
+         END IF
       END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
