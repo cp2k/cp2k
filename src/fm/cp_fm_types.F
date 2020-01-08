@@ -1161,11 +1161,11 @@ CONTAINS
          ENDDO
       ENDDO
       ELSE
-         DO j = 1, ncol_local
-            DO i = 1, nrow_local
-               sum_array(row_indices(i)) = sum_array(row_indices(i))+my_block(i, j)
-            ENDDO
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            sum_array(row_indices(i)) = sum_array(row_indices(i)) + my_block(i, j)
          ENDDO
+      ENDDO
       END IF
       CALL mp_sum(sum_array, matrix%matrix_struct%para_env%group)
 

@@ -345,7 +345,7 @@ CONTAINS
          igroup = sub_env%group_distribution(para_env%mepos)
          ngroups = sub_env%ngroups
 
-         DO istate = ngroups-igroup, nstates, ngroups
+         DO istate = ngroups - igroup, nstates, ngroups
             DO ispin = 1, nspins
                CALL cp_fm_create(work_matrices%evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
                CALL cp_fm_create(work_matrices%Aop_evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
@@ -553,7 +553,7 @@ CONTAINS
          igroup = sub_env%group_distribution(para_env%mepos)
          ngroups = sub_env%ngroups
 
-         DO istate = ngroups-igroup, nstates, ngroups
+         DO istate = ngroups - igroup, nstates, ngroups
             DO ispin = 1, nspins
                CALL cp_fm_create(work_matrices%evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
                CALL cp_fm_create(work_matrices%Aop_evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)

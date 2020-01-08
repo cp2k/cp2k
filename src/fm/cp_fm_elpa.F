@@ -297,7 +297,8 @@ $: "#endif"
       ! The redistributed matrix is stored in matrix_new, which is just a pointer
       ! to the original matrix if no redistribution is required.
       ! With ELPA, we have to make sure that all processor columns have nonzero width
-      CALL cp_fm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new, caller_is_elpa=.TRUE., redist_info=rdinfo)
+      CALL cp_fm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new, &
+                                    caller_is_elpa=.TRUE., redist_info=rdinfo)
 
       ! Call ELPA on CPUs that hold the new matrix
       IF (ASSOCIATED(matrix_new)) &

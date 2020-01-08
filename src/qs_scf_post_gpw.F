@@ -689,7 +689,7 @@ CONTAINS
                ALLOCATE (unoccupied_orbs_stm(dft_control%nspins))
                ALLOCATE (unoccupied_evals_stm(dft_control%nspins))
                CALL make_lumo_gpw(qs_env, scf_env, unoccupied_orbs_stm, unoccupied_evals_stm, &
-                              nlumo_stm, nlumos)
+                                  nlumo_stm, nlumos)
             END IF
 
             CALL th_stm_image(qs_env, stm_section, particles, unoccupied_orbs_stm, &

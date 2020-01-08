@@ -570,7 +570,7 @@ CONTAINS
                      ALLOCATE (unoccupied_orbs_stm(dft_control%nspins))
                      ALLOCATE (unoccupied_evals_stm(dft_control%nspins))
                      CALL make_lumo_tb(qs_env, scf_env, unoccupied_orbs_stm, unoccupied_evals_stm, &
-                                    nlumo_stm, nlumos)
+                                       nlumo_stm, nlumos)
                   END IF
 
                   CALL get_qs_env(qs_env, subsys=subsys)

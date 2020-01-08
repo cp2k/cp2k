@@ -261,48 +261,48 @@ CONTAINS
       END IF
 
       IF (kernel == tddfpt_kernel_full) THEN
-      ! ++ allocate a new plane wave environment
-      sub_env%is_mgrid = sub_env%is_split .OR. tddfpt_control%mgrid_is_explicit
+         ! ++ allocate a new plane wave environment
+         sub_env%is_mgrid = sub_env%is_split .OR. tddfpt_control%mgrid_is_explicit
 
-      NULLIFY (sub_env%dbcsr_dist, sub_env%dist_2d)
-      NULLIFY (sub_env%sab_orb, sub_env%sab_aux_fit)
-      NULLIFY (sub_env%task_list_orb, sub_env%task_list_aux_fit)
+         NULLIFY (sub_env%dbcsr_dist, sub_env%dist_2d)
+         NULLIFY (sub_env%sab_orb, sub_env%sab_aux_fit)
+         NULLIFY (sub_env%task_list_orb, sub_env%task_list_aux_fit)
 
-      IF (sub_env%is_mgrid) THEN
-         IF (tddfpt_control%mgrid_is_explicit) &
-            CALL init_tddfpt_mgrid(qs_control, tddfpt_control, mgrid_saved)
+         IF (sub_env%is_mgrid) THEN
+            IF (tddfpt_control%mgrid_is_explicit) &
+               CALL init_tddfpt_mgrid(qs_control, tddfpt_control, mgrid_saved)
 
-         NULLIFY (sub_env%pw_env)
+            NULLIFY (sub_env%pw_env)
 
-         CALL pw_env_create(sub_env%pw_env)
-         CALL pw_env_rebuild(sub_env%pw_env, qs_env, sub_env%para_env)
+            CALL pw_env_create(sub_env%pw_env)
+            CALL pw_env_rebuild(sub_env%pw_env, qs_env, sub_env%para_env)
 
-         CALL tddfpt_build_distribution_2d(distribution_2d=sub_env%dist_2d, dbcsr_dist=sub_env%dbcsr_dist, &
-                                           blacs_env=sub_env%blacs_env, qs_env=qs_env)
-         CALL tddfpt_build_tasklist(task_list=sub_env%task_list_orb, sab=sub_env%sab_orb, basis_type="ORB", &
-                                    distribution_2d=sub_env%dist_2d, pw_env=sub_env%pw_env, qs_env=qs_env, &
+            CALL tddfpt_build_distribution_2d(distribution_2d=sub_env%dist_2d, dbcsr_dist=sub_env%dbcsr_dist, &
+                                              blacs_env=sub_env%blacs_env, qs_env=qs_env)
+            CALL tddfpt_build_tasklist(task_list=sub_env%task_list_orb, sab=sub_env%sab_orb, basis_type="ORB", &
+                                       distribution_2d=sub_env%dist_2d, pw_env=sub_env%pw_env, qs_env=qs_env, &
                                        skip_load_balance=qs_control%skip_load_balance_distributed, &
                                        reorder_grid_ranks=.TRUE.)
 
-         IF (dft_control%do_admm) &
+            IF (dft_control%do_admm) &
                CALL tddfpt_build_tasklist(task_list=sub_env%task_list_aux_fit, sab=sub_env%sab_aux_fit, &
                                           basis_type="AUX_FIT", distribution_2d=sub_env%dist_2d, &
                                           pw_env=sub_env%pw_env, qs_env=qs_env, &
                                           skip_load_balance=qs_control%skip_load_balance_distributed, &
                                           reorder_grid_ranks=.FALSE.)
 
-         IF (tddfpt_control%mgrid_is_explicit) &
-            CALL restore_qs_mgrid(qs_control, mgrid_saved)
-      ELSE
-         CALL pw_env_retain(pw_env_global)
-         sub_env%pw_env => pw_env_global
+            IF (tddfpt_control%mgrid_is_explicit) &
+               CALL restore_qs_mgrid(qs_control, mgrid_saved)
+         ELSE
+            CALL pw_env_retain(pw_env_global)
+            sub_env%pw_env => pw_env_global
 
             CALL get_qs_env(qs_env, dbcsr_dist=sub_env%dbcsr_dist, &
                             sab_orb=sub_env%sab_orb, task_list=sub_env%task_list_orb)
 
-         IF (dft_control%do_admm) &
-            CALL get_qs_env(qs_env, sab_aux_fit=sub_env%sab_aux_fit, task_list_aux_fit=sub_env%task_list_aux_fit)
-      END IF
+            IF (dft_control%do_admm) &
+               CALL get_qs_env(qs_env, sab_aux_fit=sub_env%sab_aux_fit, task_list_aux_fit=sub_env%task_list_aux_fit)
+         END IF
 
       ELSE IF (kernel == tddfpt_kernel_stda) THEN
          sub_env%is_mgrid = .FALSE.

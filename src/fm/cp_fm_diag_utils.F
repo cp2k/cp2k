@@ -261,6 +261,9 @@ CONTAINS
          IF (ncpu > 2) &
             ncpu = ncpu - MODULO(ncpu, 2)
       END DO
+!deb
+      WRITE (6, *) "REDISTRIBUTE    ", nzero, ncpu
+!deb
 
    END FUNCTION cp_fm_max_ncpu_non_zero_column
 #endif

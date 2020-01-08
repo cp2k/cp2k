@@ -31,11 +31,11 @@ MODULE input_cp2k_properties_dft
         current_gauge_atom, current_gauge_r, current_gauge_r_and_step_func, &
         current_orb_center_atom, current_orb_center_box, current_orb_center_common, &
         current_orb_center_wannier, do_et_ddapc, do_full_density, do_no_et, do_spin_density, &
-        oe_gllb, oe_lb, oe_none, oe_saop, oe_shift, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
-        ot_precond_s_inverse, tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity, &
-        tddfpt_kernel_full, tddfpt_kernel_stda, use_mom_ref_coac, use_mom_ref_com, &
-        use_mom_ref_user, use_mom_ref_zero
+        gto_cartesian, gto_spherical, oe_gllb, oe_lb, oe_none, oe_saop, oe_shift, &
+        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+        tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity, tddfpt_kernel_full, &
+        tddfpt_kernel_stda, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero
    USE input_cp2k_atprop,               ONLY: create_atprop_section
    USE input_cp2k_dft,                  ONLY: create_ddapc_restraint_section,&
                                               create_interp_section,&
@@ -1441,11 +1441,21 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MOS_MOLDEN", &
                                        description="Write the NTO in Molden file format, for visualisation.", &
-                                       print_level=debug_print_level+1, add_last=add_last_numeric, filename="MOS")
+                                       print_level=debug_print_level + 1, add_last=add_last_numeric, filename="MOS")
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
                           description="Specifies the number of signficiant digits retained. 3 is OK for visualization.", &
                           usage="NDIGITS {int}", &
                           default_i_val=3)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="GTO_KIND", &
+                          description="Representation of Gaussian-type orbitals", &
+                          default_i_val=gto_spherical, &
+                          enum_c_vals=s2a("CARTESIAN", "SPHERICAL"), &
+                          enum_desc=s2a( &
+                          "Cartesian Gaussian orbitals. Use with caution", &
+                          "Spherical Gaussian orbitals. Incompatible with VMD"), &
+                          enum_i_vals=(/gto_cartesian, gto_spherical/))
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(subsection, print_key)

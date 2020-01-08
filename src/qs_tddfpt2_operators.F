@@ -393,13 +393,13 @@ CONTAINS
          NULLIFY (rho_r(1)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1)%pw, in_space=REALSPACE, use_data=REALDATA3D)
          CALL xc_rho_set_get(rho_set, rho=rho)
-         rho_r(1)%pw%cr3d(:, :, :) = rho(:, :, :)+0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         rho_r(1)%pw%cr3d(:, :, :) = rho(:, :, :) + 0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
          CALL xc_vxc_pw_create(vxc_rho_1, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
                                auxbas_pw_pool, .FALSE., virial_xc)
-         rho_r(1)%pw%cr3d(:, :, :) = rho(:, :, :)-0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         rho_r(1)%pw%cr3d(:, :, :) = rho(:, :, :) - 0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
          CALL xc_vxc_pw_create(vxc_rho_2, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
                                auxbas_pw_pool, .FALSE., virial_xc)
-         work_v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :)-vxc_rho_2(1)%pw%cr3d(:, :, :))/h
+         work_v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :) - vxc_rho_2(1)%pw%cr3d(:, :, :))/h
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(1)%pw)
          DEALLOCATE (rho_r)
          CALL pw_axpy(work_v_xc(1)%pw, A_ia_rspace(1)%pw, kernel_env%alpha)
@@ -415,26 +415,26 @@ CONTAINS
          END DO
          CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob)
          ! K(alpha,alpha)
-         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)+0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) + 0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
          rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)
          CALL xc_vxc_pw_create(vxc_rho_1, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
                                auxbas_pw_pool, .FALSE., virial_xc)
-         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)-0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) - 0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
          rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)
          CALL xc_vxc_pw_create(vxc_rho_2, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
                                auxbas_pw_pool, .FALSE., virial_xc)
-         work_v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :)-vxc_rho_2(1)%pw%cr3d(:, :, :))/h
+         work_v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :) - vxc_rho_2(1)%pw%cr3d(:, :, :))/h
          ! K(alpha,beta)
          rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)
-         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)+0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) + 0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
          CALL xc_vxc_pw_create(vxc_rho_3, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
                                auxbas_pw_pool, .FALSE., virial_xc)
          rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)
-         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)-0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) - 0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
          CALL xc_vxc_pw_create(vxc_rho_4, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
                                auxbas_pw_pool, .FALSE., virial_xc)
-         work_v_xc(1)%pw%cr3d(:, :, :) = work_v_xc(1)%pw%cr3d(:, :, :)- &
-                                         (vxc_rho_3(1)%pw%cr3d(:, :, :)-vxc_rho_4(1)%pw%cr3d(:, :, :))/h
+         work_v_xc(1)%pw%cr3d(:, :, :) = work_v_xc(1)%pw%cr3d(:, :, :) - &
+                                         (vxc_rho_3(1)%pw%cr3d(:, :, :) - vxc_rho_4(1)%pw%cr3d(:, :, :))/h
          DO ispin = 1, 2
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin)%pw)
          END DO
@@ -455,16 +455,16 @@ CONTAINS
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin)%pw, in_space=REALSPACE, use_data=REALDATA3D)
          END DO
          CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob)
-         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)+0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
-         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)+0.5_dp*h*rho1(2)%pw%cr3d(:, :, :)
+         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) + 0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) + 0.5_dp*h*rho1(2)%pw%cr3d(:, :, :)
          CALL xc_vxc_pw_create(vxc_rho_1, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
                                auxbas_pw_pool, .FALSE., virial_xc)
-         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)-0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
-         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)-0.5_dp*h*rho1(2)%pw%cr3d(:, :, :)
+         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) - 0.5_dp*h*rho1(1)%pw%cr3d(:, :, :)
+         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) - 0.5_dp*h*rho1(2)%pw%cr3d(:, :, :)
          CALL xc_vxc_pw_create(vxc_rho_2, vxc_tau, exc, rho_r, rho_g, tau, kernel_env%xc_section, &
                                auxbas_pw_pool, .FALSE., virial_xc)
-         work_v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :)-vxc_rho_2(1)%pw%cr3d(:, :, :))/h
-         work_v_xc(2)%pw%cr3d(:, :, :) = (vxc_rho_1(2)%pw%cr3d(:, :, :)-vxc_rho_2(2)%pw%cr3d(:, :, :))/h
+         work_v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :) - vxc_rho_2(1)%pw%cr3d(:, :, :))/h
+         work_v_xc(2)%pw%cr3d(:, :, :) = (vxc_rho_1(2)%pw%cr3d(:, :, :) - vxc_rho_2(2)%pw%cr3d(:, :, :))/h
          DO ispin = 1, 2
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin)%pw)
          END DO

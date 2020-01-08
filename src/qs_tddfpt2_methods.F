@@ -196,41 +196,41 @@ CONTAINS
             CPABORT("TDDFPT: xTB only works with sTDA Kernel")
          END IF
 
-      ! allocate pools and work matrices
-      nstates = tddfpt_control%nstates
-      CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, qs_env, sub_env)
+         ! allocate pools and work matrices
+         nstates = tddfpt_control%nstates
+         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, qs_env, sub_env)
 
-      CALL tddfpt_construct_ground_state_orb_density(rho_orb_struct=work_matrices%rho_orb_struct_sub, &
-                                                     is_rks_triplets=tddfpt_control%rks_triplets, &
-                                                     qs_env=qs_env, sub_env=sub_env, &
-                                                     wfm_rho_orb=work_matrices%rho_ao_orb_fm_sub)
+         CALL tddfpt_construct_ground_state_orb_density(rho_orb_struct=work_matrices%rho_orb_struct_sub, &
+                                                        is_rks_triplets=tddfpt_control%rks_triplets, &
+                                                        qs_env=qs_env, sub_env=sub_env, &
+                                                        wfm_rho_orb=work_matrices%rho_ao_orb_fm_sub)
 
-      IF (do_admm) THEN
+         IF (do_admm) THEN
             ! Full kernel with ADMM
             CALL tddfpt_create_kernel_env(kernel_env=full_kernel_env, &
-                                       rho_struct_sub=work_matrices%rho_orb_struct_sub, &
-                                       xc_section=admm_env%xc_section_primary, &
-                                       is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
+                                          rho_struct_sub=work_matrices%rho_orb_struct_sub, &
+                                          xc_section=admm_env%xc_section_primary, &
+                                          is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
 
-         CALL tddfpt_construct_aux_fit_density(rho_orb_struct=work_matrices%rho_orb_struct_sub, &
-                                               rho_aux_fit_struct=work_matrices%rho_aux_fit_struct_sub, &
-                                               qs_env=qs_env, sub_env=sub_env, &
-                                               wfm_rho_orb=work_matrices%rho_ao_orb_fm_sub, &
-                                               wfm_rho_aux_fit=work_matrices%rho_ao_aux_fit_fm_sub, &
-                                               wfm_aux_orb=work_matrices%wfm_aux_orb_sub)
+            CALL tddfpt_construct_aux_fit_density(rho_orb_struct=work_matrices%rho_orb_struct_sub, &
+                                                  rho_aux_fit_struct=work_matrices%rho_aux_fit_struct_sub, &
+                                                  qs_env=qs_env, sub_env=sub_env, &
+                                                  wfm_rho_orb=work_matrices%rho_ao_orb_fm_sub, &
+                                                  wfm_rho_aux_fit=work_matrices%rho_ao_aux_fit_fm_sub, &
+                                                  wfm_aux_orb=work_matrices%wfm_aux_orb_sub)
 
-         CALL tddfpt_create_kernel_env(kernel_env=kernel_env_admm_aux, &
-                                       rho_struct_sub=work_matrices%rho_aux_fit_struct_sub, &
-                                       xc_section=admm_env%xc_section_aux, &
-                                       is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
+            CALL tddfpt_create_kernel_env(kernel_env=kernel_env_admm_aux, &
+                                          rho_struct_sub=work_matrices%rho_aux_fit_struct_sub, &
+                                          xc_section=admm_env%xc_section_aux, &
+                                          is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
             kernel_env%full_kernel => full_kernel_env
             kernel_env%admm_kernel => kernel_env_admm_aux
-      ELSE
+         ELSE
             ! Full kernel
             CALL tddfpt_create_kernel_env(kernel_env=full_kernel_env, &
-                                       rho_struct_sub=work_matrices%rho_orb_struct_sub, &
-                                       xc_section=xc_section, &
-                                       is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
+                                          rho_struct_sub=work_matrices%rho_orb_struct_sub, &
+                                          xc_section=xc_section, &
+                                          is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
             kernel_env%full_kernel => full_kernel_env
             NULLIFY (kernel_env%admm_kernel)
          END IF
@@ -238,7 +238,7 @@ CONTAINS
          ! sTDA kernel
          nactive = 0
          CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
-         DO ispin = 1,SIZE(gs_mos)
+         DO ispin = 1, SIZE(gs_mos)
             CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=nactive(ispin))
          END DO
          CALL allocate_stda_env(qs_env, stda_kernel, nao, nactive)
@@ -455,11 +455,11 @@ CONTAINS
          RETURN
       END IF
 
-      NULLIFY(tddfpt_section, tddfpt_print_section)
+      NULLIFY (tddfpt_section, tddfpt_print_section)
       tddfpt_section => section_vals_get_subs_vals(input, "PROPERTIES%TDDFPT")
       tddfpt_print_section => section_vals_get_subs_vals(tddfpt_section, "PRINT")
 
-      NULLIFY(xc_section)
+      NULLIFY (xc_section)
       xc_section => section_vals_get_subs_vals(tddfpt_section, "XC%XC_FUNCTIONAL")
       CALL section_vals_get(xc_section, explicit=explicit_xc)
       IF (explicit_xc) THEN

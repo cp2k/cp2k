@@ -144,10 +144,10 @@ CONTAINS
             nmo_virt = HUGE(0)
             DO ispin = 1, nspins
                CALL get_mo_set(mos(ispin)%mo_set, nmo=nmo_avail, homo=nmo_occ)
-               nmo_virt = MIN(nmo_virt, nmo_avail-nmo_occ)
+               nmo_virt = MIN(nmo_virt, nmo_avail - nmo_occ)
             END DO
             ! number of unoccupied orbitals to compute
-            nmo_virt = tddfpt_control%nlumo-nmo_virt
+            nmo_virt = tddfpt_control%nlumo - nmo_virt
             IF (nmo_virt > 0) THEN
                ALLOCATE (evals_virt(nspins), mos_virt(nspins))
                ! the number of actually computed unoccupied orbitals will be stored as 'nmo_avail'
@@ -252,7 +252,7 @@ CONTAINS
       CALL get_mo_set(mo_set, nao=nao, nmo=nmo_scf, homo=nmo_occ, maxocc=maxocc, &
                       nelectron=nelectrons, occupation_numbers=mo_occ_scf)
 
-      nmo_virt = nao-nmo_occ
+      nmo_virt = nao - nmo_occ
       IF (nlumo >= 0) &
          nmo_virt = MIN(nmo_virt, nlumo)
 
@@ -264,9 +264,9 @@ CONTAINS
       ! diagonalise the Kohn-Sham matrix one more time if the number of available unoccupied states are too small
       IF (ASSOCIATED(evals_virt)) THEN
          CPASSERT(ASSOCIATED(mos_virt))
-         IF (nmo_virt > nmo_scf-nmo_occ+SIZE(evals_virt)) do_eigen = .TRUE.
+         IF (nmo_virt > nmo_scf - nmo_occ + SIZE(evals_virt)) do_eigen = .TRUE.
       ELSE
-         IF (nmo_virt > nmo_scf-nmo_occ) do_eigen = .TRUE.
+         IF (nmo_virt > nmo_scf - nmo_occ) do_eigen = .TRUE.
       END IF
 
       ! ++ allocate storage space for gs_mos
@@ -292,10 +292,10 @@ CONTAINS
 
       IF (do_eigen) THEN
          ! ++ set of molecular orbitals
-         CALL cp_fm_struct_create(wfn_fm_struct, nrow_global=nao, ncol_global=nmo_occ+nmo_virt, context=blacs_env)
+         CALL cp_fm_struct_create(wfn_fm_struct, nrow_global=nao, ncol_global=nmo_occ + nmo_virt, context=blacs_env)
          CALL fm_pool_create(wfn_fm_pool, wfn_fm_struct)
 
-         CALL allocate_mo_set(mos_extended, nao, nmo_occ+nmo_virt, nelectrons, &
+         CALL allocate_mo_set(mos_extended, nao, nmo_occ + nmo_virt, nelectrons, &
                               REAL(nelectrons, dp), maxocc, flexible_electron_count=0.0_dp)
          CALL init_mo_set(mos_extended, fm_pool=wfn_fm_pool, name="mos-extended")
          CALL fm_pool_release(wfn_fm_pool)
@@ -311,7 +311,7 @@ CONTAINS
          DO imo = 1, nmo_scf
             mo_occ_extended(imo) = mo_occ_scf(imo)
          END DO
-         mo_occ_extended(nmo_scf+1:) = 0.0_dp
+         mo_occ_extended(nmo_scf + 1:) = 0.0_dp
 
          ! ++ allocate temporary matrices
          NULLIFY (matrix_ks_fm, ortho_fm, work_fm)
@@ -378,7 +378,7 @@ CONTAINS
                sign_int = -1
             END IF
 
-            sum_sign_array(icol_global) = sum_sign_array(icol_global)+sign_int
+            sum_sign_array(icol_global) = sum_sign_array(icol_global) + sign_int
 
             irow_global = row_indices(irow_local)
             IF (sign_int > 0) THEN
@@ -421,16 +421,16 @@ CONTAINS
       CALL cp_fm_to_fm(mo_coeff_extended, gs_mos%mos_occ, ncol=nmo_occ, source_start=1, target_start=1)
       gs_mos%evals_occ(1:nmo_occ) = mo_evals_extended(1:nmo_occ)
 
-      IF (ASSOCIATED(evals_virt) .AND. (.NOT. do_eigen) .AND. nmo_virt > nmo_scf-nmo_occ) THEN
-         CALL cp_fm_to_fm(mo_coeff_extended, gs_mos%mos_virt, ncol=nmo_scf-nmo_occ, &
-                          source_start=nmo_occ+1, target_start=1)
-         CALL cp_fm_to_fm(mos_virt, gs_mos%mos_virt, ncol=nmo_virt-(nmo_scf-nmo_occ), &
-                          source_start=1, target_start=nmo_scf-nmo_occ+1)
-         gs_mos%evals_virt(1:nmo_scf-nmo_occ) = evals_virt(nmo_occ+1:nmo_occ+nmo_scf)
-         gs_mos%evals_virt(nmo_scf-nmo_occ+1:nmo_virt) = evals_virt(1:nmo_virt-(nmo_scf-nmo_occ))
+      IF (ASSOCIATED(evals_virt) .AND. (.NOT. do_eigen) .AND. nmo_virt > nmo_scf - nmo_occ) THEN
+         CALL cp_fm_to_fm(mo_coeff_extended, gs_mos%mos_virt, ncol=nmo_scf - nmo_occ, &
+                          source_start=nmo_occ + 1, target_start=1)
+         CALL cp_fm_to_fm(mos_virt, gs_mos%mos_virt, ncol=nmo_virt - (nmo_scf - nmo_occ), &
+                          source_start=1, target_start=nmo_scf - nmo_occ + 1)
+         gs_mos%evals_virt(1:nmo_scf - nmo_occ) = evals_virt(nmo_occ + 1:nmo_occ + nmo_scf)
+         gs_mos%evals_virt(nmo_scf - nmo_occ + 1:nmo_virt) = evals_virt(1:nmo_virt - (nmo_scf - nmo_occ))
       ELSE
-         CALL cp_fm_to_fm(mo_coeff_extended, gs_mos%mos_virt, ncol=nmo_virt, source_start=nmo_occ+1, target_start=1)
-         gs_mos%evals_virt(1:nmo_virt) = mo_evals_extended(nmo_occ+1:nmo_occ+nmo_virt)
+         CALL cp_fm_to_fm(mo_coeff_extended, gs_mos%mos_virt, ncol=nmo_virt, source_start=nmo_occ + 1, target_start=1)
+         gs_mos%evals_virt(1:nmo_virt) = mo_evals_extended(nmo_occ + 1:nmo_occ + nmo_virt)
       END IF
 
       CALL cp_fm_release(work_fm)
@@ -635,7 +635,7 @@ CONTAINS
       nspins = SIZE(gs_mos)
 
       DO ispin = 1, nspins
-         nstates_total = nstates_total+ &
+         nstates_total = nstates_total + &
                          SIZE(gs_mos(ispin)%evals_occ, kind=int_8)* &
                          SIZE(gs_mos(ispin)%evals_virt, kind=int_8)
       END DO
@@ -692,10 +692,10 @@ CONTAINS
             CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nhomo)
             IF (nhomo == nu) THEN
                ! downshift with -eos_shift using occupied orbitals
-               nos = nu-nl
+               nos = nu - nl
                CALL cp_fm_create(cmos, fmstruct)
                CALL cp_fm_get_info(coeff, nrow_global=nrow)
-               CALL cp_fm_to_fm_submat(coeff, cmos, nrow, nos, 1, nl+1, 1, 1)
+               CALL cp_fm_to_fm_submat(coeff, cmos, nrow, nos, 1, nl + 1, 1, 1)
                CALL cp_fm_create(cvec, fmstruct)
                CALL cp_dbcsr_sm_fm_multiply(smat, cmos, cvec, nos, 1.0_dp, 0.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, matrix_v=cvec, ncol=nos, &
@@ -706,7 +706,7 @@ CONTAINS
                ! upshift with eos_shift using virtual orbitals
                coeff => gs_mos(ispin)%mos_virt
                CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nvirt)
-               nos = nu-nhomo
+               nos = nu - nhomo
                CPASSERT(nvirt >= nos)
                CALL cp_fm_create(cvec, fmstruct)
                CALL cp_dbcsr_sm_fm_multiply(smat, coeff, cvec, nos, 1.0_dp, 0.0_dp)
@@ -728,7 +728,7 @@ CONTAINS
                                           alpha=-ev_shift, keep_sparsity=.TRUE.)
                CALL cp_fm_release(cvec)
                IF (nhomo < nu) THEN
-                  nos = nu-nhomo
+                  nos = nu - nhomo
                   coeff => gs_mos(ispin)%mos_virt
                   CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nvirt)
                   CPASSERT(nvirt >= nos)
@@ -762,7 +762,7 @@ CONTAINS
       IF (eos_shift == 0.0_dp .OR. n_spins == 1) THEN
          DO ispin = 1, n_spins
             IF (ALLOCATED(gs_mos(ispin)%evals_virt)) THEN
-               gs_mos(ispin)%evals_virt(:) = gs_mos(ispin)%evals_virt(:)+ev_shift
+               gs_mos(ispin)%evals_virt(:) = gs_mos(ispin)%evals_virt(:) + ev_shift
             END IF
          END DO
       ELSE
@@ -770,28 +770,28 @@ CONTAINS
          CALL cp_fm_get_info(gs_mos(2)%mos_occ, ncol_global=nb)
          nl = MIN(na, nb)
          nu = MAX(na, nb)
-         nos = nu-nl
+         nos = nu - nl
          IF (na == nu) THEN
             IF (ALLOCATED(gs_mos(1)%evals_occ)) THEN
-               gs_mos(1)%evals_occ(nl+1:nu) = gs_mos(1)%evals_occ(nl+1:nu)-eos_shift
+               gs_mos(1)%evals_occ(nl + 1:nu) = gs_mos(1)%evals_occ(nl + 1:nu) - eos_shift
             END IF
             IF (ALLOCATED(gs_mos(1)%evals_virt)) THEN
-               gs_mos(1)%evals_virt(:) = gs_mos(1)%evals_virt(:)+ev_shift
+               gs_mos(1)%evals_virt(:) = gs_mos(1)%evals_virt(:) + ev_shift
             END IF
             IF (ALLOCATED(gs_mos(2)%evals_virt)) THEN
-               gs_mos(2)%evals_virt(1:nos) = gs_mos(2)%evals_virt(1:nos)+eos_shift
-               gs_mos(2)%evals_virt(nos+1:) = gs_mos(2)%evals_virt(nos+1:)+ev_shift
+               gs_mos(2)%evals_virt(1:nos) = gs_mos(2)%evals_virt(1:nos) + eos_shift
+               gs_mos(2)%evals_virt(nos + 1:) = gs_mos(2)%evals_virt(nos + 1:) + ev_shift
             END IF
          ELSE
             IF (ALLOCATED(gs_mos(1)%evals_virt)) THEN
-               gs_mos(1)%evals_virt(1:nos) = gs_mos(1)%evals_virt(1:nos)+eos_shift
-               gs_mos(1)%evals_virt(nos+1:) = gs_mos(1)%evals_virt(nos+1:)+ev_shift
+               gs_mos(1)%evals_virt(1:nos) = gs_mos(1)%evals_virt(1:nos) + eos_shift
+               gs_mos(1)%evals_virt(nos + 1:) = gs_mos(1)%evals_virt(nos + 1:) + ev_shift
             END IF
             IF (ALLOCATED(gs_mos(2)%evals_occ)) THEN
-               gs_mos(2)%evals_occ(nl+1:nu) = gs_mos(2)%evals_occ(nl+1:nu)-eos_shift
+               gs_mos(2)%evals_occ(nl + 1:nu) = gs_mos(2)%evals_occ(nl + 1:nu) - eos_shift
             END IF
             IF (ALLOCATED(gs_mos(2)%evals_virt)) THEN
-               gs_mos(2)%evals_virt(:) = gs_mos(2)%evals_virt(:)+ev_shift
+               gs_mos(2)%evals_virt(:) = gs_mos(2)%evals_virt(:) + ev_shift
             END IF
          END IF
       END IF
@@ -875,11 +875,11 @@ CONTAINS
       DO ispin = 1, nspins
          DO imo_occ = 1, nmo_occ_selected(ispin)
             ! Here imo_occ enumerate Occupied orbitals in inverse order (from the last to the first element)
-            e_occ = gs_mos(ispin)%evals_occ(nmo_occ_avail(ispin)-imo_occ+1)
+            e_occ = gs_mos(ispin)%evals_occ(nmo_occ_avail(ispin) - imo_occ + 1)
 
             DO imo_virt = 1, nmo_virt_selected(ispin)
-               istate = istate+1
-               e_virt_minus_occ(istate) = gs_mos(ispin)%evals_virt(imo_virt)-e_occ
+               istate = istate + 1
+               e_virt_minus_occ(istate) = gs_mos(ispin)%evals_virt(imo_virt) - e_occ
             END DO
          END DO
       END DO
@@ -912,25 +912,25 @@ CONTAINS
                WRITE (log_unit, '(T7,I8,T28,A19,T60,F14.5)') &
                istate, "***  restarted  ***", evals(istate)*evolt
          ELSE
-            ind = inds(istate)-1
+            ind = inds(istate) - 1
             IF (nspins > 1) THEN
                IF (ind < nstates_occ_virt_alpha) THEN
                   ispin = 1
                   spin_label = '(alp)'
                ELSE
                   ispin = 2
-                  ind = ind-nstates_occ_virt_alpha
+                  ind = ind - nstates_occ_virt_alpha
                   spin_label = '(bet)'
                END IF
             END IF
 
-            imo_occ = nmo_occ_avail(ispin)-ind/nmo_virt_selected(ispin)
-            imo_virt = MOD(ind, nmo_virt_selected(ispin))+1
+            imo_occ = nmo_occ_avail(ispin) - ind/nmo_virt_selected(ispin)
+            imo_virt = MOD(ind, nmo_virt_selected(ispin)) + 1
             evals(istate) = e_virt_minus_occ(istate)
 
             IF (log_unit > 0) &
                WRITE (log_unit, '(T7,I8,T24,I8,T37,A5,T45,I8,T54,A5,T60,F14.5)') &
-               istate, imo_occ, spin_label, nmo_occ_avail(ispin)+imo_virt, spin_label, e_virt_minus_occ(istate)*evolt
+               istate, imo_occ, spin_label, nmo_occ_avail(ispin) + imo_virt, spin_label, e_virt_minus_occ(istate)*evolt
 
             DO jspin = 1, nspins
                ! .NOT. ASSOCIATED(evects(jspin, istate)%matrix))

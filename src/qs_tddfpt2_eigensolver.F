@@ -239,7 +239,7 @@ CONTAINS
 
       nspins = SIZE(evects, 1)
       nvects_total = SIZE(evects, 2)
-      nvects_old = nvects_total-nvects_new
+      nvects_old = nvects_total - nvects_new
 
       IF (debug_this_module) THEN
          CPASSERT(SIZE(S_evects, 1) == nspins)
@@ -251,9 +251,9 @@ CONTAINS
          CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, ncol_global=nactive(ispin))
       END DO
 
-      DO jvect = nvects_old+1, nvects_total
+      DO jvect = nvects_old + 1, nvects_total
          ! <psi1_i | psi1_j>
-         DO ivect = 1, jvect-1
+         DO ivect = 1, jvect - 1
             CALL cp_fm_trace(evects(:, jvect), S_evects(:, ivect), weights(1:nspins), accurate=.FALSE.)
             norm = SUM(weights(1:nspins))
 
@@ -439,7 +439,7 @@ CONTAINS
       nspins = SIZE(krylov_vects, 1)
       nkvs = SIZE(krylov_vects, 2)
       nrvs = SIZE(ritz_vects, 2)
-      CPASSERT(nkvs == nkvo+nkvn)
+      CPASSERT(nkvs == nkvo + nkvn)
 
       CALL cp_fm_get_info(krylov_vects(1, 1)%matrix, context=blacs_env_global)
 
@@ -458,18 +458,18 @@ CONTAINS
                                      Atilde(1:nkvs, 1:nkvs), accurate=.FALSE.)
       ELSE
          ALLOCATE (at12(nkvn, nkvo), at21(nkvo, nkvn), at22(nkvn, nkvn))
-         CALL cp_fm_contracted_trace(Aop_krylov(:, nkvo+1:nkvs), krylov_vects(:, 1:nkvo), &
+         CALL cp_fm_contracted_trace(Aop_krylov(:, nkvo + 1:nkvs), krylov_vects(:, 1:nkvo), &
                                      at12, accurate=.FALSE.)
-         Atilde(nkvo+1:nkvs, 1:nkvo) = at12(1:nkvn, 1:nkvo)
-         CALL cp_fm_contracted_trace(Aop_krylov(:, 1:nkvo), krylov_vects(:, nkvo+1:nkvs), &
+         Atilde(nkvo + 1:nkvs, 1:nkvo) = at12(1:nkvn, 1:nkvo)
+         CALL cp_fm_contracted_trace(Aop_krylov(:, 1:nkvo), krylov_vects(:, nkvo + 1:nkvs), &
                                      at21, accurate=.FALSE.)
-         Atilde(1:nkvo, nkvo+1:nkvs) = at21(1:nkvo, 1:nkvn)
-         CALL cp_fm_contracted_trace(Aop_krylov(:, nkvo+1:nkvs), krylov_vects(:, nkvo+1:nkvs), &
+         Atilde(1:nkvo, nkvo + 1:nkvs) = at21(1:nkvo, 1:nkvn)
+         CALL cp_fm_contracted_trace(Aop_krylov(:, nkvo + 1:nkvs), krylov_vects(:, nkvo + 1:nkvs), &
                                      at22, accurate=.FALSE.)
-         Atilde(nkvo+1:nkvs, nkvo+1:nkvs) = at22(1:nkvn, 1:nkvn)
+         Atilde(nkvo + 1:nkvs, nkvo + 1:nkvs) = at22(1:nkvn, 1:nkvn)
          DEALLOCATE (at12, at21, at22)
       END IF
-      Atilde = 0.5_dp*(Atilde+TRANSPOSE(Atilde))
+      Atilde = 0.5_dp*(Atilde + TRANSPOSE(Atilde))
       CALL cp_fm_set_submatrix(Atilde_fm, Atilde)
 
       ! *** solve an eigenproblem for the reduced matrix ***
@@ -583,15 +583,15 @@ CONTAINS
                             awork(ispin)%matrix, 0.0_dp, vomat(ispin)%matrix)
 
                DO icol_local = 1, ncols_local
-                  e_occ_plus_lambda = gs_mos(ispin)%evals_occ(col_indices_local(icol_local))+lambda
+                  e_occ_plus_lambda = gs_mos(ispin)%evals_occ(col_indices_local(icol_local)) + lambda
 
                   DO irow_local = 1, nrows_local
-                     eref = gs_mos(ispin)%evals_virt(row_indices_local(irow_local))-e_occ_plus_lambda
+                     eref = gs_mos(ispin)%evals_virt(row_indices_local(irow_local)) - e_occ_plus_lambda
 
                      ! eref = e_virt - e_occ - lambda = e_virt - e_occ - (eref_scale*lambda + (1-eref_scale)*lambda);
                      ! eref_new = e_virt - e_occ - eref_scale*lambda = eref + (1 - eref_scale)*lambda
                      IF (ABS(eref) < threshold) &
-                        eref = eref+(1.0_dp-eref_scale)*lambda
+                        eref = eref + (1.0_dp - eref_scale)*lambda
 
                      weights_ldata(irow_local, icol_local) = weights_ldata(irow_local, icol_local)/eref
                   END DO
@@ -733,9 +733,9 @@ CONTAINS
          ! davidson iteration
          CALL cp_iterate(logger%iter_info, iter_nr_out=iter)
 
-         CALL tddfpt_compute_Aop_evects(Aop_evects=Aop_krylov(:, nvects_exist+1:nvects_exist+nvects_new), &
-                                        evects=krylov_vects(:, nvects_exist+1:nvects_exist+nvects_new), &
-                                        S_evects=S_krylov(:, nvects_exist+1:nvects_exist+nvects_new), &
+         CALL tddfpt_compute_Aop_evects(Aop_evects=Aop_krylov(:, nvects_exist + 1:nvects_exist + nvects_new), &
+                                        evects=krylov_vects(:, nvects_exist + 1:nvects_exist + nvects_new), &
+                                        S_evects=S_krylov(:, nvects_exist + 1:nvects_exist + nvects_new), &
                                         gs_mos=gs_mos, tddfpt_control=tddfpt_control, &
                                         do_hfx=do_hfx, matrix_ks=matrix_ks, &
                                         qs_env=qs_env, kernel_env=kernel_env, &
@@ -743,49 +743,49 @@ CONTAINS
                                         work_matrices=work_matrices)
 
          CALL tddfpt_compute_ritz_vects(ritz_vects=evects, Aop_ritz=Aop_ritz, &
-                                        evals=evals_last(1:nvects_exist+nvects_new), &
-                                        krylov_vects=krylov_vects(:, 1:nvects_exist+nvects_new), &
-                                        Aop_krylov=Aop_krylov(:, 1:nvects_exist+nvects_new), &
+                                        evals=evals_last(1:nvects_exist + nvects_new), &
+                                        krylov_vects=krylov_vects(:, 1:nvects_exist + nvects_new), &
+                                        Aop_krylov=Aop_krylov(:, 1:nvects_exist + nvects_new), &
                                         Atilde=Atilde, nkvo=nvects_exist, nkvn=nvects_new)
 
          CALL tddfpt_write_restart(evects=evects, evals=evals_last(1:nstates), gs_mos=gs_mos, &
                                    logger=logger, tddfpt_print_section=tddfpt_print_section)
 
-         conv = MAXVAL(ABS(evals_last(1:nstates)-evals(1:nstates)))
+         conv = MAXVAL(ABS(evals_last(1:nstates) - evals(1:nstates)))
 
-         nvects_exist = nvects_exist+nvects_new
-         IF (nvects_exist+nvects_new > max_krylov_vects) &
-            nvects_new = max_krylov_vects-nvects_exist
+         nvects_exist = nvects_exist + nvects_new
+         IF (nvects_exist + nvects_new > max_krylov_vects) &
+            nvects_new = max_krylov_vects - nvects_exist
          IF (iter >= tddfpt_control%niters) nvects_new = 0
 
          IF (conv > tddfpt_control%conv .AND. nvects_new > 0) THEN
             ! compute residual vectors for the next iteration
             DO istate = 1, nvects_new
                DO ispin = 1, nspins
-                  NULLIFY (Aop_krylov(ispin, nvects_exist+istate)%matrix, &
-                           krylov_vects(ispin, nvects_exist+istate)%matrix, &
-                           S_krylov(ispin, nvects_exist+istate)%matrix)
+                  NULLIFY (Aop_krylov(ispin, nvects_exist + istate)%matrix, &
+                           krylov_vects(ispin, nvects_exist + istate)%matrix, &
+                           S_krylov(ispin, nvects_exist + istate)%matrix)
                   CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
-                                         krylov_vects(ispin, nvects_exist+istate)%matrix)
+                                         krylov_vects(ispin, nvects_exist + istate)%matrix)
                   CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
-                                         S_krylov(ispin, nvects_exist+istate)%matrix)
+                                         S_krylov(ispin, nvects_exist + istate)%matrix)
                   CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
-                                         Aop_krylov(ispin, nvects_exist+istate)%matrix)
+                                         Aop_krylov(ispin, nvects_exist + istate)%matrix)
                END DO
             END DO
 
-            CALL tddfpt_compute_residual_vects(residual_vects=krylov_vects(:, nvects_exist+1:nvects_exist+nvects_new), &
+            CALL tddfpt_compute_residual_vects(residual_vects=krylov_vects(:, nvects_exist + 1:nvects_exist + nvects_new), &
                                                evals=evals_last(1:nvects_new), &
                                                ritz_vects=evects(:, 1:nvects_new), Aop_ritz=Aop_ritz(:, 1:nvects_new), &
                                                gs_mos=gs_mos, matrix_s=matrix_s(1)%matrix)
 
-            CALL tddfpt_orthogonalize_psi1_psi0(krylov_vects(:, nvects_exist+1:nvects_exist+nvects_new), &
+            CALL tddfpt_orthogonalize_psi1_psi0(krylov_vects(:, nvects_exist + 1:nvects_exist + nvects_new), &
                                                 work_matrices%S_C0_C0T)
 
-            CALL tddfpt_orthonormalize_psi1_psi1(krylov_vects(:, 1:nvects_exist+nvects_new), nvects_new, &
-                                                 S_krylov(:, 1:nvects_exist+nvects_new), matrix_s(1)%matrix)
+            CALL tddfpt_orthonormalize_psi1_psi1(krylov_vects(:, 1:nvects_exist + nvects_new), nvects_new, &
+                                                 S_krylov(:, 1:nvects_exist + nvects_new), matrix_s(1)%matrix)
 
-            is_nonortho = tddfpt_is_nonorthogonal_psi1_psi0(krylov_vects(:, nvects_exist+1:nvects_exist+nvects_new), &
+            is_nonortho = tddfpt_is_nonorthogonal_psi1_psi0(krylov_vects(:, nvects_exist + 1:nvects_exist + nvects_new), &
                                                             work_matrices%S_C0, tddfpt_control%orthogonal_eps)
          ELSE
             ! convergence or the maximum number of Krylov vectors have been achieved
@@ -798,7 +798,7 @@ CONTAINS
             WRITE (energy_unit, '(/,4X,A,T14,A,T36,A)') "State", "Exc. energy (eV)", "Convergence (eV)"
             DO istate = 1, nstates
                WRITE (energy_unit, '(1X,I8,T12,F14.7,T38,ES11.4)') istate, &
-                  evals_last(istate)*evolt, (evals_last(istate)-evals(istate))*evolt
+                  evals_last(istate)*evolt, (evals_last(istate) - evals(istate))*evolt
             END DO
             WRITE (energy_unit, *)
             CALL m_flush(energy_unit)
@@ -807,11 +807,11 @@ CONTAINS
          IF (iter_unit > 0) THEN
             nstates_conv = 0
             DO istate = 1, nstates
-               IF (ABS(evals_last(istate)-evals(istate)) <= tddfpt_control%conv) &
-                  nstates_conv = nstates_conv+1
+               IF (ABS(evals_last(istate) - evals(istate)) <= tddfpt_control%conv) &
+                  nstates_conv = nstates_conv + 1
             END DO
 
-            WRITE (iter_unit, '(T7,I8,T24,F7.1,T40,ES11.4,T66,I8)') iter, t2-t1, conv, nstates_conv
+            WRITE (iter_unit, '(T7,I8,T24,F7.1,T40,ES11.4,T66,I8)') iter, t2 - t1, conv, nstates_conv
             CALL m_flush(iter_unit)
          END IF
 
@@ -830,7 +830,7 @@ CONTAINS
 
       DEALLOCATE (Atilde)
 
-      DO istate = nvects_exist+nvects_new, 1, -1
+      DO istate = nvects_exist + nvects_new, 1, -1
          DO ispin = nspins, 1, -1
             CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_krylov(ispin, istate)%matrix)
             CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_krylov(ispin, istate)%matrix)

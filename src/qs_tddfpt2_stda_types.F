@@ -174,8 +174,8 @@ CONTAINS
       ! HFx_fraction
       stda_kernel%hfx_fraction = stda_control%hfx_fraction
       ! alpha and beta parameter
-      stda_kernel%alpha_param = alpha(1)+stda_kernel%hfx_fraction*alpha(2)
-      stda_kernel%beta_param = beta(1)+stda_kernel%hfx_fraction*beta(2)
+      stda_kernel%alpha_param = alpha(1) + stda_kernel%hfx_fraction*alpha(2)
+      stda_kernel%beta_param = beta(1) + stda_kernel%hfx_fraction*beta(2)
 
       ! TD Filter
       stda_kernel%eps_td_filter = stda_control%eps_td_filter

@@ -210,7 +210,7 @@ CONTAINS
 
          dr = SQRT(SUM(rij(:)**2)) ! interatomic distance
 
-         eta = (stda_env%kind_param_set(ikind)%kind_param%hardness_param+ &
+         eta = (stda_env%kind_param_set(ikind)%kind_param%hardness_param + &
                 stda_env%kind_param_set(jkind)%kind_param%hardness_param)/2.0_dp
 
          icol = MAX(iatom, jatom)
@@ -224,27 +224,27 @@ CONTAINS
          ! get rcuta and rcutb
          rcuta = stda_env%kind_param_set(ikind)%kind_param%rcut
          rcutb = stda_env%kind_param_set(jkind)%kind_param%rcut
-         rcut = rcuta+rcutb
+         rcut = rcuta + rcutb
 
          !>   Computes the short-range gamma parameter from
          !>   Nataga-Mishimoto-Ohno-Klopman formula equivalently as it is done for xTB
          IF (dr < 1.e-6) THEN
             ! on site terms
-            gblock(:, :) = gblock(:, :)+eta
+            gblock(:, :) = gblock(:, :) + eta
          ELSEIF (dr > rcut) THEN
             ! do nothing
          ELSE
-            IF (dr < rcut-rsmooth) THEN
+            IF (dr < rcut - rsmooth) THEN
                fcut = 1.0_dp
             ELSE
-               r = dr-(rcut-rsmooth)
+               r = dr - (rcut - rsmooth)
                x = r/rsmooth
-               fcut = -6._dp*x**5+15._dp*x**4-10._dp*x**3+1._dp
+               fcut = -6._dp*x**5 + 15._dp*x**4 - 10._dp*x**3 + 1._dp
             END IF
             ralpha = dr**stda_env%alpha_param
-            gblock(:, :) = gblock(:, :)+ &
-                           fcut*(1._dp/(dr**(stda_env%alpha_param)+eta**(-stda_env%alpha_param))) &
-                           **(1._dp/stda_env%alpha_param)-fcut/dr
+            gblock(:, :) = gblock(:, :) + &
+                           fcut*(1._dp/(dr**(stda_env%alpha_param) + eta**(-stda_env%alpha_param))) &
+                           **(1._dp/stda_env%alpha_param) - fcut/dr
          END IF
 
       END DO
@@ -518,7 +518,7 @@ CONTAINS
                ! TC(a) = SUM_(mu of a) TV(mu)
                DO ia = 1, natom
                   DO is = first_sgf(ia), last_sgf(ia)
-                     tcharge(ia) = tcharge(ia)+tv(is)
+                     tcharge(ia) = tcharge(ia) + tv(is)
                   END DO
                END DO
                CALL cp_fm_release(cvecjspin)
@@ -532,9 +532,9 @@ CONTAINS
             CALL dbcsr_iterator_start(iter, tempmat)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
                CALL dbcsr_iterator_next_block(iter, iatom, jatom, gab, blk)
-               gtcharge(iatom, 1) = gtcharge(iatom, 1)+gab(1, 1)*tcharge(jatom)
+               gtcharge(iatom, 1) = gtcharge(iatom, 1) + gab(1, 1)*tcharge(jatom)
                IF (iatom /= jatom) THEN
-                  gtcharge(jatom, 1) = gtcharge(jatom, 1)+gab(1, 1)*tcharge(iatom)
+                  gtcharge(jatom, 1) = gtcharge(jatom, 1) + gab(1, 1)*tcharge(iatom)
                END IF
             END DO
             CALL dbcsr_iterator_stop(iter)
@@ -552,18 +552,18 @@ CONTAINS
                                      gtcharge, tcharge, calculate_forces, virial, use_virial, atprop)
                ! add self charge interaction contribution
                IF (para_env%ionode) THEN
-                  gtcharge(:, 1) = gtcharge(:, 1)-2._dp*alpha*oorootpi*tcharge(:)
+                  gtcharge(:, 1) = gtcharge(:, 1) - 2._dp*alpha*oorootpi*tcharge(:)
                END IF
             ELSE
                nlim = get_limit(natom, para_env%num_pe, para_env%mepos)
                DO iatom = nlim(1), nlim(2)
-                  DO jatom = 1, iatom-1
-                     rij = particle_set(iatom)%r-particle_set(jatom)%r
+                  DO jatom = 1, iatom - 1
+                     rij = particle_set(iatom)%r - particle_set(jatom)%r
                      rij = pbc(rij, cell)
                      dr = SQRT(SUM(rij(:)**2))
                      IF (dr > 1.e-6_dp) THEN
-                        gtcharge(iatom, 1) = gtcharge(iatom, 1)+tcharge(jatom)/dr
-                        gtcharge(jatom, 1) = gtcharge(jatom, 1)+tcharge(iatom)/dr
+                        gtcharge(iatom, 1) = gtcharge(iatom, 1) + tcharge(jatom)/dr
+                        gtcharge(jatom, 1) = gtcharge(jatom, 1) + tcharge(iatom)/dr
                      END IF
                   END DO
                END DO
@@ -607,15 +607,15 @@ CONTAINS
             CALL dbcsr_iterator_start(iter, pdens)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
                CALL dbcsr_iterator_next_block(iter, iatom, jatom, pblock, blk)
-               rij = particle_set(iatom)%r-particle_set(jatom)%r
+               rij = particle_set(iatom)%r - particle_set(jatom)%r
                rij = pbc(rij, cell)
                dr = SQRT(SUM(rij(:)**2))
                ikind = kind_of(iatom)
                jkind = kind_of(jatom)
-               eta = (stda_env%kind_param_set(ikind)%kind_param%hardness_param+ &
+               eta = (stda_env%kind_param_set(ikind)%kind_param%hardness_param + &
                       stda_env%kind_param_set(jkind)%kind_param%hardness_param)/2.0_dp
                rbeta = dr**bp
-               gabr = (1._dp/(rbeta+(hfx*eta)**(-bp)))**(1._dp/bp)
+               gabr = (1._dp/(rbeta + (hfx*eta)**(-bp)))**(1._dp/bp)
                pblock = gabr*pblock
             END DO
             CALL dbcsr_iterator_stop(iter)

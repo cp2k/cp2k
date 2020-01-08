@@ -433,7 +433,7 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(rRc_xyz)
 
       CASE (tddfpt_dipole_velocity)
-         IF (SIZE(matrix_s) < nderivs+1) THEN
+         IF (SIZE(matrix_s) < nderivs + 1) THEN
             CPABORT("Where are the overlap matrix derivatives?")
          END IF
 
@@ -459,13 +459,13 @@ CONTAINS
                DO irow = 1, nrows_local
                   ! ediff_inv_weights(a, i) = 1.0 / (E_virt_a - E_occ_i)
                   ! imo_virt = row_indices(irow)
-                  local_data_ediff(irow, icol) = 1.0_dp/(gs_mos(ispin)%evals_virt(row_indices(irow))-eval_occ)
+                  local_data_ediff(irow, icol) = 1.0_dp/(gs_mos(ispin)%evals_virt(row_indices(irow)) - eval_occ)
                END DO
             END DO
 !$OMP       END PARALLEL DO
 
             DO ideriv = 1, nderivs
-               CALL cp_dbcsr_sm_fm_multiply(matrix_s(ideriv+1)%matrix, &
+               CALL cp_dbcsr_sm_fm_multiply(matrix_s(ideriv + 1)%matrix, &
                                             gs_mos(ispin)%mos_occ, &
                                             dipole_op_mos_occ(ideriv, ispin)%matrix, &
                                             ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
@@ -588,7 +588,7 @@ CONTAINS
          IF (nspins == 1) THEN
             trans_dipoles(:, :, 1) = SQRT(2.0_dp)*trans_dipoles(:, :, 1)
          ELSE
-            trans_dipoles(:, :, 1) = SQRT(trans_dipoles(:, :, 1)**2+trans_dipoles(:, :, 2)**2)
+            trans_dipoles(:, :, 1) = SQRT(trans_dipoles(:, :, 1)**2 + trans_dipoles(:, :, 2)**2)
          END IF
       END IF
 
@@ -715,7 +715,7 @@ CONTAINS
          nexcs_max_local = 0
          DO ispin = 1, nspins
             CALL cp_fm_get_info(weights_fm(ispin)%matrix, nrow_local=nrows_local, ncol_local=ncols_local)
-            nexcs_max_local = nexcs_max_local+INT(nrows_local, int_8)*INT(ncols_local, int_8)
+            nexcs_max_local = nexcs_max_local + INT(nrows_local, int_8)*INT(ncols_local, int_8)
          END DO
 
          ALLOCATE (weights_local(nexcs_max_local), inds_local(nexcs_max_local))
@@ -739,17 +739,17 @@ CONTAINS
                   DO irow = 1, nrows_local
                      IF (ABS(local_data(irow, icol)) >= min_amplitude) THEN
                         ! number of non-negligible excitations
-                        nexcs_local = nexcs_local+1
+                        nexcs_local = nexcs_local + 1
                         ! excitation amplitude
                         weights_local(nexcs_local) = local_data(irow, icol)
                         ! index of single excitation (ivirt, iocc, ispin) in compressed form
-                        inds_local(nexcs_local) = nmo_virt_occ+INT(row_indices(irow), int_8)+ &
-                                                  INT(col_indices(icol)-1, int_8)*nmo_virt8(ispin)
+                        inds_local(nexcs_local) = nmo_virt_occ + INT(row_indices(irow), int_8) + &
+                                                  INT(col_indices(icol) - 1, int_8)*nmo_virt8(ispin)
                      END IF
                   END DO
                END DO
 
-               nmo_virt_occ = nmo_virt_occ+nmo_virt8(ispin)*nmo_occ8(ispin)
+               nmo_virt_occ = nmo_virt_occ + nmo_virt8(ispin)*nmo_occ8(ispin)
             END DO
 
             IF (para_env%mepos == para_env%source) THEN
@@ -758,22 +758,22 @@ CONTAINS
 
                ! collect number of non-negligible excitations from other nodes
                DO iproc = 1, para_env%num_pe
-                  IF (iproc-1 /= para_env%mepos) THEN
-                     CALL mp_irecv(nexcs_recv(iproc:iproc), iproc-1, para_env%group, recv_handlers(iproc), 0)
+                  IF (iproc - 1 /= para_env%mepos) THEN
+                     CALL mp_irecv(nexcs_recv(iproc:iproc), iproc - 1, para_env%group, recv_handlers(iproc), 0)
                   ELSE
                      nexcs_recv(iproc) = nexcs_local
                   END IF
                END DO
 
                DO iproc = 1, para_env%num_pe
-                  IF (iproc-1 /= para_env%mepos) &
+                  IF (iproc - 1 /= para_env%mepos) &
                      CALL mp_wait(recv_handlers(iproc))
                END DO
 
                ! compute total number of non-negligible excitations
                nexcs = 0
                DO iproc = 1, para_env%num_pe
-                  nexcs = nexcs+nexcs_recv(iproc)
+                  nexcs = nexcs + nexcs_recv(iproc)
                END DO
 
                ! receive indices and amplitudes of selected excitations
@@ -783,25 +783,25 @@ CONTAINS
                nmo_virt_occ = 0
                DO iproc = 1, para_env%num_pe
                   IF (nexcs_recv(iproc) > 0) THEN
-                     IF (iproc-1 /= para_env%mepos) THEN
+                     IF (iproc - 1 /= para_env%mepos) THEN
                         ! excitation amplitudes
-                        CALL mp_irecv(weights_recv(nmo_virt_occ+1:nmo_virt_occ+nexcs_recv(iproc)), &
-                                      iproc-1, para_env%group, recv_handlers(iproc), 1)
+                        CALL mp_irecv(weights_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)), &
+                                      iproc - 1, para_env%group, recv_handlers(iproc), 1)
                         ! compressed indices
-                        CALL mp_irecv(inds_recv(nmo_virt_occ+1:nmo_virt_occ+nexcs_recv(iproc)), &
-                                      iproc-1, para_env%group, recv_handlers2(iproc), 2)
+                        CALL mp_irecv(inds_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)), &
+                                      iproc - 1, para_env%group, recv_handlers2(iproc), 2)
                      ELSE
                         ! data on master node
-                        weights_recv(nmo_virt_occ+1:nmo_virt_occ+nexcs_recv(iproc)) = weights_local(1:nexcs_recv(iproc))
-                        inds_recv(nmo_virt_occ+1:nmo_virt_occ+nexcs_recv(iproc)) = inds_local(1:nexcs_recv(iproc))
+                        weights_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)) = weights_local(1:nexcs_recv(iproc))
+                        inds_recv(nmo_virt_occ + 1:nmo_virt_occ + nexcs_recv(iproc)) = inds_local(1:nexcs_recv(iproc))
                      END IF
 
-                     nmo_virt_occ = nmo_virt_occ+nexcs_recv(iproc)
+                     nmo_virt_occ = nmo_virt_occ + nexcs_recv(iproc)
                   END IF
                END DO
 
                DO iproc = 1, para_env%num_pe
-                  IF (iproc-1 /= para_env%mepos .AND. nexcs_recv(iproc) > 0) THEN
+                  IF (iproc - 1 /= para_env%mepos .AND. nexcs_recv(iproc) > 0) THEN
                      CALL mp_wait(recv_handlers(iproc))
                      CALL mp_wait(recv_handlers2(iproc))
                   END IF
@@ -834,23 +834,23 @@ CONTAINS
                WRITE (log_unit, '(T7,I8,F10.5,A)') istate, evals(istate)*evolt, " eV"
 
                DO iexc = 1, nexcs
-                  ind = inds_recv(inds(iexc))-1
+                  ind = inds_recv(inds(iexc)) - 1
                   IF (nspins > 1) THEN
                      IF (ind < nmo_virt_occ_alpha) THEN
                         state_spin = 1
                         spin_label = '(alp)'
                      ELSE
                         state_spin = 2
-                        ind = ind-nmo_virt_occ_alpha
+                        ind = ind - nmo_virt_occ_alpha
                         spin_label = '(bet)'
                      END IF
                   END IF
 
-                  imo_occ = ind/nmo_virt8(state_spin)+1
-                  imo_virt = MOD(ind, nmo_virt8(state_spin))+1
+                  imo_occ = ind/nmo_virt8(state_spin) + 1
+                  imo_virt = MOD(ind, nmo_virt8(state_spin)) + 1
 
                   WRITE (log_unit, '(T27,I8,1X,A5,T48,I8,1X,A5,T70,F9.6)') imo_occ, spin_label, &
-                     nmo_occ8(state_spin)+imo_virt, spin_label, weights_recv(inds(iexc))
+                     nmo_occ8(state_spin) + imo_virt, spin_label, weights_recv(inds(iexc))
                END DO
             END IF
 
@@ -922,7 +922,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: nto_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(section_vals_type), POINTER                   :: nto_section
+      TYPE(section_vals_type), POINTER                   :: molden_section, nto_section
 
       CALL timeset(routineN, handle)
 
@@ -992,7 +992,7 @@ CONTAINS
                CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
                CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, ev, Sev, 0.0_dp, tmat)
 
-               CALL choose_eigv_solver(tmat, teig(ispin)%matrix, eigenvalues(:, ispin), info)
+               CALL choose_eigv_solver(tmat, teig(ispin)%matrix, eigenvalues(1:nmo, ispin), info)
                CPASSERT(info == 0)
 
                CALL cp_fm_struct_release(fm_mo_struct)
@@ -1007,9 +1007,9 @@ CONTAINS
                iv = MAXLOC(eigenvalues)
                ia_eval(i) = eigenvalues(iv(1), iv(2))
                ia_index(1:2, i) = iv(1:2)
-               sume = sume+ia_eval(i)
+               sume = sume + ia_eval(i)
                eigenvalues(iv(1), iv(2)) = 0.0_dp
-               nnto = nnto+1
+               nnto = nnto + 1
                IF (sume > threshold) EXIT
             END DO
             ! store hole states
@@ -1102,7 +1102,7 @@ CONTAINS
             IF (iounit > 0) THEN
                sume = 0.0_dp
                DO i = 1, nnto
-                  sume = sume+ia_eval(i)
+                  sume = sume + ia_eval(i)
                   WRITE (iounit, "(T6,A,i2,T30,A,i1,T42,A,F8.5,T63,A,F8.5)") &
                      "Particle-Hole state:", i, " Spin:", ia_index(2, i), &
                      "Eigenvalue:", ia_eval(i), " Sum Eigv:", sume
@@ -1110,14 +1110,15 @@ CONTAINS
             END IF
             ! Cube and Molden files
             nto_section => section_vals_get_subs_vals(print_section, "NTO_ANALYSIS")
-            CALL section_vals_val_get(print_section, "NTO_ANALYSIS%CUBE_FILES", l_val=cube_file)
-            CALL section_vals_val_get(print_section, "NTO_ANALYSIS%STRIDE", i_vals=stride)
-            CALL section_vals_val_get(print_section, "NTO_ANALYSIS%APPEND", l_val=append_cube)
+            CALL section_vals_val_get(nto_section, "CUBE_FILES", l_val=cube_file)
+            CALL section_vals_val_get(nto_section, "STRIDE", i_vals=stride)
+            CALL section_vals_val_get(nto_section, "APPEND", l_val=append_cube)
             IF (cube_file) THEN
                CALL print_nto_cubes(qs_env, nto_set, istate, stride, append_cube, nto_section)
             END IF
             CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set)
-            CALL write_mos_molden(nto_set, qs_kind_set, particle_set, print_section, istate)
+            molden_section => section_vals_get_subs_vals(print_section, "MOS_MOLDEN")
+            CALL write_mos_molden(nto_set, qs_kind_set, particle_set, molden_section)
             !
             DEALLOCATE (eigenvalues)
             DO ispin = 1, nspins
@@ -1218,7 +1219,7 @@ CONTAINS
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, vba, blk)
          CALL dbcsr_get_block_p(vb, row=irow, col=icol, block=vbb, found=found)
-         res = res+SUM(vba*vbb)
+         res = res + SUM(vba*vbb)
          CPASSERT(found)
       ENDDO
       CALL dbcsr_iterator_stop(iter)

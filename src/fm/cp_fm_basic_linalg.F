@@ -889,7 +889,7 @@ CONTAINS
             ldata_a_sp => matrix_a(imatrix)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
             ldata_b_sp => matrix_b(imatrix)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
             IF (use_accurate_sum) THEN
-            trace(imatrix) = accurate_dot_product(ldata_a_sp, ldata_b_sp)
+               trace(imatrix) = accurate_dot_product(ldata_a_sp, ldata_b_sp)
             ELSE
                trace(imatrix) = SUM(ldata_a_sp*ldata_b_sp)
             END IF
@@ -897,8 +897,8 @@ CONTAINS
             ldata_a => matrix_a(imatrix)%matrix%local_data(1:nrows_local, 1:ncols_local)
             ldata_b => matrix_b(imatrix)%matrix%local_data(1:nrows_local, 1:ncols_local)
             IF (use_accurate_sum) THEN
-            trace(imatrix) = accurate_dot_product(ldata_a, ldata_b)
-         ELSE
+               trace(imatrix) = accurate_dot_product(ldata_a, ldata_b)
+            ELSE
                trace(imatrix) = SUM(ldata_a*ldata_b)
             END IF
          ELSE
@@ -974,17 +974,17 @@ CONTAINS
                ldata_a => matrix_a(iz, ia)%matrix%local_data(1:nrows_local, 1:ncols_local)
                ldata_b => matrix_b(iz, ib)%matrix%local_data(1:nrows_local, 1:ncols_local)
                IF (use_accurate_sum) THEN
-               t = t + accurate_dot_product(ldata_a, ldata_b)
+                  t = t + accurate_dot_product(ldata_a, ldata_b)
                ELSE
-                  t = t+SUM(ldata_a*ldata_b)
+                  t = t + SUM(ldata_a*ldata_b)
                END IF
             ELSE IF (use_sp_a .AND. use_sp_b) THEN
                ldata_a_sp => matrix_a(iz, ia)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
                ldata_b_sp => matrix_b(iz, ib)%matrix%local_data_sp(1:nrows_local, 1:ncols_local)
                IF (use_accurate_sum) THEN
-               t = t + accurate_dot_product(ldata_a_sp, ldata_b_sp)
-            ELSE
-                  t = t+SUM(ldata_a_sp*ldata_b_sp)
+                  t = t + accurate_dot_product(ldata_a_sp, ldata_b_sp)
+               ELSE
+                  t = t + SUM(ldata_a_sp*ldata_b_sp)
                END IF
             ELSE
                CPABORT("Matrices A and B are of different types")
