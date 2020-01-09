@@ -22,11 +22,12 @@ CFLAGS     = -O1 -g -mtune=generic
 
 DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC -D__SPGLIB -D__CHECK_DIAG
 
-WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion
-WFLAGS    += -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation
-WFLAGS    += -Wno-tabs -Wrealloc-lhs -Wtarget-lifetime -Wunderflow
-WFLAGS    += -Wunused-but-set-variable -Wunused-dummy-argument -Wunused-variable
-WFLAGS    += -Werror
+WFLAGS     = -Wrealloc-lhs
+WFLAGS    += -Werror=aliasing -Werror=ampersand -Werror=c-binding-type
+WFLAGS    += -Werror=conversion -Werror=intrinsic-shadow -Werror=intrinsics-std
+WFLAGS    += -Werror=line-truncation -Werror=tabs -Werror=target-lifetime
+WFLAGS    += -Werror=underflow -Werror=unused-but-set-variable
+WFLAGS    += -Werror=unused-dummy-argument -Werror=unused-variable
 
 FCFLAGS    = $(CFLAGS) $(DFLAGS) $(WFLAGS)
 FCFLAGS   += -fcheck=bounds,do,recursion,pointer -ffree-form
