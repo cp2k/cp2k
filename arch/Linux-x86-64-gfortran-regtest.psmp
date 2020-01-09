@@ -1,6 +1,6 @@
 # Tested with: GFortran 7.4.0, MPICH 3.3, LAPACK 3.8.0, ScaLAPACK 2.0.2, FFTW 3.3,
 #              Libint 2.6.0, Libxc 4.3.4, ELPA 2019.05.001, PLUMED 2.5.2, SPGLIB 1.12.2
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, Dezember 2019)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, January 2020)
 
 CC         = mpicc
 FC         = mpif90
