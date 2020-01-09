@@ -37,6 +37,7 @@ IGNORED_WARNINGS = (
     "-Wrealloc-lhs",
     "-Wdo-subscript",
     "-Wmaybe-uninitialized",
+    "-Wfunction-elimination",
     "Creating array temporary",
     "quality comparison",
     "defined but not used",
