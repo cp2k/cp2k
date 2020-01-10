@@ -1663,7 +1663,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, &
                           name="VEL_REPRS", &
-                          description="Calculate expectation values the el. multipole moments in their velocity"// &
+                          description="Calculate expectation values of the el. multipole moments in their velocity"// &
                           "representation during RTP. Implemented up to el. quadrupole moment.", &
                           usage="VEL_REPS yes", &
                           repeats=.FALSE., &
