@@ -19,4 +19,9 @@ make install > make.log 2>&1
 cd ..
 rm -rf lcov-${lcov_version}.tar.gz lcov-${lcov_version}
 
+# LCOV dependencies
+apt-get update -qq
+apt-get install -qq --no-install-recommends libperlio-gzip-perl libjson-perl
+rm -rf /var/lib/apt/lists/*
+
 #EOF
