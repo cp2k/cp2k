@@ -132,7 +132,7 @@ CONTAINS
                                                             nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: dab, rab2
+      REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: mab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, rb, rbc, rc
@@ -265,8 +265,7 @@ CONTAINS
          rab(:) = ra(:) - rb(:)
          rac(:) = ra(:) - rc(:)
          rbc(:) = rb(:) - rc(:)
-         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-         dab = SQRT(rab2)
+         dab = NORM2(rab)
 
          DO iset = 1, nseta
 
@@ -361,7 +360,7 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: dab, rab2
+      REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: difmab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, rb, rbc, rc
@@ -486,8 +485,7 @@ CONTAINS
          rab(:) = ra(:) - rb(:)
          rac(:) = ra(:) - rc(:)
          rbc(:) = rb(:) - rc(:)
-         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-         dab = SQRT(rab2)
+         dab = NORM2(rab)
 
          ! get blocks
          IF (inode == 1) last_jatom = 0
@@ -649,7 +647,7 @@ CONTAINS
                                                             nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: dab, rab2
+      REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: mab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, rb, rbc, rc
@@ -788,8 +786,7 @@ CONTAINS
          rab(:) = ra(:) - rb(:)
          rac(:) = ra(:) - rc(:)
          rbc(:) = rb(:) - rc(:)
-         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-         dab = SQRT(rab2)
+         dab = NORM2(rab)
 
          DO iset = 1, nseta
 
@@ -2092,7 +2089,7 @@ CONTAINS
 
       IF (my_com_nl) THEN
          IF (magnetic) THEN
-            mmom = mmom + nlcom_rxrv
+            mmom(:) = mmom(:) + nlcom_rxrv(:)
          ENDIF
          IF (my_velreprs .AND. (nmom >= 1)) THEN
             rmom_vel(1:3) = rmom_vel(1:3) + nlcom_rv
@@ -2443,53 +2440,14 @@ CONTAINS
       CALL dbcsr_desymmetrize(matrix_s(1)%matrix, tmp_ao)
 
       IF (calc_rv) THEN
-         ! trace = 0._dp
-         ! DO ind = 1, SIZE(matrix_rv)
-         !    strace = 0._dp
-         !    DO ispin = 1, dft_control%nspins
-         !       CALL dbcsr_set(tmp_ao, 0.0_dp)
-         !       CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, matrix_rv(ind)%matrix, &
-         !                           0.0_dp, tmp_ao)
-         !       CALL dbcsr_trace(tmp_ao, trace)
-         !       strace = strace + trace
-         !    END DO
-         !    nlcom_rv(ind) = nlcom_rv(ind) + strace
-         ! ENDDO
-         ! WRITE (*, *) nlcom_rv
          nlcom_rv(:) = 0._dp
       ENDIF
 
       IF (calc_rrv) THEN
-         ! trace = 0._dp
-         ! DO ind = 1, SIZE(matrix_rrv)
-         !    strace = 0._dp
-         !    DO ispin = 1, dft_control%nspins
-         !       CALL dbcsr_set(tmp_ao, 0.0_dp)
-         !       CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, matrix_rrv(ind)%matrix, &
-         !                           0.0_dp, tmp_ao)
-         !       CALL dbcsr_trace(tmp_ao, trace)
-         !       strace = strace + trace
-         !    END DO
-         !    nlcom_rrv(ind) = nlcom_rrv(ind) + strace
-         ! ENDDO
-         ! ! WRITE (*, *) nlcom_rrv
          nlcom_rrv(:) = 0._dp
       ENDIF
 
       IF (calc_rxrv) THEN
-         ! trace = 0._dp
-         ! DO ind = 1, SIZE(matrix_rxrv)
-         !    strace = 0._dp
-         !    DO ispin = 1, dft_control%nspins
-         !       CALL dbcsr_set(tmp_ao, 0.0_dp)
-         !       CALL dbcsr_multiply("T", "N", 1.0_dp, rho_ao(ispin)%matrix, matrix_rxrv(ind)%matrix, &
-         !                           0.0_dp, tmp_ao)
-         !       CALL dbcsr_trace(tmp_ao, trace)
-         !       strace = strace + trace
-         !    END DO
-         !    nlcom_rxrv(ind) = nlcom_rxrv(ind) + strace
-         ! ENDDO
-         ! ! WRITE (*, *) nlcom_rxrv
          nlcom_rxrv(:) = 0._dp
       ENDIF
 
