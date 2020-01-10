@@ -2,8 +2,13 @@
 
 # author: Ole Schuett
 
-lcov_version="1.14"
-lcov_sha256="14995699187440e0ae4da57fe3a64adc0a3c5cf14feab971f8db38fb7d8f071a"
+# GCC9 changed the output format of gcov to json.
+# While lcov has been updated there isn't a new release yet.
+# Hence, we're using https://github.com/linux-test-project/lcov/commit/75fbae1cf
+# For details see https://github.com/linux-test-project/lcov/issues/58
+
+lcov_version="75fbae1cfc5027f818a0bb865bf6f96fab3202da"
+lcov_sha256="f536c31d517d54b36b8a15fceb9e697c05f920bb31ac6fb1a43d19eafa077fa6"
 
 cd /tmp
 wget -q https://www.cp2k.org/static/downloads/lcov-${lcov_version}.tar.gz
