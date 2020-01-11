@@ -59,6 +59,7 @@ MODULE almo_scf_optimizer
         dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_norm, dbcsr_norm_maxabsnorm, &
         dbcsr_p_type, dbcsr_print_block_sum, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
         dbcsr_set, dbcsr_set_diag, dbcsr_triu, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_print, &
         dbcsr_work_create
    USE domain_submatrix_methods,        ONLY: add_submatrices,&
                                               construct_submatrices,&
@@ -73,6 +74,7 @@ MODULE almo_scf_optimizer
         almo_occ_vol_penalty_none, almo_scf_diag, almo_scf_dm_sign, cg_dai_yuan, cg_fletcher, &
         cg_fletcher_reeves, cg_hager_zhang, cg_hestenes_stiefel, cg_liu_storey, cg_polak_ribiere, &
         cg_zero, virt_full, xalmo_case_block_diag, xalmo_case_fully_deloc, xalmo_case_normal, &
+        trustr_steihaug, trustr_cauchy, trustr_dogleg, &
         xalmo_prec_domain, xalmo_prec_full, xalmo_prec_zero
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -95,6 +97,7 @@ MODULE almo_scf_optimizer
 
    PUBLIC :: almo_scf_block_diagonal, &
              almo_scf_xalmo_eigensolver, &
+             almo_scf_xalmo_trustr, &
              almo_scf_xalmo_pcg
 
    LOGICAL, PARAMETER :: debug_mode = .FALSE.
@@ -7427,24 +7430,20 @@ CONTAINS
    END SUBROUTINE hessian_diag_apply
 
 ! **************************************************************************************************
-!> \brief Optimization of ALMOs using trust radius minimizers
+!> \brief Optimization of ALMOs using trust region minimizers
 !> \param qs_env ...
 !> \param almo_scf_env ...
 !> \param optimizer   controls the optimization algorithm
 !> \param quench_t ...
 !> \param matrix_t_in ...
 !> \param matrix_t_out ...
-!> \param assume_t0_q0x - since it is extrememly difficult to converge the iterative
-!>                        procedure using T as an optimized variable, assume
-!>                        T = T_0 + (1-R_0)*X and optimize X
-!>                        T_0 is assumed to be the zero-delocalization reference
 !> \param perturbation_only - perturbative (do not update Hamiltonian)
 !> \param special_case   to reduce the overhead special cases are implemented:
 !>                       xalmo_case_normal - no special case (i.e. xALMOs)
 !>                       xalmo_case_block_diag
 !>                       xalmo_case_fully_deloc
 !> \par History
-!>       2011.11 created [Rustam Z Khaliullin]
+!>       2020.01 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_scf_xalmo_trustr(qs_env, almo_scf_env, optimizer, quench_t, &
@@ -7468,7 +7467,7 @@ CONTAINS
                                                             outer_iteration, &
                                                             prec_type, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nocc
-      LOGICAL                                            :: converged, &
+      LOGICAL                                            :: scf_converged, &
                                                             normalize_orbitals, &
                                                             optimize_theta, &
                                                             assume_t0_q0x, &
@@ -7572,6 +7571,7 @@ CONTAINS
                  grad_norm = 0.0_dp, &
                  predicted_reduction = 0.0_dp, &
                  rho = 0.0_dp, &
+                 new = .TRUE., &
                  time = 0.0_dp )
          WRITE (unit_nr, '(T2,A)') REPEAT("-", 79)
       ENDIF
@@ -7739,11 +7739,10 @@ CONTAINS
 
       ENDDO ! ispin
 
-      radius_max = 2.0_dp
-      radius_current = MIN(optimizer%lin_search_step_size_guess, radius_max)
+      radius_max = optimizer%max_trust_radius
+      radius_current = MIN(optimizer%initial_trust_radius, radius_max)
       ! eta must be between 0 and 0.25
-      ! RZK-noncritical: eta = MIN(MAX(optimizer%do_not_step_rho,0.0_dp),0.25_dp)
-      eta = 0.1_dp
+      eta = MIN(MAX(optimizer%rho_do_not_update,0.0_dp),0.25_dp)
       energy_start = 0.0_dp
       energy_trial = 0.0_dp
       penalty_start = 0.0_dp
@@ -7788,8 +7787,8 @@ CONTAINS
       ENDDO ! ispin
 
       ! start the outer step-size-adjustment loop
-      converged = .FALSE.
-      adjust_r_loop: DO outer_iteration = 0, optimizer%max_iter_outer_loop
+      scf_converged = .FALSE.
+      adjust_r_loop: DO outer_iteration = 1, optimizer%max_iter_outer_loop
 
          ! start the inner fixed-radius loop
          border_reached = .FALSE.
@@ -7803,6 +7802,7 @@ CONTAINS
 
             DO ispin = 1, nspins
 
+               IF (unit_nr > 0 ) WRITE(*,*) "...Compute model gradient"
                CALL compute_gradient( &
                   m_grad_out=grad(ispin), &
                   m_ks=almo_scf_env%matrix_ks(ispin), &
@@ -7855,17 +7855,18 @@ CONTAINS
                  predicted_reduction = 0.0_dp, &
                  rho = 0.0_dp, &
                  radius = radius_current, &
+                 new = .NOT.same_position, &
                  time = t2outer-t1outer )
          t1outer = m_walltime()
 
          IF (grad_norm_ref .LE. optimizer%eps_error) THEN
-            converged = .TRUE.
+            scf_converged = .TRUE.
             border_reached = .FALSE.
             expected_reduction = 0.0_dp
-            IF (.NOT. (optimizer%early_stopping_on .AND. outer_iteration.EQ.0) ) &
+            IF (.NOT. (optimizer%early_stopping_on .AND. outer_iteration.EQ.1) ) &
                EXIT adjust_r_loop
          ELSE
-            converged = .FALSE.
+            scf_converged = .FALSE.
          ENDIF
 
          DO ispin = 1, nspins
@@ -7876,6 +7877,7 @@ CONTAINS
             IF (my_special_case .EQ. xalmo_case_block_diag .OR. &
                my_special_case .EQ. xalmo_case_fully_deloc) THEN
 
+               IF (unit_nr > 0 ) WRITE(*,*) "...Multiply Sinv.r"
                CALL dbcsr_multiply("N", "N", 1.0_dp, &
                        m_s_inv, &
                        m_model_r(ispin), &
@@ -7884,7 +7886,8 @@ CONTAINS
 
             ELSE IF (my_special_case .EQ. xalmo_case_normal) THEN
 
-              CALL apply_domain_operators( &
+               IF (unit_nr > 0 ) WRITE(*,*) "...Multiply Sinv_xx.r"
+               CALL apply_domain_operators( &
                        matrix_in = m_model_r(ispin), &
                        matrix_out = m_model_rt(ispin), &
                        operator1 = almo_scf_env%domain_s_inv(:, ispin), &
@@ -7908,6 +7911,7 @@ CONTAINS
             SELECT CASE (prec_type)
             CASE (xalmo_prec_domain)
 
+               IF (unit_nr > 0 ) WRITE(*,*) "...Compute model Hessian"
                DO ispin = 1, nspins
                   CALL compute_preconditioner( &
                      domain_prec_out=almo_scf_env%domain_preconditioner(:, ispin), &
@@ -7944,21 +7948,24 @@ CONTAINS
 
          ENDIF  ! not same position
 
+         ! print the header (argument values are ignored)
+         CALL fixed_r_report( unit_nr, &
+                 iter_type = 0, &
+                 iteration = 0, &
+                 step_size = 0.0_dp, &
+                 border_reached = .FALSE., &
+                 curvature = 0.0_dp, &
+                 grad_norm_ratio = 0.0_dp, &
+                 time = 0.0_dp)
+
+         IF (unit_nr > 0 ) WRITE(*,*) "...Start inner loop"
+
          t1 = m_walltime()
-
          inner_loop_success = .FALSE.
-         fixed_r_loop: DO iteration = 0, optimizer%max_iter
+         ! trustr_steihaug, trustr_cauchy, trustr_dogleg
+         fixed_r_loop: DO iteration = 1, optimizer%max_iter
 
-            ! print the header (argument values are ignored)
-            CALL fixed_r_report( unit_nr, &
-                    iter_type = 0, &
-                    iteration = iteration, &
-                    step_size = step_size, &
-                    border_reached = border_reached, &
-                    curvature = y_scalar, &
-                    grad_norm_ratio = expected_reduction, &
-                    time = t1)
-
+            ! Step 2. Get curvature. If negative, step to the border
             y_scalar = 0.0_dp
             DO ispin = 1, nspins
 
@@ -7991,6 +7998,7 @@ CONTAINS
                y_scalar = y_scalar + real_temp
 
             ENDDO ! ispin
+            IF (unit_nr > 0 ) WRITE(*,*) "...Curvature: ", y_scalar
 
             ! step to the border
             IF (y_scalar .LT. 0.0_dp) THEN
@@ -8039,13 +8047,14 @@ CONTAINS
 
             ENDIF ! y is negative
 
-            ! Compute the step size
+            ! Step 3. Compute the step size along the direction
             step_size = 0.0_dp
             DO ispin = 1, nspins
                CALL dbcsr_dot(m_model_r(ispin), m_model_rt(ispin), real_temp)
                step_size = step_size + real_temp
             ENDDO ! ispin
             step_size = step_size / y_scalar
+            IF (unit_nr > 0 ) WRITE(*,*) "...Proposed step size: ", step_size
 
             ! Update the step matrix
             DO ispin = 1, nspins
@@ -8054,6 +8063,8 @@ CONTAINS
             ENDDO
 
             ! Compute step norm
+!IF (unit_nr > 0 ) WRITE(*,*) "...Step before contravariant norm"
+!CALL dbcsr_print(step(1))
             CALL contravariant_matrix_norm(&
                     norm_out = step_norm, &
                     matrix_in = step, &
@@ -8061,10 +8072,14 @@ CONTAINS
                     quench_t_in = quench_t, &
                     eps_filter_in = almo_scf_env%eps_filter &
                     )
+            IF (unit_nr > 0 ) WRITE(*,*) "...Step norm: ", step_norm
+!IF (unit_nr > 0 ) WRITE(*,*) "...Step after contravariant norm"
+!CALL dbcsr_print(step(1))
 
             ! Do not step beyond the trust radius
             IF (step_norm .GT. radius_current) THEN
 
+               IF (unit_nr > 0 ) WRITE(*,*) "...Norm is too large"
                CALL step_size_to_border(&
                   step_size_out = step_size, &
                   metric_in = almo_scf_env%matrix_s, &
@@ -8074,13 +8089,59 @@ CONTAINS
                   quench_t_in = quench_t, &
                   eps_filter_in = almo_scf_env%eps_filter &
                   )
+               IF (unit_nr > 0 ) WRITE(*,*) "...Step size to border: ", step_size
 
                DO ispin = 1, nspins
                   CALL dbcsr_copy(step(ispin),prev_step(ispin))
                   CALL dbcsr_add(step(ispin),m_model_d(ispin),1.0_dp,step_size)
                ENDDO
 
+! Compute step norm
+IF (unit_nr > 0 ) WRITE(*,*) "...Extra norm evaluation"
+CALL contravariant_matrix_norm(&
+        norm_out = step_norm, &
+        matrix_in = step, &
+        metric_in = almo_scf_env%matrix_s, &
+        quench_t_in = quench_t, &
+        eps_filter_in = almo_scf_env%eps_filter &
+        )
+IF (unit_nr > 0 ) WRITE(*,*) "...Step norm: ", step_norm
+IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
+
                border_reached = .TRUE.
+               inner_loop_success = .TRUE.
+
+               CALL predicted_reduction(&
+                       reduction_out = expected_reduction, &
+                       grad_in = grad, &
+                       step_in = step, &
+                       hess_in = prec_vv, &
+                       hess_submatrix_in = almo_scf_env%domain_preconditioner, &
+                       quench_t_in = quench_t, &
+                       special_case = my_special_case, &
+                       eps_filter = almo_scf_env%eps_filter, &
+                       domain_map =almo_scf_env%domain_map, &
+                       cpu_of_domain = almo_scf_env%cpu_of_domain &
+                       )
+
+               t2 = m_walltime()
+               CALL fixed_r_report( unit_nr, &
+                       iter_type = 3, &
+                       iteration = iteration, &
+                       step_size = step_size, &
+                       border_reached = border_reached, &
+                       curvature = y_scalar, &
+                       grad_norm_ratio = expected_reduction, &
+                       time = t2-t1)
+
+               EXIT fixed_r_loop ! the inner loop
+
+            ENDIF
+
+            IF (optimizer%trustr_algorithm .EQ. trustr_cauchy) THEN
+               ! trustr_steihaug, trustr_cauchy, trustr_dogleg
+
+               border_reached = .FALSE.
                inner_loop_success = .TRUE.
 
                CALL predicted_reduction(&
@@ -8098,7 +8159,7 @@ CONTAINS
 
                t2 = m_walltime()
                CALL fixed_r_report( unit_nr, &
-                       iter_type = 3, &
+                       iter_type = 5, & ! Cauchy point
                        iteration = iteration, &
                        step_size = step_size, &
                        border_reached = border_reached, &
@@ -8130,7 +8191,7 @@ CONTAINS
 
             ! Check norm reduction
             grad_norm_ratio = model_grad_norm/grad_norm_ref
-            IF (grad_norm_ratio .LT. optimizer%lin_search_eps_error ) THEN
+            IF (grad_norm_ratio .LT. optimizer%model_grad_norm_ratio ) THEN
 
                border_reached = .FALSE.
                inner_loop_success = .TRUE.
@@ -8208,7 +8269,7 @@ CONTAINS
             !IF (reset_conjugator) THEN
 
             !   beta = 0.0_dp
-            !   IF (unit_nr > 0 .AND. (iteration.GT.0)) THEN
+            !   IF (unit_nr > 0 .AND. (iteration.GT.1)) THEN
             !      WRITE (unit_nr, '(T2,A35)') "Re-setting conjugator to zero"
             !   ENDIF
             !   reset_conjugator = .FALSE.
@@ -8233,6 +8294,8 @@ CONTAINS
 
          ENDDO fixed_r_loop
          !!!! done with the inner loop
+         ! the inner loop must return: step, predicted reduction,
+         ! whether it reached the border and completed successfully
 
          IF (.NOT. inner_loop_success) THEN
             CPABORT("Inner loop did not produce solution")
@@ -8246,33 +8309,33 @@ CONTAINS
          ENDDO ! ispin
 
          ! compute the energy
-         IF (.NOT. same_position) THEN
-            CALL main_var_to_xalmos_and_loss_func( &
-                    almo_scf_env = almo_scf_env, &
-                    qs_env = qs_env, &
-                    m_main_var_in = m_theta_trial, &
-                    m_t_out = matrix_t_out, &
-                    m_sig_sqrti_ii_out = m_sig_sqrti_ii, &
-                    energy_out = energy_trial, &
-                    penalty_out = penalty_trial, &
-                    m_FTsiginv_out = FTsiginv, &
-                    m_siginvTFTsiginv_out = siginvTFTsiginv, &
-                    m_ST_out = ST, &
-                    m_STsiginv0_in = STsiginv_0, &
-                    m_quench_t_in = quench_t, &
-                    domain_r_down_in = domain_r_down, &
-                    assume_t0_q0x = assume_t0_q0x, &
-                    just_started = .FALSE., &
-                    optimize_theta = optimize_theta, &
-                    normalize_orbitals = normalize_orbitals, &
-                    perturbation_only = perturbation_only, &
-                    do_penalty = penalty_occ_vol, &
-                    special_case = my_special_case)
-            loss_trial = energy_trial + penalty_trial
-         ENDIF ! not same_position
+         !IF (.NOT. same_position) THEN
+         CALL main_var_to_xalmos_and_loss_func( &
+                 almo_scf_env = almo_scf_env, &
+                 qs_env = qs_env, &
+                 m_main_var_in = m_theta_trial, &
+                 m_t_out = matrix_t_out, &
+                 m_sig_sqrti_ii_out = m_sig_sqrti_ii, &
+                 energy_out = energy_trial, &
+                 penalty_out = penalty_trial, &
+                 m_FTsiginv_out = FTsiginv, &
+                 m_siginvTFTsiginv_out = siginvTFTsiginv, &
+                 m_ST_out = ST, &
+                 m_STsiginv0_in = STsiginv_0, &
+                 m_quench_t_in = quench_t, &
+                 domain_r_down_in = domain_r_down, &
+                 assume_t0_q0x = assume_t0_q0x, &
+                 just_started = .FALSE., &
+                 optimize_theta = optimize_theta, &
+                 normalize_orbitals = normalize_orbitals, &
+                 perturbation_only = perturbation_only, &
+                 do_penalty = penalty_occ_vol, &
+                 special_case = my_special_case)
+         loss_trial = energy_trial + penalty_trial
+         !ENDIF ! not same_position
 
-         rho = (loss_start-loss_trial)/expected_reduction
-         loss_change_to_report = loss_start-loss_trial
+         rho = (loss_trial - loss_start)/expected_reduction
+         loss_change_to_report = loss_trial - loss_start
 
          IF (rho < 0.25_dp) THEN
             radius_current = 0.25_dp * radius_current
@@ -8295,6 +8358,9 @@ CONTAINS
             ENDIF
          ELSE
             same_position = .TRUE.
+            IF (my_special_case .EQ. xalmo_case_block_diag) THEN
+               almo_scf_env%almo_scf_energy = energy_start
+            ENDIF
          ENDIF ! finalize step
 
          t2outer = m_walltime()
@@ -8307,13 +8373,14 @@ CONTAINS
                  predicted_reduction = expected_reduction, &
                  rho = rho, &
                  radius = radius_current, &
+                 new = .NOT.same_position, &
                  time = t2outer-t1outer )
          t1outer = m_walltime()
 
       ENDDO adjust_r_loop
 
       ! post SCF-loop calculations
-      IF (converged) THEN
+      IF (scf_converged) THEN
 
          CALL wrap_up_xalmo_scf( &
                  qs_env = qs_env, &
@@ -8372,7 +8439,7 @@ CONTAINS
 
       DEALLOCATE (m_theta)
 
-      IF (.NOT. converged .AND. .NOT. optimizer%early_stopping_on) THEN
+      IF (.NOT. scf_converged .AND. .NOT. optimizer%early_stopping_on) THEN
          CPABORT("Optimization not converged! ")
       ENDIF
 
@@ -8431,6 +8498,9 @@ CONTAINS
                                                             det1
 
       CALL timeset(routineN, handle)
+
+      energy_out = 0.0_dp
+      penalty_out = 0.0_dp
 
       nspins = SIZE(m_main_var_in)
       IF (nspins == 1) THEN
@@ -8576,9 +8646,9 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_in
 
       INTEGER                                            :: ispin, nspins, &
+                                                            nsolutions_found, &
                                                             nsolutions, &
                                                             isol
-      LOGICAL                                            :: found
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nocc
       REAL(KIND=dp), DIMENSION(3)                        :: coef
       REAL(KIND=dp)                                      :: spin_factor, &
@@ -8587,6 +8657,8 @@ CONTAINS
                                                             solution, &
                                                             discriminant
       TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE        :: m_temp_no
+
+      step_size_out = 0.0_dp
 
       nspins = SIZE(position_in)
       IF (nspins == 1) THEN
@@ -8650,18 +8722,20 @@ CONTAINS
       ENDIF
 
       discrim_sign = 1.0_dp
-      found = .FALSE.
+      nsolutions_found = 0
       DO isol = 1, nsolutions
          solution = -coef(2) + discrim_sign*SQRT(discriminant)/(2.0_dp*coef(1))
          IF (solution .GT. 0.0_dp) THEN
-            found = .TRUE.
+            nsolutions_found = nsolutions_found + 1
             step_size_out = solution
-            EXIT
          ENDIF
          discrim_sign = -discrim_sign
       ENDDO
-      IF (.NOT.found) THEN
+
+      IF (nsolutions_found==0) THEN
          CPABORT("Step to border: no positive solutions")
+      ELSE IF (nsolutions_found==2) THEN
+         CPABORT("Two positive border steps possible!")
       ENDIF
 
    END SUBROUTINE step_size_to_border
@@ -8675,7 +8749,7 @@ CONTAINS
    SUBROUTINE contravariant_matrix_norm(norm_out, matrix_in, metric_in, &
       quench_t_in, eps_filter_in)
 
-      REAL(KIND=dp), INTENT(INOUT)                       :: norm_out
+      REAL(KIND=dp), INTENT(OUT)                         :: norm_out
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: matrix_in
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: metric_in
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: quench_t_in
@@ -8688,6 +8762,9 @@ CONTAINS
                                                             my_norm
       TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE        :: m_temp_no
 
+      ! Frist thing: assign the output value to avoid norms being undefined
+      norm_out = 0.0_dp
+
       nspins = SIZE(matrix_in)
       IF (nspins == 1) THEN
          spin_factor = 2.0_dp
@@ -8698,6 +8775,7 @@ CONTAINS
       ALLOCATE (nocc(nspins))
       ALLOCATE (m_temp_no(nspins))
 
+      my_norm = 0.0_dp
       DO ispin = 1, nspins
 
          CALL dbcsr_create(m_temp_no(ispin), template=matrix_in(ispin))
@@ -8758,6 +8836,8 @@ CONTAINS
                                                             temp_real
       TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE        :: m_temp_no
 
+      reduction_out = 0.0_dp
+
       nspins = SIZE(grad_in)
       IF (nspins == 1) THEN
          spin_factor = 2.0_dp
@@ -8773,7 +8853,7 @@ CONTAINS
          CALL dbcsr_create(m_temp_no(ispin), template=grad_in(ispin))
 
          CALL dbcsr_dot(step_in(ispin), grad_in(ispin), temp_real)
-         my_reduction = my_reduction - temp_real
+         my_reduction = my_reduction + temp_real
 
          ! Get Hess.step
          IF (special_case .EQ. xalmo_case_block_diag .OR. &
@@ -8801,13 +8881,14 @@ CONTAINS
 
          ! Get y=step^T.Hess.step
          CALL dbcsr_dot(step_in(ispin), m_temp_no(ispin), temp_real)
-         my_reduction = my_reduction - 0.5_dp*temp_real
+         my_reduction = my_reduction + 0.5_dp*temp_real
 
          CALL dbcsr_release(m_temp_no(ispin))
 
       ENDDO ! ispin
 
       !RZK-critical: do we need to multiply by the spin factor?
+      !my_reduction = spin_factor*my_reduction
 
       reduction_out = my_reduction
 
@@ -8848,7 +8929,7 @@ CONTAINS
 
       SELECT CASE (iter_type)
       CASE (0)
-         iter_type_str = TRIM("Iter. type")
+         iter_type_str = TRIM("Ignored")
       CASE (1)
          iter_type_str = TRIM("PCG")
       CASE (2)
@@ -8857,6 +8938,8 @@ CONTAINS
          iter_type_str = TRIM("Step too long")
       CASE (4)
          iter_type_str = TRIM("Grad. reduced")
+      CASE (5)
+         iter_type_str = TRIM("Cauchy point")
       CASE DEFAULT
          CPABORT("unknown report type")
       END SELECT
@@ -8866,20 +8949,22 @@ CONTAINS
          SELECT CASE (iter_type)
          CASE (0)
 
+            WRITE (unit_nr, *)
             !WRITE (unit_nr, '(T2,A13,A6,A23,A14,A14,A9)') "Method", "Iter", &
             !   "Objective Function", "Change", "Convergence", "Time"
-            WRITE (unit_nr, '(T4,A19,A10,A10,A4,A15,A8)') &
-               "Iter. type and no.", &
-               "Curvature", &
-               "Step_size", &
-               "Fit?", &
-               "Loss/grad change", &
+            WRITE (unit_nr, '(T4,A15,A6,A10,A10,A7,A20,A8)') &
+               iter_type_str, &
+               "Iter", &
+               "Curv", &
+               "Step", &
+               "Edge?", &
+               "Grad/o.f. reduc", &
                "Time"
 
          CASE DEFAULT
 
             !WRITE (unit_nr, '(T2,A13,I6,F23.10,E14.5,F14.9,F9.2)') &
-            WRITE (unit_nr, '(T4,A13,I6,F10.5,F10.5,L4,F15.10,F8.2)') &
+            WRITE (unit_nr, '(T4,A15,I6,F10.5,F10.5,L7,F20.10,F8.2)') &
                iter_type_str, &
                iteration, &
                curvature, step_size, border_reached, &
@@ -8887,6 +8972,15 @@ CONTAINS
                time
 
          END SELECT
+
+         ! epilogue
+         SELECT CASE (iter_type)
+         CASE (2,3,4)
+
+            WRITE (unit_nr, *)
+
+         END SELECT
+
       ENDIF
 
    END SUBROUTINE fixed_r_report
@@ -8898,7 +8992,7 @@ CONTAINS
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE trust_r_report(unit_nr, iter_type, iteration, radius, &
-      loss, delta_loss, grad_norm, predicted_reduction, rho, time)
+      loss, delta_loss, grad_norm, predicted_reduction, rho, new, time)
 
       INTEGER, INTENT(IN)                                :: unit_nr, &
                                                             iter_type, &
@@ -8908,18 +9002,30 @@ CONTAINS
                                                             rho, &
                                                             delta_loss, &
                                                             time
+      LOGICAL, INTENT(IN)                                :: new
       REAL(KIND=dp), INTENT(IN)                          :: predicted_reduction, &
                                                             grad_norm
 
-      CHARACTER(LEN=20)                                  :: iter_type_str
+      CHARACTER(LEN=20)                                  :: iter_type_str, iter_status
 
       SELECT CASE (iter_type)
       CASE (0) ! header
          iter_type_str = TRIM("Iter")
+         iter_status = TRIM("Stat")
       CASE (1) ! first iteration, not all data is available yet
-         iter_type_str = TRIM("ALMO TR")
+         iter_type_str = TRIM("TR INI")
+         IF (new) THEN
+            iter_status = "  New" ! new point
+         ELSE
+            iter_status = " Redo" ! restarted
+         ENDIF
       CASE (2) ! typical
-         iter_type_str = TRIM("ALMO TT")
+         iter_type_str = TRIM("TR FIN")
+         IF (new) THEN
+            iter_status = "  Acc" ! accepted
+         ELSE
+            iter_status = "  Rej" ! rejected
+         ENDIF
       CASE DEFAULT
          CPABORT("unknown report type")
       END SELECT
@@ -8929,27 +9035,27 @@ CONTAINS
          SELECT CASE (iter_type)
          CASE (0)
 
-            !WRITE (unit_nr, '(T2,A13,A6,A23,A14,A14,A9)') "Method", "Iter", &
-            !   "Objective Function", "Change", "Convergence", "Time"
-            WRITE (unit_nr, '(T2,A7,A6,A23,A10,T17,A7,A8)') &
+            WRITE (unit_nr, '(T2,A6,A5,A6,A22,A10,T67,A7,A6)') &
                "Method", &
+               "Stat", &
                "Iter", &
                "Objective Function", &
-               "Grad Norm", &!"Model Change", "Rho", &
+               "Conver", &!"Model Change", "Rho", &
                "Radius", &
                "Time"
-            WRITE (unit_nr, '(T2,T7,T6,T23,A10,A10,A7,T7,T8)') &
+            WRITE (unit_nr, '(T41,A10,A10,A6)') &
                !"Method", &
                !"Iter", &
                !"Objective Function", &
-               "Change", "Model Change", "Rho"
+               "Change", "Expct.", "Rho"
                !"Radius", &
                !"Time"
 
          CASE (1)
 
-            WRITE (unit_nr, '(T2,A7,I6,F23.10,E10.2,T17,F7.2,F8.2)') &
+            WRITE (unit_nr, '(T2,A6,A5,I6,F22.10,ES10.2,T67,ES7.0,F6.1)') &
                iter_type_str, &
+               iter_status, &
                iteration, &
                loss, &
                grad_norm, & ! distinct
@@ -8958,9 +9064,9 @@ CONTAINS
 
          CASE (2)
 
-            !WRITE (unit_nr, '(T2,A13,I6,F23.10,E14.5,F14.9,F9.2)') &
-            WRITE (unit_nr, '(T2,A7,I6,F23.10,E10.2,E10.2,F7.2,F7.2,F8.2)') &
+            WRITE (unit_nr, '(T2,A6,A5,I6,F22.10,ES10.2,ES10.2,F6.1,ES7.0,F6.1)') &
                iter_type_str, &
+               iter_status, &
                iteration, &
                loss, &
                delta_loss, predicted_reduction, rho, & ! distinct

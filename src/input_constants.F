@@ -914,7 +914,8 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC   :: almo_scf_dm_sign = 1, &
                                    almo_scf_diag = 2, &
                                    almo_scf_pcg = 3, &
-                                   almo_scf_skip = 4
+                                   almo_scf_trustr = 4, &
+                                   almo_scf_skip = 0
 
    INTEGER, PARAMETER, PUBLIC   :: almo_occ_vol_penalty_none = 0, &
                                    almo_occ_vol_penalty_lndet = 1
@@ -928,8 +929,12 @@ MODULE input_constants
                                    cg_liu_storey = 5, &
                                    cg_dai_yuan = 6, &
                                    cg_hager_zhang = 7
+   INTEGER, PARAMETER, PUBLIC   :: trustr_steihaug = 1, &
+                                   trustr_cauchy = 2, &
+                                   trustr_dogleg = 3
    INTEGER, PARAMETER, PUBLIC   :: optimizer_diis = 1, &
                                    optimizer_pcg = 2, &
+                                   optimizer_trustr = 4, &
                                    optimizer_lin_eq_pcg = 3
    INTEGER, PARAMETER, PUBLIC   :: xalmo_prec_zero = 0, &
                                    xalmo_prec_domain = 1, &
