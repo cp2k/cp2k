@@ -115,23 +115,24 @@ CONTAINS
       INTEGER, DIMENSION(nexp_max)                       :: nct_ppl
       LOGICAL                                            :: dokp, ecp_local, found, lpotextended
       REAL(KIND=dp)                                      :: alpha, dab, dac, dbc, f0, ppl_radius
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: force_thread, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ppl_fwork, ppl_work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: hab, pab
       REAL(KIND=dp), DIMENSION(1:10)                     :: aloc, bloc
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, rab, rac, rbc
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc, pv_thread
-      REAL(KIND=dp), DIMENSION(4, nexp_max)              :: cval_ppl
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_local, alpha_lpot, c_local, cexp_ppl, &
-                                                            set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_lpot, h_block, p_block, rpgfa, &
-                                                            rpgfb, sphi_a, sphi_b, zeta, zetb
-      REAL(KIND=dp), DIMENSION(nexp_max)                 :: alpha_ppl
-      TYPE(gth_potential_type), POINTER                  :: gth_potential
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: ap_iterator
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      REAL(KIND=dp), DIMENSION(nexp_max)                 :: alpha_ppl
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_lpot, h_block, p_block, rpgfa, &
+                                                            rpgfb, sphi_a, sphi_b, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_local, alpha_lpot, c_local, cexp_ppl, &
+                                                            set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(4, nexp_max)              :: cval_ppl
+      REAL(KIND=dp), DIMENSION(3, SIZE(particle_set))    :: force_thread
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
 !$    INTEGER(kind=omp_lock_kind), &
@@ -160,7 +161,6 @@ CONTAINS
             END DO
          END IF
       END IF
-      ALLOCATE (force_thread(3, natom))
       force_thread = 0.0_dp
 
       maxder = ncoset(nder)
@@ -528,7 +528,6 @@ CONTAINS
 !$OMP END DO
          DEALLOCATE (atom_of_kind, kind_of)
       END IF
-      DEALLOCATE (force_thread)
 
       IF (calculate_forces .AND. use_virial) THEN
          virial%pv_virial = virial%pv_virial + pv_thread
@@ -582,18 +581,19 @@ CONTAINS
       LOGICAL                                            :: ecp_local, lpotextended
       REAL(KIND=dp)                                      :: alpha, dac, ppl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: va, work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dva, dvas, force_thread
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dva, dvas
       REAL(KIND=dp), DIMENSION(1:10)                     :: aloc, bloc
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, rac
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_thread
-      REAL(KIND=dp), DIMENSION(4, nexp_max)              :: cval_ppl
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      REAL(KIND=dp), DIMENSION(nexp_max)                 :: alpha_ppl
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: bcon, cval_lpot, rpgfa, sphi_a, zeta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_local, alpha_lpot, c_local, cexp_ppl, &
                                                             set_radius_a
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: bcon, cval_lpot, rpgfa, sphi_a, zeta
-      REAL(KIND=dp), DIMENSION(nexp_max)                 :: alpha_ppl
-      TYPE(gth_potential_type), POINTER                  :: gth_potential
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      REAL(KIND=dp), DIMENSION(4, nexp_max)              :: cval_ppl
+      REAL(KIND=dp), DIMENSION(3, SIZE(particle_set))    :: force_thread
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
 !$    INTEGER(kind=omp_lock_kind), &
@@ -610,7 +610,6 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)
 
-      ALLOCATE (force_thread(3, natom))
       force_thread = 0.0_dp
       pv_thread = 0.0_dp
       ALLOCATE (atom_of_kind(natom), kind_of(natom))
@@ -792,7 +791,6 @@ CONTAINS
             force(ikind)%gth_ppl(3, atom_a) = force(ikind)%gth_ppl(3, atom_a) + force_thread(3, iatom)
          END DO
       END IF
-      DEALLOCATE (force_thread)
       DEALLOCATE (atom_of_kind, kind_of)
 
       IF (calculate_forces .AND. use_virial) THEN

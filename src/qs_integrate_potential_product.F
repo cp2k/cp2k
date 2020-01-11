@@ -144,14 +144,62 @@ CONTAINS
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace', &
-         routineP = moduleN//':'//routineN
+      INTEGER                                            :: natom
+
+      CALL get_qs_env(qs_env, natom=natom)
+      CALL integrate_v_rspace_low(v_rspace, hmat, hmat_kp, pmat, pmat_kp, qs_env, &
+                                  calculate_forces, force_adm, ispin, compute_tau, gapw, &
+                                  basis_type, pw_env_external, task_list_external, natom)
+
+   END SUBROUTINE integrate_v_rspace
+
+! **************************************************************************************************
+!> \brief Implementation of integrate_v_rspace with the additional natom argument passed in to
+!>        allow for explicitly shaped force_thread array which is needed for OMP REDUCTION.
+!> \param v_rspace ...
+!> \param hmat ...
+!> \param hmat_kp ...
+!> \param pmat ...
+!> \param pmat_kp ...
+!> \param qs_env ...
+!> \param calculate_forces ...
+!> \param force_adm ...
+!> \param ispin ...
+!> \param compute_tau ...
+!> \param gapw ...
+!> \param basis_type ...
+!> \param pw_env_external ...
+!> \param task_list_external ...
+!> \param natom ...
+! **************************************************************************************************
+   SUBROUTINE integrate_v_rspace_low(v_rspace, hmat, hmat_kp, pmat, pmat_kp, qs_env, &
+                                     calculate_forces, force_adm, ispin, compute_tau, gapw, &
+                                     basis_type, pw_env_external, task_list_external, natom)
+
+      TYPE(pw_p_type)                                    :: v_rspace
+      TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: hmat
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: hmat_kp
+      TYPE(dbcsr_p_type), INTENT(IN), OPTIONAL           :: pmat
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: pmat_kp
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+      LOGICAL, INTENT(IN), OPTIONAL                      :: force_adm
+      INTEGER, INTENT(IN), OPTIONAL                      :: ispin
+      LOGICAL, INTENT(IN), OPTIONAL                      :: compute_tau, gapw
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type
+      TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
+      TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external
+      INTEGER, INTENT(IN)                                :: natom
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace_low'
 
       CHARACTER(len=default_string_length)               :: my_basis_type
       INTEGER :: atom_a, bcol, brow, handle, i, iatom, igrid_level, ikind, ikind_old, ilevel, img, &
          ipair, ipgf, ipgf_new, iset, iset_new, iset_old, itask, ithread, jatom, jkind, jkind_old, &
          jpgf, jpgf_new, jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, na1, na2, &
-         natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, nthread, offs_dv, sgfa, sgfb
+         nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, nthread, offs_dv, sgfa, sgfb
       INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
       INTEGER(kind=int_8), DIMENSION(:, :), POINTER      :: tasks
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
@@ -164,9 +212,9 @@ CONTAINS
          p_duplicated, pab_required, scatter, use_subpatch, use_virial
       REAL(KIND=dp)                                      :: admm_scal_fac, dab, eps_gvg_rspace, &
                                                             rab2, scalef, zetp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: force_thread
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b, pv_thread
+      REAL(KIND=dp), DIMENSION(3, natom)                 :: force_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dist_ab, h_block, hab, p_block, pab, &
                                                             rpgfa, rpgfb, sphi_a, sphi_b, work, &
@@ -301,10 +349,8 @@ CONTAINS
          CPASSERT(do_kp)
       END IF
       nkind = SIZE(qs_kind_set)
-      natom = SIZE(particle_set)
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       pv_thread = 0.0_dp
-      ALLOCATE (force_thread(3, natom))
       force_thread = 0.0_dp
 
       map_consistent = dft_control%qs_control%map_consistent
@@ -393,7 +439,6 @@ CONTAINS
       NULLIFY (hdabt, hadbt, hdab, hadb)
 
       !   get maximum numbers
-      natom = SIZE(particle_set)
       maxset = 0
       maxpgf = 0
       DO ikind = 1, nkind
@@ -761,7 +806,6 @@ CONTAINS
 !$OMP END DO
          DEALLOCATE (atom_of_kind, kind_of)
       END IF
-      DEALLOCATE (force_thread)
       IF (use_virial) THEN
          virial%pv_virial = virial%pv_virial + pv_thread
       END IF
@@ -818,6 +862,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE integrate_v_rspace
+   END SUBROUTINE integrate_v_rspace_low
 
 END MODULE qs_integrate_potential_product

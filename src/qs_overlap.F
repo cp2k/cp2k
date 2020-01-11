@@ -87,7 +87,6 @@ MODULE qs_overlap
 CONTAINS
 
 ! **************************************************************************************************
-
 !> \brief   Calculation of the overlap matrix over Cartesian Gaussian functions.
 !> \param   ks_env the QS env
 !> \param   matrix_s The overlap matrix to be calculated (optional)
@@ -131,11 +130,56 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrixkp_p
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix', &
-         routineP = moduleN//':'//routineN
+      INTEGER                                            :: natom
+
+      CALL get_ks_env(ks_env, natom=natom)
+
+      CALL build_overlap_matrix_low(ks_env, matrix_s, matrixkp_s, matrix_name, nderivative, &
+                                    basis_type_a, basis_type_b, sab_nl, calculate_forces, &
+                                    matrix_p, matrixkp_p, natom)
+
+   END SUBROUTINE build_overlap_matrix
+
+! **************************************************************************************************
+!> \brief Implementation of build_overlap_matrix with the additional natom argument passed in to
+!>        allow for explicitly shaped force_thread array which is needed for OMP REDUCTION.
+!> \param ks_env ...
+!> \param matrix_s ...
+!> \param matrixkp_s ...
+!> \param matrix_name ...
+!> \param nderivative ...
+!> \param basis_type_a ...
+!> \param basis_type_b ...
+!> \param sab_nl ...
+!> \param calculate_forces ...
+!> \param matrix_p ...
+!> \param matrixkp_p ...
+!> \param natom ...
+! **************************************************************************************************
+   SUBROUTINE build_overlap_matrix_low(ks_env, matrix_s, matrixkp_s, matrix_name, nderivative, &
+                                       basis_type_a, basis_type_b, sab_nl, calculate_forces, &
+                                       matrix_p, matrixkp_p, natom)
+
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: matrixkp_s
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: matrix_name
+      INTEGER, INTENT(IN), OPTIONAL                      :: nderivative
+      CHARACTER(LEN=*), INTENT(IN)                       :: basis_type_a, basis_type_b
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: matrixkp_p
+      INTEGER, INTENT(IN)                                :: natom
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix_low'
 
       INTEGER :: atom_a, handle, i, iatom, ic, icol, ikind, irow, iset, jatom, jkind, jset, ldsab, &
-         maxder, maxs, n1, n2, natom, ncoa, ncob, nder, nimg, nkind, nseta, nsetb, sgfa, sgfb, slot
+         maxder, maxs, n1, n2, ncoa, ncob, nder, nimg, nkind, nseta, nsetb, sgfa, sgfb, slot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
@@ -145,10 +189,11 @@ CONTAINS
       LOGICAL                                            :: do_forces, do_symmetric, dokp, found, &
                                                             trans, use_cell_mapping, use_virial
       REAL(KIND=dp)                                      :: dab, f, f0, ff, rab2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: force_thread, owork, pmat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork, pmat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, rab
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc, pv_thread
+      REAL(KIND=dp), DIMENSION(3, natom)                 :: force_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, rpgfa, rpgfb, scon_a, scon_b, &
                                                             zeta, zetb
@@ -233,7 +278,6 @@ CONTAINS
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
          pv_loc = virial%pv_virial
       END IF
-      ALLOCATE (force_thread(3, natom))
       force_thread = 0.0_dp
       pv_thread = 0.0_dp
 
@@ -464,7 +508,6 @@ CONTAINS
 !$OMP END DO
          DEALLOCATE (atom_of_kind, kind_of)
       END IF
-      DEALLOCATE (force_thread)
       IF (do_forces .AND. use_virial) THEN
          virial%pv_virial = virial%pv_virial + pv_thread
          virial%pv_overlap = virial%pv_virial - pv_loc
@@ -491,7 +534,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE build_overlap_matrix
+   END SUBROUTINE build_overlap_matrix_low
 
 ! **************************************************************************************************
 !> \brief   Calculation of the overlap matrix over Cartesian Gaussian functions.
@@ -710,7 +753,6 @@ CONTAINS
    END SUBROUTINE build_overlap_matrix_simple
 
 ! **************************************************************************************************
-
 !> \brief   Calculation of the force contribution from an overlap matrix
 !>          over Cartesian Gaussian functions.
 !> \param   ks_env the QS environment
@@ -753,11 +795,12 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: do_symmetric, found, trans, use_virial
       REAL(KIND=dp)                                      :: dab, f0, ff, rab2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: force_thread, pab, sab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab, sab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: drab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, rab
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(3, SIZE(force, 2))        :: force_thread
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, rpgfa, rpgfb, scon_a, scon_b, &
                                                             zeta, zetb
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b
@@ -788,7 +831,6 @@ CONTAINS
       ldsab = get_memory_usage(qs_kind_set, basis_type_a, basis_type_b)
 
       natom = SIZE(force, 2)
-      ALLOCATE (force_thread(3, natom))
       force_thread = 0.0_dp
 
 !$OMP PARALLEL DEFAULT(NONE) &
@@ -917,7 +959,6 @@ CONTAINS
          virial%pv_virial = virial%pv_virial + virial_thread
       END IF
 
-      DEALLOCATE (force_thread)
       DEALLOCATE (basis_set_list_a, basis_set_list_b)
 
       CALL timestop(handle)
@@ -1111,8 +1152,6 @@ CONTAINS
       DEALLOCATE (row_blk_sizes, col_blk_sizes)
 
    END SUBROUTINE create_sab_matrix_2d
-
-! **************************************************************************************************
 
 END MODULE qs_overlap
 
