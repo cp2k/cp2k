@@ -103,11 +103,55 @@ CONTAINS
          POINTER                                         :: matrixkp_p
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_kinetic_matrix', &
-         routineP = moduleN//':'//routineN
+      INTEGER                                            :: natom
 
-      INTEGER :: atom_a, handle, iatom, ic, icol, ikind, irow, iset, jatom, jkind, jset, ldsab, &
-         natom, ncoa, ncob, nimg, nkind, nseta, nsetb, sgfa, sgfb, slot
+      CALL get_ks_env(ks_env, natom=natom)
+
+      CALL build_kinetic_matrix_low(ks_env, matrix_t, matrixkp_t, matrix_name, basis_type, &
+                                    sab_nl, calculate_forces, matrix_p, matrixkp_p, eps_filter, natom)
+
+   END SUBROUTINE build_kinetic_matrix
+
+! **************************************************************************************************
+!> \brief Implementation of build_kinetic_matrix with the additional natom argument passed in to
+!>        allow for explicitly shaped force_thread array which is needed for OMP REDUCTION.
+!> \param ks_env ...
+!> \param matrix_t ...
+!> \param matrixkp_t ...
+!> \param matrix_name ...
+!> \param basis_type ...
+!> \param sab_nl ...
+!> \param calculate_forces ...
+!> \param matrix_p ...
+!> \param matrixkp_p ...
+!> \param eps_filter ...
+!> \param natom ...
+! **************************************************************************************************
+   SUBROUTINE build_kinetic_matrix_low(ks_env, matrix_t, matrixkp_t, matrix_name, basis_type, &
+                                       sab_nl, calculate_forces, matrix_p, matrixkp_p, eps_filter, natom)
+
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_t
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: matrixkp_t
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: matrix_name
+      CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: matrixkp_p
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_filter
+      INTEGER, INTENT(IN)                                :: natom
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_kinetic_matrix_low'
+
+      INTEGER                                            :: atom_a, handle, iatom, ic, icol, ikind, &
+                                                            irow, iset, jatom, jkind, jset, ldsab, &
+                                                            ncoa, ncob, nimg, nkind, nseta, nsetb, &
+                                                            sgfa, sgfb, slot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
@@ -117,9 +161,10 @@ CONTAINS
       LOGICAL                                            :: do_forces, do_symmetric, dokp, found, &
                                                             trans, use_cell_mapping, use_virial
       REAL(KIND=dp)                                      :: f0, ff, rab2, tab
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: force_thread, kab, pab, qab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: kab, pab, qab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, rab
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc, pv_thread
+      REAL(KIND=dp), DIMENSION(3, natom)                 :: force_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: k_block, p_block, rpgfa, rpgfb, scon_a, &
                                                             scon_b, zeta, zetb
@@ -157,7 +202,6 @@ CONTAINS
       CALL get_ks_env(ks_env, &
                       dft_control=dft_control, &
                       atomic_kind_set=atomic_kind_set, &
-                      natom=natom, &
                       qs_kind_set=qs_kind_set)
 
       nimg = dft_control%nimages
@@ -196,7 +240,6 @@ CONTAINS
             CPASSERT(PRESENT(matrix_p))
          END IF
       END IF
-      ALLOCATE (force_thread(3, natom))
       force_thread = 0.0_dp
       pv_thread = 0.0_dp
 
@@ -420,7 +463,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE build_kinetic_matrix
+   END SUBROUTINE build_kinetic_matrix_low
 
 END MODULE qs_kinetic
 

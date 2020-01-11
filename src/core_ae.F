@@ -106,18 +106,19 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha_c, core_charge, core_radius, dab, &
                                                             dac, dbc, f0, rab2, rac2, rbc2, zeta_c
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: force_thread, habd, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: habd, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hab, pab, verf, vnuc
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, rab, rac, rbc
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc, pv_thread
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block, rpgfa, rpgfb, sphi_a, &
-                                                            sphi_b, zeta, zetb
-      TYPE(all_potential_type), POINTER                  :: all_potential
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: ap_iterator
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(all_potential_type), POINTER                  :: all_potential
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block, rpgfa, rpgfb, sphi_a, &
+                                                            sphi_b, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(3, SIZE(particle_set))    :: force_thread
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
 !$    INTEGER(kind=omp_lock_kind), &
@@ -146,7 +147,6 @@ CONTAINS
             END DO
          END IF
       END IF
-      ALLOCATE (force_thread(3, natom))
       force_thread = 0.0_dp
 
       IF (use_virial) THEN
@@ -470,7 +470,6 @@ CONTAINS
 !$OMP END DO
          DEALLOCATE (atom_of_kind, kind_of)
       END IF
-      DEALLOCATE (force_thread)
 
       IF (calculate_forces .AND. use_virial) THEN
          virial%pv_virial = virial%pv_virial + pv_thread

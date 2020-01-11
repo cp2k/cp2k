@@ -112,21 +112,22 @@ CONTAINS
       LOGICAL, DIMENSION(0:9)                            :: is_nonlocal
       REAL(KIND=dp)                                      :: dac, f0, ppnl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: radp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: force_thread, sab, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sab, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work
       REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
       REAL(KIND=dp), DIMENSION(3)                        :: fa, fb, rab, rac, rbc
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc, pv_thread
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, alpha_ppnl, hprj, set_radius_a
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(gth_potential_p_type), DIMENSION(:), POINTER  :: gpotential
+      TYPE(clist_type), POINTER                          :: clist
+      TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint, c_nl
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, h_block, h_nl, p_block, rpgfa, &
                                                             sphi_a, vprj_ppnl, zeta
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint, c_nl
-      TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
-      TYPE(clist_type), POINTER                          :: clist
-      TYPE(gth_potential_p_type), DIMENSION(:), POINTER  :: gpotential
-      TYPE(gth_potential_type), POINTER                  :: gth_potential
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, alpha_ppnl, hprj, set_radius_a
+      REAL(KIND=dp), DIMENSION(3, SIZE(particle_set))    :: force_thread
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
       TYPE(sgp_potential_p_type), DIMENSION(:), POINTER  :: spotential
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
@@ -422,7 +423,6 @@ CONTAINS
          CALL sap_sort(sap_int)
          ! *** All integrals needed have been calculated and stored in sap_int
          ! *** We now calculate the Hamiltonian matrix elements
-         ALLOCATE (force_thread(3, natom))
          force_thread = 0.0_dp
          pv_thread = 0.0_dp
 
@@ -590,7 +590,6 @@ CONTAINS
 !$OMP END DO
             DEALLOCATE (atom_of_kind, kind_of)
          END IF
-         DEALLOCATE (force_thread)
 
          IF (calculate_forces .AND. use_virial) THEN
             virial%pv_virial = virial%pv_virial + pv_thread
