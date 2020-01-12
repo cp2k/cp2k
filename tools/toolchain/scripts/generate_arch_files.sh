@@ -188,13 +188,13 @@ EOF
 rm -f ${INSTALLDIR}/arch/local*
 # normal production arch files
     { gen_arch_file "local.sopt" ;          arch_vers="sopt"; }
-    { gen_arch_file "local.sdbg" DEBUG;     arch_vers="${arch_vers} sdbg"; }
+    { gen_arch_file "local.sdbg" OMP DEBUG; arch_vers="${arch_vers} sdbg"; }
 [ "$ENABLE_OMP" = __TRUE__ ] && \
     { gen_arch_file "local.ssmp" OMP;       arch_vers="${arch_vers} ssmp"; }
 [ "$MPI_MODE" != no ] && \
     { gen_arch_file "local.popt" MPI;       arch_vers="${arch_vers} popt"; }
 [ "$MPI_MODE" != no ] && \
-    { gen_arch_file "local.pdbg" MPI DEBUG; arch_vers="${arch_vers} pdbg"; }
+    { gen_arch_file "local.pdbg" MPI OMP DEBUG; arch_vers="${arch_vers} pdbg"; }
 [ "$MPI_MODE" != no ] && \
 [ "$ENABLE_OMP" = __TRUE__ ] && \
     { gen_arch_file "local.psmp" MPI OMP;   arch_vers="${arch_vers} psmp"; }
