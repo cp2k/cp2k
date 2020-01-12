@@ -602,12 +602,8 @@ CONTAINS
       CALL timeset(routineN, handle)
       nqs = dispersion_env%nqs
 
-      IF (PRESENT(virial)) THEN
-         use_virial = .TRUE.
-         virial_thread(:, :) = 0.0_dp
-      ELSE
-         use_virial = .FALSE.
-      END IF
+      use_virial = PRESENT(virial)
+      virial_thread(:, :) = 0.0_dp ! always initialize to avoid floating point exceptions in OMP REDUCTION
 
       vdW_xc_energy = 0._dp
       grid => thetas_g(1)%pw%pw_grid
@@ -769,15 +765,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (PRESENT(virial)) THEN
-         use_virial = .TRUE.
-         virial_thread(:, :) = 0.0_dp
-         CPASSERT(PRESENT(drho))
-         CPASSERT(PRESENT(dvol))
-      ELSE
-         use_virial = .FALSE.
-      END IF
+      use_virial = PRESENT(virial)
+      CPASSERT(.NOT. use_virial .OR. PRESENT(drho))
+      CPASSERT(.NOT. use_virial .OR. PRESENT(dvol))
 
+      virial_thread(:, :) = 0.0_dp ! always initialize to avoid floating point exceptions in OMP REDUCTION
       b_value = dispersion_env%b_value
       const = 1.0_dp/(3.0_dp*b_value**(3.0_dp/2.0_dp)*pi**(5.0_dp/4.0_dp))
       potential = 0.0_dp

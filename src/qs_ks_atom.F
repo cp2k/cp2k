@@ -213,10 +213,11 @@ CONTAINS
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
          ldCPC = max_gau
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
-         IF (use_virial) pv_virial_thread(:, :) = 0.0_dp
       ELSE
          use_virial = .FALSE.
       END IF
+
+      pv_virial_thread(:, :) = 0.0_dp ! always initialize to avoid floating point exceptions in OMP REDUCTION
 
       nkind = SIZE(my_kind_set, 1)
       ! Collect the local potential contributions from all the processors
