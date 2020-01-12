@@ -65,7 +65,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'create_pwdft_section', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(len=32)                                  :: section_name
       TYPE(section_type), POINTER                        :: subsection
 
 !     ------------------------------------------------------------------------
@@ -81,27 +80,19 @@ CONTAINS
                           "supported by libxc and Van der Waals corrections (libvdwxc).")
 
       NULLIFY (subsection)
-      section_name = ''
-      section_name = 'control'
-      CALL create_sirius_section(subsection, section_name)
+      CALL create_sirius_section(subsection, 'control')
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      section_name = ''
-      section_name = 'parameters'
-      CALL create_sirius_section(subsection, section_name)
+      CALL create_sirius_section(subsection, 'parameters')
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      section_name = ''
-      section_name = 'mixer'
-      CALL create_sirius_section(subsection, section_name)
+      CALL create_sirius_section(subsection, 'mixer')
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      section_name = ''
-      section_name = 'iterative_solver'
-      CALL create_sirius_section(subsection, section_name)
+      CALL create_sirius_section(subsection, 'iterative_solver')
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -119,7 +110,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_sirius_section(section, section_name)
       TYPE(section_type), POINTER                        :: section
-      CHARACTER(len=32), INTENT(in)                      :: section_name
+      CHARACTER(len=*), INTENT(in)                       :: section_name
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_sirius_section', &
          routineP = moduleN//':'//routineN
@@ -128,6 +119,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL sirius_option_get_length(TRIM(ADJUSTL(section_name))//CHAR(0), length)
+
       CALL section_create(section, __LOCATION__, &
                           name=TRIM(ADJUSTL(section_name)), &
                           description=TRIM(section_name)//" section", &
@@ -145,7 +137,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fill_in_section(section, section_name)
       TYPE(section_type), POINTER                        :: section
-      CHARACTER(len=32), INTENT(in)                      :: section_name
+      CHARACTER(len=*), INTENT(in)                       :: section_name
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fill_in_section', &
          routineP = moduleN//':'//routineN
