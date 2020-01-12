@@ -117,7 +117,10 @@ CONTAINS
 
       ! Ignore json potentials as SIRIUS will parse those on its own.
       l = LEN_TRIM(pot%filename)
-      IF (pot%filename(l - 4:l) == '.json') RETURN
+      IF (pot%filename(l - 4:l) == '.json') THEN
+         pot%zion = 0.0
+         RETURN
+      ENDIF
 
       CALL atom_read_upf_v2(pot, upf_filename, readall)
 
