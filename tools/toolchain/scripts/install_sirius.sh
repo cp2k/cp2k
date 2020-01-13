@@ -247,6 +247,16 @@ export CP_LIBS="IF_MPI(IF_OMP("\${SIRIUS_LIBS}"|)|) \${CP_LIBS}"
 EOF
 fi
 
+# ----------------------------------------------------------------------
+# Suppress reporting of known leaks
+# ----------------------------------------------------------------------
+cat <<EOF >> ${INSTALLDIR}/lsan.supp
+# Leaks in SIRIUS
+leak:sddk::Communicator::cart_sub
+leak:sddk::Communicator::split
+leak:sddk::Communicator::cart_create
+EOF
+
 # update toolchain environment
 load "${BUILDDIR}/setup_sirius"
 export -p > "${INSTALLDIR}/toolchain.env"
