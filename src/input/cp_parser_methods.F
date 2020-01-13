@@ -305,6 +305,9 @@ CONTAINS
                      iline = iline - 1
                      CYCLE
                   END IF
+
+                  ! after preprocessor parsing could the line be empty again
+                  this_line_is_white_or_comment = is_comment_line(parser, parser%buffer%input_lines(iline))
                END IF
             ELSE IF (istat < 0) THEN ! handle EOF
                IF (parser%inpp%io_stack_level > 0) THEN
