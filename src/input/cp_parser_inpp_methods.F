@@ -15,15 +15,15 @@
 !> \date 20.02.2008
 ! **************************************************************************************************
 MODULE cp_parser_inpp_methods
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file, file_exists
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_parser_inpp_types,            ONLY: inpp_type
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length
-   USE memory_utilities,                ONLY: reallocate
-   USE string_utilities,                ONLY: is_whitespace,&
-                                              uppercase
+   USE cp_files, ONLY: close_file, &
+                       open_file, file_exists
+   USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
+   USE cp_parser_inpp_types, ONLY: inpp_type
+   USE kinds, ONLY: default_path_length, &
+                    default_string_length
+   USE memory_utilities, ONLY: reallocate
+   USE string_utilities, ONLY: is_whitespace, &
+                               uppercase
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -59,7 +59,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: input_line_number, input_unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'inpp_process_directive', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_path_length)                 :: cond1, cond2, filename, mytag, value, &
                                                             varname
@@ -84,9 +84,9 @@ CONTAINS
       ! Get the start of the instruction and find "@KEYWORD" (or "@")
       indf = indi
       DO WHILE (.NOT. is_whitespace(input_line(indf:indf)))
-         indf = indf+1
+         indf = indf + 1
       END DO
-      mytag = input_line(indi:indf-1)
+      mytag = input_line(indi:indf - 1)
       CALL uppercase(mytag)
 
       SELECT CASE (mytag)
@@ -102,20 +102,20 @@ CONTAINS
          ENDIF
          indi = 1
          DO WHILE (is_whitespace(filename(indi:indi)))
-            indi = indi+1
+            indi = indi + 1
          END DO
          filename = TRIM(filename(indi:))
 
          ! handle quoting of the filename
          pos1 = INDEX(filename, '"')
-         pos2 = INDEX(filename(pos1+1:), '"')
+         pos2 = INDEX(filename(pos1 + 1:), '"')
          IF ((pos1 /= 0) .AND. (pos2 /= 0)) THEN
-            filename = filename(pos1+1:pos1+pos2-1)
+            filename = filename(pos1 + 1:pos1 + pos2 - 1)
          ELSE
             pos1 = INDEX(filename, "'")
-            pos2 = INDEX(filename(pos1+1:), "'")
+            pos2 = INDEX(filename(pos1 + 1:), "'")
             IF ((pos1 /= 0) .AND. (pos2 /= 0)) THEN
-               filename = filename(pos1+1:pos1+pos2-1)
+               filename = filename(pos1 + 1:pos1 + pos2 - 1)
             ELSE
                ! incorrect quotes (only one of ' or ").
                pos2 = INDEX(filename, '"')
@@ -150,7 +150,7 @@ CONTAINS
          END IF
 
          ! make room, save status and position the parser at the beginning of new file.
-         inpp%io_stack_level = inpp%io_stack_level+1
+         inpp%io_stack_level = inpp%io_stack_level + 1
          CALL reallocate(inpp%io_stack_channel, 1, inpp%io_stack_level)
          CALL reallocate(inpp%io_stack_lineno, 1, inpp%io_stack_level)
          CALL reallocate(p_long=inpp%io_stack_filename, lb_new=1, ub_new=inpp%io_stack_level)
@@ -175,20 +175,20 @@ CONTAINS
          ENDIF
          indi = 1
          DO WHILE (is_whitespace(filename(indi:indi)))
-            indi = indi+1
+            indi = indi + 1
          END DO
          filename = TRIM(filename(indi:))
 
          ! handle quoting of the filename
          pos1 = INDEX(filename, '"')
-         pos2 = INDEX(filename(pos1+1:), '"')
+         pos2 = INDEX(filename(pos1 + 1:), '"')
          IF ((pos1 /= 0) .AND. (pos2 /= 0)) THEN
-            filename = filename(pos1+1:pos1+pos2-1)
+            filename = filename(pos1 + 1:pos1 + pos2 - 1)
          ELSE
             pos1 = INDEX(filename, "'")
-            pos2 = INDEX(filename(pos1+1:), "'")
+            pos2 = INDEX(filename(pos1 + 1:), "'")
             IF ((pos1 /= 0) .AND. (pos2 /= 0)) THEN
-               filename = filename(pos1+1:pos1+pos2-1)
+               filename = filename(pos1 + 1:pos1 + pos2 - 1)
             ELSE
                ! incorrect quotes (only one of ' or ").
                pos2 = INDEX(filename, '"')
@@ -205,18 +205,18 @@ CONTAINS
          ! add file extension ".sec"
          filename = TRIM(filename)//".sec"
          ! check for file
-         IF (.NOT.file_exists(TRIM(filename))) THEN
+         IF (.NOT. file_exists(TRIM(filename))) THEN
             IF (filename(1:1) == '/') THEN
                ! this is an absolute path filename, don't change
             ELSE
                filename = "xc_section"//'/'//filename
             ENDIF
          END IF
-         IF (.NOT.file_exists(TRIM(filename))) THEN
+         IF (.NOT. file_exists(TRIM(filename))) THEN
             WRITE (UNIT=message, FMT="(3A,I6)") &
                "INPP_@XCTYPE: Could not find input XC section: ", &
                TRIM(input_file_name), "  Line:", input_line_number
-               CPABORT(TRIM(message))
+            CPABORT(TRIM(message))
          END IF
 
          ! Let's check that files already opened won't be again opened
@@ -240,7 +240,7 @@ CONTAINS
          END IF
 
          ! make room, save status and position the parser at the beginning of new file.
-         inpp%io_stack_level = inpp%io_stack_level+1
+         inpp%io_stack_level = inpp%io_stack_level + 1
          CALL reallocate(inpp%io_stack_channel, 1, inpp%io_stack_level)
          CALL reallocate(inpp%io_stack_lineno, 1, inpp%io_stack_level)
          CALL reallocate(p_long=inpp%io_stack_filename, lb_new=1, ub_new=inpp%io_stack_level)
@@ -265,17 +265,17 @@ CONTAINS
 
          indi = 1
          DO WHILE (is_whitespace(varname(indi:indi)))
-            indi = indi+1
+            indi = indi + 1
          END DO
          indf = indi
          DO WHILE (.NOT. is_whitespace(varname(indf:indf)))
-            indf = indf+1
+            indf = indf + 1
          END DO
          value = TRIM(varname(indf:))
-         varname = TRIM(varname(indi:indf-1))
+         varname = TRIM(varname(indi:indf - 1))
          indi = 1
          DO WHILE (is_whitespace(value(indi:indi)))
-            indi = indi+1
+            indi = indi + 1
          END DO
          value = TRIM(value(indi:))
 
@@ -290,7 +290,7 @@ CONTAINS
          indi = inpp_find_variable(inpp, varname)
          IF (indi == 0) THEN
             ! create new variable
-            inpp%num_variables = inpp%num_variables+1
+            inpp%num_variables = inpp%num_variables + 1
             CALL reallocate(p_long=inpp%variable_name, lb_new=1, ub_new=inpp%num_variables)
             CALL reallocate(p_long=inpp%variable_value, lb_new=1, ub_new=inpp%num_variables)
             inpp%variable_name(inpp%num_variables) = varname
@@ -325,13 +325,13 @@ CONTAINS
          pos2 = INDEX(input_line, "/=")
          ! shave off leading whitespace
          DO WHILE (is_whitespace(input_line(indi:indi)))
-            indi = indi+1
+            indi = indi + 1
             IF (indi > LEN_TRIM(input_line)) EXIT
          END DO
          check = .FALSE.
          IF (pos1 > 0) THEN
-            cond1 = input_line(indi:pos1-1)
-            cond2 = input_line(pos1+2:)
+            cond1 = input_line(indi:pos1 - 1)
+            cond2 = input_line(pos1 + 2:)
             check = .TRUE.
             IF ((pos2 > 0) .OR. (INDEX(cond2, "==") > 0)) THEN
                WRITE (UNIT=message, FMT="(3A,I6)") &
@@ -340,8 +340,8 @@ CONTAINS
                CPABORT(TRIM(message))
             ENDIF
          ELSEIF (pos2 > 0) THEN
-            cond1 = input_line(indi:pos2-1)
-            cond2 = input_line(pos2+2:)
+            cond1 = input_line(indi:pos2 - 1)
+            cond2 = input_line(pos2 + 2:)
             check = .FALSE.
             IF ((pos1 > 0) .OR. (INDEX(cond2, "/=") > 0)) THEN
                WRITE (UNIT=message, FMT="(3A,I6)") &
@@ -368,20 +368,20 @@ CONTAINS
          ENDIF
 
          ! Get rid of possible parentheses
-         IF (INDEX(cond1, "(") /= 0) cond1 = cond1(INDEX(cond1, "(")+1:)
-         IF (INDEX(cond2, ")") /= 0) cond2 = cond2(1:INDEX(cond2, ")")-1)
+         IF (INDEX(cond1, "(") /= 0) cond1 = cond1(INDEX(cond1, "(") + 1:)
+         IF (INDEX(cond2, ")") /= 0) cond2 = cond2(1:INDEX(cond2, ")") - 1)
 
          ! Shave off leading whitespace from cond1
          indi = 1
          DO WHILE (is_whitespace(cond1(indi:indi)))
-            indi = indi+1
+            indi = indi + 1
          END DO
          cond1 = cond1(indi:)
 
          ! Shave off leading whitespace from cond2
          indi = 1
          DO WHILE (is_whitespace(cond2(indi:indi)))
-            indi = indi+1
+            indi = indi + 1
          END DO
          cond2 = cond2(indi:)
 
@@ -412,7 +412,7 @@ CONTAINS
             END IF
             istat = 0
             DO WHILE (istat == 0)
-               input_line_number = input_line_number+1
+               input_line_number = input_line_number + 1
                READ (UNIT=input_unit, FMT="(A)", IOSTAT=istat) input_line
                IF (debug_this_module .AND. output_unit > 0) THEN
                   WRITE (UNIT=message, FMT="(1A,I6,2A)") "INPP_@IF: skipping line ", &
@@ -432,10 +432,10 @@ CONTAINS
                indi = MAX(1, indi)
                indf = indi
                DO WHILE (input_line(indf:indf) /= " ")
-                  indf = indf+1
+                  indf = indf + 1
                END DO
-               CPASSERT((indf-indi) <= default_string_length)
-               mytag = input_line(indi:indf-1)
+               CPASSERT((indf - indi) <= default_string_length)
+               mytag = input_line(indi:indf - 1)
                CALL uppercase(mytag)
                IF (INDEX(mytag, "@ENDIF") > 0) THEN
                   ! ok found it. go back to normal
@@ -491,7 +491,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: input_line_number, input_unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'inpp_end_include', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       CPASSERT(ASSOCIATED(inpp))
       IF (inpp%io_stack_level > 0) THEN
@@ -499,7 +499,7 @@ CONTAINS
          input_unit = inpp%io_stack_channel(inpp%io_stack_level)
          input_line_number = inpp%io_stack_lineno(inpp%io_stack_level)
          input_file_name = TRIM(inpp%io_stack_filename(inpp%io_stack_level))
-         inpp%io_stack_level = inpp%io_stack_level-1
+         inpp%io_stack_level = inpp%io_stack_level - 1
          CALL reallocate(inpp%io_stack_channel, 1, inpp%io_stack_level)
          CALL reallocate(inpp%io_stack_lineno, 1, inpp%io_stack_level)
          CALL reallocate(p_long=inpp%io_stack_filename, lb_new=1, ub_new=inpp%io_stack_level)
@@ -524,18 +524,19 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: input_line_number
 
       CHARACTER(len=*), PARAMETER :: routineN = 'inpp_expand_variables', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=default_path_length)                 :: newline, varname
+      CHARACTER(LEN=default_path_length)                 :: newline
       CHARACTER(LEN=max_message_length)                  :: message
-      INTEGER                                            :: idx, pos1, pos2
+      CHARACTER(LEN=:), ALLOCATABLE                      :: var_value, var_name
+      INTEGER                                            :: idx, pos1, pos2, default_val_sep_idx
 
       CPASSERT(ASSOCIATED(inpp))
 
       ! process line until all variables named with the convention ${VAR} are expanded
       DO WHILE (INDEX(input_line, '${') > 0)
          pos1 = INDEX(input_line, '${')
-         pos1 = pos1+2
+         pos1 = pos1 + 2
          pos2 = INDEX(input_line(pos1:), '}')
 
          IF (pos2 == 0) THEN
@@ -545,54 +546,53 @@ CONTAINS
             CPABORT(TRIM(message))
          ENDIF
 
-         pos2 = pos1+pos2-2
-         varname = input_line(pos1:pos2)
-         idx = inpp_find_variable(inpp, varname)
+         pos2 = pos1 + pos2 - 2
+         var_name = input_line(pos1:pos2)
 
-         IF (idx == 0) THEN
+         default_val_sep_idx = INDEX(var_name, '-')
+
+         IF (default_val_sep_idx > 0) THEN
+            var_value = var_name(default_val_sep_idx + 1:)
+            var_name = var_name(:default_val_sep_idx - 1)
+         ENDIF
+
+         idx = inpp_find_variable(inpp, var_name)
+
+         IF (idx == 0 .AND. default_val_sep_idx == 0) THEN
             WRITE (UNIT=message, FMT="(5A,I6)") &
-               "Variable ${", TRIM(varname), "} not defined in file: ", &
+               "Variable ${", var_name, "} not defined in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
          ENDIF
 
-         IF (pos1 > 3) THEN
-            newline = input_line(1:pos1-3)//TRIM(inpp%variable_value(idx)) &
-                      //input_line(pos2+2:)
-         ELSE
-            newline = TRIM(inpp%variable_value(idx))//input_line(pos2+2:)
-         ENDIF
+         IF (idx > 0) &
+            var_value = TRIM(inpp%variable_value(idx))
 
+         newline = input_line(1:pos1 - 3)//var_value//input_line(pos2 + 2:)
          input_line = newline
       END DO
 
       ! process line until all variables named with the convention $VAR are expanded
       DO WHILE (INDEX(input_line, '$') > 0)
          pos1 = INDEX(input_line, '$')
-         pos1 = pos1+1 ! move to the start of the variable name
+         pos1 = pos1 + 1 ! move to the start of the variable name
          pos2 = INDEX(input_line(pos1:), ' ')
 
          IF (pos2 == 0) &
-            pos2 = LEN_TRIM(input_line(pos1:))+1
+            pos2 = LEN_TRIM(input_line(pos1:)) + 1
 
-         pos2 = pos1+pos2-2 ! end of the variable name, minus the separating whitespace
-         varname = input_line(pos1:pos2)
-         idx = inpp_find_variable(inpp, varname)
+         pos2 = pos1 + pos2 - 2 ! end of the variable name, minus the separating whitespace
+         var_name = input_line(pos1:pos2)
+         idx = inpp_find_variable(inpp, var_name)
 
          IF (idx == 0) THEN
             WRITE (UNIT=message, FMT="(5A,I6)") &
-               "INPP_@SET: Variable $", TRIM(varname), " not defined in file: ", &
+               "INPP_@SET: Variable $", var_name, " not defined in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
          ENDIF
 
-         IF (pos1 > 2) THEN
-            newline = input_line(1:pos1-2)//TRIM(inpp%variable_value(idx)) &
-                      //input_line(pos2+1:)
-         ELSE
-            newline = TRIM(inpp%variable_value(idx))//input_line(pos2+1:)
-         ENDIF
-
+         newline = input_line(1:pos1 - 2)//TRIM(inpp%variable_value(idx))//input_line(pos2 + 1:)
          input_line = newline
       END DO
    END SUBROUTINE inpp_expand_variables
@@ -609,7 +609,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION inpp_find_variable(inpp, varname) RESULT(idx)
       TYPE(inpp_type), POINTER                           :: inpp
-      CHARACTER(len=default_path_length)                 :: varname
+      CHARACTER(len=*), INTENT(IN)                       :: varname
       INTEGER                                            :: idx
 
       INTEGER                                            :: i
