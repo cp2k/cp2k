@@ -538,7 +538,7 @@ CONTAINS
 !>        instead of parsing from file
 !> \param ierr will return a number different from 0 if there was an error
 !> \param work_dir ...
-!> \param initial_variables ...
+!> \param initial_variables key-value list of initial preprocessor variables
 !> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
@@ -1420,15 +1420,18 @@ CONTAINS
 !>        defaults made explicit
 !> \param mpi_comm the mpi communicator (if not given it uses the default
 !>        one)
+!> \param initial_variables key-value list of initial preprocessor variables
 !> \param ierr error control, if different from 0 there was an error
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE check_input(input_declaration, input_file_path, output_file_path, &
-                          echo_input, mpi_comm, ierr)
+                          echo_input, mpi_comm, initial_variables, ierr)
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(len=*), INTENT(in)                       :: input_file_path, output_file_path
       LOGICAL, INTENT(in), OPTIONAL                      :: echo_input
       INTEGER, INTENT(in), OPTIONAL                      :: mpi_comm
+      CHARACTER(len=default_path_length), &
+         DIMENSION(:, :), INTENT(IN)                     :: initial_variables
       INTEGER, INTENT(out)                               :: ierr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'check_input', routineP = moduleN//':'//routineN
@@ -1468,7 +1471,7 @@ CONTAINS
       CALL cp_add_default_logger(logger)
       CALL cp_logger_release(logger)
 
-      input_file => read_input(input_declaration, input_file_path, initial_variables=empty_initial_variables, &
+      input_file => read_input(input_declaration, input_file_path, initial_variables=initial_variables, &
                                para_env=para_env)
       CALL check_cp2k_input(input_declaration, input_file, para_env=para_env, output_unit=unit_nr)
       IF (my_echo_input .AND. para_env%ionode) THEN
