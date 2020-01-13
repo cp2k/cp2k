@@ -1,0 +1,59 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &PRINT
+     &SCINE
+       FILENAME =vib.scine
+     &END
+  &END
+  &DFT
+    &QS
+      METHOD xTB
+    &END QS
+    &SCF
+      SCF_GUESS MOPAC
+      &OT
+         PRECONDITIONER FULL_SINGLE_INVERSE
+         MINIMIZER DIIS
+      &END
+      &OUTER_SCF
+         MAX_SCF  10
+         EPS_SCF 1.0E-8
+      &END
+      MAX_SCF  10
+      EPS_SCF 1.0E-8
+    &END SCF
+    &PRINT
+      &MOMENTS ON
+         PERIODIC .FALSE.
+         REFERENCE COM
+      &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 6 6 6
+      PERIODIC NONE
+    &END
+    &COORD
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    &END COORD
+    &TOPOLOGY
+     &CENTER_COORDINATES
+     &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT h2oVib
+  RUN_TYPE VIBRATIONAL_ANALYSIS
+&END GLOBAL
+
+&VIBRATIONAL_ANALYSIS
+ INTENSITIES .TRUE.
+ DX 0.001
+&END
+ 
+

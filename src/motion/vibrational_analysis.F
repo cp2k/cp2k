@@ -74,6 +74,7 @@ MODULE vibrational_analysis
                                               rep_env_create
    USE replica_types,                   ONLY: rep_env_release,&
                                               replica_env_type
+   USE scine_utils,                     ONLY: write_scine
    USE util,                            ONLY: sort
 #include "../base/base_uses.f90"
 
@@ -106,7 +107,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, iparticle1, &
          iparticle2, iseq, iw, j, k, natoms, ncoord, nfrozen, nrep, nres, nRotTrM, nvib, &
-         output_unit, output_unit_eig, prep, print_grrm, proc_dist_type
+         output_unit, output_unit_eig, prep, print_grrm, print_scine, proc_dist_type
       INTEGER, DIMENSION(:), POINTER                     :: Clist, Mlist
       LOGICAL                                            :: calc_intens, calc_thchdata, &
                                                             do_mode_tracking, keep_rotations, &
@@ -420,6 +421,20 @@ CONTAINS
                DEALLOCATE (Hint1, rmass)
             END IF
             CALL cp_print_key_finished_output(print_grrm, logger, force_env_section, "PRINT%GRRM")
+            !
+            ! Print SCINE interface file
+            print_scine = cp_print_key_unit_nr(logger, force_env_section, "PRINT%SCINE", &
+                                               file_position="REWIND", extension=".scine")
+            IF (print_scine > 0) THEN
+               DO i = 1, natoms
+                  imap = Mlist(i)
+                  particles(imap)%f(1:3) = rep_env%f((imap - 1)*3 + 1:(imap - 1)*3 + 3, 1)
+               ENDDO
+               nfrozen = SIZE(particles) - natoms
+               CPASSERT(nfrozen == 0)
+               CALL write_scine(print_scine, f_env%force_env, particles, minimum_energy, hessian=Hessian)
+            END IF
+            CALL cp_print_key_finished_output(print_scine, logger, force_env_section, "PRINT%SCINE")
             !
             nvib = ncoord - nRotTrM
             ALLOCATE (H_eigval1(ncoord))

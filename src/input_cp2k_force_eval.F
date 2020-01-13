@@ -370,7 +370,13 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "GRRM", &
                                        description="Controls the printing of the GRRM interface file", &
-                                       print_level=debug_print_level + 1, filename="CP2K_GRMM")
+                                       print_level=debug_print_level + 1, filename="CP2K_GRRM")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "SCINE", &
+                                       description="Controls the printing of the SCINE interface file", &
+                                       print_level=debug_print_level + 1, filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
