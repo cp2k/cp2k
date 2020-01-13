@@ -12,7 +12,7 @@
 - [`H2O-32-PBE-TZ.inp`](H2O-32-PBE-TZ.inp): needed to generate an initial DFT wfn (RPA, MP2)
 - [`H2O-32-HF-TZ.inp`](H2O-32-HF-TZ.inp): needed to refine DFT wfn at HF level (MP2)
 - [`H2O-32-RI-MP2-TZ.inp`](H2O-32-RI-MP2-TZ.inp): actual RI-MP2 benchmark (MP2)
-- [`H2O-32-RI-RPA-TZ.inp`](H2O-32-RI-RPA-TZ.inp): actual RI-RPA benchmark (RPA)
+- [`H2O-32-RI-dRPA-TZ.inp`](H2O-32-RI-dRPA-TZ.inp): actual RI-RPA benchmark (RPA)
 
 the additional files [`t_c_g.dat`](../../../data/t_c_g.dat) and [`POTENTIAL`](../../../data/POTENTIAL) are taken from [cp2k/data](../../../data) directory.
 
