@@ -159,6 +159,7 @@ MODULE force_env_methods
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE restraint,                       ONLY: restraint_control
+   USE scine_utils,                     ONLY: write_scine
    USE string_utilities,                ONLY: compress
    USE virial_methods,                  ONLY: write_stress_components
    USE virial_types,                    ONLY: cp_virial,&
@@ -213,7 +214,8 @@ CONTAINS
 
       INTEGER                                            :: i, ikind, j, nat, ndigits, nfixed_atoms, &
                                                             nfixed_atoms_total, nkind, &
-                                                            output_unit, print_forces, print_grrm
+                                                            output_unit, print_forces, print_grrm, &
+                                                            print_scine
       LOGICAL                                            :: calculate_forces, &
                                                             calculate_stress_tensor, &
                                                             energy_consistency, eval_ef, &
@@ -457,6 +459,16 @@ CONTAINS
          CALL write_grrm(print_grrm, force_env, particles%els, e_pot, fixed_atoms=nfixed_atoms_total)
       END IF
       CALL cp_print_key_finished_output(print_grrm, logger, force_env%force_env_section, "PRINT%GRRM")
+
+      print_scine = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%SCINE", &
+                                         file_position="REWIND", extension=".scine")
+      IF (print_scine > 0) THEN
+         CALL force_env_get(force_env, subsys=subsys)
+         CALL cp_subsys_get(subsys=subsys, particles=particles)
+         !
+         CALL write_scine(print_scine, force_env, particles%els, e_pot)
+      END IF
+      CALL cp_print_key_finished_output(print_scine, logger, force_env%force_env_section, "PRINT%SCINE")
 
       ! Atomic stress
       output_unit = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%PROGRAM_RUN_INFO", &
