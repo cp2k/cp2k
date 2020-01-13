@@ -49,6 +49,7 @@ MODULE cp2k_shell
         calc_energy_force, calc_force, create_force_env, destroy_force_env, get_cell, get_energy, &
         get_force, get_natom, get_pos, get_stress_tensor, set_cell, set_pos
    USE input_constants,                 ONLY: id_development_version
+   USE input_cp2k_read,                 ONLY: empty_initial_variables
    USE input_section_types,             ONLY: section_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -844,7 +845,7 @@ CONTAINS
 
       IF (.NOT. my_assert(LEN_TRIM(arg1) > 0, "input-file argument missing", shell)) RETURN
       IF (.NOT. my_assert(LEN_TRIM(arg2) > 0, "input-file argument missing", shell)) RETURN
-      CALL run_input(input_declaration, arg1, arg2)
+      CALL run_input(input_declaration, arg1, arg2, empty_initial_variables)
    END SUBROUTINE run_command
 
 ! **************************************************************************************************

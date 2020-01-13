@@ -67,8 +67,10 @@ PROGRAM cp2k
    CHARACTER(LEN=default_path_length)   :: input_file_name, output_file_name, &
                                            arg_att, command
    CHARACTER(LEN=default_string_length) :: dev_flag
+   CHARACTER(LEN=default_path_length), &
+      DIMENSION(:, :), ALLOCATABLE      :: initial_variables, initial_variables_tmp
    CHARACTER(LEN=:), ALLOCATABLE        :: compiler_options_string
-   INTEGER                              :: output_unit, l, i
+   INTEGER                              :: output_unit, l, i, var_set_sep, inp_var_idx
    INTEGER                              :: ierr, i_arg
    LOGICAL                              :: check, usage, echo_input, command_line_error
    LOGICAL                              :: run_it, force_run, has_input, xml, print_version, print_license, shell_mode
@@ -93,6 +95,7 @@ PROGRAM cp2k
    xml = .FALSE.
    input_file_name = "Missing input file name" ! no default
    output_file_name = "__STD_OUT__" ! by default we go to std_out
+   ALLOCATE (initial_variables(2, 1:0))
 
    ! get command and strip path
    CALL GET_COMMAND(command, status=ierr)
@@ -155,6 +158,34 @@ PROGRAM cp2k
             command_line_error = .TRUE.
             EXIT arg_loop
          ENDIF
+      CASE ("-E", "--set")
+         i_arg = i_arg + 1
+         CALL GET_COMMAND_ARGUMENT(i_arg, arg_att, status=ierr)
+         CPASSERT(ierr == 0)
+
+         var_set_sep = INDEX(arg_att, '=')
+
+         IF (var_set_sep < 2) THEN
+            WRITE (output_unit, "(/,T2,A)") "ERROR: Invalid initializer for preprocessor variable: "//TRIM(arg_att)
+            command_line_error = .TRUE.
+            EXIT arg_loop
+         ENDIF
+
+         DO inp_var_idx = 1, SIZE(initial_variables, 2)
+            ! check whether the variable was already set, in this case, overwrite
+            IF (TRIM(initial_variables(1, inp_var_idx)) == arg_att(:var_set_sep - 1)) &
+               EXIT
+         END DO
+
+         IF (inp_var_idx > SIZE(initial_variables, 2)) THEN
+            ! if the variable was never set before, extend the array
+            ALLOCATE (initial_variables_tmp(2, SIZE(initial_variables, 2) + 1))
+            initial_variables_tmp(:, 1:SIZE(initial_variables, 2)) = initial_variables
+            CALL MOVE_ALLOC(initial_variables_tmp, initial_variables)
+         ENDIF
+
+         initial_variables(1, inp_var_idx) = arg_att(:var_set_sep - 1)
+         initial_variables(2, inp_var_idx) = arg_att(var_set_sep + 1:)
       CASE ("-o")
          i_arg = i_arg + 1
          CALL GET_COMMAND_ARGUMENT(i_arg, arg_att, status=ierr)
@@ -213,22 +244,23 @@ PROGRAM cp2k
                "starts the CP2K program, see <https://www.cp2k.org/>", &
                "The easiest way is "//TRIM(command)//" <input_file>", &
                "The following options can be used:", &
-               "-i <input_file>   : provides an input file name, if it is the last", &
-               "                    argument, the -i flag is not needed", &
-               "-o <output_file>  : provides an output file name [default: screen]"
+               "-i <input_file>      : provides an input file name, if it is the last", &
+               "                       argument, the -i flag is not needed", &
+               "-o <output_file>     : provides an output file name [default: screen]"
             WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,(T3,A))") &
                "These switches skip the simulation, unless [-r|-run] is specified:", &
-               "--check, -c       : performs a syntax check of the <input_file>", &
-               "--echo, -e        : echoes the <input_file>, and make all defaults explicit", &
-               "                    The input is also checked, but only a failure is reported", &
-               "--help, -h        : writes this message", &
-               "--license         : prints the CP2K license", &
-               "--mpi-mapping     : applies a given MPI reordering to CP2K", &
-               "--run, -r         : forces a CP2K run regardless of other specified flags", &
-               "--shell, -s       : start interactive shell mode", &
-               "--version, -v     : prints the CP2K version and the revision number", &
-               "--xml             : dumps the whole CP2K input structure as a XML file", &
-               "                    xml2htm generates a HTML manual from this XML file", &
+               "--check, -c          : performs a syntax check of the <input_file>", &
+               "--echo, -e           : echoes the <input_file>, and make all defaults explicit", &
+               "                       The input is also checked, but only a failure is reported", &
+               "--help, -h           : writes this message", &
+               "--license            : prints the CP2K license", &
+               "--mpi-mapping        : applies a given MPI reordering to CP2K", &
+               "--run, -r            : forces a CP2K run regardless of other specified flags", &
+               "--shell, -s          : start interactive shell mode", &
+               "--version, -v        : prints the CP2K version and the revision number", &
+               "--xml                : dumps the whole CP2K input structure as a XML file", &
+               "                       xml2htm generates a HTML manual from this XML file", &
+               "--set, -E name=value : set the initial value of a preprocessor value", &
                ""
          END IF
       END IF
@@ -273,7 +305,7 @@ PROGRAM cp2k
 
          IF (check) THEN
             CALL check_input(input_declaration, input_file_name, output_file_name, &
-                             echo_input=echo_input, ierr=ierr)
+                             echo_input=echo_input, ierr=ierr, initial_variables=initial_variables)
             IF (default_para_env%ionode) THEN
                IF (ierr == 0) THEN
                   IF (.NOT. echo_input) THEN
@@ -293,7 +325,7 @@ PROGRAM cp2k
          ENDIF
 
          IF (run_it .OR. force_run) THEN
-            CALL run_input(input_declaration, input_file_name, output_file_name)
+            CALL run_input(input_declaration, input_file_name, output_file_name, initial_variables)
          END IF
 
          CALL section_release(input_declaration)
@@ -304,6 +336,7 @@ PROGRAM cp2k
 
    ! and the final cleanup
    CALL finalize_cp2k(finalize_mpi=.TRUE., ierr=ierr)
+   DEALLOCATE (initial_variables)
    CPASSERT(ierr == 0)
 
 END PROGRAM

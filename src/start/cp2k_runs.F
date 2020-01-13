@@ -85,8 +85,7 @@ MODULE cp2k_runs
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_cp2k_check,                ONLY: check_cp2k_input
    USE input_cp2k_global,               ONLY: create_global_section
-   USE input_cp2k_read,                 ONLY: empty_initial_variables,&
-                                              read_input
+   USE input_cp2k_read,                 ONLY: read_input
    USE input_keyword_types,             ONLY: keyword_release
    USE input_parsing,                   ONLY: section_vals_parse
    USE input_section_types,             ONLY: &
@@ -152,6 +151,7 @@ CONTAINS
 !> \param input_file_name name of the file to be opened for input
 !> \param output_unit unit to which output should be written
 !> \param mpi_comm ...
+!> \param initial_variables key-value list of initial preprocessor variables
 !> \author Joost VandeVondele
 !> \note
 !>      para_env should be a valid communicator
@@ -168,10 +168,12 @@ CONTAINS
 !>      able to run simultaneously / multithreaded / sequential / parallel / ...
 !>      and able to fail safe
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE cp2k_run(input_declaration, input_file_name, output_unit, mpi_comm)
+   RECURSIVE SUBROUTINE cp2k_run(input_declaration, input_file_name, output_unit, mpi_comm, initial_variables)
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(LEN=*), INTENT(IN)                       :: input_file_name
       INTEGER, INTENT(IN)                                :: output_unit, mpi_comm
+      CHARACTER(len=default_path_length), &
+         DIMENSION(:, :), INTENT(IN)                     :: initial_variables
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_run', routineP = moduleN//':'//routineN
 
@@ -209,7 +211,7 @@ CONTAINS
       CALL cite_reference(Hutter2014)
 
       ! parse the input
-      input_file => read_input(input_declaration, input_file_name, initial_variables=empty_initial_variables, &
+      input_file => read_input(input_declaration, input_file_name, initial_variables=initial_variables, &
                                para_env=para_env)
 
       CALL mp_sync(para_env%group)
@@ -265,7 +267,7 @@ CONTAINS
          CALL cp_sirius_finalize()
          CALL pw_cuda_finalize()
          CALL pw_fpga_finalize()
-         CALL farming_run(input_declaration, root_section, para_env)
+         CALL farming_run(input_declaration, root_section, para_env, initial_variables)
          CALL cp_sirius_init()
          CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
          CALL pw_cuda_init()
@@ -435,15 +437,17 @@ CONTAINS
 !> \param input_declaration ...
 !> \param root_section ...
 !> \param para_env ...
+!> \param initial_variables ...
 !> \author Joost VandeVondele
 !> \note
 !>      needs to be part of this module as the cp2k_run -> farming_run -> cp2k_run
 !>      calling style creates a hard circular dependency
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE farming_run(input_declaration, root_section, para_env)
+   RECURSIVE SUBROUTINE farming_run(input_declaration, root_section, para_env, initial_variables)
       TYPE(section_type), POINTER              :: input_declaration
       TYPE(section_vals_type), POINTER         :: root_section
       TYPE(cp_para_env_type), POINTER          :: para_env
+      CHARACTER(len=default_path_length), DIMENSION(:, :), INTENT(IN) :: initial_variables
 
       CHARACTER(len=*), PARAMETER :: routineN = 'farming_run', &
                                      routineP = moduleN//':'//routineN
@@ -835,7 +839,7 @@ CONTAINS
             new_output_unit = -1
          ENDIF
 
-         CALL cp2k_run(input_declaration, TRIM(farming_env%Job(i)%input), new_output_unit, new_group)
+         CALL cp2k_run(input_declaration, TRIM(farming_env%Job(i)%input), new_output_unit, new_group, initial_variables)
 
          IF (new_rank == 0) CALL close_file(unit_number=new_output_unit)
 
@@ -928,15 +932,18 @@ CONTAINS
 !> \param input_file_path the path of the input file
 !> \param output_file_path path of the output file (to which it is appended)
 !>        if it is "__STD_OUT__" the default_output_unit is used
+!> \param initial_variables key-value list of initial preprocessor variables
 !> \param mpi_comm the mpi communicator to be used for this environment
 !>        it will not be freed
 !> \author fawzi
 !> \note
 !>      moved here because of circular dependencies
 ! **************************************************************************************************
-   SUBROUTINE run_input(input_declaration, input_file_path, output_file_path, mpi_comm)
+   SUBROUTINE run_input(input_declaration, input_file_path, output_file_path, initial_variables, mpi_comm)
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(len=*), INTENT(in)                       :: input_file_path, output_file_path
+      CHARACTER(len=default_path_length), &
+         DIMENSION(:, :), INTENT(IN)                     :: initial_variables
       INTEGER, INTENT(in), OPTIONAL                      :: mpi_comm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'run_input', routineP = moduleN//':'//routineN
@@ -962,7 +969,7 @@ CONTAINS
       ELSE
          unit_nr = -1
       END IF
-      CALL cp2k_run(input_declaration, input_file_path, unit_nr, para_env%group)
+      CALL cp2k_run(input_declaration, input_file_path, unit_nr, para_env%group, initial_variables)
       CALL cp_para_env_release(para_env) !XXXXXXXXXXXX uninitiliased error
    END SUBROUTINE run_input
 

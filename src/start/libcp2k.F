@@ -32,6 +32,7 @@ MODULE libcp2k
    USE force_env_types,                 ONLY: force_env_get,&
                                               use_qs_force
    USE input_cp2k,                      ONLY: create_cp2k_root_section
+   USE input_cp2k_read,                 ONLY: empty_initial_variables
    USE input_section_types,             ONLY: section_release,&
                                               section_type
    USE kinds,                           ONLY: default_path_length,&
@@ -355,7 +356,7 @@ CONTAINS
 
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
-      CALL run_input(input_declaration, ifp, ofp)
+      CALL run_input(input_declaration, ifp, ofp, empty_initial_variables)
       CALL section_release(input_declaration)
    END SUBROUTINE cp2k_run_input
 
@@ -378,7 +379,7 @@ CONTAINS
 
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
-      CALL run_input(input_declaration, ifp, ofp, mpi_comm)
+      CALL run_input(input_declaration, ifp, ofp, empty_initial_variables, mpi_comm)
       CALL section_release(input_declaration)
    END SUBROUTINE cp2k_run_input_comm
 
