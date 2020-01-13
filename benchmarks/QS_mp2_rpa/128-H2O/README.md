@@ -13,8 +13,8 @@
 
 ## How to Run the Benchmark
 
-1) run `H2O-128-PBE-TZ.inp`, this will generate the file `H2O-128-PBE-TZ-RESTART.wfn`, necessary for the other two runs.
-3) run `H2O-128-RI-dRPA-TZ.inp` for RI-dRPA
+1) run `H2O-128-PBE-TZ.inp`: this will generate the file `H2O-128-PBE-TZ-RESTART.wfn`, necessary for the benchmark run.
+2) run `H2O-128-RI-dRPA-TZ.inp` for the RI-RPA benchmark.
 
 ## Results
 
