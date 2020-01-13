@@ -270,6 +270,7 @@ CONTAINS
             ENDIF
             IF (ASSOCIATED(qs_kind_set(ikind)%upf_potential)) THEN
                CALL atom_release_upf(qs_kind_set(ikind)%upf_potential)
+               DEALLOCATE (qs_kind_set(ikind)%upf_potential)
             ENDIF
             IF (ASSOCIATED(qs_kind_set(ikind)%se_parameter)) THEN
                CALL semi_empirical_release(qs_kind_set(ikind)%se_parameter)
