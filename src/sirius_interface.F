@@ -35,8 +35,7 @@ MODULE sirius_interface
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE external_potential_types,        ONLY: gth_potential_type
    USE input_constants,                 ONLY: do_gapw_log
-   USE input_section_types,             ONLY: section_vals_duplicate,&
-                                              section_vals_get,&
+   USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
                                               section_vals_type,&
@@ -154,8 +153,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
-      TYPE(section_vals_type), POINTER                   :: libxc_fun, pwdft_section, &
-                                                            pwdft_sub_section, xc_fun, xc_section
+      TYPE(section_vals_type), POINTER                   :: pwdft_section, pwdft_sub_section, &
+                                                            xc_fun, xc_section
 
       CPASSERT(ASSOCIATED(pwdft_env))
 ! create context of simulation
@@ -181,9 +180,7 @@ CONTAINS
             IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
                CALL section_vals_get(xc_fun, n_repetition=n)
                DO i = 1, n
-                  NULLIFY (libxc_fun)
-                  CALL section_vals_duplicate(xc_fun, libxc_fun, i_rep_start=i, i_rep_end=i)
-                  CALL section_vals_val_get(libxc_fun, "FUNCTIONAL", c_val=section_name)
+                  CALL section_vals_val_get(xc_fun, "FUNCTIONAL", i_rep_section=i, c_val=section_name)
                   CALL sirius_option_add_string_to(sctx, string('parameters'), string('xc_functionals'), string(section_name))
                END DO
             ENDIF
