@@ -5,6 +5,6 @@ h2o_GRRM.inp                                           8    8.0E-06             
 C2H4_frozen_GRRM.inp                                   1    1.0E-12            -13.924538806910600
 h2o_frozen_GRRM.inp                                    8    8.0E-06                        872.278
 #
-C2H4_SCINE.inp                                         1    1.0E-12            -13.924538806910600
+C2H4_SCINE.inp                                         1    1.0E-12            -13.137211552379020
 h2o_SCINE.inp                                          8    8.0E-06                       1465.672
 #EOF
