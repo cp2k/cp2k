@@ -2337,7 +2337,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: tmp_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_all, sap_ppnl
+         POINTER                                         :: sab_orb, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -2354,7 +2354,7 @@ CONTAINS
 
       IF (.NOT. (calc_rv .OR. calc_rrv .OR. calc_rxrv)) RETURN
 
-      NULLIFY (cell, matrix_s, particle_set, qs_kind_set, rho, sab_all, sap_ppnl)
+      NULLIFY (cell, matrix_s, particle_set, qs_kind_set, rho, sab_orb, sap_ppnl)
       CALL get_qs_env(qs_env, &
                       cell=cell, &
                       dft_control=dft_control, &
@@ -2362,7 +2362,7 @@ CONTAINS
                       particle_set=particle_set, &
                       qs_kind_set=qs_kind_set, &
                       rho=rho, &
-                      sab_all=sab_all, &
+                      sab_orb=sab_orb, &
                       sap_ppnl=sap_ppnl)
 
       eps_ppnl = dft_control%qs_control%eps_ppnl
@@ -2376,8 +2376,8 @@ CONTAINS
             DO ind = 1, 3
                CALL dbcsr_init_p(matrix_rv(ind)%matrix)
                CALL dbcsr_create(matrix_rv(ind)%matrix, template=matrix_s(1)%matrix, &
-                                 matrix_type=dbcsr_type_no_symmetry)
-               CALL cp_dbcsr_alloc_block_from_nbl(matrix_rv(ind)%matrix, sab_all)
+                                 matrix_type=dbcsr_type_antisymmetric)
+               CALL cp_dbcsr_alloc_block_from_nbl(matrix_rv(ind)%matrix, sab_orb)
                CALL dbcsr_set(matrix_rv(ind)%matrix, 0._dp)
             ENDDO
          ENDIF
@@ -2387,8 +2387,8 @@ CONTAINS
             DO ind = 1, 6
                CALL dbcsr_init_p(matrix_rrv(ind)%matrix)
                CALL dbcsr_create(matrix_rrv(ind)%matrix, template=matrix_s(1)%matrix, &
-                                 matrix_type=dbcsr_type_no_symmetry)
-               CALL cp_dbcsr_alloc_block_from_nbl(matrix_rrv(ind)%matrix, sab_all)
+                                 matrix_type=dbcsr_type_antisymmetric)
+               CALL cp_dbcsr_alloc_block_from_nbl(matrix_rrv(ind)%matrix, sab_orb)
                CALL dbcsr_set(matrix_rrv(ind)%matrix, 0._dp)
             ENDDO
          ENDIF
@@ -2398,33 +2398,33 @@ CONTAINS
             DO ind = 1, 3
                CALL dbcsr_init_p(matrix_rxrv(ind)%matrix)
                CALL dbcsr_create(matrix_rxrv(ind)%matrix, template=matrix_s(1)%matrix, &
-                                 matrix_type=dbcsr_type_no_symmetry)
-               CALL cp_dbcsr_alloc_block_from_nbl(matrix_rxrv(ind)%matrix, sab_all)
+                                 matrix_type=dbcsr_type_antisymmetric)
+               CALL cp_dbcsr_alloc_block_from_nbl(matrix_rxrv(ind)%matrix, sab_orb)
                CALL dbcsr_set(matrix_rxrv(ind)%matrix, 0._dp)
             ENDDO
          ENDIF
 
          ! calculate commutators in AO basis
          IF (calc_rv .AND. calc_rrv .AND. .NOT. calc_rxrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
                                   matrix_rrv=matrix_rrv, ref_point=ref_point, cell=cell)
          ELSE IF (calc_rv .AND. calc_rxrv .AND. .NOT. calc_rrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
                                   matrix_rxrv=matrix_rxrv, ref_point=ref_point, cell=cell)
          ELSE IF (calc_rrv .AND. calc_rxrv .AND. .NOT. calc_rv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, matrix_rxrv=matrix_rxrv, &
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rxrv=matrix_rxrv, &
                                   matrix_rrv=matrix_rrv, ref_point=ref_point, cell=cell)
          ELSE IF (calc_rv .AND. calc_rxrv .AND. calc_rrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
                                   matrix_rxrv=matrix_rxrv, matrix_rrv=matrix_rrv, ref_point=ref_point, cell=cell)
          ELSE IF (calc_rv .AND. .NOT. calc_rrv .AND. .NOT. calc_rxrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
                                   ref_point=ref_point, cell=cell)
          ELSE IF (calc_rrv .AND. .NOT. calc_rv .AND. .NOT. calc_rxrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, matrix_rrv=matrix_rrv, &
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rrv=matrix_rrv, &
                                   ref_point=ref_point, cell=cell)
          ELSE IF (calc_rxrv .AND. .NOT. calc_rv .AND. .NOT. calc_rrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, matrix_rxrv=matrix_rxrv, &
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rxrv=matrix_rxrv, &
                                   ref_point=ref_point, cell=cell)
          ENDIF
       ENDIF
