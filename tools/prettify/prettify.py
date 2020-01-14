@@ -11,6 +11,7 @@ import logging
 import argparse
 import errno
 import traceback
+import contextlib
 
 try:
     from hashlib import md5
@@ -114,6 +115,14 @@ LINE_PARTS_RE = re.compile(
 """,
     re.VERBOSE,
 )
+
+
+@contextlib.contextmanager
+def rewind(fhandle):
+    try:
+        yield fhandle
+    finally:
+        fhandle.seek(0)
 
 
 def upcaseStringKeywords(line):
@@ -322,12 +331,13 @@ def is_fypp(infile):
     FYPP_RE = re.compile(r"(" + FYPP_LINE + r"|" + FYPP_INLINE + r")")
 
     infile.seek(0)
-    for line in infile.readlines():
-        if FYPP_RE.search(line):
-            return True
 
-    infile.seek(0)
-    return False
+    with rewind(infile) as fhandle:
+        for line in fhandle.readlines():
+            if FYPP_RE.search(line):
+                return True
+
+        return False
 
 
 # based on https://stackoverflow.com/a/31347222
