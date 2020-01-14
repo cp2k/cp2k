@@ -44,7 +44,7 @@ MODULE rt_delta_pulse
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_init_p, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
    USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -108,7 +108,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_all, sap_ppnl
+         POINTER                                         :: sab_orb, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(rt_prop_type), POINTER                        :: rtp
@@ -143,10 +143,10 @@ CONTAINS
 
       ! calculate non-local commutator
       IF (com_nl) THEN
-         NULLIFY (qs_kind_set, sab_all, sap_ppnl)
+         NULLIFY (qs_kind_set, sab_orb, sap_ppnl)
          CALL get_qs_env(qs_env, &
                          sap_ppnl=sap_ppnl, &
-                         sab_all=sab_all, &
+                         sab_orb=sab_orb, &
                          qs_kind_set=qs_kind_set)
          eps_ppnl = dft_control%qs_control%eps_ppnl
 
@@ -155,11 +155,11 @@ CONTAINS
          DO idir = 1, 3
             CALL dbcsr_init_p(matrix_rv(idir)%matrix)
             CALL dbcsr_create(matrix_rv(idir)%matrix, template=matrix_s(1)%matrix, &
-                              matrix_type=dbcsr_type_no_symmetry)
-            CALL cp_dbcsr_alloc_block_from_nbl(matrix_rv(idir)%matrix, sab_all)
+                              matrix_type=dbcsr_type_antisymmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_rv(idir)%matrix, sab_orb)
             CALL dbcsr_set(matrix_rv(idir)%matrix, 0._dp)
          ENDDO
-         CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv)
+         CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv)
       ENDIF
 
       DO ispin = 1, SIZE(matrix_ks)
