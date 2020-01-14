@@ -49,6 +49,7 @@ MODULE rt_delta_pulse
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
+   USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -108,13 +109,14 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all, sap_ppnl
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cell, mos, rtp, matrix_s, matrix_ks, input, dft_control)
+      NULLIFY (cell, mos, rtp, matrix_s, matrix_ks, input, dft_control, particle_set)
       ! we need the overlap and ks matrix for a full diagionalization
       CALL get_qs_env(qs_env, &
                       cell=cell, &
@@ -123,7 +125,8 @@ CONTAINS
                       matrix_s=matrix_s, &
                       matrix_ks=matrix_ks, &
                       dft_control=dft_control, &
-                      input=input)
+                      input=input, &
+                      particle_set=particle_set)
       com_nl = section_get_lval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%COM_NL")
       CALL get_rtp(rtp=rtp, S_inv=S_inv)
       CALL cp_fm_create(S_chol, matrix_struct=rtp%ao_ao_fmstruct, name="S_chol")
@@ -156,7 +159,7 @@ CONTAINS
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_rv(idir)%matrix, sab_all)
             CALL dbcsr_set(matrix_rv(idir)%matrix, 0._dp)
          ENDDO
-         CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, matrix_rv=matrix_rv)
+         CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv)
       ENDIF
 
       DO ispin = 1, SIZE(matrix_ks)
