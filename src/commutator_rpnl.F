@@ -440,7 +440,7 @@ CONTAINS
       INTEGER                                            :: handle, i, iab, iac, iatom, ibc, icol, &
                                                             ikind, ind, irow, jatom, jkind, kac, &
                                                             kbc, kkind, na, natom, nb, nkind, np, &
-                                                            nthread, order, slot
+                                                            order, slot
       INTEGER, DIMENSION(3)                              :: cell_b
       LOGICAL                                            :: asso_rrv, asso_rv, asso_rxrv, found, go, &
                                                             my_ref, my_rrv, my_rv, my_rxrv, &
@@ -520,9 +520,6 @@ CONTAINS
             NULLIFY (basis_set(ikind)%gto_basis_set)
          END IF
       ENDDO
-
-      nthread = 1
-!$    nthread = omp_get_max_threads()
 
       ! *** All integrals needed have been calculated and stored in sap_int
       ! *** We now calculate the commutator matrix elements
