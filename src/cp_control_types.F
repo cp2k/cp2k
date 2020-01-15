@@ -526,8 +526,7 @@ MODULE cp_control_types
                                               correct_surf_dip, &
                                               do_sccs, &
                                               apply_embed_pot, &
-                                              apply_dmfet_pot, &
-                                              do_rtp_periodic
+                                              apply_dmfet_pot
    END TYPE dft_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'

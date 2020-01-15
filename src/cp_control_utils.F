@@ -348,7 +348,6 @@ CONTAINS
       END IF
 
       do_rtp = .FALSE.
-      dft_control%do_rtp_periodic = .FALSE.
       tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION")
       CALL section_vals_get(tmp_section, explicit=is_present)
       IF (is_present) THEN
@@ -2009,7 +2008,6 @@ CONTAINS
                                 l_val=dft_control%rtp_control%apply_delta_pulse)
       CALL section_vals_val_get(rtp_section, "PERIODIC", &
                                 l_val=dft_control%rtp_control%periodic)
-      dft_control%do_rtp_periodic = dft_control%rtp_control%periodic
       CALL section_vals_val_get(rtp_section, "DENSITY_PROPAGATION", &
                                 l_val=dft_control%rtp_control%linear_scaling)
       CALL section_vals_val_get(rtp_section, "MCWEENY_MAX_ITER", &
