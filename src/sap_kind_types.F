@@ -617,7 +617,7 @@ CONTAINS
 
 !$OMP END PARALLEL
 
-      DEALLOCATE (basis_set)
+      DEALLOCATE (basis_set, gpotential, spotential)
 
       CALL timestop(handle)
 

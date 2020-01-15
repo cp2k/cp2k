@@ -2354,21 +2354,37 @@ CONTAINS
 
       IF (.NOT. (calc_rv .OR. calc_rrv .OR. calc_rxrv)) RETURN
 
-      NULLIFY (cell, matrix_s, particle_set, qs_kind_set, rho, sab_orb, sap_ppnl)
-      CALL get_qs_env(qs_env, &
-                      cell=cell, &
-                      dft_control=dft_control, &
-                      matrix_s=matrix_s, &
-                      particle_set=particle_set, &
-                      qs_kind_set=qs_kind_set, &
-                      rho=rho, &
-                      sab_orb=sab_orb, &
-                      sap_ppnl=sap_ppnl)
+      ! calculate expectation values
+      ! real part
+      ! This evaluates to zero, because all commutator matrices are anti-symmetric while
+      ! the real part of the density matrix rho_ao is symmetric. Tr[A*S] = 0
+      IF (calc_rv) THEN
+         nlcom_rv(:) = 0._dp
+      ENDIF
 
-      eps_ppnl = dft_control%qs_control%eps_ppnl
+      IF (calc_rrv) THEN
+         nlcom_rrv(:) = 0._dp
+      ENDIF
 
-      ! Calculate commutators, only needed of there is an imaginary part of the density matrix
+      IF (calc_rxrv) THEN
+         nlcom_rxrv(:) = 0._dp
+      ENDIF
+
+      ! imagninary part of the density matrix
       IF (qs_env%run_rtp) THEN
+         NULLIFY (cell, matrix_s, particle_set, qs_kind_set, rho, sab_orb, sap_ppnl)
+         CALL get_qs_env(qs_env, &
+                         cell=cell, &
+                         dft_control=dft_control, &
+                         matrix_s=matrix_s, &
+                         particle_set=particle_set, &
+                         qs_kind_set=qs_kind_set, &
+                         rho=rho, &
+                         sab_orb=sab_orb, &
+                         sap_ppnl=sap_ppnl)
+
+         eps_ppnl = dft_control%qs_control%eps_ppnl
+         ! Calculate commutators, only needed of there is an imaginary part of the density matrix
          ! Allocate storage
          NULLIFY (matrix_rv, matrix_rrv, matrix_rxrv)
          IF (calc_rv) THEN
@@ -2427,35 +2443,13 @@ CONTAINS
             CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rxrv=matrix_rxrv, &
                                   ref_point=ref_point, cell=cell)
          ENDIF
-      ENDIF
 
-      ! calculate expectation values
-      ! real part
-      ! This evaluates to zero, because all commutator matrices are anti-symmetric while
-      ! the real part of the density matrix rho_ao is symmetric. Tr[A*S] = 0
-      NULLIFY (rho_ao)
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
-
-      NULLIFY (tmp_ao)
-      ALLOCATE (tmp_ao)
-      CALL dbcsr_desymmetrize(matrix_s(1)%matrix, tmp_ao)
-
-      IF (calc_rv) THEN
-         nlcom_rv(:) = 0._dp
-      ENDIF
-
-      IF (calc_rrv) THEN
-         nlcom_rrv(:) = 0._dp
-      ENDIF
-
-      IF (calc_rxrv) THEN
-         nlcom_rxrv(:) = 0._dp
-      ENDIF
-
-      ! imaginary part
-      IF (qs_env%run_rtp) THEN
          NULLIFY (rho_ao)
          CALL qs_rho_get(rho, rho_ao_im=rho_ao)
+
+         NULLIFY (tmp_ao)
+         ALLOCATE (tmp_ao)
+         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, tmp_ao)
 
          IF (calc_rv) THEN
             trace = 0._dp
@@ -2470,7 +2464,6 @@ CONTAINS
                END DO
                nlcom_rv(ind) = nlcom_rv(ind) + strace
             ENDDO
-            ! WRITE (*, *) nlcom_rv
          ENDIF
 
          IF (calc_rrv) THEN
@@ -2486,7 +2479,6 @@ CONTAINS
                END DO
                nlcom_rrv(ind) = nlcom_rrv(ind) + strace
             ENDDO
-            ! WRITE (*, *) nlcom_rrv
          ENDIF
 
          IF (calc_rxrv) THEN
@@ -2502,7 +2494,6 @@ CONTAINS
                END DO
                nlcom_rxrv(ind) = nlcom_rxrv(ind) + strace
             ENDDO
-            ! WRITE (*, *) nlcom_rxrv
          ENDIF
          CALL dbcsr_deallocate_matrix(tmp_ao)
          IF (calc_rv) CALL dbcsr_deallocate_matrix_set(matrix_rv)
