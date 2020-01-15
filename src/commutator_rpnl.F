@@ -422,7 +422,8 @@ CONTAINS
    SUBROUTINE build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, matrix_rv, matrix_rxrv, &
                                matrix_rrv, ref_point, cell)
 
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: qs_kind_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          INTENT(IN), POINTER                             :: sab_all, sap_ppnl
       REAL(KIND=dp), INTENT(IN)                          :: eps_ppnl
@@ -447,8 +448,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: rab, rf
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
-      TYPE(block_p_type), DIMENSION(:), POINTER          :: blocks_rrv, blocks_rv, blocks_rxrv
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set
+      TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: blocks_rrv, blocks_rv, blocks_rxrv
+      TYPE(gto_basis_set_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: basis_set
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
 
@@ -491,6 +493,7 @@ CONTAINS
       nkind = SIZE(qs_kind_set)
 
       !sap_int needs to be shared as multiple threads need to access this
+      NULLIFY (sap_int)
       ALLOCATE (sap_int(nkind*nkind))
       DO i = 1, nkind*nkind
          NULLIFY (sap_int(i)%alist, sap_int(i)%asort, sap_int(i)%aindex)
@@ -568,7 +571,6 @@ CONTAINS
          END IF
 
          ! allocate blocks
-         NULLIFY (blocks_rv, blocks_rxrv, blocks_rrv)
          IF (my_rv) THEN
             ALLOCATE (blocks_rv(3))
          ENDIF

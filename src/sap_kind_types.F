@@ -308,7 +308,8 @@ CONTAINS
       TYPE(clist_type), POINTER                          :: clist
       TYPE(gth_potential_p_type), DIMENSION(:), POINTER  :: gpotential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set
+      TYPE(gto_basis_set_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: basis_set
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(sgp_potential_p_type), DIMENSION(:), POINTER  :: spotential
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
@@ -345,6 +346,7 @@ CONTAINS
       ldai = ncoset(maxl + nder + 1)
 
       !set up direct access to basis and potential
+      NULLIFY (gpotential, spotential)
       ALLOCATE (basis_set(nkind), gpotential(nkind), spotential(nkind))
       DO ikind = 1, nkind
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
@@ -614,6 +616,8 @@ CONTAINS
       DEALLOCATE (sab, ai_work, work)
 
 !$OMP END PARALLEL
+
+      DEALLOCATE (basis_set)
 
       CALL timestop(handle)
 

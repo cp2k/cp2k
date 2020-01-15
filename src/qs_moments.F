@@ -1760,7 +1760,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: magnetic
       INTEGER, INTENT(IN)                                :: nmoments, reference
-      REAL(dp), DIMENSION(:), POINTER                    :: ref_point
+      REAL(dp), DIMENSION(:), INTENT(IN), POINTER        :: ref_point
       INTEGER, INTENT(IN)                                :: unit_number
       LOGICAL, INTENT(IN), OPTIONAL                      :: vel_reprs, com_nl
 
@@ -2237,7 +2237,7 @@ CONTAINS
          IF (PRESENT(mmom)) THEN
             IF (nmom >= 1) THEN
                dd = SQRT(SUM(mmom(1:3)**2))
-               WRITE (unit_number, "(T3,A)") "Magnetic Dipole Moment (only orbital contrib.) [a.u.]"
+               WRITE (unit_number, "(T3,A)") "Orbital angular momentum [a. u.]"
                WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
                   (TRIM(rlab(i + 1)), "=", mmom(i), i=1, 3), "Total=", dd
             END IF
@@ -2284,7 +2284,7 @@ CONTAINS
          IF (PRESENT(mmom)) THEN
             IF (nmom >= 1) THEN
                dd = SQRT(SUM(mmom(1:3)**2))
-               WRITE (unit_number, "(T3,A)") "Orbital angular momentum [a.u.] incl. com_nl"
+               WRITE (unit_number, "(T3,A)") "Orbital angular momentum incl. com_nl [a. u.]"
                WRITE (unit_number, "(T5,3(A,A,D14.8,1X),T60,A,T67,F14.8)") &
                   (TRIM(rlab(i + 1)), "=", mmom(i), i=1, 3), "Total=", dd
             END IF
@@ -2294,11 +2294,11 @@ CONTAINS
                SELECT CASE (l)
                CASE (1)
                   dd = SQRT(SUM(rmom_vel(1:3)**2))
-                  WRITE (unit_number, "(T3,A)") "Expectation value of momentum operator [a. u.] incl. com_nl"
+                  WRITE (unit_number, "(T3,A)") "Expectation value of momentum operator incl. com_nl [a. u.]"
                   WRITE (unit_number, "(T5,3(A,A,D14.8,1X),T60,A,T67,F14.8)") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=1, 3), "Total=", dd
                CASE (2)
-                  WRITE (unit_number, "(T3,A)") "Expectation value of quadrupole operator in vel. repr. [a. u.] incl. com_nl"
+                  WRITE (unit_number, "(T3,A)") "Expectation value of quadrupole operator in vel. repr. incl. com_nl [a. u.]"
                   WRITE (unit_number, "(T17,3(A,A,D14.8,9X))") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=4, 6)
                   WRITE (unit_number, "(T17,3(A,A,D14.8,9X))") &
