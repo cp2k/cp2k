@@ -40,12 +40,14 @@ MODULE response_solver
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_p_type, dbcsr_release, &
-        dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_type, &
+        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
+                                              kg_tnadd_atomic,&
+                                              kg_tnadd_embed,&
                                               ot_precond_full_single_inverse
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_rval,&
@@ -53,6 +55,9 @@ MODULE response_solver
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE kg_correction,                   ONLY: kg_ekin_subset
+   USE kg_environment_types,            ONLY: kg_environment_type
+   USE kg_tnadd_mat,                    ONLY: build_tnadd_mat
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
@@ -311,19 +316,21 @@ CONTAINS
       LOGICAL                                            :: distribute_fock_matrix, do_hfx, &
                                                             hfx_treat_lsd_in_core, lsd, resp_only, &
                                                             s_mstruct_changed, use_virial
-      REAL(KIND=dp)                                      :: eh1, eps_ppnl, exc, focc, total_rhoz, &
-                                                            total_rhoz_aux, zehartree
+      REAL(KIND=dp)                                      :: eh1, ekin_mol, eps_ppnl, exc, focc, &
+                                                            total_rhoz, total_rhoz_aux, zehartree
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2, ftot3
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pz, matrix_wz, scrm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, mhz, mpz
       TYPE(dbcsr_type), POINTER                          :: dbwork
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+      TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
@@ -423,6 +430,23 @@ CONTAINS
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dHppnl  ", fodeb
          END IF
       END IF
+      ! Kim-Gordon subsystem DFT
+      ! Atomic potential for nonadditive kinetic energy contribution
+      IF (dft_control%qs_control%do_kg) THEN
+         IF (qs_env%kg_env%tnadd_method == kg_tnadd_atomic) THEN
+            CALL get_qs_env(qs_env=qs_env, kg_env=kg_env, dbcsr_dist=dbcsr_dist)
+            IF (debug_forces) fodeb(1:3) = force(1)%kinetic(1:3, 1)
+            CALL build_tnadd_mat(kg_env=kg_env, matrix_p=matrix_p, force=force, virial=virial, &
+                                 calculate_forces=.TRUE., use_virial=use_virial, &
+                                 qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set, &
+                                 particle_set=particle_set, sab_orb=sab_orb, dbcsr_dist=dbcsr_dist)
+            IF (debug_forces) THEN
+               fodeb(1:3) = force(1)%kinetic(1:3, 1) - fodeb(1:3)
+               CALL mp_sum(fodeb, para_env%group)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dTnadd  ", fodeb
+            END IF
+         END IF
+      END IF
       DEALLOCATE (matrix_p, matrix_h)
       IF (debug_forces) THEN
          ALLOCATE (ftot2(3, natom))
@@ -457,6 +481,27 @@ CONTAINS
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dVhxc   ", fodeb
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vhxc_rspace%pw)
+
+      ! KG Embedding
+      ! calculate kinetic energy potential and integrate with response density
+      IF (dft_control%qs_control%do_kg) THEN
+         IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
+            CALL get_qs_env(qs_env, kg_env=kg_env)
+            ekin_mol = 0.0_dp
+            IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+            CALL kg_ekin_subset(qs_env=qs_env, &
+                                ks_matrix=scrm, &
+                                ekin_mol=ekin_mol, &
+                                calc_force=.TRUE., &
+                                do_kernel=.FALSE., &
+                                pmat_ext=matrix_pz)
+            IF (debug_forces) THEN
+               fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+               CALL mp_sum(fodeb, para_env%group)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dVkg   ", fodeb
+            END IF
+         END IF
+      END IF
 
       ALLOCATE (rhoz_r(nspins), rhoz_g(nspins))
       DO ispin = 1, nspins
@@ -548,6 +593,28 @@ CONTAINS
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dK*rhoz ", fodeb
       END IF
+
+      ! KG Embedding
+      ! calculate kinetic energy kernel, folded with response density for partial integration0
+      IF (dft_control%qs_control%do_kg) THEN
+         IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
+            CALL get_qs_env(qs_env, kg_env=kg_env)
+            ekin_mol = 0.0_dp
+            IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+            CALL kg_ekin_subset(qs_env=qs_env, &
+                                ks_matrix=matrix_hz, &
+                                ekin_mol=ekin_mol, &
+                                calc_force=.TRUE., &
+                                do_kernel=.TRUE., &
+                                pmat_ext=matrix_pz)
+            IF (debug_forces) THEN
+               fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+               CALL mp_sum(fodeb, para_env%group)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*d(Kkg)*rhoz ", fodeb
+            END IF
+         END IF
+      END IF
+
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_tot_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, zv_hartree_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, zv_hartree_gspace%pw)
