@@ -95,7 +95,15 @@ CONTAINS
 
          IF (PRESENT(consistent_energies)) THEN
             IF (consistent_energies) THEN
-               CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE.)
+               IF (ASSOCIATED(dft_control%rtp_control)) THEN
+                  IF (dft_control%rtp_control%periodic) THEN
+                     CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
+                  ELSE
+                     CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE.)
+                  ENDIF
+               ELSE
+                  CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE.)
+               ENDIF
                ! add MP2 energy if necessary
                IF (ASSOCIATED(qs_env%mp2_env)) THEN
                   energy%total = energy%total + energy%mp2
