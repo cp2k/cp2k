@@ -8,6 +8,7 @@
 ! **************************************************************************************************
 !> \par History
 !>      10.2005 split input_cp2k into smaller modules [fawzi]
+!>      01.2020 add keywords related to Space Groups [pcazade]
 !> \author teo & fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_motion
@@ -773,6 +774,7 @@ CONTAINS
 !> \param description ...
 !> \param just_optimizers ...
 !> \param use_model_hessian ...
+!> \note  01.2020 keywords related to Space Group Symmetry added [pcazade]
 !> \author teo
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE create_geoopt_section(section, location, label, description, just_optimizers, use_model_hessian)
@@ -859,6 +861,24 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="step_start_val", &
                           description="The starting step value for the "//TRIM(label)//" module.", &
                           usage="step_start_val <integer>", default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! [pcazade] collects keywords related to Space Group Symmetry
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="KEEP_SPACE_GROUP", &
+         description="Keep the space group symmetry operation during optimization.", &
+         usage="KEEP_SPACE_GROUP yes", &
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE., repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      
+      ! [pcazade] collects keywords related to precision for finding the space group
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="EPS_GEO", &
+                          description="Accuracy required for symmetry detection", &
+                          usage="EPS_GEO {REAL}", &
+                          default_r_val=1.e-4_dp, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

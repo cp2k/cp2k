@@ -8,7 +8,7 @@
 ! **************************************************************************************************
 !> \brief Main driver for L-BFGS optimizer
 !> \par History
-!>      none
+!>      01.2020 Space Group Symmetry introduced by Pierre-André Cazade [pcazade]
 ! **************************************************************************************************
 MODULE cp_lbfgs_geo
    USE cell_types,                      ONLY: cell_type
@@ -38,6 +38,19 @@ MODULE cp_lbfgs_geo
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
+   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                              cp_subsys_type
+   USE space_groups,                    ONLY: identify_space_group,&
+                                              spgr_find_equivalent_atoms,&
+                                              spgr_apply_rotations_coord,&
+                                              spgr_apply_rotations_force,&
+                                              spgr_apply_rotations_hess,&
+                                              spgr_gen,&
+                                              spgr_type,&
+                                              print_spgr,&
+                                              spgr_print_cell,&
+                                              spgr_print_xg,&
+                                              release_spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -59,6 +72,7 @@ CONTAINS
 !> \param x0 ...
 !> \par History
 !>      08.2003 created [fawzi]
+!>      01.2020 modified [pcazade]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE geoopt_lbfgs(force_env, gopt_param, globenv, geo_section, gopt_env, &
@@ -73,13 +87,15 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'geoopt_lbfgs'
 
       INTEGER                                            :: handle, iter_nr, its, output_unit
-      LOGICAL                                            :: converged, should_stop
+      LOGICAL                                            :: converged, should_stop, keep_sg
       REAL(KIND=dp)                                      :: trust_radius
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: root_section
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(spgr_type)                                    :: spgr
 
       CALL timeset(routineN, handle)
 
@@ -96,6 +112,14 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, geo_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".geoLog")
       CALL print_geo_opt_header(gopt_env, output_unit, "L-BFGS")
+
+      ! [pcazade] finds space group
+      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_sg)
+      IF (keep_sg) THEN
+        CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
+        CALL spgr_apply_rotations_coord(spgr, x0)
+        CALL print_spgr(spgr)
+      END IF
 
       ! Stop if not implemented
       IF (gopt_env%type_id == default_ts_method_id) &
@@ -115,8 +139,16 @@ CONTAINS
          CALL gopt_f_ii(its, output_unit)
 
          ! Real optimization step..
-         IF (.NOT. cp_opt_gopt_next(optimizer, geo_section=geo_section, &
-                                    force_env=force_env, gopt_param=gopt_param, converged=converged)) EXIT
+         IF(keep_sg)THEN
+            ! [pcazade] passes spgr structure if required
+            IF (.NOT. cp_opt_gopt_next(optimizer, geo_section=geo_section, &
+                                       force_env=force_env, gopt_param=gopt_param, &
+                                       converged=converged, spgr=spgr)) EXIT
+         ELSE
+            IF (.NOT. cp_opt_gopt_next(optimizer, geo_section=geo_section, &
+                                       force_env=force_env, gopt_param=gopt_param, &
+                                       converged=converged)) EXIT
+         ENDIF
 
          ! Check for an external exit command
          CALL external_control(should_stop, "GEO", globenv=globenv)
@@ -139,6 +171,11 @@ CONTAINS
       CALL cp_opt_gopt_release(optimizer)
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
+
+      ! [pcazade] deallocates spgr structure
+      IF (keep_sg) THEN
+         CALL release_spgr_type(spgr)
+      END IF
 
       CALL timestop(handle)
 

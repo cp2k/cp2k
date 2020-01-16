@@ -15,6 +15,7 @@
 !>      In the future tha arguments themselves could be distributed.
 !> \par History
 !>      09.2003 globenv->para_env, retain/release, better parallel behaviour
+!>      01.2020 Space Group Symmetry introduced by Pierre-André Cazade [pcazade]
 !> \author Fawzi Mohamed
 !>      @version 2.2002
 ! **************************************************************************************************
@@ -38,6 +39,9 @@ MODULE cp_lbfgs_optimizer_gopt
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_bcast
+   USE space_groups,                    ONLY: spgr_type,&
+                                              spgr_apply_rotations_coord,&
+                                              spgr_apply_rotations_force
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -476,7 +480,7 @@ CONTAINS
 !> \param force_env ...
 !> \param gopt_param ...
 !> \par History
-!>      none
+!>      01.2020 modified [pcazade]
 !> \author Fawzi Mohamed
 !>      @version 2.2002
 !> \note
@@ -484,7 +488,7 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE cp_opt_gopt_step(optimizer, n_iter, f, last_f, &
                                          projected_gradient, converged, geo_section, force_env, &
-                                         gopt_param)
+                                         gopt_param, spgr)
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
       INTEGER, INTENT(out), OPTIONAL                     :: n_iter
       REAL(kind=dp), INTENT(out), OPTIONAL               :: f, last_f, projected_gradient
@@ -497,10 +501,11 @@ CONTAINS
 
       CHARACTER(LEN=5)                                   :: wildcard
       INTEGER                                            :: dataunit, handle, its
-      LOGICAL                                            :: conv, is_master, justEntred
+      LOGICAL                                            :: conv, is_master, justEntred, keep_sg
       REAL(KIND=dp)                                      :: t_diff, t_now, t_old
       REAL(KIND=dp), DIMENSION(:), POINTER               :: xold
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(spgr_type), OPTIONAL                          :: spgr
 
       NULLIFY (logger, xold)
       logger => cp_get_default_logger()
@@ -509,6 +514,13 @@ CONTAINS
       is_master = optimizer%master == optimizer%para_env%mepos
       IF (PRESENT(converged)) converged = optimizer%status == 4
       ALLOCATE (xold(SIZE(optimizer%x)))
+
+      IF(PRESENT(spgr)) keep_sg = .TRUE.
+      ! [pcazade] applies rotation matrices to coordinates
+      IF (keep_sg) THEN
+         CALL spgr_apply_rotations_coord(spgr, optimizer%x)
+      END IF
+
       xold = optimizer%x
       t_old = m_walltime()
 
@@ -537,6 +549,11 @@ CONTAINS
                ! restart the optimizer
                optimizer%status = 0
                optimizer%task = 'START'
+               ! [pcazade] applies rotation matrices to coordinates and forces
+               IF (keep_sg) THEN
+                 CALL spgr_apply_rotations_coord(spgr, optimizer%x)
+                 CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+               END IF
                CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
                            optimizer%lower_bound, optimizer%upper_bound, &
                            optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
@@ -545,6 +562,11 @@ CONTAINS
                            optimizer%i_work_array, optimizer%task, optimizer%print_every, &
                            optimizer%csave, optimizer%lsave, optimizer%isave, &
                            optimizer%dsave, optimizer%trust_radius)
+               ! [pcazade] applies rotation matrices to coordinates and forces
+               IF (keep_sg) THEN
+                 CALL spgr_apply_rotations_coord(spgr, optimizer%x)
+                 CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+               END IF
             END IF
             IF (optimizer%task(1:2) == 'FG') THEN
                IF (optimizer%isave(36) > optimizer%max_f_per_iter) THEN
@@ -564,6 +586,11 @@ CONTAINS
             ELSE IF (optimizer%task(1:5) == 'NEW_X') THEN
                IF (justEntred) THEN
                   optimizer%status = 2
+                  ! [pcazade] applies rotation matrices to coordinates and forces
+                  IF (keep_sg) THEN
+                     CALL spgr_apply_rotations_coord(spgr, optimizer%x)
+                     CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+                  END IF
                   CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
                               optimizer%lower_bound, optimizer%upper_bound, &
                               optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
@@ -572,7 +599,17 @@ CONTAINS
                               optimizer%i_work_array, optimizer%task, optimizer%print_every, &
                               optimizer%csave, optimizer%lsave, optimizer%isave, &
                               optimizer%dsave, optimizer%trust_radius)
+                  ! [pcazade] applies rotation matrices to coordinates and forces
+                  IF (keep_sg) THEN
+                     CALL spgr_apply_rotations_coord(spgr, optimizer%x)
+                     CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+                  END IF
                ELSE
+                  ! [pcazade] applies rotation matrices to coordinates and forces
+                  IF (keep_sg) THEN
+                     CALL spgr_apply_rotations_coord(spgr, optimizer%x)
+                     CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+                  END IF
                   optimizer%status = 3
                END IF
             ELSE IF (optimizer%task(1:4) == 'CONV') THEN
@@ -606,6 +643,11 @@ CONTAINS
                             master=optimizer%master, para_env=optimizer%para_env)
             ! do not use keywords?
             IF (is_master) THEN
+               ! [pcazade] applies rotation matrices to coordinates and forces
+               IF (keep_sg) THEN
+                  CALL spgr_apply_rotations_coord(spgr, optimizer%x)
+                  CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+               END IF
                CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
                            optimizer%lower_bound, optimizer%upper_bound, &
                            optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
@@ -614,6 +656,11 @@ CONTAINS
                            optimizer%i_work_array, optimizer%task, optimizer%print_every, &
                            optimizer%csave, optimizer%lsave, optimizer%isave, &
                            optimizer%dsave, optimizer%trust_radius)
+               ! [pcazade] applies rotation matrices to coordinates and forces
+               IF (keep_sg) THEN
+                  CALL spgr_apply_rotations_coord(spgr, optimizer%x)
+                  CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+               END IF
             END IF
             CALL mp_bcast(optimizer%x, optimizer%master, optimizer%para_env%group)
          CASE (2)
@@ -754,7 +801,7 @@ CONTAINS
 !> \param gopt_param ...
 !> \return ...
 !> \par History
-!>      none
+!>      01.2020 modified [pcazade] 
 !> \author Fawzi Mohamed
 !>      @version 2.2002
 !> \note
@@ -762,7 +809,7 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE FUNCTION cp_opt_gopt_next(optimizer, n_iter, f, last_f, &
                                        projected_gradient, converged, geo_section, force_env, &
-                                       gopt_param) RESULT(res)
+                                       gopt_param, spgr) RESULT(res)
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
       INTEGER, INTENT(out), OPTIONAL                     :: n_iter
       REAL(kind=dp), INTENT(out), OPTIONAL               :: f, last_f, projected_gradient
@@ -771,15 +818,24 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       LOGICAL                                            :: res
+      TYPE(spgr_type), OPTIONAL                          :: spgr
 
 !call timeset(routineN,handle)
 
       CPASSERT(ASSOCIATED(optimizer))
       CPASSERT(optimizer%ref_count > 0)
-      CALL cp_opt_gopt_step(optimizer, n_iter=n_iter, f=f, &
-                            last_f=last_f, projected_gradient=projected_gradient, &
-                            converged=converged, geo_section=geo_section, &
-                            force_env=force_env, gopt_param=gopt_param)
+      IF(PRESENT(spgr))THEN
+         ! [pcazade] passes spgr structure if present
+         CALL cp_opt_gopt_step(optimizer, n_iter=n_iter, f=f, &
+                               last_f=last_f, projected_gradient=projected_gradient, &
+                               converged=converged, geo_section=geo_section, &
+                               force_env=force_env, gopt_param=gopt_param, spgr=spgr)
+      ELSE
+         CALL cp_opt_gopt_step(optimizer, n_iter=n_iter, f=f, &
+                               last_f=last_f, projected_gradient=projected_gradient, &
+                               converged=converged, geo_section=geo_section, &
+                               force_env=force_env, gopt_param=gopt_param)
+      ENDIF
       res = (optimizer%status < 40) .AND. .NOT. converged
       !call timestop(handle)
    END FUNCTION cp_opt_gopt_next
