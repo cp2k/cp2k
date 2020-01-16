@@ -8271,20 +8271,9 @@ CONTAINS
 !  The KERNEL subsection
       CALL section_create(subsection, __LOCATION__, name="KERNEL", &
                           description="Defines how the kernel is built in terms of functionals.", &
-                          n_keywords=2, &
+                          n_keywords=1, &
                           n_subsections=1, &
                           repeats=.FALSE.)
-
-      CALL keyword_create(keyword, __LOCATION__, name="NPROCS_GRID", &
-                          variants=s2a("BATCH_SIZE", "NPROCS_PER_GRID"), &
-                          description="The MPI processes are split into batches of size NPROCS_GRID "// &
-                          "for the parallel treatment of the XC kernel. The excited "// &
-                          "atoms are distributed over the batches and their integration "// &
-                          "grids are split over the procs of the corresponding batch.", &
-                          usage="NPROCS_GRID {integer}", &
-                          default_i_val=1)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RI_REGION", &
                           variants=(/"RI_RADIUS"/), &

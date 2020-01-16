@@ -43,7 +43,6 @@
       
       &KERNEL
          RI_RADIUS 3.0
-         NPROCS_GRID 2
          &XC_FUNCTIONAL
             &LIBXC
                FUNCTIONAL GGA_X_PBE

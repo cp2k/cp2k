@@ -984,10 +984,6 @@ CONTAINS
          WRITE (UNIT=ou, FMT="(/,T3,A,F5.2,A)") &
             "XAS_TDP| RI Region's Radius: ", xas_tdp_control%ri_radius*angstrom, " Ang"
 
-         !parallelization scheme
-         WRITE (UNIT=ou, FMT="(T3,A,I4,A)") &
-            "XAS_TDP| Excited atoms distributed on batches of ", xas_tdp_control%batch_size, " procs"
-
          CALL libxc_version_info(tmpStr)
          WRITE (UNIT=ou, FMT="(T3,A,A,/,T3,A,/)") &
             "XAS_TDP| XC Kernel Functional(s) from LIBXC Vers. ", TRIM(tmpStr(1:5)), &

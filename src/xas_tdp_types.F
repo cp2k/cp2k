@@ -11,11 +11,14 @@
 MODULE xas_tdp_types
    USE cp_array_utils,                  ONLY: cp_1d_i_p_type,&
                                               cp_1d_r_p_type,&
+                                              cp_2d_i_p_type,&
                                               cp_2d_r_p_type,&
                                               cp_3d_r_p_type
    USE cp_files,                        ONLY: file_exists
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
+   USE cp_para_env,                     ONLY: cp_para_env_release
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
                                               dbcsr_p_type,&
@@ -88,14 +91,12 @@ MODULE xas_tdp_types
 !>                    the number of rows is the number of times the keyword is repeated
 !> \param grid_info the information about the atomic grids used for the xc kernel integrals
 !> \param is_periodic self-explanatory
-!> \param batch_size how many procs are allocated to the XC treatment of excited atoms
 ! **************************************************************************************************
    TYPE xas_tdp_control_type
       INTEGER                                 :: define_excited
       INTEGER                                 :: dipole_form
       INTEGER                                 :: n_search
       INTEGER                                 :: n_excited
-      INTEGER                                 :: batch_size
       REAL(dp)                                :: e_range
       REAL(dp)                                :: sx
       REAL(dp)                                :: eps_range
@@ -265,7 +266,7 @@ MODULE xas_tdp_types
 
    END TYPE donor_state_type
 
-!  Some helper types
+!  Some helper types for xas_tdp_atom
    TYPE grid_atom_p_type
       TYPE(grid_atom_type), POINTER                   :: grid_atom
    END TYPE grid_atom_p_type
@@ -273,6 +274,17 @@ MODULE xas_tdp_types
    TYPE harmonics_atom_p_type
       TYPE(harmonics_atom_type), POINTER              :: harmonics_atom
    END TYPE harmonics_atom_p_type
+
+   TYPE batch_info_type
+      TYPE(cp_para_env_type), POINTER             :: para_env
+      INTEGER                                     :: batch_size
+      INTEGER                                     :: nbatch
+      INTEGER                                     :: ibatch
+      INTEGER                                     :: ipe
+      INTEGER, DIMENSION(:), ALLOCATABLE          :: nso_proc
+      INTEGER, DIMENSION(:, :), ALLOCATABLE       :: so_bo
+      TYPE(cp_2d_i_p_type), POINTER, DIMENSION(:) :: so_proc_info
+   END TYPE batch_info_type
 
 ! **************************************************************************************************
 !> \brief a environment type that contains all the info needed for XAS_TDP atomic grid calculations
@@ -312,13 +324,15 @@ MODULE xas_tdp_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tdp_types'
 
 ! *** Public data types ***
-   PUBLIC :: xas_tdp_env_type, donor_state_type, xas_tdp_control_type, xas_atom_env_type
+   PUBLIC :: xas_tdp_env_type, donor_state_type, xas_tdp_control_type, xas_atom_env_type, &
+             batch_info_type
 
 ! *** Public subroutines ***
-   PUBLIC :: set_donor_state, free_ds_memory, &
+   PUBLIC :: set_donor_state, free_ds_memory, release_batch_info, &
              xas_tdp_env_create, xas_tdp_env_release, set_xas_tdp_env, &
              xas_tdp_control_create, xas_tdp_control_release, read_xas_tdp_control, &
-             xas_atom_env_create, xas_atom_env_release, donor_state_create, free_exat_memory
+             xas_atom_env_create, xas_atom_env_release, donor_state_create, free_exat_memory, &
+             get_proc_batch_sizes
 
 CONTAINS
 
@@ -544,8 +558,6 @@ CONTAINS
                                 l_val=xas_tdp_control%do_xc)
       CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%_SECTION_PARAMETERS_", &
                                 l_val=xas_tdp_control%do_hfx)
-
-      CALL section_vals_val_get(xas_tdp_section, "KERNEL%NPROCS_GRID", i_val=xas_tdp_control%batch_size)
 
       CALL section_vals_val_get(xas_tdp_section, "KERNEL%RI_REGION", r_val=xas_tdp_control%ri_radius)
       xas_tdp_control%ri_radius = bohr*xas_tdp_control%ri_radius
@@ -1271,5 +1283,72 @@ CONTAINS
       xas_tdp_env%fxc_avail = .FALSE.
 
    END SUBROUTINE free_exat_memory
+
+! **************************************************************************************************
+!> \brief Releases a batch_info type
+!> \param batch_info ...
+! **************************************************************************************************
+   SUBROUTINE release_batch_info(batch_info)
+
+      TYPE(batch_info_type)                              :: batch_info
+
+      INTEGER                                            :: i
+
+      CALL cp_para_env_release(batch_info%para_env)
+
+      IF (ASSOCIATED(batch_info%so_proc_info)) THEN
+         DO i = 1, SIZE(batch_info%so_proc_info)
+            IF (ASSOCIATED(batch_info%so_proc_info(i)%array)) THEN
+               DEALLOCATE (batch_info%so_proc_info(i)%array)
+            END IF
+         END DO
+         DEALLOCATE (batch_info%so_proc_info)
+      END IF
+
+   END SUBROUTINE release_batch_info
+
+! **************************************************************************************************
+!> \brief Uses heuristics to determine a good batching of the processros for fxc integration
+!> \param batch_size ...
+!> \param nbatch ...
+!> \param nex_atom ...
+!> \param nprocs ...
+!> \note It is here and not in xas_tdp_atom because of circular dependencies issues
+! **************************************************************************************************
+   SUBROUTINE get_proc_batch_sizes(batch_size, nbatch, nex_atom, nprocs)
+
+      INTEGER, INTENT(OUT)                               :: batch_size, nbatch
+      INTEGER, INTENT(IN)                                :: nex_atom, nprocs
+
+      INTEGER                                            :: rest, test_size
+
+      !We have essentially 2 cases nex_atom >= nprocs or nex_atom < nprocs
+
+      IF (nex_atom >= nprocs) THEN
+
+         !If nex_atom >= nprocs, we look from batch size (starting from 1, ending with 4) that yields
+         !the best indicative load balance, i.e. the best spread of excited atom per batch
+         rest = 100000
+         DO test_size = 1, MIN(nprocs, 4)
+            nbatch = nprocs/test_size
+            IF (MODULO(nex_atom, nbatch) < rest) THEN
+               rest = MODULO(nex_atom, nbatch)
+               batch_size = test_size
+            END IF
+         END DO
+         nbatch = nprocs/batch_size
+
+      ELSE
+
+         !If nex_atom < nprocs, simply devide processors in nex_atom batches
+         nbatch = nex_atom
+         batch_size = nprocs/nbatch
+
+      END IF
+
+      !Note: because of possible odd numbers of MPI ranks / excited atoms, a couple of procs can
+      !      be excluded from the batching (max 4)
+
+   END SUBROUTINE get_proc_batch_sizes
 
 END MODULE xas_tdp_types

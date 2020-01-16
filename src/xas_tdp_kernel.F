@@ -25,10 +25,7 @@ MODULE xas_tdp_kernel
         dbcsr_type_symmetric
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_irecv,&
-                                              mp_isend,&
-                                              mp_waitall
+   USE message_passing,                 ONLY: mp_bcast
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -40,6 +37,7 @@ MODULE xas_tdp_kernel
         o3c_vec_release, o3c_vec_type
    USE util,                            ONLY: get_limit
    USE xas_tdp_types,                   ONLY: donor_state_type,&
+                                              get_proc_batch_sizes,&
                                               xas_tdp_control_type,&
                                               xas_tdp_env_type
 
@@ -87,9 +85,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'kernel_coulomb_xc', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: bo(2), handle, i, ibatch, iex, lb, &
-                                                            natom, nbatch, ndo_mo, ndo_so, &
-                                                            nex_atom, nsgfp, ri_atom, source, ub
+      INTEGER                                            :: batch_size, bo(2), handle, i, ibatch, &
+                                                            iex, lb, natom, nbatch, ndo_mo, &
+                                                            ndo_so, nex_atom, nsgfp, ri_atom, &
+                                                            source, ub
       INTEGER, DIMENSION(:), POINTER                     :: blk_size
       LOGICAL                                            :: do_coulomb, do_sc, do_sf, do_sg, do_tp, &
                                                             do_xc, found
@@ -143,9 +142,8 @@ CONTAINS
             nsgfp = SIZE(PQ, 1)
             CALL get_qs_env(qs_env, para_env=para_env)
             found = .FALSE.
-            nbatch = para_env%num_pe/xas_tdp_control%batch_size
-            IF (nbatch*xas_tdp_control%batch_size .NE. para_env%num_pe) nbatch = nbatch + 1
             nex_atom = SIZE(xas_tdp_env%ex_atom_indices)
+            CALL get_proc_batch_sizes(batch_size, nbatch, nex_atom, para_env%num_pe)
 
             DO ibatch = 0, nbatch - 1
 
@@ -153,7 +151,7 @@ CONTAINS
                DO iex = bo(1), bo(2)
 
                   IF (xas_tdp_env%ex_atom_indices(iex) == ri_atom) THEN
-                     source = ibatch*xas_tdp_control%batch_size !fxc is on all procs of the batch,
+                     source = ibatch*batch_size
                      found = .TRUE. !but simply take the first
                      EXIT
                   END IF
