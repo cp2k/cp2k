@@ -41,8 +41,7 @@ MODULE cp_control_utils
         sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
         tddfpt_excitations, use_mom_ref_user, xas_dip_len
    USE input_cp2k_check,                ONLY: xc_functionals_expand
-   USE input_cp2k_dft,                  ONLY: create_dft_section,&
-                                              create_qs_section
+   USE input_cp2k_dft,                  ONLY: create_dft_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
    USE input_keyword_types,             ONLY: keyword_get,&
@@ -602,9 +601,6 @@ CONTAINS
       LOGICAL                                            :: explicit, was_present
       REAL(dp)                                           :: tmp, tmpsqrt, value
       REAL(dp), POINTER                                  :: scal(:)
-      TYPE(enumeration_type), POINTER                    :: enum
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: section
       TYPE(section_vals_type), POINTER :: cdft_control_section, ddapc_restraint_section, &
          dftb_parameter, dftb_section, lri_optbas_section, mull_section, s2_restraint_section, &
          se_section, xtb_parameter, xtb_section
@@ -754,12 +750,6 @@ CONTAINS
 
       !Method
       CALL section_vals_val_get(qs_section, "METHOD", i_val=qs_control%method_id)
-      NULLIFY (section, keyword, enum)
-      CALL create_qs_section(section)
-      keyword => section_get_keyword(section, "METHOD")
-      CALL keyword_get(keyword, enum=enum)
-      qs_control%method = enum_i2c(enum, qs_control%method_id)
-      CALL section_release(section)
       qs_control%gapw = .FALSE.
       qs_control%gapw_xc = .FALSE.
       qs_control%gpw = .FALSE.
@@ -1588,31 +1578,42 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_qs_control', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(len=20)                                  :: method, quadrature
       INTEGER                                            :: handle, i, igrid_level, ngrid_level, &
                                                             output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: section
+      TYPE(section_type), POINTER                        :: qs_section
+      TYPE(section_vals_type), POINTER                   :: print_section_vals, qs_section_vals
 
       IF (qs_control%semi_empirical) RETURN
       IF (qs_control%dftb) RETURN
       IF (qs_control%xtb) RETURN
       CALL timeset(routineN, handle)
-      NULLIFY (logger, enum, keyword, section)
+      NULLIFY (logger, print_section_vals, qs_section, qs_section_vals)
       logger => cp_get_default_logger()
+      print_section_vals => section_vals_get_subs_vals(dft_section, "PRINT")
+      qs_section_vals => section_vals_get_subs_vals(dft_section, "QS")
+      CALL section_vals_get(qs_section_vals, section=qs_section)
 
-      CALL create_qs_section(section)
-      keyword => section_get_keyword(section, "QUADRATURE")
+      NULLIFY (enum, keyword)
+      keyword => section_get_keyword(qs_section, "METHOD")
       CALL keyword_get(keyword, enum=enum)
+      method = enum_i2c(enum, qs_control%method_id)
 
-      output_unit = cp_print_key_unit_nr(logger, dft_section, &
-                                         "PRINT%DFT_CONTROL_PARAMETERS", extension=".Log")
+      NULLIFY (enum, keyword)
+      keyword => section_get_keyword(qs_section, "QUADRATURE")
+      CALL keyword_get(keyword, enum=enum)
+      quadrature = enum_i2c(enum, qs_control%gapw_control%quadrature)
+
+      output_unit = cp_print_key_unit_nr(logger, print_section_vals, &
+                                         "DFT_CONTROL_PARAMETERS", extension=".Log")
       IF (output_unit > 0) THEN
          ngrid_level = SIZE(qs_control%e_cutoff)
-         WRITE (UNIT=output_unit, FMT="(/,T2,A,T71,A)") &
-            "QS| Method:", ADJUSTR(qs_control%method)
+         WRITE (UNIT=output_unit, FMT="(/,T2,A,T61,A20)") &
+            "QS| Method:", ADJUSTR(method)
          IF (qs_control%pw_grid_opt%spherical) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T61,A)") &
                "QS| Density plane wave grid type", " SPHERICAL HALFSPACE"
@@ -1678,9 +1679,9 @@ CONTAINS
                qs_control%gapw_control%eps_svd, &
                "QS| GAPW|                   eps_cpc:", &
                qs_control%gapw_control%eps_cpc
-            WRITE (UNIT=output_unit, FMT="(T2,A,T55,A30)") &
+            WRITE (UNIT=output_unit, FMT="(T2,A,T61,A20)") &
                "QS| GAPW|   atom-r-grid: quadrature:", &
-               enum_i2c(enum, qs_control%gapw_control%quadrature)
+               ADJUSTR(quadrature)
             WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
                "QS| GAPW|      atom-s-grid:  max l :", &
                qs_control%gapw_control%lmax_sphere, &
@@ -1764,9 +1765,8 @@ CONTAINS
             END SELECT
          END IF
       END IF
-      CALL cp_print_key_finished_output(output_unit, logger, dft_section, &
-                                        "PRINT%DFT_CONTROL_PARAMETERS")
-      CALL section_release(section)
+      CALL cp_print_key_finished_output(output_unit, logger, print_section_vals, &
+                                        "DFT_CONTROL_PARAMETERS")
 
       CALL timestop(handle)
 

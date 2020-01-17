@@ -264,7 +264,6 @@ MODULE cp_control_types
 !                     Gaussian-type functions (primitive basis functions).
 ! **************************************************************************************************
    TYPE qs_control_type
-      CHARACTER(LEN=10)                    :: method
       INTEGER                              :: method_id
       REAL(KIND=dp)                        :: eps_core_charge, &
                                               eps_kg_orb, &
