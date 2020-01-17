@@ -17,8 +17,11 @@ MODULE qs_tddfpt2_methods
                                               tddfpt2_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_p_type,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_create,&
                                               cp_fm_release
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -29,6 +32,7 @@ MODULE qs_tddfpt2_methods
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
    USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE exstates_types,                  ONLY: excited_energy_type
    USE header,                          ONLY: tddfpt_header
    USE input_constants,                 ONLY: tddfpt_dipole_velocity,&
                                               tddfpt_kernel_full,&
@@ -121,10 +125,12 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: dipole_op_mos_occ, evects, S_evects
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(full_kernel_env_type), TARGET                 :: full_kernel_env, kernel_env_admm_aux
       TYPE(kernel_env_type)                              :: kernel_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -384,6 +390,29 @@ CONTAINS
                                             min_amplitude=tddfpt_control%min_excitation_amplitude)
       CALL tddfpt_print_nto_analysis(qs_env, evects, evals, gs_mos, matrix_s(1)%matrix, &
                                      tddfpt_print_section)
+
+      ! excited state potential energy surface
+      IF(qs_env%excited_state) THEN
+         CALL get_qs_env(qs_env,exstate_env=ex_env)
+         IF(ex_env%state > nstates) THEN
+            CALL cp_warn(__LOCATION__, "There were not enough excited states calculated.")
+            CPABORT("excited state potential energy surface")
+         END IF
+         ex_env%evalue = evals(ex_env%state)
+         IF(ASSOCIATED(ex_env%evect)) THEN
+            DO ispin = 1, SIZE(ex_env%evect)
+               CALL cp_fm_release(ex_env%evect(ispin)%matrix)
+            END DO
+            DEALLOCATE (ex_env%evect)
+         END IF
+         ALLOCATE(ex_env%evect(nspins))
+         DO ispin = 1, nspins
+            CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct)
+            NULLIFY (ex_env%evect(ispin)%matrix)
+            CALL cp_fm_create(ex_env%evect(ispin)%matrix, matrix_struct)
+            CALL cp_fm_to_fm(evects(ispin, ex_env%state)%matrix, ex_env%evect(ispin)%matrix)
+         END DO
+      END IF
 
       ! -- clean up all useless stuff
       DO istate = SIZE(evects, 2), 1, -1

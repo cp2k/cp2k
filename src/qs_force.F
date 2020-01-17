@@ -34,6 +34,7 @@ MODULE qs_force
    USE dft_plus_u,                      ONLY: plus_u
    USE ec_env_types,                    ONLY: energy_correction_type
    USE efield_utils,                    ONLY: calculate_ecore_efield
+   USE excited_states,                  ONLY: excited_state_energy
    USE energy_corrections,              ONLY: energy_correction
    USE input_constants,                 ONLY: do_admm_purify_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -379,6 +380,9 @@ CONTAINS
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
          CALL update_mp2_forces(qs_env)
       END IF
+
+      ! Excited state forces
+      CALL excited_state_energy(qs_env, calculate_forces=.TRUE.)
 
       ! replicate forces (get current pointer)
       NULLIFY (force)

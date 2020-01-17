@@ -109,6 +109,7 @@ MODULE input_cp2k_dft
    USE input_cp2k_external,             ONLY: create_ext_den_section,&
                                               create_ext_pot_section,&
                                               create_ext_vxc_section
+   USE input_cp2k_exstate,              ONLY: create_exstate_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
                                               create_per_efield_section
    USE input_cp2k_kpoints,              ONLY: create_kpoints_section
@@ -398,6 +399,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_ec_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_exstate_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -4932,7 +4937,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="tddfpt", &
-                          description="parameters needed to set up the Time Dependent Density Functional PT", &
+                          description="Old TDDFPT code. Use new version in CP2K_INPUT / FORCE_EVAL / PROPERTIES / TDDFPT", &
                           n_keywords=5, n_subsections=1, repeats=.FALSE., &
                           citations=(/Iannuzzi2005/))
 
