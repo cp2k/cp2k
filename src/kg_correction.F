@@ -12,8 +12,6 @@
 MODULE kg_correction
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_dot,&
@@ -100,10 +98,10 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
       REAL(KIND=dp), INTENT(out)                         :: ekin_mol
-      LOGICAL                                            :: calc_force, do_kernel
+      LOGICAL, INTENT(IN)                                :: calc_force, do_kernel
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pmat_ext
-      REAL(KIND=dp), OPTIONAL                            :: alpha
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_subset', routineP = moduleN//':'//routineN
 
@@ -149,10 +147,10 @@ CONTAINS
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
       REAL(KIND=dp), INTENT(out)                         :: ekin_mol
-      LOGICAL                                            :: calc_force, do_kernel
+      LOGICAL, INTENT(IN)                                :: calc_force, do_kernel
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pmat_ext
-      REAL(KIND=dp), OPTIONAL                            :: alpha
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_embed', routineP = moduleN//':'//routineN
 
@@ -221,11 +219,11 @@ CONTAINS
       ! calculate xc potential or kernel
       IF (do_kernel) THEN
          ! derivation wrt to rho_struct and evaluation at rho_struct
-         CALL calculate_kernel(qs_env, &
-                               vxc=vxc_rho, &
-                               rho=rho_struct, &
-                               rho1=rho1, &
-                               xc_section=kg_env%xc_section_kg)
+         CALL create_kernel(qs_env, &
+                            vxc=vxc_rho, &
+                            rho=rho_struct, &
+                            rho1=rho1, &
+                            xc_section=kg_env%xc_section_kg)
       ELSE
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=kg_env%xc_section_kg, &
                             vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=ekin_imol)
@@ -267,11 +265,11 @@ CONTAINS
 
          ! calculate kernel
          IF (do_kernel) THEN
-            CALL calculate_kernel(qs_env, &
-                                  vxc=vxc_rho, &
-                                  rho=rho_struct, &
-                                  rho1=rho1, &
-                                  xc_section=kg_env%xc_section_kg)
+            CALL create_kernel(qs_env, &
+                               vxc=vxc_rho, &
+                               rho=rho_struct, &
+                               rho1=rho1, &
+                               xc_section=kg_env%xc_section_kg)
          ELSE
             CALL qs_vxc_create(ks_env=ks_env, &
                                rho_struct=rho_struct, &
@@ -693,32 +691,30 @@ CONTAINS
    END SUBROUTINE kg_ekin_atomic
 
 ! **************************************************************************************************
-!> \brief   Calculation of second derivative xc-potential
+!> \brief   Creation of second derivative xc-potential
 !> \param   qs_env ...
-!> \param   vxc [OUT], contains partially integrated second derivative
-!>          taken with respect to rho, evluated in rho and folded with rho1
-!> \param rho ...
-!> \param rho1 ...
-!> \param xc_section ...
+!> \param   vxc will contain the partially integrated second derivative
+!>          taken with respect to rho, evaluated in rho and folded with rho1
+!>          vxc is allocated here and needs to be deallocated by the caller.
+!> \param rho density at which derivatives were calculated
+!> \param rho1 density with which to fold
+!> \param xc_section XC parameters
 !> \date    11.2019
-!> \param
-!> \param
 !> \author  fbelle
 ! **************************************************************************************************
-   SUBROUTINE calculate_kernel(qs_env, vxc, rho, rho1, xc_section)
+   SUBROUTINE create_kernel(qs_env, vxc, rho, rho1, xc_section)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc
+      TYPE(pw_p_type), DIMENSION(:), INTENT(OUT), &
+         POINTER                                         :: vxc
       TYPE(qs_rho_type), POINTER                         :: rho, rho1
       TYPE(section_vals_type), POINTER                   :: xc_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_kernel', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_kernel', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: lsd
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, tau_pw, vxc_rho
@@ -729,8 +725,6 @@ CONTAINS
       TYPE(xc_rho_set_type), POINTER                     :: rho1_set, rho_set
 
       CALL timeset(routineN, handle)
-      NULLIFY (logger)
-      logger => cp_get_default_logger()
 
       CPASSERT(.NOT. ASSOCIATED(vxc))
       NULLIFY (auxbas_pw_pool, pw_env, vxc_rho)
@@ -798,13 +792,11 @@ CONTAINS
       CALL xc_rho_set_release(rho_set=rho1_set, pw_pool=auxbas_pw_pool)
 
       ! export vxc
-      IF (ASSOCIATED(vxc_rho)) THEN
-         ALLOCATE (vxc(nspins))
-         DO ispin = 1, nspins
-            vxc(ispin)%pw => vxc_rho(ispin)%pw
-         END DO
-         DEALLOCATE (vxc_rho)
-      END IF
+      ALLOCATE (vxc(nspins))
+      DO ispin = 1, nspins
+         vxc(ispin)%pw => vxc_rho(ispin)%pw
+      END DO
+      DEALLOCATE (vxc_rho)
 
       CALL timestop(handle)
 
