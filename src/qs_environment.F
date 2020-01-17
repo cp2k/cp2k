@@ -729,11 +729,11 @@ CONTAINS
 
       !   *** Check that no all-electron potential is present if GPW or GAPW_XC
       CALL get_qs_kind_set(qs_kind_set, all_potential_present=all_potential_present)
-      IF ((dft_control%qs_control%method == "GPW") .OR. &
-          (dft_control%qs_control%method == "GAPW_XC") .OR. &
-          (dft_control%qs_control%method == "OFGPW")) THEN
+      IF ((dft_control%qs_control%method_id == do_method_gpw) .OR. &
+          (dft_control%qs_control%method_id == do_method_gapw_xc) .OR. &
+          (dft_control%qs_control%method_id == do_method_ofgpw)) THEN
          IF (all_potential_present) THEN
-            CPABORT("All-el calculations with GPW, GAPW_XC, and OFGPW are not implemented ")
+            CPABORT("All-electron calculations with GPW, GAPW_XC, and OFGPW are not implemented")
          END IF
       END IF
 
@@ -831,11 +831,11 @@ CONTAINS
          lmax_sphere = 2*maxlgto
          dft_control%qs_control%gapw_control%lmax_sphere = lmax_sphere
       END IF
-      IF (dft_control%qs_control%method == "LRIGPW" .OR. dft_control%qs_control%lri_optbas) THEN
+      IF (dft_control%qs_control%method_id == do_method_lrigpw .OR. dft_control%qs_control%lri_optbas) THEN
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto_lri, basis_type="LRI_AUX")
          !take maxlgto from lri basis if larger (usually)
          maxlgto = MAX(maxlgto, maxlgto_lri)
-      ELSE IF (dft_control%qs_control%method == "RIGPW") THEN
+      ELSE IF (dft_control%qs_control%method_id == do_method_rigpw) THEN
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto_lri, basis_type="RI_HXC")
          maxlgto = MAX(maxlgto, maxlgto_lri)
       END IF
@@ -854,8 +854,8 @@ CONTAINS
       CALL init_qs_kind_set(qs_kind_set)
 
       !   *** Initialise GAPW soft basis and projectors
-      IF (dft_control%qs_control%method == "GAPW" .OR. &
-          dft_control%qs_control%method == "GAPW_XC") THEN
+      IF (dft_control%qs_control%method_id == do_method_gapw .OR. &
+          dft_control%qs_control%method_id == do_method_gapw_xc) THEN
          qs_control => dft_control%qs_control
          CALL init_gapw_basis_set(qs_kind_set, qs_control, qs_env%input)
       ENDIF
@@ -1492,7 +1492,7 @@ CONTAINS
       CALL qs_env_setup(qs_env)
 
       ! Allocate and Initialie rho0 soft on the global grid
-      IF (dft_control%qs_control%method == "GAPW") THEN
+      IF (dft_control%qs_control%method_id == do_method_gapw) THEN
          CALL get_qs_env(qs_env=qs_env, rho0_mpole=rho0_mpole)
          CALL rho0_s_grid_create(qs_env, rho0_mpole)
       END IF
