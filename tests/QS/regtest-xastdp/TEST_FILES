@@ -1,25 +1,25 @@
 #Testing the XAS_TDP method and the keyword combinations it involves
 #Checking that the user can spefify his own RI_XAS basis set + simple LDA
-Ne-LDA-extRI_XAS.inp                                   88      1e-06           833.277232
+Ne-LDA-extRI_XAS.inp                                   88      1e-08           833.277232
 #Checking that the searched excitation energies can be defined by a range
-Ne-LDA-e_range.inp                                     88      1e-06           829.640328
+Ne-LDA-e_range.inp                                     88      1e-08           829.640328
 #Checking full TDDFT and simple hybrid functional
-H2O-B3LYP-full.inp                                     88      1e-06           519.570612
+H2O-B3LYP-full.inp                                     88      1e-08           519.570612
 #Checking the ability to restart for PDOS and CUBES
 H2O-B3LYP-full-restart.inp                             0
 #Checking the non-zero RI_REGION for better density projection
-C2H2-PBE-ri_region.inp                                 88      1e-06           269.849841
+C2H2-PBE-ri_region.inp                                 88      1e-08           269.849841
 #Checking truncated and shortrange operators for exchange in PBCs
 #as well as the use of RI metrics for screening
-Ne-pbc-shortrange.inp                                  88      1e-06           890.494623
-Ne-pbc-shortrange-metric.inp                           88      1e-06           890.495800
-Ne-pbc-truncated.inp                                   88      1e-06           890.773794
-Ne-pbc-truncated-metric.inp                            88      1e-06           890.780820
+Ne-pbc-shortrange.inp                                  88      1e-08           890.494623
+Ne-pbc-shortrange-metric.inp                           88      1e-08           890.495800
+Ne-pbc-truncated.inp                                   88      1e-08           890.773794
+Ne-pbc-truncated-metric.inp                            88      1e-08           890.780820
 #Checking the use of pseudo-potential and ADMM
-SiH4-PBE0-admm-pseudo.inp                              88      1e-06           146.188189
+SiH4-PBE0-admm-pseudo.inp                              88      1e-08           146.188189
 #Checking open-shell calculation with non-singlet ground state
 CH3-PBE-uks.inp                                        88      1e-06           265.243216 
 #Checking singlet, triplet, spin-conserving, spin-flip and SOC
-Ar-HF-2p-SOC-rcs.inp                                   88      1e-06           261.348884
-Ar-HF-2p-SOC-os.inp                                    88      1e-06           261.347343
+Ar-HF-2p-SOC-rcs.inp                                   88      1e-08           261.348884
+Ar-HF-2p-SOC-os.inp                                    88      1e-08           261.347343
 #EOF
