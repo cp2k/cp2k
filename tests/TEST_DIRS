@@ -41,7 +41,7 @@ QS/regtest-p-efield
 QS/regtest-mp2-stress                                       libint
 QS/regtest-ri-rpa                                           libint
 QS/regtest-kg                                               libxc
-QS/regtest-ec
+QS/regtest-ec                                               libint
 QS/regtest-gpw-4
 QS/regtest-gpw-8
 QS/regtest-gpw-2-3
@@ -55,7 +55,7 @@ QS/regtest-gw                                               libint
 QS/regtest-rel
 QS/regtest-admm-qps                                         libint
 QS/regtest-sccs-1
-QS/regtest-kp-1
+QS/regtest-kp-1                                             libint
 QS/regtest-kp-3
 QS/regtest-slab
 ATOM/regtest-pseudo
@@ -74,7 +74,7 @@ QMMM/SE/regtest-force-mixing
 QS/regtest-xc
 QS/regtest-hfx-wfn-fitting                                  libint
 QS/regtest-tddfpt
-QS/regtest-tddfpt-stda
+QS/regtest-tddfpt-stda                                      libint
 QS/regtest-libxc                                            libxc libint
 QS/regtest-ps-implicit-2-2
 QMMM/QS/regtest-1
