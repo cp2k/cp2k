@@ -92,6 +92,7 @@ cd  /opt/aiida-cp2k/
 set +e # disable error trapping for remainder of script
 (
 set -e # abort on error
+ulimit -t 1800  # abort after 30 minutes
 $AS_UBUNTU_USER py.test
 )
 
