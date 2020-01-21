@@ -501,22 +501,15 @@ CONTAINS
 !> \param nchan_s ...
 !> \param nchan_c ...
 !> \param zeff ...
-!> \param tddft ...
 ! **************************************************************************************************
-   SUBROUTINE initialize_mpole_rho(mp_rho, nchan_s, nchan_c, zeff, tddft)
+   SUBROUTINE initialize_mpole_rho(mp_rho, nchan_s, nchan_c, zeff)
 
       TYPE(mpole_rho_atom)                               :: mp_rho
       INTEGER, INTENT(IN)                                :: nchan_s, nchan_c
       REAL(KIND=dp), INTENT(IN)                          :: zeff
-      LOGICAL, OPTIONAL                                  :: tddft
 
       CHARACTER(len=*), PARAMETER :: routineN = 'initialize_mpole_rho', &
          routineP = moduleN//':'//routineN
-
-      LOGICAL                                            :: my_tddft
-
-      my_tddft = .FALSE.
-      IF (PRESENT(tddft)) my_tddft = tddft
 
       CALL reallocate(mp_rho%Qlm_h, 1, nchan_s)
       CALL reallocate(mp_rho%Qlm_s, 1, nchan_s)
@@ -527,11 +520,7 @@ CONTAINS
       mp_rho%Qlm_s = 0.0_dp
       mp_rho%Qlm_tot = 0.0_dp
       mp_rho%Qlm_car = 0.0_dp
-      IF (.NOT. my_tddft) THEN
-         mp_rho%Qlm_z = -2.0_dp*rootpi*Zeff
-      ELSE
-         mp_rho%Qlm_z = 0.0_dp
-      END IF
+      mp_rho%Qlm_z = -2.0_dp*rootpi*Zeff
       mp_rho%Q0 = 0.0_dp
 
    END SUBROUTINE initialize_mpole_rho

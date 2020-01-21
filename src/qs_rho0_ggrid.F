@@ -14,6 +14,7 @@ MODULE qs_rho0_ggrid
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cube_utils,                      ONLY: cube_info_type
+   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: tddfpt_singlet
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -279,33 +280,27 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param qs_env ...
+!> \param pw_env ...
 !> \param rho0_mpole ...
-!> \param tddft ...
 ! **************************************************************************************************
-   SUBROUTINE rho0_s_grid_create(qs_env, rho0_mpole, tddft)
+   SUBROUTINE rho0_s_grid_create(pw_env, rho0_mpole)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
-      LOGICAL, INTENT(IN), OPTIONAL                      :: tddft
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rho0_s_grid_create', &
          routineP = moduleN//':'//routineN
 
-      LOGICAL                                            :: my_tddft
-      TYPE(pw_env_type), POINTER                         :: new_pw_env
+      INTEGER                                            :: handle
       TYPE(pw_p_type), POINTER                           :: rho_gs, rho_rs
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
-      my_tddft = .FALSE.
-      IF (PRESENT(tddft)) my_tddft = tddft
+      CALL timeset(routineN, handle)
 
-      NULLIFY (new_pw_env)
-      CALL get_qs_env(qs_env, pw_env=new_pw_env)
-      CPASSERT(ASSOCIATED(new_pw_env))
+      CPASSERT(ASSOCIATED(pw_env))
 
       NULLIFY (auxbas_pw_pool)
-      CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CPASSERT(ASSOCIATED(auxbas_pw_pool))
 
       ! reallocate rho0 on the global grid in real and reciprocal space
@@ -335,9 +330,10 @@ CONTAINS
       rho_gs%pw%in_space = RECIPROCALSPACE
       rho0_mpole%rho0_s_gs => rho_gs
 
-      IF (my_tddft) THEN
-         rho0_mpole%igrid_zet0_s = qs_env%local_rho_set%rho0_mpole%igrid_zet0_s
-      END IF
+      ! Find the grid level suitable for rho0_soft
+      rho0_mpole%igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info, 2.0_dp*rho0_mpole%zet0_h)
+
+      CALL timestop(handle)
 
    END SUBROUTINE rho0_s_grid_create
 

@@ -14,8 +14,7 @@ MODULE qs_rho0_methods
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
-   USE cp_control_types,                ONLY: dft_control_type,&
-                                              gapw_control_type
+   USE cp_control_types,                ONLY: gapw_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -36,8 +35,7 @@ MODULE qs_rho0_methods
                                               nsoset
    USE orbital_transformation_matrices, ONLY: orbtramat
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type,&
-                                              set_qs_env
+                                              qs_environment_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                               harmonics_atom_type
@@ -47,9 +45,9 @@ MODULE qs_rho0_methods
    USE qs_local_rho_types,              ONLY: allocate_rhoz,&
                                               calculate_rhoz,&
                                               local_rho_type,&
-                                              rhoz_type
+                                              rhoz_type,&
+                                              set_local_rho
    USE qs_oce_methods,                  ONLY: prj_scatter
-   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
    USE qs_rho0_types,                   ONLY: &
         allocate_multipoles, allocate_rho0_atom, allocate_rho0_atom_rad, allocate_rho0_mpole, &
         calculate_g0, get_rho0_mpole, initialize_mpole_rho, mpole_gau_overlap, mpole_rho_atom, &
@@ -345,18 +343,17 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param local_rho_set ...
 !> \param qs_env ...
 !> \param gapw_control ...
 !> \param tddft ...
-!> \param tddft_local_rho_set ...
 ! **************************************************************************************************
-   SUBROUTINE init_rho0(qs_env, gapw_control, &
-                        tddft, tddft_local_rho_set)
+   SUBROUTINE init_rho0(local_rho_set, qs_env, gapw_control, tddft)
 
+      TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(gapw_control_type), POINTER                   :: gapw_control
-      LOGICAL, INTENT(IN), OPTIONAL                      :: tddft
-      TYPE(local_rho_type), OPTIONAL, POINTER            :: tddft_local_rho_set
+      LOGICAL, INTENT(in)                                :: tddft
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_rho0', routineP = moduleN//':'//routineN
 
@@ -364,14 +361,13 @@ CONTAINS
       INTEGER :: handle, iat, iatom, ikind, l, l_rho1_max, laddg, lmaxg, maxl, maxnset, maxso, &
          nat, natom, nchan_c, nchan_s, nkind, nr, nset, nsotot, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: my_tddft, paw_atom
+      LOGICAL                                            :: paw_atom
       REAL(dp)                                           :: alpha_core, eps_Vrho0, max_rpgf0_s, &
                                                             radius, rc_min, rc_orb, &
                                                             total_rho_core_rspace
       REAL(KIND=dp)                                      :: zeff
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
@@ -388,19 +384,14 @@ CONTAINS
 
       NULLIFY (qs_kind_set)
       NULLIFY (atomic_kind_set)
-      NULLIFY (dft_control)
       NULLIFY (harmonics)
       NULLIFY (orb_basis)
       NULLIFY (rho0_mpole)
       NULLIFY (rho0_atom_set)
       NULLIFY (rhoz_set)
 
-      my_tddft = .FALSE.
-      IF (PRESENT(tddft)) my_tddft = tddft
-
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
-                      atomic_kind_set=atomic_kind_set, &
-                      dft_control=dft_control)
+                      atomic_kind_set=atomic_kind_set)
 
       nkind = SIZE(atomic_kind_set)
       eps_Vrho0 = gapw_control%eps_Vrho0
@@ -442,6 +433,9 @@ CONTAINS
                           zeff=zeff, &
                           alpha_core_charge=alpha_core)
 
+         ! set charge distribution of ionic cores to zero when computing the response-density
+         IF (tddft) zeff = 0.0_dp
+
          CALL get_gto_basis_set(gto_basis_set=orb_basis, &
                                 maxl=maxl, &
                                 maxso=maxso, nset=nset)
@@ -470,7 +464,7 @@ CONTAINS
          DO iat = 1, nat
             iatom = atom_list(iat)
 !        Allocate the multipole for rho1_h rho1_s and rho_z
-            CALL initialize_mpole_rho(rho0_mpole%mp_rho(iatom), nchan_s, nchan_c, zeff, my_tddft)
+            CALL initialize_mpole_rho(rho0_mpole%mp_rho(iatom), nchan_s, nchan_c, zeff)
 !        Allocate the radial part of rho0_h and rho0_s
 !        This is calculated on the radial grid centered at the atomic position
             CALL allocate_rho0_atom_rad(rho0_atom_set(iatom), nr, nchan_s)
@@ -522,18 +516,8 @@ CONTAINS
       END DO
       rho0_mpole%max_rpgf0_s = max_rpgf0_s
 
-      IF (.NOT. my_tddft) THEN
-         CALL set_qs_env(qs_env=qs_env, rho0_mpole=rho0_mpole, &
-                         rho0_atom_set=rho0_atom_set, &
-                         rhoz_set=rhoz_set, &
-                         rhoz_tot=total_rho_core_rspace)
-      ELSE
-         tddft_local_rho_set%rho0_mpole => rho0_mpole
-         tddft_local_rho_set%rho0_atom_set => rho0_atom_set
-         tddft_local_rho_set%rhoz_set => rhoz_set
-         tddft_local_rho_set%rhoz_tot = total_rho_core_rspace
-         CALL rho0_s_grid_create(qs_env, rho0_mpole, .TRUE.)
-      END IF
+      CALL set_local_rho(local_rho_set, rho0_atom_set=rho0_atom_set, rho0_mpole=rho0_mpole, rhoz_set=rhoz_set)
+      local_rho_set%rhoz_tot = total_rho_core_rspace
 
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
       output_unit = cp_print_key_unit_nr(logger, dft_section, "PRINT%GAPW%RHO0_INFORMATION", &
