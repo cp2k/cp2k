@@ -245,7 +245,7 @@ MODULE qs_environment_types
       TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos, mos_aux_fit
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs_aux_fit
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_loc_history
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER             :: mo_derivs
       TYPE(scf_control_type), POINTER                       :: scf_control
       TYPE(rel_control_type), POINTER                       :: rel_control
       ! ZMP adding variables
@@ -424,6 +424,7 @@ CONTAINS
 !> \param subsys ...
 !> \param cp_subsys ...
 !> \param oce ...
+!> \param local_rho_set ...
 !> \param rho_atom_set ...
 !> \param task_list ...
 !> \param task_list_aux_fit ...
@@ -509,7 +510,7 @@ CONTAINS
                          mpools, mpools_aux_fit, input, para_env, blacs_env, scf_control, rel_control, kinetic, qs_charges, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history, scf_env, id_nr, local_particles, &
                          local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set, &
-                         molecule_set, subsys, cp_subsys, oce, rho_atom_set, &
+                         molecule_set, subsys, cp_subsys, oce, local_rho_set, rho_atom_set, &
                          task_list, &
                          task_list_aux_fit, &
                          task_list_soft, &
@@ -591,6 +592,7 @@ CONTAINS
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
       TYPE(oce_matrix_type), OPTIONAL, POINTER           :: oce
+      TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
       TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_atom_set
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_aux_fit, &
@@ -729,6 +731,8 @@ CONTAINS
       ! Resp charges
       IF (PRESENT(rhs)) rhs => qs_env%rhs
 
+      IF (PRESENT(local_rho_set)) &
+         local_rho_set => qs_env%local_rho_set
       IF (PRESENT(rho_atom_set)) &
          CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
       IF (PRESENT(rho0_atom_set)) &

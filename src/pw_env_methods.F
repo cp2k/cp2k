@@ -163,7 +163,7 @@ CONTAINS
                                                             set_vdw_pool, should_output, &
                                                             smooth_required, spherical, uf_grid, &
                                                             use_ref_cell
-      REAL(KIND=dp)                                      :: cutilev, max_rpgf0_s, rel_cutoff, zet0
+      REAL(KIND=dp)                                      :: cutilev, rel_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: radius
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cutoff
       TYPE(cell_type), POINTER                           :: cell, cell_ref, my_cell
@@ -180,7 +180,6 @@ CONTAINS
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_input_type)                    :: input_settings
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
-      TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(section_vals_type), POINTER                   :: efg_section, input, linres_section, &
                                                             poisson_section, print_section, &
                                                             rs_grid_section, xc_section
@@ -199,7 +198,7 @@ CONTAINS
       !
       !
       NULLIFY (cutoff, cell, pw_grid, old_pw_grid, dft_control, qs_kind_set, &
-               pw_pools, rho0_mpole, rs_descs, para_env, cell_ref, vdw_ref_grid, &
+               pw_pools, rs_descs, para_env, cell_ref, vdw_ref_grid, &
                mt_super_ref_grid, input, poisson_section, xc_super_ref_grid, &
                dct_pw_grid, vdw_grid, super_ref_grid, my_cell, rs_grids, dispersion_env)
 
@@ -234,12 +233,6 @@ CONTAINS
          CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info)
       ELSE
          ALLOCATE (pw_env%gridlevel_info)
-      END IF
-      IF (dft_control%qs_control%gapw) THEN
-         CALL get_qs_env(qs_env=qs_env, rho0_mpole=rho0_mpole)
-         CPASSERT(ASSOCIATED(rho0_mpole))
-         CALL get_rho0_mpole(rho0_mpole=rho0_mpole, &
-                             zet0_h=zet0, max_rpgf0_s=max_rpgf0_s)
       END IF
 
       IF (ASSOCIATED(pw_env%cube_info)) THEN
@@ -336,7 +329,6 @@ CONTAINS
 
       ! methods that require smoothing or nearest neighbor have to use a plane distributed setup
       ! find the xc properties (FIXME this could miss other xc sections that operate on the grid ...)
-      CALL get_qs_env(qs_env=qs_env, input=input)
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       xc_deriv_method_id = section_get_ival(xc_section, "XC_GRID%XC_DERIV")
       xc_smooth_method_id = section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO")
@@ -746,6 +738,7 @@ CONTAINS
 !> \param qs_env ...
 !> \par History
 !>      10.2010 refactored [Joost VandeVondele]
+!>      01.2020 igrid_zet0_s initialisation code is reused in rho0_s_grid_create() [Sergey Chulkov]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE compute_max_radius(radius, pw_env, qs_env)
@@ -766,7 +759,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: npgfa, npgfb, nshella, nshellb
       INTEGER, DIMENSION(:, :), POINTER                  :: lshella, lshellb
       REAL(KIND=dp)                                      :: alpha, core_charge, eps_gvg, eps_rho, &
-                                                            max_rpgf0_s, maxradius, zet0, zetp
+                                                            max_rpgf0_s, maxradius, zet0_h, zetp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeta, zetb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -790,19 +783,14 @@ CONTAINS
       IF (dft_control%qs_control%gapw) THEN
          CALL get_qs_env(qs_env=qs_env, rho0_mpole=rho0_mpole)
          CPASSERT(ASSOCIATED(rho0_mpole))
-         CALL get_rho0_mpole(rho0_mpole=rho0_mpole, zet0_h=zet0, max_rpgf0_s=max_rpgf0_s)
+
+         CALL get_rho0_mpole(rho0_mpole=rho0_mpole, max_rpgf0_s=max_rpgf0_s, zet0_h=zet0_h)
+         igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info, 2.0_dp*zet0_h)
+         rho0_mpole%igrid_zet0_s = igrid_zet0_s
       END IF
 
       ngrid_level = SIZE(radius)
       nkind = SIZE(qs_kind_set)
-
-      ! Find the grid level suitable for rho0_soft
-      IF (dft_control%qs_control%gapw) THEN
-         igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info, 2.0_dp*zet0)
-         rho0_mpole%igrid_zet0_s = igrid_zet0_s
-      ELSE
-         igrid_zet0_s = 0
-      END IF
 
       ! try to predict the maximum radius of the gaussians to be mapped on the grid
       ! up to now, it is not yet very good

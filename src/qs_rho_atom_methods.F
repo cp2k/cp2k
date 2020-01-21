@@ -1005,7 +1005,7 @@ CONTAINS
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ispin, &
                                                             istat, j, max_iso_not0, mepos, nat, &
-                                                            natom, nr, nsatbas, nsotot, nspins, &
+                                                            natom, nsatbas, nsotot, nspins, &
                                                             num_pe
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: paw_atom
@@ -1037,8 +1037,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), &
                           paw_proj_set=paw_proj, &
                           paw_atom=paw_atom, &
-                          harmonics=harmonics, &
-                          ngrid_rad=nr)
+                          harmonics=harmonics)
 
          IF (paw_atom) THEN
             CALL get_paw_proj_set(paw_proj_set=paw_proj, nsatbas=nsatbas, nsotot=nsotot)

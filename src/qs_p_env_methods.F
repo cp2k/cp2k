@@ -61,6 +61,7 @@ MODULE qs_p_env_methods
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE preconditioner_types,            ONLY: init_preconditioner
+   USE pw_env_types,                    ONLY: pw_env_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -79,6 +80,7 @@ MODULE qs_p_env_methods
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
+   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
    USE qs_rho0_methods,                 ONLY: init_rho0
    USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
@@ -137,6 +139,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
 ! code
@@ -258,10 +261,10 @@ CONTAINS
       !----------------------!
       IF (dft_control%qs_control%gapw) THEN
          CALL local_rho_set_create(p_env%local_rho_set)
-         CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+         CALL get_qs_env(qs_env, pw_env=pw_env, qs_kind_set=qs_kind_set)
          CALL allocate_rho_atom_internals(qs_env, p_env%local_rho_set%rho_atom_set, qs_kind_set)
-         CALL init_rho0(qs_env, dft_control%qs_control%gapw_control, &
-                        .TRUE., p_env%local_rho_set)
+         CALL init_rho0(p_env%local_rho_set, qs_env, dft_control%qs_control%gapw_control, .TRUE.)
+         CALL rho0_s_grid_create(pw_env, p_env%local_rho_set%rho0_mpole)
          CALL hartree_local_create(p_env%hartree_local)
          CALL get_qs_env(qs_env=qs_env, natom=natom)
          CALL init_coulomb_local(p_env%hartree_local, natom)

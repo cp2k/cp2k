@@ -129,6 +129,7 @@ MODULE qs_environment
                                               write_qs_particle_coordinates,&
                                               write_structure_data
    USE particle_types,                  ONLY: particle_type
+   USE pw_env_types,                    ONLY: pw_env_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
    USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
    USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
@@ -161,6 +162,7 @@ MODULE qs_environment
                                               qs_ks_env_type,&
                                               qs_ks_release,&
                                               set_ks_env
+   USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               mo_set_p_type
    USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
@@ -519,12 +521,14 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, lri_aux_basis, &
                                                             ri_hfx_basis, ri_xas_basis, &
                                                             tmp_basis_set
+      TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(nddo_mpole_type), POINTER                     :: se_nddo_mpole
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_control_type), POINTER                     :: qs_control
       TYPE(qs_dftb_pairpot_type), DIMENSION(:, :), &
          POINTER                                         :: dftb_potential
@@ -989,9 +993,9 @@ CONTAINS
          CALL init_rho_atom(rho_atom_set, qs_kind_set, qs_env, gapw_control)
          CALL set_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set)
          IF (dft_control%qs_control%method_id /= do_method_gapw_xc) THEN
-            CALL get_qs_env(qs_env=qs_env, natom=natom)
+            CALL get_qs_env(qs_env=qs_env, local_rho_set=local_rho_set, natom=natom)
             !       *** Allocate and initialize the compensation density rho0 ***
-            CALL init_rho0(qs_env, gapw_control)
+            CALL init_rho0(local_rho_set, qs_env, gapw_control, .FALSE.)
             !       *** Allocate and Initialize the local coulomb term ***
             CALL init_coulomb_local(qs_env%hartree_local, natom)
          END IF
@@ -1491,10 +1495,10 @@ CONTAINS
       ! Sets up pw_env, qs_charges, mpools ...
       CALL qs_env_setup(qs_env)
 
-      ! Allocate and Initialie rho0 soft on the global grid
+      ! Allocate and initialise rho0 soft on the global grid
       IF (dft_control%qs_control%method_id == do_method_gapw) THEN
-         CALL get_qs_env(qs_env=qs_env, rho0_mpole=rho0_mpole)
-         CALL rho0_s_grid_create(qs_env, rho0_mpole)
+         CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho0_mpole=rho0_mpole)
+         CALL rho0_s_grid_create(pw_env, rho0_mpole)
       END IF
 
       IF (output_unit > 0) CALL m_flush(output_unit)
