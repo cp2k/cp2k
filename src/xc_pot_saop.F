@@ -10,6 +10,7 @@ MODULE xc_pot_saop
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -65,6 +66,8 @@ MODULE xc_pot_saop
                                               local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_oce_types,                    ONLY: oce_matrix_type
    USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
                                               calculate_rho_atom_coeff
    USE qs_rho_atom_types,               ONLY: get_rho_atom,&
@@ -529,10 +532,14 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, orbital_density_matrix, &
                                                             rho_struct_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, psmat
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: atomic_grid
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: molecular_orbitals
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab
+      TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho_structure
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr_h, dr_s, r_h, r_s
@@ -558,6 +565,7 @@ CONTAINS
 
       ! tau is needed for fill_rho_set, but should never be used
       NULLIFY (tau)
+      NULLIFY (dft_control, oce, sab)
 
       CALL get_qs_env(qs_env, input=input, &
                       rho=rho_structure, &
@@ -566,7 +574,9 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       rho_atom_set=rho_atom_set, &
                       matrix_ks=matrix_ks, &
-                      para_env=para_env)
+                      dft_control=dft_control, &
+                      para_env=para_env, &
+                      oce=oce, sab_orb=sab)
 
       CALL qs_rho_get(rho_structure, rho_ao=rho_struct_ao)
 
@@ -574,6 +584,11 @@ CONTAINS
       CALL section_vals_retain(xc_section_orig)
       CALL section_vals_duplicate(xc_section_orig, xc_section_tmp)
 
+      ! [SC] the following code can be traced back to SVN rev. 4296 (git:f97138b) that
+      !      has removed the component 'nspins' from the derived type 'dft_control_type'.
+      !      Is it worth to remove the code below in favour of 'dft_control%nspins'
+      !      since its reintroduction? Note that in case of ROKS calculations,
+      !      'lsd == .FALSE.' but 'dft_control%nspins == 2'.
       CALL section_vals_val_get(input, "DFT%LSD", l_val=lsd)
       IF (lsd) THEN
          nspins = 2
@@ -591,7 +606,7 @@ CONTAINS
       ! remap pointer
       ns = SIZE(rho_struct_ao)
       psmat(1:ns, 1:1) => rho_struct_ao(1:ns)
-      CALL calculate_rho_atom_coeff(qs_env, psmat)
+      CALL calculate_rho_atom_coeff(qs_env, psmat, rho_atom_set, qs_kind_set, oce, sab, para_env)
       CALL prepare_gapw_den(qs_env)
 
       ALLOCATE (mo_coeff(nspins), single_mo_coeff(nspins), mo_eigenvalues(nspins))
@@ -614,7 +629,8 @@ CONTAINS
                          "orbital density")
       END DO
       CALL local_rho_set_create(local_rho_set)
-      CALL allocate_rho_atom_internals(qs_env, local_rho_set%rho_atom_set, qs_kind_set)
+      CALL allocate_rho_atom_internals(local_rho_set%rho_atom_set, atomic_kind_set, &
+                                       qs_kind_set, dft_control, para_env)
 
       DO ikind = 1, SIZE(atomic_kind_set)
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
@@ -808,8 +824,7 @@ CONTAINS
                   ! remap pointer
                   ns = SIZE(orbital_density_matrix)
                   psmat(1:ns, 1:1) => orbital_density_matrix(1:ns)
-                  CALL calculate_rho_atom_coeff(qs_env, psmat, &
-                                                local_rho_set%rho_atom_set)
+                  CALL calculate_rho_atom_coeff(qs_env, psmat, local_rho_set%rho_atom_set, qs_kind_set, oce, sab, para_env)
                   CALL prepare_gapw_den(qs_env, local_rho_set, .FALSE.)
 
                   rho_atom => local_rho_set%rho_atom_set(iatom)
@@ -912,8 +927,7 @@ CONTAINS
                   ! remap pointer
                   ns = SIZE(orbital_density_matrix)
                   psmat(1:ns, 1:1) => orbital_density_matrix(1:ns)
-                  CALL calculate_rho_atom_coeff(qs_env, psmat, &
-                                                local_rho_set%rho_atom_set)
+                  CALL calculate_rho_atom_coeff(qs_env, psmat, local_rho_set%rho_atom_set, qs_kind_set, oce, sab, para_env)
                   CALL prepare_gapw_den(qs_env, local_rho_set, .FALSE.)
 
                   rho_atom => local_rho_set%rho_atom_set(iatom)
