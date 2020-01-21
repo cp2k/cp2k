@@ -253,9 +253,9 @@ CONTAINS
          CALL get_qs_env(qs_env, sab_aux_fit=sab_aux_fit)
 
          CALL calculate_rho_atom_coeff(qs_env, rho_ao_aux, &
-                                       rho_atom_external=admm_env%admm_gapw_env%local_rho_set%rho_atom_set, &
-                                       kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
-                                       oce_external=admm_env%admm_gapw_env%oce, sab_external=sab_aux_fit)
+                                       rho_atom_set=admm_env%admm_gapw_env%local_rho_set%rho_atom_set, &
+                                       qs_kind_set=admm_env%admm_gapw_env%admm_kind_set, &
+                                       oce=admm_env%admm_gapw_env%oce, sab=sab_aux_fit, para_env=para_env)
 
          CALL prepare_gapw_den(qs_env, local_rho_set=admm_env%admm_gapw_env%local_rho_set, &
                                do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
@@ -1652,6 +1652,8 @@ CONTAINS
       LOGICAL                                            :: gapw
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit_hfx, rho_ao_aux, &
                                                             rho_ao_aux_buffer
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1736,15 +1738,21 @@ CONTAINS
       IF (gapw) THEN
 
          admm_gapw_env => admm_env%admm_gapw_env
-         CALL get_qs_env(qs_env, sab_aux_fit=sab_aux_fit)
+         CALL get_qs_env(qs_env, &
+                         atomic_kind_set=atomic_kind_set, &
+                         para_env=para_env, &
+                         sab_aux_fit=sab_aux_fit)
 
          CALL local_rho_set_create(local_rho_buffer)
-         CALL allocate_rho_atom_internals(qs_env, local_rho_buffer%rho_atom_set, admm_gapw_env%admm_kind_set)
+         CALL allocate_rho_atom_internals(local_rho_buffer%rho_atom_set, atomic_kind_set, &
+                                          admm_gapw_env%admm_kind_set, dft_control, para_env)
 
          CALL calculate_rho_atom_coeff(qs_env, rho_ao_aux_buffer, &
-                                       rho_atom_external=local_rho_buffer%rho_atom_set, &
-                                       kind_set_external=admm_gapw_env%admm_kind_set, &
-                                       oce_external=admm_gapw_env%oce, sab_external=sab_aux_fit)
+                                       rho_atom_set=local_rho_buffer%rho_atom_set, &
+                                       qs_kind_set=admm_gapw_env%admm_kind_set, &
+                                       oce=admm_gapw_env%oce, sab=sab_aux_fit, &
+                                       para_env=para_env)
+
          CALL prepare_gapw_den(qs_env, local_rho_set=local_rho_buffer, do_rho0=.FALSE., &
                                kind_set_external=admm_gapw_env%admm_kind_set)
 

@@ -220,15 +220,23 @@ CONTAINS
       INTEGER                                            :: ikind, nkind
       TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, aux_fit_soft_basis, &
                                                             orb_basis, soft_basis
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: admm_kind_set, qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: input
 
-      NULLIFY (qs_kind_set, admm_kind_set, aux_fit_basis, orb_basis, dft_control, soft_basis, &
-               aux_fit_soft_basis)
+      NULLIFY (admm_kind_set, aux_fit_basis, atomic_kind_set, aux_fit_soft_basis, &
+               dft_control, input, orb_basis, para_env, qs_kind_set, soft_basis)
 
-      CALL get_qs_env(qs_env, admm_env=admm_env, qs_kind_set=qs_kind_set, dft_control=dft_control)
+      CALL get_qs_env(qs_env, admm_env=admm_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      dft_control=dft_control, &
+                      input=input, &
+                      para_env=para_env, &
+                      qs_kind_set=qs_kind_set)
 
       admm_env%do_gapw = .TRUE.
       ALLOCATE (admm_env%admm_gapw_env)
@@ -272,7 +280,7 @@ CONTAINS
       END DO
 
       !Create the corresponding soft basis set (and projectors)
-      CALL init_gapw_basis_set(admm_kind_set, dft_control%qs_control, qs_env%input, &
+      CALL init_gapw_basis_set(admm_kind_set, dft_control%qs_control, input, &
                                modify_qs_control=.FALSE.)
 
       !Make sure the basis and the projectors are well initialized
@@ -280,8 +288,8 @@ CONTAINS
 
       !We also init the atomic grids and harmonics
       CALL local_rho_set_create(admm_gapw_env%local_rho_set)
-      CALL init_rho_atom(admm_gapw_env%local_rho_set%rho_atom_set, admm_kind_set, qs_env, &
-                         dft_control%qs_control%gapw_control)
+      CALL init_rho_atom(admm_gapw_env%local_rho_set%rho_atom_set, &
+                         atomic_kind_set, admm_kind_set, dft_control, para_env)
 
       !Make sure that any NLCC potential is well initialized
       CALL init_gapw_nlcc(admm_kind_set)

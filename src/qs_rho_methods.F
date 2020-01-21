@@ -47,11 +47,14 @@ MODULE qs_rho_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_oce_types,                    ONLY: oce_matrix_type
    USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_clear,&
                                               qs_rho_get,&
                                               qs_rho_set,&
@@ -353,13 +356,18 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab
+      TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, drho_xc_g, rho_g, rho_r, &
                                                             rho_xc_g, rho_xc_r, tau_g, tau_r, &
                                                             tau_xc_g, tau_xc_r
       TYPE(pw_p_type), POINTER                           :: rho_r_sccs
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_xc
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(task_list_type), POINTER                      :: task_list
 
       CALL timeset(routineN, handle)
@@ -474,17 +482,22 @@ CONTAINS
       IF (gapw) THEN
          CPASSERT(.NOT. PRESENT(task_list_external))
          CPASSERT(.NOT. PRESENT(pw_env_external))
+         CALL get_qs_env(qs_env=qs_env, &
+                         rho_atom_set=rho_atom_set, &
+                         qs_kind_set=qs_kind_set, &
+                         oce=oce, sab_orb=sab)
+         IF (PRESENT(local_rho_set)) rho_atom_set => local_rho_set%rho_atom_set
+         CPASSERT(ASSOCIATED(rho_atom_set))
          CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
-         IF (PRESENT(local_rho_set)) THEN
-            CALL calculate_rho_atom_coeff(qs_env, rho_ao_kp, local_rho_set%rho_atom_set)
-         ELSE
-            CALL calculate_rho_atom_coeff(qs_env, rho_ao_kp)
-         ENDIF
+         CALL calculate_rho_atom_coeff(qs_env, rho_ao_kp, rho_atom_set, qs_kind_set, oce, sab, para_env)
       ENDIF
       IF (gapw_xc) THEN
          CPASSERT(.NOT. PRESENT(task_list_external))
          CPASSERT(.NOT. PRESENT(pw_env_external))
-         CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
+         CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc, &
+                         rho_atom_set=rho_atom_set, &
+                         qs_kind_set=qs_kind_set, &
+                         oce=oce, sab_orb=sab)
          CALL qs_rho_get(rho_xc, &
                          rho_ao_kp=rho_xc_ao, &
                          rho_r=rho_xc_r, &
@@ -493,7 +506,7 @@ CONTAINS
                          drho_g=drho_xc_g, &
                          tau_r=tau_xc_r, &
                          tau_g=tau_xc_g)
-         CALL calculate_rho_atom_coeff(qs_env, rho_ao_kp)
+         CALL calculate_rho_atom_coeff(qs_env, rho_ao_kp, rho_atom_set, qs_kind_set, oce, sab, para_env)
          ! copy rho_ao into rho_xc_ao
          DO ispin = 1, nspins
             DO img = 1, nimg

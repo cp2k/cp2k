@@ -70,6 +70,8 @@ MODULE qs_linres_epr_nablavks
                                               nablavks_atom_type
 ! R0
    USE qs_local_rho_types,              ONLY: rhoz_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_oce_types,                    ONLY: oce_matrix_type
    USE qs_rho0_types,                   ONLY: rho0_atom_type
    USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
    USE qs_rho_atom_types,               ONLY: get_rho_atom,&
@@ -137,6 +139,9 @@ CONTAINS
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(nablavks_atom_type), DIMENSION(:), POINTER    :: nablavks_atom_set
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab
+      TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -199,6 +204,7 @@ CONTAINS
       NULLIFY (input)
       NULLIFY (ks_env)
       NULLIFY (rho_r, rho_ao, rho1_r, rho2_r)
+      NULLIFY (oce, qs_kind_set, sab)
 
       logger => cp_get_default_logger()
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
@@ -261,7 +267,8 @@ CONTAINS
                       rho0_atom_set=rho0_atom_set, &
                       rhoz_set=rhoz_set, &
                       subsys=subsys, &
-                      ks_env=ks_env)
+                      ks_env=ks_env, &
+                      oce=oce, sab_orb=sab)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
@@ -294,7 +301,8 @@ CONTAINS
       IF (gapw) THEN
          ! need to rebuild the coeff !
          CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
-         CALL calculate_rho_atom_coeff(qs_env, rho_ao)
+         CALL calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_set, qs_kind_set, oce, sab, para_env)
+
          CALL prepare_gapw_den(qs_env, do_rho0=.TRUE.)
       END IF
 

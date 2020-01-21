@@ -990,7 +990,7 @@ CONTAINS
          !     *** Allocate and initialize the set of atomic densities ***
          NULLIFY (rho_atom_set)
          gapw_control => dft_control%qs_control%gapw_control
-         CALL init_rho_atom(rho_atom_set, qs_kind_set, qs_env, gapw_control)
+         CALL init_rho_atom(rho_atom_set, atomic_kind_set, qs_kind_set, dft_control, para_env)
          CALL set_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set)
          IF (dft_control%qs_control%method_id /= do_method_gapw_xc) THEN
             CALL get_qs_env(qs_env=qs_env, local_rho_set=local_rho_set, natom=natom)
