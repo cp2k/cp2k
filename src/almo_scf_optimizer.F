@@ -7465,6 +7465,7 @@ CONTAINS
                                                             my_special_case, &
                                                             ndomains, &
                                                             outer_iteration, &
+                                                            iteration_type_to_report, &
                                                             prec_type, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nocc
       LOGICAL                                            :: scf_converged, &
@@ -7497,6 +7498,7 @@ CONTAINS
                                                             grad_norm_ratio, &
                                                             rho, step_norm, &
                                                             loss_change_to_report, &
+                                                            fake_step_size_to_report, &
                                                             t1, t2
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: grad_norm_spin, &
                                                             penalty_occ_vol_g_prefactor, &
@@ -7504,7 +7506,9 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: FTsiginv, grad, &
                                                             m_sig_sqrti_ii, &
-                                                            m_theta, prec_vv, &
+                                                            m_theta, &
+                                                            m_model_hessian, &
+                                                            m_model_hessian_inv, &
                                                             siginvTFTsiginv, &
                                                             ST, step, &
                                                             prev_step, &
@@ -7517,8 +7521,10 @@ CONTAINS
                                                             m_theta_trial, &
                                                             STsiginv_0
       TYPE(domain_submatrix_type), ALLOCATABLE, &
-         DIMENSION(:, :)                                 :: domain_r_down
+         DIMENSION(:, :)                                 :: domain_r_down, &
+                                                            domain_model_hessian_inv
       TYPE(dbcsr_type)                                   :: m_s_inv
+
 
       ! RZK-warning: number of temporary storage matrices can be reduced
       CALL timeset(routineN, handle)
@@ -7621,8 +7627,10 @@ CONTAINS
 
       ndomains = almo_scf_env%ndomains
       ALLOCATE (domain_r_down(ndomains, nspins))
+      ALLOCATE (domain_model_hessian_inv(ndomains, nspins))
 
-      ALLOCATE (prec_vv(nspins))
+      ALLOCATE (m_model_hessian(nspins))
+      ALLOCATE (m_model_hessian_inv(nspins))
       ALLOCATE (siginvTFTsiginv(nspins))
       ALLOCATE (STsiginv_0(nspins))
       ALLOCATE (FTsiginv(nspins))
@@ -7642,7 +7650,10 @@ CONTAINS
       DO ispin = 1, nspins
 
          ! init temporary storage
-         CALL dbcsr_create(prec_vv(ispin), &
+         CALL dbcsr_create(m_model_hessian_inv(ispin), &
+                           template=almo_scf_env%matrix_ks(ispin), &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_create(m_model_hessian(ispin), &
                            template=almo_scf_env%matrix_ks(ispin), &
                            matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_create(siginvTFTsiginv(ispin), &
@@ -7802,7 +7813,7 @@ CONTAINS
 
             DO ispin = 1, nspins
 
-               IF (unit_nr > 0 ) WRITE(*,*) "...Compute model gradient"
+               IF (unit_nr > 0 .AND. debug_mode) WRITE(*,*) "...Compute model gradient"
                CALL compute_gradient( &
                   m_grad_out=grad(ispin), &
                   m_ks=almo_scf_env%matrix_ks(ispin), &
@@ -7841,7 +7852,6 @@ CONTAINS
                             norm_scalar=grad_norm_spin(ispin))
             !grad_norm_frob = dbcsr_frobenius_norm(grad(ispin)) / &
             !                 dbcsr_frobenius_norm(quench_t(ispin))
-            !IF (unit_nr > 0 ) WRITE(*,*) "Gradient RMS norm: ", grad_norm_frob
          ENDDO ! ispin
          grad_norm_ref = MAXVAL(grad_norm_spin)
 
@@ -7877,7 +7887,7 @@ CONTAINS
             IF (my_special_case .EQ. xalmo_case_block_diag .OR. &
                my_special_case .EQ. xalmo_case_fully_deloc) THEN
 
-               IF (unit_nr > 0 ) WRITE(*,*) "...Multiply Sinv.r"
+               IF (unit_nr > 0  .AND. debug_mode) WRITE(*,*) "...Multiply Sinv.r"
                CALL dbcsr_multiply("N", "N", 1.0_dp, &
                        m_s_inv, &
                        m_model_r(ispin), &
@@ -7886,7 +7896,7 @@ CONTAINS
 
             ELSE IF (my_special_case .EQ. xalmo_case_normal) THEN
 
-               IF (unit_nr > 0 ) WRITE(*,*) "...Multiply Sinv_xx.r"
+               IF (unit_nr > 0  .AND. debug_mode) WRITE(*,*) "...Multiply Sinv_xx.r"
                CALL apply_domain_operators( &
                        matrix_in = m_model_r(ispin), &
                        matrix_out = m_model_rt(ispin), &
@@ -7905,17 +7915,17 @@ CONTAINS
 
          ENDDO ! ispin
 
-         ! compute preconditioner
+         ! compute model Hessian
          IF (.NOT. same_position) THEN
 
             SELECT CASE (prec_type)
             CASE (xalmo_prec_domain)
 
-               IF (unit_nr > 0 ) WRITE(*,*) "...Compute model Hessian"
+               IF (unit_nr > 0  .AND. debug_mode) WRITE(*,*) "...Compute model Hessian"
                DO ispin = 1, nspins
                   CALL compute_preconditioner( &
                      domain_prec_out=almo_scf_env%domain_preconditioner(:, ispin), &
-                     m_prec_out=prec_vv(ispin), &
+                     m_prec_out=m_model_hessian(ispin), &
                      m_ks=almo_scf_env%matrix_ks(ispin), &
                      m_s=almo_scf_env%matrix_s(1), &
                      m_siginv=almo_scf_env%matrix_sigma_inv(ispin), &
@@ -7958,7 +7968,7 @@ CONTAINS
                  grad_norm_ratio = 0.0_dp, &
                  time = 0.0_dp)
 
-         IF (unit_nr > 0 ) WRITE(*,*) "...Start inner loop"
+         IF (unit_nr > 0  .AND. debug_mode) WRITE(*,*) "...Start inner loop"
 
          t1 = m_walltime()
          inner_loop_success = .FALSE.
@@ -7974,7 +7984,7 @@ CONTAINS
                    my_special_case .EQ. xalmo_case_fully_deloc) THEN
 
                   CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                     prec_vv(ispin), &
+                     m_model_hessian(ispin), &
                      m_model_d(ispin), &
                      0.0_dp, m_model_Bd(ispin), &
                      filter_eps=almo_scf_env%eps_filter)
@@ -7998,7 +8008,7 @@ CONTAINS
                y_scalar = y_scalar + real_temp
 
             ENDDO ! ispin
-            IF (unit_nr > 0 ) WRITE(*,*) "...Curvature: ", y_scalar
+            IF (unit_nr > 0  .AND. debug_mode) WRITE(*,*) "...Curvature: ", y_scalar
 
             ! step to the border
             IF (y_scalar .LT. 0.0_dp) THEN
@@ -8024,7 +8034,7 @@ CONTAINS
                  reduction_out = expected_reduction, &
                  grad_in = grad, &
                  step_in = step, &
-                 hess_in = prec_vv, &
+                 hess_in = m_model_hessian, &
                  hess_submatrix_in = almo_scf_env%domain_preconditioner, &
                  quench_t_in = quench_t, &
                  special_case = my_special_case, &
@@ -8054,7 +8064,7 @@ CONTAINS
                step_size = step_size + real_temp
             ENDDO ! ispin
             step_size = step_size / y_scalar
-            IF (unit_nr > 0 ) WRITE(*,*) "...Proposed step size: ", step_size
+            IF (unit_nr > 0  .AND. debug_mode) WRITE(*,*) "...Proposed step size: ", step_size
 
             ! Update the step matrix
             DO ispin = 1, nspins
@@ -8063,8 +8073,6 @@ CONTAINS
             ENDDO
 
             ! Compute step norm
-!IF (unit_nr > 0 ) WRITE(*,*) "...Step before contravariant norm"
-!CALL dbcsr_print(step(1))
             CALL contravariant_matrix_norm(&
                     norm_out = step_norm, &
                     matrix_in = step, &
@@ -8072,14 +8080,12 @@ CONTAINS
                     quench_t_in = quench_t, &
                     eps_filter_in = almo_scf_env%eps_filter &
                     )
-            IF (unit_nr > 0 ) WRITE(*,*) "...Step norm: ", step_norm
-!IF (unit_nr > 0 ) WRITE(*,*) "...Step after contravariant norm"
-!CALL dbcsr_print(step(1))
+            IF (unit_nr > 0  .AND. debug_mode) WRITE(*,*) "...Step norm: ", step_norm
 
             ! Do not step beyond the trust radius
             IF (step_norm .GT. radius_current) THEN
 
-               IF (unit_nr > 0 ) WRITE(*,*) "...Norm is too large"
+               IF (unit_nr > 0  .AND. debug_mode) WRITE(*,*) "...Norm is too large"
                CALL step_size_to_border(&
                   step_size_out = step_size, &
                   metric_in = almo_scf_env%matrix_s, &
@@ -8089,24 +8095,26 @@ CONTAINS
                   quench_t_in = quench_t, &
                   eps_filter_in = almo_scf_env%eps_filter &
                   )
-               IF (unit_nr > 0 ) WRITE(*,*) "...Step size to border: ", step_size
+               IF (unit_nr > 0  .AND. debug_mode) WRITE(*,*) "...Step size to border: ", step_size
 
                DO ispin = 1, nspins
                   CALL dbcsr_copy(step(ispin),prev_step(ispin))
                   CALL dbcsr_add(step(ispin),m_model_d(ispin),1.0_dp,step_size)
                ENDDO
 
-! Compute step norm
-IF (unit_nr > 0 ) WRITE(*,*) "...Extra norm evaluation"
-CALL contravariant_matrix_norm(&
-        norm_out = step_norm, &
-        matrix_in = step, &
-        metric_in = almo_scf_env%matrix_s, &
-        quench_t_in = quench_t, &
-        eps_filter_in = almo_scf_env%eps_filter &
-        )
-IF (unit_nr > 0 ) WRITE(*,*) "...Step norm: ", step_norm
-IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
+               IF (debug_mode) THEN
+                  ! Compute step norm
+                  IF (unit_nr > 0 ) WRITE(*,*) "...Extra norm evaluation"
+                  CALL contravariant_matrix_norm(&
+                          norm_out = step_norm, &
+                          matrix_in = step, &
+                          metric_in = almo_scf_env%matrix_s, &
+                          quench_t_in = quench_t, &
+                          eps_filter_in = almo_scf_env%eps_filter &
+                          )
+                  IF (unit_nr > 0 ) WRITE(*,*) "...Step norm: ", step_norm
+                  IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
+               ENDIF
 
                border_reached = .TRUE.
                inner_loop_success = .TRUE.
@@ -8115,7 +8123,7 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
                        reduction_out = expected_reduction, &
                        grad_in = grad, &
                        step_in = step, &
-                       hess_in = prec_vv, &
+                       hess_in = m_model_hessian, &
                        hess_submatrix_in = almo_scf_env%domain_preconditioner, &
                        quench_t_in = quench_t, &
                        special_case = my_special_case, &
@@ -8148,7 +8156,7 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
                  reduction_out = expected_reduction, &
                  grad_in = grad, &
                  step_in = step, &
-                 hess_in = prec_vv, &
+                 hess_in = m_model_hessian, &
                  hess_submatrix_in = almo_scf_env%domain_preconditioner, &
                  quench_t_in = quench_t, &
                  special_case = my_special_case, &
@@ -8169,7 +8177,225 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
 
                EXIT fixed_r_loop ! the inner loop
 
-            ENDIF
+            ELSE IF (optimizer%trustr_algorithm .EQ. trustr_dogleg) THEN
+
+               ! invert or pseudo-invert B
+               SELECT CASE (prec_type)
+               CASE (xalmo_prec_domain)
+
+                  IF (unit_nr > 0 .AND. debug_mode) WRITE(*,*) "...Pseudo-invert model Hessian"
+                  IF (special_case .EQ. xalmo_case_block_diag) THEN ! non-overlapping diagonal blocks
+
+                     DO ispin = 1, nspins
+                        CALL pseudo_invert_diagonal_blk( &
+                                matrix_in=m_model_hessian(ispin), &
+                                matrix_out=m_model_hessian_inv(ispin), &
+                                nocc=almo_scf_env%nocc_of_domain(:, ispin) &
+                                )
+                     ENDDO
+
+                  ELSE IF (special_case .EQ. xalmo_case_fully_deloc) THEN ! the entire system is a block
+
+                     ! invert using cholesky decomposition
+                     DO ispin = 1, nspins
+                        CALL dbcsr_copy(m_model_hessian_inv(ispin), &
+                                m_model_hessian(ispin))
+                        CALL cp_dbcsr_cholesky_decompose(m_model_hessian_inv(ispin), &
+                                                         para_env=almo_scf_env%para_env, &
+                                                         blacs_env=almo_scf_env%blacs_env)
+                        CALL cp_dbcsr_cholesky_invert(m_model_hessian_inv(ispin), &
+                                                      para_env=almo_scf_env%para_env, &
+                                                      blacs_env=almo_scf_env%blacs_env, &
+                                                      upper_to_full=.TRUE.)
+                        CALL dbcsr_filter(m_model_hessian_inv(ispin), &
+                                eps=almo_scf_env%eps_filter)
+                     ENDDO
+
+                  ELSE
+
+                     DO ispin = 1, nspins
+                        CALL construct_domain_preconditioner( &
+                           matrix_main=m_model_hessian(ispin), &
+                           subm_s_inv=almo_scf_env%domain_s_inv(:, ispin), &
+                           subm_r_down=domain_r_down(:, ispin), &
+                           matrix_trimmer=quench_t(ispin), &
+                           dpattern=quench_t(ispin), &
+                           map=almo_scf_env%domain_map(ispin), &
+                           node_of_domain=almo_scf_env%cpu_of_domain, &
+                           preconditioner=domain_model_hessian_inv(:, ispin), &
+                           use_trimmer=.FALSE., &
+                           my_action=0, & ! do not do domain (1-r0) projection
+                           skip_inversion=.FALSE. &
+                           )
+                     ENDDO
+
+                  ENDIF ! special_case
+
+                  ! slower but more reliable way to get inverted hessian
+                  !DO ispin = 1, nspins
+                  !   CALL compute_preconditioner( &
+                  !      domain_prec_out=domain_model_hessian_inv(:, ispin), &
+                  !      m_prec_out=m_model_hessian_inv(ispin), & ! RZK-warning: this one is not inverted if DOMAINs
+                  !      m_ks=almo_scf_env%matrix_ks(ispin), &
+                  !      m_s=almo_scf_env%matrix_s(1), &
+                  !      m_siginv=almo_scf_env%matrix_sigma_inv(ispin), &
+                  !      m_quench_t=quench_t(ispin), &
+                  !      m_FTsiginv=FTsiginv(ispin), &
+                  !      m_siginvTFTsiginv=siginvTFTsiginv(ispin), &
+                  !      m_ST=ST(ispin), &
+                  !      para_env=almo_scf_env%para_env, &
+                  !      blacs_env=almo_scf_env%blacs_env, &
+                  !      nocc_of_domain=almo_scf_env%nocc_of_domain(:, ispin), &
+                  !      domain_s_inv=almo_scf_env%domain_s_inv(:, ispin), &
+                  !      domain_r_down=domain_r_down(:, ispin), &
+                  !      cpu_of_domain=almo_scf_env%cpu_of_domain, &
+                  !      domain_map=almo_scf_env%domain_map(ispin), &
+                  !      assume_t0_q0x=.FALSE., &
+                  !      penalty_occ_vol=penalty_occ_vol, &
+                  !      penalty_occ_vol_prefactor=penalty_occ_vol_g_prefactor(ispin), &
+                  !      eps_filter=almo_scf_env%eps_filter, &
+                  !      neg_thr=1.0E10_dp, &
+                  !      spin_factor=spin_factor, &
+                  !      skip_inversion=.FALSE., &
+                  !      special_case=my_special_case)
+                  !ENDDO ! ispin
+
+               CASE DEFAULT
+
+                  CPABORT("Unknown preconditioner")
+
+               END SELECT ! preconditioner type fork
+
+               ! get pB = Binv.m_model_r = -Binv.grad
+               DO ispin = 1, nspins
+
+                  ! Get B.d
+                  IF (my_special_case .EQ. xalmo_case_block_diag .OR. &
+                      my_special_case .EQ. xalmo_case_fully_deloc) THEN
+
+                     CALL dbcsr_multiply("N", "N", 1.0_dp, &
+                        m_model_hessian_inv(ispin), &
+                        m_model_r(ispin), &
+                        0.0_dp, m_model_Bd(ispin), &
+                        filter_eps=almo_scf_env%eps_filter)
+
+                  ELSE
+
+                     CALL apply_domain_operators( &
+                        matrix_in=m_model_r(ispin), &
+                        matrix_out=m_model_Bd(ispin), &
+                        operator1=domain_model_hessian_inv(:, ispin), &
+                        dpattern=quench_t(ispin), &
+                        map=almo_scf_env%domain_map(ispin), &
+                        node_of_domain=almo_scf_env%cpu_of_domain, &
+                        my_action=0, &
+                        filter_eps=almo_scf_env%eps_filter)
+
+                  ENDIF ! special case
+
+               ENDDO ! ispin
+
+               ! Compute norm of pB
+               CALL contravariant_matrix_norm(&
+                       norm_out = step_norm, &
+                       matrix_in = m_model_Bd, &
+                       metric_in = almo_scf_env%matrix_s, &
+                       quench_t_in = quench_t, &
+                       eps_filter_in = almo_scf_env%eps_filter &
+                       )
+               IF (unit_nr > 0 .AND. debug_mode) WRITE(*,*) "...pB norm: ", step_norm
+
+               ! Do not step beyond the trust radius
+               IF (step_norm .LE. radius_current) THEN
+
+                  IF (unit_nr > 0 .AND. debug_mode) WRITE(*,*) "...Full dogleg"
+
+                  border_reached = .FALSE.
+
+                  DO ispin = 1, nspins
+                     CALL dbcsr_copy(step(ispin), m_model_Bd(ispin))
+                  ENDDO
+
+                  fake_step_size_to_report = 2.0_dp
+                  iteration_type_to_report = 6
+
+               ELSE ! take a shorter dogleg step
+
+                  IF (unit_nr > 0 .AND. debug_mode) WRITE(*,*) "...pB norm is too large"
+
+                  border_reached = .TRUE.
+
+                  ! compute the dogleg vector = pB - pU
+                  ! this destroys -Binv.grad content
+                  DO ispin = 1, nspins
+                     CALL dbcsr_add(m_model_Bd(ispin), step(ispin), 1.0_dp,-1.0_dp)
+                  ENDDO
+
+                  CALL step_size_to_border(&
+                     step_size_out = step_size, &
+                     metric_in = almo_scf_env%matrix_s, &
+                     position_in = step, &
+                     direction_in = m_model_Bd, &
+                     trust_radius_in = radius_current, &
+                     quench_t_in = quench_t, &
+                     eps_filter_in = almo_scf_env%eps_filter &
+                     )
+                  IF (unit_nr > 0 .AND. debug_mode) WRITE(*,*) "...Step size to border: ", step_size
+                  IF (step_size.GE.1.0_dp .OR. step_size.LE.0.0_dp) THEN
+                     CPABORT("Wrong dog-leg step, should not be here")
+                  ENDIF
+
+                  DO ispin = 1, nspins
+                     CALL dbcsr_add(step(ispin),m_model_Bd(ispin),1.0_dp,step_size)
+                  ENDDO
+
+                  fake_step_size_to_report = 1.0_dp + step_size
+                  iteration_type_to_report = 7
+
+               ENDIF ! full or partial dogleg?
+
+               IF (debug_mode) THEN
+                  ! Compute step norm
+                  IF (unit_nr > 0 ) WRITE(*,*) "...Extra norm evaluation"
+                  CALL contravariant_matrix_norm(&
+                          norm_out = step_norm, &
+                          matrix_in = step, &
+                          metric_in = almo_scf_env%matrix_s, &
+                          quench_t_in = quench_t, &
+                          eps_filter_in = almo_scf_env%eps_filter &
+                          )
+                  IF (unit_nr > 0 ) WRITE(*,*) "...Step norm: ", step_norm
+                  IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
+               ENDIF
+
+               CALL predicted_reduction(&
+                       reduction_out = expected_reduction, &
+                       grad_in = grad, &
+                       step_in = step, &
+                       hess_in = m_model_hessian, &
+                       hess_submatrix_in = almo_scf_env%domain_preconditioner, &
+                       quench_t_in = quench_t, &
+                       special_case = my_special_case, &
+                       eps_filter = almo_scf_env%eps_filter, &
+                       domain_map =almo_scf_env%domain_map, &
+                       cpu_of_domain = almo_scf_env%cpu_of_domain &
+                       )
+
+               inner_loop_success = .TRUE.
+
+               t2 = m_walltime()
+               CALL fixed_r_report( unit_nr, &
+                       iter_type = iteration_type_to_report, &
+                       iteration = iteration, &
+                       step_size = fake_step_size_to_report, &
+                       border_reached = border_reached, &
+                       curvature = y_scalar, &
+                       grad_norm_ratio = expected_reduction, &
+                       time = t2-t1)
+
+               EXIT fixed_r_loop ! the inner loop
+
+            ENDIF ! Non-iterative subproblem methods exit here
 
             ! Step 4: update model gradient
             DO ispin = 1, nspins
@@ -8185,7 +8411,6 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
                                norm_scalar=grad_norm_spin(ispin))
                !grad_norm_frob = dbcsr_frobenius_norm(grad(ispin)) / &
                !                 dbcsr_frobenius_norm(quench_t(ispin))
-               !IF (unit_nr > 0 ) WRITE(*,*) "Gradient RMS norm: ", grad_norm_frob
             ENDDO ! ispin
             model_grad_norm = MAXVAL(grad_norm_spin)
 
@@ -8200,7 +8425,7 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
                        reduction_out = expected_reduction, &
                        grad_in = grad, &
                        step_in = step, &
-                       hess_in = prec_vv, &
+                       hess_in = m_model_hessian, &
                        hess_submatrix_in = almo_scf_env%domain_preconditioner, &
                        quench_t_in = quench_t, &
                        special_case = my_special_case, &
@@ -8265,16 +8490,6 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
                step=m_model_rt(:), &
                prev_step=m_model_rt_prev(:) &
                )
-
-            !IF (reset_conjugator) THEN
-
-            !   beta = 0.0_dp
-            !   IF (unit_nr > 0 .AND. (iteration.GT.1)) THEN
-            !      WRITE (unit_nr, '(T2,A35)') "Re-setting conjugator to zero"
-            !   ENDIF
-            !   reset_conjugator = .FALSE.
-
-            !ENDIF
 
             DO ispin = 1, nspins
                ! update direction
@@ -8393,7 +8608,8 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
       ENDIF ! if converged
 
       DO ispin = 1, nspins
-         CALL dbcsr_release(prec_vv(ispin))
+         CALL dbcsr_release(m_model_hessian_inv(ispin))
+         CALL dbcsr_release(m_model_hessian(ispin))
          CALL dbcsr_release(STsiginv_0(ispin))
          CALL dbcsr_release(ST(ispin))
          CALL dbcsr_release(FTsiginv(ispin))
@@ -8411,9 +8627,11 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
          CALL dbcsr_release(m_model_rt_prev(ispin))
          CALL dbcsr_release(m_theta_trial(ispin))
          CALL release_submatrices(domain_r_down(:, ispin))
+         CALL release_submatrices(domain_model_hessian_inv(:, ispin))
       ENDDO ! ispin
 
-      DEALLOCATE (prec_vv)
+      DEALLOCATE (m_model_hessian)
+      DEALLOCATE (m_model_hessian_inv)
       DEALLOCATE (siginvTFTsiginv)
       DEALLOCATE (STsiginv_0)
       DEALLOCATE (FTsiginv)
@@ -8431,6 +8649,7 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
       DEALLOCATE (m_theta_trial)
 
       DEALLOCATE (domain_r_down)
+      DEALLOCATE (domain_model_hessian_inv)
 
       DEALLOCATE (penalty_occ_vol_g_prefactor)
       DEALLOCATE (penalty_occ_vol_h_prefactor)
@@ -8940,6 +9159,10 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
          iter_type_str = TRIM("Grad. reduced")
       CASE (5)
          iter_type_str = TRIM("Cauchy point")
+      CASE (6)
+         iter_type_str = TRIM("Full dogleg")
+      CASE (7)
+         iter_type_str = TRIM("Part. dogleg")
       CASE DEFAULT
          CPABORT("unknown report type")
       END SELECT
@@ -8950,10 +9173,8 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
          CASE (0)
 
             WRITE (unit_nr, *)
-            !WRITE (unit_nr, '(T2,A13,A6,A23,A14,A14,A9)') "Method", "Iter", &
-            !   "Objective Function", "Change", "Convergence", "Time"
             WRITE (unit_nr, '(T4,A15,A6,A10,A10,A7,A20,A8)') &
-               iter_type_str, &
+               "Action", &
                "Iter", &
                "Curv", &
                "Step", &
@@ -8963,7 +9184,6 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
 
          CASE DEFAULT
 
-            !WRITE (unit_nr, '(T2,A13,I6,F23.10,E14.5,F14.9,F9.2)') &
             WRITE (unit_nr, '(T4,A15,I6,F10.5,F10.5,L7,F20.10,F8.2)') &
                iter_type_str, &
                iteration, &
@@ -8975,7 +9195,7 @@ IF (unit_nr > 0 ) WRITE(*,*) "...Current radius: ", radius_current
 
          ! epilogue
          SELECT CASE (iter_type)
-         CASE (2,3,4)
+         CASE (2,3,4,5,6,7)
 
             WRITE (unit_nr, *)
 

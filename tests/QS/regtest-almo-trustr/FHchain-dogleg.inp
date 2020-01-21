@@ -15,8 +15,8 @@
 
     &ALMO_SCF
 
-      EPS_FILTER                    1.0E-10
-      ALMO_ALGORITHM                DIAG
+      EPS_FILTER                    1.0E-9
+      ALMO_ALGORITHM                SKIP
       ALMO_SCF_GUESS                ATOMIC
       MO_OVERLAP_INV_ALG            LS_HOTELLING
       RETURN_ORTHOGONALIZED_MOS     F
@@ -24,29 +24,17 @@
 
       XALMO_ALGORITHM               TRUST_REGION
       XALMO_TRIAL_WF                SIMPLE
-      DELOCALIZE_METHOD             FULL_SCF
+      DELOCALIZE_METHOD             XALMO_SCF
 
       &XALMO_OPTIMIZER_TRUSTR
-        ALGORITHM                   CG
-        MAX_ITER_OUTER_LOOP         200
-        MAX_ITER                    100
-        EPS_ERROR                   1.0E-5
+        ALGORITHM                   DOGLEG
+        MAX_ITER_OUTER_LOOP         100
+        EPS_ERROR                   5.50E-4
         CONJUGATOR                  FLETCHER ! recommended
-        ETA                         0.25
-        MODEL_GRAD_NORM_RATIO       0.1
+        ETA                         0.1
         INITIAL_TRUST_RADIUS        0.1
         MAX_TRUST_RADIUS            2.0
       &END XALMO_OPTIMIZER_TRUSTR
-
-      &XALMO_OPTIMIZER_PCG
-        MAX_ITER                    100
-        EPS_ERROR                   1.0E-5
-        CONJUGATOR                  FLETCHER
-        LIN_SEARCH_EPS_ERROR        0.05
-        LIN_SEARCH_STEP_SIZE_GUESS  0.1
-        MAX_ITER_OUTER_LOOP         10
-        PRECOND_FILTER_THRESHOLD    0.00001
-      &END XALMO_OPTIMIZER_PCG
 
       &ALMO_OPTIMIZER_DIIS
         MAX_ITER                    30
@@ -57,7 +45,7 @@
     &END ALMO_SCF
 
     &MGRID
-      CUTOFF 200 ! 320
+      CUTOFF 300
       NGRIDS 5
     &END MGRID
     &XC

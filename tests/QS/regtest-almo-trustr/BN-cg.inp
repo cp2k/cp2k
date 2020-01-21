@@ -1,0 +1,128 @@
+
+&GLOBAL
+  PROJECT BN_ions
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+
+    &QS
+      METHOD GPW
+      ALMO_SCF T
+      EPS_DEFAULT 1.0E-9
+    &END QS
+
+    &MGRID
+      CUTOFF 200
+      NGRIDS 4
+    &END MGRID
+
+    &ALMO_SCF
+
+      EPS_FILTER                    1.0E-8
+      ALMO_ALGORITHM                SKIP
+      ALMO_SCF_GUESS                ATOMIC
+      MO_OVERLAP_INV_ALG            DENSE_CHOLESKY
+      XALMO_R_CUTOFF_FACTOR         0.6
+      RETURN_ORTHOGONALIZED_MOS     FALSE
+
+      XALMO_ALGORITHM               TRUST_REGION
+      XALMO_TRIAL_WF                SIMPLE
+      DELOCALIZE_METHOD             XALMO_SCF
+
+      &XALMO_OPTIMIZER_TRUSTR
+        ALGORITHM                   CG
+        MAX_ITER_OUTER_LOOP         100
+        MAX_ITER                    10
+        EPS_ERROR                   1.0E-4
+        CONJUGATOR                  FLETCHER ! recommended
+        ETA                         0.25
+        MODEL_GRAD_NORM_RATIO       0.05
+        INITIAL_TRUST_RADIUS        0.1
+        MAX_TRUST_RADIUS            2.0
+      &END XALMO_OPTIMIZER_TRUSTR
+
+    &END ALMO_SCF
+
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+
+  &END DFT
+
+  &SUBSYS
+    &CELL
+      ABC    3.66 3.66 3.66
+      MULTIPLE_UNIT_CELL 2 2 2
+    &END CELL
+
+    &TOPOLOGY
+      &GENERATE
+        BONDLENGTH_MAX 1.0
+        BONDPARM COVALENT
+        BONDPARM_FACTOR 0.3
+      &END GENERATE
+      MULTIPLE_UNIT_CELL 2 2 2
+    &END
+
+    &COORD
+      SCALED T
+      B    0.0000000000    0.0000000000    0.0000000000
+      B    0.50000000      0.50000000      0.0000000000
+      B    0.50000000      0.0000000000    0.50000000
+      B    0.0000000000    0.50000000      0.50000000
+      N    0.25000000      0.25000000      0.25000000
+      N    0.75000000      0.75000000      0.25000000
+      N    0.75000000      0.25000000      0.75000000
+      N    0.25000000      0.75000000      0.75000000
+   &END COORD
+
+    &KIND B
+      BASIS_SET SZV-GTH-q3 ! DZVP-GTH-q3
+      POTENTIAL GTH-BLYP-q3
+      &BS
+        &ALPHA
+          NEL -1 -2
+          L    1  0
+          N    2  2
+        &END
+        ! BETA FUNCTION SHOULD BE THE SAME
+        ! TO AVOID WARNINGS
+        &BETA
+          NEL -1 -2
+          L    1  0
+          N    2  2
+        &END
+      &END
+    &END KIND
+
+    &KIND N
+      BASIS_SET SZV-GTH-q5 ! DZVP-GTH-q5
+      POTENTIAL GTH-BLYP-q5
+      &BS
+        &ALPHA
+          NEL +3
+          L    1
+          N    2
+        &END
+        ! BETA FUNCTION SHOULD BE THE SAME
+        ! TO AVOID WARNINGS
+        &BETA
+          NEL +3
+          L    1
+          N    2
+        &END
+      &END
+    &END KIND
+
+  &END SUBSYS
+
+&END FORCE_EVAL
+
