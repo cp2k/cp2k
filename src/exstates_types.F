@@ -14,25 +14,9 @@ MODULE exstates_types
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release
    USE dbcsr_api,                       ONLY: dbcsr_p_type
-   USE input_section_types,             ONLY: section_vals_get,&
-                                              section_vals_get_subs_vals,&
-                                              section_vals_type,&
+   USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release
-   USE qs_dispersion_types,             ONLY: qs_dispersion_release,&
-                                              qs_dispersion_type
-   USE qs_force_types,                  ONLY: deallocate_qs_force,&
-                                              qs_force_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
-                                              release_neighbor_list_sets
-   USE qs_p_env_types,                  ONLY: p_env_release,&
-                                              qs_p_env_type
-   USE qs_period_efield_types,          ONLY: efield_berry_release,&
-                                              efield_berry_type
-   USE task_list_types,                 ONLY: deallocate_task_list,&
-                                              task_list_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -52,30 +36,41 @@ MODULE exstates_types
    TYPE excited_energy_type
       INTEGER                                            :: state
       REAL(KIND=dp)                                      :: evalue
-      TYPE(cp_fm_p_type), POINTER, DIMENSION(:)          :: evect
+      TYPE(cp_fm_p_type), POINTER, DIMENSION(:)          :: evect => NULL()
+      TYPE(cp_fm_p_type), POINTER, DIMENSION(:)          :: cpmos => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz => NULL()
    END TYPE excited_energy_type
 
 CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param ec_env ...
+!> \param ex_env ...
 ! **************************************************************************************************
    SUBROUTINE exstate_release(ex_env)
       TYPE(excited_energy_type), POINTER                 :: ex_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'exstate_release', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'exstate_release', &
+         routineP = moduleN//':'//routineN
 
       INTEGER                                            :: is
 
       IF (ASSOCIATED(ex_env)) THEN
 
-         IF(ASSOCIATED(ex_env%evect)) THEN
+         IF (ASSOCIATED(ex_env%evect)) THEN
             DO is = 1, SIZE(ex_env%evect)
                CALL cp_fm_release(ex_env%evect(is)%matrix)
             END DO
             DEALLOCATE (ex_env%evect)
          END IF
+         IF (ASSOCIATED(ex_env%cpmos)) THEN
+            DO is = 1, SIZE(ex_env%cpmos)
+               CALL cp_fm_release(ex_env%cpmos(is)%matrix)
+            END DO
+            DEALLOCATE (ex_env%cpmos)
+         END IF
+         IF (ASSOCIATED(ex_env%matrix_hz)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_hz)
+         NULLIFY (ex_env%matrix_hz)
 
          DEALLOCATE (ex_env)
 
@@ -102,7 +97,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(ex_env))
       ALLOCATE (ex_env)
       ex_env%evalue = 0.0_dp
-      NULLIFY(ex_env%evect)
+      NULLIFY (ex_env%evect)
       IF (excited_state) THEN
          CALL section_vals_val_get(dft_section, "EXCITED_STATES%STATE", i_val=ex_env%state)
       ELSE

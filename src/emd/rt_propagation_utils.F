@@ -43,6 +43,7 @@ MODULE rt_propagation_utils
    USE mathconstants,                   ONLY: zero
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_dftb_matrices,                ONLY: build_dftb_overlap
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -51,7 +52,6 @@ MODULE rt_propagation_utils
                                               qs_ks_env_type
    USE qs_mo_io,                        ONLY: read_mo_set_from_restart,&
                                               read_rt_mos_from_restart
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_types,                     ONLY: mo_set_p_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix

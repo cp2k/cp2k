@@ -14,10 +14,7 @@
   METHOD Quickstep
   &PROPERTIES
     &TDDFPT
-       KERNEL sTDA
-       &sTDA 
-          FRACTION 0.0
-       &END sTDA
+       KERNEL NONE
        NSTATES      5
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7

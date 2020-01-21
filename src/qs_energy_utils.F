@@ -40,13 +40,13 @@ MODULE qs_energy_utils
    USE mp2,                             ONLY: mp2_main
    USE pw_env_types,                    ONLY: pw_env_type
    USE pw_types,                        ONLY: pw_p_type
+   USE qs_density_matrices,             ONLY: calculate_w_matrix,&
+                                              calculate_w_matrix_ot
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace
-   USE qs_ks_methods,                   ONLY: calculate_w_matrix,&
-                                              calculate_w_matrix_ot,&
-                                              qs_ks_update_qs_env
+   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_linres_module,                ONLY: linres_calculation_low
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&

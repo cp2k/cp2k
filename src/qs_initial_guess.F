@@ -66,6 +66,7 @@ MODULE qs_initial_guess
                                               mp_sum
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -74,8 +75,7 @@ MODULE qs_initial_guess
                                               qs_kind_type
    USE qs_mo_io,                        ONLY: read_mo_set_from_restart,&
                                               wfn_restart_file_name
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                              make_basis_lowdin,&
+   USE qs_mo_methods,                   ONLY: make_basis_lowdin,&
                                               make_basis_simple,&
                                               make_basis_sm
    USE qs_mo_occupation,                ONLY: set_mo_occupation

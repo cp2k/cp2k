@@ -45,6 +45,7 @@ MODULE qs_tddfpt2_subgroups
                                               distribution_2d_type
    USE distribution_methods,            ONLY: distribute_molecules_2d
    USE input_constants,                 ONLY: tddfpt_kernel_full,&
+                                              tddfpt_kernel_none,&
                                               tddfpt_kernel_stda
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
@@ -306,6 +307,24 @@ CONTAINS
          END IF
 
       ELSE IF (kernel == tddfpt_kernel_stda) THEN
+         sub_env%is_mgrid = .FALSE.
+         NULLIFY (sub_env%dbcsr_dist, sub_env%dist_2d)
+         NULLIFY (sub_env%sab_orb, sub_env%sab_aux_fit)
+         NULLIFY (sub_env%task_list_orb, sub_env%task_list_aux_fit)
+         NULLIFY (sub_env%pw_env)
+         IF (sub_env%is_split) THEN
+            CALL tddfpt_build_distribution_2d(distribution_2d=sub_env%dist_2d, dbcsr_dist=sub_env%dbcsr_dist, &
+                                              blacs_env=sub_env%blacs_env, qs_env=qs_env)
+            ! maybe we don't need task_list, just sab_orb
+            CALL tddfpt_build_tasklist(task_list=sub_env%task_list_orb, sab=sub_env%sab_orb, basis_type="ORB", &
+                                       distribution_2d=sub_env%dist_2d, pw_env=sub_env%pw_env, qs_env=qs_env, &
+                                       skip_load_balance=qs_control%skip_load_balance_distributed, &
+                                       reorder_grid_ranks=.TRUE.)
+            CPABORT('subsys missing')
+         ELSE
+            CALL get_qs_env(qs_env, dbcsr_dist=sub_env%dbcsr_dist, sab_orb=sub_env%sab_orb)
+         END IF
+      ELSE IF (kernel == tddfpt_kernel_none) THEN
          sub_env%is_mgrid = .FALSE.
          NULLIFY (sub_env%dbcsr_dist, sub_env%dist_2d)
          NULLIFY (sub_env%sab_orb, sub_env%sab_aux_fit)

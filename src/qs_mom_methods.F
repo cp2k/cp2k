@@ -33,7 +33,7 @@ MODULE qs_mom_methods
                                               momtype_mom
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&
                                               mo_set_type,&

@@ -25,13 +25,10 @@ MODULE response_solver
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
-                                              cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_init_random,&
@@ -97,6 +94,8 @@ MODULE response_solver
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ecore_self
+   USE qs_density_matrices,             ONLY: calculate_whz_matrix,&
+                                              calculate_wz_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -151,7 +150,7 @@ MODULE response_solver
    LOGICAL, PARAMETER                   :: debug_stress = .FALSE.
    LOGICAL, PARAMETER                   :: debug_forces = .FALSE.
 
-   PUBLIC :: calculate_whz_matrix, ks_ref_potential, response_calculation, &
+   PUBLIC :: ks_ref_potential, response_calculation, &
              response_equation, response_force
 
 CONTAINS
@@ -1566,101 +1565,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE admm_projection_derivative
-! **************************************************************************************************
-!> \brief Calculate the response W matrix from the MO eigenvectors, MO eigenvalues,
-!>       and the MO occupation numbers. Only works if they are eigenstates
-!> \param mo_set type containing the full matrix of the MO and the eigenvalues
-!> \param psi1 response orbitals
-!> \param ks_matrix Kohn-Sham sparse matrix
-!> \param w_matrix sparse matrix
-!> \par History
-!>               adapted from calculate_w_matrix_1
-!> \author JGH
-! **************************************************************************************************
-   SUBROUTINE calculate_wz_matrix(mo_set, psi1, ks_matrix, w_matrix)
-
-      TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: psi1
-      TYPE(dbcsr_type), POINTER                          :: ks_matrix, w_matrix
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_wz_matrix'
-
-      INTEGER                                            :: handle, ncol, nrow
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: ksmat, scrv
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_get_info(matrix=mo_set%mo_coeff, ncol_global=ncol, nrow_global=nrow)
-      CALL cp_fm_create(scrv, mo_set%mo_coeff%matrix_struct, "scr vectors")
-      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
-                               para_env=mo_set%mo_coeff%matrix_struct%para_env, &
-                               context=mo_set%mo_coeff%matrix_struct%context)
-      CALL cp_fm_create(ksmat, fm_struct_tmp, name="KS")
-      CALL cp_fm_struct_release(fm_struct_tmp)
-      CALL cp_dbcsr_sm_fm_multiply(ks_matrix, mo_set%mo_coeff, scrv, ncol)
-      CALL cp_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, mo_set%mo_coeff, scrv, 0.0_dp, ksmat)
-      CALL cp_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, mo_set%mo_coeff, ksmat, 0.0_dp, scrv)
-      CALL dbcsr_set(w_matrix, 0.0_dp)
-      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=psi1, &
-                                 ncol=mo_set%homo, alpha=0.5_dp)
-      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=psi1, matrix_g=scrv, &
-                                 ncol=mo_set%homo, alpha=0.5_dp)
-      CALL cp_fm_release(scrv)
-      CALL cp_fm_release(ksmat)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE calculate_wz_matrix
-
-! **************************************************************************************************
-!> \brief Calculate the Wz matrix from the MO eigenvectors, MO eigenvalues,
-!>       and the MO occupation numbers. Only works if they are eigenstates
-!> \param mo_set type containing the full matrix of the MO and the eigenvalues
-!> \param hzm ...
-!> \param w_matrix sparse matrix
-!> \param focc ...
-!> \par History
-!>               adapted from calculate_w_matrix_1
-!> \author JGH
-! **************************************************************************************************
-   SUBROUTINE calculate_whz_matrix(mo_set, hzm, w_matrix, focc)
-
-      TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(dbcsr_type)                                   :: hzm, w_matrix
-      REAL(KIND=dp), INTENT(IN)                          :: focc
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_whz_matrix'
-
-      INTEGER                                            :: handle, nao, norb
-      REAL(KIND=dp)                                      :: falpha
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_mat
-      TYPE(cp_fm_type), POINTER                          :: c0vec, chcmat, hcvec
-
-      CALL timeset(routineN, handle)
-
-      falpha = focc
-
-      c0vec => mo_set%mo_coeff
-      CALL cp_fm_create(hcvec, c0vec%matrix_struct, "hcvec")
-      CALL cp_fm_get_info(hcvec, matrix_struct=fm_struct, nrow_global=nao, ncol_global=norb)
-      CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=norb, &
-                               ncol_global=norb, para_env=fm_struct%para_env)
-      CALL cp_fm_create(chcmat, fm_struct_mat)
-      CALL cp_fm_struct_release(fm_struct_mat)
-
-      CALL cp_dbcsr_sm_fm_multiply(hzm, c0vec, hcvec, norb)
-      CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, c0vec, hcvec, 0.0_dp, chcmat)
-      CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, c0vec, chcmat, 0.0_dp, hcvec)
-
-      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=hcvec, matrix_g=c0vec, ncol=norb, alpha=falpha)
-
-      CALL cp_fm_release(hcvec)
-      CALL cp_fm_release(chcmat)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE calculate_whz_matrix
 
 ! **************************************************************************************************
 !> \brief calculate the Kohn-Sham reference potential

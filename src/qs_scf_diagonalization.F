@@ -70,6 +70,7 @@ MODULE qs_scf_diagonalization
                                               m_walltime
    USE preconditioner,                  ONLY: prepare_preconditioner,&
                                               restart_preconditioner
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
                                               gspace_mixing_nr
    USE qs_diis,                         ONLY: qs_diis_b_step
@@ -86,8 +87,7 @@ MODULE qs_scf_diagonalization
                                               mixing_allocate,&
                                               mixing_init,&
                                               self_consistency_check
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                              calculate_subspace_eigenvalues
+   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type

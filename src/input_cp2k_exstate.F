@@ -10,26 +10,12 @@
 !> \author jgh
 ! **************************************************************************************************
 MODULE input_cp2k_exstate
-   USE bibliography,                    ONLY: Niklasson2003,&
-                                              VandeVondele2012
-   USE input_constants,                 ONLY: &
-        ec_curvy_steps, ec_diagonalization, ec_functional_harris, ec_matrix_sign, ec_matrix_tc2, &
-        ec_matrix_trs4, kg_cholesky, ls_cluster_atomic, ls_cluster_molecular, &
-        ls_s_inversion_hotelling, ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
-        ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, &
-        ls_scf_sign_ns, ls_scf_sign_proot
-   USE input_cp2k_xc,                   ONLY: create_xc_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
    USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_add_subsection,&
                                               section_create,&
-                                              section_release,&
                                               section_type
-   USE input_val_types,                 ONLY: char_t
-   USE kinds,                           ONLY: dp
-   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

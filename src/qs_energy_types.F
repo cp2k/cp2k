@@ -65,6 +65,8 @@ MODULE qs_energy_types
                        ! non-scf orbital(density) corrections
                        ! for example, almo delocalization corrction
                        singles_corr, &
+                       ! excitation energy
+                       excited_state, &
                        total, &
                        tot_old, &
                        kinetic, & !total kinetic energy [rk]
@@ -187,6 +189,7 @@ CONTAINS
          qs_energy%efermi = 0.0_dp
          qs_energy%kinetic = 0.0_dp
          qs_energy%surf_dipole = 0.0_dp
+         qs_energy%excited_state = 0.0_dp
          qs_energy%total = 0.0_dp
          qs_energy%singles_corr = 0.0_dp
          qs_energy%nonscf_correction = 0.0_dp

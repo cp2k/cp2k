@@ -43,6 +43,7 @@ MODULE optbas_fenv_manipulation
    USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                               flex_basis_type
    USE particle_types,                  ONLY: particle_type
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type

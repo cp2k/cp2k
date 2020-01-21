@@ -56,6 +56,7 @@ MODULE xas_tp_scf
                                               init_preconditioner,&
                                               preconditioner_type
    USE qs_charges_types,                ONLY: qs_charges_type
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
                                               direct_mixing_nr,&
@@ -76,8 +77,7 @@ MODULE xas_tp_scf
                                               localized_wfn_control_type,&
                                               qs_loc_env_new_type
    USE qs_mixing_utils,                 ONLY: self_consistency_check
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                              calculate_subspace_eigenvalues
+   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type

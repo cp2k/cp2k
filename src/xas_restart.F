@@ -47,12 +47,12 @@ MODULE xas_restart
                                               default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_bcast
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_ks_types,                     ONLY: qs_ks_did_change
    USE qs_mixing_utils,                 ONLY: mixing_init
    USE qs_mo_io,                        ONLY: wfn_restart_file_name
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&

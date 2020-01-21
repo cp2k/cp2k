@@ -67,7 +67,6 @@ MODULE qs_environment
                                               distribution_1d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d
    USE dm_ls_scf_create,                ONLY: ls_scf_create
-   USE exstates_types,                  ONLY: excited_energy_type, exstate_create
    USE ec_env_types,                    ONLY: energy_correction_type
    USE ec_environment,                  ONLY: ec_env_create
    USE et_coupling_types,               ONLY: et_coupling_create
@@ -82,6 +81,8 @@ MODULE qs_environment
    USE ewald_pw_types,                  ONLY: ewald_pw_create,&
                                               ewald_pw_release,&
                                               ewald_pw_type
+   USE exstates_types,                  ONLY: excited_energy_type,&
+                                              exstate_create
    USE external_potential_types,        ONLY: get_potential,&
                                               init_potential,&
                                               set_potential

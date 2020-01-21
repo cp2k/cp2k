@@ -112,6 +112,7 @@ MODULE qs_scf
                                               restart_inverse_jacobian
    USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_density_mixing_types,         ONLY: gspace_mixing_nr
    USE qs_diis,                         ONLY: qs_diis_b_clear,&
                                               qs_diis_b_create

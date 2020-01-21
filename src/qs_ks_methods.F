@@ -28,31 +28,17 @@ MODULE qs_ks_methods
                                               admm_update_ks_atom
    USE admm_types,                      ONLY: admm_type
    USE cell_types,                      ONLY: cell_type
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
-                                              cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_copy_columns_hack
    USE cp_ddapc,                        ONLY: qs_ks_ddapc
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_scale_and_add,&
-                                              cp_fm_symm,&
-                                              cp_fm_transpose,&
-                                              cp_fm_upper_to_full
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
-                                              cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -135,8 +121,7 @@ MODULE qs_ks_methods
         sic_explicit_orbitals, sum_up_and_integrate
    USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
-                                              mo_set_type
+                                              mo_set_p_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -156,17 +141,11 @@ MODULE qs_ks_methods
 
    PRIVATE
 
-   INTERFACE calculate_w_matrix
-      MODULE PROCEDURE calculate_w_matrix_1, &
-         calculate_w_matrix_roks
-
-   END INTERFACE
-
    LOGICAL, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_methods'
 
    PUBLIC :: calc_rho_tot_gspace, qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, &
-             calculate_w_matrix, calculate_w_matrix_ot, qs_ks_allocate_basics
+             qs_ks_allocate_basics
 
 CONTAINS
 
@@ -1239,209 +1218,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE rebuild_ks_matrix
-
-! **************************************************************************************************
-!> \brief Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
-!>       and the MO occupation numbers. Only works if they are eigenstates
-!> \param mo_set type containing the full matrix of the MO and the eigenvalues
-!> \param w_matrix sparse matrix
-!>        error
-!> \par History
-!>         Creation (03.03.03,MK)
-!>         Modification that computes it as a full block, several times (e.g. 20)
-!>               faster at the cost of some additional memory
-!> \author MK
-! **************************************************************************************************
-   SUBROUTINE calculate_w_matrix_1(mo_set, w_matrix)
-
-      TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(dbcsr_type), POINTER                          :: w_matrix
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_1'
-
-      INTEGER                                            :: handle, imo
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigocc
-      TYPE(cp_fm_type), POINTER                          :: weighted_vectors
-
-      CALL timeset(routineN, handle)
-      NULLIFY (weighted_vectors)
-
-      CALL dbcsr_set(w_matrix, 0.0_dp)
-      CALL cp_fm_create(weighted_vectors, mo_set%mo_coeff%matrix_struct, "weighted_vectors")
-      CALL cp_fm_to_fm(mo_set%mo_coeff, weighted_vectors)
-
-      ! scale every column with the occupation
-      ALLOCATE (eigocc(mo_set%homo))
-
-      DO imo = 1, mo_set%homo
-         eigocc(imo) = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
-      ENDDO
-      CALL cp_fm_column_scale(weighted_vectors, eigocc)
-      DEALLOCATE (eigocc)
-
-      CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=w_matrix, &
-                                 matrix_v=mo_set%mo_coeff, &
-                                 matrix_g=weighted_vectors, &
-                                 ncol=mo_set%homo)
-
-      CALL cp_fm_release(weighted_vectors)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE calculate_w_matrix_1
-
-! **************************************************************************************************
-!> \brief Calculate the W matrix from the MO coefs, MO derivs
-!>        could overwrite the mo_derivs for increased memory efficiency
-!> \param mo_set type containing the full matrix of the MO coefs
-!>        mo_deriv:
-!> \param mo_deriv ...
-!> \param w_matrix sparse matrix
-!> \param s_matrix sparse matrix for the overlap
-!>        error
-!> \par History
-!>         Creation (JV)
-!> \author MK
-! **************************************************************************************************
-   SUBROUTINE calculate_w_matrix_ot(mo_set, mo_deriv, w_matrix, s_matrix)
-
-      TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(dbcsr_type), POINTER                          :: mo_deriv, w_matrix, s_matrix
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_ot'
-      LOGICAL, PARAMETER                                 :: check_gradient = .FALSE., &
-                                                            do_symm = .FALSE.
-
-      INTEGER                                            :: handle, ncol_block, ncol_global, &
-                                                            nrow_block, nrow_global
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers, scaling_factor
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: gradient, h_block, h_block_t, &
-                                                            weighted_vectors
-
-      CALL timeset(routineN, handle)
-      NULLIFY (weighted_vectors, h_block, fm_struct_tmp)
-
-      CALL cp_fm_get_info(matrix=mo_set%mo_coeff, &
-                          ncol_global=ncol_global, &
-                          nrow_global=nrow_global, &
-                          nrow_block=nrow_block, &
-                          ncol_block=ncol_block)
-
-      CALL cp_fm_create(weighted_vectors, mo_set%mo_coeff%matrix_struct, "weighted_vectors")
-      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global, ncol_global=ncol_global, &
-                               para_env=mo_set%mo_coeff%matrix_struct%para_env, &
-                               context=mo_set%mo_coeff%matrix_struct%context)
-      CALL cp_fm_create(h_block, fm_struct_tmp, name="h block")
-      IF (do_symm) CALL cp_fm_create(h_block_t, fm_struct_tmp, name="h block t")
-      CALL cp_fm_struct_release(fm_struct_tmp)
-
-      CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers)
-      ALLOCATE (scaling_factor(SIZE(occupation_numbers)))
-      scaling_factor = 2.0_dp*occupation_numbers
-      CALL copy_dbcsr_to_fm(mo_deriv, weighted_vectors)
-      CALL cp_fm_column_scale(weighted_vectors, scaling_factor)
-      DEALLOCATE (scaling_factor)
-
-      ! the convention seems to require the half here, the factor of two is presumably taken care of
-      ! internally in qs_core_hamiltonian
-      CALL cp_gemm('T', 'N', ncol_global, ncol_global, nrow_global, 0.5_dp, &
-                   mo_set%mo_coeff, weighted_vectors, 0.0_dp, h_block)
-
-      IF (do_symm) THEN
-         ! at the minimum things are anyway symmetric, but numerically it might not be the case
-         ! needs some investigation to find out if using this is better
-         CALL cp_fm_transpose(h_block, h_block_t)
-         CALL cp_fm_scale_and_add(0.5_dp, h_block, 0.5_dp, h_block_t)
-      ENDIF
-
-      ! this could overwrite the mo_derivs to save the weighted_vectors
-      CALL cp_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
-                   mo_set%mo_coeff, h_block, 0.0_dp, weighted_vectors)
-
-      CALL dbcsr_set(w_matrix, 0.0_dp)
-      CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=w_matrix, &
-                                 matrix_v=mo_set%mo_coeff, &
-                                 matrix_g=weighted_vectors, &
-                                 ncol=mo_set%homo)
-
-      IF (check_gradient) THEN
-         CALL cp_fm_create(gradient, mo_set%mo_coeff%matrix_struct, "gradient")
-         CALL cp_dbcsr_sm_fm_multiply(s_matrix, weighted_vectors, &
-                                      gradient, ncol_global)
-
-         ALLOCATE (scaling_factor(SIZE(occupation_numbers)))
-         scaling_factor = 2.0_dp*occupation_numbers
-         CALL copy_dbcsr_to_fm(mo_deriv, weighted_vectors)
-         CALL cp_fm_column_scale(weighted_vectors, scaling_factor)
-         DEALLOCATE (scaling_factor)
-
-         WRITE (*, *) " maxabs difference ", MAXVAL(ABS(weighted_vectors%local_data - 2.0_dp*gradient%local_data))
-         CALL cp_fm_release(gradient)
-      ENDIF
-
-      IF (do_symm) CALL cp_fm_release(h_block_t)
-      CALL cp_fm_release(weighted_vectors)
-      CALL cp_fm_release(h_block)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE calculate_w_matrix_ot
-
-! **************************************************************************************************
-!> \brief Calculate the energy-weighted density matrix W if ROKS is active.
-!>        The W matrix is returned in matrix_w.
-!> \param mo_set ...
-!> \param matrix_ks ...
-!> \param matrix_p ...
-!> \param matrix_w ...
-!> \author 04.05.06,MK
-! **************************************************************************************************
-   SUBROUTINE calculate_w_matrix_roks(mo_set, matrix_ks, matrix_p, matrix_w)
-      TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_p, matrix_w
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_roks'
-
-      INTEGER                                            :: handle, nao
-      TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: c, ks, p, work
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (c)
-      NULLIFY (context)
-      NULLIFY (fm_struct)
-      NULLIFY (ks)
-      NULLIFY (p)
-      NULLIFY (para_env)
-      NULLIFY (work)
-
-      CALL get_mo_set(mo_set=mo_set, mo_coeff=c)
-      CALL cp_fm_get_info(c, context=context, nrow_global=nao, para_env=para_env)
-      CALL cp_fm_struct_create(fm_struct, context=context, nrow_global=nao, &
-                               ncol_global=nao, para_env=para_env)
-      CALL cp_fm_create(ks, fm_struct, name="Kohn-Sham matrix")
-      CALL cp_fm_create(p, fm_struct, name="Density matrix")
-      CALL cp_fm_create(work, fm_struct, name="Work matrix")
-      CALL cp_fm_struct_release(fm_struct)
-      CALL copy_dbcsr_to_fm(matrix_ks, ks)
-      CALL copy_dbcsr_to_fm(matrix_p, p)
-      CALL cp_fm_upper_to_full(p, work)
-      CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, ks, p, 0.0_dp, work)
-      CALL cp_gemm("T", "N", nao, nao, nao, 1.0_dp, p, work, 0.0_dp, ks)
-      CALL dbcsr_set(matrix_w, 0.0_dp)
-      CALL copy_fm_to_dbcsr(ks, matrix_w, keep_sparsity=.TRUE.)
-
-      CALL cp_fm_release(work)
-      CALL cp_fm_release(p)
-      CALL cp_fm_release(ks)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE calculate_w_matrix_roks
 
 ! **************************************************************************************************
 !> \brief Allocate ks_matrix and ks_env if necessary

@@ -28,6 +28,7 @@ MODULE qs_basis_gradient
    USE kinds,                           ONLY: dp
    USE particle_types,                  ONLY: particle_type
    USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_energy_matrix_w,              ONLY: qs_energies_compute_w
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -43,8 +44,7 @@ MODULE qs_basis_gradient
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_mixing_utils,                 ONLY: mixing_allocate
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                              make_basis_sm
+   USE qs_mo_methods,                   ONLY: make_basis_sm
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists

@@ -752,6 +752,11 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
                "Mulliken restraint energy: ", energy%mulliken
          END IF
+         IF (qs_env%excited_state) THEN
+            IF (energy%excited_state /= 0.0_dp) &
+               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+               "Excited State energy: ", energy%excited_state
+         END IF
          IF (dft_control%qs_control%semi_empirical) THEN
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                "Total energy [eV]:                             ", energy%total*evolt

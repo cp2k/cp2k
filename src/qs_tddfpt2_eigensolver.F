@@ -30,6 +30,7 @@ MODULE qs_tddfpt2_eigensolver
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE input_constants,                 ONLY: tddfpt_kernel_full,&
+                                              tddfpt_kernel_none,&
                                               tddfpt_kernel_stda
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
@@ -370,6 +371,14 @@ CONTAINS
             CALL stda_kernel(Aop_evects, evects, is_rks_triplets, qs_env, tddfpt_control%stda_control, &
                              kernel_env%stda_kernel, sub_env, work_matrices)
             is_stda = .TRUE.
+         ELSE IF (tddfpt_control%kernel == tddfpt_kernel_none) THEN
+            ! No kernel
+            is_stda = .FALSE.
+            DO ivect = 1, nvects
+               DO ispin = 1, nspins
+                  CALL cp_fm_set_all(Aop_evects(ispin, ivect)%matrix, 0.0_dp)
+               END DO
+            END DO
          ELSE
             CPABORT("Kernel type not implemented")
          END IF

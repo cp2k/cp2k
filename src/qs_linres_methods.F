@@ -435,13 +435,13 @@ CONTAINS
          !
          IF (linres_control%converged) THEN
             IF (iounit > 0) THEN
-               WRITE (iounit, "(/,T2,A,I4,A,/)") "The linear solver converged in ", iter, " iterations."
+               WRITE (iounit, "(T3,A,I4,A)") "The linear solver converged in ", iter, " iterations."
                CALL m_flush(iounit)
             ENDIF
             EXIT iteration
          ELSE IF (should_stop) THEN
             IF (iounit > 0) THEN
-               WRITE (iounit, "(/,T2,A,I4,A,/)") "The linear solver did NOT converge! External stop"
+               WRITE (iounit, "(T3,A,I4,A)") "The linear solver did NOT converge! External stop"
                CALL m_flush(iounit)
             END IF
             EXIT iteration
@@ -450,8 +450,8 @@ CONTAINS
          ! Max number of iteration reached
          IF (iter == linres_control%max_iter) THEN
             IF (iounit > 0) THEN
-               WRITE (iounit, "(/,T2,A/)") &
-                  "The linear solver didnt converge! Maximum number of iterations reached."
+               WRITE (iounit, "(T3,A)") &
+                  "The linear solver didn't converge! Maximum number of iterations reached."
                CALL m_flush(iounit)
             ENDIF
             linres_control%converged = .FALSE.
