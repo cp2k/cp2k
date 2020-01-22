@@ -63,6 +63,7 @@ MODULE qs_ks_methods
    USE dft_plus_u,                      ONLY: plus_u
    USE efield_utils,                    ONLY: efield_potential
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
+   USE hartree_local_types,             ONLY: ecoul_1center_type
    USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
                                               hfx_ks_matrix
    USE input_constants,                 ONLY: do_ppl_grid,&
@@ -130,6 +131,7 @@ MODULE qs_ks_methods
         calc_v_sic_rspace, calculate_zmp_potential, compute_matrix_vxc, &
         get_embed_potential_energy, low_spin_roks, print_densities, print_detailed_energy, &
         sic_explicit_orbitals, sum_up_and_integrate
+   USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&
                                               mo_set_type
@@ -228,6 +230,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_s, my_rho, &
                                                             rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
+      TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
@@ -468,7 +472,10 @@ CONTAINS
       CALL calc_v_sic_rspace(v_sic_rspace, energy, qs_env, dft_control, rho, poisson_env, &
                              just_energy, calculate_forces, auxbas_pw_pool)
 
-      IF (gapw) CALL Vh_1c_gg_integrals(qs_env, energy%hartree_1c)
+      IF (gapw) THEN
+         CALL get_qs_env(qs_env, ecoul_1c=ecoul_1c, local_rho_set=local_rho_set)
+         CALL Vh_1c_gg_integrals(qs_env, energy%hartree_1c, ecoul_1c, local_rho_set, para_env, tddft=.FALSE.)
+      END IF
 
       ! Check if CDFT constraint is needed
       CALL qs_ks_cdft_constraint(qs_env, auxbas_pw_pool, calculate_forces, cdft_control)
@@ -763,7 +770,7 @@ CONTAINS
             CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace, &
                                          v_qmmm=vee, scale=-1.0_dp)
          ENDIF
-         CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, calculate_forces)
+         CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces)
       END IF
 
       IF (gapw .OR. gapw_xc) THEN

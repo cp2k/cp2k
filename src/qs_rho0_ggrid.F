@@ -15,7 +15,6 @@ MODULE qs_rho0_ggrid
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cube_utils,                      ONLY: cube_info_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
-   USE input_constants,                 ONLY: tddfpt_singlet
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: dfac,&
@@ -55,7 +54,8 @@ MODULE qs_rho0_ggrid
    USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_p_env_types,                  ONLY: qs_p_env_type
+   USE qs_local_rho_types,              ONLY: get_local_rho,&
+                                              local_rho_type
    USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                               rho0_mpole_type
    USE qs_rho_atom_types,               ONLY: get_rho_atom,&
@@ -341,19 +341,17 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param v_rspace ...
+!> \param para_env ...
 !> \param calculate_forces ...
-!> \param tddft ...
-!> \param do_triplet ...
-!> \param p_env ...
+!> \param local_rho_set ...
 ! **************************************************************************************************
-   SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, calculate_forces, &
-                                    tddft, do_triplet, p_env)
+   SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, para_env, calculate_forces, local_rho_set)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type)                                    :: v_rspace
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
-      LOGICAL, INTENT(IN), OPTIONAL                      :: tddft, do_triplet
-      TYPE(qs_p_env_type), OPTIONAL, POINTER             :: p_env
+      TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace', &
          routineP = moduleN//':'//routineN
@@ -365,8 +363,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cg_n_list
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, lmax, lmin, npgf
-      LOGICAL                                            :: grid_distributed, my_tddft, paw_atom, &
-                                                            use_virial
+      LOGICAL                                            :: grid_distributed, paw_atom, use_virial
       REAL(dp)                                           :: c4pi, eps_rho_rspace, force_tmp(3), &
                                                             ra(3), rpgf0, scale, zet0
       REAL(dp), DIMENSION(:), POINTER                    :: hab_sph, norm_l, Qlm
@@ -376,7 +373,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -403,18 +399,19 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (atomic_kind_set, qs_kind_set, dft_control, para_env, particle_set)
-      NULLIFY (cell, force, pw_env, rho0_mpole, rho_atom_set)
+      ! In case of the external density computed forces probably also
+      ! need to be stored outside qs_env. We can then remove the
+      ! attribute 'OPTIONAL' from the argument 'local_rho_set'.
+      CPASSERT(.NOT. (calculate_forces .AND. PRESENT(local_rho_set)))
 
-      my_tddft = .FALSE.
-      IF (PRESENT(tddft)) my_tddft = tddft
+      NULLIFY (atomic_kind_set, qs_kind_set, dft_control, particle_set)
+      NULLIFY (cell, force, pw_env, rho0_mpole, rho_atom_set)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
                       cell=cell, &
                       dft_control=dft_control, &
-                      para_env=para_env, &
                       force=force, pw_env=pw_env, &
                       rho0_mpole=rho0_mpole, &
                       rho_atom_set=rho_atom_set, &
@@ -425,18 +422,21 @@ CONTAINS
 
       nspins = dft_control%nspins
 
-      IF (my_tddft) THEN
-         IF (PRESENT(do_triplet)) THEN
-            IF (nspins == 1 .AND. do_triplet) RETURN
-         ELSE
-            IF (nspins == 1 .AND. dft_control%tddfpt_control%res_etype /= tddfpt_singlet) RETURN
-         ENDIF
-      END IF
+      ! The aim of the following code was to return immediately if the subroutine
+      ! was called for triplet excited states in spin-restricted case. This check
+      ! is also performed before invocation of this subroutine. It should be save
+      ! to remove the optional argument 'do_triplet' from the subroutine interface.
+      !my_tddft = PRESENT(local_rho_set)
+      !IF (my_tddft) THEN
+      !   IF (PRESENT(do_triplet)) THEN
+      !      IF (nspins == 1 .AND. do_triplet) RETURN
+      !   ELSE
+      !      IF (nspins == 1 .AND. dft_control%tddfpt_control%res_etype /= tddfpt_singlet) RETURN
+      !   ENDIF
+      !END IF
 
-      IF (my_tddft) THEN
-         rho0_mpole => p_env%local_rho_set%rho0_mpole
-         rho_atom_set => p_env%local_rho_set%rho_atom_set
-      END IF
+      IF (PRESENT(local_rho_set)) &
+         CALL get_local_rho(local_rho_set, rho0_mpole=rho0_mpole, rho_atom_set=rho_atom_set)
 
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole, lmax_0=lmax0, &
                           zet0_h=zet0, igrid_zet0_s=igrid, &
