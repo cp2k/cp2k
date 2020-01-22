@@ -64,6 +64,7 @@
      Assigns the text <i>value</i> to the preprocessing variable <i>VAR</i>. <i>value</i>
      is the text following <i>VAR</i> with the outer whitespace removed. The variable can be
      recalled with a <i>${VAR}</i> (or  <i>$VAR</i>) statement. There can be only one @SET statement per line.
+     A variable name can only contain alphanumerical characters plus the underscore and must not start with a number.
     </dd>
     <dt><b>${VAR}</b> or <b>$VAR</b></dt>
     <dd>

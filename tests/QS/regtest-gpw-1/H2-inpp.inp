@@ -36,8 +36,8 @@
     &END XC
   &END DFT
   &SUBSYS
-@SET 2VAL 8.0 ${VAL}
-@IF ${2VAL}
+@SET VAL2 8.0 ${VAL}
+@IF ${VAL2}
 @SET VAL 6.0
 @ENDIF
 @IF 1 /= 0
@@ -50,7 +50,7 @@
    XXXXXXX
    @ENDIF
     &CELL
-      ABC ${2VAL} ${VAL} 
+      ABC ${VAL2} ${VAL} 
     &END CELL
     &COORD
     H     0.000000  0.000000  0.000000
