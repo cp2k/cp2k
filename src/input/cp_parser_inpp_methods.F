@@ -39,6 +39,32 @@ MODULE cp_parser_inpp_methods
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Validates whether the given string is a valid preprocessor variable name
+!> \param str The input string (must be already trimmed if necessary)
+!> \return .TRUE. if it is a valid variable name, .FALSE. otherwise
+! **************************************************************************************************
+   LOGICAL PURE FUNCTION is_valid_varname(str)
+      CHARACTER(LEN=*), INTENT(IN) :: str
+      CHARACTER(LEN=*), PARAMETER  :: alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
+      CHARACTER(LEN=*), PARAMETER  :: alphanum = alpha//"0123456789"
+      INTEGER                      :: idx
+
+      is_valid_varname = .FALSE.
+
+      IF (LEN(str) == 0) &
+         RETURN
+
+      IF (INDEX(alpha, str(1:1)) == 0) &
+         RETURN
+
+      DO idx = 2, LEN(str)
+         IF (INDEX(alphanum, str(idx:idx)) == 0) &
+            RETURN
+      END DO
+
+      is_valid_varname = .TRUE.
+   END FUNCTION is_valid_varname
+! **************************************************************************************************
 !> \brief process internal preprocessor directives like @INCLUDE, @SET, @IF/@ENDIF
 !> \param inpp ...
 !> \param input_line ...
@@ -273,6 +299,14 @@ CONTAINS
          END DO
          value = TRIM(varname(indf:))
          varname = TRIM(varname(indi:indf - 1))
+
+         IF (.NOT. is_valid_varname(TRIM(varname))) THEN
+            WRITE (UNIT=message, FMT="(3A,I6)") &
+               "INPP_@SET: Invalid variable name in @SET directive in file: ", &
+               TRIM(input_file_name), "  Line:", input_line_number
+            CPABORT(TRIM(message))
+         ENDIF
+
          indi = 1
          DO WHILE (is_whitespace(value(indi:indi)))
             indi = indi + 1
@@ -556,6 +590,13 @@ CONTAINS
             var_name = var_name(:default_val_sep_idx - 1)
          ENDIF
 
+         IF (.NOT. is_valid_varname(var_name)) THEN
+            WRITE (UNIT=message, FMT="(5A,I6)") &
+               "Invalid variable name ${", var_name, "} in file: ", &
+               TRIM(input_file_name), "  Line:", input_line_number
+            CPABORT(TRIM(message))
+         ENDIF
+
          idx = inpp_find_variable(inpp, var_name)
 
          IF (idx == 0 .AND. default_val_sep_idx == 0) THEN
@@ -585,9 +626,16 @@ CONTAINS
          var_name = input_line(pos1:pos2)
          idx = inpp_find_variable(inpp, var_name)
 
+         IF (.NOT. is_valid_varname(var_name)) THEN
+            WRITE (UNIT=message, FMT="(5A,I6)") &
+               "Invalid variable name ${", var_name, "} in file: ", &
+               TRIM(input_file_name), "  Line:", input_line_number
+            CPABORT(TRIM(message))
+         ENDIF
+
          IF (idx == 0) THEN
             WRITE (UNIT=message, FMT="(5A,I6)") &
-               "INPP_@SET: Variable $", var_name, " not defined in file: ", &
+               "Variable $", var_name, " not defined in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
          ENDIF
