@@ -20,6 +20,10 @@ MODULE kg_correction
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri,&
                                               kg_tnadd_none
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_rval,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kinds,                           ONLY: dp
    USE lri_environment_methods,         ONLY: calculate_lri_densities,&
@@ -32,9 +36,13 @@ MODULE kg_correction
    USE message_passing,                 ONLY: mp_sum
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+   USE pw_methods,                      ONLY: pw_zero
+   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                              pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: REALDATA3D,&
+                                              REALSPACE,&
+                                              pw_p_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
@@ -49,6 +57,16 @@ MODULE kg_correction
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE virial_types,                    ONLY: virial_type
+   USE xc,                              ONLY: xc_calc_2nd_deriv,&
+                                              xc_prep_2nd_deriv
+   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
+                                              xc_dset_release
+   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
+   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
+                                              xc_rho_set_release,&
+                                              xc_rho_set_type,&
+                                              xc_rho_set_update
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -67,16 +85,23 @@ CONTAINS
 !> \param ks_matrix ...
 !> \param ekin_mol ...
 !> \param calc_force ...
+!> \param do_kernel Contribution of kinetic energy functional to kernel in response calculation
+!> \param pmat_ext Response density used to fold 2nd deriv or to integrate kinetic energy functional
+!> \param alpha Multiplicative factor required in linear response equations
 !> \par History
 !>       2012.06 created [Martin Haeufel]
 !>       2014.01 added atomic potential option [JGH]
+!>       2020.01 Added KG contribution to linear response [fbelle]
 !> \author Martin Haeufel and Florian Schiffmann
 ! **************************************************************************************************
-   SUBROUTINE kg_ekin_subset(qs_env, ks_matrix, ekin_mol, calc_force)
+   SUBROUTINE kg_ekin_subset(qs_env, ks_matrix, ekin_mol, calc_force, do_kernel, pmat_ext, alpha)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
       REAL(KIND=dp), INTENT(out)                         :: ekin_mol
-      LOGICAL                                            :: calc_force
+      LOGICAL, INTENT(IN)                                :: calc_force, do_kernel
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: pmat_ext
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_subset', routineP = moduleN//':'//routineN
 
@@ -91,7 +116,8 @@ CONTAINS
          IF (lrigpw) THEN
             CALL kg_ekin_embed_lri(qs_env, kg_env, ks_matrix, ekin_mol, calc_force)
          ELSE
-            CALL kg_ekin_embed(qs_env, kg_env, ks_matrix, ekin_mol, calc_force)
+            CALL kg_ekin_embed(qs_env, kg_env, ks_matrix, ekin_mol, calc_force, &
+                               do_kernel, pmat_ext, alpha)
          END IF
       ELSE IF (kg_env%tnadd_method == kg_tnadd_embed_ri) THEN
          CALL kg_ekin_ri_embed(qs_env, kg_env, ks_matrix, ekin_mol, calc_force)
@@ -112,44 +138,46 @@ CONTAINS
 !> \param ks_matrix ...
 !> \param ekin_mol ...
 !> \param calc_force ...
+!> \param do_kernel Contribution of kinetic energy functional to kernel in response calculation
+!> \param pmat_ext Response density used to fold 2nd deriv or to integrate kinetic energy functional
+!> \param alpha Multiplicative factor required in linear response equations
 ! **************************************************************************************************
-   SUBROUTINE kg_ekin_embed(qs_env, kg_env, ks_matrix, ekin_mol, calc_force)
+   SUBROUTINE kg_ekin_embed(qs_env, kg_env, ks_matrix, ekin_mol, calc_force, do_kernel, pmat_ext, alpha)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
       REAL(KIND=dp), INTENT(out)                         :: ekin_mol
-      LOGICAL                                            :: calc_force
+      LOGICAL, INTENT(IN)                                :: calc_force, do_kernel
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: pmat_ext
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_embed', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, isub, natom, nspins
       LOGICAL                                            :: use_virial
-      REAL(KIND=dp)                                      :: ekin_imol
+      REAL(KIND=dp)                                      :: ekin_imol, my_alpha
       REAL(KIND=dp), DIMENSION(3, 3)                     :: xcvirial
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rho, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, vxc_rho, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: old_rho, rho_struct
+      TYPE(qs_rho_type), POINTER                         :: old_rho, rho1, rho_struct
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
       NULLIFY (vxc_rho, vxc_tau, old_rho, rho_struct, ks_env)
 
-      ! get set of molecules, natom, dft_control, pw_env
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       rho=old_rho, &
                       natom=natom, &
                       dft_control=dft_control, &
                       virial=virial, &
-                      para_env=para_env, &
                       pw_env=pw_env)
-
       nspins = dft_control%nspins
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       use_virial = use_virial .AND. calc_force
@@ -163,17 +191,53 @@ CONTAINS
       ! set the density matrix to the blocked matrix
       CALL qs_rho_set(rho_struct, rho_ao=density_matrix) ! blocked_matrix
       CALL qs_rho_rebuild(rho_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
-
       ! full density kinetic energy term
       CALL qs_rho_update_rho(rho_struct, qs_env)
-      ekin_imol = 0.0_dp
-      CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=kg_env%xc_section_kg, &
-                         vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=ekin_imol)
-      IF (ASSOCIATED(vxc_tau)) THEN
-         CPABORT(" KG with meta-kinetic energy functionals not implemented")
+      ! get blocked density that has been put on grid
+      CALL qs_rho_get(rho_struct, rho_r=rho_r)
+
+      ! If external density associated then it is needed either for
+      ! 1) folding of second derivative while partially integrating, or
+      ! 2) integration of response forces
+      NULLIFY (rho1, rho1_r, rho1_g)
+      IF (PRESENT(pmat_ext)) THEN
+         CALL qs_rho_create(rho1)
+         CALL qs_rho_set(rho1, rho_ao=pmat_ext)
+         CALL qs_rho_rebuild(rho1, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
+         CALL qs_rho_update_rho(rho1, qs_env)
+         CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g)
       END IF
+
+      ! Response solver requires factor (spin) for kernel matrix
+      ! alpha = 2 closed-shell
+      ! alpha = 1 open-shell
+      my_alpha = 1.0_dp
+      IF (PRESENT(alpha)) my_alpha = alpha
+
+      ekin_imol = 0.0_dp
+
+      ! calculate xc potential or kernel
+      IF (do_kernel) THEN
+         ! derivation wrt to rho_struct and evaluation at rho_struct
+         CALL create_kernel(qs_env, &
+                            vxc=vxc_rho, &
+                            rho=rho_struct, &
+                            rho1=rho1, &
+                            xc_section=kg_env%xc_section_kg)
+      ELSE
+         CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=kg_env%xc_section_kg, &
+                            vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=ekin_imol)
+         IF (ASSOCIATED(vxc_tau)) THEN
+            CPABORT(" KG with meta-kinetic energy functionals not implemented")
+         END IF
+      END IF
+
       DO ispin = 1, nspins
-         vxc_rho(ispin)%pw%cr3d = vxc_rho(ispin)%pw%cr3d*vxc_rho(ispin)%pw%pw_grid%dvol
+         vxc_rho(ispin)%pw%cr3d = my_alpha*vxc_rho(ispin)%pw%cr3d*vxc_rho(ispin)%pw%pw_grid%dvol
+         ! Integrate xc-potential with external density for outer response forces
+         IF (PRESENT(pmat_ext) .AND. .NOT. do_kernel) THEN
+            CALL qs_rho_get(rho1, rho_ao=density_matrix)
+         END IF
          CALL integrate_v_rspace(v_rspace=vxc_rho(ispin), &
                                  pmat=density_matrix(ispin), hmat=ks_matrix(ispin), &
                                  qs_env=qs_env, calculate_forces=calc_force)
@@ -189,15 +253,40 @@ CONTAINS
          ! calculate the densities for the given blocked density matrix - pass the subset task_list
          CALL qs_rho_update_rho(rho_struct, qs_env, &
                                 task_list_external=kg_env%subset(isub)%task_list)
+         ! Same for external (response) density if present
+         IF (PRESENT(pmat_ext)) THEN
+            CALL qs_rho_update_rho(rho1, qs_env, &
+                                   task_list_external=kg_env%subset(isub)%task_list)
+         END IF
 
          ekin_imol = 0.0_dp
          ! calc Hohenberg-Kohn kin. energy of the density corresp. to the remaining molecular block(s)
-         CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=kg_env%xc_section_kg, &
-                            vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=ekin_imol)
+         ! info per block in rho_struct now
+
+         ! calculate kernel
+         IF (do_kernel) THEN
+            CALL create_kernel(qs_env, &
+                               vxc=vxc_rho, &
+                               rho=rho_struct, &
+                               rho1=rho1, &
+                               xc_section=kg_env%xc_section_kg)
+         ELSE
+            CALL qs_vxc_create(ks_env=ks_env, &
+                               rho_struct=rho_struct, &
+                               xc_section=kg_env%xc_section_kg, &
+                               vxc_rho=vxc_rho, &
+                               vxc_tau=vxc_tau, &
+                               exc=ekin_imol)
+         END IF
+
          ekin_mol = ekin_mol + ekin_imol
 
          DO ispin = 1, nspins
-            vxc_rho(ispin)%pw%cr3d = -vxc_rho(ispin)%pw%cr3d*vxc_rho(ispin)%pw%pw_grid%dvol
+            vxc_rho(ispin)%pw%cr3d = -my_alpha*vxc_rho(ispin)%pw%cr3d*vxc_rho(ispin)%pw%pw_grid%dvol
+            ! Integrate with response density for outer response forces
+            IF (PRESENT(pmat_ext) .AND. .NOT. do_kernel) THEN
+               CALL qs_rho_get(rho1, rho_ao=density_matrix)
+            END IF
             CALL integrate_v_rspace(v_rspace=vxc_rho(ispin), &
                                     pmat=density_matrix(ispin), &
                                     hmat=ks_matrix(ispin), &
@@ -222,6 +311,10 @@ CONTAINS
       ! clean up rho_struct
       CALL qs_rho_set(rho_struct, rho_ao=Null())
       CALL qs_rho_release(rho_struct)
+      IF (PRESENT(pmat_ext)) THEN
+         CALL qs_rho_set(rho1, rho_ao_kp=Null())
+         CALL qs_rho_release(rho1)
+      END IF
 
       CALL timestop(handle)
 
@@ -596,5 +689,117 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE kg_ekin_atomic
+
+! **************************************************************************************************
+!> \brief   Creation of second derivative xc-potential
+!> \param   qs_env ...
+!> \param   vxc will contain the partially integrated second derivative
+!>          taken with respect to rho, evaluated in rho and folded with rho1
+!>          vxc is allocated here and needs to be deallocated by the caller.
+!> \param rho density at which derivatives were calculated
+!> \param rho1 density with which to fold
+!> \param xc_section XC parameters
+!> \date    11.2019
+!> \author  fbelle
+! **************************************************************************************************
+   SUBROUTINE create_kernel(qs_env, vxc, rho, rho1, xc_section)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_p_type), DIMENSION(:), INTENT(OUT), &
+         POINTER                                         :: vxc
+      TYPE(qs_rho_type), POINTER                         :: rho, rho1
+      TYPE(section_vals_type), POINTER                   :: xc_section
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_kernel', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ispin, nspins
+      INTEGER, DIMENSION(2, 3)                           :: bo
+      LOGICAL                                            :: lsd
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, tau_pw, vxc_rho
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section
+      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_rho_cflags_type)                           :: needs
+      TYPE(xc_rho_set_type), POINTER                     :: rho1_set, rho_set
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(.NOT. ASSOCIATED(vxc))
+      NULLIFY (auxbas_pw_pool, pw_env, vxc_rho)
+
+      CALL get_qs_env(qs_env, &
+                      dft_control=dft_control, &
+                      pw_env=pw_env)
+      nspins = dft_control%nspins
+
+      CALL pw_env_get(pw_env=pw_env, &
+                      auxbas_pw_pool=auxbas_pw_pool)
+
+      ALLOCATE (vxc_rho(nspins))
+      DO ispin = 1, nspins
+         NULLIFY (vxc_rho(nspins)%pw)
+         CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
+                                pw=vxc_rho(ispin)%pw, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         CALL pw_zero(vxc_rho(ispin)%pw)
+      END DO
+
+      ! Get grid based density
+      NULLIFY (rho_r, rho1_r, rho1_g)
+      CALL qs_rho_get(rho, rho_r=rho_r)
+      CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g)
+
+      NULLIFY (deriv_set, rho_set, rho1_set, tau_pw)
+      ! Init rho1_set, with which to fold second derivative
+      bo = rho_r(1)%pw%pw_grid%bounds_local
+      CALL xc_rho_set_create(rho1_set, bo, &
+                             rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
+                             drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
+                             tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
+      lsd = (nspins == 2)
+      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
+
+      ! calculate the rho set used to fold with 2nd derivative
+      CALL xc_rho_set_update(rho1_set, rho1_r, rho1_g, tau_pw, needs, &
+                             section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
+                             section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
+                             auxbas_pw_pool)
+
+      ! main ingredient is xc_rho_set_and_dset_create
+      CALL xc_prep_2nd_deriv(deriv_set=deriv_set, &    ! containing potentials
+                             rho_set=rho_set, &        ! density at which derivs are calculated
+                             rho_r=rho_r, &            ! place where derivative is evaluated
+                             pw_pool=auxbas_pw_pool, & ! pool for grids
+                             xc_section=xc_section)
+
+      ! evaluation of 2nd deriv in rho_set density
+      ! folding of second deriv with density in rho1_set
+      CALL xc_calc_2nd_deriv(v_xc=vxc_rho, &           ! XC-potential
+                             deriv_set=deriv_set, &    ! deriv of xc-potential
+                             rho_set=rho_set, &        ! density at which deriv are calculated
+                             rho1_set=rho1_set, &      ! density with which to fold
+                             pw_pool=auxbas_pw_pool, & ! pool for grids
+                             xc_section=xc_section, &
+                             gapw=.FALSE.)
+
+      ! Release second deriv stuff
+      CALL xc_dset_release(deriv_set)
+      CALL xc_rho_set_release(rho_set=rho_set, pw_pool=auxbas_pw_pool)
+      CALL xc_rho_set_release(rho_set=rho1_set, pw_pool=auxbas_pw_pool)
+
+      ! export vxc
+      ALLOCATE (vxc(nspins))
+      DO ispin = 1, nspins
+         vxc(ispin)%pw => vxc_rho(ispin)%pw
+      END DO
+      DEALLOCATE (vxc_rho)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
 
 END MODULE kg_correction
