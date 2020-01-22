@@ -894,7 +894,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (auxbas_pw_pool, pw_env, v_rspace_new, &
+      NULLIFY (auxbas_pw_pool, pw_env, v_rspace_new, para_env, &
                rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set, rho1_ao, rho_ao, &
                poisson_env, input, rho, dft_control, logger, rho1_g)
       logger => cp_get_default_logger()
@@ -917,6 +917,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       pw_env=pw_env, &
                       input=input, &
+                      para_env=para_env, &
                       rho=rho, &
                       linres_control=linres_control, &
                       dft_control=dft_control)
@@ -1063,8 +1064,8 @@ CONTAINS
          END DO
          DEALLOCATE (v_xc)
 
-         IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env, qs_env, xc_section, do_tddft=.FALSE., &
-                                                    do_triplet=lr_triplet)
+         IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set, qs_env, xc_section, para_env, &
+                                                    do_tddft=.FALSE., do_triplet=lr_triplet)
 
          CALL xc_rho_set_release(rho1_set)
 
@@ -1271,7 +1272,7 @@ CONTAINS
 
             IF (lrigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
-               CALL get_qs_env(qs_env, para_env=para_env, nkind=nkind)
+               CALL get_qs_env(qs_env, nkind=nkind)
                DO ikind = 1, nkind
                   lri_v_int(ikind)%v_int = 0.0_dp
                END DO
@@ -1304,12 +1305,14 @@ CONTAINS
       IF (gapw) THEN
 
          IF (.NOT. ((nspins == 1 .AND. lr_triplet))) THEN
-            CALL Vh_1c_gg_integrals(qs_env, energy_hartree_1c, tddft=.TRUE., do_triplet=lr_triplet, &
-                                    p_env=p_env)
+            CALL Vh_1c_gg_integrals(qs_env, energy_hartree_1c, &
+                                    p_env%hartree_local%ecoul_1c, &
+                                    p_env%local_rho_set, &
+                                    para_env, tddft=.TRUE.)
 
-            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
-                                       .FALSE., tddft=.TRUE., do_triplet=lr_triplet, &
-                                       p_env=p_env)
+            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, &
+                                       calculate_forces=.FALSE., &
+                                       local_rho_set=p_env%local_rho_set)
          END IF
 
          ! ***  Add single atom contributions to the KS matrix ***

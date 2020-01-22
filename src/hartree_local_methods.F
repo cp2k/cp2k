@@ -17,7 +17,6 @@ MODULE hartree_local_methods
                                               ecoul_1center_type,&
                                               hartree_local_type,&
                                               set_ecoul_1c
-   USE input_constants,                 ONLY: tddfpt_singlet
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
@@ -37,8 +36,9 @@ MODULE hartree_local_methods
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_local_rho_types,              ONLY: rhoz_type
-   USE qs_p_env_types,                  ONLY: qs_p_env_type
+   USE qs_local_rho_types,              ONLY: get_local_rho,&
+                                              local_rho_type,&
+                                              rhoz_type
    USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                               rho0_atom_type,&
                                               rho0_mpole_type
@@ -200,19 +200,22 @@ CONTAINS
 !>        Special case for densities without core charge
 !> \param qs_env ...
 !> \param energy_hartree_1c ...
+!> \param ecoul_1c ...
+!> \param local_rho_set ...
+!> \param para_env ...
 !> \param tddft ...
-!> \param do_triplet ...
-!> \param p_env ...
 !> \par History
 !>      05.2012 JGH refactoring
 !> \author ??
 ! **************************************************************************************************
-   SUBROUTINE Vh_1c_gg_integrals(qs_env, energy_hartree_1c, tddft, do_triplet, p_env)
+   SUBROUTINE Vh_1c_gg_integrals(qs_env, energy_hartree_1c, ecoul_1c, local_rho_set, para_env, tddft)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(kind=dp), INTENT(out)                         :: energy_hartree_1c
-      LOGICAL, INTENT(IN), OPTIONAL                      :: tddft, do_triplet
-      TYPE(qs_p_env_type), OPTIONAL, POINTER             :: p_env
+      TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
+      TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: tddft
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Vh_1c_gg_integrals', &
          routineP = moduleN//':'//routineN
@@ -224,7 +227,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, lmax, lmin, npgf
       LOGICAL                                            :: atenergy, core_charge, my_periodic, &
-                                                            my_tddft, paw_atom
+                                                            paw_atom
       REAL(dp)                                           :: back_ch, factor
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gexp, sqrtwr
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: aVh1b_00, aVh1b_hh, aVh1b_ss, g0_h_w
@@ -235,9 +238,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
@@ -253,20 +254,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cell, dft_control, para_env, poisson_env, pw_env, qs_charges)
+      NULLIFY (cell, dft_control, poisson_env, pw_env, qs_charges)
       NULLIFY (atomic_kind_set, qs_kind_set, rho_atom_set, rho0_atom_set)
-      NULLIFY (rho0_mpole, rhoz_set, ecoul_1c)
+      NULLIFY (rho0_mpole, rhoz_set)
       NULLIFY (atom_list, grid_atom, harmonics)
       NULLIFY (orb_basis, lmin, lmax, npgf, zet)
       NULLIFY (gsph, atprop)
 
-      my_tddft = .FALSE.
-      IF (PRESENT(tddft)) my_tddft = tddft
-      core_charge = .NOT. my_tddft
-
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, dft_control=dft_control, &
-                      para_env=para_env, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, atprop=atprop, &
                       pw_env=pw_env, qs_charges=qs_charges)
@@ -276,30 +272,22 @@ CONTAINS
 
       back_ch = qs_charges%background*cell%deth
 
-      IF (my_tddft) THEN
-         rho_atom_set => p_env%local_rho_set%rho_atom_set
-         rho0_atom_set => p_env%local_rho_set%rho0_atom_set
-         rho0_mpole => p_env%local_rho_set%rho0_mpole
-         ecoul_1c => p_env%hartree_local%ecoul_1c
-      ELSE
-         CALL get_qs_env(qs_env=qs_env, &
-                         rho_atom_set=rho_atom_set, &
-                         rho0_atom_set=rho0_atom_set, &
-                         rho0_mpole=rho0_mpole, &
-                         rhoz_set=rhoz_set, &
-                         ecoul_1c=ecoul_1c)
-      END IF
+      ! rhoz_set is not accessed in TDDFT
+      CALL get_local_rho(local_rho_set, rho_atom_set, rho0_atom_set, rho0_mpole, rhoz_set)
 
       nkind = SIZE(atomic_kind_set, 1)
       nspins = dft_control%nspins
 
-      IF (my_tddft) THEN
-         IF (PRESENT(do_triplet)) THEN
-            IF (nspins == 1 .AND. do_triplet) RETURN
-         ELSE
-            IF (nspins == 1 .AND. dft_control%tddfpt_control%res_etype /= tddfpt_singlet) RETURN
-         ENDIF
-      END IF
+      core_charge = .NOT. tddft
+
+      ! The aim of the following code was to return immediately if the subroutine
+      ! was called for triplet excited states in spin-restricted case. This check
+      ! is also performed before invocation of this subroutine. It should be save
+      ! to remove the optional argument 'do_triplet' from the subroutine interface.
+      !IF (tddft) THEN
+      !   CPASSERT(PRESENT(do_triplet))
+      !   IF (nspins == 1 .AND. do_triplet) RETURN
+      !END IF
 
       CALL get_qs_kind_set(qs_kind_set, maxg_iso_not0=max_iso)
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole, lmax_0=lmax_0)

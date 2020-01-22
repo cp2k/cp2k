@@ -19,6 +19,7 @@ MODULE qs_kpp1_env_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_p_type,&
@@ -151,10 +152,11 @@ CONTAINS
       INTEGER                                            :: excitations, handle, ispin, ns, nspins, &
                                                             output_unit, res_etype
       INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: explicit, gapw, gapw_xc, ionode, lsd, &
+      LOGICAL                                            :: explicit, gapw, gapw_xc, lsd, &
                                                             lsd_singlets
       REAL(KIND=dp)                                      :: energy_hartree, energy_hartree_1c, fac
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, psmat
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -172,11 +174,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
-               rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set, &
-               poisson_env, input, scf_section, rho1_g, rho_ao)
+      NULLIFY (auxbas_pw_pool, input, para_env, poisson_env, pw_env, pw_pools, rho1_g, rho1_g_pw, &
+               rho1_r, rho1_r_pw, rho1_set, rho_ao, scf_section, tau_pw, v_rspace_new, v_xc)
       logger => cp_get_default_logger()
-      ionode = logger%para_env%ionode
 
       CPASSERT(ASSOCIATED(kpp1_env))
       CPASSERT(ASSOCIATED(k_p_p1))
@@ -187,7 +187,8 @@ CONTAINS
       CALL kpp1_check_i_alloc(kpp1_env, qs_env=qs_env)
       CALL get_qs_env(qs_env=qs_env, &
                       pw_env=pw_env, &
-                      input=input)
+                      input=input, &
+                      para_env=para_env)
 
       CALL qs_rho_get(rho, rho_ao=rho_ao)
       CALL qs_rho_get(rho1, rho_g=rho1_g)
@@ -342,7 +343,7 @@ CONTAINS
       END DO
       DEALLOCATE (v_xc)
 
-      IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env, qs_env, xc_section)
+      IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set, qs_env, xc_section, para_env, do_tddft=.TRUE.)
 
       CALL xc_rho_set_release(rho1_set)
 
@@ -456,9 +457,13 @@ CONTAINS
       IF (gapw) THEN
          IF (.NOT. (excitations == tddfpt_excitations .AND. (nspins == 1 .AND. &
                                                              res_etype == tddfpt_triplet))) THEN
-            CALL Vh_1c_gg_integrals(qs_env, energy_hartree_1c, .TRUE., p_env=p_env)
-            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
-                                       .FALSE., .TRUE., p_env=p_env)
+            CALL Vh_1c_gg_integrals(qs_env, energy_hartree_1c, &
+                                    p_env%hartree_local%ecoul_1c, &
+                                    p_env%local_rho_set, &
+                                    para_env, tddft=.TRUE.)
+            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, &
+                                       calculate_forces=.FALSE., &
+                                       local_rho_set=p_env%local_rho_set)
          END IF
 !         ***  Add single atom contributions to the KS matrix ***
          ! remap pointer

@@ -36,7 +36,7 @@ MODULE qs_vxc_atom
                                               has_nlcc,&
                                               qs_kind_type
    USE qs_linres_types,                 ONLY: nablavks_atom_type
-   USE qs_p_env_types,                  ONLY: qs_p_env_type
+   USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                               rho_atom_coeff,&
                                               rho_atom_type
@@ -456,18 +456,22 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param p_env ...
+!> \param local_rho_set ...
 !> \param qs_env ...
 !> \param xc_section ...
-!> \param do_tddft ...
+!> \param para_env ...
+!> \param do_tddft   Initial implementation of TDDFT. Control parameters are read directly from
+!>                   'DFT' input section
 !> \param do_triplet ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_xc_2nd_deriv_atom(p_env, qs_env, xc_section, do_tddft, do_triplet)
+   SUBROUTINE calculate_xc_2nd_deriv_atom(local_rho_set, qs_env, xc_section, para_env, do_tddft, do_triplet)
 
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xc_section
-      LOGICAL, INTENT(IN), OPTIONAL                      :: do_tddft, do_triplet
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: do_tddft
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_triplet
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom', &
          routineP = moduleN//':'//routineN
@@ -478,7 +482,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: gradient_functional, lsd, lsd_singlets, &
-                                                            my_do_tddft, paw_atom, tau_f
+                                                            paw_atom, tau_f
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, rtot, tau_cut
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rho1_h, rho1_s, rho_h, rho_s, tau1_h, &
                                                             tau1_s, tau_h, tau_s, weight
@@ -486,7 +490,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho1_h, drho1_s, drho_h, drho_s, vxg_h, &
                                                             vxg_s
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -506,14 +509,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (qs_kind_set, energy, para_env)
+      NULLIFY (qs_kind_set, energy)
       NULLIFY (rho_h, rho_s, drho_h, drho_s, weight)
       NULLIFY (rho1_h, rho1_s, drho1_h, drho1_s)
       NULLIFY (vxc_h, vxc_s, vxg_h, vxg_s)
       NULLIFY (tau_h, tau_s, tau1_h, tau1_s)
-
-      my_do_tddft = .TRUE.
-      IF (PRESENT(do_tddft)) my_do_tddft = do_tddft
 
       CALL get_qs_env(qs_env=qs_env, &
                       para_env=para_env, &
@@ -523,7 +523,7 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       rho_atom_set=rho_atom_set)
 
-      rho1_atom_set => p_env%local_rho_set%rho_atom_set
+      rho1_atom_set => local_rho_set%rho_atom_set
 
       CALL section_vals_val_get(input, "DFT%LSD", l_val=lsd)
       CALL section_vals_val_get(xc_section, "DENSITY_CUTOFF", &
@@ -532,7 +532,7 @@ CONTAINS
                                 r_val=gradient_cut)
       CALL section_vals_val_get(xc_section, "TAU_CUTOFF", &
                                 r_val=tau_cut)
-      IF (my_do_tddft) THEN
+      IF (do_tddft) THEN
          CALL section_vals_val_get(input, "DFT%EXCITATIONS", &
                                    i_val=excitations)
          CALL section_vals_val_get(input, "DFT%TDDFPT%LSD_SINGLETS", &
@@ -555,7 +555,7 @@ CONTAINS
          CPABORT("Tau functionals not implemented for GAPW 2nd derivatives")
       END IF
 
-      IF (my_do_tddft) THEN
+      IF (do_tddft) THEN
          IF (excitations == tddfpt_excitations) THEN
             IF (nspins == 1 .AND. (lsd_singlets .OR. res_etype == tddfpt_triplet)) THEN
                lsd = .TRUE.
