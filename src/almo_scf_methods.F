@@ -2174,24 +2174,13 @@ CONTAINS
 !> \param matrix_main ...
 !> \param subm_s_inv ...
 !> \param subm_s_inv_half ...
-!> \param subm_s_half ...
-!> \param subm_r_down ...
-!> \param matrix_trimmer ...
-!> \param dpattern ...
-!> \param map ...
-!> \param node_of_domain ...
-!> \param preconditioner ...
-!> \param bad_modes_projector_down ...
-!> \param use_trimmer ...
-!> \param eps_zero_eigenvalues ...
-!> \param my_action ...
 !> \par History
 !>       2013.01 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! **************************************************************************************************
-   SUBROUTINE construct_domain_preconditioner(matrix_main, subm_s_inv, subm_s_inv_half, & 
-      subm_s_half, subm_r_down, matrix_trimmer, dpattern, map, node_of_domain, preconditioner, &
-      bad_modes_projector_down, use_trimmer, eps_zero_eigenvalues, my_action, skip_inversion)
+   SUBROUTINE construct_domain_preconditioner(matrix_main, subm_s_inv, subm_s_inv_half, &
+                                          subm_s_half, subm_r_down, matrix_trimmer, dpattern, map, node_of_domain, preconditioner, &
+                                             bad_modes_projector_down, use_trimmer, eps_zero_eigenvalues, my_action, skip_inversion)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_main
       TYPE(domain_submatrix_type), DIMENSION(:), &
@@ -2205,9 +2194,10 @@ CONTAINS
          INTENT(INOUT)                                   :: preconditioner
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT), OPTIONAL                         :: bad_modes_projector_down
-      LOGICAL, INTENT(IN), OPTIONAL                      :: use_trimmer, skip_inversion
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_trimmer
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_zero_eigenvalues
       INTEGER, INTENT(IN)                                :: my_action
+      LOGICAL, INTENT(IN), OPTIONAL                      :: skip_inversion
 
       CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_preconditioner', &
          routineP = moduleN//':'//routineN
@@ -2216,14 +2206,9 @@ CONTAINS
                                                             index1_start, n_domain_mos, naos, &
                                                             nblkrows_tot, ndomains, neighbor, row
       INTEGER, DIMENSION(:), POINTER                     :: nmos
-      LOGICAL                                            :: eps_zero_eigenvalues_required, &
-                                                            matrix_r_required, &
-                                                            matrix_s_half_required, &
-                                                            matrix_s_inv_half_required, &
-                                                            matrix_s_inv_required, &
-                                                            matrix_trimmer_required, &
-                                                            my_use_trimmer, &
-                                                            my_skip_inversion
+      LOGICAL :: eps_zero_eigenvalues_required, matrix_r_required, matrix_s_half_required, &
+         matrix_s_inv_half_required, matrix_s_inv_required, matrix_trimmer_required, &
+         my_skip_inversion, my_use_trimmer
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Minv, proj_array
       TYPE(domain_submatrix_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: subm_main, subm_tmp, subm_tmp2

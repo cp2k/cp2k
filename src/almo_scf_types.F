@@ -19,9 +19,9 @@ MODULE almo_scf_types
                                               domain_submatrix_type
    USE input_constants,                 ONLY: &
         cg_dai_yuan, cg_fletcher, cg_fletcher_reeves, cg_hager_zhang, cg_hestenes_stiefel, &
-        cg_liu_storey, cg_polak_ribiere, cg_zero, optimizer_diis, optimizer_pcg, &
-        optimizer_trustr, trustr_steihaug, trustr_cauchy, trustr_dogleg, &
-        xalmo_prec_domain, xalmo_prec_full, xalmo_prec_zero
+        cg_liu_storey, cg_polak_ribiere, cg_zero, optimizer_diis, optimizer_pcg, optimizer_trustr, &
+        trustr_cauchy, trustr_dogleg, trustr_steihaug, xalmo_prec_domain, xalmo_prec_full, &
+        xalmo_prec_zero
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -456,7 +456,7 @@ CONTAINS
          IF (optimizer%optimizer_type .EQ. optimizer_trustr .OR. &
              optimizer%optimizer_type .EQ. optimizer_pcg) THEN
 
-             WRITE (unit_nr, '(T4,A,T48,I33)') "maximum outer loop iterations:", &
+            WRITE (unit_nr, '(T4,A,T48,I33)') "maximum outer loop iterations:", &
                optimizer%max_iter_outer_loop
 
             SELECT CASE (optimizer%preconditioner)

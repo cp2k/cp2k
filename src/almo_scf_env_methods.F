@@ -18,8 +18,7 @@ MODULE almo_scf_env_methods
         almo_constraint_distance, almo_deloc_none, almo_deloc_scf, almo_deloc_x, &
         almo_deloc_x_then_scf, almo_deloc_xalmo_1diag, almo_domain_layout_atomic, &
         almo_domain_layout_molecular, almo_frz_crystal, almo_mat_distr_molecular, &
-        almo_occ_vol_penalty_none, almo_scf_diag, almo_scf_pcg, almo_scf_skip, &
-        almo_scf_trustr, cg_hager_zhang, &
+        almo_occ_vol_penalty_none, almo_scf_diag, almo_scf_skip, almo_scf_trustr, cg_hager_zhang, &
         do_bondparm_vdw, molecular_guess, tensor_orthogonal, virt_full, virt_minimal, virt_number, &
         xalmo_trial_r0_out
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -121,7 +120,7 @@ CONTAINS
       xalmo_opt_pcg_section => section_vals_get_subs_vals(almo_scf_section, &
                                                           "XALMO_OPTIMIZER_PCG")
       xalmo_opt_trustr_section => section_vals_get_subs_vals(almo_scf_section, &
-                                                          "XALMO_OPTIMIZER_TRUSTR")
+                                                             "XALMO_OPTIMIZER_TRUSTR")
       almo_analysis_section => section_vals_get_subs_vals(almo_scf_section, "ANALYSIS")
       xalmo_opt_newton_pcg_section => section_vals_get_subs_vals(xalmo_opt_pcg_section, &
                                                                  "XALMO_NEWTON_PCG_SOLVER")
@@ -211,7 +210,7 @@ CONTAINS
       CALL section_vals_val_get(xalmo_opt_trustr_section, "ETA", &
                                 r_val=almo_scf_env%opt_xalmo_trustr%rho_do_not_update)
       almo_scf_env%opt_xalmo_trustr%rho_do_not_update = &
-         MIN(MAX(almo_scf_env%opt_xalmo_trustr%rho_do_not_update,0.0_dp),0.25_dp)
+         MIN(MAX(almo_scf_env%opt_xalmo_trustr%rho_do_not_update, 0.0_dp), 0.25_dp)
       CALL section_vals_val_get(xalmo_opt_trustr_section, "MODEL_GRAD_NORM_RATIO", &
                                 r_val=almo_scf_env%opt_xalmo_trustr%model_grad_norm_ratio)
       CALL section_vals_val_get(xalmo_opt_trustr_section, "INITIAL_TRUST_RADIUS", &

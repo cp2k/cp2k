@@ -18,13 +18,12 @@ MODULE input_cp2k_almo
         almo_deloc_none, almo_deloc_scf, almo_deloc_x, almo_deloc_x_then_scf, &
         almo_deloc_xalmo_1diag, almo_deloc_xalmo_scf, almo_deloc_xalmo_x, almo_frz_crystal, &
         almo_frz_none, almo_occ_vol_penalty_lndet, almo_occ_vol_penalty_none, almo_scf_diag, &
-        almo_scf_pcg, almo_scf_skip, atomic_guess, cg_dai_yuan, cg_fletcher, cg_fletcher_reeves, &
-        cg_hager_zhang, cg_hestenes_stiefel, cg_liu_storey, cg_polak_ribiere, cg_zero, &
-        molecular_guess, optimizer_diis, optimizer_lin_eq_pcg, optimizer_pcg, &
-        optimizer_trustr, almo_scf_trustr, trustr_steihaug, trustr_cauchy, trustr_dogleg, &
-        spd_inversion_dense_cholesky, spd_inversion_ls_hotelling, spd_inversion_ls_taylor, &
-        xalmo_prec_domain, xalmo_prec_full, xalmo_prec_zero, xalmo_trial_r0_out, &
-        xalmo_trial_simplex
+        almo_scf_pcg, almo_scf_skip, almo_scf_trustr, atomic_guess, cg_dai_yuan, cg_fletcher, &
+        cg_fletcher_reeves, cg_hager_zhang, cg_hestenes_stiefel, cg_liu_storey, cg_polak_ribiere, &
+        cg_zero, molecular_guess, optimizer_diis, optimizer_lin_eq_pcg, optimizer_pcg, &
+        optimizer_trustr, spd_inversion_dense_cholesky, spd_inversion_ls_hotelling, &
+        spd_inversion_ls_taylor, trustr_cauchy, trustr_dogleg, trustr_steihaug, xalmo_prec_domain, &
+        xalmo_prec_full, xalmo_prec_zero, xalmo_trial_r0_out, xalmo_trial_simplex
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -149,7 +148,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="XALMO_ALGORITHM", &
-        description="Specifies the algorithm to update ALMOs on eXtended domains (XALMOs).", &
+                          description="Specifies the algorithm to update ALMOs on eXtended domains (XALMOs).", &
                           usage="XALMO_ALGORITHM TRUST_REGION", &
                           default_i_val=almo_scf_pcg, &
                           enum_c_vals=s2a("PCG", "TRUST_REGION"), &
@@ -657,7 +656,7 @@ CONTAINS
 
       IF (optimizer_type .EQ. optimizer_pcg .OR. &
           optimizer_type .EQ. optimizer_lin_eq_pcg .OR. &
-          optimizer_type .EQ. optimizer_trustr ) THEN
+          optimizer_type .EQ. optimizer_trustr) THEN
 
          CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_OUTER_LOOP", &
                              description="Maximum number of iterations in the outer loop. "// &
@@ -712,7 +711,7 @@ CONTAINS
       ENDIF
 
       IF (optimizer_type .EQ. optimizer_pcg .OR. &
-          optimizer_type .EQ. optimizer_trustr ) THEN
+          optimizer_type .EQ. optimizer_trustr) THEN
 
          CALL keyword_create(keyword, __LOCATION__, name="CONJUGATOR", &
                              description="Various methods to compute step directions in the PCG optimization", &

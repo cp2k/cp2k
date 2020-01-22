@@ -15,7 +15,7 @@
     &QS
       METHOD GPW
       ALMO_SCF T
-      EPS_DEFAULT 1.0E-9
+      EPS_DEFAULT 1.0E-8
     &END QS
 
     &MGRID
@@ -60,7 +60,7 @@
   &SUBSYS
     &CELL
       ABC    3.66 3.66 3.66
-      MULTIPLE_UNIT_CELL 2 2 2
+      MULTIPLE_UNIT_CELL 2 1 1
     &END CELL
 
     &TOPOLOGY
@@ -69,7 +69,7 @@
         BONDPARM COVALENT
         BONDPARM_FACTOR 0.3
       &END GENERATE
-      MULTIPLE_UNIT_CELL 2 2 2
+      MULTIPLE_UNIT_CELL 2 1 1
     &END
 
     &COORD

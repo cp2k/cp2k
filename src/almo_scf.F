@@ -18,8 +18,8 @@ MODULE almo_scf
                                               orthogonalize_mos
    USE almo_scf_optimizer,              ONLY: almo_scf_block_diagonal,&
                                               almo_scf_xalmo_eigensolver,&
-                                              almo_scf_xalmo_trustr, &
-                                              almo_scf_xalmo_pcg
+                                              almo_scf_xalmo_pcg,&
+                                              almo_scf_xalmo_trustr
    USE almo_scf_qs,                     ONLY: almo_dm_to_almo_ks,&
                                               almo_scf_construct_quencher,&
                                               calculate_w_matrix_almo,&
@@ -64,10 +64,10 @@ MODULE almo_scf
         almo_deloc_none, almo_deloc_scf, almo_deloc_x, almo_deloc_x_then_scf, &
         almo_deloc_xalmo_1diag, almo_deloc_xalmo_scf, almo_deloc_xalmo_x, almo_deloc_xk, &
         almo_domain_layout_molecular, almo_mat_distr_atomic, almo_mat_distr_molecular, &
-        almo_scf_diag, almo_scf_dm_sign, almo_scf_pcg, almo_scf_skip, almo_scf_trustr, atomic_guess, &
-        molecular_guess, optimizer_diis, optimizer_lin_eq_pcg, optimizer_pcg, optimizer_trustr, restart_guess, &
-        smear_fermi_dirac, virt_full, virt_number, virt_occ_size, xalmo_case_block_diag, &
-        xalmo_case_fully_deloc, xalmo_case_normal, xalmo_trial_r0_out
+        almo_scf_diag, almo_scf_dm_sign, almo_scf_pcg, almo_scf_skip, almo_scf_trustr, &
+        atomic_guess, molecular_guess, optimizer_diis, optimizer_lin_eq_pcg, optimizer_pcg, &
+        optimizer_trustr, restart_guess, smear_fermi_dirac, virt_full, virt_number, virt_occ_size, &
+        xalmo_case_block_diag, xalmo_case_fully_deloc, xalmo_case_normal, xalmo_trial_r0_out
    USE input_section_types,             ONLY: section_vals_type
    USE iterate_matrix,                  ONLY: invert_Hotelling,&
                                               matrix_sqrt_Newton_Schulz
@@ -1483,13 +1483,13 @@ CONTAINS
          ELSE IF (almo_scf_env%xalmo_update_algorithm .EQ. almo_scf_trustr) THEN
 
             CALL almo_scf_xalmo_trustr(qs_env=qs_env, &
-                                    almo_scf_env=almo_scf_env, &
-                                    optimizer=almo_scf_env%opt_xalmo_trustr, &
-                                    quench_t=no_quench, &
-                                    matrix_t_in=almo_scf_env%matrix_t_blk, &
-                                    matrix_t_out=almo_scf_env%matrix_t, &
-                                    perturbation_only=.TRUE., &
-                                    special_case=xalmo_case_fully_deloc)
+                                       almo_scf_env=almo_scf_env, &
+                                       optimizer=almo_scf_env%opt_xalmo_trustr, &
+                                       quench_t=no_quench, &
+                                       matrix_t_in=almo_scf_env%matrix_t_blk, &
+                                       matrix_t_out=almo_scf_env%matrix_t, &
+                                       perturbation_only=.TRUE., &
+                                       special_case=xalmo_case_fully_deloc)
 
          ELSE
 
@@ -1532,13 +1532,13 @@ CONTAINS
          ELSE IF (almo_scf_env%xalmo_update_algorithm .EQ. almo_scf_trustr) THEN
 
             CALL almo_scf_xalmo_trustr(qs_env=qs_env, &
-                                    almo_scf_env=almo_scf_env, &
-                                    optimizer=almo_scf_env%opt_xalmo_trustr, &
-                                    quench_t=almo_scf_env%quench_t, &
-                                    matrix_t_in=almo_scf_env%matrix_t_blk, &
-                                    matrix_t_out=almo_scf_env%matrix_t, &
-                                    perturbation_only=.TRUE., &
-                                    special_case=xalmo_case_normal)
+                                       almo_scf_env=almo_scf_env, &
+                                       optimizer=almo_scf_env%opt_xalmo_trustr, &
+                                       quench_t=almo_scf_env%quench_t, &
+                                       matrix_t_in=almo_scf_env%matrix_t_blk, &
+                                       matrix_t_out=almo_scf_env%matrix_t, &
+                                       perturbation_only=.TRUE., &
+                                       special_case=xalmo_case_normal)
 
          ELSE
 
@@ -1587,13 +1587,13 @@ CONTAINS
          ELSE IF (almo_scf_env%xalmo_update_algorithm .EQ. almo_scf_trustr) THEN
 
             CALL almo_scf_xalmo_trustr(qs_env=qs_env, &
-                                    almo_scf_env=almo_scf_env, &
-                                    optimizer=almo_scf_env%opt_xalmo_trustr, &
-                                    quench_t=almo_scf_env%quench_t, &
-                                    matrix_t_in=almo_scf_env%matrix_t_blk, &
-                                    matrix_t_out=almo_scf_env%matrix_t, &
-                                    perturbation_only=.FALSE., &
-                                    special_case=xalmo_case_normal)
+                                       almo_scf_env=almo_scf_env, &
+                                       optimizer=almo_scf_env%opt_xalmo_trustr, &
+                                       quench_t=almo_scf_env%quench_t, &
+                                       matrix_t_in=almo_scf_env%matrix_t_blk, &
+                                       matrix_t_out=almo_scf_env%matrix_t, &
+                                       perturbation_only=.FALSE., &
+                                       special_case=xalmo_case_normal)
 
          ELSE
 
@@ -1629,13 +1629,13 @@ CONTAINS
          ELSE IF (almo_scf_env%xalmo_update_algorithm .EQ. almo_scf_trustr) THEN
 
             CALL almo_scf_xalmo_trustr(qs_env=qs_env, &
-                                    almo_scf_env=almo_scf_env, &
-                                    optimizer=almo_scf_env%opt_xalmo_trustr, &
-                                    quench_t=no_quench, &
-                                    matrix_t_in=almo_scf_env%matrix_t, &
-                                    matrix_t_out=almo_scf_env%matrix_t, &
-                                    perturbation_only=.FALSE., &
-                                    special_case=xalmo_case_fully_deloc)
+                                       almo_scf_env=almo_scf_env, &
+                                       optimizer=almo_scf_env%opt_xalmo_trustr, &
+                                       quench_t=no_quench, &
+                                       matrix_t_in=almo_scf_env%matrix_t, &
+                                       matrix_t_out=almo_scf_env%matrix_t, &
+                                       perturbation_only=.FALSE., &
+                                       special_case=xalmo_case_fully_deloc)
 
          ELSE
 
