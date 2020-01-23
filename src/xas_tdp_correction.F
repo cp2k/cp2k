@@ -470,7 +470,8 @@ CONTAINS
       REAL(dp)                                           :: c_os, c_ss, dg, diff, ds1, ds2, eps_I, &
                                                             eps_iter, g, omega_k, parts(4), s1, s2
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_t_type)                                 :: aj_Ib, aj_X, ja_Ik
+      TYPE(dbcsr_t_type)                                 :: aj_Ib, aj_Ib_diff, aj_X, ja_Ik, &
+                                                            ja_Ik_diff
 
       CALL timeset(routineN, handle)
 
@@ -560,13 +561,18 @@ CONTAINS
                !same-spin contribution. Contraction only neede if c_ss != 0
                !directly compute the difference (ja|Ik) - (ka|Ij)
                IF (ABS(c_ss) > EPSILON(1.0_dp)) THEN
+
+                  CALL dbcsr_t_create(ja_Ik, ja_Ik_diff, map1_2d=[1], map2_2d=[2, 3])
+                  CALL dbcsr_t_copy(ja_Ik, ja_Ik_diff, move_data=.TRUE.)
+
                   CALL dbcsr_t_contract(alpha=dbcsr_scalar(-1.0_dp), tensor_1=oI_Y(ido_mo), tensor_2=aj_X, &
-                                        beta=dbcsr_scalar(1.0_dp), tensor_3=ja_Ik, contract_1=[2], &
+                                        beta=dbcsr_scalar(1.0_dp), tensor_3=ja_Ik_diff, contract_1=[2], &
                                         notcontract_1=[1], contract_2=[3], notcontract_2=[1, 2], &
                                         map_1=[1], map_2=[2, 3], bounds_2=[1, nhomo], bounds_3=bounds_2d)
 
-                  CALL calc_ss_oov_contrib(parts(1), parts(2), ja_Ik, homo_evals, lumo_evals, omega_k, c_ss)
+                  CALL calc_ss_oov_contrib(parts(1), parts(2), ja_Ik_diff, homo_evals, lumo_evals, omega_k, c_ss)
 
+                  CALL dbcsr_t_destroy(ja_Ik_diff)
                END IF !c_ss != 0
 
                CALL dbcsr_t_destroy(ja_Ik)
@@ -595,14 +601,18 @@ CONTAINS
                   bounds_2d(2, 1) = nhomo
                   bounds_2d(:, 2) = bounds_1d
 
+                  CALL dbcsr_t_create(aj_Ib, aj_Ib_diff, map1_2d=[1], map2_2d=[2, 3])
+                  CALL dbcsr_t_copy(aj_Ib, aj_Ib_diff, move_data=.TRUE.)
+
                   CALL dbcsr_t_contract(alpha=dbcsr_scalar(-1.0_dp), tensor_1=oI_Y(ido_mo), tensor_2=ja_X, &
-                                        beta=dbcsr_scalar(1.0_dp), tensor_3=aj_Ib, contract_1=[2], &
+                                        beta=dbcsr_scalar(1.0_dp), tensor_3=aj_Ib_diff, contract_1=[2], &
                                         notcontract_1=[1], contract_2=[3], notcontract_2=[1, 2], &
                                         map_1=[1], map_2=[2, 3], &
                                         bounds_2=[nhomo + 1, nhomo + nlumo], bounds_3=bounds_2d)
 
-                  CALL calc_ss_ovv_contrib(parts(3), parts(4), aj_Ib, homo_evals, lumo_evals, omega_k, c_ss)
+                  CALL calc_ss_ovv_contrib(parts(3), parts(4), aj_Ib_diff, homo_evals, lumo_evals, omega_k, c_ss)
 
+                  CALL dbcsr_t_destroy(aj_Ib_diff)
                END IF ! c_ss not 0
 
                CALL dbcsr_t_destroy(aj_Ib)
@@ -685,7 +695,8 @@ CONTAINS
       REAL(dp)                                           :: c_os, c_ss, dg, diff, ds1, ds2, eps_I, &
                                                             eps_iter, g, omega_k, parts(4), s1, s2
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_t_type)                                 :: aj_Ib, aj_X(2), ja_Ik
+      TYPE(dbcsr_t_type)                                 :: aj_Ib, aj_Ib_diff, aj_X(2), ja_Ik, &
+                                                            ja_Ik_diff
 
       CALL timeset(routineN, handle)
 
@@ -800,14 +811,18 @@ CONTAINS
                      bounds_2d(2, 1) = nhomo(ispin) + nlumo(ispin)
 
                      !the tensor difference is directly taken here
+                     CALL dbcsr_t_create(ja_Ik, ja_Ik_diff, map1_2d=[1], map2_2d=[2, 3])
+                     CALL dbcsr_t_copy(ja_Ik, ja_Ik_diff, move_data=.TRUE.)
+
                      CALL dbcsr_t_contract(alpha=dbcsr_scalar(-1.0_dp), tensor_1=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
-                                           tensor_2=aj_X(ispin), beta=dbcsr_scalar(1.0_dp), tensor_3=ja_Ik, &
+                                           tensor_2=aj_X(ispin), beta=dbcsr_scalar(1.0_dp), tensor_3=ja_Ik_diff, &
                                            contract_1=[2], notcontract_1=[1], contract_2=[3], notcontract_2=[1, 2], &
                                            map_1=[1], map_2=[2, 3], bounds_2=[1, nhomo(ispin)], bounds_3=bounds_2d)
 
-                     CALL calc_ss_oov_contrib(parts(1), parts(2), ja_Ik, homo_evals(ispin)%array, &
+                     CALL calc_ss_oov_contrib(parts(1), parts(2), ja_Ik_diff, homo_evals(ispin)%array, &
                                               lumo_evals(ispin)%array, omega_k, c_ss)
 
+                     CALL dbcsr_t_destroy(ja_Ik_diff)
                      CALL dbcsr_t_destroy(ja_Ik)
                   END IF !c_ss !!= 0
 
@@ -850,18 +865,21 @@ CONTAINS
                      bounds_2d(2, 1) = nhomo(ispin)
                      bounds_2d(:, 2) = bounds_1d
 
+                     CALL dbcsr_t_create(aj_Ib, aj_Ib_diff, map1_2d=[1], map2_2d=[2, 3])
+                     CALL dbcsr_t_copy(aj_Ib, aj_Ib_diff, move_data=.TRUE.)
+
                      CALL dbcsr_t_contract(alpha=dbcsr_scalar(-1.0_dp), tensor_1=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
-                                           tensor_2=ja_X(ispin), beta=dbcsr_scalar(1.0_dp), tensor_3=aj_Ib, &
+                                           tensor_2=ja_X(ispin), beta=dbcsr_scalar(1.0_dp), tensor_3=aj_Ib_diff, &
                                            contract_1=[2], notcontract_1=[1], contract_2=[3], &
                                            notcontract_2=[1, 2], map_1=[1], map_2=[2, 3], &
                                            bounds_2=[nhomo(ispin) + 1, nhomo(ispin) + nlumo(ispin)], &
                                            bounds_3=bounds_2d)
 
-                     CALL calc_ss_ovv_contrib(parts(3), parts(4), aj_Ib, homo_evals(ispin)%array, &
+                     CALL calc_ss_ovv_contrib(parts(3), parts(4), aj_Ib_diff, homo_evals(ispin)%array, &
                                               lumo_evals(ispin)%array, omega_k, c_ss)
 
+                     CALL dbcsr_t_destroy(aj_Ib_diff)
                      CALL dbcsr_t_destroy(aj_Ib)
-
                   END IF ! c_ss not 0
 
                END DO
