@@ -151,10 +151,11 @@ CONTAINS
                           description="Specifies the algorithm to update ALMOs on eXtended domains (XALMOs).", &
                           usage="XALMO_ALGORITHM TRUST_REGION", &
                           default_i_val=almo_scf_pcg, &
-                          enum_c_vals=s2a("PCG", "TRUST_REGION"), &
-                          enum_desc=s2a("PCG algorithm controlled by XALMO_OPTIMIZER_PCG.", &
+                          enum_c_vals=s2a("DIAG", "PCG", "TRUST_REGION"), &
+                          enum_desc=s2a("DIIS-accelerated diagonalization.", &
+                                        "PCG algorithm controlled by XALMO_OPTIMIZER_PCG.", &
                                         "Trust-region optimizer controlled by XALMO_OPTIMIZER_TRUSTR"), &
-                          enum_i_vals=(/almo_scf_pcg, almo_scf_trustr/))
+                          enum_i_vals=(/almo_scf_diag, almo_scf_pcg, almo_scf_trustr/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
