@@ -7581,7 +7581,9 @@ CONTAINS
 
       ndomains = almo_scf_env%ndomains
       ALLOCATE (domain_r_down(ndomains, nspins))
+      CALL init_submatrices(domain_r_down)
       ALLOCATE (domain_model_hessian_inv(ndomains, nspins))
+      CALL init_submatrices(domain_model_hessian_inv)
 
       ALLOCATE (m_model_hessian(nspins))
       ALLOCATE (m_model_hessian_inv(nspins))
