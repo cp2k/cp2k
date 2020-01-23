@@ -91,7 +91,7 @@ MODULE bibliography
                             Toulouse2004, Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020, &
                             Behler2007, Behler2011, Schran2020a, Schran2020b, &
-                            Rycroft2009, Thomas2015, Brehm2018, Brehm2020
+                            Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001
 
 CONTAINS
 
@@ -4674,6 +4674,19 @@ CONTAINS
                          "PB American Institute of Physics", &
                          "ER"), &
                          DOI="10.1063/5.0005078")
+
+      CALL add_reference(key=Shigeta2001, ISI_record=s2a( &
+                         "AU Y. Shigeta", &
+                         "   A. M. Ferreira", &
+                         "   V. G. Zakrzewski", &
+                         "   J. V. Ortiz", &
+                         "TI Electron propagator calculations with Kohn–Sham reference states", &
+                         "SO International Journal of Quantum Chemistry", &
+                         "PY 2001", &
+                         "VL 85", &
+                         "IS 4-5", &
+                         "ER"), &
+                         DOI="10.1002/qua.1543")
 
    END SUBROUTINE add_all_references
 

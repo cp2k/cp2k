@@ -156,9 +156,9 @@ CONTAINS
          END IF
          !  EXC energy ! is that needed for epr?
          deriv_att => xc_dset_get_derivative(deriv_set, "")
+         exc = 0.0_dp
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-            exc = 0.0_dp
             DO ir = 1, nr
                DO ia = 1, na
                   exc = exc + deriv_data(ia, ir, 1)*w(ia, ir)
@@ -169,9 +169,9 @@ CONTAINS
       ELSE
 !  EXC energy
          deriv_att => xc_dset_get_derivative(deriv_set, "")
+         exc = 0.0_dp
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-            exc = 0.0_dp
             DO ir = 1, nr
                DO ia = 1, na
                   exc = exc + deriv_data(ia, ir, 1)*w(ia, ir)

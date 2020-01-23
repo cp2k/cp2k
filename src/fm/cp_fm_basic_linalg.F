@@ -15,7 +15,7 @@ MODULE cp_fm_basic_linalg
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
+        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
         cp_fm_release, cp_fm_set_all, cp_fm_set_element, cp_fm_set_submatrix, cp_fm_to_fm, &
         cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
@@ -272,6 +272,7 @@ CONTAINS
 !>      - SERIOUS WARNING (KNOWN BUG) : the sign of the determinant depends on ipivot
 !>      - one should be able to find out if ipivot is an even or an odd permutation...
 !>        if you need the correct sign, just add correct_sign==.TRUE. (fschiff)
+!>      - Use cp_fm_get_diag instead of n times cp_fm_get_element (A. Bussy)
 ! **************************************************************************************************
    SUBROUTINE cp_fm_lu_decompose(matrix_a, almost_determinant, correct_sign)
       TYPE(cp_fm_type), POINTER                :: matrix_a
@@ -304,9 +305,7 @@ CONTAINS
 
       ALLOCATE (diag(n))
       diag(:) = 0.0_dp
-      DO i = 1, n
-         CALL cp_fm_get_element(matrix_a, i, i, diag(i)) !  not completely optimal in speed i would say
-      ENDDO
+      CALL cp_fm_get_diag(matrix_a, diag)
       determinant = 1.0_dp
       DO i = 1, n
          determinant = determinant*diag(i)
@@ -1452,6 +1451,7 @@ CONTAINS
 !>      - computation of determinant corrected
 !>      - determinant only computed if det_a is present
 !>      12.2016 added option to use SVD instead of LU [Nico Holmberg]
+!>      - Use cp_fm_get diag instead of n times cp_fm_get_element (A. Bussy)
 !> \author Florian Schiffmann(02.2007)
 ! **************************************************************************************************
    SUBROUTINE cp_fm_invert(matrix_a, matrix_inverse, det_a, eps_svd, eigval)
@@ -1505,9 +1505,7 @@ CONTAINS
 
             ALLOCATE (diag(n))
             diag(:) = 0.0_dp
-            DO i = 1, n
-               CALL cp_fm_get_element(matrix_lu, i, i, diag(i)) !  not completely optimal in speed i would say
-            ENDDO
+            CALL cp_fm_get_diag(matrix_lu, diag)
 
             exponent_of_minus_one = 0
             determinant = 1.0_dp

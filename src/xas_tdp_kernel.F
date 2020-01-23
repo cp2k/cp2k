@@ -11,15 +11,14 @@
 ! **************************************************************************************************
 
 MODULE xas_tdp_kernel
-   USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                              gto_basis_set_type
+   USE basis_set_types,                 ONLY: gto_basis_set_p_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist,&
                                               dbcsr_deallocate_matrix_set
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
-        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, &
@@ -34,10 +33,12 @@ MODULE xas_tdp_kernel
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_bcast
+   USE particle_methods,                ONLY: get_particle_set
+   USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
+   USE qs_integral_utils,               ONLY: basis_set_list_setup
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE util,                            ONLY: get_limit
    USE xas_tdp_types,                   ONLY: donor_state_type,&
                                               get_proc_batch_sizes,&
@@ -52,7 +53,8 @@ MODULE xas_tdp_kernel
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tdp_kernel'
 
-   PUBLIC :: kernel_coulomb_xc, kernel_exchange
+   PUBLIC :: kernel_coulomb_xc, kernel_exchange, contract2_AO_to_doMO, &
+             reserve_contraction_blocks, ri_all_blocks_mm
 
 CONTAINS
 
@@ -667,11 +669,13 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
+      CHARACTER(len=*), PARAMETER :: routineN = 'ondiag_ex', routineP = moduleN//':'//routineN
+
       INTEGER                                            :: blk, group, iblk, iso, jblk, jso, nblk, &
                                                             ndo_mo, ndo_so, nsgfa, nsgfp, ri_atom, &
                                                             source
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_dist_work, ri_blk_size, &
-                                                            row_dist, row_dist_work
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_dist_work, row_dist, &
+                                                            row_dist_work
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: do_roks, do_uks, found
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: coeffs, ri_coeffs
@@ -696,11 +700,9 @@ CONTAINS
       ndo_so = ndo_mo; IF (do_uks) ndo_so = 2*ndo_mo !if not UKS, same donor MOs for both spins
       PQ => xas_tdp_env%ri_inv_ex
 
-      CALL get_qs_env(qs_env, para_env=para_env, matrix_s=matrix_s)
-      CALL dbcsr_get_info(contr1_int(1)%matrix, col_blk_size=ri_blk_size)
-      nsgfp = ri_blk_size(ri_atom)
+      CALL get_qs_env(qs_env, para_env=para_env, matrix_s=matrix_s, natom=nblk)
+      nsgfp = SIZE(PQ, 1)
       nsgfa = SIZE(donor_state%contract_coeffs, 1)
-      nblk = SIZE(ri_blk_size)
       ALLOCATE (coeffs(nsgfp, ndo_so), ri_coeffs(nsgfp, ndo_so))
 
       ! a and b need to overlap for non-zero (ab|IJ) => same block structure as overlap S
@@ -985,7 +987,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'contract2_AO_to_doMO'
 
       INTEGER                                            :: handle, i, imo, ispin, katom, kkind, &
-                                                            natom, ndo_mo, ndo_so, nsgfk, nspins
+                                                            natom, ndo_mo, ndo_so, nkind, nspins
       INTEGER, DIMENSION(:), POINTER                     :: ri_blk_size, std_blk_size
       LOGICAL                                            :: do_uks
       REAL(dp), DIMENSION(:, :), POINTER                 :: coeffs
@@ -995,11 +997,12 @@ CONTAINS
       TYPE(dbcsr_t_type), POINTER                        :: pq_X
       TYPE(dbcsr_type), POINTER                          :: aI_P, P_Ib, work
       TYPE(distribution_2d_type), POINTER                :: opt_dist2d
-      TYPE(gto_basis_set_type), POINTER                  :: ri_basis
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: ri_basis
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       NULLIFY (matrix_s, std_blk_size, ri_blk_size, qs_kind_set, ri_basis, pq_X)
-      NULLIFY (aI_P, P_Ib, work, matrices, coeffs, opt_dist2d)
+      NULLIFY (aI_P, P_Ib, work, matrices, coeffs, opt_dist2d, particle_set)
 
       CALL timeset(routineN, handle)
 
@@ -1023,10 +1026,10 @@ CONTAINS
 !  contracted integrals block sizes
       CALL dbcsr_get_info(matrix_s(1)%matrix, col_blk_size=std_blk_size)
       ! getting the block dimensions for the RI basis
-      CALL get_qs_kind(qs_kind_set(kkind), basis_set=ri_basis, basis_type="RI_XAS")
-      CALL get_gto_basis_set(ri_basis, nsgf=nsgfk)
-      ALLOCATE (ri_blk_size(natom))
-      ri_blk_size = nsgfk
+      CALL get_qs_env(qs_env, particle_set=particle_set, nkind=nkind)
+      ALLOCATE (ri_basis(nkind), ri_blk_size(natom))
+      CALL basis_set_list_setup(ri_basis, "RI_XAS", qs_kind_set)
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=ri_blk_size, basis=ri_basis)
 
 !  Create  work matrices. Everything that goes into a 3c routine must be compatible with the optimal dist_2d
       CALL cp_dbcsr_dist2d_to_dist(opt_dist2d, opt_dbcsr_dist)
@@ -1068,6 +1071,7 @@ CONTAINS
             CALL dbcsr_transposed(work, P_Ib)
             CALL dbcsr_add(work, aI_P, 1.0_dp, 1.0_dp)
             CALL dbcsr_complete_redistribute(work, contr_int((ispin - 1)*ndo_mo + imo)%matrix)
+            CALL dbcsr_filter(contr_int((ispin - 1)*ndo_mo + imo)%matrix, 1.0E-16_dp)
 
             CALL dbcsr_release(work)
          END DO !imo
@@ -1077,7 +1081,7 @@ CONTAINS
       CALL dbcsr_release(aI_P)
       CALL dbcsr_release(P_Ib)
       CALL dbcsr_distribution_release(opt_dbcsr_dist)
-      DEALLOCATE (ri_blk_size, aI_P, P_Ib, work)
+      DEALLOCATE (ri_blk_size, aI_P, P_Ib, work, ri_basis)
 
       CALL timestop(handle)
 
@@ -1164,7 +1168,6 @@ CONTAINS
 !> \param mat_aIb normal type dbcsr matrix
 !> \param mat_bIa normal type dbcsr matrix
 !> \param atom_k the atom for which we contract
-!> \note To get the full (aI|P) matrix, one has to sum mat_aIb + mat_bIa^T (the latter has empty diag)
 !>       It is assumed that the contraction coefficients for MO I are all on atom_k
 !>       We do the classic thing when we fill half the matrix and add its transposed to get the full
 !>       one, but here, the matrix is not symmetric, hence we explicitely have 2 input matrices

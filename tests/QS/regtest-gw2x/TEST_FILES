@@ -1,0 +1,15 @@
+#Testing the GW2X correction scheme for the XAS_TDP method and the keyword combinations it involves
+#Checking basic calculations with the 2 approaches to GW2X: psudo-canonical and GW2X*
+H2O-B3LYP-pseudo_cano.inp                              88      1e-08            538.170258
+H2O-B3LYP-GW2Xs.inp                                    88      1e-08            537.831758
+#Checking the individual scaling of spin-contributions (here using SCS-MP2)
+HCN-PBE0-SCS_GW2X.inp                                  88      1e-08            404.819361
+#Checking unrestricted KS ground state
+O2-HF-uks.inp                                          88      1e-08            524.866496
+#Checking the use of ADMM, pseudo-potentials and varying batch size
+CH3F-PBEh-admm-pseudo.inp                              88      1e-08            679.556996
+#Checking PBCs (non-practical calculations)
+Ne-pbc-shortrange.inp                                  88      1e-08            905.355502
+Ne-pbc-truncated.inp                                   88      1e-08            919.922795
+#XPS only calculation, bypassing all XAS_TDP stuff
+SiH4-HF-xps_only.inp                                   91      1e-08            106.675736

@@ -144,6 +144,15 @@ MODULE xas_tdp_types
          DIMENSION(:, :), POINTER  :: grid_info
       TYPE(qs_ot_settings_type), POINTER      :: ot_settings
 
+      LOGICAL                                 :: do_gw2x
+      LOGICAL                                 :: xps_only
+      REAL(dp)                                :: gw2x_eps
+      LOGICAL                                 :: pseudo_canonical
+      INTEGER                                 :: max_gw2x_iter
+      REAL(dp)                                :: c_os
+      REAL(dp)                                :: c_ss
+      INTEGER                                 :: batch_size
+
    END TYPE xas_tdp_control_type
 
 !> *************************************************************************************************
@@ -219,6 +228,9 @@ MODULE xas_tdp_types
          POINTER                              :: lumo_evals
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER                              :: ot_prec
+      TYPE(dbcsr_p_type), DIMENSION(:), &
+         POINTER                              :: fock_matrix
+      TYPE(cp_fm_type), POINTER               :: lumo_coeffs
    END TYPE xas_tdp_env_type
 
 !> *************************************************************************************************
@@ -229,6 +241,7 @@ MODULE xas_tdp_types
 !> \param at_symbol the chemical symbol of the atom to which the state belongs
 !> \param state_type whether this is a 1s, 2s, etc state
 !> \param energy_evals the energy eigenvalue of the donor state, for each spin
+!> \param gw2x_evals the GW2X corrected energy eigenvalue of the donor state, for each spin
 !> \param mo_indices indices of associated MOs. Greater than 1 when not a s-type state.
 !> \param sc_coeffs solutions of the linear-response TDDFT equation for spin-conserving open-shell
 !> \param sf_coeffs solutions of the linear-response TDDFT equation for spin-flip open-shell
@@ -262,13 +275,14 @@ MODULE xas_tdp_types
       INTEGER                                 :: state_type
       INTEGER, DIMENSION(:), POINTER          :: blk_size
       REAL(dp), DIMENSION(:, :), POINTER      :: energy_evals
+      REAL(dp), DIMENSION(:, :), POINTER      :: gw2x_evals
       INTEGER, DIMENSION(:, :), POINTER       :: mo_indices
       TYPE(cp_fm_type), POINTER               :: sc_coeffs
       TYPE(cp_fm_type), POINTER               :: sf_coeffs
       TYPE(cp_fm_type), POINTER               :: sg_coeffs
       TYPE(cp_fm_type), POINTER               :: tp_coeffs
       TYPE(cp_fm_type), POINTER               :: gs_coeffs
-      REAL(dp), DIMENSION(:, :), POINTER       :: contract_coeffs
+      REAL(dp), DIMENSION(:, :), POINTER      :: contract_coeffs
       REAL(dp), DIMENSION(:), POINTER         :: sc_evals
       REAL(dp), DIMENSION(:), POINTER         :: sf_evals
       REAL(dp), DIMENSION(:), POINTER         :: sg_evals
@@ -408,6 +422,11 @@ CONTAINS
       xas_tdp_control%e_range = -1.0_dp
       xas_tdp_control%ot_max_iter = 500
       xas_tdp_control%ot_eps_iter = 1.0E-4_dp
+      xas_tdp_control%c_os = 1.0_dp
+      xas_tdp_control%c_ss = 1.0_dp
+      xas_tdp_control%batch_size = 64
+      xas_tdp_control%do_gw2x = .FALSE.
+      xas_tdp_control%xps_only = .FALSE.
       NULLIFY (xas_tdp_control%state_types)
       NULLIFY (xas_tdp_control%list_ex_atoms)
       NULLIFY (xas_tdp_control%list_ex_kinds)
@@ -680,6 +699,18 @@ CONTAINS
       CALL section_vals_val_get(xas_tdp_section, "OT_SOLVER%EPS_ITER", &
                                 r_val=xas_tdp_control%ot_eps_iter)
 
+      !GW2X
+      CALL section_vals_val_get(xas_tdp_section, "GW2X%_SECTION_PARAMETERS_", l_val=xas_tdp_control%do_gw2x)
+      IF (xas_tdp_control%do_gw2x) THEN
+         CALL section_vals_val_get(xas_tdp_section, "GW2X%EPS_GW2X", r_val=xas_tdp_control%gw2x_eps)
+         CALL section_vals_val_get(xas_tdp_section, "GW2X%XPS_ONLY", l_val=xas_tdp_control%xps_only)
+         CALL section_vals_val_get(xas_tdp_section, "GW2X%C_OS", r_val=xas_tdp_control%c_os)
+         CALL section_vals_val_get(xas_tdp_section, "GW2X%C_SS", r_val=xas_tdp_control%c_ss)
+         CALL section_vals_val_get(xas_tdp_section, "GW2X%MAX_GW2X_ITER", i_val=xas_tdp_control%max_gw2x_iter)
+         CALL section_vals_val_get(xas_tdp_section, "GW2X%PSEUDO_CANONICAL", l_val=xas_tdp_control%pseudo_canonical)
+         CALL section_vals_val_get(xas_tdp_section, "GW2X%BATCH_SIZE", i_val=xas_tdp_control%batch_size)
+      END IF
+
    END SUBROUTINE read_xas_tdp_control
 
 ! **************************************************************************************************
@@ -717,6 +748,8 @@ CONTAINS
       NULLIFY (xas_tdp_env%lumo_evecs)
       NULLIFY (xas_tdp_env%lumo_evals)
       NULLIFY (xas_tdp_env%ot_prec)
+      NULLIFY (xas_tdp_env%lumo_coeffs)
+      NULLIFY (xas_tdp_env%fock_matrix)
 
 !     Putting the state types as char manually
       xas_tdp_env%state_type_char(1) = "1s"
@@ -832,6 +865,16 @@ CONTAINS
          IF (ASSOCIATED(xas_tdp_env%matrix_shalf)) THEN
             CALL cp_fm_release(xas_tdp_env%matrix_shalf)
          END IF
+         IF (ASSOCIATED(xas_tdp_env%fock_matrix)) THEN
+            DO i = 1, SIZE(xas_tdp_env%fock_matrix)
+               CALL dbcsr_release(xas_tdp_env%fock_matrix(i)%matrix)
+               DEALLOCATE (xas_tdp_env%fock_matrix(i)%matrix)
+            END DO
+            DEALLOCATE (xas_tdp_env%fock_matrix)
+         END IF
+         IF (ASSOCIATED(xas_tdp_env%lumo_coeffs)) THEN
+            CALL cp_fm_release(xas_tdp_env%lumo_coeffs)
+         END IF
          DEALLOCATE (xas_tdp_env)
       END IF
    END SUBROUTINE xas_tdp_env_release
@@ -863,6 +906,7 @@ CONTAINS
       TYPE(donor_state_type), INTENT(INOUT)              :: donor_state
 
       NULLIFY (donor_state%energy_evals)
+      NULLIFY (donor_state%gw2x_evals)
       NULLIFY (donor_state%mo_indices)
       NULLIFY (donor_state%sc_coeffs)
       NULLIFY (donor_state%sf_coeffs)
@@ -988,6 +1032,10 @@ CONTAINS
 
             IF (ASSOCIATED(donor_state_set(i)%energy_evals)) THEN
                DEALLOCATE (donor_state_set(i)%energy_evals)
+            END IF
+
+            IF (ASSOCIATED(donor_state_set(i)%gw2x_evals)) THEN
+               DEALLOCATE (donor_state_set(i)%gw2x_evals)
             END IF
 
             IF (ASSOCIATED(donor_state_set(i)%mo_indices)) THEN

@@ -1,0 +1,90 @@
+&GLOBAL
+  PROJECT HCN-PBE0-SCS_GW2X
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME  EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME  POTENTIAL
+    AUTO_BASIS RI_XAS    MEDIUM
+
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END POISSON
+
+    &QS
+      METHOD GAPW
+    &END QS
+
+    &XC
+      &XC_FUNCTIONAL PBE
+         &PBE
+            SCALE_X 0.75
+         &END PBE
+      &END XC_FUNCTIONAL
+      &HF
+         FRACTION 0.25
+      &END HF
+    &END XC
+
+    &XAS_TDP
+      &DONOR_STATES
+         DEFINE_EXCITED BY_KIND
+         KIND_LIST C N
+         STATE_TYPES 1s 1s
+         N_SEARCH 2
+         LOCALIZE
+      &END DONOR_STATES
+
+      DIPOLE_FORM LENGTH
+      GRID C 100 200
+      GRID N 100 200
+
+      &GW2X
+         C_OS 1.2
+         C_SS 0.33333
+      &END GW2X
+      
+      &KERNEL
+         &XC_FUNCTIONAL PBE
+            &PBE
+               SCALE_X 0.75
+            &END PBE
+         &END XC_FUNCTIONAL
+         &EXACT_EXCHANGE
+            FRACTION 0.25
+         &END EXACT_EXCHANGE
+      &END KERNEL
+    &END XAS_TDP
+
+  &END DFT
+  &SUBSYS
+    &KIND C
+      BASIS_SET 3-21G*
+      POTENTIAL ALL
+    &END KIND
+    &KIND H
+      BASIS_SET 3-21G*
+      POTENTIAL ALL
+    &END KIND
+    &KIND N
+      BASIS_SET 3-21G*
+      POTENTIAL ALL
+    &END KIND
+    &CELL
+      ABC 6.0 6.0 6.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+       C   0.00000000   0.00000000  -0.00165375
+       H  -0.00000000  -0.00000000   1.07300224
+       N  -0.00000000  -0.00000000  -1.15904849
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
