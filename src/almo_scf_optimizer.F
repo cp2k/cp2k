@@ -7769,7 +7769,7 @@ CONTAINS
 
             DO ispin = 1, nspins
 
-               IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Compute model gradient"
+               IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Compute model gradient"
                CALL compute_gradient( &
                   m_grad_out=grad(ispin), &
                   m_ks=almo_scf_env%matrix_ks(ispin), &
@@ -7843,7 +7843,7 @@ CONTAINS
             IF (my_special_case .EQ. xalmo_case_block_diag .OR. &
                 my_special_case .EQ. xalmo_case_fully_deloc) THEN
 
-               IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Multiply Sinv.r"
+               IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Multiply Sinv.r"
                CALL dbcsr_multiply("N", "N", 1.0_dp, &
                                    m_s_inv, &
                                    m_model_r(ispin), &
@@ -7852,7 +7852,7 @@ CONTAINS
 
             ELSE IF (my_special_case .EQ. xalmo_case_normal) THEN
 
-               IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Multiply Sinv_xx.r"
+               IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Multiply Sinv_xx.r"
                CALL apply_domain_operators( &
                   matrix_in=m_model_r(ispin), &
                   matrix_out=m_model_rt(ispin), &
@@ -7877,7 +7877,7 @@ CONTAINS
             SELECT CASE (prec_type)
             CASE (xalmo_prec_domain)
 
-               IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Compute model Hessian"
+               IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Compute model Hessian"
                DO ispin = 1, nspins
                   CALL compute_preconditioner( &
                      domain_prec_out=almo_scf_env%domain_preconditioner(:, ispin), &
@@ -7924,7 +7924,7 @@ CONTAINS
                              grad_norm_ratio=0.0_dp, &
                              time=0.0_dp)
 
-         IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Start inner loop"
+         IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Start inner loop"
 
          t1 = m_walltime()
          inner_loop_success = .FALSE.
@@ -7964,7 +7964,7 @@ CONTAINS
                y_scalar = y_scalar + real_temp
 
             ENDDO ! ispin
-            IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Curvature: ", y_scalar
+            IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Curvature: ", y_scalar
 
             ! step to the border
             IF (y_scalar .LT. 0.0_dp) THEN
@@ -8020,7 +8020,7 @@ CONTAINS
                step_size = step_size + real_temp
             ENDDO ! ispin
             step_size = step_size/y_scalar
-            IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Proposed step size: ", step_size
+            IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Proposed step size: ", step_size
 
             ! Update the step matrix
             DO ispin = 1, nspins
@@ -8036,12 +8036,12 @@ CONTAINS
                quench_t_in=quench_t, &
                eps_filter_in=almo_scf_env%eps_filter &
                )
-            IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Step norm: ", step_norm
+            IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Step norm: ", step_norm
 
             ! Do not step beyond the trust radius
             IF (step_norm .GT. radius_current) THEN
 
-               IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Norm is too large"
+               IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Norm is too large"
                CALL step_size_to_border( &
                   step_size_out=step_size, &
                   metric_in=almo_scf_env%matrix_s, &
@@ -8051,7 +8051,7 @@ CONTAINS
                   quench_t_in=quench_t, &
                   eps_filter_in=almo_scf_env%eps_filter &
                   )
-               IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Step size to border: ", step_size
+               IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Step size to border: ", step_size
 
                DO ispin = 1, nspins
                   CALL dbcsr_copy(step(ispin), prev_step(ispin))
@@ -8060,7 +8060,7 @@ CONTAINS
 
                IF (debug_mode) THEN
                   ! Compute step norm
-                  IF (unit_nr > 0) WRITE (*, *) "...Extra norm evaluation"
+                  IF (unit_nr > 0) WRITE (unit_nr, *) "...Extra norm evaluation"
                   CALL contravariant_matrix_norm( &
                      norm_out=step_norm, &
                      matrix_in=step, &
@@ -8068,8 +8068,8 @@ CONTAINS
                      quench_t_in=quench_t, &
                      eps_filter_in=almo_scf_env%eps_filter &
                      )
-                  IF (unit_nr > 0) WRITE (*, *) "...Step norm: ", step_norm
-                  IF (unit_nr > 0) WRITE (*, *) "...Current radius: ", radius_current
+                  IF (unit_nr > 0) WRITE (unit_nr, *) "...Step norm: ", step_norm
+                  IF (unit_nr > 0) WRITE (unit_nr, *) "...Current radius: ", radius_current
                ENDIF
 
                border_reached = .TRUE.
@@ -8139,7 +8139,7 @@ CONTAINS
                SELECT CASE (prec_type)
                CASE (xalmo_prec_domain)
 
-                  IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Pseudo-invert model Hessian"
+                  IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Pseudo-invert model Hessian"
                   IF (special_case .EQ. xalmo_case_block_diag) THEN ! non-overlapping diagonal blocks
 
                      DO ispin = 1, nspins
@@ -8259,12 +8259,12 @@ CONTAINS
                   quench_t_in=quench_t, &
                   eps_filter_in=almo_scf_env%eps_filter &
                   )
-               IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...pB norm: ", step_norm
+               IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...pB norm: ", step_norm
 
                ! Do not step beyond the trust radius
                IF (step_norm .LE. radius_current) THEN
 
-                  IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Full dogleg"
+                  IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Full dogleg"
 
                   border_reached = .FALSE.
 
@@ -8277,7 +8277,7 @@ CONTAINS
 
                ELSE ! take a shorter dogleg step
 
-                  IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...pB norm is too large"
+                  IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...pB norm is too large"
 
                   border_reached = .TRUE.
 
@@ -8296,7 +8296,7 @@ CONTAINS
                      quench_t_in=quench_t, &
                      eps_filter_in=almo_scf_env%eps_filter &
                      )
-                  IF (unit_nr > 0 .AND. debug_mode) WRITE (*, *) "...Step size to border: ", step_size
+                  IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Step size to border: ", step_size
                   IF (step_size .GE. 1.0_dp .OR. step_size .LE. 0.0_dp) THEN
                      CPABORT("Wrong dog-leg step, should not be here")
                   ENDIF
@@ -8312,7 +8312,7 @@ CONTAINS
 
                IF (debug_mode) THEN
                   ! Compute step norm
-                  IF (unit_nr > 0) WRITE (*, *) "...Extra norm evaluation"
+                  IF (unit_nr > 0) WRITE (unit_nr, *) "...Extra norm evaluation"
                   CALL contravariant_matrix_norm( &
                      norm_out=step_norm, &
                      matrix_in=step, &
@@ -8320,8 +8320,8 @@ CONTAINS
                      quench_t_in=quench_t, &
                      eps_filter_in=almo_scf_env%eps_filter &
                      )
-                  IF (unit_nr > 0) WRITE (*, *) "...Step norm: ", step_norm
-                  IF (unit_nr > 0) WRITE (*, *) "...Current radius: ", radius_current
+                  IF (unit_nr > 0) WRITE (unit_nr, *) "...Step norm: ", step_norm
+                  IF (unit_nr > 0) WRITE (unit_nr, *) "...Current radius: ", radius_current
                ENDIF
 
                CALL predicted_reduction( &
