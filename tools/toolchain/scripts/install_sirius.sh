@@ -125,16 +125,15 @@ case "$with_sirius" in
                 COMPILATION_OPTIONS="-DUSE_MKL=ON -DUSE_SCALAPACK=ON $COMPILATION_OPTIONS"
             fi
 
-            CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:${SPFFT_ROOT}/lib/cmake
 
-             cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-                   -DSpFFT_DIR="${SPFFT_ROOT}/lib/cmake/SpFFT" \
-                   -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
-                   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
-                   -DCMAKE_CXX_COMPILER=mpic++ \
-                   -DCMAKE_C_COMPILER=mpicc \
+            CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${SPFFT_ROOT}/lib/cmake:${SPFFT_ROOT}/lib64/cmake" \
+            cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+                  -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
+                  -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
+                  -DCMAKE_CXX_COMPILER=mpic++ \
+                  -DCMAKE_C_COMPILER=mpicc \
                   ${COMPILATION_OPTIONS} .. > compile.log 2>&1
-             make -j $NPROCS -C src >> compile.log 2>&1
+            make -j $NPROCS -C src >> compile.log 2>&1
 
             install -d ${pkg_install_dir}/include >> install.log 2>&1
             install -d ${pkg_install_dir}/lib >> install.log 2>&1
@@ -149,8 +148,8 @@ case "$with_sirius" in
                 [ -d build-cuda ] && rm -rf "build-cuda"
                 mkdir build-cuda
                 cd build-cuda
+                CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${SPFFT_ROOT}/lib/cmake:${SPFFT_ROOT}/lib64/cmake" \
                 cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-                      -DSpFFT_DIR="${SPFFT_ROOT}/lib/cmake/SpFFT" \
                       -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
                       -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                       -DUSE_CUDA=ON \
