@@ -21,7 +21,7 @@ MODULE input_cp2k_dft
         Heinzmann1976, Holmberg2017, Holmberg2018, Hunt2003, Iannuzzi2005, Iannuzzi2006, &
         Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, &
         Lippert1999, Lu2004, Perdew1981, Repasky2002, Rocha2006, Rycroft2009, Schenter2008, &
-        Schiffmann2015, Stewart1982, Stewart1989, Stewart2007, Thiel1992, Thomas2015, &
+        Schiffmann2015, Shigeta2001, Stewart1982, Stewart1989, Stewart2007, Thiel1992, Thomas2015, &
         VanVoorhis2015, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, &
         Weber2008, Yin2017
    USE cp_output_handling,              ONLY: add_last_numeric,&
@@ -7818,7 +7818,7 @@ CONTAINS
                           description="XAS simulations using linear-response TDDFT. Excitation from "// &
                           "specified core orbitals are considered one at a time. In case of high "// &
                           "symmetry structures, donor core orbitals should be localized.", &
-                          n_keywords=15, n_subsections=4, repeats=.FALSE.)
+                          n_keywords=19, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -7921,6 +7921,77 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+!  the GW2X correction subsection
+      CALL section_create(subsection, __LOCATION__, name="GW2X", &
+                          description="Specifications for the GW2X calculation of core "// &
+                          "ionization potentials. Note that donor states need to be actively "// &
+                          "localized using the LOCALIZE keyword in DONOR_STATES. N_SEARCH"// &
+                          "should be kept to the minimum, such that only core states are localized.", &
+                          citations=(/Shigeta2001/), &
+                          n_keywords=8, &
+                          n_subsections=0, &
+                          repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Enables the GW2X correction of the core ionization potentials", &
+                          usage="&GW2X {logical}", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="XPS_ONLY", &
+                          description="If set to .TRUE., only run GW2X calculations for XPS "// &
+                          "spectroscopy and ignore all XAS calculations. It is still "// &
+                          "required to define the DONOR_STATES and KERNEL%EXACT_EXCHANGE "// &
+                          "subsections.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BATCH_SIZE", &
+                          description="MOs batch size for batched tensor contraction. Larger "// &
+                          "size is faster, but uses more memory. Default should be safe "// &
+                          "in most cases.", &
+                          default_i_val=64)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_GW2X", &
+                          description="Convergence threshold for GW2X iterations (in eV)", &
+                          default_r_val=1.E-2_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="C_OS", &
+                          description="Opposite-spin scling factor. SCS => 6/5, SOS => 1.3", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="C_SS", &
+                          description="Same-spin scling factor. SCS => 1/3, SOS => 0.0", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_GW2X_ITER", &
+                          description="Maximum number of iterations for GW2X", &
+                          default_i_val=10)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PSEUDO_CANONICAL", &
+                          description="Whether the pseudo-canonical version of GW2X should be used "// &
+                          "(versus only using the diagonal of the generalized Fock matrix)", &
+                          default_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
 !  The donor state subsection
 
       CALL section_create(subsection, __LOCATION__, name="DONOR_STATES", &
@@ -7989,9 +8060,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LOCALIZE", &
                           variants=s2a("LOC", "DO_LOC"), &
-                          description="Whether the N_SEARCH potential donor states are should be "// &
+                          description="Whether the N_SEARCH potential donor states should be "// &
                           "actively localized. Necessary in case of excited atoms "// &
-                          "equivalent under symmetry", &
+                          "equivalent under symmetry or GW2X correction.", &
                           usage="LOCALIZE {logical}", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)

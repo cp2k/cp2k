@@ -1,0 +1,85 @@
+&GLOBAL
+  PROJECT H2O-B3LYP-GW2Xs
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME  EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME  POTENTIAL
+    AUTO_BASIS RI_XAS    MEDIUM
+
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END POISSON
+
+    &QS
+      METHOD GAPW
+    &END QS
+
+    &XC
+      &XC_FUNCTIONAL
+         &LIBXC
+            FUNCTIONAL HYB_GGA_XC_B3LYP5
+         &END LIBXC
+      &END XC_FUNCTIONAL
+      &HF
+         FRACTION 0.2
+      &END HF
+    &END XC
+
+    &XAS_TDP
+      &DONOR_STATES
+         DEFINE_EXCITED BY_KIND
+         KIND_LIST O
+         STATE_TYPES 1s
+         N_SEARCH 1
+         LOCALIZE
+      &END DONOR_STATES
+
+      TAMM_DANCOFF .FALSE.
+      DIPOLE_FORM LENGTH
+      GRID O 150 150
+
+      &GW2X
+         PSEUDO_CANONICAL F
+      &END GW2X
+      
+      &KERNEL
+         &XC_FUNCTIONAL
+            &LIBXC
+               FUNCTIONAL HYB_GGA_XC_B3LYP5
+            &END LIBXC
+         &END XC_FUNCTIONAL
+         &EXACT_EXCHANGE
+            FRACTION 0.2
+         &END EXACT_EXCHANGE
+      &END KERNEL
+    &END XAS_TDP
+
+  &END DFT
+  &SUBSYS
+    &KIND O
+      BASIS_SET Ahlrichs-def2-SVP
+      POTENTIAL ALL
+    &END KIND
+    &KIND H
+      BASIS_SET Ahlrichs-def2-SVP
+      POTENTIAL ALL
+    &END KIND
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O          0.00000        0.00000        0.11779
+      H          0.00000        0.75545       -0.47116
+      H          0.00000       -0.75545       -0.47116
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

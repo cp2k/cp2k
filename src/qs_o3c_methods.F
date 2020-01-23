@@ -396,7 +396,7 @@ CONTAINS
    SUBROUTINE contract3_o3c(o3c, vec, matrix)
       TYPE(o3c_container_type), POINTER                  :: o3c
       TYPE(o3c_vec_type), DIMENSION(:), POINTER          :: vec
-      TYPE(dbcsr_type), POINTER                          :: matrix
+      TYPE(dbcsr_type)                                   :: matrix
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract3_o3c'
 

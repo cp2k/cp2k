@@ -10,6 +10,7 @@ QS/regtest-sos-mp2-lr                                       libint
 QS/regtest-rpa-lr                                           libint
 QS/regtest-mp2-lr                                           libint
 QS/regtest-xastdp                                           libint libxc
+QS/regtest-gw2x                                             libint libxc
 QS/regtest-negf
 QS/regtest-negf-fft                                         fftw3
 QS/regtest-ri-rpa-axk                                       libint

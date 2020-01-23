@@ -1158,6 +1158,7 @@ CONTAINS
 !> \param qs_env ...
 !> \param do_sf whether the ground state contribution should accommodate spin-flip
 !> \note Even localized non-canonical MOs are diagonalized in their subsapce => eps_ij = eps_ii*delta_ij
+!>       Use GW2X corrected evals as eps_ii. If not GW2X correction, these are the default KS energies
 ! **************************************************************************************************
    SUBROUTINE build_gs_contribution(matrix_a, donor_state, do_os, qs_env, do_sf)
 
@@ -1173,13 +1174,13 @@ CONTAINS
                                                             nblk_row, ndo_mo, nspins
       INTEGER, DIMENSION(:), POINTER                     :: blk_size_a, row_blk_size
       LOGICAL                                            :: found_block, my_dosf
-      REAL(dp), DIMENSION(:), POINTER                    :: energy_evals, work_block
+      REAL(dp), DIMENSION(:), POINTER                    :: work_block
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist, dist_a
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: m_ks, matrix_ks, matrix_s
       TYPE(dbcsr_type)                                   :: work_matrix
 
-      NULLIFY (matrix_ks, dbcsr_dist, row_blk_size, work_block, energy_evals, matrix_s, m_ks)
+      NULLIFY (matrix_ks, dbcsr_dist, row_blk_size, work_block, matrix_s, m_ks)
       NULLIFY (dist_a, blk_size_a)
 
       !  Note: matrix A is symmetric and block diagonal. If ADMM, the ks matrix is the total one,
@@ -1242,7 +1243,6 @@ CONTAINS
          CALL dbcsr_iterator_stop(iter)
 
 !     Loop over the blocks of S and put them on the block diagonal of work
-         energy_evals => donor_state%energy_evals(:, ispin)
 
          CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -1259,7 +1259,7 @@ CONTAINS
 
                   CALL dbcsr_put_block(work_matrix, ((ispin - 1)*ndo_mo + imo - 1)*nblk_row + iblk, &
                                        ((ispin - 1)*ndo_mo + imo - 1)*nblk_row + jblk, &
-                                       energy_evals(imo)*work_block)
+                                       donor_state%gw2x_evals(imo, ispin)*work_block)
                END DO !imo
             END IF !found block
             NULLIFY (work_block)

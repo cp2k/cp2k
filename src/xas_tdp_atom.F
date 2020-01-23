@@ -159,7 +159,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ikind, natom, nex_atoms, &
                                                             nex_kinds, nkind, nspins
-      LOGICAL                                            :: do_soc, do_xc
+      LOGICAL                                            :: do_xc
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -174,7 +174,6 @@ CONTAINS
       nex_kinds = xas_tdp_env%nex_kinds
       nex_atoms = xas_tdp_env%nex_atoms
       do_xc = xas_tdp_control%do_xc
-      do_soc = xas_tdp_control%do_soc
       nspins = 1; IF (xas_tdp_control%do_uks .OR. xas_tdp_control%do_roks) nspins = 2
 
       xas_atom_env%nspins = nspins
@@ -201,16 +200,14 @@ CONTAINS
 !  Compute the contraction coefficients for spherical orbitals
       DO ikind = 1, nkind
          NULLIFY (xas_atom_env%orb_sphi_so(ikind)%array, xas_atom_env%ri_sphi_so(ikind)%array)
-         IF (do_soc) THEN
-            CALL compute_sphi_so(ikind, "ORB", xas_atom_env%orb_sphi_so(ikind)%array, qs_env)
-         END IF
-         IF (ANY(xas_atom_env%excited_kinds == ikind) .AND. do_xc) THEN
+         CALL compute_sphi_so(ikind, "ORB", xas_atom_env%orb_sphi_so(ikind)%array, qs_env)
+         IF (ANY(xas_atom_env%excited_kinds == ikind)) THEN
             CALL compute_sphi_so(ikind, "RI_XAS", xas_atom_env%ri_sphi_so(ikind)%array, qs_env)
          END IF
       END DO !ikind
 
 !  Compute the coefficients to expand the density in the RI_XAS basis, if requested
-      IF (do_xc) CALL calculate_density_coeffs(xas_atom_env, qs_env)
+      IF (do_xc .AND. (.NOT. xas_tdp_control%xps_only)) CALL calculate_density_coeffs(xas_atom_env, qs_env)
 
       CALL timestop(handle)
 
@@ -3383,7 +3380,6 @@ CONTAINS
          nr = grid%nr
          na = grid%ng_sphere
          ALLOCATE (Vr(nr))
-         !TODO: do we need potential contribution from neighboring atoms ?!?
          CALL calculate_model_potential(Vr, grid, zeff)
 
          !Compute V/(4c^2-2V) and weight it

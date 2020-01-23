@@ -62,7 +62,7 @@ MODULE mathlib
              dotprod_3d, &
              transpose_3d, &
              expint, abnormal_value, &
-             get_diag
+             get_diag, set_diag
 
    INTERFACE det_3x3
       MODULE PROCEDURE det_3x3_1, det_3x3_2
