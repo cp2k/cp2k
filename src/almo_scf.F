@@ -207,6 +207,7 @@ CONTAINS
       almo_scf_env%opt_xalmo_pcg%optimizer_type = optimizer_pcg
       almo_scf_env%opt_xalmo_trustr%optimizer_type = optimizer_trustr
       almo_scf_env%opt_nlmo_pcg%optimizer_type = optimizer_pcg
+      almo_scf_env%opt_block_diag_trustr%optimizer_type = optimizer_trustr
       almo_scf_env%opt_xalmo_newton_pcg_solver%optimizer_type = optimizer_lin_eq_pcg
 
       ! get info from the qs_env
@@ -947,6 +948,9 @@ CONTAINS
             CASE (almo_scf_pcg)
                ! print out PCG options
                CALL print_optimizer_options(almo_scf_env%opt_block_diag_pcg, unit_nr)
+            CASE (almo_scf_trustr)
+               ! print out TRUST REGION options
+               CALL print_optimizer_options(almo_scf_env%opt_block_diag_trustr, unit_nr)
             END SELECT
          ENDIF
 
@@ -1286,18 +1290,34 @@ CONTAINS
       ENDIF
 
       SELECT CASE (almo_scf_env%almo_update_algorithm)
-      CASE (almo_scf_pcg)
+      CASE (almo_scf_pcg, almo_scf_trustr, almo_scf_skip)
 
-         ! ALMO PCG optimizer as a special case of XALMO PCG
-         CALL almo_scf_xalmo_pcg(qs_env=qs_env, &
-                                 almo_scf_env=almo_scf_env, &
-                                 optimizer=almo_scf_env%opt_block_diag_pcg, &
-                                 quench_t=almo_scf_env%quench_t_blk, &
-                                 matrix_t_in=almo_scf_env%matrix_t_blk, &
-                                 matrix_t_out=almo_scf_env%matrix_t_blk, &
-                                 assume_t0_q0x=.FALSE., &
-                                 perturbation_only=.FALSE., &
-                                 special_case=xalmo_case_block_diag)
+         SELECT CASE (almo_scf_env%almo_update_algorithm)
+         CASE (almo_scf_pcg)
+
+            ! ALMO PCG optimizer as a special case of XALMO PCG
+            CALL almo_scf_xalmo_pcg(qs_env=qs_env, &
+                                    almo_scf_env=almo_scf_env, &
+                                    optimizer=almo_scf_env%opt_block_diag_pcg, &
+                                    quench_t=almo_scf_env%quench_t_blk, &
+                                    matrix_t_in=almo_scf_env%matrix_t_blk, &
+                                    matrix_t_out=almo_scf_env%matrix_t_blk, &
+                                    assume_t0_q0x=.FALSE., &
+                                    perturbation_only=.FALSE., &
+                                    special_case=xalmo_case_block_diag)
+
+         CASE (almo_scf_trustr)
+
+            CALL almo_scf_xalmo_trustr(qs_env=qs_env, &
+                                       almo_scf_env=almo_scf_env, &
+                                       optimizer=almo_scf_env%opt_block_diag_trustr, &
+                                       quench_t=almo_scf_env%quench_t_blk, &
+                                       matrix_t_in=almo_scf_env%matrix_t_blk, &
+                                       matrix_t_out=almo_scf_env%matrix_t_blk, &
+                                       perturbation_only=.FALSE., &
+                                       special_case=xalmo_case_block_diag)
+
+         END SELECT
 
          DO ispin = 1, almo_scf_env%nspins
             CALL orthogonalize_mos(ket=almo_scf_env%matrix_t_blk(ispin), &
@@ -1311,29 +1331,12 @@ CONTAINS
                                    eps_lanczos=almo_scf_env%eps_lanczos, &
                                    max_iter_lanczos=almo_scf_env%max_iter_lanczos)
          ENDDO
-         !CALL almo_scf_t_blk_to_t_blk_orthonormal(almo_scf_env)
 
       CASE (almo_scf_diag)
 
          ! mixing/DIIS optimizer
          CALL almo_scf_block_diagonal(qs_env, almo_scf_env, &
                                       almo_scf_env%opt_block_diag_diis)
-
-      CASE (almo_scf_skip)
-
-         DO ispin = 1, almo_scf_env%nspins
-            CALL orthogonalize_mos(ket=almo_scf_env%matrix_t_blk(ispin), &
-                                   overlap=almo_scf_env%matrix_sigma_blk(ispin), &
-                                   metric=almo_scf_env%matrix_s_blk(1), &
-                                   retain_locality=.TRUE., &
-                                   only_normalize=.FALSE., &
-                                   nocc_of_domain=almo_scf_env%nocc_of_domain(:, ispin), &
-                                   eps_filter=almo_scf_env%eps_filter, &
-                                   order_lanczos=almo_scf_env%order_lanczos, &
-                                   eps_lanczos=almo_scf_env%eps_lanczos, &
-                                   max_iter_lanczos=almo_scf_env%max_iter_lanczos)
-         ENDDO
-         !CALL almo_scf_t_blk_to_t_blk_orthonormal(almo_scf_env)
 
       END SELECT
 

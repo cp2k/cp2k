@@ -369,6 +369,7 @@ MODULE almo_scf_types
       TYPE(optimizer_options_type)                   :: opt_xalmo_pcg
       TYPE(optimizer_options_type)                   :: opt_xalmo_trustr
       TYPE(optimizer_options_type)                   :: opt_nlmo_pcg
+      TYPE(optimizer_options_type)                   :: opt_block_diag_trustr
       TYPE(optimizer_options_type)                   :: opt_xalmo_newton_pcg_solver
       TYPE(optimizer_options_type)                   :: opt_k_pcg
 
@@ -504,6 +505,10 @@ CONTAINS
                optimizer%lin_search_step_size_guess
             WRITE (unit_nr, '(T4,A,T48,E33.3)') "line search target error:", &
                optimizer%lin_search_eps_error
+            IF (optimizer%neglect_threshold .GT. 0.0_dp) THEN
+               WRITE (unit_nr, '(T4,A,T48,E33.3)') "low-curvature threshold:", &
+                  optimizer%neglect_threshold
+            ENDIF
 
          ENDIF
 
