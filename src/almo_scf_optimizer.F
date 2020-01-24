@@ -7001,7 +7001,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_preconditioner', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, precond_domain_projector
+      INTEGER                                            :: handle, ndim, precond_domain_projector
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: nn_diagonal
       TYPE(dbcsr_type)                                   :: m_tmp_nn_1, m_tmp_no_3
 
       CALL timeset(routineN, handle)
@@ -7101,14 +7102,26 @@ CONTAINS
       IF (special_case .EQ. xalmo_case_block_diag) THEN ! non-overlapping diagonal blocks
 
          IF (skip_inversion) THEN
-            CPABORT("NYI: impose blk structure on m_prec_out first")
+
+            ! impose block-diagonal structure
+            CALL dbcsr_get_info(m_s, nfullrows_total=ndim)
+            ALLOCATE (nn_diagonal(ndim))
+            CALL dbcsr_get_diag(m_s, nn_diagonal)
+            CALL dbcsr_set(m_prec_out, 0.0_dp)
+            CALL dbcsr_set_diag(m_prec_out, nn_diagonal)
+            CALL dbcsr_filter(m_prec_out, eps_filter)
+            DEALLOCATE (nn_diagonal)
+
             CALL dbcsr_copy(m_prec_out, m_tmp_nn_1, keep_sparsity=.TRUE.)
+
          ELSE
+
             CALL pseudo_invert_diagonal_blk( &
                matrix_in=m_tmp_nn_1, &
                matrix_out=m_prec_out, &
                nocc=nocc_of_domain(:) &
                )
+
          ENDIF
 
       ELSE IF (special_case .EQ. xalmo_case_fully_deloc) THEN ! the entire system is a block
@@ -9918,8 +9931,10 @@ CONTAINS
                      eps_filter_in=almo_scf_env%eps_filter &
                      )
                   IF (unit_nr > 0 .AND. debug_mode) WRITE (unit_nr, *) "...Step size to border: ", step_size
-                  IF (step_size .GE. 1.0_dp .OR. step_size .LE. 0.0_dp) THEN
-                     CPABORT("Wrong dog-leg step, should not be here")
+                  IF (step_size .GT. 1.0_dp .OR. step_size .LT. 0.0_dp) THEN
+                     IF (unit_nr > 0) &
+                        WRITE (unit_nr, *) "Step size (", step_size, ") must lie inside (0,1)"
+                     CPABORT("Wrong dog leg step. We should never end up here.")
                   ENDIF
 
                   DO ispin = 1, nspins
@@ -10699,7 +10714,7 @@ CONTAINS
       ENDDO ! ispin
 
       !RZK-critical: do we need to multiply by the spin factor?
-      !my_reduction = spin_factor*my_reduction
+      my_reduction = spin_factor*my_reduction
 
       reduction_out = my_reduction
 

@@ -106,8 +106,8 @@ CONTAINS
 
       INTEGER                                            :: handle
       TYPE(section_vals_type), POINTER :: almo_analysis_section, almo_opt_diis_section, &
-         almo_opt_pcg_section, almo_scf_section, matrix_iterate_section, nlmo_opt_pcg_section, &
-         penalty_section, xalmo_opt_newton_pcg_section, xalmo_opt_pcg_section, &
+         almo_opt_pcg_section, almo_opt_trustr_section, almo_scf_section, matrix_iterate_section, &
+         nlmo_opt_pcg_section, penalty_section, xalmo_opt_newton_pcg_section, xalmo_opt_pcg_section, &
          xalmo_opt_trustr_section
 
       CALL timeset(routineN, handle)
@@ -117,6 +117,8 @@ CONTAINS
                                                           "ALMO_OPTIMIZER_DIIS")
       almo_opt_pcg_section => section_vals_get_subs_vals(almo_scf_section, &
                                                          "ALMO_OPTIMIZER_PCG")
+      almo_opt_trustr_section => section_vals_get_subs_vals(almo_scf_section, &
+                                                            "ALMO_OPTIMIZER_TRUSTR")
       xalmo_opt_pcg_section => section_vals_get_subs_vals(almo_scf_section, &
                                                           "XALMO_OPTIMIZER_PCG")
       xalmo_opt_trustr_section => section_vals_get_subs_vals(almo_scf_section, &
@@ -197,6 +199,33 @@ CONTAINS
                                 i_val=almo_scf_env%opt_block_diag_pcg%conjugator)
       CALL section_vals_val_get(almo_opt_pcg_section, "PRECONDITIONER", &
                                 i_val=almo_scf_env%opt_block_diag_pcg%preconditioner)
+
+      CALL section_vals_val_get(almo_opt_trustr_section, "EPS_ERROR", &
+                                r_val=almo_scf_env%opt_block_diag_trustr%eps_error)
+      CALL section_vals_val_get(almo_opt_trustr_section, "MAX_ITER", &
+                                i_val=almo_scf_env%opt_block_diag_trustr%max_iter)
+      CALL section_vals_val_get(almo_opt_trustr_section, "ALGORITHM", &
+                                i_val=almo_scf_env%opt_block_diag_trustr%trustr_algorithm)
+      CALL section_vals_val_get(almo_opt_trustr_section, "EPS_ERROR_EARLY", &
+                                r_val=almo_scf_env%opt_block_diag_trustr%eps_error_early)
+      CALL section_vals_val_get(almo_opt_trustr_section, "MAX_ITER_EARLY", &
+                                i_val=almo_scf_env%opt_block_diag_trustr%max_iter_early)
+      CALL section_vals_val_get(almo_opt_trustr_section, "MAX_ITER_OUTER_LOOP", &
+                                i_val=almo_scf_env%opt_block_diag_trustr%max_iter_outer_loop)
+      CALL section_vals_val_get(almo_opt_trustr_section, "ETA", &
+                                r_val=almo_scf_env%opt_block_diag_trustr%rho_do_not_update)
+      almo_scf_env%opt_block_diag_trustr%rho_do_not_update = &
+         MIN(MAX(almo_scf_env%opt_block_diag_trustr%rho_do_not_update, 0.0_dp), 0.25_dp)
+      CALL section_vals_val_get(almo_opt_trustr_section, "MODEL_GRAD_NORM_RATIO", &
+                                r_val=almo_scf_env%opt_block_diag_trustr%model_grad_norm_ratio)
+      CALL section_vals_val_get(almo_opt_trustr_section, "INITIAL_TRUST_RADIUS", &
+                                r_val=almo_scf_env%opt_block_diag_trustr%initial_trust_radius)
+      CALL section_vals_val_get(almo_opt_trustr_section, "MAX_TRUST_RADIUS", &
+                                r_val=almo_scf_env%opt_block_diag_trustr%max_trust_radius)
+      CALL section_vals_val_get(almo_opt_trustr_section, "CONJUGATOR", &
+                                i_val=almo_scf_env%opt_block_diag_trustr%conjugator)
+      CALL section_vals_val_get(almo_opt_trustr_section, "PRECONDITIONER", &
+                                i_val=almo_scf_env%opt_block_diag_trustr%preconditioner)
 
       CALL section_vals_val_get(xalmo_opt_trustr_section, "EPS_ERROR", &
                                 r_val=almo_scf_env%opt_xalmo_trustr%eps_error)

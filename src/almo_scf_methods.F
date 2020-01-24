@@ -2234,9 +2234,15 @@ CONTAINS
 !>       2013.01 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! **************************************************************************************************
-   SUBROUTINE construct_domain_preconditioner(matrix_main, subm_s_inv, subm_s_inv_half, &
-                                          subm_s_half, subm_r_down, matrix_trimmer, dpattern, map, node_of_domain, preconditioner, &
-                                             bad_modes_projector_down, use_trimmer, eps_zero_eigenvalues, my_action, skip_inversion)
+   SUBROUTINE construct_domain_preconditioner(matrix_main, subm_s_inv, &
+                                              subm_s_inv_half, subm_s_half, &
+                                              subm_r_down, matrix_trimmer, &
+                                              dpattern, map, node_of_domain, &
+                                              preconditioner, &
+                                              bad_modes_projector_down, &
+                                              use_trimmer, &
+                                              eps_zero_eigenvalues, &
+                                              my_action, skip_inversion)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_main
       TYPE(domain_submatrix_type), DIMENSION(:), &

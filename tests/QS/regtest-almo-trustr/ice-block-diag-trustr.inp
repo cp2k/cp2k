@@ -1,0 +1,64 @@
+&GLOBAL
+  PROJECT hex-ice
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    &QS
+      ALMO_SCF T
+      EPS_DEFAULT 1.0E-8 ! 1.0E-12
+    &END QS
+
+    &ALMO_SCF
+      EPS_FILTER                 1.0E-8
+      ALMO_ALGORITHM             TRUST_REGION
+      ALMO_SCF_GUESS             ATOMIC
+      MO_OVERLAP_INV_ALG         LS_HOTELLING
+
+      DELOCALIZE_METHOD          NONE
+
+      &ALMO_OPTIMIZER_TRUSTR
+        ALGORITHM                   DOGLEG
+        MAX_ITER_OUTER_LOOP         50
+        EPS_ERROR                   5.0E-4
+        INITIAL_TRUST_RADIUS        0.1
+        MAX_TRUST_RADIUS            2.0
+      &END ALMO_OPTIMIZER_TRUSTR
+
+    &END ALMO_SCF
+
+    &MGRID
+      CUTOFF 200 ! 320
+      NGRIDS 5
+    &END MGRID
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+@INCLUDE '../regtest-almo-1/ice.cell'
+      MULTIPLE_UNIT_CELL 1 1 1
+    &END CELL
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL 1 1 1
+    &END
+    &COORD
+@INCLUDE '../regtest-almo-1/ice.xyz'
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+
