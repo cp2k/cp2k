@@ -39,7 +39,7 @@ case "$with_mpich" in
             cd mpich-${mpich_ver}
             unset F90
             unset F90FLAGS
-            ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" MPICC="" > configure.log 2>&1
+            ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" MPICC="" --without-x --enable-gl=no > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
             cd ..
