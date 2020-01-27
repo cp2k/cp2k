@@ -10,17 +10,22 @@
 !> \author JHU
 ! **************************************************************************************************
 MODULE pwdft_environment_types
-   USE ISO_C_BINDING,                   ONLY: C_NULL_PTR,&
-                                              C_PTR
-   USE cp_para_types,                   ONLY: cp_para_env_type
-   USE cp_subsys_types,                 ONLY: cp_subsys_type
-   USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: dp
-   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
-                                              qs_subsys_release,&
-                                              qs_subsys_retain,&
-                                              qs_subsys_set,&
-                                              qs_subsys_type
+   USE ISO_C_BINDING, ONLY: C_NULL_PTR, &
+                            C_PTR
+   USE cp_para_types, ONLY: cp_para_env_type
+   USE cp_subsys_types, ONLY: cp_subsys_type
+   USE input_section_types, ONLY: section_vals_type
+   USE kinds, ONLY: dp
+   USE qs_subsys_types, ONLY: qs_subsys_get, &
+                              qs_subsys_release, &
+                              qs_subsys_retain, &
+                              qs_subsys_set, &
+                              qs_subsys_type
+
+#if defined(__SIRIUS)
+   USE sirius, ONLY: sirius_free_handler
+#endif
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -129,7 +134,13 @@ CONTAINS
          CPASSERT(pwdft_env%ref_count > 0)
          pwdft_env%ref_count = pwdft_env%ref_count - 1
          IF (pwdft_env%ref_count < 1) THEN
-            !
+
+#if defined(__SIRIUS)
+            CALL sirius_free_handler(pwdft_env%gs_handler)
+            CALL sirius_free_handler(pwdft_env%ks_handler)
+            CALL sirius_free_handler(pwdft_env%sctx)
+#endif
+
             IF (ASSOCIATED(pwdft_env%qs_subsys)) THEN
                CALL qs_subsys_release(pwdft_env%qs_subsys)
             END IF

@@ -107,14 +107,6 @@ EOF
     cat "${BUILDDIR}/setup_spfft" >> $SETUPFILE
 fi
 
-# ----------------------------------------------------------------------
-# Suppress reporting of known leaks
-# ----------------------------------------------------------------------
-cat <<EOF >> ${INSTALLDIR}/lsan.supp
-# Leaks in SpFFT
-leak:spfft::MPICommunicatorHandle::MPICommunicatorHandle
-EOF
-
 # update toolchain environment
 load "${BUILDDIR}/setup_spfft"
 export -p > "${INSTALLDIR}/toolchain.env"
