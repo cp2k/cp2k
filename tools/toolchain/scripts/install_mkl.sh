@@ -24,8 +24,8 @@ case "$with_mkl" in
         ;;
     __SYSTEM__)
         echo "==================== Finding MKL from system paths ===================="
-        if ! [ -z "MKLROOT" ] ; then
-            echo "MKLROOT is found to be $MKLROOT"
+        if ! [ -z "${MKLROOT}" ] ; then
+            echo "MKLROOT is found to be ${MKLROOT}"
         else
             report_error ${LINENO} "Cannot find env variable MKLROOT, the script relies on it being set. Please check in MKL installation and use --with-mkl=<location> to pass the path to MKL root directory to this script."
             exit 1
@@ -109,11 +109,12 @@ export MKL_CFLAGS="${MKL_CFLAGS}"
 export MKL_LIBS="${MKL_LIBS}"
 export FAST_MATH_CFLAGS="\${FAST_MATH_CFLAGS} ${MKL_CFLAGS}"
 export FAST_MATH_LIBS="\${FAST_MATH_LIBS} ${MKL_LIBS}"
+export CP_DFLAGS="\${CP_DFLAGS} -D__MKL"
 EOF
     if [ $enable_mkl_scalapack = "__TRUE__" ] ; then
         cat <<EOF >> "${BUILDDIR}/setup_mkl"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__SCALAPACK|)"
-with_scalapack="__DONTUSE__"
+export with_scalapack="__DONTUSE__"
 EOF
     fi
 fi
