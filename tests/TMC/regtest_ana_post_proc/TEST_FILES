@@ -13,15 +13,15 @@ TMC_ana_create_traj_without_ana.inp                    0
 # density calculations
 TMC_ana_density.inp                                   39    1.0E-14            0.13965929400215982
 # radial distribution function
-TMC_ana_G_R.inp                                       39
+TMC_ana_G_R.inp                                       39    3.5E-03            0.00512119420581984
 # classical dipole moment writing out TMC restart file (no ana restart file)
-TMC_ana_dip_cl.inp                                    39
+TMC_ana_dip_cl.inp                                     0
 # calculating the root mean squared deviation from the last cell and the average
-TMC_ana_deviation.inp                                 39
+TMC_ana_deviation.inp                                 39    3.5E-02            0.76812571375286065
 # all together for the restart case, creating the analysis input file
-TMC_ana_all.inp                                       39
+TMC_ana_all.inp                                       39    3.5E-02            0.76812571375286065
 # creating a not analyzed trajectory
 TMC_ana_extend_trajectory.inp                          0
 # restarting with existing analysis restart file
-TMC_ana_restart.inp                                   39
+TMC_ana_restart.inp                                   39    3.5E-02            0.75766069922260437
 #EOF
