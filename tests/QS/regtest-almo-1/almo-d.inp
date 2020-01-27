@@ -28,6 +28,7 @@
         MAX_ITER_OUTER_LOOP      0
       &END
 
+      XALMO_ALGORITHM            DIAG
       DELOCALIZE_METHOD          XALMO_1DIAG
       XALMO_R_CUTOFF_FACTOR      1.6
       

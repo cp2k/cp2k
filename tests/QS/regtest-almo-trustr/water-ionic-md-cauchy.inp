@@ -6,9 +6,9 @@
 
 &MOTION
   &MD
-    ENSEMBLE  NVE
-    STEPS  4
-    TIMESTEP     0.5
+    ENSEMBLE        NVE
+    STEPS           5
+    TIMESTEP        0.5
     TEMPERATURE     298
   &END MD
 &END MOTION
@@ -21,42 +21,39 @@
     POTENTIAL_FILE_NAME POTENTIAL
 
     &MGRID
-      CUTOFF 400
+      CUTOFF 200
     &END MGRID
 
     &QS
       ALMO_SCF    T
-      EPS_DEFAULT 1.0E-8 ! 1.0E-12
+      EPS_DEFAULT 1.0E-8
       WF_INTERPOLATION PS
     &END QS
 
     &ALMO_SCF
-      EPS_FILTER                 1.0E-8 ! 1.0E-11
-      ALMO_ALGORITHM             SKIP
-      ALMO_SCF_GUESS             ATOMIC
-      MO_OVERLAP_INV_ALG         DENSE_CHOLESKY         
-      XALMO_TRIAL_WF             SIMPLE
-      DELOCALIZE_METHOD          XALMO_SCF
-      XALMO_R_CUTOFF_FACTOR      1.0
-      XALMO_EXTRAPOLATION_ORDER  4
 
-      &MATRIX_ITERATE
-        EPS_TARGET_FACTOR        10.
-        !EPS_LANCZOS              1.0E-3
-        !MAX_ITER_LANCZOS         64
-        !ORDER_LANCZOS            3
-      &END MATRIX_ITERATE
+      EPS_FILTER                    1.0E-7
+      ALMO_ALGORITHM                SKIP
+      ALMO_SCF_GUESS                ATOMIC
+      MO_OVERLAP_INV_ALG            DENSE_CHOLESKY
+      XALMO_R_CUTOFF_FACTOR         1.0
+      XALMO_EXTRAPOLATION_ORDER     3
+      RETURN_ORTHOGONALIZED_MOS     F
 
-      &XALMO_OPTIMIZER_PCG
-        MAX_ITER                 15
-        EPS_ERROR                5.0E-5
-        CONJUGATOR               FLETCHER_REEVES
-        LIN_SEARCH_EPS_ERROR     0.05
-        LIN_SEARCH_STEP_SIZE_GUESS 0.1
-        MAX_ITER_OUTER_LOOP      50
-        PRECOND_FILTER_THRESHOLD 0.008
-      &END XALMO_OPTIMIZER_PCG
-      
+      XALMO_ALGORITHM               TRUST_REGION
+      XALMO_TRIAL_WF                SIMPLE
+      DELOCALIZE_METHOD             XALMO_SCF
+
+      &XALMO_OPTIMIZER_TRUSTR
+        ALGORITHM                   CAUCHY
+        MAX_ITER_OUTER_LOOP         50
+        EPS_ERROR                   5.0E-4
+        CONJUGATOR                  FLETCHER
+        ETA                         0.25
+        INITIAL_TRUST_RADIUS        0.1
+        MAX_TRUST_RADIUS            2.0
+      &END XALMO_OPTIMIZER_TRUSTR
+
     &END ALMO_SCF
 
     &XC

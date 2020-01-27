@@ -1,0 +1,77 @@
+&GLOBAL
+  PROJECT hf-chain
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    &QS
+      ALMO_SCF T
+      EPS_DEFAULT 1.0E-8 ! 1.0E-12
+    &END QS
+
+    &ALMO_SCF
+
+      EPS_FILTER                    1.0E-8
+      ALMO_ALGORITHM                SKIP
+      ALMO_SCF_GUESS                ATOMIC
+      MO_OVERLAP_INV_ALG            LS_HOTELLING
+      RETURN_ORTHOGONALIZED_MOS     F
+      XALMO_R_CUTOFF_FACTOR         1.2
+
+      XALMO_ALGORITHM               TRUST_REGION
+      XALMO_TRIAL_WF                SIMPLE
+      DELOCALIZE_METHOD             XALMO_SCF
+
+      &XALMO_OPTIMIZER_TRUSTR
+        ALGORITHM                   DOGLEG
+        MAX_ITER_OUTER_LOOP         100
+        EPS_ERROR                   5.50E-4
+        CONJUGATOR                  FLETCHER ! recommended
+        ETA                         0.1
+        INITIAL_TRUST_RADIUS        0.1
+        MAX_TRUST_RADIUS            2.0
+      &END XALMO_OPTIMIZER_TRUSTR
+
+      &ALMO_OPTIMIZER_DIIS
+        MAX_ITER                    30
+        EPS_ERROR                   1.0E-5
+        N_DIIS                      4
+      &END ALMO_OPTIMIZER_DIIS
+
+    &END ALMO_SCF
+
+    &MGRID
+      CUTOFF 300
+      NGRIDS 5
+    &END MGRID
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+@INCLUDE '../regtest-almo-2/FH-chain.cell'
+      MULTIPLE_UNIT_CELL 1 1 1
+    &END CELL
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL 1 1 1
+    &END
+    &COORD
+@INCLUDE '../regtest-almo-2/FH-chain.xyz'
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND F
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BLYP-q7
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+
