@@ -1,4 +1,4 @@
- !--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright 2000-2020 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
@@ -672,7 +672,7 @@ CONTAINS
          nn1 = (n1*(n1 + 1))/2
          nn2 = (n2*(n2 + 1))/2
          CALL dbcsr_csr_create(eri_mat, nn1, nn2, 0_int_8, 0, 0, para_env%group)
-         CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=active_space_env%eri%norb)! here replace i with 1, i can be > nspins
+         CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=active_space_env%eri%norb)!vw: here replace i with 1, i can be > nspins
       END DO
 
       SELECT CASE (eri_method)
@@ -1161,7 +1161,8 @@ CONTAINS
                            erint = pw_integrate_function(wfn_r%pw)
                            IF (abs(erint) > eri_env%eps_integral) THEN
                               intcount = intcount + 1
-                              IF (print2 .AND. iw > 0) THEN
+                              !vw IF (print2 .AND. iw > 0) THEN
+                              IF ( iw > 0) THEN
                                  WRITE (iw, "(T4,'ERI_GPW|',T20,2I4,' [',I1,']',2I4,' [',I1,']',T58,G20.14)") &
                                     iwa1, iwa2, isp1, iwb1, iwb2, isp2, erint
                               END IF
@@ -1549,7 +1550,6 @@ CONTAINS
                   WRITE (iw, "(A,1000(I1,','))") "  ORBSYM=", (isym, i=1, norb)
                   isym = 0
                   WRITE (iw, "(A,I1,A)") "  ISYM=", isym, ","
-                  WRITE (iw, "(A,I1,A)") "  UHF=", 1, ","
                   WRITE (iw, "(A)") " /"
                END IF
                !
@@ -1823,7 +1823,6 @@ CONTAINS
      CALL mp_sum(ks_ref, eri%mp_group)
 
    end subroutine build_subspace_fock_matrix
-
 
    subroutine build_subspace_spin_fock_matrix( norb, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, tr_mixed_eri )
      integer, intent(in) :: norb
