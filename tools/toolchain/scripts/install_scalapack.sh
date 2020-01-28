@@ -2,8 +2,10 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-scalapack_ver="2.0.2"
-scalapack_sha256="0c74aeae690fe5ee4db7926f49c5d0bb69ce09eea75beb915e00bba07530395c"
+scalapack_ver="2.1.0"
+scalapack_sha256="61d9216cf81d246944720cfce96255878a3f85dec13b9351f1fa0fd6768220a6"
+scalapack_pkg="scalapack-${scalapack_ver}.tgz"
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -27,15 +29,15 @@ case "$with_scalapack" in
             echo "scalapack-${scalapack_ver} is already installed, skipping it."
         else
             require_env MATH_LIBS
-            if [ -f scalapack-${scalapack_ver}.tgz ] ; then
-                echo "scalapack-${scalapack_ver}.tgz is found"
+            if [ -f ${scalapack_pkg} ] ; then
+                echo "${scalapack_pkg} is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${scalapack_sha256} \
-                             https://www.cp2k.org/static/downloads/scalapack-${scalapack_ver}.tgz
+                             https://www.cp2k.org/static/downloads/${scalapack_pkg}
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d scalapack-${scalapack_ver} ] && rm -rf scalapack-${scalapack_ver}
-            tar -xzf scalapack-${scalapack_ver}.tgz
+            tar -xzf ${scalapack_pkg}
 
             mkdir -p "scalapack-${scalapack_ver}/build"
             pushd "scalapack-${scalapack_ver}/build" >/dev/null
