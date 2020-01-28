@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-openblas_ver="0.3.6"  # Keep in sync with get_openblas_arch.sh.
-openblas_sha256="e64c8fe083832ffbc1459ab6c72f71d53afd3b36e8497c922a15a06b72e9002f"
+openblas_ver="0.3.7" # Keep in sync with get_openblas_arch.sh
+openblas_sha256="bde136122cef3dd6efe2de1c6f65c10955bbb0cc01a520c2342f5287c28f9379"
 openblas_pkg="OpenBLAS-${openblas_ver}.tar.gz"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -17,9 +17,7 @@ source "${INSTALLDIR}"/toolchain.env
 OPENBLAS_CFLAGS=''
 OPENBLAS_LDFLAGS=''
 OPENBLAS_LIBS=''
-PATCHES=(
-    "openblas-0.3.6-disable-avx512.patch"
-)
+
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -35,18 +33,13 @@ case "$with_openblas" in
                 echo "${openblas_pkg} is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${openblas_sha256} \
-                             https://github.com/xianyi/OpenBLAS/archive/v${openblas_ver}.tar.gz \
-                             -o ${openblas_pkg}
+                             https://www.cp2k.org/static/downloads/${openblas_pkg}
             fi
 
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d OpenBLAS-${openblas_ver} ] && rm -rf OpenBLAS-${openblas_ver}
             tar -zxf ${openblas_pkg}
             cd OpenBLAS-${openblas_ver}
-
-            for patch in "${PATCHES[@]}" ; do
-               patch -p1 < "${SCRIPT_DIR}/${patch}" || ( command -v getenforce >/dev/null && [ $(getenforce) = 'Enforcing' ] && true ) || false
-            done
 
             # First attempt to make openblas using auto detected
             # TARGET, if this fails, then make with forced
