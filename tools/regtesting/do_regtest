@@ -99,9 +99,6 @@ while [ $# -ge 1 ]; do
  # enable partial testing of only those directories that contain failed tests
  -retest)
   doretest="yes";;
- # do not reset reference outputs
- -noreset)
-  noreset="noreset";;
  # do not do a realclean before building
  -quick)
   quick="quick";;
@@ -145,7 +142,6 @@ while [ $# -ge 1 ]; do
   echo "  -farming                  test via a single farming run (only for parallel cp2k)."
   echo ""
   echo "Testing:"
-  echo "  -noreset                  do not reset the reference outputs. Default: off."
   echo "  -shard ISHARD NSHARDS     do sharding: Divide the test dirs into NSHARD subsets and only run the ISHARD-th set."
   echo "  -skiptest                 do not run test, only build. Default: off."
   echo "  -skipunittest             do not run unit tests. Default: off."
@@ -198,7 +194,6 @@ cp2k_run_postfix=${cp2k_run_postfix:-""}
 make=${make:-make}
 awk=${awk:-awk}
 quick=${quick:-"noquick"}
-noreset=${noreset:-"reset"}
 skiptest=${skiptest:-"noskiptest"}
 do_unit_test=${do_unit_test:-"yes"}
 farming=${farming:-"no"}
@@ -362,30 +357,11 @@ function run_regtest_dir() {
   n_wrong_results=0
   n_correct=0
   n_tests=0
-  n_new=0
 
   cd ${dir_test}/tests/${dir}
   mkdir -p ${dir_test}/${dir}
   mkdir -p ${dir_last}/${dir}
-  touch ${dir_last}/${dir}/TEST_FILES_RESET
 
-  #
-  # first reset reference outputs that have become out-dated since the last run
-  #
-  if [[ ${noreset} != "noreset" ]]; then
-     if [[ -f TEST_FILES_RESET ]] ; then
-       diff TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET > ${dir_test}/${dir}/TEST_FILES_RESET.diff
-       cp TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET
-       nreset=`grep '<' ${dir_test}/${dir}/TEST_FILES_RESET.diff | grep -v '#' |  ${awk} '{c=c+1}END{print c}'`
-       for ((itest=1;itest<=nreset;itest++));
-       do
-          reset_file=`grep '<' ${dir_test}/${dir}/TEST_FILES_RESET.diff | grep -v '#' | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
-          rm -f ${dir_last}/${dir}/${reset_file}.out
-       done
-     else
-       echo " Missing file TEST_FILES_RESET in $dir ? "
-     fi
-  fi
   #
   # run the tests now
   #
@@ -483,22 +459,17 @@ function run_regtest_dir() {
                  n_correct=$((n_correct+1))
               fi
            else
-              this_test="NEW"
-              n_new=$((n_new+1))
+              this_test="MISSING REFERENCE"
+              n_wrong_results=$((n_wrong_results+1))
            fi
         fi
      fi
      # Keep the output up-to-date
      timing=0
-     case ${this_test} in
-     "NEW" )
-        cp ${output_file} ${output_last}
+     if [[ ${this_test} == "OK" ]]; then
         timing=`grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%7.2f",$NF)}'`
-        this_test="${this_test} (${timing} sec)" ;;
-     "OK" )
-        timing=`grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%7.2f",$NF)}'`
-        this_test="${this_test} (${timing} sec)" ;;
-     esac
+        this_test="${this_test} (${timing} sec)"
+     fi
      leak_marker=""
      if [[ ${leakcheck} == "YES" ]]; then
         if [[ -n $(echo ${cp2k_prefix} | grep "valgrind") ]]; then
@@ -536,7 +507,7 @@ function run_regtest_dir() {
   t2=`date +%s`
   timing_all=$((1+t2-t1))
   printf "%s %0.2f %s\n" "<<< ${dir_test}/tests/${dir} (${idir} of ${ndir}) done in" ${timing_all} "sec"  >> ${dir_test}/status/REGTEST_TASK_TESTS-$task
-  echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests}" > ${dir_test}/status/REGTEST_TASK_RESULT-$task
+  echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_tests}" > ${dir_test}/status/REGTEST_TASK_RESULT-$task
   cat ${dir_test}/status/REGTEST_TASK_TESTS-$task
   rm -f ${dir_test}/status/REGTEST_TASK_TESTS-$task ${dir_test}/status/REGTEST_RUNNING-$task
 }
@@ -715,7 +686,6 @@ echo "leakcheck        = ${leakcheck}"
 echo "doretest         = ${doretest}"
 echo "nobuild          = ${nobuild}"
 echo "quick            = ${quick}"
-echo "noreset          = ${noreset}"
 echo "shard            = ${ishard} / ${nshards}"
 echo "skiptest         = ${skiptest}"
 echo "do_unit_test     = ${do_unit_test}"
@@ -889,7 +859,6 @@ if [[ ${skiptest} != "skiptest" ]]; then
    n_wrong_results=0
    n_correct=0
    n_tests=0
-   n_new=0
 
    echo "------------------------- dynamic libraries linked -----------------------"
    echo "ldd  ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version} : "
@@ -1151,8 +1120,6 @@ EOF
      tmp=`awk '{print $3}' $file`
      n_correct=$((n_correct+tmp))
      tmp=`awk '{print $4}' $file`
-     n_new=$((n_new+tmp))
-     tmp=`awk '{print $5}' $file`
      n_tests=$((n_tests+tmp))
      rm -f $file
    done
@@ -1161,8 +1128,10 @@ EOF
    cat "${error_description_file}"
    echo "--------------------------------------------------------------------------"
    file_info
+   echo ""
    echo "--------------------------------- Timings --------------------------------"
    ${dir_base}/${cp2k_dir}/tools/regtesting/timings.py "${timings}"
+   echo ""
    echo "--------------------------------- Summary --------------------------------"
    if [[ ${quick} != "quick" ]]; then
       printf "Number of COMPILE warns %d\n" ${compile_warnings} | tee -a ${summary}
@@ -1170,7 +1139,6 @@ EOF
    printf "Number of FAILED  tests %d\n" ${n_runtime_error}  | tee -a ${summary}
    printf "Number of WRONG   tests %d\n" ${n_wrong_results}  | tee -a ${summary}
    printf "Number of CORRECT tests %d\n" ${n_correct}        | tee -a ${summary}
-   printf "Number of NEW     tests %d\n" ${n_new}            | tee -a ${summary}
    printf "Total number of   tests %d\n" ${n_tests}          | tee -a ${summary}
 
    if [[ ${leakcheck} == "YES" ]]; then
@@ -1190,19 +1158,16 @@ EOF
          cat ${dir_base}/suppr.txt | tee -a ${summary}
       fi
       echo "--------------------------------------------------------------------------" | tee -a ${summary}
-      echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} ${n_leaks}"
+      echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} 0 ${n_tests} ${n_leaks}"
    else
       echo "No memory leak check was performed" >>${memory_description_file}
-      echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} X"
+      echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} 0 ${n_tests} X"
    fi
 
    full_time_t2=`date +%s`
    full_timing_all=$((1+full_time_t2-full_time_t1))
 
    REPORT_SUMMARY=$(printf "correct: %d / %d" ${n_correct} ${n_tests})
-   if (( n_new > 0 )); then
-       REPORT_SUMMARY+=$(printf "; new: %d" ${n_new})
-   fi
    if (( n_wrong_results > 0 )); then
        REPORT_SUMMARY+=$(printf "; wrong: %d" ${n_wrong_results})
    fi

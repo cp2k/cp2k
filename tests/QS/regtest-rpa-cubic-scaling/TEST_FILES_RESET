@@ -1,8 +1,0 @@
-# reset wrong reference test of Merlin-ssmp
-Cubic_RPA_2x_H2_check_filtering.inp
-# change computation of matrix elements
-Cubic_RPA_H2O_standard.inp         
-Cubic_RPA_H2O_check_filtering.inp  
-Cubic_RPA_H2O_check_group_sizes.inp
-Cubic_RPA_2x_H2_check_filtering.inp
-Cubic_RPA_CH3.inp                  
