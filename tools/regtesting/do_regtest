@@ -597,7 +597,7 @@ function run_unittest() {
 
   printf "    %-50s %25s %20s %s\n" "${dir##*/}" "-" "${this_test}" "${leak_marker}" >> ${dir_test}/status/REGTEST_TASK_TESTS-$task
   printf "%s %0.2f %s\n" "<<< ${dir_test}/tests/${dir} (${idir} of ${ndir}) done in" ${timing} "sec"  >> ${dir_test}/status/REGTEST_TASK_TESTS-$task
-  echo "${n_runtime_error} 0 ${n_correct} 0  1" > ${dir_test}/status/REGTEST_TASK_RESULT-$task
+  echo "${n_runtime_error} 0 ${n_correct} 1" > ${dir_test}/status/REGTEST_TASK_RESULT-$task
   cat ${dir_test}/status/REGTEST_TASK_TESTS-$task
   rm -f ${dir_test}/status/REGTEST_TASK_TESTS-$task ${dir_test}/status/REGTEST_RUNNING-$task
   printf "%7.2f  %s\n" "${timing}" "UNIT/${dir##*/}" >> "${timings}"
