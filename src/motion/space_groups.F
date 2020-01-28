@@ -114,7 +114,8 @@ CONTAINS
 !> \param spgr ...
 !> \param scoor ...
 !> \param types ...
-!> \param hmat ...
+!> \param cell ...
+!> \param gopt_env ...
 !> \param delta ...
 !> \param iounit ...
 !> \par History
@@ -229,17 +230,17 @@ CONTAINS
    
 ! **************************************************************************************************
 !> \brief routine indentifies the space group and finds rotation matrices.
-!> \note  rotation matrices innclude translations and translation symmetry:
-!>        it works with supercells as well.
 !> \param spgr ...
-!> \param scoor ...
-!> \param types ...
-!> \param hmat ...
-!> \param delta ...
+!> \param particle_set ...
+!> \param cell ...
+!> \param geo_section ...
+!> \param gopt_env ...
 !> \param iounit ...
 !> \par History
 !>      01.2020 created [pcazade]
 !> \author Pierre-André Cazade (first version)
+!> \note  rotation matrices innclude translations and translation symmetry:
+!>        it works with supercells as well.
 ! **************************************************************************************************
    SUBROUTINE identify_space_group(spgr,particle_set, cell, geo_section, gopt_env, iounit)
     
@@ -279,7 +280,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief routine indentifies the equivalent atoms for each rotation matrix.
 !> \param spgr ...
-!> \param scoor ...
+!> \param scoord ...
 !> \par History
 !>      01.2020 created [pcazade]
 !> \author Pierre-André Cazade (first version)
@@ -309,6 +310,7 @@ CONTAINS
          spgr%eqatom(2,ia) = 1
       END DO
 
+      !$OMP PARALLEL DO PRIVATE (ia,ib,ir,ri,rb,ro,rot,tr,diff) SHARED (spgr,scoord,natom,nop)
       DO ia = 1, natom
          ri(1:3) = scoord(1:3, ia)
          ri(1) = ri(1) - FLOOR(ri(1))
@@ -336,6 +338,7 @@ CONTAINS
             END DO
          END DO
       END DO
+      !$OMP END PARALLEL DO NOWAIT
 
       CALL timestop(handle)
       
@@ -368,6 +371,7 @@ CONTAINS
       
       nop=spgr%n_operations
       natom = spgr%nat
+      !$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rot,tr) SHARED (spgr,coord,natom,nop)
       DO ia = 1, natom
          ib = spgr%eqatom(1, ia)
          IF (ib==ia) THEN
@@ -387,6 +391,7 @@ CONTAINS
          ro(3) = ro(3) - FLOOR(ro(3))
          CALL scaled_to_real(coord(ja+1:ja+3), ro(1:3), spgr%cell_ref)
       END DO
+      !$OMP END PARALLEL DO NOWAIT
 
       CALL timestop(handle)
    
@@ -419,6 +424,7 @@ CONTAINS
       
       nop=spgr%n_operations
       natom = spgr%nat
+      !$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rot) SHARED (spgr,force,natom,nop)
       DO ia = 1, natom
          ib = spgr%eqatom(1, ia)
          IF (ib==ia) THEN
@@ -434,14 +440,14 @@ CONTAINS
          ro(3) = REAL(rot(1, 3), dp)*ri(1)+REAL(rot(2, 3), dp)*ri(2)+REAL(rot(3, 3), dp)*ri(3)
          CALL scaled_to_real(force(ja+1:ja+3), ro(1:3), spgr%cell_ref)
       END DO
-
+      !$OMP END PARALLEL DO NOWAIT
+      
       CALL timestop(handle)
    
    END SUBROUTINE spgr_apply_rotations_force
 
 ! **************************************************************************************************
 !> \brief routine applies the rotation matrices to the hessian.
-!> \note  Not currently in use and most likely unnecessary. Will be removed in later version.
 !> \param ndf ...
 !> \param spgr ...
 !> \param hess_mat ...
@@ -449,6 +455,7 @@ CONTAINS
 !> \par History
 !>      01.2020 created [pcazade]
 !> \author Pierre-André Cazade (first version)
+!> \note  Not currently in use and most likely unnecessary. Will be removed in later version.
 ! **************************************************************************************************
    SUBROUTINE spgr_apply_rotations_hess(ndf,spgr,hess_mat,para_env)
 

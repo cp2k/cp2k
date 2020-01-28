@@ -35,6 +35,19 @@ MODULE cg_optimizer
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
+   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                              cp_subsys_type
+   USE space_groups,                    ONLY: identify_space_group,&
+                                              spgr_find_equivalent_atoms,&
+                                              spgr_apply_rotations_coord,&
+                                              spgr_apply_rotations_force,&
+                                              spgr_apply_rotations_hess,&
+                                              spgr_gen,&
+                                              spgr_type,&
+                                              print_spgr,&
+                                              spgr_print_cell,&
+                                              spgr_print_xg,&
+                                              release_spgr_type
    USE machine,                         ONLY: m_walltime
 #include "../base/base_uses.f90"
 
@@ -75,8 +88,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'geoopt_cg'
 
       INTEGER                                            :: handle, output_unit
-      LOGICAL                                            :: my_do_update
+      LOGICAL                                            :: my_do_update, keep_sg
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(spgr_type)                                    :: spgr
 
       CALL timeset(routineN, handle)
 
@@ -85,12 +100,50 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, geo_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".geoLog")
       CALL print_geo_opt_header(gopt_env, output_unit, "CONJUGATE GRADIENTS")
-      CALL cp_cg_main(force_env, x0, gopt_param, output_unit, globenv, &
-                      gopt_env, do_update=my_do_update)
+
+      ! [pcazade] find space_group
+      keep_sg=.FALSE.
+      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_sg)
+      IF (keep_sg) THEN
+         SELECT CASE (gopt_env%type_id)
+            CASE (default_minimization_method_id, default_ts_method_id)
+            CALL force_env_get(force_env, para_env=para_env, cell=cell, subsys=subsys)
+            CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
+            CALL spgr_apply_rotations_coord(spgr, x0)
+            CALL print_spgr(spgr)
+         CASE (default_cell_method_id)
+            SELECT CASE (gopt_env%cell_method_id)
+            CASE (default_cell_direct_id)
+               CALL force_env_get(force_env, para_env=para_env, cell=cell, subsys=subsys)
+               CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
+               CALL spgr_apply_rotations_coord(spgr, x0)
+               CALL print_spgr(spgr)
+            CASE (default_cell_geo_opt_id, default_cell_md_id)
+               keep_sg=.FALSE.
+            CASE DEFAULT
+               keep_sg=.FALSE.
+            END SELECT
+         CASE DEFAULT
+            keep_sg=.FALSE.
+         END SELECT
+      END IF
+      
+      IF (keep_sg) THEN
+         CALL cp_cg_main(force_env, x0, gopt_param, output_unit, globenv, &
+                         gopt_env, do_update=my_do_update,spgr=spgr)
+      ELSE
+         CALL cp_cg_main(force_env, x0, gopt_param, output_unit, globenv, &
+                         gopt_env, do_update=my_do_update)
+      ENDIF
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
       IF (PRESENT(do_update)) do_update = my_do_update
 
+      ! [pcazade] deallocates spgr structure
+      IF (keep_sg) THEN
+         CALL release_spgr_type(spgr)
+      END IF
+      
       CALL timestop(handle)
 
    END SUBROUTINE geoopt_cg
@@ -109,7 +162,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE cp_cg_main(force_env, x0, gopt_param, output_unit, globenv, &
-                                   gopt_env, do_update)
+                                   gopt_env, do_update, spgr)
       TYPE(force_env_type), POINTER                      :: force_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
       TYPE(gopt_param_type), POINTER                     :: gopt_param
@@ -125,7 +178,7 @@ CONTAINS
                                                             maxiter
       LOGICAL                                            :: conv, Fletcher_Reeves, &
                                                             save_consistent_energy_force, &
-                                                            should_stop
+                                                            should_stop, keep_sg
       REAL(KIND=dp)                                      :: emin, eold, opt_energy, res_lim, t_diff, &
                                                             t_now, t_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xold
@@ -133,6 +186,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: root_section
+      TYPE(spgr_type), OPTIONAL                          :: spgr
 
       CALL timeset(routineN, handle)
       t_old = m_walltime()
@@ -150,6 +204,13 @@ CONTAINS
       ALLOCATE (xold(SIZE(x0)))
       CALL force_env_get(force_env, cell=cell)
 
+      keep_sg = .FALSE.
+      IF(PRESENT(spgr)) keep_sg = .TRUE
+      ! [pcazade] applies rotation matrices to coordinates
+      IF (keep_sg) THEN
+         CALL spgr_apply_rotations_coord(spgr, x0)
+      END IF
+
       ! Evaluate energy and forces at the first step
       ![NB] consistent energies and forces not required for CG, but some line minimizers might set it
       save_consistent_energy_force = gopt_env%require_consistent_energy_force
@@ -157,6 +218,12 @@ CONTAINS
       CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
                       .FALSE., gopt_env%force_env%para_env)
       gopt_env%require_consistent_energy_force = save_consistent_energy_force
+
+      ! [pcazade] Symmetrize coordinates and forces
+      IF (keep_sg) THEN
+         CALL spgr_apply_rotations_coord(spgr, x0)
+         CALL spgr_apply_rotations_force(spgr, xi)
+      END IF
 
       g = -xi
       h = g
@@ -175,10 +242,22 @@ CONTAINS
          CALL section_vals_val_set(gopt_env%geo_section, "STEP_START_VAL", i_val=its)
          CALL gopt_f_ii(its, output_unit)
 
+         ! [pcazade] Symmetrize coordinates and forces
+         IF (keep_sg) THEN
+            CALL spgr_apply_rotations_coord(spgr, x0)
+            CALL spgr_apply_rotations_force(spgr, g)
+            CALL spgr_apply_rotations_force(spgr, xi)
+         END IF
+
          xold(:) = x0
 
          ! Line minimization
          CALL cg_linmin(gopt_env, x0, xi, g, opt_energy, output_unit, gopt_param, globenv)
+         
+         ! [pcazade] applies rotation matrices to coordinates
+         IF (keep_sg) THEN
+            CALL spgr_apply_rotations_coord(spgr, x0)
+         END IF
 
          ! Check for an external exit command
          CALL external_control(should_stop, "GEO", globenv=globenv)
@@ -198,13 +277,26 @@ CONTAINS
          ![NB] consistent energies and forces not required for CG, but some line minimizers might set it
          save_consistent_energy_force = gopt_env%require_consistent_energy_force
          gopt_env%require_consistent_energy_force = .FALSE.
+
          CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
                          .FALSE., gopt_env%force_env%para_env)
          gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
+         ! [pcazade] Symmetrize coordinates and forces
+         IF (keep_sg) THEN
+            CALL spgr_apply_rotations_force(spgr, xi)
+         END IF
+
          ! Get Conjugate Directions:  updates the searching direction (h)
          wildcard = "   CG"
          CALL get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h)
+
+         ! [pcazade] Symmetrize coordinates and forces
+         IF (keep_sg) THEN
+            CALL spgr_apply_rotations_force(spgr, g)
+            CALL spgr_apply_rotations_force(spgr, xi)
+            CALL spgr_apply_rotations_force(spgr, h)
+         END IF
 
          ! Reset Condition or Steepest Descent Requested
          ! ABS(DOT_PRODUCT(g, h))/SQRT((DOT_PRODUCT(g, g)*DOT_PRODUCT(h, h))) > res_lim ...

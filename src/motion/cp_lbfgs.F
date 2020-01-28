@@ -21,6 +21,9 @@ MODULE cp_lbfgs
    USE cp_files,                        ONLY: open_file
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
+   USE space_groups,                    ONLY: spgr_type,&
+                                              spgr_apply_rotations_coord,&
+                                              spgr_apply_rotations_force
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -174,7 +177,7 @@ CONTAINS
 !>                 in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! **************************************************************************************************
    SUBROUTINE setulb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, wa, iwa, &
-                     task, iprint, csave, lsave, isave, dsave, trust_radius)
+                     task, iprint, csave, lsave, isave, dsave, trust_radius, spgr)
 
       INTEGER, INTENT(in)                                :: n, m
       REAL(KIND=dp), INTENT(inout)                       :: x(n)
@@ -194,6 +197,7 @@ CONTAINS
 
       INTEGER                                            :: i, ld, lr, lsnd, lss, lsy, lt, lwa, lwn, &
                                                             lws, lwt, lwy, lxp, lz
+      TYPE(spgr_type), OPTIONAL                          :: spgr
 
 !     References:
 !
@@ -269,12 +273,22 @@ CONTAINS
          END DO
       ENDIF
 
-      CALL mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, &
-                  wa(lws), wa(lwy), wa(lsy), wa(lss), wa(lwt), &
-                  wa(lwn), wa(lsnd), wa(lz), wa(lr), wa(ld), wa(lt), wa(lxp), &
-                  wa(lwa), &
-                  iwa(1), iwa(n + 1), iwa(2*n + 1), task, iprint, &
-                  csave, lsave, isave(22), dsave)
+      ! [pcazade] passes spgr to mainlb
+      IF(PRESENT(spgr)) THEN
+         CALL mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, &
+                     wa(lws), wa(lwy), wa(lsy), wa(lss), wa(lwt), &
+                     wa(lwn), wa(lsnd), wa(lz), wa(lr), wa(ld), wa(lt), wa(lxp), &
+                     wa(lwa), &
+                     iwa(1), iwa(n + 1), iwa(2*n + 1), task, iprint, &
+                     csave, lsave, isave(22), dsave, spgr=spgr)
+      ELSE
+         CALL mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, &
+                     wa(lws), wa(lwy), wa(lsy), wa(lss), wa(lwt), &
+                     wa(lwn), wa(lsnd), wa(lz), wa(lr), wa(ld), wa(lt), wa(lxp), &
+                     wa(lwa), &
+                     iwa(1), iwa(n + 1), iwa(2*n + 1), task, iprint, &
+                     csave, lsave, isave(22), dsave)
+      ENDIF
 
       RETURN
 
@@ -378,7 +392,7 @@ CONTAINS
    SUBROUTINE mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, ws, wy, &
                      sy, ss, wt, wn, snd, z, r, d, t, xp, wa, &
                      index, iwhere, indx2, task, &
-                     iprint, csave, lsave, isave, dsave)
+                     iprint, csave, lsave, isave, dsave, spgr)
       INTEGER, INTENT(in)                                :: n, m
       REAL(KIND=dp), INTENT(inout)                       :: x(n)
       REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n)
@@ -401,9 +415,10 @@ CONTAINS
                                                             nact, nenter, nfgv, nfree, nintol, &
                                                             nseg, nskip
       LOGICAL                                            :: boxed, constrained, first, updatd, wrk, &
-                                                            x_projected
+                                                            x_projected, keep_sg
       REAL(KIND=dp) :: cachyt, cpu1, cpu2, ddot, ddum, dnorm, dr, dtd, epsmch, fold, g_inf_norm, &
          gd, gdold, lnscht, rr, sbtime, step_max, stp, theta, time, time1, time2, tol, xstep
+      TYPE(spgr_type), OPTIONAL                          :: spgr
 
 !     References:
 !
@@ -424,6 +439,9 @@ CONTAINS
 !        ftp to eecs.nwu.edu in the directory pub/lbfgs/lbfgs_bcm.)
 !
 !                           *  *  *
+      
+      keep_sg = .FALSE.
+      IF(PRESENT(spgr)) keep_sg = .TRUE.
 
       IF (task == 'START') THEN
 
@@ -499,6 +517,10 @@ CONTAINS
 !        Initialize iwhere & project x onto the feasible set.
 
          CALL active(n, lower_bound, upper_bound, nbd, x, iwhere, iprint, x_projected, constrained, boxed)
+         ! [pcazade] applies rotation matrices to coordinates
+         IF (keep_sg) THEN
+            CALL spgr_apply_rotations_coord(spgr, x)
+         END IF
 
 !        The end of the initialization.
          task = 'FG_START'
@@ -508,6 +530,12 @@ CONTAINS
                          cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
          RETURN
       ELSE
+         ! [pcazade] applies rotation matrices to coordinates
+         IF (keep_sg) THEN
+            CALL spgr_apply_rotations_coord(spgr, x)
+            CALL spgr_apply_rotations_force(spgr, g)
+         END IF
+         
 !          restore local variables.
 
          x_projected = lsave(1)
@@ -627,6 +655,10 @@ CONTAINS
                         m, wy, ws, sy, wt, theta, col, head, &
                         wa(1), wa(2*m + 1), wa(4*m + 1), wa(6*m + 1), nseg, &
                         iprint, g_inf_norm, info, epsmch)
+            ! [pcazade] applies rotation matrices to coordinates
+            IF (keep_sg) THEN
+               CALL spgr_apply_rotations_coord(spgr, z)
+            END IF
             IF (info /= 0) THEN
 !            singular triangular system detected; refresh the lbfgs memory.
                IF (iprint >= 1) WRITE (*, 1005)
@@ -695,12 +727,21 @@ CONTAINS
 !                                                   from 'cauchy').
             CALL cmprlb(n, m, x, g, ws, wy, sy, wt, z, r, wa, index, &
                         theta, col, head, nfree, constrained, info)
+            ! [pcazade] applies rotation matrices to coordinates
+            IF (keep_sg) THEN
+               CALL spgr_apply_rotations_force(spgr, r)
+            END IF
             IF (info == 0) THEN
 
 !     call the direct method.
 
                CALL subsm(n, m, nfree, index, lower_bound, upper_bound, nbd, z, r, xp, ws, wy, &
                           theta, x, g, col, head, iword, wa, wn, iprint, info)
+               ! [pcazade] applies rotation matrices to coordinates
+               IF (keep_sg) THEN
+                  CALL spgr_apply_rotations_coord(spgr, z)
+                  CALL spgr_apply_rotations_force(spgr, r)
+               END IF
             END IF
             IF (info /= 0) THEN
 !          singular triangular system detected;
@@ -729,16 +770,33 @@ CONTAINS
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 !     Generate the search direction d:=z-x.
-
+        ! [pcazade] applies rotation matrices to coordinates
+         IF (keep_sg) THEN
+            CALL spgr_apply_rotations_coord(spgr, x)
+            CALL spgr_apply_rotations_coord(spgr, z)
+         END IF
          DO i = 1, n
             d(i) = z(i) - x(i)
          END DO
          CALL timer(cpu1)
       ENDIF
       IF (.NOT. first .OR. .NOT. (task(1:5) == 'NEW_X')) THEN
+         ! [pcazade] applies rotation matrices to coordinates
+         IF (keep_sg) THEN
+            CALL spgr_apply_rotations_coord(spgr, x)
+            CALL spgr_apply_rotations_coord(spgr, z)
+            CALL spgr_apply_rotations_force(spgr, d)
+            CALL spgr_apply_rotations_force(spgr, g)
+            CALL spgr_apply_rotations_force(spgr, r)
+         END IF
          CALL lnsrlb(n, lower_bound, upper_bound, nbd, x, f, fold, gd, gdold, g, d, r, t, z, stp, dnorm, &
                      dtd, xstep, step_max, iter, ifun, iback, nfgv, info, task, &
                      boxed, constrained, csave, isave(22), dsave(17))
+         ! [pcazade] applies rotation matrices to coordinates
+         IF (keep_sg) THEN
+            CALL spgr_apply_rotations_coord(spgr, x)
+            CALL spgr_apply_rotations_force(spgr, g)
+         END IF
          IF (info /= 0 .OR. iback >= 20) THEN
 !          restore the previous iterate.
             CALL dcopy(n, t, 1, x, 1)
@@ -844,7 +902,10 @@ CONTAINS
       END IF
 
 !     Compute d=newx-oldx, r=newg-oldg, rr=y'y and dr=y's.
-
+      IF (keep_sg) THEN
+         CALL spgr_apply_rotations_force(spgr, g)
+         CALL spgr_apply_rotations_force(spgr, r)
+      END IF
       DO i = 1, n
          r(i) = g(i) - r(i)
       END DO

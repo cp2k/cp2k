@@ -275,11 +275,28 @@ CONTAINS
       dr(:) = 0.0_dp
 
       ! [pcazade] find space_group
+      keep_sg=.FALSE.
       CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_sg)
       IF (keep_sg) THEN
-         CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
-         CALL spgr_apply_rotations_coord(spgr, x0)
-         CALL print_spgr(spgr)
+         SELECT CASE (gopt_env%type_id)
+            CASE (default_minimization_method_id, default_ts_method_id)
+            CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
+            CALL spgr_apply_rotations_coord(spgr, x0)
+            CALL print_spgr(spgr)
+         CASE (default_cell_method_id)
+            SELECT CASE (gopt_env%cell_method_id)
+            CASE (default_cell_direct_id)
+               CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
+               CALL spgr_apply_rotations_coord(spgr, x0)
+               CALL print_spgr(spgr)
+            CASE (default_cell_geo_opt_id, default_cell_md_id)
+               keep_sg=.FALSE.
+            CASE DEFAULT
+               keep_sg=.FALSE.
+            END SELECT
+         CASE DEFAULT
+            keep_sg=.FALSE.
+         END SELECT
       END IF
 
       ! Geometry optimization starts now

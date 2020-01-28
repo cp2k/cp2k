@@ -41,7 +41,8 @@ MODULE cp_lbfgs_optimizer_gopt
    USE message_passing,                 ONLY: mp_bcast
    USE space_groups,                    ONLY: spgr_type,&
                                               spgr_apply_rotations_coord,&
-                                              spgr_apply_rotations_force
+                                              spgr_apply_rotations_force,&
+                                              spgr_print_xg
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -479,6 +480,7 @@ CONTAINS
 !> \param geo_section ...
 !> \param force_env ...
 !> \param gopt_param ...
+!> \param spgr ...
 !> \par History
 !>      01.2020 modified [pcazade]
 !> \author Fawzi Mohamed
@@ -514,7 +516,8 @@ CONTAINS
       is_master = optimizer%master == optimizer%para_env%mepos
       IF (PRESENT(converged)) converged = optimizer%status == 4
       ALLOCATE (xold(SIZE(optimizer%x)))
-
+      
+      keep_sg = .FALSE.
       IF(PRESENT(spgr)) keep_sg = .TRUE.
       ! [pcazade] applies rotation matrices to coordinates
       IF (keep_sg) THEN
@@ -532,14 +535,25 @@ CONTAINS
          optimizer%status = 0
          IF (is_master) THEN
             optimizer%task = 'START'
-            CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
-                        optimizer%lower_bound, optimizer%upper_bound, &
-                        optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
-                        optimizer%wanted_relative_f_delta, &
-                        optimizer%wanted_projected_gradient, optimizer%work_array, &
-                        optimizer%i_work_array, optimizer%task, optimizer%print_every, &
-                        optimizer%csave, optimizer%lsave, optimizer%isave, &
-                        optimizer%dsave, optimizer%trust_radius)
+            IF (keep_sg) THEN
+              CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                          optimizer%lower_bound, optimizer%upper_bound, &
+                          optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                          optimizer%wanted_relative_f_delta, &
+                          optimizer%wanted_projected_gradient, optimizer%work_array, &
+                          optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                          optimizer%csave, optimizer%lsave, optimizer%isave, &
+                          optimizer%dsave, optimizer%trust_radius, spgr=spgr)
+            ELSE
+               CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                          optimizer%lower_bound, optimizer%upper_bound, &
+                          optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                          optimizer%wanted_relative_f_delta, &
+                          optimizer%wanted_projected_gradient, optimizer%work_array, &
+                          optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                          optimizer%csave, optimizer%lsave, optimizer%isave, &
+                          optimizer%dsave, optimizer%trust_radius)
+            END IF
          END IF
       END IF
 
@@ -553,33 +567,50 @@ CONTAINS
                IF (keep_sg) THEN
                  CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                  CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
-               END IF
-               CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
-                           optimizer%lower_bound, optimizer%upper_bound, &
-                           optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
-                           optimizer%wanted_relative_f_delta, &
-                           optimizer%wanted_projected_gradient, optimizer%work_array, &
-                           optimizer%i_work_array, optimizer%task, optimizer%print_every, &
-                           optimizer%csave, optimizer%lsave, optimizer%isave, &
-                           optimizer%dsave, optimizer%trust_radius)
-               ! [pcazade] applies rotation matrices to coordinates and forces
-               IF (keep_sg) THEN
+                 CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                             optimizer%lower_bound, optimizer%upper_bound, &
+                             optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                             optimizer%wanted_relative_f_delta, &
+                             optimizer%wanted_projected_gradient, optimizer%work_array, &
+                             optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                             optimizer%csave, optimizer%lsave, optimizer%isave, &
+                             optimizer%dsave, optimizer%trust_radius, spgr=spgr)
                  CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                  CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+               ELSE
+                  CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                             optimizer%lower_bound, optimizer%upper_bound, &
+                             optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                             optimizer%wanted_relative_f_delta, &
+                             optimizer%wanted_projected_gradient, optimizer%work_array, &
+                             optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                             optimizer%csave, optimizer%lsave, optimizer%isave, &
+                             optimizer%dsave, optimizer%trust_radius)
                END IF
             END IF
             IF (optimizer%task(1:2) == 'FG') THEN
                IF (optimizer%isave(36) > optimizer%max_f_per_iter) THEN
                   optimizer%task = 'STOP: CPU, hit max f eval in iter'
                   optimizer%status = 5 ! anormal exit
-                  CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
-                              optimizer%lower_bound, optimizer%upper_bound, &
-                              optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
-                              optimizer%wanted_relative_f_delta, &
-                              optimizer%wanted_projected_gradient, optimizer%work_array, &
-                              optimizer%i_work_array, optimizer%task, optimizer%print_every, &
-                              optimizer%csave, optimizer%lsave, optimizer%isave, &
-                              optimizer%dsave, optimizer%trust_radius)
+                  IF (keep_sg) THEN
+                     CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                                 optimizer%lower_bound, optimizer%upper_bound, &
+                                 optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                                 optimizer%wanted_relative_f_delta, &
+                                 optimizer%wanted_projected_gradient, optimizer%work_array, &
+                                 optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                                 optimizer%csave, optimizer%lsave, optimizer%isave, &
+                                 optimizer%dsave, optimizer%trust_radius, spgr=spgr)
+                  ELSE
+                     CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                                 optimizer%lower_bound, optimizer%upper_bound, &
+                                 optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                                 optimizer%wanted_relative_f_delta, &
+                                 optimizer%wanted_projected_gradient, optimizer%work_array, &
+                                 optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                                 optimizer%csave, optimizer%lsave, optimizer%isave, &
+                                 optimizer%dsave, optimizer%trust_radius)
+                  END IF
                ELSE
                   optimizer%status = 1
                END IF
@@ -588,21 +619,27 @@ CONTAINS
                   optimizer%status = 2
                   ! [pcazade] applies rotation matrices to coordinates and forces
                   IF (keep_sg) THEN
-                     CALL spgr_apply_rotations_coord(spgr, optimizer%x)
-                     CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
-                  END IF
-                  CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
-                              optimizer%lower_bound, optimizer%upper_bound, &
-                              optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
-                              optimizer%wanted_relative_f_delta, &
-                              optimizer%wanted_projected_gradient, optimizer%work_array, &
-                              optimizer%i_work_array, optimizer%task, optimizer%print_every, &
-                              optimizer%csave, optimizer%lsave, optimizer%isave, &
-                              optimizer%dsave, optimizer%trust_radius)
-                  ! [pcazade] applies rotation matrices to coordinates and forces
-                  IF (keep_sg) THEN
-                     CALL spgr_apply_rotations_coord(spgr, optimizer%x)
-                     CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+                      CALL spgr_apply_rotations_coord(spgr, optimizer%x)
+                      CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+                      CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                                  optimizer%lower_bound, optimizer%upper_bound, &
+                                  optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                                  optimizer%wanted_relative_f_delta, &
+                                  optimizer%wanted_projected_gradient, optimizer%work_array, &
+                                  optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                                  optimizer%csave, optimizer%lsave, optimizer%isave, &
+                                  optimizer%dsave, optimizer%trust_radius, spgr=spgr)
+                      CALL spgr_apply_rotations_coord(spgr, optimizer%x)
+                      CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+                  ELSE
+                      CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                                  optimizer%lower_bound, optimizer%upper_bound, &
+                                  optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                                  optimizer%wanted_relative_f_delta, &
+                                  optimizer%wanted_projected_gradient, optimizer%work_array, &
+                                  optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                                  optimizer%csave, optimizer%lsave, optimizer%isave, &
+                                  optimizer%dsave, optimizer%trust_radius)
                   END IF
                ELSE
                   ! [pcazade] applies rotation matrices to coordinates and forces
@@ -645,21 +682,27 @@ CONTAINS
             IF (is_master) THEN
                ! [pcazade] applies rotation matrices to coordinates and forces
                IF (keep_sg) THEN
-                  CALL spgr_apply_rotations_coord(spgr, optimizer%x)
-                  CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
-               END IF
-               CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
-                           optimizer%lower_bound, optimizer%upper_bound, &
-                           optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
-                           optimizer%wanted_relative_f_delta, &
-                           optimizer%wanted_projected_gradient, optimizer%work_array, &
-                           optimizer%i_work_array, optimizer%task, optimizer%print_every, &
-                           optimizer%csave, optimizer%lsave, optimizer%isave, &
-                           optimizer%dsave, optimizer%trust_radius)
-               ! [pcazade] applies rotation matrices to coordinates and forces
-               IF (keep_sg) THEN
-                  CALL spgr_apply_rotations_coord(spgr, optimizer%x)
-                  CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+                   CALL spgr_apply_rotations_coord(spgr, optimizer%x)
+                   CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+                   CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                               optimizer%lower_bound, optimizer%upper_bound, &
+                               optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                               optimizer%wanted_relative_f_delta, &
+                               optimizer%wanted_projected_gradient, optimizer%work_array, &
+                               optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                               optimizer%csave, optimizer%lsave, optimizer%isave, &
+                               optimizer%dsave, optimizer%trust_radius, spgr=spgr)
+                   CALL spgr_apply_rotations_coord(spgr, optimizer%x)
+                   CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
+               ELSE
+                   CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                               optimizer%lower_bound, optimizer%upper_bound, &
+                               optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                               optimizer%wanted_relative_f_delta, &
+                               optimizer%wanted_projected_gradient, optimizer%work_array, &
+                               optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                               optimizer%csave, optimizer%lsave, optimizer%isave, &
+                               optimizer%dsave, optimizer%trust_radius)
                END IF
             END IF
             CALL mp_bcast(optimizer%x, optimizer%master, optimizer%para_env%group)
@@ -799,6 +842,7 @@ CONTAINS
 !> \param geo_section ...
 !> \param force_env ...
 !> \param gopt_param ...
+!> \param spgr ...
 !> \return ...
 !> \par History
 !>      01.2020 modified [pcazade] 

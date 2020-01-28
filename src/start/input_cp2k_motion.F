@@ -774,8 +774,8 @@ CONTAINS
 !> \param description ...
 !> \param just_optimizers ...
 !> \param use_model_hessian ...
-!> \note  01.2020 keywords related to Space Group Symmetry added [pcazade]
 !> \author teo
+!> \note  01.2020 keywords related to Space Group Symmetry added [pcazade]
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE create_geoopt_section(section, location, label, description, just_optimizers, use_model_hessian)
       TYPE(section_type), POINTER                        :: section
