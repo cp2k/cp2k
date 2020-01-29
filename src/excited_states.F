@@ -15,10 +15,8 @@ MODULE excited_states
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE ex_property_calculation,         ONLY: ex_properties
    USE exstates_types,                  ONLY: excited_energy_type
-   USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -30,8 +28,7 @@ MODULE excited_states
                                               zero_qs_force
    USE qs_p_env_types,                  ONLY: p_env_release,&
                                               qs_p_env_type
-   USE response_solver,                 ONLY: ks_ref_potential,&
-                                              response_equation,&
+   USE response_solver,                 ONLY: response_equation,&
                                               response_force
 #include "./base/base_uses.f90"
 
@@ -65,16 +62,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'excited_state_energy', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iab, nkind, unit_nr
+      INTEGER                                            :: handle, nkind, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: natom_of_kind
-      REAL(KIND=dp)                                      :: ehartree, exc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(excited_energy_type), POINTER                 :: ex_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vtau_rspace, vxc_rspace
-      TYPE(pw_p_type), POINTER                           :: vh_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force, td_force
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force, lr_force
       TYPE(qs_p_env_type), POINTER                       :: p_env
 
       CALL timeset(routineN, handle)
@@ -102,45 +96,27 @@ CONTAINS
             nkind = SIZE(atomic_kind_set)
             ALLOCATE (natom_of_kind(nkind))
             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=natom_of_kind)
-            NULLIFY (td_force)
-            CALL allocate_qs_force(td_force, natom_of_kind)
+            NULLIFY (lr_force)
+            CALL allocate_qs_force(lr_force, natom_of_kind)
             DEALLOCATE (natom_of_kind)
-            CALL zero_qs_force(td_force)
-            CALL set_qs_env(qs_env, force=td_force)
-
-            NULLIFY (vh_rspace, vxc_rspace, vtau_rspace)
-            CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, ehartree, exc)
+            CALL zero_qs_force(lr_force)
+            CALL set_qs_env(qs_env, force=lr_force)
             !
             NULLIFY (p_env)
             CALL response_equation(qs_env, p_env, ex_env%cpmos)
             !
-            CALL response_force(qs_env, p_env, vh_rspace, vxc_rspace, vtau_rspace, &
+            CALL response_force(qs_env, p_env, ex_env%vh_rspace, ex_env%vxc_rspace, ex_env%vtau_rspace, &
                                 ex_env%matrix_hz)
-
             ! add TD and KS forces
-            CALL get_qs_env(qs_env, force=td_force)
-            CALL sum_qs_force(ks_force, td_force)
+            CALL get_qs_env(qs_env, force=lr_force)
+            CALL sum_qs_force(ks_force, lr_force)
             CALL set_qs_env(qs_env, force=ks_force)
-            CALL deallocate_qs_force(td_force)
+            CALL deallocate_qs_force(lr_force)
+            !
+            CALL ex_properties(qs_env, ex_env%matrix_pe, p_env)
             !
             CALL p_env_release(p_env)
             !
-            IF (ASSOCIATED(vh_rspace)) THEN
-               CALL pw_release(vh_rspace%pw)
-               DEALLOCATE (vh_rspace)
-            END IF
-            IF (ASSOCIATED(vxc_rspace)) THEN
-               DO iab = 1, SIZE(vxc_rspace)
-                  CALL pw_release(vxc_rspace(iab)%pw)
-               END DO
-               DEALLOCATE (vxc_rspace)
-            END IF
-            IF (ASSOCIATED(vtau_rspace)) THEN
-               DO iab = 1, SIZE(vtau_rspace)
-                  CALL pw_release(vtau_rspace(iab)%pw)
-               END DO
-               DEALLOCATE (vtau_rspace)
-            END IF
          ELSE
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,A,A,A,A)') "!", REPEAT("-", 27), &

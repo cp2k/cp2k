@@ -445,18 +445,27 @@ CONTAINS
             CALL cp_fm_set_all(ex_env%cpmos(ispin)%matrix, 0.0_dp)
          END DO
          CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
+         CALL dbcsr_allocate_matrix_set(ex_env%matrix_pe, nspins)
+         DO ispin = 1, nspins
+            ALLOCATE (ex_env%matrix_pe(ispin)%matrix)
+            CALL dbcsr_create(ex_env%matrix_pe(ispin)%matrix, template=matrix_s(1)%matrix)
+            CALL dbcsr_copy(ex_env%matrix_pe(ispin)%matrix, matrix_s(1)%matrix)
+            CALL dbcsr_set(ex_env%matrix_pe(ispin)%matrix, 0.0_dp)
+            CALL tddfpt_resvec1(ex_env%evect(ispin)%matrix, gs_mos(ispin)%mos_occ, &
+                                matrix_s(1)%matrix, ex_env%matrix_pe(ispin)%matrix)
+         END DO
+         !
          CALL dbcsr_allocate_matrix_set(ex_env%matrix_hz, nspins)
          DO ispin = 1, nspins
             ALLOCATE (ex_env%matrix_hz(ispin)%matrix)
             CALL dbcsr_create(ex_env%matrix_hz(ispin)%matrix, template=matrix_s(1)%matrix)
             CALL dbcsr_copy(ex_env%matrix_hz(ispin)%matrix, matrix_s(1)%matrix)
             CALL dbcsr_set(ex_env%matrix_hz(ispin)%matrix, 0.0_dp)
-            CALL tddfpt_resvec1(ex_env%evect(ispin)%matrix, gs_mos(ispin)%mos_occ, &
-                                ex_env%matrix_hz(ispin)%matrix)
          END DO
-         CALL tddfpt_resvec2(qs_env, ex_env%matrix_hz, gs_mos, ex_env%cpmos)
+         CALL tddfpt_resvec2(qs_env, ex_env%matrix_pe, gs_mos, ex_env%matrix_hz, ex_env%cpmos)
+         !
          ! TDA forces
-         CALL tddfpt_forces(qs_env, evects, evals, ex_env%state)
+         CALL tddfpt_forces(qs_env, ex_env, gs_mos)
          !
       END IF
 

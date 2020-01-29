@@ -16,6 +16,7 @@ MODULE qs_density_matrices
                                               cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_scale_and_add,&
                                               cp_fm_symm,&
                                               cp_fm_upper_to_full
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -46,6 +47,7 @@ MODULE qs_density_matrices
    PUBLIC :: calculate_density_matrix
    PUBLIC :: calculate_w_matrix, calculate_w_matrix_ot
    PUBLIC :: calculate_wz_matrix, calculate_whz_matrix
+   PUBLIC :: calculate_wx_matrix, calculate_xwx_matrix
 
    INTERFACE calculate_density_matrix
       MODULE PROCEDURE calculate_dm_sparse
@@ -442,5 +444,101 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_whz_matrix
+
+! **************************************************************************************************
+!> \brief Calculate the excited state W matrix from the MO eigenvectors, KS matrix
+!> \param mos_occ ...
+!> \param xvec ...
+!> \param ks_matrix ...
+!> \param w_matrix ...
+!> \param focc ...
+!> \par History
+!>               adapted from calculate_wz_matrix
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE calculate_wx_matrix(mos_occ, xvec, ks_matrix, w_matrix, focc)
+
+      TYPE(cp_fm_type), POINTER                          :: mos_occ, xvec
+      TYPE(dbcsr_type), POINTER                          :: ks_matrix, w_matrix
+      REAL(KIND=dp), INTENT(IN)                          :: focc
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_wx_matrix', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ncol, nrow
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type), POINTER                          :: ksmat, scrv
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(matrix=mos_occ, ncol_global=ncol, nrow_global=nrow)
+      CALL cp_fm_create(scrv, mos_occ%matrix_struct, "scr vectors")
+      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
+                               para_env=mos_occ%matrix_struct%para_env, &
+                               context=mos_occ%matrix_struct%context)
+      CALL cp_fm_create(ksmat, fm_struct_tmp, name="KS")
+      CALL cp_fm_struct_release(fm_struct_tmp)
+      CALL cp_dbcsr_sm_fm_multiply(ks_matrix, mos_occ, scrv, ncol)
+      CALL cp_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, mos_occ, scrv, 0.0_dp, ksmat)
+      CALL cp_gemm("N", "N", nrow, ncol, ncol, focc, xvec, ksmat, 0.0_dp, scrv)
+      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=xvec, ncol=ncol, alpha=0.5_dp)
+      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=xvec, matrix_g=scrv, ncol=ncol, alpha=0.5_dp)
+      CALL cp_fm_release(scrv)
+      CALL cp_fm_release(ksmat)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_wx_matrix
+
+! **************************************************************************************************
+!> \brief Calculate the excited state W matrix from the MO eigenvectors, KS matrix
+!> \param mos_occ ...
+!> \param xvec ...
+!> \param s_matrix ...
+!> \param ks_matrix ...
+!> \param w_matrix ...
+!> \param eval ...
+!> \param focc ...
+!> \par History
+!>               adapted from calculate_wz_matrix
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE calculate_xwx_matrix(mos_occ, xvec, s_matrix, ks_matrix, w_matrix, eval, focc)
+
+      TYPE(cp_fm_type), POINTER                          :: mos_occ, xvec
+      TYPE(dbcsr_type), POINTER                          :: s_matrix, ks_matrix, w_matrix
+      REAL(KIND=dp), INTENT(IN)                          :: eval, focc
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_xwx_matrix', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ncol, nrow
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type), POINTER                          :: scrv, xsxmat
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(matrix=mos_occ, ncol_global=ncol, nrow_global=nrow)
+      CALL cp_fm_create(scrv, mos_occ%matrix_struct, "scr vectors")
+      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
+                               para_env=mos_occ%matrix_struct%para_env, &
+                               context=mos_occ%matrix_struct%context)
+      CALL cp_fm_create(xsxmat, fm_struct_tmp, name="XSX")
+      CALL cp_fm_struct_release(fm_struct_tmp)
+
+      CALL cp_dbcsr_sm_fm_multiply(ks_matrix, xvec, scrv, ncol, 1.0_dp, 0.0_dp)
+      CALL cp_dbcsr_sm_fm_multiply(s_matrix, xvec, scrv, ncol, eval, -1.0_dp)
+      CALL cp_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, xvec, scrv, 0.0_dp, xsxmat)
+
+      CALL cp_gemm("N", "N", nrow, ncol, ncol, focc, mos_occ, xsxmat, 0.0_dp, scrv)
+      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=mos_occ, ncol=ncol, alpha=0.5_dp)
+      CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=mos_occ, matrix_g=scrv, ncol=ncol, alpha=0.5_dp)
+
+      CALL cp_fm_release(scrv)
+      CALL cp_fm_release(xsxmat)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_xwx_matrix
 
 END MODULE qs_density_matrices

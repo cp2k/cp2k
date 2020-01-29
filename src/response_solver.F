@@ -151,7 +151,7 @@ MODULE response_solver
    LOGICAL, PARAMETER                   :: debug_forces = .FALSE.
 
    PUBLIC :: ks_ref_potential, response_calculation, &
-             response_equation, response_force
+             response_equation, response_force, admm_projection_derivative
 
 CONTAINS
 

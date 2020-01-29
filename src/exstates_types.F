@@ -17,6 +17,8 @@ MODULE exstates_types
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE pw_types,                        ONLY: pw_p_type,&
+                                              pw_release
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -38,7 +40,11 @@ MODULE exstates_types
       REAL(KIND=dp)                                      :: evalue
       TYPE(cp_fm_p_type), POINTER, DIMENSION(:)          :: evect => NULL()
       TYPE(cp_fm_p_type), POINTER, DIMENSION(:)          :: cpmos => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pe => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz => NULL()
+      TYPE(pw_p_type), POINTER                           :: vh_rspace => NULL()
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace => NULL()
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vtau_rspace => NULL()
    END TYPE excited_energy_type
 
 CONTAINS
@@ -53,7 +59,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'exstate_release', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: is
+      INTEGER                                            :: iab, is
 
       IF (ASSOCIATED(ex_env)) THEN
 
@@ -69,8 +75,27 @@ CONTAINS
             END DO
             DEALLOCATE (ex_env%cpmos)
          END IF
+         IF (ASSOCIATED(ex_env%matrix_pe)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_pe)
+         NULLIFY (ex_env%matrix_pe)
          IF (ASSOCIATED(ex_env%matrix_hz)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_hz)
          NULLIFY (ex_env%matrix_hz)
+         !
+         IF (ASSOCIATED(ex_env%vh_rspace)) THEN
+            CALL pw_release(ex_env%vh_rspace%pw)
+            DEALLOCATE (ex_env%vh_rspace)
+         END IF
+         IF (ASSOCIATED(ex_env%vxc_rspace)) THEN
+            DO iab = 1, SIZE(ex_env%vxc_rspace)
+               CALL pw_release(ex_env%vxc_rspace(iab)%pw)
+            END DO
+            DEALLOCATE (ex_env%vxc_rspace)
+         END IF
+         IF (ASSOCIATED(ex_env%vtau_rspace)) THEN
+            DO iab = 1, SIZE(ex_env%vtau_rspace)
+               CALL pw_release(ex_env%vtau_rspace(iab)%pw)
+            END DO
+            DEALLOCATE (ex_env%vtau_rspace)
+         END IF
 
          DEALLOCATE (ex_env)
 
