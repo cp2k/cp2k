@@ -666,7 +666,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'get_berry_operator', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: dim_op, handle, i, j
+      INTEGER                                            :: dim_op, handle
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
 
@@ -676,7 +676,6 @@ CONTAINS
       CALL get_qs_loc_env(qs_loc_env=qs_loc_env, op_sm_set=op_sm_set, &
                           cell=cell, dim_op=dim_op)
       CALL compute_berry_operator(qs_env, cell, op_sm_set, dim_op)
-
 
       CALL timestop(handle)
    END SUBROUTINE get_berry_operator
@@ -690,6 +689,9 @@ CONTAINS
 !>       k is defined somewhere
 !>       the pair lists are exploited and sparse matrixes are constructed
 !> \param qs_env the qs_env in which the qs_env lives
+!> \param cell ...
+!> \param op_sm_set ...
+!> \param dim_op ...
 !> \par History
 !>      04.2005 created [MI]
 !>      04.2018 wrapped old code [RZK, ZL]
@@ -707,9 +709,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_berry_operator', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, istat, jatom, jkind, jset, &
-         last_jatom, ldab, ldsa, ldsb, ldwork, maxl, ncoa, ncob, nkind, nrow, nseta, nsetb, sgfa, &
-         sgfb, inub, jnub, j
+      INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
+         ldab, ldsa, ldsb, ldwork, maxl, ncoa, ncob, nkind, nrow, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(3)                              :: perd0
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
@@ -854,12 +855,12 @@ CONTAINS
 
          nrow = 0
          DO iset = 1, nseta
- 
+
             ncoa = npgfa(iset)*ncoset(la_max(iset))
             sgfa = first_sgfa(1, iset)
 
             DO jset = 1, nsetb
-    
+
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
 

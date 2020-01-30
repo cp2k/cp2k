@@ -82,6 +82,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Fill all matrix blocks with 1.0_dp
+!> \param matrix ...
 !> \par History
 !>       2019.09 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
@@ -90,9 +91,8 @@ CONTAINS
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
 
-      INTEGER                                            :: col, hold, iblock_col, &
-                                                            iblock_row, ispin, mynode, &
-                                                            nblkcols_tot, nblkrows_tot, row
+      INTEGER                                            :: col, hold, iblock_col, iblock_row, &
+                                                            mynode, nblkcols_tot, nblkrows_tot, row
       LOGICAL                                            :: tr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
       TYPE(dbcsr_distribution_type)                      :: dist

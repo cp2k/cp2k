@@ -15,10 +15,9 @@ MODULE almo_scf_env_methods
                                               almo_scf_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE input_constants,                 ONLY: &
-        almo_constraint_distance, almo_deloc_none, almo_deloc_scf, almo_deloc_x, &
-        almo_deloc_x_then_scf, almo_deloc_xalmo_1diag, almo_domain_layout_atomic, &
-        almo_domain_layout_molecular, almo_frz_crystal, almo_mat_distr_molecular, &
-        almo_scf_diag, almo_scf_skip, almo_scf_trustr, cg_hager_zhang, &
+        almo_constraint_distance, almo_deloc_none, almo_deloc_xalmo_1diag, &
+        almo_domain_layout_atomic, almo_domain_layout_molecular, almo_frz_crystal, &
+        almo_mat_distr_molecular, almo_scf_diag, almo_scf_skip, almo_scf_trustr, cg_hager_zhang, &
         do_bondparm_vdw, molecular_guess, tensor_orthogonal, virt_full, virt_minimal, virt_number, &
         xalmo_trial_r0_out
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -107,9 +106,9 @@ CONTAINS
 
       INTEGER                                            :: handle
       TYPE(section_vals_type), POINTER :: almo_analysis_section, almo_opt_diis_section, &
-         almo_opt_pcg_section, almo_scf_section, matrix_iterate_section, penalty_section, &
-         xalmo_opt_newton_pcg_section, xalmo_opt_pcg_section, xalmo_opt_trustr_section, &
-         nlmo_opt_pcg_section
+         almo_opt_pcg_section, almo_scf_section, matrix_iterate_section, nlmo_opt_pcg_section, &
+         penalty_section, xalmo_opt_newton_pcg_section, xalmo_opt_pcg_section, &
+         xalmo_opt_trustr_section
 
       CALL timeset(routineN, handle)
 
@@ -123,7 +122,7 @@ CONTAINS
       xalmo_opt_trustr_section => section_vals_get_subs_vals(almo_scf_section, &
                                                              "XALMO_OPTIMIZER_TRUSTR")
       nlmo_opt_pcg_section => section_vals_get_subs_vals(almo_scf_section, &
-                                                          "NLMO_OPTIMIZER_PCG")
+                                                         "NLMO_OPTIMIZER_PCG")
       almo_analysis_section => section_vals_get_subs_vals(almo_scf_section, "ANALYSIS")
       xalmo_opt_newton_pcg_section => section_vals_get_subs_vals(xalmo_opt_pcg_section, &
                                                                  "XALMO_NEWTON_PCG_SOLVER")
@@ -158,7 +157,6 @@ CONTAINS
                                 l_val=almo_scf_env%return_orthogonalized_mos)
       CALL section_vals_val_get(almo_scf_section, "CONSTRUCT_NLMOS", &
                                 l_val=almo_scf_env%construct_nlmos)
-
 
       CALL section_vals_val_get(matrix_iterate_section, "EPS_LANCZOS", &
                                 r_val=almo_scf_env%eps_lanczos)

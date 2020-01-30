@@ -46,14 +46,13 @@ MODULE almo_scf_types
    ! methods that add penalty terms to the energy functional
    TYPE penalty_type
 
-      REAL(KIND=dp)      :: final_determinant,penalty_strength,  &
+      REAL(KIND=dp)      :: final_determinant, penalty_strength, &
                             determinant_tolerance, penalty_strength_dec_factor, &
                             compactification_filter_start
       INTEGER            :: operator_type
-      LOGICAL            :: virtual_nlmos 
+      LOGICAL            :: virtual_nlmos
 
    END TYPE penalty_type
-
 
    ! almo-based electronic structure analysis
    TYPE almo_analysis_type
@@ -64,7 +63,6 @@ MODULE almo_scf_types
       INTEGER :: frozen_mo_energy_term
 
    END TYPE almo_analysis_type
-
 
    TYPE optimizer_options_type
 
