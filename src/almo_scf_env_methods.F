@@ -18,7 +18,7 @@ MODULE almo_scf_env_methods
         almo_constraint_distance, almo_deloc_none, almo_deloc_scf, almo_deloc_x, &
         almo_deloc_x_then_scf, almo_deloc_xalmo_1diag, almo_domain_layout_atomic, &
         almo_domain_layout_molecular, almo_frz_crystal, almo_mat_distr_molecular, &
-        almo_occ_vol_penalty_none, almo_scf_diag, almo_scf_skip, almo_scf_trustr, cg_hager_zhang, &
+        almo_scf_diag, almo_scf_skip, almo_scf_trustr, cg_hager_zhang, &
         do_bondparm_vdw, molecular_guess, tensor_orthogonal, virt_full, virt_minimal, virt_number, &
         xalmo_trial_r0_out
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&

@@ -140,12 +140,12 @@ CONTAINS
       INTEGER                                            :: istore, ispin, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         unit_nr = -1
-      ENDIF
+      !logger => cp_get_default_logger()
+      !IF (logger%para_env%mepos == logger%para_env%source) THEN
+      !   unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      !ELSE
+      !   unit_nr = -1
+      !ENDIF
 
       DO ispin = 1, SIZE(history%matrix,1)
 
@@ -156,9 +156,9 @@ CONTAINS
 
          history%rho(ispin, istore) = 1.0_dp / history%rho(ispin, istore)
 
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, *) "Rho in cell ", istore, " is computed ", history%rho(ispin, istore)
-         ENDIF
+         !IF (unit_nr > 0) THEN
+         !   WRITE (unit_nr, *) "Rho in cell ", istore, " is computed ", history%rho(ispin, istore)
+         !ENDIF
 
       ENDDO ! ispin
 
@@ -178,12 +178,12 @@ CONTAINS
       INTEGER                                            :: ispin, istore, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         unit_nr = -1
-      ENDIF
+      !logger => cp_get_default_logger()
+      !IF (logger%para_env%mepos == logger%para_env%source) THEN
+      !   unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      !ELSE
+      !   unit_nr = -1
+      !ENDIF
 
       ! increase the counter: it moves the pointer to the next cell
       ! for action==1 this is a "pretend" increase; the pointer will be moved back in the end
@@ -192,17 +192,17 @@ CONTAINS
       DO ispin = 1, SIZE(history%matrix,1)
 
          istore = MOD(history%istore(vartype)-1, history%nstore)+1
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, *) "Action ", action, " modifying cell ", istore
-         END IF
+         !IF (unit_nr > 0) THEN
+         !   WRITE (unit_nr, *) "Action ", action, " modifying cell ", istore
+         !END IF
 
          IF ( history%istore(vartype) <= history%nstore .AND. &
              action .EQ. 1 ) THEN
             CALL dbcsr_create(history%matrix(ispin, istore, vartype), &
                               template=matrix(ispin) )
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *) "Creating new matrix..."
-            END IF
+            !IF (unit_nr > 0) THEN
+            !   WRITE (unit_nr, *) "Creating new matrix..."
+            !END IF
          ENDIF
 
          IF (action .EQ. 1) THEN
@@ -237,21 +237,21 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: q
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         unit_nr = -1
-      ENDIF
+      !logger => cp_get_default_logger()
+      !IF (logger%para_env%mepos == logger%para_env%source) THEN
+      !   unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      !ELSE
+      !   unit_nr = -1
+      !ENDIF
 
       IF (history%istore(1) .NE. history%istore(2)) THEN
          CPABORT("BFGS APIs are not used correctly")
       ENDIF
 
       nterms = MIN(history%istore(1), history%nstore)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *) "L-BFGS terms used: ", nterms
-      END IF
+      !IF (unit_nr > 0) THEN
+      !   WRITE (unit_nr, *) "L-BFGS terms used: ", nterms
+      !END IF
 
       ALLOCATE(alpha(nterms))
 
@@ -267,9 +267,9 @@ CONTAINS
             ! location: from recent to oldest stored
             istore = MOD(history%istore(1)-iterm, history%nstore)+1
 
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *) "Record locator: ", istore
-            END IF
+            !IF (unit_nr > 0) THEN
+            !   WRITE (unit_nr, *) "Record locator: ", istore
+            !END IF
 
             CALL dbcsr_dot(history%matrix(ispin, istore, 1), q, alpha(iterm))
             alpha(iterm) = history%rho(ispin, istore) * alpha(iterm)
@@ -280,9 +280,9 @@ CONTAINS
             IF (iterm .EQ. 1) THEN
                CALL dbcsr_dot(history%matrix(ispin, istore, 2), history%matrix(ispin, istore, 2), gammak)
                gammak = 1.0_dp / (gammak * history%rho(ispin, istore) )
-               IF (unit_nr > 0) THEN
-                  WRITE (unit_nr, *) "Gamma_k: ", gammak
-               END IF
+               !IF (unit_nr > 0) THEN
+               !   WRITE (unit_nr, *) "Gamma_k: ", gammak
+               !END IF
             ENDIF
 
          ENDDO ! iterm, first loop from recent to oldest
@@ -303,7 +303,7 @@ CONTAINS
          ENDDO ! iterm, forst loop from recent to oldest
 
          !RZK-warning: unclear whether q should be multiplied by minus one
-         !CALL dbcsr_scale(q, -1.0)
+         CALL dbcsr_scale(q, -1.0)
          CALL dbcsr_copy(direction(ispin), q)
 
          CALL dbcsr_release(q)
