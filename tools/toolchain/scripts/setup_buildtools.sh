@@ -19,9 +19,9 @@ done
 
 # setup compiler flags, leading to nice stack traces on crashes but
 # still optimised
-CFLAGS="-O2 -fno-omit-frame-pointer -ftree-vectorize -g -march=native -mtune=native ${TSANFLAGS}"
+CFLAGS="-O2 -fno-omit-frame-pointer -g -march=native -mtune=native ${TSANFLAGS}"
 CXXFLAGS="${CFLAGS}"
-FFLAGS="-O2 -fbacktrace -fno-omit-frame-pointer -ftree-vectorize -g -march=native -mtune=native ${TSANFLAGS}"
+FFLAGS="-O2 -fbacktrace -fno-omit-frame-pointer -g -march=native -mtune=native ${TSANFLAGS}"
 F77FLAGS="${FFLAGS}"
 F90FLAGS="${FFLAGS}"
 FCFLAGS="${FFLAGS}"
