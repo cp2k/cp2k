@@ -41,9 +41,7 @@ MODULE cp2k_runs
                                               cp_unit_set_type,&
                                               print_all_units
    USE cuda_profiling,                  ONLY: cuda_nvtx_init
-   USE dbcsr_api,                       ONLY: dbcsr_acc_get_ndevices,&
-                                              dbcsr_acc_set_active_device,&
-                                              dbcsr_finalize_lib,&
+   USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib,&
                                               dbcsr_print_config,&
                                               dbcsr_print_statistics
@@ -192,9 +190,6 @@ CONTAINS
 
       NULLIFY (para_env, f_env, dft_control)
       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
-
-      IF (dbcsr_acc_get_ndevices() > 0) &
-         CALL dbcsr_acc_set_active_device(MOD(para_env%mepos, dbcsr_acc_get_ndevices()))
 
       CALL cuda_nvtx_init()
 

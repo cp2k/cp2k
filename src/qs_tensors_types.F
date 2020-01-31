@@ -296,7 +296,7 @@ CONTAINS
       CALL cyclic_tensor_dist(size_2, pdims(2), sizes_2, dist_2)
       CALL cyclic_tensor_dist(size_3, pdims(3), sizes_3, dist_3)
 
-      CALL dbcsr_t_distribution_new(dist, pgrid, map1, map2, dist_1, dist_2, dist_3)
+      CALL dbcsr_t_distribution_new(dist, pgrid, dist_1, dist_2, dist_3)
       CALL dbcsr_t_create(t3c, name, dist, map1, map2, dbcsr_type_real_8, sizes_1, &
                           sizes_2, sizes_3)
       CALL dbcsr_t_distribution_destroy(dist)
@@ -343,7 +343,7 @@ CONTAINS
       CALL cyclic_tensor_dist(size_1, pdims(1), sizes_1, dist_1)
       CALL cyclic_tensor_dist(size_2, pdims(2), sizes_2, dist_2)
 
-      CALL dbcsr_t_distribution_new(dist, pgrid, [order_in(1)], [order_in(2)], dist_1, dist_2)
+      CALL dbcsr_t_distribution_new(dist, pgrid, dist_1, dist_2)
       CALL dbcsr_t_create(t2c, name, dist, [order_in(1)], [order_in(2)], dbcsr_type_real_8, sizes_1, sizes_2)
       CALL dbcsr_t_distribution_destroy(dist)
 
