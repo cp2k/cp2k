@@ -116,7 +116,7 @@ MODULE mp2_types
       LOGICAL                  :: do_im_time_kpoints
       REAL(KIND=dp)            :: stabilize_exp
       LOGICAL                  :: group_size_internal
-      INTEGER                  :: max_bsize_sqrt
+      INTEGER                  :: min_bsize
    END TYPE
 
    TYPE ri_g0w0_type
