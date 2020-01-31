@@ -1788,11 +1788,13 @@ CONTAINS
                  CALL csr_idx_from_combined(i34, norb, i3, i4)
                  erint = eri%nzval_local%r_dp(irptr + i34l)
                  ! Coulomb
+                 !if(i1==1 .and. i2==3) write(*,*) 'c',erint*p_mat(i3, i4)
                  ks_ref(i1, i2) = ks_ref(i1, i2) + erint*p_mat(i3, i4)
                  IF (i3 /= i4) THEN
                     ks_ref(i1, i2) = ks_ref(i1, i2) + erint*p_mat(i3, i4)
                  END IF
                  IF (i12 /= i34) THEN
+                    !if(i3==1 .and. i4==3) write(*,*) 'c',erint*p_mat(i1, i2)
                     ks_ref(i3, i4) = ks_ref(i3, i4) + erint*p_mat(i1, i2)
                     IF (i1 /= i2) THEN
                        ks_ref(i3, i4) = ks_ref(i3, i4) + erint*p_mat(i1, i2)
@@ -1800,14 +1802,18 @@ CONTAINS
                  END IF
                  ! Exchange
                  erint = -0.5_dp*erint
+                 !if(i1==1 .and. i3==3) write(*,*) 'x',erint*p_mat(i2, i4)
                  ks_ref(i1, i3) = ks_ref(i1, i3) + erint*p_mat(i2, i4)
                  IF (i1 /= i2) THEN
+                    !if(i2==1 .and. i3==3) write(*,*) 'x',erint*p_mat(i1, i4)
                     ks_ref(i2, i3) = ks_ref(i2, i3) + erint*p_mat(i1, i4)
                  END IF
                  IF (i3 /= i4) THEN
+                    !if(i1==1 .and. i4==3) write(*,*) 'x',erint*p_mat(i2, i3)
                     ks_ref(i1, i4) = ks_ref(i1, i4) + erint*p_mat(i2, i3)
                  END IF
                  IF (i1 /= i2 .AND. i3 /= i4) THEN
+                    !if(i2==1 .and. i4==3) write(*,*) 'x',erint*p_mat(i1, i3)
                     ks_ref(i2, i4) = ks_ref(i2, i4) + erint*p_mat(i1, i3)
                  END IF
               END DO
@@ -1850,9 +1856,11 @@ CONTAINS
                  erint = eri_aa%nzval_local%r_dp(irptr + i34l)
                  ! Coulomb
                  !F_ij += (ij|kl)*d_kl
+                 !if(i1==1 .and. i2==3) write(*,*) 'c',erint*p_a_mat(i3, i4)
                  ks_a_ref(i1, i2) = ks_a_ref(i1, i2) + erint*p_a_mat(i3, i4)
                  IF (i12 /= i34) THEN
                     !F_kl += (ij|kl)*d_ij
+                    !if(i3==1 .and. i4==3) write(*,*) 'c',erint*p_a_mat(i1, i2)
                     ks_a_ref(i3, i4) = ks_a_ref(i3, i4) + erint*p_a_mat(i1, i2)
                  END IF
                  ! Exchange
