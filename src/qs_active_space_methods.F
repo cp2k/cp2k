@@ -1706,8 +1706,8 @@ CONTAINS
          eri_aa => active_space_env%eri%eri(1)%csr_mat
          eri_ab => active_space_env%eri%eri(2)%csr_mat
          eri_bb => active_space_env%eri%eri(3)%csr_mat
-         call build_subspace_spin_fock_matrix( norb, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref )
-         call build_subspace_spin_fock_matrix( norb, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref )
+         call build_subspace_spin_fock_matrix( norb, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, beta_driven=.true. )
+         call build_subspace_spin_fock_matrix( norb, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, beta_driven=.false. )
          !
          ! calculate energy
          eeri = 0.0_dp
@@ -1785,11 +1785,13 @@ CONTAINS
                  CALL csr_idx_from_combined(i34, norb, i3, i4)
                  erint = eri%nzval_local%r_dp(irptr + i34l)
                  ! Coulomb
+                 !if(i1==1 .and. i2==3) write(*,*) 'c',erint*p_mat(i3, i4)
                  ks_ref(i1, i2) = ks_ref(i1, i2) + erint*p_mat(i3, i4)
                  IF (i3 /= i4) THEN
                     ks_ref(i1, i2) = ks_ref(i1, i2) + erint*p_mat(i3, i4)
                  END IF
                  IF (i12 /= i34) THEN
+                    !if(i3==1 .and. i4==3) write(*,*) 'c',erint*p_mat(i1, i2)
                     ks_ref(i3, i4) = ks_ref(i3, i4) + erint*p_mat(i1, i2)
                     IF (i1 /= i2) THEN
                        ks_ref(i3, i4) = ks_ref(i3, i4) + erint*p_mat(i1, i2)
@@ -1797,14 +1799,18 @@ CONTAINS
                  END IF
                  ! Exchange
                  erint = -0.5_dp*erint
+                 !if(i1==1 .and. i3==3) write(*,*) 'x',erint*p_mat(i2, i4)
                  ks_ref(i1, i3) = ks_ref(i1, i3) + erint*p_mat(i2, i4)
                  IF (i1 /= i2) THEN
+                    !if(i2==1 .and. i3==3) write(*,*) 'x',erint*p_mat(i1, i4)
                     ks_ref(i2, i3) = ks_ref(i2, i3) + erint*p_mat(i1, i4)
                  END IF
                  IF (i3 /= i4) THEN
+                    !if(i1==1 .and. i4==3) write(*,*) 'x',erint*p_mat(i2, i3)
                     ks_ref(i1, i4) = ks_ref(i1, i4) + erint*p_mat(i2, i3)
                  END IF
                  IF (i1 /= i2 .AND. i3 /= i4) THEN
+                    !if(i2==1 .and. i4==3) write(*,*) 'x',erint*p_mat(i1, i3)
                     ks_ref(i2, i4) = ks_ref(i2, i4) + erint*p_mat(i1, i3)
                  END IF
               END DO
@@ -1821,11 +1827,13 @@ CONTAINS
 
    end subroutine build_subspace_fock_matrix
 
-   subroutine build_subspace_spin_fock_matrix( norb, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref )
+
+   subroutine build_subspace_spin_fock_matrix( norb, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, beta_driven )
      integer, intent(in) :: norb
      TYPE(dbcsr_csr_type), intent(in)  :: eri_aa, eri_ab
      real(dp), dimension(:,:), intent(in) :: p_a_mat, p_b_mat
      real(dp), dimension(:,:), intent(inout) :: ks_a_ref
+     logical, intent(in) :: beta_driven
 
      integer :: nindex, i1, i2, i12, i12l, irptr, i34l, i34, i3, i4
      integer, dimension(2) :: irange
@@ -1846,6 +1854,7 @@ CONTAINS
                  erint = eri_aa%nzval_local%r_dp(irptr + i34l)
                  ! Coulomb
                  !F_ij += (ij|kl)*d_kl
+                 !if(i1==1 .and. i2==3) write(*,*) 'c',erint*p_a_mat(i3, i4)
                  ks_a_ref(i1, i2) = ks_a_ref(i1, i2) + erint*p_a_mat(i3, i4)
                  IF (i3 /= i4) THEN
                     !F_ij += 0? for k/=l
@@ -1854,6 +1863,7 @@ CONTAINS
                  END IF
                  IF (i12 /= i34) THEN
                     !F_kl += (ij|kl)*d_ij
+                    !if(i3==1 .and. i4==3) write(*,*) 'c',erint*p_a_mat(i1, i2)
                     ks_a_ref(i3, i4) = ks_a_ref(i3, i4) + erint*p_a_mat(i1, i2)
                     IF (i1 /= i2) THEN
                        !F_kl += 0? for i/=j
@@ -1864,17 +1874,21 @@ CONTAINS
                  ! Exchange
                  erint = -1.0_dp*erint
                  !F_ik -= 0.5*(ij|kl)*d_jl
+                 !if(i1==1 .and. i3==3) write(*,*) 'x',erint*p_a_mat(i2, i4)
                  ks_a_ref(i1, i3) = ks_a_ref(i1, i3) + erint*p_a_mat(i2, i4)
                  IF (i1 /= i2) THEN
                     !F_jk -= 0.5*(ij|kl)*d_il
+                    !if(i2==1 .and. i3==3) write(*,*) 'x',erint*p_a_mat(i1, i4)
                     ks_a_ref(i2, i3) = ks_a_ref(i2, i3) + erint*p_a_mat(i1, i4)
                  END IF
                  IF (i3 /= i4) THEN
                     !F_il -= 0.5*(ij|kl)*d_jk
+                    !if(i1==1 .and. i4==3) write(*,*) 'x',erint*p_a_mat(i2, i3)
                     ks_a_ref(i1, i4) = ks_a_ref(i1, i4) + erint*p_a_mat(i2, i3)
                  END IF
                  IF (i1 /= i2 .AND. i3 /= i4) THEN
                     !F_jl -= 0.5*(ij|kl)*d_ik
+                    !if(i2==1 .and. i4==3) write(*,*) 'x',erint*p_a_mat(i1, i3)
                     ks_a_ref(i2, i4) = ks_a_ref(i2, i4) + erint*p_a_mat(i1, i3)
                  END IF
               END DO
@@ -1895,22 +1909,14 @@ CONTAINS
                  CALL csr_idx_from_combined(i34, norb, i3, i4)
                  erint = eri_ab%nzval_local%r_dp(irptr + i34l)
                  ! Coulomb
-                 !F_ij += (ij|kl)*d_kl
-                 ks_a_ref(i1, i2) = ks_a_ref(i1, i2) + erint*p_b_mat(i3, i4)
-                 IF (i3 /= i4) THEN
-                    !F_ij += 0? for k/=l
-                    if(abs(p_b_mat(i3, i4))>1.0e-12_dp) stop 12345
+                 !if(i1==1 .and. i2==3) write(*,*) 'c2 1',erint*p_a_mat(i3, i4)
+                 if(beta_driven) then
+                    !F_ij += (ij alpha|kl beta )*d_beta_kl
                     ks_a_ref(i1, i2) = ks_a_ref(i1, i2) + erint*p_b_mat(i3, i4)
-                 END IF
-                 IF (i12 /= i34) THEN
-                    !F_kl += (ij|kl)*d_ij
+                 else
+                    !F_kl += (kl alpha|ij beta )*d_alpha_ij
                     ks_a_ref(i3, i4) = ks_a_ref(i3, i4) + erint*p_b_mat(i1, i2)
-                    IF (i1 /= i2) THEN
-                       !F_kl += 0? for i/=j
-                       if(abs(p_b_mat(i1, i2))>1.0e-12_dp) stop 12345
-                       ks_a_ref(i3, i4) = ks_a_ref(i3, i4) + erint*p_b_mat(i1, i2)
-                    END IF
-                 END IF
+                 endif
               END DO
            END IF
         END DO
