@@ -2,8 +2,10 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-openmpi_ver="4.0.1"
-openmpi_sha256="e55e213fe09a214ab9f2c722acfd8bf7b39bbc1800e4b7a464d38df15e707f59"
+openmpi_ver="4.0.2"
+openmpi_sha256="662805870e86a1471e59739b0c34c6f9004e0c7a22db068562d5388ec4421904"
+openmpi_pkg="openmpi-${openmpi_ver}.tar.gz"
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -27,15 +29,15 @@ case "$with_openmpi" in
         if verify_checksums "${install_lock_file}" ; then
             echo "openmpi-${openmpi_ver} is already installed, skipping it."
         else
-            if [ -f openmpi-${openmpi_ver}.tar.gz ] ; then
-                echo "openmpi-${openmpi_ver}.tar.gz is found"
+            if [ -f ${openmpi_pkg} ] ; then
+                echo "${openmpi_pkg} is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${openmpi_sha256} \
-                             "https://www.cp2k.org/static/downloads/openmpi-${openmpi_ver}.tar.gz"
+                             "https://www.cp2k.org/static/downloads/${openmpi_pkg}"
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d openmpi-${openmpi_ver} ] && rm -rf openmpi-${openmpi_ver}
-            tar -xzf openmpi-${openmpi_ver}.tar.gz
+            tar -xzf ${openmpi_pkg}
             cd openmpi-${openmpi_ver}
             # can have issue with older glibc libraries, in which case
             # we need to add the -fgnu89-inline to CFLAGS. We can check
