@@ -4,6 +4,8 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
 fftw_ver="3.3.8"
 fftw_sha256="6113262f6e92c5bd474f2875fa1b01054c4ad5040f6b0da7c03c98821d9ae303"
+fftw_pkg="fftw-${fftw_ver}.tar.gz"
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -29,23 +31,24 @@ case "$with_fftw" in
         if verify_checksums "${install_lock_file}" ; then
             echo "fftw-${fftw_ver} is already installed, skipping it."
         else
-            if [ -f fftw-${fftw_ver}.tar.gz ] ; then
-                echo "fftw-${fftw_ver}.tar.gz is found"
+            if [ -f ${fftw_pkg} ] ; then
+                echo "${fftw_pkg} is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${fftw_sha256} \
-                             "https://www.cp2k.org/static/downloads/fftw-${fftw_ver}.tar.gz"
+                             "https://www.cp2k.org/static/downloads/${fftw_pkg}"
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d fftw-${fftw_ver} ] && rm -rf fftw-${fftw_ver}
-            tar -xzf fftw-${fftw_ver}.tar.gz
+            tar -xzf ${fftw_pkg}
             cd fftw-${fftw_ver}
-            if [ "$MPI_MODE" != "no" ] ; then
-                # fftw has mpi support but not compiled by default. so compile it if we build with mpi.
-                # it will create a second library to link with if needed
-                ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-openmp --enable-mpi --enable-shared > configure.log 2>&1
-            else
-                ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-openmp --enable-shared > configure.log 2>&1
-            fi
+            FFTW_FLAGS="--enable-openmp --enable-shared --enable-static"
+            # fftw has mpi support but not compiled by default. so compile it if we build with mpi.
+            # it will create a second library to link with if needed
+            [ "$MPI_MODE" != "no" ] && FFTW_FLAGS="--enable-mpi ${FFTW_FLAGS}"
+            grep '\bavx\b' /proc/cpuinfo 1>/dev/null && FFTW_FLAGS="${FFTW_FLAGS} --enable-avx"
+            grep '\bavx2\b' /proc/cpuinfo 1>/dev/null && FFTW_FLAGS="${FFTW_FLAGS} --enable-avx2"
+            grep '\bavx512f\b' /proc/cpuinfo 1>/dev/null && FFTW_FLAGS="${FFTW_FLAGS} --enable-avx512"
+            ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" ${FFTW_FLAGS} > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
             cd ..
