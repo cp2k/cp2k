@@ -46,9 +46,10 @@ MODULE rpa_gw
         dbcsr_type_no_symmetry
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
-        dbcsr_t_destroy, dbcsr_t_get_block, dbcsr_t_iterator_blocks_left, &
+        dbcsr_t_destroy, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_iterator_blocks_left, &
         dbcsr_t_iterator_next_block, dbcsr_t_iterator_start, dbcsr_t_iterator_stop, &
-        dbcsr_t_iterator_type, dbcsr_t_type
+        dbcsr_t_iterator_type, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
+        dbcsr_t_type
    USE input_constants,                 ONLY: gw_pade_approx,&
                                               gw_two_pole_model,&
                                               ri_rpa_g0w0_crossing_bisection,&
@@ -85,6 +86,7 @@ MODULE rpa_gw
                                               release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: setup_neighbor_list
    USE qs_overlap,                      ONLY: build_overlap_matrix_simple
+   USE qs_tensors_types,                ONLY: create_2c_tensor
    USE rpa_gw_im_time_util,             ONLY: get_tensor_3c_overl_int_gw
 #include "./base/base_uses.f90"
 
@@ -4980,9 +4982,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, sizes_RI
+      INTEGER, DIMENSION(2)                              :: pdims_2d
       LOGICAL                                            :: t_3c_ctr_in_prv
+      TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d
       TYPE(dbcsr_t_type)                                 :: t_3c_ctr_RI_prv, t_3c_overl_int_gw_copy, &
-                                                            t_AO, t_RI
+                                                            t_AO, t_RI, t_RI_tmp
 
       CALL timeset(routineN, handle)
 
@@ -4997,8 +5002,19 @@ CONTAINS
          t_3c_ctr_RI_prv = t_3c_ctr_RI
       ELSE
 
-         CALL dbcsr_t_create(mat_RI, t_RI, name="(RI|RI)")
-         CALL dbcsr_t_copy_matrix_to_tensor(mat_RI, t_RI)
+         CALL dbcsr_t_get_info(t_3c_overl_int_gw_RI, blk_size_1=sizes_RI)
+         pdims_2d = 0
+         CALL dbcsr_t_pgrid_create(para_env%group, pdims_2d, pgrid_2d)
+
+         CALL create_2c_tensor(t_RI, dist1, dist2, pgrid_2d, sizes_RI, sizes_RI, name="(RI|RI)")
+         DEALLOCATE (dist1, dist2, sizes_RI)
+
+         CALL dbcsr_t_pgrid_destroy(pgrid_2d)
+
+         CALL dbcsr_t_create(mat_RI, t_RI_tmp, name="(RI|RI)")
+         CALL dbcsr_t_copy_matrix_to_tensor(mat_RI, t_RI_tmp)
+         CALL dbcsr_t_copy(t_RI_tmp, t_RI)
+         CALL dbcsr_t_destroy(t_RI_tmp)
 
          CALL dbcsr_t_create(t_3c_overl_int_gw_RI, t_3c_overl_int_gw_copy)
 

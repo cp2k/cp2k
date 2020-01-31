@@ -141,6 +141,8 @@ CONTAINS
 !> \param t_3c_O ...
 !> \param starts_array_mc ...
 !> \param ends_array_mc ...
+!> \param starts_array_mc_block ...
+!> \param ends_array_mc_block ...
 !> \param eps_filter ...
 !> \param BIb_C_beta ...
 !> \param homo_beta ...
@@ -161,6 +163,7 @@ CONTAINS
                                 mat_P_global, &
                                 t_3c_overl_int, t_3c_M, t_3c_O, &
                                 starts_array_mc, ends_array_mc, &
+                                starts_array_mc_block, ends_array_mc_block, &
                                 eps_filter, BIb_C_beta, homo_beta, Eigenval_beta, &
                                 gd_B_virtual_beta, &
                                 mo_coeff_beta, BIb_C_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
@@ -190,7 +193,9 @@ CONTAINS
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_overl_int
       TYPE(dbcsr_t_type)                                 :: t_3c_M
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: starts_array_mc, ends_array_mc
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: starts_array_mc, ends_array_mc, &
+                                                            starts_array_mc_block, &
+                                                            ends_array_mc_block
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT), OPTIONAL                         :: BIb_C_beta
@@ -660,6 +665,7 @@ CONTAINS
                           mat_munu, mat_P_global, &
                           t_3c_overl_int, t_3c_M, t_3c_O, &
                           starts_array_mc, ends_array_mc, &
+                          starts_array_mc_block, ends_array_mc_block, &
                           matrix_s, &
                           kpoints, eps_filter, &
                           gd_array, color_sub, &
@@ -683,6 +689,7 @@ CONTAINS
                           mat_munu, mat_P_global, &
                           t_3c_overl_int, t_3c_M, t_3c_O, &
                           starts_array_mc, ends_array_mc, &
+                          starts_array_mc_block, ends_array_mc_block, &
                           matrix_s, &
                           kpoints, &
                           eps_filter, gd_array, color_sub, &
@@ -1216,6 +1223,8 @@ CONTAINS
 !> \param t_3c_O ...
 !> \param starts_array_mc ...
 !> \param ends_array_mc ...
+!> \param starts_array_mc_block ...
+!> \param ends_array_mc_block ...
 !> \param matrix_s ...
 !> \param kpoints ...
 !> \param eps_filter ...
@@ -1248,6 +1257,7 @@ CONTAINS
                           mat_P_global, &
                           t_3c_overl_int, t_3c_M, t_3c_O, &
                           starts_array_mc, ends_array_mc, &
+                          starts_array_mc_block, ends_array_mc_block, &
                           matrix_s, kpoints, &
                           eps_filter, gd_array, color_sub, &
                           fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
@@ -1281,7 +1291,9 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: t_3c_M
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: t_3c_O
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: starts_array_mc, ends_array_mc
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: starts_array_mc, ends_array_mc, &
+                                                            starts_array_mc_block, &
+                                                            ends_array_mc_block
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
@@ -1661,6 +1673,7 @@ CONTAINS
                                      1, &
                                      t_3c_M, t_3c_O, &
                                      starts_array_mc, ends_array_mc, &
+                                     starts_array_mc_block, ends_array_mc_block, &
                                      weights_cos_tf_t_to_w, tj, tau_tj, e_fermi, eps_filter, alpha, &
                                      eps_filter_im_time, Eigenval, nmo, &
                                      num_integ_points, num_integ_points_freq, cut_memory, &
@@ -1682,6 +1695,7 @@ CONTAINS
                                            2, &
                                            t_3c_M, t_3c_O, &
                                            starts_array_mc, ends_array_mc, &
+                                           starts_array_mc_block, ends_array_mc_block, &
                                            weights_cos_tf_t_to_w, tj, tau_tj, e_fermi_beta, eps_filter, alpha, &
                                            eps_filter_im_time, Eigenval_beta, nmo, &
                                            num_integ_points, num_integ_points_freq, cut_memory, &
@@ -1697,6 +1711,7 @@ CONTAINS
                                            2, &
                                            t_3c_M, t_3c_O, &
                                            starts_array_mc, ends_array_mc, &
+                                           starts_array_mc_block, ends_array_mc_block, &
                                            weights_cos_tf_t_to_w, tj, tau_tj, e_fermi_beta, eps_filter, alpha, &
                                            eps_filter_im_time, Eigenval_beta, nmo, &
                                            num_integ_points, num_integ_points_freq, cut_memory, &
@@ -1923,13 +1938,13 @@ CONTAINS
                                          t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                          gw_corr_lev_tot, &
                                          gw_corr_lev_occ, gw_corr_lev_virt, homo, unit_nr, &
-                                         print_ic_values, para_env, mp2_env, do_alpha=.TRUE.)
+                                         print_ic_values, para_env, do_alpha=.TRUE.)
 
             CALL calculate_ic_correction(Eigenval_beta, mat_SinvVSinv, &
                                          t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta, &
                                          gw_corr_lev_tot, &
                                          gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, unit_nr, &
-                                         print_ic_values, para_env, mp2_env, do_beta=.TRUE.)
+                                         print_ic_values, para_env, do_beta=.TRUE.)
 
          ELSE
 
@@ -1937,7 +1952,7 @@ CONTAINS
                                          t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                          gw_corr_lev_tot, &
                                          gw_corr_lev_occ, gw_corr_lev_virt, homo, unit_nr, &
-                                         print_ic_values, para_env, mp2_env)
+                                         print_ic_values, para_env)
 
          END IF
 
