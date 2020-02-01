@@ -1668,7 +1668,7 @@ CONTAINS
    END SUBROUTINE almo_scf_delocalization
 
 ! **************************************************************************************************
-!> \brief selects various post scf routines
+!> \brief orbital localization
 !> \param qs_env ...
 !> \param almo_scf_env ...
 !> \par History
@@ -1683,16 +1683,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'construct_nlmos', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ispin, unit_nr
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      ! define the output_unit
-      logger => cp_get_default_logger()
-      IF (logger%para_env%ionode) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         unit_nr = -1
-      ENDIF
+      INTEGER                                            :: ispin
 
       IF (almo_scf_env%construct_nlmos) THEN
 
@@ -1726,7 +1717,7 @@ CONTAINS
    END SUBROUTINE construct_nlmos
 
 ! **************************************************************************************************
-!> \brief selects various post scf routines
+!> \brief Calls NLMO optimization
 !> \param qs_env ...
 !> \param almo_scf_env ...
 !> \param virtuals ...
@@ -1794,7 +1785,7 @@ CONTAINS
    END SUBROUTINE construct_nlmos_wrapper
 
 ! **************************************************************************************************
-!> \brief selects various post scf routines
+!> \brief Construct virtual orbitals
 !> \param almo_scf_env ...
 !> \par History
 !>       2019.10 created [Ziling Luo]
@@ -1885,7 +1876,7 @@ CONTAINS
                                 eps_lanczos=almo_scf_env%eps_lanczos, &
                                 max_iter_lanczos=almo_scf_env%max_iter_lanczos)
 
-         ! compute VxV overlap
+         ! compute VxV block of the KS matrix
          CALL dbcsr_multiply("N", "N", 1.0_dp, &
                              almo_scf_env%matrix_ks(ispin), &
                              almo_scf_env%matrix_v(ispin), &
@@ -1919,12 +1910,13 @@ CONTAINS
          CALL dbcsr_release(tempVOcc2)
          CALL dbcsr_release(tempVV1)
          CALL dbcsr_release(tempVV2)
+
       ENDDO
 
    END SUBROUTINE construct_virtuals
 
 ! **************************************************************************************************
-!> \brief selects various post scf routines
+!> \brief Compactify (set small blocks to zero) orbitals
 !> \param qs_env ...
 !> \param almo_scf_env ...
 !> \param matrix ...
@@ -1992,6 +1984,7 @@ CONTAINS
       ENDDO
 
       IF (unit_nr > 0) THEN
+         WRITE (unit_nr)
          WRITE (unit_nr, '(T2,A)') "Filter-energy"
          WRITE (unit_nr, '(T2,A16,A3,A16,A3,A16,A3,A26)') "EPS filter", "   ", &
             "Occupation Spin1", "   ", &
@@ -2095,6 +2088,19 @@ CONTAINS
 
       ENDDO
 
+      DO ispin = 1, nspins
+
+         CALL dbcsr_release(matrix_t_tmp(ispin))
+         CALL dbcsr_release(matrix_t_tmp(ispin))
+
+      ENDDO
+
+      DEALLOCATE (matrix_t_tmp)
+      DEALLOCATE (matrix_p_tmp)
+      DEALLOCATE (occ)
+      DEALLOCATE (retained)
+
+
    END SUBROUTINE nlmo_compactification
 
 ! *****************************************************************************
@@ -2115,7 +2121,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_w
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_t_processed, matrix_v_processed
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_t_processed !, matrix_v_processed
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
@@ -2126,7 +2132,7 @@ CONTAINS
 
       ! orthogonalize orbitals before returning them to QS
       ALLOCATE (matrix_t_processed(almo_scf_env%nspins))
-      ALLOCATE (matrix_v_processed(almo_scf_env%nspins))
+      !ALLOCATE (matrix_v_processed(almo_scf_env%nspins))
 
       DO ispin = 1, almo_scf_env%nspins
 
@@ -2137,12 +2143,12 @@ CONTAINS
          CALL dbcsr_copy(matrix_t_processed(ispin), &
                          almo_scf_env%matrix_t(ispin))
 
-         CALL dbcsr_create(matrix_v_processed(ispin), &
-                           template=almo_scf_env%matrix_v(ispin), &
-                           matrix_type=dbcsr_type_no_symmetry)
+         !CALL dbcsr_create(matrix_v_processed(ispin), &
+         !                  template=almo_scf_env%matrix_v(ispin), &
+         !                  matrix_type=dbcsr_type_no_symmetry)
 
-         CALL dbcsr_copy(matrix_v_processed(ispin), &
-                         almo_scf_env%matrix_v(ispin))
+         !CALL dbcsr_copy(matrix_v_processed(ispin), &
+         !                almo_scf_env%matrix_v(ispin))
 
          IF (almo_scf_env%return_orthogonalized_mos) THEN
 
@@ -2181,6 +2187,9 @@ CONTAINS
          ! First transform the matrix_t to fm version
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
          CALL copy_dbcsr_to_fm(matrix_t_processed(ispin), mo_coeff)
+         CALL dbcsr_release(matrix_t_processed(ispin))
+      ENDDO
+      DO ispin = 1, almo_scf_env%nspins
          CALL dbcsr_release(matrix_t_processed(ispin))
       ENDDO
       DEALLOCATE (matrix_t_processed)
