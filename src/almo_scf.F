@@ -2122,7 +2122,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_w
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_t_processed !, matrix_v_processed
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_t_processed
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 

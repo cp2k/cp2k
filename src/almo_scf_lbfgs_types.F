@@ -126,7 +126,7 @@ CONTAINS
       ! delete history
       DO ispin = 1, SIZE(history%matrix, 1)
          DO ivartype = 1, 2
-            DO istore = 1, MIN(history%istore(ivartype)+1, history%nstore)
+            DO istore = 1, MIN(history%istore(ivartype) + 1, history%nstore)
                !WRITE(*,*) "ZREL: ispin,istore,vartype", ispin, istore, ivartype
                CALL dbcsr_release(history%matrix(ispin, istore, ivartype))
             ENDDO
