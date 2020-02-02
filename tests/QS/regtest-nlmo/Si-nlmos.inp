@@ -33,7 +33,7 @@
 
       &XALMO_OPTIMIZER_PCG
         MAX_ITER                 50
-        EPS_ERROR                4.0E-4
+        EPS_ERROR                1.0E-3
         CONJUGATOR               HESTENES_STIEFEL
         PRECONDITIONER           DEFAULT
         LIN_SEARCH_EPS_ERROR     0.1
@@ -42,11 +42,11 @@
       &END XALMO_OPTIMIZER_PCG
 
       &NLMO_OPTIMIZER_PCG
-        MAX_ITER                 2000
+        MAX_ITER                 200
         EPS_ERROR                0.1
         CONJUGATOR               ZERO
         PRECONDITIONER           DEFAULT
-        LIN_SEARCH_EPS_ERROR     0.1
+        LIN_SEARCH_EPS_ERROR     0.5
         LIN_SEARCH_STEP_SIZE_GUESS 0.001
         MAX_ITER_OUTER_LOOP      0
         &PENALTY
@@ -55,7 +55,7 @@
           DETERMINANT_TOLERANCE             1.0E-8
           PENALTY_STRENGTH_DECREASE_FACTOR  2.0
           FINAL_DETERMINANT                 0.6
-          COMPACTIFICATION_FILTER_START     1.0E-3
+          COMPACTIFICATION_FILTER_START     1.0E-2
           VIRTUAL_NLMOS                     FALSE
         &END PENALTY
       &END NLMO_OPTIMIZER_PCG

@@ -38,8 +38,8 @@ MODULE almo_scf_lbfgs_types
 
    TYPE lbfgs_history_type
       INTEGER :: nstore
-      ! istore counts the total number of action-2 pushes
-      ! designed to become more than nstore eventually
+      ! istore counts the total number of action=2 pushes
+      ! istore is designed to become more than nstore eventually
       ! there are two counters: the main variable and gradient
       INTEGER, DIMENSION(2) :: istore
       TYPE(dbcsr_type), DIMENSION(:, :, :), ALLOCATABLE :: matrix
@@ -126,7 +126,8 @@ CONTAINS
       ! delete history
       DO ispin = 1, SIZE(history%matrix, 1)
          DO ivartype = 1, 2
-            DO istore = 1, MIN(history%istore(ivartype), history%nstore)
+            DO istore = 1, MIN(history%istore(ivartype)+1, history%nstore)
+               !WRITE(*,*) "ZREL: ispin,istore,vartype", ispin, istore, ivartype
                CALL dbcsr_release(history%matrix(ispin, istore, ivartype))
             ENDDO
          ENDDO
@@ -207,6 +208,7 @@ CONTAINS
 
          IF (history%istore(vartype) <= history%nstore .AND. &
              action .EQ. 1) THEN
+            !WRITE(*,*) "ZCRE: ispin,istore,vartype", ispin, istore, vartype
             CALL dbcsr_create(history%matrix(ispin, istore, vartype), &
                               template=matrix(ispin))
             !IF (unit_nr > 0) THEN

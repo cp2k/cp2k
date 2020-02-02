@@ -904,7 +904,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="COMPACTIFICATION_FILTER_START", &
                           description="Set orbital coefficients with absolute value smaller than this value to zero.", &
-                          usage="COMPACTIFICATION_FILTER_START 1.e-6", default_r_val=1.e-7_dp)
+                          usage="COMPACTIFICATION_FILTER_START 1.e-6", default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

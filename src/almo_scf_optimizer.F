@@ -2106,7 +2106,6 @@ CONTAINS
       ENDDO
 
       SELECT CASE (optimizer%opt_penalty%operator_type)
-
       CASE (op_loc_berry)
 
          IF (cell%orthorhombic) THEN
@@ -2374,17 +2373,13 @@ CONTAINS
 
       ENDDO ! ispin
 
-      !DO ispin = 1, nspins
-      !   CALL dbcsr_print(m_t_mo_local(ispin))
-      !END DO
-      !
-      !DO ispin = 1, nspins
-      !   DO iatom = 1, natom ! this loop is over "miller" ind
-      !      CALL dbcsr_print(m_B0(1,iatom,ispin))
-      !   END DO
-      !END DO
-
       IF (optimizer%opt_penalty%operator_type .EQ. op_loc_berry) THEN
+         DO idim0 = 1, SIZE(op_sm_set_qs, 2) ! this loop is over miller ind
+            DO reim = 1, SIZE(op_sm_set_qs, 1) ! this loop is over Re/Im
+               DEALLOCATE (op_sm_set_qs(reim, idim0)%matrix)
+               DEALLOCATE (op_sm_set_almo(reim, idim0)%matrix)
+            ENDDO
+         ENDDO
          DEALLOCATE (op_sm_set_qs, op_sm_set_almo)
       ENDIF
 
@@ -2938,6 +2933,7 @@ CONTAINS
          CALL dbcsr_release(m_t_mo_local(ispin))
          CALL dbcsr_release(tempNOcc1(ispin))
          CALL dbcsr_release(approx_inv_hessian(ispin))
+         CALL dbcsr_release(prev_m_theta(ispin))
          CALL dbcsr_release(m_theta_normalized(ispin))
          CALL dbcsr_release(m_S0(ispin))
          CALL dbcsr_release(prev_grad(ispin))
@@ -2961,6 +2957,7 @@ CONTAINS
       DEALLOCATE (suggested_vol_penalty)
 
       DEALLOCATE (approx_inv_hessian)
+      DEALLOCATE (prev_m_theta)
       DEALLOCATE (m_theta_normalized)
       DEALLOCATE (m_S0)
       DEALLOCATE (prev_grad)
@@ -6579,6 +6576,10 @@ CONTAINS
          penalty_vol_prefactor = -(-penalty_amplitude)*localization_obj_function_ispin
       ENDIF
       penalty_func_ispin = penalty_func_ispin + penalty_vol_prefactor*LOG(det1)
+
+      CALL dbcsr_release(tempNOcc1)
+      CALL dbcsr_release(tempOccOcc1)
+      CALL dbcsr_release(tempOccOcc2)
 
       CALL timestop(handle)
 

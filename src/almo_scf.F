@@ -1984,17 +1984,18 @@ CONTAINS
       ENDDO
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr)
-         WRITE (unit_nr, '(T2,A)') "Filter-energy"
-         WRITE (unit_nr, '(T2,A16,A3,A16,A3,A16,A3,A26)') "EPS filter", "   ", &
-            "Occupation Spin1", "   ", &
-            "Occupation Spin2", "   ", "Energy"
+         WRITE (unit_nr, *)
+         WRITE (unit_nr, '(T2,A)') &
+            "Energy dependence on the (block-by-block) filtering of the NLMO coefficients"
+         IF (unit_nr > 0) WRITE (unit_nr, '(T2,A13,A20,A20,A25)') &
+            "EPS filter", "Occupation Alpha", "Occupation Beta", "Energy"
       ENDIF
 
       eps_start = almo_scf_env%opt_nlmo_pcg%opt_penalty%compactification_filter_start
       eps_local = MAX(eps_start, 10E-14_dp)
 
       DO
+
          IF (eps_local > 0.11_dp) EXIT
 
          DO ispin = 1, nspins
@@ -2081,17 +2082,18 @@ CONTAINS
                                  almo_scf_env%eps_filter, &
                                  almo_scf_env%mat_distr_aos)
 
-         IF (nspins .LT. 2) occ(2) = 0.0_dp
-         IF (unit_nr > 0) WRITE (unit_nr, '(T2,E16.5,A3,E16.5,A3,E16.5,A3,F26.15)') eps_local, &
-            " : ", occ(1), "   ", occ(2), "   ", energy
-         eps_local = eps_local + eps_local
+         IF (nspins .LT. 2) occ(2) = occ(1)
+         IF (unit_nr > 0) WRITE (unit_nr, '(T2,E13.3,F20.10,F20.10,F25.15)') &
+            eps_local, occ(1), occ(2), energy
+
+         eps_local = 2.0_dp*eps_local
 
       ENDDO
 
       DO ispin = 1, nspins
 
          CALL dbcsr_release(matrix_t_tmp(ispin))
-         CALL dbcsr_release(matrix_t_tmp(ispin))
+         CALL dbcsr_release(matrix_p_tmp(ispin))
 
       ENDDO
 
@@ -2099,7 +2101,6 @@ CONTAINS
       DEALLOCATE (matrix_p_tmp)
       DEALLOCATE (occ)
       DEALLOCATE (retained)
-
 
    END SUBROUTINE nlmo_compactification
 
