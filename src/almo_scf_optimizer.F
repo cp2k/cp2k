@@ -2861,7 +2861,7 @@ CONTAINS
             t2 = m_walltime()
             IF (unit_nr > 0) THEN
                iter_type = TRIM("NLMO OPT "//iter_type)
-               WRITE (unit_nr, '(T2,A13,I6,F23.10,E14.5,F14.9,F9.2, A13)') &
+               WRITE (unit_nr, '(T2,A13,I6,F23.10,E14.5,F14.9,F9.2)') &
                   iter_type, iteration, &
                   objf_new, objf_diff, grad_norm, &
                   t2 - t1
