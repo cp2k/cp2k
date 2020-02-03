@@ -4,7 +4,7 @@
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.3.199 Build 20190206
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.4.243 Build 20190416
 #              Intel MPI, MKL
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2019)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, Januar 2020)
 
 CC        = mpiicc
 FC        = mpiifort
@@ -18,19 +18,19 @@ DFLAGS   += -D__parallel -D__SCALAPACK
 
 FCFLAGS   = $(CFLAGS) $(DFLAGS)
 FCFLAGS  += -fopenmp -fpp -fp-model precise -free -funroll-loops
-FCFLAGS  += -I${MKLROOT}/include -I${MKLROOT}/include/fftw
+FCFLAGS  += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw
 
 LDFLAGS   = $(FCFLAGS) -static-intel -static_mpi
 LDFLAGS_C = -nofor_main
 
-MKL_LIB   = ${MKLROOT}/lib/intel64
+MKL_LIB   = $(MKLROOT)/lib/intel64
 
 LIBS      = $(MKL_LIB)/libmkl_scalapack_lp64.a
 LIBS     += -Wl,--start-group
 LIBS     += $(MKL_LIB)/libmkl_intel_lp64.a
-LIBS     += ${MKL_LIB}/libmkl_sequential.a
+LIBS     += $(MKL_LIB)/libmkl_sequential.a
 LIBS     += $(MKL_LIB)/libmkl_core.a
-LIBS     += ${MKL_LIB}/libmkl_blacs_intelmpi_lp64.a
+LIBS     += $(MKL_LIB)/libmkl_blacs_intelmpi_lp64.a
 LIBS     += -Wl,--end-group
 
 # Required due to memory leak that occurs if high optimisations are used
