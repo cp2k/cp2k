@@ -1,4 +1,4 @@
-88
+89
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -87,6 +87,7 @@ Ionization potential of the excited atom:!7
 DIPOLE : CheckSum  =!5
 POLAR : CheckSum  =!5
 XAS excitation energy (eV): !7
+Electronic density on regular grids:!7
 #
 # these are the tests the can be selected for regtesting.
 # do regtest will grep for test_grep (first column) and look if the numeric value

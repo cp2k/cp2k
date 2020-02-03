@@ -183,15 +183,23 @@ CONTAINS
 !> \param mo_array ...
 !> \param smear ...
 !> \param eval_deriv ...
+!> \param tot_zeff_corr ...
 !> \date    25.01.2010 (MK)
+!> \par   History
+!>        10.2019 Added functionality to adjust mo occupation if the core
+!>                charges are changed via CORE_CORRECTION during surface dipole 
+!>                calculation. Total number of electrons matches the total core
+!>                charges if tot_zeff_corr is non-zero. Not yet implemented for
+!>                OT type method. [Soumya Ghosh]
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE set_mo_occupation_2(mo_array, smear, eval_deriv)
+   SUBROUTINE set_mo_occupation_2(mo_array, smear, eval_deriv, tot_zeff_corr)
 
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(smear_type), POINTER                          :: smear
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eval_deriv
+      REAL(KIND=dp), OPTIONAL                            :: tot_zeff_corr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_2', &
          routineP = moduleN//':'//routineN
@@ -211,9 +219,14 @@ CONTAINS
       ! Fall back for the case that we have only one MO set
       IF (SIZE(mo_array) == 1) THEN
          IF (PRESENT(eval_deriv)) THEN
+! Change of MO occupancy to account for CORE_CORRECTION is not yet implemented
             CALL set_mo_occupation_1(mo_set_a, smear=smear, eval_deriv=eval_deriv)
          ELSE
-            CALL set_mo_occupation_1(mo_set_a, smear=smear)
+            IF (PRESENT(tot_zeff_corr)) THEN
+               CALL set_mo_occupation_1(mo_set_a, smear=smear, tot_zeff_corr=tot_zeff_corr)
+            ELSE
+               CALL set_mo_occupation_1(mo_set_a, smear=smear)
+            ENDIF
          END IF
          CALL timestop(handle)
          RETURN
@@ -223,6 +236,14 @@ CONTAINS
 
       IF (smear%do_smear) THEN
          IF (smear%fixed_mag_mom < 0.0_dp) THEN
+            IF (PRESENT(tot_zeff_corr)) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "CORE_CORRECTION /= 0.0 might cause the cell to charge up "// &
+                            "that will lead to application of different background "// &
+                            "correction compared to the reference system. "// &
+                            "Use FIXED_MAGNETIC_MOMENT >= 0.0 if using SMEAR keyword "// &
+                            "to correct the electron density")
+            ENDIF
             IF (smear%fixed_mag_mom /= -1.0_dp) THEN
                CPASSERT(.NOT. (PRESENT(eval_deriv)))
                CALL set_mo_occupation_3(mo_array, smear=smear)
@@ -236,8 +257,13 @@ CONTAINS
                mo_set_b%n_el_f = nelec_f/2.0_dp - smear%fixed_mag_mom/2.0_dp
             END IF
             CPASSERT(.NOT. (PRESENT(eval_deriv)))
-            CALL set_mo_occupation_1(mo_set_a, smear=smear)
-            CALL set_mo_occupation_1(mo_set_b, smear=smear)
+            IF (PRESENT(tot_zeff_corr)) THEN
+               CALL set_mo_occupation_1(mo_set_a, smear=smear, tot_zeff_corr=tot_zeff_corr)
+               CALL set_mo_occupation_1(mo_set_b, smear=smear, tot_zeff_corr=tot_zeff_corr)
+            ELSE
+               CALL set_mo_occupation_1(mo_set_a, smear=smear)
+               CALL set_mo_occupation_1(mo_set_b, smear=smear)
+            ENDIF
          END IF
       END IF
 
@@ -247,8 +273,13 @@ CONTAINS
             CALL set_mo_occupation_1(mo_set_a, smear=smear, eval_deriv=eval_deriv)
             CALL set_mo_occupation_1(mo_set_b, smear=smear, eval_deriv=eval_deriv)
          ELSE
-            CALL set_mo_occupation_1(mo_set_a, smear=smear)
-            CALL set_mo_occupation_1(mo_set_b, smear=smear)
+            IF (PRESENT(tot_zeff_corr)) THEN
+               CALL set_mo_occupation_1(mo_set_a, smear=smear, tot_zeff_corr=tot_zeff_corr)
+               CALL set_mo_occupation_1(mo_set_b, smear=smear, tot_zeff_corr=tot_zeff_corr)
+            ELSE
+               CALL set_mo_occupation_1(mo_set_a, smear=smear)
+               CALL set_mo_occupation_1(mo_set_b, smear=smear)
+            ENDIF
          END IF
          CALL timestop(handle)
          RETURN
@@ -332,8 +363,13 @@ CONTAINS
          CALL set_mo_occupation_1(mo_set_a, smear=smear, eval_deriv=eval_deriv)
          CALL set_mo_occupation_1(mo_set_b, smear=smear, eval_deriv=eval_deriv)
       ELSE
-         CALL set_mo_occupation_1(mo_set_a, smear=smear)
-         CALL set_mo_occupation_1(mo_set_b, smear=smear)
+         IF (PRESENT(tot_zeff_corr)) THEN
+            CALL set_mo_occupation_1(mo_set_a, smear=smear, tot_zeff_corr=tot_zeff_corr)
+            CALL set_mo_occupation_1(mo_set_b, smear=smear, tot_zeff_corr=tot_zeff_corr)
+         ELSE
+            CALL set_mo_occupation_1(mo_set_a, smear=smear)
+            CALL set_mo_occupation_1(mo_set_b, smear=smear)
+         ENDIF
       END IF
 
       CALL timestop(handle)
@@ -347,27 +383,37 @@ CONTAINS
 !> \param   eval_deriv on entry the derivative of the KS energy wrt to the occupation number
 !>                     on exit  the derivative of the full free energy (i.e. KS and entropy) wrt to the eigenvalue
 !> \param xas_env ...
+!> \param tot_zeff_corr ...
 !> \date    17.04.2002 (v1.0), 26.08.2008 (v1.1)
+!> \par   History
+!>        10.2019 Added functionality to adjust mo occupation if the core
+!>                charges are changed via CORE_CORRECTION during surface dipole 
+!>                calculation. Total number of electrons matches the total core
+!>                charges if tot_zeff_corr is non-zero. Not yet implemented for
+!>                OT type method. [Soumya Ghosh]
 !> \author  Matthias Krack
 !> \version 1.1
 ! **************************************************************************************************
-   SUBROUTINE set_mo_occupation_1(mo_set, smear, eval_deriv, xas_env)
+   SUBROUTINE set_mo_occupation_1(mo_set, smear, eval_deriv, xas_env, tot_zeff_corr)
 
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(smear_type), OPTIONAL, POINTER                :: smear
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eval_deriv
       TYPE(xas_environment_type), OPTIONAL, POINTER      :: xas_env
+      REAL(KIND=dp), OPTIONAL                            :: tot_zeff_corr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_1', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i_first, imo, nmo, nomo, &
-                                                            xas_estate
+      INTEGER                                            :: handle, i_first, imo, ir, irmo, nmo, &
+                                                            nomo, xas_estate
       LOGICAL                                            :: equal_size, is_large
-      REAL(KIND=dp)                                      :: e1, e2, edelta, edist, el_count, &
-                                                            lengthscale, nelec, occ_estate, &
+      REAL(KIND=dp)                                      :: delectron, e1, e2, edelta, edist, &
+                                                            el_count, lengthscale, nelec, &
+                                                            occ_estate, total_zeff_corr, &
                                                             xas_nelectron
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfde
+
 
       CALL timeset(routineN, handle)
 
@@ -407,6 +453,60 @@ CONTAINS
             mo_set%occupation_numbers(1:nomo - 1) = mo_set%maxocc
             mo_set%occupation_numbers(nomo) = mo_set%nelectron - (nomo - 1)*mo_set%maxocc
          END IF
+! introduce applied potential correction here
+! electron density is adjusted according to applied core correction
+! ref: SS, MT, MWF, JN PRL, 2018, 120, 246801
+! see whether both surface dipole correction and core correction is present in
+! the inputfile
+         IF (PRESENT(tot_zeff_corr)) THEN
+! find the additional core charges
+            total_zeff_corr = tot_zeff_corr
+            IF (INT(mo_set%maxocc) == 1) total_zeff_corr = total_zeff_corr/2.0_dp
+            delectron = 0.0_dp
+            IF (total_zeff_corr < 0.0_dp) THEN
+! remove electron density from the mos
+               delectron = ABS(total_zeff_corr)-REAL(mo_set%maxocc, KIND=dp)
+               IF (delectron > 0.0_dp) THEN
+                  mo_set%occupation_numbers(nomo) = 0.0_dp
+                  irmo = CEILING(delectron/REAL(mo_set%maxocc, KIND=dp))
+                  DO ir = 1, irmo
+                     delectron = delectron-REAL(mo_set%maxocc, KIND=dp)
+                     IF (delectron < 0.0_dp) THEN
+                        mo_set%occupation_numbers(nomo-ir) = -delectron
+                     ELSE
+                        mo_set%occupation_numbers(nomo-ir) = 0.0_dp
+                     ENDIF
+                  ENDDO
+                  nomo = nomo-irmo
+                  IF (mo_set%occupation_numbers(nomo) == 0.0_dp) nomo = nomo-1
+               ELSEIF (delectron < 0.0_dp) THEN
+                  mo_set%occupation_numbers(nomo) = -delectron
+               ELSE
+                  mo_set%occupation_numbers(nomo) = 0.0_dp
+                  nomo = nomo-1
+               ENDIF
+            ELSEIF (total_zeff_corr > 0.0_dp) THEN
+! add electron density to the mos
+               delectron = total_zeff_corr-REAL(mo_set%maxocc, KIND=dp)
+               IF (delectron > 0.0_dp) THEN
+                  mo_set%occupation_numbers(nomo+1) = REAL(mo_set%maxocc, KIND=dp)
+                  nomo = nomo+1
+                  irmo = CEILING(delectron/REAL(mo_set%maxocc, KIND=dp))
+                  DO ir = 1, irmo
+                     delectron = delectron-REAL(mo_set%maxocc, KIND=dp)
+                     IF (delectron < 0.0_dp) THEN
+                        mo_set%occupation_numbers(nomo+ir) = delectron+REAL(mo_set%maxocc, KIND=dp)
+                     ELSE
+                        mo_set%occupation_numbers(nomo+ir) = REAL(mo_set%maxocc, KIND=dp)
+                     ENDIF
+                  ENDDO
+                  nomo = nomo+irmo
+               ELSE
+                  mo_set%occupation_numbers(nomo+1) = total_zeff_corr
+                  nomo = nomo+1
+               ENDIF
+            ENDIF
+         ENDIF
       END IF
       nmo = SIZE(mo_set%eigenvalues)
 

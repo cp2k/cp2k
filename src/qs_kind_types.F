@@ -796,6 +796,7 @@ CONTAINS
 !> \param lmax_rho0 ...
 !> \param basis_rcut ...
 !> \param basis_type ...
+!> \param total_zeff_corr ... [SGh]
 ! **************************************************************************************************
    SUBROUTINE get_qs_kind_set(qs_kind_set, &
                               all_potential_present, tnadd_potential_present, gth_potential_present, &
@@ -804,7 +805,7 @@ CONTAINS
                               ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, maxppnl, &
                               nelectron, maxder, max_ngrid_rad, max_sph_harm, maxg_iso_not0, lmax_rho0, &
                               basis_rcut, &
-                              basis_type)
+                              basis_type, total_zeff_corr)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, tnadd_potential_present, &
@@ -817,6 +818,7 @@ CONTAINS
                                                             maxg_iso_not0, lmax_rho0
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: basis_rcut
       CHARACTER(len=*), OPTIONAL                         :: basis_type
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_zeff_corr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_kind_set', &
          routineP = moduleN//':'//routineN
@@ -835,6 +837,7 @@ CONTAINS
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+
 
       IF (PRESENT(basis_type)) THEN
          my_basis_type = basis_type
@@ -873,6 +876,7 @@ CONTAINS
          IF (PRESENT(max_sph_harm)) max_sph_harm = 0
          IF (PRESENT(lmax_rho0)) lmax_rho0 = 0
          IF (PRESENT(basis_rcut)) basis_rcut = 0.0_dp
+         IF (PRESENT(total_zeff_corr)) total_zeff_corr = 0.0_dp
 
          nkind = SIZE(qs_kind_set)
          DO ikind = 1, nkind
@@ -1073,6 +1077,23 @@ CONTAINS
                   CALL get_dftb_atom_param(dftb_parameter=dftb_parameter, cutoff=brcut)
                   basis_rcut = MAX(basis_rcut, brcut)
                END IF
+            END IF
+
+            IF (PRESENT(total_zeff_corr)) THEN
+               IF (ASSOCIATED(qs_kind%all_potential)) THEN
+                  CALL get_potential(potential=qs_kind%all_potential, &
+                                     zeff=zeff, zeff_correction=zeff_correction)
+               ELSE IF (ASSOCIATED(qs_kind%gth_potential)) THEN
+                  CALL get_potential(potential=qs_kind%gth_potential, &
+                                     zeff=zeff, zeff_correction=zeff_correction)
+               ELSE IF (ASSOCIATED(qs_kind%sgp_potential)) THEN
+                  CALL get_potential(potential=qs_kind%sgp_potential, &
+                                     zeff=zeff, zeff_correction=zeff_correction)
+               ELSE
+                  zeff = 0.0_dp
+                  zeff_correction = 0.0_dp
+               END IF
+               total_zeff_corr = total_zeff_corr+qs_kind_set(ikind)%natom*zeff_correction
             END IF
 
             IF (PRESENT(all_potential_present)) THEN
@@ -1647,7 +1668,6 @@ CONTAINS
          ENDIF
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="CORE_CORRECTION", r_val=zeff_correction)
-
          ! parse POTENTIAL
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="POTENTIAL_FILE_NAME", c_val=potential_fn_kind)

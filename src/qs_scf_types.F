@@ -98,7 +98,7 @@ MODULE qs_scf_types
       TYPE(qs_outer_scf_type) :: outer_scf
       INTEGER :: ref_count, id_nr, print_count, iter_count
       INTEGER :: cholesky_method, nelectron, method, mixing_method, nskip_mixing
-      REAL(KIND=dp) :: iter_param, iter_delta, p_mix_alpha
+      REAL(KIND=dp) :: iter_param, iter_delta, p_mix_alpha, sum_zeff_corr
       CHARACTER(len=15) :: iter_method
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER :: cc_buffer
       LOGICAL :: print_iter_line, skip_mixing, skip_diis, needs_ortho
@@ -159,6 +159,7 @@ CONTAINS
       scf_env%p_mix_alpha = 1.0_dp
       scf_env%cholesky_method = -1
       scf_env%outer_scf%iter_count = 0
+      scf_env%sum_zeff_corr = 0.0_dp
       NULLIFY (scf_env%outer_scf%variables)
       NULLIFY (scf_env%outer_scf%gradient)
       NULLIFY (scf_env%outer_scf%energy)

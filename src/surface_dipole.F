@@ -12,6 +12,7 @@ MODULE surface_dipole
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_sum
+   USE physcon,                         ONLY: bohr
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
@@ -51,6 +52,7 @@ CONTAINS
 !> \par History
 !>      01.2014 created [MI]
 !> \author MI
+!> \author Soumya Ghosh added SURF_DIP_POS 19.11.2018
 ! **************************************************************************************************
 
    SUBROUTINE calc_dipsurf_potential(qs_env, energy)
@@ -62,12 +64,13 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, idir_surfdip, ilayer_min, &
-                                                            ilow, irho, ispin, isurf, iup, jsurf
+                                                            ilow, irho, ispin, isurf, iup, jsurf, &
+                                                            width
       INTEGER, DIMENSION(3)                              :: ngrid
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
-      REAL(dp)                                           :: dh(3, 3), dip_fac, dip_hh, dsurf, &
-                                                            height_min, hh, rhoav_min, surfarea, &
-                                                            vdip, vdip_fac
+      REAL(dp)                                           :: cutoff, dh(3, 3), dip_fac, dip_hh, &
+                                                            dsurf, height_min, hh, pos_surf_dip, &
+                                                            rhoav_min, surfarea, vdip, vdip_fac
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: rhoavsurf
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -80,6 +83,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
+
 
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, rho, pw_env, rho_core, rho0_s_gs, auxbas_pw_pool, &
@@ -120,6 +124,8 @@ CONTAINS
       ngrid(1:3) = wf_r%pw%pw_grid%npts(1:3)
       idir_surfdip = dft_control%dir_surf_dip
 
+      width = 4
+
       DO i = 1, 3
          IF (i /= idir_surfdip) THEN
             IF (ABS(wf_r%pw%pw_grid%dh(idir_surfdip, i)) > 1.E-7_dp) THEN
@@ -143,6 +149,7 @@ CONTAINS
       bo => wf_r%pw%pw_grid%bounds_local
       dh = wf_r%pw%pw_grid%dh
 
+      wf_r%pw%cr3d = wf_r%pw%cr3d*wf_r%pw%pw_grid%vol
       IF (idir_surfdip == 3) THEN
          isurf = 1
          jsurf = 2
@@ -166,6 +173,8 @@ CONTAINS
             rhoavsurf(i) = accurate_sum(wf_r%pw%cr3d(i, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
          END DO
       ENDIF
+      wf_r%pw%cr3d = wf_r%pw%cr3d/wf_r%pw%pw_grid%vol
+      rhoavsurf = rhoavsurf/wf_r%pw%pw_grid%vol
 
       surfarea = cell%hmat(isurf, isurf)*cell%hmat(jsurf, jsurf) - &
                  cell%hmat(isurf, jsurf)*cell%hmat(jsurf, isurf)
@@ -178,10 +187,18 @@ CONTAINS
 
       ! locate where the vacuum is, and set the reference point for the calculation of the dipole
       rhoavsurf(ilow:iup) = rhoavsurf(ilow:iup)/surfarea
-      ilayer_min = ilow - 1 + MINLOC(ABS(rhoavsurf(ilow:iup)), 1)
+      ! Note: rhosurf has the same dimension as rho
+      IF (dft_control%pos_dir_surf_dip < 0.0_dp) THEN
+         ilayer_min = ilow-1+MINLOC(ABS(rhoavsurf(ilow:iup)), 1)
+      ELSE
+         pos_surf_dip = dft_control%pos_dir_surf_dip*bohr
+         ilayer_min = ilow-1+NINT(pos_surf_dip/dh(idir_surfdip, idir_surfdip))+1
+      END IF
       rhoav_min = ABS(rhoavsurf(ilayer_min))
-      IF (rhoav_min >= 1.E-5_dp) &
+      IF (rhoav_min >= 1.E-5_dp) THEN
          CPABORT(" Dipole correction needs more vacuum space above the surface ")
+      END IF
+
       height_min = REAL((ilayer_min - ilow), dp)*dh(idir_surfdip, idir_surfdip)
 
 !   surface dipole form average rhoavsurf
@@ -196,10 +213,18 @@ CONTAINS
          ELSE
             irho = i
          END IF
-         dip_hh = dip_hh + rhoavsurf(irho)*hh*dip_fac
+! introduce a cutoff function to smoothen the edges
+         IF (ABS(irho-ilayer_min) > width) THEN
+            cutoff = 1.0_dp
+         ELSE
+            cutoff = ABS(SIN(0.5_dp*pi*REAL(ABS(irho-ilayer_min), dp)/REAL(width, dp)))
+         ENDIF
+         dip_hh = dip_hh + rhoavsurf(irho)*hh*dip_fac*cutoff
       END DO
 
       DEALLOCATE (rhoavsurf)
+! for printing purposes [SGh]
+      qs_env%surface_dipole_moment = dip_hh/bohr
 
 !    Calculation of the dipole potential as a function of the perpendicular coordinate
       CALL pw_zero(vdip_r%pw)
@@ -214,6 +239,14 @@ CONTAINS
          ELSE
             irho = i
          END IF
+! introduce a cutoff function to smoothen the edges
+         IF (ABS(irho-ilayer_min) > width) THEN
+            cutoff = 1.0_dp
+         ELSE
+            cutoff = ABS(SIN(0.5_dp*pi*REAL(ABS(irho-ilayer_min), dp)/REAL(width, dp)))
+         ENDIF
+         vdip = vdip*cutoff
+
          IF (idir_surfdip == 3) THEN
             vdip_r%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), irho) = &
                vdip_r%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), irho) + vdip

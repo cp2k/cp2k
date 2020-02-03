@@ -129,7 +129,8 @@ MODULE qs_scf
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               duplicate_mo_set,&
                                               get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_p_type,&
+                                              reassign_allocated_mos
    USE qs_ot,                           ONLY: qs_ot_new_preconditioner
    USE qs_ot_scf,                       ONLY: ot_scf_init,&
                                               ot_scf_read_input
@@ -306,6 +307,7 @@ CONTAINS
 !>      02.2003 introduced scf_env [fawzi]
 !>      09.2005 Frozen density approximation [TdK]
 !>      06.2007 Check for SCF iteration count early [jgh]
+!>      10.2019 switch_surf_dip [SGh]
 !> \author Matthias Krack
 !> \note
 ! **************************************************************************************************
@@ -332,7 +334,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_last_converged
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_charges_type), POINTER                     :: qs_charges
@@ -347,7 +349,7 @@ CONTAINS
       NULLIFY (dft_control, rho, energy, &
                logger, qs_charges, ks_env, mos, atomic_kind_set, qs_kind_set, &
                particle_set, dft_section, input, &
-               scf_section, para_env, results, kpoints, pw_env, rho_ao_kp)
+               scf_section, para_env, results, kpoints, pw_env, rho_ao_kp, mos_last_converged)
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(scf_env%ref_count > 0)
@@ -384,6 +386,16 @@ CONTAINS
 
       IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
          "SCF WAVEFUNCTION OPTIMIZATION"
+
+! when switch_surf_dip is switched on, indicate storing mos from the last converged step
+      IF (dft_control%switch_surf_dip) THEN
+         CALL get_qs_env(qs_env, mos_last_converged=mos_last_converged)
+         DO ispin = 1, dft_control%nspins
+            CALL reassign_allocated_mos(mos(ispin)%mo_set, mos_last_converged(ispin)%mo_set)
+         ENDDO
+         IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
+            "COPIED mos_last_converged ---> mos"
+      END IF
 
       IF ((output_unit > 0) .AND. (.NOT. scf_control%use_ot)) THEN
          WRITE (UNIT=output_unit, &
@@ -424,6 +436,16 @@ CONTAINS
          CALL qs_scf_set_loop_flags(scf_env, diis_step, &
                                     energy_only, just_energy, exit_inner_loop)
 
+! decide whether to switch off dipole correction for convergence purposes
+         dft_control%surf_dip_correct_switch = dft_control%correct_surf_dip
+         IF ((dft_control%correct_surf_dip) .AND. (scf_control%outer_scf%have_scf) .AND. &
+             (scf_env%outer_scf%iter_count > FLOOR(scf_control%outer_scf%max_scf/2.0_dp))) THEN
+            IF (dft_control%switch_surf_dip) THEN
+               dft_control%surf_dip_correct_switch = .FALSE.
+               IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
+                  "SURFACE DIPOLE CORRECTION switched off"
+            ENDIF
+         ENDIF
          scf_loop: DO
 
             CALL timeset(routineN//"_inner_loop", handle2)
@@ -523,6 +545,18 @@ CONTAINS
          ! In case we use the OUTER SCF loop let's print some info..
          CALL qs_scf_outer_loop_info(output_unit, scf_control, scf_env, &
                                      energy, total_steps, should_stop, outer_loop_converged)
+
+!  save mos to converged mos if outer_loop_converged and surf_dip_correct_switch is true
+         IF (exit_outer_loop) THEN
+            IF ((dft_control%switch_surf_dip) .AND. (outer_loop_converged) .AND. &
+                (dft_control%surf_dip_correct_switch)) THEN
+               DO ispin = 1, dft_control%nspins
+                  CALL reassign_allocated_mos(mos_last_converged(ispin)%mo_set, mos(ispin)%mo_set)
+               ENDDO
+               IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
+                  "COPIED mos ---> mos_last_converged"
+            ENDIF
+         ENDIF
 
          IF (exit_outer_loop) EXIT scf_outer_loop
 

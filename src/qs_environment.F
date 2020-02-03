@@ -509,6 +509,7 @@ CONTAINS
                                                             lribas, orb_gradient, was_present
       REAL(dp)                                           :: alpha, ccore, ewald_rcut, maxocc, &
                                                             verlet_skin, zeff_correction
+      REAL(KIND=dp)                                      :: total_zeff_corr
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -523,7 +524,7 @@ CONTAINS
                                                             tmp_basis_set
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit, mos_last_converged
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(nddo_mpole_type), POINTER                     :: se_nddo_mpole
@@ -572,6 +573,7 @@ CONTAINS
       NULLIFY (dft_section)
       NULLIFY (et_coupling_section)
       NULLIFY (ks_env)
+      NULLIFY (mos_last_converged)
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
       qs_section => section_vals_get_subs_vals(dft_section, "QS")
       et_coupling_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%ET_COUPLING")
@@ -1298,6 +1300,11 @@ CONTAINS
 
       END IF
 
+      ! Read the total_zeff_corr here [SGh]
+      CALL get_qs_kind_set(qs_kind_set, total_zeff_corr=total_zeff_corr)
+      ! store it in qs_env
+      qs_env%total_zeff_corr = total_zeff_corr
+
       ! store the number of electrons once an for all
       CALL qs_subsys_set(subsys, &
                          nelectron_total=nelectron, &
@@ -1434,6 +1441,22 @@ CONTAINS
          END DO
          CALL set_qs_env(qs_env, mos_aux_fit=mos_aux_fit)
       END IF
+
+! allocate mos when switch_surf_dip is triggered [SGh]
+      IF (dft_control%switch_surf_dip) THEN
+         ALLOCATE (mos_last_converged(dft_control%nspins))
+         DO ispin = 1, dft_control%nspins
+            NULLIFY (mos_last_converged(ispin)%mo_set)
+            CALL allocate_mo_set(mo_set=mos_last_converged(ispin)%mo_set, &
+                                 nao=n_ao, &
+                                 nmo=n_mo(ispin), &
+                                 nelectron=nelectron_spin(ispin), &
+                                 n_el_f=REAL(nelectron_spin(ispin), dp), &
+                                 maxocc=maxocc, &
+                                 flexible_electron_count=dft_control%relax_multiplicity)
+         END DO
+         CALL set_qs_env(qs_env, mos_last_converged=mos_last_converged)
+      ENDIF
 
       IF (.NOT. be_silent) THEN
          ! Print the DFT control parameters

@@ -280,6 +280,7 @@ CONTAINS
 !> \param scf_control ...
 !> \param scf_section ...
 !> \param diis_step ...
+!> \param total_zeff_corr [Soumya Ghosh]
 ! **************************************************************************************************
    SUBROUTINE do_general_diag(scf_env, mos, matrix_ks, &
                               matrix_s, scf_control, scf_section, &
@@ -296,14 +297,24 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ispin, nspin
+      REAL(KIND=dp)                                      :: total_zeff_corr
+
 
       nspin = SIZE(matrix_ks)
 
       CALL general_eigenproblem(scf_env, mos, matrix_ks, &
                                 matrix_s, scf_control, scf_section, diis_step)
 
-      CALL set_mo_occupation(mo_array=mos, &
-                             smear=scf_control%smear)
+      total_zeff_corr = 0.0_dp
+      total_zeff_corr = scf_env%sum_zeff_corr
+
+      IF (ABS(total_zeff_corr) > 0.0_dp) THEN
+         CALL set_mo_occupation(mo_array=mos, &
+                                smear=scf_control%smear, tot_zeff_corr=total_zeff_corr)
+      ELSE
+         CALL set_mo_occupation(mo_array=mos, &
+                                smear=scf_control%smear)
+      ENDIF
 
       DO ispin = 1, nspin
          CALL calculate_density_matrix(mos(ispin)%mo_set, &

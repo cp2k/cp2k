@@ -151,6 +151,33 @@ CONTAINS
                       has_unit_metric=has_unit_metric)
       scf_env%iter_param = 0.0_dp
 
+      ! transfer total_zeff_corr from qs_env to scf_env only if
+      ! correct_el_density_dip is switched on [SGh]
+      IF (dft_control%correct_el_density_dip) THEN
+         scf_env%sum_zeff_corr = qs_env%total_zeff_corr
+         IF (ABS(qs_env%total_zeff_corr) > 0.0_dp) THEN
+            IF (scf_env%method /= general_diag_method_nr) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Please use ALGORITHM STANDARD in "// &
+                             "SCF%DIAGONALIZATION if "// &
+                             "CORE_CORRECTION /= 0.0 and "// &
+                             "SURFACE_DIPOLE_CORRECTION TRUE ")
+            ELSEIF (dft_control%roks) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Combination of "// &
+                             "CORE_CORRECTION /= 0.0 and "// &
+                             "SURFACE_DIPOLE_CORRECTION TRUE "// &
+                             "is not implemented with ROKS")
+            ELSEIF (scf_control%diagonalization%mom) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Combination of "// &
+                             "CORE_CORRECTION /= 0.0 and "// &
+                             "SURFACE_DIPOLE_CORRECTION TRUE "// &
+                             "is not implemented with SCF%MOM")
+            ENDIF
+         ENDIF
+      ENDIF
+
       SELECT CASE (scf_env%method)
       CASE DEFAULT
          CALL cp_abort(__LOCATION__, &
@@ -162,6 +189,13 @@ CONTAINS
          ! *************************************************************************
       CASE (filter_matrix_diag_method_nr)
 
+         IF (ABS(qs_env%total_zeff_corr) > 0.0_dp) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "CORE_CORRECTION /= 0.0 plus"// &
+                          "SURFACE_DIPOLE_CORRECTION  TRUE"// &
+                          "requires SCF%DIAGONALIZATION: "// &
+                          "ALGORITHM STANDARD")
+         ENDIF
          CALL fb_env_do_diag(scf_env%filter_matrix_env, qs_env, &
                              matrix_ks, matrix_s, scf_section, diis_step)
 

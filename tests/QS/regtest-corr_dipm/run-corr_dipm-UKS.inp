@@ -1,0 +1,93 @@
+&GLOBAL
+  PROJECT run-corr_dipm-UKS
+  RUN_TYPE ENERGY             
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS            
+
+    SURFACE_DIPOLE_CORRECTION TRUE
+    SURF_DIP_DIR Z
+    SURF_DIP_POS 22.650
+    CORE_CORR_DIP TRUE
+
+    CHARGE 0
+    MULTIPLICITY 1
+    UKS .TRUE.
+
+    &QS
+       METHOD GPW 
+       EPS_DEFAULT 1.0E-10
+    &END
+
+    &POISSON
+       PERIODIC XYZ
+    &END
+
+    &SCF                              
+      SCF_GUESS ATOMIC
+      MAX_SCF 100 
+      EPS_SCF 1.0E-6
+      ADDED_MOS 10
+      &DIAGONALIZATION
+        ALGORITHM STANDARD  ! Do not change
+      &END 
+      &MIXING
+        METHOD BROYDEN_MIXING
+      &END
+      &SMEAR
+        FIXED_MAGNETIC_MOMENT 0.0
+        METHOD ENERGY_WINDOW
+        WINDOW_SIZE 0.0037
+      &END
+      &OUTER_SCF
+        MAX_SCF 10
+        EPS_SCF 1.0E-6
+      &END
+
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+        &RESTART_HISTORY OFF
+        &END RESTART_HISTORY
+      &END PRINT
+    &END SCF
+
+    &XC
+      &XC_FUNCTIONAL
+         &PBE
+         &END
+      &END XC_FUNCTIONAL
+    &END XC
+
+  &END DFT
+ 
+  &SUBSYS
+    &CELL 
+      ABC [angstrom] 3.192 5.529 28.650
+      PERIODIC XYZ
+    &END CELL
+
+    &TOPOLOGY
+      COORD_FILE_NAME coord2Mg2Ne.xyz
+      COORD_FILE_FORMAT XYZ
+      &CENTER_COORDINATES FALSE
+      &END
+    &END
+
+    &KIND Mg
+      BASIS_SET DZVP-GTH 
+      POTENTIAL GTH-PBE-q10
+    &END KIND
+    &KIND pNe
+      ELEMENT Ne
+      BASIS_SET DZVP-GTH 
+      POTENTIAL GTH-PBE-q8
+      CORE_CORRECTION -0.0001
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+

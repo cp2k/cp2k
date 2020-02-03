@@ -84,9 +84,53 @@ MODULE qs_mo_types
              init_mo_set, &
              set_mo_set, &
              mo_set_restrict, &
-             duplicate_mo_set
+             duplicate_mo_set, &
+             reassign_allocated_mos
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief reassign an already allocated mo_set
+!> \param mo_set_new ...
+!> \param mo_set_old ...
+!> \date 2019-05-16
+!> \par History
+!> \author Soumya Ghosh
+! **************************************************************************************************
+   SUBROUTINE reassign_allocated_mos(mo_set_new, mo_set_old)
+      TYPE(mo_set_type), POINTER                         :: mo_set_new, mo_set_old
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'reassign_allocated_mos', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: nmo
+
+      mo_set_new%maxocc = mo_set_old%maxocc
+      mo_set_new%nelectron = mo_set_old%nelectron
+      mo_set_new%n_el_f = mo_set_old%n_el_f
+      mo_set_new%nao = mo_set_old%nao
+      mo_set_new%nmo = mo_set_old%nmo
+      mo_set_new%homo = mo_set_old%homo
+      mo_set_new%lfomo = mo_set_old%lfomo
+      mo_set_new%uniform_occupation = mo_set_old%uniform_occupation
+      mo_set_new%kTS = mo_set_old%kTS
+      mo_set_new%mu = mo_set_old%mu
+      mo_set_new%flexible_electron_count = mo_set_old%flexible_electron_count
+
+      nmo = mo_set_new%nmo
+
+      CALL cp_fm_to_fm(mo_set_old%mo_coeff, mo_set_new%mo_coeff)
+
+      !IF (ASSOCIATED(mo_set_old%mo_coeff_b)) THEN
+      !   CALL dbcsr_copy(mo_set_new%mo_coeff_b, mo_set_old%mo_coeff_b)
+      !ENDIF
+      !mo_set_new%use_mo_coeff_b = mo_set_old%use_mo_coeff_b
+
+      mo_set_new%eigenvalues = mo_set_old%eigenvalues
+
+      mo_set_new%occupation_numbers = mo_set_old%occupation_numbers
+
+   END SUBROUTINE reassign_allocated_mos
 
 ! **************************************************************************************************
 !> \brief allocate a new mo_set, and copy the old data
