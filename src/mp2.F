@@ -16,10 +16,6 @@ MODULE mp2
                                               admm_uncorrect_for_eigenvalues
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
-   USE auto_basis,                      ONLY: create_ri_aux_basis_set
-   USE basis_set_container_types,       ONLY: add_basis_set_to_container
-   USE basis_set_types,                 ONLY: gto_basis_set_type,&
-                                              init_orb_basis_set
    USE bibliography,                    ONLY: DelBen2012,&
                                               DelBen2015b,&
                                               Rybkin2016,&
@@ -106,9 +102,7 @@ MODULE mp2
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_matrix_pools,                 ONLY: mpools_create,&
@@ -179,7 +173,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux, matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_transl, matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: ri_aux_basis_set
       TYPE(hfx_basis_info_type)                          :: basis_info
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
@@ -192,7 +185,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_matrix_pools_type), POINTER                :: my_mpools
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
@@ -324,28 +316,6 @@ CONTAINS
 
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
       nkind = SIZE(atomic_kind_set, 1)
-
-      ! check for RI basis sets
-      IF ((mp2_env%method == ri_mp2_method_gpw) .OR. &
-          (mp2_env%method == ri_rpa_method_gpw) .OR. &
-          (mp2_env%method == ri_mp2_laplace)) THEN
-         DO ikind = 1, nkind
-            NULLIFY (ri_aux_basis_set)
-            qs_kind => qs_kind_set(ikind)
-            CALL get_qs_kind(qs_kind=qs_kind, basis_set=ri_aux_basis_set, &
-                             basis_type="RI_AUX")
-            IF (.NOT. (ASSOCIATED(ri_aux_basis_set))) THEN
-               ! RI_AUX basis set is not yet loaded
-               CALL cp_warn(__LOCATION__, "Automatic Generation of RI_AUX basis. "// &
-                            "This is experimental code.")
-               ! Generate a default basis
-               CALL create_ri_aux_basis_set(ri_aux_basis_set, qs_kind, dft_control%auto_basis_ri_aux)
-               CALL init_orb_basis_set(ri_aux_basis_set)
-               CALL init_interaction_radii_orb_basis(ri_aux_basis_set, dft_control%qs_control%eps_pgf_orb)
-               CALL add_basis_set_to_container(qs_kind%basis_sets, ri_aux_basis_set, "RI_AUX")
-            END IF
-         END DO
-      END IF
 
       do_admm_rpa_exx = mp2_env%ri_rpa%do_admm
       CALL hfx_create_basis_types(basis_parameter, basis_info, qs_kind_set, do_admm_rpa_exx)
