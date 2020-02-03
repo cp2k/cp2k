@@ -468,6 +468,8 @@ MODULE cp_control_types
 
 ! **************************************************************************************************
 ! \brief Control parameters for a DFT calculation
+! \par History 
+!      10.2019 added variables related to surface dipole correction [Soumya Ghosh]
 ! **************************************************************************************************
    TYPE dft_control_type
       TYPE(admm_control_type), POINTER     :: admm_control
@@ -497,7 +499,8 @@ MODULE cp_control_types
                                               auto_basis_ri_xas = 1
       REAL(KIND=dp)                        :: relax_multiplicity, &
                                               sic_scaling_a, &
-                                              sic_scaling_b
+                                              sic_scaling_b, &
+                                              pos_dir_surf_dip
       LOGICAL                              :: do_tddfpt_calculation, &
                                               do_xas_calculation, &
                                               do_xas_tdp_calculation, &
@@ -523,6 +526,9 @@ MODULE cp_control_types
                                               apply_external_vxc, &
                                               read_external_vxc, &
                                               correct_surf_dip, &
+                                              surf_dip_correct_switch, &
+                                              switch_surf_dip, &
+                                              correct_el_density_dip, &
                                               do_sccs, &
                                               apply_embed_pot, &
                                               apply_dmfet_pot

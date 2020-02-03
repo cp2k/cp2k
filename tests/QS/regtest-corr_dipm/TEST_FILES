@@ -1,0 +1,7 @@
+# runs are executed in the same order as in this file
+# the second field tells which option from cp2k/tests/TEST_TYPES must be grepped to verify the results
+# 3rd field ---> tolerance
+# 4th field ---> reference result
+run-corr_dipm-RKS.inp                                 89      1e-04             0.0028430452
+run-corr_dipm-UKS.inp                                 89      1e-04             0.0028430451
+#EOF

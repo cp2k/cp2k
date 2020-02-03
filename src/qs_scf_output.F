@@ -281,6 +281,7 @@ CONTAINS
 !> \param gapw_xc ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
+!>      10.2019 print dipole moment [SGh]
 ! **************************************************************************************************
    SUBROUTINE qs_scf_print_scf_summary(output_unit, rho, qs_charges, energy, nelectron_total, &
                                        dft_control, qmmm, qs_env, gapw, gapw_xc)
@@ -321,6 +322,14 @@ CONTAINS
                "Core density on regular grids:", &
                qs_charges%total_rho_core_rspace, &
                qs_charges%total_rho_core_rspace - REAL(nelectron_total + dft_control%charge, dp)
+
+            IF (dft_control%correct_surf_dip) THEN
+               WRITE (UNIT=output_unit, FMT="((T3,A,/,T3,A,T41,F20.10))") &
+                  "Total dipole moment perpendicular to ", &
+                  "the slab [electrons-Angstroem]: ", &
+                  qs_env%surface_dipole_moment
+            ENDIF
+
             IF (gapw) THEN
                tot1_h = qs_charges%total_rho1_hard(1)
                tot1_s = qs_charges%total_rho1_soft(1)

@@ -584,7 +584,7 @@ CONTAINS
                                  z=z)
             CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
             WRITE (UNIT=iw, &
-                   FMT="(T2,I7,1X,I5,1X,A2,1X,I3,3F12.6,4X,F6.2,2X,F11.4)") &
+                   FMT="(T2,I7,1X,I5,1X,A2,1X,I3,3F12.6,4X,F8.4,2X,F11.4)") &
                iatom, ikind, element_symbol, z, &
                particle_set(iatom)%r(1:3)*conv, zeff, mass/massunit
          END DO

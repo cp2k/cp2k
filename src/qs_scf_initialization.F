@@ -562,20 +562,22 @@ CONTAINS
       INTEGER                                            :: handle, ic, ik, ikk, ispin, nmo, nmo_mat
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_aux_fit
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools, ao_mo_fm_pools_aux_fit
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit, mo_coeff_last
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit, mos_last_converged
       TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos_k
       TYPE(xas_environment_type), POINTER                :: xas_env
+
 
       CALL timeset(routineN, handle)
 
       NULLIFY (ao_mo_fm_pools, dft_control, mos, ao_mo_fm_pools_aux_fit)
       NULLIFY (mo_derivs, mo_coeff, mo_coeff_aux_fit, mo_derivs_aux_fit, xas_env, matrix_s)
+      NULLIFY (mos_last_converged, mo_coeff_last)
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(scf_env%ref_count > 0)
@@ -587,6 +589,9 @@ CONTAINS
                       mos_aux_fit=mos_aux_fit, &
                       xas_env=xas_env)
       CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
+      IF (dft_control%switch_surf_dip) THEN
+         CALL get_qs_env(qs_env, mos_last_converged=mos_last_converged)
+      ENDIF
 
       nmo_mat = dft_control%nspins
       IF (dft_control%restricted) nmo_mat = 1 ! right now, there might be more mos than needed derivs
@@ -609,7 +614,6 @@ CONTAINS
          ENDIF
       END DO
 !   *** get the mo_derivs OK if needed ***
-
       IF (qs_env%requires_mo_derivs) THEN
          CALL get_qs_env(qs_env, mo_derivs=mo_derivs)
          IF (.NOT. ASSOCIATED(mo_derivs)) THEN
@@ -659,6 +663,19 @@ CONTAINS
          ENDIF
       END IF
 
+! *** finish initialization of mos_last_converged *** [SGh]
+      IF (dft_control%switch_surf_dip) THEN
+         CPASSERT(ASSOCIATED(mos_last_converged))
+         DO ispin = 1, SIZE(mos_last_converged)
+            CALL get_mo_set(mos_last_converged(ispin)%mo_set, mo_coeff=mo_coeff_last)
+            IF (.NOT. ASSOCIATED(mo_coeff_last)) THEN
+               CALL init_mo_set(mos_last_converged(ispin)%mo_set, &
+                                fm_ref=mos(ispin)%mo_set%mo_coeff, &
+                                name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
+                                "%mos_last_converged"//TRIM(ADJUSTL(cp_to_string(ispin))))
+            END IF
+         END DO
+      END IF
       ! kpoints: we have to initialize all the k-point MOs
       CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
       IF (kpoints%nkp /= 0) THEN

@@ -326,6 +326,41 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="SURF_DIP_POS", &
+                          description="This keyword assigns an user defined position in Angstroms"// &
+                          " in the direction normal to the surface (given by SURF_DIP_DIR). "// &
+                          "The default value is -1.0_dp which appplies the correction at a position "// &
+                          " that has minimum electron density on the grid.", &
+                          usage="SURF_DIP_POS -1.0_dp", &
+                          default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="SURF_DIP_SWITCH", &
+                          description="WARNING: Experimental feature under development that will help the "// &
+                          "user to switch parameters to facilitate  SCF convergence. In its current form the "// &
+                          "surface dipole correction is switched off if the calculation does not converge in "// &
+                          "(0.5*MAX_SCF + 1) outer_scf steps. "// &
+                          "The default value is .FALSE.", &
+                          usage="SURF_DIP_SWITCH .TRUE.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="CORE_CORR_DIP", &
+                          description="If the total CORE_CORRECTION is non-zero and surface dipole "// &
+                          "correction is switched on, presence of this keyword will adjust electron "// &
+                          "density via MO occupation to reflect the total CORE_CORRECTION. "// &
+                          "The default value is .FALSE.", &
+                          usage="CORE_CORR_DIP .TRUE.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
       NULLIFY (subsection)
       CALL create_scf_section(subsection)
       CALL section_add_subsection(section, subsection)

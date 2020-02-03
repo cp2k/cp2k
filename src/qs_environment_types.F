@@ -312,6 +312,9 @@ MODULE qs_environment_types
       TYPE(polar_env_type), POINTER                         :: polar_env
       ! Resp charges
       REAL(KIND=dp), DIMENSION(:), POINTER                  :: rhs => NULL()
+      REAL(KIND=dp)                                         :: total_zeff_corr, surface_dipole_moment
+      LOGICAL                                               :: surface_dipole_switch_off
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos_last_converged
    END TYPE qs_environment_type
 
 ! **************************************************************************************************
@@ -492,6 +495,7 @@ CONTAINS
 !> \param embed_pot ...
 !> \param spin_embed_pot ...
 !> \param polar_env ...
+!> \param mos_last_converged ... [SGh]
 !> \param rhs ...
 !> \date    23.01.2002
 !> \author  MK
@@ -523,7 +527,7 @@ CONTAINS
                          lri_env, lri_density, ec_env, dispersion_env, gcp_env, vee, rho_external, external_vxc, mask, &
                          mp2_env, kg_env, WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
-                         gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, rhs)
+                         gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, rhs)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
@@ -657,6 +661,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
+      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: mos_last_converged
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', routineP = moduleN//':'//routineN
@@ -679,6 +685,7 @@ CONTAINS
       IF (PRESENT(qmmm_periodic)) qmmm_periodic = qs_env%qmmm_periodic
       IF (PRESENT(mos)) mos => qs_env%mos
       IF (PRESENT(mos_aux_fit)) mos_aux_fit => qs_env%mos_aux_fit
+      IF (PRESENT(mos_last_converged)) mos_last_converged => qs_env%mos_last_converged
       IF (PRESENT(ewald_env)) ewald_env => qs_env%ewald_env
       IF (PRESENT(ewald_pw)) ewald_pw => qs_env%ewald_pw
       IF (PRESENT(mpools)) mpools => qs_env%mpools
@@ -883,6 +890,7 @@ CONTAINS
       NULLIFY (qs_env%super_cell)
       NULLIFY (qs_env%mos)
       NULLIFY (qs_env%mos_aux_fit)
+      NULLIFY (qs_env%mos_last_converged)
       NULLIFY (qs_env%mpools)
       NULLIFY (qs_env%mpools_aux_fit)
       NULLIFY (qs_env%ewald_env)
@@ -967,6 +975,11 @@ CONTAINS
 
       qs_env%sim_time = 0._dp
       qs_env%sim_step = 0
+
+      qs_env%total_zeff_corr = 0.0_dp
+      qs_env%surface_dipole_moment = 0.0_dp
+      qs_env%surface_dipole_switch_off = .FALSE.
+
       ! Zero all variables containing results
       NULLIFY (qs_env%mo_derivs)
       NULLIFY (qs_env%mo_derivs_aux_fit)
@@ -1046,6 +1059,7 @@ CONTAINS
 !> \param embed_pot ...
 !> \param spin_embed_pot ...
 !> \param polar_env ...
+!> \param mos_last_converged ... [SGh]
 !> \param rhs ...
 !> \date    23.01.2002
 !> \author  MK
@@ -1066,7 +1080,7 @@ CONTAINS
                          do_transport, transport_env, lri_env, lri_density, ec_env, dispersion_env, &
                          gcp_env, mp2_env, kg_env, force, &
                          kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
-                         spin_embed_pot, polar_env, rhs)
+                         spin_embed_pot, polar_env, mos_last_converged, rhs)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
@@ -1139,6 +1153,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
+      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: mos_last_converged
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', routineP = moduleN//':'//routineN
@@ -1160,6 +1176,7 @@ CONTAINS
       IF (PRESENT(qmmm_periodic)) qs_env%qmmm_periodic = qmmm_periodic
       IF (PRESENT(mos)) qs_env%mos => mos
       IF (PRESENT(mos_aux_fit)) qs_env%mos_aux_fit => mos_aux_fit
+      IF (PRESENT(mos_last_converged)) qs_env%mos_last_converged => mos_last_converged
       IF (PRESENT(ls_scf_env)) qs_env%ls_scf_env => ls_scf_env
       IF (PRESENT(almo_scf_env)) qs_env%almo_scf_env => almo_scf_env
       IF (PRESENT(do_transport)) qs_env%do_transport = do_transport
@@ -1394,6 +1411,12 @@ CONTAINS
                   CALL deallocate_mo_set(qs_env%mos_aux_fit(i)%mo_set)
                END DO
                DEALLOCATE (qs_env%mos_aux_fit)
+            END IF
+            IF (ASSOCIATED(qs_env%mos_last_converged)) THEN
+               DO i = 1, SIZE(qs_env%mos_last_converged)
+                  CALL deallocate_mo_set(qs_env%mos_last_converged(i)%mo_set)
+               END DO
+               DEALLOCATE (qs_env%mos_last_converged)
             END IF
 
             IF (ASSOCIATED(qs_env%mo_derivs)) THEN

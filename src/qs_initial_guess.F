@@ -77,7 +77,8 @@ MODULE qs_initial_guess
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&
-                                              mo_set_restrict
+                                              mo_set_restrict,&
+                                              reassign_allocated_mos
    USE qs_mom_methods,                  ONLY: do_mom_guess
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -86,6 +87,7 @@ MODULE qs_initial_guess
                                               eigensolver_simple
    USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
                                               block_krylov_diag_method_nr,&
+                                              general_diag_method_nr,&
                                               ot_diag_method_nr,&
                                               qs_scf_env_type
    USE qs_wf_history_methods,           ONLY: wfi_update
@@ -119,6 +121,7 @@ CONTAINS
 !>      03.2006 moved here from qs_scf [Joost VandeVondele]
 !>      06.2007 allow to skip the initial guess [jgh]
 !>      08.2014 kpoints [JGH]
+!>      10.2019 tot_corr_zeff, switch_surf_dip [SGh] 
 !> \note
 !>      badly needs to be split in subroutines each doing one of the possible
 !>      schemes
@@ -146,7 +149,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: buff, buff2
       REAL(dp), DIMENSION(:, :), POINTER                 :: pdata
       REAL(KIND=dp)                                      :: checksum, eps, length, maxocc, occ, &
-                                                            rscale, trps1, zeff
+                                                            rscale, tot_corr_zeff, trps1, zeff
       REAL(KIND=dp), DIMENSION(0:3)                      :: edftb
       TYPE(atom_matrix_type), DIMENSION(:), POINTER      :: pmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -165,7 +168,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array, mos_last_converged
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
@@ -173,16 +176,19 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, input, subsys_section
 
+
       logger => cp_get_default_logger()
       NULLIFY (atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set, &
                qs_kind_set, particle_set, ortho, work2, work1, mo_array, s_sparse, &
                scf_control, dft_control, p_rmpv, ortho, work2, work1, para_env, &
-               s_sparse, scf_control, dft_control, h_core_sparse, matrix_ks, rho)
+               s_sparse, scf_control, dft_control, h_core_sparse, matrix_ks, rho, &
+               mos_last_converged)
       NULLIFY (dft_section, input, subsys_section)
       NULLIFY (matrix_s_kp, matrix_h_kp, matrix_ks_kp, rho_ao_kp)
       NULLIFY (moa, mob)
       NULLIFY (atom_list, elec_conf, kpoints)
       edftb = 0.0_dp
+      tot_corr_zeff = 0.0_dp
 
       CALL timeset(routineN, handle)
 
@@ -206,6 +212,10 @@ CONTAINS
                       para_env=para_env)
 
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+
+      IF (dft_control%switch_surf_dip) THEN
+         CALL get_qs_env(qs_env, mos_last_converged=mos_last_converged)
+      ENDIF
 
       ! just initialize the first image, the other density are set to zero
       DO ispin = 1, dft_control%nspins
@@ -327,6 +337,19 @@ CONTAINS
 
       did_guess = .FALSE.
 
+      IF (dft_control%correct_el_density_dip) THEN
+         tot_corr_zeff = qs_env%total_zeff_corr
+         !WRITE(*,*) "tot_corr_zeff = ", tot_corr_zeff
+         IF ((ABS(tot_corr_zeff) > 0.0_dp) .AND. (density_guess /= restart_guess)) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Use SCF_GUESS RESTART in conjunction with "// &
+                         "CORE_CORRECTION /= 0.0 and SURFACE_DIPOLE_CORRECTION TRUE. "// &
+                         "It is always advisable to perform SURFACE_DIPOLE_CORRECTION "// &
+                         "after a simulation without the surface dipole correction "// &
+                         "and using the ensuing wavefunction restart file. ")
+         ENDIF
+      ENDIF
+
       IF (density_guess == restart_guess) THEN
 
          IF (do_kpoints) THEN
@@ -367,8 +390,18 @@ CONTAINS
                ENDDO
                IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
 
-               IF (.NOT. scf_control%diagonalization%mom) &
-                  CALL set_mo_occupation(mo_array, smear=qs_env%scf_control%smear)
+               IF (.NOT. scf_control%diagonalization%mom) THEN
+                  IF (dft_control%correct_surf_dip) THEN
+                     IF (ABS(tot_corr_zeff) > 0.0_dp) THEN
+                        CALL set_mo_occupation(mo_array, smear=qs_env%scf_control%smear, &
+                                               tot_zeff_corr=tot_corr_zeff)
+                     ELSE
+                        CALL set_mo_occupation(mo_array, smear=qs_env%scf_control%smear)
+                     ENDIF
+                  ELSE
+                     CALL set_mo_occupation(mo_array, smear=qs_env%scf_control%smear)
+                  ENDIF
+               ENDIF
 
                DO ispin = 1, nspin
 
@@ -624,6 +657,45 @@ CONTAINS
                   CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
                                                 p_rmpv(ispin)%matrix)
                END IF
+               ! adjust el_density in case surface_dipole_correction is switched
+               ! on and CORE_CORRECTION is non-zero
+               IF (scf_env%method == general_diag_method_nr) THEN
+                  IF (dft_control%correct_surf_dip) THEN
+                     IF (ABS(tot_corr_zeff) > 0.0_dp) THEN
+                        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, &
+                                        mo_coeff=mo_coeff, &
+                                        nmo=nmo, nao=nao, homo=homo)
+
+                        CALL cp_fm_set_all(mo_coeff, 0.0_dp)
+                        CALL cp_fm_init_random(mo_coeff, nmo)
+
+                        CALL cp_fm_create(sv, mo_coeff%matrix_struct, "SV")
+                        ! multiply times PS
+                        IF (has_unit_metric) THEN
+                           CALL cp_fm_to_fm(mo_coeff, sv)
+                        ELSE
+                           ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
+                           CALL cp_dbcsr_sm_fm_multiply(s_sparse(1)%matrix, mo_coeff, sv, nmo)
+                        END IF
+                        CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix, sv, mo_coeff, homo)
+
+                        CALL cp_fm_release(sv)
+                        ! and ortho the result
+                        IF (has_unit_metric) THEN
+                           CALL make_basis_simple(mo_coeff, nmo)
+                        ELSE
+                           CALL make_basis_sm(mo_coeff, nmo, s_sparse(1)%matrix)
+                        END IF
+
+                        CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set, smear=qs_env%scf_control%smear, &
+                                               tot_zeff_corr=tot_corr_zeff)
+
+                        CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
+                                                      p_rmpv(ispin)%matrix)
+                     ENDIF
+                  ENDIF
+               ENDIF
+
             END IF
 
          END DO
@@ -962,6 +1034,13 @@ CONTAINS
 
          did_guess = .TRUE.
       END IF
+! switch_surf_dip [SGh]
+      IF (dft_control%switch_surf_dip) THEN
+         DO ispin = 1, nspin
+            CALL reassign_allocated_mos(mos_last_converged(ispin)%mo_set, &
+                                        mo_array(ispin)%mo_set)
+         ENDDO
+      ENDIF
 
       IF (density_guess == no_guess) THEN
          did_guess = .TRUE.

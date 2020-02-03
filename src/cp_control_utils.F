@@ -322,6 +322,23 @@ CONTAINS
       dft_control%correct_surf_dip = .FALSE.
       CALL section_vals_val_get(dft_section, "SURFACE_DIPOLE_CORRECTION", l_val=dft_control%correct_surf_dip)
       CALL section_vals_val_get(dft_section, "SURF_DIP_DIR", i_val=dft_control%dir_surf_dip)
+      dft_control%pos_dir_surf_dip = -1.0_dp
+      CALL section_vals_val_get(dft_section, "SURF_DIP_POS", r_val=dft_control%pos_dir_surf_dip)
+! another logical variable, surf_dip_correct_switch, is introduced for
+! implementation of "SURF_DIP_SWITCH" [SGh]
+      dft_control%switch_surf_dip = .FALSE.
+      dft_control%surf_dip_correct_switch = dft_control%correct_surf_dip
+      CALL section_vals_val_get(dft_section, "SURF_DIP_SWITCH", l_val=dft_control%switch_surf_dip)
+      dft_control%correct_el_density_dip = .FALSE.
+      CALL section_vals_val_get(dft_section, "CORE_CORR_DIP", l_val=dft_control%correct_el_density_dip)
+      IF (dft_control%correct_el_density_dip) THEN
+         IF (dft_control%correct_surf_dip) THEN
+            ! Do nothing, move on
+         ELSE
+            dft_control%correct_el_density_dip = .FALSE.
+            CPWARN("CORE_CORR_DIP keyword is activated only if SURFACE_DIPOLE_CORRECTION is TRUE")
+         ENDIF
+      ENDIF
 
       CALL section_vals_val_get(dft_section, "BASIS_SET_FILE_NAME", &
                                 c_val=basis_set_file_name)

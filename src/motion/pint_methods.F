@@ -2495,7 +2495,7 @@ CONTAINS
       CALL pint_calc_e_kin_beads_u(pint_env)
       CALL pint_calc_e_vir(pint_env)
 
-      CALL pint_calc_uf_h(pint_env, e_h)
+      CALL pint_calc_uf_h(pint_env, e_h=e_h)
       pint_env%e_pot_h = e_h
 
       SELECT CASE (pint_env%pimd_thermostat)
