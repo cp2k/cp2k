@@ -121,7 +121,7 @@ CONTAINS
 !>      03.2006 moved here from qs_scf [Joost VandeVondele]
 !>      06.2007 allow to skip the initial guess [jgh]
 !>      08.2014 kpoints [JGH]
-!>      10.2019 tot_corr_zeff, switch_surf_dip [SGh] 
+!>      10.2019 tot_corr_zeff, switch_surf_dip [SGh]
 !> \note
 !>      badly needs to be split in subroutines each doing one of the possible
 !>      schemes
@@ -175,7 +175,6 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, input, subsys_section
-
 
       logger => cp_get_default_logger()
       NULLIFY (atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set, &

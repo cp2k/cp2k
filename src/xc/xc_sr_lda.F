@@ -13,24 +13,24 @@
 MODULE xc_sr_lda
 #:include "xc_perdew_wang.fypp"
 
-   USE bibliography,                    ONLY: Paziani2006,&
-                                              Toulouse2004,&
-                                              cite_reference
-   USE input_section_types,             ONLY: section_vals_type,&
-                                              section_vals_val_get
-   USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: pi
-   USE xc_input_constants,              ONLY: pw_dmc,&
-                                              pw_orig,&
-                                              pw_vmc
-   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                              xc_dset_get_derivative
-   USE xc_derivative_types,             ONLY: xc_derivative_get,&
-                                              xc_derivative_type
-   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
-                                              xc_rho_set_type
-   USE xc_functionals_utilities,        ONLY: set_util
+   USE bibliography, ONLY: Paziani2006, &
+                           Toulouse2004, &
+                           cite_reference
+   USE input_section_types, ONLY: section_vals_type, &
+                                  section_vals_val_get
+   USE kinds, ONLY: dp
+   USE mathconstants, ONLY: pi
+   USE xc_input_constants, ONLY: pw_dmc, &
+                                 pw_orig, &
+                                 pw_vmc
+   USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
+                                      xc_dset_get_derivative
+   USE xc_derivative_types, ONLY: xc_derivative_get, &
+                                  xc_derivative_type
+   USE xc_rho_cflags_types, ONLY: xc_rho_cflags_type
+   USE xc_rho_set_types, ONLY: xc_rho_set_get, &
+                               xc_rho_set_type
+   USE xc_functionals_utilities, ONLY: set_util
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -440,7 +440,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lda', routineP = moduleN//':'//routineN
 
       REAL(KIND=dp) :: a1, a1rs, a2, a2rs, a3, a3rs, a4, a4rs, a5, a5rs, b0, coe2, coe2rs, coe3, &
-         coe3rs, coe4, coe4rs, coe5, coe5rs, d2anti, d2antid, d3anti, d3antid, eclrrs, x, z
+                       coe3rs, coe4, coe4rs, coe5, coe5rs, d2anti, d2antid, d3anti, d3antid, eclrrs, x, z
 
       b0 = adib*rs
       z = 0._dp
@@ -459,16 +459,16 @@ CONTAINS
 
       coe4 = -9._dp/64._dp/rs**3*(.5_dp*dpol(rs*2._dp**(1._dp/3._dp)) + d2anti - cf**2/5._dp/rs**2)
       coe4rs = -3._dp/rs*coe4 - 9._dp/64._dp/rs**3*(((1._dp + z)/2._dp)**(5._dp/3._dp)*dpold(rs*(2._dp/(1._dp + z))** &
-                                                        (1._dp/3._dp)) + ((1._dp - z)/2._dp)**(5._dp/3._dp)* &
-               dpold(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) + (1._dp - z**2)*d2antid &
-               + cf**2/5._dp*((1._dp + z)**(8._dp/3._dp) + (1._dp - z)**(8._dp/3._dp))/rs**3)
+                                                                              (1._dp/3._dp)) + ((1._dp - z)/2._dp)**(5._dp/3._dp)* &
+                                                    dpold(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) + (1._dp - z**2)*d2antid &
+                                                    + cf**2/5._dp*((1._dp + z)**(8._dp/3._dp) + (1._dp - z)**(8._dp/3._dp))/rs**3)
 
       coe5 = -9._dp/40._dp/SQRT(2._dp*pi)/rs**3*(((1._dp + z)/2._dp)**2*dpol(rs*(2._dp/(1._dp + z))**(1._dp/3._dp)) &
                                                  + ((1._dp - z)/2._dp)**2*dpol(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) &
                                                  + (1._dp - z**2)*d3anti)
       coe5rs = -3._dp/rs*coe5 - 9._dp/(40._dp*SQRT(2._dp*pi)*rs**3)*( &
                ((1._dp + z)/2._dp)**(5._dp/3._dp)*dpold(rs*(2._dp/(1._dp + z))**(1._dp/3._dp)) &
-                + ((1._dp - z)/2._dp)**(5._dp/3._dp)*dpold(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) + (1._dp - z**2)*d3antid)
+               + ((1._dp - z)/2._dp)**(5._dp/3._dp)*dpold(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) + (1._dp - z**2)*d3antid)
 
       a1 = 4._dp*b0**6*coe3 + b0**8*coe5
       a1rs = 24._dp*adib*b0**5*coe3 + 4._dp*b0**6*coe3rs + 8._dp*adib*b0**7*coe5 + b0**8*coe5rs
@@ -511,7 +511,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: exlr, vxlr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exchangelr_lda', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       REAL(KIND=dp)                                      :: derrs, fx, fx1, y
 
@@ -622,8 +622,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lsd', routineP = moduleN//':'//routineN
 
       REAL(KIND=dp) :: a1, a1rs, a1z, a2, a2rs, a2z, a3, a3rs, a3z, a4, a4rs, a4z, a5, a5rs, a5z, &
-         b0, coe2, coe2rs, coe2z, coe3, coe3rs, coe3z, coe4, coe4rs, coe4z, coe5, coe5rs, coe5z, &
-         d2anti, d2antid, d3anti, d3antid, eclrrs, eclrz, phi, x
+                       b0, coe2, coe2rs, coe2z, coe3, coe3rs, coe3z, coe4, coe4rs, coe4z, coe5, coe5rs, coe5z, &
+                       d2anti, d2antid, d3anti, d3antid, eclrrs, eclrz, phi, x
 
       phi = ((1._dp + z)**(2._dp/3._dp) + (1._dp - z)**(2._dp/3._dp))/2._dp
 
@@ -659,30 +659,30 @@ CONTAINS
          coe4 = -9._dp/64._dp/rs**3*(((1._dp + z)/2._dp)**2* &
                                      dpol(rs*(2._dp/(1._dp + z))**(1._dp/3._dp)) + ((1._dp - z)/2._dp)**2 &
                                      *dpol(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) + &
-                                     (1._dp-z**2)*d2anti - cf**2/10._dp*((1._dp + z)**(8._dp/3._dp) &
-                                                                      + (1._dp-z)**(8._dp/3._dp))/rs**2)
+                                     (1._dp - z**2)*d2anti - cf**2/10._dp*((1._dp + z)**(8._dp/3._dp) &
+                                                                           + (1._dp - z)**(8._dp/3._dp))/rs**2)
          coe4rs = -3._dp/rs*coe4 - 9._dp/64._dp/rs**3*(((1._dp + z)/2._dp)**(5._dp/3._dp)*dpold(rs*(2._dp/(1._dp + z))** &
-                                                           (1._dp/3._dp)) + ((1._dp - z)/2._dp)**(5._dp/3._dp)* &
-                  dpold(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) + (1._dp - z**2)*d2antid &
-                  + cf**2/5._dp*((1._dp + z)**(8._dp/3._dp) + (1._dp - z)**(8._dp/3._dp))/rs**3)
+                                                                              (1._dp/3._dp)) + ((1._dp - z)/2._dp)**(5._dp/3._dp)* &
+                                                       dpold(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) + (1._dp - z**2)*d2antid &
+                                                      + cf**2/5._dp*((1._dp + z)**(8._dp/3._dp) + (1._dp - z)**(8._dp/3._dp))/rs**3)
          coe4z = -9._dp/64._dp/rs**3*(1._dp/2._dp*(1._dp + z)*dpol(rs*(2._dp/(1._dp + z))**(1._dp/3._dp)) &
                                       - 1._dp/2._dp*(1._dp - z)*dpol(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) &
                                       - rs/6._dp*((1._dp + z)/2._dp)**(2._dp/3._dp)*dpold(rs*(2/(1._dp + z))**(1._dp/3._dp)) &
                                       + rs/6._dp*((1._dp - z)/2._dp)**(2._dp/3._dp)*dpold(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) &
                                       - 2._dp*z*d2anti - 4._dp/15._dp*cf**2/rs**2*((1._dp + z)**(5._dp/3._dp) &
-                                      - (1._dp - z)**(5._dp/3._dp)))
+                                                                                   - (1._dp - z)**(5._dp/3._dp)))
 
          coe5 = -9._dp/40._dp/SQRT(2._dp*pi)/rs**3*(((1._dp + z)/2._dp)**2*dpol(rs*(2._dp/(1._dp + z))**(1._dp/3._dp)) &
                                                     + ((1._dp - z)/2._dp)**2*dpol(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) &
                                                     + (1._dp - z**2)*d3anti)
          coe5rs = -3._dp/rs*coe5 - 9._dp/(40._dp*SQRT(2._dp*pi)*rs**3)*( &
                   ((1._dp + z)/2._dp)**(5._dp/3._dp)*dpold(rs*(2._dp/(1._dp + z))**(1._dp/3._dp)) &
-                   + ((1._dp - z)/2._dp)**(5._dp/3._dp)*dpold(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) + (1._dp - z**2)*d3antid)
+                  + ((1._dp - z)/2._dp)**(5._dp/3._dp)*dpold(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) + (1._dp - z**2)*d3antid)
          coe5z = -9._dp/40._dp/SQRT(2._dp*pi)/rs**3*(1._dp/2._dp*(1._dp + z)*dpol(rs*(2/(1._dp + z))**(1._dp/3._dp)) &
                                                      - 1._dp/2._dp*(1._dp - z)*dpol(rs*(2/(1._dp - z))**(1._dp/3._dp)) &
                                                      - rs/6._dp*((1._dp + z)/2._dp)**(2._dp/3._dp)*dpold(rs*(2/(1._dp + z)) &
                                                                     **(1._dp/3._dp)) + rs/6._dp*((1._dp - z)/2._dp)**(2._dp/3._dp) &
-                                                       *dpold(rs*(2/(1._dp - z))**(1._dp/3._dp)) - 2._dp*z*d3anti)
+                                                     *dpold(rs*(2/(1._dp - z))**(1._dp/3._dp)) - 2._dp*z*d3anti)
 
       END IF
 
@@ -833,7 +833,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: exlr, vxlrup, vxlrdown
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exchangelr_lsd', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       REAL(KIND=dp)                                      :: derrs, derz, fx, fx1, x, y
 
@@ -843,8 +843,8 @@ CONTAINS
          fx = -((y*(-3._dp + 4._dp*y**2 + (2._dp - 4._dp*y**2)*EXP(-.25/y**2)) + SQRT(pi)*ERF(.5_dp/y))/pi)
          exlr = mu*fx
          vxlrup = mu*(x/(2._dp**(1._dp/3._dp)*pi) - x/(2._dp**(1._dp/3._dp)*pi)* &
-                  EXP(-2._dp**(2._dp/3._dp)/x**2) - &
-                  ERF(2._dp**(1._dp/3._dp)/x)/SQRT(pi))
+                      EXP(-2._dp**(2._dp/3._dp)/x**2) - &
+                      ERF(2._dp**(1._dp/3._dp)/x)/SQRT(pi))
          vxlrdown = 0._dp
       ELSE IF (z <= -1._dp) THEN
          x = rs*alpha*mu
@@ -852,8 +852,8 @@ CONTAINS
          fx = -((y*(-3._dp + 4._dp*y**2 + (2._dp - 4._dp*y**2)*EXP(-.25/y**2)) + SQRT(pi)*ERF(.5_dp/y))/pi)
          exlr = mu*fx
          vxlrdown = mu*(x/(2._dp**(1._dp/3._dp)*pi) - x/(2._dp**(1._dp/3._dp)*pi)* &
-                    EXP(-2._dp**(2._dp/3._dp)/x**2) - &
-                    ERF(2._dp**(1._dp/3._dp)/x)/SQRT(pi))
+                        EXP(-2._dp**(2._dp/3._dp)/x**2) - &
+                        ERF(2._dp**(1._dp/3._dp)/x)/SQRT(pi))
          vxlrup = 0._dp
       ELSE
          y = alpha/2._dp/(1.+z)**(1._dp/3._dp)*mu*rs
@@ -922,8 +922,8 @@ CONTAINS
          ecz = alfac(0)*(-4._dp*z**3)*ff/f02 + alfac(0)*(1._dp - z**4)/f02* &
                4._dp/3._dp*((1._dp + z)**(1._dp/3._dp) - (1._dp - z)**(1._dp/3._dp))/ &
                (2._dp**(4._dp/3._dp) - 2._dp) + (ec1(0) - ec0(0))*(4._dp*z**3*ff + &
-               4._dp/3._dp*((1._dp + z)**(1._dp/3._dp) - (1._dp - z)**(1._dp/3._dp))/ &
-               (2._dp**(4._dp/3._dp) - 2._dp)*z**4)
+                                                            4._dp/3._dp*((1._dp + z)**(1._dp/3._dp) - (1._dp - z)**(1._dp/3._dp))/ &
+                                                                   (2._dp**(4._dp/3._dp) - 2._dp)*z**4)
       END IF
 
    END SUBROUTINE

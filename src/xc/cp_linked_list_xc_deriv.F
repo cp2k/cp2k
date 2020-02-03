@@ -6,7 +6,7 @@
 #:include '../common/cp_linked_list.fypp'
 
 MODULE cp_linked_list_xc_deriv
-USE xc_derivative_types, ONLY: xc_derivative_type,xc_derivative_p_type
+   USE xc_derivative_types, ONLY: xc_derivative_type, xc_derivative_p_type
 #include "../base/base_uses.f90"
 
 #:mute
@@ -27,18 +27,18 @@ USE xc_derivative_types, ONLY: xc_derivative_type,xc_derivative_p_type
 !> \param el2 ...
 !> \return ...
 ! **************************************************************************************************
-function cp_sll_deriv_less_q(el1,el2) result(res)
-  type(xc_derivative_type), pointer :: el1,el2
-  logical :: res
+   function cp_sll_deriv_less_q(el1, el2) result(res)
+      type(xc_derivative_type), pointer :: el1, el2
+      logical :: res
 
-  character(len=*),parameter :: routineN='cp_sll_deriv_less_q',routineP=moduleN//':'//routineN
+      character(len=*), parameter :: routineN = 'cp_sll_deriv_less_q', routineP = moduleN//':'//routineN
 
-  CPASSERT(associated(el1))
-  CPASSERT(associated(el1%split_desc))
-  CPASSERT(associated(el2))
-  CPASSERT(associated(el2%split_desc))
-  res=size(el1%split_desc)<size(el2%split_desc).or.(size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc)
-end function
+      CPASSERT(associated(el1))
+      CPASSERT(associated(el1%split_desc))
+      CPASSERT(associated(el2))
+      CPASSERT(associated(el2%split_desc))
+     res = size(el1%split_desc) < size(el2%split_desc) .or. (size(el1%split_desc) == size(el2%split_desc) .and. el1%desc < el2%desc)
+   end function
 #:enddef
 
 #:set private_routines = get_private_routines()

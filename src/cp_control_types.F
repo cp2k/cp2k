@@ -468,7 +468,7 @@ MODULE cp_control_types
 
 ! **************************************************************************************************
 ! \brief Control parameters for a DFT calculation
-! \par History 
+! \par History
 !      10.2019 added variables related to surface dipole correction [Soumya Ghosh]
 ! **************************************************************************************************
    TYPE dft_control_type

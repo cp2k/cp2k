@@ -84,7 +84,6 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
-
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, rho, pw_env, rho_core, rho0_s_gs, auxbas_pw_pool, &
                pw_pools, subsys, v_hartree_rspace, rho_r)
@@ -189,10 +188,10 @@ CONTAINS
       rhoavsurf(ilow:iup) = rhoavsurf(ilow:iup)/surfarea
       ! Note: rhosurf has the same dimension as rho
       IF (dft_control%pos_dir_surf_dip < 0.0_dp) THEN
-         ilayer_min = ilow-1+MINLOC(ABS(rhoavsurf(ilow:iup)), 1)
+         ilayer_min = ilow - 1 + MINLOC(ABS(rhoavsurf(ilow:iup)), 1)
       ELSE
          pos_surf_dip = dft_control%pos_dir_surf_dip*bohr
-         ilayer_min = ilow-1+NINT(pos_surf_dip/dh(idir_surfdip, idir_surfdip))+1
+         ilayer_min = ilow - 1 + NINT(pos_surf_dip/dh(idir_surfdip, idir_surfdip)) + 1
       END IF
       rhoav_min = ABS(rhoavsurf(ilayer_min))
       IF (rhoav_min >= 1.E-5_dp) THEN
@@ -214,10 +213,10 @@ CONTAINS
             irho = i
          END IF
 ! introduce a cutoff function to smoothen the edges
-         IF (ABS(irho-ilayer_min) > width) THEN
+         IF (ABS(irho - ilayer_min) > width) THEN
             cutoff = 1.0_dp
          ELSE
-            cutoff = ABS(SIN(0.5_dp*pi*REAL(ABS(irho-ilayer_min), dp)/REAL(width, dp)))
+            cutoff = ABS(SIN(0.5_dp*pi*REAL(ABS(irho - ilayer_min), dp)/REAL(width, dp)))
          ENDIF
          dip_hh = dip_hh + rhoavsurf(irho)*hh*dip_fac*cutoff
       END DO
@@ -240,10 +239,10 @@ CONTAINS
             irho = i
          END IF
 ! introduce a cutoff function to smoothen the edges
-         IF (ABS(irho-ilayer_min) > width) THEN
+         IF (ABS(irho - ilayer_min) > width) THEN
             cutoff = 1.0_dp
          ELSE
-            cutoff = ABS(SIN(0.5_dp*pi*REAL(ABS(irho-ilayer_min), dp)/REAL(width, dp)))
+            cutoff = ABS(SIN(0.5_dp*pi*REAL(ABS(irho - ilayer_min), dp)/REAL(width, dp)))
          ENDIF
          vdip = vdip*cutoff
 

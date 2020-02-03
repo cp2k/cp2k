@@ -838,7 +838,6 @@ CONTAINS
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
-
       IF (PRESENT(basis_type)) THEN
          my_basis_type = basis_type
       ELSE
@@ -1093,7 +1092,7 @@ CONTAINS
                   zeff = 0.0_dp
                   zeff_correction = 0.0_dp
                END IF
-               total_zeff_corr = total_zeff_corr+qs_kind_set(ikind)%natom*zeff_correction
+               total_zeff_corr = total_zeff_corr + qs_kind_set(ikind)%natom*zeff_correction
             END IF
 
             IF (PRESENT(all_potential_present)) THEN

@@ -11,9 +11,9 @@
 ! **************************************************************************************************
 MODULE memory_utilities
 
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
-                                              dp, int_8
+   USE kinds, ONLY: default_path_length, &
+                    default_string_length, &
+                    dp, int_8
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -41,36 +41,36 @@ CONTAINS
 #:def reallocate(rank)
 
 #:for i in range(1, rank+1)
-      INTEGER :: lb${i}$, lb${i}$_old, ub${i}$, ub${i}$_old
+   INTEGER :: lb${i}$, lb${i}$_old, ub${i}$, ub${i}$_old
 #:endfor
 
-    IF (ASSOCIATED(p)) THEN
+   IF (ASSOCIATED(p)) THEN
 
 #:for i in range(1, rank+1)
-       lb${i}$_old = LBOUND(p,${i}$)
-       ub${i}$_old = UBOUND(p,${i}$)
-       lb${i}$ = MAX(lb${i}$_new,lb${i}$_old)
-       ub${i}$ = MIN(ub${i}$_new,ub${i}$_old)
+      lb${i}$_old = LBOUND(p, ${i}$)
+      ub${i}$_old = UBOUND(p, ${i}$)
+      lb${i}$ = MAX(lb${i}$_new, lb${i}$_old)
+      ub${i}$ = MIN(ub${i}$_new, ub${i}$_old)
 #:endfor
 
 #:set old_bounds = ','.join(['lb{0}:ub{0}'.format(i) for i in range(1, rank+1)])
 #:set old_size  = '*'.join(['(ub{0}-lb{0}+1)'.format(i) for i in range(1, rank+1)])
 
-       ALLOCATE (work( ${old_bounds}$ ))
-       work(${old_bounds}$) = p(${old_bounds}$)
-       DEALLOCATE (p)
-    END IF
+      ALLOCATE (work(${old_bounds}$))
+      work(${old_bounds}$) = p(${old_bounds}$)
+      DEALLOCATE (p)
+   END IF
 
 #:set new_bounds = ','.join(['lb{0}_new:ub{0}_new'.format(i) for i in range(1, rank+1)])
 #:set new_size  = '*'.join(['(ub{0}_new-lb{0}_new+1)'.format(i) for i in range(1, rank+1)])
 
-    ALLOCATE (p(${new_bounds}$))
-    p = zero
+   ALLOCATE (p(${new_bounds}$))
+   p = zero
 
-    IF (ASSOCIATED(p).AND.ALLOCATED(work)) THEN
-       p(${old_bounds}$) = work(${old_bounds}$)
-       DEALLOCATE (work)
-    END IF
+   IF (ASSOCIATED(p) .AND. ALLOCATED(work)) THEN
+      p(${old_bounds}$) = work(${old_bounds}$)
+      DEALLOCATE (work)
+   END IF
 
 #:enddef
 

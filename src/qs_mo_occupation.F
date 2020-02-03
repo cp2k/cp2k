@@ -187,7 +187,7 @@ CONTAINS
 !> \date    25.01.2010 (MK)
 !> \par   History
 !>        10.2019 Added functionality to adjust mo occupation if the core
-!>                charges are changed via CORE_CORRECTION during surface dipole 
+!>                charges are changed via CORE_CORRECTION during surface dipole
 !>                calculation. Total number of electrons matches the total core
 !>                charges if tot_zeff_corr is non-zero. Not yet implemented for
 !>                OT type method. [Soumya Ghosh]
@@ -387,7 +387,7 @@ CONTAINS
 !> \date    17.04.2002 (v1.0), 26.08.2008 (v1.1)
 !> \par   History
 !>        10.2019 Added functionality to adjust mo occupation if the core
-!>                charges are changed via CORE_CORRECTION during surface dipole 
+!>                charges are changed via CORE_CORRECTION during surface dipole
 !>                calculation. Total number of electrons matches the total core
 !>                charges if tot_zeff_corr is non-zero. Not yet implemented for
 !>                OT type method. [Soumya Ghosh]
@@ -413,7 +413,6 @@ CONTAINS
                                                             occ_estate, total_zeff_corr, &
                                                             xas_nelectron
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfde
-
 
       CALL timeset(routineN, handle)
 
@@ -465,45 +464,45 @@ CONTAINS
             delectron = 0.0_dp
             IF (total_zeff_corr < 0.0_dp) THEN
 ! remove electron density from the mos
-               delectron = ABS(total_zeff_corr)-REAL(mo_set%maxocc, KIND=dp)
+               delectron = ABS(total_zeff_corr) - REAL(mo_set%maxocc, KIND=dp)
                IF (delectron > 0.0_dp) THEN
                   mo_set%occupation_numbers(nomo) = 0.0_dp
                   irmo = CEILING(delectron/REAL(mo_set%maxocc, KIND=dp))
                   DO ir = 1, irmo
-                     delectron = delectron-REAL(mo_set%maxocc, KIND=dp)
+                     delectron = delectron - REAL(mo_set%maxocc, KIND=dp)
                      IF (delectron < 0.0_dp) THEN
-                        mo_set%occupation_numbers(nomo-ir) = -delectron
+                        mo_set%occupation_numbers(nomo - ir) = -delectron
                      ELSE
-                        mo_set%occupation_numbers(nomo-ir) = 0.0_dp
+                        mo_set%occupation_numbers(nomo - ir) = 0.0_dp
                      ENDIF
                   ENDDO
-                  nomo = nomo-irmo
-                  IF (mo_set%occupation_numbers(nomo) == 0.0_dp) nomo = nomo-1
+                  nomo = nomo - irmo
+                  IF (mo_set%occupation_numbers(nomo) == 0.0_dp) nomo = nomo - 1
                ELSEIF (delectron < 0.0_dp) THEN
                   mo_set%occupation_numbers(nomo) = -delectron
                ELSE
                   mo_set%occupation_numbers(nomo) = 0.0_dp
-                  nomo = nomo-1
+                  nomo = nomo - 1
                ENDIF
             ELSEIF (total_zeff_corr > 0.0_dp) THEN
 ! add electron density to the mos
-               delectron = total_zeff_corr-REAL(mo_set%maxocc, KIND=dp)
+               delectron = total_zeff_corr - REAL(mo_set%maxocc, KIND=dp)
                IF (delectron > 0.0_dp) THEN
-                  mo_set%occupation_numbers(nomo+1) = REAL(mo_set%maxocc, KIND=dp)
-                  nomo = nomo+1
+                  mo_set%occupation_numbers(nomo + 1) = REAL(mo_set%maxocc, KIND=dp)
+                  nomo = nomo + 1
                   irmo = CEILING(delectron/REAL(mo_set%maxocc, KIND=dp))
                   DO ir = 1, irmo
-                     delectron = delectron-REAL(mo_set%maxocc, KIND=dp)
+                     delectron = delectron - REAL(mo_set%maxocc, KIND=dp)
                      IF (delectron < 0.0_dp) THEN
-                        mo_set%occupation_numbers(nomo+ir) = delectron+REAL(mo_set%maxocc, KIND=dp)
+                        mo_set%occupation_numbers(nomo + ir) = delectron + REAL(mo_set%maxocc, KIND=dp)
                      ELSE
-                        mo_set%occupation_numbers(nomo+ir) = REAL(mo_set%maxocc, KIND=dp)
+                        mo_set%occupation_numbers(nomo + ir) = REAL(mo_set%maxocc, KIND=dp)
                      ENDIF
                   ENDDO
-                  nomo = nomo+irmo
+                  nomo = nomo + irmo
                ELSE
-                  mo_set%occupation_numbers(nomo+1) = total_zeff_corr
-                  nomo = nomo+1
+                  mo_set%occupation_numbers(nomo + 1) = total_zeff_corr
+                  nomo = nomo + 1
                ENDIF
             ENDIF
          ENDIF

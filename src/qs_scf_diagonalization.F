@@ -280,7 +280,6 @@ CONTAINS
 !> \param scf_control ...
 !> \param scf_section ...
 !> \param diis_step ...
-!> \param total_zeff_corr [Soumya Ghosh]
 ! **************************************************************************************************
    SUBROUTINE do_general_diag(scf_env, mos, matrix_ks, &
                               matrix_s, scf_control, scf_section, &
@@ -298,7 +297,6 @@ CONTAINS
 
       INTEGER                                            :: ispin, nspin
       REAL(KIND=dp)                                      :: total_zeff_corr
-
 
       nspin = SIZE(matrix_ks)
 
