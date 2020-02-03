@@ -20,20 +20,20 @@ MODULE libint_wrapper
 ! maximum angular momentum to be supported in CP2K-LIBINT interface
 #:set libint_max_am_supported = 8
 
-   USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
-                                              C_F_PROCPOINTER,&
-                                              C_NULL_PTR,&
-                                              C_FUNPTR
-   USE kinds,                           ONLY: dp
+   USE ISO_C_BINDING, ONLY: C_F_POINTER, &
+                            C_F_PROCPOINTER, &
+                            C_NULL_PTR, &
+                            C_FUNPTR
+   USE kinds, ONLY: dp
 #if(__LIBINT)
-   USE libint_f,                        ONLY: &
-        libint2_build, libint2_build_eri, libint2_build_eri1, libint2_cleanup_eri, &
-        libint2_cleanup_eri1, libint2_init_eri, libint2_init_eri1, libint2_static_cleanup, &
-        libint2_static_init, libint_t, libint2_max_am_eri, libint2_init_3eri, libint2_cleanup_3eri, &
-        libint2_init_2eri, libint2_cleanup_2eri!,&
-        !libint2_build_3eri
+   USE libint_f, ONLY: &
+      libint2_build, libint2_build_eri, libint2_build_eri1, libint2_cleanup_eri, &
+      libint2_cleanup_eri1, libint2_init_eri, libint2_init_eri1, libint2_static_cleanup, &
+      libint2_static_init, libint_t, libint2_max_am_eri, libint2_init_3eri, libint2_cleanup_3eri, &
+      libint2_init_2eri, libint2_cleanup_2eri!,&
+   !libint2_build_3eri
 #endif
-   USE orbital_pointers,                ONLY: nco
+   USE orbital_pointers, ONLY: nco
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -42,7 +42,7 @@ MODULE libint_wrapper
              libint_max_am, libderiv_max_am1, cp_libint_get_eris, cp_libint_get_derivs, &
              cp_libint_init_eri, cp_libint_init_eri1, cp_libint_cleanup_eri, &
              cp_libint_cleanup_eri1, cp_libint_static_init, cp_libint_static_cleanup, &
-             get_ssss_f_val,cp_libint_set_contrdepth,cp_libint_set_params_eri_screen,&
+             get_ssss_f_val, cp_libint_set_contrdepth, cp_libint_set_params_eri_screen, &
              cp_libint_set_params_eri, cp_libint_set_params_eri_deriv, &
              cp_libint_init_3eri, cp_libint_cleanup_3eri, cp_libint_get_3eris, &
              cp_libint_init_2eri, cp_libint_cleanup_2eri, cp_libint_get_2eris
@@ -56,9 +56,9 @@ MODULE libint_wrapper
 #endif
 
    INTEGER, PARAMETER :: libderiv_max_am1 = libint_max_am
-   INTEGER, PARAMETER :: prim_data_f_size = 4*(libint_max_am)+1
-   INTEGER, PARAMETER :: libint_vrr_classes_size = 2*(libint_max_am)+1
-   INTEGER, PARAMETER :: libint_dvrr_classes_size = 2*(libderiv_max_am1)+1
+   INTEGER, PARAMETER :: prim_data_f_size = 4*(libint_max_am) + 1
+   INTEGER, PARAMETER :: libint_vrr_classes_size = 2*(libint_max_am) + 1
+   INTEGER, PARAMETER :: libint_dvrr_classes_size = 2*(libderiv_max_am1) + 1
    INTEGER, PARAMETER :: build_eri_size = libint_max_am
    INTEGER, PARAMETER :: build_deriv1_eri_size = libderiv_max_am1
 
@@ -76,14 +76,13 @@ MODULE libint_wrapper
    !dimensions of the following array are mixed up. This should be fixed from libint 2.6 on.
    !Then, one will be able to simply USE libint2_build_3eri & libint2_build_2eri, as currently
    !commented above
-   TYPE(C_FUNPTR), DIMENSION(0:LIBINT2_MAX_AM,0:LIBINT2_MAX_AM,0:LIBINT2_MAX_AM_3eri), &
+   TYPE(C_FUNPTR), DIMENSION(0:LIBINT2_MAX_AM, 0:LIBINT2_MAX_AM, 0:LIBINT2_MAX_AM_3eri), &
       BIND(C) :: libint2_build_3eri
    TYPE(C_FUNPTR), DIMENSION(0:LIBINT2_MAX_AM_2eri, 0:LIBINT2_MAX_AM_2eri), &
       BIND(C) :: libint2_build_2eri
 #endif
 
 CONTAINS
-
 
    SUBROUTINE cp_libint_set_params_eri_screen(libint, A, B, C, D, P, Q, W, ZetaInv, EtaInv, ZetapEtaInv, Rho, m_max, F)
       TYPE(cp_libint_t)                       :: libint
@@ -93,29 +92,29 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)             :: F
 
 #if(__LIBINT)
-      libint%prv(1)%AB_x(1) = A(1)-B(1)
-      libint%prv(1)%AB_y(1) = A(2)-B(2)
-      libint%prv(1)%AB_z(1) = A(3)-B(3)
+      libint%prv(1)%AB_x(1) = A(1) - B(1)
+      libint%prv(1)%AB_y(1) = A(2) - B(2)
+      libint%prv(1)%AB_z(1) = A(3) - B(3)
 
-      libint%prv(1)%CD_x(1) = C(1)-D(1)
-      libint%prv(1)%CD_y(1) = C(2)-D(2)
-      libint%prv(1)%CD_z(1) = C(3)-D(3)
+      libint%prv(1)%CD_x(1) = C(1) - D(1)
+      libint%prv(1)%CD_y(1) = C(2) - D(2)
+      libint%prv(1)%CD_z(1) = C(3) - D(3)
 
-      libint%prv(1)%PA_x(1) = P(1)-A(1)
-      libint%prv(1)%PA_y(1) = P(2)-A(2)
-      libint%prv(1)%PA_z(1) = P(3)-A(3)
+      libint%prv(1)%PA_x(1) = P(1) - A(1)
+      libint%prv(1)%PA_y(1) = P(2) - A(2)
+      libint%prv(1)%PA_z(1) = P(3) - A(3)
 
-      libint%prv(1)%QC_x(1) = Q(1)-C(1)
-      libint%prv(1)%QC_y(1) = Q(2)-C(2)
-      libint%prv(1)%QC_z(1) = Q(3)-C(3)
+      libint%prv(1)%QC_x(1) = Q(1) - C(1)
+      libint%prv(1)%QC_y(1) = Q(2) - C(2)
+      libint%prv(1)%QC_z(1) = Q(3) - C(3)
 
-      libint%prv(1)%WP_x(1) = W(1)-P(1)
-      libint%prv(1)%WP_y(1) = W(2)-P(2)
-      libint%prv(1)%WP_z(1) = W(3)-P(3)
+      libint%prv(1)%WP_x(1) = W(1) - P(1)
+      libint%prv(1)%WP_y(1) = W(2) - P(2)
+      libint%prv(1)%WP_z(1) = W(3) - P(3)
 
-      libint%prv(1)%WQ_x(1) = W(1)-Q(1)
-      libint%prv(1)%WQ_y(1) = W(2)-Q(2)
-      libint%prv(1)%WQ_z(1) = W(3)-Q(3)
+      libint%prv(1)%WQ_x(1) = W(1) - Q(1)
+      libint%prv(1)%WQ_y(1) = W(2) - Q(2)
+      libint%prv(1)%WQ_z(1) = W(3) - Q(3)
 
       libint%prv(1)%oo2z(1) = 0.5_dp*ZetaInv
       libint%prv(1)%oo2e(1) = 0.5_dp*EtaInv
@@ -125,8 +124,8 @@ CONTAINS
 
 #:for m_max in range(0, 4*libint_max_am_supported)
 #if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
-      IF(${m_max}$ .LE. m_max) &
-         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) &
+      IF (${m_max}$ .LE. m_max) &
+         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) &
          = F(${m_max}$+1)
 
 #endif
@@ -164,33 +163,33 @@ CONTAINS
 
 #if(__LIBINT)
       REAL(KIND=dp)                           :: gammap, gammaq, gammapq, rhop, rhoq
-      libint%prv(1)%AB_x(1) = A(1)-B(1)
-      libint%prv(1)%AB_y(1) = A(2)-B(2)
-      libint%prv(1)%AB_z(1) = A(3)-B(3)
+      libint%prv(1)%AB_x(1) = A(1) - B(1)
+      libint%prv(1)%AB_y(1) = A(2) - B(2)
+      libint%prv(1)%AB_z(1) = A(3) - B(3)
 
-      libint%prv(1)%CD_x(1) = C(1)-D(1)
-      libint%prv(1)%CD_y(1) = C(2)-D(2)
-      libint%prv(1)%CD_z(1) = C(3)-D(3)
+      libint%prv(1)%CD_x(1) = C(1) - D(1)
+      libint%prv(1)%CD_y(1) = C(2) - D(2)
+      libint%prv(1)%CD_z(1) = C(3) - D(3)
 
-      libint%prv(1)%PA_x(1) = P(1)-A(1)
-      libint%prv(1)%PA_y(1) = P(2)-A(2)
-      libint%prv(1)%PA_z(1) = P(3)-A(3)
+      libint%prv(1)%PA_x(1) = P(1) - A(1)
+      libint%prv(1)%PA_y(1) = P(2) - A(2)
+      libint%prv(1)%PA_z(1) = P(3) - A(3)
 
-      libint%prv(1)%PB_x(1) = P(1)-B(1)
-      libint%prv(1)%PB_y(1) = P(2)-B(2)
-      libint%prv(1)%PB_z(1) = P(3)-B(3)
+      libint%prv(1)%PB_x(1) = P(1) - B(1)
+      libint%prv(1)%PB_y(1) = P(2) - B(2)
+      libint%prv(1)%PB_z(1) = P(3) - B(3)
 
-      libint%prv(1)%QC_x(1) = Q(1)-C(1)
-      libint%prv(1)%QC_y(1) = Q(2)-C(2)
-      libint%prv(1)%QC_z(1) = Q(3)-C(3)
+      libint%prv(1)%QC_x(1) = Q(1) - C(1)
+      libint%prv(1)%QC_y(1) = Q(2) - C(2)
+      libint%prv(1)%QC_z(1) = Q(3) - C(3)
 
-      libint%prv(1)%WP_x(1) = W(1)-P(1)
-      libint%prv(1)%WP_y(1) = W(2)-P(2)
-      libint%prv(1)%WP_z(1) = W(3)-P(3)
+      libint%prv(1)%WP_x(1) = W(1) - P(1)
+      libint%prv(1)%WP_y(1) = W(2) - P(2)
+      libint%prv(1)%WP_z(1) = W(3) - P(3)
 
-      libint%prv(1)%WQ_x(1) = W(1)-Q(1)
-      libint%prv(1)%WQ_y(1) = W(2)-Q(2)
-      libint%prv(1)%WQ_z(1) = W(3)-Q(3)
+      libint%prv(1)%WQ_x(1) = W(1) - Q(1)
+      libint%prv(1)%WQ_y(1) = W(2) - Q(2)
+      libint%prv(1)%WQ_z(1) = W(3) - Q(3)
 
       libint%prv(1)%two_alpha0_bra(1) = 2.0_dp*Zeta_A
       libint%prv(1)%two_alpha0_ket(1) = 2.0_dp*Zeta_B
@@ -202,16 +201,15 @@ CONTAINS
       libint%prv(1)%alpha1_rho_over_zeta2(1) = Zeta_A*gammapq/(gammap*gammap)
       libint%prv(1)%alpha2_rho_over_zeta2(1) = Zeta_B*gammapq/(gammap*gammap)
       libint%prv(1)%alpha4_rho_over_eta2(1) = Zeta_D*gammapq/(gammaq*gammaq)
-      libint%prv(1)%alpha1_over_zetapluseta(1) = Zeta_A/(gammap+gammaq)
-      libint%prv(1)%alpha2_over_zetapluseta(1) = Zeta_B/(gammap+gammaq)
-      libint%prv(1)%alpha4_over_zetapluseta(1) = Zeta_D/(gammap+gammaq)
+      libint%prv(1)%alpha1_over_zetapluseta(1) = Zeta_A/(gammap + gammaq)
+      libint%prv(1)%alpha2_over_zetapluseta(1) = Zeta_B/(gammap + gammaq)
+      libint%prv(1)%alpha4_over_zetapluseta(1) = Zeta_D/(gammap + gammaq)
 
       rhop = Zeta_A*Zeta_B/gammap
       rhoq = Zeta_C*Zeta_D/gammaq
       libint%prv(1)%rho12_over_alpha1(1) = rhop/Zeta_A
 
       libint%prv(1)%rho34_over_alpha3(1) = rhoq/Zeta_C
-
 
       libint%prv(1)%oo2z(1) = 0.5_dp*ZetaInv
       libint%prv(1)%oo2e(1) = 0.5_dp*EtaInv
@@ -221,8 +219,8 @@ CONTAINS
 
 #:for m_max in range(0, 4*libint_max_am_supported)
 #if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
-      IF(${m_max}$ .LE. m_max) &
-         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) & ! ERROR: __LIBINT_MAX_AM is too large
+      IF (${m_max}$ .LE. m_max) &
+         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) & ! ERROR: __LIBINT_MAX_AM is too large
          = F(${m_max}$+1)
 #endif
 #:endfor
@@ -260,21 +258,21 @@ CONTAINS
       INTEGER, INTENT(IN)                     :: m_max
 
 #if(__LIBINT)
-      libint%prv(1)%AB_x(1) = A(1)-B(1)
-      libint%prv(1)%AB_y(1) = A(2)-B(2)
-      libint%prv(1)%AB_z(1) = A(3)-B(3)
+      libint%prv(1)%AB_x(1) = A(1) - B(1)
+      libint%prv(1)%AB_y(1) = A(2) - B(2)
+      libint%prv(1)%AB_z(1) = A(3) - B(3)
 
-      libint%prv(1)%CD_x(1) = C(1)-D(1)
-      libint%prv(1)%CD_y(1) = C(2)-D(2)
-      libint%prv(1)%CD_z(1) = C(3)-D(3)
+      libint%prv(1)%CD_x(1) = C(1) - D(1)
+      libint%prv(1)%CD_y(1) = C(2) - D(2)
+      libint%prv(1)%CD_z(1) = C(3) - D(3)
 
-      libint%prv(1)%PA_x(1) = P(1)-A(1)
-      libint%prv(1)%PA_y(1) = P(2)-A(2)
-      libint%prv(1)%PA_z(1) = P(3)-A(3)
+      libint%prv(1)%PA_x(1) = P(1) - A(1)
+      libint%prv(1)%PA_y(1) = P(2) - A(2)
+      libint%prv(1)%PA_z(1) = P(3) - A(3)
 
-      libint%prv(1)%QC_x(1) = Q(1)-C(1)
-      libint%prv(1)%QC_y(1) = Q(2)-C(2)
-      libint%prv(1)%QC_z(1) = Q(3)-C(3)
+      libint%prv(1)%QC_x(1) = Q(1) - C(1)
+      libint%prv(1)%QC_y(1) = Q(2) - C(2)
+      libint%prv(1)%QC_z(1) = Q(3) - C(3)
 
       libint%prv(1)%WP_x(1) = W(1) - P(1)
       libint%prv(1)%WP_y(1) = W(2) - P(2)
@@ -293,8 +291,8 @@ CONTAINS
 #:for m_max in range(0, 4*libint_max_am_supported)
 #if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
 
-      IF(${m_max}$ .LE. m_max) &
-         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$(1) & ! ERROR: __LIBINT_MAX_AM is too large
+      IF (${m_max}$ .LE. m_max) &
+         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) & ! ERROR: __LIBINT_MAX_AM is too large
          = F(${m_max}$+1)
 #endif
 #:endfor
@@ -434,8 +432,8 @@ CONTAINS
    SUBROUTINE cp_libint_get_derivs(n_d, n_c, n_b, n_a, lib, work_forces, a_mysize)
       INTEGER, INTENT(IN)                                :: n_d, n_c, n_b, n_a
       TYPE(cp_libint_t)                                  :: lib
-      REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco&
-         (n_d), 12)                                      :: work_forces
+      REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco &
+                          (n_d), 12)                                      :: work_forces
       INTEGER                                            :: a_mysize(1)
 
 #if(__LIBINT)
@@ -444,7 +442,6 @@ CONTAINS
       PROCEDURE(libint2_build), POINTER                  :: pbuild
       INTEGER                                            :: i, k
 #endif
-
 
 #if(__LIBINT)
       CALL C_F_PROCPOINTER(libint2_build_eri1(n_d, n_c, n_b, n_a), pbuild)

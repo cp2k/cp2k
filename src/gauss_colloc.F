@@ -15,12 +15,12 @@ MODULE gauss_colloc
 
 #:include "colloc_int_kloop.fypp"
 
-   USE d3_poly,                         ONLY: &
-        grad_size3, poly_affine_t3, poly_affine_t3t, poly_p_eval2b, poly_p_eval3b, &
-        poly_padd_uneval2b, poly_padd_uneval3b, poly_size1, poly_size2, poly_size3
-   USE kinds,                           ONLY: dp,&
-                                              int_8
-   USE lgrid_types,                     ONLY: lgrid_type
+   USE d3_poly, ONLY: &
+      grad_size3, poly_affine_t3, poly_affine_t3t, poly_p_eval2b, poly_p_eval3b, &
+      poly_padd_uneval2b, poly_padd_uneval3b, poly_size1, poly_size2, poly_size3
+   USE kinds, ONLY: dp, &
+                    int_8
+   USE lgrid_types, ONLY: lgrid_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 #include "./base/base_uses.f90"
@@ -136,7 +136,7 @@ CONTAINS
       REAL(dp), INTENT(in), OPTIONAL                     :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrateGaussFull', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       CALL colloc_int_body(h, h_inv, grid, poly, alphai, posi, max_r2, &
                            periodic, gdim, local_bounds, local_shift, &
@@ -257,9 +257,9 @@ CONTAINS
       IF (PRESENT(scale)) g_scale = scale
 
       IF (integrate) THEN
-         det = (h(0, 0)*(h(1, 1)*h(2, 2)-h(1, 2)*h(2, 1)) &
-                -h(1, 0)*(h(0, 1)*h(2, 2)-h(0, 2)*h(2, 1)) &
-                +h(2, 0)*(h(0, 1)*h(1, 2)-h(0, 2)*h(1, 1)))
+         det = (h(0, 0)*(h(1, 1)*h(2, 2) - h(1, 2)*h(2, 1)) &
+                - h(1, 0)*(h(0, 1)*h(2, 2) - h(0, 2)*h(2, 1)) &
+                + h(2, 0)*(h(0, 1)*h(1, 2) - h(0, 2)*h(1, 1)))
          g_scale = g_scale*ABS(det)/REAL(INT(ndim(0), KIND=int_8)*INT(ndim(1), KIND=int_8)*INT(ndim(2), KIND=int_8), dp)
       ENDIF
 
@@ -269,7 +269,7 @@ CONTAINS
          END DO
       ELSE
          l_bounds(1, :) = 0
-         l_bounds(2, :) = ndim-1
+         l_bounds(2, :) = ndim - 1
       END IF
       IF (PRESENT(local_shift)) THEN
          DO i = 0, 2
@@ -278,7 +278,7 @@ CONTAINS
       ELSE
          l_shift = 0 ! l_bounds(1,:)
       END IF
-      l_ub = l_bounds(2, :)-l_bounds(1, :)+l_shift
+      l_ub = l_bounds(2, :) - l_bounds(1, :) + l_shift
       DO i = 0, 2
          CPASSERT(l_ub(i) < ldim2(i))
       END DO
@@ -288,18 +288,18 @@ CONTAINS
       END DO
       CPASSERT(ALL(l_bounds(2, :) < ndim .OR. period(:) == 1))
       CPASSERT(ALL(l_bounds(1, :) >= 0 .OR. period(:) == 1))
-      CPASSERT(ALL(l_bounds(2, :)-l_bounds(1, :) < ndim))
+      CPASSERT(ALL(l_bounds(2, :) - l_bounds(1, :) < ndim))
       rPos = 0.0_dp
       DO j = 0, 2
          DO i = 0, 2
-            rPos(permut(i)) = rPos(permut(i))+h_inv(i, j)*posi(j)
+            rPos(permut(i)) = rPos(permut(i)) + h_inv(i, j)*posi(j)
          END DO
       END DO
       cellShift = FLOOR(rPos)*period
-      wrPos = rPos-REAL(cellShift, dp)
+      wrPos = rPos - REAL(cellShift, dp)
       riPos = wrPos*ndim
-      shiftPos = FLOOR(riPos+0.5_dp)
-      resPos = riPos-shiftPos
+      shiftPos = FLOOR(riPos + 0.5_dp)
+      resPos = riPos - shiftPos
       normD = 1.0_dp/REAL(ndim, dp)
       scaled_h = 0.0_dp
       DO j = 0, 2
@@ -310,7 +310,7 @@ CONTAINS
       resPosReal = 0.0_dp
       DO j = 0, 2
          DO i = 0, 2
-            resPosReal(i) = resPosReal(i)+h(i, j)*(wrPos(permut(j))-normD(permut(j))*REAL(shiftPos(permut(j)), dp))
+            resPosReal(i) = resPosReal(i) + h(i, j)*(wrPos(permut(j)) - normD(permut(j))*REAL(shiftPos(permut(j)), dp))
          END DO
       END DO
 
@@ -328,7 +328,7 @@ CONTAINS
       DO j = 0, 2
          DO i = 0, 2
             DO k = 0, 2
-               m(i, j) = m(i, j)+scaled_h(k, i)*scaled_h(k, j)
+               m(i, j) = m(i, j) + scaled_h(k, i)*scaled_h(k, j)
             END DO
          END DO
       END DO
@@ -336,99 +336,99 @@ CONTAINS
       l = 0.0_dp
       DO j = 0, 2
          DO i = 0, 2
-            l(j) = l(j)-2.0*resPos(i)*m(i, j)
+            l(j) = l(j) - 2.0*resPos(i)*m(i, j)
          END DO
       END DO
 
       r_0 = 0.0_dp
       DO i = 0, 2
-         r_0 = r_0-0.5*resPos(i)*l(i)
+         r_0 = r_0 - 0.5*resPos(i)*l(i)
       END DO
 
       ! calc i boundaries
-      cci2 = (m(2, 2)*m(0, 0)*m(1, 1)-m(2, 2)*m(0, 1)**2-m(1, 1)*m(0, 2)**2 &
-              +2.0_dp*m(0, 2)*m(0, 1)*m(1, 2)-m(0, 0)*m(1, 2)**2)/(m(2, 2)*m(1, 1)-m(1, 2)**2)
-      cci1 = -(-m(2, 2)*l(0)*m(1, 1)+m(2, 2)*m(0, 1)*l(1)+l(2)*m(0, 2)*m(1, 1) &
-               +l(0)*m(1, 2)**2-l(2)*m(0, 1)*m(1, 2)-m(1, 2)*l(1)*m(0, 2))/(m(2, 2)*m(1, 1)-m(1, 2)**2)
-      cci0 = -((-4.0_dp*m(2, 2)*r_0*m(1, 1)+m(2, 2)*l(1)**2+l(2)**2*m(1, 1) &
-                -2.0_dp*l(1)*m(1, 2)*l(2)+4.0_dp*r_0*m(1, 2)**2) &
-               /(m(2, 2)*m(1, 1)-m(1, 2)**2))/4.0_dp-maxr2
-      delta_i = cci1*cci1-4.0_dp*cci2*cci0
+      cci2 = (m(2, 2)*m(0, 0)*m(1, 1) - m(2, 2)*m(0, 1)**2 - m(1, 1)*m(0, 2)**2 &
+              + 2.0_dp*m(0, 2)*m(0, 1)*m(1, 2) - m(0, 0)*m(1, 2)**2)/(m(2, 2)*m(1, 1) - m(1, 2)**2)
+      cci1 = -(-m(2, 2)*l(0)*m(1, 1) + m(2, 2)*m(0, 1)*l(1) + l(2)*m(0, 2)*m(1, 1) &
+               + l(0)*m(1, 2)**2 - l(2)*m(0, 1)*m(1, 2) - m(1, 2)*l(1)*m(0, 2))/(m(2, 2)*m(1, 1) - m(1, 2)**2)
+      cci0 = -((-4.0_dp*m(2, 2)*r_0*m(1, 1) + m(2, 2)*l(1)**2 + l(2)**2*m(1, 1) &
+                - 2.0_dp*l(1)*m(1, 2)*l(2) + 4.0_dp*r_0*m(1, 2)**2) &
+               /(m(2, 2)*m(1, 1) - m(1, 2)**2))/4.0_dp - maxr2
+      delta_i = cci1*cci1 - 4.0_dp*cci2*cci0
       IF (delta_i <= 0) RETURN
       sqDi = SQRT(delta_i)
-      imin = CEILING((-cci1-sqDi)/(2.0_dp*cci2))
-      imax = FLOOR((-cci1+sqDi)/(2.0_dp*cci2))
+      imin = CEILING((-cci1 - sqDi)/(2.0_dp*cci2))
+      imax = FLOOR((-cci1 + sqDi)/(2.0_dp*cci2))
       !! box early return
 
       IF (period(0) == 1) THEN
-         has_overlap = imax-imin+1 > ndim(0) .OR. (l_bounds(1, 0) == 0 .AND. l_bounds(2, 0) == ndim(0)-1)
+         has_overlap = imax - imin + 1 > ndim(0) .OR. (l_bounds(1, 0) == 0 .AND. l_bounds(2, 0) == ndim(0) - 1)
          IF (.NOT. has_overlap) THEN
-            imin1 = MODULO(imin+shiftPos(0), ndim(0))
-            imax1 = imin1+imax-imin+1
+            imin1 = MODULO(imin + shiftPos(0), ndim(0))
+            imax1 = imin1 + imax - imin + 1
             IF (imin1 < l_bounds(1, 0)) THEN
                has_overlap = imax1 >= l_bounds(1, 0)
             ELSE
-               has_overlap = imin1 <= l_bounds(2, 0) .OR. (imax1 >= ndim(0) .AND. l_bounds(1, 0) <= imax1+ndim(0))
+               has_overlap = imin1 <= l_bounds(2, 0) .OR. (imax1 >= ndim(0) .AND. l_bounds(1, 0) <= imax1 + ndim(0))
             END IF
             IF (.NOT. has_overlap) RETURN
          END IF
       ELSE
-         IF (imax+shiftPos(0) < l_bounds(1, 0) .OR. imin+shiftPos(0) > l_bounds(2, 0)) RETURN
+         IF (imax + shiftPos(0) < l_bounds(1, 0) .OR. imin + shiftPos(0) > l_bounds(2, 0)) RETURN
       END IF
 
       ! j box bounds
-      has_overlap = l_bounds(1, 1) == 0 .AND. l_bounds(2, 1) == ndim(1)-1
+      has_overlap = l_bounds(1, 1) == 0 .AND. l_bounds(2, 1) == ndim(1) - 1
       IF (.NOT. has_overlap) THEN
-         ccj2 = (m(0, 0)*m(2, 2)*m(1, 1)-m(0, 0)*m(1, 2)**2-m(0, 1)**2*m(2, 2) &
-                 +2.0_dp*m(0, 1)*m(0, 2)*m(1, 2)-m(1, 1)*m(0, 2)**2) &
-                /(m(0, 0)*m(2, 2)-m(0, 2)**2)
-         ccj1 = -(-m(0, 0)*l(1)*m(2, 2)+m(0, 0)*l(2)*m(1, 2)+l(0)*m(0, 1)*m(2, 2) &
-                  -m(0, 2)*l(2)*m(0, 1)-l(0)*m(0, 2)*m(1, 2)+l(1)*m(0, 2)**2) &
-                /(m(0, 0)*m(2, 2)-m(0, 2)**2)
-         ccj0 = (4.0_dp*m(0, 0)*m(2, 2)*r_0-m(0, 0)*l(2)**2-m(2, 2)*l(0)**2 &
-                 +2.0_dp*m(0, 2)*l(2)*l(0)-4.0_dp*r_0*m(0, 2)**2) &
-                /(m(0, 0)*m(2, 2)-m(0, 2)**2)/4.0_dp-maxr2
-         delta_j = ccj1*ccj1-4.0_dp*ccj2*ccj0
+         ccj2 = (m(0, 0)*m(2, 2)*m(1, 1) - m(0, 0)*m(1, 2)**2 - m(0, 1)**2*m(2, 2) &
+                 + 2.0_dp*m(0, 1)*m(0, 2)*m(1, 2) - m(1, 1)*m(0, 2)**2) &
+                /(m(0, 0)*m(2, 2) - m(0, 2)**2)
+         ccj1 = -(-m(0, 0)*l(1)*m(2, 2) + m(0, 0)*l(2)*m(1, 2) + l(0)*m(0, 1)*m(2, 2) &
+                  - m(0, 2)*l(2)*m(0, 1) - l(0)*m(0, 2)*m(1, 2) + l(1)*m(0, 2)**2) &
+                /(m(0, 0)*m(2, 2) - m(0, 2)**2)
+         ccj0 = (4.0_dp*m(0, 0)*m(2, 2)*r_0 - m(0, 0)*l(2)**2 - m(2, 2)*l(0)**2 &
+                 + 2.0_dp*m(0, 2)*l(2)*l(0) - 4.0_dp*r_0*m(0, 2)**2) &
+                /(m(0, 0)*m(2, 2) - m(0, 2)**2)/4.0_dp - maxr2
+         delta_j = ccj1*ccj1 - 4.0_dp*ccj2*ccj0
          IF (delta_j <= 0) RETURN
          sqDj = SQRT(delta_j)
-         jmin = CEILING((-ccj1-sqDj)/(2.0_dp*ccj2))
-         jmax = FLOOR((-ccj1+sqDj)/(2.0_dp*ccj2))
+         jmin = CEILING((-ccj1 - sqDj)/(2.0_dp*ccj2))
+         jmax = FLOOR((-ccj1 + sqDj)/(2.0_dp*ccj2))
          IF (period(1) == 1) THEN
-            IF (jmax-jmin+1 < ndim(1)) THEN
-               jmin1 = MODULO(jmin+shiftPos(1), ndim(1))
-               jmax1 = jmin1+jmax-jmin+1
+            IF (jmax - jmin + 1 < ndim(1)) THEN
+               jmin1 = MODULO(jmin + shiftPos(1), ndim(1))
+               jmax1 = jmin1 + jmax - jmin + 1
                IF (jmin1 < l_bounds(1, 1)) THEN
                   has_overlap = jmax1 >= l_bounds(1, 1)
                ELSE
-                  has_overlap = jmin1 <= l_bounds(2, 1) .OR. (jmax1 >= ndim(1) .AND. (l_bounds(1, 1) <= jmax1-ndim(1)))
+                  has_overlap = jmin1 <= l_bounds(2, 1) .OR. (jmax1 >= ndim(1) .AND. (l_bounds(1, 1) <= jmax1 - ndim(1)))
                END IF
                IF (.NOT. has_overlap) RETURN
             END IF
          ELSE
-            IF (jmax+shiftPos(1) < l_bounds(1, 1) .OR. jmin+shiftPos(1) > l_bounds(2, 1)) RETURN
+            IF (jmax + shiftPos(1) < l_bounds(1, 1) .OR. jmin + shiftPos(1) > l_bounds(2, 1)) RETURN
          END IF
       END IF
 
       ! k box bounds
-      has_overlap = l_bounds(1, 2) == 0 .AND. l_bounds(2, 2) == ndim(2)-1
+      has_overlap = l_bounds(1, 2) == 0 .AND. l_bounds(2, 2) == ndim(2) - 1
       IF (.NOT. has_overlap) THEN
-         cck2 = (m(0, 0)*m(2, 2)*m(1, 1)-m(0, 0)*m(1, 2)**2-m(0, 1)**2*m(2, 2) &
-                 +2.0_dp*m(0, 1)*m(0, 2)*m(1, 2)-m(1, 1)*m(0, 2)**2)/(m(0, 0)*m(1, 1)-m(0, 1)**2)
-         cck1 = (m(0, 0)*l(2)*m(1, 1)-m(0, 0)*m(1, 2)*l(1)-m(0, 2)*l(0)*m(1, 1) &
-                 +l(0)*m(0, 1)*m(1, 2)-l(2)*m(0, 1)**2+m(0, 1)*l(1)*m(0, 2))/(m(0, 0)*m(1, 1)-m(0, 1)**2)
-         cck0 = (4.0_dp*m(0, 0)*m(1, 1)*r_0-m(0, 0)*l(1)**2-m(1, 1)*l(0)**2 &
-                 +2.0_dp*m(0, 1)*l(1)*l(0)-4.0_dp*r_0*m(0, 1)**2) &
-                /(m(0, 0)*m(1, 1)-m(0, 1)**2)/4.0_dp-maxr2
-         delta_k = cck1*cck1-4.0_dp*cck2*cck0
+         cck2 = (m(0, 0)*m(2, 2)*m(1, 1) - m(0, 0)*m(1, 2)**2 - m(0, 1)**2*m(2, 2) &
+                 + 2.0_dp*m(0, 1)*m(0, 2)*m(1, 2) - m(1, 1)*m(0, 2)**2)/(m(0, 0)*m(1, 1) - m(0, 1)**2)
+         cck1 = (m(0, 0)*l(2)*m(1, 1) - m(0, 0)*m(1, 2)*l(1) - m(0, 2)*l(0)*m(1, 1) &
+                 + l(0)*m(0, 1)*m(1, 2) - l(2)*m(0, 1)**2 + m(0, 1)*l(1)*m(0, 2))/(m(0, 0)*m(1, 1) - m(0, 1)**2)
+         cck0 = (4.0_dp*m(0, 0)*m(1, 1)*r_0 - m(0, 0)*l(1)**2 - m(1, 1)*l(0)**2 &
+                 + 2.0_dp*m(0, 1)*l(1)*l(0) - 4.0_dp*r_0*m(0, 1)**2) &
+                /(m(0, 0)*m(1, 1) - m(0, 1)**2)/4.0_dp - maxr2
+         delta_k = cck1*cck1 - 4.0_dp*cck2*cck0
          IF (delta_k <= 0) RETURN
          sqDk = SQRT(delta_k)
-         kmin = CEILING((-cck1-sqDk)/(2.0_dp*cck2))
-         kmax = FLOOR((-cck1+sqDk)/(2.0_dp*cck2))
+         kmin = CEILING((-cck1 - sqDk)/(2.0_dp*cck2))
+         kmax = FLOOR((-cck1 + sqDk)/(2.0_dp*cck2))
 
          IF (period(2) == 1) THEN
-            IF (kmax-kmin+1 < ndim(2)) THEN
-               kmin1 = MODULO(kmin+shiftPos(2), ndim(2))
-               kmax1 = kmin1+kmax-kmin+1
+            IF (kmax - kmin + 1 < ndim(2)) THEN
+               kmin1 = MODULO(kmin + shiftPos(2), ndim(2))
+               kmax1 = kmin1 + kmax - kmin + 1
                IF (kmin1 < l_bounds(1, 2)) THEN
                   has_overlap = kmax1 >= l_bounds(1, 2)
                ELSE
@@ -438,17 +438,17 @@ CONTAINS
                IF (.NOT. has_overlap) RETURN
             END IF
          ELSE
-            IF (kmax+shiftPos(2) < l_bounds(1, 2) .OR. kmin+shiftPos(2) > l_bounds(2, 2)) RETURN
+            IF (kmax + shiftPos(2) < l_bounds(1, 2) .OR. kmin + shiftPos(2) > l_bounds(2, 2)) RETURN
          END IF
       END IF
 
       ! k bounds (cache a la cube_info, or inversely integrate in the collocate loop?)
-      ccj2 = (m(2, 2)*m(1, 1)-m(1, 2)**2)/m(2, 2)
-      ccj1_i1 = (2*m(2, 2)*m(0, 1)-2*m(0, 2)*m(1, 2))/m(2, 2)
-      ccj1_i0 = (-l(2)*m(1, 2)+m(2, 2)*l(1))/m(2, 2)
-      ccj0_i2 = (m(2, 2)*m(0, 0)-m(0, 2)**2)/m(2, 2)
-      ccj0_i1 = (m(2, 2)*l(0)-m(0, 2)*l(2))/m(2, 2)
-      ccj0_i0 = (m(2, 2)*r_0-0.25*l(2)**2)/m(2, 2)-maxr2
+      ccj2 = (m(2, 2)*m(1, 1) - m(1, 2)**2)/m(2, 2)
+      ccj1_i1 = (2*m(2, 2)*m(0, 1) - 2*m(0, 2)*m(1, 2))/m(2, 2)
+      ccj1_i0 = (-l(2)*m(1, 2) + m(2, 2)*l(1))/m(2, 2)
+      ccj0_i2 = (m(2, 2)*m(0, 0) - m(0, 2)**2)/m(2, 2)
+      ccj0_i1 = (m(2, 2)*l(0) - m(0, 2)*l(2))/m(2, 2)
+      ccj0_i0 = (m(2, 2)*r_0 - 0.25*l(2)**2)/m(2, 2) - maxr2
       cck2 = m(2, 2)
       cck1_i = 2*m(0, 2)
       cck1_j = 2*m(1, 2)
@@ -458,78 +458,78 @@ CONTAINS
       cck0_i = l(0)
       cck0_j2 = m(1, 1)
       cck0_j = l(1)
-      cck0_0 = r_0-maxr2
+      cck0_0 = r_0 - maxr2
 
       ! find maximum number of j
       max_j = 0
       DO i0 = 0, 1
-         i = (imin+imax)/2+i0
-         ccj1 = ccj1_i1*i+ccj1_i0
-         ccj0 = (ccj0_i2*i+ccj0_i1)*i+ccj0_i0
-         delta_j = ccj1*ccj1-4*ccj2*ccj0
+         i = (imin + imax)/2 + i0
+         ccj1 = ccj1_i1*i + ccj1_i0
+         ccj0 = (ccj0_i2*i + ccj0_i1)*i + ccj0_i0
+         delta_j = ccj1*ccj1 - 4*ccj2*ccj0
          IF (delta_j >= 0) THEN
             sqDj = SQRT(delta_j)
-            max_j = MAX(max_j, FLOOR((-ccj1+sqDj)/(2.0_dp*ccj2)) &
-                        -CEILING((-ccj1-sqDj)/(2.0_dp*ccj2))+1)
+            max_j = MAX(max_j, FLOOR((-ccj1 + sqDj)/(2.0_dp*ccj2)) &
+                        - CEILING((-ccj1 - sqDj)/(2.0_dp*ccj2)) + 1)
          END IF
       END DO
-      max_j = max_j+1 ! just to be sure...
-      IF (period(1) == 0) max_j = MIN(max_j, l_bounds(2, 1)-l_bounds(1, 1)+1)
+      max_j = max_j + 1 ! just to be sure...
+      IF (period(1) == 0) max_j = MIN(max_j, l_bounds(2, 1) - l_bounds(1, 1) + 1)
 
       IF (period(0) == 0) THEN
-         imin = MAX(l_bounds(1, 0)-shiftPos(0), imin)
-         imax = MIN(l_bounds(2, 0)-shiftPos(0), imax)
+         imin = MAX(l_bounds(1, 0) - shiftPos(0), imin)
+         imax = MIN(l_bounds(2, 0) - shiftPos(0), imax)
       END IF
 
       ! k bounds (cache a la cube_info?)
       has_overlap = .FALSE.
-      ALLOCATE (k_bounds(0:1, 0:max_j-1, 0:MAX(0, imax-imin+1)))
+      ALLOCATE (k_bounds(0:1, 0:max_j - 1, 0:MAX(0, imax - imin + 1)))
       ! k_bounds=0
       istart = imin
-      iiShift = shiftPos(0)-l_bounds(2, 0)+istart
-      IF (iiShift > 0) iiShift = iiShift+ndim(0)-1
-      iiShift = (iiShift/ndim(0))*ndim(0)-shiftPos(0)
+      iiShift = shiftPos(0) - l_bounds(2, 0) + istart
+      IF (iiShift > 0) iiShift = iiShift + ndim(0) - 1
+      iiShift = (iiShift/ndim(0))*ndim(0) - shiftPos(0)
       !iiShift=CEILING(REAL(shiftPos(0)+istart-l_bounds(2,0))/REAL(ndim(0)))*ndim(0)-shiftPos(0))
-      istart = MAX(iiShift+l_bounds(1, 0), istart)
-      iend = MIN(iiShift+l_bounds(2, 0), imax)
-      iJump = ndim(0)-l_bounds(2, 0)+l_bounds(1, 0)-1
-      jJump = ndim(1)-l_bounds(2, 1)+l_bounds(1, 1)-1
+      istart = MAX(iiShift + l_bounds(1, 0), istart)
+      iend = MIN(iiShift + l_bounds(2, 0), imax)
+      iJump = ndim(0) - l_bounds(2, 0) + l_bounds(1, 0) - 1
+      jJump = ndim(1) - l_bounds(2, 1) + l_bounds(1, 1) - 1
       DO
          DO i = istart, iend
-            ccj1 = ccj1_i1*i+ccj1_i0
-            ccj0 = (ccj0_i2*i+ccj0_i1)*i+ccj0_i0
-            delta_j = ccj1*ccj1-4*ccj2*ccj0
+            ccj1 = ccj1_i1*i + ccj1_i0
+            ccj0 = (ccj0_i2*i + ccj0_i1)*i + ccj0_i0
+            delta_j = ccj1*ccj1 - 4*ccj2*ccj0
             IF (delta_j < 0) CONTINUE
             sqDj = SQRT(delta_j)
-            jmin = CEILING((-ccj1-sqDj)/(2.0_dp*ccj2))
-            jmax = FLOOR((-ccj1+sqDj)/(2.0_dp*ccj2))
-            cck0_0_p = cck0_0+(cck0_i2*i+cck0_i)*i
-            cck0_j_p = cck0_j+cck0_ij*i
-            cck1_0_p = cck1_0+cck1_i*i
+            jmin = CEILING((-ccj1 - sqDj)/(2.0_dp*ccj2))
+            jmax = FLOOR((-ccj1 + sqDj)/(2.0_dp*ccj2))
+            cck0_0_p = cck0_0 + (cck0_i2*i + cck0_i)*i
+            cck0_j_p = cck0_j + cck0_ij*i
+            cck1_0_p = cck1_0 + cck1_i*i
             IF (period(1) == 0) THEN
-               jmin = MAX(l_bounds(1, 1)-shiftPos(1), jmin)
-               jmax = MIN(l_bounds(2, 1)-shiftPos(1), jmax)
+               jmin = MAX(l_bounds(1, 1) - shiftPos(1), jmin)
+               jmax = MIN(l_bounds(2, 1) - shiftPos(1), jmax)
             END IF
             jstart = jmin
-            ijShift = shiftPos(1)+jstart-l_bounds(2, 1)
-            IF (ijShift > 0) ijShift = ijShift+ndim(1)-1
-            ijShift = (ijShift/ndim(1))*ndim(1)-shiftPos(1)
+            ijShift = shiftPos(1) + jstart - l_bounds(2, 1)
+            IF (ijShift > 0) ijShift = ijShift + ndim(1) - 1
+            ijShift = (ijShift/ndim(1))*ndim(1) - shiftPos(1)
             ! ijShift=CEILING(REAL(shiftPos(1)+jstart-l_bounds(2,1))/REAL(ndim(1)))*ndim(1)-shiftPos(1)
-            jstart = MAX(ijShift+l_bounds(1, 1), jstart)
-            jend = MIN(ijShift+l_bounds(2, 1), jmax)
+            jstart = MAX(ijShift + l_bounds(1, 1), jstart)
+            jend = MIN(ijShift + l_bounds(2, 1), jmax)
             DO
                DO j = jstart, jend
-                  cck1 = cck1_0_p+cck1_j*j
-                  cck0 = cck0_0_p+(cck0_j_p+cck0_j2*j)*j
+                  cck1 = cck1_0_p + cck1_j*j
+                  cck0 = cck0_0_p + (cck0_j_p + cck0_j2*j)*j
 
-                  delta_k = cck1*cck1-4*cck2*cck0
+                  delta_k = cck1*cck1 - 4*cck2*cck0
                   IF (delta_k < 0) THEN
-                     k_bounds(0, j-jmin, i-imin) = 0 ! CEILING((-cck1)/(2.0_dp*cck2))
-                     k_bounds(1, j-jmin, i-imin) = -1 ! k_bounds(0,j-jmin,i-imin)-1
+                     k_bounds(0, j - jmin, i - imin) = 0 ! CEILING((-cck1)/(2.0_dp*cck2))
+                     k_bounds(1, j - jmin, i - imin) = -1 ! k_bounds(0,j-jmin,i-imin)-1
                   ELSE
                      sqDk = SQRT(delta_k)
-                     kmin = CEILING((-cck1-sqDk)/(2.0_dp*cck2))
-                     kmax = FLOOR((-cck1+sqDk)/(2.0_dp*cck2))
+                     kmin = CEILING((-cck1 - sqDk)/(2.0_dp*cck2))
+                     kmax = FLOOR((-cck1 + sqDk)/(2.0_dp*cck2))
 
                      ! ! reduce kmax,kmin
                      ! ! this should be done later if k_bounds are shared by threads with different slices
@@ -538,23 +538,23 @@ CONTAINS
                      ! ikShift2=CEILING(REAL(shiftPos(2)-l_bounds(2,2)+kmin)/REAL(ndim(2)))*ndim(2)-shiftPos(2)
                      ! kmin=MAX(kmin,ikShift2+l_bounds(1,2))
 
-                     k_bounds(0, j-jmin, i-imin) = kmin
-                     k_bounds(1, j-jmin, i-imin) = kmax
+                     k_bounds(0, j - jmin, i - imin) = kmin
+                     k_bounds(1, j - jmin, i - imin) = kmax
                      IF (kmax >= kmin) has_overlap = .TRUE.
                   END IF
                END DO
-               jstart = jend+jJump+1
+               jstart = jend + jJump + 1
                IF (jstart > jmax) EXIT
-               jend = MIN(jend+ndim(1), jmax)
+               jend = MIN(jend + ndim(1), jmax)
             END DO
          END DO
-         istart = iend+iJump+1
+         istart = iend + iJump + 1
          IF (istart > imax) EXIT
-         iend = MIN(iend+ndim(0), imax)
+         iend = MIN(iend + ndim(0), imax)
       END DO
       IF (period(2) == 0) THEN
-         k_bounds(0, :, :) = MAX(l_bounds(1, 2)-shiftPos(2), k_bounds(0, :, :))
-         k_bounds(1, :, :) = MIN(l_bounds(2, 2)-shiftPos(2), k_bounds(1, :, :))
+         k_bounds(0, :, :) = MAX(l_bounds(1, 2) - shiftPos(2), k_bounds(0, :, :))
+         k_bounds(1, :, :) = MIN(l_bounds(2, 2) - shiftPos(2), k_bounds(1, :, :))
       END IF
 
       IF (.NOT. has_overlap) RETURN
@@ -566,19 +566,19 @@ CONTAINS
       size_ijk = poly_size3(grad)*npoly
       ALLOCATE (poly_ijk(size_ijk), &
                 poly_jk(size_jk), &
-                xi(grad+1))
+                xi(grad + 1))
 
       IF (integrate) THEN
          ALLOCATE (k_vals(0:grad))
       ELSE
-         ALLOCATE (poly_k(0:size_k-1))
+         ALLOCATE (poly_k(0:size_k - 1))
       ENDIF
 
       IF (integrate) THEN
          CPASSERT(SIZE(poly) == poly_size3(grad))
          poly_ijk = 0.0_dp
       ELSE
-         CALL poly_affine_t3(poly, scaled_h, -resPosReal+p_shift, poly_ijk, &
+         CALL poly_affine_t3(poly, scaled_h, -resPosReal + p_shift, poly_ijk, &
                              npoly=npoly)
       ENDIF
 
@@ -605,29 +605,29 @@ CONTAINS
       ii_coeffn = i_coeffn_i*ii_coeff0
       res_i = res_0
 
-      iJump = ndim(0)-l_bounds(2, 0)+l_bounds(1, 0)-1
+      iJump = ndim(0) - l_bounds(2, 0) + l_bounds(1, 0) - 1
       istart = MAX(0, imin)
-      iiShift = shiftPos(0)-l_bounds(2, 0)+istart
-      IF (iiShift > 0) iiShift = iiShift+ndim(0)-1
-      iiShift = (iiShift/ndim(0))*ndim(0)-shiftPos(0)
+      iiShift = shiftPos(0) - l_bounds(2, 0) + istart
+      IF (iiShift > 0) iiShift = iiShift + ndim(0) - 1
+      iiShift = (iiShift/ndim(0))*ndim(0) - shiftPos(0)
       !iiShift=CEILING(REAL(shiftPos(0)+istart-l_bounds(2,0))/REAL(ndim(0)))*ndim(0)-shiftPos(0)
-      istart = MAX(iiShift+l_bounds(1, 0), istart)
-      iistart = istart-iiShift-l_bounds(1, 0)+l_shift(0)
+      istart = MAX(iiShift + l_bounds(1, 0), istart)
+      iistart = istart - iiShift - l_bounds(1, 0) + l_shift(0)
       istart2 = MIN(-1, imax)
-      iiShift2 = shiftPos(0)+istart2-l_bounds(1, 0)
-      IF (iiShift2 < 0) iiShift2 = iiShift2-ndim(0)+1
-      iiShift2 = (iiShift2/ndim(0))*ndim(0)-shiftPos(0)
+      iiShift2 = shiftPos(0) + istart2 - l_bounds(1, 0)
+      IF (iiShift2 < 0) iiShift2 = iiShift2 - ndim(0) + 1
+      iiShift2 = (iiShift2/ndim(0))*ndim(0) - shiftPos(0)
       !iiShift2=FLOOR(REAL(shiftPos(0)+istart2-l_bounds(1,0))/REAL(ndim(0)))*ndim(0)-shiftPos(0)
-      istart2 = MIN(iiShift2+l_bounds(2, 0), istart2)
-      iistart2 = istart2-iiShift2-l_bounds(1, 0)+l_shift(0)
+      istart2 = MIN(iiShift2 + l_bounds(2, 0), istart2)
+      iistart2 = istart2 - iiShift2 - l_bounds(1, 0) + l_shift(0)
 
-      IF (iJump /= 0 .AND. (iistart+imax-istart >= ndim(0)+l_shift(0) .OR. &
-                            iistart2+imin-istart2 <= l_ub(0)-ndim(0))) THEN
+      IF (iJump /= 0 .AND. (iistart + imax - istart >= ndim(0) + l_shift(0) .OR. &
+                            iistart2 + imin - istart2 <= l_ub(0) - ndim(0))) THEN
          ! will wrap
          ij_coeff0_jump = ij_coeff0**(iJump)
          ik_coeff0_jump = ik_coeff0**(iJump)
          ii_coeff2_jump = ii_coeff2**(iJump)
-         ii_coeffn_jump = ii_coeff0**((iJump)*(iJump-1))
+         ii_coeffn_jump = ii_coeff0**((iJump)*(iJump - 1))
       ELSE
          ij_coeff0_jump = 1.0_dp
          ik_coeff0_jump = 1.0_dp
@@ -635,10 +635,10 @@ CONTAINS
          ii_coeffn_jump = 1.0_dp
       END IF
 
-      iend = MIN(iiShift+l_bounds(2, 0), imax)
+      iend = MIN(iiShift + l_bounds(2, 0), imax)
       ii = iistart IF_FLAT(*iidim,)
       IF (i > 0) THEN
-         ii_coeffn = i_coeffn_i*ii_coeff0**(2*istart+1)
+         ii_coeffn = i_coeffn_i*ii_coeff0**(2*istart + 1)
          j_coeffn_i = jcoeff0*ij_coeff0**istart
          k_coeffn_i = kcoeff0*ik_coeff0**istart
          res_i = res_0*(ii_coeff0**istart*i_coeffn_i)**istart
@@ -653,11 +653,11 @@ CONTAINS
             k_coeffn_i = k_coeffn_i*ik_coeff0
             res_i = res_i*ii_coeffn
             ii_coeffn = ii_coeffn*ii_coeff2
-            ii = ii+IF_FLAT(iidim, 1)
+            ii = ii + IF_FLAT(iidim, 1)
          END DO
-         istart = iend+iJump+1
+         istart = iend + iJump + 1
          IF (istart > imax) EXIT
-         iend = MIN(iend+ndim(0), imax)
+         iend = MIN(iend + ndim(0), imax)
          ii = l_shift(0) IF_FLAT(*iidim,)
          j_coeffn_i = j_coeffn_i*ij_coeff0_jump
          k_coeffn_i = k_coeffn_i*ik_coeff0_jump
@@ -672,13 +672,13 @@ CONTAINS
       res_i = res_0
       ii_coeffn = i_coeffn_i*ii_coeff0
 
-      iend2 = MAX(iiShift2+l_bounds(1, 0), imin)
+      iend2 = MAX(iiShift2 + l_bounds(1, 0), imin)
       ii = iistart2 IF_FLAT(*iidim,)
       IF (istart2 < -1) THEN
-         ii_coeffn = i_coeffn_i*ii_coeff0**(-(2*istart2+1))
-         j_coeffn_i = jcoeff0*ij_coeff0**(istart2+1)
-         k_coeffn_i = kcoeff0*ik_coeff0**(istart2+1)
-         res_i = res_0*(ii_coeff0**(-istart2-1)*i_coeffn_i)**(-istart2-1)
+         ii_coeffn = i_coeffn_i*ii_coeff0**(-(2*istart2 + 1))
+         j_coeffn_i = jcoeff0*ij_coeff0**(istart2 + 1)
+         k_coeffn_i = kcoeff0*ik_coeff0**(istart2 + 1)
+         res_i = res_0*(ii_coeff0**(-istart2 - 1)*i_coeffn_i)**(-istart2 - 1)
       END IF
       DO
          DO i = istart2, iend2, -1
@@ -691,11 +691,11 @@ CONTAINS
             IF (ABS(res_i) > small) THEN
                CALL j_loop
             END IF
-            ii = ii-IF_FLAT(iidim, 1)
+            ii = ii - IF_FLAT(iidim, 1)
          END DO
-         istart2 = iend2-iJump-1
+         istart2 = iend2 - iJump - 1
          IF (istart2 < imin) EXIT
-         iend2 = MAX(iend2-ndim(0), imin)
+         iend2 = MAX(iend2 - ndim(0), imin)
          ii = l_ub(0) IF_FLAT(*iidim,)
          j_coeffn_i = j_coeffn_i/ij_coeff0_jump
          k_coeffn_i = k_coeffn_i/ik_coeff0_jump
@@ -705,7 +705,7 @@ CONTAINS
 
       ! the final cleanup
       IF (integrate) THEN
-         CALL poly_affine_t3t(poly_ijk, scaled_h, -resPosReal+p_shift, poly, &
+         CALL poly_affine_t3t(poly_ijk, scaled_h, -resPosReal + p_shift, poly, &
                               npoly=npoly)
       END IF
 
@@ -718,15 +718,15 @@ CONTAINS
 ! **************************************************************************************************
       SUBROUTINE j_loop()
          ! calculate j bounds
-         ccj1 = ccj1_i1*i+ccj1_i0
-         ccj0 = (ccj0_i2*i+ccj0_i1)*i+ccj0_i0
-         delta_j = ccj1*ccj1-4*ccj2*ccj0
+         ccj1 = ccj1_i1*i + ccj1_i0
+         ccj0 = (ccj0_i2*i + ccj0_i1)*i + ccj0_i0
+         delta_j = ccj1*ccj1 - 4*ccj2*ccj0
          IF (delta_j < 0) THEN
             RETURN
          END IF
          sqDj = SQRT(delta_j)
-         jmin = CEILING((-ccj1-sqDj)/(2.0_dp*ccj2))
-         jmax = FLOOR((-ccj1+sqDj)/(2.0_dp*ccj2))
+         jmin = CEILING((-ccj1 - sqDj)/(2.0_dp*ccj2))
+         jmax = FLOOR((-ccj1 + sqDj)/(2.0_dp*ccj2))
 
          IF (integrate) THEN
             poly_jk = 0.0_dp
@@ -737,8 +737,8 @@ CONTAINS
          ENDIF
 
          IF (period(1) == 0) THEN
-            jmin = MAX(l_bounds(1, 1)-shiftPos(1), jmin)
-            jmax = MIN(l_bounds(2, 1)-shiftPos(1), jmax)
+            jmin = MAX(l_bounds(1, 1) - shiftPos(1), jmin)
+            jmax = MIN(l_bounds(2, 1) - shiftPos(1), jmax)
          END IF
 
          ! pos j side
@@ -747,25 +747,25 @@ CONTAINS
          jj_coeffn = j_coeffn_j*jj_coeff0
          res_j = res_i
 
-         jJump = ndim(1)-l_bounds(2, 1)+l_bounds(1, 1)
+         jJump = ndim(1) - l_bounds(2, 1) + l_bounds(1, 1)
          jstart = MAX(0, jmin)
-         ijShift = shiftPos(1)+jstart-l_bounds(2, 1)
-         IF (ijShift > 0) ijShift = ijShift+ndim(1)-1
-         ijShift = (ijShift/ndim(1))*ndim(1)-shiftPos(1)
+         ijShift = shiftPos(1) + jstart - l_bounds(2, 1)
+         IF (ijShift > 0) ijShift = ijShift + ndim(1) - 1
+         ijShift = (ijShift/ndim(1))*ndim(1) - shiftPos(1)
          !ijShift=CEILING(REAL(shiftPos(1)+jstart-l_bounds(2,1))/REAL(ndim(1)))*ndim(1)-shiftPos(1)
-         jstart = MAX(ijShift+l_bounds(1, 1), jstart)
-         jend = MIN(ijShift+l_bounds(2, 1), jmax)
-         ij = (jstart-ijShift-l_bounds(1, 1)+l_shift(1)) IF_FLAT(*ijdim,)
+         jstart = MAX(ijShift + l_bounds(1, 1), jstart)
+         jend = MIN(ijShift + l_bounds(2, 1), jmax)
+         ij = (jstart - ijShift - l_bounds(1, 1) + l_shift(1)) IF_FLAT(*ijdim,)
 
          IF (jstart > 0) THEN
             k_coeffn_j = k_coeffn_i*jk_coeff0**jstart
-            jj_coeffn = j_coeffn_j*jj_coeff0**(2*jstart+1)
+            jj_coeffn = j_coeffn_j*jj_coeff0**(2*jstart + 1)
             res_j = res_i*(jj_coeff0**jstart*j_coeffn_j)**jstart
          END IF
          DO
             DO j = jstart, jend
-               kmin = k_bounds(0, j-jmin, i-imin)
-               kmax = k_bounds(1, j-jmin, i-imin)
+               kmin = k_bounds(0, j - jmin, i - imin)
+               kmax = k_bounds(1, j - jmin, i - imin)
                ! do k loop
                IF (res_j /= 0.0_dp .AND. k_coeffn_j /= 0.0_dp .AND. kmin <= kmax &
                    .AND. ABS(res_j) > small) THEN
@@ -774,15 +774,15 @@ CONTAINS
                k_coeffn_j = k_coeffn_j*jk_coeff0
                res_j = res_j*jj_coeffn
                jj_coeffn = jj_coeffn*jj_coeff2
-               ij = ij+IF_FLAT(ijdim, 1)
+               ij = ij + IF_FLAT(ijdim, 1)
             END DO
-            jstart = jend+jJump
+            jstart = jend + jJump
             IF (jstart > jmax) EXIT
             ij = l_shift(1) IF_FLAT(*ijdim,)
-            jend = MIN(jend+ndim(1), jmax)
+            jend = MIN(jend + ndim(1), jmax)
             IF (jJump /= 1) THEN ! remove if?
                k_coeffn_j = k_coeffn_i*jk_coeff0**jstart
-               jj_coeffn = j_coeffn_j*jj_coeff0**(2*jstart+1)
+               jj_coeffn = j_coeffn_j*jj_coeff0**(2*jstart + 1)
                res_j = res_i*(jj_coeff0**jstart*j_coeffn_j)**jstart
             END IF
          END DO
@@ -794,17 +794,17 @@ CONTAINS
          res_j = res_i
 
          jstart = MIN(-1, jmax)
-         ijShift = shiftPos(1)+jstart-l_bounds(1, 1)
-         IF (ijShift < 0) ijShift = ijShift-ndim(1)+1
-         ijShift = (ijShift/ndim(1))*ndim(1)-shiftPos(1)
+         ijShift = shiftPos(1) + jstart - l_bounds(1, 1)
+         IF (ijShift < 0) ijShift = ijShift - ndim(1) + 1
+         ijShift = (ijShift/ndim(1))*ndim(1) - shiftPos(1)
          !ijShift=FLOOR(REAL(shiftPos(1)+jstart-l_bounds(1,1))/REAL(ndim(1)))*ndim(1)-shiftPos(1))
-         jstart = MIN(ijShift+l_bounds(2, 1), jstart)
-         jend = MAX(ijShift+l_bounds(1, 1), jmin)
-         ij = (jstart-ijShift-l_bounds(1, 1)+l_shift(1)) IF_FLAT(*ijdim,)
+         jstart = MIN(ijShift + l_bounds(2, 1), jstart)
+         jend = MAX(ijShift + l_bounds(1, 1), jmin)
+         ij = (jstart - ijShift - l_bounds(1, 1) + l_shift(1)) IF_FLAT(*ijdim,)
          IF (jstart < -1) THEN
-            k_coeffn_j = k_coeffn_i*jk_coeff0**(jstart+1)
-            jj_coeffn = j_coeffn_j*jj_coeff0**(-(2*jstart+1))
-            res_j = res_i*(jj_coeff0**(-jstart-1)*j_coeffn_j)**(-jstart-1)
+            k_coeffn_j = k_coeffn_i*jk_coeff0**(jstart + 1)
+            jj_coeffn = j_coeffn_j*jj_coeff0**(-(2*jstart + 1))
+            res_j = res_i*(jj_coeff0**(-jstart - 1)*j_coeffn_j)**(-jstart - 1)
          END IF
          DO
             DO j = jstart, jend, -1
@@ -812,23 +812,23 @@ CONTAINS
                res_j = res_j*jj_coeffn
                jj_coeffn = jj_coeffn*jj_coeff2
 
-               kmin = k_bounds(0, j-jmin, i-imin)
-               kmax = k_bounds(1, j-jmin, i-imin)
+               kmin = k_bounds(0, j - jmin, i - imin)
+               kmax = k_bounds(1, j - jmin, i - imin)
                ! perform k loop
                IF (res_j /= 0.0_dp .AND. k_coeffn_j /= 0.0_dp .AND. kmin <= kmax &
                    .AND. ABS(res_j) > small) THEN
                   CALL k_loop
                END IF
-               ij = ij-IF_FLAT(ijdim, 1)
+               ij = ij - IF_FLAT(ijdim, 1)
             END DO
-            jstart = jend-jJump
+            jstart = jend - jJump
             IF (jstart < jmin) EXIT
-            jend = MAX(jend-ndim(1), jmin)
+            jend = MAX(jend - ndim(1), jmin)
             ij = l_ub(1) IF_FLAT(*ijdim,)
             IF (jJump /= 1) THEN ! remove if?
-               k_coeffn_j = k_coeffn_i*jk_coeff0**(jstart+1)
-               jj_coeffn = j_coeffn_j*jj_coeff0**(-(2*jstart+1))
-               res_j = res_i*(jj_coeff0**(-jstart-1)*j_coeffn_j)**(-jstart-1)
+               k_coeffn_j = k_coeffn_i*jk_coeff0**(jstart + 1)
+               jj_coeffn = j_coeffn_j*jj_coeff0**(-(2*jstart + 1))
+               res_j = res_i*(jj_coeff0**(-jstart - 1)*j_coeffn_j)**(-jstart - 1)
             END IF
          END DO
 

@@ -22,11 +22,11 @@
 
 MODULE list
 
-USE timings_base_type,       ONLY: ${uselist(usetimingsbase)}$
-USE list_callstackentry,     ONLY: @{uselist_listmethods(callstackentry)}@
-USE list_routinereport,      ONLY: @{uselist_listmethods(routinereport)}@
-USE list_routinestat,        ONLY: @{uselist_listmethods(routinestat)}@
-USE list_timerenv,           ONLY: @{uselist_listmethods(timerenv)}@
+   USE timings_base_type, ONLY: ${uselist(usetimingsbase)}$
+   USE list_callstackentry, ONLY: @{uselist_listmethods(callstackentry)}@
+   USE list_routinereport, ONLY: @{uselist_listmethods(routinereport)}@
+   USE list_routinestat, ONLY: @{uselist_listmethods(routinestat)}@
+   USE list_timerenv, ONLY: @{uselist_listmethods(timerenv)}@
 
 #include "../base/base_uses.f90"
    IMPLICIT NONE
@@ -57,7 +57,7 @@ USE list_timerenv,           ONLY: @{uselist_listmethods(timerenv)}@
 #:for vtype in valuetype
       MODULE PROCEDURE list_${vtype}$_push
 #:endfor
-END INTERFACE
+   END INTERFACE
 
    INTERFACE list_pop
 #:for vtype in valuetype

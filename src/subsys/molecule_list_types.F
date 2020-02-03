@@ -11,8 +11,8 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE molecule_list_types
-   USE molecule_types,                  ONLY: deallocate_molecule_set,&
-                                              molecule_type
+   USE molecule_types, ONLY: deallocate_molecule_set, &
+                             molecule_type
 
 #include "../base/base_uses.f90"
 

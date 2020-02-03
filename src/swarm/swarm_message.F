@@ -9,17 +9,17 @@
 ! **************************************************************************************************
 MODULE swarm_message
 
-   USE cp_parser_methods,               ONLY: parser_get_next_line
-   USE cp_parser_types,                 ONLY: cp_parser_type
-   USE kinds,                           ONLY: default_string_length,&
-                                              int_4,&
-                                              int_8,&
-                                              real_4,&
-                                              real_8
-   USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_environ,&
-                                              mp_recv,&
-                                              mp_send
+   USE cp_parser_methods, ONLY: parser_get_next_line
+   USE cp_parser_types, ONLY: cp_parser_type
+   USE kinds, ONLY: default_string_length, &
+                    int_4, &
+                    int_8, &
+                    real_4, &
+                    real_8
+   USE message_passing, ONLY: mp_bcast, &
+                              mp_environ, &
+                              mp_recv, &
+                              mp_send
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -95,7 +95,7 @@ CONTAINS
       l = 0
       curr_entry => msg%root
       DO WHILE (ASSOCIATED(curr_entry))
-         l = l+1
+         l = l + 1
          curr_entry => curr_entry%next
       END DO
    END FUNCTION swarm_message_length
@@ -134,7 +134,7 @@ CONTAINS
       TYPE(swarm_message_type), INTENT(INOUT)            :: msg
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_free', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       TYPE(message_entry_type), POINTER                  :: ENTRY, old_entry
 
@@ -211,7 +211,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: src, tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_mpi_recv', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, length
       TYPE(message_entry_type), POINTER                  :: new_entry
@@ -239,7 +239,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: src, group
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_mpi_bcast', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, length, mepos, num_pe
       TYPE(message_entry_type), POINTER                  :: curr_entry
@@ -329,7 +329,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: at_end
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_file_read_low', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=20)                                  :: label
       INTEGER                                            :: i, length
@@ -372,7 +372,7 @@ CONTAINS
       LOGICAL                                            :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_equal_oneway', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       LOGICAL                                            :: found
       TYPE(message_entry_type), POINTER                  :: entry1, entry2
@@ -410,11 +410,11 @@ CONTAINS
 
          ELSE IF (ASSOCIATED(entry1%value_r4)) THEN
             IF (.NOT. ASSOCIATED(entry2%value_r4)) RETURN
-            IF (ABS(entry1%value_r4-entry2%value_r4) > 1e-5) RETURN
+            IF (ABS(entry1%value_r4 - entry2%value_r4) > 1e-5) RETURN
 
          ELSE IF (ASSOCIATED(entry1%value_r8)) THEN
             IF (.NOT. ASSOCIATED(entry2%value_r8)) RETURN
-            IF (ABS(entry1%value_r8-entry2%value_r8) > 1e-10) RETURN
+            IF (ABS(entry1%value_r8 - entry2%value_r8) > 1e-10) RETURN
 
          ELSE IF (ASSOCIATED(entry1%value_1d_i4)) THEN
             IF (.NOT. ASSOCIATED(entry2%value_1d_i4)) RETURN
@@ -426,11 +426,11 @@ CONTAINS
 
          ELSE IF (ASSOCIATED(entry1%value_1d_r4)) THEN
             IF (.NOT. ASSOCIATED(entry2%value_1d_r4)) RETURN
-            IF (ANY(ABS(entry1%value_1d_r4-entry2%value_1d_r4) > 1e-5)) RETURN
+            IF (ANY(ABS(entry1%value_1d_r4 - entry2%value_1d_r4) > 1e-5)) RETURN
 
          ELSE IF (ASSOCIATED(entry1%value_1d_r8)) THEN
             IF (.NOT. ASSOCIATED(entry2%value_1d_r8)) RETURN
-            IF (ANY(ABS(entry1%value_1d_r8-entry2%value_1d_r8) > 1e-10)) RETURN
+            IF (ANY(ABS(entry1%value_1d_r8 - entry2%value_1d_r8) > 1e-10)) RETURN
          ELSE
             CPABORT("no value ASSOCIATED")
          END IF
@@ -455,7 +455,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: group, dest, tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_entry_mpi_send', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER, DIMENSION(default_string_length)          :: value_str_arr
       INTEGER, DIMENSION(key_length)                     :: key_arr
@@ -522,7 +522,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: src, tag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_entry_mpi_recv', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: datatype, s
       INTEGER, DIMENSION(default_string_length)          :: value_str_arr
@@ -584,7 +584,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: src, group, mepos
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_entry_mpi_bcast', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: datasize, datatype
       INTEGER, DIMENSION(default_string_length)          :: value_str_arr
@@ -674,7 +674,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_entry_file_write', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i
 
@@ -745,7 +745,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: at_end
 
       CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_entry_file_read', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=15)                                  :: datatype, label
       INTEGER                                            :: arr_size, i
@@ -754,7 +754,7 @@ CONTAINS
       CALL parser_get_next_line(parser, 1, at_end)
       at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10)) == 0
       IF (at_end) RETURN
-      READ (parser%input_line(1:key_length+10), *) label, entry%key
+      READ (parser%input_line(1:key_length + 10), *) label, entry%key
       CPASSERT(TRIM(label) == "key:")
 
       CALL parser_get_next_line(parser, 1, at_end)
@@ -768,7 +768,7 @@ CONTAINS
       IF (at_end) RETURN
 
       is_scalar = .TRUE.
-      SELECT CASE (TRIM (datatype))
+      SELECT CASE (TRIM(datatype))
       CASE ("i4")
          ALLOCATE (entry%value_i4)
          READ (parser%input_line(1:40), *) label, entry%value_i4
@@ -797,7 +797,7 @@ CONTAINS
       READ (parser%input_line(1:30), *) label, arr_size
       CPASSERT(TRIM(label) == "size:")
 
-      SELECT CASE (TRIM (datatype))
+      SELECT CASE (TRIM(datatype))
       CASE ("1d_i4")
          ALLOCATE (entry%value_1d_i4(arr_size))
       CASE ("1d_i8")
@@ -816,7 +816,7 @@ CONTAINS
          IF (at_end) RETURN
 
          !Numbers were written with at most 31 characters.
-         SELECT CASE (TRIM (datatype))
+         SELECT CASE (TRIM(datatype))
          CASE ("1d_i4")
             READ (parser%input_line(1:31), *) entry%value_1d_i4(i)
          CASE ("1d_i8")
@@ -866,7 +866,6 @@ CONTAINS
       ENDDO
    END FUNCTION iarr2str
 
-
 #:set instances = {'str'   : 'CHARACTER(LEN=*)', &
                    'i4'    : 'INTEGER(KIND=int_4)', &
                    'i8'    : 'INTEGER(KIND=int_8)', &
@@ -886,38 +885,37 @@ CONTAINS
 !> \param value ...
 !> \author Ole Schuett
 ! **************************************************************************************************
- SUBROUTINE swarm_message_add_${label}$(msg, key, value)
-   TYPE(swarm_message_type), INTENT(INOUT)   :: msg
-   CHARACTER(LEN=*), INTENT(IN)              :: key
-   ${type}$, INTENT(IN)                      :: value
+   SUBROUTINE swarm_message_add_${label}$ (msg, key, value)
+      TYPE(swarm_message_type), INTENT(INOUT)   :: msg
+      CHARACTER(LEN=*), INTENT(IN)              :: key
+      ${type}$, INTENT(IN)                      :: value
 
-   TYPE(message_entry_type), POINTER :: new_entry
+      TYPE(message_entry_type), POINTER :: new_entry
 
-   IF(swarm_message_haskey(msg, key)) &
-      CPABORT("swarm_message_add_${label}$: key already exists: "//TRIM(key))
+      IF (swarm_message_haskey(msg, key)) &
+         CPABORT("swarm_message_add_${label}$: key already exists: "//TRIM(key))
 
-   ALLOCATE(new_entry)
-   new_entry%key = key
+      ALLOCATE (new_entry)
+      new_entry%key = key
 
 #:if label.startswith("1d_")
-   ALLOCATE(new_entry%value_${label}$(SIZE(value)))
+      ALLOCATE (new_entry%value_${label}$ (SIZE(value)))
 #:else
-   ALLOCATE(new_entry%value_${label}$)
+      ALLOCATE (new_entry%value_${label}$)
 #:endif
 
-   new_entry%value_${label}$ = value
+      new_entry%value_${label}$ = value
 
-   !WRITE (*,*) "swarm_message_add_${label}$: key=",key, " value=",new_entry%value_${label}$
+      !WRITE (*,*) "swarm_message_add_${label}$: key=",key, " value=",new_entry%value_${label}$
 
-   IF(.NOT. ASSOCIATED(msg%root)) THEN
-      msg%root => new_entry
-   ELSE
-      new_entry%next => msg%root
-      msg%root => new_entry
-   ENDIF
+      IF (.NOT. ASSOCIATED(msg%root)) THEN
+         msg%root => new_entry
+      ELSE
+         new_entry%next => msg%root
+         msg%root => new_entry
+      ENDIF
 
- END SUBROUTINE swarm_message_add_${label}$
-
+   END SUBROUTINE swarm_message_add_${label}$
 
 ! **************************************************************************************************
 !> \brief Returns an entry from a swarm-message.
@@ -926,41 +924,41 @@ CONTAINS
 !> \param value ...
 !> \author Ole Schuett
 ! **************************************************************************************************
- SUBROUTINE swarm_message_get_${label}$(msg, key, value)
-   TYPE(swarm_message_type), INTENT(IN)  :: msg
-   CHARACTER(LEN=*), INTENT(IN)          :: key
+   SUBROUTINE swarm_message_get_${label}$ (msg, key, value)
+      TYPE(swarm_message_type), INTENT(IN)  :: msg
+      CHARACTER(LEN=*), INTENT(IN)          :: key
 
 #:if label=="str"
-   CHARACTER(LEN=default_string_length)  :: value
+      CHARACTER(LEN=default_string_length)  :: value
 #:elif label.startswith("1d_")
-   ${type}$, POINTER                     :: value
+      ${type}$, POINTER                     :: value
 #:else
-   ${type}$, INTENT(OUT)                 :: value
+      ${type}$, INTENT(OUT)                 :: value
 #:endif
 
-   TYPE(message_entry_type), POINTER :: curr_entry
-   !WRITE (*,*) "swarm_message_get_${label}$: key=",key
+      TYPE(message_entry_type), POINTER :: curr_entry
+      !WRITE (*,*) "swarm_message_get_${label}$: key=",key
 
 #:if label.startswith("1d_")
-   IF(ASSOCIATED(value)) CPABORT("swarm_message_get_${label}$: value already associated")
+      IF (ASSOCIATED(value)) CPABORT("swarm_message_get_${label}$: value already associated")
 #:endif
 
-   curr_entry => msg%root
-   DO WHILE(ASSOCIATED(curr_entry))
-      IF(TRIM(curr_entry%key) == TRIM(key)) THEN
-         IF(.NOT. ASSOCIATED(curr_entry%value_${label}$)) &
-            CPABORT("swarm_message_get_${label}$: value not associated key: "//TRIM(key))
+      curr_entry => msg%root
+      DO WHILE (ASSOCIATED(curr_entry))
+         IF (TRIM(curr_entry%key) == TRIM(key)) THEN
+            IF (.NOT. ASSOCIATED(curr_entry%value_${label}$)) &
+               CPABORT("swarm_message_get_${label}$: value not associated key: "//TRIM(key))
 #:if label.startswith("1d_")
-         ALLOCATE(value(SIZE(curr_entry%value_${label}$)))
+            ALLOCATE (value(SIZE(curr_entry%value_${label}$)))
 #:endif
-         value = curr_entry%value_${label}$
-         !WRITE (*,*) "swarm_message_get_${label}$: value=",value
-         RETURN
-      ENDIF
-      curr_entry => curr_entry%next
-   END DO
-   CPABORT("swarm_message_get: key not found: "//TRIM(key))
- END SUBROUTINE swarm_message_get_${label}$
+            value = curr_entry%value_${label}$
+            !WRITE (*,*) "swarm_message_get_${label}$: value=",value
+            RETURN
+         ENDIF
+         curr_entry => curr_entry%next
+      END DO
+      CPABORT("swarm_message_get: key not found: "//TRIM(key))
+   END SUBROUTINE swarm_message_get_${label}$
 
 #:endfor
 

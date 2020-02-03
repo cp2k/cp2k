@@ -11,60 +11,60 @@ $:'' if n else '.NOT.'
 #:enddef
 
 MODULE mp2_eri
-   USE ai_contraction_sphi,             ONLY: ab_contract,&
-                                              abc_contract
-   USE ai_coulomb,                      ONLY: coulomb2_new,&
-                                              coulomb3
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind_set
-   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
-                                              gto_basis_set_type
-   USE cell_types,                      ONLY: cell_create,&
-                                              cell_release,&
-                                              cell_type,&
-                                              init_cell,&
-                                              pbc
-   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_finalize,&
-                                              cp_eri_mme_init_read_input,&
-                                              cp_eri_mme_param,&
-                                              cp_eri_mme_set_params
-   USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
-                                              dbcsr_p_type
-   USE eri_mme_integrate,               ONLY: eri_mme_2c_integrate,&
-                                              eri_mme_3c_integrate
-   USE eri_mme_test,                    ONLY: eri_mme_2c_perf_acc_test,&
-                                              eri_mme_3c_perf_acc_test
-   USE eri_mme_types,                   ONLY: eri_mme_param,&
-                                              eri_mme_set_potential, eri_mme_coulomb, eri_mme_longrange
-   USE input_constants,                 ONLY: do_eri_gpw,&
-                                              do_eri_mme,&
-                                              do_eri_os,&
-                                              do_potential_coulomb,&
-                                              do_potential_long
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
-   USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_sum
-   USE orbital_pointers,                ONLY: coset,&
-                                              init_orbital_pointers,&
-                                              ncoset
-   USE particle_types,                  ONLY: particle_type
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_integral_utils,               ONLY: basis_set_list_setup
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
-   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
-                                              get_neighbor_list_set_p,&
-                                              neighbor_list_iterate,&
-                                              neighbor_list_iterator_create,&
-                                              neighbor_list_iterator_p_type,&
-                                              neighbor_list_iterator_release,&
-                                              neighbor_list_set_p_type
-   USE util,                            ONLY: get_limit
-   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_update_local_counts
+   USE ai_contraction_sphi, ONLY: ab_contract, &
+                                  abc_contract
+   USE ai_coulomb, ONLY: coulomb2_new, &
+                         coulomb3
+   USE atomic_kind_types, ONLY: atomic_kind_type, &
+                                get_atomic_kind_set
+   USE basis_set_types, ONLY: gto_basis_set_p_type, &
+                              gto_basis_set_type
+   USE cell_types, ONLY: cell_create, &
+                         cell_release, &
+                         cell_type, &
+                         init_cell, &
+                         pbc
+   USE cp_eri_mme_interface, ONLY: cp_eri_mme_finalize, &
+                                   cp_eri_mme_init_read_input, &
+                                   cp_eri_mme_param, &
+                                   cp_eri_mme_set_params
+   USE cp_para_types, ONLY: cp_para_env_type
+   USE dbcsr_api, ONLY: dbcsr_get_block_p, &
+                        dbcsr_p_type
+   USE eri_mme_integrate, ONLY: eri_mme_2c_integrate, &
+                                eri_mme_3c_integrate
+   USE eri_mme_test, ONLY: eri_mme_2c_perf_acc_test, &
+                           eri_mme_3c_perf_acc_test
+   USE eri_mme_types, ONLY: eri_mme_param, &
+                            eri_mme_set_potential, eri_mme_coulomb, eri_mme_longrange
+   USE input_constants, ONLY: do_eri_gpw, &
+                              do_eri_mme, &
+                              do_eri_os, &
+                              do_potential_coulomb, &
+                              do_potential_long
+   USE input_section_types, ONLY: section_vals_get_subs_vals, &
+                                  section_vals_type, &
+                                  section_vals_val_get
+   USE kinds, ONLY: dp
+   USE message_passing, ONLY: mp_sum
+   USE orbital_pointers, ONLY: coset, &
+                               init_orbital_pointers, &
+                               ncoset
+   USE particle_types, ONLY: particle_type
+   USE qs_environment_types, ONLY: get_qs_env, &
+                                   qs_environment_type
+   USE qs_integral_utils, ONLY: basis_set_list_setup
+   USE qs_kind_types, ONLY: get_qs_kind, &
+                            qs_kind_type
+   USE qs_neighbor_list_types, ONLY: get_iterator_info, &
+                                     get_neighbor_list_set_p, &
+                                     neighbor_list_iterate, &
+                                     neighbor_list_iterator_create, &
+                                     neighbor_list_iterator_p_type, &
+                                     neighbor_list_iterator_release, &
+                                     neighbor_list_set_p_type
+   USE util, ONLY: get_limit
+   USE cp_eri_mme_interface, ONLY: cp_eri_mme_update_local_counts
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -76,11 +76,11 @@ MODULE mp2_eri
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_eri'
 
    PUBLIC :: &
-             mp2_eri_2c_integrate, &
-             mp2_eri_3c_integrate, &
-             mp2_eri_allocate_forces, &
-             mp2_eri_deallocate_forces, &
-             mp2_eri_force
+      mp2_eri_2c_integrate, &
+      mp2_eri_3c_integrate, &
+      mp2_eri_allocate_forces, &
+      mp2_eri_deallocate_forces, &
+      mp2_eri_force
 
    TYPE mp2_eri_force
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: forces
@@ -132,13 +132,13 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp2_eri_2c_integrate', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER :: atom_a, atom_b, atom_end, atom_start, first_set, G_count, handle, iatom, ikind, &
-         iset, jatom, jkind, jset, jset_end, jset_start, last_set, my_eri_method, my_setpair, &
-         n_setpair, natom, nkind, nseta, nseta_total, nsetb, nsetb_total, offset_a_end, &
-         offset_a_start, offset_b_end, offset_b_start, R_count, set_end, set_offset_end, &
-         set_offset_start, set_start, sgfa, sgfb
+                 iset, jatom, jkind, jset, jset_end, jset_start, last_set, my_eri_method, my_setpair, &
+                 n_setpair, natom, nkind, nseta, nseta_total, nsetb, nsetb_total, offset_a_end, &
+                 offset_a_start, offset_b_end, offset_b_start, R_count, set_end, set_offset_end, &
+                 set_offset_start, set_start, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: eri_offsets
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
@@ -166,8 +166,7 @@ CONTAINS
       my_do_reflection_b = .FALSE.
       IF (PRESENT(do_reflection_b) .AND. PRESENT(reflection_z_b)) my_do_reflection_b = do_reflection_b
 
-      G_count = 0; R_count = 0;
-
+      G_count = 0; R_count = 0; 
       ! get mapping between ERIs and atoms, sets, set offsets
       CALL get_eri_offsets(qs_env, basis_type_b, eri_offsets)
 
@@ -196,14 +195,14 @@ CONTAINS
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, basis_type=basis_type_a)
-         nseta_total = nseta_total+basis_set_a%nset
+         nseta_total = nseta_total + basis_set_a%nset
       ENDDO
 
       nsetb_total = 0
       DO jatom = atom_start, atom_end
          jkind = kind_of(jatom)
          CALL get_qs_kind(qs_kind=qs_kind_set(jkind), basis_set=basis_set_b, basis_type=basis_type_b)
-         nsetb_total = nsetb_total+basis_set_b%nset
+         nsetb_total = nsetb_total + basis_set_b%nset
       ENDDO
 
       n_setpair = nseta_total*nsetb_total
@@ -228,12 +227,12 @@ CONTAINS
          ra(:) = pbc(particle_set(iatom)%r, cell)
 
          IF (my_do_reflection_a) THEN
-            ra(3) = 2.0_dp*reflection_z_a-ra(3)
+            ra(3) = 2.0_dp*reflection_z_a - ra(3)
          END IF
 
          DO iset = 1, nseta
             offset_a_start = offset_a_end
-            offset_a_end = offset_a_end+nsgfa(iset)
+            offset_a_end = offset_a_end + nsgfa(iset)
             sgfa = first_sgfa(1, iset)
 
             offset_b_end = 0
@@ -254,11 +253,11 @@ CONTAINS
                rb(:) = pbc(particle_set(jatom)%r, cell)
 
                IF (my_do_reflection_b) THEN
-                  rb(3) = 2.0_dp*reflection_z_b-rb(3)
+                  rb(3) = 2.0_dp*reflection_z_b - rb(3)
                END IF
 
-               rab(:) = ra(:)-rb(:) ! pbc not needed?
-               dab = SQRT(rab(1)**2+rab(2)**2+rab(3)**2)
+               rab(:) = ra(:) - rb(:) ! pbc not needed?
+               dab = SQRT(rab(1)**2 + rab(2)**2 + rab(3)**2)
 
                jset_start = 1; jset_end = nsetb
                IF (jatom == atom_start) jset_start = set_start
@@ -270,17 +269,17 @@ CONTAINS
                   IF (jset == jset_end .AND. jatom == atom_end) last_set = set_offset_end
 
                   offset_b_start = offset_b_end
-                  offset_b_end = offset_b_end+last_set+1-first_set
+                  offset_b_end = offset_b_end + last_set + 1 - first_set
                   sgfb = first_sgfb(1, jset)
-                  my_setpair = my_setpair+1
+                  my_setpair = my_setpair + 1
                   map_it_here = MODULO(my_setpair, para_env%num_pe) == para_env%mepos
 
                   IF (map_it_here) THEN
 #!some fypp magic to deal with combinations of optional arguments
 #:for doforce_1 in [0, 1]
 #:for doforce_2 in [0, 1]
-                     IF (${conditional(doforce_1)}$ PRESENT(force_a) .AND. &
-                         ${conditional(doforce_2)}$ PRESENT(force_b)) THEN
+                     IF (${conditional(doforce_1)}$PRESENT(force_a) .AND. &
+                         ${conditional(doforce_2)}$PRESENT(force_b)) THEN
 
                         CALL integrate_set_2c( &
                            param%par, potential_type, omega, &
@@ -289,18 +288,18 @@ CONTAINS
                            npgfa(iset), npgfb(jset), &
                            zeta(:, iset), zetb(:, jset), &
                            ra, rb, &
-                           hab, nsgfa(iset), last_set-first_set+1, &
+                           hab, nsgfa(iset), last_set - first_set + 1, &
                            offset_a_start, offset_b_start, &
-                           0, first_set-1, &
+                           0, first_set - 1, &
                            sphi_a, sphi_b, &
                            sgfa, sgfb, nsgfa(iset), nsgfb(jset), &
                            my_eri_method, &
                            pab, &
-$:                         'force_a=force_a(ikind)%forces(:, atom_a), &'*doforce_1
-$:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce_2
+                           $:                         'force_a=force_a(ikind)%forces(:, atom_a), &'*doforce_1
+                           $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce_2
                            hdab=hdab, hadb=hadb, &
                            G_count=G_count, R_count=R_count, &
-                           do_reflection_a = do_reflection_a, do_reflection_b = do_reflection_b)
+                           do_reflection_a=do_reflection_a, do_reflection_b=do_reflection_b)
                      ENDIF
 #:endfor
 #:endfor
@@ -391,12 +390,12 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_set_2c', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER :: ax, ay, az, bx, by, bz, hab_a_end, hab_a_start, hab_b_end, hab_b_start, handle, &
-         i_xyz, ico, icox, icoy, icoz, ipgf, jco, jcox, jcoy, jcoz, jpgf, la, la_max_d, lb, &
-         lb_max_d, na, nb, ncoa, ncob, set_a_end, set_a_start, set_b_end, set_b_start, &
-         sphi_a_start, sphi_b_start
+                 i_xyz, ico, icox, icoy, icoz, ipgf, jco, jcox, jcoy, jcoz, jpgf, la, la_max_d, lb, &
+                 lb_max_d, na, nb, ncoa, ncob, set_a_end, set_a_start, set_b_end, set_b_start, &
+                 sphi_a_start, sphi_b_start
       INTEGER, DIMENSION(3)                              :: la_xyz, lb_xyz
       LOGICAL                                            :: calculate_forces, my_do_reflection_a, &
                                                             my_do_reflection_b, do_force_a, do_force_b
@@ -430,14 +429,14 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       lb_max_d = lb_max
 
       IF (calculate_forces) THEN
-         IF (do_force_a) la_max_d = la_max+1
-         IF (do_force_b) lb_max_d = lb_max+1
+         IF (do_force_a) la_max_d = la_max + 1
+         IF (do_force_b) lb_max_d = lb_max + 1
       ENDIF
 
       ncoa = npgfa*ncoset(la_max)
       ncob = npgfb*ncoset(lb_max)
 
-      rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+      rab2 = (ra(1) - rb(1))**2 + (ra(2) - rb(2))**2 + (ra(3) - rb(3))**2
 
       ALLOCATE (hab_uncontr_d(ncoset(la_max_d), ncoset(lb_max_d))); hab_uncontr_d(:, :) = 0.0_dp
       ALLOCATE (hab_uncontr(ncoa, ncob)); hab_uncontr(:, :) = 0.0_dp
@@ -448,18 +447,18 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
          ALLOCATE (hadb_uncontr(3, ncoa, ncob)); hadb_uncontr(:, :, :) = 0.0_dp
       ENDIF
 
-      hab_a_start = offset_hab_a+1; hab_a_end = offset_hab_a+n_hab_a
-      hab_b_start = offset_hab_b+1; hab_b_end = offset_hab_b+n_hab_b
-      set_a_start = offset_set_a+1; set_a_end = offset_set_a+n_hab_a
-      set_b_start = offset_set_b+1; set_b_end = offset_set_b+n_hab_b
+      hab_a_start = offset_hab_a + 1; hab_a_end = offset_hab_a + n_hab_a
+      hab_b_start = offset_hab_b + 1; hab_b_end = offset_hab_b + n_hab_b
+      set_a_start = offset_set_a + 1; set_a_end = offset_set_a + n_hab_a
+      set_b_start = offset_set_b + 1; set_b_end = offset_set_b + n_hab_b
 
       IF (eri_method == do_eri_mme) THEN
          CALL eri_mme_set_potential(param, convert_potential_type(potential_type), omega)
 
          IF (calculate_forces .AND. PRESENT(pab)) THEN
             ! uncontracted hermite-gaussian representation of density matrix
-            sphi_a_start = sgfa-1+set_a_start
-            sphi_b_start = sgfb-1+set_b_start
+            sphi_a_start = sgfa - 1 + set_a_start
+            sphi_b_start = sgfb - 1 + set_b_start
 
             ALLOCATE (pab_ss(n_hab_a, n_hab_b))
             pab_ss(:, :) = pab(hab_a_start:hab_a_end, hab_b_start:hab_b_end)
@@ -471,59 +470,59 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
          ENDIF
 
          DO ipgf = 1, npgfa
-            na = (ipgf-1)*ncoset(la_max)
+            na = (ipgf - 1)*ncoset(la_max)
             DO jpgf = 1, npgfb
-               nb = (jpgf-1)*ncoset(lb_max)
+               nb = (jpgf - 1)*ncoset(lb_max)
                hab_uncontr_d(:, :) = 0.0_dp
                CALL eri_mme_2c_integrate(param, &
                                          la_min, la_max_d, lb_min, lb_max_d, &
-                                         zeta(ipgf), zetb(jpgf), ra-rb, hab_uncontr_d, 0, 0, G_count, R_count)
+                                         zeta(ipgf), zetb(jpgf), ra - rb, hab_uncontr_d, 0, 0, G_count, R_count)
 
-               hab_uncontr(na+1:na+ncoset(la_max), nb+1:nb+ncoset(lb_max)) = &
+               hab_uncontr(na + 1:na + ncoset(la_max), nb + 1:nb + ncoset(lb_max)) = &
                   hab_uncontr_d(:ncoset(la_max), :ncoset(lb_max))
 
                IF (calculate_forces) THEN
                   DO lb = lb_min, lb_max
                   DO bx = 0, lb
-                  DO by = 0, lb-bx
-                     bz = lb-bx-by
+                  DO by = 0, lb - bx
+                     bz = lb - bx - by
                      jco = coset(bx, by, bz)
-                     jcox = coset(bx+1, by, bz)
-                     jcoy = coset(bx, by+1, bz)
-                     jcoz = coset(bx, by, bz+1)
+                     jcox = coset(bx + 1, by, bz)
+                     jcoy = coset(bx, by + 1, bz)
+                     jcoz = coset(bx, by, bz + 1)
                      DO la = la_min, la_max
                      DO ax = 0, la
-                     DO ay = 0, la-ax
-                        az = la-ax-ay
+                     DO ay = 0, la - ax
+                        az = la - ax - ay
                         la_xyz = [ax, ay, az]
                         lb_xyz = [bx, by, bz]
                         ico = coset(ax, ay, az)
-                        icox = coset(ax+1, ay, az)
-                        icoy = coset(ax, ay+1, az)
-                        icoz = coset(ax, ay, az+1)
+                        icox = coset(ax + 1, ay, az)
+                        icoy = coset(ax, ay + 1, az)
+                        icoz = coset(ax, ay, az + 1)
                         IF (PRESENT(force_a)) THEN
-                           force_a(:) = force_a(:)+2.0_dp*zeta(ipgf)* &
-                                        [pab_hh(na+ico, nb+jco)*hab_uncontr_d(icox, jco), &
-                                         pab_hh(na+ico, nb+jco)*hab_uncontr_d(icoy, jco), &
-                                         pab_hh(na+ico, nb+jco)*hab_uncontr_d(icoz, jco)]
+                           force_a(:) = force_a(:) + 2.0_dp*zeta(ipgf)* &
+                                        [pab_hh(na + ico, nb + jco)*hab_uncontr_d(icox, jco), &
+                                         pab_hh(na + ico, nb + jco)*hab_uncontr_d(icoy, jco), &
+                                         pab_hh(na + ico, nb + jco)*hab_uncontr_d(icoz, jco)]
                         ENDIF
                         IF (PRESENT(force_b)) THEN
-                           force_b(:) = force_b(:)+2.0_dp*zetb(jpgf)* &
-                                        [pab_hh(na+ico, nb+jco)*hab_uncontr_d(ico, jcox), &
-                                         pab_hh(na+ico, nb+jco)*hab_uncontr_d(ico, jcoy), &
-                                         pab_hh(na+ico, nb+jco)*hab_uncontr_d(ico, jcoz)]
+                           force_b(:) = force_b(:) + 2.0_dp*zetb(jpgf)* &
+                                        [pab_hh(na + ico, nb + jco)*hab_uncontr_d(ico, jcox), &
+                                         pab_hh(na + ico, nb + jco)*hab_uncontr_d(ico, jcoy), &
+                                         pab_hh(na + ico, nb + jco)*hab_uncontr_d(ico, jcoz)]
                         ENDIF
                         IF (PRESENT(hdab)) THEN
-                           hdab_uncontr(1:3, na+ico, nb+jco) = 2.0_dp*zeta(ipgf)* &
-                                                               [hab_uncontr_d(icox, jco), &
-                                                                hab_uncontr_d(icoy, jco), &
-                                                                hab_uncontr_d(icoz, jco)]
+                           hdab_uncontr(1:3, na + ico, nb + jco) = 2.0_dp*zeta(ipgf)* &
+                                                                   [hab_uncontr_d(icox, jco), &
+                                                                    hab_uncontr_d(icoy, jco), &
+                                                                    hab_uncontr_d(icoz, jco)]
                         ENDIF
                         IF (PRESENT(hadb)) THEN
-                           hadb_uncontr(1:3, na+ico, nb+jco) = 2.0_dp*zetb(jpgf)* &
-                                                               [hab_uncontr_d(ico, jcox), &
-                                                                hab_uncontr_d(ico, jcoy), &
-                                                                hab_uncontr_d(ico, jcoz)]
+                           hadb_uncontr(1:3, na + ico, nb + jco) = 2.0_dp*zetb(jpgf)* &
+                                                                   [hab_uncontr_d(ico, jcox), &
+                                                                    hab_uncontr_d(ico, jcoy), &
+                                                                    hab_uncontr_d(ico, jcoz)]
                         ENDIF
                      ENDDO
                      ENDDO
@@ -540,13 +539,13 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
 
          IF (calculate_forces) CPABORT("NYI")
 
-         ALLOCATE (f_work(0:la_max+lb_max+2))
-         ALLOCATE (v_work(ncoa, ncob, la_max+lb_max+1))
+         ALLOCATE (f_work(0:la_max + lb_max + 2))
+         ALLOCATE (v_work(ncoa, ncob, la_max + lb_max + 1))
          v_work(:, :, :) = 0.0_dp
          f_work = 0.0_dp
 
          CALL coulomb2_new(la_max, npgfa, zeta, la_min, lb_max, npgfb, zetb, lb_min, &
-                           rb-ra, rab2, hab_uncontr, v_work, f_work)
+                           rb - ra, rab2, hab_uncontr, v_work, f_work)
 
          DEALLOCATE (v_work, f_work)
 
@@ -615,40 +614,40 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
 !> \param mat_abdc ...
 ! **************************************************************************************************
    SUBROUTINE mp2_eri_3c_integrate(param, potential_type, omega, para_env, qs_env, &
-                                      first_c, last_c, mat_ab, &
-                                      basis_type_a, basis_type_b, basis_type_c, &
-                                      sab_nl, eri_method, &
-                                      pabc, force_a, force_b, force_c, &
-                                      mat_dabc, mat_adbc, mat_abdc)
+                                   first_c, last_c, mat_ab, &
+                                   basis_type_a, basis_type_b, basis_type_c, &
+                                   sab_nl, eri_method, &
+                                   pabc, force_a, force_b, force_c, &
+                                   mat_dabc, mat_adbc, mat_abdc)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
       INTEGER, INTENT(IN)                                :: potential_type
       REAL(KIND=dp), INTENT(IN)                          :: omega
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       INTEGER, INTENT(IN)                                :: first_c, last_c
-      TYPE(dbcsr_p_type), DIMENSION(last_c-first_c+1), &
+      TYPE(dbcsr_p_type), DIMENSION(last_c - first_c + 1), &
          INTENT(INOUT)                                   :: mat_ab
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type_a, basis_type_b, basis_type_c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       INTEGER, INTENT(IN), OPTIONAL                      :: eri_method
-      TYPE(dbcsr_p_type), DIMENSION(last_c-first_c+1), &
+      TYPE(dbcsr_p_type), DIMENSION(last_c - first_c + 1), &
          INTENT(INOUT), OPTIONAL                         :: pabc
       TYPE(mp2_eri_force), ALLOCATABLE, &
          DIMENSION(:), INTENT(OUT), OPTIONAL             :: force_a, force_b, force_c
       TYPE(dbcsr_p_type), &
-         DIMENSION(3, last_c-first_c+1), INTENT(INOUT), &
+         DIMENSION(3, last_c - first_c + 1), INTENT(INOUT), &
          OPTIONAL                                        :: mat_dabc, mat_adbc, mat_abdc
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_eri_3c_integrate', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER :: atom_a, atom_b, atom_c, atom_end, atom_start, first_set, GG_count, GR_count, &
-         handle, i_xyz, iatom, ic, icol, ikind, inode, irow, iset, jatom, jkind, jset, katom, &
-         kkind, kset, kset_end, kset_start, last_jatom, last_set, mepos, my_eri_method, na, natom, &
-         nb, nc, nkind, nseta, nsetb, nsetc, nthread, offset_a_end, offset_a_start, offset_b_end, &
-         offset_b_start, offset_c_end, offset_c_start, RR_count, set_end, set_offset_end, &
-         set_offset_start, set_start, sgfa, sgfb, sgfc
+                 handle, i_xyz, iatom, ic, icol, ikind, inode, irow, iset, jatom, jkind, jset, katom, &
+                 kkind, kset, kset_end, kset_start, last_jatom, last_set, mepos, my_eri_method, na, natom, &
+                 nb, nc, nkind, nseta, nsetb, nsetc, nthread, offset_a_end, offset_a_start, offset_b_end, &
+                 offset_b_start, offset_c_end, offset_c_start, RR_count, set_end, set_offset_end, &
+                 set_offset_start, set_start, sgfa, sgfb, sgfc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: eri_offsets
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, lc_max, &
@@ -681,7 +680,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       my_eri_method = do_eri_mme
       IF (PRESENT(eri_method)) my_eri_method = eri_method
 
-      IF(PRESENT(force_a) .OR. PRESENT(force_b) .OR. PRESENT(force_c)) THEN
+      IF (PRESENT(force_a) .OR. PRESENT(force_b) .OR. PRESENT(force_c)) THEN
          CPASSERT(PRESENT(pabc))
       ENDIF
 
@@ -718,7 +717,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
       IF (PRESENT(force_b)) CALL mp2_eri_allocate_forces(force_b, natom_of_kind)
       IF (PRESENT(force_c)) CALL mp2_eri_allocate_forces(force_c, natom_of_kind)
 
-      nc = last_c-first_c+1
+      nc = last_c - first_c + 1
 
       ! check for symmetry
       CPASSERT(SIZE(sab_nl) > 0)
@@ -832,23 +831,23 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
          ENDIF
 
          rab(:) = pbc(rab, cell)
-         dab = SQRT(rab(1)**2+rab(2)**2+rab(3)**2)
+         dab = SQRT(rab(1)**2 + rab(2)**2 + rab(3)**2)
 
          offset_a_end = 0
          DO iset = 1, nseta
             offset_a_start = offset_a_end
-            offset_a_end = offset_a_end+nsgfa(iset)
+            offset_a_end = offset_a_end + nsgfa(iset)
             sgfa = first_sgfa(1, iset)
 
             offset_b_end = 0
             DO jset = 1, nsetb
                offset_b_start = offset_b_end
-               offset_b_end = offset_b_end+nsgfb(jset)
+               offset_b_end = offset_b_end + nsgfb(jset)
 
                sgfb = first_sgfb(1, jset)
 
                ! Screening
-               IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
                offset_c_end = 0
                DO katom = atom_start, atom_end
@@ -878,7 +877,7 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
                      IF (kset == kset_end .AND. katom == atom_end) last_set = set_offset_end
 
                      offset_c_start = offset_c_end
-                     offset_c_end = offset_c_end+last_set+1-first_set
+                     offset_c_end = offset_c_end + last_set + 1 - first_set
                      sgfc = first_sgfc(1, kset)
 
 #!some fypp magic to deal with combinations of optional arguments
@@ -889,13 +888,13 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
 #:for dabc in [0, 1]
 #:for adbc in [0, 1]
 #:for abdc in [0, 1]
-                     IF (${conditional(doforce_1)}$ PRESENT(force_a) .AND. &
-                         ${conditional(doforce_2)}$ PRESENT(force_b) .AND. &
-                         ${conditional(doforce_3)}$ PRESENT(force_c) .AND. &
-                         ${conditional(pabc_present)}$ PRESENT(pabc) .AND. &
-                         ${conditional(dabc)}$ PRESENT(mat_dabc) .AND. &
-                         ${conditional(adbc)}$ PRESENT(mat_adbc) .AND. &
-                         ${conditional(abdc)}$ PRESENT(mat_abdc)) THEN
+                     IF (${conditional(doforce_1)}$PRESENT(force_a) .AND. &
+                         ${conditional(doforce_2)}$PRESENT(force_b) .AND. &
+                         ${conditional(doforce_3)}$PRESENT(force_c) .AND. &
+                         ${conditional(pabc_present)}$PRESENT(pabc) .AND. &
+                         ${conditional(dabc)}$PRESENT(mat_dabc) .AND. &
+                         ${conditional(adbc)}$PRESENT(mat_adbc) .AND. &
+                         ${conditional(abdc)}$PRESENT(mat_abdc)) THEN
                         CALL integrate_set_3c( &
                            param%par, potential_type, omega, &
                            la_min(iset), la_max(iset), &
@@ -905,22 +904,22 @@ $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce
                            zeta(:, iset), zetb(:, jset), zetc(:, kset), &
                            ra, rb, rc, &
                            habc, &
-                           nsgfa(iset), nsgfb(jset), last_set-first_set+1, &
+                           nsgfa(iset), nsgfb(jset), last_set - first_set + 1, &
                            offset_a_start, offset_b_start, offset_c_start, &
-                           0, 0, first_set-1, &
+                           0, 0, first_set - 1, &
                            sphi_a, sphi_b, sphi_c, &
                            sgfa, sgfb, sgfc, &
                            nsgfa(iset), nsgfb(jset), nsgfc(kset), &
                            my_eri_method, &
-$:                         'pabc=pabc_block, &'*pabc_present
-$:                         'force_a=force_a(ikind)%forces(:, atom_a), &'*doforce_1
-$:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce_2
-$:                         'force_c=force_c(kkind)%forces(:, atom_c), &'*doforce_3
+                           $:                         'pabc=pabc_block, &'*pabc_present
+                           $:                         'force_a=force_a(ikind)%forces(:, atom_a), &'*doforce_1
+                           $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce_2
+                           $:                         'force_c=force_c(kkind)%forces(:, atom_c), &'*doforce_3
                            do_symmetric=do_symmetric, &
                            on_diagonal=iatom .EQ. jatom, &
-$:                         'hdabc=hdabc, &'*dabc
-$:                         'hadbc=hadbc, &'*adbc
-$:                         'habdc=habdc, &'*abdc
+                           $:                         'hdabc=hdabc, &'*dabc
+                           $:                         'hadbc=hadbc, &'*adbc
+                           $:                         'habdc=habdc, &'*abdc
                            GG_count=GG_count, GR_count=GR_count, RR_count=RR_count)
                      ENDIF
 #:endfor
@@ -1090,7 +1089,7 @@ $:                         'habdc=habdc, &'*abdc
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb, rc
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: habc
       INTEGER, INTENT(IN) :: n_habc_a, n_habc_b, n_habc_c, offset_habc_a, offset_habc_b, &
-         offset_habc_c, offset_set_a, offset_set_b, offset_set_c
+                             offset_habc_c, offset_set_a, offset_set_b, offset_set_c
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_a, sphi_b, sphi_c
       INTEGER, INTENT(IN)                                :: sgfa, sgfb, sgfc, nsgfa, nsgfb, nsgfc, &
                                                             eri_method
@@ -1105,14 +1104,14 @@ $:                         'habdc=habdc, &'*abdc
       INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_set_3c', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER :: ax, ay, az, bx, by, bz, cx, cy, cz, habc_a_end, habc_a_start, habc_b_end, &
-         habc_b_start, habc_c_end, habc_c_start, handle, i_xyz, ico, icoc, icox, icoy, icoz, ipgf, &
-         jco, jcox, jcoy, jcoz, jpgf, kco, kcox, kcoy, kcoz, kpgf, la, la_max_d, lb, &
-         lb_max_d, lc, lc_max_d, na, nb, nc, nc_end, nc_start, ncoa, ncoa_d, ncob, &
-         ncob_d, ncoc, ncoc_d, set_a_end, set_a_start, set_b_end, set_b_start, &
-         set_c_end, set_c_start, sphi_a_start, sphi_b_start, sphi_c_start
+                 habc_b_start, habc_c_end, habc_c_start, handle, i_xyz, ico, icoc, icox, icoy, icoz, ipgf, &
+                 jco, jcox, jcoy, jcoz, jpgf, kco, kcox, kcoy, kcoz, kpgf, la, la_max_d, lb, &
+                 lb_max_d, lc, lc_max_d, na, nb, nc, nc_end, nc_start, ncoa, ncoa_d, ncob, &
+                 ncob_d, ncoc, ncoc_d, set_a_end, set_a_start, set_b_end, set_b_start, &
+                 set_c_end, set_c_start, sphi_a_start, sphi_b_start, sphi_c_start
       INTEGER, DIMENSION(3)                              :: la_xyz, lb_xyz
       LOGICAL                                            :: calculate_forces, do_force_a, do_force_b, &
                                                             do_force_c
@@ -1142,9 +1141,9 @@ $:                         'habdc=habdc, &'*abdc
       lc_max_d = lc_max
 
       IF (calculate_forces) THEN
-         IF (do_force_a) la_max_d = la_max+1
-         IF (do_force_b) lb_max_d = lb_max+1
-         IF (do_force_c) lc_max_d = lc_max+1
+         IF (do_force_a) la_max_d = la_max + 1
+         IF (do_force_b) lb_max_d = lb_max + 1
+         IF (do_force_c) lc_max_d = lc_max + 1
       ENDIF
 
       ncoa = npgfa*ncoset(la_max)
@@ -1168,21 +1167,21 @@ $:                         'habdc=habdc, &'*abdc
          ALLOCATE (habdc_uncontr(3, ncoa, ncob, ncoc)); habdc_uncontr(:, :, :, :) = 0.0_dp
       ENDIF
 
-      habc_a_start = offset_habc_a+1; habc_a_end = offset_habc_a+n_habc_a
-      habc_b_start = offset_habc_b+1; habc_b_end = offset_habc_b+n_habc_b
-      habc_c_start = offset_habc_c+1; habc_c_end = offset_habc_c+n_habc_c
-      set_a_start = offset_set_a+1; set_a_end = offset_set_a+n_habc_a
-      set_b_start = offset_set_b+1; set_b_end = offset_set_b+n_habc_b
-      set_c_start = offset_set_c+1; set_c_end = offset_set_c+n_habc_c
+      habc_a_start = offset_habc_a + 1; habc_a_end = offset_habc_a + n_habc_a
+      habc_b_start = offset_habc_b + 1; habc_b_end = offset_habc_b + n_habc_b
+      habc_c_start = offset_habc_c + 1; habc_c_end = offset_habc_c + n_habc_c
+      set_a_start = offset_set_a + 1; set_a_end = offset_set_a + n_habc_a
+      set_b_start = offset_set_b + 1; set_b_end = offset_set_b + n_habc_b
+      set_c_start = offset_set_c + 1; set_c_end = offset_set_c + n_habc_c
 
       IF (eri_method == do_eri_mme) THEN
          CALL eri_mme_set_potential(param, convert_potential_type(potential_type), omega)
 
          IF (calculate_forces .AND. PRESENT(pabc)) THEN
             ! uncontracted hermite-gaussian representation of density matrix
-            sphi_a_start = sgfa-1+set_a_start
-            sphi_b_start = sgfb-1+set_b_start
-            sphi_c_start = sgfc-1+set_c_start
+            sphi_a_start = sgfa - 1 + set_a_start
+            sphi_b_start = sgfb - 1 + set_b_start
+            sphi_c_start = sgfc - 1 + set_c_start
 
             ALLOCATE (pabc_sss(n_habc_a, n_habc_b, n_habc_c))
             pabc_sss(:, :, :) = pabc(habc_a_start:habc_a_end, habc_b_start:habc_b_end, habc_c_start:habc_c_end)
@@ -1206,88 +1205,88 @@ $:                         'habdc=habdc, &'*abdc
          ENDIF
 
          DO ipgf = 1, npgfa
-            na = (ipgf-1)*ncoset(la_max)
+            na = (ipgf - 1)*ncoset(la_max)
             DO jpgf = 1, npgfb
-               nb = (jpgf-1)*ncoset(lb_max)
+               nb = (jpgf - 1)*ncoset(lb_max)
                DO kpgf = 1, npgfc
-                  nc = (kpgf-1)*ncoset(lc_max)
+                  nc = (kpgf - 1)*ncoset(lc_max)
                   habc_uncontr_d(:, :, :) = 0.0_dp
                   CALL eri_mme_3c_integrate(param, &
                                             la_min, la_max_d, lb_min, lb_max_d, lc_min, lc_max_d, &
                                             zeta(ipgf), zetb(jpgf), zetc(kpgf), ra, rb, rc, habc_uncontr_d, 0, 0, 0, &
                                             GG_count, GR_count, RR_count)
 
-                  habc_uncontr(na+1:na+ncoset(la_max), nb+1:nb+ncoset(lb_max), nc+1:nc+ncoset(lc_max)) = &
+                  habc_uncontr(na + 1:na + ncoset(la_max), nb + 1:nb + ncoset(lb_max), nc + 1:nc + ncoset(lc_max)) = &
                      habc_uncontr_d(:ncoset(la_max), :ncoset(lb_max), :ncoset(lc_max))
 
                   IF (calculate_forces) THEN
                      DO lc = lc_min, lc_max
                      DO cx = 0, lc
-                     DO cy = 0, lc-cx
-                        cz = lc-cx-cy
+                     DO cy = 0, lc - cx
+                        cz = lc - cx - cy
                         kco = coset(cx, cy, cz)
-                        kcox = coset(cx+1, cy, cz)
-                        kcoy = coset(cx, cy+1, cz)
-                        kcoz = coset(cx, cy, cz+1)
+                        kcox = coset(cx + 1, cy, cz)
+                        kcoy = coset(cx, cy + 1, cz)
+                        kcoz = coset(cx, cy, cz + 1)
                         DO lb = lb_min, lb_max
                         DO bx = 0, lb
-                        DO by = 0, lb-bx
-                           bz = lb-bx-by
+                        DO by = 0, lb - bx
+                           bz = lb - bx - by
                            jco = coset(bx, by, bz)
-                           jcox = coset(bx+1, by, bz)
-                           jcoy = coset(bx, by+1, bz)
-                           jcoz = coset(bx, by, bz+1)
+                           jcox = coset(bx + 1, by, bz)
+                           jcoy = coset(bx, by + 1, bz)
+                           jcoz = coset(bx, by, bz + 1)
                            DO la = la_min, la_max
                            DO ax = 0, la
-                           DO ay = 0, la-ax
-                              az = la-ax-ay
+                           DO ay = 0, la - ax
+                              az = la - ax - ay
                               la_xyz = [ax, ay, az]
                               lb_xyz = [bx, by, bz]
                               ico = coset(ax, ay, az)
-                              icox = coset(ax+1, ay, az)
-                              icoy = coset(ax, ay+1, az)
-                              icoz = coset(ax, ay, az+1)
+                              icox = coset(ax + 1, ay, az)
+                              icoy = coset(ax, ay + 1, az)
+                              icoz = coset(ax, ay, az + 1)
 
                               w = 1.0_dp
                               IF (do_symmetric .AND. .NOT. on_diagonal) w = 2.0_dp
 
                               IF (PRESENT(force_a)) THEN
-                                 force_a = force_a+2.0_dp*w*zeta(ipgf)* &
-                                           [pabc_hhh(na+ico, nb+jco, nc+kco)*habc_uncontr_d(icox, jco, kco), &
-                                            pabc_hhh(na+ico, nb+jco, nc+kco)*habc_uncontr_d(icoy, jco, kco), &
-                                            pabc_hhh(na+ico, nb+jco, nc+kco)*habc_uncontr_d(icoz, jco, kco)]
+                                 force_a = force_a + 2.0_dp*w*zeta(ipgf)* &
+                                           [pabc_hhh(na + ico, nb + jco, nc + kco)*habc_uncontr_d(icox, jco, kco), &
+                                            pabc_hhh(na + ico, nb + jco, nc + kco)*habc_uncontr_d(icoy, jco, kco), &
+                                            pabc_hhh(na + ico, nb + jco, nc + kco)*habc_uncontr_d(icoz, jco, kco)]
 
                               ENDIF
                               IF (PRESENT(force_b)) THEN
-                                 force_b = force_b+2.0_dp*w*zetb(jpgf)* &
-                                           [pabc_hhh(na+ico, nb+jco, nc+kco)*habc_uncontr_d(ico, jcox, kco), &
-                                            pabc_hhh(na+ico, nb+jco, nc+kco)*habc_uncontr_d(ico, jcoy, kco), &
-                                            pabc_hhh(na+ico, nb+jco, nc+kco)*habc_uncontr_d(ico, jcoz, kco)]
+                                 force_b = force_b + 2.0_dp*w*zetb(jpgf)* &
+                                           [pabc_hhh(na + ico, nb + jco, nc + kco)*habc_uncontr_d(ico, jcox, kco), &
+                                            pabc_hhh(na + ico, nb + jco, nc + kco)*habc_uncontr_d(ico, jcoy, kco), &
+                                            pabc_hhh(na + ico, nb + jco, nc + kco)*habc_uncontr_d(ico, jcoz, kco)]
                               ENDIF
                               IF (PRESENT(force_c)) THEN
-                                 force_c = force_c+2.0_dp*w*zetc(kpgf)* &
-                                           [pabc_hhh(na+ico, nb+jco, nc+kco)*habc_uncontr_d(ico, jco, kcox), &
-                                            pabc_hhh(na+ico, nb+jco, nc+kco)*habc_uncontr_d(ico, jco, kcoy), &
-                                            pabc_hhh(na+ico, nb+jco, nc+kco)*habc_uncontr_d(ico, jco, kcoz)]
+                                 force_c = force_c + 2.0_dp*w*zetc(kpgf)* &
+                                           [pabc_hhh(na + ico, nb + jco, nc + kco)*habc_uncontr_d(ico, jco, kcox), &
+                                            pabc_hhh(na + ico, nb + jco, nc + kco)*habc_uncontr_d(ico, jco, kcoy), &
+                                            pabc_hhh(na + ico, nb + jco, nc + kco)*habc_uncontr_d(ico, jco, kcoz)]
                               ENDIF
 
                               IF (PRESENT(hdabc)) THEN
-                                 hdabc_uncontr(1:3, na+ico, nb+jco, nc+kco) = 2.0_dp*zeta(ipgf)* &
-                                                                              [habc_uncontr_d(icox, jco, kco), &
-                                                                               habc_uncontr_d(icoy, jco, kco), &
-                                                                               habc_uncontr_d(icoz, jco, kco)]
+                                 hdabc_uncontr(1:3, na + ico, nb + jco, nc + kco) = 2.0_dp*zeta(ipgf)* &
+                                                                                    [habc_uncontr_d(icox, jco, kco), &
+                                                                                     habc_uncontr_d(icoy, jco, kco), &
+                                                                                     habc_uncontr_d(icoz, jco, kco)]
                               ENDIF
                               IF (PRESENT(hadbc)) THEN
-                                 hadbc_uncontr(1:3, na+ico, nb+jco, nc+kco) = 2.0_dp*zetb(jpgf)* &
-                                                                              [habc_uncontr_d(ico, jcox, kco), &
-                                                                               habc_uncontr_d(ico, jcoy, kco), &
-                                                                               habc_uncontr_d(ico, jcoz, kco)]
+                                 hadbc_uncontr(1:3, na + ico, nb + jco, nc + kco) = 2.0_dp*zetb(jpgf)* &
+                                                                                    [habc_uncontr_d(ico, jcox, kco), &
+                                                                                     habc_uncontr_d(ico, jcoy, kco), &
+                                                                                     habc_uncontr_d(ico, jcoz, kco)]
                               ENDIF
                               IF (PRESENT(habdc)) THEN
-                                 habdc_uncontr(1:3, na+ico, nb+jco, nc+kco) = 2.0_dp*zetc(kpgf)* &
-                                                                              [habc_uncontr_d(ico, jco, kcox), &
-                                                                               habc_uncontr_d(ico, jco, kcoy), &
-                                                                               habc_uncontr_d(ico, jco, kcoz)]
+                                 habdc_uncontr(1:3, na + ico, nb + jco, nc + kco) = 2.0_dp*zetc(kpgf)* &
+                                                                                    [habc_uncontr_d(ico, jco, kcox), &
+                                                                                     habc_uncontr_d(ico, jco, kcoy), &
+                                                                                     habc_uncontr_d(ico, jco, kcoz)]
                               ENDIF
                            ENDDO
                            ENDDO
@@ -1308,9 +1307,9 @@ $:                         'habdc=habdc, &'*abdc
 
          IF (calculate_forces) CPABORT("NYI")
 
-         ALLOCATE (f_work(0:la_max+lb_max+lc_max+2))
+         ALLOCATE (f_work(0:la_max + lb_max + lc_max + 2))
          f_work(:) = 0.0_dp
-         ALLOCATE (v_work(ncoa, ncob, ncoc, la_max+lb_max+lc_max+1))
+         ALLOCATE (v_work(ncoa, ncob, ncoc, la_max + lb_max + lc_max + 1))
          v_work(:, :, :, :) = 0.0_dp
          ! no screening
          ALLOCATE (rpgfa(npgfa))
@@ -1323,9 +1322,9 @@ $:                         'habdc=habdc, &'*abdc
          gccc(:) = 0.0_dp
          ALLOCATE (vabc(ncoa, ncob))
          vabc(:, :) = 0.0_dp
-         rab2 = (rb(1)-ra(1))**2+(rb(2)-ra(2))**2+(rb(3)-ra(3))**2
-         rac2 = (rc(1)-ra(1))**2+(rc(2)-ra(2))**2+(rc(3)-ra(3))**2
-         rbc2 = (rc(1)-rb(1))**2+(rc(2)-rb(2))**2+(rc(3)-rb(3))**2
+         rab2 = (rb(1) - ra(1))**2 + (rb(2) - ra(2))**2 + (rb(3) - ra(3))**2
+         rac2 = (rc(1) - ra(1))**2 + (rc(2) - ra(2))**2 + (rc(3) - ra(3))**2
+         rbc2 = (rc(1) - rb(1))**2 + (rc(2) - rb(2))**2 + (rc(3) - rb(3))**2
 
          ! in the RI basis, there is only a single primitive Gaussian
          kpgf = 1
@@ -1333,14 +1332,14 @@ $:                         'habdc=habdc, &'*abdc
          IF (lc_max == 0) THEN
             nc_start = 1
          ELSE
-            nc_start = ncoset(lc_max-1)+1
+            nc_start = ncoset(lc_max - 1) + 1
          END IF
          nc_end = ncoset(lc_max)
 
          CALL coulomb3(la_max, npgfa, zeta(:), rpgfa(:), la_min, &
                        lb_max, npgfb, zetb(:), rpgfb(:), lb_min, &
                        lc_max, zetc(kpgf), rpgfc(kpgf), lc_min, &
-                       gccc, rb-ra, rab2, rc-ra, rac2, rbc2, &
+                       gccc, rb - ra, rab2, rc - ra, rac2, rbc2, &
                        vabc, habc_uncontr(:, :, nc_start:nc_end), v_work, f_work)
 
          DEALLOCATE (v_work, f_work, rpgfa, rpgfb, rpgfc, gccc, vabc)
@@ -1437,7 +1436,7 @@ $:                         'habdc=habdc, &'*abdc
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind=qs_kind_set(ikind), nsgf=nsgf, basis_type=basis_type)
-         dimen_basis = dimen_basis+nsgf
+         dimen_basis = dimen_basis + nsgf
       END DO
 
       ALLOCATE (eri_offsets(dimen_basis, 3))
@@ -1451,10 +1450,10 @@ $:                         'habdc=habdc, &'*abdc
          DO iset = 1, nset
             set_offset = 0
             DO isgf = 1, nsgf_set(iset)
-               set_offset = set_offset+1
-               eri_offsets(offset+set_offset, :) = [iatom, iset, set_offset]
+               set_offset = set_offset + 1
+               eri_offsets(offset + set_offset, :) = [iatom, iset, set_offset]
             ENDDO
-            offset = offset+nsgf_set(iset)
+            offset = offset + nsgf_set(iset)
          ENDDO
       ENDDO
    END SUBROUTINE get_eri_offsets
@@ -1481,7 +1480,6 @@ $:                         'habdc=habdc, &'*abdc
          force(ikind)%forces(:, :) = 0.0_dp
       ENDDO
    END SUBROUTINE mp2_eri_allocate_forces
-
 
 ! **************************************************************************************************
 !> \brief ...

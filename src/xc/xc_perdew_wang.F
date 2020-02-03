@@ -15,21 +15,21 @@
 MODULE xc_perdew_wang
 #:include "xc_perdew_wang.fypp"
 
-   USE kinds,                           ONLY: dp
-   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                              xc_dset_get_derivative
-   USE xc_derivative_types,             ONLY: xc_derivative_get,&
-                                              xc_derivative_type
-   USE xc_functionals_utilities,        ONLY: calc_fx,&
-                                              calc_rs,&
-                                              calc_z,&
-                                              set_util
-   USE xc_input_constants,              ONLY: pw_dmc,&
-                                              pw_orig,&
-                                              pw_vmc
-   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
-                                              xc_rho_set_type
+   USE kinds, ONLY: dp
+   USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
+                                      xc_dset_get_derivative
+   USE xc_derivative_types, ONLY: xc_derivative_get, &
+                                  xc_derivative_type
+   USE xc_functionals_utilities, ONLY: calc_fx, &
+                                       calc_rs, &
+                                       calc_z, &
+                                       set_util
+   USE xc_input_constants, ONLY: pw_dmc, &
+                                 pw_orig, &
+                                 pw_vmc
+   USE xc_rho_cflags_types, ONLY: xc_rho_cflags_type
+   USE xc_rho_set_types, ONLY: xc_rho_set_get, &
+                               xc_rho_set_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -65,7 +65,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_info', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       CHARACTER(len=3)                                   :: p_string
 
@@ -144,7 +144,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_lda_eval', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: npoints, timer_handle
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -279,7 +279,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_lsd_eval', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: npoints, timer_handle
       INTEGER, DIMENSION(:, :), POINTER                  :: bo

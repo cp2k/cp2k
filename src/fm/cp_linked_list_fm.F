@@ -6,7 +6,7 @@
 #:include '../common/cp_linked_list.fypp'
 
 MODULE cp_linked_list_fm
-USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type
+   USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type
 #include "../base/base_uses.f90"
 
 #:mute

@@ -15,16 +15,16 @@
 ! **************************************************************************************************
 MODULE se_fock_matrix_integrals
 
-   USE kinds,                           ONLY: dp
-   USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
-   USE semi_empirical_integrals,        ONLY: drotint,&
-                                              drotnuc,&
-                                              rotint,&
-                                              rotnuc
-   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
-   USE semi_empirical_types,            ONLY: se_int_control_type,&
-                                              se_taper_type,&
-                                              semi_empirical_type
+   USE kinds, ONLY: dp
+   USE semi_empirical_int_arrays, ONLY: se_orbital_pointer
+   USE semi_empirical_integrals, ONLY: drotint, &
+                                       drotnuc, &
+                                       rotint, &
+                                       rotnuc
+   USE semi_empirical_store_int_types, ONLY: semi_empirical_si_type
+   USE semi_empirical_types, ONLY: se_int_control_type, &
+                                   se_taper_type, &
+                                   semi_empirical_type
 #include "./base/base_uses.f90"
 
 #:include "ewalds_multipole_sr.fypp"
@@ -90,17 +90,17 @@ CONTAINS
       i2 = 0
       DO i1L = 1, sepi%natorb
          i1 = se_orbital_pointer(i1L)
-         DO j1L = 1, i1L-1
+         DO j1L = 1, i1L - 1
             j1 = se_orbital_pointer(j1L)
-            i2 = i2+1
-            ksi_block(i1, j1) = ksi_block(i1, j1)+e1b(i2)
+            i2 = i2 + 1
+            ksi_block(i1, j1) = ksi_block(i1, j1) + e1b(i2)
             ksi_block(j1, i1) = ksi_block(i1, j1)
-            ecore(1) = ecore(1)+2.0_dp*e1b(i2)*pi_block(i1, j1)
+            ecore(1) = ecore(1) + 2.0_dp*e1b(i2)*pi_block(i1, j1)
          END DO
          j1 = se_orbital_pointer(j1L)
-         i2 = i2+1
-         ksi_block(i1, j1) = ksi_block(i1, j1)+e1b(i2)
-         ecore(1) = ecore(1)+e1b(i2)*pi_block(i1, j1)
+         i2 = i2 + 1
+         ksi_block(i1, j1) = ksi_block(i1, j1) + e1b(i2)
+         ecore(1) = ecore(1) + e1b(i2)*pi_block(i1, j1)
       END DO
       !
       ! Add the electron-nuclear attraction term for atom sepj
@@ -108,17 +108,17 @@ CONTAINS
       i2 = 0
       DO i1L = 1, sepj%natorb
          i1 = se_orbital_pointer(i1L)
-         DO j1L = 1, i1L-1
+         DO j1L = 1, i1L - 1
             j1 = se_orbital_pointer(j1L)
-            i2 = i2+1
-            ksj_block(i1, j1) = ksj_block(i1, j1)+e2a(i2)
+            i2 = i2 + 1
+            ksj_block(i1, j1) = ksj_block(i1, j1) + e2a(i2)
             ksj_block(j1, i1) = ksj_block(i1, j1)
-            ecore(2) = ecore(2)+2.0_dp*e2a(i2)*pj_block(i1, j1)
+            ecore(2) = ecore(2) + 2.0_dp*e2a(i2)*pj_block(i1, j1)
          END DO
          j1 = se_orbital_pointer(j1L)
-         i2 = i2+1
-         ksj_block(i1, j1) = ksj_block(i1, j1)+e2a(i2)
-         ecore(2) = ecore(2)+e2a(i2)*pj_block(i1, j1)
+         i2 = i2 + 1
+         ksj_block(i1, j1) = ksj_block(i1, j1) + e2a(i2)
+         ecore(2) = ecore(2) + e2a(i2)*pj_block(i1, j1)
       END DO
 
    END SUBROUTINE fock2_1el
@@ -170,19 +170,19 @@ CONTAINS
       i2 = 0
       DO i1L = 1, sepi%natorb
          i1 = se_orbital_pointer(i1L)
-         DO j1L = 1, i1L-1
+         DO j1L = 1, i1L - 1
             j1 = se_orbital_pointer(j1L)
-            i2 = i2+1
+            i2 = i2 + 1
             tmp = 2.0_dp*pi_block(i1, j1)
-            force(1) = force(1)+de1b(1, i2)*tmp
-            force(2) = force(2)+de1b(2, i2)*tmp
-            force(3) = force(3)+de1b(3, i2)*tmp
+            force(1) = force(1) + de1b(1, i2)*tmp
+            force(2) = force(2) + de1b(2, i2)*tmp
+            force(3) = force(3) + de1b(3, i2)*tmp
          END DO
          j1 = se_orbital_pointer(j1L)
-         i2 = i2+1
-         force(1) = force(1)+de1b(1, i2)*pi_block(i1, j1)
-         force(2) = force(2)+de1b(2, i2)*pi_block(i1, j1)
-         force(3) = force(3)+de1b(3, i2)*pi_block(i1, j1)
+         i2 = i2 + 1
+         force(1) = force(1) + de1b(1, i2)*pi_block(i1, j1)
+         force(2) = force(2) + de1b(2, i2)*pi_block(i1, j1)
+         force(3) = force(3) + de1b(3, i2)*pi_block(i1, j1)
       END DO
       !
       ! Add the electron-nuclear attraction term for atom sepj
@@ -190,19 +190,19 @@ CONTAINS
       i2 = 0
       DO i1L = 1, sepj%natorb
          i1 = se_orbital_pointer(i1L)
-         DO j1L = 1, i1L-1
+         DO j1L = 1, i1L - 1
             j1 = se_orbital_pointer(j1L)
-            i2 = i2+1
+            i2 = i2 + 1
             tmp = 2.0_dp*pj_block(i1, j1)
-            force(1) = force(1)+de2a(1, i2)*tmp
-            force(2) = force(2)+de2a(2, i2)*tmp
-            force(3) = force(3)+de2a(3, i2)*tmp
+            force(1) = force(1) + de2a(1, i2)*tmp
+            force(2) = force(2) + de2a(2, i2)*tmp
+            force(3) = force(3) + de2a(3, i2)*tmp
          END DO
          j1 = se_orbital_pointer(j1L)
-         i2 = i2+1
-         force(1) = force(1)+de2a(1, i2)*pj_block(i1, j1)
-         force(2) = force(2)+de2a(2, i2)*pj_block(i1, j1)
-         force(3) = force(3)+de2a(3, i2)*pj_block(i1, j1)
+         i2 = i2 + 1
+         force(1) = force(1) + de2a(1, i2)*pj_block(i1, j1)
+         force(2) = force(2) + de2a(2, i2)*pj_block(i1, j1)
+         force(3) = force(3) + de2a(3, i2)*pj_block(i1, j1)
       END DO
 
    END SUBROUTINE dfock2_1el
@@ -243,7 +243,7 @@ CONTAINS
             j = se_orbital_pointer(jL)
 
             !    `J' Address IJ in W
-            ijw = (iL*(iL-1))/2+jL
+            ijw = (iL*(iL - 1))/2 + jL
             sum = 0.0_dp
             DO kL = 1, sep%natorb
                k = se_orbital_pointer(kL)
@@ -253,22 +253,22 @@ CONTAINS
                   !    `J' Address KL in W
                   im = MAX(kL, lL)
                   jm = MIN(kL, lL)
-                  klw = (im*(im-1))/2+jm
+                  klw = (im*(im - 1))/2 + jm
 
                   !    `K' Address IK in W
                   im = MAX(kL, jL)
                   jm = MIN(kL, jL)
-                  ikw = (im*(im-1))/2+jm
+                  ikw = (im*(im - 1))/2 + jm
 
                   !    `K' Address JL in W
                   im = MAX(lL, iL)
                   jm = MIN(lL, iL)
-                  jlw = (im*(im-1))/2+jm
+                  jlw = (im*(im - 1))/2 + jm
 
-                  sum = sum+p_tot(k, l)*sep%w(ijw, klw)-p_mat(k, l)*sep%w(ikw, jlw)
+                  sum = sum + p_tot(k, l)*sep%w(ijw, klw) - p_mat(k, l)*sep%w(ikw, jlw)
                END DO
             END DO
-            f_mat(i, j) = f_mat(i, j)+factor*sum
+            f_mat(i, j) = f_mat(i, j) + factor*sum
             f_mat(j, i) = f_mat(i, j)
          END DO
       END DO
@@ -316,21 +316,21 @@ CONTAINS
       ! Add the electron-nuclear attraction term for atom sep
       ! e1b == e2a
       !
-      n = (sep%natorb*(sep%natorb+1))/2
+      n = (sep%natorb*(sep%natorb + 1))/2
       i2 = 0
       DO i1L = 1, sep%natorb
          i1 = se_orbital_pointer(i1L)
-         DO j1L = 1, i1L-1
+         DO j1L = 1, i1L - 1
             j1 = se_orbital_pointer(j1L)
-            i2 = i2+1
-            ks_block(i1, j1) = ks_block(i1, j1)+e1b(i2)
+            i2 = i2 + 1
+            ks_block(i1, j1) = ks_block(i1, j1) + e1b(i2)
             ks_block(j1, i1) = ks_block(i1, j1)
-            ecore = ecore+2._dp*e1b(i2)*p_block(i1, j1)
+            ecore = ecore + 2._dp*e1b(i2)*p_block(i1, j1)
          END DO
          ! i1L == j1L
-         i2 = i2+1
-         ks_block(i1, i1) = ks_block(i1, i1)+e1b(i2)
-         ecore = ecore+e1b(i2)*p_block(i1, i1)
+         i2 = i2 + 1
+         ks_block(i1, i1) = ks_block(i1, i1) + e1b(i2)
+         ecore = ecore + e1b(i2)*p_block(i1, i1)
       END DO
 
    END SUBROUTINE fock2_1el_ew
@@ -389,11 +389,11 @@ CONTAINS
                   IF (k == l) THEN
                      bb = 1.0_dp
                   END IF
-                  kr = kr+1
+                  kr = kr + 1
                   a = 0.5_dp*w(kr)*factor
                   ! Coulomb
-                  f_mat(i, j) = f_mat(i, j)+bb*a*p_tot(k, l)
-                  f_mat(k, l) = f_mat(k, l)+aa*a*p_tot(i, j)
+                  f_mat(i, j) = f_mat(i, j) + bb*a*p_tot(k, l)
+                  f_mat(k, l) = f_mat(k, l) + aa*a*p_tot(i, j)
                   f_mat(j, i) = f_mat(i, j)
                   f_mat(l, k) = f_mat(k, l)
                END DO
@@ -475,17 +475,17 @@ CONTAINS
                   IF (k == l) THEN
                      bb = 1.0_dp
                   END IF
-                  kr = kr+1
+                  kr = kr + 1
                   a = w(kr)*factor
                   ! Coulomb
                   IF (.NOT. switch) THEN
-                     fi_mat(i, j) = fi_mat(i, j)+bb*a*pj_tot(k, l)
-                     fj_mat(k, l) = fj_mat(k, l)+aa*a*pi_tot(i, j)
+                     fi_mat(i, j) = fi_mat(i, j) + bb*a*pj_tot(k, l)
+                     fj_mat(k, l) = fj_mat(k, l) + aa*a*pi_tot(i, j)
                      fi_mat(j, i) = fi_mat(i, j)
                      fj_mat(l, k) = fj_mat(k, l)
                   ELSE
-                     fj_mat(i, j) = fj_mat(i, j)+bb*a*pi_tot(k, l)
-                     fi_mat(k, l) = fi_mat(k, l)+aa*a*pj_tot(i, j)
+                     fj_mat(i, j) = fj_mat(i, j) + bb*a*pi_tot(k, l)
+                     fi_mat(k, l) = fi_mat(k, l) + aa*a*pj_tot(i, j)
                      fj_mat(j, i) = fj_mat(i, j)
                      fi_mat(l, k) = fi_mat(k, l)
                   END IF
@@ -567,7 +567,7 @@ CONTAINS
                   IF (k == l) THEN
                      bb = 1.0_dp
                   END IF
-                  kr = kr+1
+                  kr = kr + 1
                   a(1) = dw(1, kr)*factor
                   a(2) = dw(2, kr)*factor
                   a(3) = dw(3, kr)*factor
@@ -577,9 +577,9 @@ CONTAINS
                   ELSE
                      tmp = bb*aa*pi_tot(k, l)*pj_tot(i, j)
                   END IF
-                  force(1) = force(1)+a(1)*tmp
-                  force(2) = force(2)+a(2)*tmp
-                  force(3) = force(3)+a(3)*tmp
+                  force(1) = force(1) + a(1)*tmp
+                  force(2) = force(2) + a(2)*tmp
+                  force(3) = force(3) + a(3)*tmp
                END DO
             END DO
          END DO
@@ -657,14 +657,14 @@ CONTAINS
                   IF (k == l) THEN
                      bb = 1.0_dp
                   END IF
-                  kr = kr+1
+                  kr = kr + 1
                   a = w(kr)*factor
                   ! Exchange
                   a = a*aa*bb*0.25_dp
-                  fi_mat(i, k) = fi_mat(i, k)-a*pi_mat(j, l)
-                  fi_mat(i, l) = fi_mat(i, l)-a*pi_mat(j, k)
-                  fi_mat(j, k) = fi_mat(j, k)-a*pi_mat(i, l)
-                  fi_mat(j, l) = fi_mat(j, l)-a*pi_mat(i, k)
+                  fi_mat(i, k) = fi_mat(i, k) - a*pi_mat(j, l)
+                  fi_mat(i, l) = fi_mat(i, l) - a*pi_mat(j, k)
+                  fi_mat(j, k) = fi_mat(j, k) - a*pi_mat(i, l)
+                  fi_mat(j, l) = fi_mat(j, l) - a*pi_mat(i, k)
                END DO
             END DO
          END DO
@@ -745,7 +745,7 @@ CONTAINS
                   IF (k == l) THEN
                      bb = 1.0_dp
                   END IF
-                  kr = kr+1
+                  kr = kr + 1
                   tmp = factor*aa*bb*0.25_dp
                   a(1) = dw(1, kr)*tmp
                   a(2) = dw(2, kr)*tmp
@@ -756,20 +756,20 @@ CONTAINS
                   tmp3 = pi_mat(i, l)*pi_mat(j, k)
                   tmp4 = pi_mat(i, k)*pi_mat(j, l)
 
-                  force(1) = force(1)-a(1)*tmp1
-                  force(1) = force(1)-a(1)*tmp2
-                  force(1) = force(1)-a(1)*tmp3
-                  force(1) = force(1)-a(1)*tmp4
+                  force(1) = force(1) - a(1)*tmp1
+                  force(1) = force(1) - a(1)*tmp2
+                  force(1) = force(1) - a(1)*tmp3
+                  force(1) = force(1) - a(1)*tmp4
 
-                  force(2) = force(2)-a(2)*tmp1
-                  force(2) = force(2)-a(2)*tmp2
-                  force(2) = force(2)-a(2)*tmp3
-                  force(2) = force(2)-a(2)*tmp4
+                  force(2) = force(2) - a(2)*tmp1
+                  force(2) = force(2) - a(2)*tmp2
+                  force(2) = force(2) - a(2)*tmp3
+                  force(2) = force(2) - a(2)*tmp4
 
-                  force(3) = force(3)-a(3)*tmp1
-                  force(3) = force(3)-a(3)*tmp2
-                  force(3) = force(3)-a(3)*tmp3
-                  force(3) = force(3)-a(3)*tmp4
+                  force(3) = force(3) - a(3)*tmp1
+                  force(3) = force(3) - a(3)*tmp2
+                  force(3) = force(3) - a(3)*tmp3
+                  force(3) = force(3) - a(3)*tmp4
                END DO
             END DO
          END DO
@@ -814,20 +814,20 @@ CONTAINS
 
       i2 = 0
       DO i1L = 1, sepi%natorb
-         i2 = i2+1
+         i2 = i2 + 1
          i1 = se_orbital_pointer(i1L)
-         ksi_block(i1, i1) = ksi_block(i1, i1)+e1b(i2)*rp
-         ecore(1) = ecore(1)+e1b(i2)*rp*pi_block(i1, i1)
+         ksi_block(i1, i1) = ksi_block(i1, i1) + e1b(i2)*rp
+         ecore(1) = ecore(1) + e1b(i2)*rp*pi_block(i1, i1)
       END DO
       !
       ! Add the electron-nuclear residual attraction term for atom sepj
       !
       i2 = 0
       DO i1L = 1, sepj%natorb
-         i2 = i2+1
+         i2 = i2 + 1
          i1 = se_orbital_pointer(i1L)
-         ksj_block(i1, i1) = ksj_block(i1, i1)+e2a(i2)*rp
-         ecore(2) = ecore(2)+e2a(i2)*rp*pj_block(i1, i1)
+         ksj_block(i1, i1) = ksj_block(i1, i1) + e2a(i2)*rp
+         ecore(2) = ecore(2) + e2a(i2)*rp*pj_block(i1, i1)
       END DO
 
    END SUBROUTINE fock2_1el_r3
@@ -868,11 +868,11 @@ CONTAINS
       i2 = 0
       DO i1L = 1, sepi%natorb
          i1 = se_orbital_pointer(i1L)
-         i2 = i2+1
+         i2 = i2 + 1
          tmp = e1b(i2)*pi_block(i1, i1)
-         force(1) = force(1)+tmp*drp(1)
-         force(2) = force(2)+tmp*drp(2)
-         force(3) = force(3)+tmp*drp(3)
+         force(1) = force(1) + tmp*drp(1)
+         force(2) = force(2) + tmp*drp(2)
+         force(3) = force(3) + tmp*drp(3)
       END DO
       !
       ! Add the electron-nuclear attraction term for atom sepj
@@ -880,11 +880,11 @@ CONTAINS
       i2 = 0
       DO i1L = 1, sepj%natorb
          i1 = se_orbital_pointer(i1L)
-         i2 = i2+1
+         i2 = i2 + 1
          tmp = e2a(i2)*pj_block(i1, i1)
-         force(1) = force(1)+tmp*drp(1)
-         force(2) = force(2)+tmp*drp(2)
-         force(3) = force(3)+tmp*drp(3)
+         force(1) = force(1) + tmp*drp(1)
+         force(2) = force(2) + tmp*drp(2)
+         force(3) = force(3) + tmp*drp(3)
       END DO
 
    END SUBROUTINE dfock2_1el_r3
@@ -931,8 +931,8 @@ CONTAINS
          kr = 0
          DO i = 1, sepj%natorb
             DO j = 1, sepi%natorb
-               kr = kr+1
-               ind = (j-1)*sepj%natorb+i
+               kr = kr + 1
+               ind = (j - 1)*sepj%natorb + i
                w_l(kr) = w(ind)
             END DO
          END DO
@@ -946,15 +946,15 @@ CONTAINS
          i = se_orbital_pointer(iL)
          DO kL = 1, natorb(2)
             k = se_orbital_pointer(kL)
-            kr = kr+1
+            kr = kr + 1
             a = w_l(kr)*factor*rp
             ! Coulomb
             IF (.NOT. switch) THEN
-               fi_mat(i, i) = fi_mat(i, i)+a*pj_tot(k, k)
-               fj_mat(k, k) = fj_mat(k, k)+a*pi_tot(i, i)
+               fi_mat(i, i) = fi_mat(i, i) + a*pj_tot(k, k)
+               fj_mat(k, k) = fj_mat(k, k) + a*pi_tot(i, i)
             ELSE
-               fj_mat(i, i) = fj_mat(i, i)+a*pi_tot(k, k)
-               fi_mat(k, k) = fi_mat(k, k)+a*pj_tot(i, i)
+               fj_mat(i, i) = fj_mat(i, i) + a*pi_tot(k, k)
+               fi_mat(k, k) = fi_mat(k, k) + a*pj_tot(i, i)
             END IF
          END DO
       END DO
@@ -1000,8 +1000,8 @@ CONTAINS
          kr = 0
          DO i = 1, sepj%natorb
             DO j = 1, sepi%natorb
-               kr = kr+1
-               ind = (j-1)*sepj%natorb+i
+               kr = kr + 1
+               ind = (j - 1)*sepj%natorb + i
                w_l(kr) = w(ind)
             END DO
          END DO
@@ -1015,7 +1015,7 @@ CONTAINS
          i = se_orbital_pointer(iL)
          DO kL = 1, natorb(2)
             k = se_orbital_pointer(kL)
-            kr = kr+1
+            kr = kr + 1
             tmp = w_l(kr)*factor
             a(1) = tmp*drp(1)
             a(2) = tmp*drp(2)
@@ -1026,9 +1026,9 @@ CONTAINS
             ELSE
                tmp = pi_tot(k, k)*pj_tot(i, i)
             END IF
-            force(1) = force(1)+a(1)*tmp
-            force(2) = force(2)+a(2)*tmp
-            force(3) = force(3)+a(3)*tmp
+            force(1) = force(1) + a(1)*tmp
+            force(2) = force(2) + a(2)*tmp
+            force(3) = force(3) + a(3)*tmp
          END DO
       END DO
 
@@ -1085,7 +1085,7 @@ CONTAINS
                                                             ptens33
 
       CHARACTER(len=*), PARAMETER :: routineN = 'se_coulomb_ij_interaction', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: a, b, c, d, e, i, j, k
       LOGICAL                                            :: do_efield0, do_efield1, do_efield2, &
@@ -1093,8 +1093,8 @@ CONTAINS
       LOGICAL, DIMENSION(3)                              :: do_task
       LOGICAL, DIMENSION(3, 3)                           :: task
       REAL(KIND=dp) :: ch_i, ch_j, ef0_i, ef0_j, eloc, energy, fac, fac_ij, ir, irab2, r, tij, &
-         tmp, tmp1, tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, tmp32, tmp33, tmp_ij, &
-         tmp_ji
+                       tmp, tmp1, tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, tmp32, tmp33, tmp_ij, &
+                       tmp_ji
       REAL(KIND=dp), DIMENSION(0:5)                      :: f
       REAL(KIND=dp), DIMENSION(3)                        :: dp_i, dp_j, ef1_i, ef1_j, fr, tij_a
       REAL(KIND=dp), DIMENSION(3, 3)                     :: ef2_i, ef2_j, qp_i, qp_j, tij_ab

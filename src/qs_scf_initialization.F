@@ -572,7 +572,6 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos_k
       TYPE(xas_environment_type), POINTER                :: xas_env
 
-
       CALL timeset(routineN, handle)
 
       NULLIFY (ao_mo_fm_pools, dft_control, mos, ao_mo_fm_pools_aux_fit)

@@ -10,48 +10,48 @@
 !> Rodolphe Vuilleumier and Mathieu Salanne - 12.2009
 ! **************************************************************************************************
 MODULE ewalds_multipole
-   USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE bibliography,                    ONLY: Aguado2003,&
-                                              Laino2008,&
-                                              cite_reference
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
-   USE damping_dipole_types,            ONLY: damping_type,&
-                                              no_damping,&
-                                              tang_toennies
-   USE dg_rho0_types,                   ONLY: dg_rho0_type
-   USE dg_types,                        ONLY: dg_get,&
-                                              dg_type
-   USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE ewald_environment_types,         ONLY: ewald_env_get,&
-                                              ewald_environment_type
-   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
-                                              ewald_pw_type
-   USE fist_neighbor_list_control,      ONLY: list_control
-   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
-                                              neighbor_kind_pairs_type
-   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
-                                              fist_nonbond_env_type,&
-                                              pos_type
-   USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: fourpi,&
-                                              oorootpi,&
-                                              pi,&
-                                              sqrthalf
-   USE mathlib,                         ONLY: matvec_3x3
-   USE message_passing,                 ONLY: mp_sum
-   USE parallel_rng_types,              ONLY: UNIFORM,&
-                                              rng_stream_type
-   USE particle_types,                  ONLY: particle_type
-   USE pw_grid_types,                   ONLY: pw_grid_type
-   USE pw_pool_types,                   ONLY: pw_pool_type
-   USE structure_factor_types,          ONLY: structure_factor_type
-   USE structure_factors,               ONLY: structure_factor_allocate,&
-                                              structure_factor_deallocate,&
-                                              structure_factor_evaluate
+   USE atomic_kind_types, ONLY: atomic_kind_type
+   USE bibliography, ONLY: Aguado2003, &
+                           Laino2008, &
+                           cite_reference
+   USE cell_types, ONLY: cell_type, &
+                         pbc
+   USE cp_log_handling, ONLY: cp_get_default_logger, &
+                              cp_logger_type
+   USE damping_dipole_types, ONLY: damping_type, &
+                                   no_damping, &
+                                   tang_toennies
+   USE dg_rho0_types, ONLY: dg_rho0_type
+   USE dg_types, ONLY: dg_get, &
+                       dg_type
+   USE distribution_1d_types, ONLY: distribution_1d_type
+   USE ewald_environment_types, ONLY: ewald_env_get, &
+                                      ewald_environment_type
+   USE ewald_pw_types, ONLY: ewald_pw_get, &
+                             ewald_pw_type
+   USE fist_neighbor_list_control, ONLY: list_control
+   USE fist_neighbor_list_types, ONLY: fist_neighbor_type, &
+                                       neighbor_kind_pairs_type
+   USE fist_nonbond_env_types, ONLY: fist_nonbond_env_get, &
+                                     fist_nonbond_env_type, &
+                                     pos_type
+   USE input_section_types, ONLY: section_vals_type
+   USE kinds, ONLY: dp
+   USE mathconstants, ONLY: fourpi, &
+                            oorootpi, &
+                            pi, &
+                            sqrthalf
+   USE mathlib, ONLY: matvec_3x3
+   USE message_passing, ONLY: mp_sum
+   USE parallel_rng_types, ONLY: UNIFORM, &
+                                 rng_stream_type
+   USE particle_types, ONLY: particle_type
+   USE pw_grid_types, ONLY: pw_grid_type
+   USE pw_pool_types, ONLY: pw_pool_type
+   USE structure_factor_types, ONLY: structure_factor_type
+   USE structure_factors, ONLY: structure_factor_allocate, &
+                                structure_factor_deallocate, &
+                                structure_factor_evaluate
 #include "./base/base_uses.f90"
 
 #:include "ewalds_multipole_sr.fypp"
@@ -147,7 +147,7 @@ CONTAINS
       TYPE(section_vals_type), OPTIONAL, POINTER         :: mm_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_evaluate', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: group, handle, i, j, size1, size2
       LOGICAL                                            :: check_debug, check_efield, check_forces, &
@@ -256,7 +256,7 @@ CONTAINS
                                  particle_set, cell, e_rspace, my_task, &
                                  do_forces, do_efield, do_stress, radii, charges, dipoles, quadrupoles, &
                                  forces_glob, pv_glob, efield0_sr, efield1_sr, efield2_sr)
-         energy_glob = energy_glob+e_rspace
+         energy_glob = energy_glob + e_rspace
 
          IF (do_correction_bonded) THEN
             ! The corrections for bonded interactions are stored in the Real Space
@@ -265,7 +265,7 @@ CONTAINS
                                         cell, e_bonded, my_task, do_forces, do_efield, do_stress, &
                                         charges, dipoles, quadrupoles, forces_glob, pv_glob, &
                                         efield0_sr, efield1_sr, efield2_sr)
-            energy_glob = energy_glob+e_bonded
+            energy_glob = energy_glob + e_bonded
          END IF
       END IF
 
@@ -299,19 +299,19 @@ CONTAINS
       ! Gather the components of the potential, fields and electrostatic field gradients
       IF (do_efield) THEN
          IF (PRESENT(efield0)) THEN
-            efield0 = efield0_sr+efield0_lr
+            efield0 = efield0_sr + efield0_lr
             CALL mp_sum(efield0, group)
             DEALLOCATE (efield0_sr)
             DEALLOCATE (efield0_lr)
          END IF
          IF (PRESENT(efield1)) THEN
-            efield1 = efield1_sr+efield1_lr
+            efield1 = efield1_sr + efield1_lr
             CALL mp_sum(efield1, group)
             DEALLOCATE (efield1_sr)
             DEALLOCATE (efield1_lr)
          END IF
          IF (PRESENT(efield2)) THEN
-            efield2 = efield2_sr+efield2_lr
+            efield2 = efield2_sr + efield2_lr
             CALL mp_sum(efield2, group)
             DEALLOCATE (efield2_sr)
             DEALLOCATE (efield2_lr)
@@ -367,20 +367,20 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: efield1, efield2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_SR', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER :: a, atom_a, atom_b, b, c, d, e, handle, i, iend, igrp, ikind, ilist, ipair, &
-         istart, itype_ij, itype_ji, jkind, k, kind_a, kind_b, kk, nkdamp_ij, nkdamp_ji, nkinds, &
-         npairs
+                 istart, itype_ij, itype_ji, jkind, k, kind_a, kind_b, kk, nkdamp_ij, nkdamp_ji, nkinds, &
+                 npairs
       INTEGER, DIMENSION(:, :), POINTER                  :: list
       LOGICAL                                            :: do_efield0, do_efield1, do_efield2, &
                                                             force_eval
       REAL(KIND=dp) :: alpha, beta, ch_i, ch_j, dampa_ij, dampa_ji, dampaexpi, dampaexpj, &
-         dampfac_ij, dampfac_ji, dampfuncdiffi, dampfuncdiffj, dampfunci, dampfuncj, dampsumfi, &
-         dampsumfj, ef0_i, ef0_j, eloc, fac, fac_ij, factorial, ir, irab2, ptens11, ptens12, &
-         ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, r, rab2, rab2_max, radius, &
-         rcut, tij, tmp, tmp1, tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, tmp32, &
-         tmp33, tmp_ij, tmp_ji, xf
+                       dampfac_ij, dampfac_ji, dampfuncdiffi, dampfuncdiffj, dampfunci, dampfuncj, dampsumfi, &
+                       dampsumfj, ef0_i, ef0_j, eloc, fac, fac_ij, factorial, ir, irab2, ptens11, ptens12, &
+                       ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, r, rab2, rab2_max, radius, &
+                       rcut, tij, tmp, tmp1, tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, tmp32, &
+                       tmp33, tmp_ij, tmp_ji, xf
       REAL(KIND=dp), DIMENSION(0:5)                      :: f
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi, damptij_a, damptji_a, dp_i, &
                                                             dp_j, ef1_i, ef1_j, fr, rab, tij_a
@@ -467,12 +467,12 @@ CONTAINS
                kind_a = particle_set(atom_a)%atomic_kind%kind_number
                kind_b = particle_set(atom_b)%atomic_kind%kind_number
                IF (atom_a == atom_b) fac_ij = 0.5_dp
-               rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
-               rab = rab+cell_v
-               rab2 = rab(1)**2+rab(2)**2+rab(3)**2
+               rab = r_last_update_pbc(atom_b)%r - r_last_update_pbc(atom_a)%r
+               rab = rab + cell_v
+               rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
                IF (rab2 <= rab2_max) THEN
                   IF (PRESENT(radii)) THEN
-                     radius = SQRT(radii(atom_a)*radii(atom_a)+radii(atom_b)*radii(atom_b))
+                     radius = SQRT(radii(atom_a)*radii(atom_a) + radii(atom_b)*radii(atom_b))
                   ELSE
                      radius = 0.0_dp
                   END IF
@@ -487,15 +487,15 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERFC", damping=True, store_e
          END DO Kind_Group_Loop
       END DO Lists
       IF (do_stress) THEN
-         pv(1, 1) = pv(1, 1)+ptens11
-         pv(1, 2) = pv(1, 2)+(ptens12+ptens21)*0.5_dp
-         pv(1, 3) = pv(1, 3)+(ptens13+ptens31)*0.5_dp
+         pv(1, 1) = pv(1, 1) + ptens11
+         pv(1, 2) = pv(1, 2) + (ptens12 + ptens21)*0.5_dp
+         pv(1, 3) = pv(1, 3) + (ptens13 + ptens31)*0.5_dp
          pv(2, 1) = pv(1, 2)
-         pv(2, 2) = pv(2, 2)+ptens22
-         pv(2, 3) = pv(2, 3)+(ptens23+ptens32)*0.5_dp
+         pv(2, 2) = pv(2, 2) + ptens22
+         pv(2, 3) = pv(2, 3) + (ptens23 + ptens32)*0.5_dp
          pv(3, 1) = pv(1, 3)
          pv(3, 2) = pv(2, 3)
-         pv(3, 3) = pv(3, 3)+ptens33
+         pv(3, 3) = pv(3, 3) + ptens33
       END IF
 
       CALL timestop(handle)
@@ -544,7 +544,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERFC", damping=True, store_e
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: efield1, efield2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_bonded', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: a, atom_a, atom_b, b, c, d, e, handle, &
                                                             i, iend, igrp, ilist, ipair, istart, &
@@ -553,9 +553,9 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERFC", damping=True, store_e
       LOGICAL                                            :: do_efield0, do_efield1, do_efield2, &
                                                             force_eval
       REAL(KIND=dp) :: alpha, ch_i, ch_j, ef0_i, ef0_j, eloc, fac, fac_ij, ir, irab2, ptens11, &
-         ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, r, rab2, tij, &
-         tmp, tmp1, tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, tmp32, tmp33, tmp_ij, &
-         tmp_ji
+                       ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, r, rab2, tij, &
+                       tmp, tmp1, tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, tmp32, tmp33, tmp_ij, &
+                       tmp_ji
       REAL(KIND=dp), DIMENSION(0:5)                      :: f
       REAL(KIND=dp), DIMENSION(3)                        :: dp_i, dp_j, ef1_i, ef1_j, fr, rab, tij_a
       REAL(KIND=dp), DIMENSION(3, 3)                     :: ef2_i, ef2_j, qp_i, qp_j, tij_ab
@@ -589,29 +589,29 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERFC", damping=True, store_e
             iend = MIN(neighbor_kind_pair%grp_kind_end(igrp), nscale)
             Pairs: DO ipair = istart, iend
                ! only use pairs that are (partially) excluded for electrostatics
-               fac_ij = -1.0_dp+neighbor_kind_pair%ei_scale(ipair)
+               fac_ij = -1.0_dp + neighbor_kind_pair%ei_scale(ipair)
                IF (fac_ij >= 0) CYCLE
 
                atom_a = list(1, ipair)
                atom_b = list(2, ipair)
 
-               rab = particle_set(atom_b)%r-particle_set(atom_a)%r
+               rab = particle_set(atom_b)%r - particle_set(atom_a)%r
                rab = pbc(rab, cell)
-               rab2 = rab(1)**2+rab(2)**2+rab(3)**2
+               rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
 $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, store_forces=True)
             END DO Pairs
          END DO Kind_Group_Loop
       END DO Lists
       IF (do_stress) THEN
-         pv(1, 1) = pv(1, 1)+ptens11
-         pv(1, 2) = pv(1, 2)+(ptens12+ptens21)*0.5_dp
-         pv(1, 3) = pv(1, 3)+(ptens13+ptens31)*0.5_dp
+         pv(1, 1) = pv(1, 1) + ptens11
+         pv(1, 2) = pv(1, 2) + (ptens12 + ptens21)*0.5_dp
+         pv(1, 3) = pv(1, 3) + (ptens13 + ptens31)*0.5_dp
          pv(2, 1) = pv(1, 2)
-         pv(2, 2) = pv(2, 2)+ptens22
-         pv(2, 3) = pv(2, 3)+(ptens23+ptens32)*0.5_dp
+         pv(2, 2) = pv(2, 2) + ptens22
+         pv(2, 3) = pv(2, 3) + (ptens23 + ptens32)*0.5_dp
          pv(3, 1) = pv(1, 3)
          pv(3, 2) = pv(2, 3)
-         pv(3, 3) = pv(3, 3)+ptens33
+         pv(3, 3) = pv(3, 3) + ptens33
       END IF
 
       CALL timestop(handle)
@@ -661,14 +661,14 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: efield1, efield2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_LR', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       COMPLEX(KIND=dp)                                   :: atm_factor, atm_factor_st(3), cnjg_fac, &
                                                             fac, summe_tmp
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: summe_ef
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: summe_st
       INTEGER :: gpt, group, handle, iparticle, iparticle_kind, iparticle_local, lp, mp, nnodes, &
-         node, np, nparticle_kind, nparticle_local
+                 node, np, nparticle_kind, nparticle_local
       INTEGER, DIMENSION(:, :), POINTER                  :: bds
       LOGICAL                                            :: do_efield0, do_efield1, do_efield2
       REAL(KIND=dp)                                      :: alpha, denom, dipole_t(3), f0, factor, &
@@ -700,7 +700,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       nparticle_kind = SIZE(local_particles%n_el)
       nnodes = 0
       DO iparticle_kind = 1, nparticle_kind
-         nnodes = nnodes+local_particles%n_el(iparticle_kind)
+         nnodes = nnodes + local_particles%n_el(iparticle_kind)
       ENDDO
       CALL structure_factor_allocate(pw_grid%bounds, nnodes, exp_igr)
 
@@ -723,7 +723,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       DO iparticle_kind = 1, nparticle_kind
          nparticle_local = local_particles%n_el(iparticle_kind)
          DO iparticle_local = 1, nparticle_local
-            node = node+1
+            node = node + 1
             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
             CALL matvec_3x3(vec, cell%h_inv, particle_set(iparticle)%r)
             CALL structure_factor_evaluate(vec, exp_igr%lb, &
@@ -731,14 +731,14 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 
             ! Computing the total charge, dipole and quadrupole trace (if any)
             IF (ANY(task(1, :))) THEN
-               q_t = q_t+charges(iparticle)
+               q_t = q_t + charges(iparticle)
             END IF
             IF (ANY(task(2, :))) THEN
-               dipole_t = dipole_t+dipoles(:, iparticle)
+               dipole_t = dipole_t + dipoles(:, iparticle)
             END IF
             IF (ANY(task(3, :))) THEN
-               trq_t = trq_t+quadrupoles(1, 1, iparticle)+ &
-                       quadrupoles(2, 2, iparticle)+ &
+               trq_t = trq_t + quadrupoles(1, 1, iparticle) + &
+                       quadrupoles(2, 2, iparticle) + &
                        quadrupoles(3, 3, iparticle)
             END IF
          END DO
@@ -750,28 +750,28 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
          np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
 
-         lp = lp+bds(1, 1)
-         mp = mp+bds(1, 2)
-         np = np+bds(1, 3)
+         lp = lp + bds(1, 1)
+         mp = mp + bds(1, 2)
+         np = np + bds(1, 3)
 
          ! Initializing sum to be used in the energy and force
          node = 0
          DO iparticle_kind = 1, nparticle_kind
             nparticle_local = local_particles%n_el(iparticle_kind)
             DO iparticle_local = 1, nparticle_local
-               node = node+1
+               node = node + 1
                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                ! Density for energy and forces
                CALL get_atom_factor(atm_factor, pw_grid, gpt, iparticle, task, charges, &
                                     dipoles, quadrupoles)
                summe_tmp = exp_igr%ex(lp, node)*exp_igr%ey(mp, node)*exp_igr%ez(np, node)
-               summe_ef(gpt) = summe_ef(gpt)+atm_factor*summe_tmp
+               summe_ef(gpt) = summe_ef(gpt) + atm_factor*summe_tmp
 
                ! Precompute pseudo-density for stress tensor calculation
                IF (do_stress) THEN
                   CALL get_atom_factor_stress(atm_factor_st, pw_grid, gpt, iparticle, task, &
                                               dipoles, quadrupoles)
-                  summe_st(1:3, gpt) = summe_st(1:3, gpt)+atm_factor_st(1:3)*summe_tmp
+                  summe_st(1:3, gpt) = summe_st(1:3, gpt) + atm_factor_st(1:3)*summe_tmp
                END IF
             END DO
          END DO
@@ -789,19 +789,19 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
          np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
 
-         lp = lp+bds(1, 1)
-         mp = mp+bds(1, 2)
-         np = np+bds(1, 3)
+         lp = lp + bds(1, 1)
+         mp = mp + bds(1, 2)
+         np = np + bds(1, 3)
 
          IF (pw_grid%gsq(gpt) == 0.0_dp) THEN
             ! G=0 vector for dipole-dipole and charge-quadrupole
-            energy = energy+(1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t, dipole_t) &
-                     -(1.0_dp/9.0_dp)*q_t*trq_t
+            energy = energy + (1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t, dipole_t) &
+                     - (1.0_dp/9.0_dp)*q_t*trq_t
             ! Stress tensor
             IF (do_stress) THEN
-               pv_tmp(1, 1) = pv_tmp(1, 1)+(1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t, dipole_t)
-               pv_tmp(2, 2) = pv_tmp(2, 2)+(1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t, dipole_t)
-               pv_tmp(3, 3) = pv_tmp(3, 3)+(1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t, dipole_t)
+               pv_tmp(1, 1) = pv_tmp(1, 1) + (1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t, dipole_t)
+               pv_tmp(2, 2) = pv_tmp(2, 2) + (1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t, dipole_t)
+               pv_tmp(3, 3) = pv_tmp(3, 3) + (1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t, dipole_t)
             END IF
             ! Corrections for G=0 to potential, field and field gradient
             IF (do_efield .AND. (debug_e_field_en .OR. (.NOT. debug_this_module))) THEN
@@ -812,7 +812,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                DO iparticle_kind = 1, nparticle_kind
                   nparticle_local = local_particles%n_el(iparticle_kind)
                   DO iparticle_local = 1, nparticle_local
-                     node = node+1
+                     node = node + 1
                      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
 
                      ! Potential
@@ -821,13 +821,13 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                      END IF
                      ! Electrostatic field
                      IF (do_efield1) THEN
-                        efield1(1:3, iparticle) = efield1(1:3, iparticle)-(1.0_dp/6.0_dp)*dipole_t(1:3)
+                        efield1(1:3, iparticle) = efield1(1:3, iparticle) - (1.0_dp/6.0_dp)*dipole_t(1:3)
                      END IF
                      ! Electrostatic field gradients
                      IF (do_efield2) THEN
-                        efield2(1, iparticle) = efield2(1, iparticle)-(1.0_dp/(18.0_dp))*q_t
-                        efield2(5, iparticle) = efield2(5, iparticle)-(1.0_dp/(18.0_dp))*q_t
-                        efield2(9, iparticle) = efield2(9, iparticle)-(1.0_dp/(18.0_dp))*q_t
+                        efield2(1, iparticle) = efield2(1, iparticle) - (1.0_dp/(18.0_dp))*q_t
+                        efield2(5, iparticle) = efield2(5, iparticle) - (1.0_dp/(18.0_dp))*q_t
+                        efield2(9, iparticle) = efield2(9, iparticle) - (1.0_dp/(18.0_dp))*q_t
                      END IF
                   END DO
                END DO
@@ -836,14 +836,14 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          END IF
          gauss = (rho0(lp, mp, np)*pw_grid%vol)**2/pw_grid%gsq(gpt)
          factor = gauss*REAL(summe_ef(gpt)*CONJG(summe_ef(gpt)), KIND=dp)
-         energy = energy+factor
+         energy = energy + factor
 
          IF (do_forces .OR. do_efield) THEN
             node = 0
             DO iparticle_kind = 1, nparticle_kind
                nparticle_local = local_particles%n_el(iparticle_kind)
                DO iparticle_local = 1, nparticle_local
-                  node = node+1
+                  node = node + 1
                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                   fac = exp_igr%ex(lp, node)*exp_igr%ey(mp, node)*exp_igr%ez(np, node)
                   cnjg_fac = CONJG(fac)
@@ -854,23 +854,23 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                                           dipoles, quadrupoles)
 
                      tmp = gauss*AIMAG(summe_ef(gpt)*(cnjg_fac*CONJG(atm_factor)))
-                     forces(1, node) = forces(1, node)+tmp*pw_grid%g(1, gpt)
-                     forces(2, node) = forces(2, node)+tmp*pw_grid%g(2, gpt)
-                     forces(3, node) = forces(3, node)+tmp*pw_grid%g(3, gpt)
+                     forces(1, node) = forces(1, node) + tmp*pw_grid%g(1, gpt)
+                     forces(2, node) = forces(2, node) + tmp*pw_grid%g(2, gpt)
+                     forces(3, node) = forces(3, node) + tmp*pw_grid%g(3, gpt)
                   END IF
 
                   ! Electric field
                   IF (do_efield) THEN
                      ! Potential
                      IF (do_efield0) THEN
-                        efield0(iparticle) = efield0(iparticle)+gauss*REAL(fac*CONJG(summe_ef(gpt)), KIND=dp)
+                        efield0(iparticle) = efield0(iparticle) + gauss*REAL(fac*CONJG(summe_ef(gpt)), KIND=dp)
                      END IF
                      ! Electric field
                      IF (do_efield1) THEN
                         tmp = AIMAG(fac*CONJG(summe_ef(gpt)))*gauss
-                        efield1(1, iparticle) = efield1(1, iparticle)-tmp*pw_grid%g(1, gpt)
-                        efield1(2, iparticle) = efield1(2, iparticle)-tmp*pw_grid%g(2, gpt)
-                        efield1(3, iparticle) = efield1(3, iparticle)-tmp*pw_grid%g(3, gpt)
+                        efield1(1, iparticle) = efield1(1, iparticle) - tmp*pw_grid%g(1, gpt)
+                        efield1(2, iparticle) = efield1(2, iparticle) - tmp*pw_grid%g(2, gpt)
+                        efield1(3, iparticle) = efield1(3, iparticle) - tmp*pw_grid%g(3, gpt)
                      END IF
                      ! Electric field gradient
                      IF (do_efield2) THEN
@@ -878,15 +878,15 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                         tmp_v(2) = REAL(fac*CONJG(summe_ef(gpt)), KIND=dp)*pw_grid%g(2, gpt)*gauss
                         tmp_v(3) = REAL(fac*CONJG(summe_ef(gpt)), KIND=dp)*pw_grid%g(3, gpt)*gauss
 
-                        efield2(1, iparticle) = efield2(1, iparticle)+tmp_v(1)*pw_grid%g(1, gpt)
-                        efield2(2, iparticle) = efield2(2, iparticle)+tmp_v(1)*pw_grid%g(2, gpt)
-                        efield2(3, iparticle) = efield2(3, iparticle)+tmp_v(1)*pw_grid%g(3, gpt)
-                        efield2(4, iparticle) = efield2(4, iparticle)+tmp_v(2)*pw_grid%g(1, gpt)
-                        efield2(5, iparticle) = efield2(5, iparticle)+tmp_v(2)*pw_grid%g(2, gpt)
-                        efield2(6, iparticle) = efield2(6, iparticle)+tmp_v(2)*pw_grid%g(3, gpt)
-                        efield2(7, iparticle) = efield2(7, iparticle)+tmp_v(3)*pw_grid%g(1, gpt)
-                        efield2(8, iparticle) = efield2(8, iparticle)+tmp_v(3)*pw_grid%g(2, gpt)
-                        efield2(9, iparticle) = efield2(9, iparticle)+tmp_v(3)*pw_grid%g(3, gpt)
+                        efield2(1, iparticle) = efield2(1, iparticle) + tmp_v(1)*pw_grid%g(1, gpt)
+                        efield2(2, iparticle) = efield2(2, iparticle) + tmp_v(1)*pw_grid%g(2, gpt)
+                        efield2(3, iparticle) = efield2(3, iparticle) + tmp_v(1)*pw_grid%g(3, gpt)
+                        efield2(4, iparticle) = efield2(4, iparticle) + tmp_v(2)*pw_grid%g(1, gpt)
+                        efield2(5, iparticle) = efield2(5, iparticle) + tmp_v(2)*pw_grid%g(2, gpt)
+                        efield2(6, iparticle) = efield2(6, iparticle) + tmp_v(2)*pw_grid%g(3, gpt)
+                        efield2(7, iparticle) = efield2(7, iparticle) + tmp_v(3)*pw_grid%g(1, gpt)
+                        efield2(8, iparticle) = efield2(8, iparticle) + tmp_v(3)*pw_grid%g(2, gpt)
+                        efield2(9, iparticle) = efield2(9, iparticle) + tmp_v(3)*pw_grid%g(3, gpt)
                      END IF
                   END IF
                END DO
@@ -897,27 +897,27 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          IF (do_stress) THEN
             ! The Stress Tensor can be decomposed in two main components.
             ! The first one is just a normal ewald component for reciprocal space
-            denom = 1.0_dp/four_alpha_sq+1.0_dp/pw_grid%gsq(gpt)
-            pv_tmp(1, 1) = pv_tmp(1, 1)+factor*(1.0_dp-2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(1, gpt)*denom)
-            pv_tmp(1, 2) = pv_tmp(1, 2)-factor*(2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(2, gpt)*denom)
-            pv_tmp(1, 3) = pv_tmp(1, 3)-factor*(2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(3, gpt)*denom)
-            pv_tmp(2, 1) = pv_tmp(2, 1)-factor*(2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(1, gpt)*denom)
-            pv_tmp(2, 2) = pv_tmp(2, 2)+factor*(1.0_dp-2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(2, gpt)*denom)
-            pv_tmp(2, 3) = pv_tmp(2, 3)-factor*(2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(3, gpt)*denom)
-            pv_tmp(3, 1) = pv_tmp(3, 1)-factor*(2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(1, gpt)*denom)
-            pv_tmp(3, 2) = pv_tmp(3, 2)-factor*(2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(2, gpt)*denom)
-            pv_tmp(3, 3) = pv_tmp(3, 3)+factor*(1.0_dp-2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(3, gpt)*denom)
+            denom = 1.0_dp/four_alpha_sq + 1.0_dp/pw_grid%gsq(gpt)
+            pv_tmp(1, 1) = pv_tmp(1, 1) + factor*(1.0_dp - 2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(1, gpt)*denom)
+            pv_tmp(1, 2) = pv_tmp(1, 2) - factor*(2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(2, gpt)*denom)
+            pv_tmp(1, 3) = pv_tmp(1, 3) - factor*(2.0_dp*pw_grid%g(1, gpt)*pw_grid%g(3, gpt)*denom)
+            pv_tmp(2, 1) = pv_tmp(2, 1) - factor*(2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(1, gpt)*denom)
+            pv_tmp(2, 2) = pv_tmp(2, 2) + factor*(1.0_dp - 2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(2, gpt)*denom)
+            pv_tmp(2, 3) = pv_tmp(2, 3) - factor*(2.0_dp*pw_grid%g(2, gpt)*pw_grid%g(3, gpt)*denom)
+            pv_tmp(3, 1) = pv_tmp(3, 1) - factor*(2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(1, gpt)*denom)
+            pv_tmp(3, 2) = pv_tmp(3, 2) - factor*(2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(2, gpt)*denom)
+            pv_tmp(3, 3) = pv_tmp(3, 3) + factor*(1.0_dp - 2.0_dp*pw_grid%g(3, gpt)*pw_grid%g(3, gpt)*denom)
             ! The second one can be written in the following way
             f0 = 2.0_dp*gauss
-            pv_tmp(1, 1) = pv_tmp(1, 1)+f0*pw_grid%g(1, gpt)*REAL(summe_st(1, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
-            pv_tmp(1, 2) = pv_tmp(1, 2)+f0*pw_grid%g(1, gpt)*REAL(summe_st(2, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
-            pv_tmp(1, 3) = pv_tmp(1, 3)+f0*pw_grid%g(1, gpt)*REAL(summe_st(3, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
-            pv_tmp(2, 1) = pv_tmp(2, 1)+f0*pw_grid%g(2, gpt)*REAL(summe_st(1, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
-            pv_tmp(2, 2) = pv_tmp(2, 2)+f0*pw_grid%g(2, gpt)*REAL(summe_st(2, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
-            pv_tmp(2, 3) = pv_tmp(2, 3)+f0*pw_grid%g(2, gpt)*REAL(summe_st(3, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
-            pv_tmp(3, 1) = pv_tmp(3, 1)+f0*pw_grid%g(3, gpt)*REAL(summe_st(1, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
-            pv_tmp(3, 2) = pv_tmp(3, 2)+f0*pw_grid%g(3, gpt)*REAL(summe_st(2, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
-            pv_tmp(3, 3) = pv_tmp(3, 3)+f0*pw_grid%g(3, gpt)*REAL(summe_st(3, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
+            pv_tmp(1, 1) = pv_tmp(1, 1) + f0*pw_grid%g(1, gpt)*REAL(summe_st(1, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
+            pv_tmp(1, 2) = pv_tmp(1, 2) + f0*pw_grid%g(1, gpt)*REAL(summe_st(2, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
+            pv_tmp(1, 3) = pv_tmp(1, 3) + f0*pw_grid%g(1, gpt)*REAL(summe_st(3, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
+            pv_tmp(2, 1) = pv_tmp(2, 1) + f0*pw_grid%g(2, gpt)*REAL(summe_st(1, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
+            pv_tmp(2, 2) = pv_tmp(2, 2) + f0*pw_grid%g(2, gpt)*REAL(summe_st(2, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
+            pv_tmp(2, 3) = pv_tmp(2, 3) + f0*pw_grid%g(2, gpt)*REAL(summe_st(3, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
+            pv_tmp(3, 1) = pv_tmp(3, 1) + f0*pw_grid%g(3, gpt)*REAL(summe_st(1, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
+            pv_tmp(3, 2) = pv_tmp(3, 2) + f0*pw_grid%g(3, gpt)*REAL(summe_st(2, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
+            pv_tmp(3, 3) = pv_tmp(3, 3) + f0*pw_grid%g(3, gpt)*REAL(summe_st(3, gpt)*CONJG(summe_ef(gpt)), KIND=dp)
          END IF
       END DO
       pref = fourpi/pw_grid%vol
@@ -928,15 +928,15 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       IF (do_stress) THEN
          pv_tmp = pv_tmp*pref
          ! Symmetrize the tensor
-         pv(1, 1) = pv(1, 1)+pv_tmp(1, 1)
-         pv(1, 2) = pv(1, 2)+(pv_tmp(1, 2)+pv_tmp(2, 1))*0.5_dp
-         pv(1, 3) = pv(1, 3)+(pv_tmp(1, 3)+pv_tmp(3, 1))*0.5_dp
+         pv(1, 1) = pv(1, 1) + pv_tmp(1, 1)
+         pv(1, 2) = pv(1, 2) + (pv_tmp(1, 2) + pv_tmp(2, 1))*0.5_dp
+         pv(1, 3) = pv(1, 3) + (pv_tmp(1, 3) + pv_tmp(3, 1))*0.5_dp
          pv(2, 1) = pv(1, 2)
-         pv(2, 2) = pv(2, 2)+pv_tmp(2, 2)
-         pv(2, 3) = pv(2, 3)+(pv_tmp(2, 3)+pv_tmp(3, 2))*0.5_dp
+         pv(2, 2) = pv(2, 2) + pv_tmp(2, 2)
+         pv(2, 3) = pv(2, 3) + (pv_tmp(2, 3) + pv_tmp(3, 2))*0.5_dp
          pv(3, 1) = pv(1, 3)
          pv(3, 2) = pv(2, 3)
-         pv(3, 3) = pv(3, 3)+pv_tmp(3, 3)
+         pv(3, 3) = pv(3, 3) + pv_tmp(3, 3)
          DEALLOCATE (summe_st)
       END IF
       IF (do_forces) THEN
@@ -982,7 +982,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          POINTER                                         :: quadrupoles
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_factor', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       COMPLEX(KIND=dp)                                   :: tmp
       INTEGER                                            :: i, j
@@ -990,25 +990,25 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       atm_factor = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       IF (task(1, 1)) THEN
          ! Charge
-         atm_factor = atm_factor+charges(iparticle)
+         atm_factor = atm_factor + charges(iparticle)
       END IF
       IF (task(2, 2)) THEN
          ! Dipole
          tmp = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
          DO i = 1, 3
-            tmp = tmp+dipoles(i, iparticle)*pw_grid%g(i, gpt)
+            tmp = tmp + dipoles(i, iparticle)*pw_grid%g(i, gpt)
          END DO
-         atm_factor = atm_factor+tmp*CMPLX(0.0_dp, -1.0_dp, KIND=dp)
+         atm_factor = atm_factor + tmp*CMPLX(0.0_dp, -1.0_dp, KIND=dp)
       END IF
       IF (task(3, 3)) THEN
          ! Quadrupole
          tmp = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
          DO i = 1, 3
             DO j = 1, 3
-               tmp = tmp+quadrupoles(j, i, iparticle)*pw_grid%g(j, gpt)*pw_grid%g(i, gpt)
+               tmp = tmp + quadrupoles(j, i, iparticle)*pw_grid%g(j, gpt)*pw_grid%g(i, gpt)
             END DO
          END DO
-         atm_factor = atm_factor-1.0_dp/3.0_dp*tmp
+         atm_factor = atm_factor - 1.0_dp/3.0_dp*tmp
       END IF
 
    END SUBROUTINE get_atom_factor
@@ -1038,7 +1038,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          POINTER                                         :: quadrupoles
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_factor_stress', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i
 
@@ -1050,14 +1050,14 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       IF (ANY(task(3, :))) THEN
          ! Quadrupole
          DO i = 1, 3
-            atm_factor(1) = atm_factor(1)-1.0_dp/3.0_dp* &
-                            (quadrupoles(1, i, iparticle)*pw_grid%g(i, gpt)+ &
+            atm_factor(1) = atm_factor(1) - 1.0_dp/3.0_dp* &
+                            (quadrupoles(1, i, iparticle)*pw_grid%g(i, gpt) + &
                              quadrupoles(i, 1, iparticle)*pw_grid%g(i, gpt))
-            atm_factor(2) = atm_factor(2)-1.0_dp/3.0_dp* &
-                            (quadrupoles(2, i, iparticle)*pw_grid%g(i, gpt)+ &
+            atm_factor(2) = atm_factor(2) - 1.0_dp/3.0_dp* &
+                            (quadrupoles(2, i, iparticle)*pw_grid%g(i, gpt) + &
                              quadrupoles(i, 2, iparticle)*pw_grid%g(i, gpt))
-            atm_factor(3) = atm_factor(3)-1.0_dp/3.0_dp* &
-                            (quadrupoles(3, i, iparticle)*pw_grid%g(i, gpt)+ &
+            atm_factor(3) = atm_factor(3) - 1.0_dp/3.0_dp* &
+                            (quadrupoles(3, i, iparticle)*pw_grid%g(i, gpt) + &
                              quadrupoles(i, 3, iparticle)*pw_grid%g(i, gpt))
          END DO
       END IF
@@ -1100,7 +1100,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: efield1, efield2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_self', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: f23 = 2.0_dp/3.0_dp, &
                                                             f415 = 4.0_dp/15.0_dp
 
@@ -1141,60 +1141,60 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                q = charges(iparticle)
                IF (lradii) radius = radii(iparticle)
                IF (radius > 0) THEN
-                  q_neutg = q_neutg+2.0_dp*q*radius**2
+                  q_neutg = q_neutg + 2.0_dp*q*radius**2
                END IF
-               q_self = q_self+q*q
-               q_sum = q_sum+q
+               q_self = q_self + q*q
+               q_sum = q_sum + q
                ! Potential
                IF (do_efield0) THEN
-                  efield0(iparticle) = efield0(iparticle)-q*fac1
+                  efield0(iparticle) = efield0(iparticle) - q*fac1
                END IF
 
                IF (task(1, 3)) THEN
                   ! Charge - Quadrupole
                   ch_qu_self_tmp = 0.0_dp
                   DO i = 1, 3
-                     ch_qu_self_tmp = ch_qu_self_tmp+quadrupoles(i, i, iparticle)*q
+                     ch_qu_self_tmp = ch_qu_self_tmp + quadrupoles(i, i, iparticle)*q
                   END DO
-                  ch_qu_self = ch_qu_self+ch_qu_self_tmp
+                  ch_qu_self = ch_qu_self + ch_qu_self_tmp
                   ! Electric Field Gradient
                   IF (do_efield2) THEN
-                     efield2(1, iparticle) = efield2(1, iparticle)+fac2*q
-                     efield2(5, iparticle) = efield2(5, iparticle)+fac2*q
-                     efield2(9, iparticle) = efield2(9, iparticle)+fac2*q
+                     efield2(1, iparticle) = efield2(1, iparticle) + fac2*q
+                     efield2(5, iparticle) = efield2(5, iparticle) + fac2*q
+                     efield2(9, iparticle) = efield2(9, iparticle) + fac2*q
                   END IF
                END IF
             END IF
             IF (ANY(task(2, :))) THEN
                ! Dipole - Dipole
                DO i = 1, 3
-                  dipole_self = dipole_self+dipoles(i, iparticle)**2
+                  dipole_self = dipole_self + dipoles(i, iparticle)**2
                END DO
                ! Electric Field
                IF (do_efield1) THEN
-                  efield1(1, iparticle) = efield1(1, iparticle)+fac3*dipoles(1, iparticle)
-                  efield1(2, iparticle) = efield1(2, iparticle)+fac3*dipoles(2, iparticle)
-                  efield1(3, iparticle) = efield1(3, iparticle)+fac3*dipoles(3, iparticle)
+                  efield1(1, iparticle) = efield1(1, iparticle) + fac3*dipoles(1, iparticle)
+                  efield1(2, iparticle) = efield1(2, iparticle) + fac3*dipoles(2, iparticle)
+                  efield1(3, iparticle) = efield1(3, iparticle) + fac3*dipoles(3, iparticle)
                END IF
             END IF
             IF (ANY(task(3, :))) THEN
                ! Quadrupole - Quadrupole
                DO i = 1, 3
                   DO j = 1, 3
-                     qu_qu_self = qu_qu_self+quadrupoles(j, i, iparticle)**2
+                     qu_qu_self = qu_qu_self + quadrupoles(j, i, iparticle)**2
                   END DO
                END DO
                ! Electric Field Gradient
                IF (do_efield2) THEN
-                  efield2(1, iparticle) = efield2(1, iparticle)+fac4*quadrupoles(1, 1, iparticle)
-                  efield2(2, iparticle) = efield2(2, iparticle)+fac4*quadrupoles(2, 1, iparticle)
-                  efield2(3, iparticle) = efield2(3, iparticle)+fac4*quadrupoles(3, 1, iparticle)
-                  efield2(4, iparticle) = efield2(4, iparticle)+fac4*quadrupoles(1, 2, iparticle)
-                  efield2(5, iparticle) = efield2(5, iparticle)+fac4*quadrupoles(2, 2, iparticle)
-                  efield2(6, iparticle) = efield2(6, iparticle)+fac4*quadrupoles(3, 2, iparticle)
-                  efield2(7, iparticle) = efield2(7, iparticle)+fac4*quadrupoles(1, 3, iparticle)
-                  efield2(8, iparticle) = efield2(8, iparticle)+fac4*quadrupoles(2, 3, iparticle)
-                  efield2(9, iparticle) = efield2(9, iparticle)+fac4*quadrupoles(3, 3, iparticle)
+                  efield2(1, iparticle) = efield2(1, iparticle) + fac4*quadrupoles(1, 1, iparticle)
+                  efield2(2, iparticle) = efield2(2, iparticle) + fac4*quadrupoles(2, 1, iparticle)
+                  efield2(3, iparticle) = efield2(3, iparticle) + fac4*quadrupoles(3, 1, iparticle)
+                  efield2(4, iparticle) = efield2(4, iparticle) + fac4*quadrupoles(1, 2, iparticle)
+                  efield2(5, iparticle) = efield2(5, iparticle) + fac4*quadrupoles(2, 2, iparticle)
+                  efield2(6, iparticle) = efield2(6, iparticle) + fac4*quadrupoles(3, 2, iparticle)
+                  efield2(7, iparticle) = efield2(7, iparticle) + fac4*quadrupoles(1, 3, iparticle)
+                  efield2(8, iparticle) = efield2(8, iparticle) + fac4*quadrupoles(2, 3, iparticle)
+                  efield2(9, iparticle) = efield2(9, iparticle) + fac4*quadrupoles(3, 3, iparticle)
                END IF
             END IF
          END DO
@@ -1207,9 +1207,9 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       CALL mp_sum(ch_qu_self, group)
       CALL mp_sum(qu_qu_self, group)
 
-      e_self = -(q_self+f23*(dipole_self-f23*ch_qu_self+f415*qu_qu_self*alpha**2)*alpha**2)*alpha*oorootpi
+      e_self = -(q_self + f23*(dipole_self - f23*ch_qu_self + f415*qu_qu_self*alpha**2)*alpha**2)*alpha*oorootpi
       fac1 = pi/(2.0_dp*cell%deth)
-      e_neut = -q_sum*fac1*(q_sum/alpha**2-q_neutg)
+      e_neut = -q_sum*fac1*(q_sum/alpha**2 - q_neutg)
 
       ! Correcting Potential for the neutralizing background charge
       DO iparticle_kind = 1, SIZE(local_particles%n_el)
@@ -1219,11 +1219,11 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
             IF (ANY(task(1, :))) THEN
                ! Potential energy
                IF (do_efield0) THEN
-                  efield0(iparticle) = efield0(iparticle)-q_sum*2.0_dp*fac1/alpha**2
+                  efield0(iparticle) = efield0(iparticle) - q_sum*2.0_dp*fac1/alpha**2
                   IF (lradii) radius = radii(iparticle)
                   IF (radius > 0) THEN
                      q = charges(iparticle)
-                     efield0(iparticle) = efield0(iparticle)+fac1*radius**2*(q_sum+q)
+                     efield0(iparticle) = efield0(iparticle) + fac1*radius**2*(q_sum + q)
                   END IF
                END IF
             END IF
@@ -1248,7 +1248,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                                                             e_neut
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_print', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       IF (iw > 0) THEN
          WRITE (iw, '( A, A )') ' *********************************', &
@@ -1264,7 +1264,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          WRITE (iw, '( A, A, T35, A, T56, E25.15 )') ' NEUTRALIZ. BCKGR. ENERGY', &
             '[hartree]', '= ', e_neut
          WRITE (iw, '( A, A, T35, A, T56, E25.15 )') ' TOTAL ELECTROSTATIC EN.', &
-            '[hartree]', '= ', e_rspace+e_bonded+e_gspace+e_self+e_neut
+            '[hartree]', '= ', e_rspace + e_bonded + e_gspace + e_self + e_neut
          WRITE (iw, '( A, A )') ' *********************************', &
             '**********************************************'
       END IF
@@ -1362,7 +1362,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 
       CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "CHARGE", echarge=-1.0_dp, &
                              random_stream=random_stream, charges=charges)
-      CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "CHARGE", echarge=1.0_dp, &
+      CALL create_multi_type(multipoles, nparticles, nparticles/2 + 1, nparticles, "CHARGE", echarge=1.0_dp, &
                              random_stream=random_stream, charges=charges)
       CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy, &
                                      debug_r_space)
@@ -1394,7 +1394,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 
       CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "CHARGE", echarge=-1.0_dp, &
                              random_stream=random_stream, charges=charges)
-      CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "DIPOLE", echarge=0.5_dp, &
+      CALL create_multi_type(multipoles, nparticles, nparticles/2 + 1, nparticles, "DIPOLE", echarge=0.5_dp, &
                              random_stream=random_stream, dipoles=dipoles)
       WRITE (iw, '("CHARGES",F15.9)') charges
       WRITE (iw, '("DIPOLES",3F15.9)') dipoles
@@ -1427,7 +1427,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 
       CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "DIPOLE", echarge=10000.0_dp, &
                              random_stream=random_stream, dipoles=dipoles)
-      CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "DIPOLE", echarge=20000._dp, &
+      CALL create_multi_type(multipoles, nparticles, nparticles/2 + 1, nparticles, "DIPOLE", echarge=20000._dp, &
                              random_stream=random_stream, dipoles=dipoles)
       WRITE (iw, '("DIPOLES",3F15.9)') dipoles
       CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy, &
@@ -1460,7 +1460,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 
       CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "CHARGE", echarge=-1.0_dp, &
                              random_stream=random_stream, charges=charges)
-      CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "QUADRUPOLE", echarge=10.0_dp, &
+      CALL create_multi_type(multipoles, nparticles, nparticles/2 + 1, nparticles, "QUADRUPOLE", echarge=10.0_dp, &
                              random_stream=random_stream, quadrupoles=quadrupoles)
       WRITE (iw, '("CHARGES",F15.9)') charges
       WRITE (iw, '("QUADRUPOLES",9F15.9)') quadrupoles
@@ -1494,7 +1494,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 
       CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "DIPOLE", echarge=10000.0_dp, &
                              random_stream=random_stream, dipoles=dipoles)
-      CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "QUADRUPOLE", echarge=10000.0_dp, &
+      CALL create_multi_type(multipoles, nparticles, nparticles/2 + 1, nparticles, "QUADRUPOLE", echarge=10000.0_dp, &
                              random_stream=random_stream, quadrupoles=quadrupoles)
       WRITE (iw, '("DIPOLES",3F15.9)') dipoles
       WRITE (iw, '("QUADRUPOLES",9F15.9)') quadrupoles
@@ -1527,7 +1527,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 
       CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "QUADRUPOLE", echarge=-20000.0_dp, &
                              random_stream=random_stream, quadrupoles=quadrupoles)
-      CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "QUADRUPOLE", echarge=10000.0_dp, &
+      CALL create_multi_type(multipoles, nparticles, nparticles/2 + 1, nparticles, "QUADRUPOLE", echarge=10000.0_dp, &
                              random_stream=random_stream, quadrupoles=quadrupoles)
       WRITE (iw, '("QUADRUPOLES",9F15.9)') quadrupoles
       CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy, &
@@ -1565,26 +1565,26 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 ! **************************************************************************************************
       SUBROUTINE debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, &
                                            energy, debug_r_space)
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(fist_nonbond_env_type), POINTER               :: nonbond_env
-      TYPE(multi_charge_type), DIMENSION(:), POINTER     :: multipoles
-      REAL(KIND=dp), INTENT(OUT)                         :: energy
-      LOGICAL, INTENT(IN)                                :: debug_r_space
+         TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+         TYPE(cell_type), POINTER                           :: cell
+         TYPE(fist_nonbond_env_type), POINTER               :: nonbond_env
+         TYPE(multi_charge_type), DIMENSION(:), POINTER     :: multipoles
+         REAL(KIND=dp), INTENT(OUT)                         :: energy
+         LOGICAL, INTENT(IN)                                :: debug_r_space
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipole_low', &
-         routineP = moduleN//':'//routineN
+         CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipole_low', &
+                                        routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_a, atom_b, icell, iend, igrp, &
-                                                            ikind, ilist, ipair, istart, jcell, &
-                                                            jkind, k, k1, kcell, l, l1, ncells, &
-                                                            nkinds, npairs
-      INTEGER, DIMENSION(:, :), POINTER                  :: list
-      REAL(KIND=dp)                                      :: fac_ij, q, r, rab2, rab2_max
-      REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi, rab, rab0, rm
-      TYPE(fist_neighbor_type), POINTER                  :: nonbonded
-      TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
-      TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update, r_last_update_pbc
+         INTEGER                                            :: atom_a, atom_b, icell, iend, igrp, &
+                                                               ikind, ilist, ipair, istart, jcell, &
+                                                               jkind, k, k1, kcell, l, l1, ncells, &
+                                                               nkinds, npairs
+         INTEGER, DIMENSION(:, :), POINTER                  :: list
+         REAL(KIND=dp)                                      :: fac_ij, q, r, rab2, rab2_max
+         REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi, rab, rab0, rm
+         TYPE(fist_neighbor_type), POINTER                  :: nonbonded
+         TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
+         TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update, r_last_update_pbc
 
          energy = 0.0_dp
          CALL fist_nonbond_env_get(nonbond_env, nonbonded=nonbonded, natom_types=nkinds, &
@@ -1610,9 +1610,9 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                      atom_a = list(1, ipair)
                      atom_b = list(2, ipair)
                      IF (atom_a == atom_b) fac_ij = 0.5_dp
-                     rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
-                     rab = rab+cell_v
-                     rab2 = rab(1)**2+rab(2)**2+rab(3)**2
+                     rab = r_last_update_pbc(atom_b)%r - r_last_update_pbc(atom_a)%r
+                     rab = rab + cell_v
+                     rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
                      IF (rab2 <= rab2_max) THEN
 
                         DO k = 1, SIZE(multipoles(atom_a)%charge_typ)
@@ -1621,10 +1621,10 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                               DO l = 1, SIZE(multipoles(atom_b)%charge_typ)
                                  DO l1 = 1, SIZE(multipoles(atom_b)%charge_typ(l)%charge)
 
-                                    rm = rab+multipoles(atom_b)%charge_typ(l)%pos(:, l1)-multipoles(atom_a)%charge_typ(k)%pos(:, k1)
+                                rm = rab + multipoles(atom_b)%charge_typ(l)%pos(:, l1) - multipoles(atom_a)%charge_typ(k)%pos(:, k1)
                                     r = SQRT(DOT_PRODUCT(rm, rm))
                                     q = multipoles(atom_b)%charge_typ(l)%charge(l1)*multipoles(atom_a)%charge_typ(k)%charge(k1)
-                                    energy = energy+q/r*fac_ij
+                                    energy = energy + q/r*fac_ij
                                  END DO
                               END DO
 
@@ -1643,15 +1643,15 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
             DO atom_b = atom_a, SIZE(particle_set)
                fac_ij = 1.0_dp
                IF (atom_a == atom_b) fac_ij = 0.5_dp
-               rab0 = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+               rab0 = r_last_update_pbc(atom_b)%r - r_last_update_pbc(atom_a)%r
                ! Loop over cells
                DO icell = -ncells, ncells
                DO jcell = -ncells, ncells
                DO kcell = -ncells, ncells
                   cell_v = MATMUL(cell%hmat, REAL((/icell, jcell, kcell/), KIND=dp))
                   IF (ALL(cell_v == 0.0_dp) .AND. (atom_a == atom_b)) CYCLE
-                  rab = rab0+cell_v
-                  rab2 = rab(1)**2+rab(2)**2+rab(3)**2
+                  rab = rab0 + cell_v
+                  rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
                   IF (rab2 <= rab2_max) THEN
 
                      DO k = 1, SIZE(multipoles(atom_a)%charge_typ)
@@ -1660,10 +1660,10 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                            DO l = 1, SIZE(multipoles(atom_b)%charge_typ)
                               DO l1 = 1, SIZE(multipoles(atom_b)%charge_typ(l)%charge)
 
-                                 rm = rab+multipoles(atom_b)%charge_typ(l)%pos(:, l1)-multipoles(atom_a)%charge_typ(k)%pos(:, k1)
+                                rm = rab + multipoles(atom_b)%charge_typ(l)%pos(:, l1) - multipoles(atom_a)%charge_typ(k)%pos(:, k1)
                                  r = SQRT(DOT_PRODUCT(rm, rm))
                                  q = multipoles(atom_b)%charge_typ(l)%charge(l1)*multipoles(atom_a)%charge_typ(k)%charge(k1)
-                                 energy = energy+q/r*fac_ij
+                                 energy = energy + q/r*fac_ij
                               END DO
                            END DO
 
@@ -1696,21 +1696,21 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 ! **************************************************************************************************
       SUBROUTINE create_multi_type(multipoles, idim, istart, iend, label, echarge, &
                                    random_stream, charges, dipoles, quadrupoles)
-      TYPE(multi_charge_type), DIMENSION(:), POINTER     :: multipoles
-      INTEGER, INTENT(IN)                                :: idim, istart, iend
-      CHARACTER(LEN=*), INTENT(IN)                       :: label
-      REAL(KIND=dp), INTENT(IN)                          :: echarge
-      TYPE(rng_stream_type), INTENT(INOUT)               :: random_stream
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
-      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: dipoles
-      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
-         POINTER                                         :: quadrupoles
+         TYPE(multi_charge_type), DIMENSION(:), POINTER     :: multipoles
+         INTEGER, INTENT(IN)                                :: idim, istart, iend
+         CHARACTER(LEN=*), INTENT(IN)                       :: label
+         REAL(KIND=dp), INTENT(IN)                          :: echarge
+         TYPE(rng_stream_type), INTENT(INOUT)               :: random_stream
+         REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
+         REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: dipoles
+         REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
+            POINTER                                         :: quadrupoles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_multi_type', &
-         routineP = moduleN//':'//routineN
+         CHARACTER(len=*), PARAMETER :: routineN = 'create_multi_type', &
+                                        routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, isize, k, l, m
-      REAL(KIND=dp)                                      :: dx, r2, rvec(3), rvec1(3), rvec2(3)
+         INTEGER                                            :: i, isize, k, l, m
+         REAL(KIND=dp)                                      :: dx, r2, rvec(3), rvec1(3), rvec2(3)
 
          IF (ASSOCIATED(multipoles)) THEN
             CPASSERT(SIZE(multipoles) == idim)
@@ -1723,7 +1723,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          DO i = istart, iend
             IF (ASSOCIATED(multipoles(i)%charge_typ)) THEN
                ! make a copy of the array and enlarge the array type by 1
-               isize = SIZE(multipoles(i)%charge_typ)+1
+               isize = SIZE(multipoles(i)%charge_typ) + 1
             ELSE
                isize = 1
             END IF
@@ -1737,7 +1737,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 
                multipoles(i)%charge_typ(isize)%charge(1) = echarge
                multipoles(i)%charge_typ(isize)%pos(1:3, 1) = 0.0_dp
-               charges(i) = charges(i)+echarge
+               charges(i) = charges(i) + echarge
             CASE ("DIPOLE")
                dx = 1.0E-4_dp
                CPASSERT(PRESENT(dipoles))
@@ -1751,7 +1751,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                multipoles(i)%charge_typ(isize)%charge(2) = -echarge
                multipoles(i)%charge_typ(isize)%pos(1:3, 2) = -rvec
 
-               dipoles(:, i) = dipoles(:, i)+2.0_dp*echarge*rvec
+               dipoles(:, i) = dipoles(:, i) + 2.0_dp*echarge*rvec
             CASE ("QUADRUPOLE")
                dx = 1.0E-2_dp
                CPASSERT(PRESENT(quadrupoles))
@@ -1761,7 +1761,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                CALL random_stream%fill(rvec1)
                CALL random_stream%fill(rvec2)
                rvec1 = rvec1/SQRT(DOT_PRODUCT(rvec1, rvec1))
-               rvec2 = rvec2-DOT_PRODUCT(rvec2, rvec1)*rvec1
+               rvec2 = rvec2 - DOT_PRODUCT(rvec2, rvec1)*rvec1
                rvec2 = rvec2/SQRT(DOT_PRODUCT(rvec2, rvec2))
                !
                rvec1 = rvec1/2.0_dp*dx
@@ -1774,22 +1774,22 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                !
                !       - (3)         + (2)
                multipoles(i)%charge_typ(isize)%charge(1) = -echarge
-               multipoles(i)%charge_typ(isize)%pos(1:3, 1) = rvec1+rvec2
+               multipoles(i)%charge_typ(isize)%pos(1:3, 1) = rvec1 + rvec2
                multipoles(i)%charge_typ(isize)%charge(2) = echarge
-               multipoles(i)%charge_typ(isize)%pos(1:3, 2) = rvec1-rvec2
+               multipoles(i)%charge_typ(isize)%pos(1:3, 2) = rvec1 - rvec2
                multipoles(i)%charge_typ(isize)%charge(3) = -echarge
-               multipoles(i)%charge_typ(isize)%pos(1:3, 3) = -rvec1-rvec2
+               multipoles(i)%charge_typ(isize)%pos(1:3, 3) = -rvec1 - rvec2
                multipoles(i)%charge_typ(isize)%charge(4) = echarge
-               multipoles(i)%charge_typ(isize)%pos(1:3, 4) = -rvec1+rvec2
+               multipoles(i)%charge_typ(isize)%pos(1:3, 4) = -rvec1 + rvec2
 
                DO k = 1, 4
                   r2 = DOT_PRODUCT(multipoles(i)%charge_typ(isize)%pos(:, k), multipoles(i)%charge_typ(isize)%pos(:, k))
                   DO l = 1, 3
                      DO m = 1, 3
-                        quadrupoles(m, l, i) = quadrupoles(m, l, i)+3.0_dp*0.5_dp*multipoles(i)%charge_typ(isize)%charge(k)* &
+                        quadrupoles(m, l, i) = quadrupoles(m, l, i) + 3.0_dp*0.5_dp*multipoles(i)%charge_typ(isize)%charge(k)* &
                                                multipoles(i)%charge_typ(isize)%pos(l, k)* &
                                                multipoles(i)%charge_typ(isize)%pos(m, k)
-                        IF (m == l) quadrupoles(m, l, i) = quadrupoles(m, l, i)-0.5_dp*multipoles(i)%charge_typ(isize)%charge(k)*r2
+                       IF (m == l) quadrupoles(m, l, i) = quadrupoles(m, l, i) - 0.5_dp*multipoles(i)%charge_typ(isize)%charge(k)*r2
                      END DO
                   END DO
                END DO
@@ -1805,12 +1805,12 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 !> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 ! **************************************************************************************************
       SUBROUTINE release_multi_type(multipoles)
-      TYPE(multi_charge_type), DIMENSION(:), POINTER     :: multipoles
+         TYPE(multi_charge_type), DIMENSION(:), POINTER     :: multipoles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_multi_type', &
-         routineP = moduleN//':'//routineN
+         CHARACTER(len=*), PARAMETER :: routineN = 'release_multi_type', &
+                                        routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, j
+         INTEGER                                            :: i, j
 
          IF (ASSOCIATED(multipoles)) THEN
             DO i = 1, SIZE(multipoles)
@@ -1832,14 +1832,14 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
 !> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 ! **************************************************************************************************
       SUBROUTINE reallocate_charge_type(charge_typ, istart, iend)
-      TYPE(charge_mono_type), DIMENSION(:), POINTER      :: charge_typ
-      INTEGER, INTENT(IN)                                :: istart, iend
+         TYPE(charge_mono_type), DIMENSION(:), POINTER      :: charge_typ
+         INTEGER, INTENT(IN)                                :: istart, iend
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'reallocate_charge_type', &
-         routineP = moduleN//':'//routineN
+         CHARACTER(len=*), PARAMETER :: routineN = 'reallocate_charge_type', &
+                                        routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, isize, j, jsize, jsize1, jsize2
-      TYPE(charge_mono_type), DIMENSION(:), POINTER      :: charge_typ_bk
+         INTEGER                                            :: i, isize, j, jsize, jsize1, jsize2
+         TYPE(charge_mono_type), DIMENSION(:), POINTER      :: charge_typ_bk
 
          IF (ASSOCIATED(charge_typ)) THEN
             isize = SIZE(charge_typ)
@@ -1920,13 +1920,13 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       TYPE(section_vals_type), POINTER                   :: mm_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles_fields', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, iparticle_kind, j, k, &
                                                             nparticle_local, nparticles
       REAL(KIND=dp) :: coord(3), dq, e_neut, e_self, efield1n(3), efield2n(3, 3), ene(2), &
-         energy_glob, energy_local, enev(3, 2), o_tot_ene, pot, pv_glob(3, 3), pv_local(3, 3), &
-         tot_ene
+                       energy_glob, energy_local, enev(3, 2), o_tot_ene, pot, pv_glob(3, 3), pv_local(3, 3), &
+                       tot_ene
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: efield1, efield2, forces_glob, &
                                                             forces_local
       REAL(KIND=dp), DIMENSION(:), POINTER               :: efield0, lcharges
@@ -1940,7 +1940,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       nparticles = SIZE(particle_set)
       nparticle_local = 0
       DO iparticle_kind = 1, SIZE(local_particles%n_el)
-         nparticle_local = nparticle_local+local_particles%n_el(iparticle_kind)
+         nparticle_local = nparticle_local + local_particles%n_el(iparticle_kind)
       END DO
       ALLOCATE (lcharges(nparticles))
       ALLOCATE (forces_glob(3, nparticles))
@@ -1963,7 +1963,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                                     local_particles, energy_local, energy_glob, e_neut, e_self, task, .FALSE., .TRUE., .TRUE., &
                                     .TRUE., radii, charges, dipoles, quadrupoles, forces_local, forces_glob, pv_local, pv_glob, &
                                     efield0, efield1, efield2, iw, do_debug=.FALSE.)
-      o_tot_ene = energy_local+energy_glob+e_neut+e_self
+      o_tot_ene = energy_local + energy_glob + e_neut + e_self
       WRITE (iw, *) "TOTAL ENERGY :: ========>", o_tot_ene
       ! Debug Potential
       dq = 0.001_dp
@@ -1971,7 +1971,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       DO i = 1, nparticles
          DO k = 1, 2
             lcharges = charges
-            lcharges(i) = charges(i)+(-1.0_dp)**k*dq
+            lcharges(i) = charges(i) + (-1.0_dp)**k*dq
             forces_glob = 0.0_dp
             forces_local = 0.0_dp
             pv_local = 0.0_dp
@@ -1984,14 +1984,14 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                                           local_particles, energy_local, energy_glob, e_neut, e_self, &
                                           task, .FALSE., .FALSE., .FALSE., .FALSE., radii, &
                                           lcharges, dipoles, quadrupoles, iw=iw, do_debug=.FALSE.)
-            ene(k) = energy_local+energy_glob+e_neut+e_self
+            ene(k) = energy_local + energy_glob + e_neut + e_self
          END DO
-         pot = (ene(2)-ene(1))/(2.0_dp*dq)
+         pot = (ene(2) - ene(1))/(2.0_dp*dq)
          WRITE (iw, '(A,I8,3(A,F15.9))') "POTENTIAL FOR ATOM: ", i, " NUMERICAL: ", pot, " ANALYTICAL: ", efield0(i), &
-            " ERROR: ", pot-efield0(i)
-         tot_ene = tot_ene+0.5_dp*efield0(i)*charges(i)
+            " ERROR: ", pot - efield0(i)
+         tot_ene = tot_ene + 0.5_dp*efield0(i)*charges(i)
       END DO
-      WRITE (iw, *) "ENERGIES: ", o_tot_ene, tot_ene, o_tot_ene-tot_ene
+      WRITE (iw, *) "ENERGIES: ", o_tot_ene, tot_ene, o_tot_ene - tot_ene
       WRITE (iw, '(/,/,/)')
       ! Debug Field
       dq = 0.001_dp
@@ -1999,7 +1999,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          coord = particle_set(i)%r
          DO j = 1, 3
             DO k = 1, 2
-               particle_set(i)%r(j) = coord(j)+(-1.0_dp)**k*dq
+               particle_set(i)%r(j) = coord(j) + (-1.0_dp)**k*dq
 
                ! Rebuild neighbor lists
                CALL list_control(atomic_kind_set, particle_set, local_particles, &
@@ -2023,16 +2023,16 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                ene(k) = efield0(i)
                particle_set(i)%r(j) = coord(j)
             END DO
-            efield1n(j) = -(ene(2)-ene(1))/(2.0_dp*dq)
+            efield1n(j) = -(ene(2) - ene(1))/(2.0_dp*dq)
          END DO
          WRITE (iw, '(/,A,I8)') "FIELD FOR ATOM: ", i
          WRITE (iw, '(A,3F15.9)') " NUMERICAL: ", efield1n, " ANALYTICAL: ", efield1(:, i), &
-            " ERROR: ", efield1n-efield1(:, i)
+            " ERROR: ", efield1n - efield1(:, i)
          IF (task(2)) THEN
-            tot_ene = tot_ene-0.5_dp*DOT_PRODUCT(efield1(:, i), dipoles(:, i))
+            tot_ene = tot_ene - 0.5_dp*DOT_PRODUCT(efield1(:, i), dipoles(:, i))
          END IF
       END DO
-      WRITE (iw, *) "ENERGIES: ", o_tot_ene, tot_ene, o_tot_ene-tot_ene
+      WRITE (iw, *) "ENERGIES: ", o_tot_ene, tot_ene, o_tot_ene - tot_ene
 
       ! Debug Field Gradient
       dq = 0.0001_dp
@@ -2040,7 +2040,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          coord = particle_set(i)%r
          DO j = 1, 3
             DO k = 1, 2
-               particle_set(i)%r(j) = coord(j)+(-1.0_dp)**k*dq
+               particle_set(i)%r(j) = coord(j) + (-1.0_dp)**k*dq
 
                ! Rebuild neighbor lists
                CALL list_control(atomic_kind_set, particle_set, local_particles, &
@@ -2064,12 +2064,12 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                enev(:, k) = efield1(:, i)
                particle_set(i)%r(j) = coord(j)
             END DO
-            efield2n(:, j) = (enev(:, 2)-enev(:, 1))/(2.0_dp*dq)
+            efield2n(:, j) = (enev(:, 2) - enev(:, 1))/(2.0_dp*dq)
          END DO
          WRITE (iw, '(/,A,I8)') "FIELD GRADIENT FOR ATOM: ", i
          WRITE (iw, '(A,9F15.9)') " NUMERICAL:  ", efield2n, &
             " ANALYTICAL: ", efield2(:, i), &
-            " ERROR:      ", RESHAPE(efield2n, (/9/))-efield2(:, i)
+            " ERROR:      ", RESHAPE(efield2n, (/9/)) - efield2(:, i)
       END DO
    END SUBROUTINE debug_ewald_multipoles_fields
 
@@ -2106,7 +2106,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles_fields2', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, ind, iparticle_kind, j, k, &
                                                             nparticle_local, nparticles
@@ -2124,7 +2124,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       nparticles = SIZE(particle_set)
       nparticle_local = 0
       DO iparticle_kind = 1, SIZE(local_particles%n_el)
-         nparticle_local = nparticle_local+local_particles%n_el(iparticle_kind)
+         nparticle_local = nparticle_local + local_particles%n_el(iparticle_kind)
       END DO
       ALLOCATE (forces_glob(3, nparticles))
       ALLOCATE (forces_local(3, nparticle_local))
@@ -2146,25 +2146,25 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
                                     local_particles, energy_local, energy_glob, e_neut, e_self, task, .FALSE., .TRUE., .TRUE., &
                                     .TRUE., radii, charges, dipoles, quadrupoles, forces_local, forces_glob, pv_local, pv_glob, &
                                     efield0, efield1, efield2, iw, do_debug=.FALSE.)
-      o_tot_ene = energy_local+energy_glob+e_neut+e_self
+      o_tot_ene = energy_local + energy_glob + e_neut + e_self
       WRITE (iw, *) "TOTAL ENERGY :: ========>", o_tot_ene
 
       ! Debug Potential
       tot_ene = 0.0_dp
       IF (task(1)) THEN
          DO i = 1, nparticles
-            tot_ene = tot_ene+0.5_dp*efield0(i)*charges(i)
+            tot_ene = tot_ene + 0.5_dp*efield0(i)*charges(i)
          END DO
-         WRITE (iw, *) "ENERGIES: ", o_tot_ene, tot_ene, o_tot_ene-tot_ene
+         WRITE (iw, *) "ENERGIES: ", o_tot_ene, tot_ene, o_tot_ene - tot_ene
          WRITE (iw, '(/,/,/)')
       END IF
 
       ! Debug Field
       IF (task(2)) THEN
          DO i = 1, nparticles
-            tot_ene = tot_ene-0.5_dp*DOT_PRODUCT(efield1(:, i), dipoles(:, i))
+            tot_ene = tot_ene - 0.5_dp*DOT_PRODUCT(efield1(:, i), dipoles(:, i))
          END DO
-         WRITE (iw, *) "ENERGIES: ", o_tot_ene, tot_ene, o_tot_ene-tot_ene
+         WRITE (iw, *) "ENERGIES: ", o_tot_ene, tot_ene, o_tot_ene - tot_ene
          WRITE (iw, '(/,/,/)')
       END IF
 
@@ -2175,13 +2175,13 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
             prod = 0.0_dp
             DO j = 1, 3
                DO k = 1, 3
-                  ind = ind+1
-                  prod = prod+efield2(ind, i)*quadrupoles(j, k, i)
+                  ind = ind + 1
+                  prod = prod + efield2(ind, i)*quadrupoles(j, k, i)
                END DO
             END DO
-            tot_ene = tot_ene-0.5_dp*(1.0_dp/3.0_dp)*prod
+            tot_ene = tot_ene - 0.5_dp*(1.0_dp/3.0_dp)*prod
          END DO
-         WRITE (iw, *) "ENERGIES: ", o_tot_ene, tot_ene, o_tot_ene-tot_ene
+         WRITE (iw, *) "ENERGIES: ", o_tot_ene, tot_ene, o_tot_ene - tot_ene
          WRITE (iw, '(/,/,/)')
       END IF
 

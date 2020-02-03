@@ -9,12 +9,12 @@
 !>   * 06.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
 MODULE negf_integr_utils
-   USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: pi
+   USE kinds, ONLY: dp
+   USE mathconstants, ONLY: pi
 #include "./base/base_uses.f90"
 #:include 'negf_integr_utils.fypp'
-IMPLICIT NONE
-PRIVATE
+   IMPLICIT NONE
+   PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'negf_integr_utils'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .TRUE.
@@ -50,16 +50,16 @@ CONTAINS
       ${type1}$, DIMENSION(nnodes), INTENT(out)          :: xnodes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'equidistant_${nametype1}$nodes_a_b', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i
       ${type1}$                                          :: rscale
 
       CPASSERT(nnodes >= 1)
 
-      rscale = (b-a)/REAL(nnodes-1, kind=dp)
+      rscale = (b - a)/REAL(nnodes - 1, kind=dp)
       DO i = 1, nnodes
-         xnodes(i) = a+rscale*REAL(i-1, kind=dp)
+         xnodes(i) = a + rscale*REAL(i - 1, kind=dp)
       END DO
    END SUBROUTINE equidistant_${nametype1}$nodes_a_b
 #:endfor
@@ -73,7 +73,7 @@ CONTAINS
          OPTIONAL                                        :: xnodes, weights
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rescale_normalised_nodes', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER :: handle, i
       REAL(kind=dp)                                      :: rscale
@@ -87,7 +87,7 @@ CONTAINS
             CALL rescale_nodes_linear(nnodes, tnodes, a, b, xnodes)
 
          IF (PRESENT(weights)) &
-            weights(:) = b-a
+            weights(:) = b - a
 
       CASE (contour_shape_arc)
          ALLOCATE (tnodes_angle(nnodes))
@@ -99,9 +99,9 @@ CONTAINS
             CALL rescale_nodes_arc(nnodes, tnodes_angle, a, b, xnodes)
 
          IF (PRESENT(weights)) THEN
-            rscale = (pi-get_arc_smallest_angle(a, b))*get_arc_radius(a, b)
+            rscale = (pi - get_arc_smallest_angle(a, b))*get_arc_radius(a, b)
 
-            DO i = 1,nnodes
+            DO i = 1, nnodes
                weights(i) = rscale*CMPLX(SIN(tnodes_angle(i)), -COS(tnodes_angle(i)), kind=dp)
             END DO
          END IF
@@ -141,7 +141,7 @@ CONTAINS
 
       ! l = REAL(B - A); delta = AIMAG(B - A)
       ! radius = (l^2 + delta^2) / (2 * l)
-      radius = 0.5_dp * REAL(b_minus_a * CONJG(b_minus_a), kind=dp) / REAL(b_minus_a, kind=dp)
+      radius = 0.5_dp*REAL(b_minus_a*CONJG(b_minus_a), kind=dp)/REAL(b_minus_a, kind=dp)
    END FUNCTION get_arc_radius
 
 ! **************************************************************************************************
@@ -166,7 +166,7 @@ CONTAINS
       REAL(kind=dp)                                      :: phi
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_arc_smallest_angle', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       COMPLEX(kind=dp) :: b_minus_a
       REAL(kind=dp)    :: delta2, l2
@@ -176,11 +176,11 @@ CONTAINS
       ! l = REAL(B - A); delta = AIMAG(B - A)
       ! phi = arccos((l - radius)/radius) = arccos((l^2 - delta^2) / (l^2 + delta^2))
       l2 = REAL(b_minus_a, dp)
-      l2 = l2 * l2
+      l2 = l2*l2
       delta2 = AIMAG(b_minus_a)
-      delta2 = delta2 * delta2
+      delta2 = delta2*delta2
 
-      phi = ACOS((l2 - delta2) / (l2 + delta2))
+      phi = ACOS((l2 - delta2)/(l2 + delta2))
    END FUNCTION get_arc_smallest_angle
 
    PURE FUNCTION get_axis_rotation_angle(a, b) RESULT(phi)
@@ -188,18 +188,18 @@ CONTAINS
       REAL(kind=dp)                                      :: phi
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_axis_rotation_angle', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       COMPLEX(kind=dp) :: b_minus_a
 
       b_minus_a = b - a
-      phi = ACOS(REAL(b_minus_a, dp) / ABS(b_minus_a))
+      phi = ACOS(REAL(b_minus_a, dp)/ABS(b_minus_a))
    END FUNCTION get_axis_rotation_angle
 
 ! **************************************************************************************************
 !> \brief Rescale nodes [pi, phi] -> arc[a, b] .
 !> \param nnodes        number of nodes
-!> \param tnodes_angle  parametrically-defined nodes to rescale 
+!> \param tnodes_angle  parametrically-defined nodes to rescale
 !> \param a             lower bound
 !> \param b             upper bound
 !> \param xnodes        rescaled nodes (initialised on exit)
@@ -214,7 +214,7 @@ CONTAINS
       COMPLEX(kind=dp), DIMENSION(:), INTENT(out)        :: xnodes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rescale_nodes_arc', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       COMPLEX(kind=dp)                                   :: origin
       INTEGER                                            :: i
@@ -223,8 +223,8 @@ CONTAINS
       radius = get_arc_radius(a, b)
       origin = a + CMPLX(radius, 0.0_dp, kind=dp)
 
-      DO i = 1,nnodes
-         xnodes(i) = origin + radius * CMPLX(COS(tnodes_angle(i)), SIN(tnodes_angle(i)), kind=dp)
+      DO i = 1, nnodes
+         xnodes(i) = origin + radius*CMPLX(COS(tnodes_angle(i)), SIN(tnodes_angle(i)), kind=dp)
       END DO
    END SUBROUTINE rescale_nodes_arc
 
@@ -240,9 +240,9 @@ CONTAINS
       REAL(kind=dp), DIMENSION(nnodes), INTENT(inout)    :: tnodes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rescale_nodes_cos', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
-      tnodes(:) = COS(0.5_dp*pi*(1.0_dp-tnodes(:)))
+      tnodes(:) = COS(0.5_dp*pi*(1.0_dp - tnodes(:)))
    END SUBROUTINE rescale_nodes_cos
 
 ! **************************************************************************************************
@@ -262,14 +262,14 @@ CONTAINS
       COMPLEX(kind=dp), DIMENSION(nnodes), INTENT(out)   :: xnodes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rescale_nodes_linear', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       COMPLEX(kind=dp)                                   :: half_len, median
 
-      median = 0.5_dp*(b+a)
-      half_len = 0.5_dp*(b-a)
+      median = 0.5_dp*(b + a)
+      half_len = 0.5_dp*(b - a)
 
-      xnodes(:) = median+half_len*tnodes(:)
+      xnodes(:) = median + half_len*tnodes(:)
    END SUBROUTINE rescale_nodes_linear
 
 ! **************************************************************************************************
@@ -288,13 +288,13 @@ CONTAINS
       REAL(kind=dp), DIMENSION(nnodes), INTENT(inout)    :: tnodes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rescale_nodes_pi_phi', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       REAL(kind=dp)                                      :: half_pi_minus_phi, phi
 
       phi = get_arc_smallest_angle(a, b)
-      half_pi_minus_phi = 0.5_dp*(pi-phi)
+      half_pi_minus_phi = 0.5_dp*(pi - phi)
 
-      tnodes(:) = phi+half_pi_minus_phi*(1.0_dp-tnodes(:))
+      tnodes(:) = phi + half_pi_minus_phi*(1.0_dp - tnodes(:))
    END SUBROUTINE rescale_nodes_pi_phi
 END MODULE negf_integr_utils

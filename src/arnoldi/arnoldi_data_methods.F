@@ -13,21 +13,21 @@
 ! **************************************************************************************************
 
 MODULE arnoldi_data_methods
-   USE arnoldi_types,                   ONLY: &
-        arnoldi_control_type, arnoldi_data_c_type, arnoldi_data_d_type, arnoldi_data_s_type, &
-        arnoldi_data_type, arnoldi_data_z_type, get_control, get_data_c, get_data_d, get_data_s, &
-        get_data_z, get_evals_c, get_evals_d, get_evals_s, get_evals_z, get_sel_ind, has_d_cmplx, &
-        has_d_real, has_s_cmplx, has_s_real, set_control, set_data_c, set_data_d, set_data_s, &
-        set_data_z
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_data_p, dbcsr_get_data_type, &
-        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_mp_grid_setup, dbcsr_p_type, dbcsr_release, &
-        dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
-        dbcsr_type_real_8, dbcsr_type_symmetric
-   USE dbcsr_vector,                    ONLY: create_col_vec_from_matrix
-   USE kinds,                           ONLY: real_4,&
-                                              real_8
-   USE util,                            ONLY: sort
+   USE arnoldi_types, ONLY: &
+      arnoldi_control_type, arnoldi_data_c_type, arnoldi_data_d_type, arnoldi_data_s_type, &
+      arnoldi_data_type, arnoldi_data_z_type, get_control, get_data_c, get_data_d, get_data_s, &
+      get_data_z, get_evals_c, get_evals_d, get_evals_s, get_evals_z, get_sel_ind, has_d_cmplx, &
+      has_d_real, has_s_cmplx, has_s_real, set_control, set_data_c, set_data_d, set_data_s, &
+      set_data_z
+   USE dbcsr_api, ONLY: &
+      dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_data_p, dbcsr_get_data_type, &
+      dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_mp_grid_setup, dbcsr_p_type, dbcsr_release, &
+      dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
+      dbcsr_type_real_8, dbcsr_type_symmetric
+   USE dbcsr_vector, ONLY: create_col_vec_from_matrix
+   USE kinds, ONLY: real_4, &
+                    real_8
+   USE util, ONLY: sort
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -71,12 +71,12 @@ CONTAINS
       LOGICAL                                            :: generalized_ev, iram
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_arnoldi_data', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       CALL setup_arnoldi_control(arnoldi_data, matrix, max_iter, threshold, selection_crit, &
                                  nval_request, nrestarts, generalized_ev, iram)
 
-      SELECT CASE (dbcsr_get_data_type (matrix (1)%matrix))
+      SELECT CASE (dbcsr_get_data_type(matrix(1)%matrix))
       CASE (dbcsr_type_real_8)
          CALL setup_arnoldi_data_d(arnoldi_data, matrix, max_iter)
       CASE (dbcsr_type_real_4)
@@ -111,7 +111,7 @@ CONTAINS
       LOGICAL                                            :: generalized_ev, iram
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_arnoldi_control', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       LOGICAL                                            :: subgroups_defined
       TYPE(arnoldi_control_type), POINTER                :: control
@@ -184,7 +184,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix, vector
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_selected_ritz_vector', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       IF (has_d_real(arnoldi_data)) CALL get_selected_ritz_vector_d(arnoldi_data, ind, matrix, vector)
       IF (has_s_real(arnoldi_data)) CALL get_selected_ritz_vector_s(arnoldi_data, ind, matrix, vector)
@@ -201,7 +201,7 @@ CONTAINS
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_arnoldi_data', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       TYPE(arnoldi_control_type), POINTER                :: control
 
@@ -324,7 +324,7 @@ CONTAINS
       COMPLEX(real_8)                                    :: eval_out
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_selected_ritz_val', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       COMPLEX(real_4), DIMENSION(:), POINTER             :: evals_s
       COMPLEX(real_8), DIMENSION(:), POINTER             :: evals_d
@@ -359,7 +359,7 @@ CONTAINS
       COMPLEX(real_8), DIMENSION(:)                      :: eval_out
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_all_selected_ritz_val', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       COMPLEX(real_4), DIMENSION(:), POINTER             :: evals_s
       COMPLEX(real_8), DIMENSION(:), POINTER             :: evals_d
