@@ -122,6 +122,8 @@ MODULE qs_linres_current
                                               int2pair,&
                                               rs_distribute_matrix,&
                                               task_list_inner_loop
+   USE task_list_types,                 ONLY: reallocate_tasks,&
+                                              task_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -590,7 +592,6 @@ CONTAINS
          maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, ntasks, &
          nthread, sgfa, sgfb
       INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
-      INTEGER(kind=int_8), DIMENSION(:, :), POINTER      :: tasks
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
                                                             npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -629,6 +630,7 @@ CONTAINS
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_current, rs_rho
       TYPE(realspaces_grid_p_type), DIMENSION(:), &
          POINTER                                         :: rs_gauge
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
 
       NULLIFY (qs_kind, cell, dft_control, orb_basis_set, rs_rho, &
                qs_kind_set, sab_orb, particle_set, rs_current, pw_env, &
@@ -717,12 +719,11 @@ CONTAINS
       CALL reallocate(jpabt_c, 1, maxco, 1, maxco, 0, nthread - 1)
       CALL reallocate(jpabt_d, 1, maxco, 1, maxco, 0, nthread - 1)
       CALL reallocate(workt, 1, maxco, 1, maxsgf_set, 0, nthread - 1)
-      CALL reallocate(tasks, 1, 6, 1, max_tasks)
+      CALL reallocate_tasks(tasks, max_tasks)
       CALL reallocate(dist_ab, 1, 3, 1, max_tasks)
 
-      tasks = 0
       ntasks = 0
-      curr_tasks = SIZE(tasks, 2)
+      curr_tasks = SIZE(tasks)
 
       !   get maximum numbers
       natom = SIZE(particle_set)
@@ -976,11 +977,11 @@ CONTAINS
 
       loop_tasks: DO itask = 1, ntasks
 
-         CALL int2pair(tasks(3, itask), igrid_level, cindex, iatom, jatom, iset, jset, ipgf, jpgf, &
+         CALL int2pair(tasks(itask)%pair, igrid_level, cindex, iatom, jatom, iset, jset, ipgf, jpgf, &
                        nimages, natom, maxset, maxpgf)
 
          ! apparently generalised collocation not implemented correctly yet
-         CPASSERT(tasks(4, itask) .NE. 2)
+         CPASSERT(tasks(itask)%dist_type .NE. 2)
 
          IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
 
