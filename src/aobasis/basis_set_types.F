@@ -59,6 +59,11 @@ MODULE basis_set_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'basis_set_types'
 
+   ! basis set sort criteria
+   INTEGER, PARAMETER, PUBLIC               :: basis_sort_default = 0, &
+                                               basis_sort_radius = 1, &
+                                               basis_sort_zet = 2
+
 ! **************************************************************************************************
    ! Define the Gaussian-type orbital basis set type
 
@@ -79,6 +84,7 @@ MODULE basis_set_types
       INTEGER, DIMENSION(:, :), POINTER           :: first_cgf, first_sgf, l, &
                                                      last_cgf, last_sgf, n
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: gcc
+      INTEGER                                    :: sort = basis_sort_default
    END TYPE gto_basis_set_type
 
    TYPE gto_basis_set_p_type
@@ -119,6 +125,7 @@ MODULE basis_set_types
              create_primitive_basis_set, &
              combine_basis_sets, &
              set_gto_basis_set, &
+             sort_gto_basis_set, &
              write_gto_basis_set, &
              write_orb_basis_set
 
@@ -263,6 +270,7 @@ CONTAINS
       bout%aliases = bin%aliases
       bout%kind_radius = bin%kind_radius
       bout%norm_type = bin%norm_type
+      bout%sort = bin%sort
       bout%nset = bin%nset
       bout%ncgf = bin%ncgf
       bout%nsgf = bin%nsgf
@@ -379,6 +387,7 @@ CONTAINS
       pbasis%kind_radius = basis_set%kind_radius
       pbasis%short_kind_radius = basis_set%short_kind_radius
       pbasis%norm_type = basis_set%norm_type
+      pbasis%sort = basis_set%sort
       nset = lm + 1
       pbasis%nset = nset
       ALLOCATE (pbasis%lmax(nset), pbasis%lmin(nset), pbasis%npgf(nset), pbasis%nshell(nset))
@@ -2713,6 +2722,198 @@ CONTAINS
       ! Slater exponent is (Z-S)/NS
       srules = (REAL(z, dp) - s)/xns(nn)
    END FUNCTION srules
+
+! **************************************************************************************************
+!> \brief sort basis sets w.r.t. radius
+!> \param basis_set ...
+! **************************************************************************************************
+   SUBROUTINE sort_gto_basis_set(basis_set)
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+
+      CHARACTER(LEN=12), DIMENSION(:), POINTER           :: cgf_symbol
+      CHARACTER(LEN=6), DIMENSION(:), POINTER            :: sgf_symbol
+      INTEGER :: ic, ic_max, icgf, icgf_new, icgf_old, ico, is, is_max, iset, isgf, isgf_new, &
+         isgf_old, ishell, lshell, maxco, maxpgf, maxshell, mm, nc, ncgf, ns, nset
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sort_index
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: icgf_set, isgf_set
+      INTEGER, DIMENSION(:), POINTER                     :: lx, ly, lz, m, npgf
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tmp
+      REAL(dp), DIMENSION(:), POINTER                    :: set_radius
+      REAL(dp), DIMENSION(:, :), POINTER                 :: zet
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: norm_cgf
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cphi, scon, sphi
+      TYPE(gto_basis_set_type), POINTER                  :: b
+
+      CPASSERT(ASSOCIATED(basis_set))
+
+      IF (basis_set%sort == basis_sort_default) RETURN
+
+      NULLIFY (set_radius, zet)
+
+      b => basis_set
+      CALL get_gto_basis_set(gto_basis_set=b, &
+                             nset=nset, &
+                             maxshell=maxshell, &
+                             maxpgf=maxpgf, &
+                             maxco=maxco, &
+                             ncgf=ncgf, &
+                             npgf=npgf, &
+                             set_radius=set_radius, &
+                             zet=zet)
+
+      ALLOCATE (sort_index(nset))
+      ALLOCATE (tmp(nset))
+      SELECT CASE (b%sort)
+      CASE (basis_sort_radius)
+         tmp(:) = set_radius(UBOUND(set_radius, 1):LBOUND(set_radius, 1):-1)
+      CASE (basis_sort_zet)
+         DO iset = 1, nset
+            tmp(iset) = MINVAL(basis_set%zet(:npgf(iset), iset))
+         ENDDO
+      CASE DEFAULT
+         CPABORT("Request basis sort criterion not implemented.")
+      END SELECT
+
+      CALL sort(tmp(1:nset), nset, sort_index)
+
+      ic_max = 0
+      is_max = 0
+      DO iset = 1, nset
+         ic = 0
+         is = 0
+         DO ishell = 1, b%nshell(iset)
+            DO ico = 1, nco(b%l(ishell, iset))
+               ic = ic + 1
+               IF (ic > ic_max) ic_max = ic
+            ENDDO
+            lshell = b%l(ishell, iset)
+            DO mm = -lshell, lshell
+               is = is + 1
+               IF (is > is_max) is_max = is
+            ENDDO
+         ENDDO
+      ENDDO
+
+      icgf = 0
+      isgf = 0
+      ALLOCATE (icgf_set(nset, ic_max))
+      icgf_set(:, :) = 0
+      ALLOCATE (isgf_set(nset, is_max))
+      isgf_set(:, :) = 0
+
+      DO iset = 1, nset
+         ic = 0
+         is = 0
+         DO ishell = 1, b%nshell(iset)
+            DO ico = 1, nco(b%l(ishell, iset))
+               icgf = icgf + 1
+               ic = ic + 1
+               icgf_set(iset, ic) = icgf
+            ENDDO
+            lshell = b%l(ishell, iset)
+            DO mm = -lshell, lshell
+               isgf = isgf + 1
+               is = is + 1
+               isgf_set(iset, is) = isgf
+            ENDDO
+         ENDDO
+      ENDDO
+
+      ALLOCATE (cgf_symbol(SIZE(b%cgf_symbol)))
+      ALLOCATE (norm_cgf(SIZE(b%norm_cgf)))
+      ALLOCATE (lx(SIZE(b%lx)))
+      ALLOCATE (ly(SIZE(b%ly)))
+      ALLOCATE (lz(SIZE(b%lz)))
+      ALLOCATE (cphi(SIZE(b%cphi, 1), SIZE(b%cphi, 2)))
+      cphi = 0.0_dp
+      ALLOCATE (sphi(SIZE(b%sphi, 1), SIZE(b%sphi, 2)))
+      sphi = 0.0_dp
+      ALLOCATE (scon(SIZE(b%scon, 1), SIZE(b%scon, 2)))
+      scon = 0.0_dp
+
+      ALLOCATE (sgf_symbol(SIZE(b%sgf_symbol)))
+      ALLOCATE (m(SIZE(b%m)))
+
+      icgf_new = 0
+      isgf_new = 0
+      DO iset = 1, nset
+         DO ic = 1, ic_max
+            icgf_old = icgf_set(sort_index(iset), ic)
+            IF (icgf_old == 0) CYCLE
+            icgf_new = icgf_new + 1
+            norm_cgf(icgf_new) = b%norm_cgf(icgf_old)
+            lx(icgf_new) = b%lx(icgf_old)
+            ly(icgf_new) = b%ly(icgf_old)
+            lz(icgf_new) = b%lz(icgf_old)
+            cphi(:, icgf_new) = b%cphi(:, icgf_old)
+            cgf_symbol(icgf_new) = b%cgf_symbol(icgf_old)
+         ENDDO
+         DO is = 1, is_max
+            isgf_old = isgf_set(sort_index(iset), is)
+            IF (isgf_old == 0) CYCLE
+            isgf_new = isgf_new + 1
+            m(isgf_new) = b%m(isgf_old)
+            sphi(:, isgf_new) = b%sphi(:, isgf_old)
+            scon(:, isgf_new) = b%scon(:, isgf_old)
+            sgf_symbol(isgf_new) = b%sgf_symbol(isgf_old)
+         ENDDO
+      ENDDO
+
+      DEALLOCATE (b%cgf_symbol)
+      b%cgf_symbol => cgf_symbol
+      DEALLOCATE (b%norm_cgf)
+      b%norm_cgf => norm_cgf
+      DEALLOCATE (b%lx)
+      b%lx => lx
+      DEALLOCATE (b%ly)
+      b%ly => ly
+      DEALLOCATE (b%lz)
+      b%lz => lz
+      DEALLOCATE (b%cphi)
+      b%cphi => cphi
+      DEALLOCATE (b%sphi)
+      b%sphi => sphi
+      DEALLOCATE (b%scon)
+      b%scon => scon
+
+      DEALLOCATE (b%m)
+      b%m => m
+      DEALLOCATE (b%sgf_symbol)
+      b%sgf_symbol => sgf_symbol
+
+      b%lmax = b%lmax(sort_index)
+      b%lmin = b%lmin(sort_index)
+      b%npgf = b%npgf(sort_index)
+      b%nshell = b%nshell(sort_index)
+      b%ncgf_set = b%ncgf_set(sort_index)
+      b%nsgf_set = b%nsgf_set(sort_index)
+
+      b%n(:, :) = b%n(:, sort_index)
+      b%l(:, :) = b%l(:, sort_index)
+      b%zet(:, :) = b%zet(:, sort_index)
+
+      b%gcc(:, :, :) = b%gcc(:, :, sort_index)
+      b%set_radius(:) = b%set_radius(sort_index)
+      b%pgf_radius(:, :) = b%pgf_radius(:, sort_index)
+
+      nc = 0
+      ns = 0
+      DO iset = 1, nset
+         DO ishell = 1, b%nshell(iset)
+            lshell = b%l(ishell, iset)
+            b%first_cgf(ishell, iset) = nc + 1
+            nc = nc + nco(lshell)
+            b%last_cgf(ishell, iset) = nc
+            b%first_sgf(ishell, iset) = ns + 1
+            ns = ns + nso(lshell)
+            b%last_sgf(ishell, iset) = ns
+         END DO
+      END DO
+
+      ! make sure that basis sets are sorted only once
+      b%sort = basis_sort_default
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 

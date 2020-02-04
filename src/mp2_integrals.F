@@ -946,7 +946,6 @@ CONTAINS
          bsum = bsum + SUM(sizes(starts_array_block(imem):ends_array_block(imem)))
          ends_array(imem) = bsum
       ENDDO
-
    END SUBROUTINE
 
 ! **************************************************************************************************

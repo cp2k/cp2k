@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  H2O-ri-rpa-lr-mme
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
