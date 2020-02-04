@@ -170,7 +170,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_ks, matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_ks
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(efield_berry_type), POINTER                   :: efield
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
@@ -306,7 +306,7 @@ CONTAINS
             NULLIFY (p_block_a)
             CALL dbcsr_get_block_p(ec_env%matrix_p(1, 1)%matrix, irow, icol, p_block_a, found)
 !deb        IF (.NOT. found) CYCLE
-            IF (SIZE(matrix_p, 1) > 1) THEN
+            IF (SIZE(ec_env%matrix_p, 1) > 1) THEN
                NULLIFY (p_block_b)
                CALL dbcsr_get_block_p(ec_env%matrix_p(2, 1)%matrix, irow, icol, p_block_b, found)
 !deb           CPASSERT(found)
@@ -326,7 +326,7 @@ CONTAINS
                   ALLOCATE (work(ldab, ldab), pmat(ncoa, ncob))
                   ! Decontract P matrix block
                   pmat = 0.0_dp
-                  DO i = 1, SIZE(matrix_p, 1)
+                  DO i = 1, SIZE(ec_env%matrix_p, 1)
                      IF (i == 1) THEN
                         pblock => p_block_a
                      ELSE
