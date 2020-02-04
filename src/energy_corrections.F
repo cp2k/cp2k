@@ -979,7 +979,17 @@ CONTAINS
          CALL cp_dbcsr_sm_fm_multiply(matrix_v(ispin, 1)%matrix, mo_coeff, vmos(ispin)%matrix, &
                                       norb, alpha=focc, beta=0.0_dp)
       END DO
-      ec_env%matrix_hz => matrix_v(:, 1)
+      !MK The Intel compiler has trouble with that pointer assignment
+      !MK ec_env%matrix_hz => matrix_v(:, 1)
+      !MK Begin explicit copy
+      CALL dbcsr_allocate_matrix_set(ec_env%matrix_hz, nspins)
+      DO ispin = 1, nspins
+         ALLOCATE (ec_env%matrix_hz(ispin)%matrix)
+         CALL dbcsr_create(ec_env%matrix_hz(ispin)%matrix, template=matrix_v(ispin, 1)%matrix)
+         CALL dbcsr_copy(matrix_v(ispin, 1)%matrix, ec_env%matrix_hz(ispin)%matrix)
+      END DO
+      CALL dbcsr_deallocate_matrix_set(matrix_v)
+      !MK End
       IF (ASSOCIATED(ec_env%cpmos)) THEN
          DO i = 1, SIZE(ec_env%cpmos)
             CALL cp_fm_release(ec_env%cpmos(i)%matrix)
