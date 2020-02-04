@@ -1261,6 +1261,8 @@ CONTAINS
          line_search_iteration = 0
          energy_new = 0.0_dp
          energy_old = 0.0_dp
+         energy_diff = 0.0_dp
+         localization_obj_function = 0.0_dp
          line_search_error = 0.0_dp
 
          t1 = m_walltime()
@@ -1295,15 +1297,17 @@ CONTAINS
                energy_new = energy_new + penalty_func_new
             ENDIF
             DO ispin = 1, nspins
-
                IF (penalty_occ_vol) THEN
                   penalty_occ_vol_g_prefactor(ispin) = &
                      -2.0_dp*penalty_amplitude*spin_factor*nocc(ispin)
                   penalty_occ_vol_h_prefactor(ispin) = 0.0_dp
                ENDIF
+            ENDDO
 
-               ! RZK-warning: This block must be combined with the loss function
-               IF (penalty_occ_local) THEN
+            localization_obj_function = 0.0_dp
+            ! RZK-warning: This block must be combined with the loss function
+            IF (penalty_occ_local) THEN
+               DO ispin = 1, nspins
 
                   ! LzL insert localization penalty
                   localization_obj_function = 0.0_dp
@@ -1311,63 +1315,56 @@ CONTAINS
                   ALLOCATE (z2(nmo))
                   ALLOCATE (reim_diag(nmo))
 
-                  IF (penalty_occ_local) THEN
+                  CALL dbcsr_get_info(tempOccOcc(ispin), group=para_group)
 
-                     CALL dbcsr_get_info(tempOccOcc(ispin), group=para_group)
+                  DO idim0 = 1, SIZE(op_sm_set_qs, 2) ! this loop is over miller ind
 
-                     DO idim0 = 1, SIZE(op_sm_set_qs, 2) ! this loop is over miller ind
+                     z2(:) = 0.0_dp
 
-                        z2(:) = 0.0_dp
+                     DO reim = 1, SIZE(op_sm_set_qs, 1) ! this loop is over Re/Im
 
-                        DO reim = 1, SIZE(op_sm_set_qs, 1) ! this loop is over Re/Im
+                        !CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix, op_sm_set_almo(reim, idim0)%matrix, &
+                        !                       almo_scf_env%mat_distr_aos, .FALSE.)
+                        CALL dbcsr_multiply("N", "N", 1.0_dp, &
+                                            op_sm_set_almo(reim, idim0)%matrix, &
+                                            matrix_t_out(ispin), &
+                                            0.0_dp, tempNOcc(ispin), &
+                                            filter_eps=almo_scf_env%eps_filter)
+                        !warning - save time by computing only the diagonal elements
+                        CALL dbcsr_multiply("T", "N", 1.0_dp, &
+                                            matrix_t_out(ispin), &
+                                            tempNOcc(ispin), &
+                                            0.0_dp, tempOccOcc(ispin), &
+                                            filter_eps=almo_scf_env%eps_filter)
 
-                           !CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix, op_sm_set_almo(reim, idim0)%matrix, &
-                           !                       almo_scf_env%mat_distr_aos, .FALSE.)
-                           CALL dbcsr_multiply("N", "N", 1.0_dp, &
-                                               op_sm_set_almo(reim, idim0)%matrix, &
-                                               matrix_t_out(ispin), &
-                                               0.0_dp, tempNOcc(ispin), &
-                                               filter_eps=almo_scf_env%eps_filter)
-                           !warning - save time by computing only the diagonal elements
-                           CALL dbcsr_multiply("T", "N", 1.0_dp, &
-                                               matrix_t_out(ispin), &
-                                               tempNOcc(ispin), &
-                                               0.0_dp, tempOccOcc(ispin), &
-                                               filter_eps=almo_scf_env%eps_filter)
+                        reim_diag = 0.0_dp
+                        CALL dbcsr_get_diag(tempOccOcc(ispin), reim_diag)
+                        CALL mp_sum(reim_diag, para_group)
+                        z2(:) = z2(:) + reim_diag(:)*reim_diag(:)
 
-                           reim_diag = 0.0_dp
-                           CALL dbcsr_get_diag(tempOccOcc(ispin), reim_diag)
-                           CALL mp_sum(reim_diag, para_group)
-                           z2(:) = z2(:) + reim_diag(:)*reim_diag(:)
+                     ENDDO
 
-                        ENDDO
+                     DO ielem = 1, nmo
+                        SELECT CASE (2) ! allows for selection of different spread functionals
+                        CASE (1) ! functional =  -W_I * log( |z_I|^2 )
+                           fval = -weights(idim0)*LOG(ABS(z2(ielem)))
+                        CASE (2) ! functional =  W_I * ( 1 - |z_I|^2 )
+                           fval = weights(idim0) - weights(idim0)*ABS(z2(ielem))
+                        CASE (3) ! functional =  W_I * ( 1 - |z_I| )
+                           fval = weights(idim0) - weights(idim0)*SQRT(ABS(z2(ielem)))
+                        END SELECT
+                        localization_obj_function = localization_obj_function + fval
+                     ENDDO
 
-                        DO ielem = 1, nmo
-                           SELECT CASE (2) ! allows for selection of different spread functionals
-                           CASE (1) ! functional =  -W_I * log( |z_I|^2 )
-                              fval = -weights(idim0)*LOG(ABS(z2(ielem)))
-                           CASE (2) ! functional =  W_I * ( 1 - |z_I|^2 )
-                              fval = weights(idim0) - weights(idim0)*ABS(z2(ielem))
-                           CASE (3) ! functional =  W_I * ( 1 - |z_I| )
-                              fval = weights(idim0) - weights(idim0)*SQRT(ABS(z2(ielem)))
-                           END SELECT
-                           localization_obj_function = localization_obj_function + fval
-                        ENDDO
-
-                     ENDDO ! end loop over idim0
-                  ENDIF
+                  ENDDO ! end loop over idim0
 
                   DEALLOCATE (z2)
                   DEALLOCATE (reim_diag)
 
-                  localization_obj_function = localiz_coeff*localization_obj_function
-                  !energy_new=energy_new+localization_obj_function
-                  energy_new = energy_new*energy_coeff + localization_obj_function
-                  !energy_new=energy_new + localization_obj_function
+                  energy_new = energy_new + localiz_coeff*localization_obj_function
 
-               ENDIF ! penalty_occ_local
-
-            ENDDO ! ispin
+               ENDDO ! ispin
+            ENDIF ! penalty_occ_local
 
             DO ispin = 1, nspins
 
@@ -1865,15 +1862,15 @@ CONTAINS
                   iter_type, iteration, &
                   energy_new, energy_diff, grad_norm, &
                   t2 - t1
-               IF (penalty_occ_local) THEN
+               IF (penalty_occ_local .OR. penalty_occ_vol) THEN
                   WRITE (unit_nr, '(T2,A25,F23.10)') &
-                     "Energy component Loc:", (energy_new - penalty_func_new - localization_obj_function)
+                     "Energy component:", (energy_new - penalty_func_new - localization_obj_function)
+               ENDIF
+               IF (penalty_occ_local) THEN
                   WRITE (unit_nr, '(T2,A25,F23.10)') &
                      "Localization component:", localization_obj_function
                ENDIF
                IF (penalty_occ_vol) THEN
-                  WRITE (unit_nr, '(T2,A25,F23.10)') &
-                     "Energy component:", energy_new - penalty_func_new - localization_obj_function
                   WRITE (unit_nr, '(T2,A25,F23.10)') &
                      "Penalty component:", penalty_func_new
                ENDIF
@@ -2390,6 +2387,8 @@ CONTAINS
       grad_norm = 0.0_dp
       penalty_func_new = 0.0_dp
       linear_search_type = 1 ! safe restart, no quadratic assumption, takes more steps
+      localization_obj_function = 0.0_dp
+      penalty_func_new = 0.0_dp
 
       DO
 
@@ -2404,8 +2403,10 @@ CONTAINS
          obj_function_ispin = 0.0_dp
          objf_new = 0.0_dp
          objf_old = 0.0_dp
+         objf_diff = 0.0_dp
          line_search_error = 0.0_dp
          t1 = m_walltime()
+         next_step_size_guess = 0.0_dp
 
          DO
 

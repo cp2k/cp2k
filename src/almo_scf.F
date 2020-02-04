@@ -1965,8 +1965,8 @@ CONTAINS
 
       ALLOCATE (matrix_t_tmp(nspins))
       ALLOCATE (matrix_p_tmp(nspins))
-      ALLOCATE (occ(nspins))
       ALLOCATE (retained(nspins))
+      ALLOCATE (occ(2))
 
       DO ispin = 1, nspins
 
