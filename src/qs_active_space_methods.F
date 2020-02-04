@@ -1546,6 +1546,7 @@ CONTAINS
                   WRITE (iw, "(A,1000(I1,','))") "  ORBSYM=", (isym, i=1, norb)
                   isym = 0
                   WRITE (iw, "(A,I1,A)") "  ISYM=", isym, ","
+                  WRITE (iw, "(A,I1,A)") "  UHF=", 1, ","
                   WRITE (iw, "(A)") " /"
                END IF
                !
@@ -1914,7 +1915,7 @@ CONTAINS
                     !F_ij += (ij alpha|kl beta )*d_beta_kl
                     ks_a_ref(i1, i2) = ks_a_ref(i1, i2) + erint*p_b_mat(i3, i4)
                  else
-                    !F_kl += (kl alpha|ij beta )*d_alpha_ij
+                    !F_kl += (kl beta|ij alpha )*d_alpha_ij
                     ks_a_ref(i3, i4) = ks_a_ref(i3, i4) + erint*p_b_mat(i1, i2)
                  endif
               END DO
