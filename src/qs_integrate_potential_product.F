@@ -64,8 +64,7 @@ MODULE qs_integrate_potential_product
                                               rs_grid_release,&
                                               rs_grid_retain
    USE rs_pw_interface,                 ONLY: potential_pw2rs
-   USE task_list_methods,               ONLY: int2pair,&
-                                              rs_distribute_matrix
+   USE task_list_methods,               ONLY: rs_distribute_matrix
    USE task_list_types,                 ONLY: task_list_type,&
                                               task_type
    USE virial_types,                    ONLY: virial_type
@@ -516,9 +515,14 @@ CONTAINS
 !$OMP DO schedule (dynamic, MAX(1,task_list%npairs(igrid_level)/(nthread*50)))
          loop_pairs: DO ipair = 1, task_list%npairs(igrid_level)
          loop_tasks: DO itask = task_list%taskstart(ipair, igrid_level), task_list%taskstop(ipair, igrid_level)
-
-            CALL int2pair(tasks(itask)%pair, ilevel, img, iatom, jatom, iset, jset, ipgf, jpgf, &
-                          nimages, natom, maxset, maxpgf)
+            ilevel = tasks(itask)%grid_level
+            img = tasks(itask)%image
+            iatom = tasks(itask)%iatom
+            jatom = tasks(itask)%jatom
+            iset = tasks(itask)%iset
+            jset = tasks(itask)%jset
+            ipgf = tasks(itask)%ipgf
+            jpgf = tasks(itask)%jpgf
             CPASSERT(img == 1 .OR. do_kp)
 
             ! At the start of a block of tasks, get atom data (and kind data, if needed)
@@ -731,8 +735,14 @@ CONTAINS
             new_set_pair_coming = .FALSE.
             atom_pair_done = .FALSE.
             IF (itask < task_list%taskstop(ipair, igrid_level)) THEN
-               CALL int2pair(tasks(itask + 1)%pair, ilevel, img, iatom, jatom, iset_new, jset_new, ipgf_new, jpgf_new, &
-                             nimages, natom, maxset, maxpgf)
+               ilevel = tasks(itask + 1)%grid_level
+               img = tasks(itask + 1)%image
+               iatom = tasks(itask + 1)%iatom
+               jatom = tasks(itask + 1)%jatom
+               iset_new = tasks(itask + 1)%iset
+               jset_new = tasks(itask + 1)%jset
+               ipgf_new = tasks(itask + 1)%ipgf
+               jpgf_new = tasks(itask + 1)%jpgf
                IF (iset_new .NE. iset .OR. jset_new .NE. jset) THEN
                   new_set_pair_coming = .TRUE.
                ENDIF
