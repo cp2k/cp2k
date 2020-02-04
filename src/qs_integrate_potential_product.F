@@ -215,9 +215,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b, pv_thread
       REAL(KIND=dp), DIMENSION(3, natom)                 :: force_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dist_ab, h_block, hab, p_block, pab, &
-                                                            rpgfa, rpgfb, sphi_a, sphi_b, work, &
-                                                            zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, hab, p_block, pab, rpgfa, &
+                                                            rpgfb, sphi_a, sphi_b, work, zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: habt, hadb, hdab, pabt, workt
       REAL(kind=dp), DIMENSION(:, :, :, :), POINTER      :: hadbt, hdabt
       TYPE(admm_type), POINTER                           :: admm_env
@@ -253,7 +252,7 @@ CONTAINS
          CPASSERT(PRESENT(hmat_kp))
       END IF
 
-      NULLIFY (pw_env, rs_descs, tasks, dist_ab, admm_env)
+      NULLIFY (pw_env, rs_descs, tasks, admm_env)
 
       debug_count = debug_count + 1
 
@@ -323,7 +322,6 @@ CONTAINS
 
       ! short cuts to task list variables
       tasks => task_list%tasks
-      dist_ab => task_list%dist_ab
       atom_pair_send => task_list%atom_pair_send
       atom_pair_recv => task_list%atom_pair_recv
 
@@ -464,7 +462,7 @@ CONTAINS
 !$OMP SHARED(workt,habt,hdabt,hadbt,pabt,tasks,particle_set,natom,maxset), &
 !$OMP SHARED(maxpgf,my_basis_type,my_gapw,dhmat,deltap,use_virial,admm_scal_fac), &
 !$OMP SHARED(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
-!$OMP SHARED(map_consistent,eps_gvg_rspace,force,virial,cell,dist_ab), &
+!$OMP SHARED(map_consistent,eps_gvg_rspace,force,virial,cell), &
 !$OMP SHARED(gridlevel_info,task_list,block_touched,nthread,qs_kind_set), &
 !$OMP SHARED(nimages,do_kp), &
 !$OMP PRIVATE(ithread,work,hab,hdab,hadb,pab,iset_old,jset_old), &
@@ -647,9 +645,7 @@ CONTAINS
 
             ENDIF
 
-            rab(1) = dist_ab(1, itask)
-            rab(2) = dist_ab(2, itask)
-            rab(3) = dist_ab(3, itask)
+            rab = tasks(itask)%rab
             rab2 = DOT_PRODUCT(rab, rab)
             rb(1) = ra(1) + rab(1)
             rb(2) = ra(2) + rab(2)

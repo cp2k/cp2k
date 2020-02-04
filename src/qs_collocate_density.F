@@ -1451,8 +1451,8 @@ CONTAINS
          my_compute_grad, my_compute_tau, my_soft, use_subpatch
       REAL(KIND=dp)                                      :: eps_rho_rspace, rab2, scale, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rb
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dist_ab, p_block, pab, sphi_a, sphi_b, &
-                                                            work, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, pab, sphi_a, sphi_b, work, &
+                                                            zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pabt, workt
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
@@ -1477,9 +1477,8 @@ CONTAINS
       do_kp = PRESENT(matrix_p_kp)
 
       NULLIFY (qs_kind, cell, dft_control, orb_basis_set, deltap, &
-               qs_kind_set, particle_set, rs_rho, pw_env, rs_descs, &
-               dist_ab, la_max, la_min, &
-               lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, &
+               qs_kind_set, particle_set, rs_rho, pw_env, rs_descs, la_max, &
+               la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, &
                sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, &
                workt, lgrid, mylmax)
 
@@ -1610,7 +1609,6 @@ CONTAINS
       IF (my_soft) task_list => task_list_soft
       CPASSERT(ASSOCIATED(task_list))
       tasks => task_list%tasks
-      dist_ab => task_list%dist_ab
       atom_pair_send => task_list%atom_pair_send
       atom_pair_recv => task_list%atom_pair_recv
       ntasks = task_list%ntasks
@@ -1680,7 +1678,7 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          SHARED(ntasks,tasks,nimages,natoms,maxset,maxpgf,particle_set,pabt,workt), &
-!$OMP          SHARED(my_basis_type,my_soft,deltap,maxco,dist_ab,ncoset,nthread), &
+!$OMP          SHARED(my_basis_type,my_soft,deltap,maxco,ncoset,nthread), &
 !$OMP          SHARED(cell,cube_info,eps_rho_rspace,ga_gb_function, my_idir,map_consistent), &
 !$OMP          SHARED(rs_rho,lgrid,gridlevel_info,task_list,qs_kind_set,lmax_global), &
 !$OMP          PRIVATE(igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,ikind,jkind,pab,work), &
@@ -1802,7 +1800,7 @@ CONTAINS
                jset_old = jset
             ENDIF
 
-            rab(:) = dist_ab(:, itask)
+            rab(:) = tasks(itask)%rab
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             rb(:) = ra(:) + rab(:)
             zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
@@ -1998,8 +1996,8 @@ CONTAINS
                                                             use_subpatch
       REAL(KIND=dp)                                      :: eps_rho_rspace, rab2, scale, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rb
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dist_ab, p_block, pab, sphi_a, sphi_b, &
-                                                            work, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, pab, sphi_a, sphi_b, work, &
+                                                            zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pabt, workt
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
@@ -2026,7 +2024,7 @@ CONTAINS
 
       NULLIFY (qs_kind, cell, dft_control, orb_basis_set, deltap, &
                qs_kind_set, sab_orb, particle_set, rs_rho, pw_env, rs_descs, &
-               dist_ab, la_max, la_min, &
+               la_max, la_min, &
                lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, &
                sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, &
                workt, mylmax)
@@ -2108,7 +2106,6 @@ CONTAINS
       IF (my_soft) task_list => task_list_soft
       CPASSERT(ASSOCIATED(task_list))
       tasks => task_list%tasks
-      dist_ab => task_list%dist_ab
       atom_pair_send => task_list%atom_pair_send
       atom_pair_recv => task_list%atom_pair_recv
       ntasks = task_list%ntasks
@@ -2275,7 +2272,7 @@ CONTAINS
 
             ENDIF
 
-            rab(:) = dist_ab(:, itask)
+            rab(:) = tasks(itask)%rab
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             rb(:) = ra(:) + rab(:)
             zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
