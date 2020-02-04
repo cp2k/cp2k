@@ -1550,6 +1550,7 @@ CONTAINS
                   WRITE (iw, "(A,1000(I1,','))") "  ORBSYM=", (isym, i=1, norb)
                   isym = 0
                   WRITE (iw, "(A,I1,A)") "  ISYM=", isym, ","
+                  WRITE (iw, "(A,I1,A)") "  UHF=", 1, ","
                   WRITE (iw, "(A)") " /"
                END IF
                !
