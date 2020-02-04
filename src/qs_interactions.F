@@ -19,7 +19,8 @@ MODULE qs_interactions
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type,&
-                                              set_gto_basis_set
+                                              set_gto_basis_set,&
+                                              sort_gto_basis_set
    USE cp_control_types,                ONLY: qs_control_type,&
                                               semi_empirical_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -430,6 +431,8 @@ CONTAINS
                                 set_radius=set_radius, &
                                 kind_radius=kind_radius, &
                                 short_kind_radius=short_radius)
+
+         CALL sort_gto_basis_set(orb_basis_set)
 
       END IF
 

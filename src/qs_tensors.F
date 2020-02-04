@@ -1654,8 +1654,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: min_blk_size
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: pgf_blk_sizes
 
-      INTEGER                                            :: blk_count, blk_size, iatom, ikind, iset, &
-                                                            natom, nblk, nset
+      INTEGER                                            :: blk_count, blk_count_prev, blk_size, &
+                                                            iatom, ikind, iset, natom, nblk, nset
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, pgf_blk_sizes_tmp
       INTEGER, DIMENSION(:), POINTER                     :: nsgf_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1677,6 +1677,7 @@ CONTAINS
       blk_count = 0
       blk_size = 0
       DO iatom = 1, natom
+         blk_count_prev = blk_count
          ikind = kind_of(iatom)
          CALL get_gto_basis_set(basis(ikind)%gto_basis_set, nset=nset, nsgf_set=nsgf_set)
          DO iset = 1, nset
@@ -1688,7 +1689,7 @@ CONTAINS
             ENDIF
          ENDDO
          IF (blk_size > 0) THEN
-            blk_count = blk_count + 1
+            IF (blk_count == blk_count_prev) blk_count = blk_count + 1
             pgf_blk_sizes_tmp(blk_count) = pgf_blk_sizes_tmp(blk_count) + blk_size
             blk_size = 0
          ENDIF

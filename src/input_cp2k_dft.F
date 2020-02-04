@@ -10,6 +10,9 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_dft
+   USE basis_set_types,                 ONLY: basis_sort_default,&
+                                              basis_sort_radius,&
+                                              basis_sort_zet
    USE bibliography,                    ONLY: &
         Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Becke1988b, Bengtsson1999, &
         Blochl1995, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, Ehrhardt1985, &
@@ -362,6 +365,18 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="SORT_BASIS", &
+                          description="Sort basis sets according to a certain criterion.", &
+                          enum_c_vals=s2a("DEFAULT", "RADIUS", "EXP"), &
+                          enum_i_vals=(/basis_sort_default, basis_sort_radius, basis_sort_zet/), &
+                          enum_desc=s2a("don't sort", "sort w.r.t. set radius", "sort w.r.t. exponent"), &
+                          default_i_val=basis_sort_default, &
+                          usage="SORT_BASIS EXP")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       NULLIFY (subsection)
       CALL create_scf_section(subsection)
       CALL section_add_subsection(section, subsection)

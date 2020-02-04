@@ -46,13 +46,15 @@ CONTAINS
 !> \param ri_aux_basis_set ...
 !> \param qs_kind ...
 !> \param basis_cntrl ...
+!> \param basis_sort ...
 !> \date    01.11.2017
 !> \author  JGH
 ! **************************************************************************************************
-   SUBROUTINE create_ri_aux_basis_set(ri_aux_basis_set, qs_kind, basis_cntrl)
+   SUBROUTINE create_ri_aux_basis_set(ri_aux_basis_set, qs_kind, basis_cntrl, basis_sort)
       TYPE(gto_basis_set_type), POINTER                  :: ri_aux_basis_set
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
       INTEGER, INTENT(IN)                                :: basis_cntrl
+      INTEGER, INTENT(IN), OPTIONAL                      :: basis_sort
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_aux_basis_set', &
          routineP = moduleN//':'//routineN
@@ -192,7 +194,9 @@ CONTAINS
          bsname = TRIM(element_symbol)//"-RI-AUX-"//TRIM(orb_basis_set%name)
          !
          CALL create_aux_basis(ri_aux_basis_set, bsname, nsets, ls1, ls2, nl, npgf, zet)
-         !
+
+         IF (PRESENT(basis_sort)) ri_aux_basis_set%sort = basis_sort
+
          DEALLOCATE (zet)
       END IF
 

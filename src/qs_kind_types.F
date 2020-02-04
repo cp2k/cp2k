@@ -1436,7 +1436,8 @@ CONTAINS
          DIMENSION(maxbas)                               :: basis_set_form, basis_set_name, &
                                                             basis_set_type
       INTEGER :: handle, i, i_rep, iounit, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, &
-         nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, z
+         nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, &
+         sort_basis, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, explicit_potential, nobasis, &
          section_enabled, subsection_enabled, update_input
@@ -2190,7 +2191,17 @@ CONTAINS
             END DO
             NULLIFY (sup_basis_set)
          END DO
-         NULLIFY (tmp_basis_set)
+
+         ! register that basis should be sorted
+         ! actual sorting is taking place later (once set radii have been initialized)
+         CALL section_vals_val_get(dft_section, "SORT_BASIS", i_val=sort_basis)
+         DO i = 1, SIZE(qs_kind%basis_sets)
+            NULLIFY (tmp_basis_set)
+            CALL get_basis_from_container(qs_kind%basis_sets, basis_set=tmp_basis_set, &
+                                          inumbas=i, basis_type=basis_type)
+            IF (basis_type == "") CYCLE
+            tmp_basis_set%sort = sort_basis
+         ENDDO
 
          ! check that we have an orbital basis set
          nobasis = .TRUE.
