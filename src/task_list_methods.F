@@ -224,7 +224,6 @@ CONTAINS
       ! construct a list of all tasks
       IF (.NOT. ASSOCIATED(task_list%tasks)) THEN
          CALL reallocate_tasks(task_list%tasks, max_tasks)
-         CALL reallocate(task_list%dist_ab, 1, 3, 1, max_tasks)
       ENDIF
       task_list%ntasks = 0
       curr_tasks = SIZE(task_list%tasks)
@@ -287,7 +286,7 @@ CONTAINS
             cindex = 1
          END IF
 
-         CALL task_list_inner_loop(task_list%tasks, task_list%dist_ab, task_list%ntasks, curr_tasks, &
+         CALL task_list_inner_loop(task_list%tasks, task_list%ntasks, curr_tasks, &
                                    rs_descs, dft_control, cube_info, gridlevel_info, cindex, &
                                    iatom, jatom, rpgfa, rpgfb, zeta, zetb, kind_radius_b, set_radius_a, set_radius_b, ra, rab, &
                                    la_max, la_min, lb_max, lb_min, npgfa, npgfb, nseta, nsetb)
@@ -300,7 +299,7 @@ CONTAINS
       ! redistribute the task list so that all tasks map on the local rs grids
       CALL distribute_tasks( &
          rs_descs, task_list%ntasks, natoms, nimages, &
-         task_list%tasks, rval=task_list%dist_ab, atom_pair_send=task_list%atom_pair_send, &
+         task_list%tasks, atom_pair_send=task_list%atom_pair_send, &
          atom_pair_recv=task_list%atom_pair_recv, symmetric=.TRUE., &
          reorder_rs_grid_ranks=reorder_rs_grid_ranks, skip_load_balance_distributed=skip_load_balance_distributed)
 
@@ -477,7 +476,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param tasks ...
-!> \param dist_ab ...
 !> \param ntasks ...
 !> \param curr_tasks ...
 !> \param rs_descs ...
@@ -502,22 +500,17 @@ CONTAINS
 !> \param lb_min ...
 !> \param npgfa ...
 !> \param npgfb ...
-!> \param maxpgf ...
-!> \param maxset ...
-!> \param natoms ...
-!> \param nimages ...
 !> \param nseta ...
 !> \param nsetb ...
 !> \par History
 !>      Joost VandeVondele: 10.2008 refactored
 ! **************************************************************************************************
-   SUBROUTINE task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs, dft_control, &
+   SUBROUTINE task_list_inner_loop(tasks, ntasks, curr_tasks, rs_descs, dft_control, &
                                    cube_info, gridlevel_info, cindex, &
                                    iatom, jatom, rpgfa, rpgfb, zeta, zetb, kind_radius_b, set_radius_a, set_radius_b, ra, rab, &
                                    la_max, la_min, lb_max, lb_min, npgfa, npgfb, nseta, nsetb)
 
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dist_ab
       INTEGER                                            :: ntasks, curr_tasks
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
@@ -568,7 +561,7 @@ CONTAINS
                                               lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                               ra, rab, rab2, dft_control%qs_control%eps_rho_rspace)
 
-                  CALL pgf_to_tasks(tasks, dist_ab, ntasks, curr_tasks, &
+                  CALL pgf_to_tasks(tasks, ntasks, curr_tasks, &
                                     rab, cindex, iatom, jatom, iset, jset, ipgf, jpgf, &
                                     la_max(iset), lb_max(jset), rs_descs(igrid_level)%rs_desc, &
                                     igrid_level, gridlevel_info%ngrid_levels, cube_center, &
@@ -721,7 +714,6 @@ CONTAINS
 !>        tasks(6,i) := alternate destination code (0 if none available)
 !>
 !> \param tasks ...
-!> \param dist_ab ...
 !> \param ntasks ...
 !> \param curr_tasks ...
 !> \param rab ...
@@ -732,10 +724,6 @@ CONTAINS
 !> \param jset ...
 !> \param ipgf ...
 !> \param jpgf ...
-!> \param nimages ...
-!> \param natoms ...
-!> \param maxset ...
-!> \param maxpgf ...
 !> \param la_max ...
 !> \param lb_max ...
 !> \param rs_desc ...
@@ -747,12 +735,11 @@ CONTAINS
 !> \par History
 !>      10.2008 Refactored based on earlier routines by MattW [Joost VandeVondele]
 ! **************************************************************************************************
-   SUBROUTINE pgf_to_tasks(tasks, dist_ab, ntasks, curr_tasks, &
+   SUBROUTINE pgf_to_tasks(tasks, ntasks, curr_tasks, &
                            rab, cindex, iatom, jatom, iset, jset, ipgf, jpgf, &
                            la_max, lb_max, rs_desc, igrid_level, n_levels, cube_center, lb_cube, ub_cube)
 
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dist_ab
       INTEGER, INTENT(INOUT)                             :: ntasks, curr_tasks
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       INTEGER, INTENT(IN)                                :: cindex, iatom, jatom, iset, jset, ipgf, &
@@ -774,15 +761,12 @@ CONTAINS
          curr_tasks = INT((curr_tasks + add_tasks)*mult_tasks)
          CALL reallocate_tasks(tasks, curr_tasks)
       END IF
-      IF (SIZE(dist_ab, 2) .NE. SIZE(tasks)) THEN
-         CALL reallocate(dist_ab, 1, 3, 1, SIZE(tasks))
-      ENDIF
 !$OMP END SINGLE
 
       IF (rs_desc%distributed) THEN
 
          ! finds the node(s) that need to process this task
-         ! on exit tasks(4,:) is 1 for distributed tasks and 2 for generalised tasks
+         ! on exit tasks(:)%dist_type is 1 for distributed tasks and 2 for generalised tasks
          CALL rs_find_node(rs_desc, igrid_level, n_levels, cube_center, &
                            ntasks=ntasks, tasks=tasks, lb_cube=lb_cube, ub_cube=ub_cube, added_tasks=added_tasks)
 
@@ -802,7 +786,6 @@ CONTAINS
       cost = cost_model(lb_cube, ub_cube, tfraction, lmax, is_ortho)
 
       DO j = 1, added_tasks
-
          tasks(ntasks - added_tasks + j)%source = encode_rank(rs_desc%my_pos, igrid_level, n_levels)
          tasks(ntasks - added_tasks + j)%cost = cost
          tasks(ntasks - added_tasks + j)%grid_level = igrid_level
@@ -813,11 +796,7 @@ CONTAINS
          tasks(ntasks - added_tasks + j)%jset = jset
          tasks(ntasks - added_tasks + j)%ipgf = ipgf
          tasks(ntasks - added_tasks + j)%jpgf = jpgf
-
-         dist_ab(1, ntasks - added_tasks + j) = rab(1)
-         dist_ab(2, ntasks - added_tasks + j) = rab(2)
-         dist_ab(3, ntasks - added_tasks + j) = rab(3)
-
+         tasks(ntasks - added_tasks + j)%rab = rab
       ENDDO
 
    END SUBROUTINE pgf_to_tasks
@@ -828,10 +807,7 @@ CONTAINS
 !> \param ntasks ...
 !> \param rs_descs ...
 !> \param grid_level ...
-!> \param nimages ...
 !> \param natoms ...
-!> \param maxset ...
-!> \param maxpgf ...
 !> \par History
 !>      created 2008-10-03 [Joost VandeVondele]
 ! **************************************************************************************************
@@ -1103,10 +1079,7 @@ CONTAINS
 !> \param grid_level ...
 !> \param tasks ...
 !> \param ntasks ...
-!> \param nimages ...
 !> \param natoms ...
-!> \param maxset ...
-!> \param maxpgf ...
 !> \param create_list ...
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
@@ -1421,10 +1394,6 @@ CONTAINS
 !> \param rs_descs ...
 !> \param grid_level ...
 !> \param ntasks ...
-!> \param nimages ...
-!> \param natom ...
-!> \param maxset ...
-!> \param maxpgf ...
 !> \param tasks ...
 !> \param use_reordered_ranks ...
 !> \par History
@@ -1499,10 +1468,6 @@ CONTAINS
 !> \param rs_descs ...
 !> \param ntasks ...
 !> \param tasks ...
-!> \param nimages ...
-!> \param natoms ...
-!> \param maxset ...
-!> \param maxpgf ...
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
@@ -1662,34 +1627,28 @@ CONTAINS
 !> \param rs_descs ...
 !> \param ntasks ...
 !> \param tasks ...
-!> \param rval ...
 !> \param ntasks_recv ...
 !> \param tasks_recv ...
-!> \param rval_recv ...
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
 ! **************************************************************************************************
-   SUBROUTINE create_local_tasks(rs_descs, ntasks, tasks, rval, &
-                                 ntasks_recv, tasks_recv, rval_recv)
+   SUBROUTINE create_local_tasks(rs_descs, ntasks, tasks, ntasks_recv, tasks_recv)
 
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       INTEGER                                            :: ntasks
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rval
       INTEGER                                            :: ntasks_recv
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks_recv
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rval_recv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_local_tasks', &
                                      routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, j, k, l, rank, task_dim
-      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: recv_buf_i, send_buf_i
+      INTEGER                                            :: handle, i, j, k, l, rank
+      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: recv_buf, send_buf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: recv_disps, recv_sizes, send_disps, &
                                                             send_sizes
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_buf_r, send_buf_r
       TYPE(realspace_grid_desc_type), POINTER            :: desc
 
       CALL timeset(routineN, handle)
@@ -1701,18 +1660,18 @@ CONTAINS
       ALLOCATE (recv_sizes(desc%group_size))
       ALLOCATE (send_disps(desc%group_size))
       ALLOCATE (recv_disps(desc%group_size))
-      ALLOCATE (send_buf_i(desc%group_size))
-      ALLOCATE (recv_buf_i(desc%group_size))
+      ALLOCATE (send_buf(desc%group_size))
+      ALLOCATE (recv_buf(desc%group_size))
 
       ! fill send buffer, now counting how many tasks will be send (stored in an int8 array for convenience only).
-      send_buf_i = 0
+      send_buf = 0
       DO i = 1, ntasks
          rank = rs_descs(decode_level(tasks(i)%destination, SIZE(rs_descs))) &
                 %rs_desc%virtual2real(decode_rank(tasks(i)%destination, SIZE(rs_descs)))
-         send_buf_i(rank + 1) = send_buf_i(rank + 1) + 1
+         send_buf(rank + 1) = send_buf(rank + 1) + 1
       END DO
 
-      CALL mp_alltoall(send_buf_i, recv_buf_i, 1, desc%group)
+      CALL mp_alltoall(send_buf, recv_buf, 1, desc%group)
 
       ! pack the tasks, and send them around
 
@@ -1721,38 +1680,38 @@ CONTAINS
       recv_sizes = 0
       recv_disps = 0
 
-      send_sizes(1) = INT(send_buf_i(1)*task_size_in_int8)
-      recv_sizes(1) = INT(recv_buf_i(1)*task_size_in_int8)
+      send_sizes(1) = INT(send_buf(1)*task_size_in_int8)
+      recv_sizes(1) = INT(recv_buf(1)*task_size_in_int8)
       DO i = 2, desc%group_size
-         send_sizes(i) = INT(send_buf_i(i)*task_size_in_int8)
-         recv_sizes(i) = INT(recv_buf_i(i)*task_size_in_int8)
+         send_sizes(i) = INT(send_buf(i)*task_size_in_int8)
+         recv_sizes(i) = INT(recv_buf(i)*task_size_in_int8)
          send_disps(i) = send_disps(i - 1) + send_sizes(i - 1)
          recv_disps(i) = recv_disps(i - 1) + recv_sizes(i - 1)
       ENDDO
 
       ! deallocate old send/recv buffers
-      DEALLOCATE (send_buf_i)
-      DEALLOCATE (recv_buf_i)
+      DEALLOCATE (send_buf)
+      DEALLOCATE (recv_buf)
 
       ! allocate them with new sizes
-      ALLOCATE (send_buf_i(SUM(send_sizes)))
-      ALLOCATE (recv_buf_i(SUM(recv_sizes)))
+      ALLOCATE (send_buf(SUM(send_sizes)))
+      ALLOCATE (recv_buf(SUM(recv_sizes)))
 
       ! do packing
-      send_buf_i = 0
+      send_buf = 0
       send_sizes = 0
       DO j = 1, ntasks
          i = rs_descs(decode_level(tasks(j)%destination, SIZE(rs_descs))) &
              %rs_desc%virtual2real(decode_rank(tasks(j)%destination, SIZE(rs_descs))) + 1
          l = send_disps(i) + send_sizes(i)
-         CALL serialize_task(tasks(j), send_buf_i(l + 1:l + task_size_in_int8))
+         CALL serialize_task(tasks(j), send_buf(l + 1:l + task_size_in_int8))
          send_sizes(i) = send_sizes(i) + task_size_in_int8
       ENDDO
 
       ! do communication
-      CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, desc%group)
+      CALL mp_alltoall(send_buf, send_sizes, send_disps, recv_buf, recv_sizes, recv_disps, desc%group)
 
-      DEALLOCATE (send_buf_i)
+      DEALLOCATE (send_buf)
 
       ntasks_recv = SUM(recv_sizes)/task_size_in_int8
       ALLOCATE (tasks_recv(ntasks_recv))
@@ -1763,54 +1722,11 @@ CONTAINS
          DO j = 0, recv_sizes(i)/task_size_in_int8 - 1
             l = l + 1
             k = recv_disps(i) + j*task_size_in_int8
-            CALL deserialize_task(tasks_recv(l), recv_buf_i(k + 1:k + task_size_in_int8))
+            CALL deserialize_task(tasks_recv(l), recv_buf(k + 1:k + task_size_in_int8))
          ENDDO
       ENDDO
 
-      DEALLOCATE (recv_buf_i)
-
-      ! send rvals
-
-      ! take care of the new task_dim in the send_sizes
-      send_sizes(:) = (send_sizes(:)/task_size_in_int8)*SIZE(rval, 1)
-      recv_sizes(:) = (recv_sizes(:)/task_size_in_int8)*SIZE(rval, 1)
-      send_disps(:) = (send_disps(:)/task_size_in_int8)*SIZE(rval, 1)
-      recv_disps(:) = (recv_disps(:)/task_size_in_int8)*SIZE(rval, 1)
-      task_dim = SIZE(rval, 1)
-
-      ALLOCATE (send_buf_r(SUM(send_sizes)))
-      ALLOCATE (recv_buf_r(SUM(recv_sizes)))
-
-      !do packing
-      send_sizes = 0
-      DO j = 1, ntasks
-         i = rs_descs(decode_level(tasks(j)%destination, SIZE(rs_descs))) &
-             %rs_desc%virtual2real(decode_rank(tasks(j)%destination, SIZE(rs_descs))) + 1
-         DO k = 1, task_dim
-            send_buf_r(send_disps(i) + send_sizes(i) + k) = rval(k, j)
-         ENDDO
-         send_sizes(i) = send_sizes(i) + task_dim
-      ENDDO
-
-      ! do communication
-      CALL mp_alltoall(send_buf_r, send_sizes, send_disps, &
-                       recv_buf_r, recv_sizes, recv_disps, desc%group)
-
-      DEALLOCATE (send_buf_r)
-      ALLOCATE (rval_recv(task_dim, SUM(recv_sizes)/task_dim))
-
-      ! do unpacking
-      l = 0
-      DO i = 1, desc%group_size
-         DO j = 0, recv_sizes(i)/task_dim - 1
-            l = l + 1
-            DO k = 1, task_dim
-               rval_recv(k, l) = recv_buf_r(recv_disps(i) + j*task_dim + k)
-            ENDDO
-         ENDDO
-      ENDDO
-
-      DEALLOCATE (recv_buf_r)
+      DEALLOCATE (recv_buf)
       DEALLOCATE (send_sizes)
       DEALLOCATE (recv_sizes)
       DEALLOCATE (send_disps)
@@ -1825,8 +1741,6 @@ CONTAINS
 !> \param rs_descs the grids
 !> \param ntasks Number of tasks for local processing
 !> \param natoms ...
-!> \param maxset ...
-!> \param maxpgf ...
 !> \param nimages ...
 !> \param tasks the task set generated on this processor
 !> \param rval ...
@@ -1840,14 +1754,13 @@ CONTAINS
 !> \author MattW 21/11/2007
 ! **************************************************************************************************
    SUBROUTINE distribute_tasks(rs_descs, ntasks, natoms, nimages, &
-                               tasks, rval, atom_pair_send, atom_pair_recv, &
+                               tasks, atom_pair_send, atom_pair_recv, &
                                symmetric, reorder_rs_grid_ranks, skip_load_balance_distributed)
 
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       INTEGER                                            :: ntasks, natoms, nimages
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rval
       INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: atom_pair_send, atom_pair_recv
       LOGICAL, INTENT(IN)                                :: symmetric, reorder_rs_grid_ranks, &
                                                             skip_load_balance_distributed
@@ -1855,15 +1768,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_tasks', &
                                      routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, igrid_level, irank, &
-                                                            ntasks_recv
+      INTEGER                                            :: handle, igrid_level, irank, ntasks_recv
       INTEGER(KIND=int_8)                                :: load_gap, max_load, replicated_load
-      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: total_loads, total_loads_tmp, &
-                                                            trial_loads
+      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: total_loads, total_loads_tmp, trial_loads
       INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: loads
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices, real2virtual, total_index
       LOGICAL                                            :: distributed_grids, fixed_first_grid
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rval_recv
       TYPE(realspace_grid_desc_type), POINTER            :: desc
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks_recv
 
@@ -1995,7 +1905,7 @@ CONTAINS
          !ENDIF
 
          ! given a list of tasks, this will do the needed reshuffle so that all tasks will be local
-         CALL create_local_tasks(rs_descs, ntasks, tasks, rval, ntasks_recv, tasks_recv, rval_recv)
+         CALL create_local_tasks(rs_descs, ntasks, tasks, ntasks_recv, tasks_recv)
 
          !
          ! tasks list are complete, we can compute the list of atomic blocks (atom pairs)
@@ -2016,9 +1926,8 @@ CONTAINS
          CALL get_atom_pair(atom_pair_recv, tasks_recv, send=.FALSE., &
                             symmetric=symmetric, natoms=natoms, nimages=nimages, rs_descs=rs_descs)
 
-         ! cleanup, at this point we  don't need the original tasks & rvals anymore
+         ! cleanup, at this point we  don't need the original tasks anymore
          DEALLOCATE (tasks)
-         DEALLOCATE (rval)
          DEALLOCATE (loads)
          DEALLOCATE (total_loads)
 
@@ -2026,15 +1935,12 @@ CONTAINS
 
          tasks_recv => tasks
          ntasks_recv = ntasks
-         rval_recv => rval
 
       ENDIF
 
       ! here we sort the task list we will process locally.
       ALLOCATE (indices(ntasks_recv))
-
       CALL tasks_sort(tasks_recv, ntasks_recv, indices)
-      rval(:, :) = rval(:, indices)
       DEALLOCATE (indices)
 
       !
@@ -2055,8 +1961,6 @@ CONTAINS
 !> \param send ...
 !> \param symmetric ...
 !> \param natoms ...
-!> \param maxset ...
-!> \param maxpgf ...
 !> \param nimages ...
 !> \param rs_descs ...
 ! **************************************************************************************************
@@ -2721,11 +2625,14 @@ CONTAINS
 !>        The exception is the gridlevel. Tasks are first ordered wrt to grid_level. This implies
 !>        that a given density matrix block will be decontracted several times,
 !>        but cache effects on the grid make up for this.
+!> \param a ...
+!> \param b ...
+!> \return ...
 !> \author Ole Schuett
 ! **************************************************************************************************
    PURE FUNCTION tasks_less_than(a, b) RESULT(res)
-      TYPE(task_type), INTENT(IN) :: a, b
-      LOGICAL                     :: res
+      TYPE(task_type), INTENT(IN)                        :: a, b
+      LOGICAL                                            :: res
 
       IF (a%grid_level /= b%grid_level) THEN
          res = a%grid_level > b%grid_level

@@ -36,18 +36,19 @@ MODULE task_list_types
       INTEGER                                       :: jset = 0
       INTEGER                                       :: ipgf = 0
       INTEGER                                       :: jpgf = 0
+
+      REAL(KIND=dp), DIMENSION(3)                   :: rab = 0.0_dp
    END TYPE task_type
 
    TYPE task_list_type
       TYPE(task_type), DIMENSION(:), POINTER        :: tasks => Null()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: dist_ab
       INTEGER(kind=int_8), DIMENSION(:), POINTER    :: atom_pair_send, atom_pair_recv
       INTEGER                                       :: ntasks
       INTEGER, DIMENSION(:, :), POINTER             :: taskstart, taskstop
       INTEGER, DIMENSION(:), POINTER                :: npairs
    END TYPE task_list_type
 
-   INTEGER, PARAMETER                               :: task_size_in_int8 = 13
+   INTEGER, PARAMETER                               :: task_size_in_int8 = 16
 
    PUBLIC :: task_type, task_list_type
    PUBLIC :: task_size_in_int8, serialize_task, deserialize_task
@@ -70,7 +71,6 @@ CONTAINS
       ALLOCATE (task_list)
 
       NULLIFY (task_list%tasks)
-      NULLIFY (task_list%dist_ab)
       NULLIFY (task_list%atom_pair_send)
       NULLIFY (task_list%atom_pair_recv)
       NULLIFY (task_list%taskstart)
@@ -122,9 +122,6 @@ CONTAINS
       IF (ASSOCIATED(task_list%tasks)) THEN
          DEALLOCATE (task_list%tasks)
       ENDIF
-      IF (ASSOCIATED(task_list%dist_ab)) THEN
-         DEALLOCATE (task_list%dist_ab)
-      ENDIF
       IF (ASSOCIATED(task_list%atom_pair_send)) THEN
          DEALLOCATE (task_list%atom_pair_send)
       ENDIF
@@ -169,6 +166,10 @@ CONTAINS
       serialized_task(11) = task%jset
       serialized_task(12) = task%ipgf
       serialized_task(13) = task%jpgf
+
+      serialized_task(14) = TRANSFER(task%rab(1), mold=1_int_8)
+      serialized_task(15) = TRANSFER(task%rab(2), mold=1_int_8)
+      serialized_task(16) = TRANSFER(task%rab(3), mold=1_int_8)
    END SUBROUTINE serialize_task
 
 ! **************************************************************************************************
@@ -196,6 +197,10 @@ CONTAINS
       task%jset = INT(serialized_task(11))
       task%ipgf = INT(serialized_task(12))
       task%jpgf = INT(serialized_task(13))
+
+      task%rab(1) = TRANSFER(serialized_task(14), mold=1.0_dp)
+      task%rab(2) = TRANSFER(serialized_task(15), mold=1.0_dp)
+      task%rab(3) = TRANSFER(serialized_task(16), mold=1.0_dp)
    END SUBROUTINE deserialize_task
 
 END MODULE task_list_types
