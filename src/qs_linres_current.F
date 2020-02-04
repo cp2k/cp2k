@@ -119,7 +119,6 @@ MODULE qs_linres_current
         rs_grid_retain, rs_grid_zero
    USE rs_pw_interface,                 ONLY: density_rs2pw
    USE task_list_methods,               ONLY: distribute_tasks,&
-                                              int2pair,&
                                               rs_distribute_matrix,&
                                               task_list_inner_loop
    USE task_list_types,                 ONLY: reallocate_tasks,&
@@ -870,7 +869,7 @@ CONTAINS
          CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs, &
                                    dft_control, cube_info, gridlevel_info, cindex, &
                                    iatom, jatom, rpgfa, rpgfb, zeta, zetb, kind_radius_b, set_radius_a, set_radius_b, ra, rab, &
-                                   la_max, la_min, lb_max, lb_min, npgfa, npgfb, maxpgf, maxset, natom, nimages, nseta, nsetb)
+                                   la_max, la_min, lb_max, lb_min, npgfa, npgfb, nseta, nsetb)
 
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
@@ -885,7 +884,7 @@ CONTAINS
       ENDIF
 
       ! sorts / redistributes the task list
-      CALL distribute_tasks(rs_descs, ntasks, natom, maxset, maxpgf, nimages, &
+      CALL distribute_tasks(rs_descs, ntasks, natom, nimages, &
                             tasks, dist_ab, atom_pair_send, atom_pair_recv, &
                             symmetric=.FALSE., reorder_rs_grid_ranks=.TRUE., &
                             skip_load_balance_distributed=.FALSE.)
@@ -976,9 +975,14 @@ CONTAINS
       ikind_old = -1; jkind_old = -1
 
       loop_tasks: DO itask = 1, ntasks
-
-         CALL int2pair(tasks(itask)%pair, igrid_level, cindex, iatom, jatom, iset, jset, ipgf, jpgf, &
-                       nimages, natom, maxset, maxpgf)
+         igrid_level = tasks(itask)%grid_level
+         cindex = tasks(itask)%image
+         iatom = tasks(itask)%iatom
+         jatom = tasks(itask)%jatom
+         iset = tasks(itask)%iset
+         jset = tasks(itask)%jset
+         ipgf = tasks(itask)%ipgf
+         jpgf = tasks(itask)%jpgf
 
          ! apparently generalised collocation not implemented correctly yet
          CPASSERT(tasks(itask)%dist_type .NE. 2)

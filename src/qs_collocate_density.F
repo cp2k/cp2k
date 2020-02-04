@@ -115,8 +115,7 @@ MODULE qs_collocate_density
                                               rs_pw_transfer
    USE rs_pw_interface,                 ONLY: density_rs2pw,&
                                               density_rs2pw_basic
-   USE task_list_methods,               ONLY: int2pair,&
-                                              rs_distribute_matrix
+   USE task_list_methods,               ONLY: rs_distribute_matrix
    USE task_list_types,                 ONLY: task_list_type,&
                                               task_type
 
@@ -1438,12 +1437,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
-      INTEGER :: bcol, brow, ga_gb_function, handle, iatom, iatom_old, igrid_level, &
-         igrid_level_dummy, ikind, ikind_old, img, img_old, ipair, ipgf, iset, iset_old, itask, &
-         ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, lb, lbr, lbw, &
-         lmax_global, maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_der_type, my_idir, n, na1, &
-         na2, natoms, nb1, nb2, nblock, ncoa, ncob, nimages, nr, nrlevel, nseta, nsetb, ntasks, &
-         nthread, nw, nxy, nz, nzsize, sgfa, sgfb, ub
+      INTEGER :: bcol, brow, ga_gb_function, handle, iatom, iatom_old, igrid_level, ikind, &
+         ikind_old, img, img_old, ipair, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, &
+         jkind, jkind_old, jpgf, jset, jset_old, lb, lbr, lbw, lmax_global, maxco, maxpgf, maxset, &
+         maxsgf, maxsgf_set, my_der_type, my_idir, n, na1, na2, natoms, nb1, nb2, nblock, ncoa, &
+         ncob, nimages, nr, nrlevel, nseta, nsetb, ntasks, nthread, nw, nxy, nz, nzsize, sgfa, &
+         sgfb, ub
       INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
                                                             npgfa, npgfb, nsgfa, nsgfb
@@ -1691,7 +1690,7 @@ CONTAINS
 !$OMP          PRIVATE(nsetb,nsgfb,sphi_b,zetb,p_block,found), &
 !$OMP          PRIVATE(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
 !$OMP          PRIVATE(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,lb,ub,n,nw), &
-!$OMP          PRIVATE(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,igrid_level_dummy)
+!$OMP          PRIVATE(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr)
 
       ithread = 0
 !$    ithread = omp_get_thread_num()
@@ -1713,9 +1712,14 @@ CONTAINS
 !$OMP DO schedule(dynamic, MAX(1,task_list%npairs(igrid_level)/(nthread*50)))
          loop_pairs: DO ipair = 1, task_list%npairs(igrid_level)
          loop_tasks: DO itask = task_list%taskstart(ipair, igrid_level), task_list%taskstop(ipair, igrid_level)
-            !decode the atom pair and basis info (igrid_level_dummy equals do loop variable by construction).
-            CALL int2pair(tasks(itask)%pair, igrid_level_dummy, img, iatom, jatom, iset, jset, ipgf, jpgf, &
-                          nimages, natoms, maxset, maxpgf)
+            !decode the atom pair and basis info (grid_level equals do loop variable by construction).
+            img = tasks(itask)%image
+            iatom = tasks(itask)%iatom
+            jatom = tasks(itask)%jatom
+            iset = tasks(itask)%iset
+            jset = tasks(itask)%jset
+            ipgf = tasks(itask)%ipgf
+            jpgf = tasks(itask)%jpgf
             ikind = particle_set(iatom)%atomic_kind%kind_number
             jkind = particle_set(jatom)%atomic_kind%kind_number
 
@@ -2170,8 +2174,14 @@ CONTAINS
          loop_tasks: DO itask = 1, ntasks
 
             !decode the atom pair and basis info
-            CALL int2pair(tasks(itask)%pair, igrid_level, img, iatom, jatom, iset, jset, ipgf, jpgf, &
-                          nimages, natoms, maxset, maxpgf)
+            igrid_level = tasks(itask)%grid_level
+            img = tasks(itask)%image
+            iatom = tasks(itask)%iatom
+            jatom = tasks(itask)%jatom
+            iset = tasks(itask)%iset
+            jset = tasks(itask)%jset
+            ipgf = tasks(itask)%ipgf
+            jpgf = tasks(itask)%jpgf
 
             ikind = particle_set(iatom)%atomic_kind%kind_number
             jkind = particle_set(jatom)%atomic_kind%kind_number

@@ -24,10 +24,18 @@ MODULE task_list_types
    TYPE task_type
       INTEGER(kind=int_8)                           :: destination = 0
       INTEGER(kind=int_8)                           :: source = 0
-      INTEGER(kind=int_8)                           :: pair = 0
       INTEGER(kind=int_8)                           :: dist_type = 0
       INTEGER(kind=int_8)                           :: cost = 0
       INTEGER(kind=int_8)                           :: subpatch_pattern = 0
+
+      INTEGER                                       :: grid_level = 0
+      INTEGER                                       :: image = 0
+      INTEGER                                       :: iatom = 0
+      INTEGER                                       :: jatom = 0
+      INTEGER                                       :: iset = 0
+      INTEGER                                       :: jset = 0
+      INTEGER                                       :: ipgf = 0
+      INTEGER                                       :: jpgf = 0
    END TYPE task_type
 
    TYPE task_list_type
@@ -39,7 +47,7 @@ MODULE task_list_types
       INTEGER, DIMENSION(:), POINTER                :: npairs
    END TYPE task_list_type
 
-   INTEGER, PARAMETER                               :: task_size_in_int8 = 6
+   INTEGER, PARAMETER                               :: task_size_in_int8 = 13
 
    PUBLIC :: task_type, task_list_type
    PUBLIC :: task_size_in_int8, serialize_task, deserialize_task
@@ -149,10 +157,18 @@ CONTAINS
 
       serialized_task(1) = task%destination
       serialized_task(2) = task%source
-      serialized_task(3) = task%pair
-      serialized_task(4) = task%dist_type
-      serialized_task(5) = task%cost
-      serialized_task(6) = task%subpatch_pattern
+      serialized_task(3) = task%dist_type
+      serialized_task(4) = task%cost
+      serialized_task(5) = task%subpatch_pattern
+
+      serialized_task(6) = task%grid_level
+      serialized_task(7) = task%image
+      serialized_task(8) = task%iatom
+      serialized_task(9) = task%jatom
+      serialized_task(10) = task%iset
+      serialized_task(11) = task%jset
+      serialized_task(12) = task%ipgf
+      serialized_task(13) = task%jpgf
    END SUBROUTINE serialize_task
 
 ! **************************************************************************************************
@@ -168,10 +184,18 @@ CONTAINS
 
       task%destination = serialized_task(1)
       task%source = serialized_task(2)
-      task%pair = serialized_task(3)
-      task%dist_type = serialized_task(4)
-      task%cost = serialized_task(5)
-      task%subpatch_pattern = serialized_task(6)
+      task%dist_type = serialized_task(3)
+      task%cost = serialized_task(4)
+      task%subpatch_pattern = serialized_task(5)
+
+      task%grid_level = INT(serialized_task(6))
+      task%image = INT(serialized_task(7))
+      task%iatom = INT(serialized_task(8))
+      task%jatom = INT(serialized_task(9))
+      task%iset = INT(serialized_task(10))
+      task%jset = INT(serialized_task(11))
+      task%ipgf = INT(serialized_task(12))
+      task%jpgf = INT(serialized_task(13))
    END SUBROUTINE deserialize_task
 
 END MODULE task_list_types
