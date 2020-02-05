@@ -46,7 +46,7 @@ MODULE mp2_eri_gpw
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
+   USE qs_integrate_potential,          ONLY: integrate_pgf_product,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
@@ -309,7 +309,7 @@ CONTAINS
                      na2 = ipgf*ncoset(la_max(iset))
                      igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
 
-                     CALL integrate_pgf_product_rspace( &
+                     CALL integrate_pgf_product( &
                         la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                         lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
                         ra=ra, rab=rab, rab2=rab2, &

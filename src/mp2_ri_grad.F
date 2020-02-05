@@ -80,7 +80,7 @@ MODULE mp2_ri_grad
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
+   USE qs_integrate_potential,          ONLY: integrate_pgf_product,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
@@ -572,21 +572,21 @@ CONTAINS
                         na2 = ipgf*ncoset(la_max(iset))
                         igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
 
-                        CALL integrate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
-                                                          lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                                          ra=ra, rab=rab, rab2=rab2, &
-                                                          rsgrid=rs_v(igrid_level)%rs_grid, &
-                                                          cell=cell, &
-                                                          cube_info=pw_env_sub%cube_info(igrid_level), &
-                                                          hab=I_tmp2, &
-                                                          pab=pab, &
-                                                          o1=na1 - 1, &
-                                                          o2=0, &
-                                                          map_consistent=.TRUE., &
-                                                          eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
-                                                          calculate_forces=.TRUE., &
-                                                          force_a=force_a, force_b=force_b, &
-                                                          use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
+                        CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
+                                                   lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
+                                                   ra=ra, rab=rab, rab2=rab2, &
+                                                   rsgrid=rs_v(igrid_level)%rs_grid, &
+                                                   cell=cell, &
+                                                   cube_info=pw_env_sub%cube_info(igrid_level), &
+                                                   hab=I_tmp2, &
+                                                   pab=pab, &
+                                                   o1=na1 - 1, &
+                                                   o2=0, &
+                                                   map_consistent=.TRUE., &
+                                                   eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
+                                                   calculate_forces=.TRUE., &
+                                                   force_a=force_a, force_b=force_b, &
+                                                   use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
 
                      END DO
 
@@ -823,21 +823,21 @@ CONTAINS
                         na2 = ipgf*ncoset(la_max(iset))
                         igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
 
-                        CALL integrate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
-                                                          lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                                          ra=ra, rab=rab, rab2=rab2, &
-                                                          rsgrid=rs_v(igrid_level)%rs_grid, &
-                                                          cell=cell, &
-                                                          cube_info=pw_env_sub%cube_info(igrid_level), &
-                                                          hab=I_tmp2, &
-                                                          pab=pab, &
-                                                          o1=na1 - 1, &
-                                                          o2=0, &
-                                                          map_consistent=.TRUE., &
-                                                          eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
-                                                          calculate_forces=.TRUE., &
-                                                          force_a=force_a, force_b=force_b, &
-                                                          use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
+                        CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
+                                                   lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
+                                                   ra=ra, rab=rab, rab2=rab2, &
+                                                   rsgrid=rs_v(igrid_level)%rs_grid, &
+                                                   cell=cell, &
+                                                   cube_info=pw_env_sub%cube_info(igrid_level), &
+                                                   hab=I_tmp2, &
+                                                   pab=pab, &
+                                                   o1=na1 - 1, &
+                                                   o2=0, &
+                                                   map_consistent=.TRUE., &
+                                                   eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
+                                                   calculate_forces=.TRUE., &
+                                                   force_a=force_a, force_b=force_b, &
+                                                   use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
                      END DO
                      ! CALL dgemm("T","N".0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                      !             I_tmp2(1,1),SIZE(I_tmp2,1),&

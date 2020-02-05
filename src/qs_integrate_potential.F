@@ -18,7 +18,7 @@
 !
 ! **************************************************************************************************
 MODULE qs_integrate_potential
-   USE grid_integrate,                  ONLY: integrate_pgf_product_rspace
+   USE grid_integrate,                  ONLY: integrate_pgf_product
    USE qs_integrate_potential_product,  ONLY: integrate_v_rspace
    USE qs_integrate_potential_single,   ONLY: integrate_ppl_rspace,&
                                               integrate_rho_nlcc,&
@@ -46,6 +46,6 @@ MODULE qs_integrate_potential
              integrate_rho_nlcc
 
    ! included from grid_integrate
-   PUBLIC :: integrate_pgf_product_rspace
+   PUBLIC :: integrate_pgf_product
 
 END MODULE qs_integrate_potential
