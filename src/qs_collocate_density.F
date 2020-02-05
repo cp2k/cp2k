@@ -66,12 +66,9 @@ MODULE qs_collocate_density
    USE lgrid_types,                     ONLY: lgrid_allocate_grid,&
                                               lgrid_type
    USE lri_environment_types,           ONLY: lri_kind_type
-   USE mathconstants,                   ONLY: fac,&
-                                              pi,&
-                                              twopi
+   USE mathconstants,                   ONLY: fac
    USE memory_utilities,                ONLY: reallocate
    USE orbital_pointers,                ONLY: coset,&
-                                              indco,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -90,8 +87,7 @@ MODULE qs_collocate_density
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
-                                              pw_type
+                                              pw_p_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -140,7 +136,6 @@ MODULE qs_collocate_density
              calculate_rho_elec, &
              calculate_drho_elec, &
              calculate_wavefunction, &
-             collocate_pgf_product_gspace, &
              collocate_pgf_product_rspace, &
              calculate_rho_nlcc
 
@@ -3728,219 +3723,5 @@ CONTAINS
       END FUNCTION primitive_value
 
    END SUBROUTINE collocate_pgf_product_rspace
-
-! **************************************************************************************************
-!> \brief low level collocation of primitive gaussian functions in g-space
-!> \param la_max ...
-!> \param zeta ...
-!> \param la_min ...
-!> \param lb_max ...
-!> \param zetb ...
-!> \param lb_min ...
-!> \param ra ...
-!> \param rab ...
-!> \param rab2 ...
-!> \param scale ...
-!> \param pab ...
-!> \param na ...
-!> \param nb ...
-!> \param eps_rho_gspace ...
-!> \param gsq_max ...
-!> \param pw ...
-! **************************************************************************************************
-   SUBROUTINE collocate_pgf_product_gspace(la_max, zeta, la_min, &
-                                           lb_max, zetb, lb_min, &
-                                           ra, rab, rab2, scale, pab, na, nb, &
-                                           eps_rho_gspace, gsq_max, pw)
-
-      ! NOTE: this routine is much slower than collocate_pgf_product_rspace
-
-      INTEGER, INTENT(IN)                                :: la_max
-      REAL(dp), INTENT(IN)                               :: zeta
-      INTEGER, INTENT(IN)                                :: la_min, lb_max
-      REAL(dp), INTENT(IN)                               :: zetb
-      INTEGER, INTENT(IN)                                :: lb_min
-      REAL(dp), DIMENSION(3), INTENT(IN)                 :: ra, rab
-      REAL(dp), INTENT(IN)                               :: rab2, scale
-      REAL(dp), DIMENSION(:, :), POINTER                 :: pab
-      INTEGER, INTENT(IN)                                :: na, nb
-      REAL(dp), INTENT(IN)                               :: eps_rho_gspace, gsq_max
-      TYPE(pw_type), POINTER                             :: pw
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_pgf_product_gspace', &
-                                     routineP = moduleN//':'//routineN
-
-      COMPLEX(dp), DIMENSION(3)                          :: phasefactor
-      COMPLEX(dp), DIMENSION(:), POINTER                 :: rag, rbg
-      COMPLEX(dp), DIMENSION(:, :, :, :), POINTER        :: cubeaxis
-      INTEGER                                            :: ax, ay, az, bx, by, bz, handle, i, ico, &
-                                                            ig, ig2, jco, jg, kg, la, lb, &
-                                                            lb_cube_min, lb_grid, ub_cube_max, &
-                                                            ub_grid
-      INTEGER, DIMENSION(3)                              :: lb_cube, ub_cube
-      REAL(dp)                                           :: f, fa, fb, pij, prefactor, rzetp, &
-                                                            twozetp, zetp
-      REAL(dp), DIMENSION(3)                             :: dg, expfactor, fap, fbp, rap, rbp, rp
-      REAL(dp), DIMENSION(:), POINTER                    :: g
-
-      CALL timeset(routineN, handle)
-
-      dg(:) = twopi/(pw%pw_grid%npts(:)*pw%pw_grid%dr(:))
-
-      zetp = zeta + zetb
-      rzetp = 1.0_dp/zetp
-      f = zetb*rzetp
-      rap(:) = f*rab(:)
-      rbp(:) = rap(:) - rab(:)
-      rp(:) = ra(:) + rap(:)
-      twozetp = 2.0_dp*zetp
-      fap(:) = twozetp*rap(:)
-      fbp(:) = twozetp*rbp(:)
-
-      prefactor = scale*SQRT((pi*rzetp)**3)*EXP(-zeta*f*rab2)
-      phasefactor(:) = EXP(CMPLX(0.0_dp, -rp(:)*dg(:), KIND=dp))
-      expfactor(:) = EXP(-0.25*rzetp*dg(:)*dg(:))
-
-      lb_cube(:) = pw%pw_grid%bounds(1, :)
-      ub_cube(:) = pw%pw_grid%bounds(2, :)
-
-      lb_cube_min = MINVAL(lb_cube(:))
-      ub_cube_max = MAXVAL(ub_cube(:))
-
-      NULLIFY (cubeaxis, g, rag, rbg)
-
-      CALL reallocate(cubeaxis, lb_cube_min, ub_cube_max, 1, 3, 0, la_max, 0, lb_max)
-      CALL reallocate(g, lb_cube_min, ub_cube_max)
-      CALL reallocate(rag, lb_cube_min, ub_cube_max)
-      CALL reallocate(rbg, lb_cube_min, ub_cube_max)
-
-      lb_grid = LBOUND(pw%cc, 1)
-      ub_grid = UBOUND(pw%cc, 1)
-
-      DO i = 1, 3
-
-         DO ig = lb_cube(i), ub_cube(i)
-            ig2 = ig*ig
-            cubeaxis(ig, i, 0, 0) = expfactor(i)**ig2*phasefactor(i)**ig
-         END DO
-
-         IF (la_max > 0) THEN
-            DO ig = lb_cube(i), ub_cube(i)
-               g(ig) = REAL(ig, dp)*dg(i)
-               rag(ig) = CMPLX(fap(i), -g(ig), KIND=dp)
-               cubeaxis(ig, i, 1, 0) = rag(ig)*cubeaxis(ig, i, 0, 0)
-            END DO
-            DO la = 2, la_max
-               fa = REAL(la - 1, dp)*twozetp
-               DO ig = lb_cube(i), ub_cube(i)
-                  cubeaxis(ig, i, la, 0) = rag(ig)*cubeaxis(ig, i, la - 1, 0) + &
-                                           fa*cubeaxis(ig, i, la - 2, 0)
-               END DO
-            END DO
-            IF (lb_max > 0) THEN
-               fa = twozetp
-               DO ig = lb_cube(i), ub_cube(i)
-                  rbg(ig) = CMPLX(fbp(i), -g(ig), KIND=dp)
-                  cubeaxis(ig, i, 0, 1) = rbg(ig)*cubeaxis(ig, i, 0, 0)
-                  cubeaxis(ig, i, 1, 1) = rbg(ig)*cubeaxis(ig, i, 1, 0) + &
-                                          fa*cubeaxis(ig, i, 0, 0)
-               END DO
-               DO lb = 2, lb_max
-                  fb = REAL(lb - 1, dp)*twozetp
-                  DO ig = lb_cube(i), ub_cube(i)
-                     cubeaxis(ig, i, 0, lb) = rbg(ig)*cubeaxis(ig, i, 0, lb - 1) + &
-                                              fb*cubeaxis(ig, i, 0, lb - 2)
-                     cubeaxis(ig, i, 1, lb) = rbg(ig)*cubeaxis(ig, i, 1, lb - 1) + &
-                                              fb*cubeaxis(ig, i, 1, lb - 2) + &
-                                              fa*cubeaxis(ig, i, 0, lb - 1)
-                  END DO
-               END DO
-               DO la = 2, la_max
-                  fa = REAL(la, dp)*twozetp
-                  DO ig = lb_cube(i), ub_cube(i)
-                     cubeaxis(ig, i, la, 1) = rbg(ig)*cubeaxis(ig, i, la, 0) + &
-                                              fa*cubeaxis(ig, i, la - 1, 0)
-                  END DO
-                  DO lb = 2, lb_max
-                     fb = REAL(lb - 1, dp)*twozetp
-                     DO ig = lb_cube(i), ub_cube(i)
-                        cubeaxis(ig, i, la, lb) = rbg(ig)*cubeaxis(ig, i, la, lb - 1) + &
-                                                  fb*cubeaxis(ig, i, la, lb - 2) + &
-                                                  fa*cubeaxis(ig, i, la - 1, lb - 1)
-                     END DO
-                  END DO
-               END DO
-            END IF
-         ELSE
-            IF (lb_max > 0) THEN
-               DO ig = lb_cube(i), ub_cube(i)
-                  g(ig) = REAL(ig, dp)*dg(i)
-                  rbg(ig) = CMPLX(fbp(i), -g(ig), KIND=dp)
-                  cubeaxis(ig, i, 0, 1) = rbg(ig)*cubeaxis(ig, i, 0, 0)
-               END DO
-               DO lb = 2, lb_max
-                  fb = REAL(lb - 1, dp)*twozetp
-                  DO ig = lb_cube(i), ub_cube(i)
-                     cubeaxis(ig, i, 0, lb) = rbg(ig)*cubeaxis(ig, i, 0, lb - 1) + &
-                                              fb*cubeaxis(ig, i, 0, lb - 2)
-                  END DO
-               END DO
-            END IF
-         END IF
-
-      END DO
-
-      DO la = 0, la_max
-         DO lb = 0, lb_max
-            IF (la + lb == 0) CYCLE
-            fa = (1.0_dp/twozetp)**(la + lb)
-            DO i = 1, 3
-               DO ig = lb_cube(i), ub_cube(i)
-                  cubeaxis(ig, i, la, lb) = fa*cubeaxis(ig, i, la, lb)
-               END DO
-            END DO
-         END DO
-      END DO
-
-      ! Add the current primitive Gaussian function product to grid
-
-      DO ico = ncoset(la_min - 1) + 1, ncoset(la_max)
-
-         ax = indco(1, ico)
-         ay = indco(2, ico)
-         az = indco(3, ico)
-
-         DO jco = ncoset(lb_min - 1) + 1, ncoset(lb_max)
-
-            pij = prefactor*pab(na + ico, nb + jco)
-
-            IF (ABS(pij) < eps_rho_gspace) CYCLE
-
-            bx = indco(1, jco)
-            by = indco(2, jco)
-            bz = indco(3, jco)
-
-            DO i = lb_grid, ub_grid
-               IF (pw%pw_grid%gsq(i) > gsq_max) CYCLE
-               ig = pw%pw_grid%g_hat(1, i)
-               jg = pw%pw_grid%g_hat(2, i)
-               kg = pw%pw_grid%g_hat(3, i)
-               pw%cc(i) = pw%cc(i) + pij*cubeaxis(ig, 1, ax, bx)* &
-                          cubeaxis(jg, 2, ay, by)* &
-                          cubeaxis(kg, 3, az, bz)
-            END DO
-
-         END DO
-
-      END DO
-
-      DEALLOCATE (cubeaxis)
-      DEALLOCATE (g)
-      DEALLOCATE (rag)
-      DEALLOCATE (rbg)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE collocate_pgf_product_gspace
 
 END MODULE qs_collocate_density
