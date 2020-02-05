@@ -56,7 +56,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lbfgs_seed(history, variable, gradient)
 
-      TYPE(lbfgs_history_type)                           :: history
+      TYPE(lbfgs_history_type), INTENT(INOUT)            :: history
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: variable, gradient
 
       CALL lbfgs_history_push(history, variable, vartype=1, action=1)
@@ -74,7 +74,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE lbfgs_get_direction(history, variable, gradient, direction)
-      TYPE(lbfgs_history_type)                           :: history
+      TYPE(lbfgs_history_type), INTENT(INOUT)            :: history
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: variable, gradient
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: direction
 
@@ -101,7 +101,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lbfgs_create(history, nspins, nstore)
 
-      TYPE(lbfgs_history_type)                           :: history
+      TYPE(lbfgs_history_type), INTENT(INOUT)            :: history
       INTEGER, INTENT(IN)                                :: nspins, nstore
 
       INTEGER                                            :: nallocate
@@ -119,7 +119,7 @@ CONTAINS
 !> \param history ...
 ! **************************************************************************************************
    SUBROUTINE lbfgs_release(history)
-      TYPE(lbfgs_history_type)                           :: history
+      TYPE(lbfgs_history_type), INTENT(INOUT)            :: history
 
       INTEGER                                            :: ispin, istore, ivartype
 
@@ -143,7 +143,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lbfgs_history_last_rho(history)
 
-      TYPE(lbfgs_history_type)                           :: history
+      TYPE(lbfgs_history_type), INTENT(INOUT)            :: history
 
       INTEGER                                            :: ispin, istore
 
@@ -182,7 +182,7 @@ CONTAINS
 !> \param action ...
 ! **************************************************************************************************
    SUBROUTINE lbfgs_history_push(history, matrix, vartype, action)
-      TYPE(lbfgs_history_type)                           :: history
+      TYPE(lbfgs_history_type), INTENT(INOUT)            :: history
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: matrix
       INTEGER, INTENT(IN)                                :: vartype, action
 
@@ -241,7 +241,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lbfgs_history_direction(history, gradient, direction)
 
-      TYPE(lbfgs_history_type)                           :: history
+      TYPE(lbfgs_history_type), INTENT(INOUT)            :: history
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: gradient
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: direction
 

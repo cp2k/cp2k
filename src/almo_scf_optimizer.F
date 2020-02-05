@@ -134,8 +134,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE almo_scf_block_diagonal(qs_env, almo_scf_env, optimizer)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
-      TYPE(optimizer_options_type)                       :: optimizer
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
+      TYPE(optimizer_options_type), INTENT(IN)           :: optimizer
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_block_diagonal', &
          routineP = moduleN//':'//routineN
@@ -451,8 +451,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE almo_scf_xalmo_eigensolver(qs_env, almo_scf_env, optimizer)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
-      TYPE(optimizer_options_type)                       :: optimizer
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
+      TYPE(optimizer_options_type), INTENT(IN)           :: optimizer
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_xalmo_eigensolver', &
          routineP = moduleN//':'//routineN
@@ -868,9 +868,10 @@ CONTAINS
                                  special_case)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
-      TYPE(optimizer_options_type)                       :: optimizer
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: quench_t, matrix_t_in, matrix_t_out
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
+      TYPE(optimizer_options_type), INTENT(IN)           :: optimizer
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: matrix_t_in, matrix_t_out, quench_t
       LOGICAL, INTENT(IN)                                :: assume_t0_q0x, perturbation_only
       INTEGER, INTENT(IN), OPTIONAL                      :: special_case
 
@@ -2006,13 +2007,15 @@ CONTAINS
                                        template_matrix_sigma, overlap_determinant, &
                                        mat_distr_aos, virtuals, eps_filter)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(optimizer_options_type)                       :: optimizer
-      TYPE(dbcsr_type)                                   :: matrix_s
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_mo_in, matrix_mo_out, &
-                                                            template_matrix_sigma
+      TYPE(optimizer_options_type), INTENT(INOUT)        :: optimizer
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: matrix_mo_in, matrix_mo_out
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: template_matrix_sigma
       REAL(KIND=dp), INTENT(INOUT)                       :: overlap_determinant
       INTEGER, INTENT(IN)                                :: mat_distr_aos
-      LOGICAL                                            :: virtuals
+      LOGICAL, INTENT(IN)                                :: virtuals
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_construct_nlmos', &
@@ -2888,12 +2891,6 @@ CONTAINS
       ENDDO ! outer loop
 
       ! return the optimal determinant penalty
-      !KEEP: optimizer%opt_penalty%occ_vol_coeff = 0.0_dp
-      !KEEP: DO ispin=1, nspins
-      !KEEP:    optimizer%opt_penalty%occ_vol_coeff = optimizer%opt_penalty%occ_vol_coeff + &
-      !KEEP:       suggested_vol_penalty(ispin) / (spin_factor * nocc(ispin))
-      !KEEP: ENDDO
-      !KEEP: optimizer%opt_penalty%occ_vol_coeff = optimizer%opt_penalty%occ_vol_coeff / nspins
       optimizer%opt_penalty%penalty_strength = 0.0_dp
       DO ispin = 1, nspins
          optimizer%opt_penalty%penalty_strength = optimizer%opt_penalty%penalty_strength + &
@@ -3225,7 +3222,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE split_v_blk(almo_scf_env)
 
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'split_v_blk', routineP = moduleN//':'//routineN
 
@@ -3294,7 +3291,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE harris_foulkes_correction(almo_scf_env)
 
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'harris_foulkes_correction', &
          routineP = moduleN//':'//routineN
@@ -6351,8 +6348,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_mathematica_matrix(matrix, filename)
 
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      CHARACTER(len=*)                                   :: filename
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      CHARACTER(len=*), INTENT(IN)                       :: filename
 
       CHARACTER(len=*), PARAMETER :: routineN = 'print_mathematica_matrix', &
          routineP = moduleN//':'//routineN
@@ -6478,7 +6475,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT) :: localization_obj_function_ispin, penalty_func_ispin, &
          penalty_vol_prefactor, overlap_determinant
       TYPE(dbcsr_type), INTENT(INOUT)                    :: m_sigma
-      INTEGER                                            :: nocc
+      INTEGER, INTENT(IN)                                :: nocc
       TYPE(dbcsr_type), DIMENSION(:, :), INTENT(IN)      :: m_B0
       TYPE(dbcsr_type), INTENT(IN)                       :: m_theta_normalized, template_matrix_mo
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: weights
@@ -6982,7 +6979,7 @@ CONTAINS
          INTENT(INOUT)                                   :: domain_prec_out
       TYPE(dbcsr_type), INTENT(INOUT)                    :: m_prec_out, m_ks, m_s
       TYPE(dbcsr_type), INTENT(IN)                       :: m_siginv
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: m_quench_t
+      TYPE(dbcsr_type), INTENT(IN)                       :: m_quench_t
       TYPE(dbcsr_type), INTENT(IN)                       :: m_FTsiginv, m_siginvTFTsiginv, m_ST
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: m_STsiginv_out, m_s_vv_out, m_f_vv_out
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -7455,7 +7452,7 @@ CONTAINS
                                   penalty_occ_vol, normalize_orbitals, penalty_occ_vol_prefactor, &
                                   penalty_occ_vol_pf2, special_case)
 
-      TYPE(optimizer_options_type)                       :: optimizer
+      TYPE(optimizer_options_type), INTENT(IN)           :: optimizer
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_grad
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: m_delta, m_s, m_ks, m_siginv, m_quench_t
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_FTsiginv, m_siginvTFTsiginv, m_ST, &
@@ -8011,7 +8008,7 @@ CONTAINS
 
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: m_x_in, m_x_out, m_ks, m_s
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_siginv
-      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: m_quench_t
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_quench_t
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_FTsiginv, m_siginvTFTsiginv, m_ST, &
                                                             m_STsiginv
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: m_s_vv, m_ks_vv, m_g_full
@@ -8322,7 +8319,8 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_grad, matrix_step, matrix_S_ao, &
                                                             matrix_F_ao, matrix_S_mo
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_F_mo
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_S_vo, matrix_F_vo, quench_t
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_S_vo, matrix_F_vo
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: quench_t
       LOGICAL, INTENT(IN)                                :: penalty_occ_vol
       REAL(KIND=dp), INTENT(IN)                          :: penalty_occ_vol_prefactor, &
                                                             penalty_occ_vol_pf2, spin_factor, &
@@ -9069,8 +9067,8 @@ CONTAINS
                                     special_case)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
-      TYPE(optimizer_options_type)                       :: optimizer
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
+      TYPE(optimizer_options_type), INTENT(IN)           :: optimizer
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: quench_t, matrix_t_in, matrix_t_out
       LOGICAL, INTENT(IN)                                :: perturbation_only
       INTEGER, INTENT(IN), OPTIONAL                      :: special_case

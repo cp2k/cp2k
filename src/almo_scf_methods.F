@@ -2241,7 +2241,7 @@ CONTAINS
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(IN), OPTIONAL                            :: subm_s_inv, subm_s_inv_half, &
                                                             subm_s_half, subm_r_down
-      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: matrix_trimmer
+      TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: matrix_trimmer
       TYPE(dbcsr_type), INTENT(IN)                       :: dpattern
       TYPE(domain_map_type), INTENT(IN)                  :: map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: node_of_domain

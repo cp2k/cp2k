@@ -121,7 +121,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE almo_entry_scf(qs_env, calc_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL                                            :: calc_forces
+      LOGICAL, INTENT(IN)                                :: calc_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_entry_scf', routineP = moduleN//':'//routineN
 
@@ -175,8 +175,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE almo_scf_init(qs_env, almo_scf_env, calc_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
-      LOGICAL                                            :: calc_forces
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
+      LOGICAL, INTENT(IN)                                :: calc_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_init', routineP = moduleN//':'//routineN
 
@@ -517,7 +517,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE almo_scf_initial_guess(qs_env, almo_scf_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_initial_guess', &
          routineP = moduleN//':'//routineN
@@ -769,7 +769,7 @@ CONTAINS
 !> \author Rustam Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_scf_store_extrapolation_data(almo_scf_env)
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_store_extrapolation_data', &
          routineP = moduleN//':'//routineN
@@ -1268,7 +1268,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE almo_scf_main(qs_env, almo_scf_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_main', routineP = moduleN//':'//routineN
 
@@ -1360,7 +1360,7 @@ CONTAINS
    SUBROUTINE almo_scf_delocalization(qs_env, almo_scf_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_delocalization', &
          routineP = moduleN//':'//routineN
@@ -1678,7 +1678,7 @@ CONTAINS
    SUBROUTINE construct_nlmos(qs_env, almo_scf_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'construct_nlmos', &
          routineP = moduleN//':'//routineN
@@ -1728,8 +1728,8 @@ CONTAINS
    SUBROUTINE construct_nlmos_wrapper(qs_env, almo_scf_env, virtuals)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
-      LOGICAL                                            :: virtuals
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
+      LOGICAL, INTENT(IN)                                :: virtuals
 
       CHARACTER(len=*), PARAMETER :: routineN = 'construct_nlmos_wrapper', &
          routineP = moduleN//':'//routineN
@@ -1793,7 +1793,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE construct_virtuals(almo_scf_env)
 
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'construct_virtuals', &
          routineP = moduleN//':'//routineN
@@ -1927,8 +1927,9 @@ CONTAINS
    SUBROUTINE nlmo_compactification(qs_env, almo_scf_env, matrix)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nlmo_compactification', &
          routineP = moduleN//':'//routineN
@@ -2115,7 +2116,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE almo_scf_post(qs_env, almo_scf_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_post', routineP = moduleN//':'//routineN
 
@@ -2690,7 +2691,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE almo_scf_clean_up(almo_scf_env)
 
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_clean_up', &
          routineP = moduleN//':'//routineN
