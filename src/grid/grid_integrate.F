@@ -31,7 +31,7 @@ MODULE grid_integrate
 ! *** Don't include this routines directly, use the interface to
 ! *** qs_integrate_potential
 
-   PUBLIC :: integrate_pgf_product_rspace
+   PUBLIC :: integrate_pgf_product
 
    INTERFACE
       SUBROUTINE call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
@@ -89,15 +89,15 @@ CONTAINS
 !> \param use_subpatch ...
 !> \param subpatch_pattern ...
 ! **************************************************************************************************
-   SUBROUTINE integrate_pgf_product_rspace(la_max, zeta, la_min, &
-                                           lb_max, zetb, lb_min, &
-                                           ra, rab, rab2, rsgrid, cell, &
-                                           cube_info, hab, pab, o1, o2, &
-                                           eps_gvg_rspace, &
-                                           calculate_forces, hdab, hadb, force_a, force_b, &
-                                           compute_tau, map_consistent, &
-                                           collocate_rho0, rpgf0_s, use_virial, my_virial_a, &
-                                           my_virial_b, a_hdab, use_subpatch, subpatch_pattern)
+   SUBROUTINE integrate_pgf_product(la_max, zeta, la_min, &
+                                    lb_max, zetb, lb_min, &
+                                    ra, rab, rab2, rsgrid, cell, &
+                                    cube_info, hab, pab, o1, o2, &
+                                    eps_gvg_rspace, &
+                                    calculate_forces, hdab, hadb, force_a, force_b, &
+                                    compute_tau, map_consistent, &
+                                    collocate_rho0, rpgf0_s, use_virial, my_virial_a, &
+                                    my_virial_b, a_hdab, use_subpatch, subpatch_pattern)
 
       INTEGER, INTENT(IN)                      :: la_max
       REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -868,7 +868,7 @@ CONTAINS
 
       END SUBROUTINE
 
-   END SUBROUTINE integrate_pgf_product_rspace
+   END SUBROUTINE integrate_pgf_product
 
 ! **************************************************************************************************
 !> \brief given a set of matrix elements, perform the correct contraction to obtain the virial

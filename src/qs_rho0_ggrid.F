@@ -51,7 +51,7 @@ MODULE qs_rho0_ggrid
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                               harmonics_atom_type
-   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
+   USE qs_integrate_potential,          ONLY: integrate_pgf_product
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_local_rho_types,              ONLY: get_local_rho,&
@@ -578,7 +578,7 @@ CONTAINS
                   a_hdab = 0.0_dp
                END IF
 
-               CALL integrate_pgf_product_rspace( &
+               CALL integrate_pgf_product( &
                   l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
                   ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, rs_v, cell, &
                   cube_info(igrid), hab, pab, o1=0, o2=0, &

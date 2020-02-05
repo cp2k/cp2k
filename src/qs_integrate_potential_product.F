@@ -42,7 +42,7 @@ MODULE qs_integrate_potential_product
         dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_p_type, &
         dbcsr_type, dbcsr_work_create
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
-   USE grid_integrate,                  ONLY: integrate_pgf_product_rspace
+   USE grid_integrate,                  ONLY: integrate_pgf_product
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
@@ -672,7 +672,7 @@ CONTAINS
 
             IF (pab_required) THEN
                IF (iatom <= jatom) THEN
-                  CALL integrate_pgf_product_rspace( &
+                  CALL integrate_pgf_product( &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
@@ -686,7 +686,7 @@ CONTAINS
                      my_virial_b=my_virial_b, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
                ELSE
                   rab_inv = -rab
-                  CALL integrate_pgf_product_rspace( &
+                  CALL integrate_pgf_product( &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      rb, rab_inv, rab2, rs_v(igrid_level)%rs_grid, cell, &
@@ -701,7 +701,7 @@ CONTAINS
                END IF
             ELSE
                IF (iatom <= jatom) THEN
-                  CALL integrate_pgf_product_rspace( &
+                  CALL integrate_pgf_product( &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
@@ -714,7 +714,7 @@ CONTAINS
                      map_consistent=map_consistent, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
                ELSE
                   rab_inv = -rab
-                  CALL integrate_pgf_product_rspace( &
+                  CALL integrate_pgf_product( &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      rb, rab_inv, rab2, rs_v(igrid_level)%rs_grid, cell, &

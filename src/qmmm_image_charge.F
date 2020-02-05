@@ -64,7 +64,7 @@ MODULE qmmm_image_charge
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
+   USE qs_integrate_potential,          ONLY: integrate_pgf_product
    USE realspace_grid_types,            ONLY: pw2rs,&
                                               realspace_grid_desc_type,&
                                               realspace_grid_type,&
@@ -425,11 +425,11 @@ CONTAINS
 
          hab(1, 1) = 0.0_dp
 
-         CALL integrate_pgf_product_rspace(0, qmmm_env%image_charge_pot%eta, 0, &
-                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
-                                           rs_v, cell, pw_env%cube_info(1), hab, o1=0, o2=0, &
-                                           eps_gvg_rspace=eps_rho_rspace, calculate_forces=.FALSE., &
-                                           use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+         CALL integrate_pgf_product(0, qmmm_env%image_charge_pot%eta, 0, &
+                                    0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
+                                    rs_v, cell, pw_env%cube_info(1), hab, o1=0, o2=0, &
+                                    eps_gvg_rspace=eps_rho_rspace, calculate_forces=.FALSE., &
+                                    use_subpatch=.TRUE., subpatch_pattern=0_int_8)
 
          int_res(iatom) = hab(1, 1)
 
@@ -545,12 +545,12 @@ CONTAINS
          force_a(:) = 0.0_dp
          force_b(:) = 0.0_dp
 
-         CALL integrate_pgf_product_rspace(0, qmmm_env%image_charge_pot%eta, 0, &
-                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
-                                           rs_v, cell, pw_env%cube_info(1), hab, pab, o1=0, o2=0, &
-                                           eps_gvg_rspace=eps_rho_rspace, calculate_forces=.TRUE., &
-                                           force_a=force_a, force_b=force_b, use_subpatch=.TRUE., &
-                                           subpatch_pattern=0_int_8)
+         CALL integrate_pgf_product(0, qmmm_env%image_charge_pot%eta, 0, &
+                                    0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
+                                    rs_v, cell, pw_env%cube_info(1), hab, pab, o1=0, o2=0, &
+                                    eps_gvg_rspace=eps_rho_rspace, calculate_forces=.TRUE., &
+                                    force_a=force_a, force_b=force_b, use_subpatch=.TRUE., &
+                                    subpatch_pattern=0_int_8)
 
          force_a(:) = coeff(iatom)*force_a(:)
          forces(:, iatom) = force_a(:)

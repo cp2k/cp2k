@@ -42,7 +42,7 @@ MODULE qs_integrate_potential_single
                                               gth_potential_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                               gridlevel_info_type
-   USE grid_integrate,                  ONLY: integrate_pgf_product_rspace
+   USE grid_integrate,                  ONLY: integrate_pgf_product
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE lri_environment_types,           ONLY: lri_kind_type
@@ -243,13 +243,13 @@ CONTAINS
             END IF
             ni = 2*lppl - 2
 
-            CALL integrate_pgf_product_rspace(ni, alpha, 0, &
-                                              0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
-                                              rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
-                                              eps_gvg_rspace=eps_rho_rspace, &
-                                              calculate_forces=.TRUE., force_a=force_a, &
-                                              force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
-                                              my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+            CALL integrate_pgf_product(ni, alpha, 0, &
+                                       0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
+                                       rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
+                                       eps_gvg_rspace=eps_rho_rspace, &
+                                       calculate_forces=.TRUE., force_a=force_a, &
+                                       force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
+                                       my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
 
             force(ikind)%gth_ppl(:, iatom) = &
                force(ikind)%gth_ppl(:, iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
@@ -438,13 +438,13 @@ CONTAINS
                END IF
                ni = 2*nc - 2
 
-               CALL integrate_pgf_product_rspace(ni, 1/(2*alpha**2), 0, &
-                                                 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
-                                                 rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
-                                                 eps_gvg_rspace=eps_rho_rspace, &
-                                                 calculate_forces=.TRUE., force_a=force_a, &
-                                                 force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
-                                                 my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+               CALL integrate_pgf_product(ni, 1/(2*alpha**2), 0, &
+                                          0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
+                                          rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
+                                          eps_gvg_rspace=eps_rho_rspace, &
+                                          calculate_forces=.TRUE., force_a=force_a, &
+                                          force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
+                                          my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
 
                force(ikind)%gth_nlcc(:, iatom) = &
                   force(ikind)%gth_nlcc(:, iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
@@ -590,13 +590,13 @@ CONTAINS
                   my_virial_b = 0.0_dp
                END IF
 
-               CALL integrate_pgf_product_rspace(0, alpha_core_charge, 0, &
-                                                 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
-                                                 rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
-                                                 eps_gvg_rspace=eps_rho_rspace, &
-                                                 calculate_forces=.TRUE., force_a=force_a, &
-                                                 force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
-                                                 my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+               CALL integrate_pgf_product(0, alpha_core_charge, 0, &
+                                          0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
+                                          rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
+                                          eps_gvg_rspace=eps_rho_rspace, &
+                                          calculate_forces=.TRUE., force_a=force_a, &
+                                          force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
+                                          my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
 
                IF (ASSOCIATED(force)) THEN
                   force(ikind)%rho_core(:, iatom) = force(ikind)%rho_core(:, iatom) + force_a(:)
@@ -811,28 +811,28 @@ CONTAINS
 
                      IF (map_it(ipgf)) THEN
                         IF (.NOT. calculate_forces) THEN
-                           CALL integrate_pgf_product_rspace(la_max=la_max(iset), &
-                                                             zeta=zeta(ipgf, iset), la_min=la_min(iset), &
-                                                             lb_max=0, zetb=0.0_dp, lb_min=0, &
-                                                             ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), rab2=0.0_dp, &
-                                                             rsgrid=rs_grid, cell=cell, &
-                                                             cube_info=pw_env%cube_info(igrid_level), &
-                                                             hab=hab, o1=na1, o2=0, eps_gvg_rspace=eps_rho_rspace, &
-                                                             calculate_forces=calculate_forces, &
-                                                             map_consistent=map_consistent)
+                           CALL integrate_pgf_product(la_max=la_max(iset), &
+                                                      zeta=zeta(ipgf, iset), la_min=la_min(iset), &
+                                                      lb_max=0, zetb=0.0_dp, lb_min=0, &
+                                                      ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), rab2=0.0_dp, &
+                                                      rsgrid=rs_grid, cell=cell, &
+                                                      cube_info=pw_env%cube_info(igrid_level), &
+                                                      hab=hab, o1=na1, o2=0, eps_gvg_rspace=eps_rho_rspace, &
+                                                      calculate_forces=calculate_forces, &
+                                                      map_consistent=map_consistent)
                         ELSE
-                           CALL integrate_pgf_product_rspace(la_max=la_max(iset), &
-                                                             zeta=zeta(ipgf, iset), la_min=la_min(iset), &
-                                                             lb_max=0, zetb=0.0_dp, lb_min=0, &
-                                                             ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), rab2=0.0_dp, &
-                                                             rsgrid=rs_grid, cell=cell, &
-                                                             cube_info=pw_env%cube_info(igrid_level), &
-                                                             hab=hab, pab=pab, o1=na1, o2=0, eps_gvg_rspace=eps_rho_rspace, &
-                                                             calculate_forces=calculate_forces, &
-                                                             force_a=force_a, force_b=force_b, &
-                                                             use_virial=use_virial, &
-                                                             my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
-                                                             map_consistent=map_consistent)
+                           CALL integrate_pgf_product(la_max=la_max(iset), &
+                                                      zeta=zeta(ipgf, iset), la_min=la_min(iset), &
+                                                      lb_max=0, zetb=0.0_dp, lb_min=0, &
+                                                      ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), rab2=0.0_dp, &
+                                                      rsgrid=rs_grid, cell=cell, &
+                                                      cube_info=pw_env%cube_info(igrid_level), &
+                                                      hab=hab, pab=pab, o1=na1, o2=0, eps_gvg_rspace=eps_rho_rspace, &
+                                                      calculate_forces=calculate_forces, &
+                                                      force_a=force_a, force_b=force_b, &
+                                                      use_virial=use_virial, &
+                                                      my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
+                                                      map_consistent=map_consistent)
                         ENDIF
                      ENDIF
                   ENDDO
@@ -1056,7 +1056,7 @@ CONTAINS
                            rs_grid => rs_v(igrid_level)%rs_grid
                            IF (map_it2(ipgf, jpgf)) THEN
                               IF (calculate_forces) THEN
-                                 CALL integrate_pgf_product_rspace( &
+                                 CALL integrate_pgf_product( &
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
@@ -1068,7 +1068,7 @@ CONTAINS
                                     use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
                                     map_consistent=map_consistent)
                               ELSE
-                                 CALL integrate_pgf_product_rspace( &
+                                 CALL integrate_pgf_product( &
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &

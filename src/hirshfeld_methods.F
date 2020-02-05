@@ -20,7 +20,7 @@ MODULE hirshfeld_methods
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE cube_utils,                      ONLY: cube_info_type
    USE grid_collocate,                  ONLY: collocate_pgf_product
-   USE grid_integrate,                  ONLY: integrate_pgf_product_rspace
+   USE grid_integrate,                  ONLY: integrate_pgf_product
    USE grid_modify_pab_block,           ONLY: FUNC_AB
    USE hirshfeld_types,                 ONLY: get_hirshfeld_info,&
                                               hirshfeld_type,&
@@ -605,12 +605,12 @@ CONTAINS
                force_a(:) = 0.0_dp
                force_b(:) = 0.0_dp
                !
-               CALL integrate_pgf_product_rspace(0, alpha, 0, &
-                                                 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
-                                                 rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
-                                                 eps_gvg_rspace=eps_rho_rspace, calculate_forces=do_force, &
-                                                 force_a=force_a, force_b=force_b, use_virial=.FALSE., &
-                                                 use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+               CALL integrate_pgf_product(0, alpha, 0, &
+                                          0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
+                                          rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
+                                          eps_gvg_rspace=eps_rho_rspace, calculate_forces=do_force, &
+                                          force_a=force_a, force_b=force_b, use_virial=.FALSE., &
+                                          use_subpatch=.TRUE., subpatch_pattern=0_int_8)
                fval(atom_a) = fval(atom_a) + hab(1, 1)*dvol*coef
                IF (do_force) THEN
                   fderiv(:, atom_a) = fderiv(:, atom_a) + force_a(:)*dvol
