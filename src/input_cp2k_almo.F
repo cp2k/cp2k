@@ -891,7 +891,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DETERMINANT_TOLERANCE", &
-         description="Stop the optimization of the penalty strength if the determinant of the overlap " \\ &
+         description="Stop the optimization of the penalty strength if the determinant of the overlap "// &
                           "changes less than this tolerance threshold.", &
                           usage="DETERMINANT_TOLERANCE 1.0E-4", default_r_val=1.0E-3_dp)
       CALL section_add_keyword(section, keyword)
