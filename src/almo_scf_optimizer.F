@@ -871,7 +871,7 @@ CONTAINS
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
       TYPE(optimizer_options_type), INTENT(IN)           :: optimizer
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: matrix_t_in, matrix_t_out, quench_t
+         INTENT(INOUT)                                   :: quench_t, matrix_t_in, matrix_t_out
       LOGICAL, INTENT(IN)                                :: assume_t0_q0x, perturbation_only
       INTEGER, INTENT(IN), OPTIONAL                      :: special_case
 
@@ -6978,9 +6978,8 @@ CONTAINS
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: domain_prec_out
       TYPE(dbcsr_type), INTENT(INOUT)                    :: m_prec_out, m_ks, m_s
-      TYPE(dbcsr_type), INTENT(IN)                       :: m_siginv
-      TYPE(dbcsr_type), INTENT(IN)                       :: m_quench_t
-      TYPE(dbcsr_type), INTENT(IN)                       :: m_FTsiginv, m_siginvTFTsiginv, m_ST
+      TYPE(dbcsr_type), INTENT(IN)                       :: m_siginv, m_quench_t, m_FTsiginv, &
+                                                            m_siginvTFTsiginv, m_ST
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: m_STsiginv_out, m_s_vv_out, m_f_vv_out
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -8007,10 +8006,8 @@ CONTAINS
                             normalize_orbitals, penalty_occ_vol_prefactor, eps_filter, path_num)
 
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: m_x_in, m_x_out, m_ks, m_s
-      TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_siginv
-      TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_quench_t
-      TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_FTsiginv, m_siginvTFTsiginv, m_ST, &
-                                                            m_STsiginv
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_siginv, m_quench_t, m_FTsiginv, &
+                                                            m_siginvTFTsiginv, m_ST, m_STsiginv
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: m_s_vv, m_ks_vv, m_g_full
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_t, m_sig_sqrti_ii
       LOGICAL, INTENT(IN)                                :: penalty_occ_vol, normalize_orbitals
@@ -8319,8 +8316,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_grad, matrix_step, matrix_S_ao, &
                                                             matrix_F_ao, matrix_S_mo
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_F_mo
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_S_vo, matrix_F_vo
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: quench_t
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_S_vo, matrix_F_vo, quench_t
       LOGICAL, INTENT(IN)                                :: penalty_occ_vol
       REAL(KIND=dp), INTENT(IN)                          :: penalty_occ_vol_prefactor, &
                                                             penalty_occ_vol_pf2, spin_factor, &
