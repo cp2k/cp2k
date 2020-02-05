@@ -101,7 +101,7 @@ MODULE mixed_cdft_methods
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE
    USE qs_cdft_types,                   ONLY: cdft_control_type
-   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
+   USE qs_collocate_density,            ONLY: collocate_pgf_product
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -2596,12 +2596,12 @@ CONTAINS
                      ra(:) = pbc(particle_set(atom_a)%r, cell)
                   END IF
                   IF (is_constraint(atom_a)) &
-                     CALL collocate_pgf_product_rspace(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                       (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, &
-                                                       rs_cavity, cell, mixed_cdft%pw_env%cube_info(1), &
-                                                       mixed_cdft%eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                                       ithread=ithread, use_subpatch=.TRUE., &
-                                                       subpatch_pattern=0_int_8, lmax_global=0)
+                     CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                                (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, &
+                                                rs_cavity, cell, mixed_cdft%pw_env%cube_info(1), &
+                                                mixed_cdft%eps_rho_rspace, ga_gb_function=FUNC_AB, &
+                                                ithread=ithread, use_subpatch=.TRUE., &
+                                                subpatch_pattern=0_int_8, lmax_global=0)
                END DO
             END DO
             DEALLOCATE (cores)

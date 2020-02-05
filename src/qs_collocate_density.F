@@ -136,7 +136,7 @@ MODULE qs_collocate_density
              calculate_rho_elec, &
              calculate_drho_elec, &
              calculate_wavefunction, &
-             collocate_pgf_product_rspace, &
+             collocate_pgf_product, &
              calculate_rho_nlcc
 
    INTEGER :: debug_count = 0
@@ -311,11 +311,11 @@ CONTAINS
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                subpatch_pattern = 0
                ni = 2*nc - 2
-               CALL collocate_pgf_product_rspace(ni, 1/(2*alpha**2), 0, 0, 0.0_dp, 0, ra, &
-                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
-                                                 cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                                 ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
-                                                 lmax_global=lmax_global)
+               CALL collocate_pgf_product(ni, 1/(2*alpha**2), 0, 0, 0.0_dp, 0, ra, &
+                                          (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
+                                          cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
+                                          ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
+                                          lmax_global=lmax_global)
 
             END DO
 
@@ -496,11 +496,11 @@ CONTAINS
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                subpatch_pattern = 0
                ni = 2*lppl - 2
-               CALL collocate_pgf_product_rspace(ni, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
-                                                 cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                                 ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
-                                                 lmax_global=lmax_global)
+               CALL collocate_pgf_product(ni, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                          (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
+                                          cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
+                                          ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
+                                          lmax_global=lmax_global)
 
             END DO
          ENDIF
@@ -707,19 +707,19 @@ CONTAINS
                      igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
                      rs_grid => rs_rho(igrid_level)%rs_grid
                      IF (map_it(ipgf)) THEN
-                        CALL collocate_pgf_product_rspace(la_max=la_max(iset), &
-                                                          zeta=zeta(ipgf, iset), &
-                                                          la_min=la_min(iset), &
-                                                          lb_max=0, zetb=0.0_dp, lb_min=0, &
-                                                          ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                          rab2=0.0_dp, scale=1._dp, &
-                                                          pab=pab, o1=na1, o2=0, &
-                                                          rsgrid=rs_grid, cell=cell, &
-                                                          cube_info=cube_info(igrid_level), &
-                                                          eps_rho_rspace=eps_rho_rspace, &
-                                                          ga_gb_function=FUNC_AB, &
-                                                          map_consistent=map_consistent, &
-                                                          lmax_global=lmax_global)
+                        CALL collocate_pgf_product(la_max=la_max(iset), &
+                                                   zeta=zeta(ipgf, iset), &
+                                                   la_min=la_min(iset), &
+                                                   lb_max=0, zetb=0.0_dp, lb_min=0, &
+                                                   ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                                   rab2=0.0_dp, scale=1._dp, &
+                                                   pab=pab, o1=na1, o2=0, &
+                                                   rsgrid=rs_grid, cell=cell, &
+                                                   cube_info=cube_info(igrid_level), &
+                                                   eps_rho_rspace=eps_rho_rspace, &
+                                                   ga_gb_function=FUNC_AB, &
+                                                   map_consistent=map_consistent, &
+                                                   lmax_global=lmax_global)
                      ENDIF
                   END DO
                   DEALLOCATE (work)
@@ -831,7 +831,7 @@ CONTAINS
                               nb1 = (jpgf - 1)*ncoset(la_max(jset))
 
                               IF (map_it2(ipgf, jpgf)) THEN
-                                 CALL collocate_pgf_product_rspace( &
+                                 CALL collocate_pgf_product( &
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra, rab, rab2, 1.0_dp, pab, na1, nb1, &
@@ -974,11 +974,11 @@ CONTAINS
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                subpatch_pattern = 0
                !lmax == 0 so set lmax_global to 0
-               CALL collocate_pgf_product_rspace(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, -1.0_dp, pab, 0, 0, rs_rho, &
-                                                 cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                                 ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
-                                                 lmax_global=0)
+               CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                          (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, -1.0_dp, pab, 0, 0, rs_rho, &
+                                          cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
+                                          ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
+                                          lmax_global=0)
 
             END DO
          ENDIF
@@ -1069,11 +1069,11 @@ CONTAINS
          ra(:) = pbc(qs_env%qmmm_env_qm%image_charge_pot%particles_all(atom_a)%r, cell)
          subpatch_pattern = 0
          !lmax == 0 so set lmax_global to 0
-         CALL collocate_pgf_product_rspace(0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
-                                           0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
-                                           cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
-                                           lmax_global=0)
+         CALL collocate_pgf_product(0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
+                                    0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
+                                    cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=FUNC_AB, &
+                                    use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
+                                    lmax_global=0)
       ENDIF
 
       DEALLOCATE (pab)
@@ -1169,7 +1169,7 @@ CONTAINS
             ra(:) = pbc(qs_env%qmmm_env_qm%image_charge_pot%particles_all(atom_a)%r, cell)
             subpatch_pattern = 0
             !lmax == 0 so set lmax_global to 0
-            CALL collocate_pgf_product_rspace( &
+            CALL collocate_pgf_product( &
                0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
                0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, coeff(iatom), pab, 0, 0, rs_rho, &
                cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=FUNC_AB, &
@@ -1263,11 +1263,11 @@ CONTAINS
          ra(:) = pbc(particle_set(iatom)%r, cell)
          subpatch_pattern = 0
          ! lmax == 0 so set lmax_global to 0
-         CALL collocate_pgf_product_rspace(0, eta, 0, 0, 0.0_dp, 0, ra, &
-                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
-                                           cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
-                                           lmax_global=0)
+         CALL collocate_pgf_product(0, eta, 0, 0, 0.0_dp, 0, ra, &
+                                    (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
+                                    cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=FUNC_AB, &
+                                    use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
+                                    lmax_global=0)
       ENDIF
 
       DEALLOCATE (pab)
@@ -1365,7 +1365,7 @@ CONTAINS
             ra(:) = pbc(particle_set(iatom)%r, cell)
             subpatch_pattern = 0
             ! la_max==0 so set lmax_global to 0
-            CALL collocate_pgf_product_rspace( &
+            CALL collocate_pgf_product( &
                0, eta, &
                0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, coeff(iatom), pab, 0, 0, rs_rho, &
                cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=FUNC_AB, &
@@ -1826,7 +1826,7 @@ CONTAINS
 
             IF (nthread > 1) THEN
                IF (iatom <= jatom) THEN
-                  CALL collocate_pgf_product_rspace( &
+                  CALL collocate_pgf_product( &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      ra, rab, rab2, scale, pab, na1 - 1, nb1 - 1, &
@@ -1839,7 +1839,7 @@ CONTAINS
                      subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
                ELSE
                   rab_inv = -rab
-                  CALL collocate_pgf_product_rspace( &
+                  CALL collocate_pgf_product( &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      rb, rab_inv, rab2, scale, pab, nb1 - 1, na1 - 1, &
@@ -1853,7 +1853,7 @@ CONTAINS
                END IF
             ELSE
                IF (iatom <= jatom) THEN
-                  CALL collocate_pgf_product_rspace( &
+                  CALL collocate_pgf_product( &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      ra, rab, rab2, scale, pab, na1 - 1, nb1 - 1, &
@@ -1865,7 +1865,7 @@ CONTAINS
                      subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
                ELSE
                   rab_inv = -rab
-                  CALL collocate_pgf_product_rspace( &
+                  CALL collocate_pgf_product( &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      rb, rab_inv, rab2, scale, pab, nb1 - 1, na1 - 1, &
@@ -2296,7 +2296,7 @@ CONTAINS
                use_subpatch = .FALSE.
             ENDIF
             IF (iatom <= jatom) THEN
-               CALL collocate_pgf_product_rspace( &
+               CALL collocate_pgf_product( &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   ra, rab, rab2, scale, pab, na1 - 1, nb1 - 1, &
@@ -2308,7 +2308,7 @@ CONTAINS
                   lmax_global=lmax_global)
             ELSE
                rab_inv = -rab
-               CALL collocate_pgf_product_rspace( &
+               CALL collocate_pgf_product( &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   rb, rab_inv, rab2, scale, pab, nb1 - 1, na1 - 1, &
@@ -2548,7 +2548,7 @@ CONTAINS
                   IF (MODULO(offset, group_size) == my_pos) map_it_here = .TRUE.
                ENDIF
 
-               IF (map_it_here) CALL collocate_pgf_product_rspace( &
+               IF (map_it_here) CALL collocate_pgf_product( &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   0, 0.0_dp, 0, &
                   ra, rab, rab2, scale, pab, na1 - 1, 0, &
@@ -2627,17 +2627,17 @@ CONTAINS
 !> \param subpatch_pattern ...
 !> \param lmax_global Maximum possible value of lmax used to dimension arrays
 ! **************************************************************************************************
-   SUBROUTINE collocate_pgf_product_rspace(la_max, zeta, la_min, &
-                                           lb_max, zetb, lb_min, &
-                                           ra, rab, rab2, scale, pab, o1, o2, &
-                                           rsgrid, cell, cube_info, &
-                                           eps_rho_rspace, ga_gb_function, &
-                                           lgrid, ithread, &
-                                           map_consistent, &
-                                           collocate_rho0, &
-                                           rpgf0_s, idir, ir, rsgauge, rsbuf, &
-                                           use_subpatch, subpatch_pattern, &
-                                           lmax_global)
+   SUBROUTINE collocate_pgf_product(la_max, zeta, la_min, &
+                                    lb_max, zetb, lb_min, &
+                                    ra, rab, rab2, scale, pab, o1, o2, &
+                                    rsgrid, cell, cube_info, &
+                                    eps_rho_rspace, ga_gb_function, &
+                                    lgrid, ithread, &
+                                    map_consistent, &
+                                    collocate_rho0, &
+                                    rpgf0_s, idir, ir, rsgauge, rsbuf, &
+                                    use_subpatch, subpatch_pattern, &
+                                    lmax_global)
 
       INTEGER, INTENT(IN)                      :: la_max
       REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -2663,7 +2663,7 @@ CONTAINS
       INTEGER(KIND=int_8), OPTIONAL, INTENT(IN):: subpatch_pattern
       INTEGER, INTENT(IN)                      :: lmax_global
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product', &
                                      routineP = moduleN//':'//routineN
 
       INTEGER :: cmax, gridbounds(2, 3), i, ico, icoef, ider1, ider2, ig, ithread_l, &
@@ -3722,6 +3722,6 @@ CONTAINS
 
       END FUNCTION primitive_value
 
-   END SUBROUTINE collocate_pgf_product_rspace
+   END SUBROUTINE collocate_pgf_product
 
 END MODULE qs_collocate_density
