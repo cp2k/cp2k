@@ -79,7 +79,7 @@ MODULE qs_linres_current
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_p_type
-   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
+   USE qs_collocate_density,            ONLY: collocate_pgf_product
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -747,7 +747,7 @@ CONTAINS
 
          maxset = MAX(nseta, maxset)
          maxpgf = MAX(MAXVAL(npgfa), maxpgf)
-         ! Find maximum l, for collocate_pgf_product_rspace
+         ! Find maximum l, for collocate_pgf_product
          lmax_global = MAX(MAXVAL(mylmax), lmax_global)
       END DO
 
@@ -1128,79 +1128,79 @@ CONTAINS
          ! here the decontracted mat_jp_{ab} is multiplied by
          !     f_{ab} = g_{a} (dg_{b}/dr)_{idir} - (dg_{a}/dr)_{idir} g_{b}
          scale = 1.0_dp
-         CALL collocate_pgf_product_rspace(la_max(iset), zeta(ipgf, iset), &
-                                           la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                                           ra, rab, rab2, scale, jpab_a, na1 - 1, nb1 - 1, &
-                                           rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                           eps_rho_rspace, &
-                                           ga_gb_function=FUNC_ADBmDAB, &
-                                           idir=idir, &
-                                           map_consistent=map_consistent, lmax_global=lmax_global)
+         CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
+                                    la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                                    ra, rab, rab2, scale, jpab_a, na1 - 1, nb1 - 1, &
+                                    rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                                    eps_rho_rspace, &
+                                    ga_gb_function=FUNC_ADBmDAB, &
+                                    idir=idir, &
+                                    map_consistent=map_consistent, lmax_global=lmax_global)
          IF (do_igaim) THEN
             ! here the decontracted mat_jb_{ab} is multiplied by
             !     f_{ab} = g_{a} * g_{b} ! THIS GOES OUTSIDE THE LOOP !
             IF (scale2 .NE. 0.0_dp) THEN
-               CALL collocate_pgf_product_rspace(la_max(iset), zeta(ipgf, iset), &
-                                                 la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                                                 ra, rab, rab2, scale2, jpab_d, na1 - 1, nb1 - 1, &
-                                                 rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                                 eps_rho_rspace, &
-                                                 ga_gb_function=FUNC_AB, &
-                                                 map_consistent=map_consistent, lmax_global=lmax_global)
+               CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
+                                          la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                                          ra, rab, rab2, scale2, jpab_d, na1 - 1, nb1 - 1, &
+                                          rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                                          eps_rho_rspace, &
+                                          ga_gb_function=FUNC_AB, &
+                                          map_consistent=map_consistent, lmax_global=lmax_global)
             ENDIF !rm
             ! here the decontracted mat_jp_rii{ab} is multiplied by
             !     f_{ab} = g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
             !             (dg_{a}/dr)_{idir} (d(r) - R_{b})_{iiB} g_{b}
             scale = 1.0_dp
-            CALL collocate_pgf_product_rspace(la_max(iset), zeta(ipgf, iset), &
-                                              la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                                              ra, rab, rab2, scale, jpab_b, na1 - 1, nb1 - 1, &
-                                              rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                              eps_rho_rspace, &
-                                              ga_gb_function=FUNC_ADBmDAB, &
-                                              idir=idir, ir=iiiB, &
-                                              rsgauge=rs_gauge(iiiB)%rs(igrid_level)%rs_grid, &
-                                              rsbuf=current_env%rs_buf(igrid_level)%rs_grid, &
-                                              map_consistent=map_consistent, lmax_global=lmax_global)
+            CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
+                                       la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                                       ra, rab, rab2, scale, jpab_b, na1 - 1, nb1 - 1, &
+                                       rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                                       eps_rho_rspace, &
+                                       ga_gb_function=FUNC_ADBmDAB, &
+                                       idir=idir, ir=iiiB, &
+                                       rsgauge=rs_gauge(iiiB)%rs(igrid_level)%rs_grid, &
+                                       rsbuf=current_env%rs_buf(igrid_level)%rs_grid, &
+                                       map_consistent=map_consistent, lmax_global=lmax_global)
             ! here the decontracted mat_jp_riii{ab} is multiplied by
             !     f_{ab} = -g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
             !             (dg_{a}/dr)_{idir} (d(r) - R_{b})_{iiB} g_{b}
             scale = -1.0_dp
-            CALL collocate_pgf_product_rspace(la_max(iset), zeta(ipgf, iset), &
-                                              la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                                              ra, rab, rab2, scale, jpab_c, na1 - 1, nb1 - 1, &
-                                              rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                              eps_rho_rspace, &
-                                              ga_gb_function=FUNC_ADBmDAB, &
-                                              idir=idir, ir=iiB, &
-                                              rsgauge=rs_gauge(iiB)%rs(igrid_level)%rs_grid, &
-                                              rsbuf=current_env%rs_buf(igrid_level)%rs_grid, &
-                                              map_consistent=map_consistent, lmax_global=lmax_global)
+            CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
+                                       la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                                       ra, rab, rab2, scale, jpab_c, na1 - 1, nb1 - 1, &
+                                       rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                                       eps_rho_rspace, &
+                                       ga_gb_function=FUNC_ADBmDAB, &
+                                       idir=idir, ir=iiB, &
+                                       rsgauge=rs_gauge(iiB)%rs(igrid_level)%rs_grid, &
+                                       rsbuf=current_env%rs_buf(igrid_level)%rs_grid, &
+                                       map_consistent=map_consistent, lmax_global=lmax_global)
          ELSE
             ! here the decontracted mat_jp_rii{ab} is multiplied by
             !     f_{ab} = g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
             !             (dg_{a}/dr)_{idir} (r - R_{b})_{iiB} g_{b}
             scale = 1.0_dp
-            CALL collocate_pgf_product_rspace(la_max(iset), zeta(ipgf, iset), &
-                                              la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                                              ra, rab, rab2, scale, jpab_b, na1 - 1, nb1 - 1, &
-                                              rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                              eps_rho_rspace, &
-                                              ga_gb_function=FUNC_ARDBmDARB, &
-                                              idir=idir, ir=iiiB, &
-                                              map_consistent=map_consistent, lmax_global=lmax_global)
+            CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
+                                       la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                                       ra, rab, rab2, scale, jpab_b, na1 - 1, nb1 - 1, &
+                                       rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                                       eps_rho_rspace, &
+                                       ga_gb_function=FUNC_ARDBmDARB, &
+                                       idir=idir, ir=iiiB, &
+                                       map_consistent=map_consistent, lmax_global=lmax_global)
             ! here the decontracted mat_jp_riii{ab} is multiplied by
             !     f_{ab} = -g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
             !             (dg_{a}/dr)_{idir} (r - R_{b})_{iiB} g_{b}
             scale = -1.0_dp
-            CALL collocate_pgf_product_rspace(la_max(iset), zeta(ipgf, iset), &
-                                              la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                                              ra, rab, rab2, scale, jpab_c, na1 - 1, nb1 - 1, &
-                                              rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                              eps_rho_rspace, &
-                                              ga_gb_function=FUNC_ARDBmDARB, &
-                                              idir=idir, ir=iiB, &
-                                              map_consistent=map_consistent, lmax_global=lmax_global)
+            CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
+                                       la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                                       ra, rab, rab2, scale, jpab_c, na1 - 1, nb1 - 1, &
+                                       rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                                       eps_rho_rspace, &
+                                       ga_gb_function=FUNC_ARDBmDARB, &
+                                       idir=idir, ir=iiB, &
+                                       map_consistent=map_consistent, lmax_global=lmax_global)
          ENDIF
 
       END DO loop_tasks

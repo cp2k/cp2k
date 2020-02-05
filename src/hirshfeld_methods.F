@@ -45,7 +45,7 @@ MODULE hirshfeld_methods
                                               REALSPACE,&
                                               pw_p_type,&
                                               pw_release
-   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
+   USE qs_collocate_density,            ONLY: collocate_pgf_product
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential_low,      ONLY: integrate_pgf_product_rspace
@@ -481,11 +481,11 @@ CONTAINS
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                subpatch_pattern = 0
                ! la_max==0 so set lmax_global to 0
-               CALL collocate_pgf_product_rspace(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
-                                                 cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                                 ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
-                                                 lmax_global=0)
+               CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                          (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
+                                          cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
+                                          ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
+                                          lmax_global=0)
             END DO
          END DO
 

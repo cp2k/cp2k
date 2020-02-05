@@ -602,7 +602,7 @@ CONTAINS
 !>      10.2008 refactored [Joost VandeVondele]
 !> \note
 !>      -) this requires the radius to be computed in the same way as
-!>      collocate_pgf_product_rspace, we should factor that part into a subroutine
+!>      collocate_pgf_product, we should factor that part into a subroutine
 !>      -) we're assuming that integrate_pgf and collocate_pgf are the same cost for load balancing
 !>         this is more or less true for map_consistent
 !>      -) in principle, the computed radius could be recycled in integrate_pgf/collocate_pgf if it is certainly
@@ -663,7 +663,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief predicts the cost of a task in kcycles for a given task
 !>        the model is based on a fit of actual data, and might need updating
-!>        as collocate_pgf_product_rspace changes (or CPUs/compilers change)
+!>        as collocate_pgf_product changes (or CPUs/compilers change)
 !>        maybe some dynamic approach, improving the cost model on the fly could
 !>        work as well
 !>        the cost model does not yet take into account the fraction of space

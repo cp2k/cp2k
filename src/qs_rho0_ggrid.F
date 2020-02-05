@@ -45,7 +45,7 @@ MODULE qs_rho0_ggrid
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
                                               pw_release
-   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
+   USE qs_collocate_density,            ONLY: collocate_pgf_product
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -176,7 +176,7 @@ CONTAINS
 
       ALLOCATE (pab(nch_max, 1))
 
-      !Compute global lmax for use in collocate_pgf_product_rspace
+      !Compute global lmax for use in collocate_pgf_product
       lmax_global = 0
       DO ikind = 1, SIZE(atomic_kind_set)
          CALL get_rho0_mpole(rho0_mpole=rho0, ikind=ikind, l0_ikind=l0_ikind)
@@ -227,7 +227,7 @@ CONTAINS
 
             ra(:) = pbc(particle_set(iatom)%r, cell)
 
-            CALL collocate_pgf_product_rspace( &
+            CALL collocate_pgf_product( &
                l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
                ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, &
                rs_grid, cell, cube_info(igrid), eps_rho_rspace, ga_gb_function=401, &
