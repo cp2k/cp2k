@@ -85,7 +85,7 @@ CONTAINS
       ! compute rho for the last stored value
       CALL lbfgs_history_last_rho(history)
 
-      CALL lbfgs_history_direction(history, variable, gradient, direction)
+      CALL lbfgs_history_direction(history, gradient, direction)
 
       ! action 1 will seed the next storage cell
       CALL lbfgs_history_push(history, variable, vartype=1, action=1)
@@ -239,10 +239,10 @@ CONTAINS
 !> \param gradient ...
 !> \param direction ...
 ! **************************************************************************************************
-   SUBROUTINE lbfgs_history_direction(history, variable, gradient, direction)
+   SUBROUTINE lbfgs_history_direction(history, gradient, direction)
 
       TYPE(lbfgs_history_type)                           :: history
-      TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: variable, gradient
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: gradient
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: direction
 
       INTEGER                                            :: ispin, istore, iterm, nterms
