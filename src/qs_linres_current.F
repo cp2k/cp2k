@@ -53,6 +53,10 @@ MODULE qs_linres_current
         dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
         dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
+   USE grid_collocate,                  ONLY: collocate_pgf_product
+   USE grid_modify_pab_block,           ONLY: FUNC_AB,&
+                                              FUNC_ADBmDAB,&
+                                              FUNC_ARDBmDARB
    USE input_constants,                 ONLY: current_gauge_atom
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_get_lval,&
@@ -79,7 +83,6 @@ MODULE qs_linres_current
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_p_type
-   USE qs_collocate_density,            ONLY: collocate_pgf_product
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -99,9 +102,6 @@ MODULE qs_linres_current
    USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
-   USE qs_modify_pab_block,             ONLY: FUNC_AB,&
-                                              FUNC_ADBmDAB,&
-                                              FUNC_ARDBmDARB
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&

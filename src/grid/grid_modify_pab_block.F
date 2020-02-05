@@ -8,17 +8,17 @@
 !>      on the real space grid specific functions of the primitives
 !> \author MI 06.2006
 ! **************************************************************************************************
-MODULE qs_modify_pab_block
+MODULE grid_modify_pab_block
 
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: coset
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_modify_pab_block'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'grid_modify_pab_block'
 
 ! *** Public subroutines ***
 
@@ -859,5 +859,5 @@ CONTAINS
 
    END SUBROUTINE prepare_arb
 
-END MODULE qs_modify_pab_block
+END MODULE grid_modify_pab_block
 

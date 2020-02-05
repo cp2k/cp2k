@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright (C) 2000 - 2020  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
-MODULE qs_integrate_potential_low
+MODULE grid_integrate
    USE ao_util,                         ONLY: exp_radius_very_extended
    USE cell_types,                      ONLY: cell_type
    USE cube_utils,                      ONLY: compute_cube_center,&
@@ -18,7 +18,7 @@ MODULE qs_integrate_potential_low
                                               current_maxl,&
                                               ncoset
    USE realspace_grid_types,            ONLY: realspace_grid_type
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
@@ -26,7 +26,7 @@ MODULE qs_integrate_potential_low
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_integrate_potential_low'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'grid_integrate'
 
 ! *** Don't include this routines directly, use the interface to
 ! *** qs_integrate_potential
@@ -1069,4 +1069,4 @@ CONTAINS
 
    END SUBROUTINE hab_derivatives
 
-END MODULE qs_integrate_potential_low
+END MODULE grid_integrate
