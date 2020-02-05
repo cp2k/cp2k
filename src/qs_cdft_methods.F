@@ -23,6 +23,8 @@ MODULE qs_cdft_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw
    USE cube_utils,                      ONLY: cube_info_type
+   USE grid_collocate,                  ONLY: collocate_pgf_product
+   USE grid_modify_pab_block,           ONLY: FUNC_AB
    USE hirshfeld_types,                 ONLY: get_hirshfeld_info,&
                                               hirshfeld_type,&
                                               set_hirshfeld_info
@@ -59,14 +61,12 @@ MODULE qs_cdft_methods
                                               cdft_constraint_print,&
                                               hfun_scale,&
                                               hirshfeld_constraint_init
-   USE qs_collocate_density,            ONLY: collocate_pgf_product
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_modify_pab_block,             ONLY: FUNC_AB
    USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                               mpole_rho_atom,&
                                               rho0_mpole_type

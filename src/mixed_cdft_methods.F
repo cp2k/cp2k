@@ -52,6 +52,8 @@ MODULE mixed_cdft_methods
                                               use_qmmm,&
                                               use_qmmmx,&
                                               use_qs_force
+   USE grid_collocate,                  ONLY: collocate_pgf_product
+   USE grid_modify_pab_block,           ONLY: FUNC_AB
    USE hirshfeld_methods,               ONLY: create_shape_function
    USE hirshfeld_types,                 ONLY: hirshfeld_type
    USE input_constants,                 ONLY: &
@@ -101,7 +103,6 @@ MODULE mixed_cdft_methods
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE
    USE qs_cdft_types,                   ONLY: cdft_control_type
-   USE qs_collocate_density,            ONLY: collocate_pgf_product
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -114,7 +115,6 @@ MODULE mixed_cdft_methods
                                               deallocate_mo_set,&
                                               mo_set_p_type,&
                                               set_mo_set
-   USE qs_modify_pab_block,             ONLY: FUNC_AB
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               rs2pw,&
                                               rs_grid_release,&
