@@ -305,7 +305,7 @@ CONTAINS
                CALL collocate_pgf_product(ni, 1/(2*alpha**2), 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
                                           cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                          ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
+                                          use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
                                           lmax_global=lmax_global)
 
             END DO
@@ -490,7 +490,7 @@ CONTAINS
                CALL collocate_pgf_product(ni, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
                                           cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                          ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
+                                          use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
                                           lmax_global=lmax_global)
 
             END DO
@@ -968,7 +968,7 @@ CONTAINS
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, -1.0_dp, pab, 0, 0, rs_rho, &
                                           cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                          ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
+                                          use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
                                           lmax_global=0)
 
             END DO
@@ -1454,6 +1454,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
+      TYPE(realspace_grid_type)                          :: threadlocal_rsgrid
       TYPE(task_list_type), POINTER                      :: task_list, task_list_soft
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
 
@@ -1616,10 +1617,8 @@ CONTAINS
          ENDIF
       END DO
 
-      IF (nthread > 1) THEN
-         IF (.NOT. ASSOCIATED(lgrid%r)) THEN
-            CALL lgrid_allocate_grid(lgrid, nthread)
-         ENDIF
+      IF (.NOT. ASSOCIATED(lgrid%r)) THEN
+         CALL lgrid_allocate_grid(lgrid, nthread)
       END IF
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -1674,7 +1673,7 @@ CONTAINS
 !$OMP          PRIVATE(nsetb,nsgfb,sphi_b,zetb,p_block,found), &
 !$OMP          PRIVATE(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
 !$OMP          PRIVATE(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,lb,ub,n,nw), &
-!$OMP          PRIVATE(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr)
+!$OMP          PRIVATE(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,threadlocal_rsgrid)
 
       ithread = 0
 !$    ithread = omp_get_thread_num()
@@ -1689,10 +1688,16 @@ CONTAINS
       ! grid level is completed
       loop_gridlevels: DO igrid_level = 1, gridlevel_info%ngrid_levels
 
+         ! Setup thread local copy of realspace grid with lgrid as the thread's work space.
+         threadlocal_rsgrid = rs_rho(igrid_level)%rs_grid
+         threadlocal_rsgrid%r(threadlocal_rsgrid%lb_local(1):threadlocal_rsgrid%ub_local(1), &
+                              threadlocal_rsgrid%lb_local(2):threadlocal_rsgrid%ub_local(2), &
+                              threadlocal_rsgrid%lb_local(3):threadlocal_rsgrid%ub_local(3)) &
+            => lgrid%r(:, ithread)
+
          ! Only zero the region of the lgrid required for this grid level
-         IF (nthread > 1) THEN
-            lgrid%r(1:rs_rho(igrid_level)%rs_grid%ngpts_local, ithread) = 0._dp
-         END IF
+         threadlocal_rsgrid%r(:, :, :) = 0._dp
+
 !$OMP DO schedule(dynamic, MAX(1,task_list%npairs(igrid_level)/(nthread*50)))
          loop_pairs: DO ipair = 1, task_list%npairs(igrid_level)
          loop_tasks: DO itask = task_list%taskstart(ipair, igrid_level), task_list%taskstop(ipair, igrid_level)
@@ -1815,58 +1820,29 @@ CONTAINS
                use_subpatch = .FALSE.
             ENDIF
 
-            IF (nthread > 1) THEN
-               IF (iatom <= jatom) THEN
-                  CALL collocate_pgf_product( &
-                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                     lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                     ra, rab, rab2, scale, pab, na1 - 1, nb1 - 1, &
-                     rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                     eps_rho_rspace, &
-                     ga_gb_function=ga_gb_function, &
-                     idir=my_idir, &
-                     lgrid=lgrid, ithread=ithread, &
-                     map_consistent=map_consistent, use_subpatch=use_subpatch, &
-                     subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
-               ELSE
-                  rab_inv = -rab
-                  CALL collocate_pgf_product( &
-                     lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                     rb, rab_inv, rab2, scale, pab, nb1 - 1, na1 - 1, &
-                     rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                     eps_rho_rspace, &
-                     ga_gb_function=ga_gb_function, &
-                     idir=my_idir, &
-                     lgrid=lgrid, ithread=ithread, &
-                     map_consistent=map_consistent, use_subpatch=use_subpatch, &
-                     subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
-               END IF
+            IF (iatom <= jatom) THEN
+               CALL collocate_pgf_product( &
+                  la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                  lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                  ra, rab, rab2, scale, pab, na1 - 1, nb1 - 1, &
+                  threadlocal_rsgrid, cell, cube_info(igrid_level), &
+                  eps_rho_rspace, &
+                  ga_gb_function=ga_gb_function, &
+                  idir=my_idir, &
+                  map_consistent=map_consistent, use_subpatch=use_subpatch, &
+                  subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
             ELSE
-               IF (iatom <= jatom) THEN
-                  CALL collocate_pgf_product( &
-                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                     lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                     ra, rab, rab2, scale, pab, na1 - 1, nb1 - 1, &
-                     rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                     eps_rho_rspace, &
-                     ga_gb_function=ga_gb_function, &
-                     idir=my_idir, &
-                     map_consistent=map_consistent, use_subpatch=use_subpatch, &
-                     subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
-               ELSE
-                  rab_inv = -rab
-                  CALL collocate_pgf_product( &
-                     lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                     rb, rab_inv, rab2, scale, pab, nb1 - 1, na1 - 1, &
-                     rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                     eps_rho_rspace, &
-                     ga_gb_function=ga_gb_function, &
-                     idir=my_idir, &
-                     map_consistent=map_consistent, use_subpatch=use_subpatch, &
-                     subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
-               END IF
+               rab_inv = -rab
+               CALL collocate_pgf_product( &
+                  lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                  la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                  rb, rab_inv, rab2, scale, pab, nb1 - 1, na1 - 1, &
+                  threadlocal_rsgrid, cell, cube_info(igrid_level), &
+                  eps_rho_rspace, &
+                  ga_gb_function=ga_gb_function, &
+                  idir=my_idir, &
+                  map_consistent=map_consistent, use_subpatch=use_subpatch, &
+                  subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
             END IF
          END DO loop_tasks
          END DO loop_pairs
@@ -1874,50 +1850,48 @@ CONTAINS
 
          ! Now sum the thread-local grids back into the rs_grid
          ! (in parallel, each thread writes to a section of the rs_grid at a time)
-         IF (nthread > 1) THEN
-            nz = (1 + rs_rho(igrid_level)%rs_grid%ub_local(3) &
-                  - rs_rho(igrid_level)%rs_grid%lb_local(3))
-            nxy = (1 + rs_rho(igrid_level)%rs_grid%ub_local(1) &
-                   - rs_rho(igrid_level)%rs_grid%lb_local(1)) &
-                  *(1 + rs_rho(igrid_level)%rs_grid%ub_local(2) &
-                    - rs_rho(igrid_level)%rs_grid%lb_local(2))
+         nz = (1 + rs_rho(igrid_level)%rs_grid%ub_local(3) &
+               - rs_rho(igrid_level)%rs_grid%lb_local(3))
+         nxy = (1 + rs_rho(igrid_level)%rs_grid%ub_local(1) &
+                - rs_rho(igrid_level)%rs_grid%lb_local(1)) &
+               *(1 + rs_rho(igrid_level)%rs_grid%ub_local(2) &
+                 - rs_rho(igrid_level)%rs_grid%lb_local(2))
 
-            ! Work out the number of tree levels, and start the reduction
+         ! Work out the number of tree levels, and start the reduction
 
-            nrlevel = CEILING(LOG10(1.0_dp*nthread)/LOG10(2.0_dp))
+         nrlevel = CEILING(LOG10(1.0_dp*nthread)/LOG10(2.0_dp))
 
-            DO nr = 1, nrlevel
-               nblock = 2**nr
-               nzsize = MIN(nblock, nthread - (ithread/nblock)*nblock)
-               itask = MODULO(ithread, nblock)
+         DO nr = 1, nrlevel
+            nblock = 2**nr
+            nzsize = MIN(nblock, nthread - (ithread/nblock)*nblock)
+            itask = MODULO(ithread, nblock)
 
-               lb = (nz*itask)/nzsize
-               ub = (nz*(itask + 1))/nzsize - 1
-               nw = (ithread/nblock)*nblock
-               lbw = 1 + nxy*lb
+            lb = (nz*itask)/nzsize
+            ub = (nz*(itask + 1))/nzsize - 1
+            nw = (ithread/nblock)*nblock
+            lbw = 1 + nxy*lb
 
-               n = nw + nblock/2
-               IF (n < nthread) THEN
-                  lbr = 1 + nxy*lb
+            n = nw + nblock/2
+            IF (n < nthread) THEN
+               lbr = 1 + nxy*lb
 
-                  CALL daxpy(nxy*(1 + ub - lb), 1.0_dp, lgrid%r(lbr, n), 1, lgrid%r(lbw, nw), 1)
-               END IF
+               CALL daxpy(nxy*(1 + ub - lb), 1.0_dp, lgrid%r(lbr, n), 1, lgrid%r(lbw, nw), 1)
+            END IF
 !$OMP BARRIER
-            END DO
+         END DO
 
-            ! Copy final result from first local grid to rs_grid
-            lb = (nz*ithread)/nthread
-            ub = (nz*(ithread + 1))/nthread - 1
-            nzsize = 1 + (ub - lb)
+         ! Copy final result from first local grid to rs_grid
+         lb = (nz*ithread)/nthread
+         ub = (nz*(ithread + 1))/nthread - 1
+         nzsize = 1 + (ub - lb)
 
-            lb = lb + rs_rho(igrid_level)%rs_grid%lb_local(3)
-            ub = ub + rs_rho(igrid_level)%rs_grid%lb_local(3)
-            lbr = 1 + nxy*(nz*ithread/nthread)
+         lb = lb + rs_rho(igrid_level)%rs_grid%lb_local(3)
+         ub = ub + rs_rho(igrid_level)%rs_grid%lb_local(3)
+         lbr = 1 + nxy*(nz*ithread/nthread)
 
-            CALL daxpy(nxy*nzsize, 1.0_dp, lgrid%r(lbr, 0), 1, &
-                       rs_rho(igrid_level)%rs_grid%r(:, :, lb:ub), 1)
+         CALL daxpy(nxy*nzsize, 1.0_dp, lgrid%r(lbr, 0), 1, &
+                    rs_rho(igrid_level)%rs_grid%r(:, :, lb:ub), 1)
 !$OMP BARRIER
-         END IF
       END DO loop_gridlevels
 !$OMP END PARALLEL
 

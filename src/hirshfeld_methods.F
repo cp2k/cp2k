@@ -484,7 +484,7 @@ CONTAINS
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
                                           cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                          ithread=ithread, use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
+                                          use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
                                           lmax_global=0)
             END DO
          END DO

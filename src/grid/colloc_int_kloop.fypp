@@ -102,13 +102,7 @@ $:  body.replace('kgrad',str(i))
 #:if FM_FLAT_GRID
                 grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
 #:else
-                IF ( PRESENT ( lgrid ) ) THEN
-                  ig = ii * (l_bounds(2,2)-l_bounds(1,2)+1) * (l_bounds(2,1)-l_bounds(1,1)+1) + &
-                       ij * (l_bounds(2,2)-l_bounds(1,2)+1) + ik + 1
-                  lgrid%r(ig,ithread)=lgrid%r(ig,ithread) + p_v*res_k
-                ELSE
-                  grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
-                END IF
+                grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
 #:endif
 #:endif
 
@@ -156,13 +150,7 @@ $:  body.replace('kgrad',str(i))
 #:if FM_FLAT_GRID
                 grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
 #:else
-                IF ( PRESENT ( lgrid ) ) THEN
-                  ig = ii * (l_bounds(2,2)-l_bounds(1,2)+1) * (l_bounds(2,1)-l_bounds(1,1)+1) + &
-                       ij * (l_bounds(2,2)-l_bounds(1,2)+1) + ik + 1
-                  lgrid%r(ig,ithread)=lgrid%r(ig,ithread) + p_v*res_k
-                ELSE
-                  grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
-                END IF
+                grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
 #:endif
 #:endif
                 ik=ik-1
@@ -206,13 +194,7 @@ $:  body.replace('kgrad',str(i))
 #:if FM_FLAT_GRID
                 grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
 #:else
-                IF ( PRESENT ( lgrid ) ) THEN
-                  ig = ii * (l_bounds(2,2)-l_bounds(1,2)+1) * (l_bounds(2,1)-l_bounds(1,1)+1) + &
-                       ij * (l_bounds(2,2)-l_bounds(1,2)+1) + ik + 1
-                  lgrid%r(ig,ithread)=lgrid%r(ig,ithread) + p_v*res_k
-                ELSE
-                  grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
-                END IF
+                grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
 #:endif
 #:endif
 
@@ -258,13 +240,7 @@ $:  body.replace('kgrad',str(i))
 #:if FM_FLAT_GRID
                 grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
 #:else
-                IF ( PRESENT ( lgrid ) ) THEN
-                  ig = ii * (l_bounds(2,2)-l_bounds(1,2)+1) * (l_bounds(2,1)-l_bounds(1,1)+1) + &
-                       ij * (l_bounds(2,2)-l_bounds(1,2)+1) + ik + 1
-                  lgrid%r(ig,ithread)=lgrid%r(ig,ithread) + p_v*res_k
-                ELSE
-                  grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
-                END IF
+                grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
 #:endif
 #:endif
                 ik=ik-1
