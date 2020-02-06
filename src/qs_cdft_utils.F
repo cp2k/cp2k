@@ -379,7 +379,7 @@ CONTAINS
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, &
                                                 pab, 0, 0, rs_cavity, cell, pw_env%cube_info(1), &
                                                 dft_control%qs_control%eps_rho_rspace, &
-                                                ga_gb_function=FUNC_AB, ithread=ithread, &
+                                                ga_gb_function=FUNC_AB, &
                                                 use_subpatch=.TRUE., subpatch_pattern=0_int_8, &
                                                 lmax_global=0)
                END DO

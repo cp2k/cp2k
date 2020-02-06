@@ -231,7 +231,7 @@ CONTAINS
                l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
                ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, &
                rs_grid, cell, cube_info(igrid), eps_rho_rspace, ga_gb_function=401, &
-               ithread=ithread, collocate_rho0=.TRUE., rpgf0_s=rpgf0, &
+               collocate_rho0=.TRUE., rpgf0_s=rpgf0, &
                use_subpatch=.TRUE., subpatch_pattern=0_int_8, lmax_global=lmax_global)
 
          END DO !  j

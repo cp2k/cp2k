@@ -18,14 +18,10 @@ MODULE grid_collocate
         prepare_diadib, prepare_diiadiib, prepare_dijadijb
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE lgrid_types,                     ONLY: lgrid_type
    USE mathconstants,                   ONLY: fac
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
    USE realspace_grid_types,            ONLY: realspace_grid_type
-
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
-
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -58,8 +54,6 @@ CONTAINS
 !> \param cube_info ...
 !> \param eps_rho_rspace ...
 !> \param ga_gb_function ...
-!> \param lgrid ...
-!> \param ithread ...
 !> \param map_consistent ...
 !> \param collocate_rho0 ...
 !> \param rpgf0_s ...
@@ -76,7 +70,6 @@ CONTAINS
                                     ra, rab, rab2, scale, pab, o1, o2, &
                                     rsgrid, cell, cube_info, &
                                     eps_rho_rspace, ga_gb_function, &
-                                    lgrid, ithread, &
                                     map_consistent, &
                                     collocate_rho0, &
                                     rpgf0_s, idir, ir, rsgauge, rsbuf, &
@@ -92,13 +85,11 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                :: rab2, scale
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
       INTEGER, INTENT(IN)                      :: o1, o2
-      TYPE(realspace_grid_type), POINTER       :: rsgrid
+      TYPE(realspace_grid_type)                :: rsgrid
       TYPE(cell_type), POINTER                 :: cell
       TYPE(cube_info_type), INTENT(IN)         :: cube_info
       REAL(KIND=dp), INTENT(IN)                :: eps_rho_rspace
       INTEGER, INTENT(IN)                      :: ga_gb_function
-      TYPE(lgrid_type), OPTIONAL               :: lgrid
-      INTEGER, INTENT(IN), OPTIONAL            :: ithread
       LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent, collocate_rho0
       REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
       INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
@@ -110,7 +101,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product', &
                                      routineP = moduleN//':'//routineN
 
-      INTEGER :: cmax, gridbounds(2, 3), i, ico, icoef, ider1, ider2, ig, ithread_l, &
+      INTEGER :: cmax, gridbounds(2, 3), i, ico, icoef, ider1, ider2, ig, &
                  jco, k, l, la_max_local, la_min_local, lb_max_local, lb_min_local, &
                  length, lxa, lxb, lxy, lxyz, lya, lyb, &
                  lza, lzb, o1_local, o2_local, offset, start
@@ -125,7 +116,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab_local
       REAL(KIND=dp), DIMENSION(:, :, :), &
          POINTER                                :: grid
-
       INTEGER :: lxp, lyp, lzp, lp, lxpm, iaxis
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: map
       REAL(kind=dp) :: p_ele
@@ -148,12 +138,6 @@ CONTAINS
             subpatch_collocate = .TRUE.
             CPASSERT(PRESENT(subpatch_pattern))
          ENDIF
-      ENDIF
-
-      IF (PRESENT(ithread)) THEN
-         ithread_l = ithread
-      ELSE
-         ithread_l = 0
       ENDIF
 
       ! use identical radii for integrate and collocate ?
@@ -666,12 +650,7 @@ CONTAINS
          IF (PRESENT(ir) .AND. PRESENT(rsgauge)) CALL collocate_ortho_set_to_0()
 
 #include "prep.f90"
-
-         IF (PRESENT(lgrid)) THEN
-#include "call_collocate_omp.f90"
-         ELSE
 #include "call_collocate.f90"
-         END IF
 
          IF (PRESENT(ir) .AND. PRESENT(rsgauge)) CALL collocate_gauge_ortho()
 
@@ -977,12 +956,7 @@ CONTAINS
                   res = res*exp2i
 
                   i_index = grid_map(i)
-                  IF (PRESENT(lgrid)) THEN
-                     ig = (k_index - 1)*ng(2)*ng(1) + (j_index - 1)*ng(1) + (i_index - 1) + 1
-                     lgrid%r(ig, ithread_l) = lgrid%r(ig, ithread_l) + res
-                  ELSE
-                     grid(i_index, j_index, k_index) = grid(i_index, j_index, k_index) + res
-                  ENDIF
+                  grid(i_index, j_index, k_index) = grid(i_index, j_index, k_index) + res
                ENDDO
             ENDDO
          ENDDO
@@ -1018,16 +992,9 @@ CONTAINS
          IF (BTEST(subpatch_pattern, 0)) local_s(1) = local_s(1) - rsgrid%desc%border
          IF (BTEST(subpatch_pattern, 2)) local_s(2) = local_s(2) - rsgrid%desc%border
          IF (BTEST(subpatch_pattern, 4)) local_s(3) = local_s(3) - rsgrid%desc%border
-         IF (PRESENT(lgrid)) THEN
-            CALL collocGauss(h=cell%hmat, h_inv=cell%h_inv, &
-                             grid=grid, poly=poly_d3, alphai=zetp, posi=rp, max_r2=radius*radius, &
-                             periodic=periodic, gdim=ng, local_bounds=local_b, local_shift=local_s, &
-                             lgrid=lgrid)
-         ELSE
-            CALL collocGauss(h=cell%hmat, h_inv=cell%h_inv, &
-                             grid=grid, poly=poly_d3, alphai=zetp, posi=rp, max_r2=radius*radius, &
-                             periodic=periodic, gdim=ng, local_bounds=local_b, local_shift=local_s)
-         END IF
+         CALL collocGauss(h=cell%hmat, h_inv=cell%h_inv, &
+                          grid=grid, poly=poly_d3, alphai=zetp, posi=rp, max_r2=radius*radius, &
+                          periodic=periodic, gdim=ng, local_bounds=local_b, local_shift=local_s)
          ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
 
       END SUBROUTINE
@@ -1055,16 +1022,9 @@ CONTAINS
          rShifted(3) = rp(3) + cell%hmat(3, 1)*local_shift(1) &
                        + cell%hmat(3, 2)*local_shift(2) &
                        + cell%hmat(3, 3)*local_shift(3)
-         IF (PRESENT(lgrid)) THEN
-            CALL collocGauss(h=cell%hmat, h_inv=cell%h_inv, &
-                             grid=grid, poly=poly_d3, alphai=zetp, posi=rShifted, max_r2=radius*radius, &
-                             periodic=periodic, gdim=ng, local_bounds=local_b, &
-                             lgrid=lgrid)
-         ELSE
-            CALL collocGauss(h=cell%hmat, h_inv=cell%h_inv, &
-                             grid=grid, poly=poly_d3, alphai=zetp, posi=rShifted, max_r2=radius*radius, &
-                             periodic=periodic, gdim=ng, local_bounds=local_b)
-         END IF
+         CALL collocGauss(h=cell%hmat, h_inv=cell%h_inv, &
+                          grid=grid, poly=poly_d3, alphai=zetp, posi=rShifted, max_r2=radius*radius, &
+                          periodic=periodic, gdim=ng, local_bounds=local_b)
          ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
 
       END SUBROUTINE
@@ -1102,12 +1062,7 @@ CONTAINS
             ! point on the grid (including pbc)
             ipoint = MODULO((/i, j, k/), ng) + 1
             ! add to grid
-            IF (PRESENT(lgrid)) THEN
-               ig = ipoint(3)*ng(2)*ng(1) + ipoint(2)*ng(1) + ipoint(1) + 1
-               lgrid%r(ig, ithread_l) = lgrid%r(ig, ithread_l) + primpt
-            ELSE
-               grid(ipoint(1), ipoint(2), ipoint(3)) = grid(ipoint(1), ipoint(2), ipoint(3)) + primpt
-            ENDIF
+            grid(ipoint(1), ipoint(2), ipoint(3)) = grid(ipoint(1), ipoint(2), ipoint(3)) + primpt
          ENDDO
          ENDDO
          ENDDO
