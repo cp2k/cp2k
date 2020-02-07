@@ -238,12 +238,19 @@ CONTAINS
 
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
          CALL cite_reference(Bates2013)
-
       ENDIF
       IF (mp2_env%ri_rpa%do_rse) THEN
          CALL cite_reference(Ren2011)
          CALL cite_reference(Ren2013)
       ENDIF
+      IF (my_do_gw) THEN
+         CALL cite_reference(Wilhelm2016a)
+         CALL cite_reference(Wilhelm2017)
+         CALL cite_reference(Wilhelm2018)
+      END IF
+      IF (do_im_time) THEN
+         CALL cite_reference(Wilhelm2016b)
+      END IF
 
       my_open_shell = .FALSE.
       IF (PRESENT(BIb_C_beta) .AND. &
