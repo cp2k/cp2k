@@ -86,7 +86,8 @@ MODULE bibliography
                             Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2013, Grimme2016, &
                             Grimme2017, Kondov2007, &
                             Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, Paziani2006, &
-                            Toulouse2004, Limpanuparb2011, Martin2003, Yin2017, Goerigk2017
+                            Toulouse2004, Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
+                            Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018
 
 CONTAINS
 
@@ -4344,6 +4345,82 @@ CONTAINS
                          "UR  - http://dx.doi.org/10.1039/C7CP04913G", &
                          "ER"), &
                          DOI="10.1039/C7CP04913G")
+
+      CALL add_reference(key=Wilhelm2016a, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Wilhelm, J", &
+                         "   Del Ben, M", &
+                         "   Hutter, J", &
+                         "AF Wilhelm, Jan", &
+                         "   Del Ben, Mauro", &
+                         "   Hutter, Juerg", &
+                         "TI GW in the Gaussian and plane waves scheme with application to linear acenes", &
+                         "JO J. Chem. Theory Comput.", &
+                         "SP 3623", &
+                         "EP 3635", &
+                         "PY 2016", &
+                         "VL 12", &
+                         "DI 10.1021/acs.jctc.6b00380", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.6b00380")
+
+      CALL add_reference(key=Wilhelm2016a, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Wilhelm, J", &
+                         "   Seewald, P", &
+                         "   Del Ben, M", &
+                         "   Hutter, J", &
+                         "AF Wilhelm, Jan", &
+                         "   Seewald, Patrick", &
+                         "   Del Ben, Mauro", &
+                         "   Hutter, Juerg", &
+                         "TI Large-Scale Cubic-Scaling Random Phase Approximation Correlation", &
+                         "Energy Calculations Using a Gaussian Basis", &
+                         "JO J. Chem. Theory Comput.", &
+                         "SP 5851", &
+                         "EP 5859", &
+                         "PY 2016", &
+                         "VL 12", &
+                         "DI 10.1021/acs.jctc.6b00840", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.6b00840")
+
+      CALL add_reference(key=Wilhelm2016a, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Wilhelm, J", &
+                         "   Hutter, J", &
+                         "AF Wilhelm, Jan", &
+                         "   Hutter, Juerg", &
+                         "TI Periodic GW calculations in the Gaussian and plane-waves scheme", &
+                         "JO Phys. Rev. B", &
+                         "SP 235123", &
+                         "PY 2017", &
+                         "VL 95", &
+                         "DI 10.1103/PhysRevB.95.235123", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevB.95.235123")
+
+      CALL add_reference(key=Wilhelm2016a, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Wilhelm, J", &
+                         "   Golze, D", &
+                         "   Talirz, L", &
+                         "   Hutter, J", &
+                         "   Pignedoli, CA", &
+                         "AF Wilhelm, Jan", &
+                         "   Golze, Dorothea", &
+                         "   Talirz, Leopold", &
+                         "   Hutter, Juerg", &
+                         "   Pignedoli, Carlo A.", &
+                         "TI Toward GW calculations on thousands of atoms", &
+                         "JO J. Phys. Chem. Lett.", &
+                         "SP 306", &
+                         "EP 312", &
+                         "PY 2018", &
+                         "VL 9", &
+                         "DI 10.1021/acs.jpclett.7b02740", &
+                         "ER"), &
+                         DOI="10.1021/acs.jpclett.7b02740")
 
    END SUBROUTINE add_all_references
 
