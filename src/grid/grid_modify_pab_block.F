@@ -20,14 +20,10 @@ MODULE grid_modify_pab_block
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'grid_modify_pab_block'
 
-! *** Public subroutines ***
-
-   PUBLIC :: prepare_dadb, prepare_adb_m_dab, prepare_dab_p_adb, prepare_ardb_m_darb, prepare_arb
+   PUBLIC :: prepare_dadb, prepare_adb_m_dab, prepare_dab_p_adb, prepare_ardb_m_darb
    PUBLIC :: prepare_diadib, prepare_dijadijb, prepare_diiadiib
 
 CONTAINS
-
-!
 
 ! **************************************************************************************************
 !> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
@@ -106,7 +102,6 @@ CONTAINS
 
    END SUBROUTINE prepare_dadb
 
-!
 ! **************************************************************************************************
 !> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
 !>      is equivalent to mapping pab with  (ddi pgf_a) . (ddi pgf_b)
@@ -186,7 +181,7 @@ CONTAINS
       END IF
 
    END SUBROUTINE prepare_diadib
-!
+
 ! **************************************************************************************************
 !> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
 !>      is equivalent to mapping pab with  (ddidj pgf_a) . (ddidj pgf_b)
@@ -517,7 +512,6 @@ CONTAINS
 
    END SUBROUTINE prepare_adb_m_dab
 
-!
 ! **************************************************************************************************
 !> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
 !>      is equivalent to mapping pab with  pgf_a (nabla_{idir} pgf_b) + (nabla_{idir} pgf_a) pgf_b
@@ -594,8 +588,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE prepare_dab_p_adb
-
-!
 
 ! **************************************************************************************************
 !> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
@@ -799,53 +791,4 @@ CONTAINS
 
    END SUBROUTINE prepare_ardb_m_darb
 
-! **************************************************************************************************
-!> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
-!>    pgf_a (r-Rb)_{ir} pgf_b = pgf_a * pgf_b{+1ir}
-!> \param pab_local ...
-!> \param pab ...
-!> \param ir ...
-!> \param lxa ...
-!> \param lya ...
-!> \param lza ...
-!> \param lxb ...
-!> \param lyb ...
-!> \param lzb ...
-!> \param o1 ...
-!> \param o2 ...
-! **************************************************************************************************
-   SUBROUTINE prepare_arb(pab_local, pab, ir, lxa, lya, lza, lxb, lyb, lzb, o1, o2)
-
-      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: pab_local
-      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: pab
-      INTEGER, INTENT(IN)                                :: ir, lxa, lya, lza, lxb, lyb, lzb, o1, o2
-
-      INTEGER                                            :: ico, ico_l, jco, jco_l
-
-      ico = coset(lxa, lya, lza)
-      jco = coset(lxb, lyb, lzb)
-
-      IF (ir == 1) THEN
-
-         ico_l = coset(lxa, lya, lza)
-         jco_l = coset((lxb + 1), lyb, lzb)
-         pab_local(ico_l, jco_l) = pab_local(ico_l, jco_l) + pab(o1 + ico, o2 + jco)
-
-      ELSEIF (ir == 2) THEN
-
-         ico_l = coset(lxa, lya, lza)
-         jco_l = coset(lxb, (lyb + 1), lzb)
-         pab_local(ico_l, jco_l) = pab_local(ico_l, jco_l) + pab(o1 + ico, o2 + jco)
-
-      ELSEIF (ir == 3) THEN
-
-         ico_l = coset(lxa, lya, lza)
-         jco_l = coset(lxb, lyb, (lzb + 1))
-         pab_local(ico_l, jco_l) = pab_local(ico_l, jco_l) + pab(o1 + ico, o2 + jco)
-
-      END IF
-
-   END SUBROUTINE prepare_arb
-
 END MODULE grid_modify_pab_block
-
