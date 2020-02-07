@@ -98,6 +98,7 @@ CONTAINS
 !> \param Eigenval ...
 !> \param nmo ...
 !> \param num_integ_points ...
+!> \param num_integ_points_freq ...
 !> \param cut_memory ...
 !> \param unit_nr ...
 !> \param mp2_env ...
@@ -120,7 +121,7 @@ CONTAINS
                                   weights_cos_tf_t_to_w, &
                                   tj, tau_tj, e_fermi, eps_filter, &
                                   alpha, eps_filter_im_time, Eigenval, nmo, &
-                                  num_integ_points, cut_memory, unit_nr, &
+                                  num_integ_points, num_integ_points_freq, cut_memory, unit_nr, &
                                   mp2_env, para_env, &
                                   stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
                                   has_mat_P_blocks, do_ri_sos_laplace_mp2)
@@ -142,7 +143,8 @@ CONTAINS
                                                             e_fermi
       REAL(KIND=dp), DIMENSION(0:num_integ_points), &
          INTENT(IN)                                      :: tau_tj
-      INTEGER, INTENT(IN)                                :: cut_memory, unit_nr
+      INTEGER, INTENT(IN)                                :: num_integ_points_freq, cut_memory, &
+                                                            unit_nr
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(IN)                          :: stabilize_exp
@@ -506,7 +508,7 @@ CONTAINS
 
                            tau = tau_tj(jquad)
 
-                           DO iquad = 1, num_integ_points
+                           DO iquad = 1, num_integ_points_freq
 
                               omega = tj(iquad)
                               weight = weights_cos_tf_t_to_w(iquad, jquad)
@@ -591,17 +593,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param mat_P_omega ...
-!> \param num_integ_points ...
-!> \param nkp ...
 ! **************************************************************************************************
-   SUBROUTINE zero_mat_P_omega(mat_P_omega, num_integ_points, nkp)
+   SUBROUTINE zero_mat_P_omega(mat_P_omega)
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega
-      INTEGER, INTENT(IN)                                :: num_integ_points, nkp
 
       INTEGER                                            :: i_kp, jquad
 
-      DO jquad = 1, num_integ_points
-         DO i_kp = 1, nkp
+      DO jquad = 1, SIZE(mat_P_omega, 1)
+         DO i_kp = 1, SIZE(mat_P_omega, 2)
 
             CALL dbcsr_set(mat_P_omega(jquad, i_kp)%matrix, 0.0_dp)
 

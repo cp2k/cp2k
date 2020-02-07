@@ -62,6 +62,7 @@
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
             NUMB_POLES            2
+            ANALYTIC_CONTINUATION TWO_POLE
             MAX_ITER_FIT          10000
             CROSSING_SEARCH       Z_SHOT 
             FERMI_LEVEL_OFFSET    2.0E-2

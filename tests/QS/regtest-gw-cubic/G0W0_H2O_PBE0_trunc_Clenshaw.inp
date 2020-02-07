@@ -50,7 +50,8 @@
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
         &RI_METRIC
-          POTENTIAL_TYPE IDENTITY
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS 3.0
         &END
         &WFC_GPW
           ! normally, this EPS_FILTER controls the accuracy and
@@ -68,13 +69,14 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
-          RPA_NUM_QUAD_POINTS 10
+          RPA_NUM_QUAD_POINTS 5
           MINIMAX
           GW
           &RI_G0W0
-            CORR_MOS_OCC          10
-            CORR_MOS_VIRT         10
+            CORR_MOS_OCC          1
+            CORR_MOS_VIRT         1
             ANALYTIC_CONTINUATION TWO_POLE
+            NUM_FREQ_POINTS_CLENSHAW_LOW_SCALING_GW     6
           &END RI_G0W0
         &END RI_RPA
         MEMORY  200.
