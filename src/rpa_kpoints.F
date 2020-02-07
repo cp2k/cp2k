@@ -88,14 +88,14 @@ CONTAINS
 !> \param eps_filter_im_time ...
 !> \param kpoints ...
 !> \param fm_mat_L ...
-!> \param fm_mat_W_tau ...
+!> \param fm_mat_W ...
 !> \param fm_mat_RI_global_work ...
 !> \param mat_SinvVSinv ...
 ! **************************************************************************************************
    SUBROUTINE RPA_postprocessing_kp(dimen_RI, num_integ_points, jquad, nkp, count_ev_sc_GW, para_env, para_env_RPA, &
                                     Erpa, tau_tj, tj, wj, weights_cos_tf_w_to_t, wkp_W, do_gw_im_time, do_ri_Sigma_x, &
                                     do_kpoints_from_Gamma, do_kpoints_cubic_RPA, cfm_mat_W_kp_tau, cfm_mat_Q, ikp_local, &
-                                    mat_P_omega, mat_P_omega_kp, qs_env, eps_filter_im_time, kpoints, fm_mat_L, fm_mat_W_tau, &
+                                    mat_P_omega, mat_P_omega_kp, qs_env, eps_filter_im_time, kpoints, fm_mat_L, fm_mat_W, &
                                     fm_mat_RI_global_work, mat_SinvVSinv)
 
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, nkp, &
@@ -119,7 +119,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
 
@@ -174,7 +174,7 @@ CONTAINS
 
                CALL get_dummys(tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy)
 
-               CALL compute_Wc_real_space_tau_GW(fm_mat_W_tau, cfm_mat_Q, &
+               CALL compute_Wc_real_space_tau_GW(fm_mat_W, cfm_mat_Q, &
                                                  fm_mat_L(ikp, 1)%matrix, &
                                                  fm_mat_L(ikp, 2)%matrix, &
                                                  dimen_RI, 1, 1, &
@@ -187,7 +187,7 @@ CONTAINS
             END IF
             IF (do_kpoints_from_Gamma) THEN
 
-               CALL compute_Wc_real_space_tau_GW(fm_mat_W_tau, cfm_mat_Q, &
+               CALL compute_Wc_real_space_tau_GW(fm_mat_W, cfm_mat_Q, &
                                                  fm_mat_L(ikp, 1)%matrix, &
                                                  fm_mat_L(ikp, 2)%matrix, &
                                                  dimen_RI, num_integ_points, jquad, &

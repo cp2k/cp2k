@@ -64,6 +64,7 @@
           &RI_G0W0
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
+            ANALYTIC_CONTINUATION TWO_POLE
             NUMB_POLES            2
             MAX_ITER_FIT          10000
             CROSSING_SEARCH       Z_SHOT

@@ -890,7 +890,7 @@ CONTAINS
                           enum_i_vals=(/gw_two_pole_model, gw_pade_approx/), &
                           enum_desc=s2a("Use 'two-pole' model.", &
                                         "Use Pade approximation."), &
-                          default_i_val=gw_two_pole_model)
+                          default_i_val=gw_pade_approx)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -911,6 +911,17 @@ CONTAINS
                           usage="GAMMA TRUE", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_FREQ_POINTS_CLENSHAW_LOW_SCALING_GW", &
+                          description="If this number is larger than NUM_INTEG_POINTS, then use a Clenshaw-Curtis grid "// &
+                          "for the frequency dependency of G, W and Sigma "// &
+                          "in low-scaling (imag. time) GW calculations. Putting more Clenshaw-Curtis "// &
+                          "points than minimax points is computationally more expensive, but doesn't affect the "// &
+                          "scaling and does improve the accuracy. Putting this parameter in normal N^4-scaling GW "// &
+                          "calculation doesn't have any effect.", &
+                          usage="NUM_FREQ_POINTS_CLENSHAW_LOW_SCALING_GW 80", default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

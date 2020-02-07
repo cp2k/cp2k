@@ -61,6 +61,7 @@
            CORR_OCC   1
            CORR_VIRT  1
            CROSSING_SEARCH NEWTON
+           ANALYTIC_CONTINUATION TWO_POLE
            RI_SIGMA_X
           &END RI_G0W0
         &END RI_RPA

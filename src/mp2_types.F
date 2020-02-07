@@ -156,8 +156,8 @@ MODULE mp2_types
       LOGICAL                  :: do_ic_model, print_ic_values
       REAL(KIND=dp)            :: eps_dist
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta
-      INTEGER :: print_exx
-      LOGICAL :: do_gamma_only_sigma
+      INTEGER :: print_exx, num_integ_points_freq
+      LOGICAL :: do_gamma_only_sigma, do_gw_im_time_mix_minimax_clenshaw
    END TYPE
 
    TYPE ri_basis_opt
