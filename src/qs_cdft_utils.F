@@ -28,8 +28,8 @@ MODULE qs_cdft_utils
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE grid_collocate,                  ONLY: collocate_pgf_product
-   USE grid_modify_pab_block,           ONLY: FUNC_AB
+   USE grid_collocate,                  ONLY: GRID_FUNC_AB,&
+                                              collocate_pgf_product
    USE hirshfeld_methods,               ONLY: create_shape_function
    USE hirshfeld_types,                 ONLY: create_hirshfeld_type,&
                                               hirshfeld_type,&
@@ -379,7 +379,7 @@ CONTAINS
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, &
                                                 pab, 0, 0, rs_cavity, cell, pw_env%cube_info(1), &
                                                 dft_control%qs_control%eps_rho_rspace, &
-                                                ga_gb_function=FUNC_AB, &
+                                                ga_gb_function=GRID_FUNC_AB, &
                                                 use_subpatch=.TRUE., subpatch_pattern=0_int_8, &
                                                 lmax_global=0)
                END DO
