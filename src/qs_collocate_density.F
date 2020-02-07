@@ -55,10 +55,9 @@ MODULE qs_collocate_density
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                               gridlevel_info_type
    USE grid_collocate,                  ONLY: &
-        GRID_FUNC_AB, GRID_FUNC_ADBmDAB, GRID_FUNC_ARB, GRID_FUNC_ARDBmDARB, GRID_FUNC_DABpADB, &
-        GRID_FUNC_DADB, GRID_FUNC_DX, GRID_FUNC_DXDX, GRID_FUNC_DXDY, GRID_FUNC_DY, &
-        GRID_FUNC_DYDY, GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, GRID_FUNC_DZDZ, &
-        collocate_pgf_product
+        GRID_FUNC_AB, GRID_FUNC_ADBmDAB, GRID_FUNC_ARDBmDARB, GRID_FUNC_DABpADB, GRID_FUNC_DADB, &
+        GRID_FUNC_DX, GRID_FUNC_DXDX, GRID_FUNC_DXDY, GRID_FUNC_DY, GRID_FUNC_DYDY, &
+        GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, GRID_FUNC_DZDZ, collocate_pgf_product
    USE input_constants,                 ONLY: &
         orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s
    USE kinds,                           ONLY: default_string_length,&
@@ -1608,8 +1607,6 @@ CONTAINS
          lmax_global = lmax_global + 2
       CASE (GRID_FUNC_ARDBmDARB)
          lmax_global = lmax_global + 2
-      CASE (GRID_FUNC_ARB)
-         lmax_global = lmax_global + 1
       CASE (GRID_FUNC_AB)
          lmax_global = lmax_global
       CASE DEFAULT

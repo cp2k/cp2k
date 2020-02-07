@@ -12,7 +12,6 @@ MODULE grid_collocate
    USE d3_poly,                         ONLY: poly_cp2k2d3
    USE gauss_colloc,                    ONLY: collocGauss
    USE grid_modify_pab_block,           ONLY: prepare_adb_m_dab,&
-                                              prepare_arb,&
                                               prepare_ardb_m_darb,&
                                               prepare_dab_p_adb,&
                                               prepare_dadb,&
@@ -40,7 +39,6 @@ MODULE grid_collocate
    INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ADBmDAB = 403
    INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB = 404
    INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DABpADB = 405
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARB = 406
    INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DXDY = 601
    INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DYDZ = 602
    INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZDX = 603
@@ -421,33 +419,6 @@ CONTAINS
                   ! this element of pab results in 4 elements of pab_local
                   CALL prepare_ardb_m_darb(pab_local, pab, idir, ir, &
                                            lxa, lya, lza, lxb, lyb, lzb, o1, o2, zeta, zetb)
-               END DO
-               END DO
-            END DO
-            END DO
-         END DO
-         END DO
-         o1_local = 0
-         o2_local = 0
-      CASE (GRID_FUNC_ARB)
-         CPASSERT(PRESENT(ir))
-         la_max_local = la_max
-         la_min_local = la_min
-         lb_max_local = lb_max + 1
-         lb_min_local = lb_min
-         ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
-         ! is equivalent to mapping pab with
-         ! pgf_a (r-Rb)_{ir} pgf_b = pgf_a * pgf_{b+1ir}
-         ALLOCATE (pab_local(ncoset(la_max_local), ncoset(lb_max_local)))
-         pab_local = 0.0_dp
-         DO lxa = 0, la_max
-         DO lxb = 0, lb_max
-            DO lya = 0, la_max - lxa
-            DO lyb = 0, lb_max - lxb
-               DO lza = MAX(la_min - lxa - lya, 0), la_max - lxa - lya
-               DO lzb = MAX(lb_min - lxb - lyb, 0), lb_max - lxb - lyb
-                  ! this element of pab results in 4 elements of pab_local
-                  CALL prepare_arb(pab_local, pab, ir, lxa, lya, lza, lxb, lyb, lzb, o1, o2)
                END DO
                END DO
             END DO
