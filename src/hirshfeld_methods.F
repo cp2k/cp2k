@@ -19,9 +19,9 @@ MODULE hirshfeld_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE cube_utils,                      ONLY: cube_info_type
-   USE grid_collocate,                  ONLY: collocate_pgf_product
+   USE grid_collocate,                  ONLY: GRID_FUNC_AB,&
+                                              collocate_pgf_product
    USE grid_integrate,                  ONLY: integrate_pgf_product
-   USE grid_modify_pab_block,           ONLY: FUNC_AB
    USE hirshfeld_types,                 ONLY: get_hirshfeld_info,&
                                               hirshfeld_type,&
                                               set_hirshfeld_info
@@ -483,7 +483,7 @@ CONTAINS
                ! la_max==0 so set lmax_global to 0
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, rs_rho, &
-                                          cell, cube_info, eps_rho_rspace, ga_gb_function=FUNC_AB, &
+                                          cell, cube_info, eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
                                           lmax_global=0)
             END DO

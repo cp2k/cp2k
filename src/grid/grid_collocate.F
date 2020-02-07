@@ -11,11 +11,14 @@ MODULE grid_collocate
                                               return_cube_nonortho
    USE d3_poly,                         ONLY: poly_cp2k2d3
    USE gauss_colloc,                    ONLY: collocGauss
-   USE grid_modify_pab_block,           ONLY: &
-        FUNC_AB, FUNC_ADBmDAB, FUNC_ARB, FUNC_ARDBmDARB, FUNC_DABpADB, FUNC_DADB, FUNC_DX, &
-        FUNC_DXDX, FUNC_DXDY, FUNC_DY, FUNC_DYDY, FUNC_DYDZ, FUNC_DZ, FUNC_DZDX, FUNC_DZDZ, &
-        prepare_adb_m_dab, prepare_arb, prepare_ardb_m_darb, prepare_dab_p_adb, prepare_dadb, &
-        prepare_diadib, prepare_diiadiib, prepare_dijadijb
+   USE grid_modify_pab_block,           ONLY: prepare_adb_m_dab,&
+                                              prepare_arb,&
+                                              prepare_ardb_m_darb,&
+                                              prepare_dab_p_adb,&
+                                              prepare_dadb,&
+                                              prepare_diadib,&
+                                              prepare_diiadiib,&
+                                              prepare_dijadijb
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: fac
@@ -31,6 +34,22 @@ MODULE grid_collocate
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'grid_collocate'
 
    PUBLIC :: collocate_pgf_product
+
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_AB = 401
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DADB = 402
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ADBmDAB = 403
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB = 404
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DABpADB = 405
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARB = 406
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DXDY = 601
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DYDZ = 602
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZDX = 603
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DXDX = 604
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DYDY = 605
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZDZ = 606
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DX = 501
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DY = 502
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZ = 503
 
 CONTAINS
 
@@ -191,7 +210,7 @@ CONTAINS
       ! it's a choice to compute lX_min/max, pab here,
       ! this way we get the same radius as we use for the corresponding density
       SELECT CASE (ga_gb_function)
-      CASE (FUNC_DADB)
+      CASE (GRID_FUNC_DADB)
          la_max_local = la_max + 1
          la_min_local = MAX(la_min - 1, 0)
          lb_max_local = lb_max + 1
@@ -221,7 +240,7 @@ CONTAINS
          o1_local = 0
          o2_local = 0
          pab_local = pab_local*0.5_dp
-      CASE (FUNC_ADBmDAB)
+      CASE (GRID_FUNC_ADBmDAB)
          CPASSERT(PRESENT(idir))
          la_max_local = la_max + 1
          la_min_local = MAX(la_min - 1, 0)
@@ -253,7 +272,7 @@ CONTAINS
          END DO
          o1_local = 0
          o2_local = 0
-      CASE (FUNC_DABpADB)
+      CASE (GRID_FUNC_DABpADB)
          CPASSERT(PRESENT(idir))
          la_max_local = la_max + 1
          la_min_local = MAX(la_min - 1, 0)
@@ -285,7 +304,7 @@ CONTAINS
          END DO
          o1_local = 0
          o2_local = 0
-      CASE (FUNC_DX, FUNC_DY, FUNC_DZ)
+      CASE (GRID_FUNC_DX, GRID_FUNC_DY, GRID_FUNC_DZ)
          ider1 = ga_gb_function - 500
          la_max_local = la_max + 1
          la_min_local = MAX(la_min - 1, 0)
@@ -317,7 +336,7 @@ CONTAINS
          END DO
          o1_local = 0
          o2_local = 0
-      CASE (FUNC_DXDY, FUNC_DYDZ, FUNC_DZDX)
+      CASE (GRID_FUNC_DXDY, GRID_FUNC_DYDZ, GRID_FUNC_DZDX)
          ider1 = ga_gb_function - 600
          ider2 = ga_gb_function - 600 + 1
          IF (ider2 > 3) ider2 = ider1 - 2
@@ -347,7 +366,7 @@ CONTAINS
          END DO
          o1_local = 0
          o2_local = 0
-      CASE (FUNC_DXDX, FUNC_DYDY, FUNC_DZDZ)
+      CASE (GRID_FUNC_DXDX, GRID_FUNC_DYDY, GRID_FUNC_DZDZ)
          ider1 = ga_gb_function - 603
          la_max_local = la_max + 2
          la_min_local = MAX(la_min - 2, 0)
@@ -376,7 +395,7 @@ CONTAINS
          END DO
          o1_local = 0
          o2_local = 0
-      CASE (FUNC_ARDBmDARB)
+      CASE (GRID_FUNC_ARDBmDARB)
          CPASSERT(PRESENT(idir))
          CPASSERT(PRESENT(ir))
          la_max_local = la_max + 1
@@ -410,7 +429,7 @@ CONTAINS
          END DO
          o1_local = 0
          o2_local = 0
-      CASE (FUNC_ARB)
+      CASE (GRID_FUNC_ARB)
          CPASSERT(PRESENT(ir))
          la_max_local = la_max
          la_min_local = la_min
@@ -437,7 +456,7 @@ CONTAINS
          END DO
          o1_local = 0
          o2_local = 0
-      CASE (FUNC_AB)
+      CASE (GRID_FUNC_AB)
          la_max_local = la_max
          la_min_local = la_min
          lb_max_local = lb_max
@@ -582,7 +601,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (ga_gb_function /= FUNC_AB) THEN
+      IF (ga_gb_function /= GRID_FUNC_AB) THEN
          DEALLOCATE (pab_local)
       ENDIF
 

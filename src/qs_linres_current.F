@@ -53,10 +53,10 @@ MODULE qs_linres_current
         dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
         dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
-   USE grid_collocate,                  ONLY: collocate_pgf_product
-   USE grid_modify_pab_block,           ONLY: FUNC_AB,&
-                                              FUNC_ADBmDAB,&
-                                              FUNC_ARDBmDARB
+   USE grid_collocate,                  ONLY: GRID_FUNC_AB,&
+                                              GRID_FUNC_ADBmDAB,&
+                                              GRID_FUNC_ARDBmDARB,&
+                                              collocate_pgf_product
    USE input_constants,                 ONLY: current_gauge_atom
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_get_lval,&
@@ -751,7 +751,7 @@ CONTAINS
          lmax_global = MAX(MAXVAL(mylmax), lmax_global)
       END DO
 
-      ! ga_gb_function can be one of FUNC_AB, FUNC_ADBmDAB or FUNC_ARDBm_DARB
+      ! ga_gb_function can be one of GRID_FUNC_AB, GRID_FUNC_ADBmDAB or GRID_FUNC_ARDBm_DARB
       ! take worst case and add 2 to lmax_global
       lmax_global = lmax_global + 2
 
@@ -1133,7 +1133,7 @@ CONTAINS
                                     ra, rab, rab2, scale, jpab_a, na1 - 1, nb1 - 1, &
                                     rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                     eps_rho_rspace, &
-                                    ga_gb_function=FUNC_ADBmDAB, &
+                                    ga_gb_function=GRID_FUNC_ADBmDAB, &
                                     idir=idir, &
                                     map_consistent=map_consistent, lmax_global=lmax_global)
          IF (do_igaim) THEN
@@ -1145,7 +1145,7 @@ CONTAINS
                                           ra, rab, rab2, scale2, jpab_d, na1 - 1, nb1 - 1, &
                                           rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                           eps_rho_rspace, &
-                                          ga_gb_function=FUNC_AB, &
+                                          ga_gb_function=GRID_FUNC_AB, &
                                           map_consistent=map_consistent, lmax_global=lmax_global)
             ENDIF !rm
             ! here the decontracted mat_jp_rii{ab} is multiplied by
@@ -1157,7 +1157,7 @@ CONTAINS
                                        ra, rab, rab2, scale, jpab_b, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                        eps_rho_rspace, &
-                                       ga_gb_function=FUNC_ADBmDAB, &
+                                       ga_gb_function=GRID_FUNC_ADBmDAB, &
                                        idir=idir, ir=iiiB, &
                                        rsgauge=rs_gauge(iiiB)%rs(igrid_level)%rs_grid, &
                                        rsbuf=current_env%rs_buf(igrid_level)%rs_grid, &
@@ -1171,7 +1171,7 @@ CONTAINS
                                        ra, rab, rab2, scale, jpab_c, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                        eps_rho_rspace, &
-                                       ga_gb_function=FUNC_ADBmDAB, &
+                                       ga_gb_function=GRID_FUNC_ADBmDAB, &
                                        idir=idir, ir=iiB, &
                                        rsgauge=rs_gauge(iiB)%rs(igrid_level)%rs_grid, &
                                        rsbuf=current_env%rs_buf(igrid_level)%rs_grid, &
@@ -1186,7 +1186,7 @@ CONTAINS
                                        ra, rab, rab2, scale, jpab_b, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                        eps_rho_rspace, &
-                                       ga_gb_function=FUNC_ARDBmDARB, &
+                                       ga_gb_function=GRID_FUNC_ARDBmDARB, &
                                        idir=idir, ir=iiiB, &
                                        map_consistent=map_consistent, lmax_global=lmax_global)
             ! here the decontracted mat_jp_riii{ab} is multiplied by
@@ -1198,7 +1198,7 @@ CONTAINS
                                        ra, rab, rab2, scale, jpab_c, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                        eps_rho_rspace, &
-                                       ga_gb_function=FUNC_ARDBmDARB, &
+                                       ga_gb_function=GRID_FUNC_ARDBmDARB, &
                                        idir=idir, ir=iiB, &
                                        map_consistent=map_consistent, lmax_global=lmax_global)
          ENDIF

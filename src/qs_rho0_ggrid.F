@@ -4,7 +4,6 @@
 !--------------------------------------------------------------------------------------------------!
 ! **************************************************************************************************
 MODULE qs_rho0_ggrid
-
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
@@ -15,7 +14,8 @@ MODULE qs_rho0_ggrid
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cube_utils,                      ONLY: cube_info_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
-   USE grid_collocate,                  ONLY: collocate_pgf_product
+   USE grid_collocate,                  ONLY: GRID_FUNC_AB,&
+                                              collocate_pgf_product
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: dfac,&
@@ -230,7 +230,7 @@ CONTAINS
             CALL collocate_pgf_product( &
                l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
                ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, &
-               rs_grid, cell, cube_info(igrid), eps_rho_rspace, ga_gb_function=401, &
+               rs_grid, cell, cube_info(igrid), eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
                collocate_rho0=.TRUE., rpgf0_s=rpgf0, &
                use_subpatch=.TRUE., subpatch_pattern=0_int_8, lmax_global=lmax_global)
 

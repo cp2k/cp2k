@@ -52,8 +52,8 @@ MODULE mixed_cdft_methods
                                               use_qmmm,&
                                               use_qmmmx,&
                                               use_qs_force
-   USE grid_collocate,                  ONLY: collocate_pgf_product
-   USE grid_modify_pab_block,           ONLY: FUNC_AB
+   USE grid_collocate,                  ONLY: GRID_FUNC_AB,&
+                                              collocate_pgf_product
    USE hirshfeld_methods,               ONLY: create_shape_function
    USE hirshfeld_types,                 ONLY: hirshfeld_type
    USE input_constants,                 ONLY: &
@@ -2599,7 +2599,7 @@ CONTAINS
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, &
                                                 rs_cavity, cell, mixed_cdft%pw_env%cube_info(1), &
-                                                mixed_cdft%eps_rho_rspace, ga_gb_function=FUNC_AB, &
+                                                mixed_cdft%eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
                                                 use_subpatch=.TRUE., &
                                                 subpatch_pattern=0_int_8, lmax_global=0)
                END DO

@@ -24,18 +24,6 @@ MODULE grid_modify_pab_block
 
    PUBLIC :: prepare_dadb, prepare_adb_m_dab, prepare_dab_p_adb, prepare_ardb_m_darb, prepare_arb
    PUBLIC :: prepare_diadib, prepare_dijadijb, prepare_diiadiib
-   PUBLIC :: FUNC_AB, FUNC_ARB, FUNC_DADB, FUNC_ADBmDAB, FUNC_ARDBmDARB, FUNC_DABpADB
-   PUBLIC :: FUNC_DER, FUNC_DXDY, FUNC_DYDZ, FUNC_DZDX, FUNC_DX, FUNC_DY, FUNC_DZ
-   PUBLIC :: FUNC_DXDX, FUNC_DYDY, FUNC_DZDZ
-
-   ! Flags for the type of function to be collocated
-   INTEGER, PARAMETER :: FUNC_AB = 401, FUNC_DADB = 402
-   INTEGER, PARAMETER :: FUNC_ADBmDAB = 403, FUNC_ARDBmDARB = 404
-   INTEGER, PARAMETER :: FUNC_DABpADB = 405, FUNC_ARB = 406
-   INTEGER, DIMENSION(0:9), PARAMETER :: FUNC_DER = (/401, 501, 502, 503, 601, 602, 603, 604, 605, 606/)
-   INTEGER, PARAMETER :: FUNC_DXDY = 601, FUNC_DYDZ = 602, FUNC_DZDX = 603
-   INTEGER, PARAMETER :: FUNC_DXDX = 604, FUNC_DYDY = 605, FUNC_DZDZ = 606
-   INTEGER, PARAMETER :: FUNC_DX = 501, FUNC_DY = 502, FUNC_DZ = 503
 
 CONTAINS
 
