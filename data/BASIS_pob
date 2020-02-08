@@ -17,7 +17,7 @@
 #journal = {Journal of Computational Chemistry},
 #publisher = {Wiley Subscription Services, Inc., A Wiley Company},
 #issn = {1096-987X},
-#url = {http://dx.doi.org/10.1002/jcc.23153},
+#url = {https://doi.org/10.1002/jcc.23153},
 #doi = {10.1002/jcc.23153},
 #pages = {451--459},
 #keywords = {CRYSTAL, basis sets, TZVP, solid-state calculations},
