@@ -2768,7 +2768,7 @@ CONTAINS
                          "EP 666", &
                          "PD MAR 18", &
                          "PY 2002", &
-                         "UR https://dx.doi.org/10.1002/jcc.10069", &
+                         "UR https://doi.org/10.1002/jcc.10069", &
                          "ER"), &
                          DOI="10.1002/jcc.10069")
 
@@ -2788,7 +2788,7 @@ CONTAINS
                          "AR 064102", &
                          "PD FEB 8", &
                          "PY 2012", &
-                         "UR https://dx.doi.org/10.1063/1.3676407", &
+                         "UR https://doi.org/10.1063/1.3676407", &
                          "ER"), &
                          DOI="10.1063/1.3676407")
 
@@ -3704,7 +3704,7 @@ CONTAINS
                          "AU VandeVondele, Joost", &
                          "VL John Wiley & Sons, Ltd", &
                          "SN 9781118670712", &
-                         "UR https://dx.doi.org/10.1002/9781118670712.ch8", &
+                         "UR https://doi.org/10.1002/9781118670712.ch8", &
                          "DO 10.1002/9781118670712.ch8", &
                          "BP 173", &
                          "EP 190", &
