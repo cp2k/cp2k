@@ -598,7 +598,7 @@ CONTAINS
          map_consistent, my_retain_rsgrid, my_soft
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_current, my_gauge, my_rho
       REAL(KIND=dp)                                      :: eps_rho_rspace, kind_radius_a, &
-                                                            kind_radius_b, Lxo2, Lyo2, Lzo2, rab2, &
+                                                            kind_radius_b, Lxo2, Lyo2, Lzo2, &
                                                             scale, scale2, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
@@ -1112,7 +1112,6 @@ CONTAINS
          ENDIF
 
          rab(:) = tasks(itask)%rab
-         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
          rb(:) = ra(:) + rab(:)
          zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
 
@@ -1130,7 +1129,7 @@ CONTAINS
          scale = 1.0_dp
          CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                     la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                                    ra, rab, rab2, scale, jpab_a, na1 - 1, nb1 - 1, &
+                                    ra, rab, scale, jpab_a, na1 - 1, nb1 - 1, &
                                     rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                     eps_rho_rspace, &
                                     ga_gb_function=GRID_FUNC_ADBmDAB, &
@@ -1142,7 +1141,7 @@ CONTAINS
             IF (scale2 .NE. 0.0_dp) THEN
                CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                           la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                                          ra, rab, rab2, scale2, jpab_d, na1 - 1, nb1 - 1, &
+                                          ra, rab, scale2, jpab_d, na1 - 1, nb1 - 1, &
                                           rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                           eps_rho_rspace, &
                                           ga_gb_function=GRID_FUNC_AB, &
@@ -1154,7 +1153,7 @@ CONTAINS
             scale = 1.0_dp
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                                       ra, rab, rab2, scale, jpab_b, na1 - 1, nb1 - 1, &
+                                       ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                        eps_rho_rspace, &
                                        ga_gb_function=GRID_FUNC_ADBmDAB, &
@@ -1168,7 +1167,7 @@ CONTAINS
             scale = -1.0_dp
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                                       ra, rab, rab2, scale, jpab_c, na1 - 1, nb1 - 1, &
+                                       ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                        eps_rho_rspace, &
                                        ga_gb_function=GRID_FUNC_ADBmDAB, &
@@ -1183,7 +1182,7 @@ CONTAINS
             scale = 1.0_dp
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                                       ra, rab, rab2, scale, jpab_b, na1 - 1, nb1 - 1, &
+                                       ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                        eps_rho_rspace, &
                                        ga_gb_function=GRID_FUNC_ARDBmDARB, &
@@ -1195,7 +1194,7 @@ CONTAINS
             scale = -1.0_dp
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                                       ra, rab, rab2, scale, jpab_c, na1 - 1, nb1 - 1, &
+                                       ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                        eps_rho_rspace, &
                                        ga_gb_function=GRID_FUNC_ARDBmDARB, &

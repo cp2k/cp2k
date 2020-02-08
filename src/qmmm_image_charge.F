@@ -426,7 +426,7 @@ CONTAINS
          hab(1, 1) = 0.0_dp
 
          CALL integrate_pgf_product(0, qmmm_env%image_charge_pot%eta, 0, &
-                                    0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
+                                    0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                                     rs_v, cell, pw_env%cube_info(1), hab, o1=0, o2=0, &
                                     eps_gvg_rspace=eps_rho_rspace, calculate_forces=.FALSE., &
                                     use_subpatch=.TRUE., subpatch_pattern=0_int_8)
@@ -546,7 +546,7 @@ CONTAINS
          force_b(:) = 0.0_dp
 
          CALL integrate_pgf_product(0, qmmm_env%image_charge_pot%eta, 0, &
-                                    0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, &
+                                    0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                                     rs_v, cell, pw_env%cube_info(1), hab, pab, o1=0, o2=0, &
                                     eps_gvg_rspace=eps_rho_rspace, calculate_forces=.TRUE., &
                                     force_a=force_a, force_b=force_b, use_subpatch=.TRUE., &

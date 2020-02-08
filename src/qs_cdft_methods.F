@@ -1282,20 +1282,20 @@ CONTAINS
                   ra(:) = pbc(particle_set(atom_a)%r, cell)
                   subpatch_pattern = 0
                   CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                             (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, &
+                                             (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                                              rs_rho_all, cell, cube_info, eps_rho_rspace, &
                                              ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                              subpatch_pattern=subpatch_pattern, lmax_global=0)
                   IF (is_constraint(atom_a)) &
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, coefficients(atom_a), &
+                                                (/0.0_dp, 0.0_dp, 0.0_dp/), coefficients(atom_a), &
                                                 pab, 0, 0, rs_rho_constr, cell, cube_info, eps_rho_rspace, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                 subpatch_pattern=subpatch_pattern, lmax_global=0)
                   IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
                      IF (compute_charge(atom_a)) &
                         CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                   (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, &
+                                                   (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                                                    rs_single(atom_a)%rs_grid, cell, cube_info, eps_rho_rspace, &
                                                    ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                    subpatch_pattern=subpatch_pattern, lmax_global=0)
