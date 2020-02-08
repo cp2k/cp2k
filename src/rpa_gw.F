@@ -4904,10 +4904,10 @@ CONTAINS
          vec_Sigma_c_gw(:, 1:num_fit_points, 1) = vec_Sigma_c_gw_cos_omega(:, 1:num_fit_points) + &
                                                   im_unit*vec_Sigma_c_gw_sin_omega(:, 1:num_fit_points)
 
-         CALL dbcsr_release_P(mat_greens_fct_occ)
-         CALL dbcsr_release_P(mat_greens_fct_virt)
-
       END IF
+
+      CALL dbcsr_release_P(mat_greens_fct_occ)
+      CALL dbcsr_release_P(mat_greens_fct_virt)
 
       IF (do_ri_Sigma_x .AND. count_ev_sc_GW == 1) THEN
 
