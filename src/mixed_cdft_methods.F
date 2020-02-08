@@ -2597,7 +2597,7 @@ CONTAINS
                   END IF
                   IF (is_constraint(atom_a)) &
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, &
+                                                (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                                                 rs_cavity, cell, mixed_cdft%pw_env%cube_info(1), &
                                                 mixed_cdft%eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
                                                 use_subpatch=.TRUE., &

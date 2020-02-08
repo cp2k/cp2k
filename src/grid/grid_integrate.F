@@ -64,7 +64,6 @@ CONTAINS
 !> \param lb_min ...
 !> \param ra ...
 !> \param rab ...
-!> \param rab2 ...
 !> \param rsgrid ...
 !> \param cell ...
 !> \param cube_info ...
@@ -91,7 +90,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_pgf_product(la_max, zeta, la_min, &
                                     lb_max, zetb, lb_min, &
-                                    ra, rab, rab2, rsgrid, cell, &
+                                    ra, rab, rsgrid, cell, &
                                     cube_info, hab, pab, o1, o2, &
                                     eps_gvg_rspace, &
                                     calculate_forces, hdab, hadb, force_a, force_b, &
@@ -105,7 +104,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                :: zetb
       INTEGER, INTENT(IN)                      :: lb_min
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rab
-      REAL(KIND=dp), INTENT(IN)                :: rab2
       TYPE(realspace_grid_type), POINTER       :: rsgrid
       TYPE(cell_type), POINTER                 :: cell
       TYPE(cube_info_type), INTENT(IN)         :: cube_info
@@ -224,7 +222,7 @@ CONTAINS
       coef_max = la_max_local + lb_max_local + 1
       zetp = zeta + zetb
       f = zetb/zetp
-      prefactor = EXP(-zeta*f*rab2)
+      prefactor = EXP(-zeta*f*DOT_PRODUCT(rab, rab))
 !   *** position of the gaussian product
       rap(:) = f*rab(:)
       rbp(:) = rap(:) - rab(:)

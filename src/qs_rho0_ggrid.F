@@ -229,7 +229,7 @@ CONTAINS
 
             CALL collocate_pgf_product( &
                l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
-               ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, 1.0_dp, pab, 0, 0, &
+               ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                rs_grid, cell, cube_info(igrid), eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
                collocate_rho0=.TRUE., rpgf0_s=rpgf0, &
                use_subpatch=.TRUE., subpatch_pattern=0_int_8, lmax_global=lmax_global)
@@ -580,7 +580,7 @@ CONTAINS
 
                CALL integrate_pgf_product( &
                   l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
-                  ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, rs_v, cell, &
+                  ra, (/0.0_dp, 0.0_dp, 0.0_dp/), rs_v, cell, &
                   cube_info(igrid), hab, pab, o1=0, o2=0, &
                   eps_gvg_rspace=eps_rho_rspace, &
                   calculate_forces=calculate_forces, &

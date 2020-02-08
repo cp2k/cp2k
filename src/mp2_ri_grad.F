@@ -171,7 +171,7 @@ CONTAINS
       LOGICAL                                            :: alpha_beta, map_it_here, skip_shell, &
                                                             use_virial
       REAL(KIND=dp)                                      :: cutoff_old, e_hartree, eps_filter, &
-                                                            factor, omega, pair_energy, rab2, &
+                                                            factor, omega, pair_energy, &
                                                             relative_cutoff_old, total_rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, I_ab
@@ -508,7 +508,6 @@ CONTAINS
 
                ra(:) = pbc(particle_set(iatom)%r, cell)
                rab = 0.0_dp
-               rab2 = 0.0_dp
 
                force_a(:) = 0.0_dp
                force_b(:) = 0.0_dp
@@ -574,7 +573,7 @@ CONTAINS
 
                         CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                                                    lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                                   ra=ra, rab=rab, rab2=rab2, &
+                                                   ra=ra, rab=rab, &
                                                    rsgrid=rs_v(igrid_level)%rs_grid, &
                                                    cell=cell, &
                                                    cube_info=pw_env_sub%cube_info(igrid_level), &
@@ -746,7 +745,6 @@ CONTAINS
 
                ra(:) = pbc(particle_set(iatom)%r, cell)
                rab = 0.0_dp
-               rab2 = 0.0_dp
 
                force_a(:) = 0.0_dp
                force_b(:) = 0.0_dp
@@ -825,7 +823,7 @@ CONTAINS
 
                         CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                                                    lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                                   ra=ra, rab=rab, rab2=rab2, &
+                                                   ra=ra, rab=rab, &
                                                    rsgrid=rs_v(igrid_level)%rs_grid, &
                                                    cell=cell, &
                                                    cube_info=pw_env_sub%cube_info(igrid_level), &
