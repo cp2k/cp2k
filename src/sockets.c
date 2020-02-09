@@ -35,6 +35,8 @@ Functions:
 */
 #ifndef __NO_IPI_DRIVER
 
+#define _XOPEN_SOURCE 700   /* Enable POSIX 2008/13 */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -159,10 +161,9 @@ void uwait(double *dsec)
      dsec:  number of seconds to wait (float values accepted)
 */
 {
-   int rn;
    struct timespec wt, rem;
    wt.tv_sec = floor(*dsec); wt.tv_nsec=(*dsec-wt.tv_sec)*1000000000;
-   rn = nanosleep(&wt, &rem);
+   nanosleep(&wt, &rem);
 }
 
 #endif
