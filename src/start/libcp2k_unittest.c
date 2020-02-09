@@ -13,7 +13,7 @@
  * \author Ole Schuett
  */
 
-int main(int argc, char** argv){
+int main(){
 
     printf("Unit test starts ...\n");
 
