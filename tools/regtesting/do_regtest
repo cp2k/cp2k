@@ -535,7 +535,7 @@ function run_unittest() {
   t1=`date +%s`
   output_file=${dir_test}/${dir}.out
   unittest=${dir##*/}
-  testcmd="${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/${unittest}.${cp2k_version}"
+  testcmd="${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/${unittest}.${cp2k_version} ${dir_base}/${cp2k_dir}"
   ( ulimit -t ${job_max_time} ; ${testcmd} &> ${output_file} ) >& /dev/null
   (( cp2k_exit_status = $? ))
   t2=`date +%s`
