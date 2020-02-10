@@ -155,7 +155,7 @@ CONTAINS
       END IF
 
       IF (my_do_mixed_minimax_clenshaw) THEN
-         CALL compute_tj_from_clenshaw(tj, a_scaling)
+         tj(:) = a_scaling/TAN(tj(:))
       END IF
 
       IF (.NOT. do_ri_sos_laplace_mp2 .AND. (.NOT. my_do_mixed_minimax_clenshaw)) THEN
@@ -280,29 +280,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_minimax_grid
-
-! **************************************************************************************************
-!> \brief ...
-!> \param tj ...
-!> \param a_scaling ...
-! **************************************************************************************************
-   SUBROUTINE compute_tj_from_clenshaw(tj, a_scaling)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: tj
-      REAL(KIND=dp), INTENT(IN)                          :: a_scaling
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_tj_from_clenshaw', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      tj(:) = a_scaling/TAN(tj(:))
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_tj_from_clenshaw
 
 ! **************************************************************************************************
 !> \brief ...
