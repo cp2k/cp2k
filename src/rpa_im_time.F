@@ -28,10 +28,9 @@ MODULE rpa_im_time
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
-        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_get_num_blocks, &
-        dbcsr_get_occupation, dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, &
-        dbcsr_reserve_all_blocks, dbcsr_scalar, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
+        dbcsr_p_type, dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_scalar, dbcsr_scale, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_batched_contract_finalize, dbcsr_t_batched_contract_init, dbcsr_t_clear, &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, &
@@ -180,7 +179,6 @@ CONTAINS
       LOGICAL :: do_Gamma_RPA, do_kpoints_cubic_RPA, do_opt_pgrid, first_cycle_im_time, &
          first_cycle_omega_loop, memory_info, pgrid_1_init_occ, pgrid_1_init_virt, pgrid_2_init, &
          R_1_minus_S_needed, R_1_minus_T_needed, R_2_minus_S_minus_T_needed
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: does_mat_P_T_tau_have_blocks
       REAL(KIND=dp)                                      :: omega, omega_old, t1, t2, tau, weight, &
                                                             weight_old
       TYPE(dbcsr_distribution_type)                      :: dist_P
@@ -274,8 +272,7 @@ CONTAINS
                                     Eigenval, e_fermi, eps_filter, memory_info, &
                                     unit_nr, para_env, &
                                     jquad, stabilize_exp, do_kpoints_cubic_RPA, qs_env, &
-                                    num_cells_dm, index_to_cell_dm, &
-                                    does_mat_P_T_tau_have_blocks)
+                                    num_cells_dm, index_to_cell_dm)
 
          IF (memory_info) THEN
             IF (pgrid_1_init_occ) THEN
@@ -343,7 +340,7 @@ CONTAINS
 
          DO i_cell_T = 1, num_cells_dm/2 + 1
 
-            IF (.NOT. does_mat_P_T_tau_have_blocks(i_cell_T)) CYCLE
+            IF (.NOT. ANY(has_mat_P_blocks(i_cell_T, :, :, :, :))) CYCLE
 
             CALL dbcsr_t_batched_contract_init(t_P)
 
@@ -359,6 +356,8 @@ CONTAINS
                IF (do_Gamma_RPA) CALL dbcsr_t_batched_contract_init(t_dm_virt(1))
 
                DO i_mem = 1, cut_memory
+
+                  IF (.NOT. ANY(has_mat_P_blocks(i_cell_T, i_mem, j_mem, :, :))) CYCLE
 
                   ibounds_1(:, 1) = [1, bounds_3c(1)]
                   ibounds_1(:, 2) = [starts_array_mc(i_mem), ends_array_mc(i_mem)]
@@ -537,11 +536,11 @@ CONTAINS
 
                         first_cycle_im_time = .FALSE.
 
-                        CALL check_if_mat_P_T_tau_has_blocks(does_mat_P_T_tau_have_blocks, mat_P_global, i_cell_T, &
-                                                             jquad, i_mem, j_mem, i_cell_R_1, i_cell_R_2, &
-                                                             para_env, has_mat_P_blocks, flops_2)
+                        IF (jquad == 1) THEN
+                           CALL mp_sum(flops_2, para_env%group)
+                           IF (flops_2 == 0) has_mat_P_blocks(i_cell_T, i_mem, j_mem, i_cell_R_1, i_cell_R_2) = .FALSE.
+                        ENDIF
 
-                        CALL dbcsr_clear(mat_P_global%matrix)
                      ENDDO
                   ENDDO
                ENDDO
@@ -594,8 +593,6 @@ CONTAINS
                CALL timestop(handle5)
             ENDIF
 
-            CALL sync_does_mat_P_T_tau_have_blocks(does_mat_P_T_tau_have_blocks, para_env, &
-                                                   i_cell_T, jquad, index_to_cell_dm)
          ENDDO
 
          CALL dbcsr_t_destroy(t_P)
@@ -632,7 +629,7 @@ CONTAINS
       IF (pgrid_1_init_occ) CALL dbcsr_t_pgrid_destroy(pgrid_1_use_occ)
       IF (pgrid_2_init) CALL dbcsr_t_pgrid_destroy(pgrid_2_use)
 
-      CALL clean_up(mat_dm_occ_global, mat_dm_virt_global, does_mat_P_T_tau_have_blocks)
+      CALL clean_up(mat_dm_occ_global, mat_dm_virt_global)
 
       CALL timestop(handle)
 
@@ -656,140 +653,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE zero_mat_P_omega
-
-! **************************************************************************************************
-!> \brief ...
-!> \param does_mat_P_T_tau_have_blocks ...
-!> \param mat_P_global ...
-!> \param i_cell_T ...
-!> \param jquad ...
-!> \param i_mem ...
-!> \param j_mem ...
-!> \param i_cell_R_1 ...
-!> \param i_cell_R_2 ...
-!> \param para_env ...
-!> \param has_mat_P_blocks ...
-!> \param num_flops_mat_P ...
-! **************************************************************************************************
-   SUBROUTINE check_if_mat_P_T_tau_has_blocks(does_mat_P_T_tau_have_blocks, mat_P_global, i_cell_T, &
-                                              jquad, i_mem, j_mem, i_cell_R_1, i_cell_R_2, &
-                                              para_env, has_mat_P_blocks, num_flops_mat_P)
-
-      LOGICAL, DIMENSION(:), INTENT(INOUT)               :: does_mat_P_T_tau_have_blocks
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_P_global
-      INTEGER, INTENT(IN)                                :: i_cell_T, jquad, i_mem, j_mem, &
-                                                            i_cell_R_1, i_cell_R_2
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      LOGICAL, DIMENSION(:, :, :, :, :), INTENT(INOUT)   :: has_mat_P_blocks
-      INTEGER(KIND=int_8), INTENT(INOUT)                 :: num_flops_mat_P
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_if_mat_P_T_tau_has_blocks', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, nblks
-
-      CALL timeset(routineN, handle)
-
-      IF (jquad == 1 .AND. i_mem == 1 .AND. j_mem == 1 .AND. i_cell_R_1 == 1 .AND. i_cell_R_2 == 1) THEN
-         does_mat_P_T_tau_have_blocks(i_cell_T) = .FALSE.
-      END IF
-
-      nblks = dbcsr_get_num_blocks(mat_P_global%matrix)
-
-      IF (nblks > 0) THEN
-         does_mat_P_T_tau_have_blocks(i_cell_T) = .TRUE.
-      END IF
-
-      IF (jquad == 1) THEN
-
-         CALL mp_sum(num_flops_mat_P, para_env%group)
-         IF (num_flops_mat_P == 0) has_mat_P_blocks(i_cell_T, i_mem, j_mem, i_cell_R_1, i_cell_R_2) = .FALSE.
-
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE check_if_mat_P_T_tau_has_blocks
-
-! **************************************************************************************************
-!> \brief ...
-!> \param does_mat_P_T_tau_have_blocks ...
-!> \param para_env ...
-!> \param i_cell_T ...
-!> \param jquad ...
-!> \param index_to_cell_dm ...
-! **************************************************************************************************
-   SUBROUTINE sync_does_mat_P_T_tau_have_blocks(does_mat_P_T_tau_have_blocks, para_env, i_cell_T, &
-                                                jquad, index_to_cell_dm)
-
-      LOGICAL, DIMENSION(:), INTENT(INOUT)               :: does_mat_P_T_tau_have_blocks
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: i_cell_T, jquad
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'sync_does_mat_P_T_tau_have_blocks', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, j_cell_T, j_cell_T_new
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_does_mat_P_T_tau_have_blocks
-
-      CALL timeset(routineN, handle)
-
-      ALLOCATE (integ_does_mat_P_T_tau_have_blocks(SIZE(does_mat_P_T_tau_have_blocks)))
-      integ_does_mat_P_T_tau_have_blocks(:) = 0
-
-      DO j_cell_T = 1, SIZE(does_mat_P_T_tau_have_blocks)
-
-         IF (does_mat_P_T_tau_have_blocks(j_cell_T)) THEN
-            integ_does_mat_P_T_tau_have_blocks(j_cell_T) = 1
-         END IF
-
-      END DO
-
-      CALL mp_sum(integ_does_mat_P_T_tau_have_blocks, para_env%group)
-
-      DO j_cell_T = 1, SIZE(does_mat_P_T_tau_have_blocks)
-
-         IF (integ_does_mat_P_T_tau_have_blocks(j_cell_T) .GE. 1) THEN
-            does_mat_P_T_tau_have_blocks(j_cell_T) = .TRUE.
-         ELSE IF (integ_does_mat_P_T_tau_have_blocks(j_cell_T) == 0) THEN
-            does_mat_P_T_tau_have_blocks(j_cell_T) = .FALSE.
-         ELSE
-            CPABORT("Something is wrong when checking whether chi^T is zero.")
-         END IF
-
-      END DO
-
-      IF ((jquad == 1) .AND. (does_mat_P_T_tau_have_blocks(i_cell_T) .EQV. .FALSE.)) THEN
-         DO j_cell_T_new = i_cell_T + 1, SIZE(does_mat_P_T_tau_have_blocks)
-
-            ! check if there is a cell which is closer to the 0-cell where the P matrix is already zero
-            IF (ABS(index_to_cell_dm(1, i_cell_T)) .LE. ABS(index_to_cell_dm(1, j_cell_T_new)) .AND. &
-                ABS(index_to_cell_dm(2, i_cell_T)) .LE. ABS(index_to_cell_dm(2, j_cell_T_new)) .AND. &
-                ABS(index_to_cell_dm(3, i_cell_T)) .LE. ABS(index_to_cell_dm(3, j_cell_T_new))) THEN
-
-               does_mat_P_T_tau_have_blocks(j_cell_T_new) = .FALSE.
-
-            END IF
-
-         END DO
-
-      END IF
-
-      integ_does_mat_P_T_tau_have_blocks(:) = 0
-      DO j_cell_T = 1, SIZE(does_mat_P_T_tau_have_blocks)
-
-         IF (does_mat_P_T_tau_have_blocks(j_cell_T)) THEN
-            integ_does_mat_P_T_tau_have_blocks(j_cell_T) = 1
-         END IF
-
-      END DO
-
-      DEALLOCATE (integ_does_mat_P_T_tau_have_blocks)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE sync_does_mat_P_T_tau_have_blocks
 
 ! **************************************************************************************************
 !> \brief ...
@@ -921,7 +784,6 @@ CONTAINS
 !> \param qs_env ...
 !> \param num_cells_dm ...
 !> \param index_to_cell_dm ...
-!> \param does_mat_P_T_tau_have_blocks ...
 ! **************************************************************************************************
    SUBROUTINE compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, nmo, &
                                     fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
@@ -930,7 +792,7 @@ CONTAINS
                                     Eigenval, e_fermi, eps_filter, memory_info, &
                                     unit_nr, para_env, &
                                     jquad, stabilize_exp, do_kpoints_cubic_RPA, qs_env, &
-                                    num_cells_dm, index_to_cell_dm, does_mat_P_T_tau_have_blocks)
+                                    num_cells_dm, index_to_cell_dm)
 
       TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
@@ -955,7 +817,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(OUT)                               :: num_cells_dm
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
-      LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: does_mat_P_T_tau_have_blocks
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_dm_global', &
          routineP = moduleN//':'//routineN
@@ -1105,28 +966,19 @@ CONTAINS
 
       END IF ! do kpoints
 
-      IF (jquad == 1) THEN
-         ALLOCATE (does_mat_P_T_tau_have_blocks(num_cells_dm/2 + 1))
-         does_mat_P_T_tau_have_blocks(:) = .TRUE.
-      END IF
-
       CALL timestop(handle)
-
    END SUBROUTINE compute_mat_dm_global
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param mat_dm_occ_global ...
 !> \param mat_dm_virt_global ...
-!> \param does_mat_P_T_tau_have_blocks ...
 ! **************************************************************************************************
-   SUBROUTINE clean_up(mat_dm_occ_global, mat_dm_virt_global, does_mat_P_T_tau_have_blocks)
+   SUBROUTINE clean_up(mat_dm_occ_global, mat_dm_virt_global)
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_occ_global, mat_dm_virt_global
-      LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: does_mat_P_T_tau_have_blocks
 
       CALL dbcsr_deallocate_matrix_set(mat_dm_occ_global)
       CALL dbcsr_deallocate_matrix_set(mat_dm_virt_global)
-      DEALLOCATE (does_mat_P_T_tau_have_blocks)
 
    END SUBROUTINE clean_up
 
