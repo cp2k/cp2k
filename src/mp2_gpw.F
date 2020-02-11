@@ -144,10 +144,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_gpw_main', routineP = moduleN//':'//routineN
 
       INTEGER :: blacs_grid_layout, color_sub, comm_sub, dimen, dimen_RI, dimen_RI_red, &
-         eri_method, group_size_3c, group_size_P, gw_corr_lev_occ, gw_corr_lev_occ_beta, &
-         gw_corr_lev_virt, gw_corr_lev_virt_beta, handle, homo, homo_beta, local_unit_nr, &
-         my_group_L_end, my_group_L_size, my_group_L_start, nelectron, nelectron_beta, nmo, &
-         nspins, potential_type, ri_metric_type
+         eri_method, gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, &
+         gw_corr_lev_virt_beta, handle, homo, homo_beta, local_unit_nr, my_group_L_end, &
+         my_group_L_size, my_group_L_start, nelectron, nelectron_beta, nmo, nspins, &
+         potential_type, ri_metric_type
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array_mc, ends_array_mc_block, &
                                                             starts_array_mc, starts_array_mc_block
       INTEGER, DIMENSION(3)                              :: periodic
@@ -281,27 +281,15 @@ CONTAINS
       IF (do_im_time) THEN
 
          IF (.NOT. mp2_env%ri_rpa_im_time%group_size_internal) THEN
-            group_size_3c = mp2_env%ri_rpa_im_time%group_size_3c
+            ASSOCIATE (group_size_3c=>mp2_env%ri_rpa_im_time%group_size_3c, group_size_P=>mp2_env%ri_rpa_im_time%group_size_P)
+               DO WHILE (MOD(para_env%num_pe, group_size_3c) .NE. 0)
+                  group_size_3c = group_size_3c - 1
+               END DO
 
-            IF (group_size_3c > para_env%num_pe) THEN
-
-               group_size_3c = para_env%num_pe
-               mp2_env%ri_rpa_im_time%group_size_3c = para_env%num_pe
-
-            END IF
-
-            IF (mp2_env%ri_rpa_im_time%group_size_P > para_env%num_pe) THEN
-               mp2_env%ri_rpa_im_time%group_size_P = para_env%num_pe
-            END IF
-
-            group_size_P = mp2_env%ri_rpa_im_time%group_size_P
-
-            ! only allow group_size_P which is a factor of the total number of MPI tasks
-            CPASSERT(MODULO(para_env%num_pe, group_size_P) == 0)
-
-            ! only allow group_size_3c which is a factor of the total number of MPI tasks
-            CPASSERT(MODULO(para_env%num_pe, group_size_3c) == 0)
-
+               DO WHILE (MOD(para_env%num_pe, group_size_P) .NE. 0)
+                  group_size_P = group_size_P - 1
+               END DO
+            END ASSOCIATE
          ENDIF
 
          IF (mp2_env%ri_metric%potential_type == ri_default) mp2_env%ri_metric%potential_type = do_potential_id

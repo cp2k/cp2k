@@ -170,7 +170,7 @@ QS/regtest-ri-laplace-mp2                                   libint
 QS/regtest-pexsi                                            pexsi
 QS/regtest-sym-1
 QS/regtest-rma-3D                                           libint mpi3 mpiranks==8
-QS/regtest-rpa-cubic-scaling                                libint mpiranks==2||mpiranks==4||mpiranks==6||mpiranks==16||mpiranks==24
+QS/regtest-rpa-cubic-scaling                                libint
 QS/regtest-cdft-4-3
 Fist/regtest-1-2
 Fist/regtest-1-3
@@ -261,7 +261,7 @@ Fist/regtest-quip                                           quip
 ATOM/regtest-libxc                                          libxc
 Fist/regtest-plumed2                                        plumed2
 QS/regtest-sto
-QS/regtest-ri-laplace-mp2-cubic                             libint mpiranks==2||mpiranks==4||mpiranks==6||mpiranks==16||mpiranks==24
+QS/regtest-ri-laplace-mp2-cubic                             libint
 QS/regtest-dm-ls-scf-4
 QS/regtest-almo-trustr
 QS/regtest-nlmo
