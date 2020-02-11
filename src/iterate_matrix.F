@@ -28,6 +28,7 @@ MODULE iterate_matrix
                                               m_walltime
    USE mathconstants,                   ONLY: ifac
    USE mathlib,                         ONLY: abnormal_value
+   USE message_passing,                 ONLY: mp_sum
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -70,8 +71,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'determinant', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, max_iter_lanczos, nsize, &
-                                                            order_lanczos, sign_iter, unit_nr
+      INTEGER                                            :: group, handle, i, max_iter_lanczos, &
+                                                            nsize, order_lanczos, sign_iter, &
+                                                            unit_nr
       INTEGER(KIND=int_8)                                :: flop1
       INTEGER, SAVE                                      :: recursion_depth = 0
       REAL(KIND=dp)                                      :: det0, eps_lanczos, frobnorm, maxnorm, &
@@ -102,9 +104,10 @@ CONTAINS
                         matrix_type=dbcsr_type_no_symmetry)
 
       ! compute the product of the diagonal elements
-      CALL dbcsr_get_info(matrix, nfullrows_total=nsize)
+      CALL dbcsr_get_info(matrix, nfullrows_total=nsize, group=group)
       ALLOCATE (diagonal(nsize))
       CALL dbcsr_get_diag(matrix, diagonal)
+      CALL mp_sum(diagonal, group)
       det = PRODUCT(diagonal)
 
       ! create diagonal SQRTI matrix
