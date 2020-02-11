@@ -478,11 +478,11 @@ CONTAINS
                      "[atomic units]"
                   DO i = 1, ninactive_orb(ispin), 4
                      jm = MIN(3, ninactive_orb(ispin) - i)
-                     WRITE (iw, '(T3,4(F14.6,A5))') (eigenvalues(i + j, 1), " [I]", j=0, jm)
+                     WRITE (iw, '(T3,4(F14.6,A5))') (eigenvalues(i + j, ispin), " [I]", j=0, jm)
                   END DO
                   DO i = ninactive_orb(ispin) + 1, ninactive_orb(ispin) + nactive_orb(ispin), 4
                      jm = MIN(3, ninactive_orb(ispin) + nactive_orb(ispin) - i)
-                     WRITE (iw, '(T3,4(F14.6,A5))') (eigenvalues(i + j, 1), " [A]", j=0, jm)
+                     WRITE (iw, '(T3,4(F14.6,A5))') (eigenvalues(i + j, ispin), " [A]", j=0, jm)
                   END DO
                END DO
             END IF
