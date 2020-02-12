@@ -8,22 +8,81 @@ try:
 except ImportError:
     from io import StringIO
 
+# Declare various RE snippets for building larger REs
+
+# Valid fortran argument/variable name
+VALID_NAME = r"[a-zA-Z][a-zA-Z_0-9]*"
+
+# Set up valid type declaration
+DECL_KIND_KW = rf"\( (?:kind = )? (?:{VALID_NAME}|[0-9]+) \)".replace(" ", r"\s*")
+DECL_KIND_STAR = r"\s*\*\s*[0-9]+"
+CHAR_KIND_SPEC = rf"(?:(?:len|kind) = )? (?:{VALID_NAME}|[0-9]+|\*|:)"
+CHAR_KIND_SPEC = rf"\( {CHAR_KIND_SPEC}(?: , {CHAR_KIND_SPEC}) \)".replace(" ", r"\s*")
+DECL_KIND_SPEC = rf"\s*(?:{DECL_KIND_STAR}|{DECL_KIND_KW})"
+DECL_TYPE_DEF = rf"""(?:
+(?:integer|real|complex)(?:{DECL_KIND_SPEC})?|
+character(?:{DECL_KIND_STAR}|{CHAR_KIND_SPEC})?|
+logical(?:{DECL_KIND_KW})?|type|class)"""
+
+# String styles
+DQUOTED = r'"[^"]*"'
+SQUOTED = r"'[^']*'"
+QUOTED = rf"(?:{DQUOTED}|{SQUOTED})"
+
+# Stop at punctuation
+NOT_PUNC = r"[^()\"'\[\]]"
+NOT_PUNC_COMMA = r"[^()\"',\[\]]"
+NOT_BRAC = r"[^()]"
+
+# Enable new-style fortran arrays (square brackets)
+BRAC_OPEN = r"[(\[]"
+BRAC_CLOSE = r"[)\]]"
+NOT_PAREN = r"[^()]"
+
+# Nested parens for up to 3-level nesting (1st level's parens are outside this variable)
+# Should more than 3 levels be necessary, need to reduplicate this deeper.
+NESTED_PAREN_1TO3_CONTENTS = (
+    rf"(?:{NOT_PAREN}+|\((?:{NOT_PAREN}+|\({NOT_PAREN}*\))*\))*"
+)
+
+# Variable statement
 VAR_RE = re.compile(
-    r" *(?P<var>[a-zA-Z_0-9]+) *(?P<rest>(?:\((?P<param>(?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*)\))? *(?:= *(?P<value>(?:[^\"',()\[\]]+|\[(?:[^()\"'\[\]]+|\([^()\"']*\)|\"[^\"]*\"|'[^']*')*\]|\((?:[^()\"'\[\]]+|\([^()\"']*\)|\"[^\"]*\"|'[^']*')*\)|\"[^\"]*\"|'[^']*')+))?)? *(?:(?P<continue>,)|\n?) *",
-    re.IGNORECASE,
+    rf"""
+\s*(?P<var>{VALID_NAME})
+\s*(?P<rest>(:?\((?P<param>{NESTED_PAREN_1TO3_CONTENTS})\))?
+\s*(?:=\s*(?P<value>(?:
+{NOT_PUNC_COMMA}+|
+{BRAC_OPEN}(?:{NOT_PUNC}|{BRAC_OPEN}{NOT_PUNC}*{BRAC_CLOSE}|{QUOTED})*{BRAC_CLOSE}|
+{QUOTED})+))?)?
+\s*(?:(?P<continue>,)|\n?)
+\s*""",
+    re.IGNORECASE | re.VERBOSE,
 )
+
+# Use statement
 USE_PARSE_RE = re.compile(
-    r" *use +(?P<module>[a-zA-Z_][a-zA-Z_0-9]*)(?P<only> *, *only *:)? *(?P<imports>.*)$",
-    flags=re.IGNORECASE,
+    rf"""\s*
+use(\s+|(?P<intrinsic>\s*,\s*Intrinsic\s+::\s*))
+(?P<module>{VALID_NAME})
+(?P<only>\s*,\s*only\s*:)?\s*
+(?P<imports>.*)$""",
+    flags=re.IGNORECASE | re.VERBOSE,
 )
-COMMON_USES_RE = re.compile('^#include *"([^"]*(cp_common_uses.f90|base_uses.f90))"')
+
+COMMON_USES_RE = re.compile('^#include\s*"([^"]*(cp_common_uses.f90|base_uses.f90))"')
 LOCAL_NAME_RE = re.compile(
-    " *(?P<localName>[a-zA-Z_0-9]+)(?: *= *> *[a-zA-Z_0-9]+)? *$"
+    rf"\s*(?P<localName>{VALID_NAME})(?:\s*=>\s*{VALID_NAME})?\s*$", re.VERBOSE
 )
 VAR_DECL_RE = re.compile(
-    r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type) *(?P<parameters>\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))? *(?P<attributes>(?: *, *[a-zA-Z_0-9]+(?: *\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))?)+)? *(?P<dpnt>::)?(?P<vars>[^\n]+)\n?",
-    re.IGNORECASE,
-)  # $
+    rf"""
+\s*(?P<type>{DECL_TYPE_DEF})
+\s*(?P<parameters>\({NESTED_PAREN_1TO3_CONTENTS}\))?
+\s*(?P<attributes>(?:\s*,\s*[a-zA-Z_0-9]+(?:\s*\({NESTED_PAREN_1TO3_CONTENTS}\))?)+)?\s*
+(?P<dpnt>::)?
+(?P<vars>[^\n]+)\n?
+""",
+    re.IGNORECASE | re.VERBOSE,
+)
 INDENT_SIZE = 2
 DECL_LINELENGTH = 100
 DECL_OFFSET = 50
