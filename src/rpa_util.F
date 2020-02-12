@@ -1039,7 +1039,6 @@ CONTAINS
 !> \param mat_SinvVSinv ...
 !> \param mat_P_omega ...
 !> \param mat_P_omega_kp ...
-!> \param t_3c_overl_int ...
 !> \param t_3c_M ...
 !> \param t_3c_O ...
 !> \param mat_work ...
@@ -1055,7 +1054,7 @@ CONTAINS
                               wkp_W, cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, &
                               fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm, mat_L, &
                               mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
-                              t_3c_overl_int, t_3c_M, t_3c_O, &
+                              t_3c_M, t_3c_O, &
                               mat_work, &
                               fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mat_P_omega_beta)
 
@@ -1080,7 +1079,6 @@ CONTAINS
                                                             fm_mo_coeff_virt_scaled
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_dm, mat_L, mat_SinvVSinv
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_kp
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_overl_int
       TYPE(dbcsr_t_type)                                 :: t_3c_M
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
       TYPE(dbcsr_type), POINTER                          :: mat_work
@@ -1152,11 +1150,10 @@ CONTAINS
       DO i_size = 1, SIZE(t_3c_O, 1)
          DO j_size = 1, SIZE(t_3c_O, 2)
             CALL dbcsr_t_destroy(t_3c_O(i_size, j_size))
-            CALL dbcsr_t_destroy(t_3c_overl_int(i_size, j_size))
          ENDDO
       ENDDO
 
-      DEALLOCATE (t_3c_O, t_3c_overl_int)
+      DEALLOCATE (t_3c_O)
       CALL dbcsr_t_destroy(t_3c_M)
 
       DEALLOCATE (has_mat_P_blocks)

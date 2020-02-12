@@ -37,7 +37,7 @@ MODULE mp2_integrals
         dbcsr_release_p, dbcsr_scalar, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
         dbcsr_type_real_8
    USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
+        dbcsr_t_clear, dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
         dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, &
         dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_create, dbcsr_t_pgrid_create_expert, &
@@ -153,7 +153,6 @@ CONTAINS
 !> \param do_im_time ...
 !> \param do_kpoints_cubic_RPA ...
 !> \param kpoints ...
-!> \param t_3c_overl_int ...
 !> \param t_3c_M ...
 !> \param t_3c_O ...
 !> \param ri_metric ...
@@ -181,7 +180,7 @@ CONTAINS
                                     starts_array_mc_block, ends_array_mc_block, &
                                     gw_corr_lev_occ, gw_corr_lev_virt, &
                                     do_im_time, do_kpoints_cubic_RPA, kpoints, &
-                                    t_3c_overl_int, t_3c_M, t_3c_O, &
+                                    t_3c_M, t_3c_O, &
                                     ri_metric, gd_B_occ_bse, gd_B_virt_bse, BIb_C_beta, BIb_C_gw_beta, &
                                     gd_B_virtual_beta, homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
                                     mo_coeff_all_beta, mo_coeff_gw_beta)
@@ -219,7 +218,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL, INTENT(IN)                                :: do_im_time, do_kpoints_cubic_RPA
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_overl_int
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: t_3c_M
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: t_3c_O
@@ -235,19 +233,19 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: cut_memory, eri_method, gw_corr_lev_total, handle, handle2, handle4, i, &
+      INTEGER :: cm, cut_memory, eri_method, gw_corr_lev_total, handle, handle2, handle4, i, &
          i_counter, itmp(2), j, LLL, max_row_col_local, max_row_col_local_beta, &
          max_row_col_local_gw, max_row_col_local_occ_bse, max_row_col_local_virt_bse, min_bsize, &
          mp_comm_t3c_2, my_B_all_end, my_B_all_size, my_B_all_start, my_B_occ_bse_end, &
          my_B_occ_bse_size, my_B_occ_bse_start, my_B_size, my_B_size_beta, my_B_virt_bse_end, &
          my_B_virt_bse_size, my_B_virt_bse_start, my_B_virtual_end, my_B_virtual_end_beta, &
          my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, my_group_L_size, &
-         my_group_L_start, natom, ngroup
-      INTEGER :: ngroup_im_time, ngroup_im_time_P, nimg, nkind, num_small_eigen, potential_type, &
-         ri_metric_type, virtual, virtual_beta
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist_AO_1, dist_AO_2, dist_RI, sizes_AO, &
-                                                            sizes_AO_split, sizes_RI, &
-                                                            sizes_RI_split, sub_proc_map
+         my_group_L_start, natom
+      INTEGER :: ngroup, ngroup_im_time, ngroup_im_time_P, nimg, nkind, num_small_eigen, &
+         potential_type, ri_metric_type, virtual, virtual_beta
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
+         ends_array_mc_block_int, ends_array_mc_int, sizes_AO, sizes_AO_split, sizes_RI, &
+         sizes_RI_split, starts_array_mc_block_int, starts_array_mc_int, sub_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: local_col_row_info, local_col_row_info_beta, &
          local_col_row_info_gw, local_col_row_info_occ_bse, local_col_row_info_virt_bse
       INTEGER, DIMENSION(3)                              :: pcoord, pdims, pdims_t3c, periodic
@@ -267,6 +265,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local_L
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_t3c_M, pgrid_t3c_overl
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_template
+      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_overl_int
       TYPE(dbcsr_type) :: matrix_bse_ab, matrix_bse_anu, matrix_bse_ij, matrix_bse_inu, &
          matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, matrix_ia_jnu_beta, matrix_in_jm, &
          matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
@@ -760,8 +759,15 @@ CONTAINS
          CALL basis_set_list_setup(basis_set_ao, "ORB", qs_kind_set)
          CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=basis_set_ao)
 
+         CALL create_contraction_batches(sizes_AO, cut_memory, starts_array_mc_int, ends_array_mc_int, &
+                                         starts_array_mc_block_int, ends_array_mc_block_int)
+         DEALLOCATE (starts_array_mc_int, ends_array_mc_int)
+
          CALL create_3c_tensor(t_3c_overl_int_template, dist_RI, dist_AO_1, dist_AO_2, pgrid_t3c_overl, &
-                               sizes_RI, sizes_AO, sizes_AO, map1=[1, 2], map2=[3], name="O (RI AO | AO)")
+                               sizes_RI, sizes_AO, sizes_AO, map1=[1, 2], map2=[3], &
+                               starts_array_block_2=starts_array_mc_block_int, &
+                               ends_array_block_2=ends_array_mc_block_int, &
+                               name="O (RI AO | AO)")
 
          CALL get_qs_env(qs_env, nkind=nkind, particle_set=particle_set)
          CALL dbcsr_t_mp_environ_pgrid(pgrid_t3c_overl, pdims, pcoord)
@@ -841,27 +847,43 @@ CONTAINS
             ENDDO
          ENDDO
 
-         CALL build_3c_integrals(t_3c_overl_int, &
-                                 qs_env%mp2_env%mp2_gpw%eps_filter, &
-                                 qs_env, &
-                                 nl_3c, &
-                                 basis_i=basis_set_ri_aux, &
-                                 basis_j=basis_set_ao, basis_k=basis_set_ao, &
-                                 potential_parameter=ri_metric, &
-                                 do_kpoints=do_kpoints_cubic_RPA)
+         ! build integrals in batches and copy to optimized format
+         ! note: integrals are stored in terms of atomic blocks. To avoid a memory bottleneck,
+         ! integrals are calculated in batches and copied to optimized format with subatomic blocks
 
-         DEALLOCATE (basis_set_ri_aux, basis_set_ao)
-         ! copy integral tensor t_3c_overl_int to t_3c_O tensor optimized for contraction
-         CALL timeset(routineN//"_copy_3c", handle4)
+         DO cm = 1, cut_memory
+            CALL build_3c_integrals(t_3c_overl_int, &
+                                    qs_env%mp2_env%mp2_gpw%eps_filter, &
+                                    qs_env, &
+                                    nl_3c, &
+                                    basis_i=basis_set_ri_aux, &
+                                    basis_j=basis_set_ao, basis_k=basis_set_ao, &
+                                    potential_parameter=ri_metric, &
+                                    do_kpoints=do_kpoints_cubic_RPA, &
+                                    bounds_j=[starts_array_mc_block_int(cm), ends_array_mc_block_int(cm)])
+            CALL timeset(routineN//"_copy_3c", handle4)
+            ! copy integral tensor t_3c_overl_int to t_3c_O tensor optimized for contraction
+            DO i = 1, SIZE(t_3c_overl_int, 1)
+               DO j = 1, SIZE(t_3c_overl_int, 2)
+
+                  CALL dbcsr_t_copy(t_3c_overl_int(i, j), t_3c_O(i, j), order=[1, 3, 2], &
+                                    summation=.TRUE., move_data=.TRUE.)
+                  CALL dbcsr_t_clear(t_3c_overl_int(i, j))
+                  CALL dbcsr_t_filter(t_3c_O(i, j), qs_env%mp2_env%mp2_gpw%eps_filter)
+               ENDDO
+            ENDDO
+            CALL timestop(handle4)
+         ENDDO
+
          DO i = 1, SIZE(t_3c_overl_int, 1)
             DO j = 1, SIZE(t_3c_overl_int, 2)
-
-               CALL dbcsr_t_copy(t_3c_overl_int(i, j), t_3c_O(i, j), order=[1, 3, 2], move_data=.FALSE.)
-               CALL dbcsr_t_filter(t_3c_O(i, j), qs_env%mp2_env%mp2_gpw%eps_filter)
+               CALL dbcsr_t_destroy(t_3c_overl_int(i, j))
             ENDDO
          ENDDO
 
-         CALL timestop(handle4)
+         DEALLOCATE (t_3c_overl_int)
+
+         DEALLOCATE (basis_set_ri_aux, basis_set_ao)
 
          CALL neighbor_list_3c_destroy(nl_3c)
 

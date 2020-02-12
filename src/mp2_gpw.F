@@ -170,7 +170,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(dbcsr_t_type)                                 :: t_3c_M
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O, t_3c_overl_int
+      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
       TYPE(dbcsr_type), POINTER :: mo_coeff_all, mo_coeff_all_beta, mo_coeff_gw, mo_coeff_gw_beta, &
          mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, mo_coeff_v_beta
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -402,7 +402,7 @@ CONTAINS
                do_bse, gd_B_all, starts_array_mc, ends_array_mc, starts_array_mc_block, ends_array_mc_block, &
                gw_corr_lev_occ, gw_corr_lev_virt, &
                do_im_time, do_kpoints_cubic_RPA, kpoints, &
-               t_3c_overl_int, t_3c_M, t_3c_O, &
+               t_3c_M, t_3c_O, &
                mp2_env%ri_metric, &
                gd_B_occ_bse, gd_B_virt_bse, &
                BIb_C_beta, BIb_C_gw_beta, gd_B_virtual_beta, &
@@ -422,7 +422,7 @@ CONTAINS
                                        starts_array_mc_block, ends_array_mc_block, &
                                        gw_corr_lev_occ, gw_corr_lev_virt, &
                                        do_im_time, do_kpoints_cubic_RPA, kpoints, &
-                                       t_3c_overl_int, t_3c_M, t_3c_O, &
+                                       t_3c_M, t_3c_O, &
                                        mp2_env%ri_metric, gd_B_occ_bse, gd_B_virt_bse)
 
          END IF
@@ -549,7 +549,7 @@ CONTAINS
                                    unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
                                    mat_munu, &
                                    mat_P_global, &
-                                   t_3c_overl_int, t_3c_M, t_3c_O, &
+                                   t_3c_M, t_3c_O, &
                                    starts_array_mc, ends_array_mc, &
                                    starts_array_mc_block, ends_array_mc_block, &
                                    mp2_env%mp2_gpw%eps_filter, BIb_C_beta, homo_beta, Eigenval_beta, &
@@ -569,7 +569,7 @@ CONTAINS
                                    unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
                                    mat_munu, &
                                    mat_P_global, &
-                                   t_3c_overl_int, t_3c_M, t_3c_O, &
+                                   t_3c_M, t_3c_O, &
                                    starts_array_mc, ends_array_mc, &
                                    starts_array_mc_block, ends_array_mc_block, &
                                    mp2_env%mp2_gpw%eps_filter)
