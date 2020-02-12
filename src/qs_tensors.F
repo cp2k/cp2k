@@ -390,7 +390,29 @@ CONTAINS
       iterator%iter_level = 0
       iterator%ijk_nl = ijk_nl
 
+      iterator%bounds_i = 0
+      iterator%bounds_j = 0
+      iterator%bounds_k = 0
+
       CALL timestop(handle)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief impose atomic upper and lower bounds
+!> \param iterator ...
+!> \param bounds_i ...
+!> \param bounds_j ...
+!> \param bounds_k ...
+! **************************************************************************************************
+   SUBROUTINE nl_3c_iter_set_bounds(iterator, bounds_i, bounds_j, bounds_k)
+      TYPE(neighbor_list_3c_iterator_type), &
+         INTENT(INOUT)                                   :: iterator
+      INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: bounds_i, bounds_j, bounds_k
+
+      IF (PRESENT(bounds_i)) iterator%bounds_i = bounds_i
+      IF (PRESENT(bounds_j)) iterator%bounds_j = bounds_j
+      IF (PRESENT(bounds_k)) iterator%bounds_k = bounds_k
+
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -458,7 +480,19 @@ CONTAINS
       CPASSERT(jatom_1 == jatom_2)
       jatom = jatom_1
 
-      skip_this = .TRUE.
+      skip_this = .FALSE.
+      IF ((iterator%bounds_i(1) > 0 .AND. iatom < iterator%bounds_i(1)) &
+          .OR. (iterator%bounds_i(2) > 0 .AND. iatom > iterator%bounds_i(2))) skip_this = .TRUE.
+      IF ((iterator%bounds_j(1) > 0 .AND. jatom < iterator%bounds_j(1)) &
+          .OR. (iterator%bounds_j(2) > 0 .AND. jatom > iterator%bounds_j(2))) skip_this = .TRUE.
+      IF ((iterator%bounds_k(1) > 0 .AND. katom < iterator%bounds_k(1)) &
+          .OR. (iterator%bounds_k(2) > 0 .AND. katom > iterator%bounds_k(2))) skip_this = .TRUE.
+
+      IF (skip_this) THEN
+         iter_stat = neighbor_list_3c_iterate(iterator)
+         RETURN
+      ENDIF
+
       SELECT CASE (iterator%ijk_nl%sym)
       CASE (symmetric_none)
          skip_this = .FALSE.
@@ -778,12 +812,16 @@ CONTAINS
 !> \param do_kpoints ...
 !> this routine requires that libint has been static initialised somewhere else
 !> \param desymmetrize ...
+!> \param bounds_i ...
+!> \param bounds_j ...
+!> \param bounds_k ...
 ! **************************************************************************************************
    SUBROUTINE build_3c_integrals(t3c, filter_eps, qs_env, &
                                  nl_3c, basis_i, basis_j, basis_k, &
                                  potential_parameter, &
                                  int_eps, &
-                                 op_pos, do_kpoints, desymmetrize)
+                                 op_pos, do_kpoints, desymmetrize, &
+                                 bounds_i, bounds_j, bounds_k)
       TYPE(dbcsr_t_type), DIMENSION(:, :), INTENT(INOUT) :: t3c
       REAL(KIND=dp), INTENT(IN)                          :: filter_eps
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -793,6 +831,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: int_eps
       INTEGER, INTENT(IN), OPTIONAL                      :: op_pos
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints, desymmetrize
+      INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: bounds_i, bounds_j, bounds_k
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_3c_integrals', &
          routineP = moduleN//':'//routineN
@@ -936,6 +975,8 @@ CONTAINS
       ENDIF
 
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
+      CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bounds_j, bounds_k)
+
       DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
          CALL get_3c_iterator_info(nl_3c_iter, ikind=ikind, jkind=jkind, kkind=kkind, &
                                    iatom=iatom, jatom=jatom, katom=katom, &

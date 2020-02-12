@@ -64,6 +64,7 @@ MODULE qs_tensors_types
       TYPE(neighbor_list_iterator_p_type), DIMENSION(:), POINTER :: iter_jk => NULL()
       INTEGER                                                    :: iter_level
       TYPE(neighbor_list_3c_type)                                :: ijk_nl
+      INTEGER, DIMENSION(2)                                      :: bounds_i, bounds_j, bounds_k
    END TYPE
 
 CONTAINS
