@@ -74,6 +74,7 @@
           &RI_G0W0
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
+            CROSSING_SEARCH       Z_SHOT
             ANALYTIC_CONTINUATION TWO_POLE
           &END RI_G0W0
         &END RI_RPA

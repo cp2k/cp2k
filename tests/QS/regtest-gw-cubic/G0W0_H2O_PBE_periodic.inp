@@ -68,7 +68,6 @@
             CORR_MOS_OCC          4
             CORR_MOS_VIRT         4
             ANALYTIC_CONTINUATION TWO_POLE
-            PRINT_GW_DETAILS
             PERIODIC
             &PERIODIC
               # That value should be chosen much larger !
