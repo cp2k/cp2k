@@ -1,12 +1,8 @@
 import sys
 import re
-from collections import deque
 import logging
-
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from collections import deque
+from io import StringIO
 
 # Declare various RE snippets for building larger REs
 
