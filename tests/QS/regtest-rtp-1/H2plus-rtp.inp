@@ -35,7 +35,6 @@
     &END
     &QS
       EPS_DEFAULT 1.0E-10
-      MAP_CONSISTENT
     &END QS
     &SCF
       MAX_SCF 60

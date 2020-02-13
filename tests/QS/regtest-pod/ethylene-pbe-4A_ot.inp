@@ -35,7 +35,6 @@
       EPS_DEFAULT 1.0e-8
       EXTRAPOLATION ps
       EXTRAPOLATION_ORDER 3 
-      MAP_CONSISTENT .true.
     &END QS
     # SCF procedure
     &SCF

@@ -10,7 +10,6 @@
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-12
-      MAP_CONSISTENT
       &DDAPC_RESTRAINT
         ATOMS   1 
         TARGET -1.0

@@ -13,7 +13,6 @@
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-8
-      MAP_CONSISTENT
       &MULLIKEN_RESTRAINT
         TARGET 1.0
         STRENGTH 0.3
