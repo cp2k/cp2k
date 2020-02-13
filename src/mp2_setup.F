@@ -152,10 +152,6 @@ CONTAINS
                                 i_val=mp2_env%ri_g0w0%analytic_continuation)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%OMEGA_MAX_FIT", &
                                 r_val=mp2_env%ri_g0w0%omega_max_fit)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%MAX_ITER_FIT", &
-                                i_val=mp2_env%ri_g0w0%max_iter_fit)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%CHECK_FIT", &
-                                l_val=mp2_env%ri_g0w0%check_fit)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%CROSSING_SEARCH", &
                                 i_val=mp2_env%ri_g0w0%crossing_search)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%FERMI_LEVEL_OFFSET", &
@@ -166,10 +162,6 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%eps_ev_sc_iter)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%EV_SC_GW_REMOVE_NEG_VIRT_ENERGIES", &
                                 l_val=mp2_env%ri_g0w0%remove_neg_virt_energies)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%HF_LIKE_EV_START", &
-                                l_val=mp2_env%ri_g0w0%hf_like_ev_start)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PRINT_GW_DETAILS", &
-                                l_val=mp2_env%ri_g0w0%print_gw_details)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PRINT_EXX", &
                                 i_val=mp2_env%ri_g0w0%print_exx)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%RI_SIGMA_X", &
@@ -221,6 +213,9 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%frac_aux_mos)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PERIODIC%NUM_OMEGA_POINTS", &
                                 i_val=mp2_env%ri_g0w0%num_omega_points)
+
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PRINT%SELF_ENERGY", &
+                                l_val=mp2_env%ri_g0w0%print_self_energy)
 
       NULLIFY (im_time_section)
       im_time_section => section_vals_get_subs_vals(mp2_section, "IM_TIME")

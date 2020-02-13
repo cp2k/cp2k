@@ -129,16 +129,14 @@ MODULE mp2_types
       INTEGER                  :: analytic_continuation
       REAL(KIND=dp)            :: omega_max_fit
       INTEGER                  :: max_iter_fit
-      LOGICAL                  :: check_fit
       INTEGER                  :: crossing_search
       REAL(KIND=dp)            :: fermi_level_offset
       INTEGER                  :: iter_ev_sc
       REAL(KIND=dp)            :: eps_ev_sc_iter
-      LOGICAL                  :: hf_like_ev_start, &
-                                  print_gw_details, &
-                                  do_ri_Sigma_x, &
-                                  remove_neg_virt_energies
-      LOGICAL                  :: do_periodic
+      LOGICAL                  :: do_ri_Sigma_x, &
+                                  remove_neg_virt_energies, &
+                                  do_periodic, &
+                                  print_self_energy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: vec_Sigma_x_minus_vxc_gw
       INTEGER, DIMENSION(:), POINTER    :: kp_grid
       INTEGER                  :: num_kp_grids
