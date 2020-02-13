@@ -70,7 +70,6 @@
    EPS_DEFAULT 1.0E-10
    EXTRAPOLATION use_guess
    EXTRAPOLATION_ORDER 3
-   MAP_CONSISTENT
   &END QS
   &SCF
    ADDED_MOS ${ncell}*${ncell}*${ncell}*${natom}

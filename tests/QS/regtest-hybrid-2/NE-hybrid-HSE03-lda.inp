@@ -9,7 +9,6 @@
     &END MGRID
     &QS
       METHOD GAPW
-      MAP_CONSISTENT
       EPS_DEFAULT 1.0E-16
     &END QS
     &POISSON

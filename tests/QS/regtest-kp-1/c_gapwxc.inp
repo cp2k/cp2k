@@ -9,7 +9,6 @@
     &QS
       METHOD GAPW_XC
       EPS_DEFAULT 1.0E-8
-      MAP_CONSISTENT
       ALPHA0_H 10.0
       EPSFIT 1.0E-4
       EPSISO 1.0E-12

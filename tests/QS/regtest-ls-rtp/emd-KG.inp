@@ -30,7 +30,6 @@
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-8
-      MAP_CONSISTENT
       KG_METHOD
       LS_SCF
     &END QS

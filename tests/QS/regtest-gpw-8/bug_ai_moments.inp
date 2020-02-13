@@ -10,7 +10,6 @@
     &END MGRID
     &QS
        EPS_DEFAULT 1.0E-10
-       MAP_CONSISTENT
     &END QS
     &SCF
       NROW_BLOCK 24

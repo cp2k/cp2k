@@ -37,7 +37,6 @@
     &QS
       EPS_DEFAULT 1.0E-8
       EXTRAPOLATION use_prev_p
-      MAP_CONSISTENT
     &END QS
     &SCF
       EPS_SCF 1.0E-5

@@ -10,7 +10,6 @@
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-12
-      MAP_CONSISTENT
       &DDAPC_RESTRAINT
         STRENGTH   0.2497
         TARGET     0.2

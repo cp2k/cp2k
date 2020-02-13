@@ -18,7 +18,6 @@
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-10
-      MAP_CONSISTENT
       LS_SCF
     &END QS
     &LS_SCF

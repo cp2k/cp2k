@@ -6,7 +6,6 @@
       &SE
       &END SE
       EPS_DEFAULT 1.0E-8
-      MAP_CONSISTENT
       EXTRAPOLATION ASPC
       EXTRAPOLATION_ORDER 2
     &END QS
