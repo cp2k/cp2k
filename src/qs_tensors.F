@@ -1553,7 +1553,7 @@ CONTAINS
       CALL cyclic_tensor_dist(tdims(3), pdims(3), bs3, dist3)
 
       CALL dbcsr_t_get_mapping_info(t_3c%nd_index_blk, map1_2d=map1, map2_2d=map2)
-      CALL dbcsr_t_distribution_new(dist, pgrid, map1, map2, dist1, dist2, dist3)
+      CALL dbcsr_t_distribution_new(dist, pgrid, dist1, dist2, dist3)
       CALL dbcsr_t_create(t_tmp, name, dist, map1, map2, dbcsr_type_real_8, bs1, bs2, bs3)
       CALL dbcsr_t_distribution_destroy(dist)
 

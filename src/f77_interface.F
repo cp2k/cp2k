@@ -43,9 +43,7 @@ MODULE f77_interface
                                               cp_subsys_set,&
                                               cp_subsys_type,&
                                               unpack_subsys_particles
-   USE dbcsr_api,                       ONLY: dbcsr_acc_get_ndevices,&
-                                              dbcsr_acc_set_active_device,&
-                                              dbcsr_finalize_lib,&
+   USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib
    USE eip_environment,                 ONLY: eip_init
    USE eip_environment_types,           ONLY: eip_env_create,&
@@ -266,9 +264,6 @@ CONTAINS
 
          !   *** init the bibliography ***
          CALL add_all_references()
-
-         IF (dbcsr_acc_get_ndevices() > 0) &
-            CALL dbcsr_acc_set_active_device(MOD(default_para_env%mepos, dbcsr_acc_get_ndevices()))
 
          CALL pw_cuda_init()
 

@@ -46,8 +46,11 @@ MODULE almo_scf_types
    ! methods that add penalty terms to the energy functional
    TYPE penalty_type
 
-      REAL(KIND=dp)      :: occ_vol_coeff
-      INTEGER            :: occ_vol_method
+      REAL(KIND=dp)      :: final_determinant, penalty_strength, &
+                            determinant_tolerance, penalty_strength_dec_factor, &
+                            compactification_filter_start
+      INTEGER            :: operator_type
+      LOGICAL            :: virtual_nlmos
 
    END TYPE penalty_type
 
@@ -74,6 +77,7 @@ MODULE almo_scf_types
                         neglect_threshold
 
       INTEGER        :: optimizer_type ! diis, pcg, etc.
+      TYPE(penalty_type)  :: opt_penalty
 
       INTEGER        :: preconditioner, & ! preconditioner type
                         conjugator, & ! conjugator type
@@ -207,7 +211,7 @@ MODULE almo_scf_types
       LOGICAL              :: s_sqrt_done
       REAL(KIND=dp)        :: almo_scf_energy
       LOGICAL              :: orthogonal_basis, fixed_mu
-      LOGICAL              :: return_orthogonalized_mos
+      LOGICAL              :: return_orthogonalized_mos, construct_nlmos
 
       !! Smearing control
       !! smear flag allow to retrieve eigenvalues in almo_scf with diag algorithm and create occupation-scaled ALMO orbitals
@@ -238,6 +242,9 @@ MODULE almo_scf_types
       INTEGER               :: xalmo_update_algorithm
       ! mo overlap inversion algorithm
       INTEGER               :: sigma_inv_algorithm
+
+      ! Determinant of the ALMO overlap matrix
+      REAL(KIND=dp)         :: overlap_determinant
 
       ! ALMO SCF delocalization control
       LOGICAL               :: perturbative_delocalization
@@ -354,7 +361,6 @@ MODULE almo_scf_types
 
       ! Options for various subsection options collected neatly
       TYPE(almo_analysis_type)                       :: almo_analysis
-      TYPE(penalty_type)                             :: penalty
 
       ! Options for various optimizers collected neatly
       TYPE(optimizer_options_type)                   :: opt_block_diag_diis
@@ -362,6 +368,7 @@ MODULE almo_scf_types
       TYPE(optimizer_options_type)                   :: opt_xalmo_diis
       TYPE(optimizer_options_type)                   :: opt_xalmo_pcg
       TYPE(optimizer_options_type)                   :: opt_xalmo_trustr
+      TYPE(optimizer_options_type)                   :: opt_nlmo_pcg
       TYPE(optimizer_options_type)                   :: opt_xalmo_newton_pcg_solver
       TYPE(optimizer_options_type)                   :: opt_k_pcg
 

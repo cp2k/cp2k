@@ -172,10 +172,12 @@ CONTAINS
       ALLOCATE (sizes_MO(nmo))
       sizes_MO = 1
 
-      CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid)
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid, &
+                                tensor_dims=[SIZE(sizes_RI_split), SIZE(sizes_AO_split), SIZE(sizes_MO)])
 
       pdims_2d = 0
-      CALL dbcsr_t_pgrid_create(para_env%group, pdims_2d, pgrid_2d)
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims_2d, pgrid_2d, &
+                                tensor_dims=[SIZE(sizes_AO), SIZE(sizes_MO)])
 
       CALL create_3c_tensor(t_3c_overl_int_ao_ao, dist1, dist2, dist3, pgrid, &
                             sizes_RI_split, sizes_AO_split, sizes_AO, [1, 2], [3], "(RI AO | AO)")
@@ -219,7 +221,8 @@ CONTAINS
 
       IF (do_ic_model) THEN
          pdims = 0
-         CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_ic)
+         CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_ic, &
+                                   tensor_dims=[SIZE(sizes_RI_split), SIZE(sizes_MO), SIZE(sizes_MO)])
 
          CALL create_3c_tensor(t_3c_overl_int_mo_ao, dist1, dist2, dist3, pgrid_ic, &
                                sizes_RI_split, sizes_MO, sizes_AO, [1, 2], [3], "(RI MO | AO)")

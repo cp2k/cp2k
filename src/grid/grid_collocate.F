@@ -61,7 +61,6 @@ CONTAINS
 !> \param lb_min ...
 !> \param ra ...
 !> \param rab ...
-!> \param rab2 ...
 !> \param scale ...
 !> \param pab ...
 !> \param o1 ...
@@ -84,7 +83,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE collocate_pgf_product(la_max, zeta, la_min, &
                                     lb_max, zetb, lb_min, &
-                                    ra, rab, rab2, scale, pab, o1, o2, &
+                                    ra, rab, scale, pab, o1, o2, &
                                     rsgrid, cell, cube_info, &
                                     eps_rho_rspace, ga_gb_function, &
                                     map_consistent, &
@@ -99,7 +98,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                :: zetb
       INTEGER, INTENT(IN)                      :: lb_min
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rab
-      REAL(KIND=dp), INTENT(IN)                :: rab2, scale
+      REAL(KIND=dp), INTENT(IN)                :: scale
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
       INTEGER, INTENT(IN)                      :: o1, o2
       TYPE(realspace_grid_type)                :: rsgrid
@@ -184,18 +183,18 @@ CONTAINS
 
       IF (my_map_consistent) THEN
          cutoff = 1.0_dp
-         prefactor = EXP(-zeta*f*rab2)
+         prefactor = EXP(-zeta*f*DOT_PRODUCT(rab, rab))
          radius = exp_radius_very_extended(la_min, la_max, lb_min, lb_max, ra=ra, rb=rb, rp=rp, &
                                            zetp=zetp, eps=eps_rho_rspace, &
                                            prefactor=prefactor, cutoff=cutoff)
-         prefactor = scale*EXP(-zeta*f*rab2)
+         prefactor = scale*EXP(-zeta*f*DOT_PRODUCT(rab, rab))
       ELSE IF (my_collocate_rho0) THEN
          cutoff = 0.0_dp
          prefactor = 1.0_dp
          radius = rpgf0_s
       ELSE
          cutoff = 0.0_dp
-         prefactor = scale*EXP(-zeta*f*rab2)
+         prefactor = scale*EXP(-zeta*f*DOT_PRODUCT(rab, rab))
          radius = exp_radius_very_extended(la_min, la_max, lb_min, lb_max, pab, o1, o2, ra, rb, rp, &
                                            zetp, eps_rho_rspace, prefactor, cutoff)
       ENDIF

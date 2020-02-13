@@ -95,10 +95,10 @@ MODULE qs_environment
         do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
         do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, &
         do_method_pnnl, do_method_rigpw, do_method_rm1, do_method_xtb, do_qmmm_gauss, &
-        do_qmmm_swave, general_roks, kg_tnadd_embed_ri, rel_none, rel_trans_atom, &
-        vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, wfi_aspc_nr, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, xc_vdw_fun_none, &
-        xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        do_qmmm_swave, general_roks, kg_tnadd_embed_ri, rel_none, rel_trans_atom, ri_mp2_laplace, &
+        ri_mp2_method_gpw, ri_rpa_method_gpw, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, wfi_aspc_nr, &
+        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
+        wfi_use_guess_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -121,7 +121,8 @@ MODULE qs_environment
                                               write_molecule_kind_set
    USE molecule_types,                  ONLY: molecule_type
    USE mp2_setup,                       ONLY: read_mp2_section
-   USE mp2_types,                       ONLY: mp2_env_create
+   USE mp2_types,                       ONLY: mp2_env_create,&
+                                              mp2_type
    USE multipole_types,                 ONLY: do_multipole_none
    USE orbital_pointers,                ONLY: init_orbital_pointers
    USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
@@ -405,7 +406,7 @@ CONTAINS
       mp2_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION")
       CALL section_vals_get(mp2_section, explicit=mp2_present)
       IF (mp2_present) THEN
-         CALL mp2_env_create(qs_env%mp2_env)
+         CPASSERT(ASSOCIATED(qs_env%mp2_env))
          CALL read_mp2_section(qs_env%input, qs_env%mp2_env)
          ! create the EXX section if necessary
          do_exx = .FALSE.
@@ -504,9 +505,8 @@ CONTAINS
          maxlppnl, method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, n_mo_add, natom, &
          nelectron, ngauss, nkind, output_unit, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
-      LOGICAL                                            :: all_potential_present, be_silent, &
-                                                            do_kpoints, e1terms, has_unit_metric, &
-                                                            lribas, orb_gradient, was_present
+      LOGICAL :: all_potential_present, be_silent, do_kpoints, e1terms, has_unit_metric, lribas, &
+         mp2_present, orb_gradient, was_present
       REAL(dp)                                           :: alpha, ccore, ewald_rcut, maxocc, &
                                                             verlet_skin, zeff_correction
       REAL(KIND=dp)                                      :: total_zeff_corr
@@ -520,13 +520,14 @@ CONTAINS
       TYPE(fist_nonbond_env_type), POINTER               :: se_nonbond_env
       TYPE(gapw_control_type), POINTER                   :: gapw_control
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, lri_aux_basis, &
-                                                            ri_hfx_basis, ri_xas_basis, &
-                                                            tmp_basis_set
+                                                            ri_aux_basis_set, ri_hfx_basis, &
+                                                            ri_xas_basis, tmp_basis_set
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit, mos_last_converged
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(nddo_mpole_type), POINTER                     :: se_nddo_mpole
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -547,8 +548,8 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, et_ddapc_section, &
-         ewald_section, lri_section, nl_section, poisson_section, pp_section, print_section, &
-         qs_section, se_section, tddfpt_section, xc_section, xtb_section
+         ewald_section, lri_section, mp2_section, nl_section, poisson_section, pp_section, &
+         print_section, qs_section, se_section, tddfpt_section, xc_section, xtb_section
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       TYPE(semi_empirical_si_type), POINTER              :: se_store_int_env
       TYPE(xtb_control_type), POINTER                    :: xtb_control
@@ -810,6 +811,34 @@ CONTAINS
             END IF
          END DO
       END IF
+
+      ! Check if RI_AUX basis (for MP2/RPA) is given, auto-generate if not
+      mp2_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION")
+      CALL section_vals_get(mp2_section, explicit=mp2_present)
+      IF (mp2_present) THEN
+         CALL mp2_env_create(qs_env%mp2_env)
+         CALL get_qs_env(qs_env, mp2_env=mp2_env, nkind=nkind)
+         CALL section_vals_val_get(mp2_section, "METHOD", i_val=mp2_env%method)
+         IF ((mp2_env%method == ri_mp2_method_gpw) .OR. &
+             (mp2_env%method == ri_rpa_method_gpw) .OR. &
+             (mp2_env%method == ri_mp2_laplace)) THEN
+            DO ikind = 1, nkind
+               NULLIFY (ri_aux_basis_set)
+               qs_kind => qs_kind_set(ikind)
+               CALL get_qs_kind(qs_kind=qs_kind, basis_set=ri_aux_basis_set, &
+                                basis_type="RI_AUX")
+               IF (.NOT. (ASSOCIATED(ri_aux_basis_set))) THEN
+                  ! RI_AUX basis set is not yet loaded
+                  CALL cp_warn(__LOCATION__, "Automatic Generation of RI_AUX basis. "// &
+                               "This is experimental code.")
+                  ! Generate a default basis
+                  CALL create_ri_aux_basis_set(ri_aux_basis_set, qs_kind, dft_control%auto_basis_ri_aux)
+                  CALL add_basis_set_to_container(qs_kind%basis_sets, ri_aux_basis_set, "RI_AUX")
+               END IF
+            END DO
+         END IF
+
+      ENDIF
 
       IF (dft_control%do_xas_tdp_calculation) THEN
          ! Check if RI_XAS basis is given, auto-generate if not

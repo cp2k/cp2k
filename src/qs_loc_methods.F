@@ -302,6 +302,7 @@ CONTAINS
       NULLIFY (particle_set)
       ! get rows and cols of the input
       CALL cp_fm_get_info(vectors, nrow_global=nao, ncol_global=nmoloc)
+
       ! replicate the input kind of matrix
       CALL cp_fm_create(opvec, vectors%matrix_struct)
       CALL cp_fm_set_all(opvec, 0.0_dp)
@@ -329,18 +330,22 @@ CONTAINS
          CALL cp_fm_get_info(zij_fm_set(iatom, 1)%matrix, ncol_global=ldz)
          isgf = first_sgf(iatom)
          ncol = nsgf(iatom)
+
          ! multiply fmxfm, using only part of the ao : Ct x S
          CALL cp_gemm('N', 'N', nao, nmoloc, nao, 1.0_dp, ov_fm, vectors, 0.0_dp, opvec, &
                       a_first_col=1, a_first_row=1, b_first_col=1, b_first_row=1)
+
          CALL cp_gemm('T', 'N', nmoloc, nmoloc, ncol, 0.5_dp, vectors, opvec, &
                       0.0_dp, zij_fm_set(iatom, 1)%matrix, &
                       a_first_col=1, a_first_row=isgf, b_first_col=1, b_first_row=isgf)
 
          CALL cp_gemm('N', 'N', nao, nmoloc, ncol, 1.0_dp, ov_fm, vectors, 0.0_dp, opvec, &
-                      a_first_col=1, a_first_row=isgf, b_first_col=1, b_first_row=isgf)
+                      a_first_col=isgf, a_first_row=1, b_first_col=1, b_first_row=isgf)
+
          CALL cp_gemm('T', 'N', nmoloc, nmoloc, nao, 0.5_dp, vectors, opvec, &
                       1.0_dp, zij_fm_set(iatom, 1)%matrix, &
                       a_first_col=1, a_first_row=1, b_first_col=1, b_first_row=1)
+
       END DO ! iatom
 
       !   And now perform the optimization and rotate the orbitals
@@ -646,9 +651,12 @@ CONTAINS
       END IF
 
       DO ispin = s_spin, l_spin
+
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
          loc_method = localized_wfn_control%localization_method
+
          SELECT CASE (localized_wfn_control%operator_type)
+
          CASE (op_loc_berry)
             ! Here we allocate op_fm_set with the RIGHT size for uks
             NULLIFY (tmp_fm_struct, mo_coeff)
@@ -691,6 +699,7 @@ CONTAINS
             CPABORT("Boys localization not implemented")
 
          CASE (op_loc_pipek)
+
             CALL optimize_loc_pipek(qs_env, loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, &
                                     op_fm_set, ispin, print_loc_section)
 

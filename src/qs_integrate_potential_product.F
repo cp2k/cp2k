@@ -210,7 +210,7 @@ CONTAINS
          has_threads, map_consistent, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, &
          p_duplicated, pab_required, scatter, use_subpatch, use_virial
       REAL(KIND=dp)                                      :: admm_scal_fac, dab, eps_gvg_rspace, &
-                                                            rab2, scalef, zetp
+                                                            scalef, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b, pv_thread
       REAL(KIND=dp), DIMENSION(3, natom)                 :: force_thread
@@ -471,7 +471,7 @@ CONTAINS
 !$OMP PRIVATE(rpgfa,set_radius_a,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
 !$OMP PRIVATE(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,found), &
 !$OMP PRIVATE(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block), &
-!$OMP PRIVATE(p_block,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp,dab,igrid_level), &
+!$OMP PRIVATE(p_block,ncoa,sgfa,ncob,sgfb,rab,ra,rb,zetp,dab,igrid_level), &
 !$OMP PRIVATE(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
 !$OMP PRIVATE(iset_new,jset_new,ipgf_new,jpgf_new,scalef), &
 !$OMP PRIVATE(itask,dist,has_threads) &
@@ -646,12 +646,11 @@ CONTAINS
             ENDIF
 
             rab = tasks(itask)%rab
-            rab2 = DOT_PRODUCT(rab, rab)
             rb(1) = ra(1) + rab(1)
             rb(2) = ra(2) + rab(2)
             rb(3) = ra(3) + rab(3)
             zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
-            dab = SQRT(rab2)
+            dab = NORM2(rab)
 
             na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
             na2 = ipgf*ncoset(la_max(iset))
@@ -675,7 +674,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                     ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
+                     ra, rab, rs_v(igrid_level)%rs_grid, cell, &
                      cube_info(igrid_level), &
                      hab, pab=pab, o1=na1 - 1, o2=nb1 - 1, &
                      eps_gvg_rspace=eps_gvg_rspace, &
@@ -689,7 +688,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                     rb, rab_inv, rab2, rs_v(igrid_level)%rs_grid, cell, &
+                     rb, rab_inv, rs_v(igrid_level)%rs_grid, cell, &
                      cube_info(igrid_level), &
                      hab, pab=pab, o1=nb1 - 1, o2=na1 - 1, &
                      eps_gvg_rspace=eps_gvg_rspace, &
@@ -704,7 +703,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                     ra, rab, rab2, rs_v(igrid_level)%rs_grid, cell, &
+                     ra, rab, rs_v(igrid_level)%rs_grid, cell, &
                      cube_info(igrid_level), &
                      hab, o1=na1 - 1, o2=nb1 - 1, &
                      eps_gvg_rspace=eps_gvg_rspace, &
@@ -717,7 +716,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                      lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                      la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                     rb, rab_inv, rab2, rs_v(igrid_level)%rs_grid, cell, &
+                     rb, rab_inv, rs_v(igrid_level)%rs_grid, cell, &
                      cube_info(igrid_level), &
                      hab, o1=nb1 - 1, o2=na1 - 1, &
                      eps_gvg_rspace=eps_gvg_rspace, &

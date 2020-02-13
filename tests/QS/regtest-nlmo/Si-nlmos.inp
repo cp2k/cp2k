@@ -1,0 +1,93 @@
+&GLOBAL
+  PROJECT NLMOS
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+
+    &MGRID
+      CUTOFF 200
+      NGRIDS 4
+    &END MGRID
+
+    &QS
+      ALMO_SCF T
+      EPS_DEFAULT 1.0E-08
+    &END QS
+
+    &ALMO_SCF
+
+      EPS_FILTER                 1.0E-09
+      ALMO_ALGORITHM             SKIP
+      MO_OVERLAP_INV_ALG         DENSE_CHOLESKY
+      DELOCALIZE_METHOD          FULL_SCF
+      ALMO_SCF_GUESS             ATOMIC
+      XALMO_TRIAL_WF             SIMPLE
+      CONSTRUCT_NLMOS            TRUE
+
+      &XALMO_OPTIMIZER_PCG
+        MAX_ITER                 50
+        EPS_ERROR                1.0E-3
+        CONJUGATOR               HESTENES_STIEFEL
+        PRECONDITIONER           DEFAULT
+        LIN_SEARCH_EPS_ERROR     0.1
+        LIN_SEARCH_STEP_SIZE_GUESS 0.2
+        MAX_ITER_OUTER_LOOP      10
+      &END XALMO_OPTIMIZER_PCG
+
+      &NLMO_OPTIMIZER_PCG
+        MAX_ITER                 200
+        EPS_ERROR                0.1
+        CONJUGATOR               ZERO
+        PRECONDITIONER           DEFAULT
+        LIN_SEARCH_EPS_ERROR     0.5
+        LIN_SEARCH_STEP_SIZE_GUESS 0.001
+        MAX_ITER_OUTER_LOOP      0
+        &PENALTY
+          OPERATOR                          PIPEK
+          PENALTY_STRENGTH                  0.01
+          DETERMINANT_TOLERANCE             1.0E-8
+          PENALTY_STRENGTH_DECREASE_FACTOR  2.0
+          FINAL_DETERMINANT                 0.6
+          COMPACTIFICATION_FILTER_START     1.0E-2
+          VIRTUAL_NLMOS                     FALSE
+        &END PENALTY
+      &END NLMO_OPTIMIZER_PCG
+
+    &END ALMO_SCF
+
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+
+  &SUBSYS
+    &CELL
+      ABC 5.430710 5.430710 5.430710
+    &END CELL
+    &COORD
+      SCALED T
+      Si         0.000000      0.000000      0.000000
+      Si         0.000000      0.500000      0.500000
+      Si         0.500000      0.000000      0.500000
+      Si         0.500000      0.500000      0.000000
+      Si         0.250000      0.250000      0.250000
+      Si         0.250000      0.750000      0.750000
+      Si         0.750000      0.250000      0.750000
+      Si         0.750000      0.750000      0.250000
+    &END COORD
+    &KIND Si
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PBE-q4
+    &END KIND
+  &END SUBSYS
+
+&END FORCE_EVAL
+

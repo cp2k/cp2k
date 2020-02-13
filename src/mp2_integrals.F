@@ -40,8 +40,9 @@ MODULE mp2_integrals
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
         dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, &
-        dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
-        dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_split_blocks, dbcsr_t_type
+        dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_create, dbcsr_t_pgrid_create_expert, &
+        dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, &
+        dbcsr_t_split_blocks, dbcsr_t_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type
@@ -739,7 +740,7 @@ CONTAINS
 
          IF (.NOT. impose_split) THEN
             pdims_t3c = 0
-            CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_overl, map1_2d=[1, 2], map2_2d=[3])
+            CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_overl)
          ELSE
             pgrid_t3c_overl = get_pgrid_from_ngroup(para_env, ngroup_im_time, map1_2d=[1, 2], map2_2d=[3])
          ENDIF
@@ -789,7 +790,7 @@ CONTAINS
 
          IF (.NOT. impose_split) THEN
             pdims_t3c = 0
-            CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_M, map1_2d=[1], map2_2d=[2, 3])
+            CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_M)
          ELSE
             pgrid_t3c_M = get_pgrid_from_ngroup(para_env, ngroup_im_time_P, map1_2d=[1], map2_2d=[2, 3])
          ENDIF
@@ -877,8 +878,8 @@ CONTAINS
       ELSE
          CPABORT("map1_2d and map2_2d not compatible with a 3d grid")
       ENDIF
-      CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid, map1_2d=map1_2d, map2_2d=map2_2d, &
-                                nsplit=ngroup, dimsplit=dimsplit)
+      CALL dbcsr_t_pgrid_create_expert(para_env%group, pdims_t3c, pgrid, map1_2d=map1_2d, map2_2d=map2_2d, &
+                                       nsplit=ngroup, dimsplit=dimsplit)
    END FUNCTION
 
 ! **************************************************************************************************
@@ -947,7 +948,7 @@ CONTAINS
                                  dist=dist_ao_2(starts_array_mc_block(imem):ends_array_mc_block(imem)))
       ENDDO
 
-      CALL dbcsr_t_distribution_new(dist, pgrid_t3c_M, [1], [2, 3], dist_RI, dist_ao_1, dist_ao_2)
+      CALL dbcsr_t_distribution_new(dist, pgrid_t3c_M, dist_RI, dist_ao_1, dist_ao_2)
       CALL dbcsr_t_create(t_3c_M, "M (RI | AO AO)", dist, [1], [2, 3], dbcsr_type_real_8, sizes_RI, &
                           sizes_AO, sizes_AO)
       CALL dbcsr_t_distribution_destroy(dist)
@@ -1029,7 +1030,7 @@ CONTAINS
                                       sym_jk=.NOT. kp, own_dist=.TRUE.)
       ENDIF
 
-      CALL dbcsr_t_distribution_new(dist, mp_comm_t3c, [1, 2], [3], dist_RI, dist_ao_1, dist_ao_2)
+      CALL dbcsr_t_distribution_new(dist, mp_comm_t3c, dist_RI, dist_ao_1, dist_ao_2)
       CALL dbcsr_t_create(t_3c_O, "O (RI AO | AO)", dist, [1, 2], [3], dbcsr_type_real_8, sizes_RI, &
                           ao_sizes_1, ao_sizes_2)
       CALL dbcsr_t_distribution_destroy(dist)
@@ -1125,8 +1126,8 @@ CONTAINS
       dist_L_P = (/(i, i=0, ngroup - 1)/)
 
       ! create distributions and tensors
-      CALL dbcsr_t_distribution_new(dist_B, mp_comm_B, map_B_1, map_B_2, dist_L_P, dist_B_a, dist_B_i)
-      CALL dbcsr_t_distribution_new(dist_L, mp_comm_L, map_L_1, map_L_2, dist_L_R, dist_L_P)
+      CALL dbcsr_t_distribution_new(dist_B, mp_comm_B, dist_L_P, dist_B_a, dist_B_i)
+      CALL dbcsr_t_distribution_new(dist_L, mp_comm_L, dist_L_R, dist_L_P)
 
       CALL dbcsr_t_create(tB_in, "(R|ai)", dist_B, map_B_1, map_B_2, dbcsr_type_real_8, sizes_L, sizes_B, sizes_i)
       CALL dbcsr_t_create(tB_out, "(P|ai)", dist_B, map_B_1, map_B_2, dbcsr_type_real_8, sizes_L, sizes_B, sizes_i)

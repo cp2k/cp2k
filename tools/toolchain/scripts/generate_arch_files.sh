@@ -88,8 +88,8 @@ G_CFLAGS="$G_CFLAGS IF_DEBUG(|$PROFOPT_FLAGS)"
 G_CFLAGS="$G_CFLAGS $CP_CFLAGS"
 # FCFLAGS, for gfortran
 FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
-# CFLAGS, special flags for gcc (currently none)
-CFLAGS="$G_CFLAGS \$(DFLAGS)"
+# CFLAGS, special flags for gcc
+CFLAGS="$G_CFLAGS -std=c99 -Wall -Wextra -Werror \$(DFLAGS)"
 
 # Linker flags
 LDFLAGS="\$(FCFLAGS) ${CP_LDFLAGS}"

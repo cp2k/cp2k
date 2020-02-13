@@ -182,7 +182,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: map_it_here
-      REAL(KIND=dp)                                      :: cutoff_old, rab2, relative_cutoff_old
+      REAL(KIND=dp)                                      :: cutoff_old, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab
@@ -261,7 +261,6 @@ CONTAINS
 
             ra(:) = pbc(particle_set(iatom)%r, cell)
             rab = 0.0_dp
-            rab2 = 0.0_dp
 
             DO iset = 1, nseta
                ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -312,7 +311,7 @@ CONTAINS
                      CALL integrate_pgf_product( &
                         la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                         lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                        ra=ra, rab=rab, rab2=rab2, &
+                        ra=ra, rab=rab, &
                         rsgrid=rs_v(igrid_level)%rs_grid, &
                         cell=cell, &
                         cube_info=pw_env_sub%cube_info(igrid_level), &
