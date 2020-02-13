@@ -4,21 +4,13 @@ import sys
 import re
 import tempfile
 import os
-from os import path
 import logging
 import argparse
 import errno
 import contextlib
-
-try:
-    from hashlib import md5
-except ImportError:
-    from md5 import new as md5
-
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
+from os import path
+from hashlib import md5
+from io import StringIO
 
 from prettify_cp2k import normalizeFortranFile
 from prettify_cp2k import replacer
