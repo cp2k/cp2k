@@ -1295,9 +1295,9 @@ def rewriteFortranFile(
     else:
         implicitUses = None
         if modulesDict["commonUses"]:
+            inc_fn = COMMON_USES_RE.match(modulesDict["commonUses"]).group(1)
+            inc_absfn = os.path.join(os.path.dirname(orig_filename), inc_fn)
             try:
-                inc_fn = COMMON_USES_RE.match(modulesDict["commonUses"]).group(1)
-                inc_absfn = os.path.join(os.path.dirname(orig_filename), inc_fn)
                 with open(inc_absfn, "r") as fhandle:
                     implicitUsesRaw = parseUse(fhandle)
                 implicitUses = prepareImplicitUses(implicitUsesRaw["modules"])
