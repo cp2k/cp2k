@@ -259,6 +259,7 @@ CONTAINS
       IF (do_ri_sos_laplace_mp2) THEN
          num_integ_points = mp2_env%ri_laplace%n_quadrature
          input_integ_group_size = mp2_env%ri_laplace%integ_group_size
+         mp2_env%ri_g0w0%do_gw_im_time_mix_minimax_clenshaw = .FALSE.
 
          ! check the range for the minimax approximation
          Emin = 2.0_dp*(Eigenval(homo + 1) - Eigenval(homo))
