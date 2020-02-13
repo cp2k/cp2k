@@ -3,18 +3,18 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-H2O.inp                                                1    4.0E-14             -17.13993164015302
-H2O-print.inp                                          1    4.0E-14             -17.13993164015302
+H2O.inp                                                1    4.0E-14             -17.13993294311398
+H2O-print.inp                                          1    4.0E-14             -17.13993294311398
 #restart
-H2O-OT-1.inp                                           1      8e-13             -17.13993288492818
+H2O-OT-1.inp                                           1      8e-13             -17.13993288675962
 #restart
-H2O-OT-2.inp                                           1      8e-14             -17.13993271168255
+H2O-OT-2.inp                                           1      8e-14             -17.13993271133302
 #restart
-H2O-OT-3.inp                                           1      7e-14            -17.140105652826129
+H2O-OT-3.inp                                           1      7e-14             -17.14010565288813
 #restart
-H2O-OT-4.inp                                           1      1e-13             -17.13983663781175
+H2O-OT-4.inp                                           1      1e-13             -17.13983663795009
 # restart, state selective
-H2O-OT-5.inp                                           1      5e-14             -17.14028119979584
+H2O-OT-5.inp                                           1      5e-14             -17.14028119979766
 # SCF not converged
 H2O-OT-6.inp                                           1      8e-13             -17.14023441029536
 # LSD
