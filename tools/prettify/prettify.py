@@ -449,9 +449,9 @@ def main(argv):
     shandler.setLevel(level)
     shandler.setFormatter(logging.Formatter("%(levelname)s %(ffilename)s: %(message)s"))
 
-    prettify_logger = logging.getLogger("prettify-logger")
-    prettify_logger.setLevel(level)
-    prettify_logger.addHandler(shandler)
+    logger = logging.getLogger("prettify-logger")
+    logger.setLevel(level)
+    logger.addHandler(shandler)
 
     failure = 0
     total_prettified = 0
