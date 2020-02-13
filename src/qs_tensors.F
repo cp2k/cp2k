@@ -33,8 +33,9 @@ MODULE qs_tensors
         dbcsr_t_blk_sizes, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
         dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_mapping_info, &
-        dbcsr_t_get_stored_coordinates, dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_type, &
-        dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_type, dbcsr_t_write_split_info
+        dbcsr_t_get_nze_total, dbcsr_t_get_stored_coordinates, dbcsr_t_mp_environ_pgrid, &
+        dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_type, &
+        dbcsr_t_write_split_info
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gamma,                           ONLY: init_md_ftable
@@ -44,7 +45,8 @@ MODULE qs_tensors
                                               do_potential_truncated
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
-                                              dp
+                                              dp,&
+                                              int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE libint_2c_3c,                    ONLY: cutoff_screen_factor,&
@@ -92,7 +94,7 @@ MODULE qs_tensors
              neighbor_list_3c_iterator_destroy, get_3c_iterator_info, build_3c_integrals, &
              contiguous_tensor_dist, &
              build_2c_neighbor_lists, build_2c_integrals, cutoff_screen_factor, tensor_change_pgrid, &
-             pgf_block_sizes
+             pgf_block_sizes, get_tensor_occupancy
 
    TYPE one_dim_int_array
       INTEGER, DIMENSION(:), ALLOCATABLE    :: array
@@ -1738,6 +1740,29 @@ CONTAINS
 
       ALLOCATE (pgf_blk_sizes(blk_count))
       pgf_blk_sizes(:) = pgf_blk_sizes_tmp(:blk_count)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param tensor ...
+!> \param ndim ...
+!> \param nze ...
+!> \param occ ...
+! **************************************************************************************************
+   SUBROUTINE get_tensor_occupancy(tensor, ndim, nze, occ)
+      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
+      INTEGER, INTENT(IN)                                :: ndim
+      INTEGER(int_8), INTENT(OUT)                        :: nze
+      REAL(dp), INTENT(OUT)                              :: occ
+
+      INTEGER, DIMENSION(ndim)                           :: dims
+
+      ! todo: once dbcsr_t_ndims is part of tensor API, ndim is no longer needed as input arg
+
+      nze = dbcsr_t_get_nze_total(tensor)
+      CALL dbcsr_t_get_info(tensor, nfull_total=dims)
+      occ = REAL(nze, dp)/PRODUCT(REAL(dims, dp))
+
    END SUBROUTINE
 
 END MODULE

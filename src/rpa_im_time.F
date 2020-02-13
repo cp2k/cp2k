@@ -28,15 +28,15 @@ MODULE rpa_im_time
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
-        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
-        dbcsr_p_type, dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_scalar, dbcsr_scale, &
-        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, &
+        dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_scalar, dbcsr_scale, dbcsr_set, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_batched_contract_finalize, dbcsr_t_batched_contract_init, dbcsr_t_clear, &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, &
         dbcsr_t_copy_tensor_to_matrix, dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_filter, &
         dbcsr_t_get_info, dbcsr_t_nd_mp_comm, dbcsr_t_need_contract, dbcsr_t_pgrid_destroy, &
-        dbcsr_t_pgrid_type, dbcsr_t_type, dbcsr_t_write_split_info
+        dbcsr_t_pgrid_type, dbcsr_t_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -44,20 +44,16 @@ MODULE rpa_im_time
                                               kpoint_type
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_irecv,&
-                                              mp_isend,&
-                                              mp_sum,&
-                                              mp_sync,&
-                                              mp_waitall
-   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
-                                              mp2_type
+   USE message_passing,                 ONLY: mp_sync
+   USE mp2_types,                       ONLY: mp2_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_tensors,                      ONLY: tensor_change_pgrid
+   USE qs_tensors,                      ONLY: get_tensor_occupancy,&
+                                              tensor_change_pgrid
    USE qs_tensors_types,                ONLY: create_2c_tensor
 #include "./base/base_uses.f90"
 
@@ -113,6 +109,8 @@ CONTAINS
 !> \param cell_to_index_3c ...
 !> \param has_mat_P_blocks ...
 !> \param do_ri_sos_laplace_mp2 ...
+!> \param dbcsr_time ...
+!> \param dbcsr_nflop ...
 ! **************************************************************************************************
    SUBROUTINE compute_mat_P_omega(mat_P_omega, fm_scaled_dm_occ_tau, &
                                   fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
@@ -129,7 +127,8 @@ CONTAINS
                                   num_integ_points, num_integ_points_freq, cut_memory, unit_nr, &
                                   mp2_env, para_env, &
                                   stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
-                                  has_mat_P_blocks, do_ri_sos_laplace_mp2)
+                                  has_mat_P_blocks, do_ri_sos_laplace_mp2, &
+                                  dbcsr_time, dbcsr_nflop)
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega
       TYPE(cp_fm_type), POINTER :: fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, fm_mo_coeff_occ, &
          fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled
@@ -160,13 +159,17 @@ CONTAINS
          INTENT(IN)                                      :: cell_to_index_3c
       LOGICAL, DIMENSION(:, :, :, :, :), INTENT(INOUT)   :: has_mat_P_blocks
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
+      REAL(dp), INTENT(INOUT)                            :: dbcsr_time
+      INTEGER(int_8), INTENT(INOUT)                      :: dbcsr_nflop
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_P_omega', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: comm_2d, handle, handle5, handle6, i, i_cell, i_cell_R_1, i_cell_R_1_minus_S, &
+      INTEGER :: comm_2d, handle, handle2, handle3, i, i_cell, i_cell_R_1, i_cell_R_1_minus_S, &
          i_cell_R_1_minus_T, i_cell_R_2, i_cell_R_2_minus_S_minus_T, i_cell_S, i_cell_T, i_mem, &
-         iquad, j, j_mem, jquad, num_3c_repl, num_cells_dm, unit_nr_2, unit_nr_prv
+         iquad, j, j_mem, jquad, num_3c_repl, num_cells_dm, unit_nr_2, unit_nr_dbcsr
+      INTEGER(int_8)                                     :: nze, nze_dm_occ, nze_dm_virt, nze_M_occ, &
+                                                            nze_M_virt, nze_O
       INTEGER(KIND=int_8)                                :: flops_1_max_occ, flops_1_max_virt, &
                                                             flops_1_occ, flops_1_virt, flops_2, &
                                                             flops_2_max
@@ -174,11 +177,13 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: pdims_2d
       INTEGER, DIMENSION(2, 1)                           :: ibounds_2, jbounds_2
       INTEGER, DIMENSION(2, 2)                           :: ibounds_1, jbounds_1
-      INTEGER, DIMENSION(3)                              :: bounds_3c, pdims
+      INTEGER, DIMENSION(3)                              :: bounds_3c
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
       LOGICAL :: do_Gamma_RPA, do_kpoints_cubic_RPA, do_opt_pgrid, first_cycle_im_time, &
          first_cycle_omega_loop, memory_info, pgrid_1_init_occ, pgrid_1_init_virt, pgrid_2_init, &
          R_1_minus_S_needed, R_1_minus_T_needed, R_2_minus_S_minus_T_needed
+      REAL(dp)                                           :: occ, occ_dm_occ, occ_dm_virt, occ_M_occ, &
+                                                            occ_M_virt, occ_O, t1_flop
       REAL(KIND=dp)                                      :: omega, omega_old, t1, t2, tau, weight, &
                                                             weight_old
       TYPE(dbcsr_distribution_type)                      :: dist_P
@@ -196,19 +201,19 @@ CONTAINS
 
       NULLIFY (pgrid_1_opt_occ, pgrid_1_opt_virt, pgrid_2_opt)
 
+      CALL timeset(routineN, handle)
+
       memory_info = mp2_env%ri_rpa_im_time%memory_info
       IF (memory_info) THEN
-         unit_nr_prv = unit_nr
+         unit_nr_dbcsr = unit_nr
       ELSE
-         unit_nr_prv = 0
+         unit_nr_dbcsr = 0
       ENDIF
 
       do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
       do_Gamma_RPA = .NOT. do_kpoints_cubic_RPA
       num_3c_repl = MAXVAL(cell_to_index_3c)
       do_opt_pgrid = qs_env%mp2_env%ri_rpa_im_time%group_size_internal
-
-      CALL timeset(routineN, handle)
 
       first_cycle_im_time = .TRUE.
       DO i = 1, SIZE(t_3c_O, 1)
@@ -224,9 +229,12 @@ CONTAINS
       pgrid_1_init_occ = .FALSE.; pgrid_1_init_virt = .FALSE.; pgrid_2_init = .FALSE.
       DO jquad = 1, num_integ_points
 
+         CALL mp_sync(para_env%group)
+         t1 = m_walltime()
+
          flops_1_max_virt = 0; flops_1_max_occ = 0; flops_2_max = 0
 
-         unit_nr_2 = unit_nr_prv
+         unit_nr_2 = unit_nr_dbcsr
          IF (pgrid_1_init_occ) THEN
             DO i = 1, SIZE(t_3c_O, 1)
                DO j = 1, SIZE(t_3c_O, 2)
@@ -239,7 +247,7 @@ CONTAINS
             ENDDO
          ENDIF
 
-         unit_nr_2 = unit_nr_prv
+         unit_nr_2 = unit_nr_dbcsr
          IF (pgrid_1_init_virt) THEN
             DO i = 1, SIZE(t_3c_O, 1)
                DO j = 1, SIZE(t_3c_O, 2)
@@ -258,52 +266,18 @@ CONTAINS
                                      ends_array_mc_block_2=ends_array_mc_block, &
                                      starts_array_mc_block_3=starts_array_mc_block, &
                                      ends_array_mc_block_3=ends_array_mc_block, &
-                                     nodata=.TRUE., unit_nr=unit_nr_prv)
+                                     nodata=.TRUE., unit_nr=unit_nr_dbcsr)
          ENDIF
-
-         ! loop over T for chi^T(it)
-         CALL mp_sync(para_env%group)
-         t1 = m_walltime()
 
          CALL compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, nmo, &
                                     fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
                                     fm_mo_coeff_virt_scaled, mat_dm_occ_global, mat_dm_virt_global, &
                                     matrix_s, ispin, &
                                     Eigenval, e_fermi, eps_filter, memory_info, &
-                                    unit_nr, para_env, &
+                                    unit_nr, &
                                     jquad, stabilize_exp, do_kpoints_cubic_RPA, qs_env, &
                                     num_cells_dm, index_to_cell_dm)
 
-         IF (memory_info) THEN
-            IF (pgrid_1_init_occ) THEN
-               CALL dbcsr_t_get_info(t_3c_O_occ(1, 1), pdims=pdims)
-               IF (unit_nr_prv > 0) THEN
-                  WRITE (unit_nr_prv, "(T2,A)") "OPTIMIZED PGRID INFO M = O x D_occ"
-                  WRITE (unit_nr_prv, "(T4,A,1X,3I6)") "process grid dimensions:", pdims
-               ENDIF
-               CALL dbcsr_t_write_split_info(pgrid_1_use_occ, unit_nr_prv)
-            ENDIF
-
-            IF (pgrid_1_init_virt) THEN
-               CALL dbcsr_t_get_info(t_3c_O_virt(1, 1), pdims=pdims)
-               IF (unit_nr_prv > 0) THEN
-                  WRITE (unit_nr_prv, "(T2,A)") "OPTIMIZED PGRID INFO M = O x D_virt"
-                  WRITE (unit_nr_prv, "(T4,A,1X,3I6)") "process grid dimensions:", pdims
-               ENDIF
-               CALL dbcsr_t_write_split_info(pgrid_1_use_virt, unit_nr_prv)
-            ENDIF
-
-            IF (pgrid_2_init) THEN
-               CALL dbcsr_t_get_info(t_3c_M, pdims=pdims)
-               IF (unit_nr_prv > 0) THEN
-                  WRITE (unit_nr_prv, "(T2,A)") "OPTIMIZED PGRID INFO P = M x M"
-                  WRITE (unit_nr_prv, "(T4,A,1X,3I6)") "process grid dimensions:", pdims
-               ENDIF
-               IF (pgrid_2_init) CALL dbcsr_t_write_split_info(pgrid_2_use, unit_nr_prv)
-            ENDIF
-         ENDIF
-
-         CALL timeset(routineN//"_dbcsr_t", handle6)
          ALLOCATE (t_dm_virt(num_cells_dm))
          ALLOCATE (t_dm_occ(num_cells_dm))
          CALL dbcsr_get_info(mat_P_global%matrix, distribution=dist_P)
@@ -331,6 +305,11 @@ CONTAINS
             CALL dbcsr_t_destroy(t_dm_tmp)
             CALL dbcsr_clear(mat_dm_occ_global(jquad, i_cell)%matrix)
          ENDDO
+
+         CALL get_tensor_occupancy(t_dm_occ(1), 2, nze_dm_occ, occ_dm_occ)
+         CALL get_tensor_occupancy(t_dm_virt(1), 2, nze_dm_virt, occ_dm_virt)
+         IF (do_Gamma_RPA) CALL get_tensor_occupancy(t_3c_O(1, 1), 3, nze_O, occ_O)
+
          CALL dbcsr_t_destroy(t_dm)
 
          CALL dbcsr_t_create(t_3c_O_occ(1, 1), t_3c_M_occ_tmp, name="M (RI AO | AO)")
@@ -338,11 +317,23 @@ CONTAINS
          CALL dbcsr_t_create(t_3c_M, t_3c_M_occ, name="M occ (RI | AO AO)")
          CALL dbcsr_t_create(t_3c_M, t_3c_M_virt, name="M virt (RI | AO AO)")
 
+         CALL timeset(routineN//"_contract", handle2)
+
+         CALL mp_sync(para_env%group)
+         t1_flop = m_walltime()
+
          DO i_cell_T = 1, num_cells_dm/2 + 1
 
             IF (.NOT. ANY(has_mat_P_blocks(i_cell_T, :, :, :, :))) CYCLE
 
             CALL dbcsr_t_batched_contract_init(t_P)
+
+            IF (do_Gamma_RPA) THEN
+               nze_M_virt = 0
+               nze_M_occ = 0
+               occ_M_virt = 0.0_dp
+               occ_M_occ = 0.0_dp
+            ENDIF
 
             DO j_mem = 1, cut_memory
 
@@ -364,7 +355,7 @@ CONTAINS
 
                   ibounds_2(:, 1) = [starts_array_mc(i_mem), ends_array_mc(i_mem)]
 
-                  IF (unit_nr_prv > 0) WRITE (UNIT=unit_nr_prv, FMT="(T3,A,I2,1X,I2)") &
+                  IF (unit_nr_dbcsr > 0) WRITE (UNIT=unit_nr_dbcsr, FMT="(T3,A,I2,1X,I2)") &
                      "RPA_LOW_SCALING_INFO| Memory Cut iteration", i_mem, j_mem
 
                   IF (do_Gamma_RPA) THEN
@@ -400,7 +391,7 @@ CONTAINS
                                                      contract_2=[2], notcontract_2=[1], &
                                                      bounds_2=jbounds_1, bounds_3=ibounds_2)) THEN
 
-                              CALL timeset(routineN//"_calc_M_occ_t", handle5)
+                              CALL timeset(routineN//"_calc_M_occ_t", handle3)
 
                               CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), &
                                                     tensor_1=t_3c_O_occ(i_cell_R_1_minus_S, i_cell_R_2), &
@@ -412,10 +403,12 @@ CONTAINS
                                                     map_1=[1, 2], map_2=[3], &
                                                     bounds_2=jbounds_1, bounds_3=ibounds_2, &
                                                     pgrid_opt_1=pgrid_1_opt_occ, &
-                                                    filter_eps=eps_filter, unit_nr=unit_nr_prv, &
+                                                    filter_eps=eps_filter, unit_nr=unit_nr_dbcsr, &
                                                     flop=flops_1_occ)
+                              CALL timestop(handle3)
 
-                              CALL timestop(handle5)
+                              dbcsr_nflop = dbcsr_nflop + flops_1_occ
+
                               IF (do_opt_pgrid) THEN
                                  CPASSERT(ASSOCIATED(pgrid_1_opt_occ))
                                  IF (flops_1_occ .GT. flops_1_max_occ) THEN
@@ -433,15 +426,20 @@ CONTAINS
                            ENDIF
                         ENDDO
 
-                        CALL timeset(routineN//"_copy_M_occ_t", handle5)
-
                         ! copy matrix to optimal contraction layout - copy is done manually in order
                         ! to better control memory allocations (we can release data of previous
                         ! representation)
+                        CALL timeset(routineN//"_copy_M_occ_t", handle3)
                         CALL dbcsr_t_copy(t_3c_M_occ_tmp, t_3c_M_occ, order=[1, 3, 2], move_data=.TRUE.)
                         CALL dbcsr_t_clear(t_3c_M_occ_tmp)
                         CALL dbcsr_t_filter(t_3c_M_occ, eps_filter)
-                        CALL timestop(handle5)
+                        CALL timestop(handle3)
+
+                        IF (do_Gamma_RPA) THEN
+                           CALL get_tensor_occupancy(t_3c_M_occ, 3, nze, occ)
+                           nze_M_occ = nze_M_occ + nze
+                           occ_M_occ = occ_M_occ + occ
+                        ENDIF
 
                         DO i_cell_S = 1, num_cells_dm
                            CALL get_diff_diff_index_3c(i_cell_R_2, i_cell_S, i_cell_T, i_cell_R_2_minus_S_minus_T, &
@@ -456,7 +454,7 @@ CONTAINS
                                                         contract_2=[2], notcontract_2=[1], &
                                                         bounds_2=ibounds_1, bounds_3=jbounds_2)) THEN
 
-                                 CALL timeset(routineN//"_calc_M_virt_t", handle5)
+                                 CALL timeset(routineN//"_calc_M_virt_t", handle3)
                                  CALL dbcsr_t_contract(alpha=dbcsr_scalar(alpha/2.0_dp), &
                                                        tensor_1=t_3c_O_virt( &
                                                        i_cell_R_2_minus_S_minus_T, i_cell_R_1_minus_T), &
@@ -468,9 +466,12 @@ CONTAINS
                                                        map_1=[1, 2], map_2=[3], &
                                                        bounds_2=ibounds_1, bounds_3=jbounds_2, &
                                                        pgrid_opt_1=pgrid_1_opt_virt, &
-                                                       filter_eps=eps_filter, unit_nr=unit_nr_prv, &
+                                                       filter_eps=eps_filter, unit_nr=unit_nr_dbcsr, &
                                                        flop=flops_1_virt)
-                                 CALL timestop(handle5)
+                                 CALL timestop(handle3)
+
+                                 dbcsr_nflop = dbcsr_nflop + flops_1_virt
+
                                  IF (do_opt_pgrid) THEN
                                     CPASSERT(ASSOCIATED(pgrid_1_opt_virt))
                                     IF (flops_1_virt .GT. flops_1_max_virt) THEN
@@ -488,18 +489,24 @@ CONTAINS
                            ENDIF
                         ENDDO
 
-                        CALL timeset(routineN//"_copy_M_virt_t", handle5)
+                        CALL timeset(routineN//"_copy_M_virt_t", handle3)
                         CALL dbcsr_t_copy(t_3c_M_virt_tmp, t_3c_M_virt, move_data=.TRUE.)
                         CALL dbcsr_t_clear(t_3c_M_virt_tmp)
                         CALL dbcsr_t_filter(t_3c_M_virt, eps_filter)
-                        CALL timestop(handle5)
+                        CALL timestop(handle3)
+
+                        IF (do_Gamma_RPA) THEN
+                           CALL get_tensor_occupancy(t_3c_M_virt, 3, nze, occ)
+                           nze_M_virt = nze_M_virt + nze
+                           occ_M_virt = occ_M_virt + occ
+                        ENDIF
 
                         flops_2 = 0
                         IF (dbcsr_t_need_contract(t_3c_M_occ, t_3c_M_virt, &
                                                   contract_1=[2, 3], notcontract_1=[1], &
                                                   contract_2=[2, 3], notcontract_2=[1])) THEN
 
-                           CALL timeset(routineN//"_calc_P_t", handle5)
+                           CALL timeset(routineN//"_calc_P_t", handle3)
 
                            CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=t_3c_M_occ, &
                                                  tensor_2=t_3c_M_virt, &
@@ -512,9 +519,11 @@ CONTAINS
                                                  filter_eps=eps_filter_im_time/REAL(cut_memory**2, KIND=dp), &
                                                  flop=flops_2, &
                                                  move_data=.TRUE., &
-                                                 unit_nr=unit_nr_prv)
+                                                 unit_nr=unit_nr_dbcsr)
 
-                           CALL timestop(handle5)
+                           CALL timestop(handle3)
+
+                           dbcsr_nflop = dbcsr_nflop + flops_2
 
                            IF (do_opt_pgrid) THEN
                               CPASSERT(ASSOCIATED(pgrid_2_opt))
@@ -536,10 +545,8 @@ CONTAINS
 
                         first_cycle_im_time = .FALSE.
 
-                        IF (jquad == 1) THEN
-                           CALL mp_sum(flops_2, para_env%group)
-                           IF (flops_2 == 0) has_mat_P_blocks(i_cell_T, i_mem, j_mem, i_cell_R_1, i_cell_R_2) = .FALSE.
-                        ENDIF
+                        IF (jquad == 1 .AND. flops_2 == 0) &
+                           has_mat_P_blocks(i_cell_T, i_mem, j_mem, i_cell_R_1, i_cell_R_2) = .FALSE.
 
                      ENDDO
                   ENDDO
@@ -547,7 +554,7 @@ CONTAINS
                IF (do_Gamma_RPA) CALL dbcsr_t_batched_contract_finalize(t_dm_virt(1))
             ENDDO
 
-            CALL dbcsr_t_batched_contract_finalize(t_P, unit_nr=unit_nr_prv)
+            CALL dbcsr_t_batched_contract_finalize(t_P, unit_nr=unit_nr_dbcsr)
 
             CALL dbcsr_t_create(mat_P_global%matrix, t_P_tmp)
             CALL dbcsr_t_copy(t_P, t_P_tmp, move_data=.TRUE.)
@@ -561,7 +568,7 @@ CONTAINS
 
                CALL dbcsr_add(mat_P_omega(jquad, i_cell_T)%matrix, mat_P_global%matrix, 1.0_dp, 1.0_dp)
             ELSE
-               CALL timeset(routineN//"_Fourier_transform", handle5)
+               CALL timeset(routineN//"_Fourier_transform", handle3)
 
                ! Fourier transform of P(it) to P(iw)
                first_cycle_omega_loop = .TRUE.
@@ -590,10 +597,12 @@ CONTAINS
 
                END DO
 
-               CALL timestop(handle5)
+               CALL timestop(handle3)
             ENDIF
 
          ENDDO
+
+         CALL timestop(handle2)
 
          CALL dbcsr_t_destroy(t_P)
          DO i_cell = 1, num_cells_dm
@@ -608,13 +617,30 @@ CONTAINS
          DEALLOCATE (t_dm_virt)
          DEALLOCATE (t_dm_occ)
 
-         CALL timestop(handle6)
-
          CALL mp_sync(para_env%group)
          t2 = m_walltime()
 
-         IF (unit_nr_prv > 0) WRITE (unit_nr_prv, '(T3,A,1X,I3,A,11X,F25.6)') &
-            'RPA_LOW_SCALING_INFO| Time for time point', jquad, ':', t2 - t1
+         dbcsr_time = dbcsr_time + t2 - t1_flop
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(/T3,A,1X,I3)') &
+               'RPA_LOW_SCALING_INFO| Info for time point', jquad
+            WRITE (unit_nr, '(T6,A,T56,F25.6)') &
+               'Time:', t2 - t1
+            WRITE (unit_nr, '(T6,A,T63,ES7.1,1X,A1,1X,F7.3,A1)') &
+               'Occupancy of D occ:', REAL(nze_dm_occ, dp), '/', occ_dm_occ*100, '%'
+            WRITE (unit_nr, '(T6,A,T63,ES7.1,1X,A1,1X,F7.3,A1)') &
+               'Occupancy of D virt:', REAL(nze_dm_virt, dp), '/', occ_dm_virt*100, '%'
+            IF (do_Gamma_RPA) THEN
+               WRITE (unit_nr, '(T6,A,T63,ES7.1,1X,A1,1X,F7.3,A1)') &
+                  'Occupancy of 3c ints:', REAL(nze_O, dp), '/', occ_O*100, '%'
+               WRITE (unit_nr, '(T6,A,T63,ES7.1,1X,A1,1X,F7.3,A1)') &
+                  'Occupancy of M occ:', REAL(nze_M_occ, dp), '/', occ_M_occ*100, '%'
+               WRITE (unit_nr, '(T6,A,T63,ES7.1,1X,A1,1X,F7.3,A1)') &
+                  'Occupancy of M virt:', REAL(nze_M_virt, dp), '/', occ_M_virt*100, '%'
+            ENDIF
+            WRITE (unit_nr, *)
+         ENDIF
 
       END DO ! time points
 
@@ -656,109 +682,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mat_munu ...
-!> \param unit_nr ...
-!> \param matrix_name ...
-!> \param para_env ...
-!> \param one_number ...
-! **************************************************************************************************
-   SUBROUTINE print_occupation_2c(mat_munu, unit_nr, matrix_name, para_env, one_number)
-      TYPE(dbcsr_type), POINTER                          :: mat_munu
-      INTEGER, INTENT(IN)                                :: unit_nr
-      CHARACTER(len=*), INTENT(IN)                       :: matrix_name
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: one_number
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_occupation_2c', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, imepos
-      INTEGER, DIMENSION(:, :), POINTER                  :: req_array
-      LOGICAL                                            :: my_one_number
-      REAL(KIND=dp)                                      :: local_occupation, max_occupation, &
-                                                            min_occupation
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occupation
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
-
-      CALL timeset(routineN, handle)
-
-      IF (PRESENT(one_number)) THEN
-         my_one_number = one_number
-      ELSE
-         my_one_number = .FALSE.
-      END IF
-
-      local_occupation = dbcsr_get_occupation(mat_munu)
-
-      ALLOCATE (buffer_send(0:para_env%num_pe - 1))
-      ALLOCATE (buffer_rec(0:para_env%num_pe - 1))
-
-      DO imepos = 0, para_env%num_pe - 1
-         ALLOCATE (buffer_send(imepos)%msg(1))
-         buffer_send(imepos)%msg(1) = local_occupation
-
-         ALLOCATE (buffer_rec(imepos)%msg(1))
-      END DO
-
-      IF (para_env%num_pe > 1) THEN
-
-         ALLOCATE (req_array(0:para_env%num_pe - 1, 2))
-
-         DO imepos = 0, para_env%num_pe - 1
-            CALL mp_isend(buffer_send(imepos)%msg, imepos, para_env%group, req_array(imepos, 1), tag=2)
-            CALL mp_irecv(buffer_rec(imepos)%msg, imepos, para_env%group, req_array(imepos, 2), tag=2)
-         END DO
-
-         CALL mp_waitall(req_array(:, 1:2))
-
-         DEALLOCATE (req_array)
-
-      ELSE
-
-         buffer_rec(0)%msg = buffer_send(0)%msg
-
-      END IF
-
-      ALLOCATE (occupation(0:para_env%num_pe - 1))
-
-      DO imepos = 0, para_env%num_pe - 1
-
-         occupation(imepos) = buffer_rec(imepos)%msg(1)
-
-      END DO
-
-      max_occupation = MAXVAL(occupation)
-
-      min_occupation = MINVAL(occupation)
-
-      DO imepos = 0, para_env%num_pe - 1
-         DEALLOCATE (buffer_send(imepos)%msg)
-         DEALLOCATE (buffer_rec(imepos)%msg)
-      END DO
-
-      DEALLOCATE (buffer_send, buffer_rec, occupation)
-
-      IF (my_one_number) THEN
-
-         ! print fraction of non-zero blocks
-         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,A,A,T74,ES7.1)") &
-            "MATRIX_INFO| Frac. of non-zero bl. in ", matrix_name, ":", max_occupation
-
-      ELSE
-
-         ! print fraction of non-zero blocks
-         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,A,A,T64,ES7.1,A,T74,ES7.1)") &
-            "MATRIX_INFO| Frac. of non-zero bl. in ", matrix_name, ":", min_occupation, ' -', max_occupation
-
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE print_occupation_2c
-
-! **************************************************************************************************
-!> \brief ...
 !> \param fm_scaled_dm_occ_tau ...
 !> \param fm_scaled_dm_virt_tau ...
 !> \param tau_tj ...
@@ -777,7 +700,6 @@ CONTAINS
 !> \param eps_filter ...
 !> \param memory_info ...
 !> \param unit_nr ...
-!> \param para_env ...
 !> \param jquad ...
 !> \param stabilize_exp ...
 !> \param do_kpoints_cubic_RPA ...
@@ -790,7 +712,7 @@ CONTAINS
                                     fm_mo_coeff_virt_scaled, mat_dm_occ_global, mat_dm_virt_global, &
                                     matrix_s, ispin, &
                                     Eigenval, e_fermi, eps_filter, memory_info, &
-                                    unit_nr, para_env, &
+                                    unit_nr, &
                                     jquad, stabilize_exp, do_kpoints_cubic_RPA, qs_env, &
                                     num_cells_dm, index_to_cell_dm)
 
@@ -809,9 +731,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: e_fermi, eps_filter
       LOGICAL, INTENT(IN)                                :: memory_info
-      INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: jquad
+      INTEGER, INTENT(IN)                                :: unit_nr, jquad
       REAL(KIND=dp), INTENT(IN)                          :: stabilize_exp
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -955,13 +875,6 @@ CONTAINS
             CALL dbcsr_set(mat_dm_virt_global(jquad - 1, 1)%matrix, 0.0_dp)
             CALL dbcsr_filter(mat_dm_occ_global(jquad - 1, 1)%matrix, 0.0_dp)
             CALL dbcsr_filter(mat_dm_virt_global(jquad - 1, 1)%matrix, 0.0_dp)
-         END IF
-
-         IF (memory_info) THEN
-            CALL print_occupation_2c(mat_dm_occ_global(jquad, 1)%matrix, unit_nr, &
-                                     "D_occ(it)", para_env, one_number=.TRUE.)
-            CALL print_occupation_2c(mat_dm_virt_global(jquad, 1)%matrix, unit_nr, &
-                                     "D_virt(it)", para_env, one_number=.TRUE.)
          END IF
 
       END IF ! do kpoints

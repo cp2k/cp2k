@@ -1266,7 +1266,8 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="MIN_BLOCK_SIZE", &
-         description="Minimum tensor block size.", &
+         description="Minimum tensor block size. Adjusting this value may have minor effect on "// &
+         "performance but default should be good enough.", &
          default_i_val=8)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
