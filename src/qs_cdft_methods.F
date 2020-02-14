@@ -1294,7 +1294,7 @@ CONTAINS
                                              (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                                              rs_rho_all, cell, cube_info, radius=radius, &
                                              ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
-                                             subpatch_pattern=subpatch_pattern, lmax_global=0)
+                                             subpatch_pattern=subpatch_pattern)
                   IF (is_constraint(atom_a)) THEN
                      radius_constr = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
                                                               ra=ra, rb=ra, rp=ra, &
@@ -1307,7 +1307,7 @@ CONTAINS
                                                 pab, 0, 0, rs_rho_constr, cell, cube_info, &
                                                 radius=radius_constr, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
-                                                subpatch_pattern=subpatch_pattern, lmax_global=0)
+                                                subpatch_pattern=subpatch_pattern)
                   END IF
                   IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
                      IF (compute_charge(atom_a)) &
@@ -1315,7 +1315,7 @@ CONTAINS
                                                    (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                                                    rs_single(atom_a)%rs_grid, cell, cube_info, radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
-                                                   subpatch_pattern=subpatch_pattern, lmax_global=0)
+                                                   subpatch_pattern=subpatch_pattern)
                   END IF
                END DO
             END DO

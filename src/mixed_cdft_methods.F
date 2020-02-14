@@ -2608,7 +2608,7 @@ CONTAINS
                                                 rs_cavity, cell, mixed_cdft%pw_env%cube_info(1), &
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                                 use_subpatch=.TRUE., &
-                                                subpatch_pattern=0_int_8, lmax_global=0)
+                                                subpatch_pattern=0_int_8)
                   ENDIF
                END DO
             END DO

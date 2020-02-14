@@ -592,12 +592,12 @@ CONTAINS
 
       INTEGER :: adbmdab_func, bcol, brow, cindex, curr_tasks, handle, i, iatom, iatom_old, idir2, &
          igrid_level, iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, itask, ithread, jatom, &
-         jatom_old, jkind, jkind_old, jpgf, jset, jset_old, lmax_global, maxco, maxpgf, maxset, &
-         maxsgf, maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, &
-         ntasks, nthread, sgfa, sgfb
+         jatom_old, jkind, jkind_old, jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, &
+         maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, ntasks, &
+         nthread, sgfa, sgfb
       INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
-                                                            npgfa, npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: atom_pair_changed, den_found, &
                                                             den_found_a, distributed_rs_grids, &
@@ -639,10 +639,10 @@ CONTAINS
 
       NULLIFY (qs_kind, cell, dft_control, orb_basis_set, rs_rho, &
                qs_kind_set, sab_orb, particle_set, rs_current, pw_env, &
-               rs_descs, para_env, set_radius_a, set_radius_b, la_max, &
-               la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, rpgfa, rpgfb, &
-               sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, &
-               tasks, workt, mat_a, mat_b, mat_c, mat_d, rs_gauge, mylmax)
+               rs_descs, para_env, set_radius_a, set_radius_b, la_max, la_min, &
+               lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, rpgfa, rpgfb, &
+               sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, &
+               workt, mat_a, mat_b, mat_c, mat_d, rs_gauge)
       NULLIFY (deltajp_a, deltajp_b, deltajp_c, deltajp_d)
       NULLIFY (jp_block_a, jp_block_b, jp_block_c, jp_block_d)
       NULLIFY (jpblock_a, jpblock_b, jpblock_c, jpblock_d)
@@ -738,7 +738,6 @@ CONTAINS
       CPASSERT(nimages == 1)
       cindex = 1
 
-      lmax_global = 0
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
 
@@ -747,18 +746,10 @@ CONTAINS
 
          IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
 
-         CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
-                                npgf=npgfa, nset=nseta, lmax=mylmax)
-
+         CALL get_gto_basis_set(gto_basis_set=orb_basis_set, npgf=npgfa, nset=nseta)
          maxset = MAX(nseta, maxset)
          maxpgf = MAX(MAXVAL(npgfa), maxpgf)
-         ! Find maximum l, for collocate_pgf_product
-         lmax_global = MAX(MAXVAL(mylmax), lmax_global)
       END DO
-
-      ! ga_gb_function can be one of GRID_FUNC_AB, GRID_FUNC_ADBmDAB or GRID_FUNC_ARDBm_DARB
-      ! take worst case and add 2 to lmax_global
-      lmax_global = lmax_global + 2
 
       !   *** Initialize working density matrix ***
 
@@ -1147,8 +1138,7 @@ CONTAINS
                                     la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                     ra, rab, scale, jpab_a, na1 - 1, nb1 - 1, &
                                     rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                    radius=radius, ga_gb_function=adbmdab_func, &
-                                    lmax_global=lmax_global)
+                                    radius=radius, ga_gb_function=adbmdab_func)
          IF (do_igaim) THEN
             ! here the decontracted mat_jb_{ab} is multiplied by
             !     f_{ab} = g_{a} * g_{b} ! THIS GOES OUTSIDE THE LOOP !
@@ -1157,8 +1147,7 @@ CONTAINS
                                           la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                           ra, rab, scale2, jpab_d, na1 - 1, nb1 - 1, &
                                           rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                          radius=radius, ga_gb_function=GRID_FUNC_AB, &
-                                          lmax_global=lmax_global)
+                                          radius=radius, ga_gb_function=GRID_FUNC_AB)
             ENDIF !rm
             ! here the decontracted mat_jp_rii{ab} is multiplied by
             !     f_{ab} = g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
@@ -1171,8 +1160,7 @@ CONTAINS
                                        cell=cell, cube_info=cube_info(igrid_level), &
                                        radius=radius, &
                                        ga_gb_function=adbmdab_func, &
-                                       rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
-                                       lmax_global=lmax_global)
+                                       rsgrid=current_env%rs_buf(igrid_level)%rs_grid)
             CALL collocate_gauge_ortho(rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
                                        rsbuf=rs_current(igrid_level)%rs_grid, &
                                        rsgauge=rs_gauge(iiiB)%rs(igrid_level)%rs_grid, &
@@ -1191,8 +1179,7 @@ CONTAINS
                                        cell=cell, cube_info=cube_info(igrid_level), &
                                        radius=radius, &
                                        ga_gb_function=adbmdab_func, &
-                                       rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
-                                       lmax_global=lmax_global)
+                                       rsgrid=current_env%rs_buf(igrid_level)%rs_grid)
             CALL collocate_gauge_ortho(rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
                                        rsbuf=rs_current(igrid_level)%rs_grid, &
                                        rsgauge=rs_gauge(iiB)%rs(igrid_level)%rs_grid, &
@@ -1209,8 +1196,7 @@ CONTAINS
                                        ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                        radius=radius, &
-                                       ga_gb_function=encode_ardbmdarb_func(idir=idir, ir=iiiB), &
-                                       lmax_global=lmax_global)
+                                       ga_gb_function=encode_ardbmdarb_func(idir=idir, ir=iiiB))
             ! here the decontracted mat_jp_riii{ab} is multiplied by
             !     f_{ab} = -g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
             !             (dg_{a}/dr)_{idir} (r - R_{b})_{iiB} g_{b}
@@ -1220,8 +1206,7 @@ CONTAINS
                                        ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                        radius=radius, &
-                                       ga_gb_function=encode_ardbmdarb_func(idir=idir, ir=iiB), &
-                                       lmax_global=lmax_global)
+                                       ga_gb_function=encode_ardbmdarb_func(idir=idir, ir=iiB))
          ENDIF
 
       END DO loop_tasks
