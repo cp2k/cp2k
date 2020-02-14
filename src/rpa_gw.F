@@ -3591,6 +3591,8 @@ CONTAINS
 
          END DO
 
+         CLOSE (UNIT=n_level_gw_ref*1000)
+
       END IF
 
       DEALLOCATE (vec_omega_fit_gw_sign)
