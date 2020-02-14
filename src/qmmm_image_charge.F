@@ -10,7 +10,7 @@
 !> \author Dorothea Golze
 ! **************************************************************************************************
 MODULE qmmm_image_charge
-
+   USE ao_util,                         ONLY: exp_radius_very_extended
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
@@ -355,7 +355,7 @@ CONTAINS
       INTEGER                                            :: atom_a, atom_b, atom_ref, handle, iatom, &
                                                             j, k, natom, npme
       INTEGER, DIMENSION(:), POINTER                     :: cores
-      REAL(KIND=dp)                                      :: eps_rho_rspace
+      REAL(KIND=dp)                                      :: eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab
       TYPE(cell_type), POINTER                           :: cell
@@ -425,10 +425,15 @@ CONTAINS
 
          hab(1, 1) = 0.0_dp
 
+         radius = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
+                                           ra=ra, rb=ra, rp=ra, &
+                                           zetp=qmmm_env%image_charge_pot%eta, eps=eps_rho_rspace, &
+                                           prefactor=1.0_dp, cutoff=1.0_dp)
+
          CALL integrate_pgf_product(0, qmmm_env%image_charge_pot%eta, 0, &
                                     0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                                     rs_v, cell, pw_env%cube_info(1), hab, o1=0, o2=0, &
-                                    eps_gvg_rspace=eps_rho_rspace, calculate_forces=.FALSE., &
+                                    radius=radius, calculate_forces=.FALSE., &
                                     use_subpatch=.TRUE., subpatch_pattern=0_int_8)
 
          int_res(iatom) = hab(1, 1)
@@ -470,7 +475,7 @@ CONTAINS
       INTEGER                                            :: atom_a, handle, iatom, j, natom, npme
       INTEGER, DIMENSION(:), POINTER                     :: cores
       LOGICAL                                            :: use_virial
-      REAL(KIND=dp)                                      :: eps_rho_rspace
+      REAL(KIND=dp)                                      :: eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab, pab
       TYPE(cell_type), POINTER                           :: cell
@@ -545,10 +550,16 @@ CONTAINS
          force_a(:) = 0.0_dp
          force_b(:) = 0.0_dp
 
+         radius = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
+                                           ra=ra, rb=ra, rp=ra, &
+                                           zetp=qmmm_env%image_charge_pot%eta, eps=eps_rho_rspace, &
+                                           pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                           prefactor=1.0_dp, cutoff=1.0_dp)
+
          CALL integrate_pgf_product(0, qmmm_env%image_charge_pot%eta, 0, &
                                     0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                                     rs_v, cell, pw_env%cube_info(1), hab, pab, o1=0, o2=0, &
-                                    eps_gvg_rspace=eps_rho_rspace, calculate_forces=.TRUE., &
+                                    radius=radius, calculate_forces=.TRUE., &
                                     force_a=force_a, force_b=force_b, use_subpatch=.TRUE., &
                                     subpatch_pattern=0_int_8)
 

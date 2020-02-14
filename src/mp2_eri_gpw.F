@@ -9,6 +9,7 @@
 !>      07.2019 separated from mp2_integrals.F [Frederick Stein]
 ! **************************************************************************************************
 MODULE mp2_eri_gpw
+   USE ao_util,                         ONLY: exp_radius_very_extended
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
@@ -182,10 +183,10 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: map_it_here
-      REAL(KIND=dp)                                      :: cutoff_old, relative_cutoff_old
+      REAL(KIND=dp)                                      :: cutoff_old, radius, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab
+      REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, rpgfa, sphi_a, zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -260,7 +261,6 @@ CONTAINS
             zeta => basis_set_a%zet
 
             ra(:) = pbc(particle_set(iatom)%r, cell)
-            rab = 0.0_dp
 
             DO iset = 1, nseta
                ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -303,23 +303,27 @@ CONTAINS
                IF (map_it_here) THEN
                   DO ipgf = 1, npgfa(iset)
                      sgfa = first_sgfa(1, iset)
-
                      na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                      na2 = ipgf*ncoset(la_max(iset))
                      igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
 
+                     radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
+                                                       lb_min=0, lb_max=0, ra=ra, rb=ra, rp=ra, &
+                                                       zetp=zeta(ipgf, iset), &
+                                                       eps=dft_control%qs_control%eps_gvg_rspace, &
+                                                       prefactor=1.0_dp, cutoff=1.0_dp)
+
                      CALL integrate_pgf_product( &
                         la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                         lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                        ra=ra, rab=rab, &
+                        ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                         rsgrid=rs_v(igrid_level)%rs_grid, &
                         cell=cell, &
                         cube_info=pw_env_sub%cube_info(igrid_level), &
                         hab=I_tmp2, &
                         o1=na1 - 1, &
                         o2=0, &
-                        map_consistent=.TRUE., &
-                        eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
+                        radius=radius, &
                         calculate_forces=.FALSE.)
                   END DO
 

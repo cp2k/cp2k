@@ -581,10 +581,9 @@ CONTAINS
                   l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
                   ra, (/0.0_dp, 0.0_dp, 0.0_dp/), rs_v, cell, &
                   cube_info(igrid), hab, pab, o1=0, o2=0, &
-                  eps_gvg_rspace=eps_rho_rspace, &
+                  radius=rpgf0, &
                   calculate_forces=calculate_forces, &
                   hdab=hdab, hadb=hadb, &
-                  collocate_rho0=.TRUE., rpgf0_s=rpgf0, &
                   use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
                   a_hdab=a_hdab, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
 
