@@ -1151,7 +1151,9 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
          section, __LOCATION__, name="LOW_SCALING", &
-         description="Cubic scaling RI-RPA, GW and Laplace-SOS-MP2 method using the imaginary time formalism.", &
+         description="Cubic scaling RI-RPA, GW and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
+         "EPS_GRID in WFC_GPW section controls accuracy / req. memory for 3-center integrals. "// &
+         "SORT_BASIS EXP should be specified in DFT section.", &
          n_keywords=12, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
