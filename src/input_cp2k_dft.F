@@ -3161,16 +3161,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="MAP_CONSISTENT", &
-                          description="Compute the exact derivative (Hks) of the energy with respect to the density matrix. "// &
-                          "This is slightly more expensive than using an approximate computation, "// &
-                          "but consistent mapping can improve the stability of the SCF procedure, "// &
-                          "especially for a tight EPS_SCF and a less tight EPS_DEFAULT.", &
-                          usage="MAP_CONSISTENT FALSE", &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="REF_EMBED_SUBSYS", &
                           description="A total, reference, system in DFT embedding. ", &
                           usage="REF_EMBED_SUBSYS FALSE", &

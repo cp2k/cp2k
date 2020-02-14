@@ -726,7 +726,6 @@ CONTAINS
       CALL section_vals_val_get(qs_section, "KG_METHOD", l_val=qs_control%do_kg)
 
       ! Logicals
-      CALL section_vals_val_get(qs_section, "MAP_CONSISTENT", l_val=qs_control%map_consistent)
       CALL section_vals_val_get(qs_section, "REF_EMBED_SUBSYS", l_val=qs_control%ref_embed_subsys)
       CALL section_vals_val_get(qs_section, "CLUSTER_EMBED_SUBSYS", l_val=qs_control%cluster_embed_subsys)
       CALL section_vals_val_get(qs_section, "HIGH_LEVEL_EMBED_SUBSYS", l_val=qs_control%high_level_embed_subsys)
@@ -1665,10 +1664,6 @@ CONTAINS
             "QS| Grid level progression factor:", qs_control%progression_factor
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.1)") &
             "QS| Relative density cutoff [a.u.]:", qs_control%relative_cutoff
-         IF (qs_control%map_consistent) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A)") &
-               "QS| Consistent realspace mapping and integration "
-         ENDIF
          WRITE (UNIT=output_unit, FMT="(T2,A,T73,ES8.1)") &
             "QS| Interaction thresholds: eps_pgf_orb:", &
             qs_control%eps_pgf_orb, &

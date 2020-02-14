@@ -652,9 +652,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, npgfa, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: map_consistent, use_virial
+      LOGICAL                                            :: use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: map_it
-      REAL(KIND=dp)                                      :: eps_gvg_rspace, eps_rho_rspace
+      REAL(KIND=dp)                                      :: eps_rho_rspace
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
@@ -705,12 +705,6 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-      map_consistent = dft_control%qs_control%map_consistent
-      IF (map_consistent) THEN
-         eps_gvg_rspace = dft_control%qs_control%eps_rho_rspace
-      ELSE
-         eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
-      ENDIF
 
       offset = 0
       my_pos = v_rspace%pw%pw_grid%para%my_pos
@@ -819,7 +813,7 @@ CONTAINS
                                                       cube_info=pw_env%cube_info(igrid_level), &
                                                       hab=hab, o1=na1, o2=0, eps_gvg_rspace=eps_rho_rspace, &
                                                       calculate_forces=calculate_forces, &
-                                                      map_consistent=map_consistent)
+                                                      map_consistent=.TRUE.)
                         ELSE
                            CALL integrate_pgf_product(la_max=la_max(iset), &
                                                       zeta=zeta(ipgf, iset), la_min=la_min(iset), &
@@ -832,7 +826,7 @@ CONTAINS
                                                       force_a=force_a, force_b=force_b, &
                                                       use_virial=use_virial, &
                                                       my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
-                                                      map_consistent=map_consistent)
+                                                      map_consistent=.TRUE.)
                         ENDIF
                      ENDIF
                   ENDDO
@@ -896,9 +890,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, npgfa, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: found, map_consistent, use_virial
+      LOGICAL                                            :: found, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: map_it2
-      REAL(KIND=dp)                                      :: eps_gvg_rspace, eps_rho_rspace, zetp
+      REAL(KIND=dp)                                      :: eps_rho_rspace, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
@@ -941,12 +935,6 @@ CONTAINS
                       para_env=para_env)
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-      map_consistent = dft_control%qs_control%map_consistent
-      IF (map_consistent) THEN
-         eps_gvg_rspace = dft_control%qs_control%eps_rho_rspace
-      ELSE
-         eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
-      ENDIF
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
       offset = 0
@@ -1060,11 +1048,11 @@ CONTAINS
                                     ra, rab, rs_v(igrid_level)%rs_grid, cell, &
                                     pw_env%cube_info(igrid_level), &
                                     hab, pab=pab, o1=na1, o2=nb1, &
-                                    eps_gvg_rspace=eps_gvg_rspace, &
+                                    eps_gvg_rspace=eps_rho_rspace, &
                                     calculate_forces=calculate_forces, &
                                     force_a=force_a, force_b=force_b, &
                                     use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
-                                    map_consistent=map_consistent)
+                                    map_consistent=.TRUE.)
                               ELSE
                                  CALL integrate_pgf_product( &
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
@@ -1072,8 +1060,8 @@ CONTAINS
                                     ra, rab, rs_v(igrid_level)%rs_grid, cell, &
                                     pw_env%cube_info(igrid_level), &
                                     hab, o1=na1, o2=nb1, &
-                                    eps_gvg_rspace=eps_gvg_rspace, &
-                                    calculate_forces=.FALSE., map_consistent=map_consistent)
+                                    eps_gvg_rspace=eps_rho_rspace, &
+                                    calculate_forces=.FALSE., map_consistent=.TRUE.)
                               ENDIF
                            ENDIF
                         ENDDO

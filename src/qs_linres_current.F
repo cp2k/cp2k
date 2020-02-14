@@ -595,7 +595,7 @@ CONTAINS
                                                             npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL :: atom_pair_changed, den_found, den_found_a, distributed_rs_grids, do_igaim, &
-         map_consistent, my_retain_rsgrid, my_soft
+         my_retain_rsgrid, my_soft
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_current, my_gauge, my_rho
       REAL(KIND=dp)                                      :: eps_rho_rspace, kind_radius_a, &
                                                             kind_radius_b, Lxo2, Lyo2, Lzo2, &
@@ -695,7 +695,6 @@ CONTAINS
          ENDIF
       ENDDO
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-      map_consistent = dft_control%qs_control%map_consistent
       nthread = 1
 
       !   *** Allocate work storage ***
@@ -856,14 +855,6 @@ CONTAINS
             jpblock_c => jp_block_c
             IF (do_igaim) jpblock_d => jp_block_d
          ENDIF
-
-         IF (.NOT. map_consistent) THEN
-            IF (ALL(100.0_dp*ABS(jpblock_a) < eps_rho_rspace) .AND. &
-                ALL(100.0_dp*ABS(jpblock_b) < eps_rho_rspace) .AND. &
-                ALL(100.0_dp*ABS(jpblock_c) < eps_rho_rspace)) THEN
-               CYCLE
-            END IF
-         END IF
 
          CALL task_list_inner_loop(tasks, ntasks, curr_tasks, rs_descs, &
                                    dft_control, cube_info, gridlevel_info, cindex, &
@@ -1134,7 +1125,7 @@ CONTAINS
                                     eps_rho_rspace, &
                                     ga_gb_function=GRID_FUNC_ADBmDAB, &
                                     idir=idir, &
-                                    map_consistent=map_consistent, lmax_global=lmax_global)
+                                    map_consistent=.TRUE., lmax_global=lmax_global)
          IF (do_igaim) THEN
             ! here the decontracted mat_jb_{ab} is multiplied by
             !     f_{ab} = g_{a} * g_{b} ! THIS GOES OUTSIDE THE LOOP !
@@ -1145,7 +1136,7 @@ CONTAINS
                                           rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                           eps_rho_rspace, &
                                           ga_gb_function=GRID_FUNC_AB, &
-                                          map_consistent=map_consistent, lmax_global=lmax_global)
+                                          map_consistent=.TRUE., lmax_global=lmax_global)
             ENDIF !rm
             ! here the decontracted mat_jp_rii{ab} is multiplied by
             !     f_{ab} = g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
@@ -1160,7 +1151,7 @@ CONTAINS
                                        idir=idir, ir=iiiB, &
                                        rsgauge=rs_gauge(iiiB)%rs(igrid_level)%rs_grid, &
                                        rsbuf=current_env%rs_buf(igrid_level)%rs_grid, &
-                                       map_consistent=map_consistent, lmax_global=lmax_global)
+                                       map_consistent=.TRUE., lmax_global=lmax_global)
             ! here the decontracted mat_jp_riii{ab} is multiplied by
             !     f_{ab} = -g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
             !             (dg_{a}/dr)_{idir} (d(r) - R_{b})_{iiB} g_{b}
@@ -1174,7 +1165,7 @@ CONTAINS
                                        idir=idir, ir=iiB, &
                                        rsgauge=rs_gauge(iiB)%rs(igrid_level)%rs_grid, &
                                        rsbuf=current_env%rs_buf(igrid_level)%rs_grid, &
-                                       map_consistent=map_consistent, lmax_global=lmax_global)
+                                       map_consistent=.TRUE., lmax_global=lmax_global)
          ELSE
             ! here the decontracted mat_jp_rii{ab} is multiplied by
             !     f_{ab} = g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
@@ -1187,7 +1178,7 @@ CONTAINS
                                        eps_rho_rspace, &
                                        ga_gb_function=GRID_FUNC_ARDBmDARB, &
                                        idir=idir, ir=iiiB, &
-                                       map_consistent=map_consistent, lmax_global=lmax_global)
+                                       map_consistent=.TRUE., lmax_global=lmax_global)
             ! here the decontracted mat_jp_riii{ab} is multiplied by
             !     f_{ab} = -g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
             !             (dg_{a}/dr)_{idir} (r - R_{b})_{iiB} g_{b}
@@ -1199,7 +1190,7 @@ CONTAINS
                                        eps_rho_rspace, &
                                        ga_gb_function=GRID_FUNC_ARDBmDARB, &
                                        idir=idir, ir=iiB, &
-                                       map_consistent=map_consistent, lmax_global=lmax_global)
+                                       map_consistent=.TRUE., lmax_global=lmax_global)
          ENDIF
 
       END DO loop_tasks

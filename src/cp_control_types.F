@@ -281,7 +281,6 @@ MODULE cp_control_types
       LOGICAL                              :: do_kg
       LOGICAL                              :: commensurate_mgrids
       LOGICAL                              :: realspace_mgrids
-      LOGICAL                              :: map_consistent
       LOGICAL                              :: gapw, gapw_xc, gpw, pao
       LOGICAL                              :: lrigpw, rigpw
       LOGICAL                              :: lri_optbas
