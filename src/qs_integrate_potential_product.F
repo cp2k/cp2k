@@ -207,8 +207,8 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, do_kp, found, h_duplicated, &
-         has_threads, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, &
-         p_duplicated, pab_required, scatter, use_subpatch, use_virial
+         has_threads, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, p_duplicated, &
+         pab_required, scatter, use_subpatch, use_virial
       REAL(KIND=dp)                                      :: admm_scal_fac, dab, eps_rho_rspace, &
                                                             scalef, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb

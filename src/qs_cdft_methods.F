@@ -10,6 +10,7 @@
 !> \author Nico Holmberg [03.2017]
 ! **************************************************************************************************
 MODULE qs_cdft_methods
+   USE ao_util,                         ONLY: exp_radius_very_extended
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
@@ -1166,8 +1167,10 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: compute_charge, is_constraint
-      REAL(kind=dp)                                      :: alpha, coef, dvol, eps_rho_rspace, ra(3)
+      REAL(kind=dp)                                      :: alpha, coef, dvol, eps_rho_rspace, &
+                                                            radius, radius_constr
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients
+      REAL(kind=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -1281,22 +1284,36 @@ CONTAINS
                   pab(1, 1) = coef*hirshfeld_env%charges(atom_a)
                   ra(:) = pbc(particle_set(atom_a)%r, cell)
                   subpatch_pattern = 0
+                  radius = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
+                                                    ra=ra, rb=ra, rp=ra, &
+                                                    zetp=alpha, eps=eps_rho_rspace, &
+                                                    pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                    prefactor=1.0_dp, cutoff=0.0_dp)
+
                   CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                              (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                             rs_rho_all, cell, cube_info, eps_rho_rspace, &
+                                             rs_rho_all, cell, cube_info, radius=radius, &
                                              ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                              subpatch_pattern=subpatch_pattern, lmax_global=0)
-                  IF (is_constraint(atom_a)) &
+                  IF (is_constraint(atom_a)) THEN
+                     radius_constr = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
+                                                              ra=ra, rb=ra, rp=ra, &
+                                                              zetp=alpha, eps=eps_rho_rspace, &
+                                                              pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                              prefactor=coefficients(atom_a), cutoff=0.0_dp)
+
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), coefficients(atom_a), &
-                                                pab, 0, 0, rs_rho_constr, cell, cube_info, eps_rho_rspace, &
+                                                pab, 0, 0, rs_rho_constr, cell, cube_info, &
+                                                radius=radius_constr, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                 subpatch_pattern=subpatch_pattern, lmax_global=0)
+                  END IF
                   IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
                      IF (compute_charge(atom_a)) &
                         CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                    (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                                   rs_single(atom_a)%rs_grid, cell, cube_info, eps_rho_rspace, &
+                                                   rs_single(atom_a)%rs_grid, cell, cube_info, radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                    subpatch_pattern=subpatch_pattern, lmax_global=0)
                   END IF

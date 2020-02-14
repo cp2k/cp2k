@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2020  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 MODULE grid_collocate
-   USE ao_util,                         ONLY: exp_radius_very_extended
    USE cell_types,                      ONLY: cell_type
    USE cube_utils,                      ONLY: compute_cube_center,&
                                               cube_info_type,&
@@ -68,11 +67,8 @@ CONTAINS
 !> \param rsgrid ...
 !> \param cell ...
 !> \param cube_info ...
-!> \param eps_rho_rspace ...
 !> \param ga_gb_function ...
-!> \param map_consistent ...
-!> \param collocate_rho0 ...
-!> \param rpgf0_s ...
+!> \param radius ...
 !> \param idir ...
 !> \param ir ...
 !> \param rsgauge ...
@@ -85,10 +81,8 @@ CONTAINS
                                     lb_max, zetb, lb_min, &
                                     ra, rab, scale, pab, o1, o2, &
                                     rsgrid, cell, cube_info, &
-                                    eps_rho_rspace, ga_gb_function, &
-                                    map_consistent, &
-                                    collocate_rho0, &
-                                    rpgf0_s, idir, ir, rsgauge, rsbuf, &
+                                    ga_gb_function, &
+                                    radius, idir, ir, rsgauge, rsbuf, &
                                     use_subpatch, subpatch_pattern, &
                                     lmax_global)
 
@@ -104,10 +98,8 @@ CONTAINS
       TYPE(realspace_grid_type)                :: rsgrid
       TYPE(cell_type), POINTER                 :: cell
       TYPE(cube_info_type), INTENT(IN)         :: cube_info
-      REAL(KIND=dp), INTENT(IN)                :: eps_rho_rspace
+      REAL(KIND=dp), INTENT(IN)                :: radius
       INTEGER, INTENT(IN)                      :: ga_gb_function
-      LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent, collocate_rho0
-      REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
       INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
       TYPE(realspace_grid_type), POINTER, OPTIONAL :: rsgauge, rsbuf
       LOGICAL, OPTIONAL                        :: use_subpatch
@@ -124,11 +116,10 @@ CONTAINS
       INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
                                                   ub_cube
       INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
-      LOGICAL                                  :: my_collocate_rho0, &
-                                                  my_map_consistent, subpatch_collocate
-      REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
-                       prefactor, radius, rpg, zetp
-      REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
+      LOGICAL                                  :: subpatch_collocate
+      REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, pg, &
+                       prefactor, rpg, zetp, f
+      REAL(KIND=dp), DIMENSION(3)              :: dr, roffset, rb, rp
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab_local
       REAL(KIND=dp), DIMENSION(:, :, :), &
          POINTER                                :: grid
@@ -156,53 +147,21 @@ CONTAINS
          ENDIF
       ENDIF
 
-      ! use identical radii for integrate and collocate ?
-      IF (PRESENT(map_consistent)) THEN
-         my_map_consistent = map_consistent
-      ELSE
-         my_map_consistent = .FALSE.
-      ENDIF
-
-      IF (PRESENT(collocate_rho0) .AND. PRESENT(rpgf0_s)) THEN
-         my_collocate_rho0 = collocate_rho0
-      ELSE
-         my_collocate_rho0 = .FALSE.
-      END IF
-
-      zetp = zeta + zetb
-      f = zetb/zetp
-      rap(:) = f*rab(:)
-      rbp(:) = rap(:) - rab(:)
-      rp(:) = ra(:) + rap(:)
-      rb(:) = ra(:) + rab(:)
-
       ! check to avoid overflows
       a = MAXVAL(ABS(rsgrid%desc%dh))
       a = 300._dp/(a*a)
       !   CPASSERT(zetp < a)
 
-      IF (my_map_consistent) THEN
-         cutoff = 1.0_dp
-         prefactor = EXP(-zeta*f*DOT_PRODUCT(rab, rab))
-         radius = exp_radius_very_extended(la_min, la_max, lb_min, lb_max, ra=ra, rb=rb, rp=rp, &
-                                           zetp=zetp, eps=eps_rho_rspace, &
-                                           prefactor=prefactor, cutoff=cutoff)
-         prefactor = scale*EXP(-zeta*f*DOT_PRODUCT(rab, rab))
-      ELSE IF (my_collocate_rho0) THEN
-         cutoff = 0.0_dp
-         prefactor = 1.0_dp
-         radius = rpgf0_s
-      ELSE
-         cutoff = 0.0_dp
-         prefactor = scale*EXP(-zeta*f*DOT_PRODUCT(rab, rab))
-         radius = exp_radius_very_extended(la_min, la_max, lb_min, lb_max, pab, o1, o2, ra, rb, rp, &
-                                           zetp, eps_rho_rspace, prefactor, cutoff)
-      ENDIF
-
       a = MAXVAL(ABS(rsgrid%desc%dh))
       IF (radius .LT. a/2.0_dp) THEN
          RETURN
       END IF
+
+      zetp = zeta + zetb
+      f = zetb/zetp
+      rp(:) = ra(:) + f*rab(:)
+      rb(:) = ra(:) + rab(:)
+      prefactor = scale*EXP(-zeta*f*DOT_PRODUCT(rab, rab))
 
       ! it's a choice to compute lX_min/max, pab here,
       ! this way we get the same radius as we use for the corresponding density

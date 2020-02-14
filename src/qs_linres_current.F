@@ -13,6 +13,7 @@
 !> \author MI
 ! **************************************************************************************************
 MODULE qs_linres_current
+   USE ao_util,                         ONLY: exp_radius_very_extended
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_p_type,&
                                               gto_basis_set_type
@@ -594,13 +595,14 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
                                                             npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL :: atom_pair_changed, den_found, den_found_a, distributed_rs_grids, do_igaim, &
-         my_retain_rsgrid, my_soft
+      LOGICAL                                            :: atom_pair_changed, den_found, &
+                                                            den_found_a, distributed_rs_grids, &
+                                                            do_igaim, my_retain_rsgrid, my_soft
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_current, my_gauge, my_rho
-      REAL(KIND=dp)                                      :: eps_rho_rspace, kind_radius_a, &
+      REAL(KIND=dp)                                      :: eps_rho_rspace, f, kind_radius_a, &
                                                             kind_radius_b, Lxo2, Lyo2, Lzo2, &
-                                                            scale, scale2, zetp
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
+                                                            prefactor, radius, scale, scale2, zetp
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb, rp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: jp_block_a, jp_block_b, jp_block_c, jp_block_d, &
          jpab_a, jpab_b, jpab_c, jpab_d, jpblock_a, jpblock_b, jpblock_c, jpblock_d, rpgfa, rpgfb, &
@@ -1105,6 +1107,9 @@ CONTAINS
          rab(:) = tasks(itask)%rab
          rb(:) = ra(:) + rab(:)
          zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
+         f = zetb(jpgf, jset)/zetp
+         prefactor = EXP(-zeta(ipgf, iset)*f*DOT_PRODUCT(rab, rab))
+         rp(:) = ra(:) + f*rab(:)
 
          na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
          na2 = ipgf*ncoset(la_max(iset))
@@ -1118,14 +1123,17 @@ CONTAINS
          ! here the decontracted mat_jp_{ab} is multiplied by
          !     f_{ab} = g_{a} (dg_{b}/dr)_{idir} - (dg_{a}/dr)_{idir} g_{b}
          scale = 1.0_dp
+         radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
+                                           lb_min=lb_min(jset), lb_max=lb_max(jset), &
+                                           ra=ra, rb=rb, rp=rp, zetp=zetp, eps=eps_rho_rspace, &
+                                           prefactor=prefactor, cutoff=1.0_dp)
+
          CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                     la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                     ra, rab, scale, jpab_a, na1 - 1, nb1 - 1, &
                                     rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                    eps_rho_rspace, &
-                                    ga_gb_function=GRID_FUNC_ADBmDAB, &
-                                    idir=idir, &
-                                    map_consistent=.TRUE., lmax_global=lmax_global)
+                                    radius=radius, ga_gb_function=GRID_FUNC_ADBmDAB, idir=idir, &
+                                    lmax_global=lmax_global)
          IF (do_igaim) THEN
             ! here the decontracted mat_jb_{ab} is multiplied by
             !     f_{ab} = g_{a} * g_{b} ! THIS GOES OUTSIDE THE LOOP !
@@ -1134,9 +1142,8 @@ CONTAINS
                                           la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                           ra, rab, scale2, jpab_d, na1 - 1, nb1 - 1, &
                                           rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                          eps_rho_rspace, &
-                                          ga_gb_function=GRID_FUNC_AB, &
-                                          map_consistent=.TRUE., lmax_global=lmax_global)
+                                          radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                                          lmax_global=lmax_global)
             ENDIF !rm
             ! here the decontracted mat_jp_rii{ab} is multiplied by
             !     f_{ab} = g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
@@ -1146,12 +1153,12 @@ CONTAINS
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                       eps_rho_rspace, &
+                                       radius=radius, &
                                        ga_gb_function=GRID_FUNC_ADBmDAB, &
                                        idir=idir, ir=iiiB, &
                                        rsgauge=rs_gauge(iiiB)%rs(igrid_level)%rs_grid, &
                                        rsbuf=current_env%rs_buf(igrid_level)%rs_grid, &
-                                       map_consistent=.TRUE., lmax_global=lmax_global)
+                                       lmax_global=lmax_global)
             ! here the decontracted mat_jp_riii{ab} is multiplied by
             !     f_{ab} = -g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
             !             (dg_{a}/dr)_{idir} (d(r) - R_{b})_{iiB} g_{b}
@@ -1160,12 +1167,12 @@ CONTAINS
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                       eps_rho_rspace, &
+                                       radius=radius, &
                                        ga_gb_function=GRID_FUNC_ADBmDAB, &
                                        idir=idir, ir=iiB, &
                                        rsgauge=rs_gauge(iiB)%rs(igrid_level)%rs_grid, &
                                        rsbuf=current_env%rs_buf(igrid_level)%rs_grid, &
-                                       map_consistent=.TRUE., lmax_global=lmax_global)
+                                       lmax_global=lmax_global)
          ELSE
             ! here the decontracted mat_jp_rii{ab} is multiplied by
             !     f_{ab} = g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
@@ -1175,10 +1182,10 @@ CONTAINS
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                       eps_rho_rspace, &
+                                       radius=radius, &
                                        ga_gb_function=GRID_FUNC_ARDBmDARB, &
                                        idir=idir, ir=iiiB, &
-                                       map_consistent=.TRUE., lmax_global=lmax_global)
+                                       lmax_global=lmax_global)
             ! here the decontracted mat_jp_riii{ab} is multiplied by
             !     f_{ab} = -g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
             !             (dg_{a}/dr)_{idir} (r - R_{b})_{iiB} g_{b}
@@ -1187,10 +1194,10 @@ CONTAINS
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                       eps_rho_rspace, &
+                                       radius=radius, &
                                        ga_gb_function=GRID_FUNC_ARDBmDARB, &
                                        idir=idir, ir=iiB, &
-                                       map_consistent=.TRUE., lmax_global=lmax_global)
+                                       lmax_global=lmax_global)
          ENDIF
 
       END DO loop_tasks

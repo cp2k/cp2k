@@ -10,6 +10,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE hirshfeld_methods
+   USE ao_util,                         ONLY: exp_radius_very_extended
    USE atom_kind_orbitals,              ONLY: calculate_atomic_density
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
@@ -419,7 +420,7 @@ CONTAINS
                                                             numexp
       INTEGER(KIND=int_8)                                :: subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
-      REAL(KIND=dp)                                      :: alpha, coef, eps_rho_rspace
+      REAL(KIND=dp)                                      :: alpha, coef, eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -480,10 +481,15 @@ CONTAINS
                pab(1, 1) = hirshfeld_env%charges(atom_a)*coef
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                subpatch_pattern = 0
+               radius = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
+                                                 ra=ra, rb=ra, rp=ra, zetp=alpha, eps=eps_rho_rspace, &
+                                                 pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                 prefactor=1.0_dp, cutoff=0.0_dp)
+
                ! la_max==0 so set lmax_global to 0
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
-                                          cell, cube_info, eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
+                                          cell, cube_info, radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
                                           lmax_global=0)
             END DO
