@@ -56,10 +56,12 @@ MODULE qs_linres_current
         dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
         dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
-   USE grid_collocate,                  ONLY: GRID_FUNC_AB,&
-                                              GRID_FUNC_ADBmDAB,&
-                                              GRID_FUNC_ARDBmDARB,&
-                                              collocate_pgf_product
+   USE grid_collocate,                  ONLY: &
+        GRID_FUNC_AB, GRID_FUNC_ADBmDAB_X, GRID_FUNC_ADBmDAB_Y, GRID_FUNC_ADBmDAB_Z, &
+        GRID_FUNC_ARDBmDARB_XX, GRID_FUNC_ARDBmDARB_XY, GRID_FUNC_ARDBmDARB_XZ, &
+        GRID_FUNC_ARDBmDARB_YX, GRID_FUNC_ARDBmDARB_YY, GRID_FUNC_ARDBmDARB_YZ, &
+        GRID_FUNC_ARDBmDARB_ZX, GRID_FUNC_ARDBmDARB_ZY, GRID_FUNC_ARDBmDARB_ZZ, &
+        collocate_pgf_product
    USE input_constants,                 ONLY: current_gauge_atom
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_get_lval,&
@@ -588,11 +590,11 @@ CONTAINS
          routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: max_tasks = 2000
 
-      INTEGER :: bcol, brow, cindex, curr_tasks, handle, i, iatom, iatom_old, idir2, igrid_level, &
-         iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, &
-         jkind, jkind_old, jpgf, jset, jset_old, lmax_global, maxco, maxpgf, maxset, maxsgf, &
-         maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, ntasks, &
-         nthread, sgfa, sgfb
+      INTEGER :: adbmdab_func, bcol, brow, cindex, curr_tasks, handle, i, iatom, iatom_old, idir2, &
+         igrid_level, iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, itask, ithread, jatom, &
+         jatom_old, jkind, jkind_old, jpgf, jset, jset_old, lmax_global, maxco, maxpgf, maxset, &
+         maxsgf, maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, &
+         ntasks, nthread, sgfa, sgfb
       INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
                                                             npgfa, npgfb, nsgfa, nsgfb
@@ -1106,6 +1108,17 @@ CONTAINS
 
          ENDIF
 
+         SELECT CASE (idir)
+         CASE (1)
+            adbmdab_func = GRID_FUNC_ADBmDAB_X
+         CASE (2)
+            adbmdab_func = GRID_FUNC_ADBmDAB_Y
+         CASE (3)
+            adbmdab_func = GRID_FUNC_ADBmDAB_Z
+         CASE DEFAULT
+            CPABORT("invalid idir")
+         END SELECT
+
          rab(:) = tasks(itask)%rab
          rb(:) = ra(:) + rab(:)
          zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
@@ -1134,7 +1147,7 @@ CONTAINS
                                     la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                     ra, rab, scale, jpab_a, na1 - 1, nb1 - 1, &
                                     rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                                    radius=radius, ga_gb_function=GRID_FUNC_ADBmDAB, idir=idir, &
+                                    radius=radius, ga_gb_function=adbmdab_func, &
                                     lmax_global=lmax_global)
          IF (do_igaim) THEN
             ! here the decontracted mat_jb_{ab} is multiplied by
@@ -1157,8 +1170,7 @@ CONTAINS
                                        ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
                                        cell=cell, cube_info=cube_info(igrid_level), &
                                        radius=radius, &
-                                       ga_gb_function=GRID_FUNC_ADBmDAB, &
-                                       idir=idir, ir=iiiB, &
+                                       ga_gb_function=adbmdab_func, &
                                        rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
                                        lmax_global=lmax_global)
             CALL collocate_gauge_ortho(rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
@@ -1178,8 +1190,7 @@ CONTAINS
                                        ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
                                        cell=cell, cube_info=cube_info(igrid_level), &
                                        radius=radius, &
-                                       ga_gb_function=GRID_FUNC_ADBmDAB, &
-                                       idir=idir, ir=iiB, &
+                                       ga_gb_function=adbmdab_func, &
                                        rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
                                        lmax_global=lmax_global)
             CALL collocate_gauge_ortho(rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
@@ -1198,8 +1209,7 @@ CONTAINS
                                        ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                        radius=radius, &
-                                       ga_gb_function=GRID_FUNC_ARDBmDARB, &
-                                       idir=idir, ir=iiiB, &
+                                       ga_gb_function=encode_ardbmdarb_func(idir=idir, ir=iiiB), &
                                        lmax_global=lmax_global)
             ! here the decontracted mat_jp_riii{ab} is multiplied by
             !     f_{ab} = -g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
@@ -1210,8 +1220,7 @@ CONTAINS
                                        ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
                                        radius=radius, &
-                                       ga_gb_function=GRID_FUNC_ARDBmDARB, &
-                                       idir=idir, ir=iiB, &
+                                       ga_gb_function=encode_ardbmdarb_func(idir=idir, ir=iiB), &
                                        lmax_global=lmax_global)
          ENDIF
 
@@ -1254,6 +1263,41 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_jrho_resp
+
+! **************************************************************************************************
+!> \brief ...
+!> \param idir ...
+!> \param ir ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION encode_ardbmdarb_func(idir, ir) RESULT(func)
+      INTEGER, INTENT(IN)                                :: idir, ir
+      INTEGER                                            :: func
+
+      CPASSERT(1 <= idir .AND. idir <= 3 .AND. 1 <= ir .AND. ir <= 3)
+      SELECT CASE (10*idir + ir)
+      CASE (11)
+         func = GRID_FUNC_ARDBmDARB_XX
+      CASE (12)
+         func = GRID_FUNC_ARDBmDARB_XY
+      CASE (13)
+         func = GRID_FUNC_ARDBmDARB_XZ
+      CASE (21)
+         func = GRID_FUNC_ARDBmDARB_YX
+      CASE (22)
+         func = GRID_FUNC_ARDBmDARB_YY
+      CASE (23)
+         func = GRID_FUNC_ARDBmDARB_YZ
+      CASE (31)
+         func = GRID_FUNC_ARDBmDARB_ZX
+      CASE (32)
+         func = GRID_FUNC_ARDBmDARB_ZY
+      CASE (33)
+         func = GRID_FUNC_ARDBmDARB_ZZ
+      CASE DEFAULT
+         CPABORT("invalid idir or iiiB")
+      END SELECT
+   END FUNCTION encode_ardbmdarb_func
 
 ! **************************************************************************************************
 !> \brief ...

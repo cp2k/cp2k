@@ -56,9 +56,10 @@ MODULE qs_collocate_density
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                               gridlevel_info_type
    USE grid_collocate,                  ONLY: &
-        GRID_FUNC_AB, GRID_FUNC_ADBmDAB, GRID_FUNC_ARDBmDARB, GRID_FUNC_DABpADB, GRID_FUNC_DADB, &
-        GRID_FUNC_DX, GRID_FUNC_DXDX, GRID_FUNC_DXDY, GRID_FUNC_DY, GRID_FUNC_DYDY, &
-        GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, GRID_FUNC_DZDZ, collocate_pgf_product
+        GRID_FUNC_AB, GRID_FUNC_DABpADB_X, GRID_FUNC_DABpADB_Y, GRID_FUNC_DABpADB_Z, &
+        GRID_FUNC_DADB, GRID_FUNC_DX, GRID_FUNC_DXDX, GRID_FUNC_DXDY, GRID_FUNC_DY, &
+        GRID_FUNC_DYDY, GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, GRID_FUNC_DZDZ, &
+        collocate_pgf_product
    USE input_constants,                 ONLY: &
         orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s
    USE kinds,                           ONLY: default_string_length,&
@@ -1490,8 +1491,8 @@ CONTAINS
       INTEGER :: bcol, brow, ga_gb_function, handle, iatom, iatom_old, igrid_level, ikind, &
          ikind_old, img, img_old, ipair, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, &
          jkind, jkind_old, jpgf, jset, jset_old, lb, lbr, lbw, lmax_global, maxco, maxpgf, maxset, &
-         maxsgf, maxsgf_set, my_idir, n, na1, na2, natoms, nb1, nb2, nblock, ncoa, ncob, nimages, &
-         nr, nrlevel, nseta, nsetb, ntasks, nthread, nw, nxy, nz, nzsize, sgfa, sgfb, ub
+         maxsgf, maxsgf_set, n, na1, na2, natoms, nb1, nb2, nblock, ncoa, ncob, nimages, nr, &
+         nrlevel, nseta, nsetb, ntasks, nthread, nw, nxy, nz, nzsize, sgfa, sgfb, ub
       INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
                                                             npgfa, npgfb, nsgfa, nsgfb
@@ -1553,42 +1554,6 @@ CONTAINS
       ELSE
          my_compute_grad = .FALSE.
       ENDIF
-
-      my_idir = 0
-      IF (PRESENT(der_type)) THEN
-         SELECT CASE (der_type)
-         CASE (orb_s)
-            ga_gb_function = GRID_FUNC_AB
-         CASE (orb_px)
-            ga_gb_function = GRID_FUNC_DX
-         CASE (orb_py)
-            ga_gb_function = GRID_FUNC_DY
-         CASE (orb_pz)
-            ga_gb_function = GRID_FUNC_DZ
-         CASE (orb_dxy)
-            ga_gb_function = GRID_FUNC_DXDY
-         CASE (orb_dyz)
-            ga_gb_function = GRID_FUNC_DYDZ
-         CASE (orb_dzx)
-            ga_gb_function = GRID_FUNC_DZDX
-         CASE (orb_dx2)
-            ga_gb_function = GRID_FUNC_DXDX
-         CASE (orb_dy2)
-            ga_gb_function = GRID_FUNC_DYDY
-         CASE (orb_dz2)
-            ga_gb_function = GRID_FUNC_DZDZ
-         CASE DEFAULT
-            CPABORT("Unknown der_type")
-         END SELECT
-
-      ELSE IF (my_compute_tau) THEN
-         ga_gb_function = GRID_FUNC_DADB
-      ELSE IF (my_compute_grad) THEN
-         ga_gb_function = GRID_FUNC_DABpADB
-      ELSE
-         ga_gb_function = GRID_FUNC_AB
-      ENDIF
-      IF (PRESENT(idir)) my_idir = idir
 
       IF (PRESENT(basis_type)) THEN
          my_basis_type = basis_type
@@ -1654,28 +1619,63 @@ CONTAINS
          lmax_global = MAX(MAXVAL(mylmax), lmax_global)
       END DO
 
-      ! Optionally increment lmax_global depending on which ga_gb_function
-      ! will be used for collocation
-      SELECT CASE (ga_gb_function)
-      CASE (GRID_FUNC_DADB)
+      ! Select ga_gb_function and increment lmax_global if needed.
+      IF (PRESENT(der_type)) THEN
+         SELECT CASE (der_type)
+         CASE (orb_s)
+            ga_gb_function = GRID_FUNC_AB
+            lmax_global = lmax_global + 1
+         CASE (orb_px)
+            ga_gb_function = GRID_FUNC_DX
+            lmax_global = lmax_global + 1
+         CASE (orb_py)
+            ga_gb_function = GRID_FUNC_DY
+            lmax_global = lmax_global + 1
+         CASE (orb_pz)
+            ga_gb_function = GRID_FUNC_DZ
+            lmax_global = lmax_global + 1
+         CASE (orb_dxy)
+            ga_gb_function = GRID_FUNC_DXDY
+            lmax_global = lmax_global + 2
+         CASE (orb_dyz)
+            ga_gb_function = GRID_FUNC_DYDZ
+            lmax_global = lmax_global + 2
+         CASE (orb_dzx)
+            ga_gb_function = GRID_FUNC_DZDX
+            lmax_global = lmax_global + 2
+         CASE (orb_dx2)
+            ga_gb_function = GRID_FUNC_DXDX
+            lmax_global = lmax_global + 2
+         CASE (orb_dy2)
+            ga_gb_function = GRID_FUNC_DYDY
+            lmax_global = lmax_global + 2
+         CASE (orb_dz2)
+            ga_gb_function = GRID_FUNC_DZDZ
+            lmax_global = lmax_global + 2
+         CASE DEFAULT
+            CPABORT("Unknown der_type")
+         END SELECT
+      ELSE IF (my_compute_tau) THEN
+         ga_gb_function = GRID_FUNC_DADB
          lmax_global = lmax_global + 1
-      CASE (GRID_FUNC_ADBmDAB)
-         lmax_global = lmax_global + 1
-      CASE (GRID_FUNC_DABpADB)
-         lmax_global = lmax_global + 1
-      CASE (GRID_FUNC_DX, GRID_FUNC_DY, GRID_FUNC_DZ)
-         lmax_global = lmax_global + 1
-      CASE (GRID_FUNC_DXDY, GRID_FUNC_DYDZ, GRID_FUNC_DZDX)
-         lmax_global = lmax_global + 2
-      CASE (GRID_FUNC_DXDX, GRID_FUNC_DYDY, GRID_FUNC_DZDZ)
-         lmax_global = lmax_global + 2
-      CASE (GRID_FUNC_ARDBmDARB)
-         lmax_global = lmax_global + 2
-      CASE (GRID_FUNC_AB)
-         lmax_global = lmax_global
-      CASE DEFAULT
-         CPABORT("unknown ga_gb_function")
-      END SELECT
+      ELSE IF (my_compute_grad) THEN
+         CPASSERT(PRESENT(idir))
+         SELECT CASE (idir)
+         CASE (1)
+            ga_gb_function = GRID_FUNC_DABpADB_X
+            lmax_global = lmax_global + 1
+         CASE (2)
+            ga_gb_function = GRID_FUNC_DABpADB_Y
+            lmax_global = lmax_global + 1
+         CASE (3)
+            ga_gb_function = GRID_FUNC_DABpADB_Z
+            lmax_global = lmax_global + 1
+         CASE DEFAULT
+            CPABORT("invalid idir")
+         END SELECT
+      ELSE
+         ga_gb_function = GRID_FUNC_AB
+      ENDIF
 
       ! get the task lists
       IF (my_soft) task_list => task_list_soft
@@ -1748,7 +1748,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          SHARED(ntasks,tasks,nimages,natoms,maxset,maxpgf,particle_set,pabt,workt), &
 !$OMP          SHARED(my_basis_type,my_soft,deltap,maxco,ncoset,nthread), &
-!$OMP          SHARED(cell,cube_info,eps_rho_rspace,ga_gb_function, my_idir), &
+!$OMP          SHARED(cell,cube_info,eps_rho_rspace,ga_gb_function), &
 !$OMP          SHARED(rs_rho,lgrid,gridlevel_info,task_list,qs_kind_set,lmax_global), &
 !$OMP          PRIVATE(igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,ikind,jkind,pab,work), &
 !$OMP          PRIVATE(img,img_old,iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
@@ -1921,7 +1921,6 @@ CONTAINS
                   threadlocal_rsgrid, cell, cube_info(igrid_level), &
                   radius=radius, &
                   ga_gb_function=ga_gb_function, &
-                  idir=my_idir, &
                   use_subpatch=use_subpatch, &
                   subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
             ELSE
@@ -1933,7 +1932,6 @@ CONTAINS
                   threadlocal_rsgrid, cell, cube_info(igrid_level), &
                   radius=radius, &
                   ga_gb_function=ga_gb_function, &
-                  idir=my_idir, &
                   use_subpatch=use_subpatch, &
                   subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
             END IF
@@ -2036,10 +2034,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
-      INTEGER :: bcol, brow, handle, i, iatom, iatom_old, idir, igrid_level, ikind, ikind_old, &
-         img, img_old, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, jkind, jkind_old, &
-         jpgf, jset, jset_old, lmax_global, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, na2, &
-         natoms, nb1, nb2, ncoa, ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb
+      INTEGER :: bcol, brow, dabqadb_func, handle, i, iatom, iatom_old, idir, igrid_level, ikind, &
+         ikind_old, img, img_old, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, jkind, &
+         jkind_old, jpgf, jset, jset_old, lmax_global, maxco, maxpgf, maxset, maxsgf, maxsgf_set, &
+         na1, na2, natoms, nb1, nb2, ncoa, ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb
       INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
                                                             npgfa, npgfb, nsgfa, nsgfb
@@ -2360,15 +2358,25 @@ CONTAINS
             ELSE
                use_subpatch = .FALSE.
             ENDIF
+
+            SELECT CASE (idir)
+            CASE (1)
+               dabqadb_func = GRID_FUNC_DABpADB_X
+            CASE (2)
+               dabqadb_func = GRID_FUNC_DABpADB_Y
+            CASE (3)
+               dabqadb_func = GRID_FUNC_DABpADB_Z
+            CASE DEFAULT
+               CPABORT("invalid idir")
+            END SELECT
+
             IF (iatom <= jatom) THEN
                CALL collocate_pgf_product( &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   ra, rab, scale, pab, na1 - 1, nb1 - 1, &
                   rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                  radius=radius, &
-                  ga_gb_function=GRID_FUNC_DABpADB, &
-                  idir=idir, &
+                  radius=radius, ga_gb_function=dabqadb_func, &
                   use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
                   lmax_global=lmax_global)
             ELSE
@@ -2378,9 +2386,7 @@ CONTAINS
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
                   rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                  radius=radius, &
-                  ga_gb_function=GRID_FUNC_DABpADB, &
-                  idir=idir, &
+                  radius=radius, ga_gb_function=dabqadb_func, &
                   use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
                   lmax_global=lmax_global)
             END IF
