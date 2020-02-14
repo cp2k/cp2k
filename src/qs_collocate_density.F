@@ -32,6 +32,7 @@
 !>      Thomas D. Kuehne (04.08.2005)
 ! **************************************************************************************************
 MODULE qs_collocate_density
+   USE ao_util,                         ONLY: exp_radius_very_extended
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
@@ -155,7 +156,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, mylmax, nct_nlcc
       LOGICAL                                            :: nlcc
-      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace
+      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_nlcc
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_nlcc, pab
@@ -304,9 +305,15 @@ CONTAINS
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                subpatch_pattern = 0
                ni = 2*nc - 2
+               radius = exp_radius_very_extended(la_min=0, la_max=ni, lb_min=0, lb_max=0, &
+                                                 ra=ra, rb=ra, rp=ra, &
+                                                 zetp=1/(2*alpha**2), eps=eps_rho_rspace, &
+                                                 pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                 prefactor=1.0_dp, cutoff=0.0_dp)
+
                CALL collocate_pgf_product(ni, 1/(2*alpha**2), 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
-                                          cell, cube_info, eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
+                                          cell, cube_info, ga_gb_function=GRID_FUNC_AB, radius=radius, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
                                           lmax_global=lmax_global)
 
@@ -347,7 +354,7 @@ CONTAINS
                                                             npme, nthread
       INTEGER(KIND=int_8)                                :: subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
-      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace
+      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cexp_ppl
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
@@ -489,9 +496,17 @@ CONTAINS
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                subpatch_pattern = 0
                ni = 2*lppl - 2
+
+               radius = exp_radius_very_extended(la_min=0, la_max=ni, &
+                                                 lb_min=0, lb_max=0, &
+                                                 ra=ra, rb=ra, rp=ra, &
+                                                 zetp=alpha, eps=eps_rho_rspace, &
+                                                 pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                 prefactor=1.0_dp, cutoff=0.0_dp)
+
                CALL collocate_pgf_product(ni, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
-                                          cell, cube_info, eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
+                                          cell, cube_info, radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
                                           lmax_global=lmax_global)
 
@@ -553,8 +568,8 @@ CONTAINS
       LOGICAL                                            :: found
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: map_it
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: map_it2
-      REAL(KIND=dp)                                      :: eps_rho_rspace, rab2, zetp
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab
+      REAL(KIND=dp)                                      :: eps_rho_rspace, radius, zetp
+      REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:), POINTER               :: aci
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, pab, sphi_a, work, zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -699,6 +714,12 @@ CONTAINS
                      igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
                      rs_grid => rs_rho(igrid_level)%rs_grid
                      IF (map_it(ipgf)) THEN
+                        radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
+                                                          lb_min=0, lb_max=0, &
+                                                          ra=ra, rb=ra, rp=ra, &
+                                                          zetp=zeta(ipgf, iset), eps=eps_rho_rspace, &
+                                                          prefactor=1.0_dp, cutoff=1.0_dp)
+
                         CALL collocate_pgf_product(la_max=la_max(iset), &
                                                    zeta=zeta(ipgf, iset), &
                                                    la_min=la_min(iset), &
@@ -708,9 +729,8 @@ CONTAINS
                                                    pab=pab, o1=na1, o2=0, &
                                                    rsgrid=rs_grid, cell=cell, &
                                                    cube_info=cube_info(igrid_level), &
-                                                   eps_rho_rspace=eps_rho_rspace, &
+                                                   radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB, &
-                                                   map_consistent=.TRUE., &
                                                    lmax_global=lmax_global)
                      ENDIF
                   END DO
@@ -757,8 +777,6 @@ CONTAINS
             DO iatom = 1, natom
                atom_a = atom_list(iatom)
                ra(:) = pbc(particle_set(atom_a)%r, cell)
-               rab(:) = 0.0_dp
-               rab2 = 0.0_dp
                CALL dbcsr_get_block_p(matrix=pmat, row=atom_a, col=atom_a, BLOCK=p_block, found=found)
                m1 = MAXVAL(npgfa(1:nseta))
                ALLOCATE (map_it2(m1, m1))
@@ -823,13 +841,21 @@ CONTAINS
                               nb1 = (jpgf - 1)*ncoset(la_max(jset))
 
                               IF (map_it2(ipgf, jpgf)) THEN
+                                 radius = exp_radius_very_extended(la_min=la_min(iset), &
+                                                                   la_max=la_max(iset), &
+                                                                   lb_min=la_min(jset), &
+                                                                   lb_max=la_max(jset), &
+                                                                   ra=ra, rb=ra, rp=ra, &
+                                                                   zetp=zetp, eps=eps_rho_rspace, &
+                                                                   prefactor=1.0_dp, cutoff=1.0_dp)
+
                                  CALL collocate_pgf_product( &
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
-                                    ra, rab, 1.0_dp, pab, na1, nb1, &
+                                    ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, na1, nb1, &
                                     rs_grid, cell, cube_info(igrid_level), &
-                                    eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
-                                    map_consistent=.TRUE., lmax_global=lmax_global)
+                                    radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                                    lmax_global=lmax_global)
                               END IF
                            END DO
                         END DO
@@ -892,7 +918,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       LOGICAL                                            :: my_only_nopaw, paw_atom
-      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace
+      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -965,10 +991,17 @@ CONTAINS
                atom_a = atom_list(iatom)
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                subpatch_pattern = 0
+               radius = exp_radius_very_extended(la_min=0, la_max=0, &
+                                                 lb_min=0, lb_max=0, &
+                                                 ra=ra, rb=ra, rp=ra, &
+                                                 zetp=alpha, eps=eps_rho_rspace, &
+                                                 pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                 prefactor=-1.0_dp, cutoff=0.0_dp)
+
                !lmax == 0 so set lmax_global to 0
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, rs_rho, &
-                                          cell, cube_info, eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
+                                          cell, cube_info, radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
                                           lmax_global=0)
 
@@ -1018,7 +1051,7 @@ CONTAINS
 
       INTEGER                                            :: atom_a, handle, iatom, npme
       INTEGER(KIND=int_8)                                :: subpatch_pattern
-      REAL(KIND=dp)                                      :: eps_rho_rspace
+      REAL(KIND=dp)                                      :: eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(cell_type), POINTER                           :: cell
@@ -1060,10 +1093,18 @@ CONTAINS
          atom_a = qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
          ra(:) = pbc(qs_env%qmmm_env_qm%image_charge_pot%particles_all(atom_a)%r, cell)
          subpatch_pattern = 0
+         radius = exp_radius_very_extended(la_min=0, la_max=0, &
+                                           lb_min=0, lb_max=0, &
+                                           ra=ra, rb=ra, rp=ra, &
+                                           zetp=qs_env%qmmm_env_qm%image_charge_pot%eta, &
+                                           eps=eps_rho_rspace, &
+                                           pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                           prefactor=1.0_dp, cutoff=0.0_dp)
+
          !lmax == 0 so set lmax_global to 0
          CALL collocate_pgf_product(0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
                                     0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
-                                    cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
+                                    cell, pw_env%cube_info(1), radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                     use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
                                     lmax_global=0)
       ENDIF
@@ -1108,7 +1149,7 @@ CONTAINS
       INTEGER                                            :: atom_a, handle, iatom, j, natom, npme
       INTEGER(KIND=int_8)                                :: subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: cores
-      REAL(KIND=dp)                                      :: eps_rho_rspace
+      REAL(KIND=dp)                                      :: eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(cell_type), POINTER                           :: cell
@@ -1160,11 +1201,19 @@ CONTAINS
             atom_a = qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
             ra(:) = pbc(qs_env%qmmm_env_qm%image_charge_pot%particles_all(atom_a)%r, cell)
             subpatch_pattern = 0
+            radius = exp_radius_very_extended(la_min=0, la_max=0, &
+                                              lb_min=0, lb_max=0, &
+                                              ra=ra, rb=ra, rp=ra, &
+                                              zetp=qs_env%qmmm_env_qm%image_charge_pot%eta, &
+                                              eps=eps_rho_rspace, &
+                                              pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                              prefactor=coeff(iatom), cutoff=0.0_dp)
+
             !lmax == 0 so set lmax_global to 0
             CALL collocate_pgf_product( &
                0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
                0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
-               cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
+               cell, pw_env%cube_info(1), radius=radius, ga_gb_function=GRID_FUNC_AB, &
                use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, lmax_global=0)
          ENDDO
       ENDIF
@@ -1210,7 +1259,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iatom, npme
       INTEGER(KIND=int_8)                                :: subpatch_pattern
-      REAL(KIND=dp)                                      :: eps_rho_rspace
+      REAL(KIND=dp)                                      :: eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(cell_type), POINTER                           :: cell
@@ -1254,10 +1303,17 @@ CONTAINS
       IF (npme .GT. 0) THEN
          ra(:) = pbc(particle_set(iatom)%r, cell)
          subpatch_pattern = 0
+         radius = exp_radius_very_extended(la_min=0, la_max=0, &
+                                           lb_min=0, lb_max=0, &
+                                           ra=ra, rb=ra, rp=ra, &
+                                           zetp=eta, eps=eps_rho_rspace, &
+                                           pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                           prefactor=1.0_dp, cutoff=0.0_dp)
+
          ! lmax == 0 so set lmax_global to 0
          CALL collocate_pgf_product(0, eta, 0, 0, 0.0_dp, 0, ra, &
                                     (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
-                                    cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
+                                    cell, pw_env%cube_info(1), radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                     use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, &
                                     lmax_global=0)
       ENDIF
@@ -1304,7 +1360,7 @@ CONTAINS
       INTEGER                                            :: handle, iatom, j, npme
       INTEGER(KIND=int_8)                                :: subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: cores
-      REAL(KIND=dp)                                      :: eps_rho_rspace
+      REAL(KIND=dp)                                      :: eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(cell_type), POINTER                           :: cell
@@ -1356,11 +1412,18 @@ CONTAINS
             iatom = cores(j)
             ra(:) = pbc(particle_set(iatom)%r, cell)
             subpatch_pattern = 0
+            radius = exp_radius_very_extended(la_min=0, la_max=0, &
+                                              lb_min=0, lb_max=0, &
+                                              ra=ra, rb=ra, rp=ra, &
+                                              zetp=eta, eps=eps_rho_rspace, &
+                                              pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                              prefactor=coeff(iatom), cutoff=0.0_dp)
+
             ! la_max==0 so set lmax_global to 0
             CALL collocate_pgf_product( &
                0, eta, &
                0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
-               cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
+               cell, pw_env%cube_info(1), radius=radius, ga_gb_function=GRID_FUNC_AB, &
                use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, lmax_global=0)
          ENDDO
       ENDIF
@@ -1433,10 +1496,12 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
                                                             npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL :: atom_pair_changed, distributed_rs_grids, do_kp, found, &
-         my_compute_grad, my_compute_tau, my_soft, use_subpatch
-      REAL(KIND=dp)                                      :: eps_rho_rspace, rab2, scale, zetp
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rb
+      LOGICAL                                            :: atom_pair_changed, distributed_rs_grids, &
+                                                            do_kp, found, my_compute_grad, &
+                                                            my_compute_tau, my_soft, use_subpatch
+      REAL(KIND=dp)                                      :: eps_rho_rspace, f, prefactor, rab2, &
+                                                            radius, scale, zetp
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rb, rp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, pab, sphi_a, sphi_b, work, &
                                                             zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pabt, workt
@@ -1689,8 +1754,8 @@ CONTAINS
 !$OMP          PRIVATE(img,img_old,iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
 !$OMP          PRIVATE(brow,bcol,qs_kind,orb_basis_set,first_sgfa,la_max,la_min), &
 !$OMP          PRIVATE(npgfa,nseta,nsgfa,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
-!$OMP          PRIVATE(nsetb,nsgfb,sphi_b,zetb,p_block,found), &
-!$OMP          PRIVATE(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
+!$OMP          PRIVATE(nsetb,nsgfb,sphi_b,zetb,p_block,found,prefactor,radius), &
+!$OMP          PRIVATE(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,rp,zetp,f), &
 !$OMP          PRIVATE(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,lb,ub,n,nw), &
 !$OMP          PRIVATE(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,threadlocal_rsgrid)
 
@@ -1815,6 +1880,15 @@ CONTAINS
             rb(:) = ra(:) + rab(:)
             zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
 
+            f = zetb(jpgf, jset)/zetp
+            rp(:) = ra(:) + f*rab(:)
+            prefactor = EXP(-zeta(ipgf, iset)*f*DOT_PRODUCT(rab, rab))
+            radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
+                                              lb_min=lb_min(jset), lb_max=lb_max(jset), &
+                                              ra=ra, rb=rb, rp=rp, &
+                                              zetp=zetp, eps=eps_rho_rspace, &
+                                              prefactor=prefactor, cutoff=1.0_dp)
+
             na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
             na2 = ipgf*ncoset(la_max(iset))
             nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
@@ -1845,10 +1919,10 @@ CONTAINS
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   ra, rab, scale, pab, na1 - 1, nb1 - 1, &
                   threadlocal_rsgrid, cell, cube_info(igrid_level), &
-                  eps_rho_rspace, &
+                  radius=radius, &
                   ga_gb_function=ga_gb_function, &
                   idir=my_idir, &
-                  map_consistent=.TRUE., use_subpatch=use_subpatch, &
+                  use_subpatch=use_subpatch, &
                   subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
             ELSE
                rab_inv = -rab
@@ -1857,10 +1931,10 @@ CONTAINS
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
                   threadlocal_rsgrid, cell, cube_info(igrid_level), &
-                  eps_rho_rspace, &
+                  radius=radius, &
                   ga_gb_function=ga_gb_function, &
                   idir=my_idir, &
-                  map_consistent=.TRUE., use_subpatch=use_subpatch, &
+                  use_subpatch=use_subpatch, &
                   subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
             END IF
          END DO loop_tasks
@@ -1971,10 +2045,10 @@ CONTAINS
                                                             npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: atom_pair_changed, distributed_rs_grids, &
-                                                            do_kp, found, my_soft, &
-                                                            use_subpatch
-      REAL(KIND=dp)                                      :: eps_rho_rspace, scale, zetp
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rb
+                                                            do_kp, found, my_soft, use_subpatch
+      REAL(KIND=dp)                                      :: eps_rho_rspace, f, prefactor, radius, &
+                                                            scale, zetp
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rb, rp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, pab, sphi_a, sphi_b, work, &
                                                             zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pabt, workt
@@ -2254,6 +2328,15 @@ CONTAINS
             rb(:) = ra(:) + rab(:)
             zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
 
+            f = zetb(jpgf, jset)/zetp
+            rp(:) = ra(:) + f*rab(:)
+            prefactor = EXP(-zeta(ipgf, iset)*f*DOT_PRODUCT(rab, rab))
+            radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
+                                              lb_min=lb_min(jset), lb_max=lb_max(jset), &
+                                              ra=ra, rb=rb, rp=rp, &
+                                              zetp=zeta(ipgf, iset), eps=eps_rho_rspace, &
+                                              prefactor=prefactor, cutoff=1.0_dp)
+
             na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
             na2 = ipgf*ncoset(la_max(iset))
             nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
@@ -2283,10 +2366,10 @@ CONTAINS
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   ra, rab, scale, pab, na1 - 1, nb1 - 1, &
                   rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                  eps_rho_rspace, &
+                  radius=radius, &
                   ga_gb_function=GRID_FUNC_DABpADB, &
                   idir=idir, &
-                  map_consistent=.TRUE., use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
+                  use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
                   lmax_global=lmax_global)
             ELSE
                rab_inv = -rab
@@ -2295,10 +2378,10 @@ CONTAINS
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
                   rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                  eps_rho_rspace, &
+                  radius=radius, &
                   ga_gb_function=GRID_FUNC_DABpADB, &
                   idir=idir, &
-                  map_consistent=.TRUE., use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
+                  use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
                   lmax_global=lmax_global)
             END IF
 
@@ -2382,8 +2465,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, mylmax, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: local, map_it_here
-      REAL(KIND=dp)                                      :: dab, eps_rho_rspace, scale, zetp
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab
+      REAL(KIND=dp)                                      :: dab, eps_rho_rspace, radius, scale
+      REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvector
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab, sphi_a, work, zeta
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
@@ -2476,7 +2559,6 @@ CONTAINS
                                 sphi=sphi_a, &
                                 zet=zeta)
          ra(:) = pbc(particle_set(iatom)%r, cell)
-         rab(:) = 0.0_dp
          dab = 0.0_dp
 
          DO iset = 1, nseta
@@ -2499,8 +2581,7 @@ CONTAINS
                na2 = ipgf*ncoset(la_max(iset))
 
                scale = 1.0_dp
-               zetp = zeta(ipgf, iset)
-               igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
+               igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
 
                map_it_here = .FALSE.
 
@@ -2529,13 +2610,20 @@ CONTAINS
                   IF (MODULO(offset, group_size) == my_pos) map_it_here = .TRUE.
                ENDIF
 
-               IF (map_it_here) CALL collocate_pgf_product( &
-                  la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  0, 0.0_dp, 0, &
-                  ra, rab, scale, pab, na1 - 1, 0, &
-                  rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
-                  eps_rho_rspace, map_consistent=.TRUE., ga_gb_function=GRID_FUNC_AB, &
-                  lmax_global=lmax_global)
+               IF (map_it_here) THEN
+                  radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
+                                                    lb_min=0, lb_max=0, ra=ra, rb=ra, rp=ra, &
+                                                    zetp=zeta(ipgf, iset), eps=eps_rho_rspace, &
+                                                    prefactor=1.0_dp, cutoff=1.0_dp)
+
+                  CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                                             0, 0.0_dp, 0, &
+                                             ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                             scale, pab, na1 - 1, 0, rs_rho(igrid_level)%rs_grid, &
+                                             cell, cube_info(igrid_level), &
+                                             radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                                             lmax_global=lmax_global)
+               ENDIF
 
             END DO
 

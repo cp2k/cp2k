@@ -10,6 +10,7 @@
 !> \author Nico Holmberg [01.2017]
 ! **************************************************************************************************
 MODULE mixed_cdft_methods
+   USE ao_util,                         ONLY: exp_radius_very_extended
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
@@ -2326,7 +2327,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, stride
       LOGICAL                                            :: build, mpi_io
       REAL(kind=dp)                                      :: alpha, chi, coef, ircov, jrcov, ra(3), &
-                                                            uij
+                                                            radius, uij
       REAL(kind=dp), DIMENSION(3)                        :: cell_v, dist_vec, dr, r, r1, shift
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii_list
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
@@ -2595,13 +2596,20 @@ CONTAINS
                   ELSE
                      ra(:) = pbc(particle_set(atom_a)%r, cell)
                   END IF
-                  IF (is_constraint(atom_a)) &
+                  IF (is_constraint(atom_a)) THEN
+                     radius = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
+                                                       ra=ra, rb=ra, rp=ra, &
+                                                       zetp=alpha, eps=mixed_cdft%eps_rho_rspace, &
+                                                       pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                       prefactor=1.0_dp, cutoff=0.0_dp)
+
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                                                 rs_cavity, cell, mixed_cdft%pw_env%cube_info(1), &
-                                                mixed_cdft%eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
+                                                radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                                 use_subpatch=.TRUE., &
                                                 subpatch_pattern=0_int_8, lmax_global=0)
+                  ENDIF
                END DO
             END DO
             DEALLOCATE (cores)
