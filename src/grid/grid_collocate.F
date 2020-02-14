@@ -33,20 +33,32 @@ MODULE grid_collocate
 
    PUBLIC :: collocate_pgf_product
 
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_AB = 401
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DADB = 402
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ADBmDAB = 403
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB = 404
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DABpADB = 405
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DXDY = 601
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DYDZ = 602
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZDX = 603
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DXDX = 604
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DYDY = 605
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZDZ = 606
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DX = 501
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DY = 502
-   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZ = 503
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_AB = 100
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DADB = 200
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ADBmDAB_X = 301
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ADBmDAB_Y = 302
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ADBmDAB_Z = 303
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_XX = 411
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_XY = 412
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_XZ = 413
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_YX = 421
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_YY = 422
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_YZ = 423
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_ZX = 431
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_ZY = 432
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_ZZ = 433
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DABpADB_X = 501
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DABpADB_Y = 502
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DABpADB_Z = 503
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DX = 601
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DY = 602
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZ = 603
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DXDY = 701
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DYDZ = 702
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZDX = 703
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DXDX = 801
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DYDY = 802
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZDZ = 803
 
 CONTAINS
 
@@ -69,8 +81,6 @@ CONTAINS
 !> \param cube_info ...
 !> \param ga_gb_function ...
 !> \param radius ...
-!> \param idir ...
-!> \param ir ...
 !> \param use_subpatch ...
 !> \param subpatch_pattern ...
 !> \param lmax_global Maximum possible value of lmax used to dimension arrays
@@ -79,8 +89,7 @@ CONTAINS
                                     lb_max, zetb, lb_min, &
                                     ra, rab, scale, pab, o1, o2, &
                                     rsgrid, cell, cube_info, &
-                                    ga_gb_function, &
-                                    radius, idir, ir, &
+                                    ga_gb_function, radius, &
                                     use_subpatch, subpatch_pattern, &
                                     lmax_global)
 
@@ -98,7 +107,6 @@ CONTAINS
       TYPE(cube_info_type), INTENT(IN)         :: cube_info
       REAL(KIND=dp), INTENT(IN)                :: radius
       INTEGER, INTENT(IN)                      :: ga_gb_function
-      INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
       LOGICAL, OPTIONAL                        :: use_subpatch
       INTEGER(KIND=int_8), OPTIONAL, INTENT(IN):: subpatch_pattern
       INTEGER, INTENT(IN)                      :: lmax_global
@@ -109,7 +117,7 @@ CONTAINS
       INTEGER :: cmax, gridbounds(2, 3), i, ico, icoef, ider1, ider2, ig, &
                  jco, k, l, la_max_local, la_min_local, lb_max_local, lb_min_local, &
                  length, lxa, lxb, lxy, lxyz, lya, lyb, &
-                 lza, lzb, o1_local, o2_local, offset, start
+                 lza, lzb, o1_local, o2_local, offset, start, idir, ir
       INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
                                                   ub_cube
       INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
@@ -191,8 +199,8 @@ CONTAINS
          o1_local = 0
          o2_local = 0
          pab_local = pab_local*0.5_dp
-      CASE (GRID_FUNC_ADBmDAB)
-         CPASSERT(PRESENT(idir))
+      CASE (GRID_FUNC_ADBmDAB_X, GRID_FUNC_ADBmDAB_Y, GRID_FUNC_ADBmDAB_Z)
+         idir = MODULO(ga_gb_function, 10)
          la_max_local = la_max + 1
          la_min_local = MAX(la_min - 1, 0)
          lb_max_local = lb_max + 1
@@ -223,8 +231,8 @@ CONTAINS
          END DO
          o1_local = 0
          o2_local = 0
-      CASE (GRID_FUNC_DABpADB)
-         CPASSERT(PRESENT(idir))
+      CASE (GRID_FUNC_DABpADB_X, GRID_FUNC_DABpADB_Y, GRID_FUNC_DABpADB_Z)
+         idir = MODULO(ga_gb_function, 10)
          la_max_local = la_max + 1
          la_min_local = MAX(la_min - 1, 0)
          lb_max_local = lb_max + 1
@@ -256,7 +264,7 @@ CONTAINS
          o1_local = 0
          o2_local = 0
       CASE (GRID_FUNC_DX, GRID_FUNC_DY, GRID_FUNC_DZ)
-         ider1 = ga_gb_function - 500
+         ider1 = MODULO(ga_gb_function, 10)
          la_max_local = la_max + 1
          la_min_local = MAX(la_min - 1, 0)
          lb_max_local = lb_max + 1
@@ -288,8 +296,8 @@ CONTAINS
          o1_local = 0
          o2_local = 0
       CASE (GRID_FUNC_DXDY, GRID_FUNC_DYDZ, GRID_FUNC_DZDX)
-         ider1 = ga_gb_function - 600
-         ider2 = ga_gb_function - 600 + 1
+         ider1 = MODULO(ga_gb_function, 10)
+         ider2 = ider1 + 1
          IF (ider2 > 3) ider2 = ider1 - 2
          la_max_local = la_max + 2
          la_min_local = MAX(la_min - 2, 0)
@@ -318,7 +326,7 @@ CONTAINS
          o1_local = 0
          o2_local = 0
       CASE (GRID_FUNC_DXDX, GRID_FUNC_DYDY, GRID_FUNC_DZDZ)
-         ider1 = ga_gb_function - 603
+         ider1 = MODULO(ga_gb_function, 10)
          la_max_local = la_max + 2
          la_min_local = MAX(la_min - 2, 0)
          lb_max_local = lb_max + 2
@@ -346,9 +354,11 @@ CONTAINS
          END DO
          o1_local = 0
          o2_local = 0
-      CASE (GRID_FUNC_ARDBmDARB)
-         CPASSERT(PRESENT(idir))
-         CPASSERT(PRESENT(ir))
+      CASE (GRID_FUNC_ARDBmDARB_XX, GRID_FUNC_ARDBmDARB_XY, GRID_FUNC_ARDBmDARB_XZ, &
+            GRID_FUNC_ARDBmDARB_YX, GRID_FUNC_ARDBmDARB_YY, GRID_FUNC_ARDBmDARB_YZ, &
+            GRID_FUNC_ARDBmDARB_ZX, GRID_FUNC_ARDBmDARB_ZY, GRID_FUNC_ARDBmDARB_ZZ)
+         ir = MODULO(ga_gb_function, 10)
+         idir = MODULO(ga_gb_function - ir, 100)/10
          la_max_local = la_max + 1
          la_min_local = MAX(la_min - 1, 0)
          lb_max_local = lb_max + 2
