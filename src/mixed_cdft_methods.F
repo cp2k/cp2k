@@ -53,7 +53,7 @@ MODULE mixed_cdft_methods
                                               use_qmmm,&
                                               use_qmmmx,&
                                               use_qs_force
-   USE grid_collocate,                  ONLY: GRID_FUNC_AB,&
+   USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product
    USE hirshfeld_methods,               ONLY: create_shape_function
    USE hirshfeld_types,                 ONLY: hirshfeld_type

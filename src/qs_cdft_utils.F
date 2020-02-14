@@ -29,7 +29,7 @@ MODULE qs_cdft_utils
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE grid_collocate,                  ONLY: GRID_FUNC_AB,&
+   USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product
    USE hirshfeld_methods,               ONLY: create_shape_function
    USE hirshfeld_types,                 ONLY: create_hirshfeld_type,&
