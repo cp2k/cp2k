@@ -43,7 +43,7 @@ MODULE qs_integrate_potential_single
                                               gth_potential_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                               gridlevel_info_type
-   USE grid_integrate,                  ONLY: integrate_pgf_product
+   USE grid_api,                        ONLY: integrate_pgf_product
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE lri_environment_types,           ONLY: lri_kind_type

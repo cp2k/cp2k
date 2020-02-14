@@ -14,7 +14,7 @@ MODULE qs_rho0_ggrid
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cube_utils,                      ONLY: cube_info_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
-   USE grid_collocate,                  ONLY: GRID_FUNC_AB,&
+   USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product
    USE kinds,                           ONLY: dp,&
                                               int_8

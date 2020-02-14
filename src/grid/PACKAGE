@@ -1,5 +1,5 @@
 {
 "description": "Efficient conversion between Gaussian and plane-wave basis",
 "requires": ["../base", "../pw", "../aobasis", "../common", "../subsys"],
-"public": ["grid_collocate.F", "grid_integrate.F", "grid_modify_pab_block.F"],
+"public": ["grid_api.F"],
 }
