@@ -207,9 +207,9 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, do_kp, found, h_duplicated, &
-         has_threads, map_consistent, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, &
+         has_threads, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, &
          p_duplicated, pab_required, scatter, use_subpatch, use_virial
-      REAL(KIND=dp)                                      :: admm_scal_fac, dab, eps_gvg_rspace, &
+      REAL(KIND=dp)                                      :: admm_scal_fac, dab, eps_rho_rspace, &
                                                             scalef, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b, pv_thread
@@ -347,16 +347,10 @@ CONTAINS
       pv_thread = 0.0_dp
       force_thread = 0.0_dp
 
-      map_consistent = dft_control%qs_control%map_consistent
-      IF (map_consistent) THEN
-         ! needs to be consistent with rho_rspace
-         eps_gvg_rspace = dft_control%qs_control%eps_rho_rspace
-      ELSE
-         eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
-      ENDIF
+      ! needs to be consistent with rho_rspace
+      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
-      pab_required = (PRESENT(pmat) .OR. PRESENT(pmat_kp)) &
-                     .AND. (calculate_forces .OR. .NOT. map_consistent)
+      pab_required = (PRESENT(pmat) .OR. PRESENT(pmat_kp)) .AND. calculate_forces
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
                            maxco=maxco, &
@@ -462,7 +456,7 @@ CONTAINS
 !$OMP SHARED(workt,habt,hdabt,hadbt,pabt,tasks,particle_set,natom,maxset), &
 !$OMP SHARED(maxpgf,my_basis_type,my_gapw,dhmat,deltap,use_virial,admm_scal_fac), &
 !$OMP SHARED(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
-!$OMP SHARED(map_consistent,eps_gvg_rspace,force,virial,cell), &
+!$OMP SHARED(eps_rho_rspace,force,virial,cell), &
 !$OMP SHARED(gridlevel_info,task_list,block_touched,nthread,qs_kind_set), &
 !$OMP SHARED(nimages,do_kp), &
 !$OMP PRIVATE(ithread,work,hab,hdab,hadb,pab,iset_old,jset_old), &
@@ -677,10 +671,10 @@ CONTAINS
                      ra, rab, rs_v(igrid_level)%rs_grid, cell, &
                      cube_info(igrid_level), &
                      hab, pab=pab, o1=na1 - 1, o2=nb1 - 1, &
-                     eps_gvg_rspace=eps_gvg_rspace, &
+                     eps_gvg_rspace=eps_rho_rspace, &
                      calculate_forces=calculate_forces, &
                      force_a=force_a, force_b=force_b, &
-                     compute_tau=my_compute_tau, map_consistent=map_consistent, &
+                     compute_tau=my_compute_tau, map_consistent=.TRUE., &
                      use_virial=use_virial, my_virial_a=my_virial_a, &
                      my_virial_b=my_virial_b, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
                ELSE
@@ -691,10 +685,10 @@ CONTAINS
                      rb, rab_inv, rs_v(igrid_level)%rs_grid, cell, &
                      cube_info(igrid_level), &
                      hab, pab=pab, o1=nb1 - 1, o2=na1 - 1, &
-                     eps_gvg_rspace=eps_gvg_rspace, &
+                     eps_gvg_rspace=eps_rho_rspace, &
                      calculate_forces=calculate_forces, &
                      force_a=force_b, force_b=force_a, &
-                     compute_tau=my_compute_tau, map_consistent=map_consistent, &
+                     compute_tau=my_compute_tau, map_consistent=.TRUE., &
                      use_virial=use_virial, my_virial_a=my_virial_b, &
                      my_virial_b=my_virial_a, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
                END IF
@@ -706,11 +700,11 @@ CONTAINS
                      ra, rab, rs_v(igrid_level)%rs_grid, cell, &
                      cube_info(igrid_level), &
                      hab, o1=na1 - 1, o2=nb1 - 1, &
-                     eps_gvg_rspace=eps_gvg_rspace, &
+                     eps_gvg_rspace=eps_rho_rspace, &
                      calculate_forces=calculate_forces, &
                      force_a=force_a, force_b=force_b, &
                      compute_tau=my_compute_tau, &
-                     map_consistent=map_consistent, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
+                     map_consistent=.TRUE., use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
                ELSE
                   rab_inv = -rab
                   CALL integrate_pgf_product( &
@@ -719,11 +713,11 @@ CONTAINS
                      rb, rab_inv, rs_v(igrid_level)%rs_grid, cell, &
                      cube_info(igrid_level), &
                      hab, o1=nb1 - 1, o2=na1 - 1, &
-                     eps_gvg_rspace=eps_gvg_rspace, &
+                     eps_gvg_rspace=eps_rho_rspace, &
                      calculate_forces=calculate_forces, &
                      force_a=force_b, force_b=force_a, &
                      compute_tau=my_compute_tau, &
-                     map_consistent=map_consistent, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
+                     map_consistent=.TRUE., use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
                END IF
             END IF
 

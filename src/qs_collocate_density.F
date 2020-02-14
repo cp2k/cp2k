@@ -550,7 +550,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, mylmax, &
                                                             npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: found, map_consistent
+      LOGICAL                                            :: found
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: map_it
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: map_it2
       REAL(KIND=dp)                                      :: eps_rho_rspace, rab2, zetp
@@ -592,7 +592,6 @@ CONTAINS
 
       cube_info => pw_env%cube_info
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-      map_consistent = dft_control%qs_control%map_consistent
       gridlevel_info => pw_env%gridlevel_info
 
       ! *** set up the pw multi-grids *** !
@@ -711,7 +710,7 @@ CONTAINS
                                                    cube_info=cube_info(igrid_level), &
                                                    eps_rho_rspace=eps_rho_rspace, &
                                                    ga_gb_function=GRID_FUNC_AB, &
-                                                   map_consistent=map_consistent, &
+                                                   map_consistent=.TRUE., &
                                                    lmax_global=lmax_global)
                      ENDIF
                   END DO
@@ -830,7 +829,7 @@ CONTAINS
                                     ra, rab, 1.0_dp, pab, na1, nb1, &
                                     rs_grid, cell, cube_info(igrid_level), &
                                     eps_rho_rspace, ga_gb_function=GRID_FUNC_AB, &
-                                    map_consistent=map_consistent, lmax_global=lmax_global)
+                                    map_consistent=.TRUE., lmax_global=lmax_global)
                               END IF
                            END DO
                         END DO
@@ -1434,7 +1433,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
                                                             npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL :: atom_pair_changed, distributed_rs_grids, do_kp, found, map_consistent, &
+      LOGICAL :: atom_pair_changed, distributed_rs_grids, do_kp, found, &
          my_compute_grad, my_compute_tau, my_soft, use_subpatch
       REAL(KIND=dp)                                      :: eps_rho_rspace, rab2, scale, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rb
@@ -1643,7 +1642,6 @@ CONTAINS
       END IF
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-      map_consistent = dft_control%qs_control%map_consistent
 
       !   *** Initialize working density matrix ***
       ! distributed rs grids require a matrix that will be changed
@@ -1685,7 +1683,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          SHARED(ntasks,tasks,nimages,natoms,maxset,maxpgf,particle_set,pabt,workt), &
 !$OMP          SHARED(my_basis_type,my_soft,deltap,maxco,ncoset,nthread), &
-!$OMP          SHARED(cell,cube_info,eps_rho_rspace,ga_gb_function, my_idir,map_consistent), &
+!$OMP          SHARED(cell,cube_info,eps_rho_rspace,ga_gb_function, my_idir), &
 !$OMP          SHARED(rs_rho,lgrid,gridlevel_info,task_list,qs_kind_set,lmax_global), &
 !$OMP          PRIVATE(igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,ikind,jkind,pab,work), &
 !$OMP          PRIVATE(img,img_old,iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
@@ -1850,7 +1848,7 @@ CONTAINS
                   eps_rho_rspace, &
                   ga_gb_function=ga_gb_function, &
                   idir=my_idir, &
-                  map_consistent=map_consistent, use_subpatch=use_subpatch, &
+                  map_consistent=.TRUE., use_subpatch=use_subpatch, &
                   subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
             ELSE
                rab_inv = -rab
@@ -1862,7 +1860,7 @@ CONTAINS
                   eps_rho_rspace, &
                   ga_gb_function=ga_gb_function, &
                   idir=my_idir, &
-                  map_consistent=map_consistent, use_subpatch=use_subpatch, &
+                  map_consistent=.TRUE., use_subpatch=use_subpatch, &
                   subpatch_pattern=tasks(itask)%subpatch_pattern, lmax_global=lmax_global)
             END IF
          END DO loop_tasks
@@ -1973,7 +1971,7 @@ CONTAINS
                                                             npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: atom_pair_changed, distributed_rs_grids, &
-                                                            do_kp, found, map_consistent, my_soft, &
+                                                            do_kp, found, my_soft, &
                                                             use_subpatch
       REAL(KIND=dp)                                      :: eps_rho_rspace, scale, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rb
@@ -2100,7 +2098,6 @@ CONTAINS
       END DO
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-      map_consistent = dft_control%qs_control%map_consistent
 
       !   *** Initialize working density matrix ***
       ! distributed rs grids require a matrix that will be changed
@@ -2289,7 +2286,7 @@ CONTAINS
                   eps_rho_rspace, &
                   ga_gb_function=GRID_FUNC_DABpADB, &
                   idir=idir, &
-                  map_consistent=map_consistent, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
+                  map_consistent=.TRUE., use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
                   lmax_global=lmax_global)
             ELSE
                rab_inv = -rab
@@ -2301,7 +2298,7 @@ CONTAINS
                   eps_rho_rspace, &
                   ga_gb_function=GRID_FUNC_DABpADB, &
                   idir=idir, &
-                  map_consistent=map_consistent, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
+                  map_consistent=.TRUE., use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
                   lmax_global=lmax_global)
             END IF
 
