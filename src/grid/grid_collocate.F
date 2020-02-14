@@ -71,8 +71,6 @@ CONTAINS
 !> \param radius ...
 !> \param idir ...
 !> \param ir ...
-!> \param rsgauge ...
-!> \param rsbuf ...
 !> \param use_subpatch ...
 !> \param subpatch_pattern ...
 !> \param lmax_global Maximum possible value of lmax used to dimension arrays
@@ -82,7 +80,7 @@ CONTAINS
                                     ra, rab, scale, pab, o1, o2, &
                                     rsgrid, cell, cube_info, &
                                     ga_gb_function, &
-                                    radius, idir, ir, rsgauge, rsbuf, &
+                                    radius, idir, ir, &
                                     use_subpatch, subpatch_pattern, &
                                     lmax_global)
 
@@ -101,7 +99,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                :: radius
       INTEGER, INTENT(IN)                      :: ga_gb_function
       INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
-      TYPE(realspace_grid_type), POINTER, OPTIONAL :: rsgauge, rsbuf
       LOGICAL, OPTIONAL                        :: use_subpatch
       INTEGER(KIND=int_8), OPTIONAL, INTENT(IN):: subpatch_pattern
       INTEGER, INTENT(IN)                      :: lmax_global
@@ -135,8 +132,6 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :, :) :: pol_y
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :) :: pol_x
       REAL(KIND=dp) :: t_exp_1, t_exp_2, t_exp_min_1, t_exp_min_2, t_exp_plus_1, t_exp_plus_2
-
-      REAL(kind=dp), POINTER, DIMENSION(:, :, :) :: grid_tmp, gauge
 
       subpatch_collocate = .FALSE.
 
@@ -406,12 +401,6 @@ CONTAINS
       gridbounds(1, 3) = LBOUND(GRID, 3)
       gridbounds(2, 3) = UBOUND(GRID, 3)
 
-      IF (PRESENT(ir) .AND. PRESENT(rsgauge) .AND. PRESENT(rsbuf)) THEN
-         grid => rsbuf%r(:, :, :)
-         grid_tmp => rsgrid%r(:, :, :)
-         gauge => rsgauge%r(:, :, :)
-      ENDIF
-
 !   *** initialise the coefficient matrix, we transform the sum
 !
 !   sum_{lxa,lya,lza,lxb,lyb,lzb} P_{lxa,lya,lza,lxb,lyb,lzb} *
@@ -595,12 +584,8 @@ CONTAINS
          ALLOCATE (pol_y(1:2, 0:lp, -cmax:0))
          ALLOCATE (pol_x(0:lp, -cmax:cmax))
 
-         IF (PRESENT(ir) .AND. PRESENT(rsgauge)) CALL collocate_ortho_set_to_0()
-
 #include "prep.f90"
 #include "call_collocate.f90"
-
-         IF (PRESENT(ir) .AND. PRESENT(rsgauge)) CALL collocate_gauge_ortho()
 
          ! deallocation needed to pass around a pgi bug..
          DEALLOCATE (pol_z)
@@ -611,106 +596,7 @@ CONTAINS
       END SUBROUTINE collocate_ortho
 
 ! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE collocate_gauge_ortho()
-      INTEGER                                            :: i, igmax, igmin, j, j2, jg, jg2, jgmin, &
-                                                            k, k2, kg, kg2, kgmin, sci
-      REAL(KIND=dp)                                      :: point(3, 4), res(4), x, y, y2, z, z2
-
-! notice we're in the ortho case
-
-         dr(1) = rsgrid%desc%dh(1, 1)
-         dr(2) = rsgrid%desc%dh(2, 2)
-         dr(3) = rsgrid%desc%dh(3, 3)
-         !
-         sci = 1
-         kgmin = sphere_bounds(sci)
-         sci = sci + 1
-         DO kg = kgmin, 0
-            kg2 = 1 - kg
-            k = map(kg, 3)
-            k2 = map(kg2, 3)
-            jgmin = sphere_bounds(sci)
-            sci = sci + 1
-            z = (REAL(kg, dp) + REAL(cubecenter(3), dp))*dr(3)
-            z2 = (REAL(kg2, dp) + REAL(cubecenter(3), dp))*dr(3)
-            DO jg = jgmin, 0
-               jg2 = 1 - jg
-               j = map(jg, 2)
-               j2 = map(jg2, 2)
-               igmin = sphere_bounds(sci)
-               sci = sci + 1
-               igmax = 1 - igmin
-               y = (REAL(jg, dp) + REAL(cubecenter(2), dp))*dr(2)
-               y2 = (REAL(jg2, dp) + REAL(cubecenter(2), dp))*dr(2)
-               DO ig = igmin, igmax
-                  i = map(ig, 1)
-                  x = (REAL(ig, dp) + REAL(cubecenter(1), dp))*dr(1)
-                  point(1, 1) = x; point(2, 1) = y; point(3, 1) = z
-                  point(1, 2) = x; point(2, 2) = y2; point(3, 2) = z
-                  point(1, 3) = x; point(2, 3) = y; point(3, 3) = z2
-                  point(1, 4) = x; point(2, 4) = y2; point(3, 4) = z2
-                  !
-                  res(1) = (point(ir, 1) - rb(ir)) - gauge(i, j, k)
-                  res(2) = (point(ir, 2) - rb(ir)) - gauge(i, j2, k)
-                  res(3) = (point(ir, 3) - rb(ir)) - gauge(i, j, k2)
-                  res(4) = (point(ir, 4) - rb(ir)) - gauge(i, j2, k2)
-                  !
-                  grid_tmp(i, j, k) = grid_tmp(i, j, k) + grid(i, j, k)*res(1)
-                  grid_tmp(i, j2, k) = grid_tmp(i, j2, k) + grid(i, j2, k)*res(2)
-                  grid_tmp(i, j, k2) = grid_tmp(i, j, k2) + grid(i, j, k2)*res(3)
-                  grid_tmp(i, j2, k2) = grid_tmp(i, j2, k2) + grid(i, j2, k2)*res(4)
-               ENDDO
-            ENDDO
-         ENDDO
-      END SUBROUTINE collocate_gauge_ortho
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE collocate_ortho_set_to_0()
-      INTEGER                                            :: i, igmax, igmin, j, j2, jg, jg2, jgmin, &
-                                                            k, k2, kg, kg2, kgmin, sci
-
-!
-
-         dr(1) = rsgrid%desc%dh(1, 1)
-         dr(2) = rsgrid%desc%dh(2, 2)
-         dr(3) = rsgrid%desc%dh(3, 3)
-         !
-         sci = 1
-         kgmin = sphere_bounds(sci)
-         sci = sci + 1
-         DO kg = kgmin, 0
-            kg2 = 1 - kg
-            k = map(kg, 3)
-            k2 = map(kg2, 3)
-            jgmin = sphere_bounds(sci)
-            sci = sci + 1
-            DO jg = jgmin, 0
-               jg2 = 1 - jg
-               j = map(jg, 2)
-               j2 = map(jg2, 2)
-               igmin = sphere_bounds(sci)
-               sci = sci + 1
-               igmax = 1 - igmin
-               DO ig = igmin, igmax
-                  i = map(ig, 1)
-                  grid(i, j, k) = 0.0_dp
-                  grid(i, j2, k) = 0.0_dp
-                  grid(i, j, k2) = 0.0_dp
-                  grid(i, j2, k2) = 0.0_dp
-               ENDDO
-            ENDDO
-         ENDDO
-      END SUBROUTINE collocate_ortho_set_to_0
-
-!
-!   this is a general 'optimized' routine to do the collocation
-!
-! **************************************************************************************************
-!> \brief ...
+!> \brief this is a general 'optimized' routine to do the collocation
 ! **************************************************************************************************
       SUBROUTINE collocate_general_opt()
 
@@ -977,11 +863,8 @@ CONTAINS
 
       END SUBROUTINE
 
-!
-!   this is a general 'reference' routine to do the collocation
-!
 ! **************************************************************************************************
-!> \brief ...
+!> \brief this is a general 'reference' routine to do the collocation
 ! **************************************************************************************************
       SUBROUTINE collocate_general()
 

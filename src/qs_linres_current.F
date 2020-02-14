@@ -48,7 +48,9 @@ MODULE qs_linres_current
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE cube_utils,                      ONLY: cube_info_type
+   USE cube_utils,                      ONLY: compute_cube_center,&
+                                              cube_info_type,&
+                                              return_cube
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_block_node, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
         dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
@@ -1149,30 +1151,43 @@ CONTAINS
             !     f_{ab} = g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
             !             (dg_{a}/dr)_{idir} (d(r) - R_{b})_{iiB} g_{b}
             scale = 1.0_dp
+            current_env%rs_buf(igrid_level)%rs_grid%r(:, :, :) = 0.0_dp
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
-                                       rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                                       cell=cell, cube_info=cube_info(igrid_level), &
                                        radius=radius, &
                                        ga_gb_function=GRID_FUNC_ADBmDAB, &
                                        idir=idir, ir=iiiB, &
-                                       rsgauge=rs_gauge(iiiB)%rs(igrid_level)%rs_grid, &
-                                       rsbuf=current_env%rs_buf(igrid_level)%rs_grid, &
+                                       rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
                                        lmax_global=lmax_global)
+            CALL collocate_gauge_ortho(rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
+                                       rsbuf=rs_current(igrid_level)%rs_grid, &
+                                       rsgauge=rs_gauge(iiiB)%rs(igrid_level)%rs_grid, &
+                                       cube_info=cube_info(igrid_level), radius=radius, &
+                                       zeta=zeta(ipgf, iset), zetb=zetb(jpgf, jset), &
+                                       ra=ra, rab=rab, ir=iiiB)
+
             ! here the decontracted mat_jp_riii{ab} is multiplied by
             !     f_{ab} = -g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
             !             (dg_{a}/dr)_{idir} (d(r) - R_{b})_{iiB} g_{b}
             scale = -1.0_dp
+            current_env%rs_buf(igrid_level)%rs_grid%r(:, :, :) = 0.0_dp
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
-                                       rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                                       cell=cell, cube_info=cube_info(igrid_level), &
                                        radius=radius, &
                                        ga_gb_function=GRID_FUNC_ADBmDAB, &
                                        idir=idir, ir=iiB, &
-                                       rsgauge=rs_gauge(iiB)%rs(igrid_level)%rs_grid, &
-                                       rsbuf=current_env%rs_buf(igrid_level)%rs_grid, &
+                                       rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
                                        lmax_global=lmax_global)
+            CALL collocate_gauge_ortho(rsgrid=current_env%rs_buf(igrid_level)%rs_grid, &
+                                       rsbuf=rs_current(igrid_level)%rs_grid, &
+                                       rsgauge=rs_gauge(iiB)%rs(igrid_level)%rs_grid, &
+                                       cube_info=cube_info(igrid_level), radius=radius, &
+                                       zeta=zeta(ipgf, iset), zetb=zetb(jpgf, jset), &
+                                       ra=ra, rab=rab, ir=iiB)
          ELSE
             ! here the decontracted mat_jp_rii{ab} is multiplied by
             !     f_{ab} = g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
@@ -1239,6 +1254,144 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_jrho_resp
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rsgrid ...
+!> \param rsbuf ...
+!> \param rsgauge ...
+!> \param cube_info ...
+!> \param radius ...
+!> \param ra ...
+!> \param rab ...
+!> \param zeta ...
+!> \param zetb ...
+!> \param ir ...
+! **************************************************************************************************
+   SUBROUTINE collocate_gauge_ortho(rsgrid, rsbuf, rsgauge, cube_info, radius, ra, rab, zeta, zetb, ir)
+      TYPE(realspace_grid_type)                          :: rsgrid, rsbuf, rsgauge
+      TYPE(cube_info_type), INTENT(IN)                   :: cube_info
+      REAL(KIND=dp), INTENT(IN)                          :: radius
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rab
+      REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb
+      INTEGER, INTENT(IN)                                :: ir
+
+      INTEGER                                            :: cmax, i, ig, igmax, igmin, j, j2, jg, &
+                                                            jg2, jgmin, k, k2, kg, kg2, kgmin, &
+                                                            length, offset, sci, start
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: map
+      INTEGER, DIMENSION(3)                              :: cubecenter, lb_cube, ng, ub_cube
+      INTEGER, DIMENSION(:), POINTER                     :: sphere_bounds
+      REAL(KIND=dp)                                      :: f, point(3, 4), res(4), x, y, y2, z, z2, &
+                                                            zetp
+      REAL(KIND=dp), DIMENSION(3)                        :: dr, rap, rb, rbp, roffset, rp
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: gauge, grid, grid_buf
+
+      CPASSERT(rsgrid%desc%orthorhombic)
+      NULLIFY (sphere_bounds)
+
+      grid => rsgrid%r(:, :, :)
+      grid_buf => rsbuf%r(:, :, :)
+      gauge => rsgauge%r(:, :, :)
+
+      ! *** center of gaussians and their product
+      zetp = zeta + zetb
+      f = zetb/zetp
+      rap(:) = f*rab(:)
+      rbp(:) = rap(:) - rab(:)
+      rp(:) = ra(:) + rap(:)
+      rb(:) = ra(:) + rab(:)
+
+      !   *** properties of the grid ***
+      ng(:) = rsgrid%desc%npts(:)
+      dr(1) = rsgrid%desc%dh(1, 1)
+      dr(2) = rsgrid%desc%dh(2, 2)
+      dr(3) = rsgrid%desc%dh(3, 3)
+
+      !   *** get the sub grid properties for the given radius ***
+      CALL return_cube(cube_info, radius, lb_cube, ub_cube, sphere_bounds)
+      cmax = MAXVAL(ub_cube)
+
+      !   *** position of the gaussian product
+      !
+      !   this is the actual definition of the position on the grid
+      !   i.e. a point rp(:) gets here grid coordinates
+      !   MODULO(rp(:)/dr(:),ng(:))+1
+      !   hence (0.0,0.0,0.0) in real space is rsgrid%lb on the rsgrid ((1,1,1) on grid)
+      !
+      ALLOCATE (map(-cmax:cmax, 3))
+      map(:, :) = -1
+      CALL compute_cube_center(cubecenter, rsgrid%desc, zeta, zetb, ra, rab)
+      roffset(:) = rp(:) - REAL(cubecenter(:), dp)*dr(:)
+
+      !   *** a mapping so that the ig corresponds to the right grid point
+      DO i = 1, 3
+         IF (rsgrid%desc%perd(i) == 1) THEN
+            start = lb_cube(i)
+            DO
+               offset = MODULO(cubecenter(i) + start, ng(i)) + 1 - start
+               length = MIN(ub_cube(i), ng(i) - offset) - start
+               DO ig = start, start + length
+                  map(ig, i) = ig + offset
+               END DO
+               IF (start + length .GE. ub_cube(i)) EXIT
+               start = start + length + 1
+            END DO
+         ELSE
+            ! this takes partial grid + border regions into account
+            offset = MODULO(cubecenter(i) + lb_cube(i) + rsgrid%desc%lb(i) - rsgrid%lb_local(i), ng(i)) + 1 - lb_cube(i)
+            ! check for out of bounds
+            IF (ub_cube(i) + offset > UBOUND(grid, i) .OR. lb_cube(i) + offset < LBOUND(grid, i)) THEN
+               CPASSERT(.FALSE.)
+            ENDIF
+            DO ig = lb_cube(i), ub_cube(i)
+               map(ig, i) = ig + offset
+            END DO
+         END IF
+      ENDDO
+
+      ! *** actually loop over the grid
+      sci = 1
+      kgmin = sphere_bounds(sci)
+      sci = sci + 1
+      DO kg = kgmin, 0
+         kg2 = 1 - kg
+         k = map(kg, 3)
+         k2 = map(kg2, 3)
+         jgmin = sphere_bounds(sci)
+         sci = sci + 1
+         z = (REAL(kg, dp) + REAL(cubecenter(3), dp))*dr(3)
+         z2 = (REAL(kg2, dp) + REAL(cubecenter(3), dp))*dr(3)
+         DO jg = jgmin, 0
+            jg2 = 1 - jg
+            j = map(jg, 2)
+            j2 = map(jg2, 2)
+            igmin = sphere_bounds(sci)
+            sci = sci + 1
+            igmax = 1 - igmin
+            y = (REAL(jg, dp) + REAL(cubecenter(2), dp))*dr(2)
+            y2 = (REAL(jg2, dp) + REAL(cubecenter(2), dp))*dr(2)
+            DO ig = igmin, igmax
+               i = map(ig, 1)
+               x = (REAL(ig, dp) + REAL(cubecenter(1), dp))*dr(1)
+               point(1, 1) = x; point(2, 1) = y; point(3, 1) = z
+               point(1, 2) = x; point(2, 2) = y2; point(3, 2) = z
+               point(1, 3) = x; point(2, 3) = y; point(3, 3) = z2
+               point(1, 4) = x; point(2, 4) = y2; point(3, 4) = z2
+               !
+               res(1) = (point(ir, 1) - rb(ir)) - gauge(i, j, k)
+               res(2) = (point(ir, 2) - rb(ir)) - gauge(i, j2, k)
+               res(3) = (point(ir, 3) - rb(ir)) - gauge(i, j, k2)
+               res(4) = (point(ir, 4) - rb(ir)) - gauge(i, j2, k2)
+               !
+               grid_buf(i, j, k) = grid_buf(i, j, k) + grid(i, j, k)*res(1)
+               grid_buf(i, j2, k) = grid_buf(i, j2, k) + grid(i, j2, k)*res(2)
+               grid_buf(i, j, k2) = grid_buf(i, j, k2) + grid(i, j, k2)*res(3)
+               grid_buf(i, j2, k2) = grid_buf(i, j2, k2) + grid(i, j2, k2)*res(4)
+            ENDDO
+         ENDDO
+      ENDDO
+   END SUBROUTINE collocate_gauge_ortho
 
 ! **************************************************************************************************
 !> \brief ...
