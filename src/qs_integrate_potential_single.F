@@ -26,6 +26,7 @@
 !> \author Matthias Krack (03.04.2001)
 ! **************************************************************************************************
 MODULE qs_integrate_potential_single
+   USE ao_util,                         ONLY: exp_radius_very_extended
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE atprop_types,                    ONLY: atprop_array_init,&
@@ -106,7 +107,7 @@ CONTAINS
                                                             n, natom_of_kind, ni, npme
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       LOGICAL                                            :: use_virial
-      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace
+      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cexp_ppl
@@ -243,10 +244,16 @@ CONTAINS
             END IF
             ni = 2*lppl - 2
 
+            radius = exp_radius_very_extended(la_min=0, la_max=ni, lb_min=0, lb_max=0, &
+                                              ra=ra, rb=ra, rp=ra, &
+                                              zetp=alpha, eps=eps_rho_rspace, &
+                                              pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                              prefactor=1.0_dp, cutoff=1.0_dp)
+
             CALL integrate_pgf_product(ni, alpha, 0, &
                                        0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                                        rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
-                                       eps_gvg_rspace=eps_rho_rspace, &
+                                       radius=radius, &
                                        calculate_forces=.TRUE., force_a=force_a, &
                                        force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
                                        my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
@@ -290,7 +297,7 @@ CONTAINS
                                                             ni, npme, nthread
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, nct_nlcc
       LOGICAL                                            :: nlcc, use_virial
-      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace
+      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_nlcc
@@ -438,10 +445,16 @@ CONTAINS
                END IF
                ni = 2*nc - 2
 
+               radius = exp_radius_very_extended(la_min=0, la_max=ni, lb_min=0, lb_max=0, &
+                                                 ra=ra, rb=ra, rp=ra, &
+                                                 zetp=1/(2*alpha**2), eps=eps_rho_rspace, &
+                                                 pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                 prefactor=1.0_dp, cutoff=1.0_dp)
+
                CALL integrate_pgf_product(ni, 1/(2*alpha**2), 0, &
                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                                           rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
-                                          eps_gvg_rspace=eps_rho_rspace, &
+                                          radius=radius, &
                                           calculate_forces=.TRUE., force_a=force_a, &
                                           force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
                                           my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
@@ -487,7 +500,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       LOGICAL                                            :: paw_atom, skip_fcore, use_virial
       REAL(KIND=dp)                                      :: alpha_core_charge, ccore_charge, &
-                                                            eps_rho_rspace
+                                                            eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab, pab
@@ -590,10 +603,16 @@ CONTAINS
                   my_virial_b = 0.0_dp
                END IF
 
+               radius = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
+                                                 ra=ra, rb=ra, rp=ra, &
+                                                 zetp=alpha_core_charge, eps=eps_rho_rspace, &
+                                                 pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                 prefactor=1.0_dp, cutoff=1.0_dp)
+
                CALL integrate_pgf_product(0, alpha_core_charge, 0, &
                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                                           rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
-                                          eps_gvg_rspace=eps_rho_rspace, &
+                                          radius=radius, &
                                           calculate_forces=.TRUE., force_a=force_a, &
                                           force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
                                           my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
@@ -654,7 +673,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: map_it
-      REAL(KIND=dp)                                      :: eps_rho_rspace
+      REAL(KIND=dp)                                      :: eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
@@ -803,6 +822,11 @@ CONTAINS
                      igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
                      rs_grid => rs_v(igrid_level)%rs_grid
 
+                     radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
+                                                       lb_min=0, lb_max=0, ra=ra, rb=ra, rp=ra, &
+                                                       zetp=zeta(ipgf, iset), eps=eps_rho_rspace, &
+                                                       prefactor=1.0_dp, cutoff=1.0_dp)
+
                      IF (map_it(ipgf)) THEN
                         IF (.NOT. calculate_forces) THEN
                            CALL integrate_pgf_product(la_max=la_max(iset), &
@@ -811,9 +835,8 @@ CONTAINS
                                                       ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                                       rsgrid=rs_grid, cell=cell, &
                                                       cube_info=pw_env%cube_info(igrid_level), &
-                                                      hab=hab, o1=na1, o2=0, eps_gvg_rspace=eps_rho_rspace, &
-                                                      calculate_forces=calculate_forces, &
-                                                      map_consistent=.TRUE.)
+                                                      hab=hab, o1=na1, o2=0, radius=radius, &
+                                                      calculate_forces=calculate_forces)
                         ELSE
                            CALL integrate_pgf_product(la_max=la_max(iset), &
                                                       zeta=zeta(ipgf, iset), la_min=la_min(iset), &
@@ -821,12 +844,11 @@ CONTAINS
                                                       ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                                       rsgrid=rs_grid, cell=cell, &
                                                       cube_info=pw_env%cube_info(igrid_level), &
-                                                      hab=hab, pab=pab, o1=na1, o2=0, eps_gvg_rspace=eps_rho_rspace, &
+                                                      hab=hab, pab=pab, o1=na1, o2=0, radius=radius, &
                                                       calculate_forces=calculate_forces, &
                                                       force_a=force_a, force_b=force_b, &
                                                       use_virial=use_virial, &
-                                                      my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
-                                                      map_consistent=.TRUE.)
+                                                      my_virial_a=my_virial_a, my_virial_b=my_virial_b)
                         ENDIF
                      ENDIF
                   ENDDO
@@ -892,8 +914,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: found, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: map_it2
-      REAL(KIND=dp)                                      :: eps_rho_rspace, zetp
-      REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab
+      REAL(KIND=dp)                                      :: eps_rho_rspace, radius, zetp
+      REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, hab, hmat, p_block, pab, pblk, &
@@ -957,7 +979,6 @@ CONTAINS
          DO iatom = 1, natom_of_kind
             atom_a = atom_list(iatom)
             ra(:) = pbc(particle_set(atom_a)%r, cell)
-            rab(:) = 0.0_dp
             hmat = 0.0_dp
             IF (calculate_forces) THEN
                CALL dbcsr_get_block_p(matrix=pmat, row=atom_a, col=atom_a, BLOCK=p_block, found=found)
@@ -1036,32 +1057,39 @@ CONTAINS
                         DO jpgf = 1, npgfa(jset)
                            nb1 = (jpgf - 1)*ncoset(la_max(jset))
                            nb2 = jpgf*ncoset(la_max(jset))
-
                            zetp = zeta(ipgf, iset) + zeta(jpgf, jset)
                            igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
                            rs_grid => rs_v(igrid_level)%rs_grid
+
+                           radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
+                                                             lb_min=la_min(jset), lb_max=la_max(jset), &
+                                                             ra=ra, rb=ra, rp=ra, &
+                                                             zetp=zetp, eps=eps_rho_rspace, &
+                                                             prefactor=1.0_dp, cutoff=1.0_dp)
+
                            IF (map_it2(ipgf, jpgf)) THEN
                               IF (calculate_forces) THEN
                                  CALL integrate_pgf_product( &
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
-                                    ra, rab, rs_v(igrid_level)%rs_grid, cell, &
-                                    pw_env%cube_info(igrid_level), &
-                                    hab, pab=pab, o1=na1, o2=nb1, &
-                                    eps_gvg_rspace=eps_rho_rspace, &
-                                    calculate_forces=calculate_forces, &
+                                    ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                    rsgrid=rs_v(igrid_level)%rs_grid, cell=cell, &
+                                    cube_info=pw_env%cube_info(igrid_level), &
+                                    hab=hab, pab=pab, o1=na1, o2=nb1, &
+                                    radius=radius, &
+                                    calculate_forces=.TRUE., &
                                     force_a=force_a, force_b=force_b, &
-                                    use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
-                                    map_consistent=.TRUE.)
+                                    use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
                               ELSE
                                  CALL integrate_pgf_product( &
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
-                                    ra, rab, rs_v(igrid_level)%rs_grid, cell, &
-                                    pw_env%cube_info(igrid_level), &
-                                    hab, o1=na1, o2=nb1, &
-                                    eps_gvg_rspace=eps_rho_rspace, &
-                                    calculate_forces=.FALSE., map_consistent=.TRUE.)
+                                    ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                    rsgrid=rs_v(igrid_level)%rs_grid, cell=cell, &
+                                    cube_info=pw_env%cube_info(igrid_level), &
+                                    hab=hab, o1=na1, o2=nb1, &
+                                    radius=radius, &
+                                    calculate_forces=.FALSE.)
                               ENDIF
                            ENDIF
                         ENDDO

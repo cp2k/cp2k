@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2020  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 MODULE grid_integrate
-   USE ao_util,                         ONLY: exp_radius_very_extended
    USE cell_types,                      ONLY: cell_type
    USE cube_utils,                      ONLY: compute_cube_center,&
                                               cube_info_type,&
@@ -71,16 +70,13 @@ CONTAINS
 !> \param pab ...
 !> \param o1 ...
 !> \param o2 ...
-!> \param eps_gvg_rspace ...
+!> \param radius ...
 !> \param calculate_forces ...
 !> \param hdab ...
 !> \param hadb ...
 !> \param force_a ...
 !> \param force_b ...
 !> \param compute_tau ...
-!> \param map_consistent ...
-!> \param collocate_rho0 ...
-!> \param rpgf0_s ...
 !> \param use_virial ...
 !> \param my_virial_a ...
 !> \param my_virial_b ...
@@ -92,10 +88,10 @@ CONTAINS
                                     lb_max, zetb, lb_min, &
                                     ra, rab, rsgrid, cell, &
                                     cube_info, hab, pab, o1, o2, &
-                                    eps_gvg_rspace, &
+                                    radius, &
                                     calculate_forces, hdab, hadb, force_a, force_b, &
-                                    compute_tau, map_consistent, &
-                                    collocate_rho0, rpgf0_s, use_virial, my_virial_a, &
+                                    compute_tau, &
+                                    use_virial, my_virial_a, &
                                     my_virial_b, a_hdab, use_subpatch, subpatch_pattern)
 
       INTEGER, INTENT(IN)                      :: la_max
@@ -111,15 +107,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), &
          OPTIONAL, POINTER                      :: pab
       INTEGER, INTENT(IN)                      :: o1, o2
-      REAL(KIND=dp), INTENT(IN)                :: eps_gvg_rspace
+      REAL(KIND=dp), INTENT(IN)                :: radius
       LOGICAL, INTENT(IN)                      :: calculate_forces
       REAL(KIND=dp), DIMENSION(:, :, :), &
          OPTIONAL, POINTER                      :: hdab, hadb
       REAL(KIND=dp), DIMENSION(3), &
          INTENT(INOUT), OPTIONAL                :: force_a, force_b
-      LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, map_consistent, &
-                                                  collocate_rho0
-      REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
+      LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
       LOGICAL, INTENT(IN), OPTIONAL            :: use_virial
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL  :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, POINTER  :: a_hdab
@@ -136,15 +130,11 @@ CONTAINS
       INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
                                                   ub_cube
       INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
-      LOGICAL                                  :: my_collocate_rho0, &
-                                                  my_compute_tau, &
-                                                  my_map_consistent, &
+      LOGICAL                                  :: my_compute_tau, &
                                                   my_use_virial, &
                                                   subpatch_integrate
-      REAL(KIND=dp) :: axpm0, cutoff, &
-                       der_a(3), der_b(3), f, ftza, ftzb, pabval, pg, &
-                       prefactor, radius, rpg, zetp
-      REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
+      REAL(KIND=dp) :: axpm0, der_a(3), der_b(3), f, ftza, ftzb, pabval, pg, prefactor, rpg, zetp
+      REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, roffset, rp
       REAL(KIND=dp), DIMENSION(:, :, :), &
          POINTER                                :: grid
 
@@ -183,19 +173,6 @@ CONTAINS
          my_compute_tau = .FALSE.
       ENDIF
 
-      ! use identical radii for integrate and collocate ?
-      IF (PRESENT(map_consistent)) THEN
-         my_map_consistent = map_consistent
-      ELSE
-         my_map_consistent = .FALSE.
-      ENDIF
-
-      IF (PRESENT(collocate_rho0) .AND. PRESENT(rpgf0_s)) THEN
-         my_collocate_rho0 = collocate_rho0
-      ELSE
-         my_collocate_rho0 = .FALSE.
-      END IF
-
       IF (calculate_forces) THEN
          la_max_local = la_max + 1 ! needed for the derivative of the gaussian, unimportant which one
          la_min_local = MAX(la_min - 1, 0) ! just in case the la_min,lb_min is not zero
@@ -225,28 +202,8 @@ CONTAINS
       prefactor = EXP(-zeta*f*DOT_PRODUCT(rab, rab))
 !   *** position of the gaussian product
       rap(:) = f*rab(:)
-      rbp(:) = rap(:) - rab(:)
       rp(:) = ra(:) + rap(:) ! this is the gaussian center in real coordinates
       rb(:) = ra(:) + rab(:)
-
-      IF (my_map_consistent) THEN ! still assumes that eps_gvg_rspace=eps_rho_rspace
-         cutoff = 1.0_dp
-         radius = exp_radius_very_extended(la_min, la_max, lb_min, lb_max, ra=ra, rb=rb, rp=rp, &
-                                           zetp=zetp, eps=eps_gvg_rspace, prefactor=prefactor, cutoff=cutoff)
-      ELSE IF (my_collocate_rho0) THEN
-         cutoff = 0.0_dp
-         prefactor = 1.0_dp
-         radius = rpgf0_s
-      ELSE
-         cutoff = 1.0_dp
-         IF (PRESENT(pab)) THEN
-            radius = exp_radius_very_extended(la_min, la_max, lb_min, lb_max, pab, o1, o2, ra, rb, rp, &
-                                              zetp, eps_gvg_rspace, prefactor, cutoff)
-         ELSE
-            radius = exp_radius_very_extended(la_min, la_max, lb_min, lb_max, ra=ra, rb=rb, rp=rp, &
-                                              zetp=zetp, eps=eps_gvg_rspace, prefactor=prefactor, cutoff=cutoff)
-         ENDIF
-      ENDIF
 
       IF (radius == 0.0_dp) THEN
          RETURN

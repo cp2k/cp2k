@@ -9,6 +9,7 @@
 !>      10.2013 created [Mauro Del Ben]
 ! **************************************************************************************************
 MODULE mp2_ri_grad
+   USE ao_util,                         ONLY: exp_radius_very_extended
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_type
@@ -171,11 +172,11 @@ CONTAINS
       LOGICAL                                            :: alpha_beta, map_it_here, skip_shell, &
                                                             use_virial
       REAL(KIND=dp)                                      :: cutoff_old, e_hartree, eps_filter, &
-                                                            factor, omega, pair_energy, &
+                                                            factor, omega, pair_energy, radius, &
                                                             relative_cutoff_old, total_rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, I_ab
-      REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab
+      REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, pab, rpgfa, sphi_a, zeta
@@ -507,7 +508,6 @@ CONTAINS
                zeta => basis_set_a%zet
 
                ra(:) = pbc(particle_set(iatom)%r, cell)
-               rab = 0.0_dp
 
                force_a(:) = 0.0_dp
                force_b(:) = 0.0_dp
@@ -571,9 +571,15 @@ CONTAINS
                         na2 = ipgf*ncoset(la_max(iset))
                         igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
 
+                        radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
+                                                          lb_min=0, lb_max=0, ra=ra, rb=ra, rp=ra, &
+                                                          zetp=zeta(ipgf, iset), &
+                                                          eps=dft_control%qs_control%eps_gvg_rspace, &
+                                                          prefactor=1.0_dp, cutoff=1.0_dp)
+
                         CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                                                    lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                                   ra=ra, rab=rab, &
+                                                   ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                                    rsgrid=rs_v(igrid_level)%rs_grid, &
                                                    cell=cell, &
                                                    cube_info=pw_env_sub%cube_info(igrid_level), &
@@ -581,8 +587,7 @@ CONTAINS
                                                    pab=pab, &
                                                    o1=na1 - 1, &
                                                    o2=0, &
-                                                   map_consistent=.TRUE., &
-                                                   eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
+                                                   radius=radius, &
                                                    calculate_forces=.TRUE., &
                                                    force_a=force_a, force_b=force_b, &
                                                    use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
@@ -744,7 +749,6 @@ CONTAINS
                zeta => basis_set_a%zet
 
                ra(:) = pbc(particle_set(iatom)%r, cell)
-               rab = 0.0_dp
 
                force_a(:) = 0.0_dp
                force_b(:) = 0.0_dp
@@ -821,9 +825,15 @@ CONTAINS
                         na2 = ipgf*ncoset(la_max(iset))
                         igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
 
+                        radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
+                                                          lb_min=0, lb_max=0, ra=ra, rb=ra, rp=ra, &
+                                                          zetp=zeta(ipgf, iset), &
+                                                          eps=dft_control%qs_control%eps_gvg_rspace, &
+                                                          prefactor=1.0_dp, cutoff=1.0_dp)
+
                         CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                                                    lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                                   ra=ra, rab=rab, &
+                                                   ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                                    rsgrid=rs_v(igrid_level)%rs_grid, &
                                                    cell=cell, &
                                                    cube_info=pw_env_sub%cube_info(igrid_level), &
@@ -831,8 +841,7 @@ CONTAINS
                                                    pab=pab, &
                                                    o1=na1 - 1, &
                                                    o2=0, &
-                                                   map_consistent=.TRUE., &
-                                                   eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
+                                                   radius=radius, &
                                                    calculate_forces=.TRUE., &
                                                    force_a=force_a, force_b=force_b, &
                                                    use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
