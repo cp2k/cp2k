@@ -3580,11 +3580,11 @@ CONTAINS
 
          IF (count_ev_sc_GW == 1) THEN
 
-            IF (n_level_gw < 10) THEN
+            IF (n_level_gw_ref < 10) THEN
                WRITE (filename, "(A26,I1)") "G0W0_self_energy_level_000", n_level_gw_ref
-            ELSE IF (n_level_gw < 100) THEN
+            ELSE IF (n_level_gw_ref < 100) THEN
                WRITE (filename, "(A25,I2)") "G0W0_self_energy_level_00", n_level_gw_ref
-            ELSE IF (n_level_gw < 1000) THEN
+            ELSE IF (n_level_gw_ref < 1000) THEN
                WRITE (filename, "(A24,I3)") "G0W0_self_energy_level_0", n_level_gw_ref
             ELSE
                WRITE (filename, "(A23,I4)") "G0W0_self_energy_level_", n_level_gw_ref
@@ -3592,13 +3592,13 @@ CONTAINS
 
          ELSE
 
-            IF (n_level_gw < 10) THEN
+            IF (n_level_gw_ref < 10) THEN
                WRITE (filename, "(A11,I1,A22,I1)") "evGW_cycle_", count_ev_sc_GW, &
                   "_self_energy_level_000", n_level_gw_ref
-            ELSE IF (n_level_gw < 100) THEN
+            ELSE IF (n_level_gw_ref < 100) THEN
                WRITE (filename, "(A11,I1,A21,I2)") "evGW_cycle_", count_ev_sc_GW, &
                   "_self_energy_level_00", n_level_gw_ref
-            ELSE IF (n_level_gw < 1000) THEN
+            ELSE IF (n_level_gw_ref < 1000) THEN
                WRITE (filename, "(A11,I1,A20,I3)") "evGW_cycle_", count_ev_sc_GW, &
                   "_self_energy_level_0", n_level_gw_ref
             ELSE
@@ -3608,7 +3608,6 @@ CONTAINS
 
          END IF
 
-         iunit = n_level_gw_ref*1000
          CALL open_file(TRIM(filename), unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
 
          num_omega = 10000
