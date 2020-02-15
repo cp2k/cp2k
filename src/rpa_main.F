@@ -1319,8 +1319,9 @@ CONTAINS
          first_cycle, first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, e_axk, e_axk_corr, e_fermi, e_fermi_beta, &
-         eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, my_flop_rate, omega, &
-         omega_max_fit, omega_old, stabilize_exp, tau, tau_old
+         eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
+         fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, stabilize_exp, &
+         tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, Eigenval_last, Eigenval_last_beta, &
          Eigenval_scf, Eigenval_scf_beta, tau_tj, tau_wj, tj, trace_Qomega, vec_omega_fit_gw, &
          vec_W_gw, vec_W_gw_beta, wj
@@ -1384,7 +1385,7 @@ CONTAINS
       IF (my_do_gw) THEN
          ext_scaling = 0.2_dp
          omega_max_fit = mp2_env%ri_g0w0%omega_max_fit
-         fermi_level_offset = mp2_env%ri_g0w0%fermi_level_offset
+         fermi_level_offset_input = mp2_env%ri_g0w0%fermi_level_offset
       END IF
 
       IF (do_kpoints_cubic_RPA .AND. do_ri_sos_laplace_mp2) THEN
@@ -1805,7 +1806,8 @@ CONTAINS
                   CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI_red, gw_corr_lev_occ, &
                                             gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
                                             do_bse, do_im_time, do_periodic, do_gw_im_time_mix_minimax_clenshaw, &
-                                            first_cycle_periodic_correction, fermi_level_offset, &
+                                            first_cycle_periodic_correction, &
+                                            fermi_level_offset, fermi_level_offset_input, &
                                             omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
                                             vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W, fm_mat_L, &
                                             fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
@@ -1818,7 +1820,8 @@ CONTAINS
                   CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI_red, gw_corr_lev_occ, &
                                             gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
                                             do_bse, do_im_time, do_periodic, do_gw_im_time_mix_minimax_clenshaw, &
-                                            first_cycle_periodic_correction, fermi_level_offset, &
+                                            first_cycle_periodic_correction, &
+                                            fermi_level_offset, fermi_level_offset_input, &
                                             omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
                                             vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W, fm_mat_L, &
                                             fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
@@ -1862,8 +1865,8 @@ CONTAINS
                                       num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
                                       do_periodic, do_gw_im_time_mix_minimax_clenshaw, &
                                       do_ri_Sigma_x, first_cycle_periodic_correction, &
-                                      e_fermi, eps_filter, &
-                                      fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
+                                      e_fermi, eps_filter, fermi_level_offset, &
+                                      stabilize_exp, delta_corr, Eigenval, &
                                       Eigenval_last, Eigenval_scf, tau_tj, tj, wj, &
                                       vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
                                       weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
@@ -1885,8 +1888,8 @@ CONTAINS
                                       num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
                                       do_periodic, do_gw_im_time_mix_minimax_clenshaw, &
                                       do_ri_Sigma_x, first_cycle_periodic_correction, &
-                                      e_fermi, eps_filter, &
-                                      fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
+                                      e_fermi, eps_filter, fermi_level_offset, &
+                                      stabilize_exp, delta_corr, Eigenval, &
                                       Eigenval_last, Eigenval_scf, tau_tj, tj, wj, &
                                       vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
                                       weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &

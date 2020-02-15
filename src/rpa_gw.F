@@ -797,6 +797,7 @@ CONTAINS
 !> \param do_gw_im_time_mix_minimax_clenshaw ...
 !> \param first_cycle_periodic_correction ...
 !> \param fermi_level_offset ...
+!> \param fermi_level_offset_input ...
 !> \param omega ...
 !> \param Eigenval ...
 !> \param delta_corr ...
@@ -835,7 +836,8 @@ CONTAINS
    SUBROUTINE GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
                                    gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
                                    do_bse, do_im_time, do_periodic, do_gw_im_time_mix_minimax_clenshaw, &
-                                   first_cycle_periodic_correction, fermi_level_offset, &
+                                   first_cycle_periodic_correction, &
+                                   fermi_level_offset, fermi_level_offset_input, &
                                    omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
                                    vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W, fm_mat_L, &
                                    fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
@@ -852,7 +854,8 @@ CONTAINS
                                                             num_fit_points, num_integ_points
       LOGICAL, INTENT(IN) :: do_bse, do_im_time, do_periodic, do_gw_im_time_mix_minimax_clenshaw
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
-      REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
+      REAL(KIND=dp), INTENT(INOUT)                       :: fermi_level_offset
+      REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset_input
       REAL(KIND=dp), INTENT(INOUT)                       :: omega
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -903,6 +906,20 @@ CONTAINS
           .AND. PRESENT(Eigenval_beta) .AND. PRESENT(vec_W_gw_beta) .AND. PRESENT(fm_mat_S_gw_beta) &
           .AND. PRESENT(fm_mat_S_gw_work_beta)) THEN
          my_open_shell = .TRUE.
+      END IF
+
+      ! Fermi level offset should have a maximum such that the Fermi level of occupied orbitals
+      ! is always closer to occupied orbitals than to virtual orbitals and vice versa
+      ! that means, the Fermi level offset is at most as big as half the bandgap
+      IF (fermi_level_offset_input > 0.5_dp*(Eigenval(homo + 1) - Eigenval(homo))) THEN
+         fermi_level_offset = (Eigenval(homo + 1) - Eigenval(homo))*0.5_dp
+      ELSE
+         fermi_level_offset = fermi_level_offset_input
+      END IF
+      IF (my_open_shell) THEN
+         IF (fermi_level_offset > 0.5_dp*(Eigenval_beta(homo_beta + 1) - Eigenval_beta(homo_beta))) THEN
+            fermi_level_offset = (Eigenval_beta(homo_beta + 1) - Eigenval_beta(homo_beta))*0.5_dp
+         END IF
       END IF
 
       CALL cp_fm_get_info(matrix=fm_mat_Q, &
