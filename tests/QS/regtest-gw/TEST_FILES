@@ -1,5 +1,6 @@
 G0W0_H2O_PBE0.inp                                     11      1e-09            -17.092142638413101
 G0W0_H2O_PBE_ev_sc.inp                                11      1e-08            -17.052375554380653
+G0W0_H2O_PBE_ev_sc_Fermi_level_offset.inp             11      1e-08            -17.102204720817141
 G0W0_OH_PBE_ev_sc.inp                                 11      1e-08            -16.414924714798197
 G0W0_H2O_PBE_ev_sc_RI_HFX.inp                         11      1e-08            -13.112415607677665
 G0W0_H2O_PBE_periodic.inp                             11      1e-07            -17.143194694023901
