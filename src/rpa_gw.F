@@ -19,6 +19,8 @@ MODULE rpa_gw
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                               cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -35,7 +37,6 @@ MODULE rpa_gw
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
@@ -1447,7 +1448,7 @@ CONTAINS
                                       Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, mp2_env%ri_g0w0%nparam_pade, &
                                       num_fit_points, crossing_search, homo, fermi_level_offset, &
                                       do_im_time .AND. (.NOT. do_gw_im_time_mix_minimax_clenshaw), &
-                                      mp2_env%ri_g0w0%print_self_energy)
+                                      mp2_env%ri_g0w0%print_self_energy, count_ev_sc_GW)
             CASE DEFAULT
                CPABORT("Only two-model and Pade approximation are implemented.")
             END SELECT
@@ -1471,7 +1472,7 @@ CONTAINS
                                          gw_corr_lev_occ_beta, mp2_env%ri_g0w0%nparam_pade, &
                                          num_fit_points, crossing_search, homo_beta, &
                                          fermi_level_offset, do_im_time, &
-                                         mp2_env%ri_g0w0%print_self_energy)
+                                         mp2_env%ri_g0w0%print_self_energy, count_ev_sc_GW)
                CASE DEFAULT
                   CPABORT("Only two-model and Pade approximation are implemented.")
                END SELECT
@@ -3415,12 +3416,13 @@ CONTAINS
 !> \param fermi_level_offset ...
 !> \param do_gw_im_time ...
 !> \param print_self_energy ...
+!> \param count_ev_sc_GW ...
 ! **************************************************************************************************
    SUBROUTINE continuation_pade(vec_gw_energ, vec_omega_fit_gw, &
                                 z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
                                 Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, nparam_pade, &
                                 num_fit_points, crossing_search, homo, &
-                                fermi_level_offset, do_gw_im_time, print_self_energy)
+                                fermi_level_offset, do_gw_im_time, print_self_energy, count_ev_sc_GW)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_gw_energ
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vec_omega_fit_gw
@@ -3433,6 +3435,7 @@ CONTAINS
                                                             crossing_search, homo
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, print_self_energy
+      INTEGER, INTENT(IN)                                :: count_ev_sc_GW
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'continuation_pade', &
          routineP = moduleN//':'//routineN
@@ -3441,16 +3444,14 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: im_unit, re_unit, sigma_c_pade
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeff_pade, omega_points_pade, &
                                                             Sigma_c_gw_reorder
-      INTEGER                                            :: handle, i_omega, jquad, n_level_gw_ref, &
-                                                            num_omega, output_unit
+      INTEGER                                            :: handle, i_omega, iunit, jquad, &
+                                                            n_level_gw_ref, num_omega
       REAL(KIND=dp)                                      :: e_fermi, energy_val, level_energ_GW, &
                                                             omega, sign_occ_virt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_omega_fit_gw_sign, &
                                                             vec_omega_fit_gw_sign_reorder
 
       CALL timeset(routineN, handle)
-
-      output_unit = cp_logger_get_default_io_unit()
 
       im_unit = (0.0_dp, 1.0_dp)
       re_unit = (1.0_dp, 0.0_dp)
@@ -3560,21 +3561,42 @@ CONTAINS
 
       IF (print_self_energy) THEN
 
-         IF (n_level_gw < 10) THEN
-            WRITE (filename, "(A21,I1)") "self_energy_level_000", n_level_gw_ref
-         ELSE IF (n_level_gw < 100) THEN
-            WRITE (filename, "(A20,I2)") "self_energy_level_00", n_level_gw_ref
-         ELSE IF (n_level_gw < 1000) THEN
-            WRITE (filename, "(A19,I3)") "self_energy_level_0", n_level_gw_ref
+         IF (count_ev_sc_GW == 1) THEN
+
+            IF (n_level_gw < 10) THEN
+               WRITE (filename, "(A26,I1)") "G0W0_self_energy_level_000", n_level_gw_ref
+            ELSE IF (n_level_gw < 100) THEN
+               WRITE (filename, "(A25,I2)") "G0W0_self_energy_level_00", n_level_gw_ref
+            ELSE IF (n_level_gw < 1000) THEN
+               WRITE (filename, "(A24,I3)") "G0W0_self_energy_level_0", n_level_gw_ref
+            ELSE
+               WRITE (filename, "(A23,I4)") "G0W0_self_energy_level_", n_level_gw_ref
+            END IF
+
          ELSE
-            WRITE (filename, "(A18,I4)") "self_energy_level_", n_level_gw_ref
+
+            IF (n_level_gw < 10) THEN
+               WRITE (filename, "(A11,I1,A22,I1)") "evGW_cycle_", count_ev_sc_GW, &
+                  "_self_energy_level_000", n_level_gw_ref
+            ELSE IF (n_level_gw < 100) THEN
+               WRITE (filename, "(A11,I1,A21,I2)") "evGW_cycle_", count_ev_sc_GW, &
+                  "_self_energy_level_00", n_level_gw_ref
+            ELSE IF (n_level_gw < 1000) THEN
+               WRITE (filename, "(A11,I1,A20,I3)") "evGW_cycle_", count_ev_sc_GW, &
+                  "_self_energy_level_0", n_level_gw_ref
+            ELSE
+               WRITE (filename, "(A11,I1,A19,I4)") "evGW_cycle_", count_ev_sc_GW, &
+                  "_self_energy_level_", n_level_gw_ref
+            END IF
+
          END IF
 
-         OPEN (UNIT=n_level_gw_ref*1000, FILE=TRIM(filename))
+         iunit = n_level_gw_ref*1000
+         CALL open_file(TRIM(filename), unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
 
          num_omega = 10000
 
-         WRITE (n_level_gw_ref*1000, "(2A42)") " omega (eV)     Sigma(omega) (eV)  ", &
+         WRITE (iunit, "(2A42)") " omega (eV)     Sigma(omega) (eV)  ", &
             "  omega - e_n^DFT - Sigma_n^x - v_n^xc (eV)"
 
          DO i_omega = 0, num_omega
@@ -3584,14 +3606,12 @@ CONTAINS
             CALL evaluate_pade_function(omega - e_fermi, nparam_pade, omega_points_pade, &
                                         coeff_pade, sigma_c_pade)
 
-            WRITE (n_level_gw_ref*1000, "(F12.2,2F17.5)") omega*evolt, &
-               REAL(sigma_c_pade)*evolt, &
-               (omega - Eigenval_scf(n_level_gw_ref) - &
-                vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))*evolt
+            WRITE (iunit, "(F12.2,2F17.5)") omega*evolt, REAL(sigma_c_pade)*evolt, &
+               (omega - Eigenval_scf(n_level_gw_ref) - vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))*evolt
 
          END DO
 
-         CLOSE (UNIT=n_level_gw_ref*1000)
+         CALL close_file(iunit)
 
       END IF
 

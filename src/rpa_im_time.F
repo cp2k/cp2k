@@ -546,7 +546,7 @@ CONTAINS
                ENDDO
             ENDDO
 
-            CALL sync_does_mat_P_T_tau_have_blocks(does_mat_P_T_tau_have_blocks, para_env, unit_nr, &
+            CALL sync_does_mat_P_T_tau_have_blocks(does_mat_P_T_tau_have_blocks, para_env, &
                                                    i_cell_T, jquad, index_to_cell_dm)
          ENDDO
 
@@ -667,17 +667,16 @@ CONTAINS
 !> \brief ...
 !> \param does_mat_P_T_tau_have_blocks ...
 !> \param para_env ...
-!> \param unit_nr ...
 !> \param i_cell_T ...
 !> \param jquad ...
 !> \param index_to_cell_dm ...
 ! **************************************************************************************************
-   SUBROUTINE sync_does_mat_P_T_tau_have_blocks(does_mat_P_T_tau_have_blocks, para_env, unit_nr, i_cell_T, &
+   SUBROUTINE sync_does_mat_P_T_tau_have_blocks(does_mat_P_T_tau_have_blocks, para_env, i_cell_T, &
                                                 jquad, index_to_cell_dm)
 
       LOGICAL, DIMENSION(:), INTENT(INOUT)               :: does_mat_P_T_tau_have_blocks
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: unit_nr, i_cell_T, jquad
+      INTEGER, INTENT(IN)                                :: i_cell_T, jquad
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'sync_does_mat_P_T_tau_have_blocks', &
@@ -737,12 +736,6 @@ CONTAINS
          END IF
 
       END DO
-
-      IF (SUM(integ_does_mat_P_T_tau_have_blocks(i_cell_T + 1:SIZE(integ_does_mat_P_T_tau_have_blocks))) == 0) THEN
-         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-            "RPA_IM_TIME_INFO| Number of periodic images T for Chi_PQ^T(it):", &
-            SUM(integ_does_mat_P_T_tau_have_blocks)
-      END IF
 
       DEALLOCATE (integ_does_mat_P_T_tau_have_blocks)
 
