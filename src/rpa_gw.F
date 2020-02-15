@@ -3617,7 +3617,7 @@ CONTAINS
 
          DO i_omega = 0, num_omega
 
-            omega = -50.0_dp/evolt + REAL(i_omega)/REAL(num_omega)*100.0_dp/evolt
+            omega = -50.0_dp/evolt + REAL(i_omega, KIND=dp)/REAL(num_omega, KIND=dp)*100.0_dp/evolt
 
             CALL evaluate_pade_function(omega - e_fermi, nparam_pade, omega_points_pade, &
                                         coeff_pade, sigma_c_pade)
