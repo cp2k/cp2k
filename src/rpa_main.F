@@ -73,9 +73,9 @@ MODULE rpa_main
    USE rpa_communication,               ONLY: initialize_buffer,&
                                               release_buffer
    USE rpa_gw,                          ONLY: GW_matrix_operations,&
-                                              GW_postprocessing,&
                                               allocate_matrices_gw,&
                                               allocate_matrices_gw_im_time,&
+                                              compute_QP_energies,&
                                               deallocate_matrices_gw,&
                                               deallocate_matrices_gw_im_time
    USE rpa_gw_ic,                       ONLY: calculate_ic_correction
@@ -289,6 +289,7 @@ CONTAINS
       ELSE
          num_integ_points = mp2_env%ri_rpa%rpa_num_quad_points
          input_integ_group_size = mp2_env%ri_rpa%rpa_integ_group_size
+         IF (do_im_time) mp2_env%ri_rpa%minimax_quad = .TRUE.
          do_minimax_quad = mp2_env%ri_rpa%minimax_quad
          mp2_env%ri_g0w0%do_gw_im_time_mix_minimax_clenshaw = mp2_env%ri_g0w0%num_integ_points_freq > num_integ_points
 
@@ -1302,10 +1303,10 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
-         iter_ev_sc, jquad, max_iter_bse, mm_style, my_num_dgemm_call, nkp, nkp_self_energy, nmo, &
-         num_3c_repl, num_cells_dm, num_fit_points, num_integ_points_freq, num_points_corr, &
-         num_Z_vectors, number_of_rec, number_of_rec_axk, number_of_rec_beta, number_of_send, &
-         number_of_send_axk, number_of_send_beta, size_P
+         iter_evGW, iter_sc_GW0, jquad, max_iter_bse, mm_style, my_num_dgemm_call, nkp, &
+         nkp_self_energy, nmo, num_3c_repl, num_cells_dm, num_fit_points, num_integ_points_freq, &
+         num_points_corr, num_Z_vectors, number_of_rec, number_of_rec_axk, number_of_rec_beta, &
+         number_of_send, number_of_send_axk, number_of_send_beta, size_P
       INTEGER, ALLOCATABLE, DIMENSION(:) :: ikp_local, map_rec_size, map_rec_size_axk, &
          map_rec_size_beta, map_send_size, map_send_size_axk, map_send_size_beta, RPA_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c, local_size_source, &
@@ -1316,7 +1317,7 @@ CONTAINS
                                                             RI_blk_sizes
       LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_gw_im_time_mix_minimax_clenshaw, &
          do_ic_model, do_kpoints_cubic_RPA, do_kpoints_from_Gamma, do_periodic, do_ri_Sigma_x, &
-         first_cycle, first_cycle_periodic_correction, my_open_shell, print_ic_values
+         exit_ev_gw, first_cycle, first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, e_axk, e_axk_corr, e_fermi, e_fermi_beta, &
          eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
@@ -1377,6 +1378,7 @@ CONTAINS
       do_kpoints_from_Gamma = SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0
       do_gw_im_time_mix_minimax_clenshaw = mp2_env%ri_g0w0%do_gw_im_time_mix_minimax_clenshaw
       num_integ_points_freq = MAX(mp2_env%ri_g0w0%num_integ_points_freq, num_integ_points)
+      iter_sc_GW0 = mp2_env%ri_g0w0%iter_sc_GW0
 
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
@@ -1386,6 +1388,7 @@ CONTAINS
          ext_scaling = 0.2_dp
          omega_max_fit = mp2_env%ri_g0w0%omega_max_fit
          fermi_level_offset_input = mp2_env%ri_g0w0%fermi_level_offset
+         IF ((.NOT. do_im_time) .AND. iter_sc_GW0 .NE. 1) CPABORT("scGW0 only implemented for low-scaling GW.")
       END IF
 
       IF (do_kpoints_cubic_RPA .AND. do_ri_sos_laplace_mp2) THEN
@@ -1396,8 +1399,7 @@ CONTAINS
       IF (ic_corr_list(1) > 0.0_dp) do_apply_ic_corr_to_gw = .TRUE.
 
       IF (do_im_time) THEN
-         ! imag. time RPA only with Minimax
-         CPASSERT(do_minimax_quad .OR. do_ri_sos_laplace_mp2)
+        CPASSERT(do_minimax_quad .OR. do_ri_sos_laplace_mp2)
       END IF
 
       IF (do_ic_model) THEN
@@ -1598,12 +1600,12 @@ CONTAINS
       my_flop_rate = 0.0_dp
 
       IF (my_do_gw) THEN
-         iter_ev_sc = mp2_env%ri_g0w0%iter_ev_sc
+         iter_evGW = mp2_env%ri_g0w0%iter_ev_sc
       ELSE
-         iter_ev_sc = 1
+         iter_evGW = 1
       END IF
 
-      DO count_ev_sc_GW = 1, iter_ev_sc
+      DO count_ev_sc_GW = 1, iter_evGW
 
          IF (do_ic_model) CYCLE
 
@@ -1856,61 +1858,58 @@ CONTAINS
                "PERFORMANCE| PDGEMM flop rate (Gflops / MPI rank):", my_flop_rate
          END IF
 
-         ! G0W0 postprocessing: Fitting + correction of MO energies
+         ! GW: Compute self-energy Sigma, analytic continuation from iw -> w and correction of quasiparticle energies
          IF (my_do_gw) THEN
             IF (my_open_shell) THEN
-               CALL GW_postprocessing(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
-                                      gw_corr_lev_tot, gw_corr_lev_virt, homo, &
-                                      nmo, num_fit_points, num_integ_points, num_integ_points_freq, &
-                                      num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
-                                      do_periodic, do_gw_im_time_mix_minimax_clenshaw, &
-                                      do_ri_Sigma_x, first_cycle_periodic_correction, &
-                                      e_fermi, eps_filter, fermi_level_offset, &
-                                      stabilize_exp, delta_corr, Eigenval, &
-                                      Eigenval_last, Eigenval_scf, tau_tj, tj, wj, &
-                                      vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
-                                      weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
-                                      fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
-                                      fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                                      mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
-                                      t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                      matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, mat_W, matrix_s, &
-                                      kpoints, mp2_env, qs_env, &
-                                      nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp, iter_ev_sc, &
-                                      vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
-                                      e_fermi_beta, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, &
-                                      vec_Sigma_x_gw_beta, ic_corr_list_beta, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
-                                      t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta)
+               CALL compute_QP_energies(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
+                                        gw_corr_lev_tot, gw_corr_lev_virt, homo, &
+                                        nmo, num_fit_points, num_integ_points, num_integ_points_freq, &
+                                        num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
+                                        do_periodic, do_gw_im_time_mix_minimax_clenshaw, &
+                                        do_ri_Sigma_x, first_cycle_periodic_correction, &
+                                        e_fermi, eps_filter, fermi_level_offset, &
+                                        stabilize_exp, delta_corr, Eigenval, &
+                                        Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, wj, &
+                                        vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
+                                        weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
+                                        fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
+                                        fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
+                                        mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
+                                        t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
+                                        matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, mat_W, matrix_s, &
+                                        kpoints, mp2_env, qs_env, &
+                                        nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp, &
+                                        vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
+                                        e_fermi_beta, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, &
+                                        vec_Sigma_x_gw_beta, ic_corr_list_beta, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
+                                        t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta)
             ELSE
-               CALL GW_postprocessing(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
-                                      gw_corr_lev_tot, gw_corr_lev_virt, homo, &
-                                      nmo, num_fit_points, num_integ_points, num_integ_points_freq, &
-                                      num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
-                                      do_periodic, do_gw_im_time_mix_minimax_clenshaw, &
-                                      do_ri_Sigma_x, first_cycle_periodic_correction, &
-                                      e_fermi, eps_filter, fermi_level_offset, &
-                                      stabilize_exp, delta_corr, Eigenval, &
-                                      Eigenval_last, Eigenval_scf, tau_tj, tj, wj, &
-                                      vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
-                                      weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
-                                      fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
-                                      fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                                      mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
-                                      t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, matrix_berry_im_mo_mo, &
-                                      matrix_berry_re_mo_mo, mat_W, matrix_s, &
-                                      kpoints, mp2_env, qs_env, &
-                                      nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp, iter_ev_sc)
+               CALL compute_QP_energies(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
+                                        gw_corr_lev_tot, gw_corr_lev_virt, homo, &
+                                        nmo, num_fit_points, num_integ_points, num_integ_points_freq, &
+                                        num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
+                                        do_periodic, do_gw_im_time_mix_minimax_clenshaw, &
+                                        do_ri_Sigma_x, first_cycle_periodic_correction, &
+                                        e_fermi, eps_filter, fermi_level_offset, &
+                                        stabilize_exp, delta_corr, Eigenval, &
+                                        Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, wj, &
+                                        vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
+                                        weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
+                                        fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
+                                        fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
+                                        mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
+                                        t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, matrix_berry_im_mo_mo, &
+                                        matrix_berry_re_mo_mo, mat_W, matrix_s, &
+                                        kpoints, mp2_env, qs_env, &
+                                        nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp)
             END IF
 
             ! if HOMO-LUMO gap differs by less than mp2_env%ri_g0w0%eps_ev_sc_iter, exit ev sc GW loop
-            IF (ABS(Eigenval(homo) - Eigenval_last(homo) - Eigenval(homo + 1) + Eigenval_last(homo + 1)) &
-                < mp2_env%ri_g0w0%eps_ev_sc_iter) THEN
-               EXIT
-            END IF
+            IF (exit_ev_gw) EXIT
 
          END IF ! my_do_gw if
 
-      END DO !ev_sc_gw_loop
+      END DO ! evGW loop
 
       IF (do_ic_model) THEN
 

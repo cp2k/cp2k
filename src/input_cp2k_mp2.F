@@ -24,6 +24,7 @@ MODULE input_cp2k_mp2
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
+   USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
         do_potential_long, do_potential_short, do_potential_truncated, do_potential_tshpsc, &
@@ -733,31 +734,29 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EV_SC_ITER", &
                           description="Maximum number of iterations for eigenvalue self-consistency cycle. The "// &
-                          "computational effort of RPA and GW scales linearly with this number. "// &
-                          "Eigenvalue self-consistency is not implemented for cubic-scaling GW.", &
+                          "computational effort of GW scales linearly with this number. ", &
                           usage="EV_SC_ITER 3", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_EV_SC_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="SC_GW0_ITER", &
+                          description="Maximum number of iterations for GW0 self-consistency cycle. The "// &
+                          "computational effort of GW is not much affected by the number of scGW0 cycles. ", &
+                          usage="SC_GW0_ITER 3", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_ITER", &
                           description="Target accuracy for the eigenvalue self-consistency. "// &
                           "If the G0W0 HOMO-LUMO gap differs by less than the "// &
                           "target accuracy during the iteration, the eigenvalue "// &
                           "self-consistency cycle stops. Unit: Hartree.", &
                           usage="EPS_EV_SC_ITER 0.00005", &
-                          default_r_val=0.00005_dp, &
-                          unit_str="")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
+                          default_r_val=cp_unit_to_cp2k(value=0.00136_dp, unit_str="eV"), &
+                          unit_str="eV")
 
-      CALL keyword_create(keyword, __LOCATION__, name="EV_SC_GW_REMOVE_NEG_VIRT_ENERGIES", &
-                          variants=(/"REMOVE_NEG"/), &
-                          description="Set all GW energies of virtual orbitals which are below the HOMO to the "// &
-                          "value of the last eigenvalue-selfconsistency cycle.", &
-                          usage="EV_SC_GW_REMOVE_NEG_VIRT_ENERGIES", &
-                          default_l_val=.TRUE., &
-                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

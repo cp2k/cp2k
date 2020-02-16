@@ -158,10 +158,10 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%fermi_level_offset)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%EV_SC_ITER", &
                                 i_val=mp2_env%ri_g0w0%iter_ev_sc)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%EPS_EV_SC_ITER", &
-                                r_val=mp2_env%ri_g0w0%eps_ev_sc_iter)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%EV_SC_GW_REMOVE_NEG_VIRT_ENERGIES", &
-                                l_val=mp2_env%ri_g0w0%remove_neg_virt_energies)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%SC_GW0_ITER", &
+                                i_val=mp2_env%ri_g0w0%iter_sc_GW0)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%EPS_ITER", &
+                                r_val=mp2_env%ri_g0w0%eps_iter)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%PRINT_EXX", &
                                 i_val=mp2_env%ri_g0w0%print_exx)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%RI_SIGMA_X", &
