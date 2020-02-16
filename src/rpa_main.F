@@ -1399,7 +1399,7 @@ CONTAINS
       IF (ic_corr_list(1) > 0.0_dp) do_apply_ic_corr_to_gw = .TRUE.
 
       IF (do_im_time) THEN
-        CPASSERT(do_minimax_quad .OR. do_ri_sos_laplace_mp2)
+         CPASSERT(do_minimax_quad .OR. do_ri_sos_laplace_mp2)
       END IF
 
       IF (do_ic_model) THEN

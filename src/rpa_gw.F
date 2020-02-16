@@ -43,7 +43,7 @@ MODULE rpa_gw
         dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release_p, dbcsr_scalar, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_print
+        dbcsr_type_no_symmetry
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
         dbcsr_t_destroy, dbcsr_t_get_block, dbcsr_t_iterator_blocks_left, &
@@ -1265,8 +1265,8 @@ CONTAINS
       LOGICAL, INTENT(IN) :: do_apply_ic_corr_to_gw, do_im_time, do_periodic, &
          do_gw_im_time_mix_minimax_clenshaw, do_ri_Sigma_x
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
-      REAL(KIND=dp), INTENT(INOUT)                          :: e_fermi
-      REAL(KIND=dp), INTENT(IN)                          ::  eps_filter, fermi_level_offset, &
+      REAL(KIND=dp), INTENT(INOUT)                       :: e_fermi
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter, fermi_level_offset, &
                                                             stabilize_exp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
@@ -1305,7 +1305,7 @@ CONTAINS
          DIMENSION(:, :, :), INTENT(INOUT), OPTIONAL     :: vec_Sigma_c_gw_beta
       INTEGER, INTENT(IN), OPTIONAL                      :: gw_corr_lev_occ_beta, &
                                                             gw_corr_lev_virt_beta, homo_beta
-      REAL(KIND=dp), INTENT(INOUT), OPTIONAL                :: e_fermi_beta
+      REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: e_fermi_beta
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL                                        :: Eigenval_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -1325,9 +1325,9 @@ CONTAINS
                                                             ikp, n_level_gw, num_poles
       LOGICAL                                            :: my_open_shell
       REAL(KIND=dp)                                      :: stop_crit
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m_value, m_value_beta, vec_gw_energ, &
-         vec_gw_energ_beta, z_value, &
-         z_value_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: m_value, m_value_beta, vec_gw_energ, &
+                                                            vec_gw_energ_beta, z_value, &
+                                                            z_value_beta
 
       CALL timeset(routineN, handle)
 
@@ -1515,14 +1515,14 @@ CONTAINS
                   vec_gw_energ, &
                   z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), Eigenval, &
                   Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                  count_ev_sc_GW, crossing_search, homo, nmo, unit_nr, &
+                  crossing_search, homo, nmo, unit_nr, &
                   ikp, nkp_self_energy, kpoints, do_alpha=.TRUE.)
 
                CALL print_and_update_for_ev_sc( &
                   vec_gw_energ_beta, &
                   z_value_beta, m_value_beta, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2, ikp), Eigenval_beta, &
                   Eigenval_last_beta, Eigenval_scf_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, gw_corr_lev_tot, &
-                  count_ev_sc_GW, crossing_search, homo_beta, nmo, unit_nr, &
+                  crossing_search, homo_beta, nmo, unit_nr, &
                   ikp, nkp_self_energy, kpoints, do_beta=.TRUE.)
 
                IF (do_apply_ic_corr_to_gw .AND. count_ev_sc_GW == 1) THEN
@@ -1543,7 +1543,7 @@ CONTAINS
                   vec_gw_energ, &
                   z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), Eigenval, &
                   Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                  count_ev_sc_GW, crossing_search, homo, nmo, unit_nr, &
+                  crossing_search, homo, nmo, unit_nr, &
                   ikp, nkp_self_energy, kpoints)
 
                IF (do_apply_ic_corr_to_gw .AND. count_ev_sc_GW == 1) THEN
@@ -2989,8 +2989,8 @@ CONTAINS
                                          fermi_level_offset, do_gw_im_time)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: vec_gw_energ, &
-                                                            vec_omega_fit_gw, z_value, m_value
+         INTENT(INOUT)                                   :: vec_gw_energ, vec_omega_fit_gw, z_value, &
+                                                            m_value
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: vec_Sigma_c_gw
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vec_Sigma_x_minus_vxc_gw, Eigenval, &
                                                             Eigenval_scf
@@ -3256,7 +3256,7 @@ CONTAINS
 
       ! either Z-shot or Newton/bisection crossing search for evaluating Sigma_c
       IF (crossing_search == ri_rpa_g0w0_crossing_z_shot .OR. &
-               crossing_search == ri_rpa_g0w0_crossing_newton) THEN
+          crossing_search == ri_rpa_g0w0_crossing_newton) THEN
 
          ! calculate Sigma_c_fit(e_n) and Z
          func_val = Lambda(1)
@@ -3906,7 +3906,6 @@ CONTAINS
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
 !> \param gw_corr_lev_tot ...
-!> \param count_ev_sc_GW ...
 !> \param crossing_search ...
 !> \param homo ...
 !> \param nmo ...
@@ -3920,17 +3919,18 @@ CONTAINS
    SUBROUTINE print_and_update_for_ev_sc(vec_gw_energ, &
                                          z_value, m_value, vec_Sigma_x_minus_vxc_gw, Eigenval, &
                                          Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                                         count_ev_sc_GW, crossing_search, homo, nmo, unit_nr, &
+                                         crossing_search, homo, nmo, unit_nr, &
                                          ikp, nkp_self_energy, kpoints, do_alpha, do_beta)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: vec_gw_energ, &
-                                                            z_value, m_value
+         INTENT(IN)                                      :: vec_gw_energ, z_value, m_value
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_Sigma_x_minus_vxc_gw, Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: Eigenval_last, Eigenval_scf
-      INTEGER, INTENT(IN) :: gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, count_ev_sc_GW, &
-         crossing_search, homo, nmo, unit_nr, ikp, nkp_self_energy
+      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, &
+                                                            gw_corr_lev_tot, crossing_search, &
+                                                            homo, nmo, unit_nr, ikp, &
+                                                            nkp_self_energy
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
@@ -3941,7 +3941,7 @@ CONTAINS
       INTEGER                                            :: handle, n_level_gw, n_level_gw_ref
       LOGICAL                                            :: do_closed_shell, do_kpoints, &
                                                             is_energy_okay, my_do_alpha, my_do_beta
-      REAL(KIND=dp)                                      :: eigen_diff, new_energy
+      REAL(KIND=dp)                                      :: new_energy
 
       CALL timeset(routineN, handle)
 
@@ -4060,6 +4060,39 @@ CONTAINS
          WRITE (unit_nr, *) ' '
       END IF
 
+      CALL shift_unshifted_levels(Eigenval, Eigenval_last, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                  homo, nmo)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE print_and_update_for_ev_sc
+
+! **************************************************************************************************
+!> \brief ...
+!> \param Eigenval ...
+!> \param Eigenval_last ...
+!> \param gw_corr_lev_occ ...
+!> \param gw_corr_lev_virt ...
+!> \param homo ...
+!> \param nmo ...
+! **************************************************************************************************
+   SUBROUTINE shift_unshifted_levels(Eigenval, Eigenval_last, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                     homo, nmo)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: Eigenval_last
+      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, homo, &
+                                                            nmo
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'shift_unshifted_levels', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, n_level_gw, n_level_gw_ref
+      REAL(KIND=dp)                                      :: eigen_diff
+
+      CALL timeset(routineN, handle)
+
       ! for eigenvalue self-consistent GW, all eigenvalues have to be corrected
       ! 1) the occupied; check if there are occupied MOs not being corrected by GW
       IF (gw_corr_lev_occ < homo .AND. gw_corr_lev_occ > 0) THEN
@@ -4098,15 +4131,9 @@ CONTAINS
 
       END IF
 
-      IF ((gw_corr_lev_occ == 0 .OR. gw_corr_lev_virt == 0) .AND. count_ev_sc_GW > 1) THEN
-         CALL cp_warn(__LOCATION__, &
-                      "Please increase for eigenvalue-self-consistent GW, the number of "// &
-                      "corrected occupied and/or virtual orbitals above 0.")
-      END IF
-
       CALL timestop(handle)
 
-   END SUBROUTINE print_and_update_for_ev_sc
+   END SUBROUTINE shift_unshifted_levels
 
 ! **************************************************************************************************
 !> \brief Calculate the matrix mat_N_gw containing the second derivatives
@@ -4478,8 +4505,9 @@ CONTAINS
       TYPE(cp_fm_type), POINTER :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
          fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, vec_omega_fit_gw
-      REAL(KIND=dp), INTENT(IN)                          :: eps_filter, fermi_level_offset
-      REAL(KIND=dp), INTENT(INOUT)                          :: e_fermi
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
+      REAL(KIND=dp), INTENT(INOUT)                       :: e_fermi
+      REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W
       INTEGER, INTENT(IN)                                :: gw_corr_lev_tot, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, homo, count_ev_sc_GW
@@ -5053,6 +5081,7 @@ CONTAINS
 !> \param eps_filter ...
 !> \param e_fermi ...
 !> \param stabilize_exp ...
+!> \param tau ...
 ! **************************************************************************************************
    SUBROUTINE compute_Greens_function_time(mat_greens_fct_occ, mat_greens_fct_virt, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                            fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
