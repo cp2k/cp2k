@@ -53,7 +53,6 @@ MODULE rpa_gw
                                               gw_two_pole_model,&
                                               ri_rpa_g0w0_crossing_bisection,&
                                               ri_rpa_g0w0_crossing_newton,&
-                                              ri_rpa_g0w0_crossing_none,&
                                               ri_rpa_g0w0_crossing_z_shot
    USE kinds,                           ONLY: default_path_length,&
                                               dp
@@ -3254,21 +3253,8 @@ CONTAINS
          END IF
       END IF
 
-      ! either Z-shot or no crossing search for evaluating Sigma_c
-      IF (crossing_search == ri_rpa_g0w0_crossing_none) THEN
-
-         ! calculate func val on the real axis
-         ! gw_energ = only correlation part of the self energy
-         func_val = Lambda(1)
-         DO iii = 1, num_poles
-            jjj = iii*2
-            func_val = func_val + Lambda(jjj)/(Eigenval(n_level_gw_ref) - e_fermi - Lambda(jjj + 1))
-         END DO
-
-         gw_energ = REAL(func_val)
-         vec_gw_energ(n_level_gw) = gw_energ
-
-      ELSE IF (crossing_search == ri_rpa_g0w0_crossing_z_shot .OR. &
+      ! either Z-shot or Newton/bisection crossing search for evaluating Sigma_c
+      IF (crossing_search == ri_rpa_g0w0_crossing_z_shot .OR. &
                crossing_search == ri_rpa_g0w0_crossing_newton) THEN
 
          ! calculate Sigma_c_fit(e_n) and Z
@@ -3527,12 +3513,6 @@ CONTAINS
 
       !*** perform crossing search
       SELECT CASE (crossing_search)
-      CASE (ri_rpa_g0w0_crossing_none)
-         energy_val = Eigenval(n_level_gw_ref) - e_fermi
-         CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
-                                     coeff_pade, sigma_c_pade)
-         vec_gw_energ(n_level_gw) = REAL(sigma_c_pade)
-
       CASE (ri_rpa_g0w0_crossing_z_shot)
          energy_val = Eigenval(n_level_gw_ref) - e_fermi
          CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
@@ -3559,7 +3539,7 @@ CONTAINS
          m_value(n_level_gw) = 0.0_dp
 
       CASE DEFAULT
-         CPABORT("Only NONE, Z_SHOT, NEWTON, and BISECTION crossing search implemented.")
+         CPABORT("Only Z_SHOT, NEWTON, and BISECTION crossing search implemented.")
       END SELECT
 
       IF (print_self_energy) THEN
@@ -4011,122 +3991,69 @@ CONTAINS
          WRITE (unit_nr, '(T3,A)') 'The GW quasiparticle energies are calculated according to: '
       END IF
 
-      IF (crossing_search == ri_rpa_g0w0_crossing_none) THEN
+      DO n_level_gw = 1, gw_corr_lev_tot
 
-         DO n_level_gw = 1, gw_corr_lev_tot
-            n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
-            new_energy = Eigenval_scf(n_level_gw_ref) + vec_gw_energ(n_level_gw) + &
-                         vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)
+         n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
 
-            is_energy_okay = .TRUE.
+         new_energy = (Eigenval_scf(n_level_gw_ref) - &
+                       m_value(n_level_gw)*Eigenval(n_level_gw_ref) + &
+                       vec_gw_energ(n_level_gw) + &
+                       vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))* &
+                      z_value(n_level_gw)
 
-            IF (n_level_gw_ref > homo .AND. new_energy < Eigenval(homo)) THEN
-               is_energy_okay = .FALSE.
-            END IF
+         is_energy_okay = .TRUE.
 
-            IF (is_energy_okay) THEN
-               Eigenval(n_level_gw_ref) = new_energy
-            END IF
-         END DO
-
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF +  Sigc(E_SCF) + Sigx - vxc'
-            WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A)') 'The energy unit of the following table is eV. Sigc_fit is a very conservative'
-            WRITE (unit_nr, '(T3,A)') 'estimate of the statistical error of the correlation self-energy caused by the'
-            WRITE (unit_nr, '(T3,A)') 'fitting.'
-            WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T14,2A)') 'MO        E_SCF         Sigc', &
-               '     Sigx-vxc         E_GW'
+         IF (n_level_gw_ref > homo .AND. new_energy < Eigenval(homo)) THEN
+            is_energy_okay = .FALSE.
          END IF
 
-         DO n_level_gw = 1, gw_corr_lev_tot
-            n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
-            IF (n_level_gw <= gw_corr_lev_occ) THEN
-               occ_virt = 'occ'
-            ELSE
-               occ_virt = 'vir'
-            END IF
-
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, '(T4,I4,3A,4F13.3)') &
-                  n_level_gw_ref, ' ( ', occ_virt, ')', &
-                  Eigenval_last(n_level_gw_ref)*evolt, &
-                  vec_gw_energ(n_level_gw)*evolt, &
-                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*evolt, &
-                  Eigenval(n_level_gw_ref)*evolt
-            END IF
-         END DO
-
-         ! z-shot
-      ELSE
-
-         DO n_level_gw = 1, gw_corr_lev_tot
-
-            n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
-
-            new_energy = (Eigenval_scf(n_level_gw_ref) - &
-                          m_value(n_level_gw)*Eigenval(n_level_gw_ref) + &
-                          vec_gw_energ(n_level_gw) + &
-                          vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))* &
-                         z_value(n_level_gw)
-
-            is_energy_okay = .TRUE.
-
-            IF (n_level_gw_ref > homo .AND. new_energy < Eigenval(homo)) THEN
-               is_energy_okay = .FALSE.
-            END IF
-
-            IF (is_energy_okay) THEN
-               Eigenval(n_level_gw_ref) = new_energy
-            END IF
-
-         END DO
-
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Z * ( Sigc(E_SCF) + Sigx - vxc )'
-            WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A)') 'The energy unit of the following table is eV.  Sigc_fit is a very conservative'
-            WRITE (unit_nr, '(T3,2A)') 'estimate of the statistical error of the fitting.'
-            WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T13,2A)') 'MO      E_SCF       Sigc', &
-               '   Sigx-vxc          Z       E_GW'
+         IF (is_energy_okay) THEN
+            Eigenval(n_level_gw_ref) = new_energy
          END IF
 
-         DO n_level_gw = 1, gw_corr_lev_tot
-            n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
-            IF (n_level_gw <= gw_corr_lev_occ) THEN
-               occ_virt = 'occ'
-            ELSE
-               occ_virt = 'vir'
-            END IF
+      END DO
 
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, '(T3,I4,3A,5F11.3)') &
-                  n_level_gw_ref, ' ( ', occ_virt, ')', &
-                  Eigenval_last(n_level_gw_ref)*evolt, &
-                  vec_gw_energ(n_level_gw)*evolt, &
-                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*evolt, &
-                  z_value(n_level_gw), &
-                  Eigenval(n_level_gw_ref)*evolt
-            END IF
-         END DO
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Z * ( Sigc(E_SCF) + Sigx - vxc )'
+         WRITE (unit_nr, '(T3,A)') ' '
+         WRITE (unit_nr, '(T3,A)') 'The energy unit of the following table is eV.  Sigc_fit is a very conservative'
+         WRITE (unit_nr, '(T3,2A)') 'estimate of the statistical error of the fitting.'
+         WRITE (unit_nr, '(T3,A)') ' '
+         WRITE (unit_nr, '(T13,2A)') 'MO         E_SCF         Sigc', &
+            '     Sigx-vxc            Z         E_GW'
+      END IF
 
-         IF (unit_nr > 0) THEN
-            IF (do_closed_shell) THEN
-               WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F57.2)') 'GW HOMO-LUMO gap (eV)', (Eigenval(homo + 1) - Eigenval(homo))*evolt
-            ELSE IF (my_do_alpha) THEN
-               WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F51.2)') 'Alpha GW HOMO-LUMO gap (eV)', (Eigenval(homo + 1) - Eigenval(homo))*evolt
-            ELSE IF (my_do_beta) THEN
-               WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F52.2)') 'Beta GW HOMO-LUMO gap (eV)', (Eigenval(homo + 1) - Eigenval(homo))*evolt
-            END IF
+      DO n_level_gw = 1, gw_corr_lev_tot
+         n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
+         IF (n_level_gw <= gw_corr_lev_occ) THEN
+            occ_virt = 'occ'
+         ELSE
+            occ_virt = 'vir'
          END IF
 
-      END IF ! z-shot vs. no crossing
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T3,I4,3A,5F13.3)') &
+               n_level_gw_ref, ' ( ', occ_virt, ') ', &
+               Eigenval_last(n_level_gw_ref)*evolt, &
+               vec_gw_energ(n_level_gw)*evolt, &
+               vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*evolt, &
+               z_value(n_level_gw), &
+               Eigenval(n_level_gw_ref)*evolt
+         END IF
+      END DO
+
+      IF (unit_nr > 0) THEN
+         IF (do_closed_shell) THEN
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A,F57.2)') 'GW HOMO-LUMO gap (eV)', (Eigenval(homo + 1) - Eigenval(homo))*evolt
+         ELSE IF (my_do_alpha) THEN
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A,F51.2)') 'Alpha GW HOMO-LUMO gap (eV)', (Eigenval(homo + 1) - Eigenval(homo))*evolt
+         ELSE IF (my_do_beta) THEN
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A,F52.2)') 'Beta GW HOMO-LUMO gap (eV)', (Eigenval(homo + 1) - Eigenval(homo))*evolt
+         END IF
+      END IF
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *) ' '
