@@ -1576,6 +1576,8 @@ CONTAINS
             EXIT
          END IF
 
+         CALL shift_unshifted_levels(Eigenval, Eigenval_last, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                     homo, nmo)
       END DO ! scGW0
 
       CALL timestop(handle)
