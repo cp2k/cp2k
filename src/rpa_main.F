@@ -1660,7 +1660,7 @@ CONTAINS
                                      t_3c_M, t_3c_O, &
                                      starts_array_mc, ends_array_mc, &
                                      weights_cos_tf_t_to_w, tj, tau_tj, e_fermi, eps_filter, alpha, &
-                                     eps_filter_im_time, Eigenval_scf, nmo, &
+                                     eps_filter_im_time, Eigenval, nmo, &
                                      num_integ_points, num_integ_points_freq, cut_memory, &
                                      unit_nr, mp2_env, para_env, &
                                      stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
