@@ -1579,6 +1579,11 @@ CONTAINS
 
          CALL shift_unshifted_levels(Eigenval, Eigenval_last, gw_corr_lev_occ, gw_corr_lev_virt, &
                                      homo, nmo)
+         IF (my_open_shell) THEN
+            CALL shift_unshifted_levels(Eigenval_beta, Eigenval_last_beta, gw_corr_lev_occ_beta, &
+                                        gw_corr_lev_virt_beta, homo_beta, nmo)
+         END IF
+
       END DO ! scGW0
 
       CALL timestop(handle)
