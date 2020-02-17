@@ -589,15 +589,16 @@ CONTAINS
 !> \param my_num_dgemm_call ...
 !> \param my_flop_rate ...
 ! **************************************************************************************************
-   SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, &
+   SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
+                         Eigenval, Eigenval_last, Eigenval_scf, &
                          homo, omega, omega_old, jquad, mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, &
                          para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec, buffer_send, number_of_send, &
                          map_send_size, map_rec_size, local_size_source, my_num_dgemm_call, my_flop_rate)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, first_cycle
       INTEGER, INTENT(IN)                                :: count_ev_sc_GW, virtual
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_last
-      INTEGER, INTENT(IN)                                :: homo
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_last, Eigenval_scf
+      INTEGER, INTENT(IN)                                :: homo,iter_sc_GW0
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
       INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia
       REAL(KIND=dp), INTENT(IN)                          :: alpha
@@ -627,7 +628,8 @@ CONTAINS
          CALL calc_fm_mat_S_laplace(fm_mat_S, first_cycle, homo, virtual, Eigenval, omega, omega_old)
 
       ELSE
-         CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, &
+         CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
+                                Eigenval, Eigenval_last, Eigenval_scf, &
                                 homo, omega, omega_old)
       END IF
 
@@ -654,12 +656,13 @@ CONTAINS
 !> \param omega ...
 !> \param omega_old ...
 ! **************************************************************************************************
-   SUBROUTINE calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, homo, &
+   SUBROUTINE calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
+                                Eigenval, Eigenval_last, Eigenval_scf, homo, &
                                 omega, omega_old)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: first_cycle
-      INTEGER, INTENT(IN)                                :: count_ev_sc_GW, virtual
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_last
+      INTEGER, INTENT(IN)                                :: count_ev_sc_GW, virtual, iter_sc_GW0
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_last, Eigenval_scf
       INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
 
@@ -691,7 +694,7 @@ CONTAINS
 
                iocc = MAX(1, i_global - 1)/virtual + 1
                avirt = i_global - (iocc - 1)*virtual
-               eigen_diff = Eigenval_last(avirt + homo) - Eigenval_last(iocc)
+               CALL get_eigen_diff(eigen_diff, Eigenval_last, Eigenval_scf, iocc, avirt, homo, iter_sc_GW0)
 
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)/ &
                                                SQRT(eigen_diff/(eigen_diff**2 + omega_old**2))
@@ -714,7 +717,7 @@ CONTAINS
 
                iocc = MAX(1, i_global - 1)/virtual + 1
                avirt = i_global - (iocc - 1)*virtual
-               eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
+               CALL get_eigen_diff(eigen_diff, Eigenval, Eigenval_scf, iocc, avirt, homo, iter_sc_GW0)
 
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
                                                SQRT(eigen_diff/(eigen_diff**2 + omega**2))
@@ -734,7 +737,7 @@ CONTAINS
 
                iocc = MAX(1, i_global - 1)/virtual + 1
                avirt = i_global - (iocc - 1)*virtual
-               eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
+               CALL get_eigen_diff(eigen_diff, Eigenval, Eigenval_scf, iocc, avirt, homo, iter_sc_GW0)
 
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
                                                SQRT((eigen_diff**2 + omega_old**2)/(eigen_diff**2 + omega**2))
@@ -746,6 +749,29 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calc_fm_mat_S_rpa
+
+   SUBROUTINE get_eigen_diff(eigen_diff, Eigenval, Eigenval_scf, iocc, avirt, homo, iter_sc_GW0)
+      INTEGER, INTENT(IN)                                ::  iocc, avirt, homo, iter_sc_GW0
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_scf
+      REAL(KIND=dp)   , INTENT(OUT)                                   :: eigen_diff
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_eigen_diff', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF(iter_sc_GW0 == 1) THEN
+         eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
+      ELSE
+         ! for scGW0, we only use the DFT eigenvalues in Q/W
+         eigen_diff = Eigenval_scf(avirt + homo) - Eigenval_scf(iocc)
+      END IF
+
+      CALL timestop(handle)
+
+  END SUBROUTINE get_eigen_diff
 
 ! **************************************************************************************************
 !> \brief ...

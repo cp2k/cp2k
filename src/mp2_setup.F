@@ -157,7 +157,7 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%FERMI_LEVEL_OFFSET", &
                                 r_val=mp2_env%ri_g0w0%fermi_level_offset)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%EV_SC_ITER", &
-                                i_val=mp2_env%ri_g0w0%iter_ev_sc)
+                                i_val=mp2_env%ri_g0w0%iter_evGW)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%SC_GW0_ITER", &
                                 i_val=mp2_env%ri_g0w0%iter_sc_GW0)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%EPS_ITER", &

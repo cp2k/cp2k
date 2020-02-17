@@ -1325,7 +1325,7 @@ CONTAINS
          tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, Eigenval_last, Eigenval_last_beta, &
          Eigenval_scf, Eigenval_scf_beta, tau_tj, tau_wj, tj, trace_Qomega, vec_omega_fit_gw, &
-         vec_W_gw, vec_W_gw_beta, wj
+         vec_W_gw, vec_W_gw_beta, wj, Eigenval_for_Q, Eigenval_beta_for_Q
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: Eigenval_kp, Eigenval_scf_kp, vec_Sigma_x_gw, &
          vec_Sigma_x_gw_beta, weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
@@ -1378,7 +1378,6 @@ CONTAINS
       do_kpoints_from_Gamma = SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0
       do_gw_im_time_mix_minimax_clenshaw = mp2_env%ri_g0w0%do_gw_im_time_mix_minimax_clenshaw
       num_integ_points_freq = MAX(mp2_env%ri_g0w0%num_integ_points_freq, num_integ_points)
-      iter_sc_GW0 = mp2_env%ri_g0w0%iter_sc_GW0
 
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
@@ -1388,7 +1387,16 @@ CONTAINS
          ext_scaling = 0.2_dp
          omega_max_fit = mp2_env%ri_g0w0%omega_max_fit
          fermi_level_offset_input = mp2_env%ri_g0w0%fermi_level_offset
-         IF ((.NOT. do_im_time) .AND. iter_sc_GW0 .NE. 1) CPABORT("scGW0 only implemented for low-scaling GW.")
+         iter_evGW = mp2_env%ri_g0w0%iter_evGW
+         iter_sc_GW0 = mp2_env%ri_g0w0%iter_sc_GW0
+         IF ((.NOT. do_im_time)) THEN
+           IF ( iter_sc_GW0 .NE. 1 .AND.  iter_evGW .NE. 1) CPABORT("Mixed scGW0/evGW not implemented.")
+           ! in case of scGW0 with the N^4 algorithm, we use the evGW code but use the DFT eigenvalues for W
+           IF ( iter_sc_GW0 .NE. 1) iter_evGW = iter_sc_GW0
+         END IF
+      ELSE
+         iter_evGW = 1
+         iter_sc_GW0 = 1
       END IF
 
       IF (do_kpoints_cubic_RPA .AND. do_ri_sos_laplace_mp2) THEN
@@ -1599,12 +1607,6 @@ CONTAINS
       my_num_dgemm_call = 0
       my_flop_rate = 0.0_dp
 
-      IF (my_do_gw) THEN
-         iter_evGW = mp2_env%ri_g0w0%iter_ev_sc
-      ELSE
-         iter_evGW = 1
-      END IF
-
       DO count_ev_sc_GW = 1, iter_evGW
 
          IF (do_ic_model) CYCLE
@@ -1741,15 +1743,17 @@ CONTAINS
 
             ELSE
 
-               CALL calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, &
+               CALL calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
+                               Eigenval, Eigenval_last, Eigenval_scf, &
                                homo, omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia, alpha, fm_mat_Q, &
                                fm_mat_Q_gemm, para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec, &
                                buffer_send, number_of_send, map_send_size, map_rec_size, local_size_source, my_num_dgemm_call, &
                                my_flop_rate)
 
                IF (my_open_shell) THEN
-                  CALL calc_mat_Q(fm_mat_S_beta, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, virtual_beta, &
-                                  Eigenval_beta, Eigenval_last_beta, homo_beta, omega, omega_old, jquad, mm_style, &
+                  CALL calc_mat_Q(fm_mat_S_beta, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual_beta, &
+                                  Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, &
+                                  homo_beta, omega, omega_old, jquad, mm_style, &
                                   dimen_RI_red, dimen_ia_beta, alpha, fm_mat_Q_beta, fm_mat_Q_gemm_beta, para_env_RPA, do_bse, &
                                   fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec_beta, buffer_send_beta, &
                                   number_of_send_beta, map_send_size_beta, map_rec_size_beta, local_size_source_beta, &

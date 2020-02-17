@@ -130,7 +130,7 @@ MODULE mp2_types
       REAL(KIND=dp)            :: omega_max_fit
       INTEGER                  :: crossing_search
       REAL(KIND=dp)            :: fermi_level_offset
-      INTEGER                  :: iter_ev_sc, iter_sc_GW0
+      INTEGER                  :: iter_evGW, iter_sc_GW0
       REAL(KIND=dp)            :: eps_iter
       LOGICAL                  :: do_ri_Sigma_x, &
                                   do_periodic, &
