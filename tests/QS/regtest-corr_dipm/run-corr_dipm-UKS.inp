@@ -6,7 +6,7 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME GTH_POTENTIALS            
 
     SURFACE_DIPOLE_CORRECTION TRUE
@@ -20,7 +20,7 @@
 
     &QS
        METHOD GPW 
-       EPS_DEFAULT 1.0E-10
+       EPS_DEFAULT 1.0E-8
     &END
 
     &POISSON
@@ -30,7 +30,7 @@
     &SCF                              
       SCF_GUESS ATOMIC
       MAX_SCF 100 
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-4
       ADDED_MOS 10
       &DIAGONALIZATION
         ALGORITHM STANDARD  ! Do not change
@@ -45,7 +45,7 @@
       &END
       &OUTER_SCF
         MAX_SCF 10
-        EPS_SCF 1.0E-6
+        EPS_SCF 1.0E-4
       &END
 
       &PRINT
@@ -79,15 +79,16 @@
     &END
 
     &KIND Mg
-      BASIS_SET DZVP-GTH 
-      POTENTIAL GTH-PBE-q10
+      BASIS_SET DZVP-GTH-PADE-q2
+      POTENTIAL GTH-PADE-q2
     &END KIND
     &KIND pNe
       ELEMENT Ne
-      BASIS_SET DZVP-GTH 
-      POTENTIAL GTH-PBE-q8
+      BASIS_SET SZV-GTH-PADE
+      POTENTIAL GTH-PADE
       CORE_CORRECTION -0.0001
     &END KIND
+
   &END SUBSYS
 &END FORCE_EVAL
 
