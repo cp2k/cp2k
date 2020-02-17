@@ -1516,14 +1516,14 @@ CONTAINS
                   vec_gw_energ, &
                   z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), Eigenval, &
                   Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                  crossing_search, homo, nmo, unit_nr, &
+                  crossing_search, homo, nmo, unit_nr, count_ev_sc_GW, count_sc_GW0,&
                   ikp, nkp_self_energy, kpoints, do_alpha=.TRUE.)
 
                CALL print_and_update_for_ev_sc( &
                   vec_gw_energ_beta, &
                   z_value_beta, m_value_beta, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2, ikp), Eigenval_beta, &
                   Eigenval_last_beta, Eigenval_scf_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, gw_corr_lev_tot, &
-                  crossing_search, homo_beta, nmo, unit_nr, &
+                  crossing_search, homo_beta, nmo, unit_nr, count_ev_sc_GW, count_sc_GW0,&
                   ikp, nkp_self_energy, kpoints, do_beta=.TRUE.)
 
                IF (do_apply_ic_corr_to_gw .AND. count_ev_sc_GW == 1) THEN
@@ -1544,7 +1544,7 @@ CONTAINS
                   vec_gw_energ, &
                   z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), Eigenval, &
                   Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                  crossing_search, homo, nmo, unit_nr, &
+                  crossing_search, homo, nmo, unit_nr, count_ev_sc_GW, count_sc_GW0,&
                   ikp, nkp_self_energy, kpoints)
 
                IF (do_apply_ic_corr_to_gw .AND. count_ev_sc_GW == 1) THEN
@@ -3927,7 +3927,7 @@ CONTAINS
    SUBROUTINE print_and_update_for_ev_sc(vec_gw_energ, &
                                          z_value, m_value, vec_Sigma_x_minus_vxc_gw, Eigenval, &
                                          Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                                         crossing_search, homo, nmo, unit_nr, &
+                                         crossing_search, homo, nmo, unit_nr, count_ev_sc_GW, count_sc_GW0,&
                                          ikp, nkp_self_energy, kpoints, do_alpha, do_beta)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -3938,7 +3938,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, &
                                                             gw_corr_lev_tot, crossing_search, &
                                                             homo, nmo, unit_nr, ikp, &
-                                                            nkp_self_energy
+                                                            nkp_self_energy, count_ev_sc_GW, count_sc_GW0
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
@@ -3975,14 +3975,30 @@ CONTAINS
          WRITE (unit_nr, *) ' '
 
          IF (do_closed_shell) THEN
+            WRITE (unit_nr, *) ' '
+            WRITE (unit_nr, '(T3,A)') '-------------------------'
             WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies'
             WRITE (unit_nr, '(T3,A)') '-------------------------'
          ELSE IF (my_do_alpha) THEN
+            WRITE (unit_nr, *) ' '
+            WRITE (unit_nr, '(T3,A)') '---------------------------------------'
             WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies of alpha spins'
             WRITE (unit_nr, '(T3,A)') '----------------------------------------'
          ELSE IF (my_do_beta) THEN
+            WRITE (unit_nr, *) ' '
+            WRITE (unit_nr, '(T3,A)') '---------------------------------------'
             WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies of beta spins'
             WRITE (unit_nr, '(T3,A)') '---------------------------------------'
+         END IF
+
+         IF(count_ev_sc_GW > 1) THEN
+            WRITE (unit_nr, *) ' '
+            WRITE (unit_nr, '(T3,A,I4)') 'Eigenvalue-selfconsistency cycle: ', count_ev_sc_GW
+         END IF
+
+         IF(count_sc_GW0 > 1) THEN
+            WRITE (unit_nr, *) ' '
+            WRITE (unit_nr, '(T3,A,I4)') 'scGW0 selfcconsistency cycle: ', count_sc_GW0
          END IF
 
          IF (do_kpoints) THEN
@@ -3993,11 +4009,6 @@ CONTAINS
             WRITE (unit_nr, '(T3,A72)') '(Relative Brillouin zone size: [-0.5, 0.5] x [-0.5, 0.5] x [-0.5, 0.5])'
          END IF
 
-      END IF
-
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T3,A)') 'The GW quasiparticle energies are calculated according to: '
       END IF
 
       DO n_level_gw = 1, gw_corr_lev_tot
@@ -4023,13 +4034,22 @@ CONTAINS
       END DO
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Z * ( Sigc(E_SCF) + Sigx - vxc )'
+         WRITE (unit_nr, '(T3,A)') ' '
+         WRITE (unit_nr, '(T3,A)') 'The GW quasiparticle energies are calculated according to: '
+         IF (crossing_search == ri_rpa_g0w0_crossing_z_shot) THEN
+            WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Z * ( Sigc(E_SCF) + Sigx - vxc )'
+         ELSE
+            WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Sigc(E_GW) + Sigx - vxc '
+         END IF
          WRITE (unit_nr, '(T3,A)') ' '
          WRITE (unit_nr, '(T3,A)') 'The energy unit of the following table is eV.  Sigc_fit is a very conservative'
          WRITE (unit_nr, '(T3,2A)') 'estimate of the statistical error of the fitting.'
          WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T13,2A)') 'MO         E_SCF         Sigc', &
-            '     Sigx-vxc            Z         E_GW'
+         IF (crossing_search == ri_rpa_g0w0_crossing_z_shot) THEN
+            WRITE (unit_nr, '(T13,2A)') 'MO         E_SCF         Sigc     Sigx-vxc            Z         E_GW'
+         ELSE
+            WRITE (unit_nr, '(T13,2A)') 'MO             E_SCF            Sigc        Sigx-vxc            E_GW'
+         END IF
       END IF
 
       DO n_level_gw = 1, gw_corr_lev_tot
@@ -4041,13 +4061,22 @@ CONTAINS
          END IF
 
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T3,I4,3A,5F13.3)') &
-               n_level_gw_ref, ' ( ', occ_virt, ') ', &
-               Eigenval_last(n_level_gw_ref)*evolt, &
-               vec_gw_energ(n_level_gw)*evolt, &
-               vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*evolt, &
-               z_value(n_level_gw), &
-               Eigenval(n_level_gw_ref)*evolt
+            IF (crossing_search == ri_rpa_g0w0_crossing_z_shot) THEN
+               WRITE (unit_nr, '(T3,I4,3A,5F13.3)') &
+                  n_level_gw_ref, ' ( ', occ_virt, ') ', &
+                  Eigenval_last(n_level_gw_ref)*evolt, &
+                  vec_gw_energ(n_level_gw)*evolt, &
+                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*evolt, &
+                  z_value(n_level_gw), &
+                  Eigenval(n_level_gw_ref)*evolt
+            ELSE
+               WRITE (unit_nr, '(T3,I4,3A,4F16.3)') &
+                  n_level_gw_ref, ' ( ', occ_virt, ')  ', &
+                  Eigenval_last(n_level_gw_ref)*evolt, &
+                  vec_gw_energ(n_level_gw)*evolt, &
+                  vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*evolt, &
+                  Eigenval(n_level_gw_ref)*evolt
+            END IF
          END IF
       END DO
 
