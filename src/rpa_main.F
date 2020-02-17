@@ -1325,7 +1325,7 @@ CONTAINS
          tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, Eigenval_last, Eigenval_last_beta, &
          Eigenval_scf, Eigenval_scf_beta, tau_tj, tau_wj, tj, trace_Qomega, vec_omega_fit_gw, &
-         vec_W_gw, vec_W_gw_beta, wj, Eigenval_for_Q, Eigenval_beta_for_Q
+         vec_W_gw, vec_W_gw_beta, wj
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: Eigenval_kp, Eigenval_scf_kp, vec_Sigma_x_gw, &
          vec_Sigma_x_gw_beta, weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
@@ -1390,9 +1390,9 @@ CONTAINS
          iter_evGW = mp2_env%ri_g0w0%iter_evGW
          iter_sc_GW0 = mp2_env%ri_g0w0%iter_sc_GW0
          IF ((.NOT. do_im_time)) THEN
-           IF ( iter_sc_GW0 .NE. 1 .AND.  iter_evGW .NE. 1) CPABORT("Mixed scGW0/evGW not implemented.")
-           ! in case of scGW0 with the N^4 algorithm, we use the evGW code but use the DFT eigenvalues for W
-           IF ( iter_sc_GW0 .NE. 1) iter_evGW = iter_sc_GW0
+            IF (iter_sc_GW0 .NE. 1 .AND. iter_evGW .NE. 1) CPABORT("Mixed scGW0/evGW not implemented.")
+            ! in case of scGW0 with the N^4 algorithm, we use the evGW code but use the DFT eigenvalues for W
+            IF (iter_sc_GW0 .NE. 1) iter_evGW = iter_sc_GW0
          END IF
       ELSE
          iter_evGW = 1

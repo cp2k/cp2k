@@ -1322,8 +1322,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_QP_energies', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: count_sc_GW0, crossing_search, handle, &
-                                                            ikp, n_level_gw, num_poles
+      INTEGER                                            :: count_ev_sc_GW_print, count_sc_GW0, &
+                                                            count_sc_GW0_print, crossing_search, &
+                                                            handle, ikp, n_level_gw, num_poles
       LOGICAL                                            :: my_open_shell
       REAL(KIND=dp)                                      :: stop_crit
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: m_value, m_value_beta, vec_gw_energ, &
@@ -1509,6 +1510,14 @@ CONTAINS
                CALL mp_sum(m_value_beta, para_env%group)
             END IF
 
+            IF (do_im_time .OR. mp2_env%ri_g0w0%iter_sc_GW0 == 1) THEN
+               count_ev_sc_GW_print = count_ev_sc_GW
+               count_sc_GW0_print = count_sc_GW0
+            ELSE
+               count_ev_sc_GW_print = count_sc_GW0
+               count_sc_GW0_print = count_ev_sc_GW
+            END IF
+
             ! print the quasiparticle energies and update Eigenval in case you do eigenvalue self-consistent GW
             IF (my_open_shell) THEN
 
@@ -1516,14 +1525,14 @@ CONTAINS
                   vec_gw_energ, &
                   z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), Eigenval, &
                   Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                  crossing_search, homo, nmo, unit_nr, count_ev_sc_GW, count_sc_GW0,&
+                  crossing_search, homo, nmo, unit_nr, count_ev_sc_GW_print, count_sc_GW0_print, &
                   ikp, nkp_self_energy, kpoints, do_alpha=.TRUE.)
 
                CALL print_and_update_for_ev_sc( &
                   vec_gw_energ_beta, &
                   z_value_beta, m_value_beta, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2, ikp), Eigenval_beta, &
                   Eigenval_last_beta, Eigenval_scf_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, gw_corr_lev_tot, &
-                  crossing_search, homo_beta, nmo, unit_nr, count_ev_sc_GW, count_sc_GW0,&
+                  crossing_search, homo_beta, nmo, unit_nr, count_ev_sc_GW_print, count_sc_GW0_print, &
                   ikp, nkp_self_energy, kpoints, do_beta=.TRUE.)
 
                IF (do_apply_ic_corr_to_gw .AND. count_ev_sc_GW == 1) THEN
@@ -1544,7 +1553,7 @@ CONTAINS
                   vec_gw_energ, &
                   z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), Eigenval, &
                   Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                  crossing_search, homo, nmo, unit_nr, count_ev_sc_GW, count_sc_GW0,&
+                  crossing_search, homo, nmo, unit_nr, count_ev_sc_GW_print, count_sc_GW0_print, &
                   ikp, nkp_self_energy, kpoints)
 
                IF (do_apply_ic_corr_to_gw .AND. count_ev_sc_GW == 1) THEN
@@ -1583,6 +1592,9 @@ CONTAINS
             CALL shift_unshifted_levels(Eigenval_beta, Eigenval_last_beta, gw_corr_lev_occ_beta, &
                                         gw_corr_lev_virt_beta, homo_beta, nmo)
          END IF
+
+         ! in case of N^4 scaling GW, the scGW0 cycle is the eigenvalue sc cycle
+         IF (.NOT. do_im_time) EXIT
 
       END DO ! scGW0
 
@@ -3918,6 +3930,8 @@ CONTAINS
 !> \param homo ...
 !> \param nmo ...
 !> \param unit_nr ...
+!> \param count_ev_sc_GW ...
+!> \param count_sc_GW0 ...
 !> \param ikp ...
 !> \param nkp_self_energy ...
 !> \param kpoints ...
@@ -3927,7 +3941,7 @@ CONTAINS
    SUBROUTINE print_and_update_for_ev_sc(vec_gw_energ, &
                                          z_value, m_value, vec_Sigma_x_minus_vxc_gw, Eigenval, &
                                          Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                                         crossing_search, homo, nmo, unit_nr, count_ev_sc_GW, count_sc_GW0,&
+                                         crossing_search, homo, nmo, unit_nr, count_ev_sc_GW, count_sc_GW0, &
                                          ikp, nkp_self_energy, kpoints, do_alpha, do_beta)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -3935,10 +3949,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_Sigma_x_minus_vxc_gw, Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: Eigenval_last, Eigenval_scf
-      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, &
-                                                            gw_corr_lev_tot, crossing_search, &
-                                                            homo, nmo, unit_nr, ikp, &
-                                                            nkp_self_energy, count_ev_sc_GW, count_sc_GW0
+      INTEGER, INTENT(IN) :: gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, crossing_search, &
+         homo, nmo, unit_nr, count_ev_sc_GW, count_sc_GW0, ikp, nkp_self_energy
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
@@ -3991,12 +4003,12 @@ CONTAINS
             WRITE (unit_nr, '(T3,A)') '---------------------------------------'
          END IF
 
-         IF(count_ev_sc_GW > 1) THEN
+         IF (count_ev_sc_GW > 1) THEN
             WRITE (unit_nr, *) ' '
             WRITE (unit_nr, '(T3,A,I4)') 'Eigenvalue-selfconsistency cycle: ', count_ev_sc_GW
          END IF
 
-         IF(count_sc_GW0 > 1) THEN
+         IF (count_sc_GW0 > 1) THEN
             WRITE (unit_nr, *) ' '
             WRITE (unit_nr, '(T3,A,I4)') 'scGW0 selfcconsistency cycle: ', count_sc_GW0
          END IF
