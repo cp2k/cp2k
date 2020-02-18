@@ -628,11 +628,14 @@ CONTAINS
       IF (do_ri_sos_laplace_mp2) THEN
          ! the first index of tau_tj starts with 0 (see mp2_weights)
          CALL calc_fm_mat_S_laplace(fm_mat_S, first_cycle, homo, virtual, Eigenval, omega, omega_old)
-
       ELSE
-         CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
-                                Eigenval, Eigenval_last, Eigenval_scf, &
-                                homo, omega, omega_old)
+         IF (iter_sc_GW0 == 1) THEN
+            CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, &
+                                   homo, omega, omega_old)
+         ELSE
+            CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval_scf, Eigenval_scf, &
+                                   homo, omega, omega_old)
+         END IF
       END IF
 
       CALL contract_S_to_Q(mm_style, dimen_RI, dimen_ia, alpha, fm_mat_S, fm_mat_Q_gemm, para_env_RPA, &
@@ -651,22 +654,19 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param first_cycle ...
 !> \param count_ev_sc_GW ...
-!> \param iter_sc_GW0 ...
 !> \param virtual ...
 !> \param Eigenval ...
 !> \param Eigenval_last ...
-!> \param Eigenval_scf ...
 !> \param homo ...
 !> \param omega ...
 !> \param omega_old ...
 ! **************************************************************************************************
-   SUBROUTINE calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
-                                Eigenval, Eigenval_last, Eigenval_scf, homo, &
+   SUBROUTINE calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, homo, &
                                 omega, omega_old)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: first_cycle
-      INTEGER, INTENT(IN)                                :: count_ev_sc_GW, iter_sc_GW0, virtual
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_last, Eigenval_scf
+      INTEGER, INTENT(IN)                                :: count_ev_sc_GW, virtual
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_last
       INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
 
@@ -690,8 +690,7 @@ CONTAINS
       ! remove eigenvalue part of S matrix from the last eigenvalue self-c. cycle
       IF (first_cycle .AND. count_ev_sc_GW > 1) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last,Eigenval_scf,&
-!$OMP                    fm_mat_S,virtual,homo,omega_old,iter_sc_GW0)
+!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last,fm_mat_S,virtual,homo,omega_old)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
@@ -699,7 +698,7 @@ CONTAINS
 
                iocc = MAX(1, i_global - 1)/virtual + 1
                avirt = i_global - (iocc - 1)*virtual
-               CALL get_eigen_diff(eigen_diff, Eigenval_last, Eigenval_scf, iocc, avirt, homo, iter_sc_GW0)
+               eigen_diff = Eigenval_last(avirt + homo) - Eigenval_last(iocc)
 
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)/ &
                                                SQRT(eigen_diff/(eigen_diff**2 + omega_old**2))
@@ -714,8 +713,7 @@ CONTAINS
          ! In this case just update the matrix (symmetric form) with
          ! SQRT((epsi_a-epsi_i)/((epsi_a-epsi_i)**2+omega**2))
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,Eigenval_scf,&
-!$OMP                    fm_mat_S,virtual,homo,omega,iter_sc_GW0)
+!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,fm_mat_S,virtual,homo,omega)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
@@ -723,7 +721,7 @@ CONTAINS
 
                iocc = MAX(1, i_global - 1)/virtual + 1
                avirt = i_global - (iocc - 1)*virtual
-               CALL get_eigen_diff(eigen_diff, Eigenval, Eigenval_scf, iocc, avirt, homo, iter_sc_GW0)
+               eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
 
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
                                                SQRT(eigen_diff/(eigen_diff**2 + omega**2))
@@ -734,8 +732,8 @@ CONTAINS
          ! In this case the update has to remove the old omega component thus
          ! SQRT(((epsi_a-epsi_i)**2+omega_old**2)/((epsi_a-epsi_i)**2+omega**2))
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,Eigenval_scf,&
-!$OMP                    fm_mat_S,virtual,homo,omega,omega_old,iter_sc_GW0)
+!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,&
+!$OMP                    fm_mat_S,virtual,homo,omega,omega_old)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
@@ -743,7 +741,7 @@ CONTAINS
 
                iocc = MAX(1, i_global - 1)/virtual + 1
                avirt = i_global - (iocc - 1)*virtual
-               CALL get_eigen_diff(eigen_diff, Eigenval, Eigenval_scf, iocc, avirt, homo, iter_sc_GW0)
+               eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
 
                fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
                                                SQRT((eigen_diff**2 + omega_old**2)/(eigen_diff**2 + omega**2))
@@ -755,38 +753,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calc_fm_mat_S_rpa
-
-! **************************************************************************************************
-!> \brief ...
-!> \param eigen_diff ...
-!> \param Eigenval ...
-!> \param Eigenval_scf ...
-!> \param iocc ...
-!> \param avirt ...
-!> \param homo ...
-!> \param iter_sc_GW0 ...
-! **************************************************************************************************
-   SUBROUTINE get_eigen_diff(eigen_diff, Eigenval, Eigenval_scf, iocc, avirt, homo, iter_sc_GW0)
-      REAL(KIND=dp), INTENT(OUT)                         :: eigen_diff
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_scf
-      INTEGER, INTENT(IN)                                :: iocc, avirt, homo, iter_sc_GW0
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_eigen_diff', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (iter_sc_GW0 == 1) THEN
-         eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
-      ELSE
-         ! for scGW0, we only use the DFT eigenvalues in Q/W
-         eigen_diff = Eigenval_scf(avirt + homo) - Eigenval_scf(iocc)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_eigen_diff
 
 ! **************************************************************************************************
 !> \brief ...
