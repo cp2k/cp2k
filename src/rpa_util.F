@@ -690,7 +690,8 @@ CONTAINS
       ! remove eigenvalue part of S matrix from the last eigenvalue self-c. cycle
       IF (first_cycle .AND. count_ev_sc_GW > 1) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last,Eigenval_scf,fm_mat_S,virtual,homo,omega_old,iter_sc_GW0)
+!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last,Eigenval_scf,&
+!$OMP                    fm_mat_S,virtual,homo,omega_old,iter_sc_GW0)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
