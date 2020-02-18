@@ -1524,15 +1524,15 @@ CONTAINS
                CALL print_and_update_for_ev_sc( &
                   vec_gw_energ, &
                   z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), Eigenval, &
-                  Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                  crossing_search, homo, nmo, unit_nr, count_ev_sc_GW_print, count_sc_GW0_print, &
+                  Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_tot, &
+                  crossing_search, homo, unit_nr, count_ev_sc_GW_print, count_sc_GW0_print, &
                   ikp, nkp_self_energy, kpoints, do_alpha=.TRUE.)
 
                CALL print_and_update_for_ev_sc( &
                   vec_gw_energ_beta, &
                   z_value_beta, m_value_beta, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2, ikp), Eigenval_beta, &
-                  Eigenval_last_beta, Eigenval_scf_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, gw_corr_lev_tot, &
-                  crossing_search, homo_beta, nmo, unit_nr, count_ev_sc_GW_print, count_sc_GW0_print, &
+                  Eigenval_last_beta, Eigenval_scf_beta, gw_corr_lev_occ_beta, gw_corr_lev_tot, &
+                  crossing_search, homo_beta, unit_nr, count_ev_sc_GW_print, count_sc_GW0_print, &
                   ikp, nkp_self_energy, kpoints, do_beta=.TRUE.)
 
                IF (do_apply_ic_corr_to_gw .AND. count_ev_sc_GW == 1) THEN
@@ -1552,8 +1552,8 @@ CONTAINS
                CALL print_and_update_for_ev_sc( &
                   vec_gw_energ, &
                   z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), Eigenval, &
-                  Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                  crossing_search, homo, nmo, unit_nr, count_ev_sc_GW_print, count_sc_GW0_print, &
+                  Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_tot, &
+                  crossing_search, homo, unit_nr, count_ev_sc_GW_print, count_sc_GW0_print, &
                   ikp, nkp_self_energy, kpoints)
 
                IF (do_apply_ic_corr_to_gw .AND. count_ev_sc_GW == 1) THEN
@@ -3924,11 +3924,9 @@ CONTAINS
 !> \param Eigenval_last ...
 !> \param Eigenval_scf ...
 !> \param gw_corr_lev_occ ...
-!> \param gw_corr_lev_virt ...
 !> \param gw_corr_lev_tot ...
 !> \param crossing_search ...
 !> \param homo ...
-!> \param nmo ...
 !> \param unit_nr ...
 !> \param count_ev_sc_GW ...
 !> \param count_sc_GW0 ...
@@ -3940,8 +3938,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_and_update_for_ev_sc(vec_gw_energ, &
                                          z_value, m_value, vec_Sigma_x_minus_vxc_gw, Eigenval, &
-                                         Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                                         crossing_search, homo, nmo, unit_nr, count_ev_sc_GW, count_sc_GW0, &
+                                         Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_tot, &
+                                         crossing_search, homo, unit_nr, count_ev_sc_GW, count_sc_GW0, &
                                          ikp, nkp_self_energy, kpoints, do_alpha, do_beta)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -3949,8 +3947,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_Sigma_x_minus_vxc_gw, Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: Eigenval_last, Eigenval_scf
-      INTEGER, INTENT(IN) :: gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, crossing_search, &
-         homo, nmo, unit_nr, count_ev_sc_GW, count_sc_GW0, ikp, nkp_self_energy
+      INTEGER, INTENT(IN) :: gw_corr_lev_occ, gw_corr_lev_tot, crossing_search, homo, unit_nr, &
+         count_ev_sc_GW, count_sc_GW0, ikp, nkp_self_energy
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
