@@ -714,7 +714,8 @@ CONTAINS
          ! In this case just update the matrix (symmetric form) with
          ! SQRT((epsi_a-epsi_i)/((epsi_a-epsi_i)**2+omega**2))
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,Eigenval_scf,fm_mat_S,virtual,homo,omega,iter_sc_GW0)
+!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,Eigenval_scf,&
+!$OMP                    fm_mat_S,virtual,homo,omega,iter_sc_GW0)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
