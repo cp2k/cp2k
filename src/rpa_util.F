@@ -690,7 +690,7 @@ CONTAINS
       ! remove eigenvalue part of S matrix from the last eigenvalue self-c. cycle
       IF (first_cycle .AND. count_ev_sc_GW > 1) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last,fm_mat_S,virtual,homo,omega_old)
+!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last,Eigenval_scf,fm_mat_S,virtual,homo,omega_old,iter_sc_GW0)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
@@ -713,7 +713,7 @@ CONTAINS
          ! In this case just update the matrix (symmetric form) with
          ! SQRT((epsi_a-epsi_i)/((epsi_a-epsi_i)**2+omega**2))
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,fm_mat_S,virtual,homo,omega)
+!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,Eigenval_scf,fm_mat_S,virtual,homo,omega,iter_sc_GW0)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
@@ -732,8 +732,8 @@ CONTAINS
          ! In this case the update has to remove the old omega component thus
          ! SQRT(((epsi_a-epsi_i)**2+omega_old**2)/((epsi_a-epsi_i)**2+omega**2))
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,&
-!$OMP                    fm_mat_S,virtual,homo,omega,omega_old)
+!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,Eigenval_scf,&
+!$OMP                    fm_mat_S,virtual,homo,omega,omega_old,iter_sc_GW0)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
