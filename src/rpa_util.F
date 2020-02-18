@@ -563,9 +563,11 @@ CONTAINS
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param first_cycle ...
 !> \param count_ev_sc_GW ...
+!> \param iter_sc_GW0 ...
 !> \param virtual ...
 !> \param Eigenval ...
 !> \param Eigenval_last ...
+!> \param Eigenval_scf ...
 !> \param homo ...
 !> \param omega ...
 !> \param omega_old ...
@@ -589,14 +591,15 @@ CONTAINS
 !> \param my_num_dgemm_call ...
 !> \param my_flop_rate ...
 ! **************************************************************************************************
-   SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, &
+   SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
+                         Eigenval, Eigenval_last, Eigenval_scf, &
                          homo, omega, omega_old, jquad, mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, &
                          para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec, buffer_send, number_of_send, &
                          map_send_size, map_rec_size, local_size_source, my_num_dgemm_call, my_flop_rate)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, first_cycle
-      INTEGER, INTENT(IN)                                :: count_ev_sc_GW, virtual
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_last
+      INTEGER, INTENT(IN)                                :: count_ev_sc_GW, iter_sc_GW0, virtual
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_last, Eigenval_scf
       INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
       INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia
@@ -625,10 +628,14 @@ CONTAINS
       IF (do_ri_sos_laplace_mp2) THEN
          ! the first index of tau_tj starts with 0 (see mp2_weights)
          CALL calc_fm_mat_S_laplace(fm_mat_S, first_cycle, homo, virtual, Eigenval, omega, omega_old)
-
       ELSE
-         CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, &
-                                homo, omega, omega_old)
+         IF (iter_sc_GW0 == 1) THEN
+            CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, &
+                                   homo, omega, omega_old)
+         ELSE
+            CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval_scf, Eigenval_scf, &
+                                   homo, omega, omega_old)
+         END IF
       END IF
 
       CALL contract_S_to_Q(mm_style, dimen_RI, dimen_ia, alpha, fm_mat_S, fm_mat_Q_gemm, para_env_RPA, &

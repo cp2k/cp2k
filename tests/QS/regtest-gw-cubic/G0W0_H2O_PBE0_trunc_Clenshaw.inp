@@ -75,6 +75,7 @@
           &RI_G0W0
             CORR_MOS_OCC          1
             CORR_MOS_VIRT         1
+            CROSSING_SEARCH       Z_SHOT
             ANALYTIC_CONTINUATION TWO_POLE
             NUM_FREQ_POINTS_CLENSHAW_LOW_SCALING_GW     6
           &END RI_G0W0

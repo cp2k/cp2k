@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT  RI_RPA_H2O_minimax
+  PROJECT  G0W0_H2O_PBE0
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -13,11 +13,11 @@
     POTENTIAL_FILE_NAME  GTH_POTENTIALS
     &MGRID
       CUTOFF  100
-      REL_CUTOFF  30
+      REL_CUTOFF  20
     &END MGRID
     &POISSON
       PERIODIC NONE
-      POISSON_SOLVER MT
+      POISSON_SOLVER WAVELET
     &END POISSON
     &QS
       METHOD GPW
@@ -26,48 +26,57 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-5
+      EPS_SCF 1.0E-7
       MAX_SCF 100
       &PRINT
         &RESTART OFF
         &END
       &END
-      &OT
-        MINIMIZER       CG
-        PRECONDITIONER  FULL_SINGLE_INVERSE
-      &END
-      &OUTER_SCF
-        EPS_SCF  1.0E-5
-        MAX_SCF  50
-      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
+        &PBE
+          SCALE_X 0.7500000
+          SCALE_C 1.0000000
+        &END
       &END XC_FUNCTIONAL
+      &HF
+        FRACTION 0.2500000
+        &SCREENING
+          EPS_SCHWARZ 1.0E-8
+          SCREEN_ON_INITIAL_P FALSE
+        &END SCREENING
+      &END HF
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        &WFC_GPW
-          ! normally, this EPS_FILTER controls the accuracy and
-          ! the time for the cubic_scaling RPA calculation
-          EPS_FILTER  1.0E-6
-        &END
-        ERI_METHOD OS
         &RI_METRIC
           POTENTIAL_TYPE IDENTITY
         &END
+        &WFC_GPW
+          ! normally, this EPS_FILTER controls the accuracy and
+          ! the time for the cubic_scaling RPA calculation
+          EPS_FILTER  1.0E-12
+        &END
+        ERI_METHOD OS
         &IM_TIME
         &END
         &RI_RPA
-          RPA_NUM_QUAD_POINTS  5
+          &HF
+            FRACTION 1.0000000
+            &SCREENING
+              EPS_SCHWARZ 1.0E-8
+              SCREEN_ON_INITIAL_P FALSE
+            &END SCREENING
+          &END HF
+          RPA_NUM_QUAD_POINTS 10
           MINIMAX
           GW
           &RI_G0W0
-            CORR_MOS_OCC 3
-            CORR_MOS_VIRT 3
-            IC
-            &IC
-            &END
-          &END
+            CORR_MOS_OCC          10
+            CORR_MOS_VIRT         10
+            EV_SC_ITER            5
+            FERMI_LEVEL_OFFSET    20.0
+          &END RI_G0W0
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
@@ -76,35 +85,21 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  7.0 5.0 7.0
+      ABC [angstrom]  8.000   8.000  8.000
       PERIODIC NONE
     &END CELL
     &KIND H
-      BASIS_SET        DZVP-GTH
-      BASIS_SET RI_AUX RI_DZVP-GTH
+      BASIS_SET  DZVP-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
       POTENTIAL  GTH-PBE-q1
     &END KIND
-    &KIND C
+    &KIND O
       BASIS_SET  DZVP-GTH
-      BASIS_SET RI_AUX RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q4
-    &END KIND
-    &KIND HG
-      BASIS_SET  DZVP-GTH
-      BASIS_SET RI_AUX RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q1
-      GHOST TRUE
-      ELEMENT H
-    &END KIND
-    &KIND CG
-      BASIS_SET  DZVP-GTH
-      BASIS_SET RI_AUX RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q4
-      GHOST TRUE
-      ELEMENT C
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      POTENTIAL  GTH-PBE-q6
     &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME  HCCH.xyz
+      COORD_FILE_NAME  H2O_gas.xyz
       COORD_FILE_FORMAT xyz
       &CENTER_COORDINATES
       &END

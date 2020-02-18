@@ -1,5 +1,5 @@
 &GLOBAL                                                                                           
-  PROJECT  G0W0_H2O_PBE_ev_sc
+  PROJECT  G0W0_H2O_PBE_ev_sc_RI_HFX
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -61,11 +61,10 @@
             CORR_MOS_VIRT         10
             ANALYTIC_CONTINUATION TWO_POLE
             NUMB_POLES            2
-            MAX_ITER_FIT          10000
             CROSSING_SEARCH       Z_SHOT 
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_SC_ITER            3
-            HF_LIKE_EV_START      FALSE
+            RI_SIGMA_X
           &END RI_G0W0 
         &END RI_RPA
         MEMORY  200.

@@ -128,17 +128,13 @@ MODULE mp2_types
       INTEGER                  :: nparam_pade
       INTEGER                  :: analytic_continuation
       REAL(KIND=dp)            :: omega_max_fit
-      INTEGER                  :: max_iter_fit
-      LOGICAL                  :: check_fit
       INTEGER                  :: crossing_search
       REAL(KIND=dp)            :: fermi_level_offset
-      INTEGER                  :: iter_ev_sc
-      REAL(KIND=dp)            :: eps_ev_sc_iter
-      LOGICAL                  :: hf_like_ev_start, &
-                                  print_gw_details, &
-                                  do_ri_Sigma_x, &
-                                  remove_neg_virt_energies
-      LOGICAL                  :: do_periodic
+      INTEGER                  :: iter_evGW, iter_sc_GW0
+      REAL(KIND=dp)            :: eps_iter
+      LOGICAL                  :: do_ri_Sigma_x, &
+                                  do_periodic, &
+                                  print_self_energy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: vec_Sigma_x_minus_vxc_gw
       INTEGER, DIMENSION(:), POINTER    :: kp_grid
       INTEGER                  :: num_kp_grids
@@ -149,8 +145,6 @@ MODULE mp2_types
       REAL(KIND=dp)            :: frac_aux_mos
       INTEGER                  :: num_omega_points
       LOGICAL                  :: do_bse
-      INTEGER, DIMENSION(:), POINTER    :: atoms_for_projection, atom_range_for_projection
-      REAL(KIND=dp)            :: eps_charge
       INTEGER                  :: num_z_vectors, max_iter_bse
       REAL(KIND=dp)            :: eps_min_trans
       LOGICAL                  :: do_ic_model, print_ic_values

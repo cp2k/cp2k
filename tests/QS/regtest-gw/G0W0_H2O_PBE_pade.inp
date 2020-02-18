@@ -64,7 +64,6 @@
             CROSSING_SEARCH       NEWTON 
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_SC_ITER            1
-            HF_LIKE_EV_START      FALSE
           &END RI_G0W0 
         &END RI_RPA
         MEMORY  200.

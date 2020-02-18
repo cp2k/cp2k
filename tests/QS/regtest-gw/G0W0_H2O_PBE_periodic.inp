@@ -61,11 +61,9 @@
             CORR_MOS_VIRT         10
             ANALYTIC_CONTINUATION TWO_POLE
             NUMB_POLES            2
-            MAX_ITER_FIT          10000
             CROSSING_SEARCH       Z_SHOT 
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_SC_ITER            3
-            HF_LIKE_EV_START      FALSE
             PERIODIC
             &PERIODIC
               KPOINTS 12 12 12

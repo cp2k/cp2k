@@ -1,5 +1,5 @@
 &GLOBAL                                                                                           
-  PROJECT  G0W0_OH_PBE_ev_sc_svd
+  PROJECT  G0W0_H2O_PBE_ev_sc
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -9,8 +9,6 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    UKS
-    MULTIPLICITY 2
     BASIS_SET_FILE_NAME  HFX_BASIS
     POTENTIAL_FILE_NAME  GTH_POTENTIALS
     &MGRID
@@ -63,17 +61,13 @@
             CORR_MOS_VIRT         10
             ANALYTIC_CONTINUATION TWO_POLE
             NUMB_POLES            2
-            MAX_ITER_FIT          10000
             CROSSING_SEARCH       Z_SHOT 
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_SC_ITER            3
-            HF_LIKE_EV_START      FALSE
           &END RI_G0W0 
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
-        DO_SVD
-        EPS_SVD 1.0E-2
       &END
     &END XC
   &END DFT
@@ -93,7 +87,7 @@
       POTENTIAL  GTH-PBE-q6
     &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME  OH_radical_gas.xyz 
+      COORD_FILE_NAME  H2O_gas.xyz
       COORD_FILE_FORMAT xyz
       &CENTER_COORDINATES
       &END

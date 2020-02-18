@@ -1,5 +1,5 @@
-&GLOBAL
-  PROJECT  G0W0_OH_PBE_svd
+&GLOBAL                                                                                           
+  PROJECT  G0W0_H2O_PBE_ev_sc
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -9,8 +9,6 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    UKS
-    MULTIPLICITY 2
     BASIS_SET_FILE_NAME  HFX_BASIS
     POTENTIAL_FILE_NAME  GTH_POTENTIALS
     &MGRID
@@ -44,43 +42,38 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        ERI_METHOD OS
-        &RI_METRIC
-          POTENTIAL_TYPE IDENTITY
+        &WFC_GPW
+          CUTOFF  100
+          REL_CUTOFF 20
         &END
-        &IM_TIME
-        &END IM_TIME
         &RI_RPA
           &HF
             FRACTION 1.0000000
             &SCREENING
-              EPS_SCHWARZ 1.0E-8
+              EPS_SCHWARZ 1.0E-6
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
-          MINIMAX
-          RPA_NUM_QUAD_POINTS 20
+          RPA_NUM_QUAD_POINTS 10
           GW
           &RI_G0W0
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
             ANALYTIC_CONTINUATION TWO_POLE
             NUMB_POLES            2
-            CROSSING_SEARCH       Z_SHOT
+            CROSSING_SEARCH       Z_SHOT 
             FERMI_LEVEL_OFFSET    2.0E-2
-            EV_SC_ITER            1
-          &END RI_G0W0
+            SC_GW0_ITER            3
+          &END RI_G0W0 
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
-        DO_SVD
-        EPS_SVD 1.0E-5
       &END
     &END XC
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.000   8.000  8.000
+      ABC [angstrom]  6.000   6.000  6.000
       PERIODIC NONE
     &END CELL
     &KIND H
@@ -94,7 +87,7 @@
       POTENTIAL  GTH-PBE-q6
     &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME  OH_radical_gas.xyz
+      COORD_FILE_NAME  H2O_gas.xyz
       COORD_FILE_FORMAT xyz
       &CENTER_COORDINATES
       &END
