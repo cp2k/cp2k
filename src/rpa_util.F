@@ -1062,7 +1062,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                                             fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: ikp_local
       INTEGER, ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
