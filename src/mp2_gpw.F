@@ -214,7 +214,7 @@ CONTAINS
       do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
 
       IF (do_kpoints_cubic_RPA .AND. mp2_env%ri_rpa%do_ri_g0w0) THEN
-         CPABORT("Full RPA k-points (DO_KPOINTS in IM_TIME section) not implemented with GW")
+         CPABORT("Full RPA k-points (DO_KPOINTS in LOW_SCALING section) not implemented with GW")
       ENDIF
 
       ! Get the number of spins

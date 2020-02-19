@@ -255,7 +255,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! here we generate an imag. time subsection to use with RPA or Laplace-SOS-MP2
-      CALL create_ri_im_time(subsection)
+      CALL create_low_scaling(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1142,10 +1142,10 @@ CONTAINS
 !> \brief ...
 !> \param section ...
 ! **************************************************************************************************
-   SUBROUTINE create_ri_im_time(section)
+   SUBROUTINE create_low_scaling(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_im_time', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_low_scaling', &
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
@@ -1153,7 +1153,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
-         section, __LOCATION__, name="IM_TIME", &
+         section, __LOCATION__, name="LOW_SCALING", &
          description="Cubic scaling RI-RPA, GW and Laplace-SOS-MP2 method using the imaginary time formalism.", &
          n_keywords=12, n_subsections=2, repeats=.FALSE.)
 

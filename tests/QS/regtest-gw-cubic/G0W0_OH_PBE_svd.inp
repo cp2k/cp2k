@@ -48,8 +48,8 @@
         &RI_METRIC
           POTENTIAL_TYPE IDENTITY
         &END
-        &IM_TIME
-        &END IM_TIME
+        &LOW_SCALING
+        &END LOW_SCALING
         &RI_RPA
           &HF
             FRACTION 1.0000000

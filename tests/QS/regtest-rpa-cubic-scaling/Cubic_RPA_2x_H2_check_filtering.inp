@@ -48,7 +48,7 @@
           EPS_GRID    1.0E-4
         &END
         ERI_METHOD MME
-        &IM_TIME
+        &LOW_SCALING
           EPS_FILTER_FACTOR 1.0
         &END
         &RI_RPA

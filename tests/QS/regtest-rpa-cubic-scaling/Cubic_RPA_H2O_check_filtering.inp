@@ -49,7 +49,7 @@
         &END
 !        ERI_METHOD MME
         ERI_METHOD OS
-        &IM_TIME
+        &LOW_SCALING
             EPS_FILTER_FACTOR 0.1
         &END
         &RI_RPA

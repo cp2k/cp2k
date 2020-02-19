@@ -218,7 +218,7 @@ CONTAINS
                                 l_val=mp2_env%ri_g0w0%print_self_energy)
 
       NULLIFY (im_time_section)
-      im_time_section => section_vals_get_subs_vals(mp2_section, "IM_TIME")
+      im_time_section => section_vals_get_subs_vals(mp2_section, "LOW_SCALING")
       CALL section_vals_val_get(im_time_section, "_SECTION_PARAMETERS_", &
                                 l_val=mp2_env%do_im_time)
 

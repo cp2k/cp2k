@@ -48,11 +48,11 @@
         &END
         MEMORY  200.
         NUMBER_PROC  1
-        &IM_TIME
+        &LOW_SCALING
           MEMORY_CUT 1
           !MEMORY_INFO
           KPOINTS 4 4 4
-        &END IM_TIME
+        &END LOW_SCALING
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
           MINIMAX

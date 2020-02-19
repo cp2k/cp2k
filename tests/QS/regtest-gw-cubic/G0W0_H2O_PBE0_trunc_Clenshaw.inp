@@ -59,7 +59,7 @@
           EPS_FILTER  1.0E-7
         &END
         ERI_METHOD OS
-        &IM_TIME
+        &LOW_SCALING
         &END
         &RI_RPA
           &HF

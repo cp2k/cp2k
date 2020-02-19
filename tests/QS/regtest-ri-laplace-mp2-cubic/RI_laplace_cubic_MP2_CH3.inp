@@ -44,7 +44,7 @@
         &RI_LAPLACE
           QUADRATURE_POINTS  5
         &END
-        &IM_TIME
+        &LOW_SCALING
         &END
         &WFC_GPW
           CUTOFF  100

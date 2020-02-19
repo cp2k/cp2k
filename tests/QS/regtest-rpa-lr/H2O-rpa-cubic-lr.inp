@@ -53,7 +53,7 @@
           REL_CUTOFF  20
         &END
         ERI_METHOD OS
-        &IM_TIME
+        &LOW_SCALING
         &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6

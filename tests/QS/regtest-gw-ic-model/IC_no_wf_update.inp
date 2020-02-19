@@ -55,7 +55,7 @@
         &RI_METRIC
           POTENTIAL_TYPE IDENTITY
         &END
-        &IM_TIME
+        &LOW_SCALING
         &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  5

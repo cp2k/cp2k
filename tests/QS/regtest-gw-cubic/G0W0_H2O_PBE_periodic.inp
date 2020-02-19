@@ -51,7 +51,7 @@
           POTENTIAL_TYPE IDENTITY
         &END
         ERI_METHOD OS
-        &IM_TIME
+        &LOW_SCALING
         &END
         &RI_RPA
           &HF
