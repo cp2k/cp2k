@@ -72,14 +72,14 @@
           RPA_NUM_QUAD_POINTS 5
           MINIMAX
           GW
-          &RI_G0W0
+          &GW
             EV_SC_ITER            2
             SC_GW0_ITER           2
             CORR_MOS_OCC          1
             CORR_MOS_VIRT         1
             CROSSING_SEARCH       BISECTION
             ANALYTIC_CONTINUATION PADE
-          &END RI_G0W0
+          &END GW
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1

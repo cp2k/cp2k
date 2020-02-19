@@ -72,7 +72,7 @@
           RPA_NUM_QUAD_POINTS 5
           MINIMAX
           GW
-          &RI_G0W0
+          &GW
             SC_GW0_ITER           2
             EV_SC_ITER            2
             CORR_MOS_OCC          1
@@ -80,7 +80,7 @@
             CROSSING_SEARCH       Z_SHOT
             ANALYTIC_CONTINUATION TWO_POLE
             NUM_FREQ_POINTS_CLENSHAW_LOW_SCALING_GW     6
-          &END RI_G0W0
+          &END GW
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1

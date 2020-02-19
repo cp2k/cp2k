@@ -71,12 +71,12 @@
           RPA_NUM_QUAD_POINTS 10
           MINIMAX
           GW
-          &RI_G0W0
+          &GW
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
             EV_SC_ITER            5
             FERMI_LEVEL_OFFSET    20.0
-          &END RI_G0W0
+          &END GW
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1

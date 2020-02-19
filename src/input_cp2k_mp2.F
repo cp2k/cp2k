@@ -545,10 +545,10 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
-         name="RI_G0W0", &
+         name="GW", &
          variants=(/"GW"/), &
-         description="Decide whether to perform an RI_G0W0 calculation on top of RI_RPA. ", &
-         usage="RI_G0W0", &
+         description="Decide whether to perform an GW calculation on top of RI_RPA. ", &
+         usage="GW", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -650,7 +650,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="RI_G0W0", &
+      CALL section_create(section, __LOCATION__, name="GW", &
                           description="Parameters influencing the RI-G0W0 method", &
                           n_keywords=24, n_subsections=1, repeats=.FALSE.)
 

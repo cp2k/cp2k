@@ -57,13 +57,13 @@
           RPA_NUM_QUAD_POINTS  6
           MINIMAX
           GW
-          &RI_G0W0
+          &GW
            CORR_OCC   1
            CORR_VIRT  1
            CROSSING_SEARCH NEWTON
            ANALYTIC_CONTINUATION TWO_POLE
            RI_SIGMA_X
-          &END RI_G0W0
+          &END GW
         &END RI_RPA
       &END
     &END XC

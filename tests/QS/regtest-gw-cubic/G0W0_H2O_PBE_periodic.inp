@@ -64,7 +64,7 @@
           MINIMAX
           RPA_NUM_QUAD_POINTS     10
           GW
-          &RI_G0W0
+          &GW
             CORR_MOS_OCC          4
             CORR_MOS_VIRT         4
             ANALYTIC_CONTINUATION TWO_POLE
@@ -74,7 +74,7 @@
               # That value should be chosen much larger !
               NUM_OMEGA_POINTS   5
             &END
-          &END RI_G0W0
+          &END GW
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1

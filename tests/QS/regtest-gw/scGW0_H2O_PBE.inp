@@ -56,7 +56,7 @@
           &END HF
           RPA_NUM_QUAD_POINTS 10
           GW
-          &RI_G0W0
+          &GW
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
             ANALYTIC_CONTINUATION TWO_POLE
@@ -64,7 +64,7 @@
             CROSSING_SEARCH       Z_SHOT 
             FERMI_LEVEL_OFFSET    2.0E-2
             SC_GW0_ITER            3
-          &END RI_G0W0 
+          &END GW 
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
