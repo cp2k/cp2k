@@ -56,7 +56,6 @@
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
           MINIMAX
-          GW
           &GW
            CORR_OCC   1
            CORR_VIRT  1

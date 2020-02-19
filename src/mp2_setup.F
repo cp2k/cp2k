@@ -64,7 +64,7 @@ CONTAINS
       REAL(dp)                                           :: eps_filter_factor, rc_ang
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: eri_mme_section, im_time_section, &
-                                                            im_time_test_section, mp2_section
+                                                            im_time_test_section, mp2_section, gw_section
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -129,8 +129,6 @@ CONTAINS
                                 l_val=mp2_env%ri_rpa%minimax_quad)
       CALL section_vals_val_get(mp2_section, "RI_RPA%ADMM", &
                                 l_val=mp2_env%ri_rpa%do_admm)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW", &
-                                l_val=mp2_env%ri_rpa%do_ri_g0w0)
       CALL section_vals_val_get(mp2_section, "RI_RPA%SCALE_RPA", &
                                 r_val=mp2_env%ri_rpa%scale_rpa)
 
@@ -140,6 +138,10 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%RSE", &
                                 l_val=mp2_env%ri_rpa%do_rse)
 
+      NULLIFY (gw_section)
+      gw_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%GW")
+      CALL section_vals_val_get(gw_section, "_SECTION_PARAMETERS_", &
+                                l_val=mp2_env%ri_rpa%do_ri_g0w0)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%CORR_MOS_OCC", &
                                 i_val=mp2_env%ri_g0w0%corr_mos_occ)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%CORR_MOS_VIRT", &

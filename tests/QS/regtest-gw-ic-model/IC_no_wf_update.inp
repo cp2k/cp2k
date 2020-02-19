@@ -60,7 +60,6 @@
         &RI_RPA
           RPA_NUM_QUAD_POINTS  5
           MINIMAX
-          GW
           &GW
             CORR_MOS_OCC 3
             CORR_MOS_VIRT 3

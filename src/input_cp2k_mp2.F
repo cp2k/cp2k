@@ -545,17 +545,6 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
-         name="GW", &
-         variants=(/"GW"/), &
-         description="Decide whether to perform an GW calculation on top of RI_RPA. ", &
-         usage="GW", &
-         default_l_val=.FALSE., &
-         lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
          name="RI_AXK", &
          variants=(/"AXK"/), &
          description="Decide whether to perform an RPA-AXK calculation.", &
@@ -655,6 +644,13 @@ CONTAINS
                           n_keywords=24, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
+
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Activates cubic-scaling RPA, GW and Laplace-SOS-MP2 calculations.", &
+                          usage="&GW .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CORR_MOS_OCC", &
                           variants=(/"CORR_OCC"/), &
@@ -1161,7 +1157,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Activates cubic-scaling RPA, GW and Laplace-SOS-MP2 calculations.", &
-                          usage="&im_time .TRUE.", &
+                          usage="&LOW_SCALING .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

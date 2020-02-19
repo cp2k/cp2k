@@ -71,7 +71,6 @@
           &END HF
           RPA_NUM_QUAD_POINTS 5
           MINIMAX
-          GW
           &GW
             EV_SC_ITER            3
             CORR_MOS_OCC          1

@@ -63,7 +63,6 @@
           &END HF
           MINIMAX
           RPA_NUM_QUAD_POINTS     10
-          GW
           &GW
             CORR_MOS_OCC          4
             CORR_MOS_VIRT         4
