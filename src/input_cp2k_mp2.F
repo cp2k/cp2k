@@ -1191,8 +1191,17 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
+         keyword, __LOCATION__, name="EPS_FILTER", &
+         description="Determines a threshold for the DBCSR based multiply."// &
+         "Normally, this EPS_FILTER determines accuracy and timing of low-scaling RPA and GW calculations.", &
+         usage="EPS_FILTER 1.0E-10 ", type_of_var=real_t, &
+         default_r_val=1.0E-12_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_FILTER_FACTOR", &
-         description="Multiply EPS_FILTER of WFC_GPW section with this factor to determine filter epsilon "// &
+         description="Multiply EPS_FILTER with this factor to determine filter epsilon "// &
          "for DBCSR based multiply P(it)=(Mocc(it))^T*Mvirt(it) "// &
          "Default should be kept.", &
          type_of_var=real_t, &

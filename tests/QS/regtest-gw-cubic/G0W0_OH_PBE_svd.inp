@@ -58,7 +58,6 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
-          MINIMAX
           RPA_NUM_QUAD_POINTS 20
           &GW
             CORR_MOS_OCC          10

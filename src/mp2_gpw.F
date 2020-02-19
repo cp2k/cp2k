@@ -333,11 +333,12 @@ CONTAINS
 
       IF(mp2_env%eri_method == eri_default) THEN
         CALL get_cell(cell=cell, periodic=periodic)
-        IF(SUM(periodic) > 0) mp2_env%eri_method = do_eri_gpw
-        IF(SUM(periodic) == 0) mp2_env%eri_method = do_eri_os
-        IF(SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0) mp2_env%eri_method = do_eri_os
-        IF(mp2_env%method == mp2_method_gpw) mp2_env%eri_method = do_eri_gpw
-        IF(mp2_env%method == ri_mp2_method_gpw) mp2_env%eri_method = do_eri_gpw
+        IF (SUM(periodic) > 0) mp2_env%eri_method = do_eri_gpw
+        IF (SUM(periodic) == 0) mp2_env%eri_method = do_eri_os
+        IF (SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0) mp2_env%eri_method = do_eri_os
+        IF (mp2_env%method == mp2_method_gpw) mp2_env%eri_method = do_eri_gpw
+        IF (mp2_env%method == ri_mp2_method_gpw) mp2_env%eri_method = do_eri_gpw
+        IF (mp2_env%ri_rpa_im_time%do_im_time_kpoints) mp2_env%eri_method = do_eri_os
       END IF
       eri_method = mp2_env%eri_method
 

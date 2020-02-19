@@ -44,7 +44,6 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        ERI_METHOD OS
         &RI_METRIC
           POTENTIAL_TYPE IDENTITY
         &END
@@ -58,7 +57,6 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
-          MINIMAX
           RPA_NUM_QUAD_POINTS 20
           &GW
             CORR_MOS_OCC          10

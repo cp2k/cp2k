@@ -53,13 +53,8 @@
           POTENTIAL_TYPE TRUNCATED
           CUTOFF_RADIUS 3.0
         &END
-        &WFC_GPW
-          ! normally, this EPS_FILTER controls the accuracy and
-          ! the time for the cubic_scaling RPA calculation
-          EPS_FILTER  1.0E-7
-        &END
-        ERI_METHOD OS
         &LOW_SCALING
+          EPS_FILTER  1.0E-7
         &END
         &RI_RPA
           &HF
@@ -70,7 +65,6 @@
             &END SCREENING
           &END HF
           RPA_NUM_QUAD_POINTS 5
-          MINIMAX
           &GW
             EV_SC_ITER            3
             CORR_MOS_OCC          1

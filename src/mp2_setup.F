@@ -63,7 +63,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       REAL(dp)                                           :: eps_filter_factor, rc_ang
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: eri_mme_section, im_time_section, &
+      TYPE(section_vals_type), POINTER                   :: eri_mme_section, low_scaling_section, &
                                                             im_time_test_section, mp2_section, gw_section
 
       CALL timeset(routineN, handle)
@@ -219,37 +219,39 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%SELF_ENERGY", &
                                 l_val=mp2_env%ri_g0w0%print_self_energy)
 
-      NULLIFY (im_time_section)
-      im_time_section => section_vals_get_subs_vals(mp2_section, "LOW_SCALING")
-      CALL section_vals_val_get(im_time_section, "_SECTION_PARAMETERS_", &
+      NULLIFY (low_scaling_section)
+      low_scaling_section => section_vals_get_subs_vals(mp2_section, "LOW_SCALING")
+      CALL section_vals_val_get(low_scaling_section, "_SECTION_PARAMETERS_", &
                                 l_val=mp2_env%do_im_time)
 
-      CALL section_vals_val_get(im_time_section, "MEMORY_CUT", &
+      CALL section_vals_val_get(low_scaling_section, "MEMORY_CUT", &
                                 i_val=mp2_env%ri_rpa_im_time%cut_memory)
-      CALL section_vals_val_get(im_time_section, "MEMORY_INFO", &
+      CALL section_vals_val_get(low_scaling_section, "MEMORY_INFO", &
                                 l_val=mp2_env%ri_rpa_im_time%memory_info)
-      CALL section_vals_val_get(im_time_section, "POINTS_PER_MAGNITUDE", &
+      CALL section_vals_val_get(low_scaling_section, "POINTS_PER_MAGNITUDE", &
                                 i_val=mp2_env%ri_rpa_im_time%num_points_per_magnitude)
-      CALL section_vals_val_get(im_time_section, "EPS_FILTER_FACTOR", &
+      IF(mp2_env%do_im_time) CALL section_vals_val_get(low_scaling_section, "EPS_FILTER", &
+                                                       r_val=mp2_env%mp2_gpw%eps_filter)
+      CALL section_vals_val_get(low_scaling_section, "EPS_FILTER_FACTOR", &
                                 r_val=eps_filter_factor)
       mp2_env%ri_rpa_im_time%eps_filter_im_time = eps_filter_factor*mp2_env%mp2_gpw%eps_filter
 
-      CALL section_vals_val_get(im_time_section, "STABILIZE_EXP", &
+      CALL section_vals_val_get(low_scaling_section, "STABILIZE_EXP", &
                                 r_val=mp2_env%ri_rpa_im_time%stabilize_exp)
-      CALL section_vals_val_get(im_time_section, "DO_KPOINTS", &
+      CALL section_vals_val_get(low_scaling_section, "DO_KPOINTS", &
                                 l_val=mp2_env%ri_rpa_im_time%do_im_time_kpoints)
-      CALL section_vals_val_get(im_time_section, "CUTOFF_W", &
+      CALL section_vals_val_get(low_scaling_section, "CUTOFF_W", &
                                 r_val=mp2_env%ri_rpa_im_time%cutoff)
-      CALL section_vals_val_get(im_time_section, "KPOINTS", &
+      CALL section_vals_val_get(low_scaling_section, "KPOINTS", &
                                 i_vals=mp2_env%ri_rpa_im_time%kp_grid)
-      CALL section_vals_val_get(im_time_section, "EXP_KPOINTS", &
+      CALL section_vals_val_get(low_scaling_section, "EXP_KPOINTS", &
                                 r_val=mp2_env%ri_rpa_im_time%exp_kpoints)
 
-      CALL section_vals_val_get(im_time_section, "MAX_BLOCK_SIZE_SQRT", &
+      CALL section_vals_val_get(low_scaling_section, "MAX_BLOCK_SIZE_SQRT", &
                                 i_val=mp2_env%ri_rpa_im_time%max_bsize_sqrt)
 
       NULLIFY (im_time_test_section)
-      im_time_test_section => section_vals_get_subs_vals(im_time_section, "TEST")
+      im_time_test_section => section_vals_get_subs_vals(low_scaling_section, "TEST")
 
       CALL section_vals_val_get(im_time_test_section, "_SECTION_PARAMETERS_", &
                                 l_val=mp2_env%ri_rpa_im_time%group_size_internal)
