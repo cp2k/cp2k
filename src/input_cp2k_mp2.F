@@ -192,8 +192,7 @@ CONTAINS
                                         "Uses Gaussian Plane Wave method [DelBen2013].", &
                                         "Uses MiniMax-Ewald method (experimental, ERI_MME subsection, only for fully periodic "// &
                                         "systems with orthorhombic cells).", &
-                                        "Uses Obara-Saika method (only for two-center integrals, only for gas phase"// &
-                                        "and only for cubic-scaling RPA and GW)."), &
+                                        "Use analytical Obara-Saika method."), &
                           default_i_val=eri_default)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
