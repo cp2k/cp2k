@@ -63,8 +63,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       REAL(dp)                                           :: eps_filter_factor, rc_ang
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: eri_mme_section, low_scaling_section, &
-                                                            im_time_test_section, mp2_section, gw_section
+      TYPE(section_vals_type), POINTER                   :: eri_mme_section, gw_section, &
+                                                            im_time_test_section, &
+                                                            low_scaling_section, mp2_section
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -230,8 +231,8 @@ CONTAINS
                                 l_val=mp2_env%ri_rpa_im_time%memory_info)
       CALL section_vals_val_get(low_scaling_section, "POINTS_PER_MAGNITUDE", &
                                 i_val=mp2_env%ri_rpa_im_time%num_points_per_magnitude)
-      IF(mp2_env%do_im_time) CALL section_vals_val_get(low_scaling_section, "EPS_FILTER", &
-                                                       r_val=mp2_env%mp2_gpw%eps_filter)
+      IF (mp2_env%do_im_time) CALL section_vals_val_get(low_scaling_section, "EPS_FILTER", &
+                                                        r_val=mp2_env%mp2_gpw%eps_filter)
       CALL section_vals_val_get(low_scaling_section, "EPS_FILTER_FACTOR", &
                                 r_val=eps_filter_factor)
       mp2_env%ri_rpa_im_time%eps_filter_im_time = eps_filter_factor*mp2_env%mp2_gpw%eps_filter

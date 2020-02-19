@@ -14,7 +14,8 @@ MODULE mp2_gpw
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type, get_cell
+   USE cell_types,                      ONLY: cell_type,&
+                                              get_cell
    USE cp_blacs_env,                    ONLY: BLACS_GRID_SQUARE,&
                                               cp_blacs_env_create,&
                                               cp_blacs_env_release,&
@@ -55,13 +56,9 @@ MODULE mp2_gpw
                                               get_group_dist,&
                                               group_dist_d1_type,&
                                               release_group_dist
-   USE input_constants,                 ONLY: do_eri_gpw,&
-                                              do_eri_mme,&
-                                              do_eri_os,&
-                                              do_potential_coulomb,&
-                                              do_potential_id,&
-                                              do_potential_long,mp2_method_gpw,&
-                                              ri_default, eri_default, ri_mp2_method_gpw
+   USE input_constants,                 ONLY: &
+        do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
+        do_potential_long, eri_default, mp2_method_gpw, ri_default, ri_mp2_method_gpw
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
@@ -152,6 +149,7 @@ CONTAINS
          my_group_L_end, my_group_L_size, my_group_L_start, nelectron, nelectron_beta, nmo, &
          nspins, potential_type, ri_metric_type
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array_mc, starts_array_mc
+      INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL :: blacs_repeatable, do_bse, do_gpw, do_im_time, do_kpoints_cubic_RPA, my_do_gw, &
          my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2
       REAL(KIND=dp) :: Emp2_AB, Emp2_BB, Emp2_Cou_BB, Emp2_d2_AB, Emp2_d_AB, Emp2_EX_BB, &
@@ -188,7 +186,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      INTEGER, DIMENSION(3)                              :: periodic
 
       CALL timeset(routineN, handle)
 
@@ -331,14 +328,14 @@ CONTAINS
 
       PRINT *, 'mp2_env%eri_method before change =', mp2_env%eri_method
 
-      IF(mp2_env%eri_method == eri_default) THEN
-        CALL get_cell(cell=cell, periodic=periodic)
-        IF (SUM(periodic) > 0) mp2_env%eri_method = do_eri_gpw
-        IF (SUM(periodic) == 0) mp2_env%eri_method = do_eri_os
-        IF (SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0) mp2_env%eri_method = do_eri_os
-        IF (mp2_env%method == mp2_method_gpw) mp2_env%eri_method = do_eri_gpw
-        IF (mp2_env%method == ri_mp2_method_gpw) mp2_env%eri_method = do_eri_gpw
-        IF (mp2_env%ri_rpa_im_time%do_im_time_kpoints) mp2_env%eri_method = do_eri_os
+      IF (mp2_env%eri_method == eri_default) THEN
+         CALL get_cell(cell=cell, periodic=periodic)
+         IF (SUM(periodic) > 0) mp2_env%eri_method = do_eri_gpw
+         IF (SUM(periodic) == 0) mp2_env%eri_method = do_eri_os
+         IF (SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0) mp2_env%eri_method = do_eri_os
+         IF (mp2_env%method == mp2_method_gpw) mp2_env%eri_method = do_eri_gpw
+         IF (mp2_env%method == ri_mp2_method_gpw) mp2_env%eri_method = do_eri_gpw
+         IF (mp2_env%ri_rpa_im_time%do_im_time_kpoints) mp2_env%eri_method = do_eri_os
       END IF
       eri_method = mp2_env%eri_method
 
