@@ -33,6 +33,7 @@ set +e # disable error trapping for remainder of script
   cd run_1
   echo 42 > cp2k_exit_code
   sleep 2 # give i-pi some time to startup
+  export OMP_NUM_THREADS=2
   mpiexec -np 2 /workspace/cp2k/exe/local/cp2k.pdbg ../in.cp2k
   echo $? > cp2k_exit_code
 ) &
