@@ -32,7 +32,7 @@ MODULE input_cp2k_mp2
         gw_two_pole_model, mp2_method_direct, mp2_method_gpw, mp2_method_none, &
         mp2_ri_optimize_basis, numerical, ri_default, ri_mp2_laplace, ri_mp2_method_gpw, &
         ri_rpa_g0w0_crossing_bisection, ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, &
-        ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
+        ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk, eri_default
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -185,14 +185,16 @@ CONTAINS
                           "(MME method is faster but experimental, forces not yet implemented)."// &
                           "Obara-Saika (OS) for the Coulomb operator can only be used for non-periodic calculations.", &
                           usage="ERI_METHOD MME", &
-                          enum_c_vals=s2a("GPW", "MME", "OS"), &
-                          enum_i_vals=(/do_eri_gpw, do_eri_mme, do_eri_os/), &
-                          enum_desc=s2a("Uses Gaussian Plane Wave method [DelBen2013].", &
+                          enum_c_vals=s2a("DEFAULT", "GPW", "MME", "OS"), &
+                          enum_i_vals=(/eri_default, do_eri_gpw, do_eri_mme, do_eri_os/), &
+                          enum_desc=s2a("Use default ERI method (for periodic systems: GPW, for molecules: OS, "// &
+                                        "for MP2 and RI-MP2: GPW in any case).", &
+                                        "Uses Gaussian Plane Wave method [DelBen2013].", &
                                         "Uses MiniMax-Ewald method (experimental, ERI_MME subsection, only for fully periodic "// &
                                         "systems with orthorhombic cells).", &
                                         "Uses Obara-Saika method (only for two-center integrals, only for gas phase"// &
                                         "and only for cubic-scaling RPA and GW)."), &
-                          default_i_val=do_eri_gpw)
+                          default_i_val=eri_default)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

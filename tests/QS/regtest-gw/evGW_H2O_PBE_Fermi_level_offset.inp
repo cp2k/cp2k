@@ -57,7 +57,6 @@
           ! the time for the cubic_scaling RPA calculation
           EPS_FILTER  1.0E-12
         &END
-        ERI_METHOD OS
         &LOW_SCALING
         &END
         &RI_RPA
@@ -69,7 +68,6 @@
             &END SCREENING
           &END HF
           RPA_NUM_QUAD_POINTS 10
-          MINIMAX
           &GW
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10

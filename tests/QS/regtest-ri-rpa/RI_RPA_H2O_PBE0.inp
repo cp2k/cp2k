@@ -49,6 +49,7 @@
       &END HF
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
+        ERI_METHOD GPW
         &WFC_GPW
           CUTOFF  100
           REL_CUTOFF 20

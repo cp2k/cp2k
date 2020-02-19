@@ -1104,7 +1104,8 @@ MODULE input_constants
 
    INTEGER, PARAMETER, PUBLIC               :: do_eri_gpw = 0, &
                                                do_eri_mme = 1, &
-                                               do_eri_os = 2
+                                               do_eri_os = 2, &
+                                               eri_default = 3
 
    ! Cell optimisation constraints
    INTEGER, PARAMETER, PUBLIC               :: fix_none = 0, &

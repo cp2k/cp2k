@@ -14,7 +14,7 @@ MODULE mp2_gpw
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type
+   USE cell_types,                      ONLY: cell_type, get_cell
    USE cp_blacs_env,                    ONLY: BLACS_GRID_SQUARE,&
                                               cp_blacs_env_create,&
                                               cp_blacs_env_release,&
@@ -60,8 +60,8 @@ MODULE mp2_gpw
                                               do_eri_os,&
                                               do_potential_coulomb,&
                                               do_potential_id,&
-                                              do_potential_long,&
-                                              ri_default
+                                              do_potential_long,mp2_method_gpw,&
+                                              ri_default, eri_default, ri_mp2_method_gpw
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
@@ -188,6 +188,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      INTEGER, DIMENSION(3)                              :: periodic
 
       CALL timeset(routineN, handle)
 
@@ -279,8 +280,6 @@ CONTAINS
 
       blacs_env_sub_mat_munu => blacs_env_sub
 
-      eri_method = qs_env%mp2_env%eri_method
-
       IF (do_im_time) THEN
 
          IF (.NOT. mp2_env%ri_rpa_im_time%group_size_internal) THEN
@@ -329,6 +328,25 @@ CONTAINS
                       molecule_kind_set=molecule_kind_set, &
                       dft_control=dft_control, &
                       matrix_s_kp=matrix_s_kp)
+
+      PRINT *, 'mp2_env%eri_method before change =', mp2_env%eri_method
+
+      IF(mp2_env%eri_method == eri_default) THEN
+        CALL get_cell(cell=cell, periodic=periodic)
+        IF(SUM(periodic) > 0) mp2_env%eri_method = do_eri_gpw
+        IF(SUM(periodic) == 0) mp2_env%eri_method = do_eri_os
+        IF(SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0) mp2_env%eri_method = do_eri_os
+        IF(mp2_env%method == mp2_method_gpw) mp2_env%eri_method = do_eri_gpw
+        IF(mp2_env%method == ri_mp2_method_gpw) mp2_env%eri_method = do_eri_gpw
+      END IF
+      eri_method = mp2_env%eri_method
+
+      PRINT *, 'mp2_env%eri_method =', mp2_env%eri_method
+      PRINT *, 'do_eri_gpw =', do_eri_gpw
+      PRINT *, 'do_eri_os =', do_eri_os
+      PRINT *, 'eri_default =', eri_default
+      PRINT *, 'mp2_env%method =', mp2_env%method
+      PRINT *, 'mp2_method_gpw =', mp2_method_gpw
 
       matrix_s(1:1) => matrix_s_kp(1:1, 1)
 
