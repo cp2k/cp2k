@@ -48,7 +48,6 @@
         &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
-          MINIMAX
           &HF
             FRACTION 1.0000000
             &SCREENING
