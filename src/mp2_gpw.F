@@ -326,8 +326,6 @@ CONTAINS
                       dft_control=dft_control, &
                       matrix_s_kp=matrix_s_kp)
 
-      PRINT *, 'mp2_env%eri_method before change =', mp2_env%eri_method
-
       IF (mp2_env%eri_method == eri_default) THEN
          CALL get_cell(cell=cell, periodic=periodic)
          IF (SUM(periodic) > 0) mp2_env%eri_method = do_eri_gpw
@@ -338,13 +336,6 @@ CONTAINS
          IF (mp2_env%ri_rpa_im_time%do_im_time_kpoints) mp2_env%eri_method = do_eri_os
       END IF
       eri_method = mp2_env%eri_method
-
-      PRINT *, 'mp2_env%eri_method =', mp2_env%eri_method
-      PRINT *, 'do_eri_gpw =', do_eri_gpw
-      PRINT *, 'do_eri_os =', do_eri_os
-      PRINT *, 'eri_default =', eri_default
-      PRINT *, 'mp2_env%method =', mp2_env%method
-      PRINT *, 'mp2_method_gpw =', mp2_method_gpw
 
       matrix_s(1:1) => matrix_s_kp(1:1, 1)
 
