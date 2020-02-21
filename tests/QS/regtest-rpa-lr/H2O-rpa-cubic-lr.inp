@@ -55,6 +55,7 @@
         &END
         ERI_METHOD OS
         &LOW_SCALING
+          MEMORY_CUT 1
         &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6

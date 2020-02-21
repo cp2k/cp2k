@@ -1166,11 +1166,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CUT", &
-                          description="Cuts the memory of the M_munu_P^occ/virt matrix by the factor given. "// &
-                          "The calculation is slowed down when using a high value of MEMORY_CUT. A high value for "// &
-                          "MEMORY_CUT is recommended for large systems in order not to run out of memory.", &
+                          description="Reduces memory for sparse tensor contractions by this factor. "// &
+                          "A high value leads to some loss of performance. "// &
+                          "This memory reduction factor applies to storage of the tensors 'M occ' / 'M virt' "// &
+                          "but does not reduce storage of '3c ints'.", &
                           usage="MEMORY_CUT 16", &
-                          default_i_val=1)
+                          default_i_val=5)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -45,12 +45,6 @@
         ERI_METHOD MME
         &LOW_SCALING
           EPS_FILTER  1.0E-7
-          !MEMORY_INFO
-          ! normally, increase MEMORY_CUT for large systems
-          ! not to run out of memory
-          MEMORY_CUT 2
-          ! should be increased with N^2 (N: group size) not
-          ! to run OOM
           &TEST
             GROUP_SIZE_3c 2
             ! normally, GROUP_SIZE_P 1 is fine

@@ -49,6 +49,7 @@
           POTENTIAL_TYPE IDENTITY
         &END
         &LOW_SCALING
+          MEMORY_CUT 1
         &END LOW_SCALING
         &RI_RPA
           &HF

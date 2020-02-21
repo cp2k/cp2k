@@ -355,7 +355,7 @@ CONTAINS
 
                   ibounds_2(:, 1) = [starts_array_mc(i_mem), ends_array_mc(i_mem)]
 
-                  IF (unit_nr_dbcsr > 0) WRITE (UNIT=unit_nr_dbcsr, FMT="(T3,A,I2,1X,I2)") &
+                  IF (unit_nr_dbcsr > 0) WRITE (UNIT=unit_nr_dbcsr, FMT="(T3,A,I3,1X,I3)") &
                      "RPA_LOW_SCALING_INFO| Memory Cut iteration", i_mem, j_mem
 
                   IF (do_Gamma_RPA) THEN

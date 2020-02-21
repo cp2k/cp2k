@@ -725,8 +725,6 @@ CONTAINS
 
       ELSE
 
-         cut_memory = qs_env%mp2_env%ri_rpa_im_time%cut_memory
-
          impose_split = .NOT. qs_env%mp2_env%ri_rpa_im_time%group_size_internal
 
          IF (impose_split) THEN
@@ -759,6 +757,7 @@ CONTAINS
          CALL basis_set_list_setup(basis_set_ao, "ORB", qs_kind_set)
          CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=basis_set_ao)
 
+         cut_memory = qs_env%mp2_env%ri_rpa_im_time%cut_memory
          CALL create_contraction_batches(sizes_AO, cut_memory, starts_array_mc_int, ends_array_mc_int, &
                                          starts_array_mc_block_int, ends_array_mc_block_int)
          DEALLOCATE (starts_array_mc_int, ends_array_mc_int)
@@ -816,8 +815,11 @@ CONTAINS
             pgrid_t3c_M = get_pgrid_from_ngroup(para_env, ngroup_im_time_P, map1_2d=[1], map2_2d=[2, 3])
          ENDIF
 
-         CALL create_contraction_batches(sizes_AO_split, cut_memory, starts_array_mc, ends_array_mc, &
-                                         starts_array_mc_block, ends_array_mc_block)
+         ASSOCIATE (cut_memory=>qs_env%mp2_env%ri_rpa_im_time%cut_memory)
+            CALL create_contraction_batches(sizes_AO_split, cut_memory, starts_array_mc, ends_array_mc, &
+                                            starts_array_mc_block, ends_array_mc_block)
+         END ASSOCIATE
+         cut_memory = qs_env%mp2_env%ri_rpa_im_time%cut_memory
 
          CALL create_3c_tensor(t_3c_M, dist_RI, dist_AO_1, dist_AO_2, pgrid_t3c_M, &
                                sizes_RI_split, sizes_AO_split, sizes_AO_split, &
@@ -947,7 +949,7 @@ CONTAINS
    SUBROUTINE create_contraction_batches(sizes, nbatches, starts_array, ends_array, &
                                          starts_array_block, ends_array_block)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes
-      INTEGER, INTENT(IN)                                :: nbatches
+      INTEGER, INTENT(INOUT)                             :: nbatches
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: starts_array, ends_array, &
                                                             starts_array_block, ends_array_block
 
@@ -955,12 +957,10 @@ CONTAINS
 
       nblocks = SIZE(sizes)
 
+      CALL contiguous_tensor_dist(nblocks, nbatches, sizes, limits_start=starts_array_block, limits_end=ends_array_block)
+
       ALLOCATE (starts_array(nbatches))
       ALLOCATE (ends_array(nbatches))
-      ALLOCATE (starts_array_block(nbatches))
-      ALLOCATE (ends_array_block(nbatches))
-
-      CALL contiguous_tensor_dist(nblocks, nbatches, sizes, limits_start=starts_array_block, limits_end=ends_array_block)
 
       bsum = 0
       DO imem = 1, nbatches
