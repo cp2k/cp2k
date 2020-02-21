@@ -53,9 +53,6 @@
           POTENTIAL_TYPE IDENTITY
         &END
         &WFC_GPW
-          ! normally, this EPS_FILTER controls the accuracy and
-          ! the time for the cubic_scaling RPA calculation
-          EPS_FILTER  1.0E-12
         &END
         &LOW_SCALING
             MEMORY_CUT 1

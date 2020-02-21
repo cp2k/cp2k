@@ -44,7 +44,6 @@
           CUTOFF_RADIUS 3.0
         &END
         &LOW_SCALING
-          EPS_FILTER  1.0E-6
           MEMORY_CUT 1
         &END
         &RI_RPA
