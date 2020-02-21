@@ -119,7 +119,7 @@ CONTAINS
       CALL section_vals_val_get(md_section, "INITIAL_VIBRATION%VIB_EIGS_FILE_NAME", &
                                 n_rep_val=n_rep_val)
       IF (n_rep_val > 0) THEN
-         CALL section_vals_val_get(md_section, "VIB_EIGS_FILE_NAME", c_val=filename)
+         CALL section_vals_val_get(md_section, "INITIAL_VIBRATION%VIB_EIGS_FILE_NAME", c_val=filename)
       ELSE
          print_key => section_vals_get_subs_vals(vib_section, "PRINT%CARTESIAN_EIGS")
          filename = cp_print_key_generate_filename(logger, print_key, extension="eig", &
