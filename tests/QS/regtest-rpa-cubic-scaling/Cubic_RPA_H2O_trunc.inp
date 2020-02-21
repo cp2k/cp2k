@@ -45,6 +45,7 @@
         &END
         &LOW_SCALING
           EPS_FILTER  1.0E-6
+          MEMORY_CUT 1
         &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6

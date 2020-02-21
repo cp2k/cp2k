@@ -56,6 +56,7 @@
         &END
         &LOW_SCALING
           EPS_FILTER  1.0E-7
+          MEMORY_CUT 1
         &END
         &RI_RPA
           &HF

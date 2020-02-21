@@ -57,6 +57,7 @@
           POTENTIAL_TYPE IDENTITY
         &END
         &LOW_SCALING
+          MEMORY_CUT 1
         &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  5

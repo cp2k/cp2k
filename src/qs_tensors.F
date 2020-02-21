@@ -1266,14 +1266,20 @@ CONTAINS
 !> \param dist ...
 ! **************************************************************************************************
    SUBROUTINE contiguous_tensor_dist(nel, nbin, weights, limits_start, limits_end, dist)
-      INTEGER, INTENT(IN)                                :: nel, nbin
+      INTEGER, INTENT(IN)                                :: nel
+      INTEGER, INTENT(INOUT)                             :: nbin
       INTEGER, DIMENSION(nel), INTENT(IN)                :: weights
-      INTEGER, DIMENSION(nbin), INTENT(OUT), OPTIONAL    :: limits_start, limits_end
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT), &
+         OPTIONAL                                        :: limits_start, limits_end
       INTEGER, DIMENSION(nel), INTENT(OUT), OPTIONAL     :: dist
 
       INTEGER                                            :: el_end, el_start, end_weight, ibin, &
                                                             nel_div, nel_rem, nel_split, nel_w, &
                                                             w_partialsum
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: lim_e, lim_s
+
+      ALLOCATE (lim_s(nbin), lim_e(nbin))
+      lim_s = 0; lim_e = 0
 
       nel_w = SUM(weights)
       nel_div = nel_w/nbin
@@ -1295,11 +1301,22 @@ CONTAINS
             !IF (ABS(w_partialsum + weights(el_end) - end_weight) > ABS(w_partialsum - end_weight)) EXIT
             el_end = el_end + 1
             w_partialsum = w_partialsum + weights(el_end)
+            IF (el_end == nel) EXIT
          ENDDO
+
          IF (PRESENT(dist)) dist(el_start:el_end) = ibin - 1
-         IF (PRESENT(limits_start)) limits_start(ibin) = el_start
-         IF (PRESENT(limits_end)) limits_end(ibin) = el_end
+         lim_s(ibin) = el_start
+         lim_e(ibin) = el_end
+
+         IF (el_end == nel) EXIT
       ENDDO
+
+      IF (PRESENT(limits_start) .AND. PRESENT(limits_end)) THEN
+         ALLOCATE (limits_start(ibin)); limits_start(:ibin) = lim_s(:ibin)
+         ALLOCATE (limits_end(ibin)); limits_end(:ibin) = lim_e(:ibin)
+      ENDIF
+
+      nbin = ibin
 
    END SUBROUTINE contiguous_tensor_dist
 

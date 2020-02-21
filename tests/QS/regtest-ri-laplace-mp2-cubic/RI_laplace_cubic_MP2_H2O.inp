@@ -47,6 +47,7 @@
           QUADRATURE_POINTS  5
         &END
         &LOW_SCALING
+          MEMORY_CUT 1
         &END
         &WFC_GPW
           CUTOFF  100
