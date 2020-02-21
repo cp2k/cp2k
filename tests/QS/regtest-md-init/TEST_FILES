@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      8 compares the first frequency in the last vibration line in the file
 #      for details see cp2k/tools/do_regtest
-# Mode selectiv vibrational analysis and intensities
-mdinit-1-2.inp                                         8      1e-14                    6355.405825
-mdinit-1-3.inp                                         1      9e-09                    -33.98391757188151
+# MD inititalization with velocities from vibrational analysis
+mdinit-1-2.inp                                         8      1e-14                    6355.339830
+mdinit-1-3.inp                                        70      1e-01                    7444.751
 #EOF
