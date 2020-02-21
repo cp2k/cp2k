@@ -1,0 +1,10 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      8 compares the first frequency in the last vibration line in the file
+#      for details see cp2k/tools/do_regtest
+# Mode selectiv vibrational analysis and intensities
+mdinit-1-2.inp                                         8      1e-14                    6355.405825
+mdinit-1-3.inp                                         1      9e-09                    -33.98391757188151
+#EOF
