@@ -1194,7 +1194,7 @@ CONTAINS
          description="Determines a threshold for the DBCSR based multiply."// &
          "Normally, this EPS_FILTER determines accuracy and timing of low-scaling RPA and GW calculations.", &
          usage="EPS_FILTER 1.0E-10 ", type_of_var=real_t, &
-         default_r_val=1.0E-12_dp)
+         default_r_val=1.0E-9_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
