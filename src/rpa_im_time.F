@@ -306,9 +306,9 @@ CONTAINS
             CALL dbcsr_clear(mat_dm_occ_global(jquad, i_cell)%matrix)
          ENDDO
 
-         CALL get_tensor_occupancy(t_dm_occ(1), 2, nze_dm_occ, occ_dm_occ)
-         CALL get_tensor_occupancy(t_dm_virt(1), 2, nze_dm_virt, occ_dm_virt)
-         IF (do_Gamma_RPA) CALL get_tensor_occupancy(t_3c_O(1, 1), 3, nze_O, occ_O)
+         CALL get_tensor_occupancy(t_dm_occ(1), nze_dm_occ, occ_dm_occ)
+         CALL get_tensor_occupancy(t_dm_virt(1), nze_dm_virt, occ_dm_virt)
+         IF (do_Gamma_RPA) CALL get_tensor_occupancy(t_3c_O(1, 1), nze_O, occ_O)
 
          CALL dbcsr_t_destroy(t_dm)
 
@@ -436,7 +436,7 @@ CONTAINS
                         CALL timestop(handle3)
 
                         IF (do_Gamma_RPA) THEN
-                           CALL get_tensor_occupancy(t_3c_M_occ, 3, nze, occ)
+                           CALL get_tensor_occupancy(t_3c_M_occ, nze, occ)
                            nze_M_occ = nze_M_occ + nze
                            occ_M_occ = occ_M_occ + occ
                         ENDIF
@@ -496,7 +496,7 @@ CONTAINS
                         CALL timestop(handle3)
 
                         IF (do_Gamma_RPA) THEN
-                           CALL get_tensor_occupancy(t_3c_M_virt, 3, nze, occ)
+                           CALL get_tensor_occupancy(t_3c_M_virt, nze, occ)
                            nze_M_virt = nze_M_virt + nze
                            occ_M_virt = occ_M_virt + occ
                         ENDIF

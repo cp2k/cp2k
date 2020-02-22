@@ -34,8 +34,8 @@ MODULE qs_tensors
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
         dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_mapping_info, &
         dbcsr_t_get_nze_total, dbcsr_t_get_stored_coordinates, dbcsr_t_mp_environ_pgrid, &
-        dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_type, &
-        dbcsr_t_write_split_info
+        dbcsr_t_ndims, dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, &
+        dbcsr_t_type, dbcsr_t_write_split_info
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gamma,                           ONLY: init_md_ftable
@@ -1762,19 +1762,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param tensor ...
-!> \param ndim ...
 !> \param nze ...
 !> \param occ ...
 ! **************************************************************************************************
-   SUBROUTINE get_tensor_occupancy(tensor, ndim, nze, occ)
+   SUBROUTINE get_tensor_occupancy(tensor, nze, occ)
       TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
-      INTEGER, INTENT(IN)                                :: ndim
       INTEGER(int_8), INTENT(OUT)                        :: nze
       REAL(dp), INTENT(OUT)                              :: occ
 
-      INTEGER, DIMENSION(ndim)                           :: dims
-
-      ! todo: once dbcsr_t_ndims is part of tensor API, ndim is no longer needed as input arg
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor))          :: dims
 
       nze = dbcsr_t_get_nze_total(tensor)
       CALL dbcsr_t_get_info(tensor, nfull_total=dims)
