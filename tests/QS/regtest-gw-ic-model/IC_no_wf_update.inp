@@ -55,13 +55,12 @@
         &RI_METRIC
           POTENTIAL_TYPE IDENTITY
         &END
-        &IM_TIME
+        &LOW_SCALING
         &END
         &RI_RPA
           RPA_NUM_QUAD_POINTS  5
           MINIMAX
-          GW
-          &RI_G0W0
+          &GW
             CORR_MOS_OCC 3
             CORR_MOS_VIRT 3
             IC

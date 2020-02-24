@@ -48,8 +48,8 @@
         &RI_METRIC
           POTENTIAL_TYPE IDENTITY
         &END
-        &IM_TIME
-        &END IM_TIME
+        &LOW_SCALING
+        &END LOW_SCALING
         &RI_RPA
           &HF
             FRACTION 1.0000000
@@ -58,10 +58,8 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
-          MINIMAX
           RPA_NUM_QUAD_POINTS 20
-          GW
-          &RI_G0W0
+          &GW
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
             ANALYTIC_CONTINUATION TWO_POLE
@@ -69,7 +67,7 @@
             CROSSING_SEARCH       Z_SHOT
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_SC_ITER            1
-          &END RI_G0W0
+          &END GW
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1

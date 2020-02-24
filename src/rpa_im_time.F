@@ -323,7 +323,7 @@ CONTAINS
                   ibounds_2(:, 1) = [starts_array_mc(i_mem), ends_array_mc(i_mem)]
 
                   IF (unit_nr_prv > 0) WRITE (UNIT=unit_nr_prv, FMT="(T3,A,I2,1X,I2)") &
-                     "RPA_IM_TIME_INFO| Memory Cut iteration", i_mem, j_mem
+                     "RPA_LOW_SCALING_INFO| Memory Cut iteration", i_mem, j_mem
 
                   IF (do_Gamma_RPA) THEN
                      IF (.NOT. dbcsr_t_need_contract(t_3c_O_occ(1, 1), &
@@ -569,7 +569,7 @@ CONTAINS
          t2 = m_walltime()
 
          IF (unit_nr_prv > 0) WRITE (unit_nr_prv, '(T3,A,1X,I3,A,11X,F25.6)') &
-            'RPA_IM_TIME_INFO| Time for time point', jquad, ':', t2 - t1
+            'RPA_LOW_SCALING_INFO| Time for time point', jquad, ':', t2 - t1
 
       END DO ! time points
 
@@ -921,7 +921,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (memory_info .AND. unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-         "RPA_IM_TIME_INFO| Started with time point: ", jquad
+         "RPA_LOW_SCALING_INFO| Started with time point: ", jquad
 
       tau = tau_tj(jquad)
 

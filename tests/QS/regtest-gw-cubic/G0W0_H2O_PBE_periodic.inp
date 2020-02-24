@@ -42,16 +42,11 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        &WFC_GPW
-          ! normally, this EPS_FILTER controls the accuracy and
-          ! the time for the cubic_scaling RPA calculation
-          EPS_FILTER  1.0E-7
-        &END
         &RI_METRIC
           POTENTIAL_TYPE IDENTITY
         &END
-        ERI_METHOD OS
-        &IM_TIME
+        &LOW_SCALING
+          EPS_FILTER  1.0E-7
         &END
         &RI_RPA
           &HF
@@ -61,10 +56,8 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
-          MINIMAX
           RPA_NUM_QUAD_POINTS     10
-          GW
-          &RI_G0W0
+          &GW
             CORR_MOS_OCC          4
             CORR_MOS_VIRT         4
             ANALYTIC_CONTINUATION TWO_POLE
@@ -74,7 +67,7 @@
               # That value should be chosen much larger !
               NUM_OMEGA_POINTS   5
             &END
-          &END RI_G0W0
+          &END GW
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1

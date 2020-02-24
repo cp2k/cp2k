@@ -38,32 +38,23 @@
         &RI_METRIC
           POTENTIAL_TYPE IDENTITY
         &END
-        ERI_METHOD OS
         &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
           EPS_GRID 1.0E-7
-          EPS_FILTER 1.0E-7
           SIZE_LATTICE_SUM 5
         &END
-        MEMORY  200.
-        NUMBER_PROC  1
-        &IM_TIME
-          MEMORY_CUT 1
-          MEMORY_INFO
+        &LOW_SCALING
+          EPS_FILTER 1.0E-7
           KPOINTS 1 1 4
-        &END IM_TIME
+        &END LOW_SCALING
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
-          MINIMAX
-          GW
-          &RI_G0W0
+          &GW
            CORR_OCC   1
            CORR_VIRT  1
            CROSSING_SEARCH NEWTON
            ANALYTIC_CONTINUATION TWO_POLE
            RI_SIGMA_X
-          &END RI_G0W0
+          &END GW
         &END RI_RPA
       &END
     &END XC

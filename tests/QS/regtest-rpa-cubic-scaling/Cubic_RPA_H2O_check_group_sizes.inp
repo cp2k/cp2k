@@ -41,13 +41,9 @@
         &RI_METRIC
           POTENTIAL_TYPE IDENTITY
         &END
-        &WFC_GPW
-          ! normally, this EPS_FILTER controls the accuracy and
-          ! the time for the cubic_scaling RPA calculation
-          EPS_FILTER  1.0E-6
-        &END
         ERI_METHOD MME
-        &IM_TIME
+        &LOW_SCALING
+          EPS_FILTER  1.0E-6
           !MEMORY_INFO
           ! normally, increase MEMORY_CUT for large systems
           ! not to run out of memory
@@ -59,10 +55,9 @@
             ! normally, GROUP_SIZE_P 1 is fine
             GROUP_SIZE_P 2
           &END
-        &END IM_TIME
+        &END LOW_SCALING
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
-          MINIMAX
           &HF
             FRACTION 1.0000000
             &SCREENING

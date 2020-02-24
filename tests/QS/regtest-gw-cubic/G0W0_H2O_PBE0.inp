@@ -52,13 +52,8 @@
         &RI_METRIC
           POTENTIAL_TYPE IDENTITY
         &END
-        &WFC_GPW
-          ! normally, this EPS_FILTER controls the accuracy and
-          ! the time for the cubic_scaling RPA calculation
+        &LOW_SCALING
           EPS_FILTER  1.0E-7
-        &END
-        ERI_METHOD OS
-        &IM_TIME
         &END
         &RI_RPA
           &HF
@@ -69,14 +64,12 @@
             &END SCREENING
           &END HF
           RPA_NUM_QUAD_POINTS 10
-          MINIMAX
-          GW
-          &RI_G0W0
+          &GW
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
             CROSSING_SEARCH       Z_SHOT
             ANALYTIC_CONTINUATION TWO_POLE
-          &END RI_G0W0
+          &END GW
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1

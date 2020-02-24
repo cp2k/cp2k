@@ -28,11 +28,11 @@ MODULE input_cp2k_mp2
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
         do_potential_long, do_potential_short, do_potential_truncated, do_potential_tshpsc, &
-        gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, gw_read_exx, gw_skip_for_regtest, &
-        gw_two_pole_model, mp2_method_direct, mp2_method_gpw, mp2_method_none, &
-        mp2_ri_optimize_basis, numerical, ri_default, ri_mp2_laplace, ri_mp2_method_gpw, &
-        ri_rpa_g0w0_crossing_bisection, ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, &
-        ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
+        eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, gw_read_exx, &
+        gw_skip_for_regtest, gw_two_pole_model, mp2_method_direct, mp2_method_gpw, &
+        mp2_method_none, mp2_ri_optimize_basis, numerical, ri_default, ri_mp2_laplace, &
+        ri_mp2_method_gpw, ri_rpa_g0w0_crossing_bisection, ri_rpa_g0w0_crossing_newton, &
+        ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -185,14 +185,15 @@ CONTAINS
                           "(MME method is faster but experimental, forces not yet implemented)."// &
                           "Obara-Saika (OS) for the Coulomb operator can only be used for non-periodic calculations.", &
                           usage="ERI_METHOD MME", &
-                          enum_c_vals=s2a("GPW", "MME", "OS"), &
-                          enum_i_vals=(/do_eri_gpw, do_eri_mme, do_eri_os/), &
-                          enum_desc=s2a("Uses Gaussian Plane Wave method [DelBen2013].", &
+                          enum_c_vals=s2a("DEFAULT", "GPW", "MME", "OS"), &
+                          enum_i_vals=(/eri_default, do_eri_gpw, do_eri_mme, do_eri_os/), &
+                          enum_desc=s2a("Use default ERI method (for periodic systems: GPW, for molecules: OS, "// &
+                                        "for MP2 and RI-MP2: GPW in any case).", &
+                                        "Uses Gaussian Plane Wave method [DelBen2013].", &
                                         "Uses MiniMax-Ewald method (experimental, ERI_MME subsection, only for fully periodic "// &
                                         "systems with orthorhombic cells).", &
-                                        "Uses Obara-Saika method (only for two-center integrals, only for gas phase"// &
-                                        "and only for cubic-scaling RPA and GW)."), &
-                          default_i_val=do_eri_gpw)
+                                        "Use analytical Obara-Saika method."), &
+                          default_i_val=eri_default)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -255,7 +256,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! here we generate an imag. time subsection to use with RPA or Laplace-SOS-MP2
-      CALL create_ri_im_time(subsection)
+      CALL create_low_scaling(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -545,17 +546,6 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
-         name="RI_G0W0", &
-         variants=(/"GW"/), &
-         description="Decide whether to perform an RI_G0W0 calculation on top of RI_RPA. ", &
-         usage="RI_G0W0", &
-         default_l_val=.FALSE., &
-         lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
          name="RI_AXK", &
          variants=(/"AXK"/), &
          description="Decide whether to perform an RPA-AXK calculation.", &
@@ -650,11 +640,18 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="RI_G0W0", &
+      CALL section_create(section, __LOCATION__, name="GW", &
                           description="Parameters influencing the RI-G0W0 method", &
                           n_keywords=24, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
+
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Activates cubic-scaling RPA, GW and Laplace-SOS-MP2 calculations.", &
+                          usage="&GW .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CORR_MOS_OCC", &
                           variants=(/"CORR_OCC"/), &
@@ -1142,10 +1139,10 @@ CONTAINS
 !> \brief ...
 !> \param section ...
 ! **************************************************************************************************
-   SUBROUTINE create_ri_im_time(section)
+   SUBROUTINE create_low_scaling(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_im_time', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_low_scaling', &
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
@@ -1153,7 +1150,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
-         section, __LOCATION__, name="IM_TIME", &
+         section, __LOCATION__, name="LOW_SCALING", &
          description="Cubic scaling RI-RPA, GW and Laplace-SOS-MP2 method using the imaginary time formalism.", &
          n_keywords=12, n_subsections=2, repeats=.FALSE.)
 
@@ -1161,7 +1158,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Activates cubic-scaling RPA, GW and Laplace-SOS-MP2 calculations.", &
-                          usage="&im_time .TRUE.", &
+                          usage="&LOW_SCALING .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1193,8 +1190,17 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
+         keyword, __LOCATION__, name="EPS_FILTER", &
+         description="Determines a threshold for the DBCSR based multiply."// &
+         "Normally, this EPS_FILTER determines accuracy and timing of low-scaling RPA and GW calculations.", &
+         usage="EPS_FILTER 1.0E-10 ", type_of_var=real_t, &
+         default_r_val=1.0E-9_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_FILTER_FACTOR", &
-         description="Multiply EPS_FILTER of WFC_GPW section with this factor to determine filter epsilon "// &
+         description="Multiply EPS_FILTER with this factor to determine filter epsilon "// &
          "for DBCSR based multiply P(it)=(Mocc(it))^T*Mvirt(it) "// &
          "Default should be kept.", &
          type_of_var=real_t, &
