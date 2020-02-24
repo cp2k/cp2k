@@ -606,7 +606,8 @@ CONTAINS
       INTEGER :: blk_cnt, handle, i, i_img, iatom, iblk, ikind, iproc, j_img, jatom, jcell, jkind, &
          katom, kcell, kkind, natom, nimg, op_ij, op_jk, op_pos_prv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp
-      INTEGER, DIMENSION(3)                              :: cell_j, cell_k
+      INTEGER, DIMENSION(3)                              :: cell_j, cell_k, kp_index_lbounds, &
+                                                            kp_index_ubounds
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_kpoints_prv, new_block
       REAL(KIND=dp)                                      :: dij, dik, djk, dr_ij, dr_ik, dr_jk, &
@@ -678,6 +679,11 @@ CONTAINS
       ALLOCATE (alloc_j(nimg, nimg))
       ALLOCATE (alloc_k(nimg, nimg))
 
+      IF (do_kpoints_prv) THEN
+         kp_index_lbounds = LBOUND(cell_to_index)
+         kp_index_ubounds = UBOUND(cell_to_index)
+      ENDIF
+
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
       DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
          CALL get_3c_iterator_info(nl_3c_iter, ikind=ikind, jkind=jkind, kkind=kkind, &
@@ -686,8 +692,14 @@ CONTAINS
 
          IF (do_kpoints_prv) THEN
 
+            IF (ANY([cell_j(1), cell_j(2), cell_j(3)] < kp_index_lbounds) .OR. &
+                ANY([cell_j(1), cell_j(2), cell_j(3)] > kp_index_ubounds)) CYCLE
+
             jcell = cell_to_index(cell_j(1), cell_j(2), cell_j(3))
             IF (jcell > nimg) CYCLE
+
+            IF (ANY([cell_k(1), cell_k(2), cell_k(3)] < kp_index_lbounds) .OR. &
+                ANY([cell_k(1), cell_k(2), cell_k(3)] > kp_index_ubounds)) CYCLE
 
             kcell = cell_to_index(cell_k(1), cell_k(2), cell_k(3))
             IF (kcell > nimg) CYCLE
@@ -842,7 +854,8 @@ CONTAINS
          block_start_k, handle, handle2, i, iatom, ibasis, ikind, imax, iset, jatom, jcell, jkind, &
          jset, katom, kcell, kkind, kset, m_max, maxli, maxlj, maxlk, natom, ncoi, ncoj, ncok, &
          nimg, nseti, nsetj, nsetk, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
-      INTEGER, DIMENSION(3)                              :: blk_size, cell_j, cell_k, sp
+      INTEGER, DIMENSION(3)                              :: blk_size, cell_j, cell_k, &
+                                                            kp_index_lbounds, kp_index_ubounds, sp
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmax_k, lmin_i, lmin_j, &
                                                             lmin_k, npgfi, npgfj, npgfk, nsgfi, &
                                                             nsgfj, nsgfk
@@ -979,6 +992,11 @@ CONTAINS
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
       CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bounds_j, bounds_k)
 
+      IF (do_kpoints_prv) THEN
+         kp_index_lbounds = LBOUND(cell_to_index)
+         kp_index_ubounds = UBOUND(cell_to_index)
+      ENDIF
+
       DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
          CALL get_3c_iterator_info(nl_3c_iter, ikind=ikind, jkind=jkind, kkind=kkind, &
                                    iatom=iatom, jatom=jatom, katom=katom, &
@@ -1000,8 +1018,14 @@ CONTAINS
 
          IF (do_kpoints_prv) THEN
 
+            IF (ANY([cell_j(1), cell_j(2), cell_j(3)] < kp_index_lbounds) .OR. &
+                ANY([cell_j(1), cell_j(2), cell_j(3)] > kp_index_ubounds)) CYCLE
+
             jcell = cell_to_index(cell_j(1), cell_j(2), cell_j(3))
             IF (jcell > nimg) CYCLE
+
+            IF (ANY([cell_k(1), cell_k(2), cell_k(3)] < kp_index_lbounds) .OR. &
+                ANY([cell_k(1), cell_k(2), cell_k(3)] > kp_index_ubounds)) CYCLE
 
             kcell = cell_to_index(cell_k(1), cell_k(2), cell_k(3))
             IF (kcell > nimg) CYCLE
