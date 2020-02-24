@@ -259,6 +259,9 @@ CONTAINS
          virtual_beta = nmo - homo_beta
       END IF
 
+      IF (do_im_time) mp2_env%ri_rpa%minimax_quad = .TRUE.
+      do_minimax_quad = mp2_env%ri_rpa%minimax_quad
+
       IF (do_ri_sos_laplace_mp2) THEN
          num_integ_points = mp2_env%ri_laplace%n_quadrature
          input_integ_group_size = mp2_env%ri_laplace%integ_group_size
@@ -292,8 +295,7 @@ CONTAINS
       ELSE
          num_integ_points = mp2_env%ri_rpa%rpa_num_quad_points
          input_integ_group_size = mp2_env%ri_rpa%rpa_integ_group_size
-         IF (do_im_time) mp2_env%ri_rpa%minimax_quad = .TRUE.
-         do_minimax_quad = mp2_env%ri_rpa%minimax_quad
+
          mp2_env%ri_g0w0%do_gw_im_time_mix_minimax_clenshaw = mp2_env%ri_g0w0%num_integ_points_freq > num_integ_points
 
          IF (do_minimax_quad .AND. num_integ_points > 20) THEN
