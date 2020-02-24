@@ -1,0 +1,64 @@
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/water.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.0
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+    &END CELL
+    &COORD
+  OT         3.0024173006        3.0061145185        2.9033933250 WAT
+  HT         3.0015113773        2.2476529266        3.4871245887 WAT
+  HT         3.0017525562        3.7616371430        3.4909306730 WAT
+    &END COORD
+    &KIND OT
+      ELEMENT O
+    &END
+    &KIND HT
+      ELEMENT H
+    &END
+    &TOPOLOGY
+       CONNECTIVITY GENERATE
+       &GENERATE
+        BONDPARM_FACTOR 1.2
+       &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT wat_md_vib_init
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TIMESTEP 2.5
+    TEMPERATURE 298
+    INITIALIZATION_METHOD VIBRATIONAL
+    &INITIAL_VIBRATION
+      VIB_EIGS_FILE_NAME wat_freq-VIBRATIONS-1.eig
+      PHASE 0.1
+    &END INITIAL_VIBRATION
+  &END MD
+&END MOTION
