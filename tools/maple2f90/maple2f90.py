@@ -1,12 +1,207 @@
 #!/bin/env python
-import re,sys
+import re, sys
+
 """Script to help the conversion of maple generated fortran code to f90"""
 
-renamedVar=["cg", "cg0", "cg1", "cg10", "cg11", "cg12", "cg13", "cg14", "cg15", "cg16", "cg17", "cg18", "cg19", "cg2", "cg20", "cg21", "cg22", "cg23", "cg24", "cg25", "cg26", "cg27", "cg28", "cg29", "cg3", "cg30", "cg31", "cg32", "cg33", "cg34", "cg35", "cg36", "cg37", "cg38", "cg39", "cg4", "cg40", "cg41", "cg42", "cg43", "cg44", "cg45", "cg46", "cg47", "cg48", "cg49", "cg5", "cg50", "cg51", "cg52", "cg53", "cg54", "cg55", "cg56", "cg57", "cg58", "cg59", "cg6", "cg60", "cg61", "cg62", "cg63", "cg64", "cg65", "cg66", "cg67", "cg68", "cg69", "cg7", "cg70", "cg71", "cg72", "cg73", "cg74", "cg75", "cg76", "cg77", "cg78", "cg79", "cg8", "cg80", "cg81", "cg82", "cg83", "cg84", "cg85", "cg86", "cg87", "cg88", "cg89", "cg9", "cg90", "cg91", "cg92", "cg93", "cg94"]
+renamedVar = [
+    "cg",
+    "cg0",
+    "cg1",
+    "cg10",
+    "cg11",
+    "cg12",
+    "cg13",
+    "cg14",
+    "cg15",
+    "cg16",
+    "cg17",
+    "cg18",
+    "cg19",
+    "cg2",
+    "cg20",
+    "cg21",
+    "cg22",
+    "cg23",
+    "cg24",
+    "cg25",
+    "cg26",
+    "cg27",
+    "cg28",
+    "cg29",
+    "cg3",
+    "cg30",
+    "cg31",
+    "cg32",
+    "cg33",
+    "cg34",
+    "cg35",
+    "cg36",
+    "cg37",
+    "cg38",
+    "cg39",
+    "cg4",
+    "cg40",
+    "cg41",
+    "cg42",
+    "cg43",
+    "cg44",
+    "cg45",
+    "cg46",
+    "cg47",
+    "cg48",
+    "cg49",
+    "cg5",
+    "cg50",
+    "cg51",
+    "cg52",
+    "cg53",
+    "cg54",
+    "cg55",
+    "cg56",
+    "cg57",
+    "cg58",
+    "cg59",
+    "cg6",
+    "cg60",
+    "cg61",
+    "cg62",
+    "cg63",
+    "cg64",
+    "cg65",
+    "cg66",
+    "cg67",
+    "cg68",
+    "cg69",
+    "cg7",
+    "cg70",
+    "cg71",
+    "cg72",
+    "cg73",
+    "cg74",
+    "cg75",
+    "cg76",
+    "cg77",
+    "cg78",
+    "cg79",
+    "cg8",
+    "cg80",
+    "cg81",
+    "cg82",
+    "cg83",
+    "cg84",
+    "cg85",
+    "cg86",
+    "cg87",
+    "cg88",
+    "cg89",
+    "cg9",
+    "cg90",
+    "cg91",
+    "cg92",
+    "cg93",
+    "cg94",
+]
 
-origNames=["norm_drho", "norm_drhoa", "norm_drhob", "chirhoa", "epsilon_c_unifrhoarhob", "e_c_u_01rhob", "epsilon_c_unif1rhob", "alpha_c1rhoa", "k_frhoarhob", "chirhobrhob", "phi1rhob", "phirhoa", "kf_b", "kf_brhob", "Fx_b", "e_c_u_01rhoa", "frhoarhob", "chirhoarhob", "chirhob", "Fx_a", "ex_unif_a1rhoa", "e_c_u_1rhoa", "epsilon_cGGArhob", "epsilon_c_unifrhob", "k_frhoa", "phirhoarhoa", "trhobrhob", "ex_unif_b", "Arhoarhob", "k_s1rhoa", "gamma_var", "k_frhob", "epsilon_cGGA", "phirhob", "Fx_bnorm_drhob", "s_anorm_drhoa", "epsilon_cGGArhoa", "Arhobrhob", "Fx_brhob", "k_s1rhob", "s_arhoa", "rsrhoarhoa", "epsilon_c_unif", "kf_arhoarhoa", "Hnorm_drho", "trhoarhoa", "Fx_anorm_drhoa", "alpha_crhob", "e_c_u_0rhob", "s_a1rhoa", "k_s", "kf_a", "k_srhoa", "rsrhoarhob", "rsrhobrhob", "s_a", "epsilon_c_unifrhoa", "e_c_u_0rhoa", "phi1rhoa", "trhoarhob", "alpha_c", "frhoarhoa", "trhobnorm_drho", "Fx_a1rhoa", "e_c_u_0rhobrhob", "Arhoarhoa", "phirhoarhob", "ex_unif_brhob", "kf_arhoa", "frhobrhob", "phirhobrhob", "Fx_arhoa", "e_c_u_0rhoarhob", "s_bnorm_drhob", "epsilon_c_unifrhoarhoa", "epsilon_c_unif1rhoa", "e_c_u_0rhoarhoa", "ex_unif_arhoa", "epsilon_c_unifrhobrhob", "s_brhob", "k_srhob", "ex_unif_a", "chirhoarhoa", "e_c_u_1rhob", "s_b", "alpha_c1rhob", "tnorm_drho", "k_frhoarhoa", "s_b1rhob", "kf_brhobrhob", "e_c_u_0", "ex_unif_b1rhob", "trhoanorm_drho", "Fx_b1rhob", "alpha_crhoa", "r_eqs_lsd4"]
+origNames = [
+    "norm_drho",
+    "norm_drhoa",
+    "norm_drhob",
+    "chirhoa",
+    "epsilon_c_unifrhoarhob",
+    "e_c_u_01rhob",
+    "epsilon_c_unif1rhob",
+    "alpha_c1rhoa",
+    "k_frhoarhob",
+    "chirhobrhob",
+    "phi1rhob",
+    "phirhoa",
+    "kf_b",
+    "kf_brhob",
+    "Fx_b",
+    "e_c_u_01rhoa",
+    "frhoarhob",
+    "chirhoarhob",
+    "chirhob",
+    "Fx_a",
+    "ex_unif_a1rhoa",
+    "e_c_u_1rhoa",
+    "epsilon_cGGArhob",
+    "epsilon_c_unifrhob",
+    "k_frhoa",
+    "phirhoarhoa",
+    "trhobrhob",
+    "ex_unif_b",
+    "Arhoarhob",
+    "k_s1rhoa",
+    "gamma_var",
+    "k_frhob",
+    "epsilon_cGGA",
+    "phirhob",
+    "Fx_bnorm_drhob",
+    "s_anorm_drhoa",
+    "epsilon_cGGArhoa",
+    "Arhobrhob",
+    "Fx_brhob",
+    "k_s1rhob",
+    "s_arhoa",
+    "rsrhoarhoa",
+    "epsilon_c_unif",
+    "kf_arhoarhoa",
+    "Hnorm_drho",
+    "trhoarhoa",
+    "Fx_anorm_drhoa",
+    "alpha_crhob",
+    "e_c_u_0rhob",
+    "s_a1rhoa",
+    "k_s",
+    "kf_a",
+    "k_srhoa",
+    "rsrhoarhob",
+    "rsrhobrhob",
+    "s_a",
+    "epsilon_c_unifrhoa",
+    "e_c_u_0rhoa",
+    "phi1rhoa",
+    "trhoarhob",
+    "alpha_c",
+    "frhoarhoa",
+    "trhobnorm_drho",
+    "Fx_a1rhoa",
+    "e_c_u_0rhobrhob",
+    "Arhoarhoa",
+    "phirhoarhob",
+    "ex_unif_brhob",
+    "kf_arhoa",
+    "frhobrhob",
+    "phirhobrhob",
+    "Fx_arhoa",
+    "e_c_u_0rhoarhob",
+    "s_bnorm_drhob",
+    "epsilon_c_unifrhoarhoa",
+    "epsilon_c_unif1rhoa",
+    "e_c_u_0rhoarhoa",
+    "ex_unif_arhoa",
+    "epsilon_c_unifrhobrhob",
+    "s_brhob",
+    "k_srhob",
+    "ex_unif_a",
+    "chirhoarhoa",
+    "e_c_u_1rhob",
+    "s_b",
+    "alpha_c1rhob",
+    "tnorm_drho",
+    "k_frhoarhoa",
+    "s_b1rhob",
+    "kf_brhobrhob",
+    "e_c_u_0",
+    "ex_unif_b1rhob",
+    "trhoanorm_drho",
+    "Fx_b1rhob",
+    "alpha_crhoa",
+    "r_eqs_lsd4",
+]
 
-code="""
+code = """
       doubleprecision function cg94 (rhoa, rhob, cg, cg0, cg1)
 
         my_rhoa = rhoa
@@ -759,44 +954,46 @@ code="""
         return
       end"""
 
-def maple2f90(code,replacements={}):
-    c1=code.replace("\n     #","")
 
-    floatRe=re.compile(r"([0-9]+\.?[0-9]*|\.[0-9]+)[dD]([-+]?[0-9]+)")
-    c1=floatRe.sub(r"\1e\2_dp",c1)
+def maple2f90(code, replacements={}):
+    c1 = code.replace("\n     #", "")
 
-    varNameRe=re.compile(r"([a-zA-Z][a-zA-Z0-9_]*)")
-    c2=varNameRe.split(c1)
+    floatRe = re.compile(r"([0-9]+\.?[0-9]*|\.[0-9]+)[dD]([-+]?[0-9]+)")
+    c1 = floatRe.sub(r"\1e\2_dp", c1)
+
+    varNameRe = re.compile(r"([a-zA-Z][a-zA-Z0-9_]*)")
+    c2 = varNameRe.split(c1)
     for i in range(len(c2)):
         if c2[i] in replacements.keys():
-            c2[i]=replacements[c2[i]]
-    c1="".join(c2)
-    vars=re.findall(r" *([a-zA-Z][a-zA-Z0-9_]*) *=",c1)
-    lc1=["real(kind=dp) :: "+", ".join(vars)+"\n","\n"]+c1.splitlines()
-    splittableRe=re.compile(r"([ /=()])")
+            c2[i] = replacements[c2[i]]
+    c1 = "".join(c2)
+    vars = re.findall(r" *([a-zA-Z][a-zA-Z0-9_]*) *=", c1)
+    lc1 = ["real(kind=dp) :: " + ", ".join(vars) + "\n", "\n"] + c1.splitlines()
+    splittableRe = re.compile(r"([ /=()])")
     for i in range(len(lc1)):
-        if (len(lc1[i])>80):
-            pieces=splittableRe.split(lc1[i])
-            ll=0
-            newL=[]
+        if len(lc1[i]) > 80:
+            pieces = splittableRe.split(lc1[i])
+            ll = 0
+            newL = []
             for p in pieces:
-                if ll<10 or ll+len(p)<75:
+                if ll < 10 or ll + len(p) < 75:
                     newL.append(p)
-                    ll+=len(p)
+                    ll += len(p)
                 else:
                     newL.append("&\n      ")
                     newL.append(p)
-                    ll=len(p)+6
-            lc1[i]="".join(newL)
-    c1="\n".join(lc1)+"\n"
+                    ll = len(p) + 6
+            lc1[i] = "".join(newL)
+    c1 = "\n".join(lc1) + "\n"
     return c1
 
-#===============================================================================
-if __name__=="__main__":
-    replacements={}
+
+# ===============================================================================
+if __name__ == "__main__":
+    replacements = {}
     for i in range(len(renamedVar)):
-        replacements[renamedVar[i]]=origNames[i]
-    output = maple2f90(code,replacements)
+        replacements[renamedVar[i]] = origNames[i]
+    output = maple2f90(code, replacements)
 
     # print output unless we are selftesting
     print(output)

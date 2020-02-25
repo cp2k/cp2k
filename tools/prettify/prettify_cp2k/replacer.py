@@ -1,16 +1,12 @@
 import re
 import sys
 
-repl = {
-    'routine_name': 'routineN',
-    'module_name': 'moduleN'
-}
+repl = {"routine_name": "routineN", "module_name": "moduleN"}
 specialRepl = None
 # { re.compile(r"(.*:: *moduleN) *= *(['\"])[a-zA-Z_0-9]+\2",flags=re.IGNORECASE):r"character(len=*), parameter :: moduleN = '__MODULE_NAME__'" }
 
 
-def replaceWords(infile, outfile, replacements=repl,
-                 specialReplacements=specialRepl):
+def replaceWords(infile, outfile, replacements=repl, specialReplacements=specialRepl):
     """Replaces the words in infile writing the output to outfile.
 
     replacements is a dictionary with the words to replace.
@@ -35,4 +31,6 @@ def replaceWords(infile, outfile, replacements=repl,
                 outfile.write(replacements[token])
             else:
                 outfile.write(token)
+
+
 # EOF

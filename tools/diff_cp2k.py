@@ -72,183 +72,235 @@ import operator
 import os
 import imp
 
-def read_file(filename,field,special_keys,stats_keys):
+
+def read_file(filename, field, special_keys, stats_keys):
     try:
-        nline=0
-        nstats=0
-        dict_values={}
-        dict_stats={}
-        nameout=['','']
-        with open(filename, 'r') as f:
+        nline = 0
+        nstats = 0
+        dict_values = {}
+        dict_stats = {}
+        nameout = ["", ""]
+        with open(filename, "r") as f:
             for line in f:
                 # start reading
-                if "NAMEOUT=" in line :
-                    nameout[0]=line.split('=',2)[1].strip()
+                if "NAMEOUT=" in line:
+                    nameout[0] = line.split("=", 2)[1].strip()
                     continue
-                if "ENERGY| Total FORCE_EVAL ( QS ) energy (a.u.):" in line :
-                    nameout[1]=line.split(':',2)[1].strip()
+                if "ENERGY| Total FORCE_EVAL ( QS ) energy (a.u.):" in line:
+                    nameout[1] = line.split(":", 2)[1].strip()
                     continue
-                if "DBCSR STATISTICS" not in line and nstats == 0 : continue
-                nstats=1
+                if "DBCSR STATISTICS" not in line and nstats == 0:
+                    continue
+                nstats = 1
                 for stats_key in stats_keys:
                     if stats_key in line:
                         for index in stats_keys[stats_key]:
-                            index_key=stats_key.strip()+' ['+str(index)+']'
-                            dict_stats[index_key] = line.split(stats_key,2)[1].split()[index]
+                            index_key = stats_key.strip() + " [" + str(index) + "]"
+                            dict_stats[index_key] = line.split(stats_key, 2)[1].split()[
+                                index
+                            ]
                         break
-                if "T I M I N G" not in line and nline == 0 : continue
-                nline+=1
-                if nline < 6: continue
+                if "T I M I N G" not in line and nline == 0:
+                    continue
+                nline += 1
+                if nline < 6:
+                    continue
                 # end reading
                 if "-----" in line:
-                    nline=0
+                    nline = 0
                     continue
-                values=line.split()
+                values = line.split()
                 # filter
-                if float(values[3+field])<=0.001 and values[0]!='CP2K' : continue
-                if values[0] in special_keys : values[0]=special_keys[values[0]]
+                if float(values[3 + field]) <= 0.001 and values[0] != "CP2K":
+                    continue
+                if values[0] in special_keys:
+                    values[0] = special_keys[values[0]]
                 # take only he first timing of duplicate special_keys
-                if values[0] in dict_values : continue
-                if values[0]=='CP2K' :
-                    dict_values[values[0]+'_Total']=float(values[6])
+                if values[0] in dict_values:
+                    continue
+                if values[0] == "CP2K":
+                    dict_values[values[0] + "_Total"] = float(values[6])
                 else:
-                    dict_values[values[0]]=float(values[3+field])
+                    dict_values[values[0]] = float(values[3 + field])
 
         f.closed
         return dict_values, dict_stats, nameout
     except IOError:
-        print("Cannot open "+filename)
+        print("Cannot open " + filename)
         print("Exit")
         sys.exit(-1)
 
-def print_value(ref,value):
-    if ref>0:
-        comp=(value-ref)/ref*100
+
+def print_value(ref, value):
+    if ref > 0:
+        comp = (value - ref) / ref * 100
     else:
-        comp=float('Inf')
-    color='\033[0m'
-    endc='\033[0m'
-    if comp>0: color='\033[92m'
-    elif comp<0: color='\033[94m'
-    if abs(comp)>100: color+='\033[1m'
-    sys.stdout.write(color+'%10.3f' % value+'%5.0f' % comp+endc)
+        comp = float("Inf")
+    color = "\033[0m"
+    endc = "\033[0m"
+    if comp > 0:
+        color = "\033[92m"
+    elif comp < 0:
+        color = "\033[94m"
+    if abs(comp) > 100:
+        color += "\033[1m"
+    sys.stdout.write(color + "%10.3f" % value + "%5.0f" % comp + endc)
+
 
 #################
 # Main function #
 #################
 
+
 def main():
-    parser = argparse.ArgumentParser(description='Comparison of CP2K output timings.')
-    parser.add_argument('file_lists', nargs='+', help='list of files')
-    parser.add_argument('-f',metavar='field', type=int, dest='field',
-                        choices=xrange(1, 5),
-                        default=2,
-                        help='which field to show (default is 2)')
-    parser.add_argument('-b',metavar='base', type=int, dest='base',
-                        default=1,
-                        help='which file to use as base for the comparison (default is 1)')
-    parser.add_argument('-g',metavar='grep', nargs='+', dest='grep',
-                        default='',
-                        help='Fields to grep (check the inclusion correspondance of the words)')
-    parser.add_argument('-e',metavar='filter', nargs='+', dest='filter',
-                        default='',
-                        help='Fields to grep (check the exact correspondance of the words)')
-    parser.add_argument('-k',metavar='file_keys', dest='file_keys',
-                        default='',
-                        help='File of keys')
-    args=parser.parse_args()
+    parser = argparse.ArgumentParser(description="Comparison of CP2K output timings.")
+    parser.add_argument("file_lists", nargs="+", help="list of files")
+    parser.add_argument(
+        "-f",
+        metavar="field",
+        type=int,
+        dest="field",
+        choices=xrange(1, 5),
+        default=2,
+        help="which field to show (default is 2)",
+    )
+    parser.add_argument(
+        "-b",
+        metavar="base",
+        type=int,
+        dest="base",
+        default=1,
+        help="which file to use as base for the comparison (default is 1)",
+    )
+    parser.add_argument(
+        "-g",
+        metavar="grep",
+        nargs="+",
+        dest="grep",
+        default="",
+        help="Fields to grep (check the inclusion correspondance of the words)",
+    )
+    parser.add_argument(
+        "-e",
+        metavar="filter",
+        nargs="+",
+        dest="filter",
+        default="",
+        help="Fields to grep (check the exact correspondance of the words)",
+    )
+    parser.add_argument(
+        "-k", metavar="file_keys", dest="file_keys", default="", help="File of keys"
+    )
+    args = parser.parse_args()
 
     # Empty keys by default
-    special_keys={}
-    stats_keys={}
+    special_keys = {}
+    stats_keys = {}
 
     # Check for keys file
-    file_keys=[]
+    file_keys = []
     if len(args.file_keys) > 0:
         file_keys.append(os.path.abspath(args.file_keys))
     else:
         # if not file_keys is provided, then look for it in the local directory and home
-        file_keys.append(os.getcwd()+'/diff_cp2k_keys.py')
-        file_keys.append(os.path.expanduser('~')+'/diff_cp2k_keys.py')
+        file_keys.append(os.getcwd() + "/diff_cp2k_keys.py")
+        file_keys.append(os.path.expanduser("~") + "/diff_cp2k_keys.py")
 
     for filename in file_keys:
         try:
-            module = imp.load_source('*',filename)
-            special_keys=module.special_keys
-            stats_keys=module.stats_keys
+            module = imp.load_source("*", filename)
+            special_keys = module.special_keys
+            stats_keys = module.stats_keys
         except IOError:
             if len(args.file_keys) > 0:
-                print("Cannont open file keys "+filename+"!")
+                print("Cannont open file keys " + filename + "!")
                 print("Exit")
                 sys.exit(-1)
 
     if args.base < 1 or args.base > len(args.file_lists):
-        print("Value for -b option out-of-bounds! Allowed values are between 1 and "+str(len(args.file_lists)))
+        print(
+            "Value for -b option out-of-bounds! Allowed values are between 1 and "
+            + str(len(args.file_lists))
+        )
         print("Exit")
         sys.exit(-1)
 
-    dict_values={}
-    dict_stats={}
-    files={}
+    dict_values = {}
+    dict_stats = {}
+    files = {}
     for filename in args.file_lists:
-        dict_values[filename], dict_stats[filename], files[filename]=read_file(filename,
-                                                                               args.field-1,
-                                                                               special_keys,
-                                                                               stats_keys)
+        dict_values[filename], dict_stats[filename], files[filename] = read_file(
+            filename, args.field - 1, special_keys, stats_keys
+        )
 
     print("===== Timings report =====")
 
     # sorted by first file timings
-    sorted_values = sorted(dict_values[args.file_lists[args.base-1]].items(), key=operator.itemgetter(1))
+    sorted_values = sorted(
+        dict_values[args.file_lists[args.base - 1]].items(), key=operator.itemgetter(1)
+    )
     for key in sorted_values:
         # Apply filtering
-        if (key[0]!="CP2K_Total" and
-            ((len(args.grep) > 0 and any(s not in key[0] for s in args.grep)) or
-             (len(args.filter) > 0 and key[0] not in args.filter))):
+        if key[0] != "CP2K_Total" and (
+            (len(args.grep) > 0 and any(s not in key[0] for s in args.grep))
+            or (len(args.filter) > 0 and key[0] not in args.filter)
+        ):
             continue
-        sys.stdout.write(key[0].ljust(30)+'%10.3f' % key[1])
+        sys.stdout.write(key[0].ljust(30) + "%10.3f" % key[1])
         for filename in args.file_lists:
-            if filename == args.file_lists[args.base-1]:
+            if filename == args.file_lists[args.base - 1]:
                 continue
             if key[0] not in dict_values[filename]:
-                sys.stdout.write(('-'*10).rjust(15))
+                sys.stdout.write(("-" * 10).rjust(15))
                 continue
-            print_value(key[1],dict_values[filename][key[0]])
+            print_value(key[1], dict_values[filename][key[0]])
             del dict_values[filename][key[0]]
         print("")
 
     print("")
 
-    ref=0
-    if len(files[args.file_lists[args.base-1]][1])>0:
-        ref=float(files[args.file_lists[args.base-1]][1])
-    color='\033[0m'
-    endc='\033[0m'
+    ref = 0
+    if len(files[args.file_lists[args.base - 1]][1]) > 0:
+        ref = float(files[args.file_lists[args.base - 1]][1])
+    color = "\033[0m"
+    endc = "\033[0m"
     for filename in args.file_lists:
-        if len(files[filename][1])>0:
-            comp=(float(files[filename][1])-ref)/ref
-            if abs(comp)>1e-14: color='\033[91m'
-            else: color='\033[0m'
-            print(('{0} ==> {1} : {2} : '+color+'{3}'+endc).format(files[filename][0],filename,files[filename][1],(float(files[filename][1])-ref)/ref))
+        if len(files[filename][1]) > 0:
+            comp = (float(files[filename][1]) - ref) / ref
+            if abs(comp) > 1e-14:
+                color = "\033[91m"
+            else:
+                color = "\033[0m"
+            print(
+                ("{0} ==> {1} : {2} : " + color + "{3}" + endc).format(
+                    files[filename][0],
+                    filename,
+                    files[filename][1],
+                    (float(files[filename][1]) - ref) / ref,
+                )
+            )
         else:
-            print(('{0} ==> {1} : ').format(files[filename][0],filename)),
-            sys.stdout.write(('-'*20).rjust(20))
+            print(("{0} ==> {1} : ").format(files[filename][0], filename)),
+            sys.stdout.write(("-" * 20).rjust(20))
             print("")
 
     print("")
 
     for filename in args.file_lists:
-        if filename == args.file_lists[args.base-1]:
+        if filename == args.file_lists[args.base - 1]:
             continue
-        print("Remaining entries in "+files[filename][0]+" ==> "+filename)
-        sorted_values = sorted(dict_values[filename].items(), key=operator.itemgetter(1))
-        count=0
+        print("Remaining entries in " + files[filename][0] + " ==> " + filename)
+        sorted_values = sorted(
+            dict_values[filename].items(), key=operator.itemgetter(1)
+        )
+        count = 0
         for key in sorted_values:
             # Apply filtering
-            if ((len(args.grep) > 0 and any(s not in key[0] for s in args.grep)) or
-                (len(args.filter) > 0 and key[0] not in args.filter)):
+            if (len(args.grep) > 0 and any(s not in key[0] for s in args.grep)) or (
+                len(args.filter) > 0 and key[0] not in args.filter
+            ):
                 continue
-            print(key[0].ljust(30)+'%10.3f' % key[1])
+            print(key[0].ljust(30) + "%10.3f" % key[1])
             count += 1
         if count == 0:
             print("<None>")
@@ -259,11 +311,11 @@ def main():
     if len(stats_keys) > 0:
         for stats_key in stats_keys:
             for index in stats_keys[stats_key]:
-                index_key=stats_key.strip()+' ['+str(index)+']'
+                index_key = stats_key.strip() + " [" + str(index) + "]"
                 sys.stdout.write(index_key.ljust(35))
                 for filename in args.file_lists:
                     if index_key not in dict_stats[filename]:
-                        sys.stdout.write(('-'*18).ljust(20))
+                        sys.stdout.write(("-" * 18).ljust(20))
                         continue
                     sys.stdout.write(dict_stats[filename][index_key].ljust(20))
                 print("")
@@ -272,5 +324,6 @@ def main():
 
     print("")
 
-#===============================================================================
+
+# ===============================================================================
 main()

@@ -34,10 +34,11 @@ import pyratemp
 
 import sys
 
+
 def load_template(template_filename):
     """ Load the routine template string from a file and return the object """
     # template_str = "\n".join([e.rstrip() for e in open(template_filename).readlines()])
-    return  pyratemp.Template(filename = template_filename)
+    return pyratemp.Template(filename=template_filename)
 
 
 def create_ordered_pairs():
@@ -50,18 +51,21 @@ def create_ordered_pairs():
         (0, 1)--3750300
     """
     # Order the most common cases
-    l = [ (1,0) , (1,1), (0,0), (0,1) ]
+    l = [(1, 0), (1, 1), (0, 0), (0, 1)]
     # The rest are appended as is
-    for i in range(0,la_max_local_end+1):
-        for j in range(0,lb_max_local_end+1):
-            if not (i,j) in l:
-                l.append((i,j,))
+    for i in range(0, la_max_local_end + 1):
+        for j in range(0, lb_max_local_end + 1):
+            if not (i, j) in l:
+                l.append((i, j,))
     return l
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print(" Incorrect number of parameters ")
-        print(" Usage: " + str(sys.argv[0]) + " <template_file> " + " <destination_file>")
+        print(
+            " Usage: " + str(sys.argv[0]) + " <template_file> " + " <destination_file>"
+        )
         sys.exit(1)
 
     template_file_name = sys.argv[1]
@@ -70,8 +74,13 @@ if __name__ == "__main__":
     l = create_ordered_pairs()
     # Initialize the templates
     module_template = load_template(template_file_name)
-    source_str = module_template(cray_tracing = False, la_max_local=la_max_local_end, lb_max_local=lb_max_local_end, pairs = l)
-    source_file = open(output_file_name,'w+')
+    source_str = module_template(
+        cray_tracing=False,
+        la_max_local=la_max_local_end,
+        lb_max_local=lb_max_local_end,
+        pairs=l,
+    )
+    source_file = open(output_file_name, "w+")
     print(source_str, file=source_file)
 
     source_file.close()
