@@ -370,12 +370,13 @@ CONTAINS
 !> \param nelectron ...
 !> \param threshold ...
 !> \param sign_symmetric ...
+!> \param submatrix_sign_method ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE density_matrix_sign(matrix_p, mu, fixed_mu, sign_method, sign_order, matrix_ks, &
-                                  matrix_s, matrix_s_inv, nelectron, threshold, sign_symmetric)
+                                  matrix_s, matrix_s_inv, nelectron, threshold, sign_symmetric, submatrix_sign_method)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
       REAL(KIND=dp), INTENT(INOUT)                       :: mu
@@ -385,6 +386,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nelectron
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       LOGICAL                                            :: sign_symmetric
+      INTEGER                                            :: submatrix_sign_method
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign', &
          routineP = moduleN//':'//routineN
@@ -418,7 +420,7 @@ CONTAINS
 
          CALL density_matrix_sign_fixed_mu(matrix_p, trace, mu, sign_method, sign_order, &
                                            matrix_ks, matrix_s, matrix_s_inv, threshold, &
-                                           sign_symmetric)
+                                           sign_symmetric, submatrix_sign_method)
          IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,I2,1X,F13.9,1X,F15.9)') &
             "Density matrix:  iter, mu, trace error: ", iter, mu, trace - nelectron
 
@@ -455,12 +457,13 @@ CONTAINS
 !> \param matrix_s_inv ...
 !> \param threshold ...
 !> \param sign_symmetric ...
+!> \param submatrix_sign_method ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE density_matrix_sign_fixed_mu(matrix_p, trace, mu, sign_method, sign_order, matrix_ks, &
-                                           matrix_s, matrix_s_inv, threshold, sign_symmetric)
+                                           matrix_s, matrix_s_inv, threshold, sign_symmetric, submatrix_sign_method)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
       REAL(KIND=dp), INTENT(OUT)                         :: trace
@@ -469,6 +472,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_ks, matrix_s, matrix_s_inv
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       LOGICAL                                            :: sign_symmetric
+      INTEGER                                            :: submatrix_sign_method
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign_fixed_mu', &
          routineP = moduleN//':'//routineN
@@ -516,7 +520,7 @@ CONTAINS
          CASE (ls_scf_sign_proot)
             CALL matrix_sign_proot(matrix_sign, matrix_ssqrtinv_ks_ssqrtinv, threshold, sign_order)
          CASE (ls_scf_sign_submatrix)
-            CALL matrix_sign_submatrix(matrix_sign, matrix_ssqrtinv_ks_ssqrtinv, threshold, sign_order)
+            CALL matrix_sign_submatrix(matrix_sign, matrix_ssqrtinv_ks_ssqrtinv, threshold, sign_order, submatrix_sign_method)
          CASE DEFAULT
             CPABORT("Unkown sign method.")
          END SELECT
@@ -537,7 +541,7 @@ CONTAINS
          CASE (ls_scf_sign_proot)
             CALL matrix_sign_proot(matrix_sign, matrix_sinv_ks, threshold, sign_order)
          CASE (ls_scf_sign_submatrix)
-            CALL matrix_sign_submatrix(matrix_sign, matrix_sinv_ks, threshold, sign_order)
+            CALL matrix_sign_submatrix(matrix_sign, matrix_sinv_ks, threshold, sign_order, submatrix_sign_method)
          CASE DEFAULT
             CPABORT("Unkown sign method.")
          END SELECT
@@ -1285,4 +1289,3 @@ CONTAINS
    END FUNCTION estimate_steps
 
 END MODULE dm_ls_scf_methods
-

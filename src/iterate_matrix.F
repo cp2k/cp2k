@@ -23,6 +23,8 @@ MODULE iterate_matrix
         dbcsr_get_occupation, dbcsr_multiply, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_p_type, &
         dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_transposed, &
         dbcsr_type, dbcsr_type_no_symmetry
+   USE input_constants,                 ONLY: ls_scf_submatrix_sign_direct,&
+                                              ls_scf_submatrix_sign_ns
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE machine,                         ONLY: m_flush,&
@@ -1080,7 +1082,7 @@ CONTAINS
 !> \param matrix ...
 !> \param threshold ...
 !> \param sign_order ...
-!> \author Michael Lass
+!> \author Michael Lass, Robert Schade
 ! **************************************************************************************************
    SUBROUTINE dense_matrix_sign_Newton_Schulz(matrix_sign, matrix, threshold, sign_order)
 
@@ -1154,21 +1156,87 @@ CONTAINS
    END SUBROUTINE dense_matrix_sign_Newton_Schulz
 
 ! **************************************************************************************************
+!> \brief Calculate the sign matrix by direct calculation of all eigenvalues and eigenvectors
+!> \param sm_sign ...
+!> \param sm ...
+!> \param N ...
+!> \author Michael Lass, Robert Schade
+! **************************************************************************************************
+   SUBROUTINE dense_matrix_sign_direct(sm_sign, sm, N)
+      INTEGER, INTENT(IN)                                :: N
+      REAL(KIND=dp), INTENT(IN)                          :: sm(N, N)
+      REAL(KIND=dp), INTENT(INOUT)                       :: sm_sign(N, N)
+
+      INTEGER                                            :: i, info, liwork, lwork
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: W, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tmp, U
+
+      ALLOCATE (U(N, N), tmp(N, N))
+      ALLOCATE (W(N))
+
+      ! symmetrize sm
+      U(:, :) = 0.5*(sm + TRANSPOSE(sm))
+
+      ! probe optimal sizes for WORK and IWORK
+      LWORK = -1
+      LIWORK = -1
+      ALLOCATE (WORK(1))
+      ALLOCATE (IWORK(1))
+      CALL dsyevd('V', 'U', N, U, N, W, WORK, LWORK, IWORK, LIWORK, INFO)
+      LWORK = INT(WORK(1))
+      LIWORK = INT(IWORK(1))
+      DEALLOCATE (IWORK)
+      DEALLOCATE (WORK)
+
+      ! calculate eigenvalues and eigenvectors
+      ALLOCATE (WORK(LWORK))
+      ALLOCATE (IWORK(LIWORK))
+      CALL dsyevd('V', 'U', N, U, N, W, WORK, LWORK, IWORK, LIWORK, INFO)
+      DEALLOCATE (IWORK)
+      DEALLOCATE (WORK)
+
+      IF (INFO .NE. 0) PRINT *, "ERR: _syevd did not succeed", INFO
+
+      sm_sign = 0
+      DO i = 1, N
+         IF (W(i) > 0) THEN
+            sm_sign(i, i) = 1.0
+         ELSE IF (W(i) < 0) THEN
+            sm_sign(i, i) = -1.0
+         ELSE
+            sm_sign(i, i) = 0.0
+         ENDIF
+      ENDDO
+
+      ! Create matrix with eigenvalues in {-1,0,1} and eigenvectors of sm:
+      ! sm_sign = U * sm_sign * U.T
+      CALL dgemm('N', 'N', N, N, N, 1.0_dp, U, N, sm_sign, N, 0.0_dp, tmp, N)
+      CALL dgemm('N', 'T', N, N, N, 1.0_dp, tmp, N, U, N, 0.0_dp, sm_sign, N)
+
+      DEALLOCATE (W)
+      DEALLOCATE (tmp)
+      DEALLOCATE (U)
+   END SUBROUTINE dense_matrix_sign_direct
+
+! **************************************************************************************************
 !> \brief Submatrix method
 !> \param matrix_sign ...
 !> \param matrix ...
 !> \param threshold ...
 !> \param sign_order ...
+!> \param submatrix_sign_method ...
 !> \par History
 !>       2019.03 created [Robert Schade]
 !>       2019.06 impl. submatrix method [Michael Lass]
 !> \author Robert Schade, Michael Lass
 ! **************************************************************************************************
-   SUBROUTINE matrix_sign_submatrix(matrix_sign, matrix, threshold, sign_order)
+   SUBROUTINE matrix_sign_submatrix(matrix_sign, matrix, threshold, sign_order, submatrix_sign_method)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sign, matrix
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
+      INTEGER, INTENT(IN)                                :: submatrix_sign_method
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix', &
          routineP = moduleN//':'//routineN
@@ -1209,9 +1277,15 @@ CONTAINS
          CALL dissection%generate_submatrix(my_sms(i), sm)
          sm_size = SIZE(sm, 1)
          ALLOCATE (sm_sign(sm_size, sm_size))
-         CALL dense_matrix_sign_Newton_Schulz(sm_sign, sm, threshold, sign_order)
+         SELECT CASE (submatrix_sign_method)
+         CASE (ls_scf_submatrix_sign_ns)
+            CALL dense_matrix_sign_Newton_Schulz(sm_sign, sm, threshold, order)
+         CASE (ls_scf_submatrix_sign_direct)
+            CALL dense_matrix_sign_direct(sm_sign, sm, sm_size)
+         CASE DEFAULT
+            CPABORT("Unkown submatrix sign method.")
+         END SELECT
          CALL dissection%copy_resultcol(my_sms(i), sm_sign)
-
          DEALLOCATE (sm, sm_sign)
       ENDDO
       !$OMP END DO

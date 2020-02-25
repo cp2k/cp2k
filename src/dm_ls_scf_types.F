@@ -104,6 +104,7 @@ MODULE dm_ls_scf_types
       INTEGER :: sign_method
       INTEGER :: sign_order
       LOGICAL :: sign_symmetric
+      INTEGER :: submatrix_sign_method
       INTEGER :: s_sqrt_method
       INTEGER :: s_sqrt_order
 
@@ -220,4 +221,3 @@ CONTAINS
    END SUBROUTINE ls_scf_release
 
 END MODULE dm_ls_scf_types
-
