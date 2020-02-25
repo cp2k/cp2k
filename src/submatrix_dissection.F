@@ -38,6 +38,7 @@
 
 MODULE submatrix_dissection
 
+   USE bibliography, ONLY: Lass2018, cite_reference
    USE dbcsr_api, ONLY: dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_finalize, &
                         dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_stored_coordinates, &
                         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
@@ -152,6 +153,8 @@ CONTAINS
 
       LOGICAL                                          :: valid
       REAL(KIND=dp), DIMENSION(:), POINTER             :: blockp
+
+      CALL cite_reference(Lass2018)
 
       this%dbcsr_mat = matrix_p
       CALL dbcsr_get_info(matrix=this%dbcsr_mat, nblkcols_total=this%nblkcols, nblkrows_total=this%nblkrows, &

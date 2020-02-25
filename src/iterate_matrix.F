@@ -1010,6 +1010,8 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix2, matrix_sqrt, matrix_sqrt_inv, &
                                                             tmp1, tmp2
 
+      CALL cite_reference(Richters2018)
+
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
