@@ -222,6 +222,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SIGN_SYMMETRIC", &
+                          description="Use symmetric orthogonalization when generating the input for the sign function.", &
+                          usage="SIGN_SYMMETRIC .TRUE.", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="DYNAMIC_THRESHOLD", &
                           description="Should the threshold for the purification be chosen dynamically", &
                           usage="DYNAMIC_THRESHOLD .TRUE.", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
