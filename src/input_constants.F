@@ -887,6 +887,8 @@ MODULE input_constants
 
    INTEGER, PARAMETER, PUBLIC               :: ls_scf_sign_ns = 1, ls_scf_sign_proot = 2, ls_scf_sign_submatrix = 3
 
+   INTEGER, PARAMETER, PUBLIC               :: ls_scf_submatrix_sign_ns = 1, ls_scf_submatrix_sign_direct = 2
+
    INTEGER, PARAMETER, PUBLIC               :: ls_scf_line_search_3point = 3, &
                                                ls_scf_line_search_3point_2d = 6
    ! some ZMP paramenters
