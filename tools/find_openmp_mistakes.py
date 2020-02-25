@@ -7,9 +7,9 @@ from os.path import basename
 
 total_matches = 0
 
-#===============================================================================
+# ===============================================================================
 def main():
-    if(len(sys.argv) < 2):
+    if len(sys.argv) < 2:
         print("Tool for finding common mistakes with OMP pragmas.")
         print("Hint: It expects DEFAULT(NONE) in the first line of a PARALLEL pragma.")
         print("Usage: find_openmp_mistakes.py <file1.F> ... <fileN.F>")
@@ -19,9 +19,10 @@ def main():
     for fn in files:
         check(fn)
 
-    print("Found %d spots in %d files."%(total_matches, len(files)))
+    print("Found %d spots in %d files." % (total_matches, len(files)))
 
-#===============================================================================
+
+# ===============================================================================
 def check(fn):
     global total_matches
 
@@ -30,25 +31,29 @@ def check(fn):
 
     for lineno, line in enumerate(all_lines):
         m = re.search("^\s*!(.*)OMP\s", line, re.IGNORECASE)
-        if(m and m.group(1)!="$"):
+        if m and m.group(1) != "$":
             total_matches += 1
-            print('Found strange OMP stuff "%s" in %s:%d'%(m.group(0), basename(fn), lineno+1))
+            print(
+                'Found strange OMP stuff "%s" in %s:%d'
+                % (m.group(0), basename(fn), lineno + 1)
+            )
 
         m = re.search("!\$OMP\s+CRITICAL\s*$", line, re.IGNORECASE)
-        if(m):
+        if m:
             total_matches += 1
-            print('Found unnamed OMP CRITICAL in %s:%d'%(basename(fn), lineno+1))
-
+            print("Found unnamed OMP CRITICAL in %s:%d" % (basename(fn), lineno + 1))
 
         m = re.search("!\$OMP\s+PARALLEL\s+(.*)$", line, re.IGNORECASE)
-        if(m):
+        if m:
             m2 = re.search("default\s*\(none\)", m.group(1), re.IGNORECASE)
-            if(not m2):
+            if not m2:
                 total_matches += 1
-                print('Found OMP PARALLEL without DEFAULT(NONE) %s:%d'%(basename(fn), lineno+1))
-                #print line
+                print(
+                    "Found OMP PARALLEL without DEFAULT(NONE) %s:%d"
+                    % (basename(fn), lineno + 1)
+                )
+                # print line
 
 
-
-#===============================================================================
+# ===============================================================================
 main()

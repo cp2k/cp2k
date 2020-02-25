@@ -8,6 +8,7 @@ import argparse
 
 class Parser:
     "Parser for files with IF_XYZ(A|B) constructs"
+
     def __init__(self, switches):
         self.mSwitches = switches
 
@@ -26,7 +27,7 @@ class Parser:
         first occurance of IF_key(A|B) with A if val = True;
         B if val = False
         """
-        init = string.find('IF_' + switch[0])
+        init = string.find("IF_" + switch[0])
         start = init
         end = len(string)
         mark = end
@@ -34,24 +35,29 @@ class Parser:
         ind = start
         # determine the correct location for '|'
         for cc in string[init:]:
-            if cc == '(':
-                if counter == 0: start = ind
+            if cc == "(":
+                if counter == 0:
+                    start = ind
                 counter += 1
-            elif cc == ')':
+            elif cc == ")":
                 counter -= 1
-                if counter == 0: end = ind; break
+                if counter == 0:
+                    end = ind
+                    break
             elif cc == "|" and counter == 1:
                 mark = ind
             ind += 1
         # resolve the option
         if switch[1]:
-            result = string[0         : init] + \
-                     string[start + 1 : mark] + \
-                     string[end + 1   : len(string)]
+            result = (
+                string[0:init]
+                + string[start + 1 : mark]
+                + string[end + 1 : len(string)]
+            )
         else:
-            result = string[0         : init] + \
-                     string[mark + 1  : end]  + \
-                     string[end + 1   : len(string)]
+            result = (
+                string[0:init] + string[mark + 1 : end] + string[end + 1 : len(string)]
+            )
         return result
 
     def ParseIf(self, string, switch):
@@ -61,7 +67,7 @@ occurance of IF_key(A|B) statements with A if val = True;
 B if val = False
         """
         result = string
-        while result.find('IF_' + switch[0]) > -1:
+        while result.find("IF_" + switch[0]) > -1:
             result = self.ParseSingleIf(result, switch)
         return result
 
@@ -83,7 +89,7 @@ in dictionary self.mSwitches
         in dictionary self.mSwitches in the input_file stream and output
         to the output_file stream.
         """
-        output=[]
+        output = []
         for line in input_file:
             output.append(self.ParseString(line))
 
@@ -95,28 +101,48 @@ in dictionary self.mSwitches
         for line in output:
             output_file.write(line)
 
+
 # ------------------------------------------------------------------------
 # main program
 # ------------------------------------------------------------------------
-if __name__ == '__main__':
-    argparser = argparse.ArgumentParser(description="Resolve IF_*() macros based on given tags")
-    argparser.add_argument('-f', '--file', metavar="FILENAME", type=str, help="read from  given file instead of stdin")
-    argparser.add_argument('-i', '--inplace', action="store_true", help="do in-place replacement for the given file instead of echo to stdout")
-    argparser.add_argument('--selftest', action="store_true", help="run self test")
-    argparser.add_argument('flags', metavar="FLAG", type=str, nargs='*', help="specified flags are set to true")
+if __name__ == "__main__":
+    argparser = argparse.ArgumentParser(
+        description="Resolve IF_*() macros based on given tags"
+    )
+    argparser.add_argument(
+        "-f",
+        "--file",
+        metavar="FILENAME",
+        type=str,
+        help="read from  given file instead of stdin",
+    )
+    argparser.add_argument(
+        "-i",
+        "--inplace",
+        action="store_true",
+        help="do in-place replacement for the given file instead of echo to stdout",
+    )
+    argparser.add_argument("--selftest", action="store_true", help="run self test")
+    argparser.add_argument(
+        "flags",
+        metavar="FLAG",
+        type=str,
+        nargs="*",
+        help="specified flags are set to true",
+    )
 
     args = argparser.parse_args()
 
     # default list of switches used by the parser
     switches = {
-       "MPI": False,
-       "OMP": False,
-       "CUDA": False,
-       "WARNALL": False,
-       "DEBUG": False,
-       "VALGRIND": False,
-       "COVERAGE": False,
-       }
+        "MPI": False,
+        "OMP": False,
+        "CUDA": False,
+        "WARNALL": False,
+        "DEBUG": False,
+        "VALGRIND": False,
+        "COVERAGE": False,
+    }
 
     parser = Parser(switches)
 
@@ -125,16 +151,16 @@ if __name__ == '__main__':
         parser.SetSwitch(flag, True)
 
     if args.selftest:
-        sys.exit(0) #TODO implement selftest
+        sys.exit(0)  # TODO implement selftest
 
     # do parsing
 
     if not args.file:
-       parser.ParseDocument(sys.stdin, sys.stdout)
+        parser.ParseDocument(sys.stdin, sys.stdout)
     else:
-       if args.inplace:
-          with open(args.file, mode='r+') as fhandle:
-             parser.ParseDocument(fhandle, fhandle)
-       else:
-          with open(args.file, mode='r') as fhandle:
-             parser.ParseDocument(fhandle, sys.stdout)
+        if args.inplace:
+            with open(args.file, mode="r+") as fhandle:
+                parser.ParseDocument(fhandle, fhandle)
+        else:
+            with open(args.file, mode="r") as fhandle:
+                parser.ParseDocument(fhandle, sys.stdout)
