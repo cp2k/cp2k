@@ -87,7 +87,7 @@ MODULE bibliography
                             Grimme2017, Kondov2007, &
                             Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, Paziani2006, &
                             Toulouse2004, Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
-                            Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018
+                            Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018
 
 CONTAINS
 
@@ -4421,6 +4421,23 @@ CONTAINS
                          "DI 10.1021/acs.jpclett.7b02740", &
                          "ER"), &
                          DOI="10.1021/acs.jpclett.7b02740")
+
+      CALL add_reference(key=Lass2018, ISI_record=s2a( &
+                         "PT C", &
+                         "AU Lass, M", &
+                         "   Mohr, S", &
+                         "   Wiebeler, H", &
+                         "   Kuehne, TD", &
+                         "   Plessl, C", &
+                         "TI A Massively Parallel Algorithm for the Approximate Calculation of ", &
+                         "   Inverse P-Th Roots of Large Sparse Matrices", &
+                         "SO Proceedings of the Platform for Advanced Scientific Computing (PASC)", &
+                         "   Conference", &
+                         "PY 2018", &
+                         "DI 10.1145/3218176.3218231", &
+                         "PI New York, NY, USA", &
+                         "ER"), &
+                         DOI="10.1145/3218176.3218231")
 
    END SUBROUTINE add_all_references
 
