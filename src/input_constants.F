@@ -885,7 +885,7 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: ls_scf_sign = 17, ls_scf_trs4 = 18, &
                                                ls_scf_tc2 = 19, ls_scf_pexsi = 20
 
-   INTEGER, PARAMETER, PUBLIC               :: ls_scf_sign_ns = 1, ls_scf_sign_proot = 2
+   INTEGER, PARAMETER, PUBLIC               :: ls_scf_sign_ns = 1, ls_scf_sign_proot = 2, ls_scf_sign_submatrix = 3
 
    INTEGER, PARAMETER, PUBLIC               :: ls_scf_line_search_3point = 3, &
                                                ls_scf_line_search_3point_2d = 6

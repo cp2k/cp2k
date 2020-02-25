@@ -25,17 +25,14 @@ MODULE dm_ls_scf_methods
    USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                               ls_mstruct_type,&
                                               ls_scf_env_type
-   USE input_constants,                 ONLY: ls_cluster_atomic,&
-                                              ls_s_preconditioner_atomic,&
-                                              ls_s_preconditioner_molecular,&
-                                              ls_s_preconditioner_none,&
-                                              ls_s_sqrt_ns,&
-                                              ls_s_sqrt_proot,&
-                                              ls_scf_sign_ns,&
-                                              ls_scf_sign_proot
+   USE input_constants,                 ONLY: &
+        ls_cluster_atomic, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
+        ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, ls_scf_sign_ns, &
+        ls_scf_sign_proot, ls_scf_sign_submatrix
    USE iterate_matrix,                  ONLY: invert_Hotelling,&
                                               matrix_sign_Newton_Schulz,&
                                               matrix_sign_proot,&
+                                              matrix_sign_submatrix,&
                                               matrix_sqrt_Newton_Schulz,&
                                               matrix_sqrt_proot
    USE kinds,                           ONLY: dp,&
@@ -518,6 +515,8 @@ CONTAINS
             CALL matrix_sign_Newton_Schulz(matrix_sign, matrix_ssqrtinv_ks_ssqrtinv, threshold, sign_order)
          CASE (ls_scf_sign_proot)
             CALL matrix_sign_proot(matrix_sign, matrix_ssqrtinv_ks_ssqrtinv, threshold, sign_order)
+         CASE (ls_scf_sign_submatrix)
+            CALL matrix_sign_submatrix(matrix_sign, matrix_ssqrtinv_ks_ssqrtinv, threshold, sign_order)
          CASE DEFAULT
             CPABORT("Unkown sign method.")
          END SELECT
@@ -537,6 +536,8 @@ CONTAINS
             CALL matrix_sign_Newton_Schulz(matrix_sign, matrix_sinv_ks, threshold, sign_order)
          CASE (ls_scf_sign_proot)
             CALL matrix_sign_proot(matrix_sign, matrix_sinv_ks, threshold, sign_order)
+         CASE (ls_scf_sign_submatrix)
+            CALL matrix_sign_submatrix(matrix_sign, matrix_sinv_ks, threshold, sign_order)
          CASE DEFAULT
             CPABORT("Unkown sign method.")
          END SELECT

@@ -30,7 +30,7 @@ MODULE dm_ls_scf_create
         ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, ls_s_inversion_none, &
         ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
         ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, ls_scf_pexsi, ls_scf_sign, &
-        ls_scf_sign_ns, ls_scf_sign_proot, ls_scf_tc2, ls_scf_trs4
+        ls_scf_sign_ns, ls_scf_sign_proot, ls_scf_sign_submatrix, ls_scf_tc2, ls_scf_trs4
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
    USE input_keyword_types,             ONLY: keyword_get,&
@@ -390,6 +390,8 @@ CONTAINS
                WRITE (unit_nr, '(T2,A,T61,A20)') "Sign method:", ADJUSTR("newton schulz")
             CASE (ls_scf_sign_proot)
                WRITE (unit_nr, '(T2,A,T61,A20)') "Sign method:", ADJUSTR("p-th root method")
+            CASE (ls_scf_sign_submatrix)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Sign method:", ADJUSTR("submatrix method")
             CASE DEFAULT
                CPABORT("Unkown sign method.")
             END SELECT
