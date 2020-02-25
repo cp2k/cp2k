@@ -639,7 +639,7 @@ CONTAINS
                      CALL density_matrix_sign(ls_scf_env%matrix_p(ispin), ls_scf_env%mu_spin(ispin), ls_scf_env%fixed_mu, &
                                               ls_scf_env%sign_method, ls_scf_env%sign_order, matrix_mixing_old(ispin), &
                                               ls_scf_env%matrix_s, ls_scf_env%matrix_s_inv, nelectron_spin_real, &
-                                              ls_scf_env%eps_filter)
+                                              ls_scf_env%eps_filter, ls_scf_env%sign_symmetric)
                   CASE (ls_scf_tc2)
                      CALL density_matrix_tc2(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin), ls_scf_env%matrix_s_sqrt_inv, &
                                              nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin), &
@@ -980,7 +980,7 @@ CONTAINS
             CALL density_matrix_sign_fixed_mu(matrix_p, trace, mu, ls_scf_env%sign_method, &
                                               ls_scf_env%sign_order, ls_scf_env%matrix_ks(ispin), &
                                               ls_scf_env%matrix_s, ls_scf_env%matrix_s_inv, &
-                                              ls_scf_env%eps_filter)
+                                              ls_scf_env%eps_filter, ls_scf_env%sign_symmetric)
          ENDDO
 
          t2 = m_walltime()

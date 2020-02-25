@@ -211,6 +211,7 @@ CONTAINS
       CALL section_vals_val_get(ls_scf_section, "PURIFICATION_METHOD", i_val=ls_scf_env%purification_method)
       CALL section_vals_val_get(ls_scf_section, "SIGN_METHOD", i_val=ls_scf_env%sign_method)
       CALL section_vals_val_get(ls_scf_section, "SIGN_ORDER", i_val=ls_scf_env%sign_order)
+      CALL section_vals_val_get(ls_scf_section, "SIGN_SYMMETRIC", l_val=ls_scf_env%sign_symmetric)
       CALL section_vals_val_get(ls_scf_section, "DYNAMIC_THRESHOLD", l_val=ls_scf_env%dynamic_threshold)
       CALL section_vals_val_get(ls_scf_section, "NON_MONOTONIC", l_val=ls_scf_env%non_monotonic)
       CALL section_vals_val_get(ls_scf_section, "S_SQRT_METHOD", i_val=ls_scf_env%s_sqrt_method)
@@ -393,6 +394,7 @@ CONTAINS
                CPABORT("Unkown sign method.")
             END SELECT
             WRITE (unit_nr, '(T2,A,T61,I20)') "Sign order:", ls_scf_env%sign_order
+            WRITE (unit_nr, '(T2,A,T61,L20)') "Symmetric sign calculation:", ls_scf_env%sign_symmetric
          CASE (ls_scf_tc2)
             CALL cite_reference(Niklasson2014)
             WRITE (unit_nr, '(T2,A,T51,A30)') "Purification method", ADJUSTR("Trace conserving 2nd order")
