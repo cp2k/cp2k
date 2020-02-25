@@ -97,9 +97,10 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE dg_rho0_get(dg_rho0, cutoff_radius, TYPE, grid, kind, gcc, zet, density)
-      INTEGER, OPTIONAL                                  :: TYPE, kind, grid
-      TYPE(dg_rho0_type), POINTER                        :: dg_rho0
+      INTEGER, OPTIONAL                                  :: TYPE
       REAL(KIND=dp), OPTIONAL                            :: cutoff_radius
+      TYPE(dg_rho0_type), POINTER                        :: dg_rho0
+      INTEGER, OPTIONAL                                  :: grid, kind
       REAL(KIND=dp), OPTIONAL, POINTER                   :: gcc(:), zet(:)
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: density
 
