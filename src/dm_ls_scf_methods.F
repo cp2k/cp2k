@@ -478,7 +478,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, unit_nr
-      LOGICAL                                            :: converged = .FALSE., symmetrize = .TRUE.
+      LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: frob_matrix
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_type) :: matrix_p_ud, matrix_s_sqrt, matrix_s_sqrt_inv, matrix_sign, &
@@ -499,11 +499,10 @@ CONTAINS
          CALL dbcsr_create(matrix_s_sqrt, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_create(matrix_s_sqrt_inv, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
          CALL matrix_sqrt_Newton_Schulz(matrix_s_sqrt, matrix_s_sqrt_inv, matrix_s, threshold, sign_order, &
-                                        1.0E-10_dp, 100, symmetrize, converged) !FIXME
+                                        1.0E-10_dp, 100, symmetrize=.TRUE., converged=converged) !FIXME
          CALL dbcsr_release(matrix_s_sqrt)
          IF (.NOT. converged) THEN
-            PRINT *, "sqrt inv did not converge"
-            STOP
+            CPABORT("sqrt inv did not converge")
          ENDIF
 
          CALL dbcsr_create(matrix_ssqrtinv_ks_ssqrtinv, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)

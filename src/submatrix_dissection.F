@@ -31,34 +31,39 @@
 !> * generic types (for now only dp supported)
 !> * optimization of threaded initialization
 !> * sanity checks at the beginning of all methods
-!> * optimize execution without MPI, i.e., if __parallel is not defined
 !>
 !> \author Michael Lass
 ! **************************************************************************************************
 
 MODULE submatrix_dissection
 
-   USE bibliography, ONLY: Lass2018, cite_reference
-   USE dbcsr_api, ONLY: dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_finalize, &
-                        dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_stored_coordinates, &
-                        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-                        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, dbcsr_type
-   USE dbcsr_mpiwrap, ONLY: mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_send, mp_wait
-   USE kinds, ONLY: dp
-   USE submatrix_methods, ONLY: qsort_two
-   USE submatrix_types, ONLY: buffer_type, bufptr_type, intBuffer_type, set_type, setarray_type
+   USE bibliography,                    ONLY: Lass2018,&
+                                              cite_reference
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_put_block, dbcsr_type
+   USE dbcsr_mpiwrap,                   ONLY: mp_allgather,&
+                                              mp_alltoall,&
+                                              mp_irecv,&
+                                              mp_isend,&
+                                              mp_send,&
+                                              mp_wait
+   USE kinds,                           ONLY: dp
+   USE submatrix_methods,               ONLY: qsort_two
+   USE submatrix_types,                 ONLY: buffer_type,&
+                                              bufptr_type,&
+                                              intBuffer_type,&
+                                              set_type,&
+                                              setarray_type
 
-#ifdef _OPENMP
-   USE omp_lib, ONLY: omp_get_max_threads, omp_get_thread_num
-#endif
+!$ USE omp_lib, ONLY: omp_get_max_threads, omp_get_thread_num
 
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-
-   LOGICAL, PARAMETER   :: DEBUG = .FALSE.
-   CHARACTER, PARAMETER :: endl = NEW_LINE(endl)
 
    TYPE, PUBLIC :: submatrix_dissection_type
       TYPE(dbcsr_type)                                :: dbcsr_mat
@@ -100,7 +105,7 @@ CONTAINS
       ! TODO: Should we buffer the list of non-zero rows for each submatrix instead of recalculating it each time?
       sm_col_offset = 0
       DO i = (sm_id - 1)*this%cols_per_sm + 1, sm_id*this%cols_per_sm     ! all colums that determine submatrix sm_id
-         DO j = this%coo_col_offsets(i), this%coo_col_offsets(i + 1) - 1 ! all blocks that are within this column
+         DO j = this%coo_col_offsets(i), this%coo_col_offsets(i + 1) - 1  ! all blocks that are within this column
             CALL nonzero_rows%insert(this%coo_rows(j))
          ENDDO
       ENDDO
@@ -110,7 +115,6 @@ CONTAINS
          IF (nonzero_rows%get(i) .EQ. (sm_id - 1)*this%cols_per_sm + 1) THEN
             ! We just found the nonzero row what corresponds to the first inducing column of our submatrix
             sm_col_offset = i
-            IF (DEBUG) PRINT *, "For sm", sm_id, "the relevant result columns start with column", sm_col_offset
             EXIT
          ENDIF
       ENDDO
@@ -171,7 +175,7 @@ CONTAINS
          ENDIF
       ENDDO
 
-      ! TODO: Do some more sanity checks here, e.g., the matrix must not be stored symmetrically
+      ! TODO: We could do even more sanity checks here, e.g., the matrix must not be stored symmetrically
 
       ! For the submatrix method, we need global knwoledge about which blocks are actually used. Therefore, we create a COO
       ! representation of the blocks (without their contents) on all ranks.
@@ -206,50 +210,27 @@ CONTAINS
       ENDDO
       CALL dbcsr_iterator_stop(iter)
 
-      IF (DEBUG) THEN
-         PRINT *, this%myrank, "Rows:", this%coo_rows_local
-         PRINT *, this%myrank, "Cols:", this%coo_cols_local
-      ENDIF
-
       ! We only know how many blocks we own. What's with the other ranks?
-#ifdef __parallel
       CALL mp_allgather(msgout=this%local_blocks, msgin=blocks_per_rank, gid=this%group)
-#else
-      blocks_per_rank(1) = this%local_blocks
-#endif
-      IF (DEBUG) PRINT *, this%myrank, "Blocks per rank:", blocks_per_rank
       coo_dsplcmnts(1) = 0
       DO i = 1, this%numnodes - 1
          coo_dsplcmnts(i + 1) = coo_dsplcmnts(i) + blocks_per_rank(i)
       ENDDO
-      IF (DEBUG) PRINT *, this%myrank, "Displacements:", coo_dsplcmnts
 
       ! Get a global view on the matrix
       this%nblks = SUM(blocks_per_rank)
       ALLOCATE (this%coo_cols(this%nblks), this%coo_rows(this%nblks), this%coo_col_offsets(this%nblkcols + 1), &
                 this%coo_dptr(this%nblks))
-#ifdef __parallel
       CALL mp_allgather(msgout=this%coo_rows_local, msgin=this%coo_rows, gid=this%group, rcount=blocks_per_rank, &
                         rdispl=coo_dsplcmnts)
       CALL mp_allgather(msgout=this%coo_cols_local, msgin=this%coo_cols, gid=this%group, rcount=blocks_per_rank, &
                         rdispl=coo_dsplcmnts)
-#else
-      this%coo_rows(:) = this%coo_rows_local
-      this%coo_cols(:) = this%coo_cols_local
-#endif
 
       DEALLOCATE (blocks_per_rank, coo_dsplcmnts)
 
       ! Sort COO arrays according to their columns
       CALL qsort_two(this%coo_cols_local, this%coo_rows_local, 1, this%local_blocks)
       CALL qsort_two(this%coo_cols, this%coo_rows, 1, this%nblks)
-
-      IF (DEBUG) THEN
-         PRINT *, endl, this%myrank, "Global COO Cols:", this%coo_cols, endl
-         PRINT *, endl, this%myrank, "Global COO Rows:", this%coo_rows, endl
-         PRINT *, endl, this%myrank, "Local COO Cols:", this%coo_cols_local, endl
-         PRINT *, endl, this%myrank, "Local COO Rows:", this%coo_rows_local, endl
-      ENDIF
 
       ! Get COO array offsets for columns to accelerate lookups
       this%coo_col_offsets(this%nblkcols + 1) = this%nblks + 1
@@ -273,11 +254,6 @@ CONTAINS
          this%coo_col_offsets_local(i) = j
       ENDDO
 
-      IF (DEBUG) THEN
-         PRINT *, endl, this%myrank, "Global COO Offsets:", endl, this%coo_col_offsets, endl
-         PRINT *, endl, this%myrank, "Local COO Offsets:", endl, this%coo_col_offsets_local, endl
-      ENDIF
-
       ! We could combine multiple columns to generate a single submatrix. For now, we have not found a practical use-case for this
       ! so we only look at single columns for now.
       this%cols_per_sm = 1
@@ -290,7 +266,7 @@ CONTAINS
       flops_total = 0.0D0
       DO i = 1, this%number_of_submatrices
          CALL nonzero_rows%reset
-         DO j = (i - 1)*this%cols_per_sm + 1, i*this%cols_per_sm ! all colums that determine submatrix i
+         DO j = (i - 1)*this%cols_per_sm + 1, i*this%cols_per_sm            ! all colums that determine submatrix i
             DO k = this%coo_col_offsets(j), this%coo_col_offsets(j + 1) - 1 ! all blocks that are within this column
                CALL nonzero_rows%insert(this%coo_rows(k))
             ENDDO
@@ -300,15 +276,9 @@ CONTAINS
          ENDDO
          flops_total = flops_total + 2.0D0*this%submatrix_sizes(i)*this%submatrix_sizes(i)*this%submatrix_sizes(i)
       ENDDO
-      IF (DEBUG) THEN
-         PRINT *, "Submatrix sizes:", this%submatrix_sizes
-         PRINT *, "Total flops:", flops_total
-      ENDIF
 
       ! Create mapping from submatrices to ranks. Since submatrices can be of different sizes, we need to perform some load
       ! balancing here. For that we assume that arithmetic operations performed on the submatrices scale cubically.
-      IF ((this%myrank .EQ. 0) .AND. DEBUG) &
-         PRINT *, "Creating", this%number_of_submatrices, "submatrices from", this%cols_per_sm, "cols each"
       ALLOCATE (this%submatrix_owners(this%number_of_submatrices))
       flops_per_sm = flops_total/this%number_of_submatrices
       flops_per_rank = flops_total/this%numnodes
@@ -322,36 +292,28 @@ CONTAINS
          IF ((j .LT. (this%numnodes - 1)) &
              .AND. ((flops_remaining .LE. flops_threshold &
                      .OR. (this%number_of_submatrices - i) .LT. (this%numnodes - j)))) THEN
-            IF (DEBUG) PRINT *, "Flops for rank", j, ":", flops_current
             j = j + 1
             flops_total = flops_total - flops_current
             flops_current = 0.0D0
          ENDIF
       ENDDO
-      IF (DEBUG) PRINT *, "Submatrix owners:", this%submatrix_owners
 
       ! Prepare data structures for multithreaded loop
-#ifdef _OPENMP
-      numthreads = omp_get_max_threads()
-#else
       numthreads = 1
-#endif
+!$    numthreads = omp_get_max_threads()
+
       ALLOCATE (result_blocks_from_rank_t(0:numthreads - 1), &
                 result_blocks_for_rank_t(0:numthreads - 1), &
                 blocks_from_rank_t(0:numthreads - 1), &
                 nonzero_rows_t(0:numthreads - 1))
 
       ! Figure out which blocks we need to receive. Blocks are identified here as indices into our COO representation.
-      ! FIXME: This currently shows bad parallel efficiency.
+      ! TODO: This currently shows limited parallel efficiency. Investigate further.
       !$OMP PARALLEL NUM_THREADS(numthreads) DEFAULT(NONE) &
       !$OMP          PRIVATE(i,j,k,l,m,l_limit_left,l_limit_right,cur_col,cur_row,mytid) &
       !$OMP          SHARED(result_blocks_from_rank_t,result_blocks_for_rank_t,blocks_from_rank_t,this,numthreads,nonzero_rows_t)
-#ifdef _OPENMP
-      mytid = omp_get_thread_num()
-#else
       mytid = 0
-#endif
-      IF (DEBUG) PRINT *, "Hello from thread", mytid, "/", numthreads
+!$    mytid = omp_get_thread_num()
 
       ALLOCATE (nonzero_rows_t(mytid)%sets(1), &
                 result_blocks_from_rank_t(mytid)%sets(0:this%numnodes - 1), &
@@ -361,7 +323,7 @@ CONTAINS
       !$OMP DO schedule(guided)
       DO i = 1, this%number_of_submatrices
          CALL nonzero_rows_t(mytid)%sets(1)%reset
-         DO j = (i - 1)*this%cols_per_sm + 1, i*this%cols_per_sm ! all colums that determine submatrix i
+         DO j = (i - 1)*this%cols_per_sm + 1, i*this%cols_per_sm            ! all colums that determine submatrix i
             DO k = this%coo_col_offsets(j), this%coo_col_offsets(j + 1) - 1 ! all blocks that are within this column
                ! This block will be required to assemble the final block matrix as it is within an inducing column for submatrix i.
                ! Figure out who stores it and insert it into the result_blocks_* sets.
@@ -378,18 +340,14 @@ CONTAINS
 
          IF (this%submatrix_owners(i) .NE. this%myrank) CYCLE
 
-         IF (DEBUG) PRINT *, "nonzero rows: ", nonzero_rows_t(mytid)%sets(1)%getall()
-
          ! In the following, we determine all blocks required to build the submatrix. We interpret nonzero_rows_t(mytid)(j) as
          ! column and nonzero_rows_t(mytid)(k) as row.
          DO j = 1, nonzero_rows_t(mytid)%sets(1)%elements
             cur_col = nonzero_rows_t(mytid)%sets(1)%get(j)
             l_limit_left = this%coo_col_offsets(cur_col)
             l_limit_right = this%coo_col_offsets(cur_col + 1) - 1
-            ! IF (DEBUG) print *, this%coo_rows(l_limit_left:l_limit_right)
             DO k = 1, nonzero_rows_t(mytid)%sets(1)%elements
                cur_row = nonzero_rows_t(mytid)%sets(1)%get(k)
-               ! IF (DEBUG) print *, "Looking for row", cur_row
                l = l_limit_left
                DO WHILE (l .LE. l_limit_right)
                   IF (this%coo_rows(l) .GE. cur_row) EXIT
@@ -399,8 +357,6 @@ CONTAINS
                IF (l .LE. l_limit_right) THEN
                   IF (this%coo_rows(l) .EQ. cur_row) THEN
                      ! We found a valid block. Figure out what to do with it.
-                     ! IF (DEBUG) print *, "Found row", this%coo_rows(l)
-                     IF (DEBUG) PRINT *, "(", cur_row, ",", cur_col, ")", l
                      CALL dbcsr_get_stored_coordinates(matrix=this%dbcsr_mat, row=this%coo_rows(l), &
                                                        column=this%coo_cols(l), processor=m)
                      CALL blocks_from_rank_t(mytid)%sets(m)%insert(l)
@@ -441,48 +397,32 @@ CONTAINS
       DO i = 0, this%numnodes - 1
          num_blockids_send(i) = blocks_from_rank(i)%elements
       ENDDO
-      IF (DEBUG) PRINT *, this%myrank, "Number of block ids to send to each rank:", num_blockids_send
-#ifdef __parallel
       CALL mp_alltoall(num_blockids_send, num_blockids_recv, 1, this%group)
-#else
-      num_blockids_recv(:) = num_blockids_send
-#endif
-      IF (DEBUG) PRINT *, this%myrank, "Number of block ids to receive from each rank:", num_blockids_recv
       DO i = 0, this%numnodes - 1
          CALL blocks_for_rank(i)%alloc(num_blockids_recv(i))
       ENDDO
       DEALLOCATE (num_blockids_send, num_blockids_recv)
-#ifdef __parallel
-      DO i = 1, this%numnodes
-         k = MODULO(this%myrank - i, this%numnodes) ! rank to receive from
-         IF (DEBUG) PRINT *, this%myrank, "Expecting message from", k
-         CALL mp_irecv(msgout=blocks_for_rank(k)%data, source=k, comm=this%group, request=blocks_for_rank(k)%mpi_request)
-      ENDDO
-      DO i = 1, this%numnodes ! TODO: use isend and merge with previous loop
-         k = MODULO(this%myrank + i, this%numnodes) ! rank to send to
-         IF (DEBUG) PRINT *, this%myrank, "Sending message to", k, ":", blocks_from_rank(k)%getall()
-         CALL mp_send(blocks_from_rank(k)%getall(), k, 0, this%group)
-      ENDDO
-      DO i = 0, this%numnodes - 1
-         CALL mp_wait(blocks_for_rank(i)%mpi_request)
-         IF (DEBUG) PRINT *, this%myrank, "Received message from", i, ":", blocks_for_rank(i)%data
-      ENDDO
-#else
-      blocks_for_rank(0)%data = blocks_from_rank(0)%getall()
-#endif
+
+      IF (this%numnodes .GT. 1) THEN
+         DO i = 1, this%numnodes
+            k = MODULO(this%myrank - i, this%numnodes) ! rank to receive from
+            CALL mp_irecv(msgout=blocks_for_rank(k)%data, source=k, comm=this%group, request=blocks_for_rank(k)%mpi_request)
+         ENDDO
+         DO i = 1, this%numnodes
+            k = MODULO(this%myrank + i, this%numnodes) ! rank to send to
+            CALL mp_send(blocks_from_rank(k)%getall(), k, 0, this%group)
+         ENDDO
+         DO i = 0, this%numnodes - 1
+            CALL mp_wait(blocks_for_rank(i)%mpi_request)
+         ENDDO
+      ELSE
+         blocks_for_rank(0)%data = blocks_from_rank(0)%getall()
+      ENDIF
 
       ! Free memory allocated in nonzero_rows
       CALL nonzero_rows%reset
 
-      ! Sort list of blocks to be sent and received
-      DO i = 0, this%numnodes - 1
-         IF (DEBUG) THEN
-            PRINT *, "Rank", this%myrank, "has blocks", blocks_for_rank(i)%data, "for rank", i
-            PRINT *, "Rank", this%myrank, "wants blocks", blocks_from_rank(i)%getall(), "from rank", i
-         ENDIF
-      ENDDO
-
-      ! Workaround to make get calls on this%result_blocks_for_rank(...) threadsafe in other routines
+      ! Make get calls on this%result_blocks_for_rank(...) threadsafe in other routines by updating the internal sorted list
       DO m = 0, this%numnodes - 1
          IF ((.NOT. this%result_blocks_for_rank(m)%sorted_up_to_date) .AND. (this%result_blocks_for_rank(m)%elements .GT. 0)) THEN
             CALL this%result_blocks_for_rank(m)%update_sorted
@@ -543,23 +483,22 @@ CONTAINS
       ENDDO
       DEALLOCATE (blocks_for_rank, blocks_from_rank)
 
-#ifdef __parallel
-      ! Communicate. We attempt to balance communication load in the network here by starting our sends with our right neighbor
-      ! and first trying to receive from our left neighbor.
-      DO i = 1, this%numnodes
-         k = MODULO(this%myrank - i, this%numnodes) ! rank to receive from
-         CALL mp_irecv(msgout=this%recvbufs(k)%data, source=k, comm=this%group, request=this%recvbufs(k)%mpi_request)
-         k = MODULO(this%myrank + i, this%numnodes) ! rank to send to
-         CALL mp_isend(msgin=sendbufs(k)%data, dest=k, comm=this%group, request=sendbufs(k)%mpi_request)
-      ENDDO
-      DO i = 0, this%numnodes - 1
-         CALL mp_wait(sendbufs(i)%mpi_request)
-         CALL mp_wait(this%recvbufs(i)%mpi_request)
-         IF (DEBUG) PRINT *, this%myrank, "received from", i, ":", endl, this%recvbufs(i)%data
-      ENDDO
-#else
-      this%recvbufs(0)%data = sendbufs(0)%data
-#endif
+      IF (this%numnodes .GT. 1) THEN
+         ! Communicate. We attempt to balance communication load in the network here by starting our sends with our right neighbor
+         ! and first trying to receive from our left neighbor.
+         DO i = 1, this%numnodes
+            k = MODULO(this%myrank - i, this%numnodes) ! rank to receive from
+            CALL mp_irecv(msgout=this%recvbufs(k)%data, source=k, comm=this%group, request=this%recvbufs(k)%mpi_request)
+            k = MODULO(this%myrank + i, this%numnodes) ! rank to send to
+            CALL mp_isend(msgin=sendbufs(k)%data, dest=k, comm=this%group, request=sendbufs(k)%mpi_request)
+         ENDDO
+         DO i = 0, this%numnodes - 1
+            CALL mp_wait(sendbufs(i)%mpi_request)
+            CALL mp_wait(this%recvbufs(i)%mpi_request)
+         ENDDO
+      ELSE
+         this%recvbufs(0)%data = sendbufs(0)%data
+      ENDIF
 
       DO i = 0, this%numnodes - 1
          CALL sendbufs(i)%dealloc
@@ -647,7 +586,7 @@ CONTAINS
       ! TODO: Should we buffer the list of non-zero rows for each submatrix instead of recalculating it each time?
       CALL nonzero_rows%reset
       DO i = (sm_id - 1)*this%cols_per_sm + 1, sm_id*this%cols_per_sm     ! all colums that determine submatrix sm_id
-         DO j = this%coo_col_offsets(i), this%coo_col_offsets(i + 1) - 1 ! all blocks that are within this column
+         DO j = this%coo_col_offsets(i), this%coo_col_offsets(i + 1) - 1  ! all blocks that are within this column
             CALL nonzero_rows%insert(this%coo_rows(j))
          ENDDO
       ENDDO
@@ -675,11 +614,6 @@ CONTAINS
             ENDDO
             k_limit_left = k
             IF (this%coo_rows(k) .EQ. nonzero_rows%get(i)) THEN ! it does exist and k is our block id
-               IF (DEBUG) PRINT *, "uses block", k, ": (", nonzero_rows%get(i), ",", nonzero_rows%get(j), ")"
-               IF (DEBUG) PRINT *, "block dimensions:", &
-                  this%col_blk_size(nonzero_rows%get(i)), "x", this%col_blk_size(nonzero_rows%get(j))
-               IF (DEBUG) PRINT *, this%coo_dptr(k)%target
-               IF (DEBUG) PRINT *, "copying to sm(", offset_y1 + 1, ":", offset_y2, ",", offset_x1 + 1, ":", offset_x2, ")"
                sm(offset_y1 + 1:offset_y2, offset_x1 + 1:offset_x2) = RESHAPE(this%coo_dptr(k)%target, &
                                                                               (/offset_y2 - offset_y1, offset_x2 - offset_x1/))
             ENDIF
@@ -753,22 +687,20 @@ CONTAINS
       ALLOCATE (buf_offset_idxs(0:this%numnodes - 1))
       buf_offset_idxs = 1
 
-      ! TODO: Use get_first_relevant_col()
-
       ! TODO: Should we buffer the list of non-zero rows for each submatrix instead of recalculating it each time?
       sm_col_offset = 0
       DO i = (sm_id - 1)*this%cols_per_sm + 1, sm_id*this%cols_per_sm     ! all colums that determine submatrix sm_id
-         DO j = this%coo_col_offsets(i), this%coo_col_offsets(i + 1) - 1 ! all blocks that are within this column
+         DO j = this%coo_col_offsets(i), this%coo_col_offsets(i + 1) - 1  ! all blocks that are within this column
             CALL nonzero_rows%insert(this%coo_rows(j))
          ENDDO
       ENDDO
 
+      ! TODO: We could use get_first_relevant_col() here but this would lead to nonzero_rows being computed twice.
       sm_col_offset = 0
       DO i = 1, nonzero_rows%elements
          IF (nonzero_rows%get(i) .EQ. (sm_id - 1)*this%cols_per_sm + 1) THEN
             ! We just found the nonzero row that corresponds to the first inducing column of our submatrix
             sm_col_offset = i
-            IF (DEBUG) PRINT *, "For sm", sm_id, "the relevant result columns start with column", sm_col_offset
             EXIT
          ENDIF
       ENDDO
@@ -809,10 +741,6 @@ CONTAINS
                   this%result_sendbufs(m)%data(bufsize + 1:bufsize_next) = RESHAPE( &
                                                                            sm(offset_y1 + 1:offset_y2, offset_x1 + 1:offset_x2), &
                                                                            (/bufsize_next - bufsize/))
-                  IF (DEBUG) PRINT *, "Copying block", k, "(", nonzero_rows%get(i), ", ", nonzero_rows%get(j), ")", &
-                     "= sm(", offset_y1 + 1, ":", offset_y2, ",", offset_x1 + 1, ":", offset_x2, ") of sm", sm_id, &
-                     "into result buffer for rank", m, &
-                     "at pos", "(", bufsize + 1, ":", bufsize_next, ")"
                ENDIF
                offset_y1 = offset_y2
             ENDDO
@@ -852,21 +780,20 @@ CONTAINS
 
       ! Communicate. We attempt to balance communication load in the network here by starting our sends with our right neighbor
       ! and first trying to receive from our left neighbor.
-#ifdef __parallel
-      DO i = 1, this%numnodes
-         k = MODULO(this%myrank - i, this%numnodes) ! rank to receive from
-         CALL mp_irecv(msgout=result_recvbufs(k)%data, source=k, comm=this%group, request=result_recvbufs(k)%mpi_request)
-         k = MODULO(this%myrank + i, this%numnodes) ! rank to send to
-         CALL mp_isend(msgin=this%result_sendbufs(k)%data, dest=k, comm=this%group, request=this%result_sendbufs(k)%mpi_request)
-      ENDDO
-      DO i = 0, this%numnodes - 1
-         CALL mp_wait(this%result_sendbufs(i)%mpi_request)
-         CALL mp_wait(result_recvbufs(i)%mpi_request)
-         IF (DEBUG) PRINT *, this%myrank, "received from", i, ":", endl, result_recvbufs(i)%data
-      ENDDO
-#else
-      result_recvbufs(0)%data = this%result_sendbufs(0)%data
-#endif
+      IF (this%numnodes .GT. 1) THEN
+         DO i = 1, this%numnodes
+            k = MODULO(this%myrank - i, this%numnodes) ! rank to receive from
+            CALL mp_irecv(msgout=result_recvbufs(k)%data, source=k, comm=this%group, request=result_recvbufs(k)%mpi_request)
+            k = MODULO(this%myrank + i, this%numnodes) ! rank to send to
+            CALL mp_isend(msgin=this%result_sendbufs(k)%data, dest=k, comm=this%group, request=this%result_sendbufs(k)%mpi_request)
+         ENDDO
+         DO i = 0, this%numnodes - 1
+            CALL mp_wait(this%result_sendbufs(i)%mpi_request)
+            CALL mp_wait(result_recvbufs(i)%mpi_request)
+         ENDDO
+      ELSE
+         result_recvbufs(0)%data = this%result_sendbufs(0)%data
+      ENDIF
 
       last_buf = -1
       bufsize = 0

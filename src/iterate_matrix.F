@@ -1082,38 +1082,47 @@ CONTAINS
 !> \brief compute the sign of a dense matrix using Newton-Schulz iterations
 !> \param matrix_sign ...
 !> \param matrix ...
+!> \param matrix_id ...
 !> \param threshold ...
 !> \param sign_order ...
 !> \author Michael Lass, Robert Schade
 ! **************************************************************************************************
-   SUBROUTINE dense_matrix_sign_Newton_Schulz(matrix_sign, matrix, threshold, sign_order)
+   SUBROUTINE dense_matrix_sign_Newton_Schulz(matrix_sign, matrix, matrix_id, threshold, sign_order)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: matrix_sign
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: matrix
+      INTEGER, INTENT(IN), OPTIONAL                      :: matrix_id
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dense_matrix_sign_Newton_Schulz', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, j, sz
+      INTEGER                                            :: handle, i, j, sz, unit_nr
+      LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: frob_matrix, frob_matrix_base, &
                                                             gersh_matrix, prefactor, scaling_factor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tmp1, tmp2
       REAL(KIND=dp), DIMENSION(1)                        :: work
       REAL(KIND=dp), EXTERNAL                            :: dlange
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
+
+      ! print output on all ranks
+      logger => cp_get_default_logger()
+      unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+
       ! scale the matrix to get into the convergence range
       sz = SIZE(matrix, 1)
       frob_matrix = dlange('F', sz, sz, matrix, sz, work) !dbcsr_frobenius_norm(matrix_sign)
       gersh_matrix = dlange('1', sz, sz, matrix, sz, work) !dbcsr_gershgorin_norm(matrix_sign)
       scaling_factor = 1/MIN(frob_matrix, gersh_matrix)
-      !print*,"norms",sz,frob_matrix,gersh_matrix,scaling_factor
       matrix_sign = matrix*scaling_factor
       ALLOCATE (tmp1(sz, sz))
       ALLOCATE (tmp2(sz, sz))
 
+      converged = .FALSE.
       DO i = 1, 100
          CALL dgemm('N', 'N', sz, sz, sz, -1.0_dp, matrix_sign, sz, matrix_sign, sz, 0.0_dp, tmp1, sz)
 
@@ -1146,9 +1155,17 @@ CONTAINS
          matrix_sign = tmp2
 
          ! frob_matrix/frob_matrix_base < SQRT(threshold)
-         IF (frob_matrix*frob_matrix < (threshold*frob_matrix_base*frob_matrix_base)) EXIT
-         PRINT *, "Submatrix Sign iter", i, frob_matrix/frob_matrix_base
+         IF (frob_matrix*frob_matrix < (threshold*frob_matrix_base*frob_matrix_base)) THEN
+            WRITE (unit_nr, '(T6,A,1X,I6,1X,A,1X,I3,E12.3)') &
+               "Submatrix", matrix_id, "final NS sign iter", i, frob_matrix/frob_matrix_base
+            CALL m_flush(unit_nr)
+            converged = .TRUE.
+            EXIT
+         ENDIF
       ENDDO
+
+      IF (.NOT. converged) &
+         CPABORT("dense_matrix_sign_Newton_Schulz did not converge within 100 iterations")
 
       DEALLOCATE (tmp1)
       DEALLOCATE (tmp2)
@@ -1198,7 +1215,7 @@ CONTAINS
       DEALLOCATE (IWORK)
       DEALLOCATE (WORK)
 
-      IF (INFO .NE. 0) PRINT *, "ERR: _syevd did not succeed", INFO
+      IF (INFO .NE. 0) CPABORT("dsyevd did not succeed")
 
       sm_sign = 0
       DO i = 1, N
@@ -1253,12 +1270,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ! print output on all ranks
       logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         unit_nr = -1
-      ENDIF
+      unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
 
       IF (PRESENT(sign_order)) THEN
          order = sign_order
@@ -1272,16 +1286,17 @@ CONTAINS
       CALL dissection%init(matrix)
       CALL dissection%get_sm_ids_for_rank(myrank, my_sms)
 
-      !$OMP PARALLEL PRIVATE(sm, sm_sign, sm_size) SHARED(dissection, myrank, my_sms)
+      !$OMP PARALLEL DEFAULT(NONE) PRIVATE(sm, sm_sign, sm_size) &
+      !$OMP          SHARED(dissection, myrank, my_sms, order, submatrix_sign_method, threshold, unit_nr)
       !$OMP DO SCHEDULE(GUIDED)
       DO i = 1, SIZE(my_sms)
-         PRINT *, "Rank", myrank, "processing submatrix", my_sms(i)
+         WRITE (unit_nr, '(T3,A,1X,I4,1X,A,1X,I6)') "Rank", myrank, "processing submatrix", my_sms(i)
          CALL dissection%generate_submatrix(my_sms(i), sm)
          sm_size = SIZE(sm, 1)
          ALLOCATE (sm_sign(sm_size, sm_size))
          SELECT CASE (submatrix_sign_method)
          CASE (ls_scf_submatrix_sign_ns)
-            CALL dense_matrix_sign_Newton_Schulz(sm_sign, sm, threshold, order)
+            CALL dense_matrix_sign_Newton_Schulz(sm_sign, sm, my_sms(i), threshold, order)
          CASE (ls_scf_submatrix_sign_direct)
             CALL dense_matrix_sign_direct(sm_sign, sm, sm_size)
          CASE DEFAULT

@@ -7,6 +7,10 @@ MODULE submatrix_methods
 
    IMPLICIT NONE
 
+   PRIVATE
+
+   PUBLIC :: qsort, qsort_two
+
 CONTAINS
 
 ! **************************************************************************************************
