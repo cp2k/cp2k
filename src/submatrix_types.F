@@ -6,7 +6,7 @@
 MODULE submatrix_types
 
    USE kinds,                           ONLY: dp
-   USE submatrix_methods,               ONLY: qsort
+   USE util,                            ONLY: sort
 
    IMPLICIT NONE
    PRIVATE
@@ -199,9 +199,10 @@ CONTAINS
 !> \brief update internal list of set elements
 !> \param this - instance of extendable vector
 ! **************************************************************************************************
-   PURE SUBROUTINE set_update_sorted(this)
-      CLASS(set_type), INTENT(INOUT)   :: this
-      INTEGER                          :: i, idx
+   SUBROUTINE set_update_sorted(this)
+      CLASS(set_type), INTENT(INOUT)     :: this
+      INTEGER                            :: i, idx
+      INTEGER, DIMENSION(:), ALLOCATABLE :: tmp
 
       IF (ALLOCATED(this%sorted)) DEALLOCATE (this%sorted)
       ALLOCATE (this%sorted(this%elements))
@@ -214,7 +215,9 @@ CONTAINS
          ENDIF
       ENDDO
 
-      CALL qsort(this%sorted, 1, this%elements)
+      ALLOCATE (tmp(this%elements))
+      CALL sort(this%sorted, this%elements, tmp)
+      DEALLOCATE (tmp)
 
       this%sorted_up_to_date = .TRUE.
    END SUBROUTINE set_update_sorted
