@@ -10,6 +10,7 @@
 ! **************************************************************************************************
 MODULE rpa_gw_im_time_util
 
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
@@ -42,10 +43,10 @@ MODULE rpa_gw_im_time_util
                                               qs_environment_type
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_tensors,                      ONLY: pgf_block_sizes
    USE qs_tensors_types,                ONLY: create_2c_tensor,&
                                               create_3c_tensor,&
-                                              cyclic_tensor_dist
+                                              cyclic_tensor_dist,&
+                                              pgf_block_sizes
    USE rpa_communication,               ONLY: communicate_buffer
 #include "./base/base_uses.f90"
 
@@ -117,6 +118,7 @@ CONTAINS
                                                             sizes_MO_p1, sizes_MO_p2
       LOGICAL                                            :: memory_info, my_do_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: norm
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_type), POINTER                          :: fm_mat_mo_coeff_gw
       TYPE(dbcsr_distribution_type)                      :: dist, dist_templ
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid, pgrid_2d, pgrid_ic
@@ -142,7 +144,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, particle_set=particle_set)
+      CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
       NULLIFY (fm_mat_mo_coeff_gw)
       CALL cp_fm_create(fm_mat_mo_coeff_gw, mo_coeff%matrix_struct)
@@ -183,8 +185,9 @@ CONTAINS
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=basis_set_ao)
 
       min_bsize = qs_env%mp2_env%ri_rpa_im_time%min_bsize
-      CALL pgf_block_sizes(qs_env, basis_set_ao, min_bsize, sizes_AO_split)
-      CALL pgf_block_sizes(qs_env, basis_set_ri_aux, min_bsize, sizes_RI_split)
+
+      CALL pgf_block_sizes(atomic_kind_set, basis_set_ao, min_bsize, sizes_AO_split)
+      CALL pgf_block_sizes(atomic_kind_set, basis_set_ri_aux, min_bsize, sizes_RI_split)
 
       DEALLOCATE (basis_set_ao, basis_set_ri_aux)
 
