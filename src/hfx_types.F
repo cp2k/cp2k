@@ -79,14 +79,10 @@ MODULE hfx_types
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type
-   USE qs_tensors_types,                ONLY: create_2c_tensor,&
-                                              create_3c_tensor,&
-                                              cyclic_tensor_dist,&
-                                              distribution_3d_create,&
-                                              distribution_3d_destroy,&
-                                              distribution_3d_type,&
-                                              libcusmm_maxblocksize,&
-                                              split_block_sizes
+   USE qs_tensors_types,                ONLY: &
+        create_2c_tensor, create_3c_tensor, cyclic_tensor_dist, distribution_3d_create, &
+        distribution_3d_destroy, distribution_3d_type, libcusmm_maxblocksize, pgf_block_sizes, &
+        split_block_sizes
    USE string_utilities,                ONLY: compress
    USE t_c_g0,                          ONLY: free_C0
 
@@ -364,7 +360,7 @@ MODULE hfx_types
       REAL(KIND=dp) :: filter_eps, filter_eps_2c, filter_eps_3c, filter_eps_mo, &
                        eps_lanczos, eps_pgf_orb
       INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr_dbcsr, unit_nr, &
-                 max_bsize_RI, max_bsize_mo, max_bsize_AO, t2c_method, nelectron_total
+                 min_bsize, min_bsize_MO, t2c_method, nelectron_total
       LOGICAL :: check_2c_inv
 
       TYPE(libint_potential_type) :: ri_metric
@@ -377,6 +373,7 @@ MODULE hfx_types
 
       ! default process grid used for 3c tensors
       TYPE(dbcsr_t_pgrid_type), POINTER :: pgrid => NULL()
+      TYPE(dbcsr_t_pgrid_type), POINTER :: pgrid_2d => NULL()
 
       ! distributions for (RI | AO AO) 3c integral tensor (non split)
       TYPE(distribution_3d_type) :: dist_3d
@@ -964,7 +961,7 @@ CONTAINS
                ALLOCATE (actual_x_data%ri_data)
                CALL hfx_ri_init_read_input_from_hfx(actual_x_data%ri_data, actual_x_data, hfx_section, &
                                                     hf_sub_section, qs_kind_set, &
-                                                    particle_set, dft_control, para_env, irep, do_ot, &
+                                                    particle_set, atomic_kind_set, dft_control, para_env, irep, do_ot, &
                                                     nelectron_total)
 
             ENDIF
@@ -986,6 +983,7 @@ CONTAINS
 !> \param ri_section ...
 !> \param qs_kind_set ...
 !> \param particle_set ...
+!> \param atomic_kind_set ...
 !> \param dft_control ...
 !> \param para_env ...
 !> \param irep ...
@@ -993,12 +991,13 @@ CONTAINS
 !> \param nelectron_total ...
 ! **************************************************************************************************
    SUBROUTINE hfx_ri_init_read_input_from_hfx(ri_data, x_data, hfx_section, ri_section, qs_kind_set, &
-                                              particle_set, dft_control, para_env, irep, do_ot, nelectron_total)
+                                              particle_set, atomic_kind_set, dft_control, para_env, irep, do_ot, nelectron_total)
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(hfx_type), INTENT(INOUT)                      :: x_data
       TYPE(section_vals_type), POINTER                   :: hfx_section, ri_section
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cp_para_env_type)                             :: para_env
       INTEGER, INTENT(IN)                                :: irep
@@ -1055,7 +1054,7 @@ CONTAINS
 
       ri_basis_type = "RI_HFX"
 
-      CALL hfx_ri_init_read_input(ri_data, ri_section, qs_kind_set, particle_set, &
+      CALL hfx_ri_init_read_input(ri_data, ri_section, qs_kind_set, particle_set, atomic_kind_set, &
                                   orb_basis_type, ri_basis_type, dft_control%auto_basis_ri_hfx, &
                                   para_env, unit_nr, unit_nr_dbcsr, nelectron_total, &
                                   t_c_filename=t_c_filename)
@@ -1073,6 +1072,7 @@ CONTAINS
 !> \param ri_section ...
 !> \param qs_kind_set ...
 !> \param particle_set ...
+!> \param atomic_kind_set ...
 !> \param orb_basis_type ...
 !> \param ri_basis_type ...
 !> \param auto_basis_cntrl ...
@@ -1083,12 +1083,13 @@ CONTAINS
 !> \param t_c_filename ...
 ! **************************************************************************************************
    SUBROUTINE hfx_ri_init_read_input(ri_data, ri_section, qs_kind_set, &
-                                     particle_set, orb_basis_type, ri_basis_type, auto_basis_cntrl, para_env, &
+                                     particle_set, atomic_kind_set, orb_basis_type, ri_basis_type, auto_basis_cntrl, para_env, &
                                      unit_nr, unit_nr_dbcsr, nelectron_total, t_c_filename)
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(section_vals_type), POINTER                   :: ri_section
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       CHARACTER(LEN=*), INTENT(IN)                       :: orb_basis_type, ri_basis_type
       INTEGER, INTENT(IN)                                :: auto_basis_cntrl
       TYPE(cp_para_env_type)                             :: para_env
@@ -1133,9 +1134,8 @@ CONTAINS
       CALL section_vals_val_get(ri_section, "MAX_ITER_LANCZOS", i_val=ri_data%max_iter_lanczos)
       CALL section_vals_val_get(ri_section, "RI_FLAVOR", i_val=ri_data%flavor)
       CALL section_vals_val_get(ri_section, "EPS_PGF_ORB", r_val=ri_data%eps_pgf_orb)
-      CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE_RI", i_val=ri_data%max_bsize_RI)
-      CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE_AO", i_val=ri_data%max_bsize_AO)
-      CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE_MO", i_val=ri_data%max_bsize_mo)
+      CALL section_vals_val_get(ri_section, "MIN_BLOCK_SIZE", i_val=ri_data%min_bsize)
+      CALL section_vals_val_get(ri_section, "MIN_BLOCK_SIZE_MO", i_val=ri_data%min_bsize_MO)
       CALL section_vals_val_get(ri_section, "MEMORY_CUT", i_val=ri_data%n_mem)
 
       ri_data%orb_basis_type = orb_basis_type
@@ -1155,7 +1155,7 @@ CONTAINS
 
       CALL section_vals_val_get(ri_data%loc_subsection, "_SECTION_PARAMETERS_", l_val=ri_data%do_loc)
 
-      CALL hfx_ri_init(ri_data, qs_kind_set, particle_set, para_env, auto_basis_cntrl)
+      CALL hfx_ri_init(ri_data, qs_kind_set, particle_set, atomic_kind_set, para_env, auto_basis_cntrl)
 
       CALL timestop(handle)
 
@@ -1166,13 +1166,15 @@ CONTAINS
 !> \param ri_data ...
 !> \param qs_kind_set ...
 !> \param particle_set ...
+!> \param atomic_kind_set ...
 !> \param para_env ...
 !> \param basis_cntrl ...
 ! **************************************************************************************************
-   SUBROUTINE hfx_ri_init(ri_data, qs_kind_set, particle_set, para_env, basis_cntrl)
+   SUBROUTINE hfx_ri_init(ri_data, qs_kind_set, particle_set, atomic_kind_set, para_env, basis_cntrl)
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type)                             :: para_env
       INTEGER, INTENT(IN)                                :: basis_cntrl
 
@@ -1185,7 +1187,6 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: pdims_2d
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
       LOGICAL                                            :: same_op
-      TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: basis_set_AO, basis_set_RI
@@ -1262,6 +1263,10 @@ CONTAINS
       ALLOCATE (ri_data%pgrid)
       CALL dbcsr_t_pgrid_create(para_env%group, pdims, ri_data%pgrid)
 
+      ALLOCATE (ri_data%pgrid_2d)
+      pdims_2d = 0
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims_2d, ri_data%pgrid_2d)
+
       ri_data%dist_3d = dist_3d
 
       CALL dbcsr_t_distribution_new(ri_data%dist, ri_data%pgrid, &
@@ -1271,38 +1276,44 @@ CONTAINS
 
       ! initialize tensors expressed in basis representation
 
-      CALL split_block_sizes(ri_data%bsizes_AO, ri_data%bsizes_AO_split, ri_data%max_bsize_AO)
+      CALL pgf_block_sizes(atomic_kind_set, basis_set_AO, ri_data%min_bsize, ri_data%bsizes_AO_split)
+      CALL pgf_block_sizes(atomic_kind_set, basis_set_RI, ri_data%min_bsize, ri_data%bsizes_RI_split)
+
       CALL split_block_sizes(ri_data%bsizes_AO, ri_data%bsizes_AO_fit, libcusmm_maxblocksize)
-      CALL split_block_sizes(ri_data%bsizes_RI, ri_data%bsizes_RI_split, ri_data%max_bsize_RI)
       CALL split_block_sizes(ri_data%bsizes_RI, ri_data%bsizes_RI_fit, libcusmm_maxblocksize)
 
       IF (ri_data%flavor == ri_pmat) THEN
+         ALLOCATE (ri_data%t_2c_int(1, 1))
          ALLOCATE (ri_data%t_3c_int_ctr_1(1, 1))
 
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
-                               ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO, &
+                               ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
                                [1, 2], [3], name="(AO RI | AO)")
 
          ALLOCATE (ri_data%t_3c_int_ctr_2(1, 1))
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), ri_data%dist2_ao_1, ri_data%dist2_ri, ri_data%dist2_ao_2, &
-                               ri_data%pgrid, ri_data%bsizes_AO, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
+                               ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
                                [1], [2, 3], name="(AO | RI AO)")
 
          ALLOCATE (ri_data%t_3c_int_ctr_3(1, 1))
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_3(1, 1), ri_data%dist3_RI, ri_data%dist3_AO_1, ri_data%dist3_AO_2, &
-                               ri_data%pgrid, ri_data%bsizes_RI, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
+                               ri_data%pgrid, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
                                [1], [2, 3], name="(RI | AO AO)")
+
+         CALL create_2c_tensor(ri_data%t_2c_int(1, 1), dist1, dist2, ri_data%pgrid_2d, &
+                               ri_data%bsizes_RI_split, ri_data%bsizes_RI_split, &
+                               name="(RI | RI)")
+         DEALLOCATE (dist1, dist2)
 
       ELSEIF (ri_data%flavor == ri_mo) THEN
          ALLOCATE (ri_data%t_3c_int(1, 1))
          ALLOCATE (ri_data%t_2c_int(2, 1))
 
-         pdims_2d = 0
-         CALL dbcsr_t_pgrid_create(para_env%group, pdims_2d, pgrid_2d)
-
-         CALL create_2c_tensor(ri_data%t_2c_int(1, 1), dist1, dist2, pgrid_2d, ri_data%bsizes_RI_fit, ri_data%bsizes_RI_fit, &
+         CALL create_2c_tensor(ri_data%t_2c_int(1, 1), dist1, dist2, ri_data%pgrid_2d, &
+                               ri_data%bsizes_RI_fit, ri_data%bsizes_RI_fit, &
                                name="(RI | RI)")
-         CALL dbcsr_t_pgrid_destroy(pgrid_2d)
+
+         DEALLOCATE (dist1, dist2)
 
          CALL mp_environ(nproc, iproc, para_env%group)
 
@@ -1369,6 +1380,10 @@ CONTAINS
          CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_3)
          DEALLOCATE (ri_data%pgrid_3)
       ENDIF
+      IF (ASSOCIATED(ri_data%pgrid_2d)) THEN
+         CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_2d)
+         DEALLOCATE (ri_data%pgrid_2d)
+      ENDIF
 
       CALL distribution_3d_destroy(ri_data%dist_3d)
       CALL dbcsr_t_distribution_destroy(ri_data%dist)
@@ -1383,6 +1398,8 @@ CONTAINS
          DEALLOCATE (ri_data%t_3c_int_ctr_2)
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_3(1, 1))
          DEALLOCATE (ri_data%t_3c_int_ctr_3)
+         CALL dbcsr_t_destroy(ri_data%t_2c_int(1, 1))
+         DEALLOCATE (ri_data%t_2c_int)
       ELSEIF (ri_data%flavor == ri_mo) THEN
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_1(1, 1))
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_2(1, 1))
@@ -2541,8 +2558,10 @@ CONTAINS
             "HFX_RI_INFO| EPS_PGF_ORB", ri_data%eps_pgf_orb
          WRITE (UNIT=iw, FMT="((T3, A, T73, ES8.1))") &
             "HFX_RI_INFO| EPS_SCHWARZ:     ", ri_data%eps_schwarz
-         WRITE (UNIT=iw, FMT="(T3, A, T70, I3, 1X, I3, 1X, I3)") &
-            "HFX_RI_INFO| Maximum block size RI, MO, AO", ri_data%max_bsize_RI, ri_data%max_bsize_mo, ri_data%max_bsize_AO
+         WRITE (UNIT=iw, FMT="(T3, A, T78, I3)") &
+            "HFX_RI_INFO| Minimum block size", ri_data%min_bsize
+         WRITE (UNIT=iw, FMT="(T3, A, T78, I3)") &
+            "HFX_RI_INFO| MO block size", ri_data%min_bsize_MO
          WRITE (UNIT=iw, FMT="(T3, A, T79, I2)") &
             "HFX_RI_INFO| Memory reduction factor", ri_data%n_mem
       ENDIF

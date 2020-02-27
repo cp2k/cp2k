@@ -12,8 +12,7 @@ MODULE qs_tensors
                                               abc_contract
    USE ai_overlap,                      ONLY: overlap_ab
    USE ai_overlap3,                     ONLY: overlap3
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind_set
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_p_type
    USE block_p_types,                   ONLY: block_p_type
@@ -93,7 +92,7 @@ MODULE qs_tensors
              neighbor_list_3c_destroy, neighbor_list_3c_iterate, neighbor_list_3c_iterator_create, &
              neighbor_list_3c_iterator_destroy, get_3c_iterator_info, build_3c_integrals, &
              build_2c_neighbor_lists, build_2c_integrals, cutoff_screen_factor, tensor_change_pgrid, &
-             pgf_block_sizes, get_tensor_occupancy
+             get_tensor_occupancy
 
    TYPE one_dim_int_array
       INTEGER, DIMENSION(:), ALLOCATABLE    :: array
@@ -1657,65 +1656,6 @@ CONTAINS
       ENDIF
 
       CALL timestop(handle)
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param basis ...
-!> \param min_blk_size ...
-!> \param pgf_blk_sizes ...
-! **************************************************************************************************
-   SUBROUTINE pgf_block_sizes(qs_env, basis, min_blk_size, pgf_blk_sizes)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(gto_basis_set_p_type), DIMENSION(:), &
-         INTENT(IN)                                      :: basis
-      INTEGER, INTENT(IN)                                :: min_blk_size
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: pgf_blk_sizes
-
-      INTEGER                                            :: blk_count, blk_count_prev, blk_size, &
-                                                            iatom, ikind, iset, natom, nblk, nset
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, pgf_blk_sizes_tmp
-      INTEGER, DIMENSION(:), POINTER                     :: nsgf_set
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-
-      CALL get_qs_env(qs_env, natom=natom, atomic_kind_set=atomic_kind_set)
-
-      ALLOCATE (kind_of(natom))
-      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
-
-      nblk = 0
-      DO iatom = 1, natom
-         ikind = kind_of(iatom)
-         CALL get_gto_basis_set(basis(ikind)%gto_basis_set, nset=nset)
-         nblk = nblk + nset
-      ENDDO
-
-      ALLOCATE (pgf_blk_sizes_tmp(nblk)); pgf_blk_sizes_tmp = 0
-
-      blk_count = 0
-      blk_size = 0
-      DO iatom = 1, natom
-         blk_count_prev = blk_count
-         ikind = kind_of(iatom)
-         CALL get_gto_basis_set(basis(ikind)%gto_basis_set, nset=nset, nsgf_set=nsgf_set)
-         DO iset = 1, nset
-            blk_size = blk_size + nsgf_set(iset)
-            IF (blk_size >= min_blk_size) THEN
-               blk_count = blk_count + 1
-               pgf_blk_sizes_tmp(blk_count) = pgf_blk_sizes_tmp(blk_count) + blk_size
-               blk_size = 0
-            ENDIF
-         ENDDO
-         IF (blk_size > 0) THEN
-            IF (blk_count == blk_count_prev) blk_count = blk_count + 1
-            pgf_blk_sizes_tmp(blk_count) = pgf_blk_sizes_tmp(blk_count) + blk_size
-            blk_size = 0
-         ENDIF
-      ENDDO
-
-      ALLOCATE (pgf_blk_sizes(blk_count))
-      pgf_blk_sizes(:) = pgf_blk_sizes_tmp(:blk_count)
    END SUBROUTINE
 
 ! **************************************************************************************************
