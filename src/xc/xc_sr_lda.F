@@ -488,7 +488,7 @@ CONTAINS
 
       x = mu*SQRT(rs)
 
-      eclr = (Qrpa(x) + mu**3*(a1 + mu*(a2 + mu*(a3*mu + mu*(a4 + a5*mu**2)))))/((1._dp + b0**2*mu**2)**4)
+      eclr = (Qrpa(x) + mu**3*(a1 + mu*(a2 + mu*(a3 + mu*(a4 + a5*mu**2)))))/((1._dp + b0**2*mu**2)**4)
 
       eclrrs = -8._dp*adib/(1._dp + b0**2*mu**2)*b0*mu**2*eclr + &
                1._dp/((1._dp + b0**2*mu**2)**4)*(mu/(2._dp*SQRT(rs))*Qrpad(x) + &
@@ -709,7 +709,7 @@ CONTAINS
 
       x = mu*SQRT(rs)/phi
 
-      eclr = (phi**3*Qrpa(x) + mu**3*(a1 + mu*(a2 + mu*(a3*mu + mu*(a4 + a5*mu**2)))))/((1._dp + b0**2*mu**2)**4)
+      eclr = (phi**3*Qrpa(x) + mu**3*(a1 + mu*(a2 + mu*(a3 + mu*(a4 + a5*mu**2)))))/((1._dp + b0**2*mu**2)**4)
 
       eclrrs = -8._dp*adib/(1._dp + b0**2*mu**2)*b0*mu**2*eclr + &
                1._dp/((1._dp + b0**2*mu**2)**4)*(phi**2*mu/(2._dp*SQRT(rs))*Qrpad(x) + &
