@@ -920,7 +920,7 @@ CONTAINS
       max_set = SIZE(mp2_biel%index_table, 2)
       minimum_memory_needed = (8*(max_set**4))/1024**2
       IF (minimum_memory_needed > mp2_env%mp2_memory) THEN
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T66,F12.6,A3)') 'Memory required below the minimum, new memory:', &
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T66,I12,A3)') 'Memory required below the minimum, new memory:', &
             minimum_memory_needed, 'MiB'
          mp2_env%mp2_memory = minimum_memory_needed
       END IF
