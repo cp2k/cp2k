@@ -4982,12 +4982,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, sizes_RI
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, sizes_AO, sizes_RI
       INTEGER, DIMENSION(2)                              :: pdims_2d
       LOGICAL                                            :: t_3c_ctr_in_prv
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d
       TYPE(dbcsr_t_type)                                 :: t_3c_ctr_RI_prv, t_3c_overl_int_gw_copy, &
-                                                            t_AO, t_RI, t_RI_tmp
+                                                            t_AO, t_AO_tmp, t_RI, t_RI_tmp
 
       CALL timeset(routineN, handle)
 
@@ -4997,19 +4997,18 @@ CONTAINS
          t_3c_ctr_in_prv = .FALSE.
       ENDIF
 
+      pdims_2d = 0
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims_2d, pgrid_2d)
+
       IF (t_3c_ctr_in_prv) THEN
          CPASSERT(PRESENT(t_3c_ctr_RI))
          t_3c_ctr_RI_prv = t_3c_ctr_RI
       ELSE
 
          CALL dbcsr_t_get_info(t_3c_overl_int_gw_RI, blk_size_1=sizes_RI)
-         pdims_2d = 0
-         CALL dbcsr_t_pgrid_create(para_env%group, pdims_2d, pgrid_2d)
 
          CALL create_2c_tensor(t_RI, dist1, dist2, pgrid_2d, sizes_RI, sizes_RI, name="(RI|RI)")
          DEALLOCATE (dist1, dist2, sizes_RI)
-
-         CALL dbcsr_t_pgrid_destroy(pgrid_2d)
 
          CALL dbcsr_t_create(mat_RI, t_RI_tmp, name="(RI|RI)")
          CALL dbcsr_t_copy_matrix_to_tensor(mat_RI, t_RI_tmp)
@@ -5032,8 +5031,14 @@ CONTAINS
 
       ENDIF
 
-      CALL dbcsr_t_create(mat_AO, t_AO, name="(AO|AO)")
-      CALL dbcsr_t_copy_matrix_to_tensor(mat_AO, t_AO)
+      CALL dbcsr_t_get_info(t_3c_overl_int_gw_AO, blk_size_1=sizes_AO)
+      CALL create_2c_tensor(t_AO, dist1, dist2, pgrid_2d, sizes_AO, sizes_AO, name="(AO|AO)")
+      DEALLOCATE (dist1, dist2, sizes_AO)
+
+      CALL dbcsr_t_create(mat_AO, t_AO_tmp, name="(AO|AO)")
+      CALL dbcsr_t_copy_matrix_to_tensor(mat_AO, t_AO_tmp)
+      CALL dbcsr_t_copy(t_AO_tmp, t_AO)
+      CALL dbcsr_t_destroy(t_AO_tmp)
 
       CALL dbcsr_t_create(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_copy)
       CALL dbcsr_t_contract(dbcsr_scalar(prefac(2)), t_AO, t_3c_overl_int_gw_AO, dbcsr_scalar(0.0_dp), &
@@ -5055,6 +5060,7 @@ CONTAINS
          CALL dbcsr_t_destroy(t_3c_ctr_RI_prv)
       ENDIF
 
+      CALL dbcsr_t_pgrid_destroy(pgrid_2d)
       CALL dbcsr_t_destroy(t_AO)
 
       CALL timestop(handle)

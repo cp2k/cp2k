@@ -368,7 +368,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="SORT_BASIS", &
-                          description="Sort basis sets according to a certain criterion.", &
+                          description="Sort basis sets according to a certain criterion. "// &
+                          "This is experimental and does currently not work with GAPW.", &
                           enum_c_vals=s2a("DEFAULT", "RADIUS", "EXP"), &
                           enum_i_vals=(/basis_sort_default, basis_sort_radius, basis_sort_zet/), &
                           enum_desc=s2a("don't sort", "sort w.r.t. set radius", "sort w.r.t. exponent"), &
