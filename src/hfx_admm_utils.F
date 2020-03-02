@@ -47,7 +47,8 @@ MODULE hfx_admm_utils
    USE input_constants,                 ONLY: &
         do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
         do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, do_potential_coulomb, &
-        do_potential_short, do_potential_truncated, xc_funct_no_shortcut
+        do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_short, &
+        do_potential_truncated, xc_funct_no_shortcut
    USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -799,7 +800,7 @@ CONTAINS
       INTEGER                                            :: hfx_potential_type, ifun, iounit, nfun
       LOGICAL                                            :: funct_found
       REAL(dp)                                           :: cutoff_radius, hfx_fraction, omega, &
-                                                            scale_x
+                                                            scale_coulomb, scale_longrange, scale_x
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: xc_fun, xc_fun_section
 
@@ -881,6 +882,47 @@ CONTAINS
                                       r_val=0.0_dp)
             CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
                                       r_val=-hfx_fraction)
+         CASE (do_potential_long)
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            CALL section_vals_val_set(xc_fun_section, "XWPBE%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
+                                      r_val=hfx_fraction)
+            CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
+                                      r_val=-hfx_fraction)
+            CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
+                                      r_val=omega)
+         CASE (do_potential_mix_cl)
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            CALL section_vals_val_set(xc_fun_section, "XWPBE%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
+                                      r_val=hfx_fraction*scale_longrange)
+            CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
+                                      r_val=-hfx_fraction*(scale_longrange + scale_coulomb))
+            CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
+                                      r_val=omega)
+         CASE (do_potential_mix_cl_trunc)
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
+            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
+                                      r_val=hfx_fraction*(scale_longrange + scale_coulomb))
+            CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%CUTOFF_RADIUS", &
+                                      r_val=cutoff_radius)
+            CALL section_vals_val_set(xc_fun_section, "XWPBE%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
+                                      r_val=hfx_fraction*scale_longrange)
+            CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
+                                      r_val=-hfx_fraction*(scale_longrange + scale_coulomb))
+            CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
+                                      r_val=omega)
          CASE DEFAULT
             CPABORT("")
          END SELECT
@@ -945,6 +987,42 @@ CONTAINS
                CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
                                          r_val=scale_x)
             END IF
+         CASE (do_potential_long)
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "XWPBE") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
+                                         r_val=-hfx_fraction)
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
+                                         r_val=hfx_fraction)
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
+                                         r_val=omega)
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "XWPBE%SCALE_X", &
+                                         r_val=scale_x)
+               scale_x = scale_x - hfx_fraction
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
+                                         r_val=scale_x)
+               CALL section_vals_val_get(xc_fun_section, "XWPBE%SCALE_X0", &
+                                         r_val=scale_x)
+               scale_x = scale_x + hfx_fraction
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
+                                         r_val=scale_x)
+
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
+                                         r_val=omega)
+            END IF
          CASE (do_potential_truncated)
             cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
             ifun = 0
@@ -998,6 +1076,114 @@ CONTAINS
                scale_x = scale_x + hfx_fraction
                CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
                                          r_val=scale_x)
+            END IF
+         CASE (do_potential_mix_cl_trunc)
+            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "PBE_HOLE_T_C_LR") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
+                                         r_val=-hfx_fraction*(scale_coulomb + scale_longrange))
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%CUTOFF_RADIUS", &
+                                         r_val=cutoff_radius)
+
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
+                                         r_val=scale_x)
+               scale_x = scale_x - hfx_fraction*(scale_coulomb + scale_longrange)
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
+                                         r_val=scale_x)
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%CUTOFF_RADIUS", &
+                                         r_val=cutoff_radius)
+            END IF
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "XWPBE") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
+                                         r_val=hfx_fraction*(scale_coulomb + scale_longrange))
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
+                                         r_val=-hfx_fraction*scale_longrange)
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
+                                         r_val=omega)
+
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "XWPBE%SCALE_X0", &
+                                         r_val=scale_x)
+               scale_x = scale_x + hfx_fraction*(scale_coulomb + scale_longrange)
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
+                                         r_val=scale_x)
+
+               CALL section_vals_val_get(xc_fun_section, "XWPBE%SCALE_X", &
+                                         r_val=scale_x)
+               scale_x = scale_x - hfx_fraction*scale_longrange
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
+                                         r_val=scale_x)
+
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
+                                         r_val=omega)
+            END IF
+         CASE (do_potential_mix_cl)
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "XWPBE") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
+                                         r_val=hfx_fraction*(scale_coulomb + scale_longrange))
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
+                                         r_val=-hfx_fraction*scale_longrange)
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
+                                         r_val=omega)
+
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "XWPBE%SCALE_X0", &
+                                         r_val=scale_x)
+               scale_x = scale_x + hfx_fraction*(scale_coulomb + scale_longrange)
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
+                                         r_val=scale_x)
+
+               CALL section_vals_val_get(xc_fun_section, "XWPBE%SCALE_X", &
+                                         r_val=scale_x)
+               scale_x = scale_x - hfx_fraction*scale_longrange
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
+                                         r_val=scale_x)
+
+               CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
+                                         r_val=omega)
             END IF
 
          END SELECT
