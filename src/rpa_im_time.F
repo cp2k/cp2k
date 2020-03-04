@@ -32,11 +32,10 @@ MODULE rpa_im_time
         dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_scalar, dbcsr_scale, dbcsr_set, &
         dbcsr_type, dbcsr_type_no_symmetry
    USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_batched_contract_finalize, dbcsr_t_batched_contract_init, dbcsr_t_clear, &
-        dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, &
-        dbcsr_t_copy_tensor_to_matrix, dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_filter, &
-        dbcsr_t_get_info, dbcsr_t_nd_mp_comm, dbcsr_t_need_contract, dbcsr_t_pgrid_destroy, &
-        dbcsr_t_pgrid_type, dbcsr_t_type
+        dbcsr_t_batched_contract_finalize, dbcsr_t_batched_contract_init, dbcsr_t_contract, &
+        dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_copy_tensor_to_matrix, &
+        dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_filter, dbcsr_t_get_info, dbcsr_t_nd_mp_comm, &
+        dbcsr_t_need_contract, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -431,7 +430,6 @@ CONTAINS
                         ! representation)
                         CALL timeset(routineN//"_copy_M_occ_t", handle3)
                         CALL dbcsr_t_copy(t_3c_M_occ_tmp, t_3c_M_occ, order=[1, 3, 2], move_data=.TRUE.)
-                        CALL dbcsr_t_clear(t_3c_M_occ_tmp)
                         CALL dbcsr_t_filter(t_3c_M_occ, eps_filter)
                         CALL timestop(handle3)
 
@@ -491,7 +489,6 @@ CONTAINS
 
                         CALL timeset(routineN//"_copy_M_virt_t", handle3)
                         CALL dbcsr_t_copy(t_3c_M_virt_tmp, t_3c_M_virt, move_data=.TRUE.)
-                        CALL dbcsr_t_clear(t_3c_M_virt_tmp)
                         CALL dbcsr_t_filter(t_3c_M_virt, eps_filter)
                         CALL timestop(handle3)
 
@@ -540,9 +537,6 @@ CONTAINS
                            ENDIF
                         ENDIF
 
-                        CALL dbcsr_t_clear(t_3c_M_occ)
-                        CALL dbcsr_t_clear(t_3c_M_virt)
-
                         first_cycle_im_time = .FALSE.
 
                         IF (jquad == 1 .AND. flops_2 == 0) &
@@ -558,7 +552,6 @@ CONTAINS
 
             CALL dbcsr_t_create(mat_P_global%matrix, t_P_tmp)
             CALL dbcsr_t_copy(t_P, t_P_tmp, move_data=.TRUE.)
-            CALL dbcsr_t_clear(t_P)
             CALL dbcsr_t_copy_tensor_to_matrix(t_P_tmp, mat_P_global%matrix)
             CALL dbcsr_t_destroy(t_P_tmp)
 

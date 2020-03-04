@@ -413,7 +413,6 @@ CONTAINS
                                  desymmetrize=.FALSE., &
                                  bounds_j=[starts_array_mc_block_int(i_mem), ends_array_mc_block_int(i_mem)])
          CALL dbcsr_t_copy(t_3c_int_batched(1, 1), t_3c_int(1, 1), summation=.TRUE., move_data=.TRUE.)
-         CALL dbcsr_t_clear(t_3c_int_batched(1, 1))
          CALL dbcsr_t_filter(t_3c_int(1, 1), ri_data%filter_eps_3c/2)
       ENDDO
 
@@ -1079,12 +1078,10 @@ CONTAINS
             CALL timestop(handle2)
             CALL timeset(routineN//"_copy_1", handle2)
             CALL dbcsr_t_copy(t_3c_int_mo_1(1, 1), ri_data%t_3c_int_mo(ispin, 1, 1), order=[3, 1, 2], move_data=.TRUE.)
-            CALL dbcsr_t_clear(t_3c_int_mo_1(1, 1))
             CALL timestop(handle2)
 
             CALL timeset(routineN//"_copy_symm", handle2)
             CALL dbcsr_t_copy(ri_data%t_3c_int_ctr_1(1, 1), ri_data%t_3c_int_ctr_2(1, 1), move_data=.TRUE.)
-            CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_1(1, 1))
             CALL timestop(handle2)
 
             CALL timeset(routineN//"_MOx3C_L", handle2)
@@ -1101,14 +1098,12 @@ CONTAINS
             CALL timeset(routineN//"_copy_1", handle2)
             CALL dbcsr_t_copy(t_3c_int_mo_2(1, 1), ri_data%t_3c_int_mo(ispin, 1, 1), order=[2, 1, 3], &
                               summation=.TRUE., move_data=.TRUE.)
-            CALL dbcsr_t_clear(t_3c_int_mo_2(1, 1))
 
             CALL dbcsr_t_filter(ri_data%t_3c_int_mo(ispin, 1, 1), ri_data%filter_eps_mo)
             CALL timestop(handle2)
 
             CALL timeset(routineN//"_copy_symm", handle2)
             CALL dbcsr_t_copy(ri_data%t_3c_int_ctr_2(1, 1), ri_data%t_3c_int_ctr_1(1, 1), move_data=.TRUE.)
-            CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_2(1, 1))
             CALL timestop(handle2)
 
             IF (ASSOCIATED(pgrid_opt_RI)) THEN
@@ -1131,7 +1126,6 @@ CONTAINS
 
             ! note: this copy should not involve communication (same block sizes, same 3d distribution on same process grid)
             CALL dbcsr_t_copy(ri_data%t_3c_ctr_RI(ispin, 1, 1), ri_data%t_3c_ctr_KS(ispin, 1, 1), move_data=.TRUE.)
-            CALL dbcsr_t_clear(ri_data%t_3c_ctr_RI(ispin, 1, 1))
             CALL dbcsr_t_copy(ri_data%t_3c_ctr_KS(ispin, 1, 1), ri_data%t_3c_ctr_KS_copy(ispin, 1, 1))
             CALL timestop(handle2)
 
@@ -1167,12 +1161,8 @@ CONTAINS
          CALL dbcsr_t_destroy(t_3c_int_mo_1(1, 1))
          CALL dbcsr_t_destroy(t_3c_int_mo_2(1, 1))
          CALL dbcsr_t_clear(ri_data%t_3c_int_mo(ispin, 1, 1))
-         CALL dbcsr_t_clear(ri_data%t_3c_ctr_RI(ispin, 1, 1))
 
          CALL dbcsr_t_destroy(mo_coeff_t_split)
-
-         CALL dbcsr_t_clear(ri_data%t_3c_ctr_KS(ispin, 1, 1))
-         CALL dbcsr_t_clear(ri_data%t_3c_ctr_KS_copy(ispin, 1, 1))
 
          CALL dbcsr_t_filter(ks_t, ri_data%filter_eps)
          CALL dbcsr_t_copy_tensor_to_matrix(ks_t, ks_matrix(ispin, 1)%matrix, summation=.TRUE.)
@@ -1257,8 +1247,7 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL dbcsr_t_copy_matrix_to_tensor(rho_ao(ispin, 1)%matrix, rho_ao_tmp)
-         CALL dbcsr_t_copy(rho_ao_tmp, rho_ao_t)
-         CALL dbcsr_t_clear(rho_ao_tmp)
+         CALL dbcsr_t_copy(rho_ao_tmp, rho_ao_t, move_data=.TRUE.)
 
          CALL timeset(routineN//"_Px3C", handle2)
 
@@ -1274,7 +1263,6 @@ CONTAINS
 
          CALL timeset(routineN//"_copy_1", handle2)
          CALL dbcsr_t_copy(t_3c_1, ri_data%t_3c_int_ctr_3(1, 1), order=[3, 1, 2], move_data=.TRUE.)
-         CALL dbcsr_t_clear(t_3c_1)
          CALL timestop(handle2)
 
          ! impose sparsity of 3-center integrals:
