@@ -8,8 +8,8 @@ ARG LIBINT_LMAX=5
 # WARNING: The resulting image will violate the GPL and must not be distributed.
 
 # install Ubuntu packages.
-COPY ./install_requirements.sh .
-RUN ./install_requirements.sh
+COPY ./install_requirements_ubuntu:18.04.sh .
+RUN ./install_requirements_ubuntu:18.04.sh
 
 # Install some more Ubuntu packages.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
