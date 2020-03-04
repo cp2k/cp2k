@@ -98,7 +98,6 @@ CONTAINS
 !> \param Eigenval ...
 !> \param nmo ...
 !> \param num_integ_points ...
-!> \param num_integ_points_freq ...
 !> \param cut_memory ...
 !> \param unit_nr ...
 !> \param mp2_env ...
@@ -124,7 +123,7 @@ CONTAINS
                                   weights_cos_tf_t_to_w, &
                                   tj, tau_tj, e_fermi, eps_filter, &
                                   alpha, eps_filter_im_time, Eigenval, nmo, &
-                                  num_integ_points, num_integ_points_freq, cut_memory, unit_nr, &
+                                  num_integ_points, cut_memory, unit_nr, &
                                   mp2_env, para_env, &
                                   stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
                                   has_mat_P_blocks, do_ri_sos_laplace_mp2, &
@@ -150,8 +149,7 @@ CONTAINS
                                                             e_fermi
       REAL(KIND=dp), DIMENSION(0:num_integ_points), &
          INTENT(IN)                                      :: tau_tj
-      INTEGER, INTENT(IN)                                :: num_integ_points_freq, cut_memory, &
-                                                            unit_nr
+      INTEGER, INTENT(IN)                                :: cut_memory, unit_nr
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(IN)                          :: stabilize_exp
@@ -577,7 +575,7 @@ CONTAINS
 
                tau = tau_tj(jquad)
 
-               DO iquad = 1, num_integ_points_freq
+               DO iquad = 1, num_integ_points
 
                   omega = tj(iquad)
                   weight = weights_cos_tf_t_to_w(iquad, jquad)

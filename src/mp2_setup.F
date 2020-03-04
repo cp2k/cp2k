@@ -175,8 +175,6 @@ CONTAINS
                                 r_vals=mp2_env%ri_g0w0%ic_corr_list_beta)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%GAMMA_ONLY_SIGMA", &
                                 l_val=mp2_env%ri_g0w0%do_gamma_only_sigma)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%NUM_FREQ_POINTS_CLENSHAW_LOW_SCALING_GW", &
-                                i_val=mp2_env%ri_g0w0%num_integ_points_freq)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE", &
                                 l_val=mp2_env%ri_g0w0%do_bse)

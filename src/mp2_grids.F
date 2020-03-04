@@ -25,7 +25,9 @@ MODULE mp2_grids
                                               mp_comm_split_direct,&
                                               mp_sum
    USE minimax_exp,                     ONLY: get_exp_minimax_coeff
-   USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff
+   USE minimax_exp_gw,                  ONLY: get_exp_minimax_coeff_gw
+   USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff,&
+                                              get_rpa_minimax_coeff_larger_grid
    USE mp2_types,                       ONLY: mp2_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -162,7 +164,11 @@ CONTAINS
          ALLOCATE (x_tw(2*num_freq_points))
          x_tw = 0.0_dp
          ierr = 0
-         CALL get_rpa_minimax_coeff(num_freq_points, E_Range, x_tw, ierr)
+         IF (num_freq_points .LE. 20) THEN
+            CALL get_rpa_minimax_coeff(num_freq_points, E_Range, x_tw, ierr)
+         ELSE
+            CALL get_rpa_minimax_coeff_larger_grid(num_freq_points, E_Range, x_tw)
+         END IF
 
          ALLOCATE (tj(num_freq_points))
          tj = 0.0_dp
@@ -203,7 +209,11 @@ CONTAINS
          ALLOCATE (x_tw(2*num_time_points))
          x_tw = 0.0_dp
 
-         CALL get_exp_minimax_coeff(num_time_points, E_Range, x_tw)
+         IF (num_freq_points .LE. 20) THEN
+            CALL get_exp_minimax_coeff(num_time_points, E_Range, x_tw)
+         ELSE
+            CALL get_exp_minimax_coeff_gw(num_time_points, E_Range, x_tw)
+         END IF
 
          ! For RPA we include already a factor of two (see later steps)
          scaling = 2.0_dp

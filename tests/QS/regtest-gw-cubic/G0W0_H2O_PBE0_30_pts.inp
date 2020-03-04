@@ -51,8 +51,7 @@
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
         &RI_METRIC
-          POTENTIAL_TYPE TRUNCATED
-          CUTOFF_RADIUS 3.0
+          POTENTIAL_TYPE IDENTITY
         &END
         &LOW_SCALING
           MEMORY_CUT 1
@@ -65,14 +64,12 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
-          RPA_NUM_QUAD_POINTS 5
+          RPA_NUM_QUAD_POINTS 30
           &GW
-            EV_SC_ITER            3
-            CORR_MOS_OCC          1
-            CORR_MOS_VIRT         1
+            CORR_MOS_OCC          10
+            CORR_MOS_VIRT         10
             CROSSING_SEARCH       Z_SHOT
             ANALYTIC_CONTINUATION TWO_POLE
-            NUM_FREQ_POINTS_CLENSHAW_LOW_SCALING_GW     6
           &END GW
         &END RI_RPA
         MEMORY  200.
