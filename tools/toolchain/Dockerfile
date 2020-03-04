@@ -1,7 +1,9 @@
-FROM ubuntu:18.04
+ARG BASE_IMAGE=ubuntu:18.04
+FROM ${BASE_IMAGE}
 
 ARG MPI_MODE=mpich
 ARG LIBINT_LMAX=5
+ARG BASE_IMAGE
 
 # author: Ole Schuett
 
@@ -10,8 +12,8 @@ ARG LIBINT_LMAX=5
 USER root
 
 # install Ubuntu packages.
-COPY ./install_requirements.sh .
-RUN ./install_requirements.sh
+COPY ./install_requirements_${BASE_IMAGE}.sh .
+RUN ./install_requirements_${BASE_IMAGE}.sh
 
 # copy helper scripts
 WORKDIR /opt/cp2k-toolchain
