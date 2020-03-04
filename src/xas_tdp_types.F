@@ -602,19 +602,6 @@ CONTAINS
 
             CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%RI_METRIC%POTENTIAL_TYPE", &
                                       i_val=xas_tdp_control%ri_m_potential%potential_type)
-            !truncated Coulomb
-            IF (xas_tdp_control%ri_m_potential%potential_type == do_potential_truncated) THEN
-               CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%RI_METRIC%T_C_G_DATA", &
-                                         c_val=xas_tdp_control%ri_m_potential%filename)
-               IF (.NOT. file_exists(xas_tdp_control%ri_m_potential%filename)) THEN
-                  CPABORT("Could not find provided T_C_G_DATA file.")
-               END IF
-               CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%RI_METRIC%CUTOFF_RADIUS", &
-                                         r_val=xas_tdp_control%ri_m_potential%cutoff_radius)
-               !store the range in bohrs
-               xas_tdp_control%ri_m_potential%cutoff_radius = bohr*xas_tdp_control%ri_m_potential%cutoff_radius
-            END IF
-
             !short range erfc
             IF (xas_tdp_control%ri_m_potential%potential_type == do_potential_short) THEN
                CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%RI_METRIC%OMEGA", &

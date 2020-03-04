@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT Ne-pbc-shortrange-metric
+  PROJECT Ne-pbc-shortrange-sr_metric
   PRINT_LEVEL LOW
 &END GLOBAL
 &FORCE_EVAL

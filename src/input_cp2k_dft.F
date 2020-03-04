@@ -8418,7 +8418,7 @@ CONTAINS
                           "stands for the exchange potential and ! for the metric "// &
                           "potential. This allows for drastic screening of the "// &
                           "3-center integrals by selecting shorter range metric.", &
-                          n_keywords=5, &
+                          n_keywords=2, &
                           n_subsections=0, &
                           repeats=.FALSE.)
 
@@ -8436,29 +8436,10 @@ CONTAINS
                           usage="OPERATOR {string}", &
                           repeats=.FALSE., &
                           default_i_val=do_potential_id, &
-                          enum_c_vals=s2a("OVERLAP", "TRUNCATED", "SHORTRANGE"), &
+                          enum_c_vals=s2a("OVERLAP", "SHORTRANGE"), &
                           enum_desc=s2a("Overlap operator (=identity)", &
-                                        "Truncated Coulomb operator: 1/r if r < R_c, 0 otherwise ", &
                                         "Short range: erfc(omega*r)/r"), &
-                          enum_i_vals=(/do_potential_id, do_potential_truncated, &
-                                        do_potential_short/))
-      CALL section_add_keyword(subsubsubsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-                          variants=s2a("R_C", "RC", "RANGE"), &
-                          description="The cutoff radius (in Angstrom) for the truncated Coulomb operator.", &
-                          usage="CUTOFF_RADIUS {double}", &
-                          default_r_val=0.0_dp, &
-                          repeats=.FALSE.)
-      CALL section_add_keyword(subsubsubsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="T_C_G_DATA", &
-                          description="Location of the file t_c_g.dat that contains the data for the "// &
-                          "evaluation of the truncated gamma function ", &
-                          usage="T_C_G_DATA {string}", &
-                          default_c_val="t_c_g.dat")
+                          enum_i_vals=(/do_potential_id, do_potential_short/))
       CALL section_add_keyword(subsubsubsection, keyword)
       CALL keyword_release(keyword)
 
@@ -8538,7 +8519,7 @@ CONTAINS
                                        "and corresponding excitation energies such that "// &
                                        "the program can be restarted for PDOS or CUBE "// &
                                        "printing without the heavy computing.", &
-                                       print_level=medium_print_level, filename="", common_iter_levels=3)
+                                       print_level=high_print_level, filename="", common_iter_levels=3)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 

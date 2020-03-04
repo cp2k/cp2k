@@ -1261,6 +1261,7 @@ CONTAINS
 !>        the integrals in the xas_tdp_env as global (small) arrays. Does that for a given excited
 !>        kind. The quantity stored is M^-1 (P|Q) M^-1, where M is the RI metric. If the metric is
 !>        the same as the exchange potential, then we end up with the V-approximation (P|Q)^-1
+!>        By default (if no metric), the ri_m_potential is a copy of the x_potential
 !> \param ex_kind ...
 !> \param xas_tdp_env ...
 !> \param xas_tdp_control ...
@@ -1292,6 +1293,8 @@ CONTAINS
 
       NULLIFY (ri_basis, qs_kind_set, para_env, lmin, lmax, npgf_set, zet, rpgf, first_sgf)
       NULLIFY (sphi, nsgf_set)
+
+      !TODO: when refactoring to remove TC from metric option, also need to adapt regtests
 
 !  Initialization
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, para_env=para_env)
