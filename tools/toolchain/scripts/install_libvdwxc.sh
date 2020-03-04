@@ -126,7 +126,7 @@ export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(IF_OMP(${LIBVDWXC_CFLAGS}|)|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(IF_OMP(${LIBVDWXC_LDFLAGS}|)|)"
 export CP_LIBS="IF_MPI(IF_OMP(${LIBVDWXC_LIBS}|)|) \${CP_LIBS}"
 export PKG_CONFIG_PATH="$pkg_install_dir/lib/pkgconfig:$PKG_CONFIG_PATH"
-export LIBVDWXCROOT="$pkg_install_dir"
+export VDWXC_DIR="$pkg_install_dir"
 EOF
         cat "${BUILDDIR}/setup_libvdwxc" >> $SETUPFILE
 fi
