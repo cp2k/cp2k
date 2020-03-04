@@ -1,4 +1,4 @@
-ifeq ("","$(wildcard $(EXTSHOME)/dbcsr/Makefile)")
+ifeq ("","$(wildcard $(EXTSHOME)/dbcsr/.cp2k/Makefile)")
 $(error "No DBCSR submodule available, please run 'git submodule update --init --recursive'")
 endif
 
@@ -13,19 +13,22 @@ extclean: dbcsrclean
 	@echo "Clean EXT"
 
 dbcsr:
-	+$(MAKE) -C $(EXTSHOME)/$@ \
+	+$(MAKE) -C $(EXTSHOME)/$@ -f .cp2k/Makefile \
 	   INCLUDEMAKE=$(ARCHDIR)/$(ARCH).$(ONEVERSION) \
 	   LIBDIR=$(LIBEXTSDIR)/$@ \
 	   OBJDIR=$(OBJEXTSDIR)/$@ \
-	   FYPPEXE=$(TOOLSRC)/build_utils/fypp
+	   ACC="$(NVCC)" \
+	   ACCFLAGS="$(NVFLAGS)"
 
 dbcsrversion:
-	@$(MAKE) -C $(EXTSHOME)/dbcsr \
-	   FYPPEXE=$(TOOLSRC)/build_utils/fypp \
+	@$(MAKE) -C $(EXTSHOME)/dbcsr -f .cp2k/Makefile \
+	   ACC="$(NVCC)" \
+	   ACCFLAGS="$(NVFLAGS)" \
 	   version
 
 dbcsrclean:
 	@echo "Clean DBCSR"
-	@$(MAKE) -C $(EXTSHOME)/dbcsr \
-	   FYPPEXE=$(TOOLSRC)/build_utils/fypp \
+	@$(MAKE) -C $(EXTSHOME)/dbcsr -f .cp2k/Makefile \
+	   ACC="$(NVCC)" \
+	   ACCFLAGS="$(NVFLAGS)" \
 	   clean
