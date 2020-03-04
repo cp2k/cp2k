@@ -11,10 +11,10 @@ H2O-B3LYP-full-restart.inp                             0
 C2H2-PBE-ri_region.inp                                 88      1e-08           269.849841
 #Checking truncated and shortrange operators for exchange in PBCs
 #as well as the use of RI metrics for screening
-Ne-pbc-shortrange.inp                                  88      1e-08           890.494623
-Ne-pbc-shortrange-metric.inp                           88      1e-08           890.495800
 Ne-pbc-truncated.inp                                   88      1e-08           890.773794
-Ne-pbc-truncated-metric.inp                            88      1e-08           890.780820
+Ne-pbc-shortrange.inp                                  88      1e-08           890.494623
+Ne-pbc-shortrange-sr_metric.inp                        88      1e-08           890.495800
+Ne-pbc-shortrange-ovlp_metric.inp                      88      1e-08           890.501870
 #Checking the use of pseudo-potential and ADMM
 SiH4-PBE0-admm-pseudo.inp                              88      1e-08           146.188189
 #Checking open-shell calculation with non-singlet ground state
