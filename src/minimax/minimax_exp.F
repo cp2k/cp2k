@@ -119,7 +119,7 @@ CONTAINS
 !>        elements correspond to a_i and the K+1:2k correspond to w_i.
 !> \param mm_error Numerical error of minimax approximation for given k, Rc
 !> \param which_coeffs Whether the coefficients returned have been generated from
-!>        k15 or k53 coefficients (mm_k15 or mm_k53).
+!>        k15, k34 (low-scaling GW) or k53 coefficients (mm_k15 or mm_k53).
 ! **************************************************************************************************
    SUBROUTINE get_exp_minimax_coeff(k, Rc, aw, mm_error, which_coeffs)
       INTEGER, INTENT(IN)                                :: k
@@ -140,7 +140,7 @@ CONTAINS
             CALL get_minimax_coeff_k15(k, Rc, aw, mm_error)
             IF (PRESENT(which_coeffs)) which_coeffs = mm_k15
          ENDIF
-      ELSEIF (k .LE. 53) THEN
+      ELSE IF (k .LE. 53) THEN
          CALL get_minimax_coeff_k53(k, Rc, aw, mm_error)
          IF (PRESENT(which_coeffs)) which_coeffs = mm_k53
       ELSE
