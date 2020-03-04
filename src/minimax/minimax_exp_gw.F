@@ -1,4 +1,3 @@
-
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright (C) 2000 - 2020  CP2K developers group                                               !
@@ -9,7 +8,7 @@
 !>        approximate 1/x as a sum over exponential functions
 !>        1/x ~ SUM_{i}^{K} w_i EXP(-a_i * x) for x belonging to [1:Rc].
 !>        This module contains coefficients for minimax approximations with 26, 28, 30, 32, 34 points
-!>        that gives well converged GW results
+!>        that give well-converged GW results
 !> \par History
 !>      03.2020 created [Jan Wilhelm]
 ! **************************************************************************************************
