@@ -61,7 +61,7 @@ CONTAINS
          CPABORT("The grid size you choose is not available.")
       END SELECT
 
-      CALL rescale_grid(aw, E_range, E_ratio)
+      CALL rescale_grid(aw, E_ratio)
 
       CALL timestop(handle)
 
@@ -73,9 +73,8 @@ CONTAINS
 !> \param E_range ...
 !> \param E_ratio ...
 ! **************************************************************************************************
-   SUBROUTINE rescale_grid(aw, E_range, E_ratio)
+   SUBROUTINE rescale_grid(aw, E_ratio)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: aw
-      REAL(KIND=dp), INTENT(IN)                          :: E_range
       REAL(KIND=dp), INTENT(INOUT)                       :: E_ratio
 
       IF (E_ratio > 1.5_dp) THEN

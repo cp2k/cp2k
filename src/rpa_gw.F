@@ -1179,7 +1179,6 @@ CONTAINS
 !> \param exit_ev_gw ...
 !> \param tau_tj ...
 !> \param tj ...
-!> \param wj ...
 !> \param vec_omega_fit_gw ...
 !> \param vec_Sigma_x_gw ...
 !> \param ic_corr_list ...
@@ -1232,7 +1231,7 @@ CONTAINS
                                   do_periodic, do_ri_Sigma_x, &
                                   first_cycle_periodic_correction, e_fermi, eps_filter, &
                                   fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
-                                  Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, wj, &
+                                  Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, &
                                   vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
                                   weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
                                   fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
@@ -1267,7 +1266,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iter_sc_GW0
       LOGICAL, INTENT(INOUT)                             :: exit_ev_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: tau_tj, tj, wj, vec_omega_fit_gw
+         INTENT(INOUT)                                   :: tau_tj, tj, vec_omega_fit_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_Sigma_x_gw
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list
@@ -1338,11 +1337,11 @@ CONTAINS
          IF (do_im_time .AND. .NOT. do_kpoints_cubic_RPA) THEN
             num_points_corr = mp2_env%ri_g0w0%num_omega_points
 
-            CALL compute_self_energy_cubic_gw(num_integ_points, nmo, tau_tj, tj, wj, &
+            CALL compute_self_energy_cubic_gw(num_integ_points, nmo, tau_tj, tj, &
                                               matrix_s, fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
                                               fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
-                                              fm_scaled_dm_virt_tau, Eigenval, vec_omega_fit_gw, eps_filter, &
-                                              e_fermi, fermi_level_offset, fm_mat_W, &
+                                              fm_scaled_dm_virt_tau, Eigenval, eps_filter, &
+                                              e_fermi, fm_mat_W, &
                                               gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                               count_ev_sc_GW, &
                                               t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
@@ -1355,11 +1354,11 @@ CONTAINS
 
             IF (my_open_shell) THEN
 
-               CALL compute_self_energy_cubic_gw(num_integ_points, nmo, tau_tj, tj, wj, &
+               CALL compute_self_energy_cubic_gw(num_integ_points, nmo, tau_tj, tj, &
                                                  matrix_s, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, fm_mo_coeff_occ_scaled, &
                                                  fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
-                                                 fm_scaled_dm_virt_tau, Eigenval_beta, vec_omega_fit_gw, eps_filter, &
-                                                 e_fermi_beta, fermi_level_offset, fm_mat_W, &
+                                                 fm_scaled_dm_virt_tau, Eigenval_beta, eps_filter, &
+                                                 e_fermi_beta, fm_mat_W, &
                                                  gw_corr_lev_tot, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
                                                  count_ev_sc_GW, &
                                                  t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
@@ -4511,11 +4510,11 @@ CONTAINS
 !> \param unit_nr ...
 !> \param do_beta ...
 ! **************************************************************************************************
-   SUBROUTINE compute_self_energy_cubic_gw(num_integ_points, nmo, tau_tj, tj, wj, &
+   SUBROUTINE compute_self_energy_cubic_gw(num_integ_points, nmo, tau_tj, tj, &
                                            matrix_s, fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
                                            fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
-                                           fm_scaled_dm_virt_tau, Eigenval, vec_omega_fit_gw, eps_filter, &
-                                           e_fermi, fermi_level_offset, fm_mat_W, &
+                                           fm_scaled_dm_virt_tau, Eigenval, eps_filter, &
+                                           e_fermi, fm_mat_W, &
                                            gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, count_ev_sc_GW, &
                                            t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                            mat_W, mat_SinvVSinv, mat_dm, stabilize_exp, &
@@ -4526,14 +4525,13 @@ CONTAINS
                                            do_ri_Sigma_x, vec_Sigma_x_gw, unit_nr, do_beta)
       INTEGER, INTENT(IN)                                :: num_integ_points, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: tau_tj, tj, wj
+         INTENT(IN)                                      :: tau_tj, tj
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(cp_fm_type), POINTER :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
          fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, vec_omega_fit_gw
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), INTENT(INOUT)                       :: e_fermi
-      REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W
       INTEGER, INTENT(IN)                                :: gw_corr_lev_tot, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, homo, count_ev_sc_GW
@@ -4573,7 +4571,7 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: delta_corr_omega
       INTEGER                                            :: gw_lev_end, gw_lev_start, handle, &
                                                             handle3, iquad, jquad, mo_end, &
-                                                            mo_start, n, n_level_gw, &
+                                                            mo_start, n_level_gw, &
                                                             n_level_gw_ref, unit_nr_prv
       LOGICAL                                            :: memory_info, my_do_beta
       REAL(KIND=dp)                                      :: ext_scaling, omega, omega_i, omega_sign, &
