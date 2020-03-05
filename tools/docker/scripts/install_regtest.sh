@@ -32,17 +32,6 @@ else
     echo "failed."
 fi
 
-# run regtests which lack fixed reference value
-# Disable LeakSanitizer during docker build as it requires ptrace capabilities.
-export LSAN_OPTIONS="detect_leaks=0"
-
-echo -n "Trying to run regtests which lack reference values... "
-if make test ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS} -restrictdir QS/regtest-almo-md -restrictdir QS/regtest-almo-1 -restrictdir SE/regtest-3-4 -restrictdir QS/regtest-ot-1-vib -restrictdir Fist/regtest-5-vib -restrictdir QS/regtest-optbas -restrictdir TMC/regtest_ana_post_proc" &> /dev/null ; then
-   echo "done."
-else
-   echo "failed."
-fi
-
 # remove binaries to reduce image size
 rm -rf lib exe "regtesting/${ARCH}/${VERSION}"/TEST-*
 
