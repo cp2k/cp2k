@@ -36,11 +36,12 @@ CONTAINS
 !> \author Mauro Del Ben
 ! **************************************************************************************************
    SUBROUTINE get_rpa_minimax_coeff(k, E_range, aw, ierr, print_warning)
-      INTEGER                                            :: k
-      REAL(KIND=dp)                                      :: E_range
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aw
-      INTEGER                                            :: ierr
-      LOGICAL, OPTIONAL                                  :: print_warning
+      INTEGER, INTENT(IN)                                :: k
+      REAL(KIND=dp), INTENT(IN)                          :: E_range
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: aw
+      INTEGER, INTENT(OUT)                               :: ierr
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: print_warning
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rpa_minimax_coeff', &
          routineP = moduleN//':'//routineN
@@ -10118,9 +10119,9 @@ CONTAINS
 !> \param aw ...
 ! **************************************************************************************************
    SUBROUTINE get_rpa_minimax_coeff_larger_grid(k, E_range, aw)
-      INTEGER                                            :: k
-      REAL(KIND=dp)                                      :: E_range
-      REAL(KIND=dp), DIMENSION(:)                        :: aw
+      INTEGER, INTENT(IN)                                :: k
+      REAL(KIND=dp), INTENT(INOUT)                       :: E_range
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: aw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rpa_minimax_coeff_larger_grid', &
          routineP = moduleN//':'//routineN
