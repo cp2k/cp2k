@@ -462,6 +462,19 @@ CONTAINS
          IF (iter_stat /= 0) THEN
             RETURN
          ENDIF
+
+         CALL get_iterator_info(iterator%iter_ij, iatom=iatom, jatom=jatom)
+         skip_this = .FALSE.
+         IF ((iterator%bounds_i(1) > 0 .AND. iatom < iterator%bounds_i(1)) &
+             .OR. (iterator%bounds_i(2) > 0 .AND. iatom > iterator%bounds_i(2))) skip_this = .TRUE.
+         IF ((iterator%bounds_j(1) > 0 .AND. jatom < iterator%bounds_j(1)) &
+             .OR. (iterator%bounds_j(2) > 0 .AND. jatom > iterator%bounds_j(2))) skip_this = .TRUE.
+
+         IF (skip_this) THEN
+            iter_stat = neighbor_list_3c_iterate(iterator)
+            RETURN
+         ENDIF
+
       ENDIF
       iter_stat = nl_sub_iterate(iterator%iter_jk, iterator%iter_ij)
       IF (iter_stat /= 0) THEN
@@ -481,10 +494,6 @@ CONTAINS
       jatom = jatom_1
 
       skip_this = .FALSE.
-      IF ((iterator%bounds_i(1) > 0 .AND. iatom < iterator%bounds_i(1)) &
-          .OR. (iterator%bounds_i(2) > 0 .AND. iatom > iterator%bounds_i(2))) skip_this = .TRUE.
-      IF ((iterator%bounds_j(1) > 0 .AND. jatom < iterator%bounds_j(1)) &
-          .OR. (iterator%bounds_j(2) > 0 .AND. jatom > iterator%bounds_j(2))) skip_this = .TRUE.
       IF ((iterator%bounds_k(1) > 0 .AND. katom < iterator%bounds_k(1)) &
           .OR. (iterator%bounds_k(2) > 0 .AND. katom > iterator%bounds_k(2))) skip_this = .TRUE.
 
