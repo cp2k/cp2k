@@ -36,12 +36,12 @@ CONTAINS
 !> \author Mauro Del Ben
 ! **************************************************************************************************
    SUBROUTINE get_rpa_minimax_coeff(k, E_range, aw, ierr, print_warning)
-      INTEGER, INTENT(IN)                                :: k
+      INTEGER                                            :: k
       REAL(KIND=dp), INTENT(IN)                          :: E_range
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: aw
       INTEGER, INTENT(OUT)                               :: ierr
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: print_warning
+      LOGICAL, INTENT(IN), OPTIONAL                      :: print_warning
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rpa_minimax_coeff', &
          routineP = moduleN//':'//routineN
