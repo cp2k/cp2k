@@ -1394,7 +1394,6 @@ CONTAINS
 
                DO ispin = 1, nspins
 
-                  ! RZK-warning: z2 supplied as input seems to be deallocated
                   CALL compute_gradient( &
                      m_grad_out=grad(ispin), &
                      m_ks=almo_scf_env%matrix_ks(ispin), &
@@ -1426,8 +1425,7 @@ CONTAINS
                      op_sm_set=op_sm_set_almo, &
                      weights=weights, &
                      energy_coeff=energy_coeff, &
-                     localiz_coeff=localiz_coeff, &
-                     z2=z2)
+                     localiz_coeff=localiz_coeff)
 
                ENDDO ! ispin
 
@@ -5948,7 +5946,6 @@ CONTAINS
 !> \param weights ...
 !> \param energy_coeff ...
 !> \param localiz_coeff ...
-!> \param z2 ...
 !> \par History
 !>       2015.03 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
@@ -5960,7 +5957,7 @@ CONTAINS
                                normalize_orbitals, penalty_occ_vol, penalty_occ_local, &
                                penalty_occ_vol_prefactor, envelope_amplitude, eps_filter, spin_factor, &
                                special_case, m_sig_sqrti_ii, op_sm_set, weights, energy_coeff, &
-                               localiz_coeff, z2)
+                               localiz_coeff)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: m_grad_out
       TYPE(dbcsr_type), INTENT(IN)                       :: m_ks, m_s, m_t, m_t0, m_siginv, &
@@ -5983,7 +5980,6 @@ CONTAINS
          POINTER                                         :: op_sm_set
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: energy_coeff, localiz_coeff
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: z2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_gradient', &
          routineP = moduleN//':'//routineN
