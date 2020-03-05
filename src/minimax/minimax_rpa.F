@@ -10120,7 +10120,7 @@ CONTAINS
    SUBROUTINE get_rpa_minimax_coeff_larger_grid(k, E_range, aw)
       INTEGER                                            :: k
       REAL(KIND=dp)                                      :: E_range
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aw
+      REAL(KIND=dp), DIMENSION(:)                        :: aw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rpa_minimax_coeff_larger_grid', &
          routineP = moduleN//':'//routineN
@@ -10156,7 +10156,7 @@ CONTAINS
 !> \param aw ...
 !> \param E_ratio ...
 ! **************************************************************************************************
-   SUBROUTINE rescale_grid(aw, E_ratio)
+   PURE SUBROUTINE rescale_grid(aw, E_ratio)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: aw
       REAL(KIND=dp), INTENT(INOUT)                       :: E_ratio
 
@@ -10175,7 +10175,7 @@ CONTAINS
 !> \param aw ...
 !> \param E_ratio ...
 ! **************************************************************************************************
-   SUBROUTINE get_coeff_26(k, E_range, aw, E_ratio)
+   PURE SUBROUTINE get_coeff_26(k, E_range, aw, E_ratio)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: E_range
       REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
@@ -11273,7 +11273,7 @@ CONTAINS
 !> \param aw ...
 !> \param E_ratio ...
 ! **************************************************************************************************
-   SUBROUTINE get_coeff_28(k, E_range, aw, E_ratio)
+   PURE SUBROUTINE get_coeff_28(k, E_range, aw, E_ratio)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: E_range
       REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
@@ -12973,7 +12973,7 @@ CONTAINS
 !> \param aw ...
 !> \param E_ratio ...
 ! **************************************************************************************************
-   SUBROUTINE get_coeff_30(k, E_range, aw, E_ratio)
+   PURE SUBROUTINE get_coeff_30(k, E_range, aw, E_ratio)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: E_range
       REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
@@ -14790,7 +14790,7 @@ CONTAINS
 !> \param aw ...
 !> \param E_ratio ...
 ! **************************************************************************************************
-   SUBROUTINE get_coeff_32(k, E_range, aw, E_ratio)
+   PURE SUBROUTINE get_coeff_32(k, E_range, aw, E_ratio)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: E_range
       REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
@@ -16062,7 +16062,7 @@ CONTAINS
 !> \param aw ...
 !> \param E_ratio ...
 ! **************************************************************************************************
-   SUBROUTINE get_coeff_34(k, E_range, aw, E_ratio)
+   PURE SUBROUTINE get_coeff_34(k, E_range, aw, E_ratio)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: E_range
       REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
