@@ -161,6 +161,7 @@ CONTAINS
 !> \param wa ...
 !> \param azi ...
 !> \param pol ...
+!> \note Slight refactoring + OMP parallelized (03.2020 A. Bussy)
 ! **************************************************************************************************
    SUBROUTINE create_harmonics_atom(harmonics, my_CG, na, llmax, maxs, max_s_harm, ll, wa, azi, pol)
 
@@ -175,16 +176,15 @@ CONTAINS
       INTEGER                                            :: handle, i, ia, ic, is, is1, is2, iso, &
                                                             iso1, iso2, l, l1, l2, lx, ly, lz, m, &
                                                             m1, m2, n
-      REAL(dp)                                           :: drx, dry, drz, int1, int2, int3, rx, ry, &
-                                                            rz
+      REAL(dp)                                           :: drx, dry, drz, rx, ry, rz
       REAL(dp), DIMENSION(2)                             :: cin, dylm
       REAL(dp), DIMENSION(:), POINTER                    :: slm_int, y
-      REAL(dp), DIMENSION(:, :), POINTER                 :: dc, dy, slm
+      REAL(dp), DIMENSION(:, :), POINTER                 :: dc, slm
       REAL(dp), DIMENSION(:, :, :), POINTER              :: dslm_dxyz
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (y, dy, slm, dslm_dxyz, dc)
+      NULLIFY (y, slm, dslm_dxyz, dc)
 
       CPASSERT(ASSOCIATED(harmonics))
 
@@ -192,10 +192,11 @@ CONTAINS
       harmonics%llmax = llmax
       harmonics%ngrid = na
 
-      NULLIFY (harmonics%my_CG, harmonics%my_CG_dxyz)
+      NULLIFY (harmonics%my_CG, harmonics%my_CG_dxyz, harmonics%my_CG_dxyz_asym, harmonics%my_dCG)
       CALL reallocate(harmonics%my_CG, 1, maxs, 1, maxs, 1, max_s_harm)
       CALL reallocate(harmonics%my_CG_dxyz, 1, 3, 1, maxs, 1, maxs, 1, max_s_harm)
       CALL reallocate(harmonics%my_CG_dxyz_asym, 1, 3, 1, maxs, 1, maxs, 1, max_s_harm)
+      CALL reallocate(harmonics%my_dCG, 1, maxs, 1, maxs, 1, max_s_harm)
 
       DO i = 1, max_s_harm
          DO is1 = 1, maxs
@@ -205,39 +206,55 @@ CONTAINS
 
       ! allocate and calculate the spherical harmonics LM for this grid
       ! and their derivatives
+      NULLIFY (harmonics%slm, harmonics%dslm, harmonics%dslm_dxyz, harmonics%a, harmonics%slm_int)
       CALL reallocate(harmonics%slm, 1, na, 1, max_s_harm)
       CALL reallocate(harmonics%dslm, 1, 2, 1, na, 1, maxs)
       CALL reallocate(harmonics%dslm_dxyz, 1, 3, 1, na, 1, max_s_harm)
       CALL reallocate(harmonics%a, 1, 3, 1, na)
-      CALL reallocate(y, 1, na)
-      CALL reallocate(dy, 1, 3, 1, na)
-      CALL reallocate(dc, 1, nco(llmax), 1, 3)
       CALL reallocate(harmonics%slm_int, 1, max_s_harm)
 
+      NULLIFY (slm, dslm_dxyz, slm_int)
       slm => harmonics%slm
       dslm_dxyz => harmonics%dslm_dxyz
+      dslm_dxyz = 0.0_dp
       slm_int => harmonics%slm_int
       slm_int = 0.0_dp
 
+!$OMP PARALLEL DEFAULT(NONE), &
+!$OMP SHARED (slm,dslm_dxyz,slm_int,max_s_harm,ll,lebedev_grid,na,harmonics,wa,indco,orbtramat) &
+!$OMP SHARED (nso,nsoset,nco,maxs,indso,ncoset,pol,azi,llmax) &
+!$OMP PRIVATE(ia,iso,l,m,i,lx,ly,lz,rx,ry,rz,drx,dry,drz,ic,dc,iso1,iso2,cin,dylm) &
+!$OMP PRIVATE(is1,l1,m1,is2,l2,m2,is,n,y)
+
+      ALLOCATE (y(na))
+      ALLOCATE (dc(nco(llmax), 3))
+
+!$OMP DO
       DO iso = 1, max_s_harm
          l = indso(1, iso)
          m = indso(2, iso)
          CALL y_lm(lebedev_grid(ll)%r, y, l, m)
-         slm(1:na, iso) = y(1:na)
-         DO i = 1, na
-            slm_int(iso) = slm_int(iso) + slm(i, iso)*wa(i)
-         END DO ! i
-      END DO ! iso
 
-      DO i = 1, 3
-         harmonics%a(i, 1:na) = lebedev_grid(ll)%r(i, 1:na)
+         DO ia = 1, na
+            slm(ia, iso) = y(ia)
+            slm_int(iso) = slm_int(iso) + slm(ia, iso)*wa(ia)
+         END DO ! ia
+      END DO ! iso
+!$OMP END DO
+
+!$OMP DO
+      DO ia = 1, na
+         harmonics%a(:, ia) = lebedev_grid(ll)%r(:, ia)
       END DO
+!$OMP END DO
 
       !
       ! The derivatives dslm_dxyz and its expansions my_CG_dxyz and my_CG_dxyz_asymm
       ! are NOT the dSlm/dx but the scaled by r**(l-1) derivatives of the monomial
       ! terms x^n1 y^n2 z^n3 transformed by spherical harmonics expansion coefficients
       !
+
+!$OMP DO
       DO ia = 1, na
          DO l = 0, indso(1, max_s_harm)
             DO ic = 1, nco(l)
@@ -282,53 +299,35 @@ CONTAINS
             n = nsoset(l - 1)
             DO is = 1, nso(l)
                iso = is + n
-               dslm_dxyz(1:3, ia, iso) = 0.0_dp
                DO ic = 1, nco(l)
-                  dslm_dxyz(1, ia, iso) = dslm_dxyz(1, ia, iso) + &
-                                          orbtramat(l)%slm(is, ic)*dc(ic, 1)
-                  dslm_dxyz(2, ia, iso) = dslm_dxyz(2, ia, iso) + &
-                                          orbtramat(l)%slm(is, ic)*dc(ic, 2)
-                  dslm_dxyz(3, ia, iso) = dslm_dxyz(3, ia, iso) + &
-                                          orbtramat(l)%slm(is, ic)*dc(ic, 3)
+                  dslm_dxyz(:, ia, iso) = dslm_dxyz(:, ia, iso) + &
+                                          orbtramat(l)%slm(is, ic)*dc(ic, :)
                END DO
             END DO
          END DO ! l
-      END DO
+      END DO !ia
+!$OMP END DO
 
       ! Expansion coefficients of the cartesian derivatives
       ! of the product of two harmonics :
       ! d(Y(l1m1) * Y(l2m2))/dx ; d(Y(l1m1) * Y(l2m2))/dy ; d(Y(l1m1) * Y(l2m2))/dz
-      harmonics%my_CG_dxyz = 0.0_dp
+
+!$OMP DO COLLAPSE(3)
       DO iso1 = 1, maxs
          DO iso2 = 1, maxs
-            int1 = 0.0_dp
-            int2 = 0.0_dp
-            int3 = 0.0_dp
-            DO ia = 1, na
-               int1 = int1 + wa(ia)* &
-                      (dslm_dxyz(1, ia, iso1)*slm(ia, iso2) + slm(ia, iso1)*dslm_dxyz(1, ia, iso2))
-               int2 = int2 + wa(ia)* &
-                      (dslm_dxyz(2, ia, iso1)*slm(ia, iso2) + slm(ia, iso1)*dslm_dxyz(2, ia, iso2))
-               int3 = int3 + wa(ia)* &
-                      (dslm_dxyz(3, ia, iso1)*slm(ia, iso2) + slm(ia, iso1)*dslm_dxyz(3, ia, iso2))
-            END DO
+
             DO iso = 1, max_s_harm
                rx = 0.0_dp
-               drx = 0.0_dp
                ry = 0.0_dp
-               dry = 0.0_dp
                rz = 0.0_dp
-               drz = 0.0_dp
+
                DO ia = 1, na
                   rx = rx + wa(ia)*slm(ia, iso)* &
                        (dslm_dxyz(1, ia, iso1)*slm(ia, iso2) + slm(ia, iso1)*dslm_dxyz(1, ia, iso2))
-                  drx = drx + wa(ia)*slm(ia, iso)
                   ry = ry + wa(ia)*slm(ia, iso)* &
                        (dslm_dxyz(2, ia, iso1)*slm(ia, iso2) + slm(ia, iso1)*dslm_dxyz(2, ia, iso2))
-                  dry = dry + wa(ia)*slm(ia, iso)
                   rz = rz + wa(ia)*slm(ia, iso)* &
                        (dslm_dxyz(3, ia, iso1)*slm(ia, iso2) + slm(ia, iso1)*dslm_dxyz(3, ia, iso2))
-                  drz = drz + wa(ia)*slm(ia, iso)
                END DO
 
                harmonics%my_CG_dxyz(1, iso1, iso2, iso) = rx
@@ -340,49 +339,48 @@ CONTAINS
             END DO
          END DO
       END DO
+!$OMP END DO
 
       ! Expansion coefficients of the cartesian of the combinations
       ! Y(l1m1) * d(Y(l2m2))/dx -  d(Y(l1m1))/dx * Y(l2m2)
       ! Y(l1m1) * d(Y(l2m2))/dy -  d(Y(l1m1))/dy * Y(l2m2)
       ! Y(l1m1) * d(Y(l2m2))/dz -  d(Y(l1m1))/dz * Y(l2m2)
-      harmonics%my_CG_dxyz_asym = 0.0_dp
+
+!$OMP DO COLLAPSE(3)
       DO iso1 = 1, maxs
          DO iso2 = 1, maxs
             DO iso = 1, max_s_harm
-               rx = 0.0_dp
                drx = 0.0_dp
-               ry = 0.0_dp
                dry = 0.0_dp
-               rz = 0.0_dp
                drz = 0.0_dp
+
                DO ia = 1, na
-                  rx = rx + wa(ia)*slm(ia, iso)* &
-                       (-dslm_dxyz(1, ia, iso1)*slm(ia, iso2) + &
-                        slm(ia, iso1)*dslm_dxyz(1, ia, iso2))
-                  drx = drx + wa(ia)*slm(ia, iso)
-                  ry = ry + wa(ia)*slm(ia, iso)* &
-                       (-dslm_dxyz(2, ia, iso1)*slm(ia, iso2) + &
-                        slm(ia, iso1)*dslm_dxyz(2, ia, iso2))
-                  dry = dry + wa(ia)*slm(ia, iso)
-                  rz = rz + wa(ia)*slm(ia, iso)* &
-                       (-dslm_dxyz(3, ia, iso1)*slm(ia, iso2) + &
-                        slm(ia, iso1)*dslm_dxyz(3, ia, iso2))
-                  drz = drz + wa(ia)*slm(ia, iso)
+                  drx = drx + wa(ia)*slm(ia, iso)* &
+                        (-dslm_dxyz(1, ia, iso1)*slm(ia, iso2) + &
+                         slm(ia, iso1)*dslm_dxyz(1, ia, iso2))
+                  dry = dry + wa(ia)*slm(ia, iso)* &
+                        (-dslm_dxyz(2, ia, iso1)*slm(ia, iso2) + &
+                         slm(ia, iso1)*dslm_dxyz(2, ia, iso2))
+                  drz = drz + wa(ia)*slm(ia, iso)* &
+                        (-dslm_dxyz(3, ia, iso1)*slm(ia, iso2) + &
+                         slm(ia, iso1)*dslm_dxyz(3, ia, iso2))
                END DO
 
-               harmonics%my_CG_dxyz_asym(1, iso1, iso2, iso) = rx
+               harmonics%my_CG_dxyz_asym(1, iso1, iso2, iso) = drx
 
-               harmonics%my_CG_dxyz_asym(2, iso1, iso2, iso) = ry
+               harmonics%my_CG_dxyz_asym(2, iso1, iso2, iso) = dry
 
-               harmonics%my_CG_dxyz_asym(3, iso1, iso2, iso) = rz
+               harmonics%my_CG_dxyz_asym(3, iso1, iso2, iso) = drz
 
             END DO ! iso
          END DO ! iso2
       END DO ! iso1
+!$OMP END DO
 
       ! Calculate the derivatives of the harmonics with respect of the 2 angles
       ! the first angle (polar) is acos(lebedev_grid(ll)%r(3))
       ! the second angle (azimutal) is atan(lebedev_grid(ll)%r(2)/lebedev_grid(ll)%r(1))
+!$OMP DO
       DO iso = 1, maxs
          l = indso(1, iso)
          m = indso(2, iso)
@@ -390,14 +388,15 @@ CONTAINS
             cin(1) = pol(ia)
             cin(2) = azi(ia)
             CALL dy_lm(cin, dylm, l, m)
-            harmonics%dslm(1, ia, iso) = dylm(1)
-            harmonics%dslm(2, ia, iso) = dylm(2)
+            harmonics%dslm(:, ia, iso) = dylm(:)
          END DO
       END DO
+!$OMP END DO
 
       ! expansion coefficients of product of polar angle derivatives (dslm(1...)) in
       ! spherical harmonics (used for tau functionals)
-      CALL reallocate(harmonics%my_dCG, 1, maxs, 1, maxs, 1, max_s_harm)
+
+!$OMP DO
       DO is1 = 1, maxs
          l1 = indso(1, is1)
          m1 = indso(2, is1)
@@ -408,13 +407,15 @@ CONTAINS
                l = indso(1, iso)
                m = indso(2, iso)
                CALL y_lm(lebedev_grid(ll)%r, y, l, m)
+
                y(1:na) = y(1:na)*lebedev_grid(ll)%w(1:na)*harmonics%dslm(1, 1:na, is1)*harmonics%dslm(1, 1:na, is2)
                harmonics%my_dCG(is1, is2, iso) = SUM(y(1:na))
             END DO
          END DO
       END DO
-
-      DEALLOCATE (y, dy, dc)
+!$OMP END DO
+      DEALLOCATE (y, dc)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 
