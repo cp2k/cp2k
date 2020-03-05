@@ -378,9 +378,10 @@ CONTAINS
          CALL init_interaction_radii_orb_basis(orb_basis, ri_data%eps_pgf_orb)
       ENDDO
 
-      n_mem = ri_data%n_mem
-      CALL create_tensor_batches(sizes_AO, n_mem, starts_array_mc_int, ends_array_mc_int, &
+      CALL create_tensor_batches(sizes_AO, ri_data%n_mem, starts_array_mc_int, ends_array_mc_int, &
                                  starts_array_mc_block_int, ends_array_mc_block_int)
+
+      n_mem = ri_data%n_mem
       DEALLOCATE (starts_array_mc_int, ends_array_mc_int)
 
       CALL create_3c_tensor(t_3c_int_batched(1, 1), dist_RI, dist_AO_1, dist_AO_2, ri_data%pgrid, &
