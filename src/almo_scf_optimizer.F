@@ -6134,11 +6134,13 @@ CONTAINS
 
             SELECT CASE (2) ! allows for selection of different spread functionals
             CASE (1) ! functional =  -W_I * log( |z_I|^2 )
-               coeff = -(weights(idim0)/z2(ielem))
+               CPABORT("Localization function is not implemented")
+               !coeff = -(weights(idim0)/z2(ielem))
             CASE (2) ! functional =  W_I * ( 1 - |z_I|^2 )
                coeff = -weights(idim0)
             CASE (3) ! functional =  W_I * ( 1 - |z_I| )
-               coeff = -(weights(idim0)/(2.0_dp*z2(ielem)))
+               CPABORT("Localization function is not implemented")
+               !coeff = -(weights(idim0)/(2.0_dp*z2(ielem)))
             END SELECT
             CALL dbcsr_add(temp2, temp1, 1.0_dp, coeff)
             !CALL dbcsr_add(grad_loc, temp1, 1.0_dp, 1.0_dp)
