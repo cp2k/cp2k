@@ -5988,7 +5988,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_gradient', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: dim0, handle, idim0, ielem, nao, reim
+      INTEGER                                            :: dim0, handle, idim0, nao, reim
       LOGICAL                                            :: my_penalty_local
       REAL(KIND=dp)                                      :: coeff, energy_g_norm, my_energy_coeff, &
                                                             my_localiz_coeff, &
