@@ -44,10 +44,9 @@
             POTENTIAL_TYPE IDENTITY
           &END
         &END
-        &WFC_GPW
-        &END
-!        ERI_METHOD MME
-        ERI_METHOD OS
+        &INTEGRALS
+          ERI_METHOD OS
+        &END INTEGRALS
         &LOW_SCALING
           MEMORY_CUT 1
         &END

@@ -43,13 +43,15 @@
                 &END SCREENING
             &END HF
             &WF_CORRELATION
-                ERI_METHOD MME
                 METHOD  RI_MP2_GPW
-                &WFC_GPW
+                &INTEGRALS
+                  &WFC_GPW
                     CUTOFF  300
                     REL_CUTOFF 50
                     PRINT_LEVEL MEDIUM
-                &END
+                  &END WFC_GPW
+                  ERI_METHOD MME
+                &END INTEGRALS
                 MEMORY  200.
                 GROUP_SIZE 1
             &END

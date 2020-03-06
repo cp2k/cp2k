@@ -49,12 +49,12 @@
             POTENTIAL_TYPE IDENTITY
           &END
         &END
-        ERI_METHOD OS
-        &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
-          SIZE_LATTICE_SUM 3
-        &END
+        &INTEGRALS
+          ERI_METHOD OS
+          &WFC_GPW
+            SIZE_LATTICE_SUM 3
+          &END WFC_GPW
+        &END INTEGRALS
         MEMORY  200.
         NUMBER_PROC  1
         &LOW_SCALING

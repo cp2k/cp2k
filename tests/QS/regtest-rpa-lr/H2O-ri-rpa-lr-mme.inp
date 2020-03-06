@@ -45,14 +45,17 @@
       &END HF
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        &INTERACTION_POTENTIAL
-          POTENTIAL_TYPE LONGRANGE
-          OMEGA 0.5
-        &END INTERACTION_POTENTIAL
-        &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
-        &END
+        &INTEGRALS
+          ERI_METHOD MME
+          &WFC_GPW
+            CUTOFF  100
+            REL_CUTOFF 20
+          &END WFC_GPW
+          &INTERACTION_POTENTIAL
+            POTENTIAL_TYPE LONGRANGE
+            OMEGA 0.5
+          &END INTERACTION_POTENTIAL
+        &END INTEGRALS
         &RI_RPA
           RPA_NUM_QUAD_POINTS 15
           MINIMAX
@@ -64,7 +67,6 @@
             &END SCREENING
           &END HF
         &END RI_RPA
-        ERI_METHOD MME
         MEMORY  200.
         NUMBER_PROC  1
         &RI

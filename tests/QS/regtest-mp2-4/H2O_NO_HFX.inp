@@ -37,10 +37,12 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  MP2_GPW
+        &INTEGRALS
         &WFC_GPW
           CUTOFF  200
           REL_CUTOFF 30
-        &END
+        &END WFC_GPW
+        &END INTEGRALS
         MEMORY  100.
         NUMBER_PROC  1
       &END

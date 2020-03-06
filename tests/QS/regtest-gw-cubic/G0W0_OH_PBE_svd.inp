@@ -45,7 +45,9 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        ERI_METHOD OS
+        &INTEGRALS
+          ERI_METHOD OS
+        &END
         &LOW_SCALING
           MEMORY_CUT 1
         &END LOW_SCALING

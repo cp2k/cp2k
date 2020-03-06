@@ -38,11 +38,13 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        ERI_METHOD GPW
-        &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
-        &END
+        &INTEGRALS
+          ERI_METHOD GPW
+          &WFC_GPW
+            CUTOFF  100
+            REL_CUTOFF 20
+          &END WFC_GPW
+        &END INTEGRALS
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
           MINIMAX

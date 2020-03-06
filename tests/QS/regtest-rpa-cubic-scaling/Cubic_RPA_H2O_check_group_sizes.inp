@@ -44,7 +44,9 @@
             POTENTIAL_TYPE IDENTITY
           &END
         &END
-        ERI_METHOD MME
+        &INTEGRALS
+          ERI_METHOD MME
+        &END INTEGRALS
         &LOW_SCALING
           &TEST
             GROUP_SIZE_3c 2

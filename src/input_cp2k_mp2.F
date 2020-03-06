@@ -140,23 +140,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="ERI_METHOD", &
-                          description="Method for calculating periodic electron repulsion integrals "// &
-                          "(MME method is faster but experimental, forces not yet implemented)."// &
-                          "Obara-Saika (OS) for the Coulomb operator can only be used for non-periodic calculations.", &
-                          usage="ERI_METHOD MME", &
-                          enum_c_vals=s2a("DEFAULT", "GPW", "MME", "OS"), &
-                          enum_i_vals=(/eri_default, do_eri_gpw, do_eri_mme, do_eri_os/), &
-                          enum_desc=s2a("Use default ERI method (for periodic systems: GPW, for molecules: OS, "// &
-                                        "for MP2 and RI-MP2: GPW in any case).", &
-                                        "Uses Gaussian Plane Wave method [DelBen2013].", &
-                                        "Uses MiniMax-Ewald method (experimental, ERI_MME subsection, only for fully periodic "// &
-                                        "systems with orthorhombic cells).", &
-                                        "Use analytical Obara-Saika method."), &
-                          default_i_val=eri_default)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MP2_INFO", &
                                        description="Controls the printing basic info about MP2 method", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
@@ -165,10 +148,6 @@ CONTAINS
 
       NULLIFY (subsection)
       CALL create_mp2_direct(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_wfc_gpw(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -193,17 +172,14 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_mp2_potential(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_eri_mme_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
       CALL create_ri_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+
+      CALL create_integrals_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
 
    END SUBROUTINE create_mp2_section
 
@@ -1439,7 +1415,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="RI", &
                           description="Parameters influencing resolution of the identity (RI) that is"// &
                                       "used in RI-MP2, RI-RPA, RI-SOS-MP2 and GW (inside RI-RPA).", &
-                          n_keywords=4, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=6, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (subsection)
       CALL create_RI_metric_section(subsection)
@@ -1514,6 +1490,59 @@ CONTAINS
       CALL keyword_release(keyword)
 
 END SUBROUTINE create_ri_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_integrals_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_integrals_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key, subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="INTEGRALS", &
+                          description="Parameters controlling how to compute integrals that are needed "// &
+                                      "in MP2, RI-MP2, RI-RPA, RI-SOS-MP2 and GW (inside RI-RPA).", &
+                          n_keywords=1, n_subsections=3, repeats=.FALSE.)
+
+      NULLIFY (subsection)
+      CALL create_eri_mme_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_wfc_gpw(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_mp2_potential(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ERI_METHOD", &
+                          description="Method for calculating periodic electron repulsion integrals "// &
+                          "(MME method is faster but experimental, forces not yet implemented)."// &
+                          "Obara-Saika (OS) for the Coulomb operator can only be used for non-periodic calculations.", &
+                          usage="ERI_METHOD MME", &
+                          enum_c_vals=s2a("DEFAULT", "GPW", "MME", "OS"), &
+                          enum_i_vals=(/eri_default, do_eri_gpw, do_eri_mme, do_eri_os/), &
+                          enum_desc=s2a("Use default ERI method (for periodic systems: GPW, for molecules: OS, "// &
+                                        "for MP2 and RI-MP2: GPW in any case).", &
+                                        "Uses Gaussian Plane Wave method [DelBen2013].", &
+                                        "Uses MiniMax-Ewald method (experimental, ERI_MME subsection, only for fully periodic "// &
+                                        "systems with orthorhombic cells).", &
+                                        "Use analytical Obara-Saika method."), &
+                          default_i_val=eri_default)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_integrals_section
+
 
 ! **************************************************************************************************
 !> \brief ...

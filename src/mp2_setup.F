@@ -80,33 +80,6 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "GROUP_SIZE", i_val=mp2_env%mp2_num_proc)
       CALL section_vals_val_get(mp2_section, "DIRECT_CANONICAL%BIG_SEND", l_val=mp2_env%direct_canonical%big_send)
 
-      CALL section_vals_val_get(mp2_section, "INTERACTION_POTENTIAL%POTENTIAL_TYPE", &
-                                i_val=mp2_env%potential_parameter%potential_type)
-      CALL section_vals_val_get(mp2_section, "INTERACTION_POTENTIAL%TRUNCATION_RADIUS", &
-                                r_val=mp2_env%potential_parameter%cutoff_radius)
-      CALL section_vals_val_get(mp2_section, "INTERACTION_POTENTIAL%TShPSC_DATA", &
-                                c_val=mp2_env%potential_parameter%filename)
-      CALL section_vals_val_get(mp2_section, "INTERACTION_POTENTIAL%OMEGA", &
-                                r_val=mp2_env%potential_parameter%omega)
-
-      CALL section_vals_val_get(mp2_section, "ERI_METHOD", &
-                                i_val=mp2_env%eri_method)
-
-      CALL section_vals_val_get(mp2_section, "WFC_GPW%EPS_FILTER", &
-                                r_val=mp2_env%mp2_gpw%eps_filter)
-      CALL section_vals_val_get(mp2_section, "WFC_GPW%EPS_GRID", &
-                                r_val=mp2_env%mp2_gpw%eps_grid)
-      CALL section_vals_val_get(mp2_section, "WFC_GPW%CUTOFF", &
-                                r_val=mp2_env%mp2_gpw%cutoff)
-      CALL section_vals_val_get(mp2_section, "WFC_GPW%REL_CUTOFF", &
-                                r_val=mp2_env%mp2_gpw%relative_cutoff)
-      CALL section_vals_val_get(mp2_section, "WFC_GPW%PRINT_LEVEL", &
-                                i_val=mp2_env%mp2_gpw%print_level)
-      CALL section_vals_val_get(mp2_section, "WFC_GPW%EPS_PGF_ORB_S", &
-                                r_val=mp2_env%mp2_gpw%eps_pgf_orb_S)
-      CALL section_vals_val_get(mp2_section, "WFC_GPW%SIZE_LATTICE_SUM", &
-                                i_val=mp2_env%mp2_gpw%size_lattice_sum)
-
       CALL section_vals_val_get(mp2_section, "RI_RPA%RPA_NUM_QUAD_POINTS", &
                                 i_val=mp2_env%ri_rpa%rpa_num_quad_points)
       CALL section_vals_val_get(mp2_section, "RI_RPA%SIZE_FREQ_INTEG_GROUP", &
@@ -303,12 +276,29 @@ CONTAINS
          END DO
       END IF
 
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%ERI_METHOD", i_val=mp2_env%eri_method)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%EPS_FILTER", r_val=mp2_env%mp2_gpw%eps_filter)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%EPS_GRID", r_val=mp2_env%mp2_gpw%eps_grid)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%CUTOFF",  r_val=mp2_env%mp2_gpw%cutoff)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%REL_CUTOFF",  r_val=mp2_env%mp2_gpw%relative_cutoff)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%PRINT_LEVEL",  i_val=mp2_env%mp2_gpw%print_level)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%EPS_PGF_ORB_S", r_val=mp2_env%mp2_gpw%eps_pgf_orb_S)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%SIZE_LATTICE_SUM", i_val=mp2_env%mp2_gpw%size_lattice_sum)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%INTERACTION_POTENTIAL%POTENTIAL_TYPE", &
+                                i_val=mp2_env%potential_parameter%potential_type)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%INTERACTION_POTENTIAL%TRUNCATION_RADIUS", &
+                                r_val=mp2_env%potential_parameter%cutoff_radius)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%INTERACTION_POTENTIAL%TShPSC_DATA", &
+                                c_val=mp2_env%potential_parameter%filename)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%INTERACTION_POTENTIAL%OMEGA", &
+                                r_val=mp2_env%potential_parameter%omega)
+
 
       NULLIFY (mp2_env%eri_mme_param)
       ALLOCATE (mp2_env%eri_mme_param)
 
       IF (mp2_env%eri_method .EQ. do_eri_mme) THEN
-         eri_mme_section => section_vals_get_subs_vals(mp2_section, "ERI_MME")
+         eri_mme_section => section_vals_get_subs_vals(mp2_section, "INTEGRALS%ERI_MME")
          CALL cp_eri_mme_init_read_input(eri_mme_section, mp2_env%eri_mme_param)
       ENDIF
 

@@ -47,20 +47,22 @@
       &END HF
       &WF_CORRELATION
         METHOD  RI_MP2_GPW
-        ERI_METHOD MME
-        &ERI_MME
-            N_MINIMAX 3
-            SUM_PRECISION 1.0E-5
-        &END
         &RI_MP2
           BLOCK_SIZE  1
           EPS_CANONICAL 0.0001
           FREE_HFX_BUFFER .TRUE.
         &END RI_MP2
-        &WFC_GPW
-          CUTOFF  50
-          REL_CUTOFF 20
-        &END
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF  50
+            REL_CUTOFF 20
+          &END WFC_GPW
+          ERI_METHOD MME
+          &ERI_MME
+              N_MINIMAX 3
+              SUM_PRECISION 1.0E-5
+          &END
+        &END INTEGRALS
         MEMORY  500.0
         NUMBER_PROC  2
       &END

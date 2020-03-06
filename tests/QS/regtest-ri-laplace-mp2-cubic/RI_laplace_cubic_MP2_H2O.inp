@@ -43,17 +43,19 @@
       &END HF
       &WF_CORRELATION
         METHOD  RI_SOS_LAPLACE
-        ERI_METHOD GPW
         &RI_LAPLACE
           QUADRATURE_POINTS  5
         &END
         &LOW_SCALING
           MEMORY_CUT 1
         &END
-        &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
-        &END
+        &INTEGRALS
+          ERI_METHOD GPW
+          &WFC_GPW
+            CUTOFF  100
+            REL_CUTOFF 20
+          &END WFC_GPW
+        &END INTEGRALS
         MEMORY  200.
         NUMBER_PROC  1
       &END

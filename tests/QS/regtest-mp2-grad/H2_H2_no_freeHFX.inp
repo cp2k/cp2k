@@ -52,10 +52,12 @@
           EPS_CONV  1.0E-6
           MAX_ITER  50
         &END
+        &INTEGRALS
         &WFC_GPW
           CUTOFF    100
           REL_CUTOFF 20
-        &END
+        &END WFC_GPW
+        &END INTEGRALS
         MEMORY  1000.0
         NUMBER_PROC  1
       &END

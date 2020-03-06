@@ -38,11 +38,13 @@
       &WF_CORRELATION
         METHOD DIRECT_CANONICAL  
         MEMORY 1000.
-        &INTERACTION_POTENTIAL
-           POTENTIAL_TYPE TShPSC
-           TRUNCATION_RADIUS [angstrom] 3.0
-           TShPSC_DATA t_sh_p_s_c.dat
-        &END
+        &INTEGRALS
+          &INTERACTION_POTENTIAL
+            POTENTIAL_TYPE TShPSC
+            TRUNCATION_RADIUS [angstrom] 3.0
+            TShPSC_DATA t_sh_p_s_c.dat
+          &END
+        &END INTEGRALS
       &END
     &END XC
   &END DFT

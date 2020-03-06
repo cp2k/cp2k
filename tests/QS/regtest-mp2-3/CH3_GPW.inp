@@ -40,10 +40,12 @@
       &END HF
       &WF_CORRELATION
         METHOD  MP2_GPW
+        &INTEGRALS
         &WFC_GPW
           CUTOFF  100
           REL_CUTOFF 20
-        &END
+        &END WFC_GPW
+        &END INTEGRALS
       !  METHOD DIRECT_CANONICAL
       !  &DIRECT_CANONICAL
       !    BIG_SEND

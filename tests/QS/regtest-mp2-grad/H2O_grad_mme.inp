@@ -47,7 +47,6 @@
                 &END
             &END HF
             &WF_CORRELATION
-                ERI_METHOD MME
                 METHOD  RI_MP2_GPW
                 &RI_MP2
                     BLOCK_SIZE  1
@@ -58,12 +57,15 @@
                     EPS_CONV  1.0E-4
                     MAX_ITER  10
                 &END
-                &WFC_GPW
+                &INTEGRALS
+                  &WFC_GPW
                     CUTOFF      100
                     REL_CUTOFF  30
                     EPS_FILTER  1.0E-6
                     EPS_GRID    1.0E-6
-                &END
+                  &END WFC_GPW
+                  ERI_METHOD MME
+                &END INTEGRALS
                 MEMORY       1.00
                 NUMBER_PROC  1
             &END

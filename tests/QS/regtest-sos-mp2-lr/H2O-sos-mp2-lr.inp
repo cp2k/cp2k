@@ -42,18 +42,20 @@
       &END HF
       &WF_CORRELATION
         METHOD  RI_SOS_LAPLACE
-        ERI_METHOD GPW
-        &INTERACTION_POTENTIAL
-          POTENTIAL_TYPE LONGRANGE
-          OMEGA 0.5
-        &END INTERACTION_POTENTIAL
         &RI_LAPLACE
           QUADRATURE_POINTS  5 
         &END
-        &WFC_GPW
-          CUTOFF  50
-          REL_CUTOFF 20
-        &END
+        &INTEGRALS
+          ERI_METHOD GPW
+          &INTERACTION_POTENTIAL
+            POTENTIAL_TYPE LONGRANGE
+            OMEGA 0.5
+          &END INTERACTION_POTENTIAL
+          &WFC_GPW
+            CUTOFF  50
+            REL_CUTOFF 20
+          &END WFC_GPW
+        &END INTEGRALS
         MEMORY  200.
         NUMBER_PROC  1
         &RI

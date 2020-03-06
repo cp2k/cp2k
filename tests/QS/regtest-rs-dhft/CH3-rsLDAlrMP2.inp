@@ -49,14 +49,16 @@
       &END HF
       &WF_CORRELATION
         METHOD  RI_MP2_GPW
-        &INTERACTION_POTENTIAL
-          POTENTIAL_TYPE LONGRANGE
-          OMEGA ${MY_OMEGA}
-        &END INTERACTION_POTENTIAL
-        &WFC_GPW
-          CUTOFF  50
-          REL_CUTOFF 10
-        &END
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF  50
+            REL_CUTOFF 10
+          &END WFC_GPW
+          &INTERACTION_POTENTIAL
+            POTENTIAL_TYPE LONGRANGE
+            OMEGA ${MY_OMEGA}
+          &END INTERACTION_POTENTIAL
+        &END INTEGRALS
         MEMORY  200.
         NUMBER_PROC  1
         &RI

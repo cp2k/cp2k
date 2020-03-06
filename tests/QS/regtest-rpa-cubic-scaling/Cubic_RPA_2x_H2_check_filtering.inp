@@ -44,7 +44,9 @@
             POTENTIAL_TYPE IDENTITY
           &END
         &END
-        ERI_METHOD MME
+        &INTEGRALS 
+          ERI_METHOD MME
+        &END INTEGRALS
         &LOW_SCALING
           EPS_FILTER  1.0E-5
           EPS_FILTER_FACTOR 1.0

@@ -55,11 +55,6 @@
       &END HF
       &WF_CORRELATION
         METHOD  RI_MP2_GPW
-        ERI_METHOD MME
-        &ERI_MME
-            N_MINIMAX 4
-            SUM_PRECISION 1.0E-5
-        &END
         &RI_MP2
           BLOCK_SIZE  1
           EPS_CANONICAL 0.0001
@@ -69,10 +64,17 @@
           EPS_CONV  1.0E-6
           MAX_ITER  50
         &END
-        &WFC_GPW
-          CUTOFF      100
-          REL_CUTOFF  20
-        &END
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF      100
+            REL_CUTOFF  20
+          &END WFC_GPW
+          ERI_METHOD MME
+          &ERI_MME
+              N_MINIMAX 4
+              SUM_PRECISION 1.0E-5
+          &END
+        &END INTEGRALS
         MEMORY       1.00
         NUMBER_PROC  1
       &END
