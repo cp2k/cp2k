@@ -54,8 +54,7 @@
         NUMBER_PROC  1
         &RI
           DO_SVD
-          EPS_SVD 1.0E-2
-          CALC_COND_NUM
+          EPS_SVD 1.0E-15
         &END RI
       &END
     &END XC

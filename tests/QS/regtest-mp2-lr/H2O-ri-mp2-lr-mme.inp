@@ -55,7 +55,6 @@
         ERI_METHOD MME
         MEMORY  200.
         NUMBER_PROC  1
-        CALC_COND_NUM
         &RI
           DO_SVD
           EPS_SVD 1.0E-15

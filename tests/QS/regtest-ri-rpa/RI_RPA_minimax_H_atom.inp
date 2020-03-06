@@ -41,7 +41,6 @@
         &END
         MEMORY  1000.0
         NUMBER_PROC  1
-        CALC_COND_NUM
       &END
     &END XC
     UKS

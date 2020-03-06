@@ -53,7 +53,6 @@
         &RI
           DO_SVD T
           EPS_SVD 1.0E-2
-          CALC_COND_NUM
         &END RI
       &END
     &END XC

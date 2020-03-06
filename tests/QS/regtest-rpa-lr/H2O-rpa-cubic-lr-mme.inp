@@ -43,11 +43,6 @@
           POTENTIAL_TYPE LONGRANGE
           OMEGA 0.5
         &END INTERACTION_POTENTIAL
-        &RI
-          &RI_METRIC
-            POTENTIAL_TYPE IDENTITY
-          &END
-        &END
         &WFC_GPW
         &END
         ERI_METHOD MME
@@ -70,6 +65,9 @@
         &RI
           DO_SVD
           EPS_SVD 1.0E-5
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
         &END RI
       &END
     &END XC

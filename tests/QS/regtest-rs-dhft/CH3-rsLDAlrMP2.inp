@@ -62,7 +62,6 @@
         &RI
           DO_SVD
           EPS_SVD 0.0
-          CALC_COND_NUM
         &END RI
       &END
     &END XC

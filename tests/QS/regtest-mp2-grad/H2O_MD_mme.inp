@@ -51,7 +51,6 @@
                     PRINT_LEVEL MEDIUM
                 &END
                 MEMORY  200.
-                CALC_COND_NUM
                 GROUP_SIZE 1
             &END
         &END XC

@@ -50,12 +50,14 @@
       &END HF
       &WF_CORRELATION
         METHOD  OPTIMIZE_RI_BASIS
-        &OPT_RI_BASIS
-          DELTA_I_REL  5.0E-6
-          DELTA_RI     5.0E-5
-          EPS_DERIV    1.0E-3
-          MAX_ITER     100
-          BASIS_SIZE   LARGE
+        &RI
+          &OPT_RI_BASIS
+            DELTA_I_REL  5.0E-6
+            DELTA_RI     5.0E-5
+            EPS_DERIV    1.0E-3
+            MAX_ITER     100
+            BASIS_SIZE   LARGE
+          &END
         &END
         NUMBER_PROC  1
       &END
