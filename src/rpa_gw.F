@@ -3969,31 +3969,60 @@ CONTAINS
 
          WRITE (unit_nr, *) ' '
 
-         IF (do_closed_shell) THEN
+         IF (count_ev_sc_GW == 1 .AND. count_sc_GW0 == 1) THEN
+
+            IF (do_closed_shell) THEN
+               WRITE (unit_nr, *) ' '
+               WRITE (unit_nr, '(T3,A)') '******************************************************************************'
+               WRITE (unit_nr, '(T3,A)') '**                                                                          **'
+               WRITE (unit_nr, '(T3,A)') '**                        GW QUASIPARTICLE ENERGIES                         **'
+               WRITE (unit_nr, '(T3,A)') '**                                                                          **'
+               WRITE (unit_nr, '(T3,A)') '******************************************************************************'
+
+            ELSE IF (my_do_alpha) THEN
+               WRITE (unit_nr, *) ' '
+               WRITE (unit_nr, '(T3,A)') '---------------------------------------'
+               WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies of alpha spins'
+               WRITE (unit_nr, '(T3,A)') '----------------------------------------'
+            ELSE IF (my_do_beta) THEN
+               WRITE (unit_nr, *) ' '
+               WRITE (unit_nr, '(T3,A)') '---------------------------------------'
+               WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies of beta spins'
+               WRITE (unit_nr, '(T3,A)') '---------------------------------------'
+            END IF
+
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A)') 'The GW quasiparticle energies are calculated according to: '
+            IF (crossing_search == ri_rpa_g0w0_crossing_z_shot) THEN
+               WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Z * ( Sigc(E_SCF) + Sigx - vxc )'
+            ELSE
+               WRITE (unit_nr, '(T3,A)') ' '
+               WRITE (unit_nr, '(T3,A)') '                    E_GW = E_SCF + Sigc(E_GW) + Sigx - vxc '
+               WRITE (unit_nr, '(T3,A)') ' '
+               WRITE (unit_nr, '(T3,A)') 'Upper equation is solved self-consistently for E_GW, see Eq. (12) in J. Phys.'
+               WRITE (unit_nr, '(T3,A)') 'Chem. Lett. 9, 306 (2018), doi: 10.1021/acs.jpclett.7b02740'
+            END IF
+
             WRITE (unit_nr, *) ' '
-            WRITE (unit_nr, '(T3,A)') '-------------------------'
-            WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies'
-            WRITE (unit_nr, '(T3,A)') '-------------------------'
-         ELSE IF (my_do_alpha) THEN
             WRITE (unit_nr, *) ' '
-            WRITE (unit_nr, '(T3,A)') '---------------------------------------'
-            WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies of alpha spins'
-            WRITE (unit_nr, '(T3,A)') '----------------------------------------'
-         ELSE IF (my_do_beta) THEN
-            WRITE (unit_nr, *) ' '
-            WRITE (unit_nr, '(T3,A)') '---------------------------------------'
-            WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies of beta spins'
-            WRITE (unit_nr, '(T3,A)') '---------------------------------------'
+            WRITE (unit_nr, '(T3,A)') '------------'
+            WRITE (unit_nr, '(T3,A)') 'G0W0 results'
+            WRITE (unit_nr, '(T3,A)') '------------'
+
          END IF
 
          IF (count_ev_sc_GW > 1) THEN
             WRITE (unit_nr, *) ' '
+            WRITE (unit_nr, '(T3,A)')    '---------------------------------------'
             WRITE (unit_nr, '(T3,A,I4)') 'Eigenvalue-selfconsistency cycle: ', count_ev_sc_GW
+            WRITE (unit_nr, '(T3,A)')    '---------------------------------------'
          END IF
 
          IF (count_sc_GW0 > 1) THEN
-            WRITE (unit_nr, *) ' '
-            WRITE (unit_nr, '(T3,A,I4)') 'scGW0 selfcconsistency cycle: ', count_sc_GW0
+            WRITE (unit_nr, '(T3,A)')    '----------------------------------'
+            WRITE (unit_nr, '(T3,A,I4)') 'scGW0 selfconsistency cycle: ', count_sc_GW0
+            WRITE (unit_nr, '(T3,A)')    '----------------------------------'
          END IF
 
          IF (do_kpoints) THEN
@@ -4030,20 +4059,10 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T3,A)') 'The GW quasiparticle energies are calculated according to: '
          IF (crossing_search == ri_rpa_g0w0_crossing_z_shot) THEN
-            WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Z * ( Sigc(E_SCF) + Sigx - vxc )'
+            WRITE (unit_nr, '(T13,2A)') 'MO    E_SCF (eV)    Sigc (eV)   Sigx-vxc (eV)    Z         E_GW (eV)'
          ELSE
-            WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Sigc(E_GW) + Sigx - vxc '
-         END IF
-         WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T3,A)') 'The energy unit of the following table is eV.  Sigc_fit is a very conservative'
-         WRITE (unit_nr, '(T3,2A)') 'estimate of the statistical error of the fitting.'
-         WRITE (unit_nr, '(T3,A)') ' '
-         IF (crossing_search == ri_rpa_g0w0_crossing_z_shot) THEN
-            WRITE (unit_nr, '(T13,2A)') 'MO         E_SCF         Sigc     Sigx-vxc            Z         E_GW'
-         ELSE
-            WRITE (unit_nr, '(T13,2A)') 'MO             E_SCF            Sigc        Sigx-vxc            E_GW'
+            WRITE (unit_nr, '(T3,2A)') 'Molecular orbital   E_SCF (eV)       Sigc (eV)   Sigx-vxc (eV)       E_GW (eV)'
          END IF
       END IF
 
