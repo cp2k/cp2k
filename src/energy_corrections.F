@@ -1542,8 +1542,7 @@ CONTAINS
          CASE (ec_matrix_sign)
             CALL density_matrix_sign(matrix_p(ispin, 1)%matrix, mu_spin(ispin), fixed_mu, &
                                      sign_method, sign_order, matrix_ks(ispin, 1)%matrix, &
-                                     matrix_s(1, 1)%matrix, matrix_s_inv, nelectron, eps_filter, &
-                                     sign_symmetric=.FALSE., submatrix_sign_method=0)
+                                     matrix_s(1, 1)%matrix, matrix_s_inv, nelectron, eps_filter)
          CASE (ec_matrix_trs4)
             CALL density_matrix_trs4(matrix_p(ispin, 1)%matrix, matrix_ks(ispin, 1)%matrix, &
                                      matrix_s_sqrt_inv, nelectron, eps_filter, &

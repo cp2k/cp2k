@@ -28,7 +28,7 @@ MODULE dm_ls_scf_methods
    USE input_constants,                 ONLY: &
         ls_cluster_atomic, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
         ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, ls_scf_sign_ns, &
-        ls_scf_sign_proot, ls_scf_sign_submatrix
+        ls_scf_sign_proot, ls_scf_sign_submatrix, ls_scf_submatrix_sign_ns
    USE iterate_matrix,                  ONLY: invert_Hotelling,&
                                               matrix_sign_Newton_Schulz,&
                                               matrix_sign_proot,&
@@ -385,15 +385,17 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_ks, matrix_s, matrix_s_inv
       INTEGER, INTENT(IN)                                :: nelectron
       REAL(KIND=dp), INTENT(IN)                          :: threshold
-      LOGICAL                                            :: sign_symmetric
-      INTEGER                                            :: submatrix_sign_method
+      LOGICAL, OPTIONAL                                  :: sign_symmetric
+      INTEGER, OPTIONAL                                  :: submatrix_sign_method
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign', &
          routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: initial_increment = 0.01_dp
 
-      INTEGER                                            :: handle, iter, unit_nr
-      LOGICAL                                            :: has_mu_high, has_mu_low
+      INTEGER                                            :: handle, iter, unit_nr, &
+                                                            used_submatrix_sign_method
+      LOGICAL                                            :: do_sign_symmetric, has_mu_high, &
+                                                            has_mu_low
       REAL(KIND=dp)                                      :: increment, mu_high, mu_low, trace
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -405,6 +407,12 @@ CONTAINS
       ELSE
          unit_nr = -1
       ENDIF
+
+      do_sign_symmetric = .FALSE.
+      IF (PRESENT(sign_symmetric)) do_sign_symmetric = sign_symmetric
+
+      used_submatrix_sign_method = ls_scf_submatrix_sign_ns
+      IF (PRESENT(submatrix_sign_method)) used_submatrix_sign_method = submatrix_sign_method
 
       increment = initial_increment
 
@@ -420,7 +428,7 @@ CONTAINS
 
          CALL density_matrix_sign_fixed_mu(matrix_p, trace, mu, sign_method, sign_order, &
                                            matrix_ks, matrix_s, matrix_s_inv, threshold, &
-                                           sign_symmetric, submatrix_sign_method)
+                                           do_sign_symmetric, used_submatrix_sign_method)
          IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,I2,1X,F13.9,1X,F15.9)') &
             "Density matrix:  iter, mu, trace error: ", iter, mu, trace - nelectron
 
