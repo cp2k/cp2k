@@ -371,12 +371,14 @@ CONTAINS
 !> \param threshold ...
 !> \param sign_symmetric ...
 !> \param submatrix_sign_method ...
+!> \param matrix_s_sqrt_inv ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE density_matrix_sign(matrix_p, mu, fixed_mu, sign_method, sign_order, matrix_ks, &
-                                  matrix_s, matrix_s_inv, nelectron, threshold, sign_symmetric, submatrix_sign_method)
+                                  matrix_s, matrix_s_inv, nelectron, threshold, sign_symmetric, submatrix_sign_method, &
+                                  matrix_s_sqrt_inv)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
       REAL(KIND=dp), INTENT(INOUT)                       :: mu
@@ -387,6 +389,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       LOGICAL, OPTIONAL                                  :: sign_symmetric
       INTEGER, OPTIONAL                                  :: submatrix_sign_method
+      TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: matrix_s_sqrt_inv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign', &
          routineP = moduleN//':'//routineN
@@ -428,7 +431,8 @@ CONTAINS
 
          CALL density_matrix_sign_fixed_mu(matrix_p, trace, mu, sign_method, sign_order, &
                                            matrix_ks, matrix_s, matrix_s_inv, threshold, &
-                                           do_sign_symmetric, used_submatrix_sign_method)
+                                           do_sign_symmetric, used_submatrix_sign_method, &
+                                           matrix_s_sqrt_inv)
          IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,I2,1X,F13.9,1X,F15.9)') &
             "Density matrix:  iter, mu, trace error: ", iter, mu, trace - nelectron
 
@@ -466,12 +470,14 @@ CONTAINS
 !> \param threshold ...
 !> \param sign_symmetric ...
 !> \param submatrix_sign_method ...
+!> \param matrix_s_sqrt_inv ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE density_matrix_sign_fixed_mu(matrix_p, trace, mu, sign_method, sign_order, matrix_ks, &
-                                           matrix_s, matrix_s_inv, threshold, sign_symmetric, submatrix_sign_method)
+                                           matrix_s, matrix_s_inv, threshold, sign_symmetric, submatrix_sign_method, &
+                                           matrix_s_sqrt_inv)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
       REAL(KIND=dp), INTENT(OUT)                         :: trace
@@ -481,16 +487,16 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       LOGICAL                                            :: sign_symmetric
       INTEGER                                            :: submatrix_sign_method
+      TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: matrix_s_sqrt_inv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign_fixed_mu', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, unit_nr
-      LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: frob_matrix
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_type) :: matrix_p_ud, matrix_s_sqrt, matrix_s_sqrt_inv, matrix_sign, &
-         matrix_sinv_ks, matrix_ssqrtinv_ks_ssqrtinv, matrix_ssqrtinv_ks_ssqrtinv2, matrix_tmp
+      TYPE(dbcsr_type) :: matrix_p_ud, matrix_sign, matrix_sinv_ks, matrix_ssqrtinv_ks_ssqrtinv, &
+         matrix_ssqrtinv_ks_ssqrtinv2, matrix_tmp
 
       CALL timeset(routineN, handle)
 
@@ -504,14 +510,9 @@ CONTAINS
       CALL dbcsr_create(matrix_sign, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
 
       IF (sign_symmetric) THEN
-         CALL dbcsr_create(matrix_s_sqrt, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_create(matrix_s_sqrt_inv, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
-         CALL matrix_sqrt_Newton_Schulz(matrix_s_sqrt, matrix_s_sqrt_inv, matrix_s, threshold, sign_order, &
-                                        1.0E-10_dp, 100, symmetrize=.TRUE., converged=converged) !FIXME
-         CALL dbcsr_release(matrix_s_sqrt)
-         IF (.NOT. converged) THEN
-            CPABORT("sqrt inv did not converge")
-         ENDIF
+
+         IF (.NOT. PRESENT(matrix_s_sqrt_inv)) &
+            CPABORT("Argument matrix_s_sqrt_inv required if sign_symmetric is set")
 
          CALL dbcsr_create(matrix_ssqrtinv_ks_ssqrtinv, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_create(matrix_ssqrtinv_ks_ssqrtinv2, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
@@ -579,7 +580,6 @@ CONTAINS
                              0.0_dp, matrix_p, filter_eps=threshold)
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_p, matrix_s_sqrt_inv, &
                              0.0_dp, matrix_p, filter_eps=threshold)
-         CALL dbcsr_release(matrix_s_sqrt_inv)
       ELSE
 
          ! get P=PS*inv(S)
