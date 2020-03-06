@@ -17,6 +17,8 @@ flag_exceptions_re = re.compile(
     r"__INTEL_COMPILER|__cplusplus|\$\{.*\}\$|__.*__"
 )
 
+portable_filename_re = re.compile(r"^[a-zA-Z0-9._/#~=+-]*$")
+
 BANNER_F = """\
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
@@ -169,6 +171,9 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
         for fn in files:
             absfn = path.join(root, fn)
             shortfn = path.relpath(absfn, cp2k_dir)
+
+            if not portable_filename_re.match(fn):
+                warnings += ["Filename %s not portable" % shortfn]
 
             if not path.exists(absfn):
                 continue  # skip broken symlinks
