@@ -42,7 +42,7 @@
       &END HF
       &WF_CORRELATION
         METHOD  RI_SOS_LAPLACE
-        &RI_LAPLACE
+        &RI_SOS_MP2
           QUADRATURE_POINTS  5
         &END
         &LOW_SCALING

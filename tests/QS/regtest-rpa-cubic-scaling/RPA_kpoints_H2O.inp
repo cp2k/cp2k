@@ -50,10 +50,7 @@
           &END
         &END
         &INTEGRALS
-          ERI_METHOD OS
-          &WFC_GPW
-            SIZE_LATTICE_SUM 3
-          &END WFC_GPW
+          SIZE_LATTICE_SUM 3
         &END INTEGRALS
         MEMORY  200.
         NUMBER_PROC  1

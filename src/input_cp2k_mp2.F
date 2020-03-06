@@ -112,7 +112,8 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="SCALE_S", &
-         description="Scaling factor of the singlet energy component (opposite spin, OS). ", &
+         description="Scaling factor of the singlet energy component (opposite spin, OS) of the "// &
+                     "MP2, RI-MP2 and SOS-MP2 correlation energy. ", &
          usage="SCALE_S  1.0", &
          default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -121,7 +122,8 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="SCALE_T", &
-         description="Scaling factor of the triplet energy component (same spin, SS).", &
+         description="Scaling factor of the triplet energy component (same spin, SS) of the MP2 "// &
+                     "and RI-MP2 correlation energy.", &
          usage="SCALE_T  1.0", &
          default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -131,10 +133,11 @@ CONTAINS
          keyword, __LOCATION__, &
          name="GROUP_SIZE", &
          variants=(/"NUMBER_PROC"/), &
-         description="Group size used in the computation of the integrals. To use all processors set GROUP_SIZE -1 "// &
-         "(might lead to VERY high computation times)."// &
-         "A smaller group size (for example the node size), might a better choice if the actual MP2 time is large "// &
-         "compared to integral computation time. This is usually the case if the total number of processors is not too large.", &
+         description="Group size used in the computation of GPW and MME integrals and the MP2 correlation energy. "// &
+         "A smaller GROUP_SIZE (for example GROUP_SIZE = number of MPI ranks per node) "// &
+         "accelerates the computation of integrals but a too small "// &
+         "GROUP_SIZE may lead to out of memory. To use all processors set GROUP_SIZE -1 "// &
+         "(might lead to VERY high computation times).", &
          usage="GROUP_SIZE 32", &
          default_i_val=1)
       CALL section_add_keyword(section, keyword)
@@ -360,7 +363,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="RI_LAPLACE", &
+      CALL section_create(section, __LOCATION__, name="RI_SOS_MP2", &
                           description="Parameters influencing the RI-SOS-MP2-Laplace method", &
                           n_keywords=3, n_subsections=1, repeats=.FALSE., &
                           citations=(/DelBen2013/))
@@ -1279,13 +1282,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SIZE_LATTICE_SUM", &
-                          description="Size of sum range L. ", &
-                          usage="SIZE_LATTICE_SUM  10", &
-                          default_i_val=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
    END SUBROUTINE create_wfc_gpw
 
 ! **************************************************************************************************
@@ -1508,7 +1504,7 @@ END SUBROUTINE create_ri_section
       CALL section_create(section, __LOCATION__, name="INTEGRALS", &
                           description="Parameters controlling how to compute integrals that are needed "// &
                                       "in MP2, RI-MP2, RI-RPA, RI-SOS-MP2 and GW (inside RI-RPA).", &
-                          n_keywords=1, n_subsections=3, repeats=.FALSE.)
+                          n_keywords=2, n_subsections=3, repeats=.FALSE.)
 
       NULLIFY (subsection)
       CALL create_eri_mme_section(subsection)
@@ -1538,6 +1534,13 @@ END SUBROUTINE create_ri_section
                                         "systems with orthorhombic cells).", &
                                         "Use analytical Obara-Saika method."), &
                           default_i_val=eri_default)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SIZE_LATTICE_SUM", &
+                          description="Size of sum range L. ", &
+                          usage="SIZE_LATTICE_SUM  10", &
+                          default_i_val=6)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

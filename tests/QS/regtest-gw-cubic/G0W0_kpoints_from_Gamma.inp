@@ -42,9 +42,7 @@
           &END
         &END
         &INTEGRALS
-        &WFC_GPW
           SIZE_LATTICE_SUM 5
-        &END WFC_GPW
         &END INTEGRALS
         &LOW_SCALING
           KPOINTS 1 1 4

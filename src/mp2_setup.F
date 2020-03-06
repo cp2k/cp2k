@@ -224,9 +224,9 @@ CONTAINS
                                    i_val=mp2_env%ri_rpa_im_time%group_size_P)
       ENDIF
 
-      CALL section_vals_val_get(mp2_section, "RI_LAPLACE%QUADRATURE_POINTS", &
+      CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%QUADRATURE_POINTS", &
                                 i_val=mp2_env%ri_laplace%n_quadrature)
-      CALL section_vals_val_get(mp2_section, "RI_LAPLACE%SIZE_INTEG_GROUP", &
+      CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%SIZE_INTEG_GROUP", &
                                 i_val=mp2_env%ri_laplace%integ_group_size)
 
       CALL section_vals_val_get(mp2_section, "RI_MP2%BLOCK_SIZE", &
@@ -277,13 +277,13 @@ CONTAINS
       END IF
 
       CALL section_vals_val_get(mp2_section, "INTEGRALS%ERI_METHOD", i_val=mp2_env%eri_method)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%SIZE_LATTICE_SUM", i_val=mp2_env%mp2_gpw%size_lattice_sum)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%EPS_FILTER", r_val=mp2_env%mp2_gpw%eps_filter)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%EPS_GRID", r_val=mp2_env%mp2_gpw%eps_grid)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%CUTOFF",  r_val=mp2_env%mp2_gpw%cutoff)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%REL_CUTOFF",  r_val=mp2_env%mp2_gpw%relative_cutoff)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%PRINT_LEVEL",  i_val=mp2_env%mp2_gpw%print_level)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%EPS_PGF_ORB_S", r_val=mp2_env%mp2_gpw%eps_pgf_orb_S)
-      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%SIZE_LATTICE_SUM", i_val=mp2_env%mp2_gpw%size_lattice_sum)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%INTERACTION_POTENTIAL%POTENTIAL_TYPE", &
                                 i_val=mp2_env%potential_parameter%potential_type)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%INTERACTION_POTENTIAL%TRUNCATION_RADIUS", &

@@ -50,11 +50,7 @@
           &END
         &END
         &INTEGRALS
-        &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
           SIZE_LATTICE_SUM 3
-        &END WFC_GPW
         &END INTEGRALS
         MEMORY  200.
         NUMBER_PROC  1
