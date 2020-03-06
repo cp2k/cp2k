@@ -11,9 +11,9 @@ ARG BASE_IMAGE
 
 USER root
 
-# install Ubuntu packages.
-COPY ./install_requirements_${BASE_IMAGE}.sh .
-RUN ./install_requirements_${BASE_IMAGE}.sh
+# install Linux packages.
+COPY ./install_requirements*.sh ./
+RUN ./install_requirements.sh ${BASE_IMAGE}
 
 # copy helper scripts
 WORKDIR /opt/cp2k-toolchain

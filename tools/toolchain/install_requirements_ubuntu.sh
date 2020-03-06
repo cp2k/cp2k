@@ -4,6 +4,8 @@
 
 # Install Ubuntu packages required for the toolchain.
 
+echo "Installing Ubuntu packages..."
+
 apt-get update -qq
 
 apt-get install -qq --no-install-recommends \
