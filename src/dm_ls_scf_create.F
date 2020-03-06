@@ -318,6 +318,9 @@ CONTAINS
           .AND. .NOT. ls_scf_env%sign_symmetric) &
          CPABORT("DIRECT submatrix sign method requires SIGN_SYMMETRIC being set.")
 
+      ! sign_symmetric requires computation of s_sqrt
+      IF (ls_scf_env%sign_symmetric) ls_scf_env%use_s_sqrt = .TRUE.
+
       ! an undocumented feature ... allows for just doing the initial guess, no expensive stuff
       IF (ls_scf_env%max_scf < 0) THEN
          ls_scf_env%needs_s_inv = .FALSE.
