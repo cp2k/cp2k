@@ -3209,7 +3209,8 @@ CONTAINS
 
       ! Logicals
       CALL keyword_create(keyword, __LOCATION__, name="LS_SCF", &
-                          description="Perform a linear scaling SCF", &
+                          description="Perform a linear scaling SCF; "// &
+                          "If true, RESTART file is not created", &
                           usage="LS_SCF", lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
