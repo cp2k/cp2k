@@ -25,6 +25,8 @@ MODULE xas_tdp_types
                                               dbcsr_release,&
                                               dbcsr_release_p,&
                                               dbcsr_type
+   USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
+                                              dbcsr_t_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
    USE input_constants,                 ONLY: &
@@ -48,8 +50,6 @@ MODULE xas_tdp_types
                                               harmonics_atom_type
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                               qs_loc_env_release
-   USE qs_o3c_types,                    ONLY: o3c_container_type,&
-                                              release_o3c_container
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -158,8 +158,8 @@ MODULE xas_tdp_types
 !> \param quadmat the dbcsr matrices containing the electric quadrupole in x2, xy, xz, y2, yz and z2
 !>        directions in the AO basis. It is always in the length representation with the origin
 !>        set to the current excited atom
-!> \param ri_o3c_coul the container for the RI 3-center Coulomb integrals (computed once)
-!> \param ri_o3c_ex the container for the RI 3-center exchange integrals (updated for each ex atom)
+!> \param ri_3c_coul the tensor containing the RI 3-cetner Coulomb integrals (computed once)
+!> \param ri_3c_ex the tensor containing the RI 3-center exchange integrals (computed for each ex atom)
 !> \param opt_dist2d_coul an optimized distribution_2d for localized Coulomb 3-center integrals
 !> \param opt_dist2d_ex an optimized distribution_2d for localized exchange 3-center integrals
 !> \param ri_fxc the array of xc integrals of type (P|fxc|Q), for alpha-alpha, alpha-beta and beta-beta
@@ -173,9 +173,9 @@ MODULE xas_tdp_types
       INTEGER                                 :: nex_kinds
       INTEGER, DIMENSION(:), POINTER          :: ex_atom_indices
       INTEGER, DIMENSION(:), POINTER          :: ex_kind_indices
-      INTEGER, DIMENSION(:, :), POINTER        :: state_types
-      TYPE(o3c_container_type), POINTER       :: ri_o3c_coul
-      TYPE(o3c_container_type), POINTER       :: ri_o3c_ex
+      INTEGER, DIMENSION(:, :), POINTER       :: state_types
+      TYPE(dbcsr_t_type), POINTER             :: ri_3c_coul
+      TYPE(dbcsr_t_type), POINTER             :: ri_3c_ex
       TYPE(donor_state_type), DIMENSION(:), &
          POINTER   :: donor_states
       INTEGER, DIMENSION(:, :, :), POINTER      :: mos_of_ex_atoms
@@ -656,8 +656,8 @@ CONTAINS
       NULLIFY (xas_tdp_env%q_projector)
       NULLIFY (xas_tdp_env%dipmat)
       NULLIFY (xas_tdp_env%quadmat)
-      NULLIFY (xas_tdp_env%ri_o3c_coul)
-      NULLIFY (xas_tdp_env%ri_o3c_ex)
+      NULLIFY (xas_tdp_env%ri_3c_coul)
+      NULLIFY (xas_tdp_env%ri_3c_ex)
       NULLIFY (xas_tdp_env%ri_fxc)
       NULLIFY (xas_tdp_env%orb_soc)
       NULLIFY (xas_tdp_env%matrix_shalf)
@@ -732,13 +732,13 @@ CONTAINS
             END DO
             DEALLOCATE (xas_tdp_env%quadmat)
          END IF
-         IF (ASSOCIATED(xas_tdp_env%ri_o3c_coul)) THEN
-            CALL release_o3c_container(xas_tdp_env%ri_o3c_coul)
-            DEALLOCATE (xas_tdp_env%ri_o3c_coul)
+         IF (ASSOCIATED(xas_tdp_env%ri_3c_coul)) THEN
+            CALL dbcsr_t_destroy(xas_tdp_env%ri_3c_coul)
+            DEALLOCATE (xas_tdp_env%ri_3c_coul)
          END IF
-         IF (ASSOCIATED(xas_tdp_env%ri_o3c_ex)) THEN
-            CALL release_o3c_container(xas_tdp_env%ri_o3c_ex)
-            DEALLOCATE (xas_tdp_env%ri_o3c_ex)
+         IF (ASSOCIATED(xas_tdp_env%ri_3c_ex)) THEN
+            CALL dbcsr_t_destroy(xas_tdp_env%ri_3c_ex)
+            DEALLOCATE (xas_tdp_env%ri_3c_ex)
          END IF
          IF (ASSOCIATED(xas_tdp_env%ri_fxc)) THEN
             DO i = 1, SIZE(xas_tdp_env%ri_fxc, 1)
@@ -1249,9 +1249,9 @@ CONTAINS
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(xas_tdp_env%ri_o3c_ex)) THEN
-         CALL release_o3c_container(xas_tdp_env%ri_o3c_ex)
-         DEALLOCATE (xas_tdp_env%ri_o3c_ex)
+      IF (ASSOCIATED(xas_tdp_env%ri_3c_ex)) THEN
+         CALL dbcsr_t_destroy(xas_tdp_env%ri_3c_ex)
+         DEALLOCATE (xas_tdp_env%ri_3c_ex)
       END IF
 
       IF (ASSOCIATED(xas_tdp_env%ri_fxc)) THEN

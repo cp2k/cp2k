@@ -38,18 +38,26 @@ MODULE xas_tdp_atom
         dbcsr_get_block_p, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_replicate_all, dbcsr_type
+   USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
+                                              dbcsr_t_get_block,&
+                                              dbcsr_t_iterator_blocks_left,&
+                                              dbcsr_t_iterator_next_block,&
+                                              dbcsr_t_iterator_start,&
+                                              dbcsr_t_iterator_stop,&
+                                              dbcsr_t_iterator_type,&
+                                              dbcsr_t_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
    USE input_constants,                 ONLY: do_potential_id
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
-                                              int_8
+                                              dp
    USE lebedev,                         ONLY: deallocate_lebedev_grids,&
                                               get_number_of_lebedev_grid,&
                                               init_lebedev_grids,&
                                               lebedev_grid
+   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE mathconstants,                   ONLY: dfac,&
                                               pi
    USE mathlib,                         ONLY: get_diag
@@ -86,16 +94,6 @@ MODULE xas_tdp_atom
                                               qs_kind_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
-   USE qs_o3c_methods,                  ONLY: calculate_o3c_integrals,&
-                                              contract12_o3c
-   USE qs_o3c_types,                    ONLY: get_o3c_iterator_info,&
-                                              init_o3c_container,&
-                                              o3c_container_type,&
-                                              o3c_iterate,&
-                                              o3c_iterator_create,&
-                                              o3c_iterator_release,&
-                                              o3c_iterator_type,&
-                                              release_o3c_container
    USE qs_overlap,                      ONLY: build_overlap_matrix_simple
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
@@ -104,16 +102,17 @@ MODULE xas_tdp_atom
                                               clebsch_gordon_init
    USE util,                            ONLY: get_limit,&
                                               sort_unique
+   USE xas_tdp_integrals,               ONLY: build_xas_tdp_3c_nl,&
+                                              build_xas_tdp_ovlp_nl,&
+                                              create_pqX_tensor,&
+                                              fill_pqx_tensor,&
+                                              get_opt_3c_dist2d
    USE xas_tdp_types,                   ONLY: batch_info_type,&
                                               get_proc_batch_sizes,&
                                               release_batch_info,&
                                               xas_atom_env_type,&
                                               xas_tdp_control_type,&
                                               xas_tdp_env_type
-   USE xas_tdp_utils,                   ONLY: build_xas_tdp_3c_nl,&
-                                              build_xas_tdp_ovlp_nl,&
-                                              get_o3c_memory,&
-                                              get_opt_3c_dist2d
    USE xc,                              ONLY: divide_by_norm_drho
    USE xc_atom,                         ONLY: xc_rho_set_atom_update
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -853,6 +852,7 @@ CONTAINS
 !>       In this case, with the partial RI projection, the RI basis is restricted to an excited atom
 !>       and its neighbors at a time. Leads to smaller overlap matrix to invert and less 3-center
 !>       overlap to compute. The procedure is repeated for each excited atom
+!>       This is a test implementation for tensors
 ! **************************************************************************************************
    SUBROUTINE calculate_density_coeffs(xas_atom_env, qs_env)
 
@@ -862,34 +862,41 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_density_coeffs', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: bo(2), exat, handle, iat, ibatch, iex, inb, ispin, jnb, katom, mepos, nat_batch, &
-         natom, nbatch, nex, nkind, nnb, nspins, nthread, output_unit, ri_at
-      INTEGER(int_8)                                     :: free_mem, mem_per_exat, o3c_mem
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_to_nb, neighbors, nsgf
-      INTEGER, DIMENSION(:), POINTER                     :: all_ri_atoms, batch_atoms
-      LOGICAL                                            :: found, foundt, unique
-      REAL(dp)                                           :: factor
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: work
-      REAL(dp), DIMENSION(:, :), POINTER                 :: pblock, pblockt, tvec
+      INTEGER                                            :: blk, exat, handle, i, iat, iatom, iex, &
+                                                            inb, ind(3), ispin, jatom, jnb, katom, &
+                                                            natom, nex, nkind, nnb, nspins, &
+                                                            output_unit, ri_at
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_size_orb, blk_size_ri, idx_to_nb, &
+                                                            neighbors
+      INTEGER, DIMENSION(:), POINTER                     :: all_ri_atoms
+      LOGICAL                                            :: pmat_found, pmat_foundt, sinv_found, &
+                                                            sinv_foundt, tensor_found, unique
+      REAL(dp)                                           :: factor, prefac
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: work2
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: work1
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: t_block
+      REAL(dp), DIMENSION(:, :), POINTER                 :: pmat_block, pmat_blockt, sinv_block, &
+                                                            sinv_blockt
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: opt_dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: overlap, rho_ao, rho_redist
+      TYPE(dbcsr_t_iterator_type)                        :: iter
+      TYPE(dbcsr_t_type)                                 :: pqX
       TYPE(dbcsr_type)                                   :: ri_sinv
       TYPE(dbcsr_type), POINTER                          :: ri_mats
       TYPE(distribution_2d_type), POINTER                :: opt_dist2d
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
+      TYPE(libint_potential_type)                        :: pot
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list, ac_list, sab_ri
-      TYPE(o3c_container_type), POINTER                  :: o3c
-      TYPE(o3c_iterator_type)                            :: o3c_iterator
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
 
       NULLIFY (qs_kind_set, basis_set_ri, basis_set_orb, ac_list, rho, rho_ao, sab_ri, ri_mats)
-      NULLIFY (o3c, tvec, particle_set, para_env, all_ri_atoms, overlap, batch_atoms)
-      NULLIFY (blacs_env, pblock, pblockt, ab_list, opt_dist2d, rho_redist)
+      NULLIFY (particle_set, para_env, all_ri_atoms, overlap, pmat_blockt)
+      NULLIFY (blacs_env, pmat_block, ab_list, opt_dist2d, rho_redist, sinv_block, sinv_blockt)
 
       !Idea: We don't do a full RI here as it would be too expensive in many ways (inversion of a
       !      large matrix, many 3-center overlaps, density coefficients for all atoms, etc...)
@@ -898,8 +905,6 @@ CONTAINS
       !      very small matrices to invert and only a few (abc) overlp integrals with c on the
       !      excited atom its neighbors. This is physically sound since we only need the density
       !      well defined on the excited atom grid as we do (aI|P)*(P|Q)^-1*(Q|fxc|R)*(R|S)^-1*(S|Jb)
-      !      The o3c integrals are computed before the excited atom loop though for optimal load
-      !      balance
 
       CALL timeset(routineN, handle)
 
@@ -932,8 +937,8 @@ CONTAINS
 !  Allocate space for the projected density coefficients. On all ri_atoms.
 !  Note: the sub-region where we project the density changes from excited atom to excited atom
 !        => need different sets of RI coeffs
-      ALLOCATE (nsgf(natom))
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=nsgf, basis=basis_set_ri)
+      ALLOCATE (blk_size_ri(natom))
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=blk_size_ri, basis=basis_set_ri)
       ALLOCATE (xas_atom_env%ri_dcoeff(natom, nspins, nex))
       DO iex = 1, nex
          DO ispin = 1, nspins
@@ -941,7 +946,7 @@ CONTAINS
                NULLIFY (xas_atom_env%ri_dcoeff(iat, ispin, iex)%array)
                IF ((.NOT. ANY(xas_atom_env%exat_neighbors(iex)%array == iat)) &
                    .AND. (.NOT. xas_atom_env%excited_atoms(iex) == iat)) CYCLE
-               ALLOCATE (xas_atom_env%ri_dcoeff(iat, ispin, iex)%array(nsgf(iat)))
+               ALLOCATE (xas_atom_env%ri_dcoeff(iat, ispin, iex)%array(blk_size_ri(iat)))
                xas_atom_env%ri_dcoeff(iat, ispin, iex)%array = 0.0_dp
             END DO
          END DO
@@ -954,49 +959,40 @@ CONTAINS
             "---------------------------------"
       END IF
 
-      !Idea: we want to split the density projection process in batches such that it never exceeds
-      !      available memory. We use max 65% of available memory (arbitrary choice)
-      !      This is a buffer that should catch any load imbalance between the batches
+      !We go atom by atom, first compute the optimal distribution for the integrals, then
+      !the integrals themselves that we put into a tensor, then the contraction with the
+      !density
 
-      !Build the naive overlap neighbor list in order to compute the total memory cost of o3c
-      CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env)
-      CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_potential_id, &
-                               qs_env, excited_atoms=all_ri_atoms)
-      CALL get_o3c_memory(o3c_mem, free_mem, ab_list, ac_list, basis_set_orb, basis_set_orb, &
-                          basis_set_ri, qs_env)
-      CALL release_neighbor_list_sets(ab_list)
-      CALL release_neighbor_list_sets(ac_list)
+      ALLOCATE (blk_size_orb(natom))
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=blk_size_orb, basis=basis_set_orb)
 
-      mem_per_exat = o3c_mem/nex
-      IF (mem_per_exat > FLOOR(0.65_dp*REAL(free_mem, dp), KIND=int_8)) &
-         CPABORT("XAS_TDP| Not enough memory for density projection")
+      DO iex = 1, nex
 
-      !divide into batches that at most use 65% of free memory
-      nbatch = CEILING(REAL(o3c_mem, dp)/(0.65_dp*REAL(free_mem, dp)))
-      DO ibatch = 1, nbatch
+         !get neighbors of current atom
+         exat = xas_atom_env%excited_atoms(iex)
+         nnb = 1 + SIZE(xas_atom_env%exat_neighbors(iex)%array)
+         ALLOCATE (neighbors(nnb))
+         neighbors(1) = exat
+         neighbors(2:nnb) = xas_atom_env%exat_neighbors(iex)%array(:)
+         CALL sort_unique(neighbors, unique)
 
-         !excited atoms in that batch
-         bo = get_limit(nex, nbatch, ibatch - 1)
+         !link the atoms to their position in neighbors
+         ALLOCATE (idx_to_nb(natom))
+         idx_to_nb = 0
+         DO inb = 1, nnb
+            idx_to_nb(neighbors(inb)) = inb
+         END DO
 
-         !Get all ri atoms belonging to that batch in an array (ex atoms + neighbors in RI_REGION)
-         nat_batch = bo(2) - bo(1) + 1
-         ALLOCATE (batch_atoms(nat_batch))
-         batch_atoms(:) = xas_atom_env%excited_atoms(bo(1):bo(2))
-         DO iex = bo(1), bo(2)
-            DO inb = 1, SIZE(xas_atom_env%exat_neighbors(iex)%array)
-               IF (.NOT. ANY(batch_atoms == xas_atom_env%exat_neighbors(iex)%array(inb))) THEN
-                  CALL reallocate(batch_atoms, 1, nat_batch + 1)
-                  batch_atoms(nat_batch + 1) = xas_atom_env%exat_neighbors(iex)%array(inb)
-                  nat_batch = nat_batch + 1
-               END IF
-            END DO !inb
-         END DO !iex
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, FMT="(T7,I12,I21)") &
+               exat, nnb
+         END IF
 
-         !Get the optimal distribution_2d for the overlap integrals (abc), centers c on excited atoms
-         !and their neighbors defined by RI_RADIUS, for the current batch
+         !Get the optimal distribution_2d for the overlap integrals (abc), centers c on the current
+         !excited atom and its neighbors defined by RI_RADIUS
          CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env)
          CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_potential_id, &
-                                  qs_env, excited_atoms=batch_atoms)
+                                  qs_env, excited_atoms=neighbors)
          CALL get_opt_3c_dist2d(opt_dist2d, ab_list, ac_list, basis_set_orb, basis_set_orb, &
                                 basis_set_ri, qs_env)
          CALL release_neighbor_list_sets(ab_list)
@@ -1005,9 +1001,9 @@ CONTAINS
          !get the ab and ac neighbor lists based on the optimized distribution
          CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env, ext_dist2d=opt_dist2d)
          CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_potential_id, &
-                                  qs_env, excited_atoms=batch_atoms, ext_dist2d=opt_dist2d)
-         !get the AO density matrix in the optimized distribution for compatibility
+                                  qs_env, excited_atoms=neighbors, ext_dist2d=opt_dist2d)
 
+         !get the AO density matrix in the optimized distribution
          CALL cp_dbcsr_dist2d_to_dist(opt_dist2d, opt_dbcsr_dist)
          ALLOCATE (rho_redist(nspins))
          DO ispin = 1, nspins
@@ -1016,110 +1012,113 @@ CONTAINS
             CALL dbcsr_complete_redistribute(rho_ao(ispin)%matrix, rho_redist(ispin)%matrix)
          END DO
 
-         !Compute the integrals and cantract with the density matrix
-         ALLOCATE (o3c)
-         CALL init_o3c_container(o3c, nspins, basis_set_orb, basis_set_orb, basis_set_ri, ab_list, ac_list)
-         CALL calculate_o3c_integrals(o3c)
-         CALL contract12_o3c(o3c, rho_redist)
+         !Compute the 3-center overlap integrals
+         pot%potential_type = do_potential_id
 
-         !  Loop over the excited atoms
-         DO iex = bo(1), bo(2)
+         CALL create_pqX_tensor(pqX, ab_list, ac_list, opt_dbcsr_dist, blk_size_orb, blk_size_orb, &
+                                blk_size_ri)
+         CALL fill_pqX_tensor(pqX, ab_list, ac_list, basis_set_orb, basis_set_orb, basis_set_ri, &
+                              pot, qs_env)
 
-            !get the neighbors of current excited atom
-            exat = xas_atom_env%excited_atoms(iex)
-            nnb = 1 + SIZE(xas_atom_env%exat_neighbors(iex)%array)
-            ALLOCATE (neighbors(nnb))
-            neighbors(1) = exat
-            neighbors(2:nnb) = xas_atom_env%exat_neighbors(iex)%array(:)
-            CALL sort_unique(neighbors, unique)
+         !Compute the RI inverse overlap matrix on the reduced RI basis that spans the excited
+         !atom and its neighbors, ri_sinv is replicated over all procs
+         CALL get_exat_ri_sinv(ri_sinv, ri_mats, neighbors, idx_to_nb, basis_set_ri, qs_env)
 
-            IF (output_unit > 0) THEN
-               WRITE (output_unit, FMT="(T7,I12,I21)") &
-                  exat, nnb
-            END IF
+         !Do the actual contraction: coeff_y = sum_pq sum_x P_pq (phi_p phi_q xi_x) S_xy^-1
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED (pqX,nspins,blk_size_ri,nnb,neighbors,ri_sinv,factor,xas_atom_env,iex,rho_redist,idx_to_nb)&
+!$OMP PRIVATE(iter,ind,blk,t_block,tensor_found,iatom,jatom,inb,prefac,ispin,work1,pmat_block, &
+!$OMP         pmat_blockt,pmat_found,pmat_foundt,i,jnb,ri_at,sinv_block,sinv_blockt,sinv_found,&
+!$OMP         sinv_foundt,work2,katom)
 
-            !link the atoms to their position in neighbors
-            ALLOCATE (idx_to_nb(natom))
-            idx_to_nb = 0
-            DO inb = 1, nnb
-               idx_to_nb(neighbors(inb)) = inb
-            END DO
+         CALL dbcsr_t_iterator_start(iter, pqX)
+         DO WHILE (dbcsr_t_iterator_blocks_left(iter))
+            CALL dbcsr_t_iterator_next_block(iter, ind, blk)
+!$OMP CRITICAL (get_t_block)
+            CALL dbcsr_t_get_block(pqX, ind, t_block, tensor_found)
+!$OMP END CRITICAL (get_t_block)
 
-            !Compute the RI inverse overlap matrix on the reduced RI basis that spans the excited
-            !atom and its neighbors, ri_sinv is replicated over all procs
-            CALL get_exat_ri_sinv(ri_sinv, ri_mats, neighbors, idx_to_nb, basis_set_ri, qs_env)
+            iatom = ind(1)
+            jatom = ind(2)
+            katom = ind(3)
+            inb = idx_to_nb(katom)
 
-            !Loop over the integral to get the density coefficients
-            nthread = 1
-!$          nthread = omp_get_max_threads()
-            CALL o3c_iterator_create(o3c, o3c_iterator, nthread=nthread)
+            !non-diagonal elements need to be counted twice
+            prefac = 2.0_dp
+            IF (iatom == jatom) prefac = 1.0_dp
 
-!$OMP PARALLEL DEFAULT(NONE)&
-!$OMP SHARED (o3c_iterator,xas_atom_env,nsgf,nspins,factor,nnb,neighbors,iex,idx_to_nb,ri_sinv)&
-!$OMP PRIVATE (mepos,katom,tvec,work,inb,jnb,ri_at,found,foundt,pblock,pblockt)
+            DO ispin = 1, nspins
 
-            mepos = 0
-!$          mepos = omp_get_thread_num()
+               !rho_redist is symmetric, block can be in either location
+               CALL dbcsr_get_block_p(rho_redist(ispin)%matrix, iatom, jatom, pmat_block, pmat_found)
+               CALL dbcsr_get_block_p(rho_redist(ispin)%matrix, jatom, iatom, pmat_blockt, pmat_foundt)
+               IF ((.NOT. pmat_found) .AND. (.NOT. pmat_foundt)) CYCLE
 
-            DO WHILE (o3c_iterate(o3c_iterator, mepos=mepos) == 0)
-               CALL get_o3c_iterator_info(o3c_iterator, mepos=mepos, katom=katom, tvec=tvec)
+               ALLOCATE (work1(blk_size_ri(katom), 1))
+               work1 = 0.0_dp
 
-               !we only treat katoms that are the excited atom or one of its neighbor
-               IF (.NOT. ANY(neighbors == katom)) CYCLE
-               inb = idx_to_nb(katom)
+               !first contraction with the density matrix
+               IF (pmat_found) THEN
+                  DO i = 1, blk_size_ri(katom)
+                     work1(i, 1) = prefac*SUM(pmat_block(:, :)*t_block(:, :, i))
+                  END DO
+               ELSE
+                  DO i = 1, blk_size_ri(katom)
+                     work1(i, 1) = prefac*SUM(TRANSPOSE(pmat_blockt(:, :))*t_block(:, :, i))
+                  END DO
+               END IF
 
-               !Loop over the negihbors (incl. excited atom)
+               !loop over neighbors
                DO jnb = 1, nnb
 
                   ri_at = neighbors(jnb)
 
-                  !get the corresponding block in ri_sinv
-                  CALL dbcsr_get_block_p(ri_sinv, inb, jnb, pblock, found)
-                  CALL dbcsr_get_block_p(ri_sinv, jnb, inb, pblockt, foundt)
-                  IF ((.NOT. found) .AND. (.NOT. foundt)) CYCLE
+                  !ri_sinv is a symmetric matrix => actual block is one of the two
+                  CALL dbcsr_get_block_p(ri_sinv, inb, jnb, sinv_block, sinv_found)
+                  CALL dbcsr_get_block_p(ri_sinv, jnb, inb, sinv_blockt, sinv_foundt)
+                  IF ((.NOT. sinv_found) .AND. (.NOT. sinv_foundt)) CYCLE
 
-                  !katom and ri_at interact => compute the ri_dcoeff for ri_at, coming from katom
-                  ! The coefficients for katom/ri_at are tvec*S^-1
-                  ALLOCATE (work(nsgf(ri_at), nspins))
-                  IF (found) THEN
-                     CALL dgemm('T', 'N', nsgf(ri_at), nspins, nsgf(katom), 1.0_dp, pblock, &
-                                nsgf(katom), tvec, nsgf(katom), 0.0_dp, work, nsgf(ri_at))
+                  !second contraction with the inverse RI overlap
+                  ALLOCATE (work2(SIZE(xas_atom_env%ri_dcoeff(ri_at, ispin, iex)%array)))
+                  work2 = 0.0_dp
+
+                  IF (sinv_found) THEN
+                     DO i = 1, blk_size_ri(katom)
+                        CALL daxpy(SIZE(work2), factor*work1(i, 1), sinv_block(i, :), 1, work2(:), 1)
+                     END DO
                   ELSE
-                     CALL dgemm('N', 'N', nsgf(ri_at), nspins, nsgf(katom), 1.0_dp, pblockt, &
-                                nsgf(ri_at), tvec, nsgf(katom), 0.0_dp, work, nsgf(ri_at))
+                     DO i = 1, blk_size_ri(katom)
+                        CALL daxpy(SIZE(work2), factor*work1(i, 1), sinv_blockt(:, i), 1, work2(:), 1)
+                     END DO
                   END IF
 
-!$OMP    CRITICAL(spin1)
-                  CALL daxpy(nsgf(ri_at), factor, work(:, 1), 1, xas_atom_env%ri_dcoeff(ri_at, 1, iex)%array(:), 1)
-!$OMP    END CRITICAL(spin1)
+!$OMP CRITICAL (ri_dcoeff)
+                  xas_atom_env%ri_dcoeff(ri_at, ispin, iex)%array(:) = &
+                     xas_atom_env%ri_dcoeff(ri_at, ispin, iex)%array(:) + work2(:)
+!$OMP END CRITICAL (ri_dcoeff)
 
-                  IF (nspins == 2) THEN
-!$OMP    CRITICAL(spin2)
-                     CALL daxpy(nsgf(ri_at), 1._dp, work(:, 2), 1, xas_atom_env%ri_dcoeff(ri_at, 2, iex)%array(:), 1)
-!$OMP    END CRITICAL(spin2)
-                  END IF
-
-                  DEALLOCATE (work)
+                  DEALLOCATE (work2)
                END DO !jnb
-            END DO !o3c_iterator
-!$OMP    END PARALLEL
-            CALL o3c_iterator_release(o3c_iterator)
 
-            !clean-up for excited atom
-            CALL dbcsr_release(ri_sinv)
-            DEALLOCATE (neighbors, idx_to_nb)
+               DEALLOCATE (work1)
+            END DO
 
-         END DO !iex
+            DEALLOCATE (t_block)
+         END DO !iter
+         CALL dbcsr_t_iterator_stop(iter)
+!$OMP END PARALLEL
 
-         !batch clean-up
+         !clean-up
+         CALL dbcsr_release(ri_sinv)
+         CALL dbcsr_t_destroy(pqX)
          CALL distribution_2d_release(opt_dist2d)
          CALL dbcsr_deallocate_matrix_set(rho_redist)
          CALL dbcsr_distribution_release(opt_dbcsr_dist)
-         CALL release_o3c_container(o3c)
          CALL release_neighbor_list_sets(ab_list)
          CALL release_neighbor_list_sets(ac_list)
-         DEALLOCATE (batch_atoms, o3c)
-      END DO !ibatch
+         DEALLOCATE (neighbors, idx_to_nb)
+
+      END DO !iex
 
       !making sure all procs have the same info
       DO iex = 1, nex
@@ -1133,7 +1132,6 @@ CONTAINS
       END DO !iex
 
 !  clean-up
-
       CALL dbcsr_deallocate_matrix_set(overlap)
       DEALLOCATE (basis_set_ri, basis_set_orb, all_ri_atoms)
 
