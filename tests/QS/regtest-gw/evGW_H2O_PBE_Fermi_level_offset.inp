@@ -49,8 +49,10 @@
       &END HF
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        &RI_METRIC
-          POTENTIAL_TYPE IDENTITY
+        &RI
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
         &END
         &WFC_GPW
         &END

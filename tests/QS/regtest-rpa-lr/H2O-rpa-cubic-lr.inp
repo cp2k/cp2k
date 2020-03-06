@@ -43,8 +43,10 @@
           POTENTIAL_TYPE LONGRANGE
           OMEGA 0.5
         &END INTERACTION_POTENTIAL
-        &RI_METRIC
-          POTENTIAL_TYPE IDENTITY
+        &RI
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
         &END
         &WFC_GPW
           CUTOFF      100
@@ -67,8 +69,10 @@
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
-        DO_SVD
-        EPS_SVD 1.0E-5
+        &RI
+          DO_SVD
+          EPS_SVD 1.0E-5
+        &END RI
       &END
     &END XC
   &END DFT

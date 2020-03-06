@@ -67,8 +67,10 @@
         ERI_METHOD MME
         MEMORY  200.
         NUMBER_PROC  1
-        DO_SVD
-        EPS_SVD 1.0E-15
+        &RI
+          DO_SVD
+          EPS_SVD 1.0E-15
+        &END RI
       &END
     &END XC
   &END DFT

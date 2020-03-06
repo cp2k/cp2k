@@ -79,19 +79,6 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "SCALE_T", r_val=mp2_env%scale_T)
       CALL section_vals_val_get(mp2_section, "GROUP_SIZE", i_val=mp2_env%mp2_num_proc)
       CALL section_vals_val_get(mp2_section, "DIRECT_CANONICAL%BIG_SEND", l_val=mp2_env%direct_canonical%big_send)
-      CALL section_vals_val_get(mp2_section, "ROW_BLOCK", i_val=mp2_env%block_size_row)
-      CALL section_vals_val_get(mp2_section, "COL_BLOCK", i_val=mp2_env%block_size_col)
-      CALL section_vals_val_get(mp2_section, "RI_METRIC%POTENTIAL_TYPE", i_val=mp2_env%ri_metric%potential_type)
-      CALL section_vals_val_get(mp2_section, "CALC_COND_NUM", l_val=mp2_env%calc_PQ_cond_num)
-      CALL section_vals_val_get(mp2_section, "DO_SVD", l_val=mp2_env%do_svd)
-      CALL section_vals_val_get(mp2_section, "EPS_SVD", r_val=mp2_env%eps_svd)
-      CALL section_vals_val_get(mp2_section, "RI_METRIC%OMEGA", r_val=mp2_env%ri_metric%omega)
-      CALL section_vals_val_get(mp2_section, "RI_METRIC%EPS_RANGE", r_val=mp2_env%eps_range)
-      CALL section_vals_val_get(mp2_section, "RI_METRIC%CUTOFF_RADIUS", r_val=mp2_env%ri_metric%cutoff_radius)
-      CALL section_vals_val_get(mp2_section, "RI_METRIC%T_C_G_DATA", c_val=mp2_env%ri_metric%filename)
-      IF (mp2_env%ri_metric%potential_type == do_potential_short) THEN
-         CALL erfc_cutoff(mp2_env%eps_range, mp2_env%ri_metric%omega, mp2_env%ri_metric%cutoff_radius)
-      ENDIF
 
       CALL section_vals_val_get(mp2_section, "INTERACTION_POTENTIAL%POTENTIAL_TYPE", &
                                 i_val=mp2_env%potential_parameter%potential_type)
@@ -281,18 +268,32 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "CPHF%EPS_CONV", &
                                 r_val=mp2_env%ri_grad%cphf_eps_conv)
 
-      CALL section_vals_val_get(mp2_section, "OPT_RI_BASIS%DELTA_I_REL", &
+      CALL section_vals_val_get(mp2_section, "RI%ROW_BLOCK", i_val=mp2_env%block_size_row)
+      CALL section_vals_val_get(mp2_section, "RI%COL_BLOCK", i_val=mp2_env%block_size_col)
+      CALL section_vals_val_get(mp2_section, "RI%CALC_COND_NUM", l_val=mp2_env%calc_PQ_cond_num)
+      CALL section_vals_val_get(mp2_section, "RI%DO_SVD", l_val=mp2_env%do_svd)
+      CALL section_vals_val_get(mp2_section, "RI%EPS_SVD", r_val=mp2_env%eps_svd)
+      CALL section_vals_val_get(mp2_section, "RI%ERI_BLKSIZE", i_vals=mp2_env%eri_blksize)
+      CALL section_vals_val_get(mp2_section, "RI%RI_METRIC%POTENTIAL_TYPE", i_val=mp2_env%ri_metric%potential_type)
+      CALL section_vals_val_get(mp2_section, "RI%RI_METRIC%OMEGA", r_val=mp2_env%ri_metric%omega)
+      CALL section_vals_val_get(mp2_section, "RI%RI_METRIC%EPS_RANGE", r_val=mp2_env%eps_range)
+      CALL section_vals_val_get(mp2_section, "RI%RI_METRIC%CUTOFF_RADIUS", r_val=mp2_env%ri_metric%cutoff_radius)
+      CALL section_vals_val_get(mp2_section, "RI%RI_METRIC%T_C_G_DATA", c_val=mp2_env%ri_metric%filename)
+      IF (mp2_env%ri_metric%potential_type == do_potential_short) THEN
+         CALL erfc_cutoff(mp2_env%eps_range, mp2_env%ri_metric%omega, mp2_env%ri_metric%cutoff_radius)
+      ENDIF
+      CALL section_vals_val_get(mp2_section, "RI%OPT_RI_BASIS%DELTA_I_REL", &
                                 r_val=mp2_env%ri_opt_param%DI_rel)
-      CALL section_vals_val_get(mp2_section, "OPT_RI_BASIS%DELTA_RI", &
+      CALL section_vals_val_get(mp2_section, "RI%OPT_RI_BASIS%DELTA_RI", &
                                 r_val=mp2_env%ri_opt_param%DRI)
-      CALL section_vals_val_get(mp2_section, "OPT_RI_BASIS%EPS_DERIV", &
+      CALL section_vals_val_get(mp2_section, "RI%OPT_RI_BASIS%EPS_DERIV", &
                                 r_val=mp2_env%ri_opt_param%eps_step)
-      CALL section_vals_val_get(mp2_section, "OPT_RI_BASIS%MAX_ITER", &
+      CALL section_vals_val_get(mp2_section, "RI%OPT_RI_BASIS%MAX_ITER", &
                                 i_val=mp2_env%ri_opt_param%max_num_iter)
-      CALL section_vals_val_get(mp2_section, "OPT_RI_BASIS%BASIS_SIZE", &
+      CALL section_vals_val_get(mp2_section, "RI%OPT_RI_BASIS%BASIS_SIZE", &
                                 i_val=mp2_env%ri_opt_param%basis_quality)
       NULLIFY (tmplist)
-      CALL section_vals_val_get(mp2_section, "OPT_RI_BASIS%NUM_FUNC", &
+      CALL section_vals_val_get(mp2_section, "RI%OPT_RI_BASIS%NUM_FUNC", &
                                 i_vals=tmplist)
       IF (tmplist(1) > 0) THEN
          ALLOCATE (mp2_env%ri_opt_param%RI_nset_per_l(0:SIZE(tmplist) - 1))
@@ -302,6 +303,7 @@ CONTAINS
          END DO
       END IF
 
+
       NULLIFY (mp2_env%eri_mme_param)
       ALLOCATE (mp2_env%eri_mme_param)
 
@@ -309,7 +311,6 @@ CONTAINS
          eri_mme_section => section_vals_get_subs_vals(mp2_section, "ERI_MME")
          CALL cp_eri_mme_init_read_input(eri_mme_section, mp2_env%eri_mme_param)
       ENDIF
-      CALL section_vals_val_get(mp2_section, "ERI_BLKSIZE", i_vals=mp2_env%eri_blksize)
 
       ! Set some parameters in case of P screening
       mp2_env%not_last_hfx = .TRUE.

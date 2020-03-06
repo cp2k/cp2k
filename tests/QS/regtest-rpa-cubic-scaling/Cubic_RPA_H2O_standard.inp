@@ -39,8 +39,10 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        &RI_METRIC
+        &RI
+          &RI_METRIC
             POTENTIAL_TYPE IDENTITY
+          &END
         &END
         &LOW_SCALING
         &END

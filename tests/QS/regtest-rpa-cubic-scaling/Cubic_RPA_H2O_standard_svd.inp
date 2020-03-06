@@ -39,12 +39,8 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
-        &RI_METRIC
-          POTENTIAL_TYPE IDENTITY
-        &END
         &WFC_GPW
         &END
-!        ERI_METHOD MME
         ERI_METHOD OS
         &LOW_SCALING
           MEMORY_CUT 1
@@ -61,8 +57,13 @@
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
-        DO_SVD
-        EPS_SVD 1.0E-3
+        &RI
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
+          DO_SVD
+          EPS_SVD 1.0E-3
+        &END RI
       &END
     &END XC
   &END DFT

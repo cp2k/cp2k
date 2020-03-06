@@ -50,9 +50,11 @@
         &END
         MEMORY  200.
         NUMBER_PROC  1
-        CALC_COND_NUM
-        DO_SVD T
-        EPS_SVD 1.0e-2
+        &RI
+          DO_SVD T
+          EPS_SVD 1.0E-2
+          CALC_COND_NUM
+        &END RI
       &END
     &END XC
   &END DFT

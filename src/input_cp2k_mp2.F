@@ -140,46 +140,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
-         name="ROW_BLOCK", &
-         variants=(/"ROW_BLOCK_SIZE"/), &
-         description="Size of the row block used in the SCALAPACK block cyclic data distribution."// &
-         "Default is (ROW_BLOCK=-1) is automatic. "// &
-         "A proper choice can speedup the parallel matrix multiplication in the case of RI-RPA and RI-SOS-MP2-Laplace.", &
-         usage="ROW_BLOCK 512", &
-         default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
-         name="COL_BLOCK", &
-         variants=(/"COL_BLOCK_SIZE"/), &
-         description="Size of the column block used in the SCALAPACK block cyclic data distribution."// &
-         "Default is (COL_BLOCK=-1) is automatic. "// &
-         "A proper choice can speedup the parallel matrix multiplication in the case of RI-RPA and RI-SOS-MP2-Laplace.", &
-         usage="COL_BLOCK 512", &
-         default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
-         name="CALC_COND_NUM", &
-         variants=(/"CALC_CONDITION_NUMBER"/), &
-         description="Calculate the condition number of the (P|Q) matrix for the RI methods.", &
-         usage="CALC_COND_NUM", &
-         default_l_val=.FALSE., &
-         lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      NULLIFY (subsection)
-      CALL create_RI_metric_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
       CALL keyword_create(keyword, __LOCATION__, name="ERI_METHOD", &
                           description="Method for calculating periodic electron repulsion integrals "// &
                           "(MME method is faster but experimental, forces not yet implemented)."// &
@@ -197,38 +157,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="ERI_BLKSIZE", &
-                          description="block sizes for tensors (only used if ERI_METHOD=MME). First value "// &
-                          "is the block size for ORB basis, second value is the block size for RI_AUX basis.", &
-                          usage="ERI_BLKSIZE", &
-                          n_var=2, &
-                          default_i_vals=(/4, 16/))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MP2_INFO", &
                                        description="Controls the printing basic info about MP2 method", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
-
-      CALL keyword_create(keyword, __LOCATION__, name="DO_SVD", &
-                          description="Wether to perform a singular value decomposition instead of the Cholesky decomposition "// &
-                          "of the potential operator in the RI basis. Computationally expensive but numerically more stable. "// &
-                          "It reduces the computational costs of some subsequent steps. Recommended when a longrange Coulomb "// &
-                          "potential is employed.", &
-                          usage="DO_SVD  .TRUE.", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_SVD", &
-                          description="Include all singular vectors with a singular value smaller than EPS_SVD. "// &
-                          "Is used to provide info on smallest eigenvalues.", &
-                          usage="EPS_SVD  1.0e-5", &
-                          default_r_val=1.0E-3_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
 
       NULLIFY (subsection)
       CALL create_mp2_direct(subsection)
@@ -240,10 +173,6 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_ri_mp2(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_opt_ri_basis(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -269,6 +198,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_eri_mme_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_ri_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1488,6 +1421,100 @@ CONTAINS
 
    END SUBROUTINE create_mp2_potential
 
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_ri_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key, subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="RI", &
+                          description="Parameters influencing resolution of the identity (RI) that is"// &
+                                      "used in RI-MP2, RI-RPA, RI-SOS-MP2 and GW (inside RI-RPA).", &
+                          n_keywords=4, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (subsection)
+      CALL create_RI_metric_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_opt_ri_basis(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      NULLIFY (keyword)
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="ROW_BLOCK", &
+         variants=(/"ROW_BLOCK_SIZE"/), &
+         description="Size of the row block used in the SCALAPACK block cyclic data distribution."// &
+         "Default is (ROW_BLOCK=-1) is automatic. "// &
+         "A proper choice can speedup the parallel matrix multiplication in the case of RI-RPA and RI-SOS-MP2-Laplace.", &
+         usage="ROW_BLOCK 512", &
+         default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="COL_BLOCK", &
+         variants=(/"COL_BLOCK_SIZE"/), &
+         description="Size of the column block used in the SCALAPACK block cyclic data distribution."// &
+         "Default is (COL_BLOCK=-1) is automatic. "// &
+         "A proper choice can speedup the parallel matrix multiplication in the case of RI-RPA and RI-SOS-MP2-Laplace.", &
+         usage="COL_BLOCK 512", &
+         default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="CALC_COND_NUM", &
+         variants=(/"CALC_CONDITION_NUMBER"/), &
+         description="Calculate the condition number of the (P|Q) matrix for the RI methods.", &
+         usage="CALC_COND_NUM", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DO_SVD", &
+                          description="Wether to perform a singular value decomposition instead of the Cholesky decomposition "// &
+                          "of the potential operator in the RI basis. Computationally expensive but numerically more stable. "// &
+                          "It reduces the computational costs of some subsequent steps. Recommended when a longrange Coulomb "// &
+                          "potential is employed.", &
+                          usage="DO_SVD  .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SVD", &
+                          description="Include all singular vectors with a singular value smaller than EPS_SVD. "// &
+                          "Is used to provide info on smallest eigenvalues.", &
+                          usage="EPS_SVD  1.0e-5", &
+                          default_r_val=1.0E-3_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ERI_BLKSIZE", &
+                          description="block sizes for tensors (only used if ERI_METHOD=MME). First value "// &
+                          "is the block size for ORB basis, second value is the block size for RI_AUX basis.", &
+                          usage="ERI_BLKSIZE", &
+                          n_var=2, &
+                          default_i_vals=(/4, 16/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+END SUBROUTINE create_ri_section
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param section ...
@@ -1560,6 +1587,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE
+   END SUBROUTINE create_RI_metric_section
 
 END MODULE input_cp2k_mp2

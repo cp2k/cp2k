@@ -39,8 +39,10 @@
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
         ERI_METHOD GPW
-        &RI_METRIC
-          POTENTIAL_TYPE IDENTITY
+        &RI
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
         &END
         &WFC_GPW
           CUTOFF  100
