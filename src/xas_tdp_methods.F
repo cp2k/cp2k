@@ -115,16 +115,16 @@ MODULE xas_tdp_methods
    USE xas_tdp_atom,                    ONLY: init_xas_atom_env,&
                                               integrate_fxc_atoms,&
                                               integrate_soc_atoms
+   USE xas_tdp_integrals,               ONLY: compute_ri_3c_coulomb,&
+                                              compute_ri_3c_exchange,&
+                                              compute_ri_coulomb2_int,&
+                                              compute_ri_exchange2_int
    USE xas_tdp_types,                   ONLY: &
         donor_state_create, donor_state_type, free_ds_memory, free_exat_memory, &
         read_xas_tdp_control, set_donor_state, set_xas_tdp_env, xas_atom_env_create, &
         xas_atom_env_release, xas_atom_env_type, xas_tdp_control_create, xas_tdp_control_release, &
         xas_tdp_control_type, xas_tdp_env_create, xas_tdp_env_release, xas_tdp_env_type
-   USE xas_tdp_utils,                   ONLY: compute_ri_coulomb2_int,&
-                                              compute_ri_exchange2_int,&
-                                              compute_ri_o3c_coulomb,&
-                                              compute_ri_o3c_exchange,&
-                                              include_os_soc,&
+   USE xas_tdp_utils,                   ONLY: include_os_soc,&
                                               include_rcs_soc,&
                                               setup_xas_tdp_prob,&
                                               solve_xas_tdp_prob
@@ -333,7 +333,7 @@ CONTAINS
                "# Computing the RI 3-center Coulomb integrals ..."
             CALL m_flush(output_unit)
          END IF
-         CALL compute_ri_o3c_coulomb(xas_tdp_env, qs_env)
+         CALL compute_ri_3c_coulomb(xas_tdp_env, qs_env)
 
       END IF
 
@@ -377,7 +377,7 @@ CONTAINS
                      iatom, "/", TRIM(kind_name)
                   CALL m_flush(output_unit)
                END IF
-               CALL compute_ri_o3c_exchange(iatom, xas_tdp_env, xas_tdp_control, qs_env)
+               CALL compute_ri_3c_exchange(iatom, xas_tdp_env, xas_tdp_control, qs_env)
             END IF
 
 !           Loop over states of excited atom of kind
