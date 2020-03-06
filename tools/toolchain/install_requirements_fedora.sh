@@ -4,7 +4,9 @@
 
 # Install Fedora packages required for the toolchain.
 
-dnf -y install                              \
+echo "Installing Fedora packages..."
+
+dnf -qy install                             \
     autoconf                                \
     autogen                                 \
     automake                                \
@@ -27,6 +29,6 @@ dnf -y install                              \
     which                                   \
     zlib-devel
 
-dnf clean all
+dnf clean -q all
 
 #EOF
