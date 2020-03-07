@@ -193,8 +193,6 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key
 
-      PRINT *, 'YOU ENTER HERE'
-
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="MP2", &
                           description="Parameters influencing MP2 (non-RI).", &

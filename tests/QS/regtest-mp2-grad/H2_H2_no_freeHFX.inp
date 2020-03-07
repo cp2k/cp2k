@@ -43,9 +43,7 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-       &MP2
         METHOD  RI_MP2_GPW
-       &END MP2
         &RI_MP2
           EPS_CANONICAL  0.00001
           FREE_HFX_BUFFER .FALSE.
