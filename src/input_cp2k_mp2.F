@@ -632,15 +632,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="CHECK_FIT", &
-                          description="If true, the self-energy on the imaginary axis and the fit are printed"// &
-                          "the file self_energy_of_MO_<level>_for_imaginary_frequency.", &
-                          usage="CHECK_FIT", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="CROSSING_SEARCH", &
                           description="Determines, how the self_energy is evaluated on the real axis.", &
                           usage="CROSSING_SEARCH Z_SHOT", &
@@ -1109,15 +1100,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="POINTS_PER_MAGNITUDE", &
-                          variants=(/"PPM"/), &
-                          description="Number of evaluation points (x) of the function 2x/(x^2+omega^2) per order of  "// &
-                          "magnitude of the range Rc. Normally, this parameter needs not to be touched.", &
-                          usage="PPM 1000", &
-                          default_i_val=200)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_FILTER", &
          description="Determines a threshold for the DBCSR based multiply."// &
@@ -1134,15 +1116,6 @@ CONTAINS
          "Default should be kept.", &
          type_of_var=real_t, &
          default_r_val=10.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="STABILIZE_EXP", &
-         description="It is observed that EXP(-alpha) gives NaN if alpha is larger than 100-300. Using "// &
-         "the STABILIZE_EXP keyword, all EXP(-alpha) are not computed but set to zero for alpha > STABILIZE_EXP.", &
-         type_of_var=real_t, &
-         default_r_val=70.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

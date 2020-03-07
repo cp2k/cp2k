@@ -254,7 +254,7 @@ CONTAINS
             ALLOCATE (weights_cos_tf_t_to_w(num_freq_points, num_time_points))
             weights_cos_tf_t_to_w = 0.0_dp
 
-            num_points_per_magnitude = mp2_env%ri_rpa_im_time%num_points_per_magnitude
+            num_points_per_magnitude = 200
             CALL get_l_sq_wghts_cos_tf_t_to_w(num_freq_points, num_time_points, tau_tj, weights_cos_tf_t_to_w, tj, &
                                               Emin, Emax, max_error_min, num_points_per_magnitude)
 

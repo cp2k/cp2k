@@ -102,7 +102,6 @@ CONTAINS
 !> \param unit_nr ...
 !> \param mp2_env ...
 !> \param para_env ...
-!> \param stabilize_exp ...
 !> \param qs_env ...
 !> \param index_to_cell_3c ...
 !> \param cell_to_index_3c ...
@@ -125,7 +124,7 @@ CONTAINS
                                   alpha, eps_filter_im_time, Eigenval, nmo, &
                                   num_integ_points, cut_memory, unit_nr, &
                                   mp2_env, para_env, &
-                                  stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
+                                  qs_env, index_to_cell_3c, cell_to_index_3c, &
                                   has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                   dbcsr_time, dbcsr_nflop)
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega
@@ -152,7 +151,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: cut_memory, unit_nr
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      REAL(KIND=dp), INTENT(IN)                          :: stabilize_exp
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
@@ -275,7 +273,7 @@ CONTAINS
                                     matrix_s, ispin, &
                                     Eigenval, e_fermi, eps_filter, memory_info, &
                                     unit_nr, &
-                                    jquad, stabilize_exp, do_kpoints_cubic_RPA, qs_env, &
+                                    jquad, do_kpoints_cubic_RPA, qs_env, &
                                     num_cells_dm, index_to_cell_dm)
 
          ALLOCATE (t_dm_virt(num_cells_dm))
@@ -701,7 +699,6 @@ CONTAINS
 !> \param memory_info ...
 !> \param unit_nr ...
 !> \param jquad ...
-!> \param stabilize_exp ...
 !> \param do_kpoints_cubic_RPA ...
 !> \param qs_env ...
 !> \param num_cells_dm ...
@@ -713,7 +710,7 @@ CONTAINS
                                     matrix_s, ispin, &
                                     Eigenval, e_fermi, eps_filter, memory_info, &
                                     unit_nr, &
-                                    jquad, stabilize_exp, do_kpoints_cubic_RPA, qs_env, &
+                                    jquad, do_kpoints_cubic_RPA, qs_env, &
                                     num_cells_dm, index_to_cell_dm)
 
       TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
@@ -732,7 +729,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: e_fermi, eps_filter
       LOGICAL, INTENT(IN)                                :: memory_info
       INTEGER, INTENT(IN)                                :: unit_nr, jquad
-      REAL(KIND=dp), INTENT(IN)                          :: stabilize_exp
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(OUT)                               :: num_cells_dm
@@ -745,7 +741,7 @@ CONTAINS
                                                             ncol_local, nrow_local, size_dm_occ, &
                                                             size_dm_virt
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: tau
+      REAL(KIND=dp)                                      :: tau, stabilize_exp
 
       CALL timeset(routineN, handle)
 
@@ -753,15 +749,16 @@ CONTAINS
          "RPA_LOW_SCALING_INFO| Started with time point: ", jquad
 
       tau = tau_tj(jquad)
+      stabilize_exp = 70.0_dp
 
       IF (do_kpoints_cubic_RPA) THEN
 
          CALL compute_transl_dm(mat_dm_occ_global, qs_env, ispin, num_integ_points, jquad, e_fermi, tau, &
-                                stabilize_exp, eps_filter, num_cells_dm, index_to_cell_dm, &
+                                eps_filter, num_cells_dm, index_to_cell_dm, &
                                 remove_occ=.FALSE., remove_virt=.TRUE., first_jquad=1)
 
          CALL compute_transl_dm(mat_dm_virt_global, qs_env, ispin, num_integ_points, jquad, e_fermi, tau, &
-                                stabilize_exp, eps_filter, num_cells_dm, index_to_cell_dm, &
+                                eps_filter, num_cells_dm, index_to_cell_dm, &
                                 remove_occ=.TRUE., remove_virt=.FALSE., first_jquad=1)
 
       ELSE
@@ -904,10 +901,10 @@ CONTAINS
 !> \param remove_occ ...
 !> \param remove_virt ...
 ! **************************************************************************************************
-   SUBROUTINE kpoint_density_matrices_rpa(kpoint, tau, e_fermi, stabilize_exp, remove_occ, remove_virt)
+   SUBROUTINE kpoint_density_matrices_rpa(kpoint, tau, e_fermi, remove_occ, remove_virt)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
-      REAL(KIND=dp), INTENT(IN)                          :: tau, e_fermi, stabilize_exp
+      REAL(KIND=dp), INTENT(IN)                          :: tau, e_fermi
       LOGICAL, INTENT(IN)                                :: remove_occ, remove_virt
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_matrices_rpa', &
@@ -921,6 +918,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: cpmat, fwork, rpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set
+      REAL(KIND=dp) :: stabilize_exp
 
       CALL timeset(routineN, handle)
 
@@ -930,6 +928,8 @@ CONTAINS
       ! work matrix
       mo_set => kpoint%kp_env(1)%kpoint_env%mos(1, 1)%mo_set
       CALL get_mo_set(mo_set, nao=nao, nmo=nmo)
+
+      stabilize_exp = 70.0_dp
 
       ! if this CPASSERT is triggered, please add all virtual MOs to SCF section,
       ! e.g. ADDED_MOS 1000000
@@ -1039,12 +1039,12 @@ CONTAINS
 !> \param first_jquad ...
 ! **************************************************************************************************
    SUBROUTINE compute_transl_dm(mat_dm_global, qs_env, ispin, num_integ_points, jquad, e_fermi, tau, &
-                                stabilize_exp, eps_filter, num_cells_dm, index_to_cell_dm, remove_occ, remove_virt, &
+                                eps_filter, num_cells_dm, index_to_cell_dm, remove_occ, remove_virt, &
                                 first_jquad)
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_global
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: ispin, num_integ_points, jquad
-      REAL(KIND=dp), INTENT(IN)                          :: e_fermi, tau, stabilize_exp, eps_filter
+      REAL(KIND=dp), INTENT(IN)                          :: e_fermi, tau, eps_filter
       INTEGER, INTENT(OUT)                               :: num_cells_dm
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
       LOGICAL, INTENT(IN)                                :: remove_occ, remove_virt
@@ -1105,7 +1105,7 @@ CONTAINS
       END DO
 
       ! density matrices in k-space weighted with EXP(-|e_i-e_F|*t) for occupied orbitals
-      CALL kpoint_density_matrices_rpa(kpoints, tau, e_fermi, stabilize_exp, &
+      CALL kpoint_density_matrices_rpa(kpoints, tau, e_fermi, &
                                        remove_occ=remove_occ, remove_virt=remove_virt)
 
       ! overwrite the cell indices in kpoints

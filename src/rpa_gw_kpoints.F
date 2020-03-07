@@ -1026,14 +1026,14 @@ CONTAINS
 !> \param has_blocks_mat_dm_virt_S ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE compute_G_real_space(mat_dm_occ_S, mat_dm_virt_S, qs_env, num_integ_points, stabilize_exp, &
+   SUBROUTINE compute_G_real_space(mat_dm_occ_S, mat_dm_virt_S, qs_env, num_integ_points, &
                                    e_fermi, eps_filter, tau_tj, num_cells_dm, index_to_cell_dm, &
                                    has_blocks_mat_dm_occ_S, has_blocks_mat_dm_virt_S, para_env)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_occ_S, mat_dm_virt_S
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: num_integ_points
-      REAL(KIND=dp)                                      :: stabilize_exp, e_fermi, eps_filter
+      REAL(KIND=dp)                                      ::  e_fermi, eps_filter
       REAL(KIND=dp), DIMENSION(0:num_integ_points)       :: tau_tj
       INTEGER                                            :: num_cells_dm
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
@@ -1054,7 +1054,7 @@ CONTAINS
       ! get denity matrix for exchange self-energy
       tau = 0.0_dp
       CALL compute_transl_dm(mat_dm_occ_S, qs_env, ispin, num_integ_points, 0, e_fermi, tau, &
-                             stabilize_exp, eps_filter, num_cells_dm, index_to_cell_dm, &
+                             eps_filter, num_cells_dm, index_to_cell_dm, &
                              remove_occ=.FALSE., remove_virt=.TRUE., first_jquad=0)
 
       DO i_cell = 1, num_cells_dm
@@ -1071,11 +1071,11 @@ CONTAINS
          tau = tau_tj(jquad)
 
          CALL compute_transl_dm(mat_dm_occ_S, qs_env, ispin, num_integ_points, jquad, e_fermi, tau, &
-                                stabilize_exp, eps_filter, num_cells_dm, index_to_cell_dm, &
+                                eps_filter, num_cells_dm, index_to_cell_dm, &
                                 remove_occ=.FALSE., remove_virt=.TRUE., first_jquad=0)
 
          CALL compute_transl_dm(mat_dm_virt_S, qs_env, ispin, num_integ_points, jquad, e_fermi, tau, &
-                                stabilize_exp, eps_filter, num_cells_dm, index_to_cell_dm, &
+                                eps_filter, num_cells_dm, index_to_cell_dm, &
                                 remove_occ=.TRUE., remove_virt=.FALSE., first_jquad=1)
 
          DO i_cell = 1, num_cells_dm
