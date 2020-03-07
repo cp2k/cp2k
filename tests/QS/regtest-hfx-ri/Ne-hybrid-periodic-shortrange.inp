@@ -34,6 +34,7 @@
             &END XC_FUNCTIONAL
             &HF
                 &RI
+                    CALC_COND_NUM T
                 &END
                 &SCREENING
                     EPS_SCHWARZ 1.0E-5
