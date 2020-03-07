@@ -14,11 +14,8 @@
         &END QS
         &SCF
             SCF_GUESS ATOMIC
-            MAX_SCF 5
+            MAX_SCF 100
             EPS_SCF 1.0E-06
-            &OT
-                PRECONDITIONER FULL_ALL
-            &END
         &END SCF
         &XC
             &XC_FUNCTIONAL NONE
