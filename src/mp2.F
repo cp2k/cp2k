@@ -10,6 +10,8 @@
 !> \author Mauro Del Ben
 ! **************************************************************************************************
 MODULE mp2
+   USE scf_control_types,               ONLY: scf_control_type
+   USE cp_fm_diag,                      ONLY: cp_fm_power
    USE admm_methods,                    ONLY: admm_mo_merge_ks_matrix
    USE admm_types,                      ONLY: admm_type
    USE admm_utils,                      ONLY: admm_correct_for_eigenvalues,&
@@ -64,7 +66,7 @@ MODULE mp2
         hfx_type
    USE input_constants,                 ONLY: &
         cholesky_inverse, do_admm_basis_projection, do_admm_purify_none, do_eri_gpw, do_eri_mme, &
-        do_potential_TShPSC, gw_print_exx, gw_read_exx, hfx_do_eval_energy, xc_none
+        do_potential_TShPSC, gw_print_exx, gw_read_exx, hfx_do_eval_energy, xc_none, cholesky_off
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -151,7 +153,7 @@ CONTAINS
       INTEGER :: bin, cholesky_method, dimen, handle, handle2, i, i_thread, iatom, ikind, irep, &
          ispin, max_nset, my_bin_size, n_rep_hf, n_threads, nao, natom, ncol_block, nelec_alpha, &
          nelec_beta, nelectron, nfullcols_total, nfullrows_total, nkind, nrow_block, nspins, &
-         unit_nr
+         unit_nr, ndep
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       LOGICAL :: calc_ex, do_admm, do_admm_rpa_exx, do_dynamic_load_balancing, do_exx, do_gw, &
@@ -189,6 +191,7 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
       TYPE(virial_type), POINTER                         :: virial
+      TYPE(scf_control_type), POINTER                    :: scf_control
 
       ! If SCF has not converged we should abort MP2 calculation
       IF (qs_env%mp2_env%hf_fail) THEN
@@ -218,6 +221,7 @@ CONTAINS
                          energy=energy, &
                          kpoints=kpoints, &
                          scf_env=scf_env, &
+                         scf_control=scf_control, &
                          matrix_ks_kp=matrix_ks_transl, &
                          matrix_s_kp=matrix_s_kp, &
                          mp2_env=mp2_env)
@@ -237,7 +241,9 @@ CONTAINS
                          blacs_env=blacs_env, &
                          energy=energy, &
                          mos=mos, &
-                         scf_env=scf_env, virial=virial, &
+                         scf_env=scf_env, &
+                         scf_control=scf_control, &
+                         virial=virial, &
                          matrix_ks=matrix_ks, &
                          matrix_s=matrix_s, &
                          matrix_ks_aux_fit=matrix_ks_aux, &
@@ -352,9 +358,13 @@ CONTAINS
 
       CALL cp_fm_get_info(matrix=fm_matrix_ks, nrow_block=nrow_block, ncol_block=ncol_block)
 
-      ! calculate S^(-1/2) (cholesky decomposition)
-      CALL cp_fm_cholesky_decompose(fm_matrix_s)
-      CALL cp_fm_triangular_invert(fm_matrix_s)
+      IF (scf_env%cholesky_method == cholesky_off) THEN
+        CALL cp_fm_power(scf_env%ortho, scf_env%scf_work2, -0.5_dp, scf_control%eps_eigval, ndep)
+      ELSE
+        ! calculate S^(-1/2) (cholesky decomposition)
+        CALL cp_fm_cholesky_decompose(fm_matrix_s)
+        CALL cp_fm_triangular_invert(fm_matrix_s)
+      END IF
 
       NULLIFY (mos_mp2)
       ALLOCATE (mos_mp2(nspins))
