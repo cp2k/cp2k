@@ -41,11 +41,12 @@
         &END
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
+        &INTEGRALS
         &WFC_GPW
           CUTOFF  100
           REL_CUTOFF 20
-        &END
+        &END WFC_GPW
+        &END INTEGRALS
         &RI_RPA
           &HF
             FRACTION 1.0000000
@@ -62,14 +63,16 @@
             NUMB_POLES            2
             CROSSING_SEARCH       Z_SHOT 
             FERMI_LEVEL_OFFSET    2.0E-2
-            EV_SC_ITER            3
+            EV_GW_ITER            3
             RI_SIGMA_X
           &END GW 
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
-        DO_SVD
-        EPS_SVD 1.0E-2
+        &RI
+          DO_SVD
+          EPS_SVD 1.0E-2
+        &END RI
       &END
     &END XC
   &END DFT

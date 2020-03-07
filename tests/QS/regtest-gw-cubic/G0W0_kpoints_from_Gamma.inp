@@ -35,13 +35,14 @@
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
-        &RI_METRIC
-          POTENTIAL_TYPE IDENTITY
+        &RI
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
         &END
-        &WFC_GPW
+        &INTEGRALS
           SIZE_LATTICE_SUM 5
-        &END
+        &END INTEGRALS
         &LOW_SCALING
           KPOINTS 1 1 4
         &END LOW_SCALING

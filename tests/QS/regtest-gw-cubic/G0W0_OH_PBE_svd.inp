@@ -44,10 +44,8 @@
         &END
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
-        ERI_METHOD OS
-        &RI_METRIC
-          POTENTIAL_TYPE IDENTITY
+        &INTEGRALS
+          ERI_METHOD OS
         &END
         &LOW_SCALING
           MEMORY_CUT 1
@@ -68,13 +66,18 @@
             NUMB_POLES            2
             CROSSING_SEARCH       Z_SHOT
             FERMI_LEVEL_OFFSET    2.0E-2
-            EV_SC_ITER            1
+            EV_GW_ITER            1
           &END GW
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
-        DO_SVD
-        EPS_SVD 1.0E-5
+        &RI
+          DO_SVD
+          EPS_SVD 1.0E-5
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
+        &END RI
       &END
     &END XC
   &END DFT

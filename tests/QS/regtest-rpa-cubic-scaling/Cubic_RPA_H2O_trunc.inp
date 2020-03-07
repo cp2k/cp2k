@@ -38,10 +38,11 @@
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
-        &RI_METRIC
-          POTENTIAL_TYPE TRUNCATED
-          CUTOFF_RADIUS 3.0
+        &RI
+          &RI_METRIC
+            POTENTIAL_TYPE TRUNCATED
+            CUTOFF_RADIUS 3.0
+          &END
         &END
         &LOW_SCALING
           MEMORY_CUT 1

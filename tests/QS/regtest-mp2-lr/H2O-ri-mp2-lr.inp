@@ -41,20 +41,24 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD  RI_MP2_GPW
-        &INTERACTION_POTENTIAL
-          POTENTIAL_TYPE LONGRANGE
-          OMEGA 0.5
-        &END INTERACTION_POTENTIAL
-        &WFC_GPW
-          CUTOFF  50
-          REL_CUTOFF 10
-        &END
+        &RI_MP2
+        &END RI_MP2
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF  50
+            REL_CUTOFF 10
+          &END WFC_GPW
+          &INTERACTION_POTENTIAL
+            POTENTIAL_TYPE LONGRANGE
+            OMEGA 0.5
+          &END INTERACTION_POTENTIAL
+        &END INTEGRALS
         MEMORY  200.
         NUMBER_PROC  1
-        CALC_COND_NUM
-        DO_SVD
-        EPS_SVD 1.0E-15
+        &RI
+          DO_SVD
+          EPS_SVD 1.0E-15
+        &END RI
       &END
     &END XC
   &END DFT

@@ -297,21 +297,24 @@ CONTAINS
 
          IF (my_do_gw .AND. do_minimax_quad) THEN
             IF (.NOT. ANY(num_integ_points == (/26, 28, 30, 32, 34/))) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "Please use NUM_INTEG_POINTS 26, 28, 30, 32, or 34 for low-scaling GW to "// &
-                            "achieve good accuracy.")
+               IF (unit_nr > 0) &
+                  CALL cp_warn(__LOCATION__, &
+                               "Please use NUM_INTEG_POINTS 26, 28, 30, 32, or 34 for low-scaling GW to "// &
+                               "achieve good accuracy.")
             END IF
             IF (num_integ_points > 34) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "The required number of quadrature point exceeds the maximum possible in the "// &
-                            "Minimax quadrature scheme. The number of quadrature point has been reset to 30.")
+               IF (unit_nr > 0) &
+                  CALL cp_warn(__LOCATION__, &
+                               "The required number of quadrature point exceeds the maximum possible in the "// &
+                               "Minimax quadrature scheme. The number of quadrature point has been reset to 30.")
                num_integ_points = 30
             END IF
          ELSE
             IF (do_minimax_quad .AND. num_integ_points > 20) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "The required number of quadrature point exceeds the maximum possible in the "// &
-                            "Minimax quadrature scheme. The number of quadrature point has been reset to 20.")
+               IF (unit_nr > 0) &
+                  CALL cp_warn(__LOCATION__, &
+                               "The required number of quadrature point exceeds the maximum possible in the "// &
+                               "Minimax quadrature scheme. The number of quadrature point has been reset to 20.")
                num_integ_points = 20
             END IF
          END IF
@@ -1333,8 +1336,7 @@ CONTAINS
       REAL(dp)                                           :: dbcsr_time
       REAL(KIND=dp) :: a_scaling, alpha, e_axk, e_axk_corr, e_fermi, e_fermi_beta, &
          eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
-         fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, stabilize_exp, &
-         tau, tau_old
+         fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, Eigenval_last, Eigenval_last_beta, &
          Eigenval_scf, Eigenval_scf_beta, tau_tj, tau_wj, tj, trace_Qomega, vec_omega_fit_gw, &
          vec_W_gw, vec_W_gw_beta, wj
@@ -1433,7 +1435,6 @@ CONTAINS
          cut_memory = mp2_env%ri_rpa_im_time%cut_memory
          eps_filter_im_time = mp2_env%ri_rpa_im_time%eps_filter_im_time
          min_bsize = mp2_env%ri_rpa_im_time%min_bsize
-         stabilize_exp = mp2_env%ri_rpa_im_time%stabilize_exp
 
          CALL alloc_im_time(qs_env, para_env, dimen_RI, dimen_RI_red, &
                             num_integ_points, fm_mat_Q, fm_mo_coeff_occ, fm_mo_coeff_virt, &
@@ -1674,7 +1675,7 @@ CONTAINS
                                      eps_filter_im_time, Eigenval, nmo, &
                                      num_integ_points, cut_memory, &
                                      unit_nr, mp2_env, para_env, &
-                                     stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
+                                     qs_env, index_to_cell_3c, cell_to_index_3c, &
                                      has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                      dbcsr_time, dbcsr_nflop)
 
@@ -1697,7 +1698,7 @@ CONTAINS
                                            eps_filter_im_time, Eigenval_beta, nmo, &
                                            num_integ_points, cut_memory, &
                                            unit_nr, mp2_env, para_env, &
-                                           stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
+                                           qs_env, index_to_cell_3c, cell_to_index_3c, &
                                            has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                            dbcsr_time, dbcsr_nflop)
                ELSE
@@ -1714,7 +1715,7 @@ CONTAINS
                                            eps_filter_im_time, Eigenval_beta, nmo, &
                                            num_integ_points, cut_memory, &
                                            unit_nr, mp2_env, para_env, &
-                                           stabilize_exp, qs_env, index_to_cell_3c, cell_to_index_3c, &
+                                           qs_env, index_to_cell_3c, cell_to_index_3c, &
                                            has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                            dbcsr_time, dbcsr_nflop)
                END IF ! do_ri_sos_laplace_mp2
@@ -1893,7 +1894,7 @@ CONTAINS
                                         num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
                                         do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, &
                                         e_fermi, eps_filter, fermi_level_offset, &
-                                        stabilize_exp, delta_corr, Eigenval, &
+                                        delta_corr, Eigenval, &
                                         Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, &
                                         vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
                                         weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
@@ -1915,7 +1916,7 @@ CONTAINS
                                         num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
                                         do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, &
                                         e_fermi, eps_filter, fermi_level_offset, &
-                                        stabilize_exp, delta_corr, Eigenval, &
+                                        delta_corr, Eigenval, &
                                         Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, &
                                         vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
                                         weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &

@@ -48,10 +48,10 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD DIRECT_CANONICAL
-        &DIRECT_CANONICAL
+        &MP2
+          METHOD DIRECT_CANONICAL
           BIG_SEND
-        &END
+        &END MP2
         SCALE_T  0.36
         SCALE_S  0.36
         MEMORY  1500.

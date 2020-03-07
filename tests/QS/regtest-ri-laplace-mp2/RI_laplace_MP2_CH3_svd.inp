@@ -40,19 +40,22 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD  RI_SOS_LAPLACE
-        ERI_METHOD GPW
-        &RI_LAPLACE
+        &RI_SOS_MP2
           QUADRATURE_POINTS  5 
         &END
-        &WFC_GPW
-          CUTOFF  50
-          REL_CUTOFF 20
-        &END
+        &INTEGRALS
+          ERI_METHOD GPW
+          &WFC_GPW
+            CUTOFF  50
+            REL_CUTOFF 20
+          &END WFC_GPW
+        &END INTEGRALS
         MEMORY  500.0
         NUMBER_PROC  1
-        DO_SVD
-        EPS_SVD 1.0E-2
+        &RI
+          DO_SVD
+          EPS_SVD 1.0E-2
+        &END RI
       &END
     &END XC
     UKS

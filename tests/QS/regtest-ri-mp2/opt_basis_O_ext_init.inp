@@ -49,12 +49,13 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD  OPTIMIZE_RI_BASIS
-        &OPT_RI_BASIS
-          DELTA_I_REL  1.0E-6
-          DELTA_RI     5.0E-5
-          EPS_DERIV    1.0E-2
-          MAX_ITER     100
+        &RI
+          &OPT_RI_BASIS
+            DELTA_I_REL  1.0E-6
+            DELTA_RI     5.0E-5
+            EPS_DERIV    1.0E-2
+            MAX_ITER     100
+          &END
         &END
         NUMBER_PROC  1
       &END

@@ -37,15 +37,13 @@
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
-        ERI_METHOD GPW
-        &RI_METRIC
-          POTENTIAL_TYPE IDENTITY
-        &END
-        &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
-        &END
+        &INTEGRALS
+          ERI_METHOD GPW
+          &WFC_GPW
+            CUTOFF  100
+            REL_CUTOFF 20
+          &END WFC_GPW
+        &END INTEGRALS
         &RI_RPA
           RPA_NUM_QUAD_POINTS 8
           &HF
@@ -58,8 +56,13 @@
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
-        DO_SVD
-        EPS_SVD 1.0E-2
+        &RI
+          DO_SVD
+          EPS_SVD 1.0E-2
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
+        &END RI
       &END
     &END XC
   &END DFT

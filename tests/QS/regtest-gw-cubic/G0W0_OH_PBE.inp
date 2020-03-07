@@ -44,9 +44,10 @@
         &END
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
-        &RI_METRIC
-          POTENTIAL_TYPE IDENTITY
+        &RI
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
         &END
         &LOW_SCALING
           MEMORY_CUT 1
@@ -67,7 +68,7 @@
             NUMB_POLES            2
             CROSSING_SEARCH       Z_SHOT
             FERMI_LEVEL_OFFSET    2.0E-2
-            EV_SC_ITER            1
+            EV_GW_ITER            1
           &END GW
         &END RI_RPA
         MEMORY  200.

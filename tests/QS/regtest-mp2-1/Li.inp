@@ -38,7 +38,9 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD DIRECT_CANONICAL  
+       &MP2
+          METHOD DIRECT_CANONICAL  
+       &END MP2
         MEMORY 100.
       &END
     &END XC
