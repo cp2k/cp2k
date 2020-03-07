@@ -49,10 +49,13 @@ MODULE hfx_ri
    USE iterate_matrix,                  ONLY: invert_hotelling,&
                                               matrix_sqrt_newton_schulz
    USE kinds,                           ONLY: default_string_length,&
-                                              dp
+                                              dp,&
+                                              int_8
+   USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_cart_create,&
-                                              mp_environ
+                                              mp_environ,&
+                                              mp_sync
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -931,6 +934,7 @@ CONTAINS
 
       INTEGER :: bsum, comm_2d, count, handle, handle2, i_mem, iproc, ispin, max_pdim_mo, n_mem, &
          n_mos, nproc, nproc_rem, pdim_AO, pdim_AO_, pdim_AO__, pdim_mo, tdim_mo, unit_nr_dbcsr
+      INTEGER(int_8)                                     :: nflop
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist3, mem_end, &
                                                             mem_end_block, mem_start, &
                                                             mem_start_block, mo_bsizes
@@ -938,6 +942,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: pdims_2d
       INTEGER, DIMENSION(3)                              :: pcoord, pdims, pdims_AO, pdims_RI
       LOGICAL                                            :: do_initialize
+      REAL(dp)                                           :: t1, t2
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: ks_dist
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid, pgrid_2d
@@ -973,6 +978,9 @@ CONTAINS
       CALL get_qs_env(qs_env, para_env=para_env)
 
       ALLOCATE (bounds(2, 1))
+
+      CALL mp_sync(para_env%group)
+      t1 = m_walltime()
       DO ispin = 1, nspins
          CALL dbcsr_get_info(mo_coeff(ispin), nfullcols_total=n_mos)
 
@@ -1117,7 +1125,10 @@ CONTAINS
                                   bounds_2=bounds, &
                                   filter_eps=ri_data%filter_eps_mo/2, &
                                   unit_nr=unit_nr_dbcsr, &
-                                  move_data=.FALSE.)
+                                  move_data=.FALSE., &
+                                  flop=nflop)
+
+            ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
 
             CALL timestop(handle2)
             CALL timeset(routineN//"_copy_1", handle2)
@@ -1137,7 +1148,11 @@ CONTAINS
                                   bounds_2=bounds, &
                                   filter_eps=ri_data%filter_eps_mo/2, &
                                   unit_nr=unit_nr_dbcsr, &
-                                  move_data=.FALSE.)
+                                  move_data=.FALSE., &
+                                  flop=nflop)
+
+            ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+
             CALL timestop(handle2)
             CALL timeset(routineN//"_copy_1", handle2)
             CALL dbcsr_t_copy(t_3c_int_mo_2(1, 1), ri_data%t_3c_int_mo(ispin, 1, 1), order=[2, 1, 3], &
@@ -1163,7 +1178,11 @@ CONTAINS
                                   contract_2=[1], notcontract_2=[2, 3], &
                                   map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
                                   pgrid_opt_3=pgrid_opt_RI, &
-                                  unit_nr=unit_nr_dbcsr)
+                                  unit_nr=unit_nr_dbcsr, &
+                                  flop=nflop)
+
+            ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+
             CALL timestop(handle2)
 
             CALL timeset(routineN//"_copy_2", handle2)
@@ -1185,7 +1204,11 @@ CONTAINS
                                   contract_2=[1, 2], notcontract_2=[3], &
                                   map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps/n_mem, &
                                   pgrid_opt_1=pgrid_opt_KS, &
-                                  unit_nr=unit_nr_dbcsr, move_data=.TRUE.)
+                                  unit_nr=unit_nr_dbcsr, move_data=.TRUE., &
+                                  flop=nflop)
+
+            ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+
             CALL timestop(handle2)
          ENDDO
 
@@ -1215,6 +1238,11 @@ CONTAINS
          DEALLOCATE (mem_end, mem_start)
 
       ENDDO
+
+      CALL mp_sync(para_env%group)
+      t2 = m_walltime()
+
+      ri_data%dbcsr_time = ri_data%dbcsr_time + t2 - t1
 
       CALL timestop(handle)
 
@@ -1246,20 +1274,24 @@ CONTAINS
       INTEGER                                            :: col, handle, handle2, iblk, iblk_filter, &
                                                             iblkrow, ispin, nblk, nblk_filter, &
                                                             row, row_end, row_start, unit_nr_dbcsr
+      INTEGER(int_8)                                     :: nflop
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ctr_ind, ctr_ind_tmp
       LOGICAL                                            :: found
+      REAL(dp)                                           :: t1, t2
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_t_pgrid_type), POINTER                  :: pgrid_opt
       TYPE(dbcsr_t_type)                                 :: ks_t, ks_tmp, rho_ao_t, rho_ao_tmp, &
                                                             t_3c_1, t_3c_2
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (pgrid_opt)
+      NULLIFY (pgrid_opt, para_env)
 
       ! get a useful output_unit
-
       unit_nr_dbcsr = ri_data%unit_nr_dbcsr
+
+      CALL get_qs_env(qs_env, para_env=para_env)
 
       CPASSERT(SIZE(ks_matrix, 2) == 1)
 
@@ -1289,6 +1321,8 @@ CONTAINS
       CALL dbcsr_t_create(ri_data%t_3c_int_ctr_1(1, 1), t_3c_1)
       CALL dbcsr_t_create(ri_data%t_3c_int_ctr_3(1, 1), t_3c_2)
 
+      CALL mp_sync(para_env%group)
+      t1 = m_walltime()
       DO ispin = 1, nspins
          CALL dbcsr_t_copy_matrix_to_tensor(rho_ao(ispin, 1)%matrix, rho_ao_tmp)
          CALL dbcsr_t_copy(rho_ao_tmp, rho_ao_t, move_data=.TRUE.)
@@ -1300,7 +1334,11 @@ CONTAINS
                                contract_1=[2], notcontract_1=[1], &
                                contract_2=[3], notcontract_2=[1, 2], &
                                map_1=[3], map_2=[1, 2], filter_eps=ri_data%filter_eps, &
-                               unit_nr=unit_nr_dbcsr)
+                               unit_nr=unit_nr_dbcsr, &
+                               flop=nflop)
+
+         ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+
          CALL dbcsr_t_clear(rho_ao_t)
 
          CALL timestop(handle2)
@@ -1360,7 +1398,10 @@ CONTAINS
                                map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
                                unit_nr=unit_nr_dbcsr, &
                                retain_sparsity=.TRUE., &
-                               pgrid_opt_2=pgrid_opt)
+                               pgrid_opt_2=pgrid_opt, &
+                               flop=nflop)
+
+         ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
          CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_3(1, 1))
 
          CALL dbcsr_t_filter(t_3c_2, ri_data%filter_eps)
@@ -1385,7 +1426,11 @@ CONTAINS
                                contract_2=[1, 2], notcontract_2=[3], &
                                map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
                                unit_nr=unit_nr_dbcsr, &
-                               pgrid_opt_1=pgrid_opt)
+                               pgrid_opt_1=pgrid_opt, &
+                               flop=nflop)
+
+         ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+
          CALL dbcsr_t_clear(t_3c_1)
          CALL timestop(handle2)
 
@@ -1401,6 +1446,11 @@ CONTAINS
          ENDIF
          ri_data%pgrid_1 => pgrid_opt
       ENDDO
+
+      CALL mp_sync(para_env%group)
+      t2 = m_walltime()
+
+      ri_data%dbcsr_time = ri_data%dbcsr_time + t2 - t1
 
       CALL dbcsr_t_destroy(t_3c_1)
       CALL dbcsr_t_destroy(t_3c_2)
