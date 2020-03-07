@@ -591,6 +591,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="CALC_COND_NUM", &
+         variants=(/"CALC_CONDITION_NUMBER"/), &
+         description="Calculate the condition number of integral matrices.", &
+         usage="CALC_COND_NUM", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="SQRT_ORDER", &
                           description="Order of the iteration method for the calculation of "// &
                           "the sqrt of 2-center integral matrix.", &
@@ -612,7 +623,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_LANCZOS", &
                           description="Maximum number of lanczos iterations.", &
-                          usage="MAX_ITER_LANCZOS ", default_i_val=128)
+                          usage="MAX_ITER_LANCZOS ", default_i_val=500)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

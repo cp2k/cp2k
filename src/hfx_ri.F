@@ -9,6 +9,7 @@
 
 MODULE hfx_ri
 
+   USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
@@ -338,6 +339,8 @@ CONTAINS
          starts_array_mc_block_int, starts_array_mc_int
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
       INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
+      LOGICAL                                            :: converged
+      REAL(dp)                                           :: max_ev, min_ev
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_t_type)                                 :: t_3c_tmp
@@ -472,6 +475,46 @@ CONTAINS
          ! reset interaction radii of orb basis
          CALL init_interaction_radii_orb_basis(orb_basis, dft_control%qs_control%eps_pgf_orb)
       ENDDO
+
+      IF (ri_data%calc_condnum) THEN
+         CALL arnoldi_extremal(t_2c_int_pot(1), max_ev, min_ev, threshold=ri_data%eps_lanczos, &
+                               max_iter=ri_data%max_iter_lanczos, converged=converged)
+
+         IF (.NOT. converged) THEN
+            CPWARN("Condition number estimate of (P|Q) (HFX potential) is not reliable (not converged).")
+         ENDIF
+
+         IF (ri_data%unit_nr > 0) THEN
+            WRITE (ri_data%unit_nr, '(T2,A)') "2-Norm Condition Number of (P|Q) integrals (HFX potential)"
+            IF (min_ev > 0) THEN
+               WRITE (ri_data%unit_nr, '(T4,A,ES11.3E3,T32,A,ES11.3E3,A4,ES11.3E3,T63,A,F8.4)') &
+                  "CN : max/min ev: ", max_ev, " / ", min_ev, "=", max_ev/min_ev, "Log(2-CN):", LOG10(max_ev/min_ev)
+            ELSE
+               WRITE (ri_data%unit_nr, '(T4,A,ES11.3E3,T32,A,ES11.3E3,T63,A)') &
+                  "CN : max/min ev: ", max_ev, " / ", min_ev, "Log(CN): infinity"
+            ENDIF
+         ENDIF
+
+         IF (.NOT. ri_data%same_op) THEN
+            CALL arnoldi_extremal(t_2c_int_RI(1), max_ev, min_ev, threshold=ri_data%eps_lanczos, &
+                                  max_iter=ri_data%max_iter_lanczos, converged=converged)
+
+            IF (.NOT. converged) THEN
+               CPWARN("Condition number estimate of (P|Q) matrix (RI metric) is not reliable (not converged).")
+            ENDIF
+
+            IF (ri_data%unit_nr > 0) THEN
+               WRITE (ri_data%unit_nr, '(T2,A)') "2-Norm Condition Number of (P|Q) integrals (RI metric)"
+               IF (min_ev > 0) THEN
+                  WRITE (ri_data%unit_nr, '(T4,A,ES11.3E3,T32,A,ES11.3E3,A4,ES11.3E3,T63,A,F8.4)') &
+                     "CN : max/min ev: ", max_ev, " / ", min_ev, "=", max_ev/min_ev, "Log(2-CN):", LOG10(max_ev/min_ev)
+               ELSE
+                  WRITE (ri_data%unit_nr, '(T4,A,ES11.3E3,T32,A,ES11.3E3,T63,A)') &
+                     "CN : max/min ev: ", max_ev, " / ", min_ev, "Log(CN): infinity"
+               ENDIF
+            ENDIF
+         ENDIF
+      ENDIF
 
       CALL timestop(handle)
    END SUBROUTINE
