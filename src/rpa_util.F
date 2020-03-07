@@ -915,7 +915,7 @@ CONTAINS
 
       ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
       CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q, n=dimen_RI, info_out=info_chol)
-      IF(info_chol .NE. 0) THEN 
+      IF (info_chol .NE. 0) THEN
          CALL cp_warn(__LOCATION__, &
                       "The Cholesky decomposition before inverting the RPA matrix / dielectric "// &
                       "function failed. "// &

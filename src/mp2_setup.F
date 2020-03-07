@@ -16,20 +16,10 @@ MODULE mp2_setup
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE input_constants,                 ONLY: do_eri_mme,&
-                                              do_potential_coulomb,&
-                                              do_potential_id,&
-                                              do_potential_long,&
-                                              do_potential_short,&
-                                              do_potential_truncated
    USE input_constants,                 ONLY: &
-        do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
-        do_potential_long, do_potential_short, do_potential_truncated, do_potential_tshpsc, &
-        eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, gw_read_exx, &
-        gw_skip_for_regtest, gw_two_pole_model, mp2_method_direct, mp2_method_gpw, &
-        mp2_method_none, mp2_ri_optimize_basis, numerical, ri_default, ri_mp2_laplace, &
-        ri_mp2_method_gpw, ri_rpa_g0w0_crossing_bisection, ri_rpa_g0w0_crossing_newton, &
-        ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
+        do_eri_mme, do_potential_coulomb, do_potential_id, do_potential_long, do_potential_short, &
+        do_potential_truncated, mp2_method_direct, mp2_method_gpw, mp2_method_none, &
+        mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, ri_rpa_method_gpw
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -69,12 +59,13 @@ CONTAINS
 
       INTEGER                                            :: handle, ival, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
+      LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
+                                                            do_ri_sos_mp2, do_rpa
       REAL(dp)                                           :: eps_filter_factor, rc_ang
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: eri_mme_section, gw_section, &
                                                             im_time_test_section, &
                                                             low_scaling_section, mp2_section
-      LOGICAL :: do_mp2, do_rpa, do_ri_mp2, do_ri_sos_mp2, do_opt_ri_basis
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -91,14 +82,14 @@ CONTAINS
 
       CALL section_vals_val_get(mp2_section, "MP2%_SECTION_PARAMETERS_", l_val=do_mp2)
       CALL section_vals_val_get(mp2_section, "MP2%BIG_SEND", l_val=mp2_env%direct_canonical%big_send)
-      IF(do_mp2) THEN
-        CALL check_method(mp2_env%method)
-        CALL section_vals_val_get(mp2_section, "MP2%METHOD", i_val=mp2_env%method)
+      IF (do_mp2) THEN
+         CALL check_method(mp2_env%method)
+         CALL section_vals_val_get(mp2_section, "MP2%METHOD", i_val=mp2_env%method)
       END IF
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%_SECTION_PARAMETERS_", l_val=do_rpa)
-      IF(do_rpa) THEN
-        CALL check_method(mp2_env%method)
+      IF (do_rpa) THEN
+         CALL check_method(mp2_env%method)
          mp2_env%method = ri_rpa_method_gpw
       END IF
       CALL section_vals_val_get(mp2_section, "RI_RPA%RPA_NUM_QUAD_POINTS", i_val=mp2_env%ri_rpa%rpa_num_quad_points)
@@ -234,18 +225,18 @@ CONTAINS
       ENDIF
 
       CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%_SECTION_PARAMETERS_", l_val=do_ri_sos_mp2)
-      IF(do_ri_sos_mp2) THEN
-        CALL check_method(mp2_env%method)
+      IF (do_ri_sos_mp2) THEN
+         CALL check_method(mp2_env%method)
          mp2_env%method = ri_mp2_laplace
       END IF
       CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%QUADRATURE_POINTS", i_val=mp2_env%ri_laplace%n_quadrature)
       CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%SIZE_INTEG_GROUP", i_val=mp2_env%ri_laplace%integ_group_size)
 
       CALL section_vals_val_get(mp2_section, "RI_MP2%_SECTION_PARAMETERS_", l_val=do_ri_mp2)
-      IF(do_ri_mp2) THEN 
-        CALL check_method(mp2_env%method)
-        mp2_env%method = ri_mp2_method_gpw
-     END IF
+      IF (do_ri_mp2) THEN
+         CALL check_method(mp2_env%method)
+         mp2_env%method = ri_mp2_method_gpw
+      END IF
       CALL section_vals_val_get(mp2_section, "RI_MP2%BLOCK_SIZE", i_val=mp2_env%ri_mp2%block_size)
       CALL section_vals_val_get(mp2_section, "RI_MP2%EPS_CANONICAL", r_val=mp2_env%ri_mp2%eps_canonical)
       CALL section_vals_val_get(mp2_section, "RI_MP2%FREE_HFX_BUFFER", l_val=mp2_env%ri_mp2%free_hfx_buffer)
@@ -269,9 +260,9 @@ CONTAINS
       ENDIF
 
       CALL section_vals_val_get(mp2_section, "RI%OPT_RI_BASIS%_SECTION_PARAMETERS_", l_val=do_opt_ri_basis)
-      IF(do_opt_ri_basis) THEN 
-        CALL check_method(mp2_env%method)
-        mp2_env%method = mp2_ri_optimize_basis
+      IF (do_opt_ri_basis) THEN
+         CALL check_method(mp2_env%method)
+         mp2_env%method = mp2_ri_optimize_basis
       END IF
       CALL section_vals_val_get(mp2_section, "RI%OPT_RI_BASIS%DELTA_I_REL", &
                                 r_val=mp2_env%ri_opt_param%DI_rel)
@@ -298,9 +289,9 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "INTEGRALS%SIZE_LATTICE_SUM", i_val=mp2_env%mp2_gpw%size_lattice_sum)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%EPS_FILTER", r_val=mp2_env%mp2_gpw%eps_filter)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%EPS_GRID", r_val=mp2_env%mp2_gpw%eps_grid)
-      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%CUTOFF",  r_val=mp2_env%mp2_gpw%cutoff)
-      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%REL_CUTOFF",  r_val=mp2_env%mp2_gpw%relative_cutoff)
-      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%PRINT_LEVEL",  i_val=mp2_env%mp2_gpw%print_level)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%CUTOFF", r_val=mp2_env%mp2_gpw%cutoff)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%REL_CUTOFF", r_val=mp2_env%mp2_gpw%relative_cutoff)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%PRINT_LEVEL", i_val=mp2_env%mp2_gpw%print_level)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%WFC_GPW%EPS_PGF_ORB_S", r_val=mp2_env%mp2_gpw%eps_pgf_orb_S)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%INTERACTION_POTENTIAL%POTENTIAL_TYPE", &
                                 i_val=mp2_env%potential_parameter%potential_type)
@@ -310,7 +301,6 @@ CONTAINS
                                 c_val=mp2_env%potential_parameter%filename)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%INTERACTION_POTENTIAL%OMEGA", &
                                 r_val=mp2_env%potential_parameter%omega)
-
 
       NULLIFY (mp2_env%eri_mme_param)
       ALLOCATE (mp2_env%eri_mme_param)
@@ -387,26 +377,22 @@ CONTAINS
 
    END SUBROUTINE read_mp2_section
 
+! **************************************************************************************************
+!> \brief ...
+!> \param method ...
+! **************************************************************************************************
    SUBROUTINE check_method(method)
-    INTEGER, INTENT(IN) :: method
+      INTEGER, INTENT(IN)                                :: method
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_method', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_method', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ival, unit_nr
-      INTEGER, DIMENSION(:), POINTER                     :: tmplist
-      REAL(dp)                                           :: eps_filter_factor, rc_ang
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: eri_mme_section, gw_section, &
-                                                            im_time_test_section, &
-                                                            low_scaling_section, mp2_section
-      LOGICAL :: do_mp2, do_rpa, do_ri_mp2, do_ri_sos_mp2
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
-        IF( method .NE. mp2_method_none) THEN
-            CPABORT("Please use not more than one method to compute the correlation energy.")
-        END IF
+      IF (method .NE. mp2_method_none) THEN
+         CPABORT("Please use not more than one method to compute the correlation energy.")
+      END IF
 
       CALL timestop(handle)
 

@@ -301,7 +301,7 @@
         &END
        &END HF
       &WF_CORRELATION
-        &MP2
+        &RI_MP2
         &END
         &INTEGRALS
           &WFC_GPW

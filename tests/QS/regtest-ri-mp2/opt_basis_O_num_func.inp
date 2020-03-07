@@ -49,7 +49,6 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD  OPTIMIZE_RI_BASIS
         &RI
           &OPT_RI_BASIS
             DELTA_I_REL  2.0E-6

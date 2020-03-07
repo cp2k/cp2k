@@ -1333,8 +1333,7 @@ CONTAINS
       REAL(dp)                                           :: dbcsr_time
       REAL(KIND=dp) :: a_scaling, alpha, e_axk, e_axk_corr, e_fermi, e_fermi_beta, &
          eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
-         fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, &
-         tau, tau_old
+         fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, Eigenval_last, Eigenval_last_beta, &
          Eigenval_scf, Eigenval_scf_beta, tau_tj, tau_wj, tj, trace_Qomega, vec_omega_fit_gw, &
          vec_W_gw, vec_W_gw_beta, wj

@@ -30,9 +30,9 @@ MODULE input_cp2k_mp2
         do_potential_long, do_potential_short, do_potential_truncated, do_potential_tshpsc, &
         eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, gw_read_exx, &
         gw_skip_for_regtest, gw_two_pole_model, mp2_method_direct, mp2_method_gpw, &
-        mp2_method_none, mp2_ri_optimize_basis, numerical, ri_default, ri_mp2_laplace, &
-        ri_mp2_method_gpw, ri_rpa_g0w0_crossing_bisection, ri_rpa_g0w0_crossing_newton, &
-        ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
+        mp2_method_none, numerical, ri_default, ri_rpa_g0w0_crossing_bisection, &
+        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, &
+        wfc_mm_style_syrk
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -73,32 +73,12 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="WF_CORRELATION", &
-                          description="Sets up the Wavefunction-based Correlation parameters if requested ", &
-                          n_keywords=8, n_subsections=6, repeats=.TRUE., &
+                          description="Sets up the wavefunction-based correlation methods as MP2, "// &
+                          "RI-MP2, RI-SOS-MP2, RI-RPA and GW (inside RI-RPA). ", &
+                          n_keywords=4, n_subsections=7, repeats=.TRUE., &
                           citations=(/DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016/))
 
       NULLIFY (keyword, subsection)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
-         name="METHOD", &
-         citations=(/DelBen2012, DelBen2013/), &
-         description="Which method should be used to compute the MP2 energy", &
-         usage="METHOD MP2_GPW", &
-         enum_c_vals=s2a("NONE", "DIRECT_CANONICAL", "MP2_GPW", "RI_MP2_GPW", "RI_RPA_GPW", "RI_SOS_LAPLACE", &
-                         "OPTIMIZE_RI_BASIS"), &
-         enum_i_vals=(/mp2_method_none, mp2_method_direct, mp2_method_gpw, ri_mp2_method_gpw, &
-                       ri_rpa_method_gpw, ri_mp2_laplace, mp2_ri_optimize_basis/), &
-         enum_desc=s2a("Skip MP2 calculation", &
-                       "Use the direct mp2 canonical approach", &
-                       "Use the GPW approach to MP2", &
-                       "Use the GPW approach to RI-MP2", &
-                       "Use the GPW approach to RI-RPA", &
-                       "Use the GPW approach to RI-SOS-Laplace-MP2", &
-                       "Optimize RIMP2 basis set"), &
-         default_i_val=mp2_method_direct)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
@@ -113,7 +93,7 @@ CONTAINS
          keyword, __LOCATION__, &
          name="SCALE_S", &
          description="Scaling factor of the singlet energy component (opposite spin, OS) of the "// &
-                     "MP2, RI-MP2 and SOS-MP2 correlation energy. ", &
+         "MP2, RI-MP2 and SOS-MP2 correlation energy. ", &
          usage="SCALE_S  1.0", &
          default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -123,7 +103,7 @@ CONTAINS
          keyword, __LOCATION__, &
          name="SCALE_T", &
          description="Scaling factor of the triplet energy component (same spin, SS) of the MP2 "// &
-                     "and RI-MP2 correlation energy.", &
+         "and RI-MP2 correlation energy.", &
          usage="SCALE_T  1.0", &
          default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -173,7 +153,6 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-
    END SUBROUTINE create_mp2_section
 
 ! **************************************************************************************************
@@ -217,7 +196,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      NULLIFY(print_key)
+      NULLIFY (print_key)
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MP2_INFO", &
                                        description="Controls the printing basic info about MP2 method", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
@@ -228,7 +207,7 @@ CONTAINS
          keyword, __LOCATION__, &
          name="BIG_SEND", &
          description="Influencing the direct canonical MP2 method: Send big "// &
-                     "messages between processes (useful for >48 processors).", &
+         "messages between processes (useful for >48 processors).", &
          usage="BIG_SEND", &
          default_l_val=.TRUE., &
          lone_keyword_l_val=.TRUE.)
@@ -263,7 +242,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      NULLIFY(subsection)
+      NULLIFY (subsection)
       CALL create_cphf(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -1414,7 +1393,6 @@ CONTAINS
 
    END SUBROUTINE create_mp2_potential
 
-
 ! **************************************************************************************************
 !> \brief ...
 !> \param section ...
@@ -1426,12 +1404,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, subsection
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RI", &
                           description="Parameters influencing resolution of the identity (RI) that is"// &
-                                      "used in RI-MP2, RI-RPA, RI-SOS-MP2 and GW (inside RI-RPA).", &
+                          "used in RI-MP2, RI-RPA, RI-SOS-MP2 and GW (inside RI-RPA).", &
                           n_keywords=6, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (subsection)
@@ -1506,7 +1484,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-END SUBROUTINE create_ri_section
+   END SUBROUTINE create_ri_section
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1519,12 +1497,12 @@ END SUBROUTINE create_ri_section
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, subsection
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="INTEGRALS", &
                           description="Parameters controlling how to compute integrals that are needed "// &
-                                      "in MP2, RI-MP2, RI-RPA, RI-SOS-MP2 and GW (inside RI-RPA).", &
+                          "in MP2, RI-MP2, RI-RPA, RI-SOS-MP2 and GW (inside RI-RPA).", &
                           n_keywords=2, n_subsections=3, repeats=.FALSE.)
 
       NULLIFY (subsection)
@@ -1566,7 +1544,6 @@ END SUBROUTINE create_ri_section
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_integrals_section
-
 
 ! **************************************************************************************************
 !> \brief ...

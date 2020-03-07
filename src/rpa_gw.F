@@ -4012,15 +4012,15 @@ CONTAINS
 
          IF (count_ev_sc_GW > 1) THEN
             WRITE (unit_nr, *) ' '
-            WRITE (unit_nr, '(T3,A)')    '---------------------------------------'
+            WRITE (unit_nr, '(T3,A)') '---------------------------------------'
             WRITE (unit_nr, '(T3,A,I4)') 'Eigenvalue-selfconsistency cycle: ', count_ev_sc_GW
-            WRITE (unit_nr, '(T3,A)')    '---------------------------------------'
+            WRITE (unit_nr, '(T3,A)') '---------------------------------------'
          END IF
 
          IF (count_sc_GW0 > 1) THEN
-            WRITE (unit_nr, '(T3,A)')    '----------------------------------'
+            WRITE (unit_nr, '(T3,A)') '----------------------------------'
             WRITE (unit_nr, '(T3,A,I4)') 'scGW0 selfconsistency cycle: ', count_sc_GW0
-            WRITE (unit_nr, '(T3,A)')    '----------------------------------'
+            WRITE (unit_nr, '(T3,A)') '----------------------------------'
          END IF
 
          IF (do_kpoints) THEN
@@ -5037,7 +5037,7 @@ CONTAINS
       INTEGER                                            :: handle, i_global, iiB, jjB, ncol_local, &
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp) :: stabilize_exp
+      REAL(KIND=dp)                                      :: stabilize_exp
 
       CALL timeset(routineN, handle)
 
