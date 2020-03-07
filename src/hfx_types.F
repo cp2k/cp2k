@@ -436,6 +436,11 @@ MODULE hfx_types
       ! relevant non-zero RI-AO pairs
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: nonzero_pairs
       INTEGER, DIMENSION(:), ALLOCATABLE :: nonzero_rows
+
+      INTEGER(int_8) :: dbcsr_nflop
+      REAL(dp)       :: dbcsr_time
+      INTEGER        :: num_pe
+
    END TYPE
 
 ! **************************************************************************************************
@@ -1345,8 +1350,34 @@ CONTAINS
                                [1], [2, 3], name="(AO | RI AO)")
 
       ENDIF
+
+      ri_data%dbcsr_nflop = 0
+      ri_data%dbcsr_time = 0.0_dp
+      ri_data%num_pe = para_env%num_pe
+
       CALL timestop(handle)
 
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ri_data ...
+! **************************************************************************************************
+   SUBROUTINE hfx_ri_write_stats(ri_data)
+      TYPE(hfx_ri_type), INTENT(IN)                      :: ri_data
+
+      REAL(dp)                                           :: my_flop_rate
+
+      ASSOCIATE (unit_nr=>ri_data%unit_nr, dbcsr_nflop=>ri_data%dbcsr_nflop, &
+                 dbcsr_time=>ri_data%dbcsr_time, num_pe=>ri_data%num_pe)
+         my_flop_rate = REAL(dbcsr_nflop, dp)/(1.0E09_dp*ri_data%dbcsr_time)
+         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(/T2,A,T73,ES8.2)") &
+            "RI-HFX PERFORMANCE| DBCSR total number of flops:", REAL(dbcsr_nflop*num_pe, dp)
+         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T2,A,T66,F15.2)") &
+            "RI-HFX PERFORMANCE| DBCSR total execution time:", dbcsr_time
+         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T2,A,T66,F15.2)") &
+            "RI-HFX PERFORMANCE| DBCSR flop rate (Gflops / MPI rank):", my_flop_rate
+      END ASSOCIATE
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -1362,6 +1393,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
+
+      CALL hfx_ri_write_stats(ri_data)
 
       IF (ASSOCIATED(ri_data%pgrid)) THEN
          CALL dbcsr_t_pgrid_destroy(ri_data%pgrid)
