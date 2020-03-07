@@ -63,7 +63,7 @@
             NPARAM_PADE            16
             CROSSING_SEARCH       NEWTON 
             FERMI_LEVEL_OFFSET    2.0E-2
-            EV_SC_ITER            1
+            EV_GW_ITER            1
           &END GW 
         &END RI_RPA
         MEMORY  200.

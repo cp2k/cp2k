@@ -72,7 +72,7 @@
           &GW
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
-            EV_SC_ITER            5
+            EV_GW_ITER            5
             FERMI_LEVEL_OFFSET    20.0
           &END GW
         &END RI_RPA

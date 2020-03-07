@@ -659,10 +659,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EV_SC_ITER", &
+      CALL keyword_create(keyword, __LOCATION__, name="EV_GW_ITER", &
                           description="Maximum number of iterations for eigenvalue self-consistency cycle. The "// &
                           "computational effort of GW scales linearly with this number. ", &
-                          usage="EV_SC_ITER 3", &
+                          usage="EV_GW_ITER 3", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1566,19 +1566,19 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="POTENTIAL_TYPE", &
-         description="Which interaction potential should be used "// &
-         "(Coulomb, longrange or shortrange).", &
-         usage="POTENTIAL_TYPE SHORTRANGE", &
+         description="Decides which operator/metric is used for resolution of the identity (RI).", &
+         usage="POTENTIAL_TYPE DEFAULT", &
          enum_c_vals=s2a("DEFAULT", "COULOMB", "IDENTITY", "LONGRANGE", "SHORTRANGE", "TRUNCATED"), &
          enum_i_vals=(/ri_default, do_potential_coulomb, do_potential_id, do_potential_long, &
                        do_potential_short, do_potential_truncated/), &
-         enum_desc=s2a("Use overlap metric for cubic scaling methods and Coulomb metric for higher scaling methods.", &
-                       "Coulomb metric: 1/r", &
-                       "Overlap metric, recommended in combination with imaginary time for O(N^3) RPA.", &
-                       "Use longrange metric: erf(omega*r)/r. Not recommended with DO_SVD .TRUE.", &
-                       "Use shortrange metric: erfc(omega*r)/r", &
-                       "Use truncated Coulomb metric: if (r &lt; R_c) 1/r else 0. May be a more "// &
-                       "accurate alternative to IDENTITY in combination with imaginary time."), &
+         enum_desc=s2a("Use Coulomb metric for RI-MP2 and normal-scaling RI-SOS-MP2, RI-RPA and GW. "// &
+                       "Use truncated metric for low-scaling RI-SOS-MP2, RI-RPA and GW.", &
+                       "Coulomb metric: 1/r. Recommended for RI-MP2,", &
+                       "Overlap metric: delta(r).", &
+                       "Longrange metric: erf(omega*r)/r. Not recommended with DO_SVD .TRUE.", &
+                       "Shortrange metric: erfc(omega*r)/r", &
+                       "Truncated Coulomb metric: if (r &lt; R_c) 1/r else 0. More "// &
+                       "accurate than IDENTITY. Recommended for low-scaling methods."), &
          default_i_val=ri_default)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1595,8 +1595,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
                           description="The cutoff radius (in Angstrom) for the truncated Coulomb operator.", &
-                          usage="CUTOFF_RADIUS 10.0", default_r_val=0.0_dp, type_of_var=real_t, &
-                          unit_str="angstrom")
+                          usage="CUTOFF_RADIUS 3.0", default_r_val=cp_unit_to_cp2k(value=3.0_dp, unit_str="angstrom"), &
+                          type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

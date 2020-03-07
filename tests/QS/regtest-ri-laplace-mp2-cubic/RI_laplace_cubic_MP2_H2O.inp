@@ -55,6 +55,11 @@
             REL_CUTOFF 20
           &END WFC_GPW
         &END INTEGRALS
+        &RI
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
+        &END RI
         MEMORY  200.
         NUMBER_PROC  1
       &END

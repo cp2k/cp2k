@@ -58,7 +58,8 @@ MODULE mp2_gpw
                                               release_group_dist
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
-        do_potential_long, eri_default, mp2_method_gpw, ri_default, ri_mp2_method_gpw
+        do_potential_long, do_potential_truncated, eri_default, mp2_method_gpw, ri_default, &
+        ri_mp2_method_gpw
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
@@ -292,7 +293,7 @@ CONTAINS
             END ASSOCIATE
          ENDIF
 
-         IF (mp2_env%ri_metric%potential_type == ri_default) mp2_env%ri_metric%potential_type = do_potential_id
+         IF (mp2_env%ri_metric%potential_type == ri_default) mp2_env%ri_metric%potential_type = do_potential_truncated
 
          ! statically initialize libint
          CALL cp_libint_static_init()

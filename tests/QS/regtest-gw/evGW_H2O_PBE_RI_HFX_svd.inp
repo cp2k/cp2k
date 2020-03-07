@@ -63,7 +63,7 @@
             NUMB_POLES            2
             CROSSING_SEARCH       Z_SHOT 
             FERMI_LEVEL_OFFSET    2.0E-2
-            EV_SC_ITER            3
+            EV_GW_ITER            3
             RI_SIGMA_X
           &END GW 
         &END RI_RPA
