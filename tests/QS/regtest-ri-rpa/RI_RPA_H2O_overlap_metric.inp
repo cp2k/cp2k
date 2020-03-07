@@ -37,7 +37,6 @@
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
         &RI
           &RI_METRIC
             POTENTIAL_TYPE IDENTITY

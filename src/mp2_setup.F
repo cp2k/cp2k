@@ -22,6 +22,14 @@ MODULE mp2_setup
                                               do_potential_long,&
                                               do_potential_short,&
                                               do_potential_truncated
+   USE input_constants,                 ONLY: &
+        do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
+        do_potential_long, do_potential_short, do_potential_truncated, do_potential_tshpsc, &
+        eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, gw_read_exx, &
+        gw_skip_for_regtest, gw_two_pole_model, mp2_method_direct, mp2_method_gpw, &
+        mp2_method_none, mp2_ri_optimize_basis, numerical, ri_default, ri_mp2_laplace, &
+        ri_mp2_method_gpw, ri_rpa_g0w0_crossing_bisection, ri_rpa_g0w0_crossing_newton, &
+        ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -66,15 +74,16 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: eri_mme_section, gw_section, &
                                                             im_time_test_section, &
                                                             low_scaling_section, mp2_section
-      LOGICAL :: do_mp2
+      LOGICAL :: do_mp2, do_rpa, do_ri_mp2, do_ri_sos_mp2, do_opt_ri_basis
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
 
       mp2_section => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION")
 
+      mp2_env%method = mp2_method_none
+
       ! should come from input
-      CALL section_vals_val_get(mp2_section, "METHOD", i_val=mp2_env%method)
       CALL section_vals_val_get(mp2_section, "MEMORY", r_val=mp2_env%mp2_memory)
       CALL section_vals_val_get(mp2_section, "SCALE_S", r_val=mp2_env%scale_S)
       CALL section_vals_val_get(mp2_section, "SCALE_T", r_val=mp2_env%scale_T)
@@ -82,26 +91,26 @@ CONTAINS
 
       CALL section_vals_val_get(mp2_section, "MP2%_SECTION_PARAMETERS_", l_val=do_mp2)
       CALL section_vals_val_get(mp2_section, "MP2%BIG_SEND", l_val=mp2_env%direct_canonical%big_send)
-      IF(do_mp2) CALL section_vals_val_get(mp2_section, "MP2%METHOD", i_val=mp2_env%method)
+      IF(do_mp2) THEN
+        CALL check_method(mp2_env%method)
+        CALL section_vals_val_get(mp2_section, "MP2%METHOD", i_val=mp2_env%method)
+      END IF
 
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RPA_NUM_QUAD_POINTS", &
-                                i_val=mp2_env%ri_rpa%rpa_num_quad_points)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%SIZE_FREQ_INTEG_GROUP", &
-                                i_val=mp2_env%ri_rpa%rpa_integ_group_size)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%MM_STYLE", &
-                                i_val=mp2_env%ri_rpa%mm_style)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%MINIMAX_QUADRATURE", &
-                                l_val=mp2_env%ri_rpa%minimax_quad)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%ADMM", &
-                                l_val=mp2_env%ri_rpa%do_admm)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%SCALE_RPA", &
-                                r_val=mp2_env%ri_rpa%scale_rpa)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%_SECTION_PARAMETERS_", l_val=do_rpa)
+      IF(do_rpa) THEN
+        CALL check_method(mp2_env%method)
+         mp2_env%method = ri_rpa_method_gpw
+      END IF
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RPA_NUM_QUAD_POINTS", i_val=mp2_env%ri_rpa%rpa_num_quad_points)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%SIZE_FREQ_INTEG_GROUP", i_val=mp2_env%ri_rpa%rpa_integ_group_size)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%MM_STYLE", i_val=mp2_env%ri_rpa%mm_style)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%MINIMAX_QUADRATURE", l_val=mp2_env%ri_rpa%minimax_quad)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%ADMM", l_val=mp2_env%ri_rpa%do_admm)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%SCALE_RPA", r_val=mp2_env%ri_rpa%scale_rpa)
 
-      CALL section_vals_val_get(mp2_section, "RI_RPA%AXK", &
-                                l_val=mp2_env%ri_rpa%do_ri_axk)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%AXK", l_val=mp2_env%ri_rpa%do_ri_axk)
 
-      CALL section_vals_val_get(mp2_section, "RI_RPA%RSE", &
-                                l_val=mp2_env%ri_rpa%do_rse)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%RSE", l_val=mp2_env%ri_rpa%do_rse)
 
       NULLIFY (gw_section)
       gw_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%GW")
@@ -224,22 +233,25 @@ CONTAINS
                                    i_val=mp2_env%ri_rpa_im_time%group_size_P)
       ENDIF
 
-      CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%QUADRATURE_POINTS", &
-                                i_val=mp2_env%ri_laplace%n_quadrature)
-      CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%SIZE_INTEG_GROUP", &
-                                i_val=mp2_env%ri_laplace%integ_group_size)
+      CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%_SECTION_PARAMETERS_", l_val=do_ri_sos_mp2)
+      IF(do_ri_sos_mp2) THEN
+        CALL check_method(mp2_env%method)
+         mp2_env%method = ri_mp2_laplace
+      END IF
+      CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%QUADRATURE_POINTS", i_val=mp2_env%ri_laplace%n_quadrature)
+      CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%SIZE_INTEG_GROUP", i_val=mp2_env%ri_laplace%integ_group_size)
 
-      CALL section_vals_val_get(mp2_section, "RI_MP2%BLOCK_SIZE", &
-                                i_val=mp2_env%ri_mp2%block_size)
-      CALL section_vals_val_get(mp2_section, "RI_MP2%EPS_CANONICAL", &
-                                r_val=mp2_env%ri_mp2%eps_canonical)
-      CALL section_vals_val_get(mp2_section, "RI_MP2%FREE_HFX_BUFFER", &
-                                l_val=mp2_env%ri_mp2%free_hfx_buffer)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%_SECTION_PARAMETERS_", l_val=do_ri_mp2)
+      IF(do_ri_mp2) THEN 
+        CALL check_method(mp2_env%method)
+        mp2_env%method = ri_mp2_method_gpw
+     END IF
+      CALL section_vals_val_get(mp2_section, "RI_MP2%BLOCK_SIZE", i_val=mp2_env%ri_mp2%block_size)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%EPS_CANONICAL", r_val=mp2_env%ri_mp2%eps_canonical)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%FREE_HFX_BUFFER", l_val=mp2_env%ri_mp2%free_hfx_buffer)
 
-      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%MAX_ITER", &
-                                i_val=mp2_env%ri_grad%cphf_max_num_iter)
-      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%EPS_CONV", &
-                                r_val=mp2_env%ri_grad%cphf_eps_conv)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%MAX_ITER", i_val=mp2_env%ri_grad%cphf_max_num_iter)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%EPS_CONV", r_val=mp2_env%ri_grad%cphf_eps_conv)
 
       CALL section_vals_val_get(mp2_section, "RI%ROW_BLOCK", i_val=mp2_env%block_size_row)
       CALL section_vals_val_get(mp2_section, "RI%COL_BLOCK", i_val=mp2_env%block_size_col)
@@ -255,6 +267,12 @@ CONTAINS
       IF (mp2_env%ri_metric%potential_type == do_potential_short) THEN
          CALL erfc_cutoff(mp2_env%eps_range, mp2_env%ri_metric%omega, mp2_env%ri_metric%cutoff_radius)
       ENDIF
+
+      CALL section_vals_val_get(mp2_section, "RI%OPT_RI_BASIS%_SECTION_PARAMETERS_", l_val=do_opt_ri_basis)
+      IF(do_opt_ri_basis) THEN 
+        CALL check_method(mp2_env%method)
+        mp2_env%method = mp2_ri_optimize_basis
+      END IF
       CALL section_vals_val_get(mp2_section, "RI%OPT_RI_BASIS%DELTA_I_REL", &
                                 r_val=mp2_env%ri_opt_param%DI_rel)
       CALL section_vals_val_get(mp2_section, "RI%OPT_RI_BASIS%DELTA_RI", &
@@ -369,4 +387,28 @@ CONTAINS
 
    END SUBROUTINE read_mp2_section
 
+   SUBROUTINE check_method(method)
+    INTEGER, INTENT(IN) :: method
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_method', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ival, unit_nr
+      INTEGER, DIMENSION(:), POINTER                     :: tmplist
+      REAL(dp)                                           :: eps_filter_factor, rc_ang
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: eri_mme_section, gw_section, &
+                                                            im_time_test_section, &
+                                                            low_scaling_section, mp2_section
+      LOGICAL :: do_mp2, do_rpa, do_ri_mp2, do_ri_sos_mp2
+
+      CALL timeset(routineN, handle)
+
+        IF( method .NE. mp2_method_none) THEN
+            CPABORT("Please use not more than one method to compute the correlation energy.")
+        END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE check_method
 END MODULE mp2_setup

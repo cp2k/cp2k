@@ -40,7 +40,6 @@
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
         &INTEGRALS
           ERI_METHOD GPW
           &WFC_GPW

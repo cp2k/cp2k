@@ -251,16 +251,23 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RI_MP2", &
-                          description="Parameters influencing the RI MP2 method", &
+                          description="Parameters influencing the RI-MP2 method. RI-MP2 supports gradients.", &
                           n_keywords=3, n_subsections=1, repeats=.FALSE., &
                           citations=(/DelBen2013/))
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Putting the &RI_MP2 section activates RI-MP2 calculation.", &
+                          usage="&RI_MP2 .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       NULLIFY(subsection)
       CALL create_cphf(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="BLOCK_SIZE", &
                           variants=(/"MESSAGE_SIZE"/), &
                           description="Determines the blocking used for communication in RI-MP2. Larger BLOCK_SIZE "// &
@@ -313,8 +320,13 @@ CONTAINS
                           "An initial RI auxiliary basis has to be specified.", &
                           n_keywords=6, n_subsections=0, repeats=.FALSE., &
                           citations=(/DelBen2013/))
-
       NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Putting the &OPT_RI_BASIS section activates optimization of RI basis.", &
+                          usage="&OPT_RI_BASIS .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DELTA_I_REL", &
                           variants=(/"DI_REL"/), &
@@ -394,6 +406,12 @@ CONTAINS
                           citations=(/DelBen2013/))
 
       NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Putting the &RI_SOS_MP2 section activates RI-SOS-MP2 calculation.", &
+                          usage="&RI_SOS_MP2 .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="QUADRATURE_POINTS", &
@@ -432,11 +450,17 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RI_RPA", &
-                          description="Parameters influencing the RI RPA method", &
+                          description="Parameters influencing RI-RPA and GW.", &
                           n_keywords=8, n_subsections=4, repeats=.FALSE., &
                           citations=(/DelBen2013, DelBen2015/))
 
       NULLIFY (keyword, subsection)
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Putting the &RI_RPA section activates RI-RPA calculation.", &
+                          usage="&RI_RPA .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="QUADRATURE_POINTS", &
                           variants=(/"RPA_NUM_QUAD_POINTS"/), &
@@ -1074,7 +1098,6 @@ CONTAINS
          n_keywords=12, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Activates cubic-scaling RPA, GW and Laplace-SOS-MP2 calculations.", &
                           usage="&LOW_SCALING .TRUE.", &

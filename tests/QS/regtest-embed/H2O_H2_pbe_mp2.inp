@@ -301,7 +301,8 @@
         &END
        &END HF
       &WF_CORRELATION
-        METHOD  RI_MP2_GPW
+        &MP2
+        &END
         &INTEGRALS
           &WFC_GPW
             CUTOFF  100

@@ -49,7 +49,8 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD  RI_MP2_GPW
+        &RI_MP2
+        &END RI_MP2
         &INTEGRALS
           &INTERACTION_POTENTIAL
             POTENTIAL_TYPE LONGRANGE

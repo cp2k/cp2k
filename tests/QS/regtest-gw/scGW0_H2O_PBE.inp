@@ -41,7 +41,6 @@
         &END
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
         &INTEGRALS
         &WFC_GPW
           CUTOFF  100
