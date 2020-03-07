@@ -36,7 +36,9 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD MP2_GPW  
+       &MP2
+          METHOD  MP2_GPW  
+       &END MP2
         MEMORY 100.
         &INTEGRALS
           &WFC_GPW

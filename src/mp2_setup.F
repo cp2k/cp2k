@@ -66,6 +66,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: eri_mme_section, gw_section, &
                                                             im_time_test_section, &
                                                             low_scaling_section, mp2_section
+      LOGICAL :: do_mp2
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -78,7 +79,10 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "SCALE_S", r_val=mp2_env%scale_S)
       CALL section_vals_val_get(mp2_section, "SCALE_T", r_val=mp2_env%scale_T)
       CALL section_vals_val_get(mp2_section, "GROUP_SIZE", i_val=mp2_env%mp2_num_proc)
-      CALL section_vals_val_get(mp2_section, "DIRECT_CANONICAL%BIG_SEND", l_val=mp2_env%direct_canonical%big_send)
+
+      CALL section_vals_val_get(mp2_section, "MP2%_SECTION_PARAMETERS_", l_val=do_mp2)
+      CALL section_vals_val_get(mp2_section, "MP2%BIG_SEND", l_val=mp2_env%direct_canonical%big_send)
+      IF(do_mp2) CALL section_vals_val_get(mp2_section, "MP2%METHOD", i_val=mp2_env%method)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%RPA_NUM_QUAD_POINTS", &
                                 i_val=mp2_env%ri_rpa%rpa_num_quad_points)

@@ -47,7 +47,9 @@
                 &END
             &END HF
             &WF_CORRELATION
+       &MP2
                 METHOD  RI_MP2_GPW
+       &END MP2
                 &RI_MP2
                     BLOCK_SIZE  1
                     EPS_CANONICAL 0.0001

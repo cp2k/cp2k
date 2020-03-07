@@ -43,7 +43,9 @@
                 &END SCREENING
             &END HF
             &WF_CORRELATION
-                METHOD  RI_MP2_GPW
+                &MP2
+                  METHOD  RI_MP2_GPW
+                &END MP2
                 &INTEGRALS
                   &WFC_GPW
                     CUTOFF  300

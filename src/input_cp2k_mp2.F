@@ -69,7 +69,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, subsection
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="WF_CORRELATION", &
@@ -77,7 +77,7 @@ CONTAINS
                           n_keywords=8, n_subsections=6, repeats=.TRUE., &
                           citations=(/DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016/))
 
-      NULLIFY (keyword, print_key, subsection)
+      NULLIFY (keyword, subsection)
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
@@ -143,14 +143,8 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "MP2_INFO", &
-                                       description="Controls the printing basic info about MP2 method", &
-                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
-      CALL section_add_subsection(section, print_key)
-      CALL section_release(print_key)
-
       NULLIFY (subsection)
-      CALL create_mp2_direct(subsection)
+      CALL create_mp2_details_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -190,32 +184,64 @@ CONTAINS
 !> \brief ...
 !> \param section ...
 ! **************************************************************************************************
-   SUBROUTINE create_mp2_direct(section)
+   SUBROUTINE create_mp2_details_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_mp2_direct', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_mp2_details_section', &
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key
+
+      PRINT *, 'YOU ENTER HERE'
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="DIRECT_CANONICAL", &
-                          description="Parameters influencing the direct canonical method", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+      CALL section_create(section, __LOCATION__, name="MP2", &
+                          description="Parameters influencing MP2 (non-RI).", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Activates MP2 calculations.", &
+                          usage="&MP2 .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="METHOD", &
+         citations=(/DelBen2012, DelBen2013/), &
+         description="Method that is used to compute the MP2 energy.", &
+         usage="METHOD MP2_GPW", &
+         enum_c_vals=s2a("NONE", "DIRECT_CANONICAL", "MP2_GPW"), &
+         enum_i_vals=(/mp2_method_none, mp2_method_direct, mp2_method_gpw/), &
+         enum_desc=s2a("Skip MP2 calculation.", &
+                       "Use the direct mp2 canonical approach.", &
+                       "Use the GPW approach to MP2."), &
+         default_i_val=mp2_method_direct)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY(print_key)
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MP2_INFO", &
+                                       description="Controls the printing basic info about MP2 method", &
+                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="BIG_SEND", &
-         description="Send big messages between processes (useful for >48 processors).", &
+         description="Influencing the direct canonical MP2 method: Send big "// &
+                     "messages between processes (useful for >48 processors).", &
          usage="BIG_SEND", &
          default_l_val=.TRUE., &
          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE create_mp2_direct
+   END SUBROUTINE create_mp2_details_section
 
 ! **************************************************************************************************
 !> \brief ...

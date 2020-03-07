@@ -39,17 +39,15 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD  MP2_GPW
+        &MP2
+          METHOD  MP2_GPW
+        &END MP2
         &INTEGRALS
-        &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
-        &END WFC_GPW
+          &WFC_GPW
+            CUTOFF  100
+            REL_CUTOFF 20
+          &END WFC_GPW
         &END INTEGRALS
-      !  METHOD DIRECT_CANONICAL
-      !  &DIRECT_CANONICAL
-      !    BIG_SEND
-      !  &END
         MEMORY  1000.
         NUMBER_PROC  1
       &END

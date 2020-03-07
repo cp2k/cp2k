@@ -41,7 +41,9 @@
         &END
       &END HF
       &WF_CORRELATION
-        METHOD MP2_GPW  
+       &MP2
+          METHOD  MP2_GPW  
+       &END MP2
         MEMORY 1000.
         &INTEGRALS
         &WFC_GPW
