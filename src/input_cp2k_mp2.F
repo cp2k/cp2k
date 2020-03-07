@@ -165,10 +165,6 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_cphf(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
       CALL create_ri_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -251,15 +247,20 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_mp2', routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RI_MP2", &
                           description="Parameters influencing the RI MP2 method", &
-                          n_keywords=3, n_subsections=0, repeats=.FALSE., &
+                          n_keywords=3, n_subsections=1, repeats=.FALSE., &
                           citations=(/DelBen2013/))
 
-      NULLIFY (keyword)
+      NULLIFY(subsection)
+      CALL create_cphf(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
+      NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="BLOCK_SIZE", &
                           variants=(/"MESSAGE_SIZE"/), &
                           description="Determines the blocking used for communication in RI-MP2. Larger BLOCK_SIZE "// &

@@ -52,10 +52,10 @@
                     BLOCK_SIZE  1
                     EPS_CANONICAL 0.0001
                     FREE_HFX_BUFFER .TRUE.
-                &END
-                &CPHF
-                    EPS_CONV  1.0E-4
-                    MAX_ITER  10
+                    &CPHF
+                        EPS_CONV  1.0E-4
+                        MAX_ITER  10
+                    &END
                 &END
                 &INTEGRALS
                   &WFC_GPW
