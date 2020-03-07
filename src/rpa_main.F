@@ -297,21 +297,24 @@ CONTAINS
 
          IF (my_do_gw .AND. do_minimax_quad) THEN
             IF (.NOT. ANY(num_integ_points == (/26, 28, 30, 32, 34/))) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "Please use NUM_INTEG_POINTS 26, 28, 30, 32, or 34 for low-scaling GW to "// &
-                            "achieve good accuracy.")
+               IF (unit_nr > 0) &
+                  CALL cp_warn(__LOCATION__, &
+                               "Please use NUM_INTEG_POINTS 26, 28, 30, 32, or 34 for low-scaling GW to "// &
+                               "achieve good accuracy.")
             END IF
             IF (num_integ_points > 34) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "The required number of quadrature point exceeds the maximum possible in the "// &
-                            "Minimax quadrature scheme. The number of quadrature point has been reset to 30.")
+               IF (unit_nr > 0) &
+                  CALL cp_warn(__LOCATION__, &
+                               "The required number of quadrature point exceeds the maximum possible in the "// &
+                               "Minimax quadrature scheme. The number of quadrature point has been reset to 30.")
                num_integ_points = 30
             END IF
          ELSE
             IF (do_minimax_quad .AND. num_integ_points > 20) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "The required number of quadrature point exceeds the maximum possible in the "// &
-                            "Minimax quadrature scheme. The number of quadrature point has been reset to 20.")
+               IF (unit_nr > 0) &
+                  CALL cp_warn(__LOCATION__, &
+                               "The required number of quadrature point exceeds the maximum possible in the "// &
+                               "Minimax quadrature scheme. The number of quadrature point has been reset to 20.")
                num_integ_points = 20
             END IF
          END IF
