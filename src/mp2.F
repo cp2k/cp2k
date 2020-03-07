@@ -10,8 +10,6 @@
 !> \author Mauro Del Ben
 ! **************************************************************************************************
 MODULE mp2
-   USE scf_control_types,               ONLY: scf_control_type
-   USE cp_fm_diag,                      ONLY: cp_fm_power
    USE admm_methods,                    ONLY: admm_mo_merge_ks_matrix
    USE admm_types,                      ONLY: admm_type
    USE admm_utils,                      ONLY: admm_correct_for_eigenvalues,&
@@ -39,6 +37,7 @@ MODULE mp2
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+   USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -65,8 +64,8 @@ MODULE mp2
         hfx_container_type, hfx_create_basis_types, hfx_init_container, hfx_release_basis_types, &
         hfx_type
    USE input_constants,                 ONLY: &
-        cholesky_inverse, do_admm_basis_projection, do_admm_purify_none, do_eri_gpw, do_eri_mme, &
-        do_potential_TShPSC, gw_print_exx, gw_read_exx, hfx_do_eval_energy, xc_none, cholesky_off
+        cholesky_inverse, cholesky_off, do_admm_basis_projection, do_admm_purify_none, do_eri_gpw, &
+        do_eri_mme, do_potential_TShPSC, gw_print_exx, gw_read_exx, hfx_do_eval_energy, xc_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -120,8 +119,10 @@ MODULE mp2
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_scf_methods,                  ONLY: eigensolver
+   USE qs_scf_methods,                  ONLY: eigensolver,&
+                                              eigensolver_symm
    USE qs_scf_types,                    ONLY: qs_scf_env_type
+   USE scf_control_types,               ONLY: scf_control_type
    USE virial_types,                    ONLY: virial_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -151,9 +152,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'mp2_main', routineP = moduleN//':'//routineN
 
       INTEGER :: bin, cholesky_method, dimen, handle, handle2, i, i_thread, iatom, ikind, irep, &
-         ispin, max_nset, my_bin_size, n_rep_hf, n_threads, nao, natom, ncol_block, nelec_alpha, &
-         nelec_beta, nelectron, nfullcols_total, nfullrows_total, nkind, nrow_block, nspins, &
-         unit_nr, ndep
+         ispin, max_nset, my_bin_size, n_rep_hf, n_threads, nao, natom, ncol_block, ndep, &
+         nelec_alpha, nelec_beta, nelectron, nfullcols_total, nfullrows_total, nkind, nrow_block, &
+         nspins, unit_nr
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       LOGICAL :: calc_ex, do_admm, do_admm_rpa_exx, do_dynamic_load_balancing, do_exx, do_gw, &
@@ -189,9 +190,9 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_matrix_pools_type), POINTER                :: my_mpools
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
       TYPE(virial_type), POINTER                         :: virial
-      TYPE(scf_control_type), POINTER                    :: scf_control
 
       ! If SCF has not converged we should abort MP2 calculation
       IF (qs_env%mp2_env%hf_fail) THEN
@@ -359,11 +360,13 @@ CONTAINS
       CALL cp_fm_get_info(matrix=fm_matrix_ks, nrow_block=nrow_block, ncol_block=ncol_block)
 
       IF (scf_env%cholesky_method == cholesky_off) THEN
-        CALL cp_fm_power(scf_env%ortho, scf_env%scf_work2, -0.5_dp, scf_control%eps_eigval, ndep)
+         CALL cp_fm_power(fm_matrix_s, fm_matrix_work, -0.5_dp, scf_control%eps_eigval, ndep)
+         cholesky_method = cholesky_off
       ELSE
-        ! calculate S^(-1/2) (cholesky decomposition)
-        CALL cp_fm_cholesky_decompose(fm_matrix_s)
-        CALL cp_fm_triangular_invert(fm_matrix_s)
+         ! calculate S^(-1/2) (cholesky decomposition)
+         CALL cp_fm_cholesky_decompose(fm_matrix_s)
+         CALL cp_fm_triangular_invert(fm_matrix_s)
+         cholesky_method = cholesky_inverse
       END IF
 
       NULLIFY (mos_mp2)
@@ -405,17 +408,33 @@ CONTAINS
                           fm_pool=my_mpools%ao_mo_fm_pools(ispin)%pool, &
                           name="mp2_mos")
 
-         ! diagonalize KS matrix
-         cholesky_method = cholesky_inverse
-         CALL eigensolver(matrix_ks_fm=fm_matrix_ks, &
-                          mo_set=mos_mp2(ispin)%mo_set, &
-                          ortho=fm_matrix_s, &
-                          work=fm_matrix_work, &
-                          cholesky_method=cholesky_method, &
-                          do_level_shift=.FALSE., &
-                          level_shift=0.0_dp, &
-                          matrix_u_fm=null(), &
-                          use_jacobi=.FALSE.)
+         IF (cholesky_method == cholesky_inverse) THEN
+
+            ! diagonalize KS matrix
+            CALL eigensolver(matrix_ks_fm=fm_matrix_ks, &
+                             mo_set=mos_mp2(ispin)%mo_set, &
+                             ortho=fm_matrix_s, &
+                             work=fm_matrix_work, &
+                             cholesky_method=cholesky_method, &
+                             do_level_shift=.FALSE., &
+                             level_shift=0.0_dp, &
+                             matrix_u_fm=null(), &
+                             use_jacobi=.FALSE.)
+
+         ELSE IF (cholesky_method == cholesky_off) THEN
+
+            CALL eigensolver_symm(matrix_ks_fm=fm_matrix_ks, &
+                                  mo_set=mos_mp2(ispin)%mo_set, &
+                                  ortho=fm_matrix_s, &
+                                  work=fm_matrix_work, &
+                                  do_level_shift=.FALSE., &
+                                  level_shift=0.0_dp, &
+                                  matrix_u_fm=null(), &
+                                  use_jacobi=.FALSE., &
+                                  jacobi_threshold=scf_control%diagonalization%jacobi_threshold)
+
+         END IF
+
       END DO
 
       CALL cp_fm_release(fm_matrix_s)
