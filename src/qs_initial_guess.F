@@ -244,7 +244,12 @@ CONTAINS
       do_std_diag = .FALSE.
 
       do_hfx_ri_mo = .FALSE.
-      IF (ASSOCIATED(x_data)) do_hfx_ri_mo = x_data(1, 1)%do_hfx_ri .AND. x_data(1, 1)%ri_data%flavor == ri_mo
+      IF (ASSOCIATED(x_data)) THEN
+         IF (x_data(1, 1)%do_hfx_ri) THEN
+            IF (x_data(1, 1)%ri_data%flavor == ri_mo) do_hfx_ri_mo = .TRUE.
+         ENDIF
+      ENDIF
+
       IF (ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
 
       need_mos = scf_control%use_ot .OR. scf_env%method == ot_diag_method_nr .OR. &
