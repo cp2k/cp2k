@@ -36,13 +36,17 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD DIRECT_CANONICAL  
+       &MP2
+          METHOD DIRECT_CANONICAL  
+       &END MP2
         MEMORY 1000.
-        &INTERACTION_POTENTIAL
-           POTENTIAL_TYPE TShPSC
-           TRUNCATION_RADIUS [angstrom] 3.0
-           TShPSC_DATA t_sh_p_s_c.dat
-        &END
+        &INTEGRALS
+          &INTERACTION_POTENTIAL
+            POTENTIAL_TYPE TShPSC
+            TRUNCATION_RADIUS [angstrom] 3.0
+            TShPSC_DATA t_sh_p_s_c.dat
+          &END
+        &END INTEGRALS
       &END
     &END XC
   &END DFT

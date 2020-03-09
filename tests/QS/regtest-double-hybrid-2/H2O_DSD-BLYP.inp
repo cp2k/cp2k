@@ -48,13 +48,8 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-      ! METHOD  MP2_GPW
-      ! &MP2_GPW
-      !   CUTOFF  300
-      !   REL_CUTOFF 50
-      ! &END
-        METHOD DIRECT_CANONICAL
-        &DIRECT_CANONICAL
+        &MP2
+          METHOD DIRECT_CANONICAL
           BIG_SEND
         &END
         SCALE_T  0.37

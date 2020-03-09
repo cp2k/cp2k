@@ -301,11 +301,14 @@
         &END
        &END HF
       &WF_CORRELATION
-        METHOD  RI_MP2_GPW
-        &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
+        &RI_MP2
         &END
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF  100
+            REL_CUTOFF 20
+          &END WFC_GPW
+        &END INTEGRALS
         MEMORY  200.
         NUMBER_PROC  1
       &END

@@ -40,16 +40,18 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        METHOD  RI_MP2_GPW
-        &WFC_GPW
-          CUTOFF  50
-          REL_CUTOFF 20
-          EPS_FILTER 1.0E-6
-          EPS_GRID 1.0E-6
-        &END
+        &RI_MP2
+        &END RI_MP2
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF  50
+            REL_CUTOFF 20
+            EPS_FILTER 1.0E-6
+            EPS_GRID 1.0E-6
+          &END WFC_GPW
+        &END INTEGRALS
         MEMORY  500.0
         NUMBER_PROC  1
-        CALC_COND_NUM
       &END
     &END XC
     UKS

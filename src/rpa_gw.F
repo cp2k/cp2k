@@ -1170,7 +1170,6 @@ CONTAINS
 !> \param e_fermi ...
 !> \param eps_filter ...
 !> \param fermi_level_offset ...
-!> \param stabilize_exp ...
 !> \param delta_corr ...
 !> \param Eigenval ...
 !> \param Eigenval_last ...
@@ -1230,7 +1229,7 @@ CONTAINS
                                   num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
                                   do_periodic, do_ri_Sigma_x, &
                                   first_cycle_periodic_correction, e_fermi, eps_filter, &
-                                  fermi_level_offset, stabilize_exp, delta_corr, Eigenval, &
+                                  fermi_level_offset, delta_corr, Eigenval, &
                                   Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, &
                                   vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
                                   weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
@@ -1256,8 +1255,7 @@ CONTAINS
                                                             do_periodic, do_ri_Sigma_x
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
       REAL(KIND=dp), INTENT(INOUT)                       :: e_fermi
-      REAL(KIND=dp), INTENT(IN)                          :: eps_filter, fermi_level_offset, &
-                                                            stabilize_exp
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter, fermi_level_offset
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
@@ -1345,7 +1343,7 @@ CONTAINS
                                               gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                               count_ev_sc_GW, &
                                               t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                              mat_W, mat_SinvVSinv, mat_dm, stabilize_exp, &
+                                              mat_W, mat_SinvVSinv, mat_dm, &
                                               weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw, &
                                               do_periodic, num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                               mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
@@ -1362,7 +1360,7 @@ CONTAINS
                                                  gw_corr_lev_tot, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
                                                  count_ev_sc_GW, &
                                                  t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
-                                                 mat_W, mat_SinvVSinv, mat_dm, stabilize_exp, &
+                                                 mat_W, mat_SinvVSinv, mat_dm, &
                                                  weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw_beta, &
                                                  do_periodic, num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                                  mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
@@ -3969,31 +3967,60 @@ CONTAINS
 
          WRITE (unit_nr, *) ' '
 
-         IF (do_closed_shell) THEN
+         IF (count_ev_sc_GW == 1 .AND. count_sc_GW0 == 1) THEN
+
+            IF (do_closed_shell) THEN
+               WRITE (unit_nr, *) ' '
+               WRITE (unit_nr, '(T3,A)') '******************************************************************************'
+               WRITE (unit_nr, '(T3,A)') '**                                                                          **'
+               WRITE (unit_nr, '(T3,A)') '**                        GW QUASIPARTICLE ENERGIES                         **'
+               WRITE (unit_nr, '(T3,A)') '**                                                                          **'
+               WRITE (unit_nr, '(T3,A)') '******************************************************************************'
+
+            ELSE IF (my_do_alpha) THEN
+               WRITE (unit_nr, *) ' '
+               WRITE (unit_nr, '(T3,A)') '---------------------------------------'
+               WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies of alpha spins'
+               WRITE (unit_nr, '(T3,A)') '----------------------------------------'
+            ELSE IF (my_do_beta) THEN
+               WRITE (unit_nr, *) ' '
+               WRITE (unit_nr, '(T3,A)') '---------------------------------------'
+               WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies of beta spins'
+               WRITE (unit_nr, '(T3,A)') '---------------------------------------'
+            END IF
+
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A)') ' '
+            WRITE (unit_nr, '(T3,A)') 'The GW quasiparticle energies are calculated according to: '
+            IF (crossing_search == ri_rpa_g0w0_crossing_z_shot) THEN
+               WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Z * ( Sigc(E_SCF) + Sigx - vxc )'
+            ELSE
+               WRITE (unit_nr, '(T3,A)') ' '
+               WRITE (unit_nr, '(T3,A)') '                    E_GW = E_SCF + Sigc(E_GW) + Sigx - vxc '
+               WRITE (unit_nr, '(T3,A)') ' '
+               WRITE (unit_nr, '(T3,A)') 'Upper equation is solved self-consistently for E_GW, see Eq. (12) in J. Phys.'
+               WRITE (unit_nr, '(T3,A)') 'Chem. Lett. 9, 306 (2018), doi: 10.1021/acs.jpclett.7b02740'
+            END IF
+
             WRITE (unit_nr, *) ' '
-            WRITE (unit_nr, '(T3,A)') '-------------------------'
-            WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies'
-            WRITE (unit_nr, '(T3,A)') '-------------------------'
-         ELSE IF (my_do_alpha) THEN
             WRITE (unit_nr, *) ' '
-            WRITE (unit_nr, '(T3,A)') '---------------------------------------'
-            WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies of alpha spins'
-            WRITE (unit_nr, '(T3,A)') '----------------------------------------'
-         ELSE IF (my_do_beta) THEN
-            WRITE (unit_nr, *) ' '
-            WRITE (unit_nr, '(T3,A)') '---------------------------------------'
-            WRITE (unit_nr, '(T3,A)') 'GW quasiparticle energies of beta spins'
-            WRITE (unit_nr, '(T3,A)') '---------------------------------------'
+            WRITE (unit_nr, '(T3,A)') '------------'
+            WRITE (unit_nr, '(T3,A)') 'G0W0 results'
+            WRITE (unit_nr, '(T3,A)') '------------'
+
          END IF
 
          IF (count_ev_sc_GW > 1) THEN
             WRITE (unit_nr, *) ' '
+            WRITE (unit_nr, '(T3,A)') '---------------------------------------'
             WRITE (unit_nr, '(T3,A,I4)') 'Eigenvalue-selfconsistency cycle: ', count_ev_sc_GW
+            WRITE (unit_nr, '(T3,A)') '---------------------------------------'
          END IF
 
          IF (count_sc_GW0 > 1) THEN
-            WRITE (unit_nr, *) ' '
-            WRITE (unit_nr, '(T3,A,I4)') 'scGW0 selfcconsistency cycle: ', count_sc_GW0
+            WRITE (unit_nr, '(T3,A)') '----------------------------------'
+            WRITE (unit_nr, '(T3,A,I4)') 'scGW0 selfconsistency cycle: ', count_sc_GW0
+            WRITE (unit_nr, '(T3,A)') '----------------------------------'
          END IF
 
          IF (do_kpoints) THEN
@@ -4030,20 +4057,10 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T3,A)') 'The GW quasiparticle energies are calculated according to: '
          IF (crossing_search == ri_rpa_g0w0_crossing_z_shot) THEN
-            WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Z * ( Sigc(E_SCF) + Sigx - vxc )'
+            WRITE (unit_nr, '(T13,2A)') 'MO    E_SCF (eV)    Sigc (eV)   Sigx-vxc (eV)    Z         E_GW (eV)'
          ELSE
-            WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Sigc(E_GW) + Sigx - vxc '
-         END IF
-         WRITE (unit_nr, '(T3,A)') ' '
-         WRITE (unit_nr, '(T3,A)') 'The energy unit of the following table is eV.  Sigc_fit is a very conservative'
-         WRITE (unit_nr, '(T3,2A)') 'estimate of the statistical error of the fitting.'
-         WRITE (unit_nr, '(T3,A)') ' '
-         IF (crossing_search == ri_rpa_g0w0_crossing_z_shot) THEN
-            WRITE (unit_nr, '(T13,2A)') 'MO         E_SCF         Sigc     Sigx-vxc            Z         E_GW'
-         ELSE
-            WRITE (unit_nr, '(T13,2A)') 'MO             E_SCF            Sigc        Sigx-vxc            E_GW'
+            WRITE (unit_nr, '(T3,2A)') 'Molecular orbital   E_SCF (eV)       Sigc (eV)   Sigx-vxc (eV)       E_GW (eV)'
          END IF
       END IF
 
@@ -4485,7 +4502,6 @@ CONTAINS
 !> \param mat_W ...
 !> \param mat_SinvVSinv ...
 !> \param mat_dm ...
-!> \param stabilize_exp ...
 !> \param weights_cos_tf_t_to_w ...
 !> \param weights_sin_tf_t_to_w ...
 !> \param vec_Sigma_c_gw ...
@@ -4514,7 +4530,7 @@ CONTAINS
                                            e_fermi, fm_mat_W, &
                                            gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, count_ev_sc_GW, &
                                            t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                           mat_W, mat_SinvVSinv, mat_dm, stabilize_exp, &
+                                           mat_W, mat_SinvVSinv, mat_dm, &
                                            weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw, &
                                            do_periodic, num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                            mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
@@ -4536,7 +4552,6 @@ CONTAINS
                                                             t_3c_overl_int_gw_AO
       TYPE(dbcsr_type), POINTER                          :: mat_W
       TYPE(dbcsr_p_type)                                 :: mat_SinvVSinv, mat_dm
-      REAL(KIND=dp), INTENT(IN)                          :: stabilize_exp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
                                                             weights_sin_tf_t_to_w
@@ -4636,7 +4651,7 @@ CONTAINS
                                            fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                            fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                            fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, Eigenval, &
-                                           nmo, eps_filter, e_fermi, stabilize_exp, tau_tj(jquad))
+                                           nmo, eps_filter, e_fermi, tau_tj(jquad))
 
          CALL dbcsr_set(mat_W, 0.0_dp)
          CALL copy_fm_to_dbcsr(fm_mat_W(jquad)%matrix, mat_W, keep_sparsity=.FALSE.)
@@ -5002,20 +5017,19 @@ CONTAINS
 !> \param nmo ...
 !> \param eps_filter ...
 !> \param e_fermi ...
-!> \param stabilize_exp ...
 !> \param tau ...
 ! **************************************************************************************************
    SUBROUTINE compute_Greens_function_time(mat_greens_fct_occ, mat_greens_fct_virt, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                            fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                            fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, Eigenval, nmo, &
-                                           eps_filter, e_fermi, stabilize_exp, tau)
+                                           eps_filter, e_fermi, tau)
 
       TYPE(dbcsr_type), POINTER                          :: mat_greens_fct_occ, mat_greens_fct_virt
       TYPE(cp_fm_type), POINTER :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
          fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: nmo
-      REAL(KIND=dp), INTENT(IN)                          :: eps_filter, e_fermi, stabilize_exp, tau
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter, e_fermi, tau
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Greens_function_time', &
          routineP = moduleN//':'//routineN
@@ -5023,6 +5037,7 @@ CONTAINS
       INTEGER                                            :: handle, i_global, iiB, jjB, ncol_local, &
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: stabilize_exp
 
       CALL timeset(routineN, handle)
 
@@ -5036,6 +5051,8 @@ CONTAINS
       ! Multiply the occupied and the virtual MO coefficients with the factor exp((-e_i-e_F)*tau/2).
       ! Then, we simply get the sum over all occ states and virt. states by a simple matrix-matrix
       ! multiplication.
+
+      stabilize_exp = 70.0_dp
 
       ! first, the occ
       DO jjB = 1, nrow_local

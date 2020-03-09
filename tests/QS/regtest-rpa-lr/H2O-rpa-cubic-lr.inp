@@ -38,19 +38,17 @@
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
-        &INTERACTION_POTENTIAL
-          POTENTIAL_TYPE LONGRANGE
-          OMEGA 0.5
-        &END INTERACTION_POTENTIAL
-        &RI_METRIC
-          POTENTIAL_TYPE IDENTITY
-        &END
-        &WFC_GPW
-          CUTOFF      100
-          REL_CUTOFF  20
-        &END
-        ERI_METHOD OS
+        &INTEGRALS
+          ERI_METHOD OS
+          &INTERACTION_POTENTIAL
+            POTENTIAL_TYPE LONGRANGE
+            OMEGA 0.5
+          &END INTERACTION_POTENTIAL
+          &WFC_GPW
+            CUTOFF      100
+            REL_CUTOFF  20
+          &END WFC_GPW
+        &END INTEGRALS
         &LOW_SCALING
           MEMORY_CUT 1
         &END
@@ -67,8 +65,13 @@
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1
-        DO_SVD
-        EPS_SVD 1.0E-5
+        &RI
+          DO_SVD
+          EPS_SVD 1.0E-5
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
+        &END RI
       &END
     &END XC
   &END DFT

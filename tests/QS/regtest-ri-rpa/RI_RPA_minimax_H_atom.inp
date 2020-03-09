@@ -30,18 +30,18 @@
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        METHOD  RI_RPA_GPW
+        &INTEGRALS
         &WFC_GPW
           CUTOFF    200
           REL_CUTOFF 30
-        &END
+        &END WFC_GPW
+        &END INTEGRALS
         &RI_RPA
           RPA_NUM_QUAD_POINTS  4
           MINIMAX
         &END
         MEMORY  1000.0
         NUMBER_PROC  1
-        CALC_COND_NUM
       &END
     &END XC
     UKS
