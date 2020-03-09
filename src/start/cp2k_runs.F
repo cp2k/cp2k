@@ -191,13 +191,13 @@ CONTAINS
       NULLIFY (para_env, f_env, dft_control)
       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
 
+      CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
+
       CALL cuda_nvtx_init()
 
       CALL pw_cuda_init()
 
       CALL pw_fpga_init()
-
-      CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
 
       CALL cp_sirius_init()
 
@@ -263,10 +263,10 @@ CONTAINS
          CALL pw_cuda_finalize()
          CALL pw_fpga_finalize()
          CALL farming_run(input_declaration, root_section, para_env, initial_variables)
-         CALL cp_sirius_init()
          CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
          CALL pw_cuda_init()
          CALL pw_fpga_init()
+         CALL cp_sirius_init()
       CASE (do_opt_basis)
          CALL run_optimize_basis(input_declaration, root_section, para_env)
          globenv%run_type_id = none_run
