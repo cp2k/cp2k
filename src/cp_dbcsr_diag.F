@@ -24,6 +24,7 @@ MODULE cp_dbcsr_diag
                                               copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                              cp_fm_power,&
                                               cp_fm_syevx
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -47,7 +48,8 @@ MODULE cp_dbcsr_diag
 
    PUBLIC :: cp_dbcsr_syevd, &
              cp_dbcsr_syevx, &
-             cp_dbcsr_heevd
+             cp_dbcsr_heevd, &
+             cp_dbcsr_power
 
 CONTAINS
 
@@ -212,5 +214,61 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_dbcsr_heevd
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param exponent ...
+!> \param threshold ...
+!> \param n_dependent ...
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param verbose ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+! **************************************************************************************************
+   SUBROUTINE cp_dbcsr_power(matrix, exponent, threshold, n_dependent, para_env, blacs_env, verbose, eigenvectors, eigenvalues)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(dp), INTENT(IN)                               :: exponent, threshold
+      INTEGER, INTENT(OUT)                               :: n_dependent
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: verbose
+      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: eigenvectors
+      REAL(KIND=dp), DIMENSION(2), INTENT(OUT), OPTIONAL :: eigenvalues
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_power', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, nfullrows_total
+      REAL(KIND=dp), DIMENSION(2)                        :: eigenvalues_prv
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), POINTER                          :: fm_eigenvectors, fm_matrix
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (fm_matrix, fm_eigenvectors, fm_struct)
+      CALL dbcsr_get_info(matrix, nfullrows_total=nfullrows_total)
+
+      CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
+                               ncol_global=nfullrows_total, para_env=para_env)
+      CALL cp_fm_create(fm_matrix, fm_struct, name="fm_matrix")
+      CALL cp_fm_create(fm_eigenvectors, fm_struct, name="fm_eigenvectors")
+      CALL cp_fm_struct_release(fm_struct)
+
+      CALL copy_dbcsr_to_fm(matrix, fm_matrix)
+
+      CALL cp_fm_power(fm_matrix, fm_eigenvectors, exponent, threshold, n_dependent, verbose, eigenvalues_prv)
+
+      CALL copy_fm_to_dbcsr(fm_matrix, matrix)
+      CALL cp_fm_release(fm_matrix)
+
+      IF (PRESENT(eigenvalues)) eigenvalues(:) = eigenvalues_prv
+      IF (PRESENT(eigenvectors)) CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors)
+
+      CALL cp_fm_release(fm_eigenvectors)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
 
 END MODULE cp_dbcsr_diag

@@ -28,6 +28,7 @@ MODULE xas_tdp_utils
                                               cp_fm_to_cfm
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
+   USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_power
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -42,8 +43,7 @@ MODULE xas_tdp_utils
                                               cp_fm_transpose,&
                                               cp_fm_upper_to_full
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
-                                              cp_fm_geeig,&
-                                              cp_fm_power
+                                              cp_fm_geeig
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -1213,15 +1213,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_aux_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ndep, nrow
+      INTEGER                                            :: handle, ndep
       REAL(dp)                                           :: evals(2)
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: struct
-      TYPE(cp_fm_type), POINTER                          :: aux_fm, work_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type)                                   :: tmp_mat
 
-      NULLIFY (aux_fm, work_fm, struct, blacs_env, para_env)
+      NULLIFY (blacs_env, para_env)
 
       CALL timeset(routineN, handle)
 
@@ -1239,18 +1237,12 @@ CONTAINS
       ALLOCATE (donor_state%matrix_aux)
       CALL dbcsr_create(matrix=donor_state%matrix_aux, template=matrix_a, name="MAT AUX")
 
-      ! Go through fm and cp_fm_power for good quality sqrt
-      CALL dbcsr_get_info(matrix_a, nfullrows_total=nrow)
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
-      CALL cp_fm_struct_create(struct, context=blacs_env, para_env=para_env, &
-                               ncol_global=nrow, nrow_global=nrow)
-      CALL cp_fm_create(aux_fm, struct)
-      CALL cp_fm_create(work_fm, struct)
 
-      CALL copy_dbcsr_to_fm(tmp_mat, aux_fm)
-      CALL cp_fm_power(aux_fm, work_fm, 0.5_dp, threshold, ndep, eigvals=evals)
+      ! good quality sqrt
+      CALL cp_dbcsr_power(tmp_mat, 0.5_dp, threshold, ndep, para_env, blacs_env, eigenvalues=evals)
 
-      CALL copy_fm_to_dbcsr(aux_fm, donor_state%matrix_aux)
+      CALL dbcsr_copy(donor_state%matrix_aux, tmp_mat)
 
       ! Warn the user if matrix not positive semi-definite
       IF (evals(1) < 0.0_dp .AND. ABS(evals(1)) > threshold) THEN
@@ -1258,9 +1250,6 @@ CONTAINS
       END IF
 
       ! clean-up
-      CALL cp_fm_struct_release(struct)
-      CALL cp_fm_release(aux_fm)
-      CALL cp_fm_release(work_fm)
       CALL dbcsr_release(tmp_mat)
 
       CALL timestop(handle)

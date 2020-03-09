@@ -358,7 +358,7 @@ MODULE hfx_types
    TYPE hfx_ri_type
       ! input parameters (see input_cp2k_hfx)
       REAL(KIND=dp) :: filter_eps, filter_eps_2c, filter_eps_3c, filter_eps_mo, &
-                       eps_lanczos, eps_pgf_orb
+                       eps_lanczos, eps_pgf_orb, eps_eigval
       INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr_dbcsr, unit_nr, &
                  min_bsize, min_bsize_MO, t2c_method, nelectron_total
       LOGICAL :: check_2c_inv, calc_condnum
@@ -1136,7 +1136,7 @@ CONTAINS
       END ASSOCIATE
 
       CALL section_vals_val_get(ri_section, "2C_MATRIX_FUNCTIONS", i_val=ri_data%t2c_method)
-
+      CALL section_vals_val_get(ri_section, "EPS_EIGVAL", r_val=ri_data%eps_eigval)
       CALL section_vals_val_get(ri_section, "CHECK_2C_MATRIX", l_val=ri_data%check_2c_inv)
       CALL section_vals_val_get(ri_section, "CALC_COND_NUM", l_val=ri_data%calc_condnum)
       CALL section_vals_val_get(ri_section, "SQRT_ORDER", i_val=ri_data%t2c_sqrt_order)
