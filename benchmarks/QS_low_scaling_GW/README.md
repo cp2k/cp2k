@@ -2,7 +2,7 @@
 
 ## Description
 
-This benchmark is a low-scaling G0W0 calculation of a graphene nanoribbon.
+This benchmark is a low-scaling G0W0 calculation of a graphene nanoribbon. 
 
 ## Benchmark Requirements
 
