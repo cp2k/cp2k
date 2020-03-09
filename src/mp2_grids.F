@@ -105,9 +105,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_grid', &
          routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: num_points_per_magnitude = 200
 
-      INTEGER                                            :: handle, ierr, jquad, num_integ_points, &
-                                                            num_points_per_magnitude
+      INTEGER                                            :: handle, ierr, jquad, num_integ_points
       LOGICAL                                            :: my_do_kpoints, &
                                                             my_do_mixed_minimax_clenshaw, &
                                                             my_open_shell
@@ -254,7 +254,6 @@ CONTAINS
             ALLOCATE (weights_cos_tf_t_to_w(num_freq_points, num_time_points))
             weights_cos_tf_t_to_w = 0.0_dp
 
-            num_points_per_magnitude = 200
             CALL get_l_sq_wghts_cos_tf_t_to_w(num_freq_points, num_time_points, tau_tj, weights_cos_tf_t_to_w, tj, &
                                               Emin, Emax, max_error_min, num_points_per_magnitude)
 

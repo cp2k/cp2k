@@ -729,12 +729,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_dm_global', &
          routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: stabilize_exp = 70.0_dp
 
       INTEGER                                            :: handle, i_global, iiB, iquad, jjB, &
                                                             ncol_local, nrow_local, size_dm_occ, &
                                                             size_dm_virt
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: stabilize_exp, tau
+      REAL(KIND=dp)                                      :: tau
 
       CALL timeset(routineN, handle)
 
@@ -742,7 +743,6 @@ CONTAINS
          "RPA_LOW_SCALING_INFO| Started with time point: ", jquad
 
       tau = tau_tj(jquad)
-      stabilize_exp = 70.0_dp
 
       IF (do_kpoints_cubic_RPA) THEN
 
@@ -901,11 +901,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_matrices_rpa', &
          routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: stabilize_exp = 70.0_dp
 
       INTEGER                                            :: handle, i_mo, ikpgr, ispin, kplocal, &
                                                             nao, nmo, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
-      REAL(KIND=dp)                                      :: stabilize_exp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, exp_scaling, occupation
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), POINTER                          :: cpmat, fwork, rpmat
@@ -920,8 +920,6 @@ CONTAINS
       ! work matrix
       mo_set => kpoint%kp_env(1)%kpoint_env%mos(1, 1)%mo_set
       CALL get_mo_set(mo_set, nao=nao, nmo=nmo)
-
-      stabilize_exp = 70.0_dp
 
       ! if this CPASSERT is triggered, please add all virtual MOs to SCF section,
       ! e.g. ADDED_MOS 1000000
