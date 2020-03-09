@@ -624,6 +624,7 @@ CONTAINS
                             ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
                             map1=[1], map2=[2, 3], &
                             name="O (RI | AO AO)")
+      CALL dbcsr_t_pgrid_destroy(pgrid)
 
       CALL dbcsr_t_copy(ri_data%t_3c_int_ctr_1(1, 1), RI_AO_structure, order=[2, 1, 3])
 
