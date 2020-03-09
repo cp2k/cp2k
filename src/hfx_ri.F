@@ -18,7 +18,7 @@ MODULE hfx_ri
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
-   USE cp_dbcsr_func,                   ONLY: cp_dbcsr_matrix_function
+   USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_power
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_dist2d_to_dist
@@ -42,7 +42,8 @@ MODULE hfx_ri
         dbcsr_t_reserved_block_indices, dbcsr_t_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE hfx_types,                       ONLY: hfx_ri_type
-   USE input_constants,                 ONLY: hfx_ri_do_2c_diag,&
+   USE input_constants,                 ONLY: hfx_ri_do_2c_cholesky,&
+                                              hfx_ri_do_2c_diag,&
                                               hfx_ri_do_2c_iter
    USE input_cp2k_hfx,                  ONLY: ri_mo,&
                                               ri_pmat
@@ -118,8 +119,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_pre_scf_mo', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, handle2, ispin, unit_nr, &
-                                                            unit_nr_dbcsr
+      INTEGER                                            :: handle, handle2, ispin, n_dependent, &
+                                                            unit_nr, unit_nr_dbcsr
       REAL(KIND=dp)                                      :: threshold
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -149,11 +150,14 @@ CONTAINS
             CALL dbcsr_create(t_2c_op_RI_inv(1), template=t_2c_op_RI(1), matrix_type=dbcsr_type_no_symmetry)
             threshold = MAX(ri_data%filter_eps, 1.0e-12_dp)
             CALL invert_hotelling(t_2c_op_RI_inv(1), t_2c_op_RI(1), threshold=threshold, silent=.FALSE.)
-         CASE (hfx_ri_do_2c_diag)
+         CASE (hfx_ri_do_2c_cholesky)
             CALL dbcsr_copy(t_2c_op_RI_inv(1), t_2c_op_RI(1))
             CALL cp_dbcsr_cholesky_decompose(t_2c_op_RI_inv(1), para_env=para_env, blacs_env=blacs_env)
             CALL cp_dbcsr_cholesky_invert(t_2c_op_RI_inv(1), para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
-            CALL dbcsr_filter(t_2c_op_RI_inv(1), ri_data%filter_eps)
+         CASE (hfx_ri_do_2c_diag)
+            CALL dbcsr_copy(t_2c_op_RI_inv(1), t_2c_op_RI(1))
+            CALL cp_dbcsr_power(t_2c_op_RI_inv(1), -1.0_dp, ri_data%eps_eigval, n_dependent, &
+                                para_env, blacs_env, verbose=ri_data%unit_nr_dbcsr > 0)
          END SELECT
 
          IF (ri_data%check_2c_inv) THEN
@@ -171,11 +175,10 @@ CONTAINS
                                            ri_data%max_iter_lanczos)
 
             CALL dbcsr_release(t_2c_op_pot_sqrt_inv(1))
-         CASE (hfx_ri_do_2c_diag)
-            CALL dbcsr_create(t_2c_op_pot_sqrt(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
-
-            CALL cp_dbcsr_matrix_function(t_2c_op_pot(1), my_sqrt, t_2c_op_pot_sqrt(1), para_env=para_env, blacs_env=blacs_env)
-            CALL dbcsr_filter(t_2c_op_pot(1), ri_data%filter_eps)
+         CASE (hfx_ri_do_2c_diag, hfx_ri_do_2c_cholesky)
+            CALL dbcsr_copy(t_2c_op_pot_sqrt(1), t_2c_op_pot(1))
+            CALL cp_dbcsr_power(t_2c_op_pot_sqrt(1), 0.5_dp, ri_data%eps_eigval, n_dependent, &
+                                para_env, blacs_env, verbose=ri_data%unit_nr_dbcsr > 0)
          END SELECT
          IF (ri_data%check_2c_inv) THEN
             CALL check_sqrt(t_2c_op_pot(1), matrix_sqrt=t_2c_op_pot_sqrt(1), unit_nr=unit_nr)
@@ -194,10 +197,10 @@ CONTAINS
                                            ri_data%filter_eps, ri_data%t2c_sqrt_order, ri_data%eps_lanczos, &
                                            ri_data%max_iter_lanczos)
             CALL dbcsr_release(t_2c_op_pot_sqrt(1))
-         CASE (hfx_ri_do_2c_diag)
-            CALL dbcsr_create(t_2c_int_mat(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_symmetric)
-            CALL cp_dbcsr_matrix_function(t_2c_op_pot(1), my_invsqrt, t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env)
-            CALL dbcsr_filter(t_2c_op_pot(1), ri_data%filter_eps)
+         CASE (hfx_ri_do_2c_diag, hfx_ri_do_2c_cholesky)
+            CALL dbcsr_copy(t_2c_int_mat(1), t_2c_op_pot(1))
+            CALL cp_dbcsr_power(t_2c_int_mat(1), -0.5_dp, ri_data%eps_eigval, n_dependent, &
+                                para_env, blacs_env, verbose=ri_data%unit_nr_dbcsr > 0)
          END SELECT
          IF (ri_data%check_2c_inv) THEN
             CALL check_sqrt(t_2c_op_pot(1), matrix_sqrt_inv=t_2c_int_mat(1), unit_nr=unit_nr)
@@ -537,9 +540,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_pre_scf_Pmat', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, handle2, iblk, is, nblk, &
-                                                            nblks_total, nrows, row, unit_nr, &
-                                                            unit_nr_dbcsr
+      INTEGER                                            :: handle, handle2, iblk, is, n_dependent, &
+                                                            nblk, nblks_total, nrows, row, &
+                                                            unit_nr, unit_nr_dbcsr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cols, cols_local, dist1, dist2, dist3, &
                                                             offsets_proc, rows, rows_local, &
                                                             sizes_proc
@@ -580,11 +583,14 @@ CONTAINS
       CASE (hfx_ri_do_2c_iter)
          CALL invert_hotelling(t_2c_int_mat(1), t_2c_op_RI(1), &
                                threshold=threshold, silent=.FALSE.)
-      CASE (hfx_ri_do_2c_diag)
+      CASE (hfx_ri_do_2c_cholesky)
          CALL dbcsr_copy(t_2c_int_mat(1), t_2c_op_RI(1))
          CALL cp_dbcsr_cholesky_decompose(t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env)
          CALL cp_dbcsr_cholesky_invert(t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
-         CALL dbcsr_filter(t_2c_int_mat(1), ri_data%filter_eps)
+      CASE (hfx_ri_do_2c_diag)
+         CALL dbcsr_copy(t_2c_int_mat(1), t_2c_op_RI(1))
+         CALL cp_dbcsr_power(t_2c_int_mat(1), -1.0_dp, ri_data%eps_eigval, n_dependent, &
+                             para_env, blacs_env, verbose=ri_data%unit_nr_dbcsr > 0)
       END SELECT
 
       IF (ri_data%check_2c_inv) THEN

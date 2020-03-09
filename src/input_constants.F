@@ -766,7 +766,9 @@ MODULE input_constants
                                                hfx_do_eval_forces = 2
 
    ! HFX RI matrix methods
-   INTEGER, PARAMETER, PUBLIC               :: hfx_ri_do_2c_iter = 1, hfx_ri_do_2c_diag = 2
+   INTEGER, PARAMETER, PUBLIC               :: hfx_ri_do_2c_iter = 1, &
+                                               hfx_ri_do_2c_diag = 2, &
+                                               hfx_ri_do_2c_cholesky = 3
 
    ! mode selctive vibrational analysis
    INTEGER, PARAMETER, PUBLIC               :: ms_guess_bfgs = 1, &

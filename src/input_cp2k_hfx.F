@@ -19,7 +19,8 @@ MODULE input_cp2k_hfx
    USE input_constants,                 ONLY: &
         do_potential_coulomb, do_potential_gaussian, do_potential_id, do_potential_long, &
         do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
-        do_potential_truncated, ehrenfest, gaussian, hfx_ri_do_2c_diag, hfx_ri_do_2c_iter
+        do_potential_truncated, ehrenfest, gaussian, hfx_ri_do_2c_cholesky, hfx_ri_do_2c_diag, &
+        hfx_ri_do_2c_iter
    USE input_cp2k_loc,                  ONLY: create_localize_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -577,11 +578,19 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="2C_MATRIX_FUNCTIONS", &
                           description="Methods for matrix inverse and matrix square root.", &
                           default_i_val=hfx_ri_do_2c_diag, &
-                          enum_c_vals=s2a("DIAG", "ITER"), &
-                          enum_desc=s2a("Diagonalization: stable, cubically scaling", &
+                          enum_c_vals=s2a("DIAG", "CHOLESKY", "ITER"), &
+                          enum_desc=s2a("Diagonalization with eigenvalue quenching: stable", &
+                                        "Cholesky: not stable in case of ill-conditioned RI basis", &
                                         "Iterative algorithms: linear scaling "// &
                                         "Hotelling's method for inverse and Newton-Schulz iteration for matrix square root"), &
-                          enum_i_vals=(/hfx_ri_do_2c_diag, hfx_ri_do_2c_iter/))
+                          enum_i_vals=(/hfx_ri_do_2c_diag, hfx_ri_do_2c_cholesky, hfx_ri_do_2c_iter/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_EIGVAL", &
+                          description="Throw away linear combinations of RI basis functions with a small eigenvalue, "// &
+                          "this is applied only if 2C_MATRIX_FUNCTIONS DIAG", &
+                          default_r_val=1.0e-7_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
