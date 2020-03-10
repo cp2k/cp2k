@@ -219,6 +219,11 @@ else
     numprocs=${numprocs:-1}
 fi
 
+mem_limit=unlimited
+if [[ $cp2k_version == *dbg* ]] ; then
+    mem_limit=8388608
+fi
+
 if [[ $numprocs > 1 ]] ; then
     if [[ "$farming" == "yes" ]]; then
        cp2k_run_prefix=${cp2k_run_prefix:-"${mpiexec} -np $(($maxtasks + 1)) ${valgrindstring}"}
@@ -395,7 +400,7 @@ function run_regtest_dir() {
           cp2k_exit_status=43
        fi
      else
-       ( ulimit -t ${job_max_time} -v 20971520 ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} ) >& /dev/null
+       ( ulimit -t ${job_max_time} -v ${mem_limit} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} ) >& /dev/null
        (( cp2k_exit_status = $? ))
      fi
      # check if this was a valgrinded run, and adjust exit status as needed
@@ -536,7 +541,7 @@ function run_unittest() {
   output_file=${dir_test}/${dir}.out
   unittest=${dir##*/}
   testcmd="${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/${unittest}.${cp2k_version} ${dir_base}/${cp2k_dir}"
-  ( ulimit -t ${job_max_time} -v 20971520 ; ${testcmd} &> ${output_file} ) >& /dev/null
+  ( ulimit -t ${job_max_time} -v ${mem_limit} ; ${testcmd} &> ${output_file} ) >& /dev/null
   (( cp2k_exit_status = $? ))
   t2=`date +%s`
   timing=$((1+t2-t1))
@@ -691,6 +696,7 @@ echo "skiptest         = ${skiptest}"
 echo "do_unit_test     = ${do_unit_test}"
 echo "farming          = ${farming}"
 echo "maxbuildtasks    = ${maxbuildtasks}"
+echo "mem_limit        = ${mem_limit}"
 
 t=1
 while [ $t -le ${ndirstoskip} ]; do
