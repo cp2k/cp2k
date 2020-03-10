@@ -191,6 +191,7 @@ CONTAINS
       NULLIFY (para_env, f_env, dft_control)
       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
 
+      ! DBCSR sets the GPU device, make sure it is the first GPU call
       CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
 
       CALL cuda_nvtx_init()
@@ -262,6 +263,7 @@ CONTAINS
          CALL cp_sirius_finalize()
          CALL pw_cuda_finalize()
          CALL pw_fpga_finalize()
+         ! DBCSR sets the GPU device, make sure it is the first GPU call
          CALL farming_run(input_declaration, root_section, para_env, initial_variables)
          CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
          CALL pw_cuda_init()

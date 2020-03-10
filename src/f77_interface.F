@@ -267,6 +267,7 @@ CONTAINS
 
          ! Initialize the DBCSR configuration
          ! Attach the time handler hooks to DBCSR
+         ! DBCSR sets the device for multi-gpu, make sure it is the first GPU call
          CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
 
