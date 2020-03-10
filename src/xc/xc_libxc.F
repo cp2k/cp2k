@@ -1633,7 +1633,8 @@ CONTAINS
       TYPE(xc_f03_func_info_t)                           :: xc_info
       TYPE(xc_f03_func_t)                                :: xc_func
 
-! these are just dummy variables, you need to use the correct size if working
+      vlapl(1, 1) = 0.0_dp
+      vlapl(2, 1) = 0.0_dp
 
       func_id = xc_libxc_wrap_functional_get_number(func_name)
 !$OMP CRITICAL(libxc_init)
