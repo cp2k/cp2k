@@ -221,7 +221,7 @@ fi
 
 mem_limit=unlimited
 if [[ $cp2k_version != *dbg* ]] ; then
-    mem_limit=8388608
+    mem_limit=12582912
 fi
 
 if [[ $numprocs > 1 ]] ; then
