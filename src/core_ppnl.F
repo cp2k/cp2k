@@ -22,7 +22,8 @@ MODULE core_ppnl
                                               gth_potential_type,&
                                               sgp_potential_p_type,&
                                               sgp_potential_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               nco,&
                                               ncoset
@@ -134,8 +135,11 @@ CONTAINS
 
 !$    INTEGER(kind=omp_lock_kind), &
 !$       ALLOCATABLE, DIMENSION(:) :: locks
+!$    INTEGER(KIND=int_8)                                :: iatom8
 !$    INTEGER                                            :: lock_num, hash
 !$    INTEGER, PARAMETER                                 :: nlock = 501
+
+      MARK_USED(int_8)
 
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)
@@ -435,7 +439,7 @@ CONTAINS
 !$OMP          slot, iab, atom_a, f0, irow, icol, h_block, &
 !$OMP          found,p_block, iac, ibc, alist_ac, alist_bc, acint, bcint, &
 !$OMP          achint, bchint, na, np, nb, katom, j, fa, fb, rbc, rac, &
-!$OMP          kkind, kac, kbc, i, img, hash, natom) &
+!$OMP          kkind, kac, kbc, i, img, hash, iatom8, natom) &
 !$OMP REDUCTION (+ : pv_thread, force_thread )
 
 !$OMP SINGLE
@@ -514,7 +518,8 @@ CONTAINS
                            na = SIZE(acint, 1)
                            np = SIZE(acint, 2)
                            nb = SIZE(bcint, 1)
-!$                         hash = MOD((iatom - 1)*natom + jatom, nlock) + 1
+!$                         iatom8 = (iatom - 1)*natom + jatom
+!$                         hash = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
 !$                         CALL omp_set_lock(locks(hash))
                            IF (iatom <= jatom) THEN
                               h_block(1:na, 1:nb) = h_block(1:na, 1:nb) + &

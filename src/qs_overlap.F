@@ -34,7 +34,8 @@ MODULE qs_overlap
         dbcsr_p_type, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
         dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&
-                                              dp
+                                              dp,&
+                                              int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE orbital_pointers,                ONLY: indco,&
@@ -132,6 +133,8 @@ CONTAINS
 
       INTEGER                                            :: natom
 
+      MARK_USED(int_8)
+
       CALL get_ks_env(ks_env, natom=natom)
 
       CALL build_overlap_matrix_low(ks_env, matrix_s, matrixkp_s, matrix_name, nderivative, &
@@ -210,6 +213,7 @@ CONTAINS
 !$    INTEGER(kind=omp_lock_kind), &
 !$       ALLOCATABLE, DIMENSION(:) :: locks
 !$    INTEGER                                            :: lock_num, hash, hash1, hash2
+!$    INTEGER(KIND=int_8)                                :: iatom8
 !$    INTEGER, PARAMETER                                 :: nlock = 501
 
       CALL timeset(routineN, handle)
@@ -303,7 +307,7 @@ CONTAINS
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, f,  &
 !$OMP          zetb, scon_a, scon_b, ic, irow, icol, f0, ff, found, trans, rab2, n1, n2, sgfa, sgfb, iset, jset, &
-!$OMP          hash, hash1, hash2, slot ) &
+!$OMP          hash, hash1, hash2, iatom8, slot ) &
 !$OMP REDUCTION (+ : pv_thread, force_thread )
 
 !$OMP SINGLE
@@ -339,7 +343,8 @@ CONTAINS
          basis_set_b => basis_set_list_b(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
 
-!$       hash1 = MOD((iatom - 1)*natom + jatom, nlock) + 1
+!$       iatom8 = (iatom - 1)*natom + jatom
+!$       hash1 = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
 
          ! basis ikind
          first_sgfa => basis_set_a%first_sgf
@@ -584,6 +589,7 @@ CONTAINS
 !$    INTEGER(kind=omp_lock_kind), &
 !$       ALLOCATABLE, DIMENSION(:) :: locks
 !$    INTEGER                                            :: lock_num, hash, hash1, hash2
+!$    INTEGER(KIND=int_8)                                :: iatom8
 !$    INTEGER, PARAMETER                                 :: nlock = 501
 
       NULLIFY (dft_control)
@@ -624,7 +630,7 @@ CONTAINS
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, dab, &
 !$OMP          zetb, scon_a, scon_b, irow, icol, found, trans, rab2, n1, n2, sgfa, sgfb, iset, jset, &
-!$OMP          slot, lock_num, hash, hash1, hash2 )
+!$OMP          slot, lock_num, hash, hash1, hash2, iatom8 )
 
 !$OMP SINGLE
 !$    ALLOCATE (locks(nlock))
@@ -647,7 +653,8 @@ CONTAINS
          iatom = sab_nl(1)%nlist_task(slot)%iatom
          jatom = sab_nl(1)%nlist_task(slot)%jatom
          rab(1:3) = sab_nl(1)%nlist_task(slot)%r(1:3)
-!$       hash1 = MOD((iatom - 1)*natom + jatom, nlock) + 1
+!$       iatom8 = (iatom - 1)*natom + jatom
+!$       hash1 = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
 
          basis_set_a => basis_set_list_a(ikind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
