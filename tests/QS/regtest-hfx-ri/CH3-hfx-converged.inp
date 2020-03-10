@@ -20,7 +20,7 @@
             PSOLVER MT
         &END
         &SCF
-            EPS_SCF 1.0E-06
+            EPS_SCF 1.0E-07
             SCF_GUESS ATOMIC
             MAX_SCF 50
             &OT ON
