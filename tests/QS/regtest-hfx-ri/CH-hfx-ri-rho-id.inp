@@ -15,7 +15,7 @@
         &SCF
             SCF_GUESS ATOMIC
             MAX_SCF 100
-            EPS_SCF 1.0E-06
+            EPS_SCF 1.0E-07
         &END SCF
         &XC
             &XC_FUNCTIONAL NONE

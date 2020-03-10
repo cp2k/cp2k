@@ -13,7 +13,7 @@
             EPS_DEFAULT 1.0E-12
         &END QS
         &SCF
-            EPS_SCF 1.0E-6
+            EPS_SCF 1.0E-7
             SCF_GUESS ATOMIC
             MAX_SCF 15
             &OT ON
