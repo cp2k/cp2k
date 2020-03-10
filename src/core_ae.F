@@ -230,7 +230,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
          basis_set_b => basis_set_list(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-!$       iatom8 = (iatom - 1)*natom + jatom
+!$       iatom8 = INT(iatom - 1, int_8)*INT(natom, int_8) + INT(jatom, int_8)
 !$       hash1 = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
          ! basis ikind
          first_sgfa => basis_set_a%first_sgf
