@@ -220,7 +220,7 @@ else
 fi
 
 mem_limit=unlimited
-if [[ $cp2k_version == *dbg* ]] ; then
+if [[ $cp2k_version != *dbg* ]] ; then
     mem_limit=8388608
 fi
 
