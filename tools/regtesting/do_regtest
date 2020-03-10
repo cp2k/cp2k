@@ -395,7 +395,7 @@ function run_regtest_dir() {
           cp2k_exit_status=43
        fi
      else
-       ( ulimit -t ${job_max_time} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} ) >& /dev/null
+       ( ulimit -t ${job_max_time} -v 2097152 ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} ) >& /dev/null
        (( cp2k_exit_status = $? ))
      fi
      # check if this was a valgrinded run, and adjust exit status as needed
@@ -536,7 +536,7 @@ function run_unittest() {
   output_file=${dir_test}/${dir}.out
   unittest=${dir##*/}
   testcmd="${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/${unittest}.${cp2k_version} ${dir_base}/${cp2k_dir}"
-  ( ulimit -t ${job_max_time} ; ${testcmd} &> ${output_file} ) >& /dev/null
+  ( ulimit -t ${job_max_time} -v 2097152 ; ${testcmd} &> ${output_file} ) >& /dev/null
   (( cp2k_exit_status = $? ))
   t2=`date +%s`
   timing=$((1+t2-t1))
