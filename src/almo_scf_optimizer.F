@@ -1394,7 +1394,6 @@ CONTAINS
 
                DO ispin = 1, nspins
 
-                  ! RZK-warning: z2 supplied as input seems to be deallocated
                   CALL compute_gradient( &
                      m_grad_out=grad(ispin), &
                      m_ks=almo_scf_env%matrix_ks(ispin), &
@@ -1426,8 +1425,7 @@ CONTAINS
                      op_sm_set=op_sm_set_almo, &
                      weights=weights, &
                      energy_coeff=energy_coeff, &
-                     localiz_coeff=localiz_coeff, &
-                     z2=z2)
+                     localiz_coeff=localiz_coeff)
 
                ENDDO ! ispin
 
@@ -5948,7 +5946,6 @@ CONTAINS
 !> \param weights ...
 !> \param energy_coeff ...
 !> \param localiz_coeff ...
-!> \param z2 ...
 !> \par History
 !>       2015.03 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
@@ -5960,7 +5957,7 @@ CONTAINS
                                normalize_orbitals, penalty_occ_vol, penalty_occ_local, &
                                penalty_occ_vol_prefactor, envelope_amplitude, eps_filter, spin_factor, &
                                special_case, m_sig_sqrti_ii, op_sm_set, weights, energy_coeff, &
-                               localiz_coeff, z2)
+                               localiz_coeff)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: m_grad_out
       TYPE(dbcsr_type), INTENT(IN)                       :: m_ks, m_s, m_t, m_t0, m_siginv, &
@@ -5983,12 +5980,11 @@ CONTAINS
          POINTER                                         :: op_sm_set
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: energy_coeff, localiz_coeff
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: z2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_gradient', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: dim0, handle, idim0, ielem, nao, reim
+      INTEGER                                            :: dim0, handle, idim0, nao, reim
       LOGICAL                                            :: my_penalty_local
       REAL(KIND=dp)                                      :: coeff, energy_g_norm, my_energy_coeff, &
                                                             my_localiz_coeff, &
@@ -6134,11 +6130,13 @@ CONTAINS
 
             SELECT CASE (2) ! allows for selection of different spread functionals
             CASE (1) ! functional =  -W_I * log( |z_I|^2 )
-               coeff = -(weights(idim0)/z2(ielem))
+               CPABORT("Localization function is not implemented")
+               !coeff = -(weights(idim0)/z2(ielem))
             CASE (2) ! functional =  W_I * ( 1 - |z_I|^2 )
                coeff = -weights(idim0)
             CASE (3) ! functional =  W_I * ( 1 - |z_I| )
-               coeff = -(weights(idim0)/(2.0_dp*z2(ielem)))
+               CPABORT("Localization function is not implemented")
+               !coeff = -(weights(idim0)/(2.0_dp*z2(ielem)))
             END SELECT
             CALL dbcsr_add(temp2, temp1, 1.0_dp, coeff)
             !CALL dbcsr_add(grad_loc, temp1, 1.0_dp, 1.0_dp)
