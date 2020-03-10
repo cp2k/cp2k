@@ -27,7 +27,8 @@ MODULE qs_kinetic
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE orbital_pointers,                ONLY: ncoset
@@ -181,7 +182,10 @@ CONTAINS
 !$    INTEGER(kind=omp_lock_kind), &
 !$       ALLOCATABLE, DIMENSION(:) :: locks
 !$    INTEGER                                            :: lock_num, hash, hash1, hash2
+!$    INTEGER(KIND=int_8)                                :: iatom8
 !$    INTEGER, PARAMETER                                 :: nlock = 501
+
+      MARK_USED(int_8)
 
       CALL timeset(routineN, handle)
 
@@ -254,7 +258,7 @@ CONTAINS
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, tab, &
 !$OMP          slot, zetb, scon_a, scon_b, ic, irow, icol, f0, ff, found, trans, rab2, sgfa, sgfb, iset, jset, &
-!$OMP          hash, hash1, hash2) &
+!$OMP          hash, hash1, hash2, iatom8) &
 !$OMP REDUCTION (+ : pv_thread, force_thread )
 
 !$OMP SINGLE
@@ -287,7 +291,8 @@ CONTAINS
          basis_set_b => basis_set_list(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
 
-!$       hash1 = MOD((iatom - 1)*natom + jatom, nlock) + 1
+!$       iatom8 = (iatom - 1)*natom + jatom
+!$       hash1 = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
 
          ! basis ikind
          first_sgfa => basis_set_a%first_sgf

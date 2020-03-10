@@ -26,7 +26,8 @@ MODULE core_ppl
    USE external_potential_types,        ONLY: get_potential,&
                                               gth_potential_type,&
                                               sgp_potential_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE lri_environment_types,           ONLY: lri_kind_type
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
@@ -138,7 +139,10 @@ CONTAINS
 !$    INTEGER(kind=omp_lock_kind), &
 !$       ALLOCATABLE, DIMENSION(:) :: locks
 !$    INTEGER                                            :: lock_num, hash, hash1, hash2
+!$    INTEGER(KIND=int_8)                                :: iatom8
 !$    INTEGER, PARAMETER                                 :: nlock = 501
+
+      MARK_USED(int_8)
 
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)
@@ -213,7 +217,7 @@ CONTAINS
 !$OMP          nct_lpot, cval_ppl, cval_lpot, rac, dac, rbc, dbc, &
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &
 !$OMP          slot, f0, katom, ppl_work, cellind, img, ecp_local, &
-!$OMP          nloc, nrloc, aloc, bloc, n_local, a_local, c_local, ldai, hash, hash1, hash2) &
+!$OMP          nloc, nrloc, aloc, bloc, n_local, a_local, c_local, ldai, hash, hash1, hash2, iatom8) &
 !$OMP REDUCTION (+ : pv_thread, force_thread )
 
 !$OMP SINGLE
@@ -253,7 +257,8 @@ CONTAINS
          basis_set_b => basis_set_list(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
 
-!$       hash1 = MOD((iatom - 1)*natom + jatom, nlock) + 1
+!$       iatom8 = (iatom - 1)*natom + jatom
+!$       hash1 = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
 
          ! basis ikind
          first_sgfa => basis_set_a%first_sgf
