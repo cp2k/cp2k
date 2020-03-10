@@ -4,7 +4,6 @@ H2O-hfx-periodic-ri-truncated.inp                            1    1.0E-12       
 H2O-hybrid-b3lyp.inp                                         1    1.0E-12             -76.15358900494054
 CH-hfx-ri-mo.inp                                             1    1.0E-12             -37.91967383839648
 CH-hfx-ri-rho.inp                                            1    1.0E-12             -38.26006228356700
-CH-hfx-ri-rho-id.inp                                         1    1.0E-12             -38.19856207132993
 CH3-ADMM.inp                                                 1    1.0E-12             -7.36918928540100
 CH3-hfx-converged.inp                                        1    1.0E-12             -7.21317273072467
 Ne-hybrid-periodic-shortrange.inp                            1    1.0E-12             -772.82989949221326
