@@ -668,6 +668,7 @@ CONTAINS
       CALL mp_allgather(cols_local, cols, sizes_proc, offsets_proc, para_env%group)
       DEALLOCATE (sizes_proc, offsets_proc, rows_local, cols_local)
 
+      IF (ALLOCATED(ri_data%nonzero_pairs)) DEALLOCATE (ri_data%nonzero_pairs)
       ALLOCATE (ri_data%nonzero_pairs(nblks_total, 2))
       ri_data%nonzero_pairs(:, 1) = rows
       ri_data%nonzero_pairs(:, 2) = cols
@@ -680,6 +681,7 @@ CONTAINS
 
       nrows = SIZE(ri_data%bsizes_RI_split)
 
+      IF (ALLOCATED(ri_data%nonzero_rows)) DEALLOCATE (ri_data%nonzero_rows)
       ALLOCATE (ri_data%nonzero_rows(nrows + 1))
 
       ASSOCIATE (rows=>ri_data%nonzero_pairs(:, 1))
@@ -1304,13 +1306,13 @@ CONTAINS
 
       IF (geometry_did_change) THEN
          CALL hfx_ri_pre_scf_Pmat(qs_env, ri_data)
-      ELSE
-         IF (ASSOCIATED(ri_data%pgrid_1)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_1(1, 1), &
-                                                                   ri_data%pgrid_1, unit_nr=unit_nr_dbcsr)
-         IF (ASSOCIATED(ri_data%pgrid_3)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_3(1, 1), &
-                                                                   ri_data%pgrid_3, unit_nr=unit_nr_dbcsr, &
-                                                                   nodata=.TRUE.)
       ENDIF
+
+      IF (ASSOCIATED(ri_data%pgrid_1)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_1(1, 1), &
+                                                                ri_data%pgrid_1, unit_nr=unit_nr_dbcsr)
+      IF (ASSOCIATED(ri_data%pgrid_3)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_3(1, 1), &
+                                                                ri_data%pgrid_3, unit_nr=unit_nr_dbcsr, &
+                                                                nodata=.TRUE.)
 
       CALL dbcsr_t_create(ks_matrix(1, 1)%matrix, ks_tmp)
       CALL dbcsr_t_create(rho_ao(1, 1)%matrix, rho_ao_tmp)
