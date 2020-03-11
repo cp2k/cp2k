@@ -74,14 +74,14 @@ OPTIONS:
                           --with-PKG option placed AFTER this option on the
                           command line.
 --mpi-mode                Selects which MPI flavour to use. Available options
-                          are: mpich, openmpi and no. By selecting no, you will
-                          be disabling MPI support. By default the script
+                          are: mpich, openmpi, intelmpi, and no. By selecting no,
+                          you will be disabling MPI support. By default the script
                           will try to determine the flavour based on the MPI library
                           currently available in your system path. For CRAY (CLE)
                           systems, the default flavour is mpich. Note that explicitly
-                          setting --with-mpich or --with-openmpi options to values
-                          other than no will also switch --mpi-mode to the respective
-                          mode.
+                          setting --with-mpich, --with-openmpi or --with-intelmpi
+                          options to values other than no will also switch --mpi-mode
+                          to the respective mode.
 --math-mode               Selects which core math library to use. Available options
                           are: acml, cray, mkl, openblas and reflapack. cray
                           corresponds to cray libsci, and is the default for CRAY
@@ -153,7 +153,10 @@ The --with-PKG options follow the rules:
                           of CP2K.
                           Default = system
   --with-mpich            MPICH, MPI library like OpenMPI. one should
-                          only use EITHER OpenMPI or MPICH and not both.
+                          use only one of OpenMPI, MPICH or Intel MPI.
+                          Default = system
+  --with-intelmpi         Intel MPI, MPI library like OpenMPI. one should
+                          use only one of OpenMPI, MPICH or Intel MPI.
                           Default = system
   --with-libxc            libxc, exchange-correlation library. Needed for
                           QuickStep DFT and hybrid calculations.
@@ -260,7 +263,7 @@ EOF
 # is important, the first in the list gets installed first
 # ------------------------------------------------------------------------
 tool_list="gcc cmake valgrind"
-mpi_list="mpich openmpi"
+mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm scalapack elpa plumed \
           spfft ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 libvdwxc sirius"
@@ -311,14 +314,19 @@ with_spfft=__INSTALL__
 # for MPI, we try to detect system MPI variant
 with_openmpi=__SYSTEM__
 with_mpich=__SYSTEM__
+with_intelmpi=__SYSTEM__
 if (command -v mpirun >&- 2>&-) ; then
-    # check if we are dealing with openmpi or mpich
+    # check if we are dealing with openmpi, mpich or intelmpi
     if (mpirun --version 2>&1 | grep -s -q "HYDRA") ; then
         echo "MPI is detected and it appears to be MPICH"
         export MPI_MODE=mpich
     elif (mpirun --version 2>&1 | grep -s -q "Open MPI") ; then
         echo "MPI is detected and it appears to be OpenMPI"
         export MPI_MODE=openmpi
+    elif (mpirun --version 2>&1 | grep -s -q "Intel") ; then
+        echo "MPI is detected and it appears to be Intel MPI"
+        with_gcc=__DONTUSE__
+        export MPI_MODE=intelmpi
     else
         # default to mpich
         export MPI_MODE=mpich
@@ -358,6 +366,7 @@ if [ "$CRAY_LD_LIBRARY_PATH" ] ; then
     # don't use the installers for the MPI libraries
     with_mpich="__DONTUSE__"
     with_openmpi="__DONTUSE__"
+    with_intelmpi="__DONTUSE__"
     export MPI_MODE=mpich
     # set default value for some installers appropriate for CLE
     with_gcc="__DONTUSE__"
@@ -397,12 +406,15 @@ while [ $# -ge 1 ] ; do
                 openmpi)
                     export MPI_MODE=openmpi
                     ;;
+                intelmpi)
+                    export MPI_MODE=intelmpi
+                    ;;
                 no)
                     export MPI_MODE=no
                     ;;
                 *)
                     report_error ${LINENO} \
-                                 "--mpi-mode currently only supports openmpi, mpich and no as options"
+                                 "--mpi-mode currently only supports openmpi, mpich, intelmpi and no as options"
                     exit 1
                     ;;
             esac
@@ -526,6 +538,12 @@ while [ $# -ge 1 ] ; do
             with_openmpi=$(read_with $1)
             if [ $with_openmpi != __DONTUSE__ ] ; then
                 export MPI_MODE=openmpi
+            fi
+            ;;
+        --with-intelmpi*)
+            with_intelmpi=$(read_with $1)
+            if [ $with_intelmpi != __DONTUSE__ ] ; then
+                export MPI_MODE=intelmpi
             fi
             ;;
         --with-libint*)
@@ -685,6 +703,7 @@ else
         echo "You have chosen to install GCC, therefore MPI libraries will have to be installed too"
         with_openmpi="__INSTALL__"
         with_mpich="__INSTALL__"
+        with_intelmpi="__DONTUSE__"
     fi
 fi
 
@@ -854,6 +873,17 @@ if [ "$ENABLE_CRAY" = "__TRUE__" ] ; then
                 export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3|)"
             fi
             ;;
+        intelmpi)
+            if [ "$with_intelmpi" = "__DONTUSE__" ] ; then
+                with_gcc=__DONTUSE__
+                add_include_from_paths MPI_CFLAGS "mpi.h" $INCLUDE_PATHS
+                add_include_from_paths MPI_LDFLAGS "libmpi.*" $LIB_PATHS
+                export MPI_CFLAGS
+                export MPI_LDFLAGS
+                export MPI_LIBS="-lmpi -lmpi_cxx"
+                export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3|)"
+            fi
+            ;;
     esac
     check_lib -lz
     check_lib -ldl
@@ -927,6 +957,7 @@ else
     ./scripts/install_valgrind.sh
     ./scripts/install_mpich.sh
     ./scripts/install_openmpi.sh
+    ./scripts/install_intelmpi.sh
     ./scripts/install_mathlibs.sh
     ./scripts/install_fftw.sh
     ./scripts/install_spfft.sh

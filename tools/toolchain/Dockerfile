@@ -51,9 +51,11 @@ RUN ./scripts/install_valgrind.sh && rm -rf ./build
 
 COPY ./scripts/install_mpich.sh \
      ./scripts/install_openmpi.sh \
+     ./scripts/install_intelmpi.sh \
      ./scripts/
 RUN ./scripts/install_openmpi.sh && \
     ./scripts/install_mpich.sh && \
+    ./scripts/install_intelmpi.sh && \
     rm -rf ./build
 
 COPY ./scripts/install_reflapack.sh \
