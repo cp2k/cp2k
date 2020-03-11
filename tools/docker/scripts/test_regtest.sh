@@ -19,9 +19,32 @@ if which ompi_info &> /dev/null ; then
     export OMPI_MCA_plm_rsh_agent=/bin/false
 fi
 
-echo -e "\n========== Running Regtests =========="
+echo -en "\nCompiling cp2k... "
 cd /workspace/cp2k
+if make -j ARCH="${ARCH}" VERSION="${VERSION}" &> make.out ; then
+    echo "done."
+else
+    echo "failed."
+    cat make.out
+    echo -e "\nSummary: Compilation failed."
+    echo -e "Status: FAILED\n"
+    exit 0
+fi
+
+
+if [[ "${ARCH}" == "local" ]] ; then
+    echo -en "\nChecking benchmarks... "
+    if ! ./tools/regtesting/check_inputs.py "./exe/${ARCH}/cp2k.${VERSION}" "./benchmarks/" ; then
+        echo -e "\nSummary: Some benchmark inputs could not be parsed."
+        echo -e "Status: FAILED\n"
+        exit 0
+    fi
+fi
+
+
+echo -e "\n========== Running Regtests =========="
 make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
 
 exit 0 # Prevent CI from overwriting do_regtest's summary message.
+
 #EOF
