@@ -73,7 +73,7 @@ case "$with_libvdwxc" in
                     --without-mpi \
                     >> configure.log 2>&1
             else
-                CC=mpicc FC=mpifort ./configure \
+                CC="${MPICC}" FC="${MPIFC}" ./configure \
                     --prefix="${pkg_install_dir}" \
                     --libdir="${pkg_install_dir}/lib" \
                     --with-fftw3=${FFTW_ROOT} \

@@ -130,8 +130,8 @@ case "$with_sirius" in
             cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
                   -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
                   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
-                  -DCMAKE_CXX_COMPILER=mpic++ \
-                  -DCMAKE_C_COMPILER=mpicc \
+                  -DCMAKE_CXX_COMPILER="${MPICXX}" \
+                  -DCMAKE_C_COMPILER="${MPICC}" \
                   ${COMPILATION_OPTIONS} .. > compile.log 2>&1
             make -j $NPROCS -C src >> compile.log 2>&1
 
@@ -154,8 +154,8 @@ case "$with_sirius" in
                       -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                       -DUSE_CUDA=ON \
                       -DGPU_MODEL=P100 \
-                      -DCMAKE_CXX_COMPILER=mpic++ \
-                      -DCMAKE_C_COMPILER=mpicc ${COMPILATION_OPTIONS} .. >> compile.log 2>&1
+                      -DCMAKE_CXX_COMPILER="${MPICXX}" \
+                      -DCMAKE_C_COMPILER="${MPICC}" ${COMPILATION_OPTIONS} .. >> compile.log 2>&1
                 make -j $NPROCS -C src >> compile.log 2>&1
                 install -d ${pkg_install_dir}/lib/cuda
                 install -d ${pkg_install_dir}/include/cuda
