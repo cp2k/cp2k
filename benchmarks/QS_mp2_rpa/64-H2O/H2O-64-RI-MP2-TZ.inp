@@ -47,13 +47,16 @@
         &END
       &END HF
       &WF_CORRELATION
-        METHOD  RI_MP2_GPW
-        &WFC_GPW
-          CUTOFF      300
-          REL_CUTOFF  50
-          EPS_FILTER  1.0E-12
-          EPS_GRID    1.0E-8
-        &END
+        &RI_MP2
+        &END RI_MP2
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF      300
+            REL_CUTOFF  50
+            EPS_FILTER  1.0E-12
+            EPS_GRID    1.0E-8
+          &END
+        &END INTEGRALS
         MEMORY    1200
         NUMBER_PROC  1
       &END
