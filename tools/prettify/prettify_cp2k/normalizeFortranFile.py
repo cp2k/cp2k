@@ -120,11 +120,6 @@ NON_WORD_RE = re.compile(r"(\(/|/\)|[^-+a-zA-Z0-9_.])")
 
 STR_RE = re.compile(r"('[^'\n]*'|\"[^\"\n]*\")")
 
-COMMENT_TO_REMOVE_RE = re.compile(
-    r" *! *(?:interface|arguments|parameters|locals?|\** *local +variables *\**|\** *local +parameters *\**) *$",
-    re.IGNORECASE,
-)
-
 MODULE_N_RE = re.compile(
     r".*:: *moduleN *= *(['\"])[a-zA-Z_0-9]+\1", flags=re.IGNORECASE
 )
@@ -906,8 +901,7 @@ def cleanDeclarations(routine, logger):
 
         newDecl = StringIO()
         for comment in routine["preDeclComments"]:
-            if not COMMENT_TO_REMOVE_RE.match(comment):
-                newDecl.write(comment)
+            newDecl.write(comment)
         newDecl.writelines(routine["use"])
         writeDeclarations(argDecl, newDecl)
         if argDecl and paramDecl:
@@ -920,7 +914,7 @@ def cleanDeclarations(routine, logger):
             newDecl.write("\n")
         wrote = 0
         for comment in routine["declComments"]:
-            if comment.strip() and not COMMENT_TO_REMOVE_RE.match(comment):
+            if comment.strip():
                 newDecl.write(comment.strip())
                 newDecl.write("\n")
                 wrote = 1
@@ -943,9 +937,8 @@ def cleanDeclarations(routine, logger):
                 comment_start += 1
 
         for comment in routine["postDeclComments"][comment_start:]:
-            if not COMMENT_TO_REMOVE_RE.match(comment):
-                newDecl.write(comment)
-                newDecl.write("\n")
+            newDecl.write(comment)
+            newDecl.write("\n")
         routine["declarations"][0] += newDecl.getvalue()
 
 
