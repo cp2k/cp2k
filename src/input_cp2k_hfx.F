@@ -647,19 +647,19 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MIN_BLOCK_SIZE", &
                           description="Minimum tensor block size.", &
-                          default_i_val=8)
+                          default_i_val=5)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MIN_BLOCK_SIZE_MO", &
                           description="Minimum tensor block size for MOs.", &
-                          default_i_val=10)
+                          default_i_val=64)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CUT", &
                           description="Memory reduction factor.", &
-                          default_i_val=10)
+                          default_i_val=5)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
