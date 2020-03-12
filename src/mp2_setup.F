@@ -61,7 +61,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
                                                             do_ri_sos_mp2, do_rpa
-      REAL(dp)                                           :: eps_filter_factor, rc_ang
+      REAL(dp)                                           :: rc_ang
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: eri_mme_section, gw_section, &
                                                             im_time_test_section, &
