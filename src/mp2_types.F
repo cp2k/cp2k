@@ -109,8 +109,8 @@ MODULE mp2_types
    TYPE ri_rpa_im_time_type
       INTEGER                  :: cut_memory
       LOGICAL                  :: memory_info
-      REAL(KIND=dp)            :: eps_filter_im_time, cutoff, &
-                                  exp_kpoints
+      REAL(KIND=dp)            :: eps_filter, cutoff, &
+                                  exp_kpoints, eps_filter_factor
       INTEGER                  :: group_size_P, group_size_3c
       INTEGER, DIMENSION(:), POINTER     :: kp_grid
       LOGICAL                  :: do_im_time_kpoints

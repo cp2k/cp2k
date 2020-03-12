@@ -553,7 +553,7 @@ CONTAINS
                                    t_3c_M, t_3c_O, &
                                    starts_array_mc, ends_array_mc, &
                                    starts_array_mc_block, ends_array_mc_block, &
-                                   mp2_env%mp2_gpw%eps_filter, BIb_C_beta, homo_beta, Eigenval_beta, &
+                                   BIb_C_beta, homo_beta, Eigenval_beta, &
                                    gd_B_virtual_beta, &
                                    mo_coeff_beta, BIb_C_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
 
@@ -572,8 +572,7 @@ CONTAINS
                                    mat_P_global, &
                                    t_3c_M, t_3c_O, &
                                    starts_array_mc, ends_array_mc, &
-                                   starts_array_mc_block, ends_array_mc_block, &
-                                   mp2_env%mp2_gpw%eps_filter)
+                                   starts_array_mc_block, ends_array_mc_block)
 
             IF (mp2_env%ri_rpa%do_rse) &
                CALL rse_energy(qs_env, mp2_env, para_env, dft_control, &

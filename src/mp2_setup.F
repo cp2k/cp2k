@@ -187,15 +187,10 @@ CONTAINS
       CALL section_vals_val_get(low_scaling_section, "_SECTION_PARAMETERS_", &
                                 l_val=mp2_env%do_im_time)
 
-      CALL section_vals_val_get(low_scaling_section, "MEMORY_CUT", &
-                                i_val=mp2_env%ri_rpa_im_time%cut_memory)
-      CALL section_vals_val_get(low_scaling_section, "MEMORY_INFO", &
-                                l_val=mp2_env%ri_rpa_im_time%memory_info)
-      IF (mp2_env%do_im_time) CALL section_vals_val_get(low_scaling_section, "EPS_FILTER", &
-                                                        r_val=mp2_env%mp2_gpw%eps_filter)
-      CALL section_vals_val_get(low_scaling_section, "EPS_FILTER_FACTOR", &
-                                r_val=eps_filter_factor)
-      mp2_env%ri_rpa_im_time%eps_filter_im_time = eps_filter_factor*mp2_env%mp2_gpw%eps_filter
+      CALL section_vals_val_get(low_scaling_section, "MEMORY_CUT", i_val=mp2_env%ri_rpa_im_time%cut_memory)
+      CALL section_vals_val_get(low_scaling_section, "MEMORY_INFO", l_val=mp2_env%ri_rpa_im_time%memory_info)
+      CALL section_vals_val_get(low_scaling_section, "EPS_FILTER", r_val=mp2_env%ri_rpa_im_time%eps_filter)
+      CALL section_vals_val_get(low_scaling_section, "EPS_FILTER_FACTOR", r_val=mp2_env%ri_rpa_im_time%eps_filter_factor)
 
       CALL section_vals_val_get(low_scaling_section, "DO_KPOINTS", &
                                 l_val=mp2_env%ri_rpa_im_time%do_im_time_kpoints)

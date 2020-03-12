@@ -36,25 +36,10 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
-        &PBE
-          SCALE_X 0.7500000
-          SCALE_C 1.0000000
-        &END
       &END XC_FUNCTIONAL
-      &HF
-        FRACTION 0.2500000
-        &SCREENING
-          EPS_SCHWARZ 1.0E-8
-          SCREEN_ON_INITIAL_P FALSE
-        &END SCREENING
-      &END HF
       &WF_CORRELATION
-        &RI
-          &RI_METRIC
-            POTENTIAL_TYPE IDENTITY
-          &END
-        &END
         &LOW_SCALING
+          EPS_FILTER 0.0
           MEMORY_CUT 1
         &END
         &RI_RPA
@@ -69,12 +54,8 @@
           &GW
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
-            CROSSING_SEARCH       Z_SHOT
-            ANALYTIC_CONTINUATION TWO_POLE
           &END GW
         &END RI_RPA
-        MEMORY  200.
-        NUMBER_PROC  1
       &END
     &END XC
   &END DFT
@@ -84,12 +65,12 @@
       PERIODIC NONE
     &END CELL
     &KIND H
-      BASIS_SET  DZVP-GTH
+      BASIS_SET  cc-TZV2P-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
       POTENTIAL  GTH-PBE-q1
     &END KIND
     &KIND O
-      BASIS_SET  DZVP-GTH
+      BASIS_SET  cc-TZV2P-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
       POTENTIAL  GTH-PBE-q6
     &END KIND
