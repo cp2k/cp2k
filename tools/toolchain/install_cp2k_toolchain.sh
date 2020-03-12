@@ -100,7 +100,7 @@ OPTIONS:
 --libint-lmax             Maximum supported angular momentum by libint.
                           Higher values will increase build time and library size.
                           Default = 5
---dry-run                 Write only config files, but dont' actually build packages.
+--dry-run                 Write only config files, but don't actually build packages.
 
 The --enable-FEATURE options follow the rules:
   --enable-FEATURE=yes    Enable this particular feature
@@ -288,7 +288,7 @@ with_scalapack=__INSTALL__
 # default math library settings, FAST_MATH_MODE picks the math library
 # to use, and with_* defines the default method of installation if it
 # is picked. For non-CRAY systems defaults to mkl if $MKLROOT is
-# avaliable, otherwise defaults to openblas
+# available, otherwise defaults to openblas
 if [ "$MKLROOT" ] ; then
     export FAST_MATH_MODE=mkl
 else

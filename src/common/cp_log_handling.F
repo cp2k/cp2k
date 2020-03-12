@@ -84,7 +84,7 @@ MODULE cp_log_handling
    !! level of a note
    INTEGER, PARAMETER          :: cp_note_level = 0
 
-   !! a generic function to trasform different types to strings
+   !! a generic function to transform different types to strings
    INTERFACE cp_to_string
       MODULE PROCEDURE cp_int_to_string, cp_real_dp_to_string, cp_logical_to_string
    END INTERFACE
@@ -717,7 +717,7 @@ CONTAINS
 !> \note
 !>      this should be a function returning a variable length string.
 !>      All spaces are moved to the end of the string.
-!>      Not fully optimized: result must be a littel longer than the
+!>      Not fully optimized: result must be a little longer than the
 !>      resulting compressed filename
 ! **************************************************************************************************
    SUBROUTINE cp_logger_generate_filename(logger, res, root, postfix, &

@@ -117,7 +117,7 @@ CONTAINS
       CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1)
       CALL create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix(1)%matrix, 1)
 
-! Tells whether we have local data available on the processor (usually all in pcol 0 but even ther can be some without data)
+! Tells whether we have local data available on the processor (usually all in pcol 0 but even there can be some without data)
       control => get_control(arnoldi_data)
       CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
       control%local_comp = ncol_local > 0 .AND. nrow_local > 0
@@ -202,7 +202,7 @@ CONTAINS
       CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1)
       CALL create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix(1)%matrix, 1)
 
-! Tells whether we have local data available on the processor (usually all in pcol 0 but even ther can be some without data)
+! Tells whether we have local data available on the processor (usually all in pcol 0 but even there can be some without data)
       control => get_control(arnoldi_data)
       CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
       control%local_comp = ncol_local > 0 .AND. nrow_local > 0

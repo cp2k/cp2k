@@ -273,8 +273,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_SET", &
                           description="Specifies the reference basis ID which is used as template to create the new set. "// &
-                          "The original basis has ID 0. All follwing sets are counted in order as specified in the Input."// &
-                          " The decriptors always assume the structure of the input basis set.", &
+                          "The original basis has ID 0. All following sets are counted in order as specified in the Input."// &
+                          " The descriptors always assume the structure of the input basis set.", &
                           repeats=.FALSE., usage="REFERNCE_SET INTEGER", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -282,7 +282,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="REMOVE_CONTRACTION", &
                           description="Can be used to remove a contraction from the reference basis set. "// &
                           "The contraction is speciefied by set number, angular momentum and number of contraction."// &
-                          " The decriptors always assume the structure of the input basis set.", &
+                          " The descriptors always assume the structure of the input basis set.", &
                           repeats=.TRUE., usage="REMOVE_CONTRACTION SET L ICONTRACTION", type_of_var=integer_t, n_var=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -310,7 +310,7 @@ CONTAINS
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="CONSTRAIN_EXPONENTS", &
-                          description="specicifies contraints for the exponents to be fitted."// &
+                          description="specicifies constraints for the exponents to be fitted."// &
                           " Only a single constraint can be applied to an exponent", &
                           repeats=.TRUE.)
 
@@ -353,7 +353,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="TRAINING_FILES", &
                           description="specicifies the location in which the files necessary for"// &
-                          " fitting procedure are located. Each Training set needs a reptition of this section.", &
+                          " fitting procedure are located. Each Training set needs a repetition of this section.", &
                           repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="DIRECTORY", &
@@ -364,7 +364,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="INPUT_FILE_NAME", &
-                          description="the filename of the input file used to run the original calcuation", &
+                          description="the filename of the input file used to run the original calculation", &
                           usage="INPUT_FILE_NAME my_input.inp", &
                           default_lc_val="input.inp")
       CALL section_add_keyword(section, keyword)

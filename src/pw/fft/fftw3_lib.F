@@ -672,7 +672,7 @@ CONTAINS
          !  DO loop to do the final transposition performed better than directly transposing the output.
          !  However, this might vary depending on the compiler/platform, so a potential tuning spot
          !  is to perform the final transposition within the fftw library rather than using the external loop
-         !  See comments below in Z-FFT for how to tranpose the output to avoid the final DO loop.
+         !  See comments below in Z-FFT for how to transpose the output to avoid the final DO loop.
          !
          !  Doc. for the Guru interface is in http://www.fftw.org/doc/Guru-Interface.html
          !

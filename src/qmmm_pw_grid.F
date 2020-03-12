@@ -110,7 +110,7 @@ CONTAINS
 !> \param pw_mode ...
 !> \par History
 !>      08.2004 created [tlaino]
-!>      04.2005 completly rewritten the duplicate routine, fixed parallel
+!>      04.2005 completely rewritten the duplicate routine, fixed parallel
 !>              behaviour, narrowed scope to copy to non pbc and renamed
 !>              accordingly [fawzi]
 !>      06.2007 moved to new module [jgh]

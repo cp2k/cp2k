@@ -358,7 +358,7 @@ CONTAINS
 !>        K(x) = \kappa \exp (\frac{1}{|x|^2 - 1}),  if |x| <= 1
 !>             = 0,                                  otherwise
 !> \param pw_pool pool of pw grid
-!> \param zeta paramter \zeta defining the width of the mollifier
+!> \param zeta parameter \zeta defining the width of the mollifier
 !> \param x_glbl x grid vector of the simulation box
 !> \param y_glbl y grid vector of the simulation box
 !> \param z_glbl z grid vector of the simulation box

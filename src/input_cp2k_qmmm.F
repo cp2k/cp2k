@@ -128,7 +128,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="use_geep_lib", &
                           description=" This keyword enables the use of the internal GEEP library to generate the "// &
                           "gaussian expansion of the MM potential. Using this keyword there's no need to provide "// &
-                          "the MM_POTENTIAL_FILENAME. It expects a number from 2 to 15 (the number of gaussian funtions"// &
+                          "the MM_POTENTIAL_FILENAME. It expects a number from 2 to 15 (the number of gaussian functions"// &
                           " to be used in the expansion.", &
                           usage="use_geep_lib INTEGER", &
                           default_i_val=0)
@@ -767,7 +767,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NGRIDS", &
                           description="Specifies the number of grid points used for the Interpolation of the G-space term", &
-                          usage="NGRIDS <integer> <iteger> <integer> ", n_var=3, default_i_vals=(/50, 50, 50/))
+                          usage="NGRIDS <integer> <integer> <integer> ", n_var=3, default_i_vals=(/50, 50, 50/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -851,7 +851,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NGRIDS", &
                           description="Specifies the number of grid points used for the Interpolation of the G-space term", &
-                          usage="NGRIDS <integer> <iteger> <integer> ", n_var=3, default_i_vals=(/50, 50, 50/))
+                          usage="NGRIDS <integer> <integer> <integer> ", n_var=3, default_i_vals=(/50, 50, 50/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1240,7 +1240,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "spl_coeffs", &
-                                       description="outputs a cube with the coefficents calculated for "// &
+                                       description="outputs a cube with the coefficients calculated for "// &
                                        "the spline interpolation", &
                                        print_level=debug_print_level)
       CALL section_add_subsection(section, print_key)

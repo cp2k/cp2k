@@ -310,7 +310,7 @@ PROGRAM cp2k
                IF (ierr == 0) THEN
                   IF (.NOT. echo_input) THEN
                      WRITE (output_unit, "(A)") "SUCCESS, the input could be parsed correctly."
-                     WRITE (output_unit, "(A)") "         This is does not guarantee that this input is meaningful"
+                     WRITE (output_unit, "(A)") "         This does not guarantee that this input is meaningful"
                      WRITE (output_unit, "(A)") "         or will run successfully"
                   ENDIF
                ELSE

@@ -1068,7 +1068,7 @@ CONTAINS
                        'Could not find &CELL section in the input file.  Or could not find the ABC line after it.')
       ENDIF
 
-! now we need all the MOL_SET NMOLS indicies
+! now we need all the MOL_SET NMOLS indices
       IF (.NOT. lhmc) THEN
          irep = 0
          nstart = 1

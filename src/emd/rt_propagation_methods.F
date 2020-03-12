@@ -86,7 +86,7 @@ MODULE rt_propagation_methods
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief performes a single propagation step a(t+Dt)=U(t+Dt,t)*a(0)
+!> \brief performs a single propagation step a(t+Dt)=U(t+Dt,t)*a(0)
 !>        and calculates the new exponential
 !> \param qs_env ...
 !> \param rtp ...
@@ -248,7 +248,7 @@ CONTAINS
    END SUBROUTINE propagation_step
 
 ! **************************************************************************************************
-!> \brief Performes all the stuff to finish the step:
+!> \brief Performs all the stuff to finish the step:
 !>        convergence checks
 !>        copying stuff into right place for the next step
 !>        updating the history for extrapolation

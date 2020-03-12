@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#BN (old structure) & P6_3mc & C_{6h}^4 & #186 & hP4 & B12 & Structure Reports 18, 125-6 (1941) & with exagerated z
+#BN (old structure) & P6_3mc & C_{6h}^4 & #186 & hP4 & B12 & Structure Reports 18, 125-6 (1941) & with exaggerated z
      A   1.25500000 -2.17372376  0.00000000
      B   1.25500000  2.17372376  0.00000000
      C   0.00000000  0.00000000  6.70000000

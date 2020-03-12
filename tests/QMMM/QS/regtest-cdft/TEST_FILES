@@ -4,7 +4,7 @@
 #
 HeH-water-noconstraint.inp                             1      2e-11              -2.95332848940723
 # The MM part seems to introduce noise that is difficult to account for
-# So just running the test succesfully is sufficient
+# So just running the test successfully is sufficient
 HeH-water-cdft-state-1.inp                             0
 HeH-water-cdft-state-2.inp                             0
 # These tests compute the electronic coupling in parallel/serial modes

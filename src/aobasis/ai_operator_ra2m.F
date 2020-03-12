@@ -5,7 +5,7 @@
 
 ! **************************************************************************************************
 !> \brief Calculation of integrals over Cartesian Gaussian-type functions for [a|(r-Ra)^(2m)|b]
-!>        Ra is the postion of center a
+!>        Ra is the position of center a
 !> \par Literature
 !>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
 !> \par History

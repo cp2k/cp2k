@@ -385,7 +385,7 @@ CONTAINS
                                     matrix_v=mos_occ%matrix, &
                                     ncol=ncol, &
                                     alpha=alpha)
-         ! It is actually complex conjugate but i*i=-1 therfore it must be added
+         ! It is actually complex conjugate but i*i=-1 therefore it must be added
          CALL cp_fm_to_fm(mos_new(im)%matrix, mos_occ%matrix)
          CALL cp_fm_column_scale(mos_occ%matrix, mos(i)%mo_set%occupation_numbers/alpha)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix, &

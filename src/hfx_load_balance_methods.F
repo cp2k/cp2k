@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Rountines for optimizing load balance between processes in HFX calculations
+!> \brief Routines for optimizing load balance between processes in HFX calculations
 !> \par History
 !>      04.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -88,7 +88,7 @@ CONTAINS
 !> \param coeffs_kind screening functions
 !> \param is_assoc_atomic_block_global KS-matrix sparsity
 !> \param do_periodic flag for periodicity
-!> \param load_balance_parameter Paramters for Monte-Carlo routines
+!> \param load_balance_parameter Parameters for Monte-Carlo routines
 !> \param kind_of helper array for mapping
 !> \param basis_parameter Basis set parameters
 !> \param pmax_set Initial screening matrix

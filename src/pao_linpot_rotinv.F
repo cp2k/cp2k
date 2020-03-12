@@ -90,7 +90,7 @@ CONTAINS
          DO lpot = 0, pot_maxl, 2
             lmin = shell_l(min_shell)
             lmax = shell_l(max_shell)
-            IF (lmin == 0 .AND. lmax == 0) CYCLE ! coverted by central terms
+            IF (lmin == 0 .AND. lmax == 0) CYCLE ! covered by central terms
             nterms = nterms + 1
          ENDDO
          ENDDO

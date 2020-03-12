@@ -236,7 +236,7 @@ CONTAINS
       !
       ! The derivatives dslm_dxyz and its expansions my_CG_dxyz and my_CG_dxyz_asymm
       ! are NOT the dSlm/dx but the scaled by r**(l-1) derivatives of the monomial
-      ! terms x^n1 y^n2 z^n3 tranformed by spherical harmonics expansion coefficients
+      ! terms x^n1 y^n2 z^n3 transformed by spherical harmonics expansion coefficients
       !
       DO ia = 1, na
          DO l = 0, indso(1, max_s_harm)

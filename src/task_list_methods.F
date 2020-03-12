@@ -1981,7 +1981,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: index
 
       ! calculate list of atom pairs
-      ! fill pair list taking into acount symmetry
+      ! fill pair list taking into account symmetry
 
       natom8 = natoms
       nim8 = nimages
@@ -2014,7 +2014,7 @@ CONTAINS
             atom_pair(i) = rs_descs(ilevel)%rs_desc%virtual2real(decode_rank(my_tasks(i)%destination, SIZE(rs_descs))) &
                            *natom8*natom8*nim8 + (arow - 1)*natom8*nim8 + (acol - 1)*nim8 + (img - 1)
          ELSE
-            ! If we are recieving, then no conversion is needed as the rank is that of the process with the
+            ! If we are receiving, then no conversion is needed as the rank is that of the process with the
             ! required matrix block, and the ordering of the rs grid is irrelevant
             atom_pair(i) = decode_rank(my_tasks(i)%source, SIZE(rs_descs)) &
                            *natom8*natom8*nim8 + (arow - 1)*natom8*nim8 + (acol - 1)*nim8 + (img - 1)

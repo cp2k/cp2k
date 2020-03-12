@@ -1242,7 +1242,7 @@ CONTAINS
       ! for the chemical shift we need 6 psi1, i.e. 6 optimization procedures
       ! They become 9 if full nmr is calculated, i.e. with the correction term too
       ! All of them are required at the end of the optimization procedure
-      ! if the current density and the induced fiels have to be calculated
+      ! if the current density and the induced field have to be calculated
       ! If instead only the shift is needed, only one psi1 should be enough, providing
       ! that after every optimization the corresponding shift contribution is calculated
       ! prepare the psi1

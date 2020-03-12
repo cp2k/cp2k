@@ -162,7 +162,7 @@ CONTAINS
          atomic_matrix = 0.0_dp
       END IF
 
-      ! generate send and receiv atomic pairs
+      ! generate send and receive atomic pairs
       CALL fb_com_atom_pairs_create(atom_pairs_send)
       CALL fb_com_atom_pairs_create(atom_pairs_recv)
       CALL fb_atmatrix_generate_com_pairs(dbcsr_mat, &
@@ -416,7 +416,7 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief generate list of blocks (atom pairs) of a DBCSR matrix to be
-!>        sent and recived in order to construct an atomic matrix
+!>        sent and received in order to construct an atomic matrix
 !>        corresponding to a given atomic halo. This version is for the case
 !>        when we do MPI communications at each step, for each atomic matrix.
 !> \param dbcsr_mat : The DBCSR matrix the atom blocks come from
@@ -484,11 +484,11 @@ CONTAINS
 
       ! generate recv task list (tasks_recv)
 
-      ! a recv task corresponds to the copying or transfering of a
+      ! a recv task corresponds to the copying or transferring of a
       ! matrix block in the part of the DBCSR matrix owned by the src
       ! proc to this proc in order to construct the atomic matrix
       ! corresponding to the given atomic halo. As an upper-bound, the
-      ! number of matrix blocks requred do not exceed natoms_in_halo**2
+      ! number of matrix blocks required do not exceed natoms_in_halo**2
       ntasks_recv = natoms_in_halo*natoms_in_halo
 
       ALLOCATE (tasks_recv(TASK_N_RECORDS, ntasks_recv))
@@ -611,7 +611,7 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief generate list of blocks (atom pairs) of a DBCSR matrix to be
-!>        sent and recived in order to construct all local atomic matrices
+!>        sent and received in order to construct all local atomic matrices
 !>        corresponding to the atomic halos. This version is for the case
 !>        when we do MPI communications collectively in one go at the
 !>        beginning.

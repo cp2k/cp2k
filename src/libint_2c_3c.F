@@ -276,7 +276,7 @@ CONTAINS
       TYPE(params_3c), POINTER                           :: params
 
       !Assume that one of params_in or params_out is present, and that in the latter case, all
-      !other optinal arguments are here
+      !other optional arguments are here
 
       !The internal structure of libint2 is based on 4-center integrals
       !For 3-center, one of those is a dummy center

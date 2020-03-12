@@ -704,7 +704,7 @@ CONTAINS
 
       ! Real
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
-                          description="The constrained paramters' values to construct virtual site."// &
+                          description="The constrained parameters' values to construct virtual site."// &
                           "r_v=a*r_ij+b*r_kj", &
                           usage="PARAMETERS {real} {real}", &
                           type_of_var=real_t, n_var=2, unit_str="internal_cp2k")

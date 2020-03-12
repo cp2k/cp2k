@@ -287,7 +287,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief returns the various attributes of rho_set
-!> \param rho_set the object you whant info about
+!> \param rho_set the object you want info about
 !> \param can_return_null if true the object returned can be null,
 !>        if false (the default) it stops with an error if a requested
 !>        component is not associated

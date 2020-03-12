@@ -612,7 +612,7 @@ CONTAINS
          END DO
 
          CALL invmat(matrix_lin_eqs, info)
-         ! check whether inversion was successfull
+         ! check whether inversion was successful
          CPASSERT(info == 0)
 
          ALLOCATE (wkp_W(num_lin_eqs))
@@ -698,7 +698,7 @@ CONTAINS
          END DO
 
          CALL invmat(matrix_lin_eqs, info)
-         ! check whether inversion was successfull
+         ! check whether inversion was successful
          CPASSERT(info == 0)
 
          ALLOCATE (wkp_W(num_lin_eqs))

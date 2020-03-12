@@ -515,7 +515,7 @@ CONTAINS
 !> \param input_line_number ...
 !> \param input_unit ...
 !> \par History
-!>      - standalone proof-of-concept implemenation (20.02.2008,AK)
+!>      - standalone proof-of-concept implementation (20.02.2008,AK)
 !>      - integrated into cp2k (21.02.2008)
 !> \author AK
 ! **************************************************************************************************
@@ -548,7 +548,7 @@ CONTAINS
 !> \param input_file_name ...
 !> \param input_line_number ...
 !> \par History
-!>      - standalone proof-of-concept implemenation (22.02.2008,AK)
+!>      - standalone proof-of-concept implementation (22.02.2008,AK)
 !>      - integrated into cp2k (23.02.2008)
 !> \author AK
 ! **************************************************************************************************
@@ -651,7 +651,7 @@ CONTAINS
 !> \param varname ...
 !> \return ...
 !> \par History
-!>      - standalone proof-of-concept implemenation (22.02.2008,AK)
+!>      - standalone proof-of-concept implementation (22.02.2008,AK)
 !>      - integrated into cp2k (23.02.2008)
 !> \author AK
 ! **************************************************************************************************
@@ -677,7 +677,7 @@ CONTAINS
 !> \param inpp ...
 !> \param iochan ...
 !> \par History
-!>      - standalone proof-of-concept implemenation (22.02.2008,AK)
+!>      - standalone proof-of-concept implementation (22.02.2008,AK)
 !>      - integrated into cp2k (23.02.2008)
 !> \author AK
 ! **************************************************************************************************

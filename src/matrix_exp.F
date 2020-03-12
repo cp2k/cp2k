@@ -471,7 +471,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       p = npade
-      q = npade !p==q seems to be neccesary for the rest of the code
+      q = npade !p==q seems to be necessary for the rest of the code
 
       CALL cp_fm_get_info(im_part, local_data=local_data_im, ncol_local=ldim, nrow_global=ndim)
       square_fac = 1.0_dp/(2.0_dp**REAL(nsquare, dp))
@@ -592,7 +592,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       p = npade
-      q = npade !p==q seems to be neccesary for the rest of the code
+      q = npade !p==q seems to be necessary for the rest of the code
 
       CALL cp_fm_get_info(matrix, local_data=local_data, ncol_local=ldim, nrow_global=ndim)
       square_fac = 2.0_dp**REAL(nsquare, dp)

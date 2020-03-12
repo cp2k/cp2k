@@ -222,7 +222,7 @@ CONTAINS
 !> \param energy ...
 !> \par History
 !>      07.2005 created [tlaino]
-!>      2014/09/17 made atom list to be read from repeated occurance of LIST [LTong]
+!>      2014/09/17 made atom list to be read from repeated occurrence of LIST [LTong]
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE eval_bsse_energy_low(force_env, conf, conf_loc, n_frags, &

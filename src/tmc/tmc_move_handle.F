@@ -5,7 +5,7 @@
 
 ! **************************************************************************************************
 !> \brief acceptance ratio handling of the different Monte Carlo Moves types
-!>        For each move type and each temperature average acceptence is
+!>        For each move type and each temperature average acceptance is
 !>        determined.
 !>        For each move is a weight (mv_weight) defined, which defines the
 !>        probability to perform the move.
@@ -158,7 +158,7 @@ CONTAINS
 
          ! get the sizes, probs, etc. for each move type and convert units
          DO i_tmp = 1, n_items + n_NMC_items
-            ! select the corect section
+            ! select the correct section
             IF (i_tmp .GT. n_items) THEN
                i_rep = i_tmp - n_items
                IF (i_rep .EQ. 1) THEN

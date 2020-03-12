@@ -91,10 +91,10 @@ CONTAINS
 !>      depending on the selected functional_routine calls
 !>      the correct routine
 !> \param vxc_rho will contain the v_xc part that depend on rho
-!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param vxc_tau will contain the kinetic (tau) part of v_xcthe functional
-!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param rho_r the value of the density in the real space
 !> \param rho_g value of the density in the g space (needs to be associated
@@ -867,7 +867,7 @@ CONTAINS
 !> \param rho , rhoa,rhob: the value of the density (used to apply the cutoff)
 !> \param rhoa ...
 !> \param rhob ...
-!> \param rho_cutoff the vaule at whch the cutoff function must go to 0
+!> \param rho_cutoff the value at whch the cutoff function must go to 0
 !> \param rho_smooth_cutoff_range range of the smoothing
 !> \param e_0 value of e_0, if given it is assumed that pot is the derivative
 !>        wrt. to rho, and needs the dsmooth*e_0 contribution

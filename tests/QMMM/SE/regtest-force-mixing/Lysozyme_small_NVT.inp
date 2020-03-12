@@ -325,7 +325,7 @@
      &END FORCE_MIXING
 
      &CELL
-	# 19x16x18 + 4 vaccum on each side
+	# 19x16x18 + 4 vacuum on each side
         ABC 27.0 24.0 26.0
 @IF ${QS_METHOD} == DFT
 	PERIODIC XYZ

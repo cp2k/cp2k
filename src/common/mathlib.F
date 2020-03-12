@@ -141,7 +141,7 @@ CONTAINS
    END FUNCTION pswitch
 
 ! **************************************************************************************************
-!> \brief determins if a value is not normal (e.g. for Inf and Nan)
+!> \brief determines if a value is not normal (e.g. for Inf and Nan)
 !>        based on IO to work also under optimization.
 !> \param a input value
 !> \return TRUE for NaN and Inf
@@ -152,7 +152,7 @@ CONTAINS
       CHARACTER(LEN=32)                                  :: buffer
 
       abnormal_value = .FALSE.
-      ! the function should work when compiled witht -ffast-math and similar
+      ! the function should work when compiled with -ffast-math and similar
       ! unfortunately, that option asserts that all numbers are normals,
       ! which the compiler uses to optimize the function to .FALSE. if based on the IEEE module
       ! therefore, pass this to the Fortran runtime/printf, if things are NaN or Inf, error out.

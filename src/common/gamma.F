@@ -530,7 +530,7 @@ CONTAINS
    END FUNCTION fgamma_ref
 
 ! **************************************************************************************************
-!> \brief   Initalize a table of F_n(t) values in the range 0 <= t <= 12 with
+!> \brief   Initialize a table of F_n(t) values in the range 0 <= t <= 12 with
 !>            a stepsize of 0.1 up to n equal to nmax for the Taylor series
 !>            expansion used by McMurchie-Davidson (MD).
 !> \param nmax ...

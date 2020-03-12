@@ -207,7 +207,7 @@ CONTAINS
             check = (meta_env%metavar(i)%icolvar <= number_allocated_colvars)
             IF (.NOT. check) &
                CALL cp_abort(__LOCATION__, &
-                             "An error occured in the specification of COLVAR for METAVAR. "// &
+                             "An error occurred in the specification of COLVAR for METAVAR. "// &
                              "Specified COLVAR #("//TRIM(ADJUSTL(cp_to_string(meta_env%metavar(i)%icolvar)))//") "// &
                              "is larger than the maximum number of COLVARS defined in the SUBSYS ("// &
                              TRIM(ADJUSTL(cp_to_string(number_allocated_colvars)))//") !")

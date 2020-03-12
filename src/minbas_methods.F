@@ -193,7 +193,7 @@ CONTAINS
          END DO
 
          ! initialize MAOs
-         ! optimze MAOs (mao_coef is allocated in the routine)
+         ! optimize MAOs (mao_coef is allocated in the routine)
          CALL mao_generate_basis(qs_env, mao_coef)
 
          ! sortho (nmao x nmao)

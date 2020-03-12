@@ -35,10 +35,10 @@ from matplotlib.ticker import AutoMinorLocator
 # ===============================================================================
 class GitLog(list):
     def __init__(self):
-        cmd = ["git", "log", "--pretty=format:%H%n%ct%n%an%n%ae%n%s%n%b<--seperator-->"]
+        cmd = ["git", "log", "--pretty=format:%H%n%ct%n%an%n%ae%n%s%n%b<--separator-->"]
         outbytes = check_output(cmd)
         output = outbytes.decode("utf-8", errors="replace")
-        for entry in output.split("<--seperator-->")[:-1]:
+        for entry in output.split("<--separator-->")[:-1]:
             lines = entry.strip().split("\n")
             commit = dict()
             commit["git-sha"] = lines[0]

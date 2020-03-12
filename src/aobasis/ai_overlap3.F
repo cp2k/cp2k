@@ -1085,7 +1085,7 @@ CONTAINS
       fexpa = 2.0_dp*zeta
       fexpc = 2.0_dp*zetc
 
-!   derviative with respec to x,y,z
+!   derivative with respec to x,y,z
 
       devx = 1
       devy = 2

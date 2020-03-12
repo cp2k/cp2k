@@ -615,9 +615,9 @@ CONTAINS
          CALL section_create(section, __LOCATION__, name="XALMO_OPTIMIZER_TRUSTR", &
                              description="Controls the trust-region optimization of extended ALMOs. "// &
                              "Trust radius is varied in the outer loop. Once the trust radius is "// &
-                             "chosen (and fixed) the model function can be minized using varius "// &
+                             "chosen (and fixed) the model function can be minized using various "// &
                              "approaches. Currently, an iterative conjugate-gradient approach is "// &
-                             "used and controled by the inner loop", &
+                             "used and controlled by the inner loop", &
                              n_keywords=10, n_subsections=0, repeats=.FALSE.)
          optimizer_type = optimizer_trustr
       CASE (optimizer_newton_pcg_solver)

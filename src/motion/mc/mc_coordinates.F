@@ -176,7 +176,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief calculates the center of mass of a given molecule
-!> \param coordinates the coordiantes of the atoms in the molecule
+!> \param coordinates the coordinates of the atoms in the molecule
 !> \param natom the number of atoms in the molecule
 !> \param center_of_mass the coordinates of the center of mass
 !> \param mass the mass of the atoms in the molecule
@@ -222,7 +222,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief folds all the coordinates into the center simulation box using
 !>      a center of mass cutoff
-!> \param coordinates the coordiantes of the atoms in the system
+!> \param coordinates the coordinates of the atoms in the system
 !> \param nchains_tot the total number of molecules in the box
 !> \param mol_type an array that indicates the type of every molecule in the box
 !> \param mass the mass of every atom for all molecule types
@@ -298,7 +298,7 @@ CONTAINS
 !> \param mass the mass for every interaction site of every molecule type
 !> \param loverlap the flag that indicates if all of the configs have an
 !>                  atomic overlap
-!> \param choosen_energy the energy of the choosen config
+!> \param choosen_energy the energy of the chosen config
 !> \param old_energy the energy that we subtract from all of the trial
 !>        energies to prevent numerical overflows
 !> \param ionode indicates if we're on the main CPU
@@ -587,7 +587,7 @@ CONTAINS
          RETURN
       ENDIF
 
-! make sure a configuration was choosen
+! make sure a configuration was chosen
       IF (choosen == 0) &
          CPABORT('CBMC swap move failed to select config')
 
@@ -704,10 +704,10 @@ CONTAINS
 !> \brief selects a molecule at random to perform a MC move on...you can specify
 !>      the box the molecule should be in, its type, both, or neither
 !> \param mc_molecule_info the structure that contains some global molecule data
-!> \param start_atom the number of the first atom in the choosen molecule in relation
+!> \param start_atom the number of the first atom in the chosen molecule in relation
 !>        to the force_env it's in
-!> \param box_number the box the choosen molecule is in
-!> \param molecule_type the type of molecule the choosen molecule is
+!> \param box_number the box the chosen molecule is in
+!> \param molecule_type the type of molecule the chosen molecule is
 !> \param rng_stream the stream we pull random numbers from
 !> \param box if present, tells the routine which box to grab a molecule from
 !> \param molecule_type_old if present, tells the routine which molecule type to select from
@@ -1064,7 +1064,7 @@ CONTAINS
 
       counter = 0
 
-! Allocating the size of matrix and decison matrix
+! Allocating the size of matrix and decision matrix
       ALLOCATE (clusmat(nend), decision(nend))
 
 !Initialize

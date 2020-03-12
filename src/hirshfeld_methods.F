@@ -441,7 +441,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, auxbas_rs_grid=rs_rho, &
                       auxbas_pw_pool=auxbas_pw_pool)
       cube_info = pw_env%cube_info(1)
-      ! be careful in parallel nsmax is choosen with multigrid in mind!
+      ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_retain(rs_rho)
       CALL rs_grid_zero(rs_rho)
 

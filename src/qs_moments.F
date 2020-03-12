@@ -226,7 +226,7 @@ CONTAINS
 
          IF (inode == 1) last_jatom = 0
 
-         ! this guarentees minimum image convention
+         ! this guarantees minimum image convention
          ! anything else would not make sense
          IF (jatom == last_jatom) THEN
             CYCLE
@@ -751,7 +751,7 @@ CONTAINS
 
          IF (inode == 1) last_jatom = 0
 
-         ! this guarentees minimum image convention
+         ! this guarantees minimum image convention
          ! anything else would not make sense
          IF (jatom == last_jatom) THEN
             CYCLE

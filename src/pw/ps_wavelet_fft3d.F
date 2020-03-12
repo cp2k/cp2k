@@ -14,7 +14,7 @@ MODULE ps_wavelet_fft3d
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_fft3d'
 
-   ! longest fft supported, must be equal to the lenght of the ctrig array
+   ! longest fft supported, must be equal to the length of the ctrig array
    INTEGER, PARAMETER :: ctrig_length = 8192
 
    PUBLIC :: fourier_dim, &
@@ -65,8 +65,8 @@ CONTAINS
 ! --------------------------------------------------------------
 !   3-dimensional complex-complex FFT routine:
 !   When compared to the best vendor implementations on RISC architectures
-!   it gives close to optimal performance (perhaps loosing 20 percent in speed)
-!   and it is significanly faster than many not so good vendor implementations
+!   it gives close to optimal performance (perhaps losing 20 percent in speed)
+!   and it is significantly faster than many not so good vendor implementations
 !   as well as other portable FFT's.
 !   On all vector machines tested so far (Cray, NEC, Fujitsu) is
 !   was significantly faster than the vendor routines

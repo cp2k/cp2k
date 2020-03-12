@@ -103,7 +103,7 @@ MODULE qs_loc_types
    END TYPE qs_loc_env_new_type
 
 ! **************************************************************************************************
-!> \brief A type that holds controling information for the
+!> \brief A type that holds controlling information for the
 !>    calculation of the spread of wfn and the optimization of
 !>    the spread functional
 !> \param ref_count ...

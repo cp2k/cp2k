@@ -61,9 +61,9 @@ MODULE pw_env_types
 !>      readonly attributes
 !> \param auxbas_pw_pool a pool that allocates grids in the auxiliary basis
 !> \param auxbas_rs_desc real space grid in the auxiliary basis, be careful
-!>        in parallel nsmax is choosen with multigrid in mind!
+!>        in parallel nsmax is chosen with multigrid in mind!
 !> \note
-!>      be careful in parallel nsmax for the rs_grids is choosen with
+!>      be careful in parallel nsmax for the rs_grids is chosen with
 !>      multigrid in mind! (well not as of this writing but...)
 !> \par History
 !>      10.2002 created [fawzi]

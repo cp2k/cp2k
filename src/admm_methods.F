@@ -422,7 +422,7 @@ CONTAINS
       CALL create_oce_set(admm_gapw_env%oce)
       CALL allocate_oce_set(admm_gapw_env%oce, nkind)
 
-      !always compute the derivitive, cheap anyways
+      !always compute the derivative, cheap anyways
       CALL build_oce_matrices(admm_gapw_env%oce%intac, calculate_forces=.TRUE., nder=1, &
                               qs_kind_set=admm_kind_set, particle_set=particle_set, &
                               sap_oce=sap_oce, eps_fit=dft_control%qs_control%gapw_control%eps_fit)
@@ -1779,7 +1779,7 @@ CONTAINS
    END SUBROUTINE calc_spin_dep_aux_exch_ener
 
 ! **************************************************************************************************
-!> \brief Scale density matrix by gsi(ispin), is neede for force scaling in ADMMP
+!> \brief Scale density matrix by gsi(ispin), is needed for force scaling in ADMMP
 !> \param qs_env ...
 !> \param rho_ao_orb ...
 !> \param scale_back ...

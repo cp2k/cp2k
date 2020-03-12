@@ -152,7 +152,7 @@ CONTAINS
 !>                         number of CPUs for diagonalization
 !> \param should_print     flag that determines if information about the redistribution process
 !>                         should be printed
-!> \param elpa_force_redistribute  flag that if redistribution should always be perfomed when
+!> \param elpa_force_redistribute  flag that if redistribution should always be performed when
 !>                                 the ELPA diagonalization library is in use
 !> \author Nico Holmberg [01.2018]
 ! **************************************************************************************************

@@ -60,7 +60,7 @@ MODULE pint_types
    !> \param beta 1/kT (physical temperature)
    !> \param dt time step for dynamic
    !> \param e_pot_h potential energy in harmonic springs
-   !> \param e_kin_beads (fictious) kinetic energy of the beads
+   !> \param e_kin_beads (fictitious) kinetic energy of the beads
    !> \param e_pot_t potential energy of thermostats
    !> \param e_kin_t kinetic energy of thermostats
    !> \param energy - energy contributions updated every step REAL(e_num_ids)
@@ -77,7 +77,7 @@ MODULE pint_types
    !> \param v array with real space velocities
    !> \param f array with real space forces
    !> \param mass_beads masses of the beads for harmonic forces (harmonic mass)
-   !> \param mass_fict fictious mass of the beads for dynamics (kinetic mass)
+   !> \param mass_fict fictitious mass of the beads for dynamics (kinetic mass)
    !> \param ux array with transformed space coordinates (P, 3*N)
    !> \param uv array with transformed velocities
    !> \param uv_t array with temporary transformed velocities

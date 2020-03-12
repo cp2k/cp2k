@@ -353,7 +353,7 @@ CONTAINS
             END DO
          ELSE IF (do_xc .AND. ANY(xas_atom_env%excited_kinds == ikind)) THEN
             !need good integration grids for the xc kernel, but taking the default GAPW grid
-            CPWARN("The default (and possibly small) GAPW grid is beeing used for one excited KIND")
+            CPWARN("The default (and possibly small) GAPW grid is being used for one excited KIND")
          END IF
 
          ll = get_number_of_lebedev_grid(n=na)
@@ -511,7 +511,7 @@ CONTAINS
 !> \param radius the cutoff radius after which atoms are not considered neighbors
 !> \param qs_env ...
 !> \param all_neighbors the array uniquely contatining all indices of all atoms involved
-!> \param neighbor_set array of arrays contining the neighbors of all given atoms
+!> \param neighbor_set array of arrays containing the neighbors of all given atoms
 ! **************************************************************************************************
    SUBROUTINE find_neighbors(base_atoms, mat_s, radius, qs_env, all_neighbors, neighbor_set)
 
@@ -1277,7 +1277,7 @@ CONTAINS
                END DO !iso
             END DO !ipgf
 
-            !put the sgf on the grid with the approriate coefficients and sum
+            !put the sgf on the grid with the appropriate coefficients and sum
             CALL daxpy(n, ri_dcoeff(1)%array(sgfi + isgf), sgf(:, :), 1, rhoa(:, :, 1), 1)
 
             IF (nspins == 2) THEN
@@ -1973,7 +1973,7 @@ CONTAINS
 
       END DO !iex
 
-      !Not necessary to sync, but makes sure that any load inbalance (which can be significant if
+      !Not necessary to sync, but makes sure that any load imbalance (which can be significant if
       !nbatch is not a divisor of n_excited) is reported here
       CALL mp_sync(para_env%group)
 
@@ -2026,7 +2026,7 @@ CONTAINS
       NULLIFY (grid_atom, ri_basis, qs_kind_set, ga, gr, dgr1, dgr2, lmax, lmin, npgf)
       NULLIFY (weight, ri_sphi_so, dga1, dga2)
 
-      !Startegy: we need to compute <phi_i|fxc|phij>, most of existing application of the 2nd
+      !Strategy: we need to compute <phi_i|fxc|phij>, most of existing application of the 2nd
       !          functional derivative involve the response density, and the expression of the
       !          integral int (fxc*n^1) is well known. We substitute the spherical orbital phi_j
       !          in place of n^1 in the formula and thus perform the first integration. Then
@@ -2185,7 +2185,7 @@ CONTAINS
 !> \param rho_set ...
 !> \param deriv_set ...
 !> \param weight the grid weight
-!> \note This method is extremly similar to xc_calc_2nd_deriv of xc.F, but because it is a special
+!> \note This method is extremely similar to xc_calc_2nd_deriv of xc.F, but because it is a special
 !>       case that can be further optimized and because the interface of the original routine does
 !>       not fit this code, it has been re-written (no pw, no rho1_set but just the so, etc...)
 ! **************************************************************************************************
@@ -2212,7 +2212,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       !Note: this routines follows the order of the terms in equaiton (A.7) of Thomas Chassaing
-      !      thesis, except for the pure LDA terms that are droped. The n^(1)_a and n^(1)_b
+      !      thesis, except for the pure LDA terms that are dropped. The n^(1)_a and n^(1)_b
       !      response densities are replaced by the spherical orbital.
       !      The usual spin ordering is used: aa => 1, ab => 2 , bb => 3
 
@@ -2901,7 +2901,7 @@ CONTAINS
       DO ir = sr, er
          DO ia = 1, na
 
-            !Need to be careful not to devide by zero. Assume that if rhoa == rhob, then
+            !Need to be careful not to divide by zero. Assume that if rhoa == rhob, then
             !take the limit fxc = 0.5* (f_aa + f_bb - 2f_ab)
             IF (ABS(rhoa(ia, ir, 1) - rhob(ia, ir, 1)) > dft_control%qs_control%eps_rho_rspace) THEN
                fxc(ia, ir) = grid_atom%weight(ia, ir)/(rhoa(ia, ir, 1) - rhob(ia, ir, 1)) &
@@ -2928,7 +2928,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Contract spherical orbitals to spherical Gaussians (so to sgf)
-!> \param int_sgf the arary with the sgf integrals
+!> \param int_sgf the array with the sgf integrals
 !> \param int_so the array with the so integrals (to contract)
 !> \param basis the corresponding gto basis set
 !> \param sphi_so the contraction coefficients for the s:
@@ -3114,9 +3114,9 @@ CONTAINS
    END SUBROUTINE integrate_so_prod
 
 ! **************************************************************************************************
-!> \brief This routine computes the integral of a potential V wrt the derivitive of the spherical
+!> \brief This routine computes the integral of a potential V wrt the derivative of the spherical
 !>        orbitals, that is <df/dx|V|dg/dy> on the atomic grid.
-!> \param intso the integral in terms of the spherical orbitals (well, their derivitive)
+!> \param intso the integral in terms of the spherical orbitals (well, their derivative)
 !> \param V the potential (put on the grid and weighted) to integrate
 !> \param ikind the atomic kind for which we integrate
 !> \param xas_atom_env ...
@@ -3182,7 +3182,7 @@ CONTAINS
             DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
                l = indso(1, iso)
 
-               ! The x derivitive of the spherical orbital, divided in angular and radial parts
+               ! The x derivative of the spherical orbital, divided in angular and radial parts
                ! Two of each are needed because d/dx(r^l Y_lm) * exp(-al*r^2) + r^l Y_lm * ! d/dx(exp-al*r^2)
 
                ! the purely radial part of d/dx(r^l Y_lm) * exp(-al*r^2) (same for y)

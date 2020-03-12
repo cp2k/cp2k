@@ -142,7 +142,7 @@ while (<>) {
     }
 
     # Look for procedure (SUBROUTINE/FUNCTION definitions)
-    # These can be the initial definiton line, or a continuation line
+    # These can be the initial definition line, or a continuation line
     # We don't add comments to code inside an interface block
     if ((matchSubroutineDefinition($currline) || $hasAmpersand)
         && !($insideInterface)) {
@@ -481,7 +481,7 @@ sub processSubroutineDefinition {
     # unrequired text stripped off, $currline will still contain the actual code
     my $functionLine = $EMPTY;
     if (!($hasAmpersand)) {
-        # Remove anything preceeding the SUBROUTINE or FUNCTION definition
+        # Remove anything preceding the SUBROUTINE or FUNCTION definition
         # e.g. RECURSIVE, REAL, INTEGER, (KIND=dp), ELEMENTAL etc etc.
         $currline =~ /((\bFUNCTION\b|\bSUBROUTINE\b).+)/x;
         # $1 contains whatever remains after removing anything before the
@@ -683,7 +683,7 @@ sub processSubroutineDefinition {
             print $notes;
         }
         if ($remainders ne $EMPTY) {
-            # Dumps out whatever else remainded in the header (e.g. stuff begining !> without a \ or stuff beginning with just a !) for the SUBROUTINE/FUNCTION at the end
+            # Dumps out whatever else remainded in the header (e.g. stuff beginning !> without a \ or stuff beginning with just a !) for the SUBROUTINE/FUNCTION at the end
             print $remainders;
         }
         print "! **************************************************************************************************\n";

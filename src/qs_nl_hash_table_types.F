@@ -395,7 +395,7 @@ CONTAINS
       guess = nl_hash_table_hash_function(hash_table, key)
 
       ! then search for key and stop at first empty slot from guess to
-      ! nmax.  using the same linear probe for adding and retreiving
+      ! nmax.  using the same linear probe for adding and retrieving
       ! makes all non-empty keys being put before the first empty slot.
       DO islot = guess, hash_table%obj%nmax
          IF ((hash_table%obj%table(islot)%key == key) .OR. &

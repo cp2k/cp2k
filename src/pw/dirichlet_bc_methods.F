@@ -1244,7 +1244,7 @@ CONTAINS
       y_xtnt(1) = MINVAL(dbc_vertices(2, :)); y_xtnt(2) = MAXVAL(dbc_vertices(2, :))
       z_xtnt(1) = MINVAL(dbc_vertices(3, :)); z_xtnt(2) = MAXVAL(dbc_vertices(3, :))
 
-! devide the x, y and z extents into n_prtn partitions
+! divide the x, y and z extents into n_prtn partitions
       step = (x_xtnt(2) - x_xtnt(1))/REAL(n_prtn(1), kind=dp)
       xprtn_lb(:) = x_xtnt(1) + (/(i, i=0, n_prtn(1) - 1)/)*step ! lower bounds
       xprtn_ub(:) = x_xtnt(1) + (/(i, i=1, n_prtn(1))/)*step ! upper bounds

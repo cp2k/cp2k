@@ -1160,7 +1160,7 @@ def writeUseShort(m, file):
 def prepareImplicitUses(modules):
     """Transforms a modulesDict into an implictUses (dictionary of module names
     each containing a dictionary with the only, and the special key '_WHOLE_'
-    wich is true if the whole mosule is implicitly present"""
+    which is true if the whole module is implicitly present"""
     mods = {}
     for m in modules:
         m_name = m["module"].lower()
@@ -1180,7 +1180,7 @@ def prepareImplicitUses(modules):
 
 
 def cleanUse(modulesDict, rest, implicitUses, logger):
-    """Removes the unneded modules (the ones that are not used in rest)"""
+    """Removes the unneeded modules (the ones that are not used in rest)"""
 
     exceptions = {}
     modules = modulesDict["modules"]

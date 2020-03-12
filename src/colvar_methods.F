@@ -597,7 +597,7 @@ CONTAINS
             WRITE (iw, '( A )') '          '// &
                '**********************************************************************'
             WRITE (iw, '( A,I8)') ' COLVARS| COLVAR INPUT INDEX: ', icol
-            WRITE (iw, '( A,T49,4I8)') ' COLVARS| COMBINATION OF THE FOLOWING COLVARS:'
+            WRITE (iw, '( A,T49,4I8)') ' COLVARS| COMBINATION OF THE FOLLOWING COLVARS:'
          END IF
          CALL cp_print_key_finished_output(iw, logger, colvar_section, &
                                            "PRINT%PROGRAM_RUN_INFO")

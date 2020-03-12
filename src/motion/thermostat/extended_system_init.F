@@ -912,7 +912,7 @@ CONTAINS
             IF (debug_isotropic_limit) THEN
                npt(j, i)%v = 0.0_dp
                npt(i, j)%v = 0.0_dp
-               WRITE (*, *) 'DEBUG ISOTROPIC LIMIT| INTIAL v_eps', npt(j, i)%v
+               WRITE (*, *) 'DEBUG ISOTROPIC LIMIT| INITIAL v_eps', npt(j, i)%v
             END IF
          END DO
       END DO

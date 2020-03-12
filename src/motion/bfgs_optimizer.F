@@ -442,7 +442,7 @@ CONTAINS
 
       DO
 
-!   calculating Lamda
+!   calculating Lambda
 
          lp = 0.0_dp
          iref = 1

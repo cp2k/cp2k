@@ -850,7 +850,7 @@ CONTAINS
 !> \param quench_t ...
 !> \param matrix_t_in ...
 !> \param matrix_t_out ...
-!> \param assume_t0_q0x - since it is extrememly difficult to converge the iterative
+!> \param assume_t0_q0x - since it is extremely difficult to converge the iterative
 !>                        procedure using T as an optimized variable, assume
 !>                        T = T_0 + (1-R_0)*X and optimize X
 !>                        T_0 is assumed to be the zero-delocalization reference
@@ -955,7 +955,7 @@ CONTAINS
       optimize_theta = almo_scf_env%logical05
       eps_skip_gradients = almo_scf_env%real01
 
-      ! penalty amplitude adjusts the strenght of volume conservation
+      ! penalty amplitude adjusts the strength of volume conservation
       energy_coeff = 1.0_dp !optimizer%opt_penalty%energy_coeff
       localiz_coeff = 0.0_dp !optimizer%opt_penalty%occ_loc_coeff
       penalty_amplitude = 0.0_dp !optimizer%opt_penalty%occ_vol_coeff
@@ -9148,7 +9148,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A)') REPEAT("-", 79)
       ENDIF
 
-      ! penalty amplitude adjusts the strenght of volume conservation
+      ! penalty amplitude adjusts the strength of volume conservation
       penalty_occ_vol = .FALSE.
       !(almo_scf_env%penalty%occ_vol_method .NE. almo_occ_vol_penalty_none .AND. &
       !                   my_special_case .EQ. xalmo_case_fully_deloc)

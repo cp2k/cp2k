@@ -124,10 +124,10 @@ MODULE pw_spline_utils
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief calculates the FFT of the coefficents of the quadratic spline that
+!> \brief calculates the FFT of the coefficients of the quadratic spline that
 !>      interpolates the given values
 !> \param spline_g on entry the FFT of the values to interpolate as cc,
-!>        will contain the FFT of the coefficents of the spline
+!>        will contain the FFT of the coefficients of the spline
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -197,10 +197,10 @@ CONTAINS
    END SUBROUTINE pw_spline2_interpolate_values_g
 
 ! **************************************************************************************************
-!> \brief calculates the FFT of the coefficents of the2 cubic spline that
+!> \brief calculates the FFT of the coefficients of the2 cubic spline that
 !>      interpolates the given values
 !> \param spline_g on entry the FFT of the values to interpolate as cc,
-!>        will contain the FFT of the coefficents of the spline
+!>        will contain the FFT of the coefficients of the spline
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -371,7 +371,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief calculates the FFT of the values of the x,y,z (idir=1,2,3)
 !>      derivative of the cubic spline
-!> \param spline_g on entry the FFT of the coefficents of the spline
+!> \param spline_g on entry the FFT of the coefficients of the spline
 !>        will contain the FFT of the derivative
 !> \param idir direction of the derivative
 !> \par History
@@ -510,7 +510,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief calculates the FFT of the values of the x,y,z (idir=1,2,3)
 !>      derivative of the quadratic spline
-!> \param spline_g on entry the FFT of the coefficents of the spline
+!> \param spline_g on entry the FFT of the coefficients of the spline
 !>        will contain the FFT of the derivative
 !> \param idir direction of the derivative
 !> \par History
@@ -991,7 +991,7 @@ CONTAINS
 !>                      coarse_bounds(1,3):coarse_bounds(2,3))
 !>
 !>      composed with the weights obtained by the direct product of the
-!>      1d coefficents weights:
+!>      1d coefficients weights:
 !>
 !>      for i,j,k in -3..3
 !>         w(i,j,k)=weights_1d(abs(i)+1)*weights_1d(abs(j)+1)*
@@ -1009,7 +1009,7 @@ CONTAINS
 !> \author fawzi
 !> \note
 !>      coarse looping is continuos, I did not check if keeping the fine looping
-!>      contiguos is better.
+!>      contiguous is better.
 !>      And I ask myself yet again why, why we use x-slice distribution,
 !>      z-slice distribution would be much better performancewise
 !>      (and would semplify this code enormously).
@@ -1796,7 +1796,7 @@ CONTAINS
 !>                    2*coarse_bounds(1,3):2*coarse_bounds(2,3))
 !>
 !>      composed with the weights obtained by the direct product of the
-!>      1d coefficents weights:
+!>      1d coefficients weights:
 !>
 !>      for i,j,k in -3..3
 !>         w(i,j,k)=weights_1d(abs(i)+1)*weights_1d(abs(j)+1)*
@@ -2673,7 +2673,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief applies the preconditioner to the system of equations to find the
-!>      coefficents of the spline
+!>      coefficients of the spline
 !> \param preconditioner the preconditioner to apply
 !> \param in_v the grid on which the preconditioner should be applied
 !> \param out_v place to store the preconditioner applied on v_out
@@ -2721,8 +2721,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief solves iteratively (CG) a systmes of linear equations
 !>           linOp(coeffs)=values
-!>      (for example those needed to find the coefficents of a spline)
-!>      Returns true if the it succeded to acheive the requested accuracy
+!>      (for example those needed to find the coefficients of a spline)
+!>      Returns true if the it succeeded to achieve the requested accuracy
 !> \param values the right hand side of the system
 !> \param coeffs will contain the solution of the system (and on entry
 !>        it contains the starting point)
@@ -2792,7 +2792,7 @@ CONTAINS
 
                CALL pw_axpy(p, coeffs, alpha=alpha)
 
-               eps_x_att = alpha*SQRT(pw_integral_ab(p, p)) ! try to spare if unneded?
+               eps_x_att = alpha*SQRT(pw_integral_ab(p, p)) ! try to spare if unneeded?
                IF (eps_r_att < eps_r .AND. eps_x_att < eps_x) last = .TRUE.
             END IF
             !CALL cp_iterate(logger%iter_info,last=last)

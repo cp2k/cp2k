@@ -739,7 +739,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GMIX_P", &
-                          description="Activate the mixing of the denisty matrix, using the same"// &
+                          description="Activate the mixing of the density matrix, using the same"// &
                           " mixing coefficient applied for the g-space mixing.", &
                           repeats=.FALSE., &
                           lone_keyword_l_val=.TRUE., &

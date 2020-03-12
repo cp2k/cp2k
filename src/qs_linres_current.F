@@ -157,7 +157,7 @@ CONTAINS
 !>       In the GAPW case one need to collocate on the PW grid only the soft part
 !>       while the rest goes on Lebedev grids
 !>       The contributions to the shift and to the susceptibility will be
-!>       calulated separately and added only at the end
+!>       calculated separately and added only at the end
 !>       The calculation of the shift tensor is performed on the position of the atoms
 !>       and on other selected points in real space summing up the contributions
 !>       from the PW grid current density and the local densities

@@ -163,7 +163,7 @@ CONTAINS
    END SUBROUTINE qs_rho_release
 
 ! **************************************************************************************************
-!> \brief Deallocates all components, whithout deallocating rho_struct itself.
+!> \brief Deallocates all components, without deallocating rho_struct itself.
 !> \param rho_struct ...
 !> \author Ole Schuett
 ! **************************************************************************************************

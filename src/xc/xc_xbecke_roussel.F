@@ -154,7 +154,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evalated,
+!> \param grad_deriv degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param br_params parameters for the becke roussel functional
@@ -260,14 +260,14 @@ CONTAINS
 !> \param e_ndrho energies and derivatives
 !> \param e_tau energies and derivatives
 !> \param e_laplace_rho energies and derivatives
-!> \param grad_deriv degree of the derivative that should be evalated,
+!> \param grad_deriv degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param npoints size of the grids
 !> \param epsilon_rho cutoffs
 !> \param sx scales the exchange potential and energies
 !> \param R cutoff Radius for truncated case
-!> \param gamma paramter from original publication, usually set to 1
+!> \param gamma parameter from original publication, usually set to 1
 !> \par History
 !>        12.2008 created [mguidon]
 !> \author mguidon
@@ -360,7 +360,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evalated,
+!> \param grad_deriv degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param br_params parameters for the becke roussel functional
@@ -492,14 +492,14 @@ CONTAINS
 !> \param e_ndrho energies and derivatives
 !> \param e_tau energies and derivatives
 !> \param e_laplace_rho energies and derivatives
-!> \param grad_deriv degree of the derivative that should be evalated,
+!> \param grad_deriv degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param npoints size of the grids
 !> \param epsilon_rho cutoffs
 !> \param sx scales the exchange potential and energies
 !> \param R cutoff Radius for truncated case
-!> \param gamma paramter from original publication, usually set to 1
+!> \param gamma parameter from original publication, usually set to 1
 !> \par History
 !>        12.2008 created [mguidon]
 !> \author mguidon

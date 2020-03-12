@@ -5,7 +5,7 @@
 
 ! **************************************************************************************************
 !> \note
-!>      Routine to initalize a real space grid from a given input section
+!>      Routine to initialize a real space grid from a given input section
 !> \par History
 !>      01.2014 moved routine from realspace_grid_types into separate file.
 !> \author Ole Schuett

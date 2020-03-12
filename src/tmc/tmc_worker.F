@@ -691,7 +691,7 @@ CONTAINS
                           acc=.NOT. change_rejected, subbox=.TRUE., &
                           prob_opt=tmc_env%params%esimate_acc_prob)
 
-         ! calculate potential energy if neccessary
+         ! calculate potential energy if necessary
          IF (.NOT. change_rejected) THEN
             CALL calc_potential_energy(conf=conf, &
                                        env_id=tmc_env%w_env%env_id_approx, exact_approx_pot=.FALSE., &

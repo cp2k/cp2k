@@ -868,7 +868,7 @@ CONTAINS
          RETURN
       ENDIF
 
-! broadcast the choosen coordiantes to all processors
+! broadcast the chosen coordinates to all processors
 
       CALL force_env_get(test_env(insert_box)%force_env, &
                          subsys=insert_sys)
@@ -1040,7 +1040,7 @@ CONTAINS
 
          ENDDO
 
-! change particle numbers...basically destory the old mc_molecule_info and attach
+! change particle numbers...basically destroy the old mc_molecule_info and attach
 ! the new stuff to the mc_pars
 ! figure out the molecule information for the new environments
          CALL mc_molecule_info_destroy(mc_molecule_info)
@@ -1228,7 +1228,7 @@ CONTAINS
 
       DO ibox = 1, 2
 
-! save the old coordiantes
+! save the old coordinates
          DO iatom = 1, nunits_tot(ibox)
             r(1:3, iatom, ibox) = particles_old(ibox)%list%els(iatom)%r(1:3)
          ENDDO
@@ -1391,7 +1391,7 @@ CONTAINS
                                                        old_energy(ibox))
             old_energy(ibox) = new_energy(ibox)
 
-! and the new "old" coordiantes
+! and the new "old" coordinates
             DO iatom = 1, nunits_tot(ibox)
                r_old(1:3, iatom, ibox) = &
                   particles_old(ibox)%list%els(iatom)%r(1:3)

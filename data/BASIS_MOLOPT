@@ -26,7 +26,7 @@
 # In addition to the basis sets discussed in the paper above, we have generated with the same procedure
 # variants of these basis sets using less and thus less diffuse primitives (based on the atomic code being with 1mHt of the basis set limit)
 # These are the  SZV-MOLOPT-SR-GTH and DZVP-MOLOPT-SR-GTH (Shorter Range) basis sets for most of the periodic table
-# These basis sets reduce the cost for medium size condensed phase systems, while most properties are only slighly affected.
+# These basis sets reduce the cost for medium size condensed phase systems, while most properties are only slightly affected.
 # Most affected is BSSE, which increases to 0.32, 0.16, 0.31, 0.24 from 0.23, 0.11, 0.41, 0.20 kcal/mol (DZVP-MOLOPT-SR-GTH vs. DZVP-MOLOPT-GTH),
 # while for a box with 64 molecules timings are 25 and 111 s respectively.
 #

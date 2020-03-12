@@ -1333,7 +1333,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="ADIABATIC_RESCALING", &
-                          description="Parameters for self interation corrected hybrid functionals", &
+                          description="Parameters for self interaction corrected hybrid functionals", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
       CALL keyword_create( &

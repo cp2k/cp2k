@@ -5,9 +5,9 @@
 
 ! **************************************************************************************************
 !>   \brief
-!>     Routines to efficently handle dense polynomial in 3 variables up to
+!>     Routines to efficiently handle dense polynomial in 3 variables up to
 !>     a given degree.
-!>     Multiplication, partial evalution, affine transform (change of reference
+!>     Multiplication, partial evaluation, affine transform (change of reference
 !>     system), differentiation are efficiently implemented.
 !>     some functions accept or return several polynomial together,
 !>     these have to have all the same size, and are stored one after the other
@@ -578,7 +578,7 @@ CONTAINS
          shiftRes = shiftRes + newSize
       END DO
       IF (grad1 > max_grad3 .OR. grad2 > max_grad3) THEN
-         ! one could remove multiplications even more agressively...
+         ! one could remove multiplications even more aggressively...
          msize_p1 = my_size_p1
          DO ipoly = 0, np1 - 1
             shift1 = 1 + ipoly*my_size_p1
@@ -686,7 +686,7 @@ CONTAINS
          shiftRes = shiftRes + newSize
       END DO
       IF (grad1 > max_grad3 .OR. grad2 > max_grad3) THEN
-         ! one could remove multiplications even more agressively...
+         ! one could remove multiplications even more aggressively...
          msize_p1 = my_size_p1
          DO ipoly = 0, np1 - 1
             shift1 = 1 + ipoly*my_size_p1 + (max_grad3 + 1)*(max_grad3 + 2)*(max_grad3 + 3)/6
@@ -1006,7 +1006,7 @@ CONTAINS
                            monoFullDim1 - monoDimAtt2, 1, .FALSE.)
          igrad = igrad + 1
 
-         ! ! alterantive to unrolling
+         ! ! alternative to unrolling
          ! monoG1=monoG2
          ! monoSize1=monoSize2
          ! monoDim1=monoDim2
@@ -1168,7 +1168,7 @@ CONTAINS
                            monoFullDim1 - monoDimAtt2, 1, .FALSE.)
          igrad = igrad + 1
 
-         ! ! alterantive to unrolling
+         ! ! alternative to unrolling
          ! monoG1=monoG2
          ! monoSize1=monoSize2
          ! monoDim1=monoDim2

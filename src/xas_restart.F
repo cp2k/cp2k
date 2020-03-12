@@ -80,7 +80,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Set up for reading the restart
-!>      corresponing to the excitation of iatom
+!>      corresponding to the excitation of iatom
 !>      If the corresponding restart file does not exist
 !>      the GS orbitals are used as initial guess
 !> \param xas_env ...

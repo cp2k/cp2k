@@ -955,7 +955,7 @@ CONTAINS
          !
          ! spline part
          !
-         ! This part is kind of proprietary Paderborn code and I won't reverse-engeneer
+         ! This part is kind of proprietary Paderborn code and I won't reverse-engineer
          ! everything in detail. What is obvious is documented.
          !
          ! This part has 4 regions:

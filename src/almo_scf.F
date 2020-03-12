@@ -1152,7 +1152,7 @@ CONTAINS
 
                WRITE (unit_nr, '(T2,A)') REPEAT("-", 79)
 
-               ! print fragment neigbors
+               ! print fragment neighbors
                WRITE (unit_nr, '(T2,A78)') &
                   "Neighbor lists (including self)"
                WRITE (unit_nr, '(T2,A)') REPEAT("-", 79)

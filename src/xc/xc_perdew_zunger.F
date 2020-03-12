@@ -126,7 +126,7 @@ CONTAINS
 !>        order must lie between -3 and 3. If it is negative then only
 !>        that order will be calculated, otherwise all derivatives up to
 !>        that order will be calculated.
-!> \param pz_params input paramter (scaling)
+!> \param pz_params input parameter (scaling)
 !> \par History
 !>     01.2007 added scaling [Manuel Guidon]
 ! **************************************************************************************************
@@ -261,7 +261,7 @@ CONTAINS
 !>        order must lie between -3 and 3. If it is negative then only
 !>        that order will be calculated, otherwise all derivatives up to
 !>        that order will be calculated.
-!> \param pz_params input paramter (scaling)
+!> \param pz_params input parameter (scaling)
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
 ! **************************************************************************************************

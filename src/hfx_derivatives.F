@@ -467,7 +467,7 @@ CONTAINS
       ncpu = para_env%num_pe
       n_processes = ncpu*n_threads
 
-      !! initalize some counters
+      !! initialize some counters
       neris_total = 0_int_8
       neris_incore = 0_int_8
       neris_onthefly = 0_int_8
@@ -672,7 +672,7 @@ CONTAINS
       END IF
 
       !! Start caluclating integrals of the form (ab|cd) or (ij|kl)
-      !! In order to do so, there is a main four-loop structre that takes into account the two symmetries
+      !! In order to do so, there is a main four-loop structure that takes into account the two symmetries
       !!
       !!   (ab|cd) = (ba|cd) = (ab|dc) = (ba|dc)
       !!
@@ -706,7 +706,7 @@ CONTAINS
       !! This tells the process where to start the main loops and how many bunches of integrals it has to
       !! calculate. The original parallelization is a simple modulo distribution that is binned and
       !! optimized in the load_balance routines. Since the Monte Carlo routines can swap processors,
-      !! we need to know which was the inital cpu_id.
+      !! we need to know which was the initial cpu_id.
       !! Furthermore, the indices iatom, jatom, katom, latom have to be set to istart, jstart, kstart and
       !! lstart only the first time the loop is executed. All subsequent loops have to start with one or
       !! iatom and katom respectively. Therefore, we use flags like first_j_loop etc.
@@ -2165,7 +2165,7 @@ CONTAINS
    END SUBROUTINE prefetch_density_matrix
 
 ! **************************************************************************************************
-!> \brief This routine updates the forces using bufferd density matrices
+!> \brief This routine updates the forces using buffered density matrices
 !> \param ma_max Size of matrix blocks
 !> \param mb_max Size of matrix blocks
 !> \param mc_max Size of matrix blocks
@@ -2175,7 +2175,7 @@ CONTAINS
 !> \param pad buffer that will contain P(a,d)
 !> \param pac buffer that will contain P(a,c)
 !> \param fac mulitplication factor (spin, symmetry)
-!> \param prim primitve forces
+!> \param prim primitive forces
 !> \param force storage loacation for forces
 !> \param forces_map index table
 !> \param coord which of the 12 coords to be updated
@@ -2275,7 +2275,7 @@ CONTAINS
    END SUBROUTINE update_forces
 
 ! **************************************************************************************************
-!> \brief This routine updates the virial using bufferd density matrices
+!> \brief This routine updates the virial using buffered density matrices
 !> \param ma_max Size of matrix blocks
 !> \param mb_max Size of matrix blocks
 !> \param mc_max Size of matrix blocks
@@ -2285,7 +2285,7 @@ CONTAINS
 !> \param pad buffer that will contain P(a,d)
 !> \param pac buffer that will contain P(a,c)
 !> \param fac mulitplication factor (spin, symmetry)
-!> \param prim primitve forces
+!> \param prim primitive forces
 !> \param tmp_virial ...
 !> \param coord which of the 12 coords to be updated
 !> \param l ...

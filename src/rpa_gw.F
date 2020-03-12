@@ -1326,7 +1326,7 @@ CONTAINS
           .AND. PRESENT(Eigenval_scf_beta) .AND. PRESENT(vec_Sigma_x_gw_beta) .AND. &
           PRESENT(ic_corr_list_beta) .AND. PRESENT(fm_mo_coeff_occ_beta) .AND. PRESENT(fm_mo_coeff_virt_beta) .AND. &
           PRESENT(t_3c_overl_int_gw_RI_beta) .AND. PRESENT(t_3c_overl_int_gw_AO_beta)) THEN
-         my_open_shell = .TRUE. ! todo: this should be refactored (and any similar occurence of my_open_shell)
+         my_open_shell = .TRUE. ! todo: this should be refactored (and any similar occurrence of my_open_shell)
       END IF
 
       DO count_sc_GW0 = 1, iter_sc_GW0
@@ -3677,7 +3677,7 @@ CONTAINS
    END SUBROUTINE get_pade_parameters
 
 ! **************************************************************************************************
-!> \brief evalute pade function for a real value x_val
+!> \brief evaluate pade function for a real value x_val
 !> \param x_val real value
 !> \param nparam number of pade parameters
 !> \param xpoints selection of points of the original complex function, i.e. here of Sigma_c(iomega)

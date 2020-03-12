@@ -327,7 +327,7 @@ CONTAINS
 
       CALL read_opt_embed_section(opt_embed, opt_embed_section)
 
-      ! All these are needed for optimization in a finite Guassian basis
+      ! All these are needed for optimization in a finite Gaussian basis
       IF (.NOT. opt_embed%grid_opt) THEN
          ! Create blacs environment
          CALL get_qs_env(qs_env=qs_env, &
@@ -335,7 +335,7 @@ CONTAINS
          NULLIFY (blacs_env)
          CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
 
-         ! Reveal the dimention of the RI basis
+         ! Reveal the dimension of the RI basis
          CALL find_aux_dimen(qs_env, opt_embed%dimen_aux)
 
          ! Prepare the object for integrals
@@ -595,7 +595,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      ! First, reveal the dimention of the RI basis
+      ! First, reveal the dimension of the RI basis
       CALL get_qs_env(qs_env=qs_env, &
                       particle_set=particle_set, &
                       qs_kind_set=qs_kind_set, &

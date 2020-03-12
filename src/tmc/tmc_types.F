@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief module handels definition of the tree nodes for the global and
+!> \brief module handles definition of the tree nodes for the global and
 !>      the subtrees binary tree
 !>                   parent element
 !>                      /      \

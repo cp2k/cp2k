@@ -153,7 +153,7 @@ CONTAINS
          neb_env%nsize_int = number_of_colvar(f_env%force_env)
          check = (neb_env%nsize_xyz >= neb_env%nsize_int)
          CPASSERT(check)
-         ! Check that teh used colvar are uniquely determined
+         ! Check that the used colvar are uniquely determined
          check = (number_of_colvar(f_env%force_env) == &
                   number_of_colvar(f_env%force_env, unique=.TRUE.))
          CPASSERT(check)

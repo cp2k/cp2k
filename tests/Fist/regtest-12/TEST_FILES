@@ -13,7 +13,7 @@ H2O-fixd-rest.inp                                      2    1.0E-14             
 H2O-fixd-rest-2.inp                                    2    1.0E-14             0.113616767819E-02
 H2O-restraint_1.inp                                    2    1.0E-14             0.302410439733E-02
 H2O-restraint_2.inp                                    2    1.0E-14             0.549027732099E-02
-# Constrained FIXED_ATOMS + other kinds of contraints
+# Constrained FIXED_ATOMS + other kinds of constraints
 ethene_colv3.inp                                       2      8e-10          0.0044422066059699996
 nh3_4x6_fixd.inp                                       2    1.0E-14            -0.614486476805E+00
 water_3_g3x3_fxd.inp                                   2    1.0E-14            -0.151680542408E-03

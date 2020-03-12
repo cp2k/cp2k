@@ -10,8 +10,8 @@
 !>          global tree element refers to it anymore
 !>        - then also the ongoing calculation of these elements is not needed
 !>          anymore => can be canceled
-!>        - MODULE: creates and hande a list of tree nodes
-!>                    wich can be canceled
+!>        - MODULE: creates and handles a list of tree nodes
+!>                    which can be canceled
 !>                  these elements are collected and canceled all in one
 !>                    from the master routine
 !>        - the actual cancelation routine is implemented in master module and

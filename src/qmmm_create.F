@@ -417,14 +417,14 @@ CONTAINS
 
       CALL cell_release(qm_cell_small)
 
-      ! assemble the actuall qmmm_env
+      ! assemble the actual qmmm_env
       ALLOCATE (qmmm_env)
       qmmm_env%qs_env => qs_env
       qmmm_env%fist_env => fist_env
       qmmm_env%qm => qmmm_env_qm
 
       ! The qmmm_env inherits our ref_cout for qmmm_env_qm, fist_env, qs_env
-      ! An expection is qmmm_env_mm, because it's buried in the fist_env
+      ! An exception is qmmm_env_mm, because it's buried in the fist_env
       CALL qmmm_env_mm_release(qmmm_env_mm)
 
       CALL section_vals_val_set(force_env_section, "METHOD", i_val=do_qmmm)

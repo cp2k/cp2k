@@ -51,7 +51,7 @@ MODULE global_types
              globenv_release
 
 ! **************************************************************************************************
-!> \brief contains the initally parsed file and the initial parallel environment
+!> \brief contains the initially parsed file and the initial parallel environment
 !> \param id_nr identification number (unique)
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param handle handle with the total time of the computation

@@ -42,7 +42,7 @@ MODULE swarm_worker
       INTEGER                                  :: iw = -1
       INTEGER                                  :: behavior = -1
       TYPE(glbopt_worker_type), POINTER        :: glbopt => Null()
-      !possbily more behaviors...
+      !possibly more behaviors...
    END TYPE swarm_worker_type
 
 CONTAINS

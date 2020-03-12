@@ -106,7 +106,7 @@ CONTAINS
 !>      is applied, or better the center of charge of the psi0 is
 !>      used to define the position operator
 !>      The centers of the orbitals result form the orbital localization procedure
-!>      that typicaly uses the berry phase operator to define the Wannier centers.
+!>      that typically uses the berry phase operator to define the Wannier centers.
 ! **************************************************************************************************
    SUBROUTINE current_operators(current_env, qs_env)
 

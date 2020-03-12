@@ -631,7 +631,7 @@ CONTAINS
 
       IF (residual .GT. 1.0d-6) THEN
          WRITE (*, *)
-         WRITE (*, *) 'ERROR: this progam can only handle orthogonal cells'
+         WRITE (*, *) 'ERROR: this program can only handle orthogonal cells'
          WRITE (*, *) ' with vectors pointing in the X, Y and Z directions'
          CPABORT("")
       END IF

@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Rountines to calculate the 3 and 2 center ERI's needed in the RI
+!> \brief Routines to calculate the 3 and 2 center ERI's needed in the RI
 !>        approximation using libint
 !> \par History
 !>      08.2013 created [Mauro Del Ben]
@@ -493,7 +493,7 @@ CONTAINS
 
       ln_10 = LOG(10.0_dp)
 
-      !! initalize some counters
+      !! initialize some counters
       neris_tmp = 0_int_8
       neris_total = 0_int_8
       nprim_ints = 0_int_8

@@ -594,7 +594,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief extraxts zeff (effective nuclear charges per atom) and nsgf (the size
-!>   of spherical Gaussian basis functions per atom) from qs_env and intializes
+!>   of spherical Gaussian basis functions per atom) from qs_env and initializes
 !>   the corresponding arrays in transport_env%params
 !> \param[in] qs_env qs environment
 !> \param[inout] transport_env transport environment

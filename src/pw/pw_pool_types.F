@@ -62,7 +62,7 @@ MODULE pw_pool_types
 
 ! **************************************************************************************************
 !> \brief Manages a pool of grids (to be used for example as tmp objects),
-!>      but can also be used to intantiate grids that are never given back.
+!>      but can also be used to instantiate grids that are never given back.
 !> \param ref_count reference count (see /cp2k/doc/ReferenceCounting.html)
 !> \param id_nr number that identifies each pool
 !> \param real 1d_pw, real3d_pw, complex1d_pw, complex3d_pw: liked list with
@@ -509,7 +509,7 @@ CONTAINS
    END SUBROUTINE pw_pool_give_back_pw
 
 ! **************************************************************************************************
-!> \brief returns a 3d real array of coefficents as the one used by pw with
+!> \brief returns a 3d real array of coefficients as the one used by pw with
 !>      REALDATA3D, allocating it if none is present in the pool
 !> \param pw_pool the pool that caches the cr3d
 !> \param cr3d the pointer that will contain the array
@@ -566,7 +566,7 @@ CONTAINS
    END SUBROUTINE pw_pool_create_cr3d
 
 ! **************************************************************************************************
-!> \brief returns a 3d real array of coefficents as the one used by pw with
+!> \brief returns a 3d real array of coefficients as the one used by pw with
 !>      REALDATA3D, allocating it if none is present in the pool
 !> \param pw_pool the pool that caches the cr3d
 !> \param cr3d the pointer that will contain the array
@@ -665,9 +665,9 @@ CONTAINS
    END SUBROUTINE pw_pools_create_pws
 
 ! **************************************************************************************************
-!> \brief returns the pw part of the coefficents into the pools
+!> \brief returns the pw part of the coefficients into the pools
 !> \param pools the pools that will cache the pws %pw
-!> \param pws the coefficents to give back
+!> \param pws the coefficients to give back
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed

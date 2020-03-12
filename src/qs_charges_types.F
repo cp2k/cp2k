@@ -30,7 +30,7 @@ MODULE qs_charges_types
 !> \param total_rho_rspace total charge in the real space
 !> \param total_rho_gspace total charge in the g space
 !> \note
-!>      this type is loosing the reason to exist...
+!>      this type is losing the reason to exist...
 !> \par History
 !>      10.2002 created [fawzi]
 !>      11.2002 moved total_rho_elec_rspace to qs_rho_type

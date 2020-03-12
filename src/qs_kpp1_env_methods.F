@@ -126,7 +126,7 @@ CONTAINS
    END SUBROUTINE kpp1_create
 
 ! **************************************************************************************************
-!> \brief calcualtes the k_p_p1 kernel of the pertubation theory
+!> \brief calcualtes the k_p_p1 kernel of the perturbation theory
 !> \param kpp1_env the kpp1 environment in which perform the calculation
 !> \param p_env ...
 !> \param qs_env kpp1's qs_env
@@ -486,7 +486,7 @@ CONTAINS
    END SUBROUTINE kpp1_calc_k_p_p1
 
 ! **************************************************************************************************
-!> \brief calcualtes the k_p_p1 kernel of the pertubation theory with finite
+!> \brief calcualtes the k_p_p1 kernel of the perturbation theory with finite
 !>      differences
 !> \param qs_env kpp1's qs_env
 !> \param k_p_p1 the sparse matrix that will contain the kernel k_p_p1

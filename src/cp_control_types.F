@@ -355,7 +355,7 @@ MODULE cp_control_types
 !   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
 !
 ! \par  NOTES
-!   The lumos are helpfull in choosing a initial vector for the TDDFPT
+!   The lumos are helpful in choosing a initial vector for the TDDFPT
 !   calculation, since they can be used to construct the solutions of the
 !   TDDFPT operator without the perturbation kernel.
 ! **************************************************************************************************

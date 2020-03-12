@@ -389,14 +389,14 @@ CONTAINS
                              cell_angle, itimes, dt, time, used_time, averages, econs, pv_scalar, pv_xx, &
                              hugoniot, nat, init, logger, motion_section, my_pos, my_act)
 
-      ! Real Ouput driven by the PRINT sections
+      ! Real Output driven by the PRINT sections
       IF ((.NOT. init) .OR. (itimes == 0) .OR. simpar%ensemble == reftraj_ensemble) THEN
          ! Print Energy
          ene = cp_print_key_unit_nr(logger, motion_section, "MD%PRINT%ENERGY", &
                                     extension=".ener", file_position=my_pos, file_action=my_act, is_new_file=new_file)
          IF (ene > 0) THEN
             IF (new_file) THEN
-               ! Please change also the corresponding format explaination below
+               ! Please change also the corresponding format explanation below
                ! keep the constant of motion the true constant of motion !
                WRITE (ene, '("#",5X,A,10X,A,8X,A,10X,A,12X,A,2(8X,A))') "Step Nr.", "Time[fs]", "Kin.[a.u.]", "Temp[K]", &
                   "Pot.[a.u.]", "Cons Qty[a.u.]", "UsedTime[s]"

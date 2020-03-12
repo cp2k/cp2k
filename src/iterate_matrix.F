@@ -1862,7 +1862,7 @@ CONTAINS
       ! Calculate the norm of C and moltiply by toll to be used as a threshold
       norm_C = toll*dbcsr_frobenius_norm(matrix)
 
-      ! iteration for the trucated taylor series expansion
+      ! iteration for the truncated taylor series expansion
       CALL dbcsr_create(D_product, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       i = 1
       DO

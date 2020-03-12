@@ -71,7 +71,7 @@
 !>      _  vnucp                   : potential of the nuclei
 !>      -  vnuc                    : potential of the electrons
 !>      _  pVpa, pVpb              : pVpl=coset(lx,ly,lz)
-!>      -  na_pgf,nb_pgf           : indice for primitive gaussian functions
+!>      -  na_pgf,nb_pgf           : indices for primitive gaussian functions
 !> \par History
 !>      10.2008 added pVp matrix elements (jens)
 !> \author Matthias Krack (04.10.2000)

@@ -2585,7 +2585,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="Append the DOS obtained at different iterations to the output file."// &
-                          "By defaut the file is overwritten", &
+                          "By default the file is overwritten", &
                           usage="APPEND", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
@@ -2627,7 +2627,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="Append the pdos obtained at different iterations to the pdos  output file."// &
-                          "By defaut the file is overwritten", &
+                          "By default the file is overwritten", &
                           usage="APPEND", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
@@ -2802,7 +2802,7 @@ CONTAINS
                           "Orbital densities are summed according to the bias energy."// &
                           "For negative values, states in the range ]EF+bias,EF] are summed,"// &
                           "While positive values sum states in the range [EF,EF+bias[."// &
-                          "If postive biases are used, sufficiently many unoccupied stated"// &
+                          "If positive biases are used, sufficiently many unoccupied stated"// &
                           " (see ADDED_MOS and NLUMO ) should be computed.", &
                           n_var=-1, type_of_var=real_t, default_r_vals=(/0.0_dp/), unit_str='eV')
       CALL section_add_keyword(print_key, keyword)
@@ -3155,7 +3155,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPSFIT", &
                           variants=(/"EPS_FIT"/), &
-                          description="GAPW: precision to give the extention of a hard gaussian ", &
+                          description="GAPW: precision to give the extension of a hard gaussian ", &
                           usage="EPSFIT real", default_r_val=1.0E-4_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -4438,7 +4438,7 @@ CONTAINS
                           enum_i_vals=(/outer_scf_none, outer_scf_hirshfeld_constraint, &
                                         outer_scf_becke_constraint/), &
                           enum_desc=s2a("No constraint (disables section).", &
-                                        "Guassian Hirshfeld constraint. Partial implementation: no forces. "// &
+                                        "Gaussian Hirshfeld constraint. Partial implementation: no forces. "// &
                                         "Requires corresponding section. Not as extensively tested.", &
                                         "Becke constraint. Requires corresponding section."), &
                           citations=(/Becke1988b/), &
@@ -5984,7 +5984,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GEOMETRIC_SEQUENCE", &
-                          description="Exponents are assumed to be a geometric squence. "// &
+                          description="Exponents are assumed to be a geometric sequence. "// &
                           "Only the minimal and maximal exponents of one set are optimized and "// &
                           "the other exponents are obtained by geometric progression.", &
                           usage="GEOMETRIC_SEQUENCE", &
@@ -6921,7 +6921,7 @@ CONTAINS
                           "In the MGRID section it must be imposed NGRID 1, as it works with only"// &
                           "one grid. The number of points in each direction, and the spacing must"// &
                           "be previously defined choosing the plane waves cut-off in section MGRID"// &
-                          "keyword CUTOFF, and the cube dimention in section SUBSYS / CELL / keyword ABC", &
+                          "keyword CUTOFF, and the cube dimension in section SUBSYS / CELL / keyword ABC", &
                           usage="DENSITY_FILE_NAME <FILENAME>", &
                           type_of_var=char_t, default_c_val="RHO_O.dat", n_var=-1)
       CALL section_add_keyword(section, keyword)
@@ -7022,7 +7022,7 @@ CONTAINS
                           "If preconditioned correctly, method guaranteed to find minimum. "// &
                           "<u>Disadvantages:</u> "// &
                           "Sensitive to preconditioning. A good preconditioner can be expensive. "// &
-                          "No smearing, or advanced SCF mixing possible: POOR convergence for metalic systems.", &
+                          "No smearing, or advanced SCF mixing possible: POOR convergence for metallic systems.", &
                           n_keywords=27, n_subsections=0, repeats=.FALSE., &
                           citations=(/VandeVondele2003, Weber2008/))
 
@@ -7221,7 +7221,7 @@ CONTAINS
                           usage="LINESEARCH GOLD", &
                           default_i_val=ls_2pnt, &
                           enum_c_vals=s2a("NONE", "2PNT", "3PNT", "GOLD"), &
-                          enum_desc=s2a("take fixed lenght steps", "extrapolate based on 2 points", &
+                          enum_desc=s2a("take fixed length steps", "extrapolate based on 2 points", &
                                         "... or on 3 points", "perform 1D golden section search of the minimum (very expensive)"), &
                           enum_i_vals=(/ls_none, ls_2pnt, ls_3pnt, ls_gold/))
       CALL section_add_keyword(section, keyword)
@@ -7229,7 +7229,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="STEPSIZE", &
-         description="Initial stepsize used for the line search, sometimes this parameter can be reduced to stablize DIIS"// &
+         description="Initial stepsize used for the line search, sometimes this parameter can be reduced to stabilize DIIS"// &
          " or to improve the CG behavior in the first few steps."// &
          " The optimal value depends on the quality of the preconditioner."// &
          " A negative values leaves the choice to CP2K depending on the preconditioner.", &
@@ -7310,7 +7310,7 @@ CONTAINS
          "especially effective with the FULL_ALL preconditioner, in which case it should be an underestimate "// &
          "of the gap (can be a small number, e.g. 0.002)."// &
          " FULL_SINGLE_INVERSE takes it as lower bound (values below 0.05 can cause stability issues)."// &
-         " In general, heigher values will tame the preconditioner in case of poor initial guesses."// &
+         " In general, higher values will tame the preconditioner in case of poor initial guesses."// &
          " A negative value will leave the choice to CP2K depending on type of preconditioner.", &
          usage="ENERGY_GAP 0.001", &
          default_r_val=-1.0_dp)
@@ -8175,7 +8175,7 @@ CONTAINS
                           "This keyword MUST have the same number of entries as the relevant "// &
                           "KIND_LIST or ATOM_LIST. The order of the specified state types must "// &
                           "correspond to the order of the relevant kinds/indices. "// &
-                          "This keyword can be repeated, usefull when  multiple orbital types "// &
+                          "This keyword can be repeated, useful when multiple orbital types "// &
                           "should be excited for specific kinds/atoms.", &
                           n_var=-1, default_i_val=xas_not_excited, repeats=.TRUE., &
                           usage="STATE_TYPES {string}  {string} .. {string}", &
@@ -8334,7 +8334,7 @@ CONTAINS
 
 !  The EXACT_EXCHANGE subsubsection
       CALL section_create(subsubsection, __LOCATION__, name="EXACT_EXCHANGE", &
-                          description="Whther exact-exchange should be added to the kernel and "// &
+                          description="Whether exact-exchange should be added to the kernel and "// &
                           "if so, with which fraction and operator.", &
                           n_keywords=7, &
                           n_subsections=1, &
@@ -8495,7 +8495,7 @@ CONTAINS
                           "XAS TDP calculations", repeats=.FALSE.)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="SPECTRUM", &
-                                       description="Controles the dumping of the XAS TDP spectrum in ouput files", &
+                                       description="Controles the dumping of the XAS TDP spectrum in output files", &
                                        print_level=low_print_level, filename="", common_iter_levels=3)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)

@@ -222,7 +222,7 @@ CONTAINS
       IF (unit_nr > 0 .AND. fall > 0) THEN
          WRITE (UNIT=unit_nr, FMT="(/,T2,A,/,T2,A,/)") &
             "Warning: Extended MAO basis used with original basis filtered density matrix", &
-            "Warning: Possible errors can be controled with EPS_PGF_ORB"
+            "Warning: Possible errors can be controlled with EPS_PGF_ORB"
       END IF
 
       ! MAO matrices
@@ -249,7 +249,7 @@ CONTAINS
       END DO
       DEALLOCATE (row_blk_sizes, col_blk_sizes)
 
-      ! optimze MAOs
+      ! optimize MAOs
       epsx = 1000.0_dp
       CALL mao_optimize(mao_coef, matrix_q, matrix_smm, electra, max_iter, eps_grad, epsx, unit_nr)
 

@@ -4,10 +4,10 @@
 !>        the ERI's, there are always 4 matrix elements to be considered.
 !>        CASE 0-15 belong to an energy calculation (linear screening)
 !>        CASE 16-31 belong to a force calculation (square screening)
-!> \param ptr_p_1 Pointers to atomic denisty matrices
-!> \param ptr_p_2 Pointers to atomic denisty matrices
-!> \param ptr_p_3 Pointers to atomic denisty matrices
-!> \param ptr_p_4 Pointers to atomic denisty matrices
+!> \param ptr_p_1 Pointers to atomic density matrices
+!> \param ptr_p_2 Pointers to atomic density matrices
+!> \param ptr_p_3 Pointers to atomic density matrices
+!> \param ptr_p_4 Pointers to atomic density matrices
 !> \param iset Current set
 !> \param jset Current set
 !> \param kset Current set

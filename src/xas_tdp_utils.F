@@ -149,7 +149,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Builds the matrix that defines the XAS TDDFPT generalized eigenvalue problem to be solved
 !>        for excitation energies omega. The problem has the form omega*G*C = M*C, where C contains
-!>        the reponse orbitals coefficients. The matrix M and the metric G are stored in the given
+!>        the response orbitals coefficients. The matrix M and the metric G are stored in the given
 !>        donor_state
 !> \param donor_state the donor_state for which the problem is restricted
 !> \param qs_env ...
@@ -158,7 +158,7 @@ CONTAINS
 !> \note  the matrix M is symmetric and has the form | M_d   M_o |
 !>                                                   | M_o   M_d |,
 !>       -In the SPIN-RESTRICTED case:
-!>        depending on whther we consider singlet or triplet excitation, the diagonal (M_d) and
+!>        depending on whether we consider singlet or triplet excitation, the diagonal (M_d) and
 !>        off-diagonal (M_o) parts of M differ:
 !>        - For singlet: M_d = A + 2B + C_aa + C_ab - D
 !>                       M_o = 2B + C_aa + C_ab - E
@@ -602,7 +602,7 @@ CONTAINS
 !        Put tiny almost zero eigenvalues to zero (corresponding to occupied MOs)
          WHERE (tmp_evals < 1.0E-4_dp) tmp_evals = 0.0_dp
 
-!        Retrive c_diff = (c^+ - c^-) for normalization
+!        Retrieve c_diff = (c^+ - c^-) for normalization
 !        (c^+ - c^-) = 1/omega^2 * M * (A-D+E)^0.5 * work
          CALL cp_fm_create(c_diff, fm_struct)
          CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_tdp, donor_state%matrix_aux, &
@@ -772,7 +772,7 @@ CONTAINS
 !>        the same properties, which are based on the replication of the KS matrix. Stored in the
 !>        donor_state_type
 !> \param donor_state ...
-!> \param do_os whther this is a open-shell calculation
+!> \param do_os whether this is a open-shell calculation
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE compute_submat_dist_and_blk_size(donor_state, do_os, qs_env)
@@ -932,7 +932,7 @@ CONTAINS
 !> \param donor_state ...
 !> \param do_os ...
 !> \param qs_env ...
-!> \param do_sf whther the ground state contribution should accomodate spin-flip
+!> \param do_sf whether the ground state contribution should accommodate spin-flip
 !> \note Even localized non-canonical MOs are diagonalized in their subsapce => eps_ij = eps_ii*delta_ij
 ! **************************************************************************************************
    SUBROUTINE build_gs_contribution(matrix_a, donor_state, do_os, qs_env, do_sf)
@@ -1094,7 +1094,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-!  Initilization
+!  Initialization
       nspins = 1; IF (do_os) nspins = 2
       ndo_mo = donor_state%ndo_mo
       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
@@ -2077,7 +2077,7 @@ CONTAINS
 !> \param ac_list the neighbor list ready for 3-center integrals
 !> \param basis_a basis set list for atom a
 !> \param basis_c basis set list for atom c
-!> \param op_type to indicate whther the list should be built with overlap or Coulomb in mind
+!> \param op_type to indicate whether the list should be built with overlap or Coulomb in mind
 !> \param qs_env ...
 !> \param excited_atoms the indices of the excited atoms to consider (if not given, all atoms are taken)
 !> \param x_range in case some truncated/screened operator is used, gives its range
@@ -3047,7 +3047,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Computes the matrix elements of a one-body operator (given wrt AOs) in the basis of the
-!>        excited state AMEWs with groud state, for the open-shell case
+!>        excited state AMEWs with ground state, for the open-shell case
 !> \param amew_op the operator in the basis of the AMEWs (array because could have x,y,z components)
 !> \param ao_op the operator in the basis of the atomic orbitals
 !> \param gs_coeffs the coefficient of the GS donor MOs. Ecplicitely passed because of special
@@ -3671,7 +3671,7 @@ CONTAINS
 !> \param xas_tdp_env ...
 !> \param xas_tdp_control ...
 !> \param qs_env ...
-!> \param gs_coeffs the groud state coefficients, given for open-shell because in ROKS, the gs_coeffs
+!> \param gs_coeffs the ground state coefficients, given for open-shell because in ROKS, the gs_coeffs
 !>                  are stored slightly differently within SOC for efficiency and code uniquness
 ! **************************************************************************************************
    SUBROUTINE compute_soc_dipole_fosc(soc_evecs_cfm, dbcsr_soc_package, donor_state, xas_tdp_env, &
@@ -3780,7 +3780,7 @@ CONTAINS
 !> \param xas_tdp_env ...
 !> \param xas_tdp_control ...
 !> \param qs_env ...
-!> \param gs_coeffs the groud state coefficients, given for open-shell because in ROKS, the gs_coeffs
+!> \param gs_coeffs the ground state coefficients, given for open-shell because in ROKS, the gs_coeffs
 !>                  are stored slightly differently within SOC for efficiency and code uniquness
 ! **************************************************************************************************
    SUBROUTINE compute_soc_quadrupole_fosc(soc_evecs_cfm, dbcsr_soc_package, donor_state, &

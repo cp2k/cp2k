@@ -339,7 +339,7 @@ CONTAINS
 !>        xc_functional_get_info)
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param deriv_order degree of the derivative that should be evalated,
+!> \param deriv_order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is requested (but to simplify
 !>        the code all the derivatives might be calculated, you should ignore
@@ -571,7 +571,7 @@ CONTAINS
 !>        xc_functional_get_info)
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param deriv_order degree of the derivative that should be evalated,
+!> \param deriv_order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is requested (but to simplify
 !>        the code all the derivatives might be calculated, you should ignore

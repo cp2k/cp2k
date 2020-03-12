@@ -1004,7 +1004,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief creates a distribution placing close by atoms into clusters and
-!>        putting them on the smae processors. Load balancing is
+!>        putting them on the same processors. Load balancing is
 !>        performed by balancing sum of the cluster costs per processor
 !> \param coords coordinates of the system
 !> \param scaled_coords scaled coordinates
@@ -1338,7 +1338,7 @@ CONTAINS
       END DO
 
 ! Now start the KMEANS but penalise it in case it starts packing too many atoms into a single set
-! Unfoirtunatelz as this is dependent on what happend before it cant be parallel
+! Unfoirtunatelz as this is dependent on what happened before it cant be parallel
       cluster = 0; old_var = HUGE(1.0_dp)
       DO itn = 1, 1000
          changed = .FALSE.; var_cl = 0.0_dp; tot_var = 0.0_dp; nat_cl = 0; deviat = 0.0_dp

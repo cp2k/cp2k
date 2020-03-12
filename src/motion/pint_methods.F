@@ -540,32 +540,32 @@ CONTAINS
       CALL section_vals_val_get(pint_section, "HARM_INT", i_val=pint_env%harm_integrator)
       IF (pint_env%harm_integrator == integrate_exact) THEN
          IF (pint_env%pimd_thermostat == thermostat_nose) THEN
-            WRITE (UNIT=msg, FMT=*) "PINT WARNING| Nose Thermostat only avaliable in "// &
+            WRITE (UNIT=msg, FMT=*) "PINT WARNING| Nose Thermostat only available in "// &
                "the numeric harmonic integrator. Switching to numeric harmonic integrator."
             CPWARN(msg)
             pint_env%harm_integrator = integrate_numeric
          END IF
          IF (pint_env%pimd_thermostat == thermostat_gle) THEN
-            WRITE (UNIT=msg, FMT=*) "PINT WARNING| GLE Thermostat only avaliable in "// &
+            WRITE (UNIT=msg, FMT=*) "PINT WARNING| GLE Thermostat only available in "// &
                "the numeric harmonic integrator. Switching to numeric harmonic integrator."
             CPWARN(msg)
             pint_env%harm_integrator = integrate_numeric
          END IF
       ELSE IF (pint_env%harm_integrator == integrate_numeric) THEN
          IF (pint_env%pimd_thermostat == thermostat_pile) THEN
-            WRITE (UNIT=msg, FMT=*) "PINT WARNING| PILE Thermostat only avaliable in "// &
+            WRITE (UNIT=msg, FMT=*) "PINT WARNING| PILE Thermostat only available in "// &
                "the exact harmonic integrator. Switching to exact harmonic integrator."
             CPWARN(msg)
             pint_env%harm_integrator = integrate_exact
          END IF
          IF (pint_env%pimd_thermostat == thermostat_piglet) THEN
-            WRITE (UNIT=msg, FMT=*) "PINT WARNING| PIGLET Thermostat only avaliable in "// &
+            WRITE (UNIT=msg, FMT=*) "PINT WARNING| PIGLET Thermostat only available in "// &
                "the exact harmonic integrator. Switching to exact harmonic integrator."
             CPWARN(msg)
             pint_env%harm_integrator = integrate_exact
          END IF
          IF (pint_env%pimd_thermostat == thermostat_qtb) THEN
-            WRITE (UNIT=msg, FMT=*) "PINT WARNING| QTB Thermostat only avaliable in "// &
+            WRITE (UNIT=msg, FMT=*) "PINT WARNING| QTB Thermostat only available in "// &
                "the exact harmonic integrator. Switching to exact harmonic integrator."
             CPWARN(msg)
             pint_env%harm_integrator = integrate_exact
@@ -966,7 +966,7 @@ CONTAINS
 
       CASE (solute_with_helium_mid)
          CALL pint_create(pint_env, input, input_declaration, para_env)
-         ! init pint wihtout helium forces (they are not yet initialized)
+         ! init pint without helium forces (they are not yet initialized)
          CALL pint_init(pint_env)
          ! init helium with solute's positions (they are already initialized)
          CALL helium_create(helium_env, input, solute=pint_env)
@@ -1377,7 +1377,7 @@ CONTAINS
          END DO
       END DO
 
-      ! add random component to the centroid velocity if requsted
+      ! add random component to the centroid velocity if requested
       done_sped = .FALSE.
       CALL section_vals_val_get(pint_env%input, &
                                 "MOTION%PINT%INIT%CENTROID_SPEED", &

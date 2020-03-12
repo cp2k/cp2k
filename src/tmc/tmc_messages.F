@@ -319,7 +319,7 @@ CONTAINS
          END IF
       END IF
 
-      ! handling recived message
+      ! handling received message
       IF (act_send_recv .EQV. recv_msg) THEN
          ! if the element is supposed to be canceled but received message is not canceling receipt do not handle element
          ! (because element could be already deallocated, and hence a new element would be created -> not necessary)
@@ -1178,7 +1178,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(tmc_params))
 
       counter = 0
-      !first integer array with number of dimentions and random seed size
+      !first integer array with number of dimensions and random seed size
       rnd_seed_size = m_send%task_int(1 + m_send%task_int(1) + 1)
 
       IF (.NOT. ASSOCIATED(elem)) THEN

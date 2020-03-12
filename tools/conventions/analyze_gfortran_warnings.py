@@ -31,7 +31,7 @@ lapack_re = re.compile(
 )
 
 warning_re = re.compile(r".*[Ww]arning: (.*)")
-warning_re_subst = re.compile(r"'\d+'")  # replace occurences of '49' with *
+warning_re_subst = re.compile(r"'\d+'")  # replace occurrences of '49' with *
 
 IGNORED_WARNINGS = (
     "-Wrealloc-lhs",

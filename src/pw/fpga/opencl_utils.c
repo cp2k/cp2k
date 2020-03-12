@@ -96,7 +96,7 @@ cl_platform_id findPlatform(char *platform_name){
 }
 
 /******************************************************************************
- * \brief   returns the list of all devices for the specfic platform
+ * \brief   returns the list of all devices for the specific platform
  * \param   platform id to search for devices
  * \param   specific type of device to search for
  * \param   total number of devices found for the given platform

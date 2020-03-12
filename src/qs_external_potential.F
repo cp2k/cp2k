@@ -214,7 +214,7 @@ CONTAINS
 !> \param ext_pot_section ...
 !> \param func             external potential at r
 !> \param dfunc            derivative of the external potential at r
-!> \param calc_derivatives Whether to calulate dfunc
+!> \param calc_derivatives Whether to calculate dfunc
 !> \date   12.2009
 !> \par History
 !>      12.2009            created [tlaino]

@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief the type I Discrete Cosine Transfrom (DCT-I)
+!> \brief the type I Discrete Cosine Transform (DCT-I)
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !>       11.2015 dealt with periodic grids [Hossein Bani-Hashemian]
@@ -258,7 +258,7 @@ CONTAINS
 !> \param srcs_expand list of the source processes (pw_expand)
 !> \param flipg_stat flipping status for the received data chunks (pw_expand)
 !> \param dests_shrink list of the destination processes (pw_shrink)
-!> \param srcs_shrink list of the source proceses (pw_shrink)
+!> \param srcs_shrink list of the source processes (pw_shrink)
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -697,10 +697,10 @@ CONTAINS
 !>
 !> \param neumann_directions directions in which dct should be performed
 !> \param dests_shrink list of the destination processes
-!> \param srcs_shrink list of the source proceses
+!> \param srcs_shrink list of the source processes
 !> \param bounds_local_shftd local bounds of the original grid after shifting
 !> \param pw_in the original plane wave data
-!> \param pw_shrinked the shrinked plane wave data
+!> \param pw_shrinked the shrunk plane wave data
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -746,7 +746,7 @@ CONTAINS
          maxn_sendrecv = 1
       END SELECT
 
-! cosine transform is a real transform. The cosine transfrom of a 3D data must be real and 3D.
+! cosine transform is a real transform. The cosine transform of a 3D data must be real and 3D.
       NULLIFY (cr3d, cc3d)
       lb1_xpnd = bounds_local_xpnd(1, 1)
       ub1_xpnd = bounds_local_xpnd(2, 1)

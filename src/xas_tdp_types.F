@@ -61,17 +61,17 @@ MODULE xas_tdp_types
 !> \param check_only whether a check run for donor MOs is conducted
 !> \param do_hfx whether exact exchange is included
 !> \param do_xc wheter xc functional(s) is(are) included
-!> \param do_coulomb whether the coulomb kernel is computed, .FLASE. if no xc nor hfx => normal dft
+!> \param do_coulomb whether the coulomb kernel is computed, .FALSE. if no xc nor hfx => normal dft
 !> \param sx the scaling applied to exact exchange
 !> \param x_potential the potential used for exact exchange (incl. cutoff, t_c_file, omega)
 !> \param ri_m_potential the potential used for exact exchange RI metric
-!> \param do_ri_metric whther a metric is used fir the RI
+!> \param do_ri_metric whether a metric is used fir the RI
 !> \param eps_range the threshold to determine the effective range of the short range operator
 !> \param eps_pgf the threshold to determine the extent of all pgf in the method
 !> \param eps_filter threshold for dbcsr operations
 !> \param ri_radius the radius of the sphere defining the neighbors in the RI projection of the dens
 !> \param tamm_dancoff whether the calculations should be done in the Tamm-Dancoff approximation
-!> \param do_quad whther the electric quadrupole transition moments should be computed
+!> \param do_quad whether the electric quadrupole transition moments should be computed
 !> \param list_ex_atoms list of excited atom indices, kept empty if define_excited=by_kind
 !> \param list_ex_kinds list of excited atom kinds, kept empty if define_excited=by_index
 !> \param do_loc whether the core MOs should be localized
@@ -140,7 +140,7 @@ MODULE xas_tdp_types
 !> \param ex_atom_indices array containing the indices of the excited atoms
 !> \param ex_kind_indices array containing the indices of the excited kinds
 !> \param state_types columns correspond to the different donor states of each excited atom
-!> \param qs_loc_env the environemnt type dealing with the possible localization of donor orbitals
+!> \param qs_loc_env the environment type dealing with the possible localization of donor orbitals
 !> \param mos_of_ex_atoms links lowest energy MOs to excited atoms. Elements of value 1 mark the
 !>        association between the MO irow and the excited atom icolumn. The third index is for spin
 !> \param ri_inv_coul the inverse coulomb RI integral (P|Q)^-1, updated for each excited kind
@@ -155,7 +155,7 @@ MODULE xas_tdp_types
 !>        representation. For length representation, it has to be computed once with the origin on
 !>        each excited atom
 !> \param quadmat the dbcsr matrices containing the electric quadrupole in x2, xy, xz, y2, yz and z2
-!>        directions in the AO basis. It is always in the lenght representation with the origin
+!>        directions in the AO basis. It is always in the length representation with the origin
 !>        set to the current excited atom
 !> \param ri_o3c_coul the container for the RI 3-center Coulomb integrals (computed once)
 !> \param ri_o3c_ex the container for the RI 3-center exchange integrals (updated for each ex atom)

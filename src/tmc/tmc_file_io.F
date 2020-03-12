@@ -65,7 +65,7 @@ CONTAINS
 !> \brief placing a character string at the end of a file name
 !>        (instead of the ending)
 !> \param file_name original file name
-!> \param extra string to be added before the file extention
+!> \param extra string to be added before the file extension
 !> \return the new filename
 !> \author Mandes 11.2012
 ! **************************************************************************************************
@@ -93,9 +93,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief placing a character string at the end of a file name
-!>        (before the file extention)
+!>        (before the file extension)
 !> \param file_name original file name
-!> \param extra string to be added before the file extention
+!> \param extra string to be added before the file extension
 !> \return the new filename
 !> \author Mandes 11.2012
 ! **************************************************************************************************
@@ -123,7 +123,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief placing the temperature at the end of a file name
-!>        (before the file extention)
+!>        (before the file extension)
 !> \param file_name original file name
 !> \param rvalue temperature to be added
 !> \return the new filename
@@ -163,7 +163,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief placing an integer at the end of a file name
-!>        (before the file extention)
+!>        (before the file extension)
 !> \param file_name original file name
 !> \param ivalue number to be added
 !> \return the new filename

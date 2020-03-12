@@ -182,7 +182,7 @@ CONTAINS
          ls_dist = ls_dist_clustered
 
       CASE DEFAULT
-         CPABORT("Unkown LS cluster type")
+         CPABORT("Unknown LS cluster type")
       END SELECT
 
       ! Create actual matrix -----------------------------------------------------------------------
@@ -294,7 +294,7 @@ CONTAINS
          CALL dbcsr_release(matrix_in_nosym)
 
       CASE DEFAULT
-         CPABORT("Unkown LS cluster type")
+         CPABORT("Unknown LS cluster type")
       END SELECT
 
       CALL timestop(handle)
@@ -409,7 +409,7 @@ CONTAINS
          ENDIF
 
       CASE DEFAULT
-         CPABORT("Unkown LS cluster type")
+         CPABORT("Unknown LS cluster type")
       END SELECT
 
       CALL timestop(handle)

@@ -160,7 +160,7 @@ CONTAINS
   END SUBROUTINE read_cube
 
 !-------------------------------------------------------------------------------
-! reads xyz into an existing cube type, overwriting the exising atomic data 
+! reads xyz into an existing cube type, overwriting the existing atomic data
 !-------------------------------------------------------------------------------
   SUBROUTINE read_xyz(cube,iunit)
     USE periodic_table, ONLY          : label2Z
@@ -294,7 +294,7 @@ end function pbc
   END SUBROUTINE
 
 !-------------------------------------------------------------------------------
-! substract cubes, cube1=cube1-cube2
+! subtract cubes, cube1=cube1-cube2
 !-------------------------------------------------------------------------------
   SUBROUTINE subtract_cubes(cube1,cube2)
     TYPE(cube_type), POINTER :: cube1,cube2

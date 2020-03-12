@@ -570,7 +570,7 @@ CONTAINS
    END SUBROUTINE helium_print_energy
 
 ! ***************************************************************************
-!> \brief  Print a 3D real vector accoring to printkey <pkey>
+!> \brief  Print a 3D real vector according to printkey <pkey>
 !> \param helium_env ...
 !> \param pkey ...
 !> \param DATA ...
@@ -908,7 +908,7 @@ CONTAINS
                   CALL reallocate(used_indices, 1, nused)
                   used_indices(nused - SIZE(my_cycle) + 1:nused) = my_cycle(1:SIZE(my_cycle))
 
-                  ! select delimiters accoring to the cycle's winding state
+                  ! select delimiters according to the cycle's winding state
                   IF (helium_is_winding(helium_env(1)%helium, curat, helium_env(1)%helium%work, my_perm)) THEN
                      left_delim = "["
                      right_delim = "]"
@@ -1490,7 +1490,7 @@ CONTAINS
 !> \param helium_env ...
 !> \date   2011-06-21
 !> \par History
-!>      08.2015 cleaned code from unneded arrays
+!>      08.2015 cleaned code from unneeded arrays
 !>         2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
@@ -1668,7 +1668,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      ! some compilers write over the first entry on a line loosing all previous
+      ! some compilers write over the first entry on a line losing all previous
       ! values written on that line unless line terminator is written at the end
       ! so make sure that the last WRITE statement runs without ADVANCE='NO'
       ! (observed for ifort 14.0.1 and 14.0.2 but not for gfortran 4.8.2)

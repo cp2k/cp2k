@@ -121,7 +121,7 @@ CONTAINS
          ! find certain working group calculating this element
          working_elem_loop: DO i = 1, SIZE(work_list)
             ! in special cases element could be distributed to several working groups,
-            ! but all, exept of one, should already be in canceling process
+            ! but all, except of one, should already be in canceling process
             IF ((.NOT. work_list(i)%canceled) .AND. &
                 ASSOCIATED(work_list(i)%elem)) THEN
                IF (ASSOCIATED(cancel_list%elem, work_list(i)%elem)) THEN
@@ -255,7 +255,7 @@ CONTAINS
          CALL init_draw_trees(tmc_params=tmc_env%params)
 
       !-- initialize variables
-      ! nr_of_job: counting the differnt task send / received
+      ! nr_of_job: counting the different task send / received
       !  (1:NMC submitted, 2:energies submitted, 3:NMC finished 4:energy finished, 5:NMC canceled, 6:energy canceled)
       nr_of_job(:) = 0
       worker_counter = -1
@@ -282,7 +282,7 @@ CONTAINS
                        para_env=tmc_env%tmc_comp_set%para_env_m_w, &
                        tmc_params=tmc_env%params, &
                        wait_for_message=.TRUE.)
-      !-- wait for start configuration results and number of dimentions
+      !-- wait for start configuration results and number of dimensions
       !-- get start configuration (init_conf element should not be allocated already)
       CALL tmc_message(msg_type=stat, send_recv=recv_msg, dest=wg, &
                        para_env=tmc_env%tmc_comp_set%para_env_m_w, &
@@ -324,7 +324,7 @@ CONTAINS
       restarted_elem_nr = tmc_env%m_env%result_count(0)
 
 !TODO check conf and cell of both input files (cell has to be equal,
-!           beacuse it is used as reference cell for scaling the cell)
+!           because it is used as reference cell for scaling the cell)
       ! communicate the reference cell size
       DO wg = 1, tmc_env%tmc_comp_set%para_env_m_w%num_pe - 1
          stat = TMC_STATUS_WORKER_INIT
@@ -381,7 +381,7 @@ CONTAINS
       !   3. if idle worker, create new tree element and send them to worker
       task_loop: DO
          ! =======================================================================
-         !-- RECIEVING ALL incoming messages and handling them
+         !-- RECEIVING ALL incoming messages and handling them
          ! results of tree node 1 is distributed to all other subtree nodes
          ! =======================================================================
          worker_request_loop: DO
@@ -679,7 +679,7 @@ CONTAINS
          END IF
 
          ! =====================================================================
-         !-- NEW TASK (if worker not busy sumit next task)
+         !-- NEW TASK (if worker not busy submit next task)
          ! =====================================================================
          worker_counter = worker_counter + 1
          wg = MODULO(worker_counter, tmc_env%tmc_comp_set%para_env_m_w%num_pe - 1) + 1
@@ -865,7 +865,7 @@ CONTAINS
       CALL print_move_types(init=.FALSE., file_io=tmc_env%m_env%io_unit, &
                             tmc_params=tmc_env%params)
       WRITE (tmc_env%m_env%io_unit, FMT="(/,T2,A)") REPEAT("-", 79)
-      ! program efficency result outputs
+      ! program efficiency result outputs
       ALLOCATE (efficiency(0:tmc_env%params%nr_temp))
       CALL get_subtree_efficiency(tmc_env=tmc_env, eff=efficiency)
       WRITE (tmc_env%m_env%io_unit, *) "Efficiencies:"

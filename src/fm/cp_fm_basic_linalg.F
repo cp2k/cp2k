@@ -1688,9 +1688,9 @@ CONTAINS
    END SUBROUTINE cp_fm_triangular_invert
 
 ! **************************************************************************************************
-!> \brief  perfoms a QR factorization of the input rectangular matrix A or of a submatrix of A
+!> \brief  performs a QR factorization of the input rectangular matrix A or of a submatrix of A
 !>         the computed upper triangular matrix R is in output in the submatrix sub(A) of size NxN
-!>         M and M give the dimention of the submatrix that has to be factorized (MxN) with M>N
+!>         M and M give the dimension of the submatrix that has to be factorized (MxN) with M>N
 !> \param matrix_a ...
 !> \param matrix_r ...
 !> \param nrow_fact ...
@@ -1776,7 +1776,7 @@ CONTAINS
    END SUBROUTINE cp_fm_qr_factorization
 
 ! **************************************************************************************************
-!> \brief computs the the solution to A*b=A_general using lu decomposition
+!> \brief computes the the solution to A*b=A_general using lu decomposition
 !>        pay attention, both matrices are overwritten, a_general contais the result
 !> \param matrix_a ...
 !> \param general_a ...

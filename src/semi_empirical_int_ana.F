@@ -614,7 +614,7 @@ CONTAINS
          ENDIF
 
          ! Only at the very end let's sum-up the several contributions energy/derivatives
-         ! This assignment should be method indipendent
+         ! This assignment should be method independent
          IF (l_enuc) THEN
             enuc = enuc_loc + scale + qcorr
          END IF
@@ -869,8 +869,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Calculates the ssss integral and analytical derivatives (main driver)
-!> \param sepi paramters of atom i
-!> \param sepj paramters of atom j
+!> \param sepi parameters of atom i
+!> \param sepj parameters of atom j
 !> \param rij interatomic distance
 !> \param ssss ...
 !> \param dssss derivative of (ssss) integral
@@ -948,8 +948,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Calculates the nuclear attraction integrals and analytical integrals (main driver)
-!> \param sepi paramters of atom i
-!> \param sepj paramters of atom j
+!> \param sepi parameters of atom i
+!> \param sepj parameters of atom j
 !> \param rij interatomic distance
 !> \param core ...
 !> \param dcore derivative of 4 X 2 array of electron-core attraction integrals
@@ -1055,8 +1055,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Calculates the nuclear attraction integrals and derivatives for sp basis
-!> \param sepi paramters of atom i
-!> \param sepj paramters of atom j
+!> \param sepi parameters of atom i
+!> \param sepj parameters of atom j
 !> \param rij interatomic distance
 !> \param dssss derivative of (ssss) integral
 !>                          derivatives are intended w.r.t. rij
@@ -1148,8 +1148,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculates the analytical derivative of the nuclear attraction
 !>        integrals involving d orbitals
-!> \param sepi paramters of atom i
-!> \param sepj paramters of atom j
+!> \param sepi parameters of atom i
+!> \param sepj parameters of atom j
 !> \param rij interatomic distance
 !> \param dcore 4 X 2 array of electron-core attraction integrals
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
@@ -1562,8 +1562,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculates the derivative and the value of two-electron repulsion
 !>      integrals and the nuclear attraction integrals w.r.t. |r|
-!> \param sepi paramters of atom i
-!> \param sepj paramters of atom j
+!> \param sepi parameters of atom i
+!> \param sepj parameters of atom j
 !> \param rij interatomic distance
 !> \param rep rray of two-electron repulsion integrals
 !> \param rep_d array of two-electron repulsion integrals derivatives
@@ -1659,8 +1659,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculates the derivative and the value of two-electron repulsion
 !>      integrals and the nuclear attraction integrals w.r.t. |r| - sp shells only
-!> \param sepi paramters of atom i
-!> \param sepj paramters of atom j
+!> \param sepi parameters of atom i
+!> \param sepj parameters of atom j
 !> \param rij interatomic distance
 !> \param drep array of derivatives of two-electron repulsion integrals
 !> \param rep array of two-electron repulsion integrals
@@ -1731,8 +1731,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Calculates the derivatives of the two-electron repulsion integrals - d shell only
-!> \param sepi paramters of atom i
-!> \param sepj paramters of atom j
+!> \param sepi parameters of atom i
+!> \param sepj parameters of atom j
 !> \param rij interatomic distance
 !> \param drep ...
 !> \param rep array of two-electron repulsion integrals

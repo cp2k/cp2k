@@ -104,7 +104,7 @@ CONTAINS
 !> \param energy_check the sum of the energy changes of each move
 !> \param initial_energy the initial unbiased energy of the system
 !> \param final_energy the final unbiased energy of the system
-!> \param averages the structure that holds computed average properites for
+!> \param averages the structure that holds computed average properties for
 !>               the simulation
 !>
 !>    Only use in serial.
@@ -303,7 +303,7 @@ CONTAINS
                REAL(moves%empty, dp)/ &
                REAL(moves%swap%attempts, dp)*100.0E0_dp
             WRITE (iw, '(A,T43,A)') "                  Growths", &
-               "Attempted       Sucessful      Percent"
+               "Attempted       Successful     Percent"
             WRITE (iw, '(T46,I6,9X,I6,7X,F7.3)') &
                moves%swap%attempts, &
                moves%grown, &
@@ -368,7 +368,7 @@ CONTAINS
          THEN
          WRITE (iw, *) '!!!!!!! We have an energy problem. !!!!!!!!'
          WRITE (iw, '(A,T64,F16.10)') 'Final Energy = ', final_energy
-         WRITE (iw, '(A,T64,F16.10)') 'Inital Energy + energy_check =', &
+         WRITE (iw, '(A,T64,F16.10)') 'Initial Energy + energy_check =', &
             initial_energy + energy_check
       ENDIF
       WRITE (iw, '(A,A)') '****************************************************', &
@@ -446,7 +446,7 @@ CONTAINS
 !>      assumptions than before.
 !>
 !>      box_length and coordinates should be passed in a.u.
-!> \param coordinates the coordiantes of the atoms in the force_env (a.u.)
+!> \param coordinates the coordinates of the atoms in the force_env (a.u.)
 !> \param atom_names ...
 !> \param nunits_tot the total number of atoms
 !> \param box_length the length of all sides of the simulation box (angstrom)

@@ -9,7 +9,7 @@
 #  for the most common la_max_local and lb_max_local combinations.
 # For those combinations whose unrolled code would be larger but
 #  still some optimisation is needed, an additional template
-#  with less agressive loop unrolling can be specified
+#  with less aggressive loop unrolling can be specified
 #
 # Usage:
 #   generate_xyz_to_vab <template> <destination> <optional>
@@ -43,7 +43,7 @@ def load_template(template_filename):
 
 def create_ordered_pairs():
     """ Create an ordered list with the most common combinations to the
-        XYZ_TO_VAB routine at the beggining.
+        XYZ_TO_VAB routine at the beginning.
         Most common values are:
         (1, 0)--4275300
         (1, 1)--4217600

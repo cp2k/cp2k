@@ -379,7 +379,7 @@ CONTAINS
                      IF (n_cont_a .EQ. 0 .OR. n_cont_b .EQ. 0) CYCLE
 
                      ! thanks to the linearity of the response, we
-                     ! can avoid computing soft-soft interations.
+                     ! can avoid computing soft-soft interactions.
                      ! those terms are already included in the
                      ! regular grid.
                      IF (sgf_soft_only_a .AND. sgf_soft_only_b) CYCLE

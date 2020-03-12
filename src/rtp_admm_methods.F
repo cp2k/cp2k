@@ -394,7 +394,7 @@ CONTAINS
                                  ncol=ncol, &
                                  alpha=alpha)
 
-      ! It is actually complex conjugate but i*i=-1 therfore it must be added
+      ! It is actually complex conjugate but i*i=-1 therefore it must be added
       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
                                  matrix_v=rtp_coeff_aux_fit(im)%matrix, &
                                  matrix_g=rtp_coeff_aux_fit(im)%matrix, &

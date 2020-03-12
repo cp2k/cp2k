@@ -125,7 +125,7 @@
      MODULE PROCEDURE cp_sll_${nametype}$_rm_first_el
 #:endfor
   END INTERFACE
-! remove all the elments
+! remove all the elements
   INTERFACE cp_remove_all
 #:for nametype in nametype1
      MODULE PROCEDURE cp_sll_${nametype}$_rm_all_el
@@ -183,7 +183,7 @@
 CONTAINS
 
 ${private_routines}$
-! =========== creation / distruction ========
+! =========== creation / destruction ========
 
 
 #:for i in inst
@@ -224,7 +224,7 @@ ${private_routines}$
 !>      none
 !> \author Fawzi Mohamed
 !> \note
-!>      does not deallocate the elments that are stored in the list
+!>      does not deallocate the elements that are stored in the list
 !>      check more?
 ! **************************************************************************************************
   SUBROUTINE cp_sll_${nametype1[i]}$_dealloc(sll)
@@ -601,7 +601,7 @@ ${private_routines}$
 ! **************************************************************************************************
 !> \brief returns a newly allocated array with the same contents as
 !>      the linked list
-!> \param sll the list to trasform in array
+!> \param sll the list to transform in array
 !> \return ...
 !> \par History
 !>      07.2002 created [fawzi]

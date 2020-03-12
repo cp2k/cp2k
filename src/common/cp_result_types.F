@@ -63,7 +63,7 @@ MODULE cp_result_types
 ! **************************************************************************************************
 !> \brief contains arbitrary information which need to be stored
 !> \note
-!>      result_list is a character list, in which everthing can be stored
+!>      result_list is a character list, in which everything can be stored
 !>      before passing any variable just name the variable like '[NAME]'
 !>      brackets will be used to identify the start of a new set
 !> \author fschiff (12.2007)

@@ -1,5 +1,5 @@
 # A set of tools used in the toolchain installer, intended to be used
-# by sourcing this file inside other scipts.
+# by sourcing this file inside other scripts.
 
 SYS_INCLUDE_PATH=${SYS_INCLUDE_PATH:-"/usr/local/include:/usr/include"}
 SYS_LIB_PATH=${SYS_LIB_PATH:-"/user/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib:/lib64:/lib"}

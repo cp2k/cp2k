@@ -64,9 +64,9 @@ MODULE qs_fb_com_tasks_types
    INTEGER, PRIVATE, SAVE :: last_fb_com_atom_pairs_id = 0
 
 ! **********************************************************************
-! explaination on format of task lists (same for tasks_recv and tasks_send):
+! explanation on format of task lists (same for tasks_recv and tasks_send):
 ! tasks_recv has dimension (4, ntasks_recv), and stores information on
-! the block to be copied or transfered
+! the block to be copied or transferred
 ! - tasks_recv(TASK_DEST,itask) = destination MPI rank of itask-th task
 ! - tasks_recv(TASK_SRC,itask) = source MPI rank of itask-th task
 ! - tasks_recv(TASK_PAIR,itask) = compressed pair indices of the block of itask-th task
@@ -1223,7 +1223,7 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief Given send and recv fb_com_atom_pair object, distribute the matrix
-!>        blocks stored in a fb_matrix_data object to a compatable DBCSR
+!>        blocks stored in a fb_matrix_data object to a computable DBCSR
 !>        matrix. It is assumed in this subroutine that the sizes of each
 !>        block stored in fb_matrix_data object is consistent with the
 !>        pre-defined block sizes in the DBCSR matrix.

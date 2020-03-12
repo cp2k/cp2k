@@ -779,7 +779,7 @@ CONTAINS
                END DO
             END IF
 
-            ! Mulitple threads with same irow, icol but different katom (same even in PBCs) can try
+            ! Multiple threads with same irow, icol but different katom (same even in PBCs) can try
             ! to access the dbcsr block at the same time. Prevent that by CRITICAL section but keep
             ! computations before hand in order to retain speed
 

@@ -79,7 +79,7 @@ MODULE ct_types
 !SPIN!!!    ! virt orbitals, contravariant-covariant representation
 !SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_v=>NULL()
 !SPIN!!!
-!SPIN!!!    ! to avoid bulding Occ-by-N and Virt-vy-N matrices inside
+!SPIN!!!    ! to avoid building Occ-by-N and Virt-vy-N matrices inside
 !SPIN!!!    ! the ct routines get them from the external code
 !SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_qp_template=>NULL()
 !SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_pq_template=>NULL()
@@ -104,7 +104,7 @@ MODULE ct_types
       ! virt orbitals, contravariant-covariant representation
       TYPE(dbcsr_type), POINTER  :: matrix_v => NULL()
 
-      ! to avoid bulding Occ-by-N and Virt-vy-N matrices inside
+      ! to avoid building Occ-by-N and Virt-vy-N matrices inside
       ! the ct routines get them from the external code
       TYPE(dbcsr_type), POINTER  :: matrix_qp_template => NULL()
       TYPE(dbcsr_type), POINTER  :: matrix_pq_template => NULL()

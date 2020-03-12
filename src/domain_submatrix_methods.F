@@ -1558,7 +1558,7 @@ CONTAINS
       DEALLOCATE (offset_block)
       DEALLOCATE (offset2_block)
 
-      ! copy recieved data into dbcsr matrix
+      ! copy received data into dbcsr matrix
       CALL dbcsr_get_info(matrix, col_blk_size=col_blk_size, row_blk_size=row_blk_size)
       DO iNode = 1, nNodes
          block_offset = 0

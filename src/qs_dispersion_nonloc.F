@@ -336,7 +336,7 @@ CONTAINS
       !! constant*rho^(3/4)*P_i(q0(rho, gradient_rho)) for rVV10 where P_i is a polynomial that
       !! interpolates a Kronecker delta function at the point q_i (taken from the q_mesh) and q0 is
       !! the saturated version of q.
-      !! q is defined in equations 11 and 12 of DION and the saturation proceedure is defined in equation 5
+      !! q is defined in equations 11 and 12 of DION and the saturation procedure is defined in equation 5
       !! of soler.  This is the biggest memory consumer in the method since the thetas array is
       !! (total # of FFT points)*Nqs complex numbers.  In a parallel run, each processor will hold the
       !! values of all the theta functions on just the points assigned to it.
@@ -1374,7 +1374,7 @@ CONTAINS
 
 !$OMP DO
       DO P_i = 1, Nx
-         !! In the Soler method, the polynomials that are interpolated are Kronecker delta funcions
+         !! In the Soler method, the polynomials that are interpolated are Kronecker delta functions
          !! at a particular q point.  So, we set all y values to 0 except the one corresponding to
          !! the particular function P_i.
          !! ----------------------------------------------------------------------------------------

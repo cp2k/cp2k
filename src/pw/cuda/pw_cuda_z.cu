@@ -72,7 +72,7 @@ void cudaStreamBarrier(cudaStream_t cuda_stream) {
 /******************************************************************************
  * \brief   Performs a out-of-place copy of a double precision vector (first
  *          half filled) into a double precision complex vector on the GPU.
- *          It requires a global double precision vector 'zout' of lenght '2n'.
+ *          It requires a global double precision vector 'zout' of length '2n'.
  *          [memory (shared):  none Byte
  *           memory (private): 4 Byte
  *           memory (global):  16*n Byte]
@@ -96,7 +96,7 @@ __global__ void pw_copy_rc_cu_z(const double *din,
 /******************************************************************************
  * \brief   Performs a out-of-place copy of a double precision complex vector
  *          (real part) into a double precision vector on the GPU.
- *          It requires a global double precision vector 'dout' of lenght 'n'.
+ *          It requires a global double precision vector 'dout' of length 'n'.
  *          [memory (shared):  none Byte
  *           memory (private): 4 Byte
  *           memory (global):  16*n Byte]

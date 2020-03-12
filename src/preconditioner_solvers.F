@@ -248,7 +248,7 @@ CONTAINS
       ! Try to get a reasonbale guess for the filtering threshold
       filter_eps = 1.0_dp/preconditioner_env%condition_num*0.1_dp
 
-      ! Agressive filtering on the initial guess is needed to avoid fill ins and retain sparsity
+      ! Aggressive filtering on the initial guess is needed to avoid fill ins and retain sparsity
       CALL dbcsr_filter(preconditioner_env%dbcsr_matrix, filter_eps*100.0_dp)
       ! We don't need a high accuracy for the inverse so 0.4 is reasonable for convergence
       CALL invert_Hotelling(preconditioner_env%dbcsr_matrix, preconditioner_env%sparse_matrix, filter_eps*10.0_dp, &

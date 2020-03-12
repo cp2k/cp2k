@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Rountines to calculate HFX energy and potential
+!> \brief Routines to calculate HFX energy and potential
 !> \par History
 !>      11.2006 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -444,7 +444,7 @@ CONTAINS
       ncpu = para_env%num_pe
       n_processes = ncpu*n_threads
 
-      !! initalize some counters
+      !! initialize some counters
       neris_total = 0_int_8
       neris_incore = 0_int_8
       neris_disk = 0_int_8
@@ -878,7 +878,7 @@ CONTAINS
 !$OMP BARRIER
 
       !! Start caluclating integrals of the form (ab|cd) or (ij|kl)
-      !! In order to do so, there is a main four-loop structre that takes into account the two symmetries
+      !! In order to do so, there is a main four-loop structure that takes into account the two symmetries
       !!
       !!   (ab|cd) = (ba|cd) = (ab|dc) = (ba|dc)
       !!
@@ -910,7 +910,7 @@ CONTAINS
       !! This tells the process where to start the main loops and how many bunches of integrals it has to
       !! calculate. The original parallelization is a simple modulo distribution that is binned and
       !! optimized in the load_balance routines. Since the Monte Carlo routines can swap processors,
-      !! we need to know which was the inital cpu_id.
+      !! we need to know which was the initial cpu_id.
       !! Furthermore, the indices iatom, jatom, katom, latom have to be set to istart, jstart, kstart and
       !! lstart only the first time the loop is executed. All subsequent loops have to start with one or
       !! iatom and katom respectively. Therefore, we use flags like first_j_loop etc.

@@ -7,7 +7,7 @@
 !> \brief stores a lists of integer that are local to a processor.
 !>      The idea is that these integers represent objects that are distributed
 !>      between the different processors.
-!>      The ordering is just to make some operation more efficent, logically
+!>      The ordering is just to make some operation more efficient, logically
 !>      these lists are like sets.
 !>      Some operations assume that the integers represent a range of values
 !>      from 1 to a (not too big) maxval, and that an element is present just

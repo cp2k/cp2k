@@ -418,7 +418,7 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      ! initalization of the linear solver
+      ! initialization of the linear solver
       !
       ! A * x0
       CALL apply_op(qs_env, p_env, psi0_order, psi1, Ap, chc)

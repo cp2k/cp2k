@@ -994,7 +994,7 @@ CONTAINS
    !                                                                      -
    !     Matrix routines for DKH-procedure                                -
    !     Alexander Wolf                                                   -
-   !     modifed: Jens Thar: Mem manager deleted                          -
+   !     modified: Jens Thar: Mem manager deleted                          -
    !     This file contains the                                           -
    !      following subroutines:                                          -
    !                                 1. mat_1_over_h                      -
@@ -2190,7 +2190,7 @@ CONTAINS
    !                                                                      -
    !     Matrix routines for DKH-procedure                                -
    !     Alexander Wolf                                                   -
-   !     modifed: Jens Thar: Mem manager deleted                          -
+   !     modified: Jens Thar: Mem manager deleted                          -
    !     This file contains the                                           -
    !      following subroutines:                                          -
    !                                 1. mat_1_over_h                      -

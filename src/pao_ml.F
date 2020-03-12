@@ -119,7 +119,7 @@ CONTAINS
       ! turns linked lists into matrices and syncs them across ranks
       CALL training_list2matrix(training_lists, pao%ml_training_matrices, para_env)
 
-      ! calculate and substract prior
+      ! calculate and subtract prior
       CALL pao_ml_substract_prior(pao%ml_prior, pao%ml_training_matrices)
 
       ! print some statistics about the training set and dump it upon request
@@ -421,7 +421,7 @@ CONTAINS
             CPABORT("PAO: unknown prior")
          END SELECT
 
-         ! substract prior from all training points
+         ! subtract prior from all training points
          DO i = 1, npoints
             training_matrix%outputs(:, i) = training_matrix%outputs(:, i) - training_matrix%prior
          ENDDO
@@ -473,7 +473,7 @@ CONTAINS
    END SUBROUTINE pao_ml_print
 
 ! **************************************************************************************************
-!> \brief Calls the actuall learning algorthim to traing on the given matrices
+!> \brief Calls the actual learning algorthim to traing on the given matrices
 !> \param pao ...
 ! **************************************************************************************************
    SUBROUTINE pao_ml_train(pao)
@@ -493,7 +493,7 @@ CONTAINS
       CASE (pao_ml_lazy)
          ! nothing to do
       CASE DEFAULT
-         CPABORT("PAO: unkown machine learning scheme")
+         CPABORT("PAO: unknown machine learning scheme")
       END SELECT
 
       CALL timestop(handle)
@@ -543,7 +543,7 @@ CONTAINS
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          IF (SIZE(block_X) == 0) CYCLE ! pao disabled for iatom
 
-         ! calculate decriptor
+         ! calculate descriptor
          CALL pao_ml_calc_descriptor(pao, &
                                      particle_set, &
                                      qs_kind_set, &
@@ -588,7 +588,7 @@ CONTAINS
    END SUBROUTINE pao_ml_predict
 
 ! **************************************************************************************************
-!> \brief Queries the actuall learning algorthim to make a prediction
+!> \brief Queries the actual learning algorthim to make a prediction
 !> \param pao ...
 !> \param ikind ...
 !> \param descriptor ...
@@ -611,7 +611,7 @@ CONTAINS
          output = 0.0_dp ! let's be really lazy and just rely on the prior
          variance = 0
       CASE DEFAULT
-         CPABORT("PAO: unkown machine learning scheme")
+         CPABORT("PAO: unknown machine learning scheme")
       END SELECT
 
    END SUBROUTINE pao_ml_predict_low
@@ -660,7 +660,7 @@ CONTAINS
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          IF (SIZE(block_G) == 0) CYCLE ! pao disabled for iatom
 
-         ! calculate decriptor
+         ! calculate descriptor
          CALL pao_ml_calc_descriptor(pao, &
                                      particle_set, &
                                      qs_kind_set, &
@@ -716,7 +716,7 @@ CONTAINS
       CASE (pao_ml_lazy)
          gradient = 0.0_dp
       CASE DEFAULT
-         CPABORT("PAO: unkown machine learning scheme")
+         CPABORT("PAO: unknown machine learning scheme")
       END SELECT
 
    END SUBROUTINE pao_ml_gradient_low

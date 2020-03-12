@@ -249,7 +249,7 @@ CONTAINS
       CASE (linesearch_method_none)
          ! nothing todo
       CASE DEFAULT
-         CPABORT("unkown method")
+         CPABORT("unknown method")
       END SELECT
 
    END SUBROUTINE linesearch_init_low
@@ -277,7 +277,7 @@ CONTAINS
       CASE (linesearch_method_none)
          ! nothing todo
       CASE DEFAULT
-         CPABORT("unkown method")
+         CPABORT("unknown method")
       END SELECT
 
       !TODO: should finish printkey, but don't have the section here
@@ -325,7 +325,7 @@ CONTAINS
          step_size = this%init_step_size ! take steps of fixed length
          is_done = .TRUE.
       CASE DEFAULT
-         CPABORT("unkown method")
+         CPABORT("unknown method")
       END SELECT
 
       this%step_size = step_size

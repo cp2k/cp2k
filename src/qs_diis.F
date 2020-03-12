@@ -370,7 +370,7 @@ CONTAINS
 
       END DO
 
-      ! Check, if a DIIS step is appropiate
+      ! Check, if a DIIS step is appropriate
 
       diis_step = ((diis_buffer%ncall >= my_nmixing) .AND. (delta < eps_diis))
 
@@ -669,7 +669,7 @@ CONTAINS
 
       END DO ! ------ Loop-ispin----END
 
-      ! Check, if a DIIS step is appropiate
+      ! Check, if a DIIS step is appropriate
 
       diis_step = (diis_buffer%ncall >= my_nmixing)
 

@@ -181,7 +181,7 @@ CONTAINS
                   ELSE
                      master = 0
                      CALL mp_recv(buffer(lbounds(3):ubounds(3)), master, tag, gid)
-!               WRITE(*,*) my_rank," recieving from master"
+!               WRITE(*,*) my_rank," receiving from master"
                   ENDIF
                   CALL mp_sync(gid)
 

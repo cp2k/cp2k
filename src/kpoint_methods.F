@@ -490,7 +490,7 @@ CONTAINS
                nmo = MIN(nao, nmorig(is) + nadd)
                CALL set_mo_set(mos(is)%mo_set, nmo=nmo)
             END DO
-            ! matrix pools for the kpoint group, information on MOs is transfered using
+            ! matrix pools for the kpoint group, information on MOs is transferred using
             ! generic mos structure
             NULLIFY (mpools)
             CALL mpools_create(mpools=mpools)
@@ -1093,7 +1093,7 @@ CONTAINS
          END DO
       END DO
 
-      ! Finish communication and transform the recieved matrices
+      ! Finish communication and transform the received matrices
       indx = 0
       DO ispin = 1, nspin
          DO ik = 1, nkp

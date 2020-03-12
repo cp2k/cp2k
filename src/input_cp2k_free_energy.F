@@ -454,7 +454,7 @@ CONTAINS
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETER", &
-                          description="Defines the perturbing parameter of the alchemical change tranformation", &
+                          description="Defines the perturbing parameter of the alchemical change transformation", &
                           usage="PARAMETERS k", type_of_var=char_t, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)

@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Rountines for GW + Bethe-Salpeter for computing electronic excitations
+!> \brief Routines for GW + Bethe-Salpeter for computing electronic excitations
 !> \par History
 !>      04.2017 created [Jan Wilhelm]
 ! **************************************************************************************************

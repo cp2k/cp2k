@@ -961,7 +961,7 @@ CONTAINS
 !>        in order to construct the filter matrix for each atomic halo.
 !>        This version is for use with fb_fltrmat_build, where MPI
 !>        communications are done at each step
-!> \param filter_mat : DBCSR formated filter matrix
+!> \param filter_mat : DBCSR formatted filter matrix
 !> \param atomic_halo :  the halo that contributes to a blk
 !>                       col of the filter matrix
 !> \param para_env : cp2k parallel environment
@@ -1022,7 +1022,7 @@ CONTAINS
       ! owner atom of each halo. The row atom block index for each
       ! filter matrix block corresponding to each col are the halo atoms
       ! of the corresponding halos. Filter matrix is non-symmetric: it
-      ! is non-square, because the blocks themselves are non-sqaure
+      ! is non-square, because the blocks themselves are non-square
 
       CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                               owner_atom=jatom_global, &
@@ -1098,9 +1098,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief generate the list of blocks (atom pairs) to be sent and received
 !>        in order to construct the filter matrix for each atomic halo.
-!>        This vesion is for use with fb_fltrmat_build_2, where MPI
+!>        This version is for use with fb_fltrmat_build_2, where MPI
 !>        communications are done collectively.
-!> \param filter_mat  : DBCSR formated filter matrix
+!> \param filter_mat  : DBCSR formatted filter matrix
 !> \param atomic_halos : set of all local atomic halos contributing to the
 !>                       filter matrix
 !> \param para_env : cp2k parallel environment
@@ -1154,7 +1154,7 @@ CONTAINS
       ! owner atom of each halo. The row atom block index for each
       ! filter matrix block corresponding to each col are the halo atoms
       ! of the corresponding halos. Filter matrix is non-symmetric: it
-      ! is non-square, because the blocks themselves are non-sqaure
+      ! is non-square, because the blocks themselves are non-square
 
       CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
                                    nhalos=nhalos, &

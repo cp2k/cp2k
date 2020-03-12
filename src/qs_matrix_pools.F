@@ -55,11 +55,11 @@ MODULE qs_matrix_pools
 !> \param mosub_mosub_fm_pools pools with (mosub x mosub) full matrixes, where mosub
 !>        are a subset of the mos
 !>
-!> \param maxao_maxao_fm_pools pool of matrixes big enough to accomodate any
+!> \param maxao_maxao_fm_pools pool of matrixes big enough to accommodate any
 !>        aoxao matrix (useful for temp matrixes)
-!> \param maxao_maxmo_fm_pools pool of matrixes big enough to accomodate any
+!> \param maxao_maxmo_fm_pools pool of matrixes big enough to accommodate any
 !>        aoxmo matrix (useful for temp matrixes)
-!> \param maxmo_maxmo_fm_pools pool of matrixes big enough to accomodate any
+!> \param maxmo_maxmo_fm_pools pool of matrixes big enough to accommodate any
 !>        moxmo matrix (useful for temp matrixes)
 !> \par History
 !>      04.2003 created [fawzi]

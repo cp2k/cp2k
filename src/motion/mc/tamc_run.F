@@ -316,7 +316,7 @@ CONTAINS
       rng_stream_mc = rng_stream_type(name="Random numbers for monte carlo acc/rej", &
                                       distribution_type=UNIFORM)
 !       ENDIF
-!!!!! this shoudl go in a routine hmc_read
+!!!!! this should go in a routine hmc_read
 
       NULLIFY (mc_section)
       ALLOCATE (mc_par)

@@ -43,7 +43,7 @@ MODULE mixed_cdft_types
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)         :: energy
       ! Lagrangian multipliers of the CDFT constraints
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)      :: strength
-      ! Reliablity metric for CDFT electronic couplings
+      ! Reliability metric for CDFT electronic couplings
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)      :: metric
       ! The mixed CDFT Hamiltonian matrix
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)      :: H
@@ -171,7 +171,7 @@ MODULE mixed_cdft_types
 !> \param dlb                   flag to enable dynamic load balancing
 !> \param is_special            another flag controlling which scheme to use for constraint replication
 !> \param first_iteration       flag to mark the first iteration e.g. during MD to output information
-!> \param calculate_metric      flag which determines if the coupling reliablity metric should be computed
+!> \param calculate_metric      flag which determines if the coupling reliability metric should be computed
 !> \param wnf_ovelap_method     flag to enable the wavefunction overlap method for computing the coupling
 !> \param has_unit_metric       flag to determine if the basis set has unit metric
 !> \param use_lowdin            flag which determines if Lowdin orthogonalization is used to compute the coupling
@@ -475,7 +475,7 @@ CONTAINS
 !> \param lowdin       CDFT electronic couplings from Lowdin orthogonalization
 !> \param wfn          CDFT electronic couplings from wavefunction overlap method
 !> \param nonortho     CDFT electronic couplings (interaction energies) before orthogonalization
-!> \param metric       Reliablity metric for CDFT electronic couplings
+!> \param metric       Reliability metric for CDFT electronic couplings
 !> \param rotation     CDFT electronic couplings using the weight function matrix for orthogonalization
 !> \param H            The mixed CDFT Hamiltonian
 !> \param S            The overlap matrix between CDFT states

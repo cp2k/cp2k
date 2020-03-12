@@ -150,7 +150,7 @@ MODULE hfx_types
       REAL(dp)                                 :: eps_schwarz !! threshold
       REAL(dp)                                 :: eps_schwarz_forces !! threshold
       LOGICAL                                  :: do_p_screening_forces !! screen on P^2 ?
-      LOGICAL                                  :: do_initial_p_screening !! screen on inital guess?
+      LOGICAL                                  :: do_initial_p_screening !! screen on initial guess?
    END TYPE
 
 ! **************************************************************************************************

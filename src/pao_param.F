@@ -139,7 +139,7 @@ CONTAINS
       CASE (pao_gth_param)
          CALL pao_param_init_gth(pao, qs_env)
       CASE DEFAULT
-         CPABORT("PAO: unkown parametrization")
+         CPABORT("PAO: unknown parametrization")
       END SELECT
 
       CALL timestop(handle)
@@ -168,7 +168,7 @@ CONTAINS
       CASE (pao_gth_param)
          CALL pao_param_finalize_gth(pao)
       CASE DEFAULT
-         CPABORT("PAO: unkown parametrization")
+         CPABORT("PAO: unknown parametrization")
       END SELECT
 
       CALL timestop(handle)
@@ -203,7 +203,7 @@ CONTAINS
       CASE (pao_gth_param)
          CALL pao_param_count_gth(qs_env, ikind=ikind, nparams=nparams)
       CASE DEFAULT
-         CPABORT("PAO: unkown parametrization")
+         CPABORT("PAO: unknown parametrization")
       END SELECT
 
       CALL timestop(handle)
@@ -236,7 +236,7 @@ CONTAINS
       CASE (pao_gth_param)
          CALL pao_param_initguess_gth(pao)
       CASE DEFAULT
-         CPABORT("PAO: unkown parametrization")
+         CPABORT("PAO: unknown parametrization")
       END SELECT
 
       norm = dbcsr_frobenius_norm(pao%matrix_X)
@@ -286,7 +286,7 @@ CONTAINS
       CASE (pao_gth_param)
          CALL pao_calc_U_gth(pao, penalty, matrix_M, matrix_G)
       CASE DEFAULT
-         CPABORT("PAO: unkown parametrization")
+         CPABORT("PAO: unknown parametrization")
       END SELECT
 
       CALL pao_assert_unitary(pao)

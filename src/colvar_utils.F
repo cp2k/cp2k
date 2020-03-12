@@ -535,7 +535,7 @@ CONTAINS
       IF (PRESENT(forces)) THEN
          ALLOCATE (wrk(nsize_int))
          ALLOCATE (Amatrix(nsize_int, nsize_xyz))
-         ! Compute the transformation matrices and the invese mass diagonal Matrix
+         ! Compute the transformation matrices and the inverse mass diagonal Matrix
          CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI, Amatrix)
          wrk = MATMUL(Amatrix, forces)
          forces = 0.0_dp
@@ -543,7 +543,7 @@ CONTAINS
          DEALLOCATE (Amatrix)
          DEALLOCATE (wrk)
       ELSE
-         ! Compute the transformation matrices and the invese mass diagonal Matrix
+         ! Compute the transformation matrices and the inverse mass diagonal Matrix
          CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI)
       END IF
       ! Compute the Metric Tensor

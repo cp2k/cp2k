@@ -58,7 +58,7 @@ CONTAINS
 !> \param n_acc drection of branch the next tree node should extend
 !> \param search_energy_node ...
 !> \parma search_energy_node flag if configuration for calculating exact
-!>        energy sould be searched
+!>        energy should be searched
 !> \author Mandes 12.2012
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE most_prob_end(global_tree_elem, prob, n_acc, &
@@ -161,7 +161,7 @@ CONTAINS
                                      n_acc=tmp_acc)
                END IF
                !-- do probability multiplication
-               !    (in logscale because of realy small probabilities)
+               !    (in logscale because of really small probabilities)
                prob_n_acc = prob_n_acc + LOG(global_tree_elem%prob_acc)
             ELSE
                ! prob of going in acc or rej direction is
@@ -187,7 +187,7 @@ CONTAINS
                                      n_acc=tmp_nacc)
                END IF
                !-- do probability multiplication
-               !     (in logscale because of realy small probabilities)
+               !     (in logscale because of really small probabilities)
                prob_n_nacc = prob_n_nacc + LOG(1 - global_tree_elem%prob_acc)
             ELSE
                ! prob of going in acc or rej direction is
@@ -198,7 +198,7 @@ CONTAINS
                tmp_nacc = .FALSE.
             END IF
          END IF
-         ! test wich direction is more likely
+         ! test which direction is more likely
          !   and set result pointer and probability,
          ! remembering the direction
          IF (prob_n_acc .GE. prob_n_nacc) THEN
@@ -248,7 +248,7 @@ CONTAINS
 
       stat = status_created
       ! set status for master
-      !   (if TMC_STATUS_WAIT_FOR_NEW_TASK, no calculation neccessary)
+      !   (if TMC_STATUS_WAIT_FOR_NEW_TASK, no calculation necessary)
       IF (.NOT. ASSOCIATED(new_gt_elem) .OR. (EXP(prob) .LT. 1.0E-10)) THEN
          stat = TMC_STATUS_WAIT_FOR_NEW_TASK
       ELSE

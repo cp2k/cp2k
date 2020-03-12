@@ -670,7 +670,7 @@ CONTAINS
 !>        H is the Kohn Sham matrix
 !>        lambda*S shifts the spectrum of the generalized form up by lambda
 !>        the last term only shifts the occupied space (reversing them in energy order)
-!>        This form is implicitely multiplied from both sides by S^0.5
+!>        This form is implicitly multiplied from both sides by S^0.5
 !>        This ensures we precondition the correct quantity
 !>        Before this reads S^-0.5 H S^-0.5 + lambda + (S^0.5 C)shifts(S^0.5 C)T
 !>        which might be a bit more obvious
