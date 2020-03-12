@@ -41,6 +41,14 @@ case "$FAST_MATH_MODE" in
         ;;
 esac
 
+if [ "$with_reflapack" = "__DONTUSE__" ] ; then
+    # if we don't build the refereence blas/lapack implementations,
+    # make sure we still link against a BLAS/LAPACK implementation in *dbg profiles
+    export REF_MATH_CFLAGS="${FAST_MATH_CFLAGS}"
+    export REF_MATH_LDFLAGS="${FAST_MATH_LDFLAGS}"
+    export REF_MATH_LIBS="${FAST_MATH_LIBS}"
+fi
+
 if [ $ENABLE_VALGRIND = "__TRUE__" ] ; then
     export MATH_CFLAGS="${REF_MATH_CFLAGS}"
     export MATH_LDFLAGS="${REF_MATH_LDFLAGS}"
