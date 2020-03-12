@@ -37,25 +37,25 @@
 
 MODULE submatrix_dissection
 
-   USE bibliography,                    ONLY: Lass2018,&
-                                              cite_reference
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_put_block, dbcsr_type
-   USE dbcsr_mpiwrap,                   ONLY: mp_allgather,&
-                                              mp_alltoall,&
-                                              mp_irecv,&
-                                              mp_isend,&
-                                              mp_send,&
-                                              mp_wait
-   USE kinds,                           ONLY: dp
-   USE submatrix_types,                 ONLY: buffer_type,&
-                                              bufptr_type,&
-                                              intBuffer_type,&
-                                              set_type,&
-                                              setarray_type
+   USE bibliography, ONLY: Lass2018, &
+                           cite_reference
+   USE dbcsr_api, ONLY: &
+      dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
+      dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
+      dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+      dbcsr_put_block, dbcsr_type
+   USE dbcsr_mpiwrap, ONLY: mp_allgather, &
+                            mp_alltoall, &
+                            mp_irecv, &
+                            mp_isend, &
+                            mp_send, &
+                            mp_wait
+   USE kinds, ONLY: dp
+   USE submatrix_types, ONLY: buffer_type, &
+                              bufptr_type, &
+                              intBuffer_type, &
+                              set_type, &
+                              setarray_type
 
 !$ USE omp_lib, ONLY: omp_get_max_threads, omp_get_thread_num
 
@@ -308,7 +308,16 @@ CONTAINS
 
       ! Figure out which blocks we need to receive. Blocks are identified here as indices into our COO representation.
       ! TODO: This currently shows limited parallel efficiency. Investigate further.
-      !$OMP PARALLEL NUM_THREADS(numthreads) DEFAULT(NONE) &
+
+! gfortran before 8.3 complains about internal symbols not being specified in
+! any data clause when using DEFAULT(NONE) and OOP procedures are called from
+! within the parallel region.
+#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
+      !$OMP PARALLEL DEFAULT(SHARED) &
+#else
+      !$OMP PARALLEL DEFAULT(NONE) &
+#endif
+      !$OMP          NUM_THREADS(numthreads) &
       !$OMP          PRIVATE(i,j,k,l,m,l_limit_left,l_limit_right,cur_col,cur_row,mytid) &
       !$OMP          SHARED(result_blocks_from_rank_t,result_blocks_for_rank_t,blocks_from_rank_t,this,numthreads,nonzero_rows_t)
       mytid = 0
