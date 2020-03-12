@@ -9,30 +9,30 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE iterate_matrix
-   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
-                                              arnoldi_extremal
-   USE bibliography,                    ONLY: Richters2018,&
-                                              cite_reference
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_unit_nr,&
-                                              cp_logger_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_frobenius_norm, &
-        dbcsr_gershgorin_norm, dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
-        dbcsr_get_occupation, dbcsr_multiply, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_p_type, &
-        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry
-   USE input_constants,                 ONLY: ls_scf_submatrix_sign_direct,&
-                                              ls_scf_submatrix_sign_ns
-   USE kinds,                           ONLY: dp,&
-                                              int_8
-   USE machine,                         ONLY: m_flush,&
-                                              m_walltime
-   USE mathconstants,                   ONLY: ifac
-   USE mathlib,                         ONLY: abnormal_value
-   USE message_passing,                 ONLY: mp_sum
-   USE submatrix_dissection,            ONLY: submatrix_dissection_type
+   USE arnoldi_api, ONLY: arnoldi_data_type, &
+                          arnoldi_extremal
+   USE bibliography, ONLY: Richters2018, &
+                           cite_reference
+   USE cp_log_handling, ONLY: cp_get_default_logger, &
+                              cp_logger_get_default_unit_nr, &
+                              cp_logger_type
+   USE dbcsr_api, ONLY: &
+      dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
+      dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_frobenius_norm, &
+      dbcsr_gershgorin_norm, dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
+      dbcsr_get_occupation, dbcsr_multiply, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_p_type, &
+      dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_transposed, &
+      dbcsr_type, dbcsr_type_no_symmetry
+   USE input_constants, ONLY: ls_scf_submatrix_sign_direct, &
+                              ls_scf_submatrix_sign_ns
+   USE kinds, ONLY: dp, &
+                    int_8
+   USE machine, ONLY: m_flush, &
+                      m_walltime
+   USE mathconstants, ONLY: ifac
+   USE mathlib, ONLY: abnormal_value
+   USE message_passing, ONLY: mp_sum
+   USE submatrix_dissection, ONLY: submatrix_dissection_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -466,7 +466,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Hotelling', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: accelerator_type, handle, i, &
                                                             my_max_iter_lanczos, unit_nr
@@ -474,7 +474,7 @@ CONTAINS
       LOGICAL                                            :: arnoldi_converged, converged, &
                                                             use_inv_guess
       REAL(KIND=dp) :: convergence, frob_matrix, gershgorin_norm, max_ev, maxnorm_matrix, min_ev, &
-         my_eps_lanczos, my_filter_eps, occ_matrix, scalingf, t1, t2
+                       my_eps_lanczos, my_filter_eps, occ_matrix, scalingf, t1, t2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_type), TARGET                           :: tmp1, tmp2
 
@@ -672,7 +672,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_Newton_Schulz', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: count, handle, i, order, unit_nr
       INTEGER(KIND=int_8)                                :: flops
@@ -1000,7 +1000,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_proot', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, order, unit_nr
       INTEGER(KIND=int_8)                                :: flop0, flop1, flop2
@@ -1096,7 +1096,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dense_matrix_sign_Newton_Schulz', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, j, sz, unit_nr
       LOGICAL                                            :: converged
@@ -1258,7 +1258,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: submatrix_sign_method
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: group, handle, i, myrank, nblkcols, &
                                                             order, sm_size, unit_nr
@@ -1286,7 +1286,15 @@ CONTAINS
       CALL dissection%init(matrix)
       CALL dissection%get_sm_ids_for_rank(myrank, my_sms)
 
-      !$OMP PARALLEL DEFAULT(NONE) PRIVATE(sm, sm_sign, sm_size) &
+! gfortran before 8.3 complains about internal symbols not being specified in
+! any data clause when using DEFAULT(NONE) and OOP procedures are called from
+! within the parallel region.
+#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
+      !$OMP PARALLEL DEFAULT(SHARED) &
+#else
+      !$OMP PARALLEL DEFAULT(NONE) &
+#endif
+      !$OMP          PRIVATE(sm, sm_sign, sm_size) &
       !$OMP          SHARED(dissection, myrank, my_sms, order, submatrix_sign_method, threshold, unit_nr)
       !$OMP DO SCHEDULE(GUIDED)
       DO i = 1, SIZE(my_sms)
@@ -1341,7 +1349,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: symmetrize, converged
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_Newton_Schulz', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, unit_nr
       INTEGER(KIND=int_8)                                :: flop1, flop2, flop3, flop4, flop5
@@ -1589,7 +1597,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: symmetrize, converged
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_proot', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: choose, handle, i, ii, j, unit_nr
       INTEGER(KIND=int_8)                                :: f, flop1, flop2, flop3, flop4, flop5
@@ -1812,7 +1820,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: omega, alpha, threshold
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_exponential', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
       REAL(dp), PARAMETER                                :: one = 1.0_dp, toll = 1.E-17_dp, &
                                                             zero = 0.0_dp
 
@@ -1920,7 +1928,7 @@ CONTAINS
       INTEGER                                            :: max_steps
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mcweeny_orth', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, ispin, unit_nr
       REAL(KIND=dp)                                      :: frob_norm, trace
@@ -1985,7 +1993,7 @@ CONTAINS
       INTEGER                                            :: max_steps
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mcweeny_nonorth', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, ispin, unit_nr
       REAL(KIND=dp)                                      :: frob_norm, trace
