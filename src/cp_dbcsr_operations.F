@@ -970,7 +970,7 @@ CONTAINS
 !> \param[in] nelements number of elements to bin
 !> \param[in] nbins             number of bins
 !> \par Term clarification
-!>      An example: blocks are atom blocks and bins are process rows/colums.
+!>      An example: blocks are atom blocks and bins are process rows/columns.
 ! **************************************************************************************************
    SUBROUTINE create_bl_distribution(block_distribution, &
                                      block_size, nelements, nbins)

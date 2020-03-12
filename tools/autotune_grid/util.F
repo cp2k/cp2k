@@ -8,7 +8,7 @@
 !!     util
 !!
 !!   FUNCTION
-!!     All kind of helpfull little routines
+!!     All kind of helpful little routines
 !!
 !!   AUTHOR
 !!     CJM & JGH

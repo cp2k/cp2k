@@ -944,7 +944,7 @@ CONTAINS
 !
 !! Convert the results to a column wise distribution, this is a bit involved as the result_row is fully replicated
 !! While the result_col still has the partial results in parallel. The routine below takes care of that and saves an
-!! mp_sum. Of the res_row vectors are created only taking the approriate element (0 otherwise) while the res_col
+!! mp_sum. Of the res_row vectors are created only taking the appropriate element (0 otherwise) while the res_col
 !! parallel bits are locally added. The mp_sum magically creates the correct vector
       CALL dbcsr_rep_row_to_rep_col_vec_${nametype}$ (work_col, result_row, res_fast_vec_row, res_fast_vec_col)
 

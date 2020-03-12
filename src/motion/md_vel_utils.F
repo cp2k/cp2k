@@ -1110,7 +1110,7 @@ CONTAINS
       INTEGER                                            :: imode, ind
 
       res = 0.0_dp
-      ! assuming the eigenvalues are sorted in accending order, the
+      ! assuming the eigenvalues are sorted in ascending order, the
       ! first three modes are acoustic with zero frequencies. These are
       ! excluded from considerations, and should have been reflected in
       ! the calculation of scale outside this function
@@ -1169,7 +1169,7 @@ CONTAINS
       INTEGER                                            :: imode, ind
 
       res = 0.0_dp
-      ! assuming the eigenvalues are sorted in accending order, the
+      ! assuming the eigenvalues are sorted in ascending order, the
       ! first three modes are acoustic with zero frequencies. These are
       ! excluded from considerations, and should have been reflected in
       ! the calculation of scale outside this function

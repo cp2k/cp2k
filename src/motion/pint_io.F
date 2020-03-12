@@ -524,7 +524,7 @@ CONTAINS
          ! cp_print_key_unit_nr returns -1 on nodes other than logger%para_env%ionode
          IF (unit_nr > 0) THEN
 
-            ! please keep the format explaination up to date
+            ! please keep the format explanation up to date
             ! keep the constant of motion the true constant of motion !
             IF (file_is_new) THEN
                WRITE (unit_nr, "(A8,1X,A12,1X,5(A20,1X),A12)") &
@@ -607,7 +607,7 @@ CONTAINS
          ! cp_print_key_unit_nr returns -1 on nodes other than logger%para_env%ionode
          IF (unit_nr > 0) THEN
 
-            ! please keep the format explaination up to date
+            ! please keep the format explanation up to date
             ! keep the constant of motion the true constant of motion !
             IF (file_is_new) THEN
                WRITE (unit_nr, "(A8,1X,A12,1X,2(A25,1X))") &

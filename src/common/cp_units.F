@@ -9,7 +9,7 @@
 !>      Units are complex, this module does not try to be very smart, for
 !>      example SI prefixes are not supported automatically, and
 !>      which kinds are really basic can change depending on the system of
-!>      units choosen, and equivalences are not always catched.
+!>      units chosen, and equivalences are not always catched.
 !>
 !>      This is thought as a simple conversion facility for the input and output.
 !>      If you need something more you are probably better off using the
@@ -361,7 +361,7 @@ CONTAINS
             kind_id(i_unit) = cp_ukind_force
          CASE ("AU")
             CALL cp_abort(__LOCATION__, &
-                          "au unit without specifing its kind not accepted, use "// &
+                          "au unit without specifying its kind not accepted, use "// &
                           "(au_e, au_f, au_t, au_temp, au_l, au_m, au_p, au_pot)")
          CASE default
             CPABORT("Unknown unit: "//string(i_low:i_high - 1))
@@ -1121,7 +1121,7 @@ CONTAINS
    END FUNCTION cp_unit_desc
 
 ! **************************************************************************************************
-!> \brief tranform a value to the internal cp2k units
+!> \brief transform a value to the internal cp2k units
 !> \param value the value to convert
 !> \param unit the unit of the result
 !> \param defaults the defaults unit for those that are left free

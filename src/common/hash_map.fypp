@@ -411,7 +411,7 @@ END FUNCTION ${prefix}$_items
 ! **************************************************************************************************
 !> \brief Copies all key/values-items from one hash map to another.
 !>        Afterwards hash_map will contain all items from the from_hash_map and
-!>        additionaly all its previous items, which were not overwritten.
+!>        additionally all its previous items, which were not overwritten.
 !>        The two hash maps have to be of the same type.
 !> \param hash_map destination of items
 !> \param from_hash_map source of items - will not be change

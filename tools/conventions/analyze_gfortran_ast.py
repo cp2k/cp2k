@@ -50,7 +50,7 @@ def process_log_file(fhandle):
             elif line == "ENDIF":
                 pass  # skip, check may happen in outer scope
             elif stat_stm == "ALLOCATE" and tokens[0] == "ASSIGN":
-                pass  # skip lines, it's part of the ALLOCATE statment
+                pass  # skip lines, it's part of the ALLOCATE statement
             else:
                 lprint(
                     'Found %s with unchecked STAT in "%s"' % (stat_stm, curr_procedure)
@@ -188,7 +188,7 @@ def parse_args(line):
     for i in range(1, len(line)):
         if line[i] == "(":
             if parentheses == 1:
-                a = i  # begining of argument
+                a = i  # beginning of argument
             parentheses += 1
         elif line[i] == ")":
             parentheses -= 1

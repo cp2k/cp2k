@@ -413,7 +413,7 @@ CONTAINS
       CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
 
       IF (calculate_forces) THEN
-         !! initalize force array to zero
+         !! initialize force array to zero
          CALL get_qs_env(qs_env=qs_env, force=force)
          DO ikind = 1, SIZE(force)
             force(ikind)%fock_4c(:, :) = 0.0_dp
@@ -425,7 +425,7 @@ CONTAINS
 
          IF (do_adiabatic_rescaling .AND. hfx_treat_lsd_in_core) &
             CPABORT("HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids")
-         ! everything is calulated with adiabatic rescaling but the potential is not added in a first step
+         ! everything is calculated with adiabatic rescaling but the potential is not added in a first step
          distribute_fock_matrix = .NOT. do_adiabatic_rescaling
 
          mspin = 1

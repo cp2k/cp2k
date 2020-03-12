@@ -254,7 +254,7 @@ CONTAINS
    END SUBROUTINE init_propagation_run
 
 ! **************************************************************************************************
-!> \brief performes the real RTP run, gets information from MD section
+!> \brief performs the real RTP run, gets information from MD section
 !>        uses MD as iteration level
 !> \param qs_env ...
 !> \param force_env ...

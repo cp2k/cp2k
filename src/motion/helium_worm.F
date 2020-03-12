@@ -237,7 +237,7 @@ CONTAINS
                nstagatt = nstagatt + 1
                nstagacc = nstagacc + ac
             ELSE
-               ! this must not occour
+               ! this must not occur
                CPABORT("Undefined move selected in helium worm sampling!")
             END IF
 
@@ -636,7 +636,7 @@ CONTAINS
                   ! opatom is the atom in front of the first bead of the second atom
                   opatom = helium%iperm(ia)
                   ! if not in cycle, compute pair action
-                  ! substract pair action for closed link
+                  ! subtract pair action for closed link
                   r(:) = pos(:, helium%worm_atom_idx, 1) - pos(:, ia, 1)
                   rp(:) = pos(:, patom, helium%beads) - pos(:, opatom, helium%beads)
                   partaction = partaction - helium_eval_expansion(helium, r, rp, work3)
@@ -661,7 +661,7 @@ CONTAINS
                   END DO
                   IF (incycle) CYCLE
                   ! if not in cycle, compute pair action
-                  ! substract pair action for closed link
+                  ! subtract pair action for closed link
                   r(:) = pos(:, helium%worm_atom_idx, wbead) - pos(:, ia, wbead)
                   rp(:) = pos(:, helium%worm_atom_idx, wbead - 1) - pos(:, ia, wbead - 1)
                   partaction = partaction - helium_eval_expansion(helium, r, rp, work3)
@@ -688,7 +688,7 @@ CONTAINS
                ia = helium%permutation(iatom)
                DO WHILE (ia /= iatom)
                   opatom = helium%iperm(ia)
-                  ! substract pair action for closed link
+                  ! subtract pair action for closed link
                   r(:) = pos(:, helium%worm_atom_idx, 1) - pos(:, ia, 1)
                   rp(:) = pos(:, patom, helium%beads) - pos(:, opatom, helium%beads)
                   partaction = partaction - helium_eval_expansion(helium, r, rp, work3)
@@ -711,7 +711,7 @@ CONTAINS
                ! go through all other atoms, not in the exchange cycle, and correct pair action
                ia = helium%permutation(iatom)
                DO WHILE (ia /= iatom)
-                  ! substract pair action for closed link
+                  ! subtract pair action for closed link
                   r(:) = pos(:, helium%worm_atom_idx, wbead) - pos(:, ia, wbead)
                   rp(:) = pos(:, helium%worm_atom_idx, wbead - 1) - pos(:, ia, wbead - 1)
                   partaction = partaction - helium_eval_expansion(helium, r, rp, work3)
@@ -950,7 +950,7 @@ CONTAINS
                          ((helium%worm_bead_idx > startbead) .OR. &
                           (helium%worm_bead_idx <= endbead)))
          IF (worm_overlap) THEN
-            ! if in addition the worm end is IN the reconstructed section reject imediately
+            ! if in addition the worm end is IN the reconstructed section reject immediately
             IF (((helium%worm_atom_idx == startatom) .AND. (helium%worm_bead_idx >= startbead)) .OR. &
                 ((helium%worm_atom_idx == endatom) .AND. (helium%worm_bead_idx <= endbead))) THEN
                ac = 0
@@ -988,7 +988,7 @@ CONTAINS
          helium%work(:, startatom, ibead) = newsection(:, jbead)
          jbead = jbead + 1
       END DO
-      ! transfer the rest of the beads to coordinates of endatom if neccessary
+      ! transfer the rest of the beads to coordinates of endatom if necessary
       IF (helium%beads < startbead + l) THEN
          DO ibead = 1, endbead - 1
             helium%work(:, endatom, ibead) = newsection(:, jbead)
@@ -1033,7 +1033,7 @@ CONTAINS
                helium%work(:, startatom, ibead) = helium%pos(:, startatom, ibead)
                jbead = jbead + 1
             END DO
-            ! transfer the rest of the beads to coordinates of endatom if neccessary
+            ! transfer the rest of the beads to coordinates of endatom if necessary
             IF (helium%beads < startbead + l) THEN
                DO ibead = 1, endbead - 1
                   helium%work(:, endatom, ibead) = helium%pos(:, endatom, ibead)
@@ -1101,7 +1101,7 @@ CONTAINS
                helium%work(:, startatom, ibead) = helium%pos(:, startatom, ibead)
                jbead = jbead + 1
             END DO
-            ! transfer the rest of the beads to coordinates of endatom if neccessary
+            ! transfer the rest of the beads to coordinates of endatom if necessary
             IF (helium%beads < startbead + l) THEN
                DO ibead = 1, endbead - 1
                   helium%work(:, endatom, ibead) = helium%pos(:, endatom, ibead)
@@ -1121,7 +1121,7 @@ CONTAINS
          helium%pos(:, startatom, ibead) = helium%work(:, startatom, ibead)
          jbead = jbead + 1
       END DO
-      ! transfer the rest of the beads to coordinates of endatom if neccessary
+      ! transfer the rest of the beads to coordinates of endatom if necessary
       IF (helium%beads < startbead + l) THEN
          DO ibead = 1, endbead - 1
             helium%pos(:, endatom, ibead) = helium%work(:, endatom, ibead)
@@ -2798,7 +2798,7 @@ CONTAINS
          ! the worm gap and due to primitive coupling no cross bead terms are considered
          sold = sold + worm_path_inter_action(pint_env, helium, helium%pos, &
                                               bstartatom, startbead, fendatom, endbead)
-         ! compute potential of old and new head here (only once, as later only a rescaling is neccessary)
+         ! compute potential of old and new head here (only once, as later only a rescaling is necessary)
          CALL helium_bead_solute_e_f(pint_env, helium, &
                                      fstartatom, startbead, helium%worm_xtra_bead, &
                                      energy=oldheadpotential)

@@ -59,7 +59,7 @@ MODULE cp_parser_methods
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief return a description of the part of the file acually parsed
+!> \brief return a description of the part of the file actually parsed
 !> \param parser the parser
 !> \return ...
 !> \author fawzi

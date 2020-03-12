@@ -141,7 +141,7 @@ CONTAINS
                                          "PROGRAM_RUN_INFO", &
                                          extension=".vibLog")
       ! for output of cartesian frequencies and eigenvectors of the
-      ! Hessian that can be used for initialisation of MD caclulations
+      ! Hessian that can be used for initialisation of MD calculations
       output_unit_eig = cp_print_key_unit_nr(logger, &
                                              print_section, &
                                              "CARTESIAN_EIGS", &
@@ -852,7 +852,7 @@ CONTAINS
       tran_enthalpy = 2.5_dp*n_avogadro*boltzmann*temp
       tran_cv = 2.5_dp*n_avogadro*boltzmann
 
-!   VIBRATIONAL:  Partition fuction and Entropy
+!   VIBRATIONAL:  Partition function and Entropy
       vib_part_func = 1.0_dp
       vib_energy = 0.0_dp
       vib_entropy = 0.0_dp

@@ -53,7 +53,7 @@ CONTAINS
    END FUNCTION get_1d_pointer
 
 ! **************************************************************************************************
-!> \brief Simple getter, neede because of PRIVATE
+!> \brief Simple getter, needed because of PRIVATE
 !> \param this ...
 !> \return ...
 !> \author Ole Schuett

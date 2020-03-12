@@ -272,7 +272,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief releases the given blacs_env
-!> \param blacs_env the blacs env to relase
+!> \param blacs_env the blacs env to release
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed

@@ -1358,7 +1358,7 @@ CONTAINS
 
       nspins = 1; IF (xas_tdp_control%do_uks) nspins = 2
 
-!  Contruction of a STO that fits the type of orbital we look for
+!  Construction of a STO that fits the type of orbital we look for
       ALLOCATE (zeta(1))
       ALLOCATE (lq(1))
       ALLOCATE (nq(1))
@@ -1829,7 +1829,7 @@ CONTAINS
    END SUBROUTINE print_checks
 
 ! **************************************************************************************************
-!> \brief Computes the required multipole moment in the lenght representation for a given atom
+!> \brief Computes the required multipole moment in the length representation for a given atom
 !> \param iatom index of the given atom
 !> \param xas_tdp_env ...
 !> \param xas_tdp_control ...

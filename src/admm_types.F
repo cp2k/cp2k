@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Types and set/get functions for auxiliary denisty matrix methods
+!> \brief Types and set/get functions for auxiliary density matrix methods
 !> \par History
 !>      05.2008 created [Manuel Guidon]
 !>      12.2019 Made GAPW compatiblae [Augustin Bussy]

@@ -35,7 +35,7 @@ CONTAINS
 !> \param title ...
 !> \param electronic_charges (natom,nspin), the number of electrons of (so positive) per spin
 !>                            if (nspin==1) it is the sum of alpha and beta electrons
-!> \param atomic_charges truely the atomic charge (taking Z into account, atoms negative, no spin)
+!> \param atomic_charges truly the atomic charge (taking Z into account, atoms negative, no spin)
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 !> \note

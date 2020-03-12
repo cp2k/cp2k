@@ -1,4 +1,4 @@
-# This test must give back teh result of the interaction of two charges (coulomb 1/r)
+# This test must give back the result of the interaction of two charges (coulomb 1/r)
 # +1 and +0.5 at 3 Ang of distance (.08819616666666666666)
 &FORCE_EVAL
   METHOD QMMM

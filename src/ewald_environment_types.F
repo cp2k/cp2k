@@ -56,7 +56,7 @@ MODULE ewald_environment_types
       LOGICAL   :: do_multipoles ! Flag for using the multipole code
       INTEGER   :: do_ipol ! Solver for induced dipoles
       INTEGER   :: max_multipole ! max expansion in the multipoles
-      INTEGER   :: max_ipol_iter ! max number of interation for induced dipoles
+      INTEGER   :: max_ipol_iter ! max number of interaction for induced dipoles
       INTEGER   :: ewald_type ! type of ewald
       INTEGER   :: gmax(3) ! max Miller index
       INTEGER   :: ns_max ! # grid points for small grid (PME)

@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Rountines for optimizing load balance between processes in HFX calculations
+!> \brief Routines for optimizing load balance between processes in HFX calculations
 !> \par History
 !>      04.2008 created [Manuel Guidon]
 !>      11.2019 fixed initial value for potential_id (A. Bussy)

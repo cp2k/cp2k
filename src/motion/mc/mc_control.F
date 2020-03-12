@@ -278,7 +278,7 @@ CONTAINS
          ENDIF
       ENDIF
 
-      ! allocate the array holding the coordiantes, and read in the coordiantes,
+      ! allocate the array holding the coordinates, and read in the coordinates,
       ! and write the dat file so we can make a new force_env
       IF (SUM(nchains(:)) == 0) THEN
          ALLOCATE (r(3, nunits(1)))

@@ -5,7 +5,7 @@
 
 ! **************************************************************************************************
 !>   \brief
-!>     Routines to efficently collocate and integrate gaussians on a grid
+!>     Routines to efficiently collocate and integrate gaussians on a grid
 !>     These use most of Joost's tricks and a couple more...
 !>     result is *speed* and genericity
 !>   \author Fawzi Mohamed, 2007

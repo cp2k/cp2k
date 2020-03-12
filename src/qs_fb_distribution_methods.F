@@ -269,10 +269,10 @@ CONTAINS
                   EXIT preferred
                END IF
             END DO preferred
-            ! if no preferred process is avaliable, move to a proc in
+            ! if no preferred process is available, move to a proc in
             ! the sorted list that has cost less than average.  remember
             ! that some of the proc may have already taken redistributed
-            ! atoms, and thus may beome unavaliable (full)
+            ! atoms, and thus may become unavailable (full)
             IF (.NOT. move_happened) THEN
                ! searching from the proc with the least initial cost
                next_in_line: DO ii = 1, nprocs

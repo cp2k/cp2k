@@ -77,7 +77,7 @@ export CP_CFLAGS="\${CP_CFLAGS} ${HDF5_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${HDF5_LDFLAGS}"
 ####################################################
 #
-# inlcude hdf5 only if sirius is activated and build
+# include hdf5 only if sirius is activated and build
 # depends them on mpi and omp
 #
 ####################################################

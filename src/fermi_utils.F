@@ -405,13 +405,13 @@ CONTAINS
 !> \param   N total number of electrons (output)
 !> \param   T  electronic temperature
 !> \param maxocc ...
-!> \param   l  typical lenght scale (~ 10 * T)
+!> \param   l  typical length scale (~ 10 * T)
 !> \param estate ...
 !> \param festate ...
 !> \date    09.2008
 !> \par   History
 !>          - Made estate and festate optional (LT, 2014/02/26)
-!>          - Changed order of input, so l is before the two optional varaibles
+!>          - Changed order of input, so l is before the two optional variables
 !>            (LT, 2014/02/26)
 !> \author  Joost VandeVondele
 ! **************************************************************************************************
@@ -443,7 +443,7 @@ CONTAINS
 
       DO I = 1, Nstate
          ! NR 5.7.8
-         ! the problem here is that each f_i 'seems to have' a different lenght scale
+         ! the problem here is that each f_i 'seems to have' a different length scale
          ! and it would be to expensive to compute each single df_i/de_i using a finite difference
          h = (EPSILON(h)**(1.0_dp/3.0_dp))*l
          ! get an exact machine representable number close to this h

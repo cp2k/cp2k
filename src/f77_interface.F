@@ -1079,7 +1079,7 @@ CONTAINS
       ELSE
          exist_res = .TRUE.
       END IF
-      ! if existing (or assuming the existance) read the results
+      ! if existing (or assuming the existence) read the results
       IF (exist_res) THEN
          CALL get_results(results, description=description, n_rep=nres)
          CALL get_results(results, description=description, values=RESULT, nval=nres)

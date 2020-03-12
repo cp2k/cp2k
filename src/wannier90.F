@@ -735,7 +735,7 @@ CONTAINS
       ! Find the correct set of shells to satisfy B1                             !
       !  The stratagy is:                                                        !
       !        Take the bvectors from the next shell                             !
-      !        Reject them if they are parallel to exisiting b vectors           !
+      !        Reject them if they are parallel to existing b vectors           !
       !        Test to see if we satisfy B1, if not add another shell and repeat !
       !                                                                          !
       !==========================================================================!
@@ -767,7 +767,7 @@ CONTAINS
          ! get the b vectors for the new shell
          CALL kmesh_get_bvectors(multi(shell), 1, dnn(shell), bvector(:, 1:multi(shell), cur_shell))
 
-         ! We check that the new shell is not parrallel to an existing shell (cosine=1)
+         ! We check that the new shell is not parallel to an existing shell (cosine=1)
          lpar = .FALSE.
          IF (num_shells > 0) THEN
             DO loop_bn = 1, multi(shell)

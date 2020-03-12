@@ -2370,7 +2370,7 @@ CONTAINS
                         CASE DEFAULT
                            CALL cp_abort(__LOCATION__, &
                                          "The requested basis set <"//TRIM(bsname)// &
-                                         "> for element <"//TRIM(symbol)//"> has an ivalid component: ")
+                                         "> for element <"//TRIM(symbol)//"> has an invalid component: ")
                         END SELECT
                      END DO
 

@@ -70,7 +70,7 @@ write(6,*) "Ntest =",Ntest
                      rs_grids(igrid_level)%lb_local, &
                      rs_grids(igrid_level)%ub_local
 
-        ! allocate grids, asume the lb_local stup is actually right..
+        ! allocate grids, assume the lb_local stup is actually right..
         ALLOCATE(rs_grids(igrid_level)%r(rs_grids(igrid_level)%lb_local(1):rs_grids(igrid_level)%ub_local(1), &
                                          rs_grids(igrid_level)%lb_local(2):rs_grids(igrid_level)%ub_local(2), &
                                          rs_grids(igrid_level)%lb_local(3):rs_grids(igrid_level)%ub_local(3)))

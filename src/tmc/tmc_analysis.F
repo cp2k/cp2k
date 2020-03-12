@@ -130,7 +130,7 @@ CONTAINS
             ELSE IF (SIZE(i_arr_tmp(:)) .EQ. 0) THEN
                nr_bins(:) = 1
             ELSE
-               CPABORT("unknown amount of dimentions for the binning.")
+               CPABORT("unknown amount of dimensions for the binning.")
             END IF
             CALL tmc_ana_density_create(tmc_ana%density_3d, nr_bins)
          END IF
@@ -224,7 +224,7 @@ CONTAINS
       ana_env%costum_cell_file_name = tmc_default_unspecified_name
       ana_env%costum_dip_file_name = tmc_default_unspecified_name
 
-      ! set the neccessary files for ...
+      ! set the necessary files for ...
       ! density
       IF (ASSOCIATED(ana_env%density_3d)) THEN
          ana_env%costum_pos_file_name = tmp_pos_file
@@ -1176,7 +1176,7 @@ CONTAINS
             ana_env%pair_correl%conf_counter, " configurations"
          WRITE (file_ptr, *) "# using a bin size of ", &
             ana_env%pair_correl%step_lenght*au2a, &
-            "[A] (for Vol changes: refering to the reference cell)"
+            "[A] (for Vol changes: referring to the reference cell)"
          DO bin = 1, ana_env%pair_correl%nr_bins
             voldr = 4.0/3.0*PI*ana_env%pair_correl%step_lenght**3* &
                     (REAL(bin, KIND=dp)**3 - REAL(bin - 1, KIND=dp)**3)

@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Rountines to calculate MP2 energy
+!> \brief Routines to calculate MP2 energy
 !> \par History
 !>      05.2011 created [Mauro Del Ben]
 !> \author Mauro Del Ben

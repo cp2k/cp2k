@@ -1526,7 +1526,7 @@ CONTAINS
                                            matrix_s(1, 1)%matrix, eps_filter, &
                                            s_sqrt_order, eps_lanczos, max_iter_lanczos)
          CASE DEFAULT
-            CPABORT("Unkown sqrt method.")
+            CPABORT("Unknown sqrt method.")
          END SELECT
          CALL dbcsr_release(matrix_s_sqrt)
       CASE DEFAULT

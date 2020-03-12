@@ -267,7 +267,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Set parts of a given array vec to zero according to fixed atom constraints.
 !>        When atoms are (partially) fixed then the relevant components of
-!>        nvec should be set to zero.  Furthermore, the relevent components
+!>        nvec should be set to zero.  Furthermore, the relevant components
 !>        of the gradient in CG should also be set to zero.
 !> \param vec : vector to be modified
 !> \param subsys : subsys type object used by CP2k

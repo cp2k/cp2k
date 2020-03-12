@@ -89,7 +89,7 @@
                    f(i) = irab2*(f(i-1) - tmp*((2.0_dp*beta**2)**i)/(fac*beta))
                 END DO
 #:else
-#:stop "Unkown mode: "+mode
+#:stop "Unknown mode: "+mode
 #:endif
 
                 ! Compute the Tensor components

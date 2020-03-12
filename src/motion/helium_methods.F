@@ -994,7 +994,7 @@ CONTAINS
 !> \param helium_env ...
 !> \param pint_env ...
 !> \par    History
-!>         removed refereces to pint_env_type data structure [lwalewski]
+!>         removed references to pint_env_type data structure [lwalewski]
 !>         2009-11-10 init/restore coords, perm, RNG and forces [lwalewski]
 !>         2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author hforbert
@@ -1178,7 +1178,7 @@ CONTAINS
 !> \date   2009-11-09
 !> \par    History
 !>         2016-07-14 Modified to work with independent helium_env [cschran]
-!>         2018-04-30 Usefull initialization for droplets [fuhl]
+!>         2018-04-30 Useful initialization for droplets [fuhl]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE helium_coord_init(helium_env, initkT, solute_radius)
@@ -1429,7 +1429,7 @@ CONTAINS
 !> \param helium_env ...
 !> \date   2009-11-09
 !> \par    History
-!>         2010-07-22 accomodate additional cpus in the runtime wrt the
+!>         2010-07-22 accommodate additional cpus in the runtime wrt the
 !>                    restart [lwalewski]
 !>         2016-07-14 Modified to work with independent helium_env
 !>                    [cschran]
@@ -1625,11 +1625,11 @@ CONTAINS
    END SUBROUTINE helium_perm_init
 
 ! ***************************************************************************
-!> \brief  Restore permutation state from the input structre.
+!> \brief  Restore permutation state from the input structure.
 !> \param helium_env ...
 !> \date   2009-11-05
 !> \par    History
-!>         2010-07-22 accomodate additional cpus in the runtime wrt the
+!>         2010-07-22 accommodate additional cpus in the runtime wrt the
 !>                    restart [lwalewski]
 !>         2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author Lukasz Walewski
@@ -2139,7 +2139,7 @@ CONTAINS
             ! use the droplet radius
             IF (helium%solute_present .AND. .NOT. helium%periodic) THEN
                ! COM of solute is used as center of the box.
-               ! Therfore distances became larger then droplet_radius
+               ! Therefore distances became larger then droplet_radius
                ! when parts of the solute are on opposite site of
                ! COM and helium.
                ! Use two times droplet_radius for security:

@@ -243,7 +243,7 @@ CONTAINS
                       cell=cell)
 
       IF (ANY(new_pw_env%cell_hmat /= cell%hmat)) THEN
-         ! only rebuild if nessecary
+         ! only rebuild if necessary
          new_pw_env%cell_hmat = cell%hmat
          CALL pw_env_rebuild(new_pw_env, qs_env=qs_env)
 

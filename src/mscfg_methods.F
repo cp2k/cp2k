@@ -455,7 +455,7 @@ CONTAINS
          !!!! RZK-warning: All decisions are based on the values of input keywords
          !!!! The real danger is that many of these keywords might not be even
          !!!! in control of the job. They might be simply present in the input
-         !!!! This section must be re-writen more accurately
+         !!!! This section must be re-written more accurately
 
          ! check ALMO SCF guess option
          NULLIFY (subsection)

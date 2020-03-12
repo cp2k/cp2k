@@ -82,7 +82,7 @@ CONTAINS
   SUBROUTINE give_info(S,S2)
 	character(*) , INTENT(IN) :: S,S2
 	write(*,*) "**** TRAJectory ANAlyzer ****" 
-	write(*,*) "Following error occured : "
+	write(*,*) "Following error occurred : "
 	write(*,*) ""
 	write(*,*) S 
 	write(*,*) S2

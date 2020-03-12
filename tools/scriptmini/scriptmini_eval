@@ -1,4 +1,4 @@
-# read input values for the funtion to be minimized from scriptmini_eval.in 
+# read input values for the function to be minimized from scriptmini_eval.in
 # write the output value of the function to scriptmini_eval.out
 # at the end, the values in scriptmini_eval.in will be near the minimum of the objective function (i.e. scriptmini_eval.out will be small)
 awk '{printf("%20.12f \n",($1-1)^2+($2-2)^2+($3-3)^2+($4-4)^2+($5-5)^2)}' scriptmini_eval.in > scriptmini_eval.out

@@ -178,7 +178,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief here the iterations are performed and the krylov space for the generalized
-!>        eigenvalue probelm is created
+!>        eigenvalue problem is created
 !> \param matrix see above
 !> \param vectors see above
 !> \param arnoldi_data see above
@@ -308,7 +308,7 @@ CONTAINS
 #:for nametype1, type_prec, type_nametype1, nametype_zero, nametype_one, nametype_negone, czero, cone, ctype, rnorm_to_norm, val_to_type in inst_params_2
 ! **************************************************************************************************
 !> \brief Call the correct eigensolver, in the arnoldi method only the right
-!>        eigenvectors are used. Lefts are created here but dumped immediatly
+!>        eigenvectors are used. Lefts are created here but dumped immediately
 !> \param arnoldi_data ...
 ! **************************************************************************************************
    SUBROUTINE compute_evals_${nametype1}$ (arnoldi_data)
@@ -437,7 +437,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Alogorithm for the implicit restarts in the arnoldi method
-!>        this is an early implementaion which scales subspace size^4
+!>        this is an early implementation which scales subspace size^4
 !>        by replacing the lapack calls with direct math the
 !>        QR and  gemms can be made linear and a N^2 sacling will be acchieved
 !>        however this already sets the framework but should be used with care
@@ -641,7 +641,7 @@ CONTAINS
    END SUBROUTINE transfer_dbcsr_to_local_array_${nametype1}$
 
 ! **************************************************************************************************
-!> \brief The inverse routine transfering data back from an array to a dbcsr
+!> \brief The inverse routine transferring data back from an array to a dbcsr
 !> \param vec ...
 !> \param array ...
 !> \param n ...
@@ -853,7 +853,7 @@ CONTAINS
    END SUBROUTINE gev_arnoldi_init_${nametype1}$
 
 ! **************************************************************************************************
-!> \brief builds the basis rothogonal wrt. teh metric.
+!> \brief builds the basis rothogonal wrt. the metric.
 !>        The structure looks similar to normal arnoldi but norms, vectors and
 !>        matrix_vector products are very differently defined. Therefore it is
 !>        cleaner to put it in a separate subroutine to avoid confusion
@@ -937,7 +937,7 @@ CONTAINS
       END DO
 
 ! getting a bit more complicated here as the final matrix is again a product which has to be computed with the
-! ditributed vectors, therefore a sum along the first proc_col is necessary. As we want that matrix everywhere,
+! distributed vectors, therefore a sum along the first proc_col is necessary. As we want that matrix everywhere,
 ! we set it to zero before and compute the distributed product only on the first col and then sum over the full grid
       ar_data%Hessenberg = ${nametype_zero}$
       IF (control%local_comp) THEN
@@ -1000,7 +1000,7 @@ CONTAINS
 !      ar_data%x_vec(:)=MATMUL(ar_data%local_history(:,1:control%current_step),&
 !                        ar_data%revec(1:control%current_step,control%selected_ind(1)))
 
-! update the C-matrix (A-rho*B), if teh maximum value is requested we have to use -A-rho*B
+! update the C-matrix (A-rho*B), if the maximum value is requested we have to use -A-rho*B
       CALL dbcsr_copy(matrix_arnoldi(1)%matrix, matrix(1)%matrix)
       CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, ${nametype_one}$, -ar_data%rho_scale)
 

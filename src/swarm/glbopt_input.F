@@ -101,7 +101,7 @@ CONTAINS
 
       CALL cp_print_key_section_create( &
          printkey, __LOCATION__, "PROGRESS_TRAJECTORY", &
-         description="Printkey to controll the writting of the progress trajectory. "// &
+         description="Printkey to control the writting of the progress trajectory. "// &
          "This trajectory contains the minima, which are lower in energy than the by then lowerest.", &
          print_level=low_print_level, common_iter_levels=1, &
          filename="", unit_str="angstrom")
@@ -130,7 +130,7 @@ CONTAINS
       NULLIFY (history_section, keyword)
 
       CALL section_create(history_section, __LOCATION__, name="HISTORY", &
-                          description="Section controling the history of visited minima and "// &
+                          description="Section controlling the history of visited minima and "// &
                           "how minima are recognized at a later point.", &
                           repeats=.FALSE.)
 
@@ -293,7 +293,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL cp_print_key_section_create(printkey, __LOCATION__, "MINIMA_TRAJECTORY", &
-                                       description="Printkey to controll the writting of the minima trajectory. "// &
+                                       description="Printkey to control the writting of the minima trajectory. "// &
                                        "This trajectory contains all encountered local minima.", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="", unit_str="angstrom")

@@ -333,7 +333,7 @@ CONTAINS
          CASE (pao_rotinv_param)
             CALL linpot_rotinv_count_terms(qs_env, ikind, nterms=nparams)
          CASE DEFAULT
-            CPABORT("unkown parameterization")
+            CPABORT("unknown parameterization")
          END SELECT
       ENDIF
 
@@ -505,7 +505,7 @@ CONTAINS
       CASE (pao_rotinv_param)
          CALL linpot_rotinv_calc_terms(qs_env, iatom, V_blocks)
       CASE DEFAULT
-         CPABORT("unkown parameterization")
+         CPABORT("unknown parameterization")
       END SELECT
 
    END SUBROUTINE linpot_calc_terms
@@ -531,7 +531,7 @@ CONTAINS
       CASE (pao_rotinv_param)
          CALL linpot_rotinv_calc_forces(qs_env, iatom, M_blocks, forces)
       CASE DEFAULT
-         CPABORT("unkown parameterization")
+         CPABORT("unknown parameterization")
       END SELECT
 
    END SUBROUTINE linpot_calc_forces

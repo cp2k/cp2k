@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Rountines to calculate gradients of RI-GPW-MP2 energy using pw
+!> \brief Routines to calculate gradients of RI-GPW-MP2 energy using pw
 !> \par History
 !>      10.2013 created [Mauro Del Ben]
 ! **************************************************************************************************
@@ -253,7 +253,7 @@ CONTAINS
       ENDIF
       CALL mp_sum(G_PQ_local, para_env_sub%group)
 
-      ! deallocate here PQ_half, maybe usefull in the future
+      ! deallocate here PQ_half, maybe useful in the future
       ! This is really bad style
       DEALLOCATE (mp2_env%ri_grad%PQ_half)
 
@@ -403,7 +403,7 @@ CONTAINS
          ! check if we want to calculate the virial
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
-         ! in case virial is required we need auxilliary pw
+         ! in case virial is required we need auxiliary pw
          ! for calculate the MP2-volume contribution to the virial
          ! (hartree potential derivatives)
          IF (use_virial) THEN
@@ -1736,7 +1736,7 @@ CONTAINS
 
          DEALLOCATE (buffer_cyclic(proc_receive)%msg)
       END DO
-      ! and finaly
+      ! and finally
       CALL mp_sendrecv(mat_send, proc_send_static, &
                        mat_rec, proc_receive_static, &
                        para_env_exchange%group)

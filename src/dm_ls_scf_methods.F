@@ -137,7 +137,7 @@ CONTAINS
                                            ls_scf_env%s_sqrt_order, &
                                            ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos)
          CASE DEFAULT
-            CPABORT("Unkown sqrt method.")
+            CPABORT("Unknown sqrt method.")
          END SELECT
 
          IF (ls_scf_env%check_s_inv) THEN
@@ -1001,7 +1001,7 @@ CONTAINS
          beta = 0.0_dp
          betaB = 1.0_dp
       ENDIF
-! inital SCF cycle has no reliable estimate of homo/lumo, force monotinic bounds.
+! initial SCF cycle has no reliable estimate of homo/lumo, force monotinic bounds.
       IF (e_homo == 0.0_dp) THEN
          beta = 0.0_dp
          BetaB = 1.0_dp

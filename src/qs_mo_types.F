@@ -185,7 +185,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Allocates a mo set and partially initializes it (nao,nmo,nelectron,
-!>        and flexible_electron_count are vaild).
+!>        and flexible_electron_count are valid).
 !>        For the full initialization you need to call init_mo_set
 !> \param mo_set the mo_set to allocate
 !> \param nao number of atom orbitals

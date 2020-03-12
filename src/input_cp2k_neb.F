@@ -454,7 +454,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="STEPSIZE", &
                           description="Initial stepsize used for the line search, sometimes this parameter"// &
-                          "can be reduced to stablize DIIS", &
+                          "can be reduced to stabilize DIIS", &
                           usage="STEPSIZE <REAL>", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(subsection, keyword)
@@ -462,7 +462,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_STEPSIZE", &
                           description="Maximum stepsize used for the line search, sometimes this parameter"// &
-                          "can be reduced to stablize the LS for particularly difficult initial geometries", &
+                          "can be reduced to stabilize the LS for particularly difficult initial geometries", &
                           usage="MAX_STEPSIZE <REAL>", &
                           default_r_val=2.0_dp)
       CALL section_add_keyword(subsection, keyword)
@@ -483,7 +483,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CHECK_DIIS", &
-                          description="Performes a series of checks on the DIIS solution in order to accept the DIIS step."// &
+                          description="Performs a series of checks on the DIIS solution in order to accept the DIIS step."// &
                           " If set to .FALSE. the only check performed is that the angle between the DIIS solution and the"// &
                           " reference vector is less than Pi/2. Can be useful if many DIIS steps are rejected.", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)

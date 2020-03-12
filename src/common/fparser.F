@@ -32,7 +32,7 @@ MODULE fparser
              evalf, & ! Evaluate single function
              finalizef, & ! Finalize the function parser
              evalfd
-   INTEGER, PUBLIC            :: EvalErrType ! =0: no error occured, >0: evaluation error
+   INTEGER, PUBLIC            :: EvalErrType ! =0: no error occurred, >0: evaluation error
    !------- -------- --------- --------- --------- --------- --------- --------- -------
    PRIVATE
    SAVE
@@ -445,7 +445,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION MathFunctionIndex(str) RESULT(n)
       !----- -------- --------- --------- --------- --------- --------- --------- -------
-      ! Return index of math function beginnig at 1st position of string str
+      ! Return index of math function beginning at 1st position of string str
       !----- -------- --------- --------- --------- --------- --------- --------- -------
       CHARACTER(LEN=*), INTENT(in)                       :: str
       INTEGER(is)                                        :: n

@@ -999,7 +999,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="THRESHOLD_MIN_TRANS", &
                           variants=(/"EPS"/), &
-                          description="Threshold for stopping the iteration for computing the transistion energies. "// &
+                          description="Threshold for stopping the iteration for computing the transition energies. "// &
                           "If the lowest excitation changes by less than THRESHOLD_MIN_TRANS (in eV), the ieration"// &
                           "stops.", &
                           usage="THRESHOLD_MIN_TRANS 0.001", &
@@ -1008,7 +1008,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
-                          description="Maximum number of iterations for determining the transistion energies.", &
+                          description="Maximum number of iterations for determining the transition energies.", &
                           usage="MAX_ITER 200", &
                           default_i_val=200)
       CALL section_add_keyword(section, keyword)

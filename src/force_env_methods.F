@@ -1677,7 +1677,7 @@ CONTAINS
                           opt_embed%open_shell_embed, spin_embed_pot, &
                           opt_embed%pot_diff, opt_embed%Coulomb_guess, opt_embed%grid_opt)
 
-      ! Read embeding potential vector from the file
+      ! Read embedding potential vector from the file
       IF (opt_embed%read_embed_pot .OR. opt_embed%read_embed_pot_cube) CALL read_embed_pot( &
          force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, embed_pot, spin_embed_pot, &
          opt_embed_section, opt_embed)

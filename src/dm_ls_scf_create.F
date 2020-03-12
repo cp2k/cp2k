@@ -370,7 +370,7 @@ CONTAINS
          CASE (ls_s_sqrt_proot)
             WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "PROOT"
          CASE DEFAULT
-            CPABORT("Unkown sqrt method.")
+            CPABORT("Unknown sqrt method.")
          END SELECT
 
          WRITE (unit_nr, '(T2,A,T61,I20)') "S sqrt order:", ls_scf_env%s_sqrt_order
@@ -412,7 +412,7 @@ CONTAINS
                   CPABORT("Unkown submatrix sign method.")
                END SELECT
             CASE DEFAULT
-               CPABORT("Unkown sign method.")
+               CPABORT("Unknown sign method.")
             END SELECT
             WRITE (unit_nr, '(T2,A,T61,I20)') "Sign order:", ls_scf_env%sign_order
             WRITE (unit_nr, '(T2,A,T61,L20)') "Symmetric sign calculation:", ls_scf_env%sign_symmetric
@@ -436,7 +436,7 @@ CONTAINS
          CASE (ls_cluster_molecular)
             WRITE (unit_nr, '(T2,A,T61,A20)') "Cluster type", ADJUSTR("MOLECULAR")
          CASE DEFAULT
-            CPABORT("Unkown cluster type")
+            CPABORT("Unknown cluster type")
          END SELECT
 
          IF (ls_scf_env%chebyshev%compute_chebyshev) THEN

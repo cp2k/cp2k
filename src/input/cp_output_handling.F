@@ -89,15 +89,15 @@ MODULE cp_output_handling
 !!                   the printkey)
 !! cp_out_file: always calculate and output the property
 !! cp_out_store: always calculate and store in memory the property
-!! cp_out_calc: just calculate the value (indipendently from the fact that there
+!! cp_out_calc: just calculate the value (independently from the fact that there
 !!              should be output)
-!! cp_out_default: the default value for proprety flags (cp_out_file_if)
+!! cp_out_default: the default value for property flags (cp_out_file_if)
 !!
 !! this flags can be ior-ed together:
 !! ior(cp_out_file_if,cp_out_store_if): if the printkey says it both print
 !!                                          and store the property
 !!
-!! there is no guarantee that a proprety is not stored if it is not necessary
+!! there is no guarantee that a property is not stored if it is not necessary
 !! not all printkeys have a control flag
    INTEGER, PUBLIC, PARAMETER :: cp_p_file_if = 3, cp_p_store_if = 4, &
                                  cp_p_store = 2, cp_p_file = 1, cp_p_file_each = 5, cp_p_store_each = 6, cp_p_calc = 7
@@ -222,7 +222,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL section_create(subsection, __LOCATION__, name="EACH", &
-                          description="This section specifies how often this proprety is printed."// &
+                          description="This section specifies how often this property is printed."// &
                           "Each keyword inside this section is mapping to a specific iteration level and "// &
                           "the value of each of these keywords is matched with the iteration level during "// &
                           "the calculation. How to handle the last iteration is treated "// &
@@ -326,7 +326,7 @@ CONTAINS
    END SUBROUTINE cp_print_key_section_create
 
 ! **************************************************************************************************
-!> \brief returns what should be done with the given proprety
+!> \brief returns what should be done with the given property
 !>      if btest(res,cp_p_store) then the property should be stored in memory
 !>      if btest(res,cp_p_file) then the property should be print ed to a file
 !>      if res==0 then nothing should be done
@@ -703,7 +703,7 @@ CONTAINS
    END SUBROUTINE cp_rm_iter_level
 
 ! **************************************************************************************************
-!> \brief Utility function that retuns a unit number to write the print key.
+!> \brief Utility function that returns a unit number to write the print key.
 !>     Might open a file with a unique filename, generated from
 !>     the print_key name and iteration info.
 !>

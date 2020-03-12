@@ -1947,7 +1947,7 @@ CONTAINS
 
          IF (PRESENT(just_contact)) THEN
             ! do not apply the external potential when computing the Fermi level of a bulk contact.
-            ! We are using a ficticious electronic device, which identical to the bulk contact in question;
+            ! We are using a fictitious electronic device, which identical to the bulk contact in question;
             ! icontact == 1 corresponds to the "left" contact, so the matrices h_01 and s_01 needs to be transposed,
             ! while icontact == 2 correspond to the "right" contact and we should use the matrices h_01 and s_01 as is.
             DO icontact = 1, ncontacts

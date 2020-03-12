@@ -120,7 +120,7 @@ CONTAINS
 
          ! check cell
          IF (MAXVAL(ABS(hmat - cell%hmat)) > 1e-10) &
-            CPWARN("Restarting from differnt cell")
+            CPWARN("Restarting from different cell")
 
          ! check parametrization
          IF (TRIM(param) .NE. TRIM(ADJUSTL(id2str(pao%parameterization)))) &
@@ -168,7 +168,7 @@ CONTAINS
          DEALLOCATE (buffer)
       ENDDO
 
-      ! ALLOCATABLEs deallocate themselfs
+      ! ALLOCATABLEs deallocate themselves
 
    END SUBROUTINE pao_read_restart
 

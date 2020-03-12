@@ -81,7 +81,7 @@ CONTAINS
 !>      atom=(0,0,1)
 !> \param current_atom the atom whose connections we're looking at
 !> \param avoid_atom the atom whose direction the search is not supposed to go
-!> \param connectivity an array telling us the neigbors of all atoms
+!> \param connectivity an array telling us the neighbors of all atoms
 !> \param atom the array that tells us if one can get to a given atom by
 !>        starting at current_atom and not going through avoid_atom...0 is no,
 !>        1 is yes
@@ -1038,7 +1038,7 @@ CONTAINS
       old_cell_length(2) = abc(2)
       old_cell_length(3) = abc(3)
 
-! save the old coordiantes
+! save the old coordinates
       DO iatom = 1, nunits_tot(box_number)
          r(1:3, iatom) = particles_old%els(iatom)%r(1:3)
       ENDDO
@@ -1926,7 +1926,7 @@ CONTAINS
 !>            be null if lbias=.false. in mc_par)
 !> \param moves the structure that keeps track of how many moves have been
 !>               accepted/rejected
-!> \param energy_check the running energy difference between now and the inital
+!> \param energy_check the running energy difference between now and the initial
 !>        energy
 !> \param r_old the coordinates of force_env before the move
 !> \param old_energy the energy of the force_env before the move

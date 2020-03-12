@@ -143,7 +143,7 @@ MODULE qs_cdft_types
 !> \param reuse_precond         logical which determines if a preconditioner can be reused
 !> \param purge_history         logical which determines if the wfn/constraint history can be purged
 !> \param should_purge          logical which determines if purging should take place after this CDFT SCF loop
-!> \param calculate_metric      logical which determines if the ET coupling reliablity metric is computed
+!> \param calculate_metric      logical which determines if the ET coupling reliability metric is computed
 !> \param fragment_density      use isolated fragment densities as a reference for the constraint
 !> \param fragments_integrated  logical to determine if the fragment densities have been integrated
 !> \param flip_fragment         should the spin difference density of the either fragment be flipped

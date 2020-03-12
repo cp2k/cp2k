@@ -2343,7 +2343,7 @@ CONTAINS
                           description="Defines the cutoff parameter of the tersoff potential. "// &
                           " This parameter is in principle already defined by the values of "// &
                           " bigD and bigR. But it is necessary to define it when using the tersoff "// &
-                          " in conjuction with other potentials (for the same atomic pair) in order to have"// &
+                          " in conjunction with other potentials (for the same atomic pair) in order to have"// &
                           " the same consistent definition of RCUT for all potentials.", &
                           usage="RCUT {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom")

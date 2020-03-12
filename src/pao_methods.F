@@ -418,7 +418,7 @@ CONTAINS
                         template=matrix_s(1)%matrix)
       CALL dbcsr_reserve_diag_blocks(pao%matrix_H0)
 
-      ! calculate inital atomic fock matrix H0
+      ! calculate initial atomic fock matrix H0
       ! Can't use matrix_ks from ls_scf_qs_atomic_guess(), because it's not rotationally invariant.
       ! getting H0 directly from the atomic code
       CALL calculate_atomic_fock_matrix(pao%matrix_H0, &
@@ -497,7 +497,7 @@ CONTAINS
       ! calculat S, S_inv, S_sqrt, and S_sqrt_inv in the new pao basis
       CALL pao_rebuild_S(qs_env, ls_scf_env)
 
-      ! calulate the density matrix P in the pao basis
+      ! calculate the density matrix P in the pao basis
       CALL pao_dm_trs4(qs_env, ls_scf_env)
 
       ! calculate the energy from the trace(PH) in the pao basis
@@ -1018,7 +1018,7 @@ CONTAINS
 
       IF (ASSOCIATED(block_X)) THEN
          old_Xij = block_X(i, j) ! backup old block_X
-         block_X(i, j) = block_X(i, j) + eps ! add pertubation
+         block_X(i, j) = block_X(i, j) + eps ! add perturbation
       ENDIF
 
       ! calculate energy
@@ -1067,7 +1067,7 @@ CONTAINS
 
       ! We are storing the density matrix in the non-orthonormal primary basis.
       ! While the orthonormal basis would yield better extrapolations,
-      ! we simply can not affort to calculat S_sqrt in the primary basis.
+      ! we simply can not afford to calculat S_sqrt in the primary basis.
       DO ispin = 1, dft_control%nspins
          ! transform into primary basis
          CALL matrix_ls_to_qs(ls_scf_env%scf_history%matrix(ispin, istore), ls_scf_env%matrix_p(ispin), &

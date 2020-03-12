@@ -52,8 +52,8 @@ MODULE negf_control_types
       INTEGER                                            :: force_env_index
       !> contact Fermi level needs to be computed prior NEGF run
       LOGICAL                                            :: compute_fermi_level
-      !> when computing contact Fermi level, use the energy given in 'fermi_level' (insted of HOMO)
-      !> (insted of the HOMO energy ) as a starting point
+      !> when computing contact Fermi level, use the energy given in 'fermi_level' (instead of HOMO)
+      !> (instead of the HOMO energy) as a starting point
       LOGICAL                                            :: refine_fermi_level
       !> Fermi level
       REAL(kind=dp)                                      :: fermi_level

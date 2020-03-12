@@ -2238,7 +2238,7 @@ CONTAINS
                           enum_desc=s2a("Use  a PSF file to determine the connectivity."// &
                                         " (support standard CHARMM/XPLOR and EXT CHARMM)", &
                                         "Read a PSF file in an unformatted way (useful for not so standard PSF).", &
-                                        "Use multiple PSF (for now...) files to generate the whole sytem.", &
+                                        "Use multiple PSF (for now...) files to generate the whole system.", &
                                         "Use a simple distance criteria. (Look at keyword BONDPARM)", &
                                         "Do not generate molecules. (e.g. for QS or ill defined systems)", &
                                         "Use GROMOS G87 topology file.", &

@@ -845,7 +845,7 @@ CONTAINS
          END DO
          qs_control%mulliken_restraint_control%natoms = jj
          IF (qs_control%mulliken_restraint_control%natoms < 1) &
-            CPABORT("Need at least 1 atom to use mulliken contraints")
+            CPABORT("Need at least 1 atom to use mulliken constraints")
          ALLOCATE (qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
          jj = 0
          DO k = 1, n_rep
@@ -1852,7 +1852,7 @@ CONTAINS
                jj = jj + 1
             END DO
          END DO
-         IF (jj < 1) CPABORT("Need at least 1 atom to use ddapc contraints")
+         IF (jj < 1) CPABORT("Need at least 1 atom to use ddapc constraints")
          ddapc_restraint_control%natoms = jj
          IF (ASSOCIATED(ddapc_restraint_control%atoms)) &
             DEALLOCATE (ddapc_restraint_control%atoms)

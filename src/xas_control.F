@@ -33,7 +33,7 @@ MODULE xas_control
    PRIVATE
 
 ! **************************************************************************************************
-!> \brief A type that holds controling information for a xas calculation
+!> \brief A type that holds controlling information for a xas calculation
 ! **************************************************************************************************
    TYPE xas_control_type
       INTEGER                             :: ref_count

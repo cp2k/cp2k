@@ -6,7 +6,7 @@
 ! **************************************************************************************************
 !> \brief A common interface (wrapper) for a callback into the md_run loop.
 !>        Currently this is only used by the glbopt machinery, but its meant
-!>        to be extended if others need to controll the md_run loop, too.
+!>        to be extended if others need to control the md_run loop, too.
 !>
 !> \par History
 !>      11.2012 created [Ole]

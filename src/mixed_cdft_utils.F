@@ -743,7 +743,7 @@ CONTAINS
                             fft_usage=.TRUE., ncommensurate=0, icommensurate=1, &
                             blocked=do_pw_grid_blocked_false, rs_dims=mixed_rs_dims, &
                             iounit=iounit)
-         ! Check if the layout was succesfully created
+         ! Check if the layout was successfully created
          IF (mixed_cdft%is_special) THEN
             IF (.NOT. pw_grid%para%rs_dims(2) /= 1) is_match = .FALSE.
          ELSE IF (mixed_cdft%is_pencil) THEN

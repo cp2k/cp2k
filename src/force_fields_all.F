@@ -3177,7 +3177,7 @@ CONTAINS
       TYPE(spline_environment_type), POINTER             :: spline_env
 
       CALL timeset(routineN, handle2)
-      ! Figure out which nonbonded interactions happen to be indentical, and
+      ! Figure out which nonbonded interactions happen to be identical, and
       ! prepare storage for these, avoiding duplicates.
       NULLIFY (spline_env)
       CALL get_nonbond_storage(spline_env, potparm, atomic_kind_set, &

@@ -8,7 +8,7 @@
 !>      quasi-newton method.
 !>      The process set up so that a master runs the real optimizer and the
 !>      others help then to calculate the objective function.
-!>      The arguments for the objective function are physicaly present in
+!>      The arguments for the objective function are physically present in
 !>      every processor (nedeed in the actual implementation of pao).
 !>      In the future tha arguments themselves could be distributed.
 !> \par History
@@ -58,7 +58,7 @@ MODULE cp_lbfgs_optimizer_gopt
              cp_opt_gopt_next, &
              cp_opt_gopt_stop
 
-   ! initalize the object
+   ! initialize the object
    INTERFACE cp_create
       MODULE PROCEDURE cp_opt_gopt_create
    END INTERFACE

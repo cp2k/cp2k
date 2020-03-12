@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Types and set/get functions for auxiliary denisty matrix methods
+!> \brief Types and set/get functions for auxiliary density matrix methods
 !> \par History
 !>      11.2014 created [Ole Schuett]
 !> \author Ole Schuett

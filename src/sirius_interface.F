@@ -285,7 +285,7 @@ CONTAINS
             DO l = 0, 3
                IF (gth_atompot%nl(l) == 0) CYCLE
                rl = gth_atompot%rcnl(l)
-! we need to multiply by r so that data transfered to sirius are r \beta(r) not beta(r)
+! we need to multiply by r so that data transferred to sirius are r \beta(r) not beta(r)
                ef(1:nmesh) = EXP(-0.5_dp*rp(1:nmesh)*rp(1:nmesh)/(rl*rl))
                DO i = 1, gth_atompot%nl(l)
                   pf = rl**(l + 0.5_dp*(4._dp*i - 1._dp))

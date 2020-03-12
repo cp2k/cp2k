@@ -337,7 +337,7 @@ CONTAINS
    END FUNCTION fix_fragmentation
 
 ! **************************************************************************************************
-!> \brief Helper routine for fix_fragmentation, calulates atomic distance
+!> \brief Helper routine for fix_fragmentation, calculates atomic distance
 !> \param positions ...
 !> \param i ...
 !> \param j ...
@@ -353,7 +353,7 @@ CONTAINS
    END FUNCTION diff
 
 ! **************************************************************************************************
-!> \brief Helper routine for fix_fragmentation, calulates vector norm
+!> \brief Helper routine for fix_fragmentation, calculates vector norm
 !> \param vec ...
 !> \return ...
 !> \author Ole Schuett

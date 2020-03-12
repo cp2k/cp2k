@@ -236,7 +236,7 @@ CONTAINS
       IF ((nqp(z) > 0) .OR. use_p_orbitals) natorb = natorb + 3
       IF (extended_basis_set .AND. element_has_d(sep)) natorb = natorb + 5
       IF (extended_basis_set .AND. element_has_f(sep)) natorb = natorb + 7
-      ! Check and assignemnt
+      ! Check and assignment
       check = (natorb <= 4) .OR. (extended_basis_set)
       CPASSERT(check)
       sep%natorb = natorb

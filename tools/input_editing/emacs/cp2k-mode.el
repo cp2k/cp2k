@@ -148,7 +148,7 @@
                 (cp2k-end-of-block t))))))))
 
 (defun cp2k-forward-one-line ()
-  "move the cursor foward one line, ignore empty or comment lines, in `cp2k-mode'"
+  "move the cursor forward one line, ignore empty or comment lines, in `cp2k-mode'"
   (beginning-of-line)
   (forward-line 1)
   (while (and (or (looking-at cp2k-emptyline)
@@ -157,7 +157,7 @@
     (forward-line 1)))
 
 (defun cp2k-backward-one-line ()
-  "move the cursor foward one line, ignore empty or comment lines, in `cp2k-mode'"
+  "move the cursor forward one line, ignore empty or comment lines, in `cp2k-mode'"
   (beginning-of-line)
   (forward-line -1)
   (while (and (or (looking-at cp2k-emptyline)

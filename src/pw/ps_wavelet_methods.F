@@ -147,7 +147,7 @@ CONTAINS
       wavelet%PS_grid(2) = md3
       wavelet%PS_grid(3) = md2
       z_dim = md2/nproc
-      !!!!!!!!!      indicies y and z are interchanged    !!!!!!!
+      !!!!!!!!!      indices y and z are interchanged    !!!!!!!
       ALLOCATE (wavelet%rho_z_sliced(md1, md3, z_dim))
 
       CALL createKernel(geocode, nx, ny, nz, hx, hy, hz, wavelet%itype_scf, iproc, nproc, wavelet%karray, &

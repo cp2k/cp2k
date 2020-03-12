@@ -531,7 +531,7 @@ CONTAINS
    END SUBROUTINE linmin_gold
 
 ! **************************************************************************************************
-!> \brief Routine for intially bracketing a minimum based on the golden search
+!> \brief Routine for initially bracketing a minimum based on the golden search
 !>      minimum
 !> \param gopt_env ...
 !> \param ax ...

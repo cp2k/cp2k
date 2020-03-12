@@ -749,7 +749,7 @@ CONTAINS
             "  Reusing OT preconditioner: ", cdft_control%reuse_precond
          IF (cdft_control%reuse_precond) THEN
             WRITE (output_unit, '(A,I3,A,I3,A)') &
-               "       using old preconditioner for upto ", &
+               "       using old preconditioner for up to ", &
                cdft_control%max_reuse, " subsequent CDFT SCF"
             WRITE (output_unit, '(A,I3,A,I3,A)') &
                "       iterations if the relevant loop converged in less than ", &

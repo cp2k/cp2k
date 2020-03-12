@@ -722,7 +722,7 @@ CONTAINS
                fp(j) = aa*x1 + bb
             ELSE IF (k <= 0) THEN
                CALL pint_write_line("QTB| error in fp computation x < xmin")
-               CPABORT("Error in fp computation (x < xmin) in intialization of QTB random forces")
+               CPABORT("Error in fp computation (x < xmin) in initialization of QTB random forces")
             ELSE
                xx = xmin + (k - 1)*dx
                IF (x1 > xx) THEN

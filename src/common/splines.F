@@ -390,7 +390,7 @@ CONTAINS
 
       ! compute index
       i = INT((x - x1)/(xn - x1)*(n - 1)) + 1
-      ! reset if ouside 1..n
+      ! reset if outside 1..n
       IF (i < 1) i = 1
       IF (i > n - 1) i = n - 1
       iixun = i

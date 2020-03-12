@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Auxiliary rountines necessary to redistribute an fm_matrix from a
+!> \brief Auxiliary routines necessary to redistribute an fm_matrix from a
 !>        given blacs_env to another
 !> \par History
 !>      12.2012 created [Mauro Del Ben]
@@ -258,7 +258,7 @@ CONTAINS
 
          IF (map_rec_size(proc_receive) > 0) THEN
             rec_counter = rec_counter + 1
-            ! allocate the auxilliary index structure
+            ! allocate the auxiliary index structure
             ALLOCATE (buffer_rec(rec_counter)%indx(2, size_rec_buffer))
             buffer_rec(rec_counter)%indx = 0
 

@@ -340,7 +340,7 @@ CONTAINS
          matrix_t => kinetic(1)%matrix
       END IF
 
-      !determins how often make preconditioner is called, spin dependent methods have to be called twice
+      !determines how often make preconditioner is called, spin dependent methods have to be called twice
       n_loops = 1
       IF (prec_type == ot_precond_full_single_inverse) n_loops = nspins
       ! check whether we need the ev and rotate the MOs

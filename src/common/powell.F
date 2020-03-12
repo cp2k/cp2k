@@ -1191,7 +1191,7 @@ CONTAINS
             wvec(ip, 5) = zero
          END DO
          !
-         !     Put the coefficents of THETA*Wcheck in PROD.
+         !     Put the coefficients of THETA*Wcheck in PROD.
          !
          DO jc = 1, 5
             nw = npt

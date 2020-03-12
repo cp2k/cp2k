@@ -918,7 +918,7 @@ CONTAINS
 
       ! allocate memory for COORDs and VELOCITYs if the BEADS section was not
       ! explicitly given in the input (this is actually done only once since
-      ! after section_vals_add_values section becomes explict)
+      ! after section_vals_add_values section becomes explicit)
       NULLIFY (tmpsec)
       tmpsec => section_vals_get_subs_vals(pint_section, "BEADS")
       CALL section_vals_get(tmpsec, explicit=explicit)
@@ -959,7 +959,7 @@ CONTAINS
 
          ! allocate memory for COORDs and VELOCITYs if the NOSE section was not
          ! explicitly given in the input (this is actually done only once since
-         ! after section_vals_add_values section becomes explict)
+         ! after section_vals_add_values section becomes explicit)
          NULLIFY (tmpsec)
          tmpsec => section_vals_get_subs_vals(pint_section, "NOSE")
          CALL section_vals_get(tmpsec, explicit=explicit)

@@ -46,7 +46,7 @@ MODULE qs_p_env_types
 !> \param kpp 1: the kpp1 matrix (make it temporary?)
 !> \param m_epsilon minus epsilon: -<psi0d|H_rho|psi0d>
 !> \param psi 0d: the dual basis of psi0: psi0 (psi0^T S psi0)^-1
-!> \param S_psi 0: S times psi0, cached for performace reasons
+!> \param S_psi 0: S times psi0, cached for performance reasons
 !> \param Smo_inv inverse of the mo overlap: (psi0^T S psi0)^-1
 !> \param kpp 1_env: environment for the calculation of kpp1
 !> \param rho 1: the density rho1

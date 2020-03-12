@@ -362,7 +362,7 @@ CONTAINS
    END SUBROUTINE resp_dealloc
 
 ! **************************************************************************************************
-!> \brief intializes the resp fit. Getting the parameters
+!> \brief initializes the resp fit. Getting the parameters
 !> \param resp_env the resp environment
 !> \param rep_sys structure for repeating input sections defining fit points
 !> \param subsys ...
@@ -461,7 +461,7 @@ CONTAINS
             IF (rep_sys(i)%p_resp%length <= EPSILON(0.0_dp)) THEN
                CPABORT("Parameter LENGTH in SLAB_SAMPLING has to be larger than zero.")
             END IF
-            !list of atoms specifing the surface
+            !list of atoms specifying the surface
             CALL build_atom_list(slab_section, subsys, rep_sys(i)%p_resp%atom_surf_list, rep=i)
          END DO
       END IF
@@ -1473,7 +1473,7 @@ CONTAINS
          resp_env%rhs(ncons_v) = dft_control%charge
       ENDIF
 
-      ! explict constraints
+      ! explicit constraints
       DO i = 1, resp_env%ncons_sec
          CALL build_atom_list(cons_section, subsys, atom_list_cons, i)
          IF (.NOT. resp_env%equal_charges) THEN

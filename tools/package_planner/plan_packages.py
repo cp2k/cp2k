@@ -48,7 +48,7 @@ def main():
         parse_file(parsed_files, fn)  # parses also included files
     print("Parsed %d source files" % len(parsed_files))
 
-    # create table mapping fortan module-names to file-name
+    # create table mapping fortran module-names to file-name
     mod2fn = dict()
     for fn in src_files:
         for m in parsed_files[fn]["module"]:

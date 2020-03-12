@@ -10,7 +10,7 @@
 !>        - global tree nodes consists of pointers to sub tree nodes
 !>        - sub tree nodes consists of position arrays, potential energy, etc.
 !>        - furthermore the sub tree elements have references the all global
-!>          tree elements refering to them
+!>          tree elements referring to them
 !>        - for tree element details see tree_types.F
 !>
 !>        - for creating we always start with the global tree element
@@ -669,7 +669,7 @@ CONTAINS
                                         ig=new_elem%rng_seed(:, :, 3))
 
             ! swap moves are not part of the subtree structure,
-            !  because exisiting elements from DIFFERENT subtrees are swaped
+            !  because existing elements from DIFFERENT subtrees are swaped
             ! -- do swap ?!
             IF (tmc_env%params%move_types%mv_weight(mv_type_swap_conf) .GE. rnd) THEN
                ! set the index for the swaping element
@@ -811,7 +811,7 @@ CONTAINS
                           "for creating new gt element")
          END SELECT
 
-         ! set stat TMC_STATUS_WAIT_FOR_NEW_TASK if no new calculation neccessary
+         ! set stat TMC_STATUS_WAIT_FOR_NEW_TASK if no new calculation necessary
          !   (energy calculation nodes searched by different routine)
          IF (stat .EQ. TMC_STATUS_FAILED) stat = TMC_STATUS_WAIT_FOR_NEW_TASK
          IF (stat .EQ. status_calculated) stat = TMC_STATUS_WAIT_FOR_NEW_TASK

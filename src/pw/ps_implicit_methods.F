@@ -459,7 +459,7 @@ CONTAINS
 
       IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
-! veps has to be computed for the expanded data and then shrinked otherwise we loose accuracy
+! veps has to be computed for the expanded data and then shrunk otherwise we loose accuracy
       CALL ps_implicit_compute_veps(pw_pool_xpndd, dielectric, v_new_xpndd, v_eps_xpndd)
       CALL pw_shrink(neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
                      dct_env%bounds_local_shftd, v_eps_xpndd, ps_implicit_env%v_eps)
@@ -1036,7 +1036,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief  allocates and zeroises initial guess for implicit (iterative) Poisson solver
-!> \param ps_implicit_env the implicit env contaning the initial guess
+!> \param ps_implicit_env the implicit env containing the initial guess
 !> \param pw_pool pool of pw grid
 !> \par History
 !>       06.2014 created [Hossein Bani-Hashemian]
@@ -1412,7 +1412,7 @@ CONTAINS
 !> \brief   Evaluates the action of the operator P on a given matrix v, defined
 !>          as:   P(v) := - \nabla_r(\ln(\eps)) \cdot \nabla_r(v)
 !> \param pw_pool pool of pw grid
-!> \param dielectric dielectric_type contaning eps
+!> \param dielectric dielectric_type containing eps
 !> \param v input matrix
 !> \param Pxv action of the operator P on v
 !> \par History
@@ -1480,7 +1480,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-! here I devide by fourpi to cancel out the prefactor fourpi in influence_fn
+! here I divide by fourpi to cancel out the prefactor fourpi in influence_fn
       prefactor = 1.0_dp/fourpi
 
       pw_grid => pw_pool%pw_grid
@@ -1530,7 +1530,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-! here I devide by fourpi to cancel out the prefactor fourpi in influence_fn
+! here I divide by fourpi to cancel out the prefactor fourpi in influence_fn
       prefactor = 1.0_dp/fourpi
 
       pw_grid => pw_pool%pw_grid
@@ -1750,7 +1750,7 @@ CONTAINS
 !> \brief Computes the extra contribution (v_eps)
 !>        v_eps = - \frac{1}{8*\pi} * |\nabla_r(v)|^2 * \frac{d \eps}{d \rho}
 !>  to the functional derivative of the Hartree energy wrt the density, being
-!>  attributed to the dependecy of the dielectric constant to the charge density.
+!>  attributed to the dependency of the dielectric constant to the charge density.
 !> [see V. M. Sanchez, M. Sued, and D. A. Scherlis, J. Chem. Phys. 131, 174108 (2009)]
 !> \param pw_pool pool of the original plane-wave grid
 !> \param dielectric dielectric environment
@@ -2192,7 +2192,7 @@ CONTAINS
    END SUBROUTINE convert_1dto3d
 
 ! **************************************************************************************************
-!> \brief Returns the voltage of a tile. In case an alternating field is used, the oltage is a funtion of time
+!> \brief Returns the voltage of a tile. In case an alternating field is used, the oltage is a function of time
 !> \param time ...
 !> \param v_D ...
 !> \param osc_frac ...

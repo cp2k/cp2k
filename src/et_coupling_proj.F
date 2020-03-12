@@ -576,8 +576,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief calculated transformation matrix for basis-set orthogonalization (S^{-1/2})
 !> \param qs_env QuickStep environment containing all system data
-!> \param mat_t storage for the trasformation matrix
-!> \param mat_i storage for the inversion trasformation matrix
+!> \param mat_t storage for the transformation matrix
+!> \param mat_i storage for the inversion transformation matrix
 !> \param mat_w working matrix of the same dimension
 !> \author Z. Futera (02.2017)
 ! **************************************************************************************************
@@ -1943,7 +1943,7 @@ CONTAINS
             CPABORT('different number of alpha/beta AO basis functions')
          IF (master) THEN
             WRITE (output_unit, '(/,T3,A,I10)') &
-               'Number of AO basis funtions        = ', mo(1)%mo_set%nao
+               'Number of AO basis functions       = ', mo(1)%mo_set%nao
             WRITE (output_unit, '(T3,A,I10)') &
                'Number of alpha states             = ', mo(1)%mo_set%nmo
             WRITE (output_unit, '(T3,A,I10)') &
@@ -1980,7 +1980,7 @@ CONTAINS
          ! State eneries of the whole system
          IF (master) THEN
             WRITE (output_unit, '(/,T3,A,I10)') &
-               'Number of AO basis funtions        = ', mo(1)%mo_set%nao
+               'Number of AO basis functions       = ', mo(1)%mo_set%nao
             WRITE (output_unit, '(T3,A,I10)') &
                'Number of states                   = ', mo(1)%mo_set%nmo
          END IF

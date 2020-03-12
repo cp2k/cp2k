@@ -66,7 +66,7 @@ CONTAINS
       CALL cite_reference(Shao2003)
 
 ! Upon first call initialize all matrices needed curing optimization
-! In addtion transform P into orthonormal basis. Will be scaled by 0.5 in closed shell case
+! In addition transform P into orthonormal basis. Will be scaled by 0.5 in closed shell case
 ! Only to be done once as it will be stored and reused afterwards
 ! TRS4 might yield a non-idempotent P therefore McWeeny purification is applied on initial P
 
@@ -386,7 +386,7 @@ CONTAINS
 ! Precompute -FP-[FP]T which will be used throughout the CG iterations
          CALL dbcsr_add(matrix_b, matrix_PKs, -1.0_dp, -1.0_dp)
 
-! Setup some values to check convergence and safty checks for eigenvalue shifting
+! Setup some values to check convergence and safety checks for eigenvalue shifting
          CALL dbcsr_norm(matrix_res, which_norm=2, norm_scalar=old_conv)
          old_conv = dbcsr_frobenius_norm(matrix_res)
          shift = MIN(10.0_dp, MAX(min_shift, 0.05_dp*old_conv))
@@ -496,7 +496,7 @@ CONTAINS
       lin_eq = 0.0_dp
       fac = norm_rr/norm_cA
       fac1 = fac
-! Use a 3point line serach and a fit to a quadratic function to determine optimal step size
+! Use a 3point line search and a fit to a quadratic function to determine optimal step size
       DO i = 1, 3
          CALL dbcsr_copy(tmp, res)
          CALL dbcsr_add(tmp, Ax, 1.0_dp, -fac)
@@ -530,7 +530,7 @@ CONTAINS
    END SUBROUTINE compute_cg_matrices
 
 ! **************************************************************************************************
-!> \brief Only for 2D line serach. Use saved P-components to construct new
+!> \brief Only for 2D line search. Use saved P-components to construct new
 !>        test density matrix. Takes care as well, whether step_size
 !>        increased or decreased during 2nd step and combines matrices accordingly
 !> \param matrix_p ...
@@ -719,7 +719,7 @@ CONTAINS
    END SUBROUTINE update_p_exp
 
 ! **************************************************************************************************
-!> \brief performs a tranformation of a matrix back to/into orthonormal basis
+!> \brief performs a transformation of a matrix back to/into orthonormal basis
 !>        in case of P a scaling of 0.5 has to be applied for closed shell case
 !> \param matrix       matrix to be transformed
 !> \param matrix_trafo transformation matrix

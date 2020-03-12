@@ -212,8 +212,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculates the derivative pf two-electron repulsion integrals and the
 !>      nuclear attraction integrals w.r.t. |r|
-!> \param sepi paramters of atom i
-!> \param sepj paramters of atom j
+!> \param sepi parameters of atom i
+!> \param sepj parameters of atom j
 !> \param rij interatomic distance
 !> \param rep array of two-electron repulsion integrals
 !> \param se_taper ...
@@ -254,8 +254,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Calculates the  two-electron repulsion integrals - sp shell only
-!> \param sepi paramters of atom i
-!> \param sepj paramters of atom j
+!> \param sepi parameters of atom i
+!> \param sepj parameters of atom j
 !> \param rij ...
 !> \param rep array of two-electron repulsion integrals
 !> \param se_int_control input parameters that control the calculation of SE
@@ -719,8 +719,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Calculates the SSSS integrals (main driver)
-!> \param sepi paramters of atom i
-!> \param sepj paramters of atom j
+!> \param sepi parameters of atom i
+!> \param sepj parameters of atom j
 !> \param rij interatomic distance
 !> \param ssss derivative of (ssss) integral
 !>                          derivatives are intended w.r.t. rij
@@ -773,8 +773,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Calculates the nuclear attraction integrals CORE (main driver)
-!> \param sepi paramters of atom i
-!> \param sepj paramters of atom j
+!> \param sepi parameters of atom i
+!> \param sepj parameters of atom j
 !> \param rij interatomic distance
 !> \param core derivative of 4 X 2 array of electron-core attraction integrals
 !>                          derivatives are intended w.r.t. rij
@@ -918,8 +918,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Calculates the nuclear attraction integrals involving d orbitals
-!> \param sepi paramters of atom i
-!> \param sepj paramters of atom j
+!> \param sepi parameters of atom i
+!> \param sepj parameters of atom j
 !> \param rij interatomic distance
 !> \param core 4 X 2 array of electron-core attraction integrals
 !>

@@ -458,7 +458,7 @@ CONTAINS
       flag = .FALSE.
 
       tmp_gt_list_ptr => act_elem%gt_nodes_references
-      ! check for all global tree elements refering to this subtree element
+      ! check for all global tree elements referring to this subtree element
       ! same subtree element can be accepted at a certain temperature and rejected at another one
       DO WHILE (ASSOCIATED(tmp_gt_list_ptr))
          CPASSERT(tmp_gt_list_ptr%gt_elem%stat .NE. status_accepted_result)
@@ -959,7 +959,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief search all pt nodes in reference list and update the estimated
 !>        acceptance probabilities
-!> \param reference_list list of global tree element refering to the updated
+!> \param reference_list list of global tree element referring to the updated
 !>        subtree element
 !> \param act_elem actual sub tree element updated or child of the updated one
 !> \param parent_elem parent or the actual updated subtree element
@@ -1037,7 +1037,7 @@ CONTAINS
                                                     tmc_params=tmc_env%params)
                END IF
             END IF
-            !successfull probability update
+            !successful probability update
             IF (tmp_prob .GE. 0.0_dp) THEN
                tmp_pt_ptr%gt_elem%prob_acc = tmp_prob
                !-- speculative canceling for the related direction

@@ -308,7 +308,7 @@ CONTAINS
          hessin(i, i) = 1.0_dp
       END DO
 
-      ! initialize trasformation function
+      ! initialize transformation function
       ALLOCATE (lower_B(ndof))
       lower_B = 0.0_dp
       ALLOCATE (max_dev(ndof))

@@ -140,7 +140,7 @@ CONTAINS
                ma = i1
                mb = MIN(i1 + (lot - 1), n1)
                nfft = mb - ma + 1
-               !inserting real data into complex array of half lenght
+               !inserting real data into complex array of half length
                CALL P_fill_upcorn(md1, md3, lot, nfft, n3, zf(i1, 1, j2), zw(1, 1, 1))
 
                !performing FFT
@@ -699,7 +699,6 @@ CONTAINS
 !> \author S. Goedecker, L. Genovese
 ! **************************************************************************************************
    SUBROUTINE P_multkernel(n1, n2, n3, lot, nfft, jS, i3, zw, hx, hy, hz)
-      !Argments
       INTEGER, INTENT(in)                                :: n1, n2, n3, lot, nfft, jS, i3
       REAL(KIND=dp), DIMENSION(2, lot, n2), &
          INTENT(inout)                                   :: zw
@@ -758,7 +757,6 @@ CONTAINS
 !> \author S. Goedecker, L. Genovese
 ! **************************************************************************************************
    SUBROUTINE multkernel(nd1, nd2, n1, n2, lot, nfft, jS, pot, zw)
-      !Argments
       INTEGER, INTENT(in)                                :: nd1, nd2, n1, n2, lot, nfft, jS
       REAL(KIND=dp), DIMENSION(nd1, nd2), INTENT(in)     :: pot
       REAL(KIND=dp), DIMENSION(2, lot, n2), &
@@ -959,7 +957,7 @@ CONTAINS
                mb = MIN(i1 + (lot - 1), n1)
                nfft = mb - ma + 1
 
-               !inserting real data into complex array of half lenght
+               !inserting real data into complex array of half length
                CALL halfill_upcorn(md1, md3, lot, nfft, n3, zf(i1, 1, j2), zw(1, 1, 1))
 
                !performing FFT
@@ -1694,7 +1692,7 @@ CONTAINS
                mb = MIN(i1 + (lot - 1), (n1/2))
                nfft = mb - ma + 1
 
-               !inserting real data into complex array of half lenght
+               !inserting real data into complex array of half length
                CALL halfill_upcorn(md1, md3, lot, nfft, n3, zf(i1, 1, j2), zw(1, 1, 1))
 
                !performing FFT

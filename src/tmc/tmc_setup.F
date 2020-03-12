@@ -327,7 +327,7 @@ CONTAINS
             WRITE (output_unit, *) "TMC|NOTcalculatedTotal energy: -999"
          END IF
       END IF
-      ! finalize / deallocate everthing
+      ! finalize / deallocate everything
       CALL tmc_env_release(tmc_env)
 
       ! end the timing
@@ -434,7 +434,7 @@ CONTAINS
             END DO
             CALL finalize_tmc_analysis(ana_env=ana_list(temp)%temp)
             ! write analysis restart file
-            !  if there is somthing to write
+            !  if there is something to write
             ! shifts the last element to actual element
             IF (ASSOCIATED(ana_list(temp)%temp%last_elem)) &
                CALL analysis_restart_print(ana_env=ana_list(temp)%temp)
@@ -630,7 +630,7 @@ CONTAINS
                          "because no approximated energy input is specified.")
          tmc_env%tmc_comp_set%group_cc_size = 0
       ELSE
-         ! check file existance
+         ! check file existence
          INQUIRE (FILE=TRIM(tmc_env%params%NMC_inp_file), EXIST=flag, IOSTAT=itmp)
          IF (.NOT. flag .OR. itmp .NE. 0) &
             CPABORT("a valid NMC input file has to be specified")
@@ -747,7 +747,7 @@ CONTAINS
       ! file name keyword without file name
       IF (tmc_env%params%energy_inp_file .EQ. "") &
          CPABORT("a valid exact energy input file has to be specified ")
-      ! check file existance
+      ! check file existence
       INQUIRE (FILE=TRIM(tmc_env%params%energy_inp_file), EXIST=flag, IOSTAT=itmp)
       IF (.NOT. flag .OR. itmp .NE. 0) &
          CALL cp_abort(__LOCATION__, "a valid exact energy input file has to be specified, "// &

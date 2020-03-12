@@ -105,10 +105,10 @@ CONTAINS
 !> \param para_env the parallel environment
 !> \param context the blacs context of this matrix
 !> \param nrow_global the number of row of the full matrix
-!> \param ncol_global the number of colums of the full matrix
+!> \param ncol_global the number of columns of the full matrix
 !> \param nrow_block the number of rows of a block of the matrix,
 !>        omit or set to -1 to use the built-in defaults
-!> \param ncol_block the number of colums of a block of the matrix,
+!> \param ncol_block the number of columns of a block of the matrix,
 !>        omit or set to -1 to use the built-in defaults
 !> \param descriptor the scalapack descriptor of the matrix (if not given
 !>        a new one is allocated
@@ -397,7 +397,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief returns the values of various attributes of the matrix structure
-!> \param fmstruct the structure you whant info about
+!> \param fmstruct the structure you want info about
 !> \param para_env ...
 !> \param context ...
 !> \param descriptor ...

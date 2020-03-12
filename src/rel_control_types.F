@@ -7,7 +7,7 @@
 !> \brief parameters that control a relativistic calculation
 !> \par History
 !>      09.2002 created [fawzi] (as scf_control_types.F)
-!>      10.2008 modifed for relativistic control types (Jens Thar)
+!>      10.2008 modified for relativistic control types (Jens Thar)
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE rel_control_types

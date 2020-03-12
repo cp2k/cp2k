@@ -135,7 +135,7 @@ CONTAINS
       END DO
       kin = 1.5_dp*n/helium%tau - 0.5*kin/(b*helium%tau**2*helium%hb2m)
 
-! TODO: move printing somwhere else ?
+! TODO: move printing somewhere else ?
 !   print *,"POT = ",(pot/n+helium%e_corr)*kelvin,"K"
 !   print *,"INTERAC = ",interac*kelvin,"K"
 !   print *,"RMIN= ",rmin*angstrom,"A"
@@ -254,7 +254,7 @@ CONTAINS
             DO jatom = 1, helium%atoms
                IF (jatom == helium%worm_atom_idx) CYCLE
                opatom = helium%iperm(jatom)
-               ! substract pair action for closed link
+               ! subtract pair action for closed link
                r(:) = helium%pos(:, iatom, 1) - helium%pos(:, jatom, 1)
                rp(:) = helium%pos(:, patom, helium%beads) - helium%pos(:, opatom, helium%beads)
                pairaction = pairaction - helium_eval_expansion(helium, r, rp, work3)
@@ -269,7 +269,7 @@ CONTAINS
             ! go through all atoms
             DO jatom = 1, helium%atoms
                IF (jatom == helium%worm_atom_idx) CYCLE
-               ! substract pair action for closed link
+               ! subtract pair action for closed link
                r(:) = helium%pos(:, iatom, ibead) - helium%pos(:, jatom, ibead)
                rp(:) = helium%pos(:, iatom, ibead - 1) - helium%pos(:, jatom, ibead - 1)
                pairaction = pairaction - helium_eval_expansion(helium, r, rp, work3)

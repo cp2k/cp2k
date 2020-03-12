@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Rountines to calculate CPHF like update and solve Z-vector equation
+!> \brief Routines to calculate CPHF like update and solve Z-vector equation
 !>        for MP2 gradients (only GPW)
 !> \par History
 !>      11.2013 created [Mauro Del Ben]
@@ -798,7 +798,7 @@ CONTAINS
 
       IF (use_virial) THEN
          ! update virial if necessary with the volume term
-         ! first create pw auxilliary stuff
+         ! first create pw auxiliary stuff
          CALL timeset(routineN//"_Virial", handle2)
          NULLIFY (temp_pw_g%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, temp_pw_g%pw, &
@@ -1255,7 +1255,7 @@ CONTAINS
       ! transform to MO basis, here we always sum the result into the input matrix
       SELECT CASE (transf_type_out)
          ! In alpha-beta case the density is contracted with the orbitals of different
-         ! spin. Thus, there's branching at forward trasform and no branching here,
+         ! spin. Thus, there's branching at forward transform and no branching here,
          ! at back transform.
       CASE (1)
          ! occ-virt block

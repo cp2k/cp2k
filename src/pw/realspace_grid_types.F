@@ -106,7 +106,7 @@ MODULE realspace_grid_types
 
       LOGICAL :: parallel ! whether the corresponding pw grid is distributed
       LOGICAL :: distributed ! whether the rs grid is distributed
-      ! these MPI related quantities are only meaningful depending on how the grid has been layed out
+      ! these MPI related quantities are only meaningful depending on how the grid has been laid out
       ! they are most useful for fully distributed grids, where they reflect the topology of the grid
       INTEGER :: group
       INTEGER :: my_pos
@@ -243,7 +243,7 @@ CONTAINS
 
       IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
          ! The corresponding group has dimension 1
-         ! All operations will be done localy
+         ! All operations will be done locally
          desc%npts = pw_grid%npts
          desc%ngpts = PRODUCT(INT(desc%npts, KIND=int_8))
          desc%lb = pw_grid%bounds(1, :)
@@ -1121,7 +1121,7 @@ CONTAINS
                      ENDIF
                   ENDDO
 
-                  ! post the recieve
+                  ! post the receive
                   ALLOCATE (recv_buf_3d_down(lb_recv_down(1):ub_recv_down(1), &
                                              lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3)))
                   CALL mp_irecv(recv_buf_3d_down, source_down, rs%desc%group, req(1))
@@ -1181,7 +1181,7 @@ CONTAINS
                      ENDIF
                   ENDDO
 
-                  ! post the recieve
+                  ! post the receive
                   ALLOCATE (recv_buf_3d_up(lb_recv_up(1):ub_recv_up(1), &
                                            lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3)))
                   CALL mp_irecv(recv_buf_3d_up, source_up, rs%desc%group, req(2))
@@ -1774,7 +1774,7 @@ CONTAINS
                   ALLOCATE (recv_buf_3d_down(lb_recv_down(1):ub_recv_down(1), &
                                              lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3)))
 
-                  ! recv buffer is now ready, so post the recieve
+                  ! recv buffer is now ready, so post the receive
                   CALL mp_irecv(recv_buf_3d_down, source_down, rs%desc%group, req(1))
 
                   ! now allocate,pack and send the send buffer
@@ -1837,7 +1837,7 @@ CONTAINS
                   ALLOCATE (recv_buf_3d_up(lb_recv_up(1):ub_recv_up(1), &
                                            lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3)))
 
-                  ! recv buffer is now ready, so post the recieve
+                  ! recv buffer is now ready, so post the receive
 
                   CALL mp_irecv(recv_buf_3d_up, source_up, rs%desc%group, req(2))
 

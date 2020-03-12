@@ -396,7 +396,7 @@ CONTAINS
                        piglet_therm%temp2(1, 1), & ! temp2 matrix
                        piglet_therm%nsp1, & ! leading dimension of temp2
                        0.0_dp, & ! scaling of added matrix smalls
-                       piglet_therm%temp1(1, 1), & ! firts element of result matrix
+                       piglet_therm%temp1(1, 1), & ! first element of result matrix
                        piglet_therm%nsp1) ! leading dimension of result matrix
 
             DO idim = 1, piglet_therm%ndim

@@ -39,7 +39,7 @@ MODULE pao_ml_descriptor
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Calulates a descriptor for chemical environment of given atom
+!> \brief Calculates a descriptor for chemical environment of given atom
 !> \param pao ...
 !> \param particle_set ...
 !> \param qs_kind_set ...
@@ -75,14 +75,14 @@ CONTAINS
       CASE (pao_ml_desc_r12)
          CALL calc_descriptor_r12(particle_set, qs_kind_set, cell, iatom, descriptor, descr_grad, forces)
       CASE DEFAULT
-         CPABORT("PAO: unkown descriptor")
+         CPABORT("PAO: unknown descriptor")
       END SELECT
 
       CALL timestop(handle)
    END SUBROUTINE pao_ml_calc_descriptor
 
 ! **************************************************************************************************
-!> \brief Calulates a descriptor based on the eigenvalues of V_neighbors
+!> \brief Calculates a descriptor based on the eigenvalues of V_neighbors
 !> \param particle_set ...
 !> \param qs_kind_set ...
 !> \param cell ...
@@ -183,7 +183,7 @@ CONTAINS
    END SUBROUTINE calc_descriptor_pot
 
 ! **************************************************************************************************
-!> \brief Calulates a descriptor based on the eigenvalues of local overlap matrix
+!> \brief Calculates a descriptor based on the eigenvalues of local overlap matrix
 !> \param particle_set ...
 !> \param qs_kind_set ...
 !> \param cell ...
@@ -250,7 +250,7 @@ CONTAINS
       CALL sort(neighbor_dist, natoms, neighbor_order)
       CPASSERT(neighbor_order(1) == iatom) !central atom should be closesd to itself
 
-      ! check if N was choosen large enough
+      ! check if N was chosen large enough
       IF (natoms > N) THEN
          IF (neighbor_dist(N + 1) < screening_radius) &
             CPABORT("PAO heuristic for descriptor size broke down")
@@ -361,7 +361,7 @@ CONTAINS
    END SUBROUTINE calc_descriptor_overlap
 
 ! **************************************************************************************************
-!> \brief Calulates a descriptor based on distance between two atoms
+!> \brief Calculates a descriptor based on distance between two atoms
 !> \param particle_set ...
 !> \param qs_kind_set ...
 !> \param cell ...

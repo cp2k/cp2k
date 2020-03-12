@@ -24,7 +24,7 @@ class Parser:
         """
         switch should be a tuple (key, val)
         ParseSingleIf(string, switch) will replace in string the
-        first occurance of IF_key(A|B) with A if val = True;
+        first occurrence of IF_key(A|B) with A if val = True;
         B if val = False
         """
         init = string.find("IF_" + switch[0])

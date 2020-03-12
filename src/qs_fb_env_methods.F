@@ -348,7 +348,7 @@ CONTAINS
       CALL dbcsr_finalize(matrix_filtered_ks)
 
       ! create DBCSR filtered S (overlap) matrix. Note that
-      ! matrix_s(1)%matrix is the orginal overlap matrix---the rest in
+      ! matrix_s(1)%matrix is the original overlap matrix---the rest in
       ! the array are derivatives, and it should not depend on
       ! spin. HOWEVER, since the filter matrix is constructed from KS
       ! matrix, and does depend on spin, the filtered S also becomes
@@ -541,7 +541,7 @@ CONTAINS
                          mo_coeff=mo_coeff_filtered, &
                          kTS=kTS_filtered, &
                          mu=mu_filtered)
-         ! first set all the relevent scalars
+         ! first set all the relevant scalars
          CALL set_mo_set(mo_set=mos(ispin)%mo_set, &
                          homo=homo_filtered, &
                          lfomo=lfomo_filtered, &
@@ -1049,7 +1049,7 @@ CONTAINS
                   END IF
                END DO
                ! we have got enough trial functions when we have enough
-               ! basis functions to accomodate the number of electrons,
+               ! basis functions to accommodate the number of electrons,
                ! AND that that we have included all the first zeta
                ! orbitals of an angular momentum quantum number l
                IF (((lshell .GT. old_lshell) .OR. (lshell .EQ. lmax(iset))) .AND. &
@@ -1129,7 +1129,7 @@ CONTAINS
 !>        and their corresponding logical locations allocated, although
 !>        the blocks does not have to be the same size as the original
 !> \param matrix_out : DBCSR matrix whose blocks are to be allocated
-!> \param matrix_in  : DBCSR matrix with exising sparse structure that
+!> \param matrix_in  : DBCSR matrix with existing sparse structure that
 !>                     is to be copied
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************

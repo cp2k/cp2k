@@ -44,7 +44,7 @@ MODULE admm_dm_methods
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Entry methods: Calculates auxilary density matrix from primary one.
+!> \brief Entry methods: Calculates auxiliary density matrix from primary one.
 !> \param ks_env ...
 !> \author Ole Schuett
 ! **************************************************************************************************
@@ -81,7 +81,7 @@ CONTAINS
    END SUBROUTINE admm_dm_calc_rho_aux
 
 ! **************************************************************************************************
-!> \brief Entry methods: Merges auxilary Kohn-Sham matrix into primary one.
+!> \brief Entry methods: Merges auxiliary Kohn-Sham matrix into primary one.
 !> \param ks_env ...
 !> \author Ole Schuett
 ! **************************************************************************************************
@@ -125,7 +125,7 @@ CONTAINS
    END SUBROUTINE admm_dm_merge_ks_matrix
 
 ! **************************************************************************************************
-!> \brief Calculates auxilary density matrix via basis projection.
+!> \brief Calculates auxiliary density matrix via basis projection.
 !> \param ks_env ...
 !> \author Ole Schuett
 ! **************************************************************************************************
@@ -188,7 +188,7 @@ CONTAINS
    END SUBROUTINE map_dm_projection
 
 ! **************************************************************************************************
-!> \brief Calculates auxilary density matrix via blocking.
+!> \brief Calculates auxiliary density matrix via blocking.
 !> \param ks_env ...
 !> \author Ole Schuett
 ! **************************************************************************************************
@@ -235,7 +235,7 @@ CONTAINS
    END SUBROUTINE map_dm_blocked
 
 ! **************************************************************************************************
-!> \brief Call calculate_rho_elec() for auxilary density
+!> \brief Call calculate_rho_elec() for auxiliary density
 !> \param ks_env ...
 ! **************************************************************************************************
    SUBROUTINE update_rho_aux(ks_env)
@@ -281,7 +281,7 @@ CONTAINS
    END SUBROUTINE update_rho_aux
 
 ! **************************************************************************************************
-!> \brief Merges auxilary Kohn-Sham matrix via basis projection.
+!> \brief Merges auxiliary Kohn-Sham matrix via basis projection.
 !> \param ks_env ...
 !> \param matrix_ks_merge Input: The KS matrix to be merged
 !> \author Ole Schuett
@@ -318,7 +318,7 @@ CONTAINS
    END SUBROUTINE merge_dm_projection
 
 ! **************************************************************************************************
-!> \brief Merges auxilary Kohn-Sham matrix via blocking.
+!> \brief Merges auxiliary Kohn-Sham matrix via blocking.
 !> \param ks_env ...
 !> \param matrix_ks_merge Input: The KS matrix to be merged
 !> \author Ole Schuett
@@ -355,7 +355,7 @@ CONTAINS
    END SUBROUTINE merge_dm_blocked
 
 ! **************************************************************************************************
-!> \brief Apply McWeeny purification to auxilary density matrix
+!> \brief Apply McWeeny purification to auxiliary density matrix
 !> \param ks_env ...
 !> \author Ole Schuett
 ! **************************************************************************************************
@@ -442,7 +442,7 @@ CONTAINS
    END SUBROUTINE purify_mcweeny
 
 ! **************************************************************************************************
-!> \brief Prepare auxilary KS-matrix for merge using reverse McWeeny
+!> \brief Prepare auxiliary KS-matrix for merge using reverse McWeeny
 !> \param ks_env ...
 !> \param matrix_ks_merge Output: The KS matrix for the merge
 !> \author Ole Schuett

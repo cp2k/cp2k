@@ -17,7 +17,7 @@
       MAX_SCF 30
       SCF_GUESS atomic
     &END SCF
-    # TEST for inculde of XC section
+    # TEST for include of XC section
     @XCTYPE PBE
   &END DFT
   &SUBSYS

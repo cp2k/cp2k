@@ -296,7 +296,7 @@ CONTAINS
                   WRITE (output_unit, *) "Restart from density | ", rdum, " DIFFERS FROM ", dr(i)
                ENDIF
             ENDDO
-            !ignore atomic postion data - read from coord or topology instead
+            !ignore atomic position data - read from coord or topology instead
             DO i = 1, nat
                READ (extunit, *)
             ENDDO
@@ -333,7 +333,7 @@ CONTAINS
          CALL mp_sync(gid)
       ELSE
          ! Parallel routine needs as input the byte size of each grid z-slice
-         ! This is a hack to prevent compilation errors with gcc -Wall (upto versions 6.3)
+         ! This is a hack to prevent compilation errors with gcc -Wall (up to versions 6.3)
          ! related to allocatable-length string declaration CHARACTER(LEN=:), ALLOCATABLE, DIMENSION(:) :: string
          ! Each data line of a Gaussian cube contains max 6 entries with last line potentially containing less if nz % 6 /= 0
          ! Thus, this size is simply the number of entries multiplied by the entry size + the number of line breaks
@@ -434,7 +434,7 @@ CONTAINS
                WRITE (output_unit, *) "Restart from density | ", rdum, " DIFFERS FROM ", dr(i)
             ENDIF
          ENDDO
-         !ignore atomic postion data - read from coord or topology instead
+         !ignore atomic position data - read from coord or topology instead
          DO i = 1, nat
             READ (extunit, *)
          ENDDO
@@ -559,7 +559,7 @@ CONTAINS
                   WRITE (output_unit, *) "Restart from density | ", rdum, " DIFFERS FROM ", dr(i)
                ENDIF
             ENDDO
-            !ignore atomic postion data - read from coord or topology instead
+            !ignore atomic position data - read from coord or topology instead
             DO i = 1, nat
                READ (extunit, *)
             ENDDO

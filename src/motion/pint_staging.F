@@ -331,7 +331,7 @@ CONTAINS
 
       DO ist = 1, staging_env%nseg
          iii(ist) = (ist - 1)*staging_env%j + 1 ! first el
-         jjj(ist) = iii(ist) + staging_env%j ! next fisrt (pbc)
+         jjj(ist) = iii(ist) + staging_env%j ! next first (pbc)
          kkk(ist) = iii(ist) - staging_env%j ! prev first el (pbc)
       END DO
       jjj(staging_env%nseg) = 1

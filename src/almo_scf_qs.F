@@ -148,7 +148,7 @@ CONTAINS
 
       ! RZK-warning The structure of the matrices can be optimized:
       ! 1. Diagonal matrices must be distributed evenly over the processes.
-      !    This can be achived by distributing cpus: 012012-rows and 001122-cols
+      !    This can be achieved by distributing cpus: 012012-rows and 001122-cols
       !    block_diagonal_flag is introduced but not used
       ! 2. Multiplication of diagonally dominant matrices will be faster
       !    if the diagonal blocks are local to the same processes.
@@ -1449,7 +1449,7 @@ CONTAINS
             ! check boundaries
             IF (domain_grid(grid1, 0) .GT. max_neig) THEN
                ! this neighbor will overstep the boundaries
-               ! stop the trial and increase the max number of neigbors
+               ! stop the trial and increase the max number of neighbors
                DEALLOCATE (domain_grid)
                max_neig = max_neig*2
                CYCLE max_neig_loop

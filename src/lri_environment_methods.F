@@ -922,7 +922,7 @@ CONTAINS
             END DO
             CALL neighbor_list_iterator_release(nl_iterator)
 
-            ! replicate the acoef infomation
+            ! replicate the acoef information
             DO ikind = 1, nkind
                atomic_kind => atomic_kind_set(ikind)
                CALL get_atomic_kind(atomic_kind=atomic_kind, natom=natom)

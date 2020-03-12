@@ -1462,7 +1462,7 @@ CONTAINS
             IF (dft_control%apply_efield_field) THEN
                v_rspace%pw%cr3d = v_rspace%pw%cr3d+v_efield_rspace%pw%cr3d
             END IF
-            ! extra contribution attributed to the dependecy of the dielectric constant to the charge density
+            ! extra contribution attributed to the dependency of the dielectric constant to the charge density
             IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
                dvol = poisson_env%implicit_env%v_eps%pw_grid%dvol
                v_rspace%pw%cr3d = v_rspace%pw%cr3d+poisson_env%implicit_env%v_eps%cr3d*dvol

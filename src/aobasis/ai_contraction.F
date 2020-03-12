@@ -47,7 +47,7 @@ MODULE ai_contraction
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Applying the contraction coefficents to a set of two-center primitive
+!> \brief Applying the contraction coefficients to a set of two-center primitive
 !>        integrals
 !>        QAB <- CA(T) * SAB * CB
 !>        QAB is optionally scaled with "fscale"
@@ -181,7 +181,7 @@ CONTAINS
    END SUBROUTINE contraction_ab
 
 ! **************************************************************************************************
-!> \brief Applying the contraction coefficents to a tripple set integrals
+!> \brief Applying the contraction coefficients to a tripple set integrals
 !>        QABC <- CA(T) * SABC * CB * CC
 !>        If only one or two of the transformation matrices are given, only a
 !>        part transformation is done
@@ -263,7 +263,7 @@ CONTAINS
       IF (PRESENT(ca) .AND. PRESENT(cb) .AND. PRESENT(cc)) THEN
          ! Full transform
          ALLOCATE (work1(nal, nbl, ncl))
-         ! make sure that we have contigous memory, needed for transpose algorithm
+         ! make sure that we have contiguous memory, needed for transpose algorithm
          work1(1:nal, 1:nbl, 1:ncl) = sabc(1:nal, 1:nbl, 1:ncl)
          !
          ALLOCATE (work2(nbl, ncl, mal))
@@ -302,7 +302,7 @@ CONTAINS
    END SUBROUTINE contraction_abc
 
 ! **************************************************************************************************
-!> \brief Applying the de-contraction coefficents to a matrix
+!> \brief Applying the de-contraction coefficients to a matrix
 !>        QAB <- CA * SAB * CB(T)
 !>        Variable "trans" requests the input matrix to be SAB(T)
 !>        Active dimensions are: QAB(na,nb), SAB(ma,mb)

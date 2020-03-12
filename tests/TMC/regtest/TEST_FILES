@@ -5,7 +5,7 @@
 #      6 looks for the final energy of the MC simulation
 #      for details see cp2k/tools/do_regtest
 #
-# The whole TMC method could only run in paralell (serial should finalize well, but do nothing)
+# The whole TMC method could only run in parallel (serial should finalize well, but do nothing)
 #
 # testing global tree creation using single exact potential, the deterministic random number generator
 #   with the standard move types, check if at the end the same configuration is created (energy)

@@ -124,7 +124,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param order degree of the derivative that should be evalated,
+!> \param order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param xwpbe_params input parameters (scaling,omega)
@@ -229,7 +229,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief evaluates the screened hole averaged PBE exchange functional for lda
 !> \param npoints ...
-!> \param order degree of the derivative that should be evalated,
+!> \param order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param rho , ndrho: density and norm of the density gradient
@@ -343,7 +343,7 @@ CONTAINS
 !> \param ndrho ...
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
 !> \param sx0 scaling factor
-!> \param order degree of the derivative that should be evalated,
+!> \param order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \par History
@@ -963,7 +963,7 @@ CONTAINS
 !> \param ndrho ...
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
 !> \param sx0 scaling factor
-!> \param order degree of the derivative that should be evalated,
+!> \param order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \par History
@@ -1454,7 +1454,7 @@ CONTAINS
 !> \param omega scaling factor
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
 !> \param sx scaling factor
-!> \param order degree of the derivative that should be evalated,
+!> \param order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \par History
@@ -2627,7 +2627,7 @@ CONTAINS
 !> \param omega scaling factor
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
 !> \param sx scaling factor
-!> \param order degree of the derivative that should be evalated,
+!> \param order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \par History
@@ -3629,7 +3629,7 @@ CONTAINS
 !> \param omega screening parameter
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
 !> \param sx scaling factor
-!> \param order degree of the derivative that should be evalated,
+!> \param order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \par History
@@ -4510,7 +4510,7 @@ CONTAINS
 !> \param omega screening parameter
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
 !> \param sx scaling factor
-!> \param order degree of the derivative that should be evalated,
+!> \param order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \par History
@@ -5232,7 +5232,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param order degree of the derivative that should be evalated,
+!> \param order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param xwpbe_params input parameters (scaling,omega)
@@ -5368,7 +5368,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief evaluates the screened hole averaged PBE exchange functional for lsd.
 !> \param npoints ...
-!> \param order degree of the derivative that should be evalated,
+!> \param order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param rho , ndrho: density and norm of the density gradient

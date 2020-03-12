@@ -48,7 +48,7 @@ MODULE qs_wf_history_types
 !> \param id_nr unique identification number
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \note
-!>      keep trak also of occupation numbers and energies?
+!>      keep track also of occupation numbers and energies?
 !> \par History
 !>      02.2003 created [fawzi]
 !>      02.2005 wf_mol added [MI]

@@ -84,7 +84,7 @@ RECURSIVE SUBROUTINE ${prefix}$_sort_low(arr, indices, tmp_arr, tmp_idx)
       RETURN
    ENDIF
 
-   ! split list in half and recusively sort both sublists
+   ! split list in half and recursively sort both sublists
    m = (size(arr)+1)/2 ! index where we're going to divide the list in two
    CALL ${prefix}$_sort_low(arr(1:m), indices(1:m), tmp_arr, tmp_idx)
    CALL ${prefix}$_sort_low(arr(m+1:), indices(m+1:), tmp_arr, tmp_idx)

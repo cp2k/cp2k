@@ -377,7 +377,7 @@ CONTAINS
             ELSE IF (charge_extended) THEN
                WRITE (UNIT=line(81:), FMT="(F20.16)") atom_info%atm_charge(i)
             ELSE
-               ! Wrtie no atomic charge
+               ! Write no atomic charge
             END IF
          END IF
          WRITE (UNIT=line(73:76), FMT="(A4)") ADJUSTL(my_tag3)

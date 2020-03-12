@@ -208,7 +208,7 @@ CONTAINS
 
       ! Allocate the temperature dependent variance (var_w) of the
       ! random variable for each atom. It may be different for different
-      ! atoms because of the possiblity of Langevin regions, and var_w
+      ! atoms because of the possibility of Langevin regions, and var_w
       ! for each region should depend on the temperature defined in the
       ! region
       ! RZK explains: sigma is the variance of the Wiener process associated

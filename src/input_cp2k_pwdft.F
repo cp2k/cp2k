@@ -318,7 +318,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="Append the DOS obtained at different iterations to the output file."// &
-                          "By defaut the file is overwritten", &
+                          "By default the file is overwritten", &
                           usage="APPEND", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)

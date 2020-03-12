@@ -132,7 +132,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="TEMPERATURE", &
-                          description="one temperatue OR for parallel tempering: "// &
+                          description="one temperature OR for parallel tempering: "// &
                           "Tmin Tmax or each temperature T1 T2 T3 ..."// &
                           " If every single temperature is specified, "// &
                           "do NOT use keyword NR_TEMPERATURE", &
@@ -515,7 +515,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="TMC_ANALYSIS", &
-                          description="Analysing the Markov Chain elments with the specified methods", &
+                          description="Analysing the Markov Chain elements with the specified methods", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       CALL create_TMC_ana_kinds(section=section)
@@ -539,7 +539,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="TMC_ANALYSIS_FILES", &
-                          description="Analysing the Markov Chain elments with the specified methods, "// &
+                          description="Analysing the Markov Chain elements with the specified methods, "// &
                           "reading form default or specified files", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
@@ -555,7 +555,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="TEMPERATURE", &
-                          description="one temperatue OR for parallel tempering: "// &
+                          description="one temperature OR for parallel tempering: "// &
                           "Tmin Tmax or each temperature T1 T2 T3 ..."// &
                           " If every single temperature is specified, "// &
                           "do NOT use keyword NR_TEMPERATURE", &

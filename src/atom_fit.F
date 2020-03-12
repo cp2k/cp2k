@@ -371,7 +371,7 @@ CONTAINS
          CALL powell_optimize(ostate%nvar, x, ostate)
 
          IF (ostate%nf == 2 .AND. iunit > 0) THEN
-            WRITE (iunit, '(" POWELL| Inital value of function",T61,F20.10)') ostate%f
+            WRITE (iunit, '(" POWELL| Initial value of function",T61,F20.10)') ostate%f
          END IF
          IF (MOD(ostate%nf, n10) == 0 .AND. iunit > 0) THEN
             WRITE (iunit, '(" POWELL| Reached",i4,"% of maximal function calls",T61,F20.10)') &
@@ -936,7 +936,7 @@ CONTAINS
             CALL powell_optimize(ostate%nvar, x, ostate)
 
             IF (ostate%nf == 2 .AND. iunit > 0) THEN
-               WRITE (iunit, '(" POWELL| Inital value of function",T61,F20.10)') ostate%f
+               WRITE (iunit, '(" POWELL| Initial value of function",T61,F20.10)') ostate%f
             END IF
             IF (MOD(ostate%nf, n10) == 0 .AND. iunit > 0 .AND. ostate%nf > 2) THEN
                WRITE (iunit, '(" POWELL| Reached",i4,"% of maximal function calls",T61,F20.10)') &

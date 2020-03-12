@@ -434,7 +434,7 @@ CONTAINS
                         row_blk_size=blk_size, col_blk_size=blk_size)
 
       !Create a lhs_int, in which the whole (aI_sigma|P) (P|Q)^-1 (Q|fxc|R) will be put
-      !because in spin-flip fxc is spin-independant, can take the product once and for all
+      !because in spin-flip fxc is spin-independent, can take the product once and for all
       rhs_int => contr1_int_PQ
       ALLOCATE (lhs_int(SIZE(contr1_int_PQ)))
       CALL copy_ri_contr_int(lhs_int, rhs_int)
@@ -908,7 +908,7 @@ CONTAINS
    END SUBROUTINE offdiag_ex_sc
 
 ! **************************************************************************************************
-!> \brief Contract the ri 3-center integrals contained in o3c with repect to the donor MOs coeffs,
+!> \brief Contract the ri 3-center integrals contained in o3c with respect to the donor MOs coeffs,
 !>        for a given excited atom k => (aI|k) = sum_b c_Ib (ab|k)
 !> \param contr_int the contracted integrals as array of dbcsr matrices
 !> \param op_type for which operator type we contract (COULOMB or EXCHANGE)
@@ -1131,7 +1131,7 @@ CONTAINS
          IF (found_out) THEN
             !Check if the block is on the same proc on mat_in
             CALL dbcsr_get_block_p(mat_in, iblk, jblk, pbin, found_in)
-            !If not, need to receiv it
+            !If not, need to receive it
             IF (.NOT. found_in) THEN
                CALL dbcsr_get_stored_coordinates(mat_in, iblk, jblk, source)
                tag = nblk*iblk + jblk

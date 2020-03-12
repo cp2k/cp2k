@@ -379,7 +379,7 @@ CONTAINS
    END SUBROUTINE fb_atomic_halo_set
 
 ! **************************************************************************************************
-!> \brief Sort the list of atomic indices in the halo in accending order.
+!> \brief Sort the list of atomic indices in the halo in ascending order.
 !>        The atomic_halo must not be empty
 !> \param atomic_halo  the atomic_halo object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk

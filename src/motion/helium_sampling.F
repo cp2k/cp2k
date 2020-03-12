@@ -224,7 +224,7 @@ CONTAINS
             DO irot = 1, helium_env(k)%helium%iter_rot
 
                ! rotate helium beads in imaginary time at random, store current
-               ! 'rotation state' in helium%relrot wich is within (0, helium%beads-1)
+               ! 'rotation state' in helium%relrot which is within (0, helium%beads-1)
                ! (this is needed to sample different fragments of the permutation
                ! paths in try_permutations)
                rnd = helium_env(k)%helium%rng_stream_uniform%next()

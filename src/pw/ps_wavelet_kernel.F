@@ -992,7 +992,7 @@ CONTAINS
          DO i3 = istart1, iend
             i03 = i3 - n2h - 1
             ! Crash if index out of range
-            ! Without compiler bounds checking, the calculation might run succesfully but
+            ! Without compiler bounds checking, the calculation might run successfully but
             ! it is also possible that the Hartree energy will blow up
             ! This seems to happen with large MPI processor counts if the size of the
             ! RS grid is not directly compatible with the allowed FFT dimensions in
@@ -1194,7 +1194,7 @@ CONTAINS
                mb = MIN(i1 + (lot - 1), n1)
                nfft = mb - ma + 1
 
-               !inserting real data into complex array of half lenght
+               !inserting real data into complex array of half length
                !input: I1,I3,J2,(Jp2)
 
                CALL inserthalf(n1, n3, lot, nfft, i1, zf(1, 1, j2), zw(1, 1, 1))

@@ -481,9 +481,9 @@ CONTAINS
 !> \brief writes out the valuse stored in the val
 !> \param val the val to write
 !> \param unit_nr the number of the unit to write to
-!> \param unit the unit of mesure in wich the output should be written
+!> \param unit the unit of mesure in which the output should be written
 !>        (overrides unit_str)
-!> \param unit_str the unit of mesure in wich the output should be written
+!> \param unit_str the unit of mesure in which the output should be written
 !> \param fmt ...
 !> \author fawzi
 !> \note

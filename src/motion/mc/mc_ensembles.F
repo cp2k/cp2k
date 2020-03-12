@@ -1041,7 +1041,7 @@ CONTAINS
                   IF (iw > 0) THEN
                      WRITE (iw, *) '!!!!!!! We have an energy problem. !!!!!!!!'
                      WRITE (iw, '(A,T64,F16.10)') 'Final Energy = ', test_energy
-                     WRITE (iw, '(A,T64,F16.10)') 'Inital Energy+energy_check=', &
+                     WRITE (iw, '(A,T64,F16.10)') 'Initial Energy+energy_check=', &
                         initial_energy(ibox) + energy_check(ibox)
                      WRITE (iw, *) 'Box ', ibox
                      WRITE (iw, *) 'nchains ', nchains(:, ibox)

@@ -133,7 +133,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param order degree of the derivative that should be evalated,
+!> \param order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param params input parameters (scaling,cutoff)
@@ -293,7 +293,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param order degree of the derivative that should be evalated,
+!> \param order degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param params input parameters (scaling,cutoff)

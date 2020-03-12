@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief History of minima, calulates, stores and compares fingerprints of minima.
+!> \brief History of minima, calculates, stores and compares fingerprints of minima.
 !>        Used by Minima Hopping and Minima Crawling.
 !> \author Ole Schuett
 ! **************************************************************************************************
@@ -105,7 +105,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Helper routine for history_fingerprint.
-!>        Calulates a fingerprint based on inter-atomic distances.
+!>        Calculates a fingerprint based on inter-atomic distances.
 !> \param pos ...
 !> \param res ...
 !> \author Stefan Goedecker
@@ -160,7 +160,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Helper routine for history_fingerprint_match
-!>        Calulates the distance between two given fingerprints.
+!>        Calculates the distance between two given fingerprints.
 !> \param fp1 ...
 !> \param fp2 ...
 !> \return ...

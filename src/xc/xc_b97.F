@@ -169,7 +169,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief return various information on the functional
-!> \param b97_params section selecting the varius parameters for the functional
+!> \param b97_params section selecting the various parameters for the functional
 !> \param reference string with the reference of the actual functional
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
@@ -203,7 +203,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief return various information on the functional
-!> \param b97_params section selecting the varius parameters for the functional
+!> \param b97_params section selecting the various parameters for the functional
 !> \param reference string with the reference of the actual functional
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
@@ -240,7 +240,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evalated,
+!> \param grad_deriv degree of the derivative that should be evaluated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param b97_params ...

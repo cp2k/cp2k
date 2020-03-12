@@ -139,7 +139,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief returns various information on the given derivative
-!> \param deriv thederivative you whant information about
+!> \param deriv the derivative you want information about
 !> \param desc a string that describes the derivative (empty string
 !>        for the function itself, otherwise a string of the form
 !>        "(rho)(rho)(norm_drhoa)")
