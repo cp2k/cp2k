@@ -227,6 +227,8 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-spfft            Enable the spare fft used in SIRIUS (hard dependency)
                           Default = install
+  --with-cosma            Enable cosma as a replacement for scalapack matrix multiplication
+                          Default = install
 
 FURTHER INSTRUCTIONS
 
@@ -262,7 +264,7 @@ EOF
 tool_list="gcc cmake valgrind"
 mpi_list="mpich openmpi"
 math_list="mkl acml openblas reflapack"
-lib_list="fftw libint libxc libsmm libxsmm scalapack elpa plumed \
+lib_list="fftw libint libxc libsmm libxsmm cosma scalapack elpa plumed \
           spfft ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 libvdwxc sirius"
 package_list="$tool_list $mpi_list $math_list $lib_list"
 # ------------------------------------------------------------------------
@@ -307,7 +309,7 @@ with_hdf5="__INSTALL__"
 with_elpa="__INSTALL__"
 with_libvdwxc="__INSTALL__"
 with_spfft=__INSTALL__
-
+with_cosma=__INSTALL__
 # for MPI, we try to detect system MPI variant
 with_openmpi=__SYSTEM__
 with_mpich=__SYSTEM__
@@ -608,6 +610,9 @@ while [ $# -ge 1 ] ; do
             ;;
         --with-spfft*)
             with_spfft=$(read_with $1)
+            ;;
+        --with-cosma*)
+            with_cosma=$(read_with $1)
             ;;
         --help*)
             show_help
@@ -934,6 +939,7 @@ else
     ./scripts/install_libxc.sh
     ./scripts/install_libsmm.sh
     ./scripts/install_libxsmm.sh
+    ./scripts/install_cosma.sh
     ./scripts/install_scalapack.sh
     ./scripts/install_elpa.sh
     ./scripts/install_ptscotch.sh
