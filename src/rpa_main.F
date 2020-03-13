@@ -313,13 +313,6 @@ CONTAINS
                                "Minimax quadrature scheme. The number of quadrature point has been reset to 30.")
                num_integ_points = 30
             END IF
-            IF (num_integ_points > 20 .AND. E_Range < 100.0_dp) THEN
-               IF (unit_nr > 0) &
-                  CALL cp_warn(__LOCATION__, &
-                             "You requested a large minimax grid for a small minimax range (< 100). That may lead to numerical "// &
-                               "instabilities when computing minimax grid weights. You can prevent small ranges by choosing "// &
-                               "a larger basis set with higher angular momenta or alternatively using all-electron calculations.")
-            END IF
          ELSE
             IF (do_minimax_quad .AND. num_integ_points > 20) THEN
                IF (unit_nr > 0) &
@@ -1512,13 +1505,13 @@ CONTAINS
 
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
          IF (my_open_shell) THEN
-            CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, num_integ_points, do_im_time, &
+            CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
                                   do_ri_sos_laplace_mp2,.NOT. do_ic_model, tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                   do_kpoints_cubic_RPA, a_scaling, e_fermi, tj, wj, mp2_env, &
                                   weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
                                   homo_beta, dimen_ia_beta, Eigenval_beta)
          ELSE
-            CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, num_integ_points, do_im_time, &
+            CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
                                   do_ri_sos_laplace_mp2,.NOT. do_ic_model, tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                   do_kpoints_cubic_RPA, a_scaling, e_fermi, tj, wj, mp2_env, &
                                   weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
