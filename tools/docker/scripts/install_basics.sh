@@ -11,6 +11,7 @@ if grep -q "Ubuntu" /etc/os-release ; then
         git                                     \
         less                                    \
         nano                                    \
+        python3                                 \
         rsync                                   \
         wget
     rm -rf /var/lib/apt/lists/*
@@ -24,6 +25,7 @@ elif grep -q "Fedora" /etc/os-release ; then
         git                             \
         less                            \
         nano                            \
+	python3                         \
         rsync                           \
         wget
     dnf -q clean all
