@@ -1230,7 +1230,10 @@ CONTAINS
                                        hmat=mhz(ispin, 1), pmat=mpz(ispin, 1), &
                                        qs_env=qs_env, calculate_forces=.TRUE., &
                                        basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
+<<<<<<< HEAD
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
+=======
+>>>>>>> 0e6b24dd2... TDA forces: Coulomb part of Kernel
             END DO
             DEALLOCATE (vadmm_rspace)
             IF (debug_forces) THEN

@@ -38,10 +38,14 @@ MODULE exstates_types
    TYPE excited_energy_type
       INTEGER                                            :: state
       REAL(KIND=dp)                                      :: evalue
+      INTEGER                                            :: xc_kernel_method
       TYPE(cp_fm_p_type), POINTER, DIMENSION(:)          :: evect => NULL()
       TYPE(cp_fm_p_type), POINTER, DIMENSION(:)          :: cpmos => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pe => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pe_admm => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1 => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_wx1 => NULL()
       TYPE(pw_p_type), POINTER                           :: vh_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vtau_rspace => NULL()
@@ -79,6 +83,12 @@ CONTAINS
          NULLIFY (ex_env%matrix_pe)
          IF (ASSOCIATED(ex_env%matrix_hz)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_hz)
          NULLIFY (ex_env%matrix_hz)
+         IF (ASSOCIATED(ex_env%matrix_pe_admm)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_pe_admm)
+         NULLIFY (ex_env%matrix_pe_admm)
+         IF (ASSOCIATED(ex_env%matrix_px1)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_px1)
+         NULLIFY (ex_env%matrix_px1)
+         IF (ASSOCIATED(ex_env%matrix_wx1)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_wx1)
+         NULLIFY (ex_env%matrix_wx1)
          !
          IF (ASSOCIATED(ex_env%vh_rspace)) THEN
             CALL pw_release(ex_env%vh_rspace%pw)
@@ -125,6 +135,8 @@ CONTAINS
       NULLIFY (ex_env%evect)
       IF (excited_state) THEN
          CALL section_vals_val_get(dft_section, "EXCITED_STATES%STATE", i_val=ex_env%state)
+         CALL section_vals_val_get(dft_section, "EXCITED_STATES%XC_KERNEL_METHOD", &
+                                   i_val=ex_env%xc_kernel_method)
       ELSE
          ex_env%state = -1
       END IF

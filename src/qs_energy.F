@@ -113,7 +113,7 @@ CONTAINS
             CALL energy_correction(qs_env, ec_init=.TRUE., calculate_forces=.FALSE.)
          END IF
 
-         CALL qs_energies_properties(qs_env)
+         CALL qs_energies_properties(qs_env, calc_forces)
 
          CALL excited_state_energy(qs_env, calculate_forces=.FALSE.)
 

@@ -20,7 +20,8 @@ MODULE qs_rho_methods
                                               dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
@@ -71,7 +72,8 @@ MODULE qs_rho_methods
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_methods'
 
-   PUBLIC :: qs_rho_update_rho, qs_rho_rebuild, duplicate_rho_type
+   PUBLIC :: qs_rho_update_rho, qs_rho_rebuild, qs_rho_copy, qs_rho_scale_and_add
+   PUBLIC :: duplicate_rho_type
 
 CONTAINS
 
@@ -552,6 +554,351 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_rho_update_rho
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rho_input ...
+!> \param rho_output ...
+!> \param auxbas_pw_pool ...
+! **************************************************************************************************
+   SUBROUTINE qs_rho_copy(rho_input, rho_output, auxbas_pw_pool)
+
+      TYPE(qs_rho_type), POINTER                         :: rho_input, rho_output
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_copy', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, nspins, rebuild_each_in
+      LOGICAL :: drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, rho_r_valid_in, soft_valid_in, &
+         tau_g_valid_in, tau_r_valid_in
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_in, tot_rho_g_out, &
+                                                            tot_rho_r_in, tot_rho_r_out
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_im_in, rho_ao_in, rho_ao_out
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp_in
+      TYPE(pw_p_type), DIMENSION(:), POINTER :: drho_g_in, drho_g_out, drho_r_in, drho_r_out, &
+         rho_g_in, rho_g_out, rho_r_in, rho_r_out, tau_g_in, tau_g_out, tau_r_in, tau_r_out
+      TYPE(pw_p_type), POINTER                           :: rho_r_sccs_in, rho_r_sccs_out
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(rho_input))
+      CPASSERT(ASSOCIATED(rho_output))
+
+      CALL qs_rho_clear(rho_output)
+
+      NULLIFY (rho_ao_in, rho_ao_kp_in, rho_ao_im_in, rho_r_in, rho_g_in, drho_r_in, &
+               drho_g_in, tau_r_in, tau_g_in, tot_rho_r_in, tot_rho_g_in, rho_r_sccs_in)
+
+      CALL qs_rho_get(rho_input, &
+                      rho_ao=rho_ao_in, &
+                      rho_ao_kp=rho_ao_kp_in, &
+                      rho_ao_im=rho_ao_im_in, &
+                      rho_r=rho_r_in, &
+                      rho_g=rho_g_in, &
+                      drho_r=drho_r_in, &
+                      drho_g=drho_g_in, &
+                      tau_r=tau_r_in, &
+                      tau_g=tau_g_in, &
+                      tot_rho_r=tot_rho_r_in, &
+                      tot_rho_g=tot_rho_g_in, &
+                      rho_g_valid=rho_g_valid_in, &
+                      rho_r_valid=rho_r_valid_in, &
+                      drho_g_valid=drho_g_valid_in, &
+                      drho_r_valid=drho_r_valid_in, &
+                      tau_r_valid=tau_r_valid_in, &
+                      tau_g_valid=tau_g_valid_in, &
+                      rho_r_sccs=rho_r_sccs_in, &
+                      soft_valid=soft_valid_in, &
+                      rebuild_each=rebuild_each_in)
+
+      NULLIFY (rho_ao_out, rho_r_out, rho_g_out, drho_r_out, &
+               drho_g_out, tau_r_out, tau_g_out, tot_rho_r_out, tot_rho_g_out, rho_r_sccs_out)
+      ! rho_ao
+      IF (ASSOCIATED(rho_ao_in)) THEN
+         nspins = SIZE(rho_ao_in)
+         CALL dbcsr_allocate_matrix_set(rho_ao_out, nspins)
+         CALL qs_rho_set(rho_output, rho_ao=rho_ao_out)
+         DO i = 1, nspins
+            ALLOCATE (rho_ao_out(i)%matrix)
+            CALL dbcsr_copy(rho_ao_out(i)%matrix, rho_ao_in(i)%matrix, name="RHO copy")
+         END DO
+      END IF
+
+      ! rho_ao_kp
+      ! only for non-kp, we could probably just copy this pointer, should work also for non-kp?
+      !IF (ASSOCIATED(rho_ao_kp_in)) THEN
+      !   CPABORT("Copy not available")
+      !END IF
+
+      ! rho_ao_im
+      IF (ASSOCIATED(rho_ao_im_in)) THEN
+         CPABORT("Copy not available")
+      END IF
+
+      ! rho_r
+      IF (ASSOCIATED(rho_r_in)) THEN
+         nspins = SIZE(rho_r_in)
+         ALLOCATE (rho_r_out(nspins))
+         CALL qs_rho_set(rho_output, rho_r=rho_r_out)
+         DO i = 1, nspins
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_out(i)%pw, &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+            rho_r_out(i)%pw%cr3d(:, :, :) = rho_r_in(i)%pw%cr3d(:, :, :)
+         END DO
+      END IF
+
+      ! rho_g
+      IF (ASSOCIATED(rho_g_in)) THEN
+         nspins = SIZE(rho_g_in)
+         ALLOCATE (rho_g_out(nspins))
+         CALL qs_rho_set(rho_output, rho_g=rho_g_out)
+         DO i = 1, nspins
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_out(i)%pw, &
+                                   use_data=COMPLEXDATA1D, &
+                                   in_space=RECIPROCALSPACE)
+            rho_g_out(i)%pw%cc(:) = rho_g_in(i)%pw%cc(:)
+         END DO
+      END IF
+
+      ! SCCS
+      IF (ASSOCIATED(rho_r_sccs_in)) THEN
+         CALL qs_rho_set(rho_output, rho_r_sccs=rho_r_sccs_out)
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_sccs_out%pw, &
+                                in_space=REALSPACE, &
+                                use_data=REALDATA3D)
+         rho_r_sccs_out%pw%cr3d(:, :, :) = rho_r_sccs_in%pw%cr3d(:, :, :)
+      END IF
+
+      ! drho_r
+      IF (ASSOCIATED(drho_r_in)) THEN
+         nspins = SIZE(drho_r_in)
+         ALLOCATE (drho_r_out(3*nspins))
+         CALL qs_rho_set(rho_output, drho_r=drho_r_out)
+         DO i = 1, 3*nspins
+            CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i)%pw, &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+            drho_r_out(i)%pw%cr3d(:, :, :) = drho_r_in(i)%pw%cr3d(:, :, :)
+         END DO
+      END IF
+
+      ! drho_g
+      IF (ASSOCIATED(drho_g_in)) THEN
+         nspins = SIZE(drho_g_in)
+         ALLOCATE (drho_g_out(3*nspins))
+         CALL qs_rho_set(rho_output, drho_g=drho_g_out)
+         DO i = 1, 3*nspins
+            CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i)%pw, &
+                                   use_data=COMPLEXDATA1D, &
+                                   in_space=RECIPROCALSPACE)
+            drho_g_out(i)%pw%cc(:) = drho_g_in(i)%pw%cc(:)
+         END DO
+      END IF
+
+      ! tau_r
+      IF (ASSOCIATED(tau_r_in)) THEN
+         nspins = SIZE(tau_r_in)
+         ALLOCATE (tau_r_out(nspins))
+         CALL qs_rho_set(rho_output, tau_r=tau_r_out)
+         DO i = 1, nspins
+            CALL pw_pool_create_pw(auxbas_pw_pool, tau_r_out(i)%pw, &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+            tau_r_out(i)%pw%cr3d(:, :, :) = tau_r_in(i)%pw%cr3d(:, :, :)
+         END DO
+      END IF
+
+      ! tau_g
+      IF (ASSOCIATED(tau_g_in)) THEN
+         nspins = SIZE(tau_g_in)
+         ALLOCATE (tau_g_out(nspins))
+         CALL qs_rho_set(rho_output, tau_g=tau_g_out)
+         DO i = 1, nspins
+            CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i)%pw, &
+                                   use_data=COMPLEXDATA1D, &
+                                   in_space=RECIPROCALSPACE)
+            tau_g_out(i)%pw%cc(:) = tau_g_in(i)%pw%cc(:)
+         END DO
+      END IF
+
+      ! tot_rho_r
+      IF (ASSOCIATED(tot_rho_r_in)) THEN
+         nspins = SIZE(tot_rho_r_in)
+         ALLOCATE (tot_rho_r_out(nspins))
+         CALL qs_rho_set(rho_output, tot_rho_r=tot_rho_r_out)
+         DO i = 1, nspins
+            tot_rho_r_out(i) = tot_rho_r_in(i)
+         END DO
+      END IF
+
+      ! tot_rho_g
+      IF (ASSOCIATED(tot_rho_g_in)) THEN
+         nspins = SIZE(tot_rho_g_in)
+         ALLOCATE (tot_rho_g_out(nspins))
+         CALL qs_rho_set(rho_output, tot_rho_g=tot_rho_g_out)
+         DO i = 1, nspins
+            tot_rho_g_out(i) = tot_rho_g_in(i)
+         END DO
+      END IF
+
+      CALL qs_rho_set(rho_output, &
+                      rho_g_valid=rho_g_valid_in, &
+                      rho_r_valid=rho_r_valid_in, &
+                      drho_g_valid=drho_g_valid_in, &
+                      drho_r_valid=drho_r_valid_in, &
+                      tau_r_valid=tau_r_valid_in, &
+                      tau_g_valid=tau_g_valid_in, &
+                      soft_valid=soft_valid_in, &
+                      rebuild_each=rebuild_each_in)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_rho_copy
+
+! **************************************************************************************************
+!> \brief rhoa = alpha*rhoa+beta*rhob
+!> \param rhoa ...
+!> \param rhob ...
+!> \param alpha ...
+!> \param beta ...
+! **************************************************************************************************
+   SUBROUTINE qs_rho_scale_and_add(rhoa, rhob, alpha, beta)
+
+      TYPE(qs_rho_type), POINTER                         :: rhoa, rhob
+      REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_scale_and_add', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, ndims, nspins
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_a, tot_rho_g_b, tot_rho_r_a, &
+                                                            tot_rho_r_b
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_a, rho_ao_b, rho_ao_im_a, &
+                                                            rho_ao_im_b
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g_a, drho_g_b, drho_r_a, drho_r_b, &
+                                                            rho_g_a, rho_g_b, rho_r_a, rho_r_b, &
+                                                            tau_g_a, tau_g_b, tau_r_a, tau_r_b
+      TYPE(pw_p_type), POINTER                           :: rho_r_sccs_a, rho_r_sccs_b
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(rhoa))
+      CPASSERT(ASSOCIATED(rhob))
+
+      NULLIFY (rho_ao_a, rho_ao_im_a, rho_r_a, rho_g_a, drho_r_a, &
+               drho_g_a, tau_r_a, tau_g_a, tot_rho_r_a, tot_rho_g_a, rho_r_sccs_a)
+
+      CALL qs_rho_get(rhoa, &
+                      rho_ao=rho_ao_a, &
+                      rho_ao_im=rho_ao_im_a, &
+                      rho_r=rho_r_a, &
+                      rho_g=rho_g_a, &
+                      drho_r=drho_r_a, &
+                      drho_g=drho_g_a, &
+                      tau_r=tau_r_a, &
+                      tau_g=tau_g_a, &
+                      tot_rho_r=tot_rho_r_a, &
+                      tot_rho_g=tot_rho_g_a, &
+                      rho_r_sccs=rho_r_sccs_a)
+
+      NULLIFY (rho_ao_b, rho_ao_im_b, rho_r_b, rho_g_b, drho_r_b, &
+               drho_g_b, tau_r_b, tau_g_b, tot_rho_r_b, tot_rho_g_b, rho_r_sccs_b)
+
+      CALL qs_rho_get(rhob, &
+                      rho_ao=rho_ao_b, &
+                      rho_ao_im=rho_ao_im_b, &
+                      rho_r=rho_r_b, &
+                      rho_g=rho_g_b, &
+                      drho_r=drho_r_b, &
+                      drho_g=drho_g_b, &
+                      tau_r=tau_r_b, &
+                      tau_g=tau_g_b, &
+                      tot_rho_r=tot_rho_r_b, &
+                      tot_rho_g=tot_rho_g_b, &
+                      rho_r_sccs=rho_r_sccs_b)
+      ! rho_ao
+      IF (ASSOCIATED(rho_ao_a) .AND. ASSOCIATED(rho_ao_b)) THEN
+         nspins = SIZE(rho_ao_a)
+         DO i = 1, nspins
+            CALL dbcsr_add(rho_ao_a(i)%matrix, rho_ao_b(i)%matrix, alpha, beta)
+         END DO
+      END IF
+
+      ! rho_ao_im
+      IF (ASSOCIATED(rho_ao_im_a) .AND. ASSOCIATED(rho_ao_im_b)) THEN
+         CPABORT("Add not available")
+      END IF
+
+      ! rho_r
+      IF (ASSOCIATED(rho_r_a) .AND. ASSOCIATED(rho_r_b)) THEN
+         nspins = SIZE(rho_r_a)
+         DO i = 1, nspins
+            rho_r_a(i)%pw%cr3d(:, :, :) = alpha*rho_r_a(i)%pw%cr3d(:, :, :) + beta*rho_r_b(i)%pw%cr3d(:, :, :)
+         END DO
+      END IF
+
+      ! rho_g
+      IF (ASSOCIATED(rho_g_a) .AND. ASSOCIATED(rho_g_b)) THEN
+         nspins = SIZE(rho_g_a)
+         DO i = 1, nspins
+            rho_g_a(i)%pw%cc(:) = alpha*rho_g_a(i)%pw%cc(:) + beta*rho_g_b(i)%pw%cc(:)
+         END DO
+      END IF
+
+      ! SCCS
+      IF (ASSOCIATED(rho_r_sccs_a) .AND. ASSOCIATED(rho_r_sccs_b)) THEN
+         rho_r_sccs_a%pw%cr3d(:, :, :) = alpha*rho_r_sccs_a%pw%cr3d(:, :, :) + beta*rho_r_sccs_b%pw%cr3d(:, :, :)
+      END IF
+
+      ! drho_r
+      IF (ASSOCIATED(drho_r_a) .AND. ASSOCIATED(drho_r_b)) THEN
+         ndims = SIZE(drho_r_a)
+         DO i = 1, ndims
+            drho_r_a(i)%pw%cr3d(:, :, :) = alpha*drho_r_a(i)%pw%cr3d(:, :, :) + beta*drho_r_b(i)%pw%cr3d(:, :, :)
+         END DO
+      END IF
+
+      ! drho_g
+      IF (ASSOCIATED(drho_g_a) .AND. ASSOCIATED(drho_g_b)) THEN
+         ndims = SIZE(drho_g_a)
+         DO i = 1, ndims
+            drho_g_a(i)%pw%cc(:) = alpha*drho_g_a(i)%pw%cc(:) + beta*drho_g_b(i)%pw%cc(:)
+         END DO
+      END IF
+
+      ! tau_r
+      IF (ASSOCIATED(tau_r_a) .AND. ASSOCIATED(tau_r_b)) THEN
+         nspins = SIZE(tau_r_a)
+         DO i = 1, nspins
+            tau_r_a(i)%pw%cr3d(:, :, :) = alpha*tau_r_a(i)%pw%cr3d(:, :, :) + beta*tau_r_b(i)%pw%cr3d(:, :, :)
+         END DO
+      END IF
+
+      ! tau_g
+      IF (ASSOCIATED(tau_g_a) .AND. ASSOCIATED(tau_g_b)) THEN
+         nspins = SIZE(tau_g_a)
+         DO i = 1, nspins
+            tau_g_a(i)%pw%cc(:) = alpha*tau_g_a(i)%pw%cc(:) + beta*tau_g_b(i)%pw%cc(:)
+         END DO
+      END IF
+
+      ! tot_rho_r
+      IF (ASSOCIATED(tot_rho_r_a) .AND. ASSOCIATED(tot_rho_r_b)) THEN
+         nspins = SIZE(tot_rho_r_a)
+         DO i = 1, nspins
+            tot_rho_r_a(i) = alpha*tot_rho_r_a(i) + beta*tot_rho_r_b(i)
+         END DO
+      END IF
+
+      ! tot_rho_g
+      IF (ASSOCIATED(tot_rho_g_a) .AND. ASSOCIATED(tot_rho_g_b)) THEN
+         nspins = SIZE(tot_rho_g_a)
+         DO i = 1, nspins
+            tot_rho_g_a(i) = alpha*tot_rho_g_a(i) + beta*tot_rho_g_b(i)
+         END DO
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_rho_scale_and_add
 
 ! **************************************************************************************************
 !> \brief Duplicates a pointer physically

@@ -319,7 +319,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, ivect, nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
-      LOGICAL                                            :: do_admm, is_rks_triplets, is_stda
+      LOGICAL                                            :: do_admm, is_rks_triplets
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(full_kernel_env_type), POINTER                :: full_kernel_env, kernel_env_admm_aux
 
@@ -365,15 +365,12 @@ CONTAINS
             ! full TDDFPT kernel
             CALL fhxc_kernel(Aop_evects, evects, is_rks_triplets, do_hfx, qs_env, &
                              full_kernel_env, kernel_env_admm_aux, sub_env, work_matrices)
-            is_stda = .FALSE.
          ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
             ! sTDA kernel
             CALL stda_kernel(Aop_evects, evects, is_rks_triplets, qs_env, tddfpt_control%stda_control, &
                              kernel_env%stda_kernel, sub_env, work_matrices)
-            is_stda = .TRUE.
          ELSE IF (tddfpt_control%kernel == tddfpt_kernel_none) THEN
             ! No kernel
-            is_stda = .FALSE.
             DO ivect = 1, nvects
                DO ispin = 1, nspins
                   CALL cp_fm_set_all(Aop_evects(ispin, ivect)%matrix, 0.0_dp)
@@ -396,10 +393,21 @@ CONTAINS
          CALL tddfpt_apply_energy_diff(Aop_evects=Aop_evects, evects=evects, S_evects=S_evects, &
                                        gs_mos=gs_mos, matrix_ks=matrix_ks)
 
-         IF (do_hfx .AND. .NOT. is_stda) THEN
-            CALL tddfpt_apply_hfx(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, do_admm=do_admm, &
-                                  qs_env=qs_env, work_rho_ia_ao=work_matrices%hfx_rho_ao, &
-                                  work_hmat=work_matrices%hfx_hmat, wfm_rho_orb=work_matrices%hfx_fm_ao_ao)
+         IF (do_hfx) THEN
+            IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
+               ! full TDDFPT kernel
+               CALL tddfpt_apply_hfx(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, do_admm=do_admm, &
+                                     qs_env=qs_env, work_rho_ia_ao=work_matrices%hfx_rho_ao, &
+                                     work_hmat=work_matrices%hfx_hmat, wfm_rho_orb=work_matrices%hfx_fm_ao_ao)
+            ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
+               ! sTDA kernel
+               ! special treatment of HFX term
+            ELSE IF (tddfpt_control%kernel == tddfpt_kernel_none) THEN
+               ! No kernel
+               ! drop kernel contribution of HFX term
+            ELSE
+               CPABORT("Kernel type not implemented")
+            END IF
          END IF
       END IF
 

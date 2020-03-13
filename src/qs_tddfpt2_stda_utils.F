@@ -23,19 +23,16 @@ MODULE qs_tddfpt2_stda_utils
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_row_scale,&
-                                              cp_fm_schur_product
-   USE cp_fm_diag,                      ONLY: cp_fm_power
+                                              cp_fm_schur_product,&
+                                              cp_fm_trace
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                              cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type,&
-                                              cp_fm_vectorssum
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_info, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
+        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, cp_fm_vectorssum
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -44,7 +41,8 @@ MODULE qs_tddfpt2_stda_utils
         dbcsr_add_on_diag, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
                                               ewald_env_set,&
@@ -86,7 +84,7 @@ MODULE qs_tddfpt2_stda_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt2_stda_utils'
 
-   PUBLIC:: stda_init_matrices, stda_calculate_kernel
+   PUBLIC:: stda_init_matrices, stda_calculate_kernel, get_lowdin_x, setup_gamma
 
 CONTAINS
 
@@ -151,27 +149,29 @@ CONTAINS
 !> \param stda_env ...
 !> \param sub_env ...
 !> \param gamma_matrix sTDA exchange-type contributions
+!> \param ndim ...
 !> \note  Note the specific sTDA notation exchange-type integrals (ia|jb) refer to Coulomb interaction
 ! **************************************************************************************************
-   SUBROUTINE setup_gamma(qs_env, stda_env, sub_env, gamma_matrix)
+   SUBROUTINE setup_gamma(qs_env, stda_env, sub_env, gamma_matrix, ndim)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(stda_env_type)                                :: stda_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_matrix
+      INTEGER, INTENT(IN), OPTIONAL                      :: ndim
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_gamma'
       REAL(KIND=dp), PARAMETER                           :: rsmooth = 1.0_dp
 
       CHARACTER(len=20)                                  :: cstring
-      INTEGER                                            :: handle, iatom, icol, ikind, irow, jatom, &
-                                                            jkind, natom, nmat
+      INTEGER                                            :: handle, i, iatom, icol, ikind, imat, &
+                                                            irow, jatom, jkind, natom, nmat
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: dr, eta, fcut, r, ralpha, rcut, rcuta, &
-                                                            rcutb, x
+      REAL(KIND=dp)                                      :: dfcut, dgb, dr, eta, fcut, r, rcut, &
+                                                            rcuta, rcutb, x
       REAL(KIND=dp), DIMENSION(3)                        :: rij
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gblock
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dgblock, gblock
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
@@ -185,23 +185,37 @@ CONTAINS
       n_list => sub_env%sab_orb
       CALL get_qs_env(qs_env=qs_env, natom=natom)
 
-      nmat = 1
-      NULLIFY (gamma_matrix)
+      IF (PRESENT(ndim)) THEN
+         nmat = ndim
+      ELSE
+         nmat = 1
+      END IF
+      CPASSERT(nmat == 1 .OR. nmat == 4)
+      CPASSERT(.NOT. ASSOCIATED(gamma_matrix))
       CALL dbcsr_allocate_matrix_set(gamma_matrix, nmat)
 
       ALLOCATE (row_blk_sizes(natom))
       row_blk_sizes(1:natom) = 1
-      ALLOCATE (gamma_matrix(1)%matrix)
+      DO imat = 1, nmat
+         ALLOCATE (gamma_matrix(imat)%matrix)
+      END DO
 
       CALL dbcsr_create(gamma_matrix(1)%matrix, name=TRIM(ADJUSTL(cstring)), dist=dbcsr_dist, &
                         matrix_type=dbcsr_type_symmetric, row_blk_size=row_blk_sizes, &
                         col_blk_size=row_blk_sizes, nze=0, mutable_work=.TRUE.)
+      DO imat = 2, nmat
+         CALL dbcsr_create(gamma_matrix(imat)%matrix, name=TRIM(ADJUSTL(cstring)), dist=dbcsr_dist, &
+                           matrix_type=dbcsr_type_antisymmetric, row_blk_size=row_blk_sizes, &
+                           col_blk_size=row_blk_sizes, nze=0, mutable_work=.TRUE.)
+      END DO
 
       DEALLOCATE (row_blk_sizes)
 
       ! setup the matrices using the neighbor list
-      CALL cp_dbcsr_alloc_block_from_nbl(gamma_matrix(1)%matrix, n_list)
-      CALL dbcsr_set(gamma_matrix(1)%matrix, 0.0_dp)
+      DO imat = 1, nmat
+         CALL cp_dbcsr_alloc_block_from_nbl(gamma_matrix(1)%matrix, n_list)
+         CALL dbcsr_set(gamma_matrix(1)%matrix, 0.0_dp)
+      END DO
 
       NULLIFY (nl_iterator)
       CALL neighbor_list_iterator_create(nl_iterator, n_list)
@@ -242,16 +256,57 @@ CONTAINS
                x = r/rsmooth
                fcut = -6._dp*x**5 + 15._dp*x**4 - 10._dp*x**3 + 1._dp
             END IF
-            ralpha = dr**stda_env%alpha_param
             gblock(:, :) = gblock(:, :) + &
                            fcut*(1._dp/(dr**(stda_env%alpha_param) + eta**(-stda_env%alpha_param))) &
                            **(1._dp/stda_env%alpha_param) - fcut/dr
          END IF
 
+         IF (nmat > 1) THEN
+            !>   Computes the short-range gamma parameter from
+            !>   Nataga-Mishimoto-Ohno-Klopman formula equivalently as it is done for xTB
+            !>   Derivatives
+            IF (dr < 1.e-6 .OR. dr > rcut) THEN
+               ! on site terms or beyond cutoff
+               dgb = 0.0_dp
+            ELSE
+               IF (dr < rcut - rsmooth) THEN
+                  fcut = 1.0_dp
+                  dfcut = 0.0_dp
+               ELSE
+                  r = dr - (rcut - rsmooth)
+                  x = r/rsmooth
+                  fcut = -6._dp*x**5 + 15._dp*x**4 - 10._dp*x**3 + 1._dp
+                  dfcut = -30._dp*x**4 + 60._dp*x**3 - 30._dp*x**2
+                  dfcut = dfcut/rsmooth
+               END IF
+               dgb = dfcut*(1._dp/(dr**(stda_env%alpha_param) + eta**(-stda_env%alpha_param))) &
+                     **(1._dp/stda_env%alpha_param)
+               dgb = dgb - dfcut/dr + fcut/dr**2
+               dgb = dgb - fcut*(1._dp/(dr**(stda_env%alpha_param) + eta**(-stda_env%alpha_param))) &
+                     **(1._dp/stda_env%alpha_param + 1._dp)*dr**(stda_env%alpha_param - 1._dp)
+            END IF
+            DO imat = 2, nmat
+               NULLIFY (dgblock)
+               CALL dbcsr_get_block_p(matrix=gamma_matrix(imat)%matrix, &
+                                      row=irow, col=icol, BLOCK=dgblock, found=found)
+               IF (found) THEN
+                  i = imat - 1
+                  IF (irow == iatom) THEN
+                     dgblock(:, :) = dgblock(:, :) + dgb*rij(i)/dr
+                  ELSE
+                     dgblock(:, :) = dgblock(:, :) - dgb*rij(i)/dr
+                  END IF
+               END IF
+            END DO
+         END IF
+
       END DO
 
       CALL neighbor_list_iterator_release(nl_iterator)
-      CALL dbcsr_finalize(gamma_matrix(1)%matrix)
+
+      DO imat = 1, nmat
+         CALL dbcsr_finalize(gamma_matrix(imat)%matrix)
+      END DO
 
       CALL timestop(handle)
 
@@ -271,11 +326,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_lowdin_mo_coefficients'
 
-      INTEGER                                            :: handle, iounit, ispin, max_iter_lanczos, &
-                                                            nactive, ndep, nsgf, nspins, &
-                                                            order_lanczos
+      INTEGER                                            :: handle, i, iounit, ispin, j, &
+                                                            max_iter_lanczos, nactive, ndep, nsgf, &
+                                                            nspins, order_lanczos
       LOGICAL                                            :: converged
-      REAL(KIND=dp)                                      :: eps_lanczos, threshold
+      REAL(KIND=dp)                                      :: eps_lanczos, sij, threshold
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: slam
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type), POINTER                          :: fm_s_half, fm_work1
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -360,6 +417,36 @@ CONTAINS
                                       work%ctransformed(ispin)%matrix, nactive, alpha=1.0_dp, beta=0.0_dp)
       ENDDO
 
+      ! for Lowdin forces
+      CALL cp_fm_create(matrix=fm_work1, matrix_struct=work%S_eigenvectors%matrix_struct, name="TMP MATRIX")
+      CALL copy_dbcsr_to_fm(sm_s, fm_work1)
+      CALL choose_eigv_solver(fm_work1, work%S_eigenvectors, work%S_eigenvalues)
+      CALL cp_fm_release(matrix=fm_work1)
+      !
+      ALLOCATE (slam(nsgf, 1))
+      DO i = 1, nsgf
+         IF (work%S_eigenvalues(i) > 0._dp) THEN
+            slam(i, 1) = SQRT(work%S_eigenvalues(i))
+         ELSE
+            CPABORT("S matrix not positive definit")
+         END IF
+      END DO
+      DO i = 1, nsgf
+         CALL cp_fm_set_submatrix(work%slambda, slam, 1, i, nsgf, 1, 1.0_dp, 0.0_dp)
+      END DO
+      DO i = 1, nsgf
+         CALL cp_fm_set_submatrix(work%slambda, slam, i, 1, 1, nsgf, 1.0_dp, 1.0_dp, .TRUE.)
+      END DO
+      CALL cp_fm_get_info(work%slambda, local_data=local_data)
+      DO i = 1, SIZE(local_data, 2)
+         DO j = 1, SIZE(local_data, 1)
+            sij = local_data(j, i)
+            IF (sij > 0.0_dp) sij = 1.0_dp/sij
+            local_data(j, i) = sij
+         END DO
+      END DO
+      DEALLOCATE (slam)
+
       CALL timestop(handle)
 
    END SUBROUTINE get_lowdin_mo_coefficients
@@ -430,8 +517,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: nactive, nlim
       LOGICAL                                            :: calculate_forces, do_coulomb, do_ewald, &
                                                             use_virial
-      REAL(KIND=dp)                                      :: alpha, bp, dr, eta, gabr, hfx, rbeta, &
-                                                            spinfac
+      REAL(KIND=dp)                                      :: alpha, bp, cptr, dr, eta, gabr, hfx, &
+                                                            rbeta, spinfac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tcharge, tv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gtcharge
       REAL(KIND=dp), DIMENSION(3)                        :: rij
@@ -620,6 +707,12 @@ CONTAINS
             CALL dbcsr_iterator_stop(iter)
             ! CV(mu,i) = P(nu,mu)*CT(mu,i)
             CALL cp_dbcsr_sm_fm_multiply(pdens, ct, cvec, nactive(ispin), 1.0_dp, 0.0_dp)
+!deb
+            CALL cp_fm_trace(cvec, cvec, cptr)
+            WRITE (6, *) "Ax TRACE 00   ", cptr
+            CALL dbcsr_trace(pdens, cptr)
+            WRITE (6, *) "PDENS TRACE   ", cptr
+!deb
             ! rho(nu,i) = rho(nu,i) + ShalfP(nu,mu)*CV(mu,i)
             CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin)%matrix, nactive(ispin), -1.0_dp, 1.0_dp)
             !

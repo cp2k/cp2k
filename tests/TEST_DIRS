@@ -22,20 +22,42 @@ QS/regtest-rma-3D                                           libint mpi3 mpiranks
 TMC/regtest_ana_on_the_fly                                  parallel mpiranks>2
 TMC/regtest                                                 parallel mpiranks>1
 TMC/regtest_ana_post_proc                                   parallel mpiranks>1
+QS/regtest-grid
+QS/regtest-corr_dipm
+QS/regtest-admm-gapw                                        libint
+QS/regtest-rs-dhft                                          libint libxc
+QS/regtest-sos-mp2-lr                                       libint
+QS/regtest-rpa-lr                                           libint
+QS/regtest-mp2-lr                                           libint
+QS/regtest-xastdp                                           libint libxc
+QS/regtest-gw2x                                             libint libxc
+QS/regtest-negf
+QS/regtest-negf-fft                                         fftw3
+QS/regtest-ri-rpa-axk                                       libint
+QS/regtest-ri-rpa-rse                                       libint
+QS/regtest-cdft-hirshfeld-2                                 parallel mpiranks>1
+QS/regtest-cdft-hirshfeld
+SIRIUS/regtest-1                                            sirius
+QS/regtest-embed                                            libint
+QS/regtest-pod
+QS/regtest-debug-1
+QS/regtest-debug-2                                          libint
+QS/regtest-debug-3                                          libint
+QS/regtest-debug-4                                          libint
+QS/regtest-cdft-diag
+xTB/regtest-1
+xTB/regtest-2
+xTB/regtest-3
+xTB/regtest-4
 xTB/regtest-5
 Pimd/regtest-1
 Pimd/regtest-2
 QS/regtest-pao-2
-QS/regtest-embed                                            libint
-QS/regtest-rpa-cubic-scaling                                libint
-QS/regtest-kp-2
-QS/regtest-admm-gapw                                        libint
-DFTB/regtest-scc-2
+QS/regtest-tddfpt-2                                         libint
+QS/regtest-tddfpt-3
+QS/regtest-stda                                             libint
 QS/regtest-p-efield
-QS/regtest-debug-1
-QS/regtest-debug-2                                          libint
 QS/regtest-gpw-4
-SIRIUS/regtest-1                                            sirius
 QS/regtest-pod
 QS/regtest-gpw-2-3
 DFTB/regtest-scc
@@ -51,7 +73,6 @@ ATOM/regtest-pseudo
 Fist/regtest-7-1
 QMMM/SE/regtest-force-mixing
 QS/regtest-gpw-8
-xTB/regtest-1
 QS/regtest-ot
 QS/regtest-mp2-grad                                         libint
 QS/regtest-plus_u
@@ -64,7 +85,6 @@ QS/regtest-pao-1
 QMMM/QS/regtest-1
 QS/regtest-ps-implicit-2-1
 QS/regtest-as-1                                             libint
-xTB/regtest-2
 Fist/regtest-12
 QS/regtest-kg                                               libxc
 QS/regtest-ri-rpa                                           libint

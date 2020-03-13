@@ -407,14 +407,27 @@ CONTAINS
                      WRITE (UNIT=iw, FMT="(T13,A1,T21,F16.8,T38,F16.8,T56,G12.3,T72,F9.3)") &
                         ACHAR(119 + k), dipole_numer(k), dipole_moment(k), dd, derr
                   ELSE
+                     derr = 0.0_dp
                      WRITE (UNIT=iw, FMT="(T13,A1,T21,F16.8,T38,F16.8,T56,G12.3)") &
                         ACHAR(119 + k), dipole_numer(k), dipole_moment(k), dd
                   END IF
+                  err(k) = derr
                END DO
                WRITE (UNIT=iw, FMT="((T2,A))") &
                   "DEBUG|========================================================================="
-               WRITE (UNIT=iw, FMT="(T2,A,T61,E20.12)") ' DIPOLE : CheckSum  =', SUM(dipole_moment)
+               WRITE (UNIT=iw, FMT="(T2,A,T61,E20.12)") 'DIPOLE : CheckSum  =', SUM(dipole_moment)
+               IF (ANY(ABS(err(1:3)) > 0.1_dp)) THEN
+                  message = "A mismatch between analytical and numerical dipoles "// &
+                            "has been detected. Check the implementation of the "// &
+                            "analytical dipole calculation"
+                  IF (stop_on_mismatch) THEN
+                     CPABORT(message)
+                  ELSE
+                     CPWARN(message)
+                  END IF
+               END IF
             END IF
+
          ELSE
             CALL cp_warn(__LOCATION__, "Debug of dipole moments only for Quickstep code available")
          END IF

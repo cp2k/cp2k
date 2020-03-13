@@ -10,12 +10,16 @@
 !> \author jgh
 ! **************************************************************************************************
 MODULE input_cp2k_exstate
+   USE input_constants,                 ONLY: xc_kernel_method_analytic,&
+                                              xc_kernel_method_best,&
+                                              xc_kernel_method_numeric
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
    USE input_section_types,             ONLY: section_add_keyword,&
                                               section_create,&
                                               section_type
+   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -59,6 +63,15 @@ CONTAINS
                           description="Excited state to be used in calculation.", &
                           usage="STATE 2", &
                           default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="XC_KERNEL_METHOD", &
+                          description="Method to evaluate XC Kernel contributions to forces", &
+                          usage="XC_KERNEL_METHOD (BEST_AVAILABLE|ANALYTIC|NUMERIC)", &
+                          enum_c_vals=s2a("BEST_AVAILABLE", "ANALYTIC", "NUMERIC"), &
+                          enum_i_vals=(/xc_kernel_method_best, xc_kernel_method_analytic, xc_kernel_method_numeric/), &
+                          default_i_val=xc_kernel_method_best)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

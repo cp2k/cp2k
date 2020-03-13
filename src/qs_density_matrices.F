@@ -451,16 +451,14 @@ CONTAINS
 !> \param xvec ...
 !> \param ks_matrix ...
 !> \param w_matrix ...
-!> \param focc ...
 !> \par History
 !>               adapted from calculate_wz_matrix
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE calculate_wx_matrix(mos_occ, xvec, ks_matrix, w_matrix, focc)
+   SUBROUTINE calculate_wx_matrix(mos_occ, xvec, ks_matrix, w_matrix)
 
       TYPE(cp_fm_type), POINTER                          :: mos_occ, xvec
       TYPE(dbcsr_type), POINTER                          :: ks_matrix, w_matrix
-      REAL(KIND=dp), INTENT(IN)                          :: focc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_wx_matrix', &
          routineP = moduleN//':'//routineN
@@ -480,7 +478,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_dbcsr_sm_fm_multiply(ks_matrix, mos_occ, scrv, ncol)
       CALL cp_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, mos_occ, scrv, 0.0_dp, ksmat)
-      CALL cp_gemm("N", "N", nrow, ncol, ncol, focc, xvec, ksmat, 0.0_dp, scrv)
+      CALL cp_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, xvec, ksmat, 0.0_dp, scrv)
       CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=xvec, ncol=ncol, alpha=0.5_dp)
       CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=xvec, matrix_g=scrv, ncol=ncol, alpha=0.5_dp)
       CALL cp_fm_release(scrv)
@@ -498,16 +496,15 @@ CONTAINS
 !> \param ks_matrix ...
 !> \param w_matrix ...
 !> \param eval ...
-!> \param focc ...
 !> \par History
 !>               adapted from calculate_wz_matrix
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE calculate_xwx_matrix(mos_occ, xvec, s_matrix, ks_matrix, w_matrix, eval, focc)
+   SUBROUTINE calculate_xwx_matrix(mos_occ, xvec, s_matrix, ks_matrix, w_matrix, eval)
 
       TYPE(cp_fm_type), POINTER                          :: mos_occ, xvec
       TYPE(dbcsr_type), POINTER                          :: s_matrix, ks_matrix, w_matrix
-      REAL(KIND=dp), INTENT(IN)                          :: eval, focc
+      REAL(KIND=dp), INTENT(IN)                          :: eval
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_xwx_matrix', &
          routineP = moduleN//':'//routineN
@@ -530,7 +527,7 @@ CONTAINS
       CALL cp_dbcsr_sm_fm_multiply(s_matrix, xvec, scrv, ncol, eval, -1.0_dp)
       CALL cp_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, xvec, scrv, 0.0_dp, xsxmat)
 
-      CALL cp_gemm("N", "N", nrow, ncol, ncol, focc, mos_occ, xsxmat, 0.0_dp, scrv)
+      CALL cp_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, mos_occ, xsxmat, 0.0_dp, scrv)
       CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=mos_occ, ncol=ncol, alpha=0.5_dp)
       CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=mos_occ, matrix_g=scrv, ncol=ncol, alpha=0.5_dp)
 

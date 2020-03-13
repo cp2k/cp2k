@@ -202,12 +202,14 @@ CONTAINS
 !> \brief Refactoring of qs_energies_scf. Moves computation of properties
 !>        into separate subroutine
 !> \param qs_env ...
+!> \param calc_forces ...
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
 ! **************************************************************************************************
 
-   SUBROUTINE qs_energies_properties(qs_env)
+   SUBROUTINE qs_energies_properties(qs_env, calc_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calc_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_properties'
 
@@ -298,7 +300,7 @@ CONTAINS
       END IF
 
       IF (dft_control%tddfpt2_control%enabled) THEN
-         CALL tddfpt(qs_env)
+         CALL tddfpt(qs_env, calc_forces)
       END IF
 
       ! tip scan

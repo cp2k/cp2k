@@ -665,6 +665,11 @@ MODULE input_constants
                                                tddfpt_dipole_length = 2, &
                                                tddfpt_dipole_velocity = 3
 
+   ! XC Kernel derivative methods for forces
+   INTEGER, PARAMETER, PUBLIC               :: xc_kernel_method_best = 100, &
+                                               xc_kernel_method_analytic = 101, &
+                                               xc_kernel_method_numeric = 102
+
    ! Linear Response for properties
    INTEGER, PARAMETER, PUBLIC               :: lr_none = 0, &
                                                lr_chemshift = 1, &

@@ -64,7 +64,9 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_orthonormalize_psi1_psi1
    USE qs_tddfpt2_forces,               ONLY: tddfpt_forces,&
                                               tddfpt_resvec1,&
-                                              tddfpt_resvec2
+                                              tddfpt_resvec1_admm,&
+                                              tddfpt_resvec2,&
+                                              tddfpt_resvec3
    USE qs_tddfpt2_properties,           ONLY: tddfpt_dipole_operator,&
                                               tddfpt_print_excitation_analysis,&
                                               tddfpt_print_nto_analysis,&
@@ -112,14 +114,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Perform TDDFPT calculation.
 !> \param qs_env  Quickstep environment
+!> \param calc_forces ...
 !> \par History
 !>    * 05.2016 created [Sergey Chulkov]
 !>    * 06.2016 refactored to be used with Davidson eigensolver [Sergey Chulkov]
 !>    * 03.2017 cleaned and refactored [Sergey Chulkov]
 !> \note Based on the subroutines tddfpt_env_init(), and tddfpt_env_deallocate().
 ! **************************************************************************************************
-   SUBROUTINE tddfpt(qs_env)
+   SUBROUTINE tddfpt(qs_env, calc_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calc_forces
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt'
 
@@ -137,7 +141,8 @@ CONTAINS
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: dipole_op_mos_occ, evects, S_evects
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s, &
+                                                            matrix_s_aux_fit
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(full_kernel_env_type), TARGET                 :: full_kernel_env, kernel_env_admm_aux
@@ -430,48 +435,72 @@ CONTAINS
             CALL cp_fm_create(ex_env%evect(ispin)%matrix, matrix_struct)
             CALL cp_fm_to_fm(evects(ispin, ex_env%state)%matrix, ex_env%evect(ispin)%matrix)
          END DO
-         ! rhs of linres equation
-         IF (ASSOCIATED(ex_env%cpmos)) THEN
-            DO ispin = 1, SIZE(ex_env%cpmos)
-               CALL cp_fm_release(ex_env%cpmos(ispin)%matrix)
+         IF (calc_forces) THEN
+            ! rhs of linres equation
+            IF (ASSOCIATED(ex_env%cpmos)) THEN
+               DO ispin = 1, SIZE(ex_env%cpmos)
+                  CALL cp_fm_release(ex_env%cpmos(ispin)%matrix)
+               END DO
+               DEALLOCATE (ex_env%cpmos)
+            END IF
+            ALLOCATE (ex_env%cpmos(nspins))
+            DO ispin = 1, nspins
+               CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct)
+               NULLIFY (ex_env%cpmos(ispin)%matrix)
+               CALL cp_fm_create(ex_env%cpmos(ispin)%matrix, matrix_struct)
+               CALL cp_fm_set_all(ex_env%cpmos(ispin)%matrix, 0.0_dp)
             END DO
-            DEALLOCATE (ex_env%cpmos)
+            CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
+            CALL dbcsr_allocate_matrix_set(ex_env%matrix_pe, nspins)
+            DO ispin = 1, nspins
+               ALLOCATE (ex_env%matrix_pe(ispin)%matrix)
+               CALL dbcsr_create(ex_env%matrix_pe(ispin)%matrix, template=matrix_s(1)%matrix)
+               CALL dbcsr_copy(ex_env%matrix_pe(ispin)%matrix, matrix_s(1)%matrix)
+               CALL dbcsr_set(ex_env%matrix_pe(ispin)%matrix, 0.0_dp)
+               CALL tddfpt_resvec1(ex_env%evect(ispin)%matrix, gs_mos(ispin)%mos_occ, &
+                                   matrix_s(1)%matrix, ex_env%matrix_pe(ispin)%matrix)
+            END DO
+            !
+            IF (do_admm) THEN
+               CALL get_qs_env(qs_env, admm_env=admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
+               CALL dbcsr_allocate_matrix_set(ex_env%matrix_pe_admm, nspins)
+               DO ispin = 1, nspins
+                  ALLOCATE (ex_env%matrix_pe_admm(ispin)%matrix)
+                  CALL dbcsr_create(ex_env%matrix_pe_admm(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
+                  CALL dbcsr_copy(ex_env%matrix_pe_admm(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
+                  CALL dbcsr_set(ex_env%matrix_pe_admm(ispin)%matrix, 0.0_dp)
+                  CALL tddfpt_resvec1_admm(ex_env%evect(ispin)%matrix, gs_mos(ispin)%mos_occ, &
+                                           admm_env, ex_env%matrix_pe_admm(ispin)%matrix)
+               END DO
+            END IF
+            !
+            CALL dbcsr_allocate_matrix_set(ex_env%matrix_hz, nspins)
+            DO ispin = 1, nspins
+               ALLOCATE (ex_env%matrix_hz(ispin)%matrix)
+               CALL dbcsr_create(ex_env%matrix_hz(ispin)%matrix, template=matrix_s(1)%matrix)
+               CALL dbcsr_copy(ex_env%matrix_hz(ispin)%matrix, matrix_s(1)%matrix)
+               CALL dbcsr_set(ex_env%matrix_hz(ispin)%matrix, 0.0_dp)
+            END DO
+            CALL tddfpt_resvec2(qs_env, ex_env%matrix_pe, ex_env%matrix_pe_admm, &
+                                gs_mos, ex_env%matrix_hz, ex_env%cpmos)
+            !
+            CALL dbcsr_allocate_matrix_set(ex_env%matrix_px1, nspins)
+            DO ispin = 1, nspins
+               ALLOCATE (ex_env%matrix_px1(ispin)%matrix)
+               CALL dbcsr_create(ex_env%matrix_px1(ispin)%matrix, template=matrix_s(1)%matrix)
+               CALL dbcsr_copy(ex_env%matrix_px1(ispin)%matrix, matrix_s(1)%matrix)
+               CALL dbcsr_set(ex_env%matrix_px1(ispin)%matrix, 0.0_dp)
+            END DO
+            ! TDA forces
+            CALL tddfpt_forces(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices)
+            ! Rotate res vector cpmos into original frame of occupied orbitals
+            CALL tddfpt_resvec3(qs_env, ex_env%cpmos, work_matrices)
          END IF
-         ALLOCATE (ex_env%cpmos(nspins))
-         DO ispin = 1, nspins
-            CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct)
-            NULLIFY (ex_env%cpmos(ispin)%matrix)
-            CALL cp_fm_create(ex_env%cpmos(ispin)%matrix, matrix_struct)
-            CALL cp_fm_set_all(ex_env%cpmos(ispin)%matrix, 0.0_dp)
-         END DO
-         CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
-         CALL dbcsr_allocate_matrix_set(ex_env%matrix_pe, nspins)
-         DO ispin = 1, nspins
-            ALLOCATE (ex_env%matrix_pe(ispin)%matrix)
-            CALL dbcsr_create(ex_env%matrix_pe(ispin)%matrix, template=matrix_s(1)%matrix)
-            CALL dbcsr_copy(ex_env%matrix_pe(ispin)%matrix, matrix_s(1)%matrix)
-            CALL dbcsr_set(ex_env%matrix_pe(ispin)%matrix, 0.0_dp)
-            CALL tddfpt_resvec1(ex_env%evect(ispin)%matrix, gs_mos(ispin)%mos_occ, &
-                                matrix_s(1)%matrix, ex_env%matrix_pe(ispin)%matrix)
-         END DO
-         !
-         CALL dbcsr_allocate_matrix_set(ex_env%matrix_hz, nspins)
-         DO ispin = 1, nspins
-            ALLOCATE (ex_env%matrix_hz(ispin)%matrix)
-            CALL dbcsr_create(ex_env%matrix_hz(ispin)%matrix, template=matrix_s(1)%matrix)
-            CALL dbcsr_copy(ex_env%matrix_hz(ispin)%matrix, matrix_s(1)%matrix)
-            CALL dbcsr_set(ex_env%matrix_hz(ispin)%matrix, 0.0_dp)
-         END DO
-         CALL tddfpt_resvec2(qs_env, ex_env%matrix_pe, gs_mos, ex_env%matrix_hz, ex_env%cpmos)
-         !
-         ! TDA forces
-         CALL tddfpt_forces(qs_env, ex_env, gs_mos)
-         !
       END IF
 
-      ! -- clean up all useless stuff
-      DO istate = SIZE(evects, 2), 1, -1
-         DO ispin = nspins, 1, -1
+      ! clean up
+      DO istate = 1, SIZE(evects, 2)
+         DO ispin = 1, nspins
             CALL cp_fm_release(evects(ispin, istate)%matrix)
             CALL cp_fm_release(S_evects(ispin, istate)%matrix)
          END DO
