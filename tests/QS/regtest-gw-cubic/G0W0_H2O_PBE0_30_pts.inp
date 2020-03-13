@@ -50,6 +50,7 @@
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
+          ! this test specifically tests a large minimax grid
           RPA_NUM_QUAD_POINTS 30
           &GW
             CORR_MOS_OCC          10
@@ -65,11 +66,13 @@
       PERIODIC NONE
     &END CELL
     &KIND H
+      ! this test specifically tests a large basis
       BASIS_SET  cc-TZV2P-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
       POTENTIAL  GTH-PBE-q1
     &END KIND
     &KIND O
+      ! this test specifically tests a large basis
       BASIS_SET  cc-TZV2P-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
       POTENTIAL  GTH-PBE-q6
