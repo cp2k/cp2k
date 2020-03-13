@@ -236,7 +236,6 @@ CONTAINS
 
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
          CALL cite_reference(Bates2013)
-
       ENDIF
       IF (mp2_env%ri_rpa%do_rse) THEN
          CALL cite_reference(Ren2011)
