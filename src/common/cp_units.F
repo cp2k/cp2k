@@ -1426,7 +1426,7 @@ CONTAINS
                               "for Energies. The [energy] entry acts like a dummy flag (assumes the unit of "// &
                               "measurement of energy is in internal units), useful for dimensional analysis.", &
                               units_set=s2a("hartree", "wavenumber_e", "joule", "kcalmol", "kjmol", "Ry", &
-                                            "eV", "K_e", "energy"), unit_nr=unit_nr)
+                                            "eV", "keV", "K_e", "energy"), unit_nr=unit_nr)
 
       CALL print_section_unit(unit_label="Length", description="Possible units of measurement "// &
                               "for Lengths. The [length] entry acts like a dummy flag (assumes the unit of "// &
