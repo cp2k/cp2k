@@ -10,12 +10,9 @@
 !> \author MDB
 ! **************************************************************************************************
 MODULE input_cp2k_mp2
-   USE bibliography,                    ONLY: Bates2013,&
-                                              DelBen2012,&
-                                              DelBen2013,&
-                                              DelBen2015,&
-                                              DelBen2015b,&
-                                              Rybkin2016
+   USE bibliography,                    ONLY: &
+        Bates2013, DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016, Wilhelm2016a, &
+        Wilhelm2016b, Wilhelm2017, Wilhelm2018
    USE cp_eri_mme_interface,            ONLY: create_eri_mme_section
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
@@ -76,7 +73,8 @@ CONTAINS
                           description="Sets up the wavefunction-based correlation methods as MP2, "// &
                           "RI-MP2, RI-SOS-MP2, RI-RPA and GW (inside RI-RPA). ", &
                           n_keywords=4, n_subsections=7, repeats=.TRUE., &
-                          citations=(/DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016/))
+                          citations=(/DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016, &
+                                      Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018/))
 
       NULLIFY (keyword, subsection)
 

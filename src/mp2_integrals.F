@@ -495,7 +495,7 @@ CONTAINS
 
       CALL mp_sync(para_env%group) ! sync to see memory output
 
-      ! in case we do imaginary time, we need the overlap matrix (alpha beta P)
+      ! in case we do imaginary time, we need the overlap tensor (alpha beta P) or trunc. Coulomb tensor
       IF (.NOT. do_im_time) THEN
 
          ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
@@ -722,6 +722,7 @@ CONTAINS
 
          DEALLOCATE (sub_proc_map)
 
+         ! imag. time = low-scaling SOS-MP2, RPA, GW
       ELSE
 
          impose_split = .NOT. qs_env%mp2_env%ri_rpa_im_time%group_size_internal
@@ -854,7 +855,7 @@ CONTAINS
 
          DO cm = 1, cut_memory
             CALL build_3c_integrals(t_3c_overl_int, &
-                                    qs_env%mp2_env%mp2_gpw%eps_filter/2, &
+                                    qs_env%mp2_env%ri_rpa_im_time%eps_filter/2, &
                                     qs_env, &
                                     nl_3c, &
                                     basis_i=basis_set_ri_aux, &
@@ -870,7 +871,7 @@ CONTAINS
                   CALL dbcsr_t_copy(t_3c_overl_int(i, j), t_3c_O(i, j), order=[1, 3, 2], &
                                     summation=.TRUE., move_data=.TRUE.)
                   CALL dbcsr_t_clear(t_3c_overl_int(i, j))
-                  CALL dbcsr_t_filter(t_3c_O(i, j), qs_env%mp2_env%mp2_gpw%eps_filter/2)
+                  CALL dbcsr_t_filter(t_3c_O(i, j), qs_env%mp2_env%ri_rpa_im_time%eps_filter/2)
                ENDDO
             ENDDO
 
@@ -891,14 +892,14 @@ CONTAINS
             DO kcell = 1, jcell
                CALL dbcsr_t_copy(t_3c_O(jcell, kcell), t_3c_tmp)
                CALL dbcsr_t_copy(t_3c_tmp, t_3c_O(kcell, jcell), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
-               CALL dbcsr_t_filter(t_3c_O(kcell, jcell), qs_env%mp2_env%mp2_gpw%eps_filter)
+               CALL dbcsr_t_filter(t_3c_O(kcell, jcell), qs_env%mp2_env%ri_rpa_im_time%eps_filter)
             ENDDO
          ENDDO
          DO jcell = 1, nimg
             DO kcell = jcell + 1, nimg
                CALL dbcsr_t_copy(t_3c_O(jcell, kcell), t_3c_tmp)
                CALL dbcsr_t_copy(t_3c_tmp, t_3c_O(kcell, jcell), order=[1, 3, 2], summation=.FALSE., move_data=.TRUE.)
-               CALL dbcsr_t_filter(t_3c_O(kcell, jcell), qs_env%mp2_env%mp2_gpw%eps_filter)
+               CALL dbcsr_t_filter(t_3c_O(kcell, jcell), qs_env%mp2_env%ri_rpa_im_time%eps_filter)
             ENDDO
          ENDDO
          CALL dbcsr_t_destroy(t_3c_tmp)

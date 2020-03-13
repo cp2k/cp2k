@@ -61,7 +61,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
                                                             do_ri_sos_mp2, do_rpa
-      REAL(dp)                                           :: eps_filter_factor, rc_ang
+      REAL(dp)                                           :: rc_ang
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: eri_mme_section, gw_section, &
                                                             im_time_test_section, &
@@ -187,15 +187,10 @@ CONTAINS
       CALL section_vals_val_get(low_scaling_section, "_SECTION_PARAMETERS_", &
                                 l_val=mp2_env%do_im_time)
 
-      CALL section_vals_val_get(low_scaling_section, "MEMORY_CUT", &
-                                i_val=mp2_env%ri_rpa_im_time%cut_memory)
-      CALL section_vals_val_get(low_scaling_section, "MEMORY_INFO", &
-                                l_val=mp2_env%ri_rpa_im_time%memory_info)
-      IF (mp2_env%do_im_time) CALL section_vals_val_get(low_scaling_section, "EPS_FILTER", &
-                                                        r_val=mp2_env%mp2_gpw%eps_filter)
-      CALL section_vals_val_get(low_scaling_section, "EPS_FILTER_FACTOR", &
-                                r_val=eps_filter_factor)
-      mp2_env%ri_rpa_im_time%eps_filter_im_time = eps_filter_factor*mp2_env%mp2_gpw%eps_filter
+      CALL section_vals_val_get(low_scaling_section, "MEMORY_CUT", i_val=mp2_env%ri_rpa_im_time%cut_memory)
+      CALL section_vals_val_get(low_scaling_section, "MEMORY_INFO", l_val=mp2_env%ri_rpa_im_time%memory_info)
+      CALL section_vals_val_get(low_scaling_section, "EPS_FILTER", r_val=mp2_env%ri_rpa_im_time%eps_filter)
+      CALL section_vals_val_get(low_scaling_section, "EPS_FILTER_FACTOR", r_val=mp2_env%ri_rpa_im_time%eps_filter_factor)
 
       CALL section_vals_val_get(low_scaling_section, "DO_KPOINTS", &
                                 l_val=mp2_env%ri_rpa_im_time%do_im_time_kpoints)

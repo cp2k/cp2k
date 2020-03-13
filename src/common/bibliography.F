@@ -4355,8 +4355,9 @@ CONTAINS
                          "   Del Ben, Mauro", &
                          "   Hutter, Juerg", &
                          "TI GW in the Gaussian and plane waves scheme with application to linear acenes", &
-                         "JO J. Chem. Theory Comput.", &
-                         "SP 3623", &
+                         "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION", &
+                         "PD FEB", &
+                         "BP 3623", &
                          "EP 3635", &
                          "PY 2016", &
                          "VL 12", &
@@ -4364,7 +4365,7 @@ CONTAINS
                          "ER"), &
                          DOI="10.1021/acs.jctc.6b00380")
 
-      CALL add_reference(key=Wilhelm2016a, ISI_record=s2a( &
+      CALL add_reference(key=Wilhelm2016b, ISI_record=s2a( &
                          "PT J", &
                          "AU Wilhelm, J", &
                          "   Seewald, P", &
@@ -4376,8 +4377,9 @@ CONTAINS
                          "   Hutter, Juerg", &
                          "TI Large-Scale Cubic-Scaling Random Phase Approximation Correlation", &
                          "Energy Calculations Using a Gaussian Basis", &
-                         "JO J. Chem. Theory Comput.", &
-                         "SP 5851", &
+                         "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION", &
+                         "PD FEB", &
+                         "BP 5851", &
                          "EP 5859", &
                          "PY 2016", &
                          "VL 12", &
@@ -4385,22 +4387,23 @@ CONTAINS
                          "ER"), &
                          DOI="10.1021/acs.jctc.6b00840")
 
-      CALL add_reference(key=Wilhelm2016a, ISI_record=s2a( &
+      CALL add_reference(key=Wilhelm2017, ISI_record=s2a( &
                          "PT J", &
                          "AU Wilhelm, J", &
                          "   Hutter, J", &
                          "AF Wilhelm, Jan", &
                          "   Hutter, Juerg", &
                          "TI Periodic GW calculations in the Gaussian and plane-waves scheme", &
-                         "JO Phys. Rev. B", &
-                         "SP 235123", &
+                         "SO PHYSICAL REVIEW B", &
+                         "PD FEB", &
+                         "BP 235123", &
                          "PY 2017", &
                          "VL 95", &
                          "DI 10.1103/PhysRevB.95.235123", &
                          "ER"), &
                          DOI="10.1103/PhysRevB.95.235123")
 
-      CALL add_reference(key=Wilhelm2016a, ISI_record=s2a( &
+      CALL add_reference(key=Wilhelm2018, ISI_record=s2a( &
                          "PT J", &
                          "AU Wilhelm, J", &
                          "   Golze, D", &
@@ -4413,8 +4416,9 @@ CONTAINS
                          "   Hutter, Juerg", &
                          "   Pignedoli, Carlo A.", &
                          "TI Toward GW calculations on thousands of atoms", &
-                         "JO J. Phys. Chem. Lett.", &
-                         "SP 306", &
+                         "SO JOURNAL OF PHYSICAL CHEMISTRY LETTERS", &
+                         "PD FEB", &
+                         "BP 306", &
                          "EP 312", &
                          "PY 2018", &
                          "VL 9", &
