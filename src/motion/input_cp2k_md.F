@@ -1124,7 +1124,7 @@ CONTAINS
                           "Each record consists of the atomic index, the velocity vector, and "// &
                           "a weight to define which fraction of the total energy is assigned "// &
                           "to the current atom:"// &
-                          "<p><tt><big>Atomic_index v<sub>x</sub> v<sub>y</sub> v<sub>x</sub> "// &
+                          "<p><tt><big>Atomic_index v<sub>x</sub> v<sub>y</sub> v<sub>z</sub> "// &
                           "Weight</big></tt></p>", &
                           usage="{{Integer} {Real} {Real} {Real} {Real}}", &
                           repeats=.TRUE., &
