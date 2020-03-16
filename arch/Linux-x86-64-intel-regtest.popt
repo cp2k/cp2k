@@ -1,8 +1,8 @@
 # Tested with: Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.5.274 Build 20180823
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.3.199 Build 20190206
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.4.243 Build 20190416
-#              Intel MPI, MKL, Libint 2.6.0, Libxc 4.3.4, libxsmm 1.14, ELPA 2019.05.001, PLUMED 2.5.2, SPGLIB 1.12.2
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, January 2020)
+#              Intel MPI, MKL, Libint 2.6.0, Libxc 4.3.4, libxsmm 1.15, ELPA 2019.05.001, PLUMED 2.5.2, SPGLIB 1.12.2
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, March 2020)
 
 CC          = mpiicc
 FC          = mpiifort
@@ -21,8 +21,8 @@ LIBINT_LIB  = $(INTEL_PATH)/libint/2.6.0-lmax-4/lib
 LIBXC_INC   = $(INTEL_PATH)/libxc/4.3.4/include
 LIBXC_LIB   = $(INTEL_PATH)/libxc/4.3.4/lib
 
-LIBXSMM_INC = $(INTEL_PATH)/libxsmm/1.14/include
-LIBXSMM_LIB = $(INTEL_PATH)/libxsmm/1.14/lib
+LIBXSMM_INC = $(INTEL_PATH)/libxsmm/1.15/include
+LIBXSMM_LIB = $(INTEL_PATH)/libxsmm/1.15/lib
 
 SPGLIB_INC  = $(INTEL_PATH)/spglib/1.12.2/include
 SPGLIB_LIB  = $(INTEL_PATH)/spglib/1.12.2/lib
