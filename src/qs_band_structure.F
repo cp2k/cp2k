@@ -22,13 +22,15 @@ MODULE qs_band_structure
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_env,                     ONLY: cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_parser_methods,               ONLY: read_float_object
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
-                                              dp
+                                              dp,&
+                                              max_line_length
    USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
                                               kpoint_init_cell_index,&
                                               kpoint_initialize_mos
@@ -115,14 +117,17 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: filename, ustr
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: spname, strptr
-      INTEGER                                            :: i_rep, ik, ikk, ikpgr, ip, ispin, iw, &
-                                                            n_ptr, n_rep, nadd, nkp, nmo, npline, &
-                                                            npoints, nspins, unit_nr
+      CHARACTER(LEN=max_line_length)                     :: error_message
+      INTEGER                                            :: bs_data_unit, i, i_rep, ik, ikk, ikpgr, &
+                                                            imo, ip, ispin, n_ptr, n_rep, nadd, &
+                                                            nkp, nmo, npline, npoints, nspins, &
+                                                            unit_nr
       INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL                                            :: explicit, io_default, my_kpgrp
       REAL(KIND=dp)                                      :: t1, t2
       REAL(KIND=dp), DIMENSION(3)                        :: kpptr
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, eigval
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, eigval, occnum, &
+                                                            occupation_numbers
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: kpgeneral, kspecial, xkp
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -143,22 +148,22 @@ CONTAINS
          CALL section_vals_get(kpset, n_repetition=n_rep)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, FMT="(/,T2,A)") "KPOINTS| Band Structure Calculation"
-            WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of K-Point Sets", n_rep
+            WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of k-point sets", n_rep
             IF (nadd /= 0) THEN
-               WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of added Mos/Bands", nadd
+               WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of added MOs/bands", nadd
             END IF
          END IF
          IF (filename == "") THEN
             ! use standard output file
-            iw = unit_nr
+            bs_data_unit = unit_nr
             io_default = .TRUE.
          ELSE
             io_default = .FALSE.
             IF (para_env%ionode) THEN
-               CALL open_file(filename, unit_number=iw, file_status="UNKNOWN", file_action="WRITE", &
+               CALL open_file(filename, unit_number=bs_data_unit, file_status="UNKNOWN", file_action="WRITE", &
                               file_position="APPEND")
             ELSE
-               iw = -1
+               bs_data_unit = -1
             END IF
          END IF
          DO i_rep = 1, n_rep
@@ -173,14 +178,16 @@ CONTAINS
                CALL section_vals_val_get(kpset, "SPECIAL_POINT", i_rep_section=i_rep, i_rep_val=ip, c_vals=strptr)
                IF (SIZE(strptr(:), 1) == 4) THEN
                   spname(ip) = strptr(1)
-                  READ (strptr(2), "(F12.8)") kpptr(1)
-                  READ (strptr(3), "(F12.8)") kpptr(2)
-                  READ (strptr(4), "(F12.8)") kpptr(3)
+                  DO i = 1, 3
+                     CALL read_float_object(strptr(i + 1), kpptr(i), error_message)
+                     IF (LEN_TRIM(error_message) > 0) CPABORT(TRIM(error_message))
+                  END DO
                ELSE IF (SIZE(strptr(:), 1) == 3) THEN
                   spname(ip) = "not specified"
-                  READ (strptr(1), "(F12.8)") kpptr(1)
-                  READ (strptr(2), "(F12.8)") kpptr(2)
-                  READ (strptr(3), "(F12.8)") kpptr(3)
+                  DO i = 1, 3
+                     CALL read_float_object(strptr(i), kpptr(i), error_message)
+                     IF (LEN_TRIM(error_message) > 0) CPABORT(TRIM(error_message))
+                  END DO
                ELSE
                   CPABORT("Input SPECIAL_POINT invalid")
                END IF
@@ -196,28 +203,13 @@ CONTAINS
                                        kpptr(2)*cell%hmat(2, 1:3) + &
                                        kpptr(3)*cell%hmat(3, 1:3))/twopi
                CASE DEFAULT
-                  CPABORT("Unknown Unit for kpoint definition")
+                  CPABORT("Unknown unit <"//TRIM(ustr)//"> specified for k-point definition")
                END SELECT
             END DO
             npoints = (n_ptr - 1)*npline + 1
-            !
             CPASSERT(npoints >= 1)
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, "(T2,A,I4,T71,I10)") "KPOINTS| Number of K-Points in Set ", i_rep, npoints
-               WRITE (unit_nr, "(T2,A)") "KPOINTS| In units of b-vector [2pi/Bohr]"
-               DO ip = 1, n_ptr
-                  WRITE (unit_nr, "(T2,A,I4,T31,A15,3F10.4)") "KPOINTS| Special K-Point ", &
-                     ip, ADJUSTL(TRIM(spname(ip))), kspecial(1:3, ip)
-               END DO
-            END IF
-            IF (iw > 0 .AND. (iw /= unit_nr)) THEN
-               WRITE (iw, "(A,I8,T30,A,I8)") " SET:", i_rep, " TOTAL POINTS:", npoints
-               DO ip = 1, n_ptr
-                  WRITE (iw, "(A,I4,T30,A15,3F12.6)") "   POINT", &
-                     ip, ADJUSTL(TRIM(spname(ip))), kspecial(1:3, ip)
-               END DO
-            END IF
-            ! initialize environment and calculate MOS
+
+            ! Initialize environment and calculate MOs
             ALLOCATE (kpgeneral(3, npoints))
             kpgeneral(1:3, 1) = kspecial(1:3, 1)
             ikk = 1
@@ -232,49 +224,76 @@ CONTAINS
             NULLIFY (kpoint)
             CALL calculate_kp_orbitals(qs_env, kpoint, "GENERAL", nadd, kpgeneral=kpgeneral)
             DEALLOCATE (kpgeneral)
-            !
+
             CALL get_qs_env(qs_env, dft_control=dft_control)
             nspins = dft_control%nspins
             kp => kpoint%kp_env(1)%kpoint_env
             CALL get_mo_set(kp%mos(1, 1)%mo_set, nmo=nmo)
-            ALLOCATE (eigval(nmo))
+            ALLOCATE (eigval(nmo), occnum(nmo))
             CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
+
+            IF (unit_nr > 0) THEN
+               WRITE (UNIT=unit_nr, FMT="(T2,A,I4,T71,I10)") &
+                  "KPOINTS| Number of k-points in set ", i_rep, npoints
+               WRITE (UNIT=unit_nr, FMT="(T2,A)") &
+                  "KPOINTS| In units of b-vector [2pi/Bohr]"
+               DO ip = 1, n_ptr
+                  WRITE (UNIT=unit_nr, FMT="(T2,A,I5,1X,A11,3(1X,F12.6))") &
+                     "KPOINTS| Special point ", ip, ADJUSTL(TRIM(spname(ip))), kspecial(1:3, ip)
+               END DO
+            END IF
+            IF (bs_data_unit > 0 .AND. (bs_data_unit /= unit_nr)) THEN
+               WRITE (UNIT=bs_data_unit, FMT="(4(A,I0),A)") &
+                  "# Set ", i_rep, ": ", n_ptr, " special points, ", npoints, " k-points, ", nmo, " bands"
+               DO ip = 1, n_ptr
+                  WRITE (UNIT=bs_data_unit, FMT="(A,I0,T20,T24,3(1X,F14.8),2X,A)") &
+                     "#  Special point ", ip, kspecial(1:3, ip), ADJUSTL(TRIM(spname(ip)))
+               END DO
+            END IF
+
             DO ik = 1, nkp
                my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
                DO ispin = 1, nspins
                   IF (my_kpgrp) THEN
                      ikpgr = ik - kp_range(1) + 1
                      kp => kpoint%kp_env(ikpgr)%kpoint_env
-                     CALL get_mo_set(kp%mos(1, ispin)%mo_set, eigenvalues=eigenvalues)
+                     CALL get_mo_set(kp%mos(1, ispin)%mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation_numbers)
                      eigval(1:nmo) = eigenvalues(1:nmo)
+                     occnum(1:nmo) = occupation_numbers(1:nmo)
                   ELSE
                      eigval(1:nmo) = 0.0_dp
+                     occnum(1:nmo) = 0.0_dp
                   END IF
                   CALL mp_sum(eigval, kpoint%para_env_inter_kp%group)
-                  ! output
-                  IF (iw > 0) THEN
-                     eigval(1:nmo) = eigval(1:nmo)*evolt
-                     WRITE (iw, "(T8,A,I5,T20,A,I2,T34,A,3F12.8)") "Nr.", ik, "Spin", ispin, "K-Point", xkp(1:3, ik)
-                     WRITE (iw, "(T8,I10)") nmo
-                     WRITE (iw, "(T8,4F16.8)") eigval(1:nmo)
+                  CALL mp_sum(occnum, kpoint%para_env_inter_kp%group)
+                  IF (bs_data_unit > 0) THEN
+                     WRITE (UNIT=bs_data_unit, FMT="(A,I0,T15,A,I0,A,T24,3(1X,F14.8))") &
+                        "#  Point ", ik, "  Spin ", ispin, ":", xkp(1:3, ik)
+                     WRITE (UNIT=bs_data_unit, FMT="(A)") &
+                        "#   Band    Energy [eV]     Occupation"
+                     DO imo = 1, nmo
+                        WRITE (UNIT=bs_data_unit, FMT="(T2,I7,2(1X,F14.8))") &
+                           imo, eigval(imo)*evolt, occnum(imo)
+                     END DO
                   END IF
                END DO
             END DO
-            !
+
             DEALLOCATE (kspecial, spname)
-            DEALLOCATE (eigval)
+            DEALLOCATE (eigval, occnum)
             CALL kpoint_release(kpoint)
             t2 = m_walltime()
             IF (unit_nr > 0) THEN
-               WRITE (unit_nr, FMT="(T2,A,T67,F14.3)") "KPOINTS| Time for K-Point Line ", t2 - t1
+               WRITE (UNIT=unit_nr, FMT="(T2,A,T67,F14.3)") "KPOINTS| Time for k-point line ", t2 - t1
             END IF
+
          END DO
-         ! close output file
+
+         ! Close output files
          IF (.NOT. io_default) THEN
-            IF (para_env%ionode) THEN
-               CALL close_file(iw)
-            END IF
+            IF (para_env%ionode) CALL close_file(bs_data_unit)
          END IF
+
       END IF
 
    END SUBROUTINE do_calculate_band_structure
