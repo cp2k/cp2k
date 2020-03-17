@@ -67,7 +67,7 @@ case "$with_sirius" in
         require_env SPFFT_CFLAGS
         require_env SPFFT_LDFLAGS
         require_env SPFFT_LIBS
-        ARCH=`arch`
+        ARCH=`uname -m`
         SIRIUS_OPT="-O3 -DNDEBUG -mtune=native -ftree-loop-vectorize ${MATH_CFLAGS}"
         if [ "$ARCH" = "ppc64le" ]; then
             SIRIUS_OPT="-O3 -DNDEBUG -mcpu=power8 -mtune=power8 -funroll-loops -ftree-vectorize  -mvsx  -maltivec  -mpopcntd  -mveclibabi=mass -fvect-cost-model -fpeel-loops -mcmodel=medium ${MATH_CFLAGS}"
