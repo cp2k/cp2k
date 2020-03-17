@@ -1,4 +1,4 @@
-H2O-hfx-coulomb.inp                                          1    1.0E-12             -75.93799524358548
+H2O-hfx-coulomb.inp                                          1    2.0E-12             -75.93799524358548
 H2O-hfx-identity.inp                                         1    1.0E-10             -75.85187159469186
 H2O-hfx-periodic-ri-truncated.inp                            1    1.0E-12             -66.83226303451153
 H2O-hybrid-b3lyp.inp                                         1    1.0E-12             -76.15358900494054
