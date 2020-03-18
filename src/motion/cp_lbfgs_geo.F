@@ -33,7 +33,13 @@ MODULE cp_lbfgs_geo
                                               print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
-   USE input_constants,                 ONLY: default_ts_method_id
+   USE input_constants,                 ONLY: default_cell_direct_id,&
+                                              default_cell_geo_opt_id,&
+                                              default_cell_md_id,&
+                                              default_cell_method_id,&
+                                              default_minimization_method_id,&
+                                              default_shellcore_method_id,&
+                                              default_ts_method_id
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get,&
                                               section_vals_val_set

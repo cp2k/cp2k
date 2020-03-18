@@ -873,11 +873,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       
-      ! [pcazade] collects keywords related to precision for finding the space group
+      ! [pcazade] collects keywords related to precision for finding equivalent atoms
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_GEO", &
-                          description="Accuracy required for symmetry detection", &
+                          description="Accuracy required for equivalent atoms detection", &
                           usage="EPS_GEO {REAL}", &
+                          default_r_val=1.e-4_dp, repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! [pcazade] collects keywords related to precision for finding the space group
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="EPS_SPGR", &
+                          description="Accuracy required for symmetry detection", &
+                          usage="EPS_SPGR {REAL}", &
                           default_r_val=1.e-4_dp, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

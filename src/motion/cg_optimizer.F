@@ -33,8 +33,16 @@ MODULE cg_optimizer
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
    USE input_section_types,             ONLY: section_vals_type,&
-                                              section_vals_val_set
+                                              section_vals_val_set,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE input_constants,                 ONLY: default_cell_direct_id,&
+                                              default_cell_geo_opt_id,&
+                                              default_cell_md_id,&
+                                              default_cell_method_id,&
+                                              default_minimization_method_id,&
+                                              default_shellcore_method_id,&
+                                              default_ts_method_id
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE space_groups,                    ONLY: identify_space_group,&
@@ -107,14 +115,14 @@ CONTAINS
       IF (keep_sg) THEN
          SELECT CASE (gopt_env%type_id)
             CASE (default_minimization_method_id, default_ts_method_id)
-            CALL force_env_get(force_env, para_env=para_env, cell=cell, subsys=subsys)
+            CALL force_env_get(force_env, subsys=subsys)
             CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
             CALL spgr_apply_rotations_coord(spgr, x0)
             CALL print_spgr(spgr)
          CASE (default_cell_method_id)
             SELECT CASE (gopt_env%cell_method_id)
             CASE (default_cell_direct_id)
-               CALL force_env_get(force_env, para_env=para_env, cell=cell, subsys=subsys)
+               CALL force_env_get(force_env, subsys=subsys)
                CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
                CALL spgr_apply_rotations_coord(spgr, x0)
                CALL print_spgr(spgr)
@@ -205,7 +213,7 @@ CONTAINS
       CALL force_env_get(force_env, cell=cell)
 
       keep_sg = .FALSE.
-      IF(PRESENT(spgr)) keep_sg = .TRUE
+      IF(PRESENT(spgr)) keep_sg = .TRUE.
       ! [pcazade] applies rotation matrices to coordinates
       IF (keep_sg) THEN
          CALL spgr_apply_rotations_coord(spgr, x0)

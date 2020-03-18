@@ -122,7 +122,7 @@ CONTAINS
 !>      01.2020 created [pcazade]
 !> \author Pierre-André Cazade (first version)
 ! **************************************************************************************************
-   SUBROUTINE spgr_gen(spgr, scoor, types, cell, gopt_env, delta, iounit)
+   SUBROUTINE spgr_gen(spgr, scoor, types, cell, gopt_env, delta, eps, iounit)
       
       IMPLICIT NONE
       
@@ -131,7 +131,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: scoor
       INTEGER, DIMENSION(:), INTENT(IN)                  :: types
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: delta
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: delta, eps
       INTEGER, INTENT(IN), OPTIONAL                      :: iounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_gen', routineP = moduleN//':'//routineN
@@ -161,19 +161,18 @@ CONTAINS
       END IF
 
       !..set cell values
+      NULLIFY(spgr%cell_ref)
       CALL cell_create(spgr%cell_ref)
       CALL cell_copy(cell, spgr%cell_ref)
       SELECT CASE (gopt_env%type_id)
       CASE (default_minimization_method_id, default_ts_method_id)
          CALL init_cell(spgr%cell_ref, hmat=cell%hmat)
-         !nparticle = force_env_get_nparticle(gopt_env%force_env)
       CASE (default_cell_method_id)
          SELECT CASE (gopt_env%cell_method_id)
          CASE (default_cell_direct_id)
-            !nparticle = force_env_get_nparticle(gopt_env%force_env)
             CALL init_cell(spgr%cell_ref, hmat=gopt_env%h_ref)
          CASE (default_cell_geo_opt_id, default_cell_md_id)
-            CPABORT("SPACE_GROUP_SYMMETRY ONLY VALID WITH DIRECT_CELL")
+            CPABORT("SPACE_GROUP_SYMMETRY SHOULD NOT BE INVOKED DURING THE CELL STEP.")
          CASE DEFAULT
             CPABORT("")
          END SELECT
@@ -201,20 +200,20 @@ CONTAINS
          spglib = .TRUE.
          CALL cite_reference(Togo2018)
          spgr%international_symbol = '           '
-         ierr = spg_get_international(spgr%international_symbol, TRANSPOSE(cell%hmat), scoor, types, nat, delta)
+         ierr = spg_get_international(spgr%international_symbol, TRANSPOSE(cell%hmat), scoor, types, nat, eps)
          IF (ierr == 0) THEN
             CALL cp_warn(__LOCATION__, "Symmetry Library SPGLIB failed")
             spglib = .FALSE.
          ELSE
-            nop = spg_get_multiplicity(TRANSPOSE(cell%hmat), scoor, types, nat, delta)
+            nop = spg_get_multiplicity(TRANSPOSE(cell%hmat), scoor, types, nat, eps)
             ALLOCATE (spgr%rotations(3, 3, nop), spgr%translations(3, nop))
-            ALLOCATE (spgr%eqatom(2,nat))
+            ALLOCATE (spgr%eqatom(nop,nat))
             spgr%n_operations = nop
             ierr = spg_get_symmetry(spgr%rotations, spgr%translations, nop, &
-                                    TRANSPOSE(cell%hmat), scoor, types, nat, delta)
+                                    TRANSPOSE(cell%hmat), scoor, types, nat, eps)
             ! Schoenflies Symbol
             spgr%schoenflies = '       '
-            ierr = spg_get_schoenflies(spgr%schoenflies, TRANSPOSE(cell%hmat), scoor, types, nat, delta)
+            ierr = spg_get_schoenflies(spgr%schoenflies, TRANSPOSE(cell%hmat), scoor, types, nat, eps)
             ! Point Group
             spgr%pointgroup_symbol = '      '
             tra_mat = 0
@@ -256,7 +255,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, iounit, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype
-      REAL(KIND=dp)                                      :: eps_geo
+      REAL(KIND=dp)                                      :: eps_geo, eps
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: scoord
       TYPE(spgr_type)                                    :: spgr
 
@@ -269,7 +268,8 @@ CONTAINS
          CALL real_to_scaled(scoord(1:3, i), particle_set(i)%r(1:3), cell)
       END DO
       CALL section_vals_val_get(geo_section, "EPS_GEO", r_val=eps_geo)
-      CALL spgr_gen(spgr, scoord, atype, cell, gopt_env, delta=eps_geo, iounit=iounit)
+      CALL section_vals_val_get(geo_section, "EPS_SPGR", r_val=eps)
+      CALL spgr_gen(spgr, scoord, atype, cell, gopt_env, delta=eps_geo, eps=eps, iounit=iounit)
       CALL spgr_find_equivalent_atoms(spgr, scoord)
       DEALLOCATE(scoord, atype)
       
@@ -313,32 +313,35 @@ CONTAINS
       !$OMP PARALLEL DO PRIVATE (ia,ib,ir,ri,rb,ro,rot,tr,diff) SHARED (spgr,scoord,natom,nop)
       DO ia = 1, natom
          ri(1:3) = scoord(1:3, ia)
-         ri(1) = ri(1) - FLOOR(ri(1))
-         ri(2) = ri(2) - FLOOR(ri(2))
-         ri(3) = ri(3) - FLOOR(ri(3))
+         !ri(1) = ri(1) - FLOOR(ri(1))
+         !ri(2) = ri(2) - FLOOR(ri(2))
+         !ri(3) = ri(3) - FLOOR(ri(3))
          DO ir = 1, nop
             rot(1:3, 1:3) = spgr%rotations(1:3, 1:3, ir)
             tr(1:3) = spgr%translations(1:3, ir)
-            DO ib = 1, ia
+            DO ib = 1, natom
                rb(1:3) = scoord(1:3, ib)
                ro(1) = REAL(rot(1, 1), dp)*rb(1)+REAL(rot(2, 1), dp)*rb(2)+REAL(rot(3, 1), dp)*rb(3)+tr(1)
                ro(2) = REAL(rot(1, 2), dp)*rb(1)+REAL(rot(2, 2), dp)*rb(2)+REAL(rot(3, 2), dp)*rb(3)+tr(2)
                ro(3) = REAL(rot(1, 3), dp)*rb(1)+REAL(rot(2, 3), dp)*rb(2)+REAL(rot(3, 3), dp)*rb(3)+tr(3)
-               ro(1) = ro(1) - FLOOR(ro(1))
-               ro(2) = ro(2) - FLOOR(ro(2))
-               ro(3) = ro(3) - FLOOR(ro(3))
+               ro(1) = ro(1) - REAL(NINT(ro(1)-ri(1)))
+               ro(2) = ro(2) - REAL(NINT(ro(2)-ri(2)))
+               ro(3) = ro(3) - REAL(NINT(ro(3)-ri(3)))
+               !ro(1) = ro(1) - FLOOR(ro(1))
+               !ro(2) = ro(2) - FLOOR(ro(2))
+               !ro(3) = ro(3) - FLOOR(ro(3))
                diff = SQRT(SUM((ri(:)-ro(:))**2))
                IF ( (diff < spgr%delta) .AND. (spgr%atype(ia)==spgr%atype(ib)) ) THEN
-                  IF (ib < spgr%eqatom(1,ia)) THEN
-                     spgr%eqatom(1,ia) = ib
-                     spgr%eqatom(2,ia) = ir
+                  !IF (ib < spgr%eqatom(1,ia)) THEN
+                     spgr%eqatom(ir,ia) = ib
+                     !spgr%eqatom(2,ia) = ir
                      EXIT
-                  END IF
+                  !END IF
                END IF
             END DO
          END DO
       END DO
-      !$OMP END PARALLEL DO NOWAIT
+      !$OMP END PARALLEL DO
 
       CALL timestop(handle)
       
@@ -363,36 +366,45 @@ CONTAINS
 
       INTEGER                                            :: ia, ib, ir, natom, nop, handle, &
                                                             ja, jb
-      REAL(KIND=dp), DIMENSION(3)                        :: ri, ro, tr
+      REAL(KIND=dp), DIMENSION(3)                        :: ri, ro, tr, rf, rn
       REAL(KIND=dp), DIMENSION(3, 3)                     :: rot
       REAL(KIND=dp), DIMENSION(:)                        :: coord
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: cold
+
+      INTEGER, EXTERNAL :: OMP_GET_THREAD_NUM, OMP_GET_NUM_THREADS
       
       CALL timeset(routineN, handle)
-      
+
+      allocate(cold(size(coord)))
+      cold=coord
       nop=spgr%n_operations
       natom = spgr%nat
-      !$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rot,tr) SHARED (spgr,coord,natom,nop)
+      
+      !$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rf,rn,rot,tr) SHARED (spgr,coord,natom,nop)
       DO ia = 1, natom
-         ib = spgr%eqatom(1, ia)
-         IF (ib==ia) THEN
-            CYCLE
-         END IF
-         ir = spgr%eqatom(2, ia)
-         rot(1:3, 1:3) = spgr%rotations(1:3, 1:3, ir)
-         tr(1:3) = spgr%translations(1:3, ir)
          ja = 3*(ia-1)
-         jb = 3*(ib-1)
-         CALL real_to_scaled(ri(1:3), coord(jb+1:jb+3), spgr%cell_ref)
-         ro(1) = REAL(rot(1, 1), dp)*ri(1)+REAL(rot(2, 1), dp)*ri(2)+REAL(rot(3, 1), dp)*ri(3)+tr(1)
-         ro(2) = REAL(rot(1, 2), dp)*ri(1)+REAL(rot(2, 2), dp)*ri(2)+REAL(rot(3, 2), dp)*ri(3)+tr(2)
-         ro(3) = REAL(rot(1, 3), dp)*ri(1)+REAL(rot(2, 3), dp)*ri(2)+REAL(rot(3, 3), dp)*ri(3)+tr(3)
-         ro(1) = ro(1) - FLOOR(ro(1))
-         ro(2) = ro(2) - FLOOR(ro(2))
-         ro(3) = ro(3) - FLOOR(ro(3))
-         CALL scaled_to_real(coord(ja+1:ja+3), ro(1:3), spgr%cell_ref)
+         CALL real_to_scaled(rf(1:3), coord(ja+1:ja+3), spgr%cell_ref)
+         rn(1:3) = 0.d0
+         DO ir = 1, nop
+            ib = spgr%eqatom(ir, ia)
+            rot(1:3, 1:3) = spgr%rotations(1:3, 1:3, ir)
+            tr(1:3) = spgr%translations(1:3, ir)
+            jb = 3*(ib-1)
+            CALL real_to_scaled(ri(1:3), coord(jb+1:jb+3), spgr%cell_ref)
+            ro(1) = REAL(rot(1, 1), dp)*ri(1)+REAL(rot(2, 1), dp)*ri(2)+REAL(rot(3, 1), dp)*ri(3)+tr(1)
+            ro(2) = REAL(rot(1, 2), dp)*ri(1)+REAL(rot(2, 2), dp)*ri(2)+REAL(rot(3, 2), dp)*ri(3)+tr(2)
+            ro(3) = REAL(rot(1, 3), dp)*ri(1)+REAL(rot(2, 3), dp)*ri(2)+REAL(rot(3, 3), dp)*ri(3)+tr(3)
+            ro(1) = ro(1) - REAL(NINT(ro(1)-rf(1)))
+            ro(2) = ro(2) - REAL(NINT(ro(2)-rf(2)))
+            ro(3) = ro(3) - REAL(NINT(ro(3)-rf(3)))
+            rn(1:3) = rn(1:3) + ro(1:3)
+         END DO
+         rn = rn / REAL(nop)
+         CALL scaled_to_real(coord(ja+1:ja+3), rn(1:3), spgr%cell_ref)
       END DO
-      !$OMP END PARALLEL DO NOWAIT
+      !$OMP END PARALLEL DO
 
+      deallocate(cold)
       CALL timestop(handle)
    
    END SUBROUTINE spgr_apply_rotations_coord
@@ -416,32 +428,38 @@ CONTAINS
 
       INTEGER                                            :: ia, ib, ir, natom, nop, handle, &
                                                             ja, jb
-      REAL(KIND=dp), DIMENSION(3)                        :: ri, ro
+      REAL(KIND=dp), DIMENSION(3)                        :: ri, ro, rn
       REAL(KIND=dp), DIMENSION(3, 3)                     :: rot
       REAL(KIND=dp), DIMENSION(:)                        :: force
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: fold
       
       CALL timeset(routineN, handle)
-      
+
+      allocate(fold(size(force)))
+      fold=force
       nop=spgr%n_operations
       natom = spgr%nat
-      !$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rot) SHARED (spgr,force,natom,nop)
+
+      !$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rn,rot) SHARED (spgr,force,natom,nop)
       DO ia = 1, natom
-         ib = spgr%eqatom(1, ia)
-         IF (ib==ia) THEN
-            CYCLE
-         END IF
-         ir = spgr%eqatom(2, ia)
-         rot(1:3, 1:3) = spgr%rotations(1:3, 1:3, ir)
          ja = 3*(ia-1)
-         jb = 3*(ib-1)
-         CALL real_to_scaled(ri(1:3), force(jb+1:jb+3), spgr%cell_ref)
-         ro(1) = REAL(rot(1, 1), dp)*ri(1)+REAL(rot(2, 1), dp)*ri(2)+REAL(rot(3, 1), dp)*ri(3)
-         ro(2) = REAL(rot(1, 2), dp)*ri(1)+REAL(rot(2, 2), dp)*ri(2)+REAL(rot(3, 2), dp)*ri(3)
-         ro(3) = REAL(rot(1, 3), dp)*ri(1)+REAL(rot(2, 3), dp)*ri(2)+REAL(rot(3, 3), dp)*ri(3)
-         CALL scaled_to_real(force(ja+1:ja+3), ro(1:3), spgr%cell_ref)
+         rn(1:3) = 0.d0
+         DO ir=1,nop
+            ib = spgr%eqatom(ir, ia)
+            rot(1:3, 1:3) = spgr%rotations(1:3, 1:3, ir)
+            jb = 3*(ib-1)
+            CALL real_to_scaled(ri(1:3), force(jb+1:jb+3), spgr%cell_ref)
+            ro(1) = REAL(rot(1, 1), dp)*ri(1)+REAL(rot(2, 1), dp)*ri(2)+REAL(rot(3, 1), dp)*ri(3)
+            ro(2) = REAL(rot(1, 2), dp)*ri(1)+REAL(rot(2, 2), dp)*ri(2)+REAL(rot(3, 2), dp)*ri(3)
+            ro(3) = REAL(rot(1, 3), dp)*ri(1)+REAL(rot(2, 3), dp)*ri(2)+REAL(rot(3, 3), dp)*ri(3)
+            rn(1:3) = rn(1:3) + ro(1:3)
+         END DO
+         rn = rn / REAL(nop)
+         CALL scaled_to_real(force(ja+1:ja+3), rn(1:3), spgr%cell_ref)
       END DO
-      !$OMP END PARALLEL DO NOWAIT
-      
+      !$OMP END PARALLEL DO
+
+      deallocate(fold)
       CALL timestop(handle)
    
    END SUBROUTINE spgr_apply_rotations_force
@@ -568,18 +586,20 @@ CONTAINS
             "---------------------------------------"
          IF (spgr%symlib) THEN
             CALL spgr_print_cell(spgr%cell_ref,0,iunit)
-            WRITE (iunit, *) "SPGR| INTERNATIONAL SYMBOL: ", TRIM(ADJUSTL(spgr%international_symbol))
-            WRITE (iunit, *) "SPGR| POINT GROUP SYMBOL  : ", TRIM(ADJUSTL(spgr%pointgroup_symbol))
-            WRITE (iunit, *) "SPGR| SCHOENFLIES SYMBOL  : ", TRIM(ADJUSTL(spgr%schoenflies))
+            WRITE (iunit, *) "SPGR| INTERNATIONAL SYMBOL: ", TRIM(ADJUSTR(spgr%international_symbol))
+            WRITE (iunit, *) "SPGR| POINT GROUP SYMBOL  : ", TRIM(ADJUSTR(spgr%pointgroup_symbol))
+            WRITE (iunit, *) "SPGR| SCHOENFLIES SYMBOL  : ", TRIM(ADJUSTR(spgr%schoenflies))
             WRITE (iunit, *) "SPGR| NUMBER OF SYMMETRY OPERATIONS:", spgr%n_operations
-            IF (plevel > 0) THEN
+            IF (plevel > 10) THEN
                WRITE (iunit, '(/,T2,A,A)') "----------------------------------------", &
                "---------------------------------------"
                WRITE (iunit, '(T2,A,T34,A,T77,A)') "----", "EQUIVALENT ATOMS", "----"
                WRITE (iunit, '(T2,A,A)') "----------------------------------------", &
                "---------------------------------------"
                DO i = 1, spgr%nat
-                  WRITE (iunit, '(T36,I8,I8,I8)') i, spgr%eqatom(1,i), spgr%eqatom(2,i)
+                  DO j = 1, spgr%n_operations
+                     WRITE (iunit, '(T36,I8,I8,I8)') i, j, spgr%eqatom(j,i)
+                  END DO
                END DO
                WRITE (iunit, '(T2,A,A)') "----------------------------------------", &
                "---------------------------------------"

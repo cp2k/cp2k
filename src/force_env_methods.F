@@ -1204,8 +1204,8 @@ CONTAINS
          dip_exists = test_for_result(results=results_mix, description=description)
          IF (dip_exists) THEN
             CALL get_results(results=results_mix, description=description, values=dip_mix)
-            WRITE (unit_nr, '(/,1X,A,T48,3F11.6)') "MIXED ENV| DIPOLE  ( A.U.)|", dip_mix
-            WRITE (unit_nr, '(  1X,A,T48,3F11.6)') "MIXED ENV| DIPOLE  (Debye)|", dip_mix*debye
+            WRITE (unit_nr, '(/,1X,A,T48,3F21.16)') "MIXED ENV| DIPOLE  ( A.U.)|", dip_mix
+            WRITE (unit_nr, '(  1X,A,T48,3F21.16)') "MIXED ENV| DIPOLE  (Debye)|", dip_mix*debye
          ELSE
             WRITE (unit_nr, *) "NO FORCE_EVAL section calculated the dipole"
          END IF

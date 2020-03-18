@@ -61,7 +61,12 @@ MODULE bfgs_optimizer
                                               print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
-   USE input_constants,                 ONLY: default_cell_method_id,&
+   USE input_constants,                 ONLY: default_cell_direct_id,&
+                                              default_cell_geo_opt_id,&
+                                              default_cell_md_id,&
+                                              default_cell_method_id,&
+                                              default_minimization_method_id,&
+                                              default_shellcore_method_id,&
                                               default_ts_method_id
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -337,6 +342,8 @@ CONTAINS
             IF ((its - iter_nr) > 1) THEN
                ! [pcazade] Symmetrize old coordinates and old forces
                IF (keep_sg) THEN
+                  CALL spgr_apply_rotations_coord(spgr, x0)
+                  CALL spgr_apply_rotations_force(spgr, g)
                   CALL spgr_apply_rotations_coord(spgr, xold)
                   CALL spgr_apply_rotations_force(spgr, gold)
                END IF

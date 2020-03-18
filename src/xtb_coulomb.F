@@ -300,6 +300,7 @@ CONTAINS
                END DO
             END DO
          END DO
+         write(6,*) "use_virial status:", use_virial
          CPASSERT(.NOT. use_virial)
       END IF
 

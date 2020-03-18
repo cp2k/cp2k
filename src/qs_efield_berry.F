@@ -248,9 +248,9 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       use_virial = use_virial .AND. calculate_forces
       ! disable stress calculation
-      IF (use_virial) THEN
-         CPABORT("Stress tensor for periodic E-field not implemented")
-      END IF
+      !IF (use_virial) THEN ! [pcazade] enabled the stress tensor
+      !   CPABORT("Stress tensor for periodic E-field not implemented")
+      !END IF
 
       fieldpol = dft_control%period_efield%polarisation
       fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
