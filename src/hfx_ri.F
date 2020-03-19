@@ -31,15 +31,16 @@ MODULE hfx_ri
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, &
-        dbcsr_frobenius_norm, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_scalar, dbcsr_scale, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_frobenius_norm, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_release, dbcsr_scalar, dbcsr_scale, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_batched_contract_finalize, dbcsr_t_batched_contract_init, dbcsr_t_clear, &
         dbcsr_t_contract, dbcsr_t_contract_index, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, &
         dbcsr_t_copy_tensor_to_matrix, dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_filter, &
-        dbcsr_t_mp_environ_pgrid, dbcsr_t_nd_mp_comm, dbcsr_t_pgrid_change_dims, &
-        dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_reserve_blocks, &
-        dbcsr_t_reserved_block_indices, dbcsr_t_type
+        dbcsr_t_get_num_blocks_total, dbcsr_t_mp_environ_pgrid, dbcsr_t_nd_mp_comm, &
+        dbcsr_t_pgrid_change_dims, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, &
+        dbcsr_t_pgrid_type, dbcsr_t_reserve_blocks, dbcsr_t_reserved_block_indices, dbcsr_t_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE hfx_types,                       ONLY: hfx_ri_type
    USE input_constants,                 ONLY: hfx_ri_do_2c_cholesky,&
@@ -56,6 +57,7 @@ MODULE hfx_ri
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_cart_create,&
                                               mp_environ,&
+                                              mp_sum,&
                                               mp_sync
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -800,6 +802,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, handle2, ispin
+      INTEGER(int_8)                                     :: nblks
       INTEGER, DIMENSION(2)                              :: homo
       REAL(dp)                                           :: etmp, fac
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -807,6 +810,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: homo_localized, moloc_coeff, &
                                                             occupied_orbs
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), DIMENSION(2)                     :: mo_coeff_b
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b_tmp
       TYPE(mo_set_type), POINTER                         :: mo_set
@@ -885,6 +889,16 @@ CONTAINS
                                   geometry_did_change, nspins)
       CASE (ri_pmat)
 
+         NULLIFY (para_env)
+         CALL get_qs_env(qs_env, para_env=para_env)
+         DO ispin = 1, SIZE(rho_ao, 1)
+            nblks = dbcsr_get_num_blocks(rho_ao(ispin, 1)%matrix)
+            CALL mp_sum(nblks, para_env%group)
+            IF (nblks == 0) THEN
+               CPABORT("received empty density matrix")
+            ENDIF
+         ENDDO
+
          CALL hfx_ri_update_ks_pmat(qs_env, ri_data, ks_matrix, rho_ao, &
                                     geometry_did_change, nspins)
 
@@ -943,7 +957,7 @@ CONTAINS
 
       INTEGER :: bsum, comm_2d, count, handle, handle2, i_mem, iproc, ispin, max_pdim_mo, n_mem, &
          n_mos, nproc, nproc_rem, pdim_AO, pdim_AO_, pdim_AO__, pdim_mo, tdim_mo, unit_nr_dbcsr
-      INTEGER(int_8)                                     :: nflop
+      INTEGER(int_8)                                     :: nblks, nflop
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist3, mem_end, &
                                                             mem_end_block, mem_start, &
                                                             mem_start_block, mo_bsizes
@@ -970,6 +984,18 @@ CONTAINS
       IF (geometry_did_change) THEN
          CALL hfx_ri_pre_scf_mo(qs_env, ri_data, nspins)
       ENDIF
+
+      nblks = dbcsr_t_get_num_blocks_total(ri_data%t_3c_int_ctr_1(1, 1))
+      IF (nblks == 0) THEN
+         CPABORT("3-center integrals are not available (first call requires geometry_did_change=.TRUE.)")
+      ENDIF
+
+      DO ispin = 1, nspins
+         nblks = dbcsr_t_get_num_blocks_total(ri_data%t_2c_int(ispin, 1))
+         IF (nblks == 0) THEN
+            CPABORT("2-center integrals are not available (first call requires geometry_did_change=.TRUE.)")
+         ENDIF
+      ENDDO
 
       IF (.NOT. ALLOCATED(ri_data%t_3c_int_mo)) THEN
          do_initialize = .TRUE.
@@ -1283,7 +1309,7 @@ CONTAINS
       INTEGER                                            :: col, handle, handle2, iblk, iblk_filter, &
                                                             iblkrow, ispin, nblk, nblk_filter, &
                                                             row, row_end, row_start, unit_nr_dbcsr
-      INTEGER(int_8)                                     :: nflop
+      INTEGER(int_8)                                     :: nblks, nflop
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ctr_ind, ctr_ind_tmp
       LOGICAL                                            :: found
@@ -1306,6 +1332,16 @@ CONTAINS
 
       IF (geometry_did_change) THEN
          CALL hfx_ri_pre_scf_Pmat(qs_env, ri_data)
+      ENDIF
+
+      nblks = dbcsr_t_get_num_blocks_total(ri_data%t_3c_int_ctr_1(1, 1))
+      IF (nblks == 0) THEN
+         CPABORT("3-center integrals are not available (first call requires geometry_did_change=.TRUE.)")
+      ENDIF
+
+      nblks = dbcsr_t_get_num_blocks_total(ri_data%t_2c_int(1, 1))
+      IF (nblks == 0) THEN
+         CPABORT("2-center integrals are not available (first call requires geometry_did_change=.TRUE.)")
       ENDIF
 
       IF (ASSOCIATED(ri_data%pgrid_1)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_1(1, 1), &
@@ -1363,6 +1399,8 @@ CONTAINS
                                      contract_1=[2], notcontract_1=[1], &
                                      contract_2=[1], notcontract_2=[2, 3], &
                                      map_1=[1], map_2=[2, 3], result_index=ctr_ind, filter_eps=ri_data%filter_eps)
+
+         CPASSERT(ALLOCATED(ctr_ind))
 
          nblk = SIZE(ctr_ind, 1)
          ALLOCATE (ctr_ind_tmp(nblk, 3))
