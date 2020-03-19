@@ -8215,7 +8215,8 @@ CONTAINS
                           description="Whether spin-orbit coupling should be added. "// &
                           "Note: only applies for spin-restricted calculations with "// &
                           "singlet and triplet excitations OR spin-unrestricted "// &
-                          "calculations with both spin-conserving and spin-flip.", &
+                          "calculations with both spin-conserving and spin-flip."// &
+                          "Only tested with CIS", &
                           usage="SOC {logical}", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
