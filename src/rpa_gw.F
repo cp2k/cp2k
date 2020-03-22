@@ -1341,7 +1341,7 @@ CONTAINS
                                               fm_scaled_dm_virt_tau, Eigenval, eps_filter, &
                                               e_fermi, fm_mat_W, &
                                               gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, &
-                                              count_ev_sc_GW, &
+                                              count_ev_sc_GW, count_sc_GW0, &
                                               t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                               mat_W, mat_SinvVSinv, mat_dm, &
                                               weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw, &
@@ -1358,7 +1358,7 @@ CONTAINS
                                                  fm_scaled_dm_virt_tau, Eigenval_beta, eps_filter, &
                                                  e_fermi_beta, fm_mat_W, &
                                                  gw_corr_lev_tot, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
-                                                 count_ev_sc_GW, &
+                                                 count_ev_sc_GW, count_sc_GW0, &
                                                  t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
                                                  mat_W, mat_SinvVSinv, mat_dm, &
                                                  weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw_beta, &
@@ -4497,6 +4497,7 @@ CONTAINS
 !> \param gw_corr_lev_virt ...
 !> \param homo ...
 !> \param count_ev_sc_GW ...
+!> \param count_sc_GW0 ...
 !> \param t_3c_overl_int_gw_RI ...
 !> \param t_3c_overl_int_gw_AO ...
 !> \param mat_W ...
@@ -4528,7 +4529,8 @@ CONTAINS
                                            fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
                                            fm_scaled_dm_virt_tau, Eigenval, eps_filter, &
                                            e_fermi, fm_mat_W, &
-                                           gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, count_ev_sc_GW, &
+                                           gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, &
+                                           count_ev_sc_GW, count_sc_GW0, &
                                            t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                            mat_W, mat_SinvVSinv, mat_dm, &
                                            weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, vec_Sigma_c_gw, &
@@ -4547,7 +4549,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: e_fermi
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W
       INTEGER, INTENT(IN)                                :: gw_corr_lev_tot, gw_corr_lev_occ, &
-                                                            gw_corr_lev_virt, homo, count_ev_sc_GW
+                                                            gw_corr_lev_virt, homo, &
+                                                            count_ev_sc_GW, count_sc_GW0
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_gw_RI, &
                                                             t_3c_overl_int_gw_AO
       TYPE(dbcsr_type), POINTER                          :: mat_W
@@ -4706,7 +4709,7 @@ CONTAINS
       CALL dbcsr_release_P(mat_greens_fct_occ)
       CALL dbcsr_release_P(mat_greens_fct_virt)
 
-      IF (do_ri_Sigma_x .AND. count_ev_sc_GW == 1) THEN
+      IF (do_ri_Sigma_x .AND. count_ev_sc_GW == 1 .AND. count_sc_GW0 == 1) THEN
 
          CALL timeset(routineN//"_RI_HFX_operation_1", handle3)
 
