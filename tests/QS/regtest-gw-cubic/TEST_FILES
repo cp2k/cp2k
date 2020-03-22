@@ -4,6 +4,7 @@ G0W0_H2O_PBE_GAPW.inp                                 78      1e-05             
 G0W0_H2O_PBE0.inp                                     78      1e-05                          16.66
 G0W0_H2O_PBE0_30_pts.inp                              78      1e-05                          15.61
 scGW0_and_evGW_H2O_PBE0_trunc_minimax.inp             11      1e-08            -17.108489005370274
+scGW0_H2O_PBE0_trunc_minimax_RI_HFX.inp               11      1e-08            -13.191093644224157
 G0W0_H2O_PBE_periodic.inp                             78      1e-05                          16.42
 G0W0_OH_PBE.inp                                       79      1e-05                          11.65
 G0W0_kpoints_from_Gamma.inp                           78      1e-05                          15.20
