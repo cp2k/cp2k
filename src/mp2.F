@@ -431,7 +431,7 @@ CONTAINS
                                   level_shift=0.0_dp, &
                                   matrix_u_fm=null(), &
                                   use_jacobi=.FALSE., &
-                                  jacobi_threshold=scf_control%diagonalization%jacobi_threshold)
+                                  jacobi_threshold=0.0_dp)
 
          END IF
 
