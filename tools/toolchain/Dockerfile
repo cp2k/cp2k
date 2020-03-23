@@ -88,14 +88,10 @@ COPY ./scripts/install_elpa.sh ./scripts/
 RUN ./scripts/install_elpa.sh && rm -rf ./build
 
 COPY ./scripts/install_ptscotch.sh \
-     ./scripts/install_parmetis.sh \
-     ./scripts/install_metis.sh \
      ./scripts/install_superlu.sh \
      ./scripts/install_pexsi.sh \
      ./scripts/
 RUN ./scripts/install_ptscotch.sh && \
-    ./scripts/install_parmetis.sh && \
-    ./scripts/install_metis.sh && \
     ./scripts/install_superlu.sh && \
     ./scripts/install_pexsi.sh && \
     rm -rf ./build
