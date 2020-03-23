@@ -2,8 +2,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-superlu_ver="5.1.2"
-superlu_sha256="91032b9a4d23bd14272607b8fc9b6cbb936c385902ca4d3d0ba2d1014fbcd99d"
+superlu_ver="6.1.0"  # Newer versions don't work with PEXSI 1.2.0.
+superlu_sha256="92c6d1424dd830ee2d1e7396a418a5f6645160aea8472e558c4e4bfe006593c4"
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -21,10 +22,6 @@ cd "${BUILDDIR}"
 case "$with_superlu" in
     __INSTALL__)
         echo "==================== Installing SuperLU_DIST ===================="
-        require_env PARMETIS_LDFLAGS
-        require_env PARMETIS_LIBS
-        require_env METIS_LDFLAGS
-        require_env METIS_LIBS
         require_env MATH_LIBS
         pkg_install_dir="${INSTALLDIR}/superlu_dist-${superlu_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
@@ -40,33 +37,16 @@ case "$with_superlu" in
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d SuperLU_DIST_${superlu_ver} ] && rm -rf SuperLU_DIST_${superlu_ver}
             tar -xzf superlu_dist_${superlu_ver}.tar.gz
-            cd SuperLU_DIST_${superlu_ver}
-            mv make.inc make.inc.orig
-            # using the OMP-based math libraries here (if available) for the executables since PARMETS/METIS also use OMP if available
-            cat <<EOF >> make.inc
-PLAT=_${OPENBLAS_ARCH}
-DSUPERLULIB= ${PWD}/lib/libsuperlu_dist.a
-LIBS=\$(DSUPERLULIB) ${PARMETIS_LDFLAGS} ${METIS_LDFLAGS} ${MATH_LDFLAGS} ${PARMETIS_LIBS} ${METIS_LIBS} $(resolve_string "${MATH_LIBS}" OMP) -lgfortran
-ARCH=ar
-ARCHFLAGS=cr
-RANLIB=ranlib
-CC=${MPICC}
-CFLAGS=${CFLAGS} ${PARMETIS_CFLAGS} ${METIS_CFLAGS} ${MATH_CFLAGS}
-NOOPTS=-O0
-FORTRAN=${MPIFC}
-F90FLAGS=${FFLAGS}
-LOADER=\$(CC)
-LOADOPTS=${CFLAGS}
-CDEFS=-DAdd_
-EOF
-            make > make.log 2>&1 #-j $nprocs will crash
-            # no make install, so need to this manually
-            chmod a+r lib/* SRC/*.h
-            ! [ -d "${pkg_install_dir}/lib" ] && mkdir -p "${pkg_install_dir}/lib"
-            cp lib/libsuperlu_dist.a "${pkg_install_dir}/lib"
-            ! [ -d "${pkg_install_dir}/include" ] && mkdir -p "${pkg_install_dir}/include"
-            cp SRC/*.h "${pkg_install_dir}/include"
+            cd superlu_dist-${superlu_ver}
+            cd build
+            cmake -DTPL_ENABLE_PARMETISLIB=FALSE -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} .. > cmake.log 2>&1
+            make -j $NPROCS > make.log 2>&1
+            make install > install.log 2>&1
             cd ..
+
+            # PEXSI needs some more headers.
+            cp SRC/*.h "${pkg_install_dir}/include"
+
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         SUPERLU_CFLAGS="-I'${pkg_install_dir}/include'"
