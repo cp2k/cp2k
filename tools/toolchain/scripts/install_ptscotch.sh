@@ -48,7 +48,12 @@ case "$with_ptscotch" in
             # intermediate directories
             ! [ -d "${pkg_install_dir}" ] && mkdir -p "${pkg_install_dir}"
             make install prefix=${pkg_install_dir} > install.log 2>&1
-            cd ../..
+            cd ..
+
+            # PEXSI also needs parmetis.h
+            cp ./include/parmetis.h "${pkg_install_dir}/include/"
+            sed -i "s|SCOTCH_Num|int|g" "${pkg_install_dir}/include/parmetis.h"
+
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         SCOTCH_CFLAGS="-I'${pkg_install_dir}/include'"
@@ -56,6 +61,7 @@ case "$with_ptscotch" in
         ;;
     __SYSTEM__)
         echo "==================== Finding PT-Scotch from system paths ===================="
+        check_lib -lptscotchparmetis "PT-Scotch"
         check_lib -lptscotch "PT-Scotch"
         check_lib -lptscotcherr "PT-Scotch"
         check_lib -lscotchmetis "PT-Scotch"
@@ -77,7 +83,7 @@ case "$with_ptscotch" in
         ;;
 esac
 if [ "$with_ptscotch" != "__DONTUSE__" ] ; then
-    SCOTCH_LIBS="-lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr"
+    SCOTCH_LIBS="-lptscotchparmetis -lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr"
     if [ "$with_ptscotch" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_ptscotch"
 prepend_path PATH "$pkg_install_dir/bin"
