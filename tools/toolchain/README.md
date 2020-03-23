@@ -96,6 +96,39 @@ installation directory of the library or package is, and then use
 `--with-XYZ=/some/location/to/XYZ` to tell the script exactly where
 to look for the library.
 
+## Licenses
+
+The toolchain only downloads and installs packages that are [compatible with the GPL](https://www.gnu.org/licenses/gpl-faq.html#WhatDoesCompatMean). The follow table list the licenses of all those packages. While the toolchain does support linking proprietary software packages, like e.g. MKL, these have to be installed separately by the user.
+
+| Package   | License                                                                                 | GPL Compatible |
+| --------- | --------------------------------------------------------------------------------------- | -------------- |
+| cmake     | [BSD 3-Clause](https://gitlab.kitware.com/cmake/cmake/raw/master/Copyright.txt)         | Yes            |
+| cosma     | [BSD 3-Clause](https://github.com/eth-cscs/COSMA/blob/master/LICENCE)                   | Yes            |
+| elpa      | [LGPL](https://gitlab.mpcdf.mpg.de/elpa/elpa/blob/master/LICENSE)                       | Yes            |
+| fftw      | [GPL](http://www.fftw.org/doc/License-and-Copyright.html)                               | Yes            |
+| gcc       | [GPL](https://gcc.gnu.org/git/?p=gcc.git;a=blob_plain;f=COPYING;hb=HEAD)                | Yes            |
+| gsl       | [GPL](https://www.gnu.org/software/gsl/doc/html/gpl.html)                               | Yes            |
+| hdf5      | [BSD 3-Clause](https://support.hdfgroup.org/ftp/HDF5/releases/COPYING)                  | Yes            |
+| libint    | [GPL](https://github.com/evaleev/libint/blob/master/LICENSE)                            | Yes            |
+| libsmm    | [GPL](https://github.com/cp2k/cp2k/blob/master/LICENSE)                                 | Yes            |
+| libvdwxc  | [GPL](https://gitlab.com/libvdwxc/libvdwxc/blob/master/LICENSE)                         | Yes            |
+| libxc     | [MPL](https://gitlab.com/libxc/libxc/blob/master/COPYING)                               | Yes            |
+| libxsmm   | [BSD 3-Clause](https://github.com/hfp/libxsmm/blob/master/LICENSE.md)                   | Yes            |
+| mpich     | [MPICH](https://github.com/pmodels/mpich/blob/master/COPYRIGHT)                         | [Yes](https://enterprise.dejacode.com/licenses/public/mpich/#license-conditions) |
+| openblas  | [BSD 3-Clause](https://github.com/xianyi/OpenBLAS/blob/develop/LICENSE)                 | Yes            |
+| openmpi   | [BSD 3-Clause](https://github.com/open-mpi/ompi/blob/master/LICENSE)                    | Yes            |
+| pexsi     | [BSD 3-Clause](https://bitbucket.org/berkeleylab/pexsi/src/master/LICENSE)              | Yes            |
+| plumed    | [LGPL](https://github.com/plumed/plumed2/blob/master/COPYING.LESSER)                    | Yes            |
+| ptscotch  | [CeCILL-C](https://www.labri.fr/perso/pelegrin/scotch/)                                 | [Yes](https://cecill.info/faq.en.html#gpl) |
+| quip      | [GPL](https://github.com/libAtoms/QUIP/blob/public/src/libAtoms/COPYRIGHT)              | Yes            |
+| fox       | [BSD 3-Clause](https://github.com/andreww/fox/blob/master/LICENSE)                      | Yes            |
+| reflapack | [BSD 3-Clause](http://www.netlib.org/lapack/LICENSE.txt)                                | Yes            |
+| scalapack | [BSD 3-Clause](http://www.netlib.org/scalapack/LICENSE)                                 | Yes            |
+| sirius    | [BSD 2-Clause](https://github.com/electronic-structure/SIRIUS/blob/master/LICENSE)      | Yes            |
+| spfft     | [BSD 3-Clause](https://github.com/eth-cscs/SpFFT/blob/master/LICENSE)                   | Yes            |
+| spglib    | [BSD 3-Clause](https://github.com/atztogo/spglib/blob/master/COPYING)                   | Yes            |
+| superlu   | [BSD 3-Clause](https://github.com/xiaoyeli/superlu/blob/master/License.txt)             | Yes            |
+| valgrind  | [GPL](https://sourceware.org/git/?p=valgrind.git;a=blob_plain;f=COPYING;hb=HEAD)        | Yes            |
 
 # For Developers
 
