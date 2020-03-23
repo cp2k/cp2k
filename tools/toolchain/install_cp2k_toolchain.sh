@@ -144,7 +144,7 @@ The --with-PKG options follow the rules:
 
   --with-gcc              The GCC compiler to use to compile CP2K
                           Default = system
-  --with-cmake            Cmake utilities, required for building ParMETIS
+  --with-cmake            Cmake utilities
                           Default = no
   --with-valgrind         Valgrind memory debugging tool, only used for
                           debugging purposes.
@@ -196,14 +196,6 @@ The --with-PKG options follow the rules:
                           Fast library for large parallel jobs.
                           Default = install
   --with-ptscotch         PT-SCOTCH, only used if PEXSI is used
-                          Default = no
-  --with-parmetis         ParMETIS, and if --with-parmetis=install will also install
-                          METIS, only used if PEXSI is used
-                          Default = no
-  --with-metis            METIS, --with-metis=install actually does nothing, because
-                          METIS is installed together with ParMETIS.  This option
-                          is used to specify the METIS library if it is pre-installed
-                          else-where. Only used if PEXSI is used
                           Default = no
   --with-superlu          SuperLU DIST, used only if PEXSI is used
                           Default = no
@@ -265,7 +257,7 @@ tool_list="gcc cmake valgrind"
 mpi_list="mpich openmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm cosma scalapack elpa plumed \
-          spfft ptscotch parmetis metis superlu pexsi quip gsl spglib hdf5 libvdwxc sirius"
+          spfft ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius"
 package_list="$tool_list $mpi_list $math_list $lib_list"
 # ------------------------------------------------------------------------
 
@@ -575,12 +567,6 @@ while [ $# -ge 1 ] ; do
         --with-ptscotch*)
             with_ptscotch=$(read_with $1)
             ;;
-        --with-parmetis*)
-            with_parmetis=$(read_with $1)
-            ;;
-        --with-metis*)
-            with_metis=$(read_with $1)
-            ;;
         --with-superlu*)
             with_superlu=$(read_with $1)
             ;;
@@ -711,45 +697,22 @@ if [ "$with_pexsi" = "__DONTUSE__" ] ; then
         echo "Not using PEXSI, so PT-Scotch is disabled."
         with_ptscotch="__DONTUSE__"
     fi
-    if [ "$with_parmetis" != "__DONTUSE__" ] ; then
-        echo "Not using PEXSI, so ParMETIS is disabled."
-        with_parmetis="__DONTUSE__"
-    fi
-    if [ "$with_metis" != "__DONTUSE__" ] ; then
-        echo "Not using PEXSI, so METIS is disabled."
-        with_metis="__DONTUSE__"
-    fi
     if [ "$with_superlu" != "__DONTUSE__" ] ; then
         echo "Not using PEXSI, so SuperLU-DIST is disabled."
         with_superlu="__DONTUSE__"
     fi
 elif [ "$with_pexsi" = "__INSTALL__" ] ; then
     [ "$with_ptscotch" = "__DONTUSE__" ] && with_ptscotch="__INSTALL__"
-    [ "$with_parmetis" = "__DONTUSE__" ] && with_parmetis="__INSTALL__"
     [ "$with_superlu" = "__DONTUSE__" ] && with_superlu="__INSTALL__"
 else
     if [ "$with_ptscotch" = "__DONTUSE__" ] ; then
         report_error "For PEXSI to work you need a working PT-Scotch library use --with-ptscotch option to specify if you wish to install the library or specify its location."
         exit 1
     fi
-    if [ "$with_parmetis" = "__DONTUSE__" ] ; then
-        report_error "For PEXSI to work you need a working PARMETIS library use --with-parmetis option to specify if you wish to install the library or specify its location."
-        exit 1
-    fi
-    if [ "$with_metis" = "__DONTUSE__" ] ; then
-        report_error "For PEXSI to work you need a working METIS library use --with-metis option to specify if you wish to install the library or specify its location."
-        exit 1
-    fi
     if [ "$with_superlu" = "__DONTUSE__" ] ; then
         report_error "For PEXSI to work you need a working SuperLU-DIST library use --with-superlu option to specify if you wish to install the library or specify its location."
         exit 1
     fi
-fi
-
-# ParMETIS requires cmake, it also installs METIS if it is chosen
-if [ "$with_parmetis" = "__INSTALL__" ] ; then
-    [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
-    with_metis="__INSTALL__"
 fi
 
 # spg library requires cmake.
@@ -947,8 +910,6 @@ else
     ./scripts/install_scalapack.sh
     ./scripts/install_elpa.sh
     ./scripts/install_ptscotch.sh
-    ./scripts/install_parmetis.sh
-    ./scripts/install_metis.sh
     ./scripts/install_superlu.sh
     ./scripts/install_pexsi.sh
     ./scripts/install_quip.sh
