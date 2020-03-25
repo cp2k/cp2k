@@ -33,8 +33,9 @@ MODULE qs_tensors
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
         dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_mapping_info, &
         dbcsr_t_get_nze_total, dbcsr_t_get_stored_coordinates, dbcsr_t_mp_environ_pgrid, &
-        dbcsr_t_ndims, dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, &
-        dbcsr_t_type, dbcsr_t_write_split_info
+        dbcsr_t_nblks_total, dbcsr_t_ndims, dbcsr_t_ndims_matrix_column, dbcsr_t_ndims_matrix_row, &
+        dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_type, &
+        dbcsr_t_write_split_info
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gamma,                           ONLY: init_md_ftable
@@ -1570,13 +1571,15 @@ CONTAINS
       CHARACTER(default_string_length)                   :: name
       INTEGER                                            :: handle, imem, memcut_1, memcut_2, &
                                                             memcut_3, size_cut
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bs1, bs2, bs3, dist1, dist2, dist3, &
-                                                            map1, map2
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bs1, bs2, bs3, dist1, dist2, dist3
       INTEGER, DIMENSION(3)                              :: pcoord, pcoord_ref, pdims, pdims_ref, &
                                                             tdims
-      LOGICAL                                            :: mem_aware_1, mem_aware_2, mem_aware_3
-      TYPE(dbcsr_t_distribution_type)                    :: dist
       TYPE(dbcsr_t_type)                                 :: t_tmp
+      TYPE(dbcsr_t_distribution_type)                    :: dist
+      LOGICAL                                            :: mem_aware_1, mem_aware_2, mem_aware_3
+      INTEGER, DIMENSION(dbcsr_t_ndims_matrix_row(t_3c)) :: map1
+      INTEGER, &
+         DIMENSION(dbcsr_t_ndims_matrix_column(t_3c))    :: map2
 
       CALL dbcsr_t_mp_environ_pgrid(pgrid, pdims, pcoord)
       CALL dbcsr_t_mp_environ_pgrid(t_3c%pgrid, pdims_ref, pcoord_ref)
@@ -1597,6 +1600,9 @@ CONTAINS
       IF (mem_aware_2) memcut_2 = SIZE(starts_array_mc_block_2)
       IF (mem_aware_3) memcut_3 = SIZE(starts_array_mc_block_3)
 
+      ALLOCATE (bs1(dbcsr_t_nblks_total(t_3c, 1)))
+      ALLOCATE (bs2(dbcsr_t_nblks_total(t_3c, 2)))
+      ALLOCATE (bs3(dbcsr_t_nblks_total(t_3c, 3)))
       CALL dbcsr_t_get_info(t_3c, nblks_total=tdims, blk_size_1=bs1, blk_size_2=bs2, blk_size_3=bs3, &
                             name=name)
 

@@ -34,8 +34,9 @@ MODULE rpa_im_time
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_batched_contract_finalize, dbcsr_t_batched_contract_init, dbcsr_t_contract, &
         dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_copy_tensor_to_matrix, &
-        dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_filter, dbcsr_t_get_info, dbcsr_t_nd_mp_comm, &
-        dbcsr_t_need_contract, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_type
+        dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_filter, dbcsr_t_get_info, dbcsr_t_nblks_total, &
+        dbcsr_t_nd_mp_comm, dbcsr_t_need_contract, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
+        dbcsr_t_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -281,11 +282,16 @@ CONTAINS
          CALL dbcsr_distribution_get(dist_P, group=comm_2d, nprows=pdims_2d(1), npcols=pdims_2d(2))
 
          pgrid_2d = dbcsr_t_nd_mp_comm(comm_2d, [1], [2], pdims_2d=pdims_2d)
+         ALLOCATE (size_P(dbcsr_t_nblks_total(t_3c_M, 1)))
          CALL dbcsr_t_get_info(t_3c_M, blk_size_1=size_P)
+
+         ALLOCATE (size_dm(dbcsr_t_nblks_total(t_3c_O(1, 1), 3)))
          CALL dbcsr_t_get_info(t_3c_O(1, 1), blk_size_3=size_dm)
          CALL create_2c_tensor(t_dm, dist_1, dist_2, pgrid_2d, size_dm, size_dm, name="D (AO | AO)")
+         DEALLOCATE (size_dm)
          DEALLOCATE (dist_1, dist_2)
          CALL create_2c_tensor(t_P, dist_1, dist_2, pgrid_2d, size_P, size_P, name="P (RI | RI)")
+         DEALLOCATE (size_P)
          DEALLOCATE (dist_1, dist_2)
          CALL dbcsr_t_pgrid_destroy(pgrid_2d)
 
