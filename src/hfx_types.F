@@ -1390,7 +1390,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_release', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin
-      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
 
@@ -1457,17 +1456,6 @@ CONTAINS
          DEALLOCATE (ri_data%t_3c_ctr_RI)
          DEALLOCATE (ri_data%t_3c_ctr_KS)
          DEALLOCATE (ri_data%t_3c_ctr_KS_copy)
-      ENDIF
-
-      IF (ASSOCIATED(ri_data%ri_section)) THEN
-         logger => cp_get_default_logger()
-         CALL cp_print_key_finished_output(ri_data%unit_nr_dbcsr, logger, ri_data%ri_section, &
-                                           "RI_INFO")
-      ENDIF
-      IF (ASSOCIATED(ri_data%hfx_section)) THEN
-         logger => cp_get_default_logger()
-         CALL cp_print_key_finished_output(ri_data%unit_nr, logger, ri_data%hfx_section, &
-                                           "HF_INFO")
       ENDIF
 
       CALL timestop(handle)
@@ -1752,6 +1740,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_release', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, i_thread, irep, n_rep_hf, n_threads
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(hfx_type), POINTER                            :: actual_x_data
 
 !! There might be 2 hf sections
@@ -1861,6 +1850,16 @@ CONTAINS
 
             IF (actual_x_data%do_hfx_ri) THEN
                CALL hfx_ri_release(actual_x_data%ri_data)
+               IF (ASSOCIATED(actual_x_data%ri_data%ri_section)) THEN
+                  logger => cp_get_default_logger()
+                  CALL cp_print_key_finished_output(actual_x_data%ri_data%unit_nr_dbcsr, logger, actual_x_data%ri_data%ri_section, &
+                                                    "RI_INFO")
+               ENDIF
+               IF (ASSOCIATED(actual_x_data%ri_data%hfx_section)) THEN
+                  logger => cp_get_default_logger()
+                  CALL cp_print_key_finished_output(actual_x_data%ri_data%unit_nr, logger, actual_x_data%ri_data%hfx_section, &
+                                                    "HF_INFO")
+               ENDIF
                DEALLOCATE (actual_x_data%ri_data)
             ENDIF
          END DO
