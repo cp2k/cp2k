@@ -16,11 +16,11 @@ MODULE xas_tdp_kernel
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
-        dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_stored_coordinates, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, &
-        dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_transposed, dbcsr_type
+        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_block2d, &
+        dbcsr_set, dbcsr_transposed, dbcsr_type
    USE dbcsr_tensor_api,                ONLY: dbcsr_t_get_block,&
                                               dbcsr_t_iterator_blocks_left,&
                                               dbcsr_t_iterator_next_block,&
@@ -761,7 +761,6 @@ CONTAINS
 
             ! Need (ab|IJ) in the standard dbcsr distribution
             CALL dbcsr_complete_redistribute(abIJ, abIJ_std_dist)
-            CALL dbcsr_filter(abIJ_std_dist, 1.0E-16_dp) !if short range exchange, might have 0 blocks
 
             CALL dbcsr_iterator_start(iter, abIJ_std_dist)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -1047,7 +1046,7 @@ CONTAINS
       CALL reserve_contraction_blocks(matrices, katom, qs_env)
       DEALLOCATE (matrices)
 
-      !  Create the contracted integral matrices
+      ! Create the contracted integral matrices
       ALLOCATE (contr_int(ndo_so))
       DO i = 1, ndo_so
          ALLOCATE (contr_int(i)%matrix)
@@ -1070,7 +1069,6 @@ CONTAINS
             ! Get the full (aI|P) contracted integrals
             CALL dbcsr_transposed(work, P_Ib)
             CALL dbcsr_add(work, aI_P, 1.0_dp, 1.0_dp)
-            CALL dbcsr_filter(work, 1.0E-16_dp) !because there might be some zero block left from reservation
             CALL dbcsr_complete_redistribute(work, contr_int((ispin - 1)*ndo_mo + imo)%matrix)
 
             CALL dbcsr_release(work)

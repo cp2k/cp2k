@@ -12,6 +12,7 @@ C2H2-PBE-ri_region.inp                                 88      1e-08           2
 #Checking truncated and shortrange operators for exchange in PBCs
 #as well as the use of RI metrics for screening
 Ne-pbc-truncated.inp                                   88      1e-08           890.773794
+Ne-pbc-truncated-tc_metric.inp                         88      1e-06           890.780820
 Ne-pbc-shortrange.inp                                  88      1e-08           890.494623
 Ne-pbc-shortrange-sr_metric.inp                        88      1e-08           890.495800
 Ne-pbc-shortrange-ovlp_metric.inp                      88      1e-08           890.501870

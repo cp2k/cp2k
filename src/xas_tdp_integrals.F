@@ -352,55 +352,7 @@ CONTAINS
          screen_radius = 1000000.0_dp
       END IF
 
-      my_sort_bc = .FALSE.
-      IF (PRESENT(only_bc_same_center)) my_sort_bc = only_bc_same_center
-
-      !Init the truncated Coulomb operator
-      CALL get_qs_env(qs_env, para_env=para_env)
-      IF (potential_parameter%potential_type == do_potential_truncated) THEN
-
-         !open the file only if necessary
-         IF (m_max > get_lmax_init()) THEN
-            IF (para_env%mepos == 0) THEN
-               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
-            END IF
-            CALL init(m_max, unit_id, para_env%mepos, para_env%group)
-            IF (para_env%mepos == 0) THEN
-               CALL close_file(unit_id)
-            END IF
-         END IF
-      END IF
-
-      !Inint the initial gamma function before the OMP region as it is not thread safe
-      CALL init_md_ftable(nmax=m_max)
-
-      !Strategy: we use the o3c iterator because it is OMP parallelized and also takes the
-      !          only_bc_same_center argument. Only the dbcsr_put_block is critical
-
-      nthread = 1
-!$    nthread = omp_get_max_threads()
-
-      ALLOCATE (o3c)
-      CALL init_o3c_container(o3c, 1, basis_set_list_a, basis_set_list_b, basis_set_list_c, &
-                              ab_nl, ac_nl, only_bc_same_center=my_sort_bc)
-      CALL o3c_iterator_create(o3c, o3c_iterator, nthread=nthread)
-
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (pq_X,do_screen,max_nset,basis_set_list_a, &
-!$OMP         basis_set_list_b, basis_set_list_c,ncoset,screen_radius,potential_parameter,&
-!$OMP         my_eps_screen,maxli,maxlj,maxlk,my_sort_bc,nthread,o3c,o3c_iterator) &
-!$OMP PRIVATE (lib,max_contr,max_contra,max_contrb,max_contrc,i,basis_set,mepos,work,&
-!$OMP          ilist,basis_set_list,ibasis,nbasis,iset,ncoa,sgfa,egfa,nseta,&
-!$OMP          iatom,ikind,jatom,jkind,katom,kkind,rij,rik,rjk,basis_set_a,nsetb,&
-!$OMP          la_max,la_min,lb_max,lb_min,lc_max,lc_min,npgfa,npgfb,npgfc,nsgfa,nsgfb,nsgfc,ri,rk,&
-!$OMP          first_sgfa,first_sgfb,first_sgfc,set_radius_a,set_radius_b,set_radius_c, nsetc,rj,&
-!$OMP          rpgf_a,rpgf_b,rpgf_c,sphi_a,sphi_b,sphi_c,zeta,zetb,zetc,basis_set_b,basis_set_c,&
-!$OMP          dij,dik,djk,ni,nj,nk,iabc,sabc,jset,kset,ncob,ncoc,sgfb,sgfc,egfb,egfc,max_val)
-
-      mepos = 0
-!$    mepos = omp_get_thread_num()
-
-      !get maximum caontraction values for screening puposes, on each thread
+      !get maximum contraction values for abc_contract screening
       IF (do_screen) THEN
 
          !Allocate max_contraction arrays such that we have a specific value for each set/kind
@@ -437,6 +389,53 @@ CONTAINS
          END DO !ilist
          DEALLOCATE (max_contr)
       END IF !do_screen
+
+      my_sort_bc = .FALSE.
+      IF (PRESENT(only_bc_same_center)) my_sort_bc = only_bc_same_center
+
+      !Init the truncated Coulomb operator
+      CALL get_qs_env(qs_env, para_env=para_env)
+      IF (potential_parameter%potential_type == do_potential_truncated) THEN
+
+         !open the file only if necessary
+         IF (m_max > get_lmax_init()) THEN
+            IF (para_env%mepos == 0) THEN
+               CALL open_file(unit_number=unit_id, file_name=potential_parameter%filename)
+            END IF
+            CALL init(m_max, unit_id, para_env%mepos, para_env%group)
+            IF (para_env%mepos == 0) THEN
+               CALL close_file(unit_id)
+            END IF
+         END IF
+      END IF
+
+      !Inint the initial gamma function before the OMP region as it is not thread safe
+      CALL init_md_ftable(nmax=m_max)
+
+      !Strategy: we use the o3c iterator because it is OMP parallelized and also takes the
+      !          only_bc_same_center argument. Only the dbcsr_put_block is critical
+
+      nthread = 1
+!$    nthread = omp_get_max_threads()
+
+      ALLOCATE (o3c)
+      CALL init_o3c_container(o3c, 1, basis_set_list_a, basis_set_list_b, basis_set_list_c, &
+                              ab_nl, ac_nl, only_bc_same_center=my_sort_bc)
+      CALL o3c_iterator_create(o3c, o3c_iterator, nthread=nthread)
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED (pq_X,do_screen,max_nset,basis_set_list_a,max_contra,max_contrb,max_contrc,&
+!$OMP         basis_set_list_b, basis_set_list_c,ncoset,screen_radius,potential_parameter,&
+!$OMP         my_eps_screen,maxli,maxlj,maxlk,my_sort_bc,nthread,o3c,o3c_iterator) &
+!$OMP PRIVATE (lib,i,mepos,work,iset,ncoa,sgfa,egfa,nseta,&
+!$OMP          iatom,ikind,jatom,jkind,katom,kkind,rij,rik,rjk,basis_set_a,nsetb,&
+!$OMP          la_max,la_min,lb_max,lb_min,lc_max,lc_min,npgfa,npgfb,npgfc,nsgfa,nsgfb,nsgfc,ri,rk,&
+!$OMP          first_sgfa,first_sgfb,first_sgfc,set_radius_a,set_radius_b,set_radius_c, nsetc,rj,&
+!$OMP          rpgf_a,rpgf_b,rpgf_c,sphi_a,sphi_b,sphi_c,zeta,zetb,zetc,basis_set_b,basis_set_c,&
+!$OMP          dij,dik,djk,ni,nj,nk,iabc,sabc,jset,kset,ncob,ncoc,sgfb,sgfc,egfb,egfc,max_val)
+
+      mepos = 0
+!$    mepos = omp_get_thread_num()
 
       !each thread need its own libint object (internals may change at different rates)
       CALL cp_libint_init_3eri(lib, MAX(maxli, maxlj, maxlk))
@@ -1049,7 +1048,8 @@ CONTAINS
       CALL create_pqX_tensor(xas_tdp_env%ri_3c_ex, ab_list, ac_list, opt_dbcsr_dist, blk_size_orb, &
                              blk_size_orb, blk_size_ri)
       CALL fill_pqX_tensor(xas_tdp_env%ri_3c_ex, ab_list, ac_list, basis_set_orb, basis_set_orb, &
-                           basis_set_ri, xas_tdp_control%ri_m_potential, qs_env)
+                           basis_set_ri, xas_tdp_control%ri_m_potential, qs_env, &
+                           eps_screen=xas_tdp_control%eps_screen)
 
 ! Clean-up
       CALL release_neighbor_list_sets(ab_list)
