@@ -71,8 +71,10 @@ CONTAINS
                                                             n1, n2, nn1, nn2, nu, nx
       REAL(KIND=dp)                                      :: om, rc, ron, sc, x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpot, w, work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: omat, vmat
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: eri
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vmat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         TARGET                                          :: omat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: amat, bmat, eri
 
       CALL timeset(routineN, handle)
 
@@ -293,7 +295,7 @@ CONTAINS
          integrals%uptrans = 0._dp
          integrals%nne = integrals%n
          lwork = 10*n
-         ALLOCATE (omat(n, n), w(n), vmat(n, n), work(lwork))
+         ALLOCATE (omat(n, n), vmat(n, n), w(n), work(lwork))
          DO l = 0, lmat
             n = integrals%n(l)
             IF (n > 0) THEN
@@ -309,17 +311,20 @@ CONTAINS
                END DO
                integrals%nne(l) = ii
                IF (ii > 0) THEN
-                  omat(1:ii, 1:ii) = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
+                  amat(1:ii, 1:ii) => omat
+                  amat = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
+
+                  bmat => integrals%uptrans(:, :, l)
                   DO i = 1, ii
-                     integrals%uptrans(i, i, l) = 1._dp
+                     bmat(i, i) = 1._dp
                   ENDDO
-                  CALL lapack_sgesv(ii, ii, omat(1:ii, 1:ii), ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
+
+                  CALL lapack_sgesv(ii, ii, amat, ii, ipiv, bmat, ii, info)
                   CPASSERT(info == 0)
                END IF
             END IF
          END DO
          DEALLOCATE (omat, vmat, w, work)
-
       END IF
 
       CALL timestop(handle)

@@ -31,13 +31,16 @@
 # define CPASSERT(cond) IF(.NOT.(cond))CALL cp__a(__SHORT_FILE__,__LINE__)
 #endif
 
-! The MARK_USED macro can be used to mark an argument/variable as used.
-! It is intended to make it possible to switch on -Werror=unused-dummy-argument,
-! but deal elegantly with e.g. library wrapper routines that take arguments only used if the library is linked in. 
+! The MARK_USED macro can be used to mark an argument/variable as used. It is intended to make
+! it possible to switch on -Werror=unused-dummy-argument, but deal elegantly with, e.g.,
+! library wrapper routines that take arguments only used if the library is linked in.
 ! This code should be valid for any Fortran variable, is always standard conforming,
 ! and will be optimized away completely by the compiler
 #define MARK_USED(foo) IF(.FALSE.)THEN; DO ; IF(SIZE(SHAPE(foo))==-1) EXIT ;  END DO ; ENDIF
 
-! Calculate version number from 3-components. Can be used for comparison e.g.,
-! CPVERSION(4, 9, 0) <= CPVERSION(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__)
-#define CPVERSION(MAJOR, MINOR, UPDATE) ((MAJOR) * 10000 + (MINOR) * 100 + (UPDATE))
+! Calculate version number from 2 or 3 components. Can be used for comparison, e.g.,
+! CPVERSION3(4, 9, 0) <= CPVERSION3(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__)
+! CPVERSION(8, 0) <= CPVERSION(__GNUC__, __GNUC_MINOR__)
+#define CPVERSION2(MAJOR, MINOR) ((MAJOR) * 10000 + (MINOR) * 100)
+#define CPVERSION3(MAJOR, MINOR, UPDATE) (CPVERSION2(MAJOR, MINOR) + (UPDATE))
+#define CPVERSION CPVERSION2

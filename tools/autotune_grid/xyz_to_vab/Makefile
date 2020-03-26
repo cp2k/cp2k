@@ -16,5 +16,5 @@ xyz_to_vab.o: kinds.mod
 
 
 
-clean: 
+clean:
 	rm xyz_to_vab_optimised.mod xyz_to_vab_optimised.o kinds.o kinds.mod

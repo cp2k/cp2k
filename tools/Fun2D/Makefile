@@ -9,7 +9,7 @@
 YUKAWA   = -D__YUKAWA
 T_C_G0   = -D__T_C_G0
 DFLAGS   = $(T_C_G0)
-CPP      = cpp 
+CPP      = cpp
 CPPFLAGS = -C -traditional $(DFLAGS)
 FC       = gfortran-4.3 -ffree-line-length-512 -g -fopenmp -ffree-form $(DFLAGS)
 # mpfr needs to be thread safe if used with OMP
@@ -18,7 +18,7 @@ LIBS     = -lmpfr -lgmp
 # but should only be used to compile the tester program, compilation is otherwise way too slow
 FFLAGS   = -O3 -march=native -funroll-loops
 
-.SUFFIXES: .f90 .x .o 
+.SUFFIXES: .f90 .x .o
 
 %.o: %.f90
 ifneq ($(CPP),)
@@ -28,18 +28,18 @@ else
 	$(FC) -c $<
 endif
 
-drvrec_mpfr.o : drvrec_mpfr.f90 mpfr.o mpfr.o functions.o padua2_mpfr.o 
-evalf.o : evalf.f90 mpfr_cutoff_gamma.o 
-functions.o : functions.f90 function_types.o mpfr_yukawa.o mpfr_cutoff_gamma.o mpfr.o mpfr.o 
-function_types.o : function_types.f90 
-kinds.o : kinds.f90 
-mpfr_cutoff_gamma.o : mpfr_cutoff_gamma.f90 mpfr.o mpfr.o 
-mpfr.o : mpfr.f90 
-mpfr_yukawa.o : mpfr_yukawa.f90 mpfr.o mpfr.o 
-padua2_mpfr.o : padua2_mpfr.f90 mpfr.o mpfr.o 
-recurse.o : recurse.f90 function_types.o 
-t_c_g0.o : t_c_g0.f90 kinds.o 
-yukawa.o : yukawa.f90 kinds.o 
+drvrec_mpfr.o : drvrec_mpfr.f90 mpfr.o mpfr.o functions.o padua2_mpfr.o
+evalf.o : evalf.f90 mpfr_cutoff_gamma.o
+functions.o : functions.f90 function_types.o mpfr_yukawa.o mpfr_cutoff_gamma.o mpfr.o mpfr.o
+function_types.o : function_types.f90
+kinds.o : kinds.f90
+mpfr_cutoff_gamma.o : mpfr_cutoff_gamma.f90 mpfr.o mpfr.o
+mpfr.o : mpfr.f90
+mpfr_yukawa.o : mpfr_yukawa.f90 mpfr.o mpfr.o
+padua2_mpfr.o : padua2_mpfr.f90 mpfr.o mpfr.o
+recurse.o : recurse.f90 function_types.o
+t_c_g0.o : t_c_g0.f90 kinds.o
+yukawa.o : yukawa.f90 kinds.o
 
 .PHONY: recurse tester test
 recurse: recurse.x
@@ -86,8 +86,8 @@ yukawa.f90: recurse.x drvrec_mpfr.x
 test: tester.x
 	./tester.x
 
-clean: 
+clean:
 	rm -f *.o *.x *.mod *.MOD *.f
 
-realclean: clean 
+realclean: clean
 	rm -f *.dat *.in *.out t_c_g0.f90 fort.* yukawa.f90
