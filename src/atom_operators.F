@@ -74,7 +74,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vmat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          TARGET                                          :: omat
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: mat, eri
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: eri, mat
 
       CALL timeset(routineN, handle)
 
