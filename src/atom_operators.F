@@ -74,7 +74,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vmat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          TARGET                                          :: omat
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: amat, bmat, eri
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: mat, eri
 
       CALL timeset(routineN, handle)
 
@@ -311,15 +311,13 @@ CONTAINS
                END DO
                integrals%nne(l) = ii
                IF (ii > 0) THEN
-                  amat(1:ii, 1:ii) => omat
-                  amat = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
+                  mat(1:ii, 1:ii) => omat
+                  mat = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
 
-                  bmat => integrals%uptrans(:, :, l)
                   DO i = 1, ii
-                     bmat(i, i) = 1._dp
+                     integrals%uptrans(i, i, l) = 1._dp
                   ENDDO
-
-                  CALL lapack_sgesv(ii, ii, amat, ii, ipiv, bmat, ii, info)
+                  CALL lapack_sgesv(ii, ii, mat, ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
                   CPASSERT(info == 0)
                END IF
             END IF
