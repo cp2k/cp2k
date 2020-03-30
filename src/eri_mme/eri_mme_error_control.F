@@ -295,7 +295,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
       REAL(KIND=dp), INTENT(IN)                          :: G_min, zet_max
       INTEGER, INTENT(IN)                                :: l_max_zet, n_minimax
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: minimax_aw
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: minimax_aw
       REAL(KIND=dp), INTENT(OUT)                         :: err_ctff, C_mm
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 

@@ -297,7 +297,7 @@ CONTAINS
          mp2_env%mp2_num_proc = para_env%num_pe
       ENDIF
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T76,I5)') 'Used number of processes per group:', mp2_env%mp2_num_proc
-      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'Maximum allowed memory usage per MPI processes:', &
+      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'Maximum allowed memory usage per MPI process:', &
          mp2_env%mp2_memory, ' MiB'
 
       IF ((mp2_env%method .NE. mp2_method_gpw) .AND. &
