@@ -1025,18 +1025,20 @@ CONTAINS
          CALL get_exat_ri_sinv(ri_sinv, ri_mats, neighbors, idx_to_nb, basis_set_ri, qs_env)
 
          !Do the actual contraction: coeff_y = sum_pq sum_x P_pq (phi_p phi_q xi_x) S_xy^-1
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (pqX,nspins,blk_size_ri,nnb,neighbors,ri_sinv,factor,xas_atom_env,iex,rho_redist,idx_to_nb)&
-!$OMP PRIVATE(iter,ind,blk,t_block,tensor_found,iatom,jatom,inb,prefac,ispin,work1,pmat_block, &
-!$OMP         pmat_blockt,pmat_found,pmat_foundt,i,jnb,ri_at,sinv_block,sinv_blockt,sinv_found,&
-!$OMP         sinv_foundt,work2,katom)
+         !TODO: re-enable OMP parallelization once/if the tensor iterator becomes thread safe
+
+!!$OMP PARALLEL DEFAULT(NONE) &
+!!$OMP SHARED (pqX,nspins,blk_size_ri,nnb,neighbors,ri_sinv,factor,xas_atom_env,iex,rho_redist,idx_to_nb)&
+!!$OMP PRIVATE(iter,ind,blk,t_block,tensor_found,iatom,jatom,inb,prefac,ispin,work1,pmat_block, &
+!!$OMP         pmat_blockt,pmat_found,pmat_foundt,i,jnb,ri_at,sinv_block,sinv_blockt,sinv_found,&
+!!$OMP         sinv_foundt,work2,katom)
 
          CALL dbcsr_t_iterator_start(iter, pqX)
          DO WHILE (dbcsr_t_iterator_blocks_left(iter))
             CALL dbcsr_t_iterator_next_block(iter, ind, blk)
-!$OMP CRITICAL (get_t_block)
+!!$OMP CRITICAL (get_t_block)
             CALL dbcsr_t_get_block(pqX, ind, t_block, tensor_found)
-!$OMP END CRITICAL (get_t_block)
+!!$OMP END CRITICAL (get_t_block)
 
             iatom = ind(1)
             jatom = ind(2)
@@ -1092,10 +1094,10 @@ CONTAINS
                      END DO
                   END IF
 
-!$OMP CRITICAL (ri_dcoeff)
+!!$OMP CRITICAL (ri_dcoeff_update)
                   xas_atom_env%ri_dcoeff(ri_at, ispin, iex)%array(:) = &
                      xas_atom_env%ri_dcoeff(ri_at, ispin, iex)%array(:) + work2(:)
-!$OMP END CRITICAL (ri_dcoeff)
+!!$OMP END CRITICAL (ri_dcoeff_update)
 
                   DEALLOCATE (work2)
                END DO !jnb
@@ -1106,7 +1108,7 @@ CONTAINS
             DEALLOCATE (t_block)
          END DO !iter
          CALL dbcsr_t_iterator_stop(iter)
-!$OMP END PARALLEL
+!!$OMP END PARALLEL
 
          !clean-up
          CALL dbcsr_release(ri_sinv)
