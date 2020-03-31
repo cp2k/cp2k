@@ -13,7 +13,8 @@
 MODULE auto_basis
    USE aux_basis_set,                   ONLY: create_aux_basis
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                              gto_basis_set_type
+                                              gto_basis_set_type,&
+                                              sort_gto_basis_set
    USE bibliography,                    ONLY: Stoychev2016,&
                                               cite_reference
    USE kinds,                           ONLY: default_string_length,&
@@ -201,9 +202,12 @@ CONTAINS
          !
          CALL create_aux_basis(ri_aux_basis_set, bsname, nsets, ls1, ls2, nl, npgf, zet)
 
-         IF (PRESENT(basis_sort)) ri_aux_basis_set%sort = basis_sort
-
          DEALLOCATE (zet)
+
+         IF (PRESENT(basis_sort)) THEN
+            CALL sort_gto_basis_set(ri_aux_basis_set, basis_sort)
+         ENDIF
+
       END IF
 
    END SUBROUTINE create_ri_aux_basis_set

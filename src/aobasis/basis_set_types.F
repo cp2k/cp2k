@@ -61,8 +61,7 @@ MODULE basis_set_types
 
    ! basis set sort criteria
    INTEGER, PARAMETER, PUBLIC               :: basis_sort_default = 0, &
-                                               basis_sort_radius = 1, &
-                                               basis_sort_zet = 2
+                                               basis_sort_zet = 1
 
 ! **************************************************************************************************
    ! Define the Gaussian-type orbital basis set type
@@ -84,7 +83,6 @@ MODULE basis_set_types
       INTEGER, DIMENSION(:, :), POINTER           :: first_cgf, first_sgf, l, &
                                                      last_cgf, last_sgf, n
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: gcc
-      INTEGER                                    :: sort = basis_sort_default
    END TYPE gto_basis_set_type
 
    TYPE gto_basis_set_p_type
@@ -270,7 +268,6 @@ CONTAINS
       bout%aliases = bin%aliases
       bout%kind_radius = bin%kind_radius
       bout%norm_type = bin%norm_type
-      bout%sort = bin%sort
       bout%nset = bin%nset
       bout%ncgf = bin%ncgf
       bout%nsgf = bin%nsgf
@@ -387,7 +384,6 @@ CONTAINS
       pbasis%kind_radius = basis_set%kind_radius
       pbasis%short_kind_radius = basis_set%short_kind_radius
       pbasis%norm_type = basis_set%norm_type
-      pbasis%sort = basis_set%sort
       nset = lm + 1
       pbasis%nset = nset
       ALLOCATE (pbasis%lmax(nset), pbasis%lmin(nset), pbasis%npgf(nset), pbasis%nshell(nset))
@@ -1248,10 +1244,8 @@ CONTAINS
       CHARACTER(LEN=LEN(basis_set_name)+2)               :: bsname2
       CHARACTER(LEN=LEN(element_symbol))                 :: symbol
       CHARACTER(LEN=LEN(element_symbol)+2)               :: symbol2
-      INTEGER                                            :: i, ibasis, ico, ipgf, irep, iset, &
-                                                            ishell, lshell, m, maxco, maxl, &
-                                                            maxpgf, maxshell, nbasis, ncgf, nmin, &
-                                                            nset, nsgf, strlen1, strlen2
+      INTEGER :: i, ibasis, ico, ipgf, irep, iset, ishell, lshell, m, maxco, maxl, maxpgf, &
+         maxshell, nbasis, ncgf, nmin, nset, nsgf, sort_method, strlen1, strlen2
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l, n
       LOGICAL                                            :: basis_found, found, match
@@ -1552,6 +1546,9 @@ CONTAINS
       END IF
       DEALLOCATE (cbasis)
 
+      CALL section_vals_val_get(dft_section, "SORT_BASIS", i_val=sort_method)
+      CALL sort_gto_basis_set(gto_basis_set, sort_method)
+
    END SUBROUTINE read_gto_basis_set1
 
 ! **************************************************************************************************
@@ -1561,9 +1558,10 @@ CONTAINS
 !> \param gto_basis_set ...
 !> \param basis_section ...
 !> \param irep ...
+!> \param dft_section ...
 ! **************************************************************************************************
    SUBROUTINE read_gto_basis_set2(element_symbol, basis_type, gto_basis_set, &
-                                  basis_section, irep)
+                                  basis_section, irep, dft_section)
 
       ! Read a Gaussian-type orbital (GTO) basis set from the database file.
 
@@ -1574,6 +1572,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       TYPE(section_vals_type), OPTIONAL, POINTER         :: basis_section
       INTEGER                                            :: irep
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: dft_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_gto_basis_set2', &
          routineP = moduleN//':'//routineN
@@ -1586,7 +1585,7 @@ CONTAINS
       CHARACTER(LEN=LEN(element_symbol)+2)               :: symbol2
       INTEGER                                            :: i, ico, ipgf, iset, ishell, lshell, m, &
                                                             maxco, maxl, maxpgf, maxshell, ncgf, &
-                                                            nmin, nset, nsgf
+                                                            nmin, nset, nsgf, sort_method
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l, n
       LOGICAL                                            :: is_ok
@@ -1823,6 +1822,11 @@ CONTAINS
       END DO
 
       DEALLOCATE (gcc, l, lmax, lmin, n, npgf, nshell, zet)
+
+      IF (PRESENT(dft_section)) THEN
+         CALL section_vals_val_get(dft_section, "SORT_BASIS", i_val=sort_method)
+         CALL sort_gto_basis_set(gto_basis_set, sort_method)
+      ENDIF
 
    END SUBROUTINE read_gto_basis_set2
 
@@ -2726,9 +2730,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief sort basis sets w.r.t. radius
 !> \param basis_set ...
+!> \param sort_method ...
 ! **************************************************************************************************
-   SUBROUTINE sort_gto_basis_set(basis_set)
+   SUBROUTINE sort_gto_basis_set(basis_set, sort_method)
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      INTEGER, INTENT(IN)                                :: sort_method
 
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: cgf_symbol
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: sgf_symbol
@@ -2746,9 +2752,9 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(basis_set))
 
-      IF (basis_set%sort == basis_sort_default) RETURN
-
       NULLIFY (set_radius, zet)
+
+      IF (sort_method == basis_sort_default) RETURN
 
       b => basis_set
       CALL get_gto_basis_set(gto_basis_set=b, &
@@ -2763,9 +2769,7 @@ CONTAINS
 
       ALLOCATE (sort_index(nset))
       ALLOCATE (tmp(nset))
-      SELECT CASE (b%sort)
-      CASE (basis_sort_radius)
-         tmp(:) = set_radius(UBOUND(set_radius, 1):LBOUND(set_radius, 1):-1)
+      SELECT CASE (sort_method)
       CASE (basis_sort_zet)
          DO iset = 1, nset
             tmp(iset) = MINVAL(basis_set%zet(:npgf(iset), iset))
@@ -2909,9 +2913,6 @@ CONTAINS
             b%last_sgf(ishell, iset) = ns
          END DO
       END DO
-
-      ! make sure that basis sets are sorted only once
-      b%sort = basis_sort_default
 
    END SUBROUTINE
 
