@@ -1,6 +1,6 @@
 #Testing the XAS_TDP method and the keyword combinations it involves
 #Checking that the user can spefify his own RI_XAS basis set + simple LDA
-Ne-LDA-extRI_XAS.inp                                   88      1e-08           833.277232
+He-LDA-extRI_XAS.inp                                   88      1e-07            25.875010
 #Checking that the searched excitation energies can be defined by a range
 Ne-LDA-e_range.inp                                     88      1e-08           829.640328
 #Checking full TDDFT and simple hybrid functional
