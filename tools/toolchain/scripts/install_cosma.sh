@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-cosma_ver="2.0.3"
-cosma_sha256="e7ac9effbdb46b3b06256ab117f0d2310cf7d9751b12be269fe745cac6c54b66"
+cosma_ver="2.0.4"
+cosma_sha256="bd9376ed0e056787589e30efcf64c3fb644f99af1e5916a0518d78fedd15614c"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
