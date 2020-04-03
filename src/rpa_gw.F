@@ -3530,7 +3530,7 @@ CONTAINS
          CALL get_sigma_c_bisection_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
                                          vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
                                          nparam_pade, omega_points_pade, coeff_pade, &
-                                         start_val=level_energ_GW)
+                                         n_level_gw_ref, start_val=level_energ_GW)
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
@@ -3538,7 +3538,7 @@ CONTAINS
          CALL get_sigma_c_newton_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
                                       vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
                                       nparam_pade, omega_points_pade, coeff_pade, &
-                                      start_val=level_energ_GW)
+                                      n_level_gw_ref, start_val=level_energ_GW)
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
@@ -3771,21 +3771,25 @@ CONTAINS
 !> \param nparam_pade number of pade parameters
 !> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
 !> \param coeff_pade pade coefficients
+!> \param n_level_gw_ref ...
 !> \param start_val start value for the quasiparticle iteration
 ! **************************************************************************************************
    SUBROUTINE get_sigma_c_bisection_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
-                                         nparam_pade, omega_points_pade, coeff_pade, start_val)
+                                         nparam_pade, omega_points_pade, coeff_pade, n_level_gw_ref, start_val)
 
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             e_fermi
       INTEGER, INTENT(IN)                                :: nparam_pade
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
+      INTEGER, INTENT(IN)                                :: n_level_gw_ref
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_bisection_pade', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(LEN=512)                                 :: error_msg
+      CHARACTER(LEN=64)                                  :: n_level_gw_ref_char
       COMPLEX(KIND=dp)                                   :: sigma_c
       INTEGER                                            :: handle, icount
       REAL(KIND=dp)                                      :: delta, energy_val, my_start_val, &
@@ -3816,7 +3820,10 @@ CONTAINS
          qp_energy = Eigenval_scf + REAL(sigma_c) + Sigma_x_minus_vxc_gw
          delta = qp_energy - qp_energy_old
          IF (icount > 500) THEN
-            CPABORT("Self-consistent quasi-particle solution not found")
+            WRITE (n_level_gw_ref_char, '(I10)') n_level_gw_ref
+            WRITE (error_msg, '(A,A,A)') " Self-consistent quasi-particle solution of "// &
+               "MO ", TRIM(n_level_gw_ref_char), " has not been found."
+            CPWARN(error_msg)
             EXIT
          ENDIF
       ENDDO
@@ -3836,21 +3843,25 @@ CONTAINS
 !> \param nparam_pade number of pade parameters
 !> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
 !> \param coeff_pade pade coefficients
+!> \param n_level_gw_ref ...
 !> \param start_val start value for the quasiparticle iteration
 ! **************************************************************************************************
    SUBROUTINE get_sigma_c_newton_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
-                                      nparam_pade, omega_points_pade, coeff_pade, start_val)
+                                      nparam_pade, omega_points_pade, coeff_pade, n_level_gw_ref, start_val)
 
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             e_fermi
       INTEGER, INTENT(IN)                                :: nparam_pade
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
+      INTEGER, INTENT(IN)                                :: n_level_gw_ref
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_newton_pade', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(LEN=512)                                 :: error_msg
+      CHARACTER(LEN=64)                                  :: n_level_gw_ref_char
       COMPLEX(KIND=dp)                                   :: sigma_c
       INTEGER                                            :: handle, icount
       REAL(KIND=dp)                                      :: delta, energy_val, m_value, &
@@ -3885,7 +3896,10 @@ CONTAINS
                      (m_value - 1.0_dp)
          delta = qp_energy - qp_energy_old
          IF (icount > 500) THEN
-            CPABORT("Self-consistent quasi-particle solution not found")
+            WRITE (n_level_gw_ref_char, '(I10)') n_level_gw_ref
+            WRITE (error_msg, '(A,A,A)') " Self-consistent quasi-particle solution of "// &
+               "MO ", TRIM(n_level_gw_ref_char), " has not been found."
+            CPWARN(error_msg)
             EXIT
          ENDIF
       ENDDO
