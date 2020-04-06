@@ -19,7 +19,7 @@ case "$with_cosma" in
     __INSTALL__)
 	require_env OPENBLASROOT
 	require_env SCALAPACKROOT
-        export
+      	
 	echo "==================== Installing cosma ===================="
         pkg_install_dir="${INSTALLDIR}/cosma-${cosma_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
@@ -130,12 +130,6 @@ case "$with_cosma" in
         COSMA_LDFLAGS="-L'${COSMA_LIBDIR}' -Wl,-rpath='${COSMA_LIBDIR}'"
         ;;
 esac
-if [ "$with_cosma" != "__DONTUSE__" ] ; then
-	if [ "$ENABLE_CUDA" = "__TRUE__" ] ; then
-    		COSMA_LIBS="-lcosma_pxgemm -lcosma -lgrid2grid -lTiled-MM"
-	else
-		COSMA_LIBS="-lcosma_pxgemm -lcosma -lgrid2grid"
-	fi
     if [ "$with_cosma" != "__SYSTEM__" ] ; then
         cat << EOF > "${BUILDDIR}/setup_cosma"
 prepend_path LD_LIBRARY_PATH "${COSMA_LIBDIR}"
@@ -149,9 +143,9 @@ export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:${COSMA_LIBDIR}/pkgconfig"
 EOF
     fi
     cat << EOF >> "${BUILDDIR}/setup_cosma"
-export COSMA_GPU_TILE_M=100
-export COSMA_GPU_TILE_N=100
-export COSMA_GPU_TILE_K=100
+export COSMA_GPU_TILE_M=128
+export COSMA_GPU_TILE_N=128
+export COSMA_GPU_TILE_K=128
 export COSMA_CFLAGS="${COSMA_CFLAGS}"
 export COSMA_LDFLAGS="${COSMA_LDFLAGS}"
 export COSMA_CUDA_LDFLAGS="${COSMA_CUDA_LDFLAGS}"
