@@ -1570,13 +1570,14 @@ CONTAINS
          enum_i_vals=(/ri_default, do_potential_coulomb, do_potential_id, do_potential_long, &
                        do_potential_short, do_potential_truncated/), &
          enum_desc=s2a("Use Coulomb metric for RI-MP2 and normal-scaling RI-SOS-MP2, RI-RPA and GW. "// &
-                       "Use truncated metric for low-scaling RI-SOS-MP2, RI-RPA and GW.", &
+                       "Use Overlap metric for low-scaling RI-SOS-MP2, RI-RPA and GW for periodic systems. "// &
+                       "Use truncated Coulomb metric for low-scaling RI-SOS-MP2, RI-RPA and GW for non-periodic systems.", &
                        "Coulomb metric: 1/r. Recommended for RI-MP2,", &
                        "Overlap metric: delta(r).", &
                        "Longrange metric: erf(omega*r)/r. Not recommended with DO_SVD .TRUE.", &
                        "Shortrange metric: erfc(omega*r)/r", &
                        "Truncated Coulomb metric: if (r &lt; R_c) 1/r else 0. More "// &
-                       "accurate than IDENTITY. Recommended for low-scaling methods."), &
+                       "accurate than IDENTITY for non-periodic systems. Recommended for low-scaling methods."), &
          default_i_val=ri_default)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

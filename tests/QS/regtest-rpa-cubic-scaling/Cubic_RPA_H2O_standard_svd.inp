@@ -57,9 +57,6 @@
         MEMORY  200.
         NUMBER_PROC  1
         &RI
-          &RI_METRIC
-            POTENTIAL_TYPE IDENTITY
-          &END
           DO_SVD
           EPS_SVD 1.0E-3
         &END RI

@@ -32,6 +32,7 @@ MODULE mp2_integrals
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_release_p, dbcsr_scalar, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
@@ -252,7 +253,7 @@ CONTAINS
                                                             do_kpoints_from_Gamma, do_svd, &
                                                             impose_split, memory_info
       REAL(KIND=dp)                                      :: cond_num, cutoff_old, eps_svd, &
-                                                            mem_for_iaK, omega_pot, &
+                                                            mem_for_iaK, omega_pot, rc_ang, &
                                                             relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
@@ -429,6 +430,38 @@ CONTAINS
                             fm_matrix_L_RI_metric, &
                             do_im_time, do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
                             qs_kind_set, sab_orb_sub)
+
+      IF (unit_nr > 0) THEN
+         ASSOCIATE (ri_metric=>qs_env%mp2_env%ri_metric)
+            SELECT CASE (ri_metric%potential_type)
+            CASE (do_potential_coulomb)
+               WRITE (unit_nr, FMT="(/T3,A,T74,A)") &
+                  "RI_INFO| RI metric: ", "COULOMB"
+            CASE (do_potential_short)
+               WRITE (unit_nr, FMT="(T3,A,T71,A)") &
+                  "RI_INFO| RI metric: ", "SHORTRANGE"
+               WRITE (unit_nr, '(T3,A,T61,F20.10)') &
+                  "RI_INFO| Omega:     ", ri_metric%omega
+               rc_ang = cp_unit_from_cp2k(ri_metric%cutoff_radius, "angstrom")
+               WRITE (unit_nr, '(T3,A,T61,F20.10)') &
+                  "RI_INFO| Cutoff Radius [angstrom]:     ", rc_ang
+            CASE (do_potential_long)
+               WRITE (unit_nr, FMT="(T3,A,T72,A)") &
+                  "RI_INFO| RI metric: ", "LONGRANGE"
+               WRITE (unit_nr, '(T3,A,T61,F20.10)') &
+                  "RI_INFO| Omega:     ", ri_metric%omega
+            CASE (do_potential_id)
+               WRITE (unit_nr, FMT="(T3,A,T73,A)") &
+                  "RI_INFO| RI metric: ", "IDENTITY"
+            CASE (do_potential_truncated)
+               WRITE (unit_nr, FMT="(T3,A,T72,A)") &
+                  "RI_INFO| RI metric: ", "TRUNCATED"
+               rc_ang = cp_unit_from_cp2k(ri_metric%cutoff_radius, "angstrom")
+               WRITE (unit_nr, '(T3,A,T61,F20.10)') &
+                  "RI_INFO| Cutoff Radius [angstrom]:     ", rc_ang
+            END SELECT
+         END ASSOCIATE
+      ENDIF
 
       IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
          "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe

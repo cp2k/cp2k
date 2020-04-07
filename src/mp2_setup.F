@@ -15,15 +15,12 @@ MODULE mp2_setup
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_constants,                 ONLY: &
-        do_eri_mme, do_potential_coulomb, do_potential_id, do_potential_long, do_potential_short, &
-        do_potential_truncated, mp2_method_direct, mp2_method_gpw, mp2_method_none, &
+        do_eri_mme, do_potential_short, mp2_method_direct, mp2_method_gpw, mp2_method_none, &
         mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, ri_rpa_method_gpw
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: erfc_cutoff
    USE mp2_types,                       ONLY: mp2_method_direct,&
                                               mp2_method_gpw,&
@@ -61,7 +58,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
                                                             do_ri_sos_mp2, do_rpa
-      REAL(dp)                                           :: rc_ang
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: eri_mme_section, gw_section, &
                                                             im_time_test_section, &
@@ -331,38 +327,6 @@ CONTAINS
             CPABORT("")
          END SELECT
          WRITE (unit_nr, '(T2,A)') ""
-      ENDIF
-
-      IF (unit_nr > 0) THEN
-         ASSOCIATE (ri_metric=>mp2_env%ri_metric)
-            SELECT CASE (ri_metric%potential_type)
-            CASE (do_potential_coulomb)
-               WRITE (unit_nr, FMT="(/T2,A,T74,A)") &
-                  "RI_INFO| RI metric: ", "COULOMB"
-            CASE (do_potential_short)
-               WRITE (unit_nr, FMT="(T2,A,T71,A)") &
-                  "RI_INFO| RI metric: ", "SHORTRANGE"
-               WRITE (unit_nr, '(T2,A,T61,F20.10)') &
-                  "RI_INFO| Omega:     ", ri_metric%omega
-               rc_ang = cp_unit_from_cp2k(ri_metric%cutoff_radius, "angstrom")
-               WRITE (unit_nr, '(T2,A,T61,F20.10)') &
-                  "RI_INFO| Cutoff Radius [angstrom]:     ", rc_ang
-            CASE (do_potential_long)
-               WRITE (unit_nr, FMT="(T2,A,T72,A)") &
-                  "RI_INFO| RI metric: ", "LONGRANGE"
-               WRITE (unit_nr, '(T2,A,T61,F20.10)') &
-                  "RI_INFO| Omega:     ", ri_metric%omega
-            CASE (do_potential_id)
-               WRITE (unit_nr, FMT="(T2,A,T73,A)") &
-                  "RI_INFO| RI metric: ", "IDENTITY"
-            CASE (do_potential_truncated)
-               WRITE (unit_nr, FMT="(T2,A,T72,A)") &
-                  "RI_INFO| RI metric: ", "TRUNCATED"
-               rc_ang = cp_unit_from_cp2k(ri_metric%cutoff_radius, "angstrom")
-               WRITE (unit_nr, '(T2,A,T61,F20.10)') &
-                  "RI_INFO| Cutoff Radius [angstrom]:     ", rc_ang
-            END SELECT
-         END ASSOCIATE
       ENDIF
 
       CALL cp_print_key_finished_output(unit_nr, logger, mp2_section, &
