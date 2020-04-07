@@ -38,11 +38,6 @@
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        &RI
-          &RI_METRIC
-            POTENTIAL_TYPE IDENTITY
-          &END
-        &END
         &INTEGRALS
           ERI_METHOD MME
         &END INTEGRALS

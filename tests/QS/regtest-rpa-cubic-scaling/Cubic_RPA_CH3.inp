@@ -40,11 +40,6 @@
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
       &WF_CORRELATION
-        &RI
-          &RI_METRIC
-            POTENTIAL_TYPE IDENTITY
-          &END
-        &END
         &LOW_SCALING
           MEMORY_CUT 1
         &END

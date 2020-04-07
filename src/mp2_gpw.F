@@ -279,6 +279,20 @@ CONTAINS
 
       blacs_env_sub_mat_munu => blacs_env_sub
 
+      ! get stuff
+      CALL get_qs_env(qs_env, &
+                      ks_env=ks_env, &
+                      qs_kind_set=qs_kind_set, &
+                      cell=cell, &
+                      particle_set=particle_set, &
+                      atomic_kind_set=atomic_kind_set, &
+                      molecule_set=molecule_set, &
+                      molecule_kind_set=molecule_kind_set, &
+                      dft_control=dft_control, &
+                      matrix_s_kp=matrix_s_kp)
+
+      CALL get_cell(cell=cell, periodic=periodic)
+
       IF (do_im_time) THEN
 
          IF (.NOT. mp2_env%ri_rpa_im_time%group_size_internal) THEN
@@ -293,7 +307,13 @@ CONTAINS
             END ASSOCIATE
          ENDIF
 
-         IF (mp2_env%ri_metric%potential_type == ri_default) mp2_env%ri_metric%potential_type = do_potential_truncated
+         IF (mp2_env%ri_metric%potential_type == ri_default) THEN
+            IF (SUM(periodic) > 0) THEN
+               mp2_env%ri_metric%potential_type = do_potential_id
+            ELSE
+               mp2_env%ri_metric%potential_type = do_potential_truncated
+            ENDIF
+         ENDIF
 
          ! statically initialize libint
          CALL cp_libint_static_init()
@@ -304,20 +324,7 @@ CONTAINS
          mp2_env%ri_metric%potential_type = do_potential_coulomb
       END IF
 
-      ! get stuff
-      CALL get_qs_env(qs_env, &
-                      ks_env=ks_env, &
-                      qs_kind_set=qs_kind_set, &
-                      cell=cell, &
-                      particle_set=particle_set, &
-                      atomic_kind_set=atomic_kind_set, &
-                      molecule_set=molecule_set, &
-                      molecule_kind_set=molecule_kind_set, &
-                      dft_control=dft_control, &
-                      matrix_s_kp=matrix_s_kp)
-
       IF (mp2_env%eri_method == eri_default) THEN
-         CALL get_cell(cell=cell, periodic=periodic)
          IF (SUM(periodic) > 0) mp2_env%eri_method = do_eri_gpw
          IF (SUM(periodic) == 0) mp2_env%eri_method = do_eri_os
          IF (SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0) mp2_env%eri_method = do_eri_os

@@ -48,12 +48,6 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        &RI
-          &RI_METRIC
-            POTENTIAL_TYPE TRUNCATED
-            CUTOFF_RADIUS 3.0
-          &END
-        &END
         &LOW_SCALING
           MEMORY_CUT 1
         &END
