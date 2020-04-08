@@ -48,8 +48,8 @@ MODULE rpa_gw
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
         dbcsr_t_destroy, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_iterator_blocks_left, &
         dbcsr_t_iterator_next_block, dbcsr_t_iterator_start, dbcsr_t_iterator_stop, &
-        dbcsr_t_iterator_type, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
-        dbcsr_t_type
+        dbcsr_t_iterator_type, dbcsr_t_nblks_total, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, &
+        dbcsr_t_pgrid_type, dbcsr_t_type
    USE input_constants,                 ONLY: gw_pade_approx,&
                                               gw_two_pole_model,&
                                               ri_rpa_g0w0_crossing_bisection,&
@@ -4893,6 +4893,7 @@ CONTAINS
          t_3c_ctr_RI_prv = t_3c_ctr_RI
       ELSE
 
+         ALLOCATE (sizes_RI(dbcsr_t_nblks_total(t_3c_overl_int_gw_RI, 1)))
          CALL dbcsr_t_get_info(t_3c_overl_int_gw_RI, blk_size_1=sizes_RI)
 
          CALL create_2c_tensor(t_RI, dist1, dist2, pgrid_2d, sizes_RI, sizes_RI, name="(RI|RI)")
@@ -4919,6 +4920,7 @@ CONTAINS
 
       ENDIF
 
+      ALLOCATE (sizes_AO(dbcsr_t_nblks_total(t_3c_overl_int_gw_AO, 1)))
       CALL dbcsr_t_get_info(t_3c_overl_int_gw_AO, blk_size_1=sizes_AO)
       CALL create_2c_tensor(t_AO, dist1, dist2, pgrid_2d, sizes_AO, sizes_AO, name="(AO|AO)")
       DEALLOCATE (dist1, dist2, sizes_AO)

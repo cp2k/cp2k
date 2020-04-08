@@ -38,9 +38,10 @@ MODULE hfx_ri
         dbcsr_t_batched_contract_finalize, dbcsr_t_batched_contract_init, dbcsr_t_clear, &
         dbcsr_t_contract, dbcsr_t_contract_index, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, &
         dbcsr_t_copy_tensor_to_matrix, dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_filter, &
-        dbcsr_t_get_num_blocks_total, dbcsr_t_mp_environ_pgrid, dbcsr_t_nd_mp_comm, &
-        dbcsr_t_pgrid_change_dims, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, &
-        dbcsr_t_pgrid_type, dbcsr_t_reserve_blocks, dbcsr_t_reserved_block_indices, dbcsr_t_type
+        dbcsr_t_get_num_blocks, dbcsr_t_get_num_blocks_total, dbcsr_t_max_nblks_local, &
+        dbcsr_t_mp_environ_pgrid, dbcsr_t_nd_mp_comm, dbcsr_t_ndims, dbcsr_t_pgrid_change_dims, &
+        dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_reserve_blocks, &
+        dbcsr_t_reserved_block_indices, dbcsr_t_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE hfx_types,                       ONLY: hfx_ri_type
    USE input_constants,                 ONLY: hfx_ri_do_2c_cholesky,&
@@ -636,6 +637,7 @@ CONTAINS
 
       CALL dbcsr_t_copy(ri_data%t_3c_int_ctr_1(1, 1), RI_AO_structure, order=[2, 1, 3])
 
+      ALLOCATE (blk_ind(dbcsr_t_get_num_blocks(RI_AO_structure), 3))
       CALL dbcsr_t_reserved_block_indices(RI_AO_structure, blk_ind)
       CALL dbcsr_t_destroy(RI_AO_structure)
 
@@ -1394,15 +1396,14 @@ CONTAINS
 
          ! impose sparsity of 3-center integrals:
 
+         ALLOCATE (ctr_ind(dbcsr_t_max_nblks_local(t_3c_2), dbcsr_t_ndims(t_3c_2)))
          CALL dbcsr_t_contract_index(dbcsr_scalar(1.0_dp), ri_data%t_2c_int(1, 1), ri_data%t_3c_int_ctr_3(1, 1), &
                                      dbcsr_scalar(0.0_dp), t_3c_2, &
                                      contract_1=[2], notcontract_1=[1], &
                                      contract_2=[1], notcontract_2=[2, 3], &
-                                     map_1=[1], map_2=[2, 3], result_index=ctr_ind, filter_eps=ri_data%filter_eps)
+                                     map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
+                                     nblks_local=nblk, result_index=ctr_ind)
 
-         CPASSERT(ALLOCATED(ctr_ind))
-
-         nblk = SIZE(ctr_ind, 1)
          ALLOCATE (ctr_ind_tmp(nblk, 3))
          iblk_filter = 0
          DO iblk = 1, nblk
