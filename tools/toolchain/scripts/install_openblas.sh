@@ -17,7 +17,7 @@ source "${INSTALLDIR}"/toolchain.env
 OPENBLAS_CFLAGS=''
 OPENBLAS_LDFLAGS=''
 OPENBLAS_LIBS=''
-
+OPENBLASROOT=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -114,7 +114,8 @@ case "$with_openblas" in
         fi
         OPENBLAS_CFLAGS="-I'${pkg_install_dir}/include'"
         OPENBLAS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
-        ;;
+        OPENBLASROOT='${pkg_install_dir}'
+  ;;
     __SYSTEM__)
         echo "==================== Finding LAPACK from system paths ===================="
         # assume that system openblas is threaded
@@ -143,10 +144,12 @@ prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
+export OPENBLASROOT=${pkg_install_dir}
 EOF
         cat "${BUILDDIR}/setup_openblas" >> $SETUPFILE
     fi
     cat <<EOF >> "${BUILDDIR}/setup_openblas"
+export OPENBLASROOT="${pkg_install_dir}"
 export OPENBLAS_CFLAGS="${OPENBLAS_CFLAGS}"
 export OPENBLAS_LDFLAGS="${OPENBLAS_LDFLAGS}"
 export OPENBLAS_LIBS="IF_OMP(${OPENBLAS_LIBS_OMP}|${OPENBLAS_LIBS})"

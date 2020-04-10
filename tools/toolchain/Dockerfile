@@ -76,10 +76,12 @@ RUN ./scripts/install_libxc.sh && rm -rf ./build
 COPY ./scripts/install_libsmm.sh \
      ./scripts/install_libxsmm.sh \
      ./scripts/install_scalapack.sh \
+     ./scripts/install_cosma.sh \
      ./scripts/
 RUN ./scripts/install_libsmm.sh && \
     ./scripts/install_libxsmm.sh && \
-    ./scripts/install_scalapack.sh && \
+    ./scripts/install_scalapack.sh && \ 
+    ./scripts/install_cosma.sh && \
     rm -rf ./build
 
 COPY ./scripts/install_elpa.sh ./scripts/
