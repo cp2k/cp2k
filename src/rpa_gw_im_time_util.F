@@ -31,8 +31,8 @@ MODULE rpa_gw_im_time_util
         dbcsr_scalar, dbcsr_set_diag, dbcsr_type, dbcsr_type_no_symmetry
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
-        dbcsr_t_destroy, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
-        dbcsr_t_type
+        dbcsr_t_default_distvec, dbcsr_t_destroy, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, &
+        dbcsr_t_pgrid_type, dbcsr_t_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_sum
@@ -45,7 +45,6 @@ MODULE rpa_gw_im_time_util
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_tensors_types,                ONLY: create_2c_tensor,&
                                               create_3c_tensor,&
-                                              cyclic_tensor_dist,&
                                               pgf_block_sizes
    USE rpa_communication,               ONLY: communicate_buffer
 #include "./base/base_uses.f90"
@@ -280,8 +279,8 @@ CONTAINS
          CALL dbcsr_distribution_get(dist_templ, nprows=nprows, npcols=npcols)
 
          ALLOCATE (distp_1(size_MO), distp_2(size_MO))
-         CALL cyclic_tensor_dist(size_MO, nprows, sizes_MO_blocked, distp_1)
-         CALL cyclic_tensor_dist(size_MO, npcols, sizes_MO_blocked, distp_2)
+         CALL dbcsr_t_default_distvec(size_MO, nprows, sizes_MO_blocked, distp_1)
+         CALL dbcsr_t_default_distvec(size_MO, npcols, sizes_MO_blocked, distp_2)
          CALL dbcsr_distribution_new(dist, template=dist_templ, row_dist=distp_1, col_dist=distp_2, reuse_arrays=.TRUE.)
 
          ALLOCATE (sizes_MO_p1(size_MO))

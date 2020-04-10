@@ -21,6 +21,7 @@ MODULE qs_tensors_types
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_type_real_8
    USE dbcsr_tensor_api,                ONLY: dbcsr_t_create,&
+                                              dbcsr_t_default_distvec,&
                                               dbcsr_t_distribution_destroy,&
                                               dbcsr_t_distribution_new,&
                                               dbcsr_t_distribution_type,&
@@ -45,7 +46,7 @@ MODULE qs_tensors_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tensors_types'
 
    PUBLIC :: distribution_3d_type, neighbor_list_3c_type, neighbor_list_3c_iterator_type, &
-             distribution_2d_create, distribution_3d_create, distribution_3d_destroy, cyclic_tensor_dist, &
+             distribution_2d_create, distribution_3d_create, distribution_3d_destroy, &
              split_block_sizes, create_3c_tensor, create_2c_tensor, contiguous_tensor_dist, pgf_block_sizes, &
              create_tensor_batches
 
@@ -243,37 +244,6 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief cyclic distribution of weighted elements
-!> \param nel ...
-!> \param nbin ...
-!> \param weights ...
-!> \param dist ...
-! **************************************************************************************************
-   SUBROUTINE cyclic_tensor_dist(nel, nbin, weights, dist)
-      INTEGER, INTENT(IN)                                :: nel, nbin
-      INTEGER, DIMENSION(nel), INTENT(IN)                :: weights
-      INTEGER, DIMENSION(nel), INTENT(OUT)               :: dist
-
-      INTEGER                                            :: ibin, iel, niter
-      INTEGER, DIMENSION(nbin)                           :: occup
-
-      occup(:) = 0
-      ibin = 0
-      DO iel = 1, nel
-         niter = 0
-         ibin = MOD(ibin + 1, nbin)
-         DO WHILE (occup(ibin + 1) + weights(iel) .GE. MAXVAL(occup))
-            IF (MINLOC(occup, DIM=1) == ibin + 1) EXIT
-            ibin = MOD(ibin + 1, nbin)
-            niter = niter + 1
-         ENDDO
-         dist(iel) = ibin
-         occup(ibin + 1) = occup(ibin + 1) + weights(iel)
-      ENDDO
-
-   END SUBROUTINE cyclic_tensor_dist
-
-! **************************************************************************************************
 !> \brief contiguous distribution of weighted elements
 !> \param nel ...
 !> \param nbin ...
@@ -403,37 +373,37 @@ CONTAINS
       IF (mem_aware_1) THEN
          DO imem = 1, nbatches_1
             size_cut = ends_array_block_1(imem) - starts_array_block_1(imem) + 1
-            CALL cyclic_tensor_dist( &
+            CALL dbcsr_t_default_distvec( &
                size_cut, pdims(1), &
                sizes_1(starts_array_block_1(imem):ends_array_block_1(imem)), &
                dist_1(starts_array_block_1(imem):ends_array_block_1(imem)))
          ENDDO
       ELSE
-         CALL cyclic_tensor_dist(size_1, pdims(1), sizes_1, dist_1)
+         CALL dbcsr_t_default_distvec(size_1, pdims(1), sizes_1, dist_1)
       ENDIF
 
       IF (mem_aware_2) THEN
          DO imem = 1, nbatches_2
             size_cut = ends_array_block_2(imem) - starts_array_block_2(imem) + 1
-            CALL cyclic_tensor_dist( &
+            CALL dbcsr_t_default_distvec( &
                size_cut, pdims(2), &
                sizes_2(starts_array_block_2(imem):ends_array_block_2(imem)), &
                dist_2(starts_array_block_2(imem):ends_array_block_2(imem)))
          ENDDO
       ELSE
-         CALL cyclic_tensor_dist(size_2, pdims(2), sizes_2, dist_2)
+         CALL dbcsr_t_default_distvec(size_2, pdims(2), sizes_2, dist_2)
       ENDIF
 
       IF (mem_aware_3) THEN
          DO imem = 1, nbatches_3
             size_cut = ends_array_block_3(imem) - starts_array_block_3(imem) + 1
-            CALL cyclic_tensor_dist( &
+            CALL dbcsr_t_default_distvec( &
                size_cut, pdims(3), &
                sizes_3(starts_array_block_3(imem):ends_array_block_3(imem)), &
                dist_3(starts_array_block_3(imem):ends_array_block_3(imem)))
          ENDDO
       ELSE
-         CALL cyclic_tensor_dist(size_3, pdims(3), sizes_3, dist_3)
+         CALL dbcsr_t_default_distvec(size_3, pdims(3), sizes_3, dist_3)
       ENDIF
 
       CALL dbcsr_t_distribution_new(dist, pgrid, dist_1, dist_2, dist_3)
@@ -486,8 +456,8 @@ CONTAINS
       ALLOCATE (dist_1(size_1))
       ALLOCATE (dist_2(size_2))
 
-      CALL cyclic_tensor_dist(size_1, pdims(1), sizes_1, dist_1)
-      CALL cyclic_tensor_dist(size_2, pdims(2), sizes_2, dist_2)
+      CALL dbcsr_t_default_distvec(size_1, pdims(1), sizes_1, dist_1)
+      CALL dbcsr_t_default_distvec(size_2, pdims(2), sizes_2, dist_2)
 
       CALL dbcsr_t_distribution_new(dist, pgrid, dist_1, dist_2)
       CALL dbcsr_t_create(t2c, name, dist, [order_in(1)], [order_in(2)], dbcsr_type_real_8, sizes_1, sizes_2)

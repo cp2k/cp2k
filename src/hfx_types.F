@@ -38,9 +38,10 @@ MODULE hfx_types
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_batched_contract_finalize, dbcsr_t_destroy, dbcsr_t_distribution_destroy, &
-        dbcsr_t_distribution_new, dbcsr_t_distribution_type, dbcsr_t_mp_dims_create, &
-        dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_type
+        dbcsr_t_batched_contract_finalize, dbcsr_t_default_distvec, dbcsr_t_destroy, &
+        dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
+        dbcsr_t_mp_dims_create, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
+        dbcsr_t_type
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
    USE input_constants,                 ONLY: &
@@ -79,10 +80,14 @@ MODULE hfx_types
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type
-   USE qs_tensors_types,                ONLY: &
-        create_2c_tensor, create_3c_tensor, cyclic_tensor_dist, distribution_3d_create, &
-        distribution_3d_destroy, distribution_3d_type, libcusmm_maxblocksize, pgf_block_sizes, &
-        split_block_sizes
+   USE qs_tensors_types,                ONLY: create_2c_tensor,&
+                                              create_3c_tensor,&
+                                              distribution_3d_create,&
+                                              distribution_3d_destroy,&
+                                              distribution_3d_type,&
+                                              libcusmm_maxblocksize,&
+                                              pgf_block_sizes,&
+                                              split_block_sizes
    USE string_utilities,                ONLY: compress
    USE t_c_g0,                          ONLY: free_C0
 
@@ -1264,9 +1269,9 @@ CONTAINS
       ALLOCATE (dist_RI(natom))
       ALLOCATE (dist_AO_1(natom))
       ALLOCATE (dist_AO_2(natom))
-      CALL cyclic_tensor_dist(natom, pdims(1), ri_data%bsizes_RI, dist_RI)
-      CALL cyclic_tensor_dist(natom, pdims(2), ri_data%bsizes_AO, dist_AO_1)
-      CALL cyclic_tensor_dist(natom, pdims(3), ri_data%bsizes_AO, dist_AO_2)
+      CALL dbcsr_t_default_distvec(natom, pdims(1), ri_data%bsizes_RI, dist_RI)
+      CALL dbcsr_t_default_distvec(natom, pdims(2), ri_data%bsizes_AO, dist_AO_1)
+      CALL dbcsr_t_default_distvec(natom, pdims(3), ri_data%bsizes_AO, dist_AO_2)
       CALL distribution_3d_create(dist_3d, dist_RI, dist_ao_1, dist_ao_2, nkind, particle_set, &
                                   mp_comm_3d, own_comm=.TRUE.)
 

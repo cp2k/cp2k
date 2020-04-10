@@ -29,7 +29,7 @@ MODULE qs_tensors
                                               dbcsr_type,&
                                               dbcsr_type_real_8
    USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_blk_sizes, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
+        dbcsr_t_blk_sizes, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_default_distvec, dbcsr_t_destroy, &
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
         dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_mapping_info, &
         dbcsr_t_get_nze_total, dbcsr_t_get_stored_coordinates, dbcsr_t_mp_environ_pgrid, &
@@ -76,9 +76,9 @@ MODULE qs_tensors
                                               local_atoms_type,&
                                               pair_radius_setup
    USE qs_tensors_types,                ONLY: &
-        cyclic_tensor_dist, distribution_3d_destroy, distribution_3d_type, &
-        neighbor_list_3c_iterator_type, neighbor_list_3c_type, symmetric_ij, symmetric_ijk, &
-        symmetric_jk, symmetric_none, symmetrik_ik
+        distribution_3d_destroy, distribution_3d_type, neighbor_list_3c_iterator_type, &
+        neighbor_list_3c_type, symmetric_ij, symmetric_ijk, symmetric_jk, symmetric_none, &
+        symmetrik_ik
    USE t_c_g0,                          ONLY: get_lmax_init,&
                                               init
 #include "./base/base_uses.f90"
@@ -1610,42 +1610,42 @@ CONTAINS
       ALLOCATE (dist2(tdims(2)))
       ALLOCATE (dist3(tdims(3)))
 
-      CALL cyclic_tensor_dist(tdims(1), pdims(1), bs1, dist1)
+      CALL dbcsr_t_default_distvec(tdims(1), pdims(1), bs1, dist1)
 
       IF (mem_aware_1) THEN
          DO imem = 1, memcut_1
             size_cut = ends_array_mc_block_1(imem) - starts_array_mc_block_1(imem) + 1
-            CALL cyclic_tensor_dist( &
+            CALL dbcsr_t_default_distvec( &
                size_cut, pdims(1), &
                bs1(starts_array_mc_block_1(imem):ends_array_mc_block_1(imem)), &
                dist1(starts_array_mc_block_1(imem):ends_array_mc_block_1(imem)))
          ENDDO
       ELSE
-         CALL cyclic_tensor_dist(tdims(1), pdims(1), bs1, dist1)
+         CALL dbcsr_t_default_distvec(tdims(1), pdims(1), bs1, dist1)
       ENDIF
 
       IF (mem_aware_2) THEN
          DO imem = 1, memcut_2
             size_cut = ends_array_mc_block_2(imem) - starts_array_mc_block_2(imem) + 1
-            CALL cyclic_tensor_dist( &
+            CALL dbcsr_t_default_distvec( &
                size_cut, pdims(2), &
                bs2(starts_array_mc_block_2(imem):ends_array_mc_block_2(imem)), &
                dist2(starts_array_mc_block_2(imem):ends_array_mc_block_2(imem)))
          ENDDO
       ELSE
-         CALL cyclic_tensor_dist(tdims(2), pdims(2), bs2, dist2)
+         CALL dbcsr_t_default_distvec(tdims(2), pdims(2), bs2, dist2)
       ENDIF
 
       IF (mem_aware_3) THEN
          DO imem = 1, memcut_3
             size_cut = ends_array_mc_block_3(imem) - starts_array_mc_block_3(imem) + 1
-            CALL cyclic_tensor_dist( &
+            CALL dbcsr_t_default_distvec( &
                size_cut, pdims(3), &
                bs3(starts_array_mc_block_3(imem):ends_array_mc_block_3(imem)), &
                dist3(starts_array_mc_block_3(imem):ends_array_mc_block_3(imem)))
          ENDDO
       ELSE
-         CALL cyclic_tensor_dist(tdims(3), pdims(3), bs3, dist3)
+         CALL dbcsr_t_default_distvec(tdims(3), pdims(3), bs3, dist3)
       ENDIF
 
       CALL dbcsr_t_get_mapping_info(t_3c%nd_index_blk, map1_2d=map1, map2_2d=map2)

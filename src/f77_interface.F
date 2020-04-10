@@ -302,14 +302,16 @@ CONTAINS
       IF (.NOT. module_initialized) THEN
          ierr = cp_failure_level
       ELSE
-         ! Finalize the DBCSR configuration
-         CALL dbcsr_finalize_lib()
-         CALL pw_cuda_finalize()
          DO ienv = n_f_envs, 1, -1
             CALL destroy_force_env(f_envs(ienv)%f_env%id_nr, ierr=ierr)
             CPASSERT(ierr == 0)
          END DO
          DEALLOCATE (f_envs)
+
+         ! Finalize the DBCSR configuration
+         CALL dbcsr_finalize_lib()
+         CALL pw_cuda_finalize()
+
          CALL cp_para_env_release(default_para_env)
          ierr = 0
          CALL cp_rm_default_logger()

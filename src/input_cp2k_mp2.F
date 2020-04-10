@@ -1170,7 +1170,7 @@ CONTAINS
          name="MIN_BLOCK_SIZE", &
          description="Minimum tensor block size. Adjusting this value may have minor effect on "// &
          "performance but default should be good enough.", &
-         default_i_val=8)
+         default_i_val=5)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
