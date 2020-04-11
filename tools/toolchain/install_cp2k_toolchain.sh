@@ -684,6 +684,10 @@ if [ $MPI_MODE = no ] ; then
         echo "Not using MPI, so spfft is disabled"
         with_spfft="__DONTUSE__"
     fi
+    if [ "$with_cosma" != "__DONTUSE__" ] ; then
+        echo "Not using MPI, so cosma is disabled"
+        with_cosma="__DONTUSE__"
+    fi
 else
     # if gcc is installed, then mpi needs to be installed too
     if [ "$with_gcc" = "__INSTALL__" ] ; then
