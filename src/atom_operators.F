@@ -33,6 +33,7 @@ MODULE atom_operators
    USE periodic_table,                  ONLY: ptable
    USE physcon,                         ONLY: c_light_au
    USE qs_grid_atom,                    ONLY: grid_atom_type
+   USE, INTRINSIC :: ISO_C_BINDING,     ONLY: C_LOC, C_F_POINTER
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -311,7 +312,8 @@ CONTAINS
                END DO
                integrals%nne(l) = ii
                IF (ii > 0) THEN
-                  mat => omat(1:ii, 1:ii)
+                  ! mat(1:ii, 1:ii) => omat
+                  CALL C_F_POINTER(C_LOC(omat), mat, [ii, ii])
                   mat = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
 
                   DO i = 1, ii
