@@ -11,6 +11,8 @@
 !>
 ! **************************************************************************************************
 MODULE atom_operators
+   USE ISO_C_BINDING,                   ONLY: C_F_POINTER, &
+                                              C_LOC
    USE ai_onecenter,                    ONLY: &
         sg_coulomb, sg_erf, sg_erfc, sg_exchange, sg_gpot, sg_kinetic, sg_kinnuc, sg_nuclear, &
         sg_overlap, sg_proj_ol, sto_kinetic, sto_nuclear, sto_overlap
@@ -33,7 +35,6 @@ MODULE atom_operators
    USE periodic_table,                  ONLY: ptable
    USE physcon,                         ONLY: c_light_au
    USE qs_grid_atom,                    ONLY: grid_atom_type
-   USE, INTRINSIC :: ISO_C_BINDING,     ONLY: C_LOC, C_F_POINTER
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
