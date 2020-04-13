@@ -1310,11 +1310,13 @@ CONTAINS
       ! nonlocal
       sgp_atompot%has_nonlocal = ANY(sgp_atompot%is_nonlocal)
       sgp_atompot%lmax = lm
-      CPASSERT(n <= SIZE(sgp_atompot%a_nonlocal))
-      sgp_atompot%n_nonlocal = n
-      sgp_atompot%a_nonlocal(1:n) = ap(1:n)
-      sgp_atompot%h_nonlocal(1:n, 0:lm) = hhp(1:n, 0:lm)
-      sgp_atompot%c_nonlocal(1:n, 1:n, 0:lm) = ccp(1:n, 1:n, 0:lm)
+      IF(sgp_atompot%has_nonlocal) THEN
+         CPASSERT(n <= SIZE(sgp_atompot%a_nonlocal))
+         sgp_atompot%n_nonlocal = n
+         sgp_atompot%a_nonlocal(1:n) = ap(1:n)
+         sgp_atompot%h_nonlocal(1:n, 0:lm) = hhp(1:n, 0:lm)
+         sgp_atompot%c_nonlocal(1:n, 1:n, 0:lm) = ccp(1:n, 1:n, 0:lm)
+      END IF
       ! local
       CALL get_potential(sgp_potential, n_local=n, a_local=ap, c_local=ce)
       CPASSERT(n <= SIZE(sgp_atompot%a_local))
