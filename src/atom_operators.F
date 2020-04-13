@@ -311,7 +311,7 @@ CONTAINS
                END DO
                integrals%nne(l) = ii
                IF (ii > 0) THEN
-                  mat(1:ii, 1:ii) => omat
+                  mat => omat(1:ii, 1:ii)
                   mat = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
 
                   DO i = 1, ii
