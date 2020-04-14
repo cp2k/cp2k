@@ -11,8 +11,6 @@
 !>
 ! **************************************************************************************************
 MODULE atom_operators
-   USE ISO_C_BINDING,                   ONLY: C_F_POINTER, &
-                                              C_LOC
    USE ai_onecenter,                    ONLY: &
         sg_coulomb, sg_erf, sg_erfc, sg_exchange, sg_gpot, sg_kinetic, sg_kinnuc, sg_nuclear, &
         sg_overlap, sg_proj_ol, sto_kinetic, sto_nuclear, sto_overlap
@@ -73,10 +71,8 @@ CONTAINS
                                                             n1, n2, nn1, nn2, nu, nx
       REAL(KIND=dp)                                      :: om, rc, ron, sc, x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpot, w, work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vmat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         TARGET                                          :: omat
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: eri, mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: omat, vmat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: eri
 
       CALL timeset(routineN, handle)
 
@@ -313,14 +309,11 @@ CONTAINS
                END DO
                integrals%nne(l) = ii
                IF (ii > 0) THEN
-                  ! mat(1:ii, 1:ii) => omat
-                  CALL C_F_POINTER(C_LOC(omat), mat, [ii, ii])
-                  mat = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
-
+                  omat(1:ii, 1:ii) = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
                   DO i = 1, ii
                      integrals%uptrans(i, i, l) = 1._dp
                   ENDDO
-                  CALL lapack_sgesv(ii, ii, mat, ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
+                  CALL lapack_sgesv(ii, ii, omat(1:ii, 1:ii), ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
                   CPASSERT(info == 0)
                END IF
             END IF
