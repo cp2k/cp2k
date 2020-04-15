@@ -790,9 +790,11 @@ CONTAINS
          CALL basis_set_list_setup(basis_set_ao, "ORB", qs_kind_set)
          CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=basis_set_ao)
 
-         cut_memory = qs_env%mp2_env%ri_rpa_im_time%cut_memory
-         CALL create_tensor_batches(sizes_AO, cut_memory, starts_array_mc_int, ends_array_mc_int, &
-                                    starts_array_mc_block_int, ends_array_mc_block_int)
+         ASSOCIATE (cut_memory=>qs_env%mp2_env%ri_rpa_im_time%cut_memory)
+            CALL create_tensor_batches(sizes_AO, cut_memory, starts_array_mc_int, ends_array_mc_int, &
+                                       starts_array_mc_block_int, ends_array_mc_block_int)
+         END ASSOCIATE
+
          DEALLOCATE (starts_array_mc_int, ends_array_mc_int)
 
          CALL create_3c_tensor(t_3c_overl_int_template, dist_RI, dist_AO_1, dist_AO_2, pgrid_t3c_overl, &
