@@ -26,6 +26,7 @@ echo -e "\n========== Running i-Pi Tests =========="
 
 cd  /opt/i-pi/examples/cp2k/nvt-cl
 set +e # disable error trapping for remainder of script
+ulimit -t 300  # abort after 5 minutes
 
 # launch cp2k
 (
