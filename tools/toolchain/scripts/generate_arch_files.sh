@@ -219,16 +219,16 @@ if [ "$ENABLE_CUDA" = __TRUE__ ] ; then
 fi
 # valgrind enabled arch files
 if [ "$ENABLE_VALGRIND" = __TRUE__ ] ; then
-      gen_arch_file "local_valgrind.sopt"      VALGRIND
+      gen_arch_file "local_valgrind.sopt"      VALGRIND OMP
     [ "$MPI_MODE" != no ] && \
-      gen_arch_file "local_valgrind.popt"      VALGRIND MPI
+      gen_arch_file "local_valgrind.popt"      VALGRIND OMP MPI
 fi
 # coverage enabled arch files
-gen_arch_file "local_coverage.sdbg"            COVERAGE
+gen_arch_file "local_coverage.sdbg"            COVERAGE OMP
 [ "$MPI_MODE" != no ] && \
-    gen_arch_file "local_coverage.pdbg"        COVERAGE MPI
+    gen_arch_file "local_coverage.pdbg"        COVERAGE OMP MPI
 [ "$ENABLE_CUDA" = __TRUE__ ] && \
-    gen_arch_file "local_coverage_cuda.pdbg"   COVERAGE MPI CUDA
+    gen_arch_file "local_coverage_cuda.pdbg"   COVERAGE OMP MPI CUDA
 
 cd "${ROOTDIR}"
 
