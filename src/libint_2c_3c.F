@@ -92,6 +92,7 @@ CONTAINS
 !> \param dbc ...
 !> \param lib the libint_t object for evaluation (assume that it is initialized outside)
 !> \param potential_parameter the info about the potential
+!> \param int_abc_ext the extremal value of int_abc, i.e., MAXVAL(ABS(int_abc))
 !> \note Prior to calling this routine, the cp_libint_t type passed as argument must be initialized,
 !>       the libint library must be static initialized, and in case of truncated Coulomb operator,
 !>       the latter must be initialized too
@@ -99,7 +100,8 @@ CONTAINS
    SUBROUTINE eri_3center(int_abc, la_min, la_max, npgfa, zeta, rpgfa, ra, &
                           lb_min, lb_max, npgfb, zetb, rpgfb, rb, &
                           lc_min, lc_max, npgfc, zetc, rpgfc, rc, &
-                          dab, dac, dbc, lib, potential_parameter)
+                          dab, dac, dbc, lib, potential_parameter, &
+                          int_abc_ext)
 
       REAL(dp), DIMENSION(:, :, :), INTENT(INOUT)        :: int_abc
       INTEGER, INTENT(IN)                                :: la_min, la_max, npgfa
@@ -114,6 +116,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: dab, dac, dbc
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      REAL(dp), INTENT(OUT), OPTIONAL                    :: int_abc_ext
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eri_3center', routineP = moduleN//':'//routineN
 
@@ -138,6 +141,10 @@ CONTAINS
       ELSEIF (op == do_potential_coulomb) THEN
          dr_bc = 1000000.0_dp
          dr_ac = 1000000.0_dp
+      ENDIF
+
+      IF (PRESENT(int_abc_ext)) THEN
+         int_abc_ext = 0.0_dp
       ENDIF
 
       !Note: we want to compute all possible integrals based on the 3-centers (ab|c) before
@@ -191,6 +198,9 @@ CONTAINS
                                  p3 = p2 + i
                                  int_abc(a_offset + i, b_offset + j, c_offset + k) = p_work(p3)
                               END DO
+                              IF (PRESENT(int_abc_ext)) THEN
+                                 int_abc_ext = MAX(int_abc_ext, MAXVAL(ABS(p_work(p3:p3 + ncoa))))
+                              ENDIF
                            END DO
                         END DO
 
@@ -222,6 +232,9 @@ CONTAINS
                                  p3 = p2 + j
                                  int_abc(a_offset + i, b_offset + j, c_offset + k) = p_work(p3)
                               END DO
+                              IF (PRESENT(int_abc_ext)) THEN
+                                 int_abc_ext = MAX(int_abc_ext, MAXVAL(ABS(p_work(p3:p3 + ncob))))
+                              ENDIF
                            END DO
                         END DO
 

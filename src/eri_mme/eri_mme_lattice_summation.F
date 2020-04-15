@@ -669,26 +669,40 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_2c_gspace_1d_deltal', &
                                      routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: k, l, l_max
+      INTEGER                                            :: k, k0, k1, l, l_max
       REAL(KIND=dp)                                      :: dG, exp_tot, G, prefac
 
       prefac = prefactor*inv_lgth
-      dG = inv_lgth*twopi
+      dG = inv_lgth*twopi ! positive
       l_max = UBOUND(S_G, 1)
 
       S_G(:) = 0.0_dp
-      DO k = G_min, G_c
-         IF (k .NE. 0) THEN
-            G = k*dG
-            exp_tot = EXP(-alpha*G**2)*prefac
+      IF (0 .LT. G_min) THEN
+         k0 = G_min; k1 = 0
+      ELSE IF (G_c .LT. 0) THEN
+         k0 = 0; k1 = G_c
+      ELSE ! Gmin <= 0 /\ 0 <= Gc
+         S_G(0) = prefac
+         k0 = 1; k1 = -1
+      ENDIF
+      ! positive range
+      IF (0 .LT. k0) THEN
+         DO k = k0, G_c
+            G = k*dG; exp_tot = EXP(-alpha*G**2)*prefac
+            DO l = 0, l_max
+               S_G(l) = S_G(l) + G**(l - delta_l)*exp_tot
+            ENDDO
+         ENDDO
+      ENDIF
+      ! negative range
+      IF (k1 .LT. 0) THEN
+         DO k = G_min, k1
+            G = k*dG; exp_tot = EXP(-alpha*G**2)*prefac
             DO l = 0, l_max
                S_G(l) = S_G(l) + ABS(G)**(l - delta_l)*exp_tot
             ENDDO
-         ELSE
-            S_G(0) = S_G(0) + prefac
-         ENDIF
-      ENDDO
-
+         ENDDO
+      ENDIF
    END SUBROUTINE pgf_sum_2c_gspace_1d_deltal
 
 ! **************************************************************************************************
