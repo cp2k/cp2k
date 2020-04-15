@@ -10,6 +10,7 @@ import sys
 import os
 import smtplib
 from email.mime.text import MIMEText
+import html
 import re
 import gzip
 from datetime import datetime, timedelta
@@ -236,8 +237,8 @@ def gen_archive(config, log, outdir):
             else:
                 html_row += 2 * "<td></td>"
                 url_row = ""
-            html_row += '<td align="left">%s</td>' % commit["author-name"]
-            html_row += '<td align="left">%s</td>' % commit["msg"]
+            html_row += '<td align="left">%s</td>' % html.escape(commit["author-name"])
+            html_row += '<td align="left">%s</td>' % html.escape(commit["msg"])
             html_row += "</tr>\n\n"
             all_html_rows.append(html_row)
             all_url_rows.append(url_row)
@@ -561,11 +562,18 @@ def html_gitbox(log):
         msg = commit["msg"]
         if len(msg) > 27:
             msg = msg[:26] + "..."
-        output += '<p><a title="%s" href="%s">%s</a><br>\n' % (commit["msg"], url, msg)
+        output += '<p><a title="%s" href="%s">%s</a><br>\n' % (
+            html.escape(commit["msg"]),
+            url,
+            html.escape(msg),
+        )
         delta = now - commit["date"]
         age = delta.days * 24.0 + delta.seconds / 3600.0
         output += "<small>git:" + commit["git-sha"][:7]
-        output += "<br>\n%s %.1fh ago.</small></p>\n" % (commit["author-name"], age)
+        output += "<br>\n%s %.1fh ago.</small></p>\n" % (
+            html.escape(commit["author-name"]),
+            age,
+        )
     output += "</div>\n"
     return output
 
