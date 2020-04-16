@@ -287,7 +287,7 @@ CONTAINS
       LOGICAL                                            :: do_screen, my_sort_bc
       REAL(dp)                                           :: dij, dik, djk, max_val, my_eps_screen, &
                                                             ri(3), rij(3), rik(3), rj(3), rjk(3), &
-                                                            rk(3), screen_radius
+                                                            rk(3), sabc_ext, screen_radius
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: max_contr, max_contra, max_contrb, &
                                                             max_contrc
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: iabc, sabc, work
@@ -432,7 +432,8 @@ CONTAINS
 !$OMP          la_max,la_min,lb_max,lb_min,lc_max,lc_min,npgfa,npgfb,npgfc,nsgfa,nsgfb,nsgfc,ri,rk,&
 !$OMP          first_sgfa,first_sgfb,first_sgfc,set_radius_a,set_radius_b,set_radius_c, nsetc,rj,&
 !$OMP          rpgf_a,rpgf_b,rpgf_c,sphi_a,sphi_b,sphi_c,zeta,zetb,zetc,basis_set_b,basis_set_c,&
-!$OMP          dij,dik,djk,ni,nj,nk,iabc,sabc,jset,kset,ncob,ncoc,sgfb,sgfc,egfb,egfc,max_val)
+!$OMP          dij,dik,djk,ni,nj,nk,iabc,sabc,jset,kset,ncob,ncoc,sgfb,sgfc,egfb,egfc,max_val,&
+!$OMP          sabc_ext)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
@@ -524,20 +525,26 @@ CONTAINS
                   !pgf integrals
                   ALLOCATE (sabc(ncoa, ncob, ncoc))
                   sabc = 0.0_dp
-
-                  CALL eri_3center(sabc, la_min(iset), la_max(iset), npgfa(iset), zeta(:, iset), &
-                                   rpgf_a(:, iset), ri, lb_min(jset), lb_max(jset), npgfb(jset), &
-                                   zetb(:, jset), rpgf_b(:, jset), rj, lc_min(kset), lc_max(kset), &
-                                   npgfc(kset), zetc(:, kset), rpgf_c(:, kset), rk, dij, dik, &
-                                   djk, lib, potential_parameter)
+                  sabc_ext = 0.0_dp
 
                   IF (do_screen) THEN
-                     max_val = MAXVAL(ABS(sabc))*max_contra(iset, ikind)*max_contrb(jset, jkind) &
-                               *max_contrc(kset, kkind)
-                     IF (max_val < my_eps_screen) THEN
+                     CALL eri_3center(sabc, la_min(iset), la_max(iset), npgfa(iset), zeta(:, iset), &
+                                      rpgf_a(:, iset), ri, lb_min(jset), lb_max(jset), npgfb(jset), &
+                                      zetb(:, jset), rpgf_b(:, jset), rj, lc_min(kset), lc_max(kset), &
+                                      npgfc(kset), zetc(:, kset), rpgf_c(:, kset), rk, dij, dik, &
+                                      djk, lib, potential_parameter, int_abc_ext=sabc_ext)
+                     IF (my_eps_screen > sabc_ext*(max_contra(iset, ikind)* &
+                                                   max_contrb(jset, jkind)* &
+                                                   max_contrc(kset, kkind))) THEN
                         DEALLOCATE (sabc)
                         CYCLE
                      END IF
+                  ELSE
+                     CALL eri_3center(sabc, la_min(iset), la_max(iset), npgfa(iset), zeta(:, iset), &
+                                      rpgf_a(:, iset), ri, lb_min(jset), lb_max(jset), npgfb(jset), &
+                                      zetb(:, jset), rpgf_b(:, jset), rj, lc_min(kset), lc_max(kset), &
+                                      npgfc(kset), zetc(:, kset), rpgf_c(:, kset), rk, dij, dik, &
+                                      djk, lib, potential_parameter)
                   END IF
 
                   ALLOCATE (work(nsgfa(iset), nsgfb(jset), nsgfc(kset)))
