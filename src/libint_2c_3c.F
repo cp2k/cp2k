@@ -199,7 +199,7 @@ CONTAINS
                                  int_abc(a_offset + i, b_offset + j, c_offset + k) = p_work(p3)
                               END DO
                               IF (PRESENT(int_abc_ext)) THEN
-                                 int_abc_ext = MAX(int_abc_ext, MAXVAL(ABS(p_work(p3:p3 + ncoa))))
+                                 int_abc_ext = MAX(int_abc_ext, MAXVAL(ABS(p_work(p2 + 1:p2 + ncoa))))
                               ENDIF
                            END DO
                         END DO
@@ -233,7 +233,7 @@ CONTAINS
                                  int_abc(a_offset + i, b_offset + j, c_offset + k) = p_work(p3)
                               END DO
                               IF (PRESENT(int_abc_ext)) THEN
-                                 int_abc_ext = MAX(int_abc_ext, MAXVAL(ABS(p_work(p3:p3 + ncob))))
+                                 int_abc_ext = MAX(int_abc_ext, MAXVAL(ABS(p_work(p2 + 1:p2 + ncob))))
                               ENDIF
                            END DO
                         END DO
