@@ -39,7 +39,11 @@ case "$with_superlu" in
             tar -xzf superlu_dist_${superlu_ver}.tar.gz
             cd superlu_dist-${superlu_ver}
             cd build
-            cmake -DTPL_ENABLE_PARMETISLIB=FALSE -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} .. > cmake.log 2>&1
+            # Explicitly set LIBDIR to "lib", otherwise it sometimes defaults to "lib64".
+            cmake -DTPL_ENABLE_PARMETISLIB=FALSE \
+                  -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+                  -DCMAKE_INSTALL_LIBDIR=${pkg_install_dir}/lib \
+                  .. > cmake.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
             cd ..
