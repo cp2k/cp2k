@@ -90,6 +90,7 @@ CONTAINS
 !> \param sabc integrals [a|b|c]
 !> \param sdabc derivative [da/dAi|b|c]
 !> \param sabdc derivative [a|b|dc/dCi]
+!> \param int_abc_ext the extremal value of sabc, i.e., MAXVAL(ABS(sabc))
 !> \par History
 !>      05.2014 created (Dorothea Golze)
 !> \author Dorothea Golze
@@ -99,7 +100,8 @@ CONTAINS
    SUBROUTINE overlap3(la_max_set, npgfa, zeta, rpgfa, la_min_set, &
                        lb_max_set, npgfb, zetb, rpgfb, lb_min_set, &
                        lc_max_set, npgfc, zetc, rpgfc, lc_min_set, &
-                       rab, dab, rac, dac, rbc, dbc, sabc, sdabc, sabdc)
+                       rab, dab, rac, dac, rbc, dbc, sabc, &
+                       sdabc, sabdc, int_abc_ext)
 
       INTEGER, INTENT(IN)                                :: la_max_set, npgfa
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta, rpgfa
@@ -117,6 +119,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: sabc
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(INOUT), OPTIONAL                         :: sdabc, sabdc
+      REAL(dp), INTENT(OUT), OPTIONAL                    :: int_abc_ext
 
       CHARACTER(len=*), PARAMETER :: routineN = 'overlap3', routineP = moduleN//':'//routineN
 
@@ -158,6 +161,9 @@ CONTAINS
       IF (PRESENT(sabdc)) THEN
          ALLOCATE (sdc(ncoset(la_max), ncoset(lb_max), ncoset(lc_max), 3))
          sdc = 0._dp
+      ENDIF
+      IF (PRESENT(int_abc_ext)) THEN
+         int_abc_ext = 0.0_dp
       ENDIF
 
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
@@ -982,13 +988,24 @@ CONTAINS
 
 !         *** Store integrals
 
-               DO k = ncoset(lc_min_set - 1) + 1, ncoset(lc_max_set)
-                  DO j = ncoset(lb_min_set - 1) + 1, ncoset(lb_max_set)
-                     DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
-                        sabc(na + i, nb + j, nc + k) = s(i, j, k)
+               IF (PRESENT(int_abc_ext)) THEN
+                  DO k = ncoset(lc_min_set - 1) + 1, ncoset(lc_max_set)
+                     DO j = ncoset(lb_min_set - 1) + 1, ncoset(lb_max_set)
+                        DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+                           sabc(na + i, nb + j, nc + k) = s(i, j, k)
+                           int_abc_ext = MAX(int_abc_ext, ABS(s(i, j, k)))
+                        END DO
                      END DO
                   END DO
-               END DO
+               ELSE
+                  DO k = ncoset(lc_min_set - 1) + 1, ncoset(lc_max_set)
+                     DO j = ncoset(lb_min_set - 1) + 1, ncoset(lb_max_set)
+                        DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+                           sabc(na + i, nb + j, nc + k) = s(i, j, k)
+                        END DO
+                     END DO
+                  END DO
+               ENDIF
 
 !         *** Calculate the requested derivatives with respect to  ***
 !         *** the nuclear coordinates of the atomic center a and c ***

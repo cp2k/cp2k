@@ -873,8 +873,7 @@ CONTAINS
                                                             do_kpoints_prv, found
       REAL(KIND=dp)                                      :: dij, dik, djk, dr_ij, dr_ik, dr_jk, &
                                                             kind_radius_i, kind_radius_j, &
-                                                            kind_radius_k, max_contraction_val, &
-                                                            prefac
+                                                            kind_radius_k, prefac, sijk_ext
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: max_contraction_i, max_contraction_j, &
                                                             max_contraction_k
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_t, dummy_block_t, sijk, sijk_contr
@@ -1122,7 +1121,7 @@ CONTAINS
                                       lmin_i(iset), &
                                       lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), lmin_j(jset), &
                                       lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), lmin_k(kset), &
-                                      rij, dij, rik, dik, rjk, djk, sijk)
+                                      rij, dij, rik, dik, rjk, djk, sijk, int_abc_ext=sijk_ext)
                      ELSEIF (op_jk /= do_potential_id) THEN ! for everything else use libint
                         ALLOCATE (sijk(ncoi, ncoj, ncok))
                         sijk(:, :, :) = 0.0_dp
@@ -1134,7 +1133,7 @@ CONTAINS
                                          lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
                                          lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
                                          lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
-                                         dij, dik, djk, lib, potential_parameter)
+                                         dij, dik, djk, lib, potential_parameter, int_abc_ext=sijk_ext)
                      ELSEIF (op_ij /= do_potential_id) THEN
                         ALLOCATE (sijk(ncoj, ncok, ncoi))
                         sijk(:, :, :) = 0.0_dp
@@ -1145,16 +1144,17 @@ CONTAINS
                                          lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
                                          lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
                                          lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
-                                         djk, dij, dik, lib, potential_parameter)
+                                         djk, dij, dik, lib, potential_parameter, int_abc_ext=sijk_ext)
 
                      ENDIF
-                     max_contraction_val = max_contraction_i(iset)*max_contraction_j(jset)*max_contraction_k(kset)
 
                      IF (PRESENT(int_eps)) THEN
-                        IF (MAXVAL(ABS(sijk))*max_contraction_val < int_eps) THEN
+                        IF (int_eps > sijk_ext*(max_contraction_i(iset)* &
+                                                max_contraction_j(jset)* &
+                                                max_contraction_k(kset))) THEN
                            DEALLOCATE (sijk)
                            CYCLE
-                        ENDIF
+                        END IF
                      ENDIF
 
                      block_not_zero = .TRUE.
