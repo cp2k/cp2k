@@ -498,7 +498,7 @@ CONTAINS
 
          !sgf integrals
          ALLOCATE (iabc(ni, nj, nk))
-         iabc(:, :, :) = 0.0_dp
+         !zeroing iabc is superfluous here (iabc(:, :, :) = 0.0_dp)
 
          DO iset = 1, nseta
             ncoa = npgfa(iset)*ncoset(la_max(iset))
