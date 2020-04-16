@@ -498,7 +498,7 @@ CONTAINS
 
          !sgf integrals
          ALLOCATE (iabc(ni, nj, nk))
-         !zeroing iabc is superfluous here (iabc(:, :, :) = 0.0_dp)
+         iabc(:, :, :) = 0.0_dp
 
          DO iset = 1, nseta
             ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -524,7 +524,7 @@ CONTAINS
 
                   !pgf integrals
                   ALLOCATE (sabc(ncoa, ncob, ncoc))
-                  !zeroing sabc is superfluous here (sabc = 0.0_dp)
+                  sabc(:, :, :) = 0.0_dp
 
                   IF (do_screen) THEN
                      CALL eri_3center(sabc, la_min(iset), la_max(iset), npgfa(iset), zeta(:, iset), &
