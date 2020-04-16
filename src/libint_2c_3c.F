@@ -190,19 +190,30 @@ CONTAINS
                         a_mysize(1) = ncoa*ncob*ncoc
                         CALL cp_libint_get_3eris(li, lj, lk, lib, p_work, a_mysize)
 
-                        DO k = 1, ncoc
-                           p1 = (k - 1)*ncob
-                           DO j = 1, ncob
-                              p2 = (p1 + j - 1)*ncoa
-                              DO i = 1, ncoa
-                                 p3 = p2 + i
-                                 int_abc(a_offset + i, b_offset + j, c_offset + k) = p_work(p3)
+                        IF (PRESENT(int_abc_ext)) THEN
+                           DO k = 1, ncoc
+                              p1 = (k - 1)*ncob
+                              DO j = 1, ncob
+                                 p2 = (p1 + j - 1)*ncoa
+                                 DO i = 1, ncoa
+                                    p3 = p2 + i
+                                    int_abc(a_offset + i, b_offset + j, c_offset + k) = p_work(p3)
+                                    int_abc_ext = MAX(int_abc_ext, ABS(p_work(p3)))
+                                 END DO
                               END DO
-                              IF (PRESENT(int_abc_ext)) THEN
-                                 int_abc_ext = MAX(int_abc_ext, MAXVAL(ABS(p_work(p2 + 1:p2 + ncoa))))
-                              ENDIF
                            END DO
-                        END DO
+                        ELSE
+                           DO k = 1, ncoc
+                              p1 = (k - 1)*ncob
+                              DO j = 1, ncob
+                                 p2 = (p1 + j - 1)*ncoa
+                                 DO i = 1, ncoa
+                                    p3 = p2 + i
+                                    int_abc(a_offset + i, b_offset + j, c_offset + k) = p_work(p3)
+                                 END DO
+                              END DO
+                           END DO
+                        ENDIF
 
                      END DO !lk
                   END DO !lj
@@ -224,19 +235,30 @@ CONTAINS
                         a_mysize(1) = ncoa*ncob*ncoc
                         CALL cp_libint_get_3eris(lj, li, lk, lib, p_work, a_mysize)
 
-                        DO k = 1, ncoc
-                           p1 = (k - 1)*ncoa
-                           DO i = 1, ncoa
-                              p2 = (p1 + i - 1)*ncob
-                              DO j = 1, ncob
-                                 p3 = p2 + j
-                                 int_abc(a_offset + i, b_offset + j, c_offset + k) = p_work(p3)
+                        IF (PRESENT(int_abc_ext)) THEN
+                           DO k = 1, ncoc
+                              p1 = (k - 1)*ncoa
+                              DO i = 1, ncoa
+                                 p2 = (p1 + i - 1)*ncob
+                                 DO j = 1, ncob
+                                    p3 = p2 + j
+                                    int_abc(a_offset + i, b_offset + j, c_offset + k) = p_work(p3)
+                                    int_abc_ext = MAX(int_abc_ext, ABS(p_work(p3)))
+                                 END DO
                               END DO
-                              IF (PRESENT(int_abc_ext)) THEN
-                                 int_abc_ext = MAX(int_abc_ext, MAXVAL(ABS(p_work(p2 + 1:p2 + ncob))))
-                              ENDIF
                            END DO
-                        END DO
+                        ELSE
+                           DO k = 1, ncoc
+                              p1 = (k - 1)*ncoa
+                              DO i = 1, ncoa
+                                 p2 = (p1 + i - 1)*ncob
+                                 DO j = 1, ncob
+                                    p3 = p2 + j
+                                    int_abc(a_offset + i, b_offset + j, c_offset + k) = p_work(p3)
+                                 END DO
+                              END DO
+                           END DO
+                        ENDIF
 
                      END DO !lk
                   END DO !li

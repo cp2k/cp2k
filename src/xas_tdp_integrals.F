@@ -524,8 +524,7 @@ CONTAINS
 
                   !pgf integrals
                   ALLOCATE (sabc(ncoa, ncob, ncoc))
-                  sabc = 0.0_dp
-                  sabc_ext = 0.0_dp
+                  !zeroing sabc is superfluous here (sabc = 0.0_dp)
 
                   IF (do_screen) THEN
                      CALL eri_3center(sabc, la_min(iset), la_max(iset), npgfa(iset), zeta(:, iset), &
@@ -548,7 +547,7 @@ CONTAINS
                   END IF
 
                   ALLOCATE (work(nsgfa(iset), nsgfb(jset), nsgfc(kset)))
-                  work = 0.0_dp
+                  !zeroing work is superfluous here (work = 0.0_dp)
 
                   CALL abc_contract(work, sabc, &
                                     sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_c(:, sgfc:), &
