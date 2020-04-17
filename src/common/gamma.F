@@ -209,41 +209,42 @@ CONTAINS
       ELSE
 
 !     *** t > 12 ***
+         tmp = 1.0_dp/t ! reciprocal value
 
          IF (t <= 15.0_dp) THEN
 
 !       *** 12 < t <= 15 -> Four term polynom expansion ***
 
-            g = 0.4999489092_dp - 0.2473631686_dp/t + &
-                0.321180909_dp/t**2 - 0.3811559346_dp/t**3
-            f(0) = 0.5_dp*SQRT(pi/t) - g*EXP(-t)/t
+            g = 0.4999489092_dp - 0.2473631686_dp*tmp + &
+                0.321180909_dp*tmp**2 - 0.3811559346_dp*tmp**3
+            f(0) = 0.5_dp*SQRT(pi*tmp) - g*EXP(-t)*tmp
 
          ELSE IF (t <= 18.0_dp) THEN
 
 !       *** 15 < t <= 18 -> Three term polynom expansion ***
 
-            g = 0.4998436875_dp - 0.24249438_dp/t + 0.24642845_dp/t**2
-            f(0) = 0.5_dp*SQRT(pi/t) - g*EXP(-t)/t
+            g = 0.4998436875_dp - 0.24249438_dp*tmp + 0.24642845_dp*tmp**2
+            f(0) = 0.5_dp*SQRT(pi*tmp) - g*EXP(-t)*tmp
 
          ELSE IF (t <= 24.0_dp) THEN
 
 !       *** 18 < t <= 24 -> Two term polynom expansion ***
 
-            g = 0.499093162_dp - 0.2152832_dp/t
-            f(0) = 0.5_dp*SQRT(pi/t) - g*EXP(-t)/t
+            g = 0.499093162_dp - 0.2152832_dp*tmp
+            f(0) = 0.5_dp*SQRT(pi*tmp) - g*EXP(-t)*tmp
 
          ELSE IF (t <= 30.0_dp) THEN
 
 !       *** 24 < t <= 30 -> One term polynom expansion ***
 
             g = 0.49_dp
-            f(0) = 0.5_dp*SQRT(pi/t) - g*EXP(-t)/t
+            f(0) = 0.5_dp*SQRT(pi*tmp) - g*EXP(-t)*tmp
 
          ELSE
 
 !       *** t > 30 -> Asymptotic formula ***
 
-            f(0) = 0.5_dp*SQRT(pi/t)
+            f(0) = 0.5_dp*SQRT(pi*tmp)
 
          END IF
 
@@ -257,7 +258,7 @@ CONTAINS
 !     *** generate the remaining F_n(t) values ***
 
          DO n = 1, nmax
-            f(n) = 0.5_dp*(REAL(2*n - 1, dp)*f(n - 1) - expt)/t
+            f(n) = (0.5_dp*tmp)*(REAL(2*n - 1, dp)*f(n - 1) - expt)
          END DO
 
       END IF
