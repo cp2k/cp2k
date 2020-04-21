@@ -295,8 +295,7 @@ CONTAINS
                                                             max_contrc
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: iabc, sabc, work
       REAL(dp), DIMENSION(:), POINTER                    :: set_radius_a, set_radius_b, set_radius_c
-      REAL(dp), DIMENSION(:, :), POINTER                 :: rpgf_a, rpgf_b, rpgf_c, sphi_a, sphi_b, &
-                                                            sphi_c, zeta, zetb, zetc
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rpgf_a, rpgf_b, rpgf_c, zeta, zetb, zetc
       TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: spb, spc, tspa
       TYPE(cp_libint_t)                                  :: lib
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -309,7 +308,7 @@ CONTAINS
       NULLIFY (basis_set, basis_set_list, para_env, la_max, la_min)
       NULLIFY (lb_max, lb_min, lc_max, lc_min, npgfa, npgfb, npgfc, nsgfa, nsgfb, nsgfc)
       NULLIFY (first_sgfa, first_sgfb, first_sgfc, set_radius_a, set_radius_b, set_radius_c)
-      NULLIFY (rpgf_a, rpgf_b, rpgf_c, sphi_a, sphi_b, sphi_c, zeta, zetb, zetc)
+      NULLIFY (rpgf_a, rpgf_b, rpgf_c, zeta, zetb, zetc)
       NULLIFY (basis_set_a, basis_set_b, basis_set_c, tspa, spb, spc)
 
       CALL timeset(routineN, handle)
@@ -484,9 +483,8 @@ CONTAINS
 !$OMP          iatom,ikind,jatom,jkind,katom,kkind,rij,rik,rjk,basis_set_a,nsetb,&
 !$OMP          la_max,la_min,lb_max,lb_min,lc_max,lc_min,npgfa,npgfb,npgfc,nsgfa,nsgfb,nsgfc,ri,rk,&
 !$OMP          first_sgfa,first_sgfb,first_sgfc,set_radius_a,set_radius_b,set_radius_c, nsetc,rj,&
-!$OMP          rpgf_a,rpgf_b,rpgf_c,sphi_a,sphi_b,sphi_c,zeta,zetb,zetc,basis_set_b,basis_set_c,&
-!$OMP          dij,dik,djk,ni,nj,nk,iabc,sabc,jset,kset,ncob,ncoc,sgfb,sgfc,egfb,egfc, &
-!$OMP          sabc_ext,cpp_buffer,ccp_buffer)
+!$OMP          rpgf_a,rpgf_b,rpgf_c,zeta,zetb,zetc,basis_set_b,basis_set_c,dij,dik,djk,ni,nj,nk,&
+!$OMP          iabc,sabc,jset,kset,ncob,ncoc,sgfb,sgfc,egfb,egfc,sabc_ext,cpp_buffer,ccp_buffer)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
@@ -514,7 +512,6 @@ CONTAINS
          npgfa => basis_set_a%npgf
          nseta = basis_set_a%nset
          nsgfa => basis_set_a%nsgf_set
-         sphi_a => basis_set_a%sphi
          zeta => basis_set_a%zet
          rpgf_a => basis_set_a%pgf_radius
          set_radius_a => basis_set_a%set_radius
@@ -527,7 +524,6 @@ CONTAINS
          npgfb => basis_set_b%npgf
          nsetb = basis_set_b%nset
          nsgfb => basis_set_b%nsgf_set
-         sphi_b => basis_set_b%sphi
          zetb => basis_set_b%zet
          rpgf_b => basis_set_b%pgf_radius
          set_radius_b => basis_set_b%set_radius
@@ -540,7 +536,6 @@ CONTAINS
          npgfc => basis_set_c%npgf
          nsetc = basis_set_c%nset
          nsgfc => basis_set_c%nsgf_set
-         sphi_c => basis_set_c%sphi
          zetc => basis_set_c%zet
          rpgf_c => basis_set_c%pgf_radius
          set_radius_c => basis_set_c%set_radius

@@ -14,8 +14,6 @@ MODULE ai_contraction_sphi
 
    USE kinds, ONLY: dp
 #if(__LIBXSMM)
-   USE ISO_C_BINDING, ONLY: C_F_POINTER, &
-                            C_LOC
    USE libxsmm, ONLY: LIBXSMM_PREFETCH_NONE, &
                       libxsmm_blasint_kind, &
                       libxsmm_dgemm, &
@@ -225,12 +223,12 @@ CONTAINS
 !> \brief 3-center contraction routine from primitive cartesain Gaussians to spherical Gaussian
 !>        functions. Exploits LIBXSMM for performance, falls back to BLAS if LIBXSMM not available.
 !>        Requires pre-allocation of work buffers and pre-transposition of the sphi_a array. Requires
-!>        the LIBXSMM libreary to be initialized somewhere before this routine is called.
+!>        the LIBXSMM library to be initialized somewhere before this routine is called.
 !> \param abcint contracted integrals
 !> \param sabc uncontracted integrals
-!> \param tsphi_a ...
-!> \param sphi_b ...
-!> \param sphi_c ...
+!> \param tsphi_a assumed to have dimensions nsgfa x ncoa
+!> \param sphi_b assumed to have dimensions ncob x nsgfb
+!> \param sphi_c assumed to have dimensions ncoc x nsgfc
 !> \param ncoa ...
 !> \param ncob ...
 !> \param ncoc ...
@@ -244,18 +242,17 @@ CONTAINS
    SUBROUTINE libxsmm_abc_contract(abcint, sabc, tsphi_a, sphi_b, sphi_c, ncoa, ncob, ncoc, &
                                    nsgfa, nsgfb, nsgfc, cpp_buffer, ccp_buffer)
 
-      REAL(dp), DIMENSION(*), TARGET                     :: abcint, sabc
+      REAL(dp), DIMENSION(*)                             :: abcint, sabc
       REAL(dp), DIMENSION(:, :)                          :: tsphi_a, sphi_b, sphi_c
       INTEGER, INTENT(IN)                                :: ncoa, ncob, ncoc, nsgfa, nsgfb, nsgfc
       REAL(dp), DIMENSION(nsgfa*ncob)                    :: cpp_buffer
-      REAL(dp), DIMENSION(nsgfa*nsgfb*ncoc), TARGET      :: ccp_buffer
+      REAL(dp), DIMENSION(nsgfa*nsgfb*ncoc)              :: ccp_buffer
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'libxsmm_abc_contract', &
                                      routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i
 #if(__LIBXSMM)
-      REAL(dp), DIMENSION(:, :), POINTER                 :: abc, ccp
       INTEGER(libxsmm_blasint_kind)                      :: m, n, k
       TYPE(libxsmm_dmmfunction), DIMENSION(2)            :: xmm
 #endif
@@ -278,13 +275,6 @@ CONTAINS
          CALL libxsmm_dmmcall(xmm(2), cpp_buffer, sphi_b, ccp_buffer((i - 1)*nsgfa*nsgfb + 1))
       END DO
 
-      !last contraction, over c, as a larger MM
-      !note: libxsmm_dgemm falls back to BLAS if matrix too large
-      CALL C_F_POINTER(C_LOC(ccp_buffer), ccp, [nsgfa*nsgfb, ncoc])
-      CALL C_F_POINTER(C_LOC(abcint), abc, [nsgfa*nsgfb, nsgfc])
-      m = nsgfa*nsgfb; n = nsgfc; k = ncoc
-      CALL libxsmm_dgemm(m=m, n=n, k=k, a=ccp, b=sphi_c, beta=0.0_dp, c=abc)
-
 #else
 
       !we follow the same flow as for libxsmm above, but use BLAS dgemm
@@ -297,11 +287,11 @@ CONTAINS
                     ccp_buffer((i - 1)*nsgfa*nsgfb + 1), nsgfa)
       END DO
 
-      !contraciton over c
+#endif
+
+      !last contraciton, over c, as a larfer MM
       CALL dgemm("N", "N", nsgfa*nsgfb, nsgfc, ncoc, 1.0_dp, ccp_buffer, nsgfa*nsgfb, sphi_c, ncoc, &
                  0.0_dp, abcint, nsgfa*nsgfb)
-
-#endif
 
       CALL timestop(handle)
 
