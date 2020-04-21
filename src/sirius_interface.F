@@ -511,51 +511,54 @@ CONTAINS
          CALL sirius_option_get_name_and_type(section_name, elem, option_name, ctype)
          option_name1 = TRIM(ADJUSTL(option_name))
          option_name = TRIM(ADJUSTL(option_name))//CHAR(0)
-         CALL section_vals_val_get(section, option_name1, explicit=found)
-         IF (found) THEN
-            SELECT CASE (ctype)
-            CASE (1)
-               CALL section_vals_val_get(section, option_name1, i_val=ival)
-               CALL sirius_option_set_int(sctx, section_name, option_name, ival, 0)
-            CASE (11)
-               CALL section_vals_val_get(section, option_name1, i_vals=ivals)
-               CALL sirius_option_set_int(sctx, section_name, option_name, ivals(1), SIZE(ivals))
-            CASE (2)
-               CALL section_vals_val_get(section, option_name1, r_val=rval)
-               CALL sirius_option_set_double(sctx, section_name, option_name, rval, 0)
-            CASE (12)
-               CALL section_vals_val_get(section, option_name1, r_vals=rvals)
-               CALL sirius_option_set_double(sctx, section_name, option_name, rvals(1), SIZE(rvals))
-            CASE (3)
-               CALL section_vals_val_get(section, option_name1, l_val=lval)
-               IF (lval) THEN
-                  CALL sirius_option_set_logical(sctx, section_name, option_name, 1, 0)
-               ELSE
-                  CALL sirius_option_set_logical(sctx, section_name, option_name, 0, 0)
-               ENDIF
-            CASE (13)
-               CALL section_vals_val_get(section, option_name, l_vals=lvals)
-               length = SIZE(lvals)
-               DO i = 1, length
-                  IF (lvals(i)) THEN
-                     lvalsi(i) = 1
+
+         IF ((option_name1 /= 'memory_usage') .AND. (option_name1 /= 'xc_functionals')) THEN
+            CALL section_vals_val_get(section, option_name1, explicit=found)
+            IF (found) THEN
+               SELECT CASE (ctype)
+               CASE (1)
+                  CALL section_vals_val_get(section, option_name1, i_val=ival)
+                  CALL sirius_option_set_int(sctx, section_name, option_name, ival, 0)
+               CASE (11)
+                  CALL section_vals_val_get(section, option_name1, i_vals=ivals)
+                  CALL sirius_option_set_int(sctx, section_name, option_name, ivals(1), SIZE(ivals))
+               CASE (2)
+                  CALL section_vals_val_get(section, option_name1, r_val=rval)
+                  CALL sirius_option_set_double(sctx, section_name, option_name, rval, 0)
+               CASE (12)
+                  CALL section_vals_val_get(section, option_name1, r_vals=rvals)
+                  CALL sirius_option_set_double(sctx, section_name, option_name, rvals(1), SIZE(rvals))
+               CASE (3)
+                  CALL section_vals_val_get(section, option_name1, l_val=lval)
+                  IF (lval) THEN
+                     CALL sirius_option_set_logical(sctx, section_name, option_name, 1, 0)
                   ELSE
-                     lvalsi(i) = 0
+                     CALL sirius_option_set_logical(sctx, section_name, option_name, 0, 0)
                   ENDIF
-               END DO
-               CALL sirius_option_set_logical(sctx, section_name, option_name, lvalsi(1), length)
-            CASE (4) ! string nightmare
-               CALL section_vals_val_get(section, option_name1, c_val=str)
-               str = TRIM(ADJUSTL(str))//CHAR(0)
-               CALL sirius_option_set_string(sctx, section_name, option_name, string(str))
-            CASE (14)
-               CALL section_vals_val_get(section, option_name1, n_rep_val=length)
-               DO j = 1, length
-                  CALL section_vals_val_get(section, option_name1, i_rep_val=j, c_vals=tmp)
-                  CALL sirius_option_add_string_to(sctx, section_name, option_name, string(str))
-               END DO
-            CASE DEFAULT
-            END SELECT
+               CASE (13)
+                  CALL section_vals_val_get(section, option_name, l_vals=lvals)
+                  length = SIZE(lvals)
+                  DO i = 1, length
+                     IF (lvals(i)) THEN
+                        lvalsi(i) = 1
+                     ELSE
+                        lvalsi(i) = 0
+                     ENDIF
+                  END DO
+                  CALL sirius_option_set_logical(sctx, section_name, option_name, lvalsi(1), length)
+               CASE (4)         ! string nightmare
+                  CALL section_vals_val_get(section, option_name1, c_val=str)
+                  str = TRIM(ADJUSTL(str))//CHAR(0)
+                  CALL sirius_option_set_string(sctx, section_name, option_name, string(str))
+               CASE (14)
+                  CALL section_vals_val_get(section, option_name1, n_rep_val=length)
+                  DO j = 1, length
+                     CALL section_vals_val_get(section, option_name1, i_rep_val=j, c_vals=tmp)
+                     CALL sirius_option_add_string_to(sctx, section_name, option_name, string(str))
+                  END DO
+               CASE DEFAULT
+               END SELECT
+            END IF
          END IF
       END DO
    END SUBROUTINE cp_sirius_fill_in_section
