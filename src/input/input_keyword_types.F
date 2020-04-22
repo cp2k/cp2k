@@ -62,6 +62,7 @@ MODULE input_keyword_types
 !> \param usage how to use it "MAXSCF 10"
 !> \param description what does it do: "MAXSCF : determines the maximum
 !>        number of steps in an SCF run"
+!> \param deprecation_notice show this warning that the keyword is deprecated
 !> \param citations references to literature associated with this keyword
 !> \param type_of_var the type of keyword (controls how it is parsed)
 !>        it can be one of: no_parse_t,logical_t, integer_t, real_t,
@@ -69,6 +70,7 @@ MODULE input_keyword_types
 !> \param n_var number of values that should be parsed (-1=unknown)
 !> \param repeats if the keyword can be present more than once in the
 !>        section
+!> \param removed to trigger a CPABORT when encountered while parsing the input
 !> \param enum enumeration that defines the mapping between integers and
 !>        strings
 !> \param unit the default unit this keyword is read in (to automatically
@@ -87,10 +89,11 @@ MODULE input_keyword_types
       CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER:: names
       CHARACTER(LEN=usage_string_length) :: location
       CHARACTER(LEN=usage_string_length) :: usage
-      CHARACTER, DIMENSION(:), POINTER :: description => Null()
+      CHARACTER, DIMENSION(:), POINTER :: description => null()
+      CHARACTER(LEN=:), ALLOCATABLE :: deprecation_notice
       INTEGER, POINTER, DIMENSION(:) :: citations
       INTEGER :: type_of_var, n_var
-      LOGICAL :: repeats
+      LOGICAL :: repeats, removed
       TYPE(enumeration_type), POINTER :: enum
       TYPE(cp_unit_type), POINTER :: unit
       TYPE(val_type), POINTER :: default_value
@@ -136,6 +139,8 @@ CONTAINS
 !> \param enum_desc ...
 !> \param unit_str ...
 !> \param citations ...
+!> \param deprecation_notice ...
+!> \param removed ...
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE keyword_create(keyword, location, name, description, usage, type_of_var, &
@@ -145,7 +150,7 @@ CONTAINS
                              lone_keyword_val, lone_keyword_l_val, lone_keyword_r_val, lone_keyword_c_val, &
                              lone_keyword_i_val, lone_keyword_l_vals, lone_keyword_r_vals, &
                              lone_keyword_c_vals, lone_keyword_i_vals, enum_c_vals, enum_i_vals, &
-                             enum, enum_strict, enum_desc, unit_str, citations)
+                             enum, enum_strict, enum_desc, unit_str, citations, deprecation_notice, removed)
       TYPE(keyword_type), POINTER                        :: keyword
       CHARACTER(len=*), INTENT(in)                       :: location, name, description
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: usage
@@ -182,6 +187,8 @@ CONTAINS
          OPTIONAL                                        :: enum_desc
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: unit_str
       INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: citations
+      CHARACTER(len=*), INTENT(in), OPTIONAL             :: deprecation_notice
+      LOGICAL, INTENT(in), OPTIONAL                      :: removed
 
       CHARACTER(len=*), PARAMETER :: routineN = 'keyword_create', routineP = moduleN//':'//routineN
 
@@ -195,6 +202,7 @@ CONTAINS
       keyword%id_nr = last_keyword_id
       NULLIFY (keyword%unit)
       keyword%location = location
+      keyword%removed = .FALSE.
 
       IF (PRESENT(variants)) THEN
          ALLOCATE (keyword%names(SIZE(variants) + 1))
@@ -384,6 +392,14 @@ CONTAINS
 
       IF (PRESENT(unit_str)) THEN
          CALL cp_unit_create(keyword%unit, unit_str)
+      END IF
+
+      IF (PRESENT(deprecation_notice)) THEN
+         keyword%deprecation_notice = TRIM(deprecation_notice)
+      END IF
+
+      IF (PRESENT(removed)) THEN
+         keyword%removed = removed
       END IF
    END SUBROUTINE keyword_create
 
@@ -731,6 +747,11 @@ CONTAINS
          TRIM(substitute_special_xml_tokens(a2s(keyword%description))) &
          //"</DESCRIPTION>"
 
+      IF (ALLOCATED(keyword%deprecation_notice)) &
+         WRITE (UNIT=unit_number, FMT="(A)") REPEAT(" ", l1)//"<DEPRECATION_NOTICE>"// &
+         TRIM(substitute_special_xml_tokens(keyword%deprecation_notice)) &
+         //"</DEPRECATION_NOTICE>"
+
       IF (ASSOCIATED(keyword%default_value) .AND. &
           (keyword%type_of_var /= no_t)) THEN
          IF (ASSOCIATED(keyword%unit)) THEN
@@ -864,4 +885,3 @@ CONTAINS
    END SUBROUTINE keyword_typo_match
 
 END MODULE input_keyword_types
-
