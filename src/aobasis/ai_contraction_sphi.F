@@ -254,7 +254,7 @@ CONTAINS
       INTEGER                                            :: handle, i
 #if(__LIBXSMM)
       INTEGER(libxsmm_blasint_kind)                      :: m, n, k
-      TYPE(libxsmm_dmmfunction), DIMENSION(2)            :: xmm
+      TYPE(libxsmm_dmmfunction)                          :: xmm1, xmm2
 #endif
 
       CALL timeset(routineN, handle)
@@ -265,14 +265,14 @@ CONTAINS
 
       !pre-fetch the kernels
       m = nsgfa; n = ncob; k = ncoa
-      CALL libxsmm_dispatch(xmm(1), m, n, k, beta=0.0_dp, prefetch=LIBXSMM_PREFETCH_NONE)
+      CALL libxsmm_dispatch(xmm1, m, n, k, beta=0.0_dp, prefetch=LIBXSMM_PREFETCH_NONE)
       m = nsgfa; n = nsgfb; k = ncob
-      CALL libxsmm_dispatch(xmm(2), m, n, k, beta=0.0_dp, prefetch=LIBXSMM_PREFETCH_NONE)
+      CALL libxsmm_dispatch(xmm2, m, n, k, beta=0.0_dp, prefetch=LIBXSMM_PREFETCH_NONE)
 
       !contractions over a and b
       DO i = 1, ncoc
-         CALL libxsmm_dmmcall(xmm(1), tsphi_a, sabc((i - 1)*ncoa*ncob + 1), cpp_buffer)
-         CALL libxsmm_dmmcall(xmm(2), cpp_buffer, sphi_b, ccp_buffer((i - 1)*nsgfa*nsgfb + 1))
+         CALL libxsmm_dmmcall(xmm1, tsphi_a, sabc((i - 1)*ncoa*ncob + 1), cpp_buffer)
+         CALL libxsmm_dmmcall(xmm2, cpp_buffer, sphi_b, ccp_buffer((i - 1)*nsgfa*nsgfb + 1))
       END DO
 
 #else
@@ -289,7 +289,7 @@ CONTAINS
 
 #endif
 
-      !last contraciton, over c, as a larfer MM
+      !last contraciton, over c, as a larger MM
       CALL dgemm("N", "N", nsgfa*nsgfb, nsgfc, ncoc, 1.0_dp, ccp_buffer, nsgfa*nsgfb, sphi_c, ncoc, &
                  0.0_dp, abcint, nsgfa*nsgfb)
 

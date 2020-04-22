@@ -404,8 +404,8 @@ CONTAINS
       !To minimize memory ops in contraction, we need to pre-allocate buffers, pre-tranpose sphi_a
       !and also trim sphi in general to have contiguous arrays
       ALLOCATE (tspa(max_nset, nbasis), spb(max_nset, nbasis), spc(max_nset, nbasis))
-      DO iset = 1, max_nset
-         DO ibasis = 1, nbasis
+      DO ibasis = 1, nbasis
+         DO iset = 1, max_nset
             NULLIFY (tspa(iset, ibasis)%array)
             NULLIFY (spb(iset, ibasis)%array)
             NULLIFY (spc(iset, ibasis)%array)
@@ -414,12 +414,10 @@ CONTAINS
 
       DO ilist = 1, 3
 
-         IF (ilist == 1) basis_set_list => basis_set_list_a
-         IF (ilist == 2) basis_set_list => basis_set_list_b
-         IF (ilist == 3) basis_set_list => basis_set_list_c
-
          DO ibasis = 1, nbasis
-            basis_set => basis_set_list(ibasis)%gto_basis_set
+            IF (ilist == 1) basis_set => basis_set_list_a(ibasis)%gto_basis_set
+            IF (ilist == 2) basis_set => basis_set_list_b(ibasis)%gto_basis_set
+            IF (ilist == 3) basis_set => basis_set_list_c(ibasis)%gto_basis_set
 
             DO iset = 1, basis_set%nset
 
