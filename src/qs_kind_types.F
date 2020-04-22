@@ -1426,9 +1426,9 @@ CONTAINS
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(len=default_path_length)                 :: kg_potential_fn_kind, &
                                                             potential_file_name, potential_fn_kind
-      CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
-         aux_fit_basis_set_name, basis_type, keyword, kgpot_name, kgpot_type, lri_basis_set_name, &
-         orb_basis_set_name, potential_name, potential_type, ri_aux_basis_set_name, tmp
+      CHARACTER(LEN=default_string_length)               :: akind_name, basis_type, keyword, &
+                                                            kgpot_name, kgpot_type, &
+                                                            potential_name, potential_type, tmp
       CHARACTER(LEN=default_string_length), DIMENSION(4) :: description
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
@@ -1467,9 +1467,6 @@ CONTAINS
       basis_set_name(:) = ""
       basis_set_type(:) = ""
       basis_set_form(:) = ""
-      aux_basis_set_name = ""
-      ri_aux_basis_set_name = ""
-      orb_basis_set_name = ""
       potential_name = ""
       potential_type = ""
       kgpot_name = ""
@@ -1577,53 +1574,14 @@ CONTAINS
                basis_set_form(i) = tmpstringlist(2)
                basis_set_name(i) = tmpstringlist(3)
             ELSE
-               CPABORT("")
+               CALL cp_abort(__LOCATION__, &
+                             "invalid number of BASIS_SET keyword parameters: BASIS_SET [<TYPE>] [<FORM>] <NAME>")
             END IF
             ! check that we have a valid basis set form
             IF (basis_set_form(i) /= "GTO" .AND. basis_set_form(i) /= "STO") THEN
-               CPABORT("BASIS_SET_FORM invalid")
+               CPABORT("invalid BASIS_SET FORM parameter")
             END IF
          END DO
-
-         ! Deprecated keywords
-         DO i = 1, nb_rep
-            IF (basis_set_type(i) == "ORB") THEN
-               orb_basis_set_name = basis_set_name(i)
-               EXIT
-            END IF
-         END DO
-         !
-         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
-                                   keyword_name="AUX_FIT_BASIS_SET", c_val=aux_fit_basis_set_name)
-         IF (aux_fit_basis_set_name /= "") THEN
-            CPWARN("AUX_FIT_BASIS_SET Keyword cannot be used any longer, use BASIS_SET AUX_FIT")
-            CPABORT("AUX_FIT_BASIS_SET")
-         END IF
-         !
-         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
-                                   keyword_name="AUX_BASIS_SET", c_val=aux_basis_set_name)
-         IF (aux_basis_set_name /= "") THEN
-            CPWARN("AUX_BASIS_SET Keyword cannot be used any longer, use BASIS_SET AUX")
-            CPABORT("AUX_BASIS_SET")
-         END IF
-         !
-         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
-                                   keyword_name="LRI_BASIS_SET", c_val=lri_basis_set_name)
-         IF (lri_basis_set_name /= "") THEN
-            CPWARN("LRI_BASIS_SET Keyword cannot be used any longer, use BASIS_SET LRI")
-            CPABORT("LRI_BASIS_SET")
-         END IF
-         !
-         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
-                                   keyword_name="RI_AUX_BASIS_SET", c_val=ri_aux_basis_set_name)
-         IF (ri_aux_basis_set_name /= "") THEN
-            nb_rep = nb_rep + 1
-            CPASSERT(nb_rep <= maxbas)
-            basis_set_type(nb_rep) = "RI_AUX"
-            basis_set_form(nb_rep) = "GTO"
-            basis_set_name(nb_rep) = ri_aux_basis_set_name
-         END IF
-         ! end of deprecated input
 
          ! parse PAO_BASIS_SIZE
          CALL section_vals_val_get(kind_section, keyword_name="PAO_BASIS_SIZE", i_rep_section=k_rep, &
@@ -2008,7 +1966,7 @@ CONTAINS
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
 
-         check = ((orb_basis_set_name /= '') .OR. explicit_basis)
+         check = ((nb_rep > 0) .OR. explicit_basis)
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
@@ -2041,7 +1999,7 @@ CONTAINS
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
 
-         check = ((orb_basis_set_name /= '') .OR. explicit_basis)
+         check = ((nb_rep > 0) .OR. explicit_basis)
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
@@ -2074,7 +2032,7 @@ CONTAINS
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
 
-         check = ((orb_basis_set_name /= '') .OR. explicit_basis)
+         check = ((nb_rep > 0) .OR. explicit_basis)
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &

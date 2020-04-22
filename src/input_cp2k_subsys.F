@@ -1087,37 +1087,48 @@ CONTAINS
 
       ! old type basis set input keywords
       ! kept for backward compatibility
-      CALL keyword_create(keyword, __LOCATION__, name="AUX_BASIS_SET", &
-                          variants=s2a("AUXILIARY_BASIS_SET", "AUX_BASIS"), &
-                          description="DEPRECATED (use BASIS_SET): The auxiliary basis set (GTO type)", &
-                          usage="AUX_BASIS_SET DZVP", default_c_val=" ", &
-                          n_var=1)
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="AUX_BASIS_SET", &
+         variants=s2a("AUXILIARY_BASIS_SET", "AUX_BASIS"), &
+         description="The auxiliary basis set (GTO type)", &
+         usage="AUX_BASIS_SET DZVP", default_c_val=" ", &
+         n_var=1, &
+         deprecation_notice="use 'BASIS_SET AUX ...' instead", &
+         removed=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="RI_AUX_BASIS_SET", &
-                          variants=s2a("RI_MP2_BASIS_SET", "RI_RPA_BASIS_SET", "RI_AUX_BASIS"), &
-                          description="DEPRECATED (use BASIS_SET): The RI auxiliary basis set used in WF_CORRELATION (GTO type)", &
-                          usage="RI_AUX_BASIS_SET DZVP", default_c_val=" ", &
-                          n_var=1)
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="RI_AUX_BASIS_SET", &
+         variants=s2a("RI_MP2_BASIS_SET", "RI_RPA_BASIS_SET", "RI_AUX_BASIS"), &
+         description="The RI auxiliary basis set used in WF_CORRELATION (GTO type)", &
+         usage="RI_AUX_BASIS_SET DZVP", default_c_val=" ", &
+         n_var=1, &
+         deprecation_notice="use 'BASIS_SET RI_AUX ...' instead", &
+         removed=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="LRI_BASIS_SET", &
-                          variants=s2a("LRI_BASIS"), &
-                          description="DEPRECATED (use BASIS_SET): The local resolution of identity basis set (GTO type)", &
-                          usage="", default_c_val=" ", &
-                          n_var=1)
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="LRI_BASIS_SET", &
+         variants=s2a("LRI_BASIS"), &
+         description="The local resolution of identity basis set (GTO type)", &
+         usage="", default_c_val=" ", &
+         n_var=1, &
+         deprecation_notice="use 'BASIS_SET AUX_FIT ...' instead", &
+         removed=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="AUX_FIT_BASIS_SET", &
          variants=s2a("AUXILIARY_FIT_BASIS_SET", "AUX_FIT_BASIS"), &
-         description="DEPRECATED (use BASIS_SET): The auxiliary basis set (GTO type) for auxiliary density matrix method", &
+         description="The auxiliary basis set (GTO type) for auxiliary density matrix method", &
          usage="AUX_FIT_BASIS_SET DZVP", default_c_val=" ", &
          citations=(/Guidon2010/), &
-         n_var=1)
+         n_var=1, &
+         deprecation_notice="use 'BASIS_SET AUX_FIT ...' instead", &
+         removed=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       ! end of old basis set keywords
@@ -1170,13 +1181,14 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL_TYPE", &
                           description="The type of this kinds pseudopotential (ECP, ALL, GTH, UPS).", &
+                          deprecation_notice="use 'POTENTIAL <TYPE> ...' instead", &
                           usage="POTENTIAL_TYPE <TYPE>", default_c_val="", n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL", &
                           variants=(/"POT"/), &
-                          description="The type and name of the pseudopotential for the defined kind.", &
+                          description="The type (ECP, ALL, GTH, UPS) and name of the pseudopotential for the defined kind.", &
                           usage="POTENTIAL [type] <POTENTIAL-NAME>", type_of_var=char_t, default_c_vals=(/" ", " "/), &
                           citations=(/Goedecker1996, Hartwigsen1998, Krack2005/), n_var=-1)
       CALL section_add_keyword(section, keyword)

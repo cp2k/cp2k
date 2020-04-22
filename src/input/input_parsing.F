@@ -251,6 +251,24 @@ CONTAINS
                END IF
                keyword => section%keywords(ik)%keyword
                IF (ASSOCIATED(keyword)) THEN
+                  IF (keyword%removed) THEN
+                     IF (ALLOCATED(keyword%deprecation_notice)) THEN
+                        CALL cp_abort(__LOCATION__, &
+                                      "The specified keyword '"//TRIM(token)//"' is not available anymore: "// &
+                                      keyword%deprecation_notice)
+                     ELSE
+                        CALL cp_abort(__LOCATION__, &
+                                      "The specified keyword '"//TRIM(token)// &
+                                      "' is not available anymore, please consult the manual.")
+                     END IF
+                  END IF
+
+                  IF (ALLOCATED(keyword%deprecation_notice)) &
+                     CALL cp_warn(__LOCATION__, &
+                                  "The specified keyword '"//TRIM(token)// &
+                                  "' is deprecated and may be removed in a future version: "// &
+                                  keyword%deprecation_notice//".")
+
                   NULLIFY (el)
                   IF (ik /= 0 .AND. keyword%type_of_var == lchar_t) &
                      CALL parser_skip_space(parser)
