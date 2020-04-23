@@ -6,6 +6,6 @@ CH3-BP-MO_NO_DIAG.inp                                  1      1e-13             
 CH3-BP-NONE.inp                                        1      5e-13              -7.36784986949225
 CH3-BP-NONE_OT_OFF.inp                                 1      5e-14              -7.39804794174094
 CH3-BP-NO_CORR_GPW.inp                                 1      1e-13              -7.40339636704020
-CH3-BP-NO_CORR_GAPW.inp                                1      5e-13             -38.83876742761483
+CH3-BP-NO_CORR_GAPW.inp                                1      5e-13             -38.83705343348557
 H2O-admm-emd.inp                                       2    1.0E-14            -0.167643118101E+02
 #EOF
