@@ -12,6 +12,6 @@ H2O-ADMMP-OPTX.inp                                     1      1e-12             
 O2-triplet-ADMMS.inp                                   1      1e-10              -31.32005439185767
 MD-1.inp                                               1      5e-10              -8.05212222523879
 # these tests are only possible under GAPW since they involve ALL electron calculations
-H2-geo-ALL.inp                                         1      5e-10              -1.15504228285553
+H2-geo-ALL.inp                                         1      5e-10              -1.15560300364748
 MD-2-ALL.inp                                           1      5e-10              -8.05318571814679
 #EOF
