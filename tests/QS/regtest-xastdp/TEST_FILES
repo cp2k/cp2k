@@ -4,7 +4,7 @@ He-LDA-extRI_XAS.inp                                   88      1e-07            
 #Checking that the searched excitation energies can be defined by a range
 Ne-LDA-e_range.inp                                     88      1e-08           829.640328
 #Checking full TDDFT and simple hybrid functional
-H2O-B3LYP-full.inp                                     88      1e-08           519.570612
+H2O-B3LYP-full.inp                                     88      1e-08           519.822873
 #Checking the ability to restart for PDOS and CUBES
 H2O-B3LYP-full-restart.inp                             0
 #Checking the non-zero RI_REGION for better density projection
