@@ -7,12 +7,21 @@
 !> \brief Contraction of integrals over primitive Cartesian Gaussians based on the contraction
 !>        matrix sphi which is part of the gto_basis_set_type
 !> \par History
-!>      none
+!>      -added libxsmm_abc_contract routine, A. Bussy (04.2020)
 !> \author Dorothea Golze (05.2016)
 ! **************************************************************************************************
 MODULE ai_contraction_sphi
 
-   USE kinds,                           ONLY: dp
+   USE kinds, ONLY: dp
+#if(__LIBXSMM)
+   USE libxsmm, ONLY: LIBXSMM_PREFETCH_NONE, &
+                      libxsmm_blasint_kind, &
+                      libxsmm_dgemm, &
+                      libxsmm_dispatch, &
+                      libxsmm_dmmcall, &
+                      libxsmm_dmmfunction
+#endif
+
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -21,7 +30,7 @@ MODULE ai_contraction_sphi
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_contraction_sphi'
 
-   PUBLIC :: ab_contract, abc_contract, abcd_contract
+   PUBLIC :: ab_contract, abc_contract, abcd_contract, libxsmm_abc_contract
 
 CONTAINS
 
@@ -209,5 +218,83 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE abcd_contract
+
+! **************************************************************************************************
+!> \brief 3-center contraction routine from primitive cartesain Gaussians to spherical Gaussian
+!>        functions. Exploits LIBXSMM for performance, falls back to BLAS if LIBXSMM not available.
+!>        Requires pre-allocation of work buffers and pre-transposition of the sphi_a array. Requires
+!>        the LIBXSMM library to be initialized somewhere before this routine is called.
+!> \param abcint contracted integrals
+!> \param sabc uncontracted integrals
+!> \param tsphi_a assumed to have dimensions nsgfa x ncoa
+!> \param sphi_b assumed to have dimensions ncob x nsgfb
+!> \param sphi_c assumed to have dimensions ncoc x nsgfc
+!> \param ncoa ...
+!> \param ncob ...
+!> \param ncoc ...
+!> \param nsgfa ...
+!> \param nsgfb ...
+!> \param nsgfc ...
+!> \param cpp_buffer ...
+!> \param ccp_buffer ...
+!> \note tested from version 1.9.0 of libxsmm
+! **************************************************************************************************
+   SUBROUTINE libxsmm_abc_contract(abcint, sabc, tsphi_a, sphi_b, sphi_c, ncoa, ncob, ncoc, &
+                                   nsgfa, nsgfb, nsgfc, cpp_buffer, ccp_buffer)
+
+      REAL(dp), DIMENSION(*)                             :: abcint, sabc
+      REAL(dp), DIMENSION(:, :)                          :: tsphi_a, sphi_b, sphi_c
+      INTEGER, INTENT(IN)                                :: ncoa, ncob, ncoc, nsgfa, nsgfb, nsgfc
+      REAL(dp), DIMENSION(nsgfa*ncob)                    :: cpp_buffer
+      REAL(dp), DIMENSION(nsgfa*nsgfb*ncoc)              :: ccp_buffer
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'libxsmm_abc_contract', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i
+#if(__LIBXSMM)
+      INTEGER(libxsmm_blasint_kind)                      :: m, n, k
+      TYPE(libxsmm_dmmfunction)                          :: xmm1, xmm2
+#endif
+
+      CALL timeset(routineN, handle)
+
+#if(__LIBXSMM)
+      !We make use of libxsmm code dispatching feature and call the same kernel multiple times
+      !We loop over the last index of the matrix and call libxsmm each time
+
+      !pre-fetch the kernels
+      m = nsgfa; n = ncob; k = ncoa
+      CALL libxsmm_dispatch(xmm1, m, n, k, beta=0.0_dp, prefetch=LIBXSMM_PREFETCH_NONE)
+      m = nsgfa; n = nsgfb; k = ncob
+      CALL libxsmm_dispatch(xmm2, m, n, k, beta=0.0_dp, prefetch=LIBXSMM_PREFETCH_NONE)
+
+      !contractions over a and b
+      DO i = 1, ncoc
+         CALL libxsmm_dmmcall(xmm1, tsphi_a, sabc((i - 1)*ncoa*ncob + 1), cpp_buffer)
+         CALL libxsmm_dmmcall(xmm2, cpp_buffer, sphi_b, ccp_buffer((i - 1)*nsgfa*nsgfb + 1))
+      END DO
+
+#else
+
+      !we follow the same flow as for libxsmm above, but use BLAS dgemm
+
+      !contractions over a and b
+      DO i = 1, ncoc
+         CALL dgemm("N", "N", nsgfa, ncob, ncoa, 1.0_dp, tsphi_a, nsgfa, sabc((i - 1)*ncoa*ncob + 1), &
+                    ncoa, 0.0_dp, cpp_buffer, nsgfa)
+         CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1.0_dp, cpp_buffer, nsgfa, sphi_b, ncob, 0.0_dp, &
+                    ccp_buffer((i - 1)*nsgfa*nsgfb + 1), nsgfa)
+      END DO
+
+#endif
+
+      !last contraciton, over c, as a larger MM
+      CALL dgemm("N", "N", nsgfa*nsgfb, nsgfc, ncoc, 1.0_dp, ccp_buffer, nsgfa*nsgfb, sphi_c, ncoc, &
+                 0.0_dp, abcint, nsgfa*nsgfb)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE libxsmm_abc_contract
 
 END MODULE ai_contraction_sphi

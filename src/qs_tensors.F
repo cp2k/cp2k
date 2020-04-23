@@ -9,14 +9,15 @@
 MODULE qs_tensors
    USE ai_contraction,                  ONLY: block_add
    USE ai_contraction_sphi,             ONLY: ab_contract,&
-                                              abc_contract
+                                              libxsmm_abc_contract
    USE ai_overlap,                      ONLY: overlap_ab
-   USE ai_overlap3,                     ONLY: overlap3
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                              gto_basis_set_p_type
+                                              gto_basis_set_p_type,&
+                                              gto_basis_set_type
    USE block_p_types,                   ONLY: block_p_type
    USE cell_types,                      ONLY: cell_type
+   USE cp_array_utils,                  ONLY: cp_2d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_files,                        ONLY: close_file,&
@@ -859,9 +860,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
-         block_start_k, handle, handle2, i, iatom, ibasis, ikind, imax, iset, jatom, jcell, jkind, &
-         jset, katom, kcell, kkind, kset, m_max, maxli, maxlj, maxlk, natom, ncoi, ncoj, ncok, &
-         nimg, nseti, nsetj, nsetk, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
+         block_start_k, egfi, handle, handle2, i, iatom, ibasis, ikind, ilist, imax, iset, jatom, &
+         jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_nco, max_nset, max_nsgf, maxli, &
+         maxlj, maxlk, natom, nbasis, ncoi, ncoj, ncok, nimg, nseti, nsetj, nsetk, op_ij, op_jk, &
+         op_pos_prv, sgfi, sgfj, sgfk, unit_id
       INTEGER, DIMENSION(3)                              :: blk_size, cell_j, cell_k, &
                                                             kp_index_lbounds, kp_index_ubounds, sp
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmax_k, lmin_i, lmin_j, &
@@ -874,7 +876,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: dij, dik, djk, dr_ij, dr_ik, dr_jk, &
                                                             kind_radius_i, kind_radius_j, &
                                                             kind_radius_k, prefac, sijk_ext
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: max_contraction_i, max_contraction_j, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ccp_buffer, cpp_buffer, &
+                                                            max_contraction_i, max_contraction_j, &
                                                             max_contraction_k
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_t, dummy_block_t, sijk, sijk_contr
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rik, rj, rjk, rk
@@ -882,10 +885,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgf_i, rpgf_j, rpgf_k, sphi_i, sphi_j, &
                                                             sphi_k, zeti, zetj, zetk
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: spi, spj, spk, tspi, tspj
       TYPE(cp_libint_t)                                  :: lib
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_t_type)                                 :: t_3c_tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_3c_iterator_type)               :: nl_3c_iter
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -957,23 +962,100 @@ CONTAINS
 
       CPASSERT(ALL(SHAPE(t3c) == [nimg, nimg]))
 
-      !Need the max l for each basis for libint
+      !Need the max l for each basis for libint and max nset, nco and nsgf for LIBXSMM contraction
+      nbasis = SIZE(basis_i)
+      max_nsgf = 0
+      max_nco = 0
+      max_nset = 0
       maxli = 0
-      DO ibasis = 1, SIZE(basis_i)
-         CALL get_gto_basis_set(gto_basis_set=basis_i(ibasis)%gto_basis_set, maxl=imax)
+      DO ibasis = 1, nbasis
+         CALL get_gto_basis_set(gto_basis_set=basis_i(ibasis)%gto_basis_set, maxl=imax, &
+                                nset=iset, nsgf_set=nsgfi, npgf=npgfi)
          maxli = MAX(maxli, imax)
+         max_nset = MAX(max_nset, iset)
+         max_nsgf = MAX(max_nsgf, MAXVAL(nsgfi))
+         max_nco = MAX(max_nco, MAXVAL(npgfi)*ncoset(maxli))
       END DO
       maxlj = 0
-      DO ibasis = 1, SIZE(basis_j)
-         CALL get_gto_basis_set(gto_basis_set=basis_j(ibasis)%gto_basis_set, maxl=imax)
+      DO ibasis = 1, nbasis
+         CALL get_gto_basis_set(gto_basis_set=basis_j(ibasis)%gto_basis_set, maxl=imax, &
+                                nset=jset, nsgf_set=nsgfj, npgf=npgfj)
          maxlj = MAX(maxlj, imax)
+         max_nset = MAX(max_nset, jset)
+         max_nsgf = MAX(max_nsgf, MAXVAL(nsgfj))
+         max_nco = MAX(max_nco, MAXVAL(npgfj)*ncoset(maxlj))
       END DO
       maxlk = 0
-      DO ibasis = 1, SIZE(basis_k)
-         CALL get_gto_basis_set(gto_basis_set=basis_k(ibasis)%gto_basis_set, maxl=imax)
+      DO ibasis = 1, nbasis
+         CALL get_gto_basis_set(gto_basis_set=basis_k(ibasis)%gto_basis_set, maxl=imax, &
+                                nset=kset, nsgf_set=nsgfk, npgf=npgfk)
          maxlk = MAX(maxlk, imax)
+         max_nset = MAX(max_nset, kset)
+         max_nsgf = MAX(max_nsgf, MAXVAL(nsgfk))
+         max_nco = MAX(max_nco, MAXVAL(npgfk)*ncoset(maxlk))
       END DO
       m_max = maxli + maxlj + maxlk
+
+      !To minimize expensive memory opsand generally optimize contraction, pre-allocate buffers and
+      !contiguous sphi arrays (and transposed in the cas of sphi_i)
+      ALLOCATE (cpp_buffer(max_nsgf*max_nco), ccp_buffer(max_nsgf*max_nsgf*max_nco))
+      NULLIFY (tspi, tspj, spi, spj, spk)
+
+      IF (op_ij /= do_potential_id) THEN
+         ALLOCATE (spi(max_nset, nbasis), tspj(max_nset, nbasis), spk(max_nset, nbasis))
+      ELSE
+         ALLOCATE (tspi(max_nset, nbasis), spj(max_nset, nbasis), spk(max_nset, nbasis))
+      END IF
+
+      DO ibasis = 1, nbasis
+         DO iset = 1, max_nset
+            IF (op_ij /= do_potential_id) THEN
+               NULLIFY (spi(iset, ibasis)%array)
+               NULLIFY (tspj(iset, ibasis)%array)
+            ELSE
+               NULLIFY (tspi(iset, ibasis)%array)
+               NULLIFY (spj(iset, ibasis)%array)
+            END IF
+            NULLIFY (spk(iset, ibasis)%array)
+         END DO
+      END DO
+
+      DO ilist = 1, 3
+         DO ibasis = 1, nbasis
+            IF (ilist == 1) basis_set => basis_i(ibasis)%gto_basis_set
+            IF (ilist == 2) basis_set => basis_j(ibasis)%gto_basis_set
+            IF (ilist == 3) basis_set => basis_k(ibasis)%gto_basis_set
+
+            DO iset = 1, basis_set%nset
+
+               ncoi = basis_set%npgf(iset)*ncoset(basis_set%lmax(iset))
+               sgfi = basis_set%first_sgf(1, iset)
+               egfi = sgfi + basis_set%nsgf_set(iset) - 1
+
+               IF (ilist == 1) THEN
+                  IF (op_ij /= do_potential_id) THEN
+                     ALLOCATE (spi(iset, ibasis)%array(ncoi, basis_set%nsgf_set(iset)))
+                     spi(iset, ibasis)%array(:, :) = basis_set%sphi(1:ncoi, sgfi:egfi)
+                  ELSE
+                     ALLOCATE (tspi(iset, ibasis)%array(basis_set%nsgf_set(iset), ncoi))
+                     tspi(iset, ibasis)%array(:, :) = TRANSPOSE(basis_set%sphi(1:ncoi, sgfi:egfi))
+                  END IF
+               ELSE IF (ilist == 2) THEN
+                  IF (op_ij /= do_potential_id) THEN
+                     ALLOCATE (tspj(iset, ibasis)%array(basis_set%nsgf_set(iset), ncoi))
+                     tspj(iset, ibasis)%array(:, :) = TRANSPOSE(basis_set%sphi(1:ncoi, sgfi:egfi))
+                  ELSE
+                     ALLOCATE (spj(iset, ibasis)%array(ncoi, basis_set%nsgf_set(iset)))
+                     spj(iset, ibasis)%array(:, :) = basis_set%sphi(1:ncoi, sgfi:egfi)
+                  END IF
+               ELSE
+                  ALLOCATE (spk(iset, ibasis)%array(ncoi, basis_set%nsgf_set(iset)))
+                  spk(iset, ibasis)%array(:, :) = basis_set%sphi(1:ncoi, sgfi:egfi)
+               END IF
+
+            END DO !iset
+         END DO !ibasis
+      END DO !ilist
 
       !Init the truncated Coulomb operator
       IF (op_ij == do_potential_truncated .OR. op_jk == do_potential_truncated) THEN
@@ -991,10 +1073,8 @@ CONTAINS
 
       CALL init_md_ftable(nmax=m_max)
 
-      IF (op_ij /= do_potential_id .OR. op_jk /= do_potential_id) THEN
-         CALL cp_libint_init_3eri(lib, MAX(maxli, maxlj, maxlk))
-         CALL cp_libint_set_contrdepth(lib, 1)
-      ENDIF
+      CALL cp_libint_init_3eri(lib, MAX(maxli, maxlj, maxlk))
+      CALL cp_libint_set_contrdepth(lib, 1)
 
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
       CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bounds_j, bounds_k)
@@ -1114,29 +1194,10 @@ CONTAINS
 
                   IF (ncoj*ncok*ncoi > 0) THEN
 
-                     IF (op_ij == do_potential_id .AND. op_jk == do_potential_id) THEN ! cp2k overlap integrals
-                        ALLOCATE (sijk(ncoi, ncoj, ncok))
-                        sijk(:, :, :) = 0.0_dp
-                        CALL overlap3(lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), &
-                                      lmin_i(iset), &
-                                      lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), lmin_j(jset), &
-                                      lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), lmin_k(kset), &
-                                      rij, dij, rik, dik, rjk, djk, sijk, int_abc_ext=sijk_ext)
-                     ELSEIF (op_jk /= do_potential_id) THEN ! for everything else use libint
-                        ALLOCATE (sijk(ncoi, ncoj, ncok))
-                        sijk(:, :, :) = 0.0_dp
-                        !need positions for libint. Only relative positions are needed => set ri to 0.0
-                        ri = 0.0_dp
-                        rj = rij ! ri + rij
-                        rk = rik ! ri + rik
-                        CALL eri_3center(sijk, &
-                                         lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
-                                         lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
-                                         lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
-                                         dij, dik, djk, lib, potential_parameter, int_abc_ext=sijk_ext)
-                     ELSEIF (op_ij /= do_potential_id) THEN
+                     IF (op_ij /= do_potential_id) THEN
                         ALLOCATE (sijk(ncoj, ncok, ncoi))
                         sijk(:, :, :) = 0.0_dp
+                        !need positions for libint. Only relative positions are needed => set ri to 0.0
                         ri = 0.0_dp
                         rj = rij ! ri + rij
                         rk = rik ! ri + rik
@@ -1146,6 +1207,17 @@ CONTAINS
                                          lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
                                          djk, dij, dik, lib, potential_parameter, int_abc_ext=sijk_ext)
 
+                     ELSE
+                        ALLOCATE (sijk(ncoi, ncoj, ncok))
+                        sijk(:, :, :) = 0.0_dp
+                        ri = 0.0_dp
+                        rj = rij ! ri + rij
+                        rk = rik ! ri + rik
+                        CALL eri_3center(sijk, &
+                                         lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
+                                         lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
+                                         lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
+                                         dij, dik, djk, lib, potential_parameter, int_abc_ext=sijk_ext)
                      ENDIF
 
                      IF (PRESENT(int_eps)) THEN
@@ -1161,9 +1233,10 @@ CONTAINS
 
                      IF (op_ij /= do_potential_id) THEN
                         ALLOCATE (sijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
-                        CALL abc_contract(sijk_contr, sijk, &
-                                          sphi_j(:, sgfj:), sphi_k(:, sgfk:), sphi_i(:, sgfi:), &
-                                          ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), nsgfi(iset))
+                        CALL libxsmm_abc_contract(sijk_contr, sijk, tspj(jset, jkind)%array, &
+                                                  spk(kset, kkind)%array, spi(iset, ikind)%array, &
+                                                  ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
+                                                  nsgfi(iset), cpp_buffer, ccp_buffer)
                         DEALLOCATE (sijk)
 
                         block_start_j = sgfj
@@ -1183,12 +1256,13 @@ CONTAINS
                         DEALLOCATE (sijk_contr)
                      ELSE
                         ALLOCATE (sijk_contr(nsgfi(iset), nsgfj(jset), nsgfk(kset)))
-
-                        CALL abc_contract(sijk_contr, sijk, &
-                                          sphi_i(:, sgfi:), sphi_j(:, sgfj:), sphi_k(:, sgfk:), &
-                                          ncoi, ncoj, ncok, nsgfi(iset), nsgfj(jset), nsgfk(kset))
+                        CALL libxsmm_abc_contract(sijk_contr, sijk, tspi(iset, ikind)%array, &
+                                                  spj(jset, jkind)%array, spk(kset, kkind)%array, &
+                                                  ncoi, ncoj, ncok, nsgfi(iset), nsgfj(jset), &
+                                                  nsgfk(kset), cpp_buffer, ccp_buffer)
 
                         DEALLOCATE (sijk)
+
                         block_start_j = sgfj
                         block_end_j = sgfj + nsgfj(jset) - 1
                         block_start_k = sgfk
@@ -1242,9 +1316,7 @@ CONTAINS
          DEALLOCATE (max_contraction_i, max_contraction_j, max_contraction_k)
       END DO
 
-      IF (op_ij /= do_potential_id .OR. op_jk /= do_potential_id) THEN
-         CALL cp_libint_cleanup_3eri(lib)
-      ENDIF
+      CALL cp_libint_cleanup_3eri(lib)
 
       CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 
@@ -1284,6 +1356,25 @@ CONTAINS
       ELSE
          CPABORT("requested symmetric case not implemented")
       ENDIF
+
+      DO iset = 1, max_nset
+         DO ibasis = 1, nbasis
+            IF (op_ij /= do_potential_id) THEN
+               IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
+               IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
+            ELSE
+               IF (ASSOCIATED(tspi(iset, ibasis)%array)) DEALLOCATE (tspi(iset, ibasis)%array)
+               IF (ASSOCIATED(spj(iset, ibasis)%array)) DEALLOCATE (spj(iset, ibasis)%array)
+            END IF
+            IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
+         END DO
+      END DO
+
+      IF (op_ij /= do_potential_id) THEN
+         DEALLOCATE (spi, tspj, spk)
+      ELSE
+         DEALLOCATE (tspi, spj, spk)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE

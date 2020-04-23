@@ -10,14 +10,15 @@
 
 MODULE xas_tdp_integrals
    USE ai_contraction_sphi,             ONLY: ab_contract,&
-                                              abc_contract
+                                              libxsmm_abc_contract
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
    USE constants_operator,              ONLY: operator_coulomb
-   USE cp_array_utils,                  ONLY: cp_1d_i_p_type
+   USE cp_array_utils,                  ONLY: cp_1d_i_p_type,&
+                                              cp_2d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param,&
@@ -278,8 +279,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER :: egfa, egfb, egfc, handle, i, iatom, ibasis, ikind, ilist, imax, iset, jatom, &
-         jkind, jset, katom, kkind, kset, m_max, max_nset, maxli, maxlj, maxlk, mepos, nbasis, &
-         ncoa, ncob, ncoc, ni, nj, nk, nseta, nsetb, nsetc, nthread, sgfa, sgfb, sgfc, unit_id
+         jkind, jset, katom, kkind, kset, m_max, max_nco, max_nset, max_nsgf, maxli, maxlj, maxlk, &
+         mepos, nbasis, ncoa, ncob, ncoc, ni, nj, nk, nseta, nsetb, nsetc, nthread, sgfa, sgfb, &
+         sgfc, unit_id
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, lc_max, &
                                                             lc_min, npgfa, npgfb, npgfc, nsgfa, &
                                                             nsgfb, nsgfc
@@ -288,12 +290,13 @@ CONTAINS
       REAL(dp)                                           :: dij, dik, djk, my_eps_screen, ri(3), &
                                                             rij(3), rik(3), rj(3), rjk(3), rk(3), &
                                                             sabc_ext, screen_radius
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: ccp_buffer, cpp_buffer
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: max_contr, max_contra, max_contrb, &
                                                             max_contrc
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: iabc, sabc, work
       REAL(dp), DIMENSION(:), POINTER                    :: set_radius_a, set_radius_b, set_radius_c
-      REAL(dp), DIMENSION(:, :), POINTER                 :: rpgf_a, rpgf_b, rpgf_c, sphi_a, sphi_b, &
-                                                            sphi_c, zeta, zetb, zetc
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rpgf_a, rpgf_b, rpgf_c, zeta, zetb, zetc
+      TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: spb, spc, tspa
       TYPE(cp_libint_t)                                  :: lib
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
@@ -305,34 +308,42 @@ CONTAINS
       NULLIFY (basis_set, basis_set_list, para_env, la_max, la_min)
       NULLIFY (lb_max, lb_min, lc_max, lc_min, npgfa, npgfb, npgfc, nsgfa, nsgfb, nsgfc)
       NULLIFY (first_sgfa, first_sgfb, first_sgfc, set_radius_a, set_radius_b, set_radius_c)
-      NULLIFY (rpgf_a, rpgf_b, rpgf_c, sphi_a, sphi_b, sphi_c, zeta, zetb, zetc)
-      NULLIFY (basis_set_a, basis_set_b, basis_set_c)
+      NULLIFY (rpgf_a, rpgf_b, rpgf_c, zeta, zetb, zetc)
+      NULLIFY (basis_set_a, basis_set_b, basis_set_c, tspa, spb, spc)
 
       CALL timeset(routineN, handle)
 
       !Need the max l for each basis for libint (and overall max #of sets for screening)
       nbasis = SIZE(basis_set_list_a)
+      max_nsgf = 0
+      max_nco = 0
       max_nset = 0
       maxli = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_set_list_a(ibasis)%gto_basis_set, &
-                                maxl=imax, nset=iset)
+                                maxl=imax, nset=iset, nsgf_set=nsgfa, npgf=npgfa)
          maxli = MAX(maxli, imax)
          max_nset = MAX(max_nset, iset)
+         max_nsgf = MAX(max_nsgf, MAXVAL(nsgfa))
+         max_nco = MAX(max_nco, MAXVAL(npgfa)*ncoset(maxli))
       END DO
       maxlj = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_set_list_b(ibasis)%gto_basis_set, &
-                                maxl=imax, nset=iset)
+                                maxl=imax, nset=iset, nsgf_set=nsgfb, npgf=npgfb)
          maxlj = MAX(maxlj, imax)
          max_nset = MAX(max_nset, iset)
+         max_nsgf = MAX(max_nsgf, MAXVAL(nsgfb))
+         max_nco = MAX(max_nco, MAXVAL(npgfb)*ncoset(maxlj))
       END DO
       maxlk = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_set_list_c(ibasis)%gto_basis_set, &
-                                maxl=imax, nset=iset)
+                                maxl=imax, nset=iset, nsgf_set=nsgfc, npgf=npgfc)
          maxlk = MAX(maxlk, imax)
          max_nset = MAX(max_nset, iset)
+         max_nsgf = MAX(max_nsgf, MAXVAL(nsgfc))
+         max_nco = MAX(max_nco, MAXVAL(npgfc)*ncoset(maxlk))
       END DO
       m_max = maxli + maxlj + maxlk
 
@@ -390,6 +401,45 @@ CONTAINS
          DEALLOCATE (max_contr)
       END IF !do_screen
 
+      !To minimize memory ops in contraction, we need to pre-allocate buffers, pre-tranpose sphi_a
+      !and also trim sphi in general to have contiguous arrays
+      ALLOCATE (tspa(max_nset, nbasis), spb(max_nset, nbasis), spc(max_nset, nbasis))
+      DO ibasis = 1, nbasis
+         DO iset = 1, max_nset
+            NULLIFY (tspa(iset, ibasis)%array)
+            NULLIFY (spb(iset, ibasis)%array)
+            NULLIFY (spc(iset, ibasis)%array)
+         END DO
+      END DO
+
+      DO ilist = 1, 3
+
+         DO ibasis = 1, nbasis
+            IF (ilist == 1) basis_set => basis_set_list_a(ibasis)%gto_basis_set
+            IF (ilist == 2) basis_set => basis_set_list_b(ibasis)%gto_basis_set
+            IF (ilist == 3) basis_set => basis_set_list_c(ibasis)%gto_basis_set
+
+            DO iset = 1, basis_set%nset
+
+               ncoa = basis_set%npgf(iset)*ncoset(basis_set%lmax(iset))
+               sgfa = basis_set%first_sgf(1, iset)
+               egfa = sgfa + basis_set%nsgf_set(iset) - 1
+
+               IF (ilist == 1) THEN
+                  ALLOCATE (tspa(iset, ibasis)%array(basis_set%nsgf_set(iset), ncoa))
+                  tspa(iset, ibasis)%array(:, :) = TRANSPOSE(basis_set%sphi(1:ncoa, sgfa:egfa))
+               ELSE IF (ilist == 2) THEN
+                  ALLOCATE (spb(iset, ibasis)%array(ncoa, basis_set%nsgf_set(iset)))
+                  spb(iset, ibasis)%array(:, :) = basis_set%sphi(1:ncoa, sgfa:egfa)
+               ELSE
+                  ALLOCATE (spc(iset, ibasis)%array(ncoa, basis_set%nsgf_set(iset)))
+                  spc(iset, ibasis)%array(:, :) = basis_set%sphi(1:ncoa, sgfa:egfa)
+               END IF
+
+            END DO !iset
+         END DO !ibasis
+      END DO !ilist
+
       my_sort_bc = .FALSE.
       IF (PRESENT(only_bc_same_center)) my_sort_bc = only_bc_same_center
 
@@ -424,19 +474,25 @@ CONTAINS
       CALL o3c_iterator_create(o3c, o3c_iterator, nthread=nthread)
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (pq_X,do_screen,max_nset,basis_set_list_a,max_contra,max_contrb,max_contrc,&
-!$OMP         basis_set_list_b, basis_set_list_c,ncoset,screen_radius,potential_parameter,&
-!$OMP         my_eps_screen,maxli,maxlj,maxlk,my_sort_bc,nthread,o3c,o3c_iterator) &
+!$OMP SHARED (pq_X,do_screen,max_nset,basis_set_list_a,max_contra,max_contrb,max_contrc,max_nsgf,&
+!$OMP         basis_set_list_b, basis_set_list_c,ncoset,screen_radius,potential_parameter,max_nco,&
+!$OMP         my_eps_screen,maxli,maxlj,maxlk,my_sort_bc,nthread,o3c,o3c_iterator,tspa,spb,spc) &
 !$OMP PRIVATE (lib,i,mepos,work,iset,ncoa,sgfa,egfa,nseta,&
 !$OMP          iatom,ikind,jatom,jkind,katom,kkind,rij,rik,rjk,basis_set_a,nsetb,&
 !$OMP          la_max,la_min,lb_max,lb_min,lc_max,lc_min,npgfa,npgfb,npgfc,nsgfa,nsgfb,nsgfc,ri,rk,&
 !$OMP          first_sgfa,first_sgfb,first_sgfc,set_radius_a,set_radius_b,set_radius_c, nsetc,rj,&
-!$OMP          rpgf_a,rpgf_b,rpgf_c,sphi_a,sphi_b,sphi_c,zeta,zetb,zetc,basis_set_b,basis_set_c,&
-!$OMP          dij,dik,djk,ni,nj,nk,iabc,sabc,jset,kset,ncob,ncoc,sgfb,sgfc,egfb,egfc,&
-!$OMP          sabc_ext)
+!$OMP          rpgf_a,rpgf_b,rpgf_c,zeta,zetb,zetc,basis_set_b,basis_set_c,dij,dik,djk,ni,nj,nk,&
+!$OMP          iabc,sabc,jset,kset,ncob,ncoc,sgfb,sgfc,egfb,egfc,sabc_ext,cpp_buffer,ccp_buffer)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
+
+      !pre-allocate work buffers for LIBXSMM contract in order to avoid memory ops
+      ALLOCATE (cpp_buffer(max_nsgf*max_nco))
+      ALLOCATE (ccp_buffer(max_nsgf*max_nsgf*max_nco))
+
+      !note: we do not initalize libxsmm here, because we assume that if the flag is there, then it
+      !      is done in dbcsr already
 
       !each thread need its own libint object (internals may change at different rates)
       CALL cp_libint_init_3eri(lib, MAX(maxli, maxlj, maxlk))
@@ -454,7 +510,6 @@ CONTAINS
          npgfa => basis_set_a%npgf
          nseta = basis_set_a%nset
          nsgfa => basis_set_a%nsgf_set
-         sphi_a => basis_set_a%sphi
          zeta => basis_set_a%zet
          rpgf_a => basis_set_a%pgf_radius
          set_radius_a => basis_set_a%set_radius
@@ -467,7 +522,6 @@ CONTAINS
          npgfb => basis_set_b%npgf
          nsetb = basis_set_b%nset
          nsgfb => basis_set_b%nsgf_set
-         sphi_b => basis_set_b%sphi
          zetb => basis_set_b%zet
          rpgf_b => basis_set_b%pgf_radius
          set_radius_b => basis_set_b%set_radius
@@ -480,7 +534,6 @@ CONTAINS
          npgfc => basis_set_c%npgf
          nsetc = basis_set_c%nset
          nsgfc => basis_set_c%nsgf_set
-         sphi_c => basis_set_c%sphi
          zetc => basis_set_c%zet
          rpgf_c => basis_set_c%pgf_radius
          set_radius_c => basis_set_c%set_radius
@@ -547,11 +600,10 @@ CONTAINS
                   END IF
 
                   ALLOCATE (work(nsgfa(iset), nsgfb(jset), nsgfc(kset)))
-                  !zeroing work is superfluous here (work = 0.0_dp)
 
-                  CALL abc_contract(work, sabc, &
-                                    sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_c(:, sgfc:), &
-                                    ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfc(kset))
+                  CALL libxsmm_abc_contract(work, sabc, tspa(iset, ikind)%array, spb(jset, jkind)%array, &
+                                            spc(kset, kkind)%array, ncoa, ncob, ncoc, nsgfa(iset), &
+                                            nsgfb(jset), nsgfc(kset), cpp_buffer, ccp_buffer)
 
                   iabc(sgfa:egfa, sgfb:egfb, sgfc:egfc) = work(:, :, :)
                   DEALLOCATE (sabc, work)
@@ -574,6 +626,15 @@ CONTAINS
       CALL o3c_iterator_release(o3c_iterator)
       CALL release_o3c_container(o3c)
       DEALLOCATE (o3c)
+
+      DO iset = 1, max_nset
+         DO ibasis = 1, nbasis
+            IF (ASSOCIATED(tspa(iset, ibasis)%array)) DEALLOCATE (tspa(iset, ibasis)%array)
+            IF (ASSOCIATED(spb(iset, ibasis)%array)) DEALLOCATE (spb(iset, ibasis)%array)
+            IF (ASSOCIATED(spc(iset, ibasis)%array)) DEALLOCATE (spc(iset, ibasis)%array)
+         END DO
+      END DO
+      DEALLOCATE (tspa, spb, spc)
 
       CALL timestop(handle)
 
