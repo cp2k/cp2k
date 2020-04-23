@@ -57,13 +57,13 @@
       &END
     &END TOPOLOGY
     &KIND H
-      BASIS_SET    aug-cc-pVDZ
-      RI_AUX_BASIS RI_TZ
+      BASIS_SET ORB    aug-cc-pVDZ
+      BASIS_SET RI_AUX RI_TZ
       POTENTIAL ALL
     &END KIND
     &KIND C
-      BASIS_SET    aug-cc-pVDZ
-      RI_AUX_BASIS RI_TZ
+      BASIS_SET ORB    aug-cc-pVDZ
+      BASIS_SET RI_AUX RI_TZ
       POTENTIAL ALL
     &END KIND
   &END SUBSYS
