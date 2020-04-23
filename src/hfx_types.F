@@ -1339,11 +1339,14 @@ CONTAINS
          ! is larger than this (it is however not a problem for load balancing if actual MO dimension
          ! is slightly smaller)
          MO_dim = MAX((ri_data%nelectron_total/2 - 1)/ri_data%n_mem + 1, 1)
+         MO_dim = (MO_dim - 1)/ri_data%min_bsize_MO + 1
 
-         pdims = [1, nproc, 1]
-         CALL dbcsr_t_mp_dims_create(nproc, pdims, [MO_dim, SIZE(ri_data%bsizes_RI_split), MO_dim])
+         pdims = 0
+         CALL dbcsr_t_mp_dims_create(nproc, pdims, [SIZE(ri_data%bsizes_AO_split), SIZE(ri_data%bsizes_RI_split), MO_dim])
 
          CALL dbcsr_t_pgrid_create(para_env%group, pdims, ri_data%pgrid_1)
+
+         pdims = pdims([3, 2, 1])
          CALL dbcsr_t_pgrid_create(para_env%group, pdims, ri_data%pgrid_2)
 
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
