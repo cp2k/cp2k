@@ -279,9 +279,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER :: egfa, egfb, egfc, handle, i, iatom, ibasis, ikind, ilist, imax, iset, jatom, &
-         jkind, jset, katom, kkind, kset, m_max, max_nco, max_nset, max_nsgf, maxli, maxlj, maxlk, &
-         mepos, nbasis, ncoa, ncob, ncoc, ni, nj, nk, nseta, nsetb, nsetc, nthread, sgfa, sgfb, &
-         sgfc, unit_id
+         jkind, jset, katom, kkind, kset, m_max, max_ncob, max_ncoc, max_nset, max_nsgfa, &
+         max_nsgfb, maxli, maxlj, maxlk, mepos, nbasis, ncoa, ncob, ncoc, ni, nj, nk, nseta, &
+         nsetb, nsetc, nthread, sgfa, sgfb, sgfc, unit_id
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, lc_max, &
                                                             lc_min, npgfa, npgfb, npgfc, nsgfa, &
                                                             nsgfb, nsgfc
@@ -315,35 +315,35 @@ CONTAINS
 
       !Need the max l for each basis for libint (and overall max #of sets for screening)
       nbasis = SIZE(basis_set_list_a)
-      max_nsgf = 0
-      max_nco = 0
+      max_nsgfa = 0
       max_nset = 0
       maxli = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_set_list_a(ibasis)%gto_basis_set, &
-                                maxl=imax, nset=iset, nsgf_set=nsgfa, npgf=npgfa)
+                                maxl=imax, nset=iset, nsgf_set=nsgfa)
          maxli = MAX(maxli, imax)
          max_nset = MAX(max_nset, iset)
-         max_nsgf = MAX(max_nsgf, MAXVAL(nsgfa))
-         max_nco = MAX(max_nco, MAXVAL(npgfa)*ncoset(maxli))
+         max_nsgfa = MAX(max_nsgfa, MAXVAL(nsgfa))
       END DO
+      max_nsgfb = 0
+      max_ncob = 0
       maxlj = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_set_list_b(ibasis)%gto_basis_set, &
                                 maxl=imax, nset=iset, nsgf_set=nsgfb, npgf=npgfb)
          maxlj = MAX(maxlj, imax)
          max_nset = MAX(max_nset, iset)
-         max_nsgf = MAX(max_nsgf, MAXVAL(nsgfb))
-         max_nco = MAX(max_nco, MAXVAL(npgfb)*ncoset(maxlj))
+         max_nsgfb = MAX(max_nsgfb, MAXVAL(nsgfb))
+         max_ncob = MAX(max_ncob, MAXVAL(npgfb)*ncoset(maxlj))
       END DO
       maxlk = 0
+      max_ncoc = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_set_list_c(ibasis)%gto_basis_set, &
-                                maxl=imax, nset=iset, nsgf_set=nsgfc, npgf=npgfc)
+                                maxl=imax, nset=iset, npgf=npgfc)
          maxlk = MAX(maxlk, imax)
          max_nset = MAX(max_nset, iset)
-         max_nsgf = MAX(max_nsgf, MAXVAL(nsgfc))
-         max_nco = MAX(max_nco, MAXVAL(npgfc)*ncoset(maxlk))
+         max_ncoc = MAX(max_ncoc, MAXVAL(npgfc)*ncoset(maxlk))
       END DO
       m_max = maxli + maxlj + maxlk
 
@@ -474,9 +474,10 @@ CONTAINS
       CALL o3c_iterator_create(o3c, o3c_iterator, nthread=nthread)
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (pq_X,do_screen,max_nset,basis_set_list_a,max_contra,max_contrb,max_contrc,max_nsgf,&
-!$OMP         basis_set_list_b, basis_set_list_c,ncoset,screen_radius,potential_parameter,max_nco,&
-!$OMP         my_eps_screen,maxli,maxlj,maxlk,my_sort_bc,nthread,o3c,o3c_iterator,tspa,spb,spc) &
+!$OMP SHARED (pq_X,do_screen,max_nset,basis_set_list_a,max_contra,max_contrb,max_contrc,max_nsgfa,&
+!$OMP         basis_set_list_b, basis_set_list_c,ncoset,screen_radius,potential_parameter,max_ncob,&
+!$OMP         my_eps_screen,maxli,maxlj,maxlk,my_sort_bc,nthread,o3c,o3c_iterator,tspa,spb,spc,&
+!$OMP         max_ncoc,max_nsgfb) &
 !$OMP PRIVATE (lib,i,mepos,work,iset,ncoa,sgfa,egfa,nseta,&
 !$OMP          iatom,ikind,jatom,jkind,katom,kkind,rij,rik,rjk,basis_set_a,nsetb,&
 !$OMP          la_max,la_min,lb_max,lb_min,lc_max,lc_min,npgfa,npgfb,npgfc,nsgfa,nsgfb,nsgfc,ri,rk,&
@@ -488,8 +489,8 @@ CONTAINS
 !$    mepos = omp_get_thread_num()
 
       !pre-allocate work buffers for LIBXSMM contract in order to avoid memory ops
-      ALLOCATE (cpp_buffer(max_nsgf*max_nco))
-      ALLOCATE (ccp_buffer(max_nsgf*max_nsgf*max_nco))
+      ALLOCATE (cpp_buffer(max_nsgfa*max_ncob))
+      ALLOCATE (ccp_buffer(max_nsgfa*max_nsgfb*max_ncoc))
 
       !note: we do not initalize libxsmm here, because we assume that if the flag is there, then it
       !      is done in dbcsr already

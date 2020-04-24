@@ -861,9 +861,9 @@ CONTAINS
 
       INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
          block_start_k, egfi, handle, handle2, i, iatom, ibasis, ikind, ilist, imax, iset, jatom, &
-         jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_nco, max_nset, max_nsgf, maxli, &
-         maxlj, maxlk, natom, nbasis, ncoi, ncoj, ncok, nimg, nseti, nsetj, nsetk, op_ij, op_jk, &
-         op_pos_prv, sgfi, sgfj, sgfk, unit_id
+         jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoi, max_ncoj, max_ncok, &
+         max_nset, max_nsgfi, max_nsgfj, max_nsgfk, maxli, maxlj, maxlk, natom, nbasis, ncoi, &
+         ncoj, ncok, nimg, nseti, nsetj, nsetk, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
       INTEGER, DIMENSION(3)                              :: blk_size, cell_j, cell_k, &
                                                             kp_index_lbounds, kp_index_ubounds, sp
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmax_k, lmin_i, lmin_j, &
@@ -964,8 +964,8 @@ CONTAINS
 
       !Need the max l for each basis for libint and max nset, nco and nsgf for LIBXSMM contraction
       nbasis = SIZE(basis_i)
-      max_nsgf = 0
-      max_nco = 0
+      max_nsgfi = 0
+      max_ncoi = 0
       max_nset = 0
       maxli = 0
       DO ibasis = 1, nbasis
@@ -973,34 +973,42 @@ CONTAINS
                                 nset=iset, nsgf_set=nsgfi, npgf=npgfi)
          maxli = MAX(maxli, imax)
          max_nset = MAX(max_nset, iset)
-         max_nsgf = MAX(max_nsgf, MAXVAL(nsgfi))
-         max_nco = MAX(max_nco, MAXVAL(npgfi)*ncoset(maxli))
+         max_nsgfi = MAX(max_nsgfi, MAXVAL(nsgfi))
+         max_ncoi = MAX(max_ncoi, MAXVAL(npgfi)*ncoset(maxli))
       END DO
+      max_nsgfj = 0
+      max_ncoj = 0
       maxlj = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_j(ibasis)%gto_basis_set, maxl=imax, &
                                 nset=jset, nsgf_set=nsgfj, npgf=npgfj)
          maxlj = MAX(maxlj, imax)
          max_nset = MAX(max_nset, jset)
-         max_nsgf = MAX(max_nsgf, MAXVAL(nsgfj))
-         max_nco = MAX(max_nco, MAXVAL(npgfj)*ncoset(maxlj))
+         max_nsgfj = MAX(max_nsgfj, MAXVAL(nsgfj))
+         max_ncoj = MAX(max_ncoj, MAXVAL(npgfj)*ncoset(maxlj))
       END DO
+      max_nsgfk = 0
+      max_ncok = 0
       maxlk = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_k(ibasis)%gto_basis_set, maxl=imax, &
                                 nset=kset, nsgf_set=nsgfk, npgf=npgfk)
          maxlk = MAX(maxlk, imax)
          max_nset = MAX(max_nset, kset)
-         max_nsgf = MAX(max_nsgf, MAXVAL(nsgfk))
-         max_nco = MAX(max_nco, MAXVAL(npgfk)*ncoset(maxlk))
+         max_nsgfk = MAX(max_nsgfk, MAXVAL(nsgfk))
+         max_ncok = MAX(max_ncok, MAXVAL(npgfk)*ncoset(maxlk))
       END DO
       m_max = maxli + maxlj + maxlk
 
       !To minimize expensive memory opsand generally optimize contraction, pre-allocate buffers and
       !contiguous sphi arrays (and transposed in the cas of sphi_i)
-      ALLOCATE (cpp_buffer(max_nsgf*max_nco), ccp_buffer(max_nsgf*max_nsgf*max_nco))
-      NULLIFY (tspi, tspj, spi, spj, spk)
+      IF (op_ij /= do_potential_id) THEN
+         ALLOCATE (cpp_buffer(max_nsgfj*max_ncok), ccp_buffer(max_nsgfj*max_nsgfk*max_ncoi))
+      ELSE
+         ALLOCATE (cpp_buffer(max_nsgfi*max_ncoj), ccp_buffer(max_nsgfi*max_nsgfj*max_ncok))
+      END IF
 
+      NULLIFY (tspi, tspj, spi, spj, spk)
       IF (op_ij /= do_potential_id) THEN
          ALLOCATE (spi(max_nset, nbasis), tspj(max_nset, nbasis), spk(max_nset, nbasis))
       ELSE
