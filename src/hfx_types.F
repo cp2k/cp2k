@@ -80,14 +80,10 @@ MODULE hfx_types
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type
-   USE qs_tensors_types,                ONLY: create_2c_tensor,&
-                                              create_3c_tensor,&
-                                              default_block_size,&
-                                              distribution_3d_create,&
-                                              distribution_3d_destroy,&
-                                              distribution_3d_type,&
-                                              pgf_block_sizes,&
-                                              split_block_sizes
+   USE qs_tensors_types,                ONLY: &
+        create_2c_tensor, create_3c_tensor, create_tensor_batches, default_block_size, &
+        distribution_3d_create, distribution_3d_destroy, distribution_3d_type, pgf_block_sizes, &
+        split_block_sizes
    USE string_utilities,                ONLY: compress
    USE t_c_g0,                          ONLY: free_C0
 
@@ -442,6 +438,10 @@ MODULE hfx_types
       ! relevant non-zero RI-AO pairs
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: nonzero_pairs
       INTEGER, DIMENSION(:), ALLOCATABLE :: nonzero_rows
+
+      ! offsets for memory batches
+      INTEGER, DIMENSION(:), ALLOCATABLE :: starts_array_mem_block, ends_array_mem_block
+      INTEGER, DIMENSION(:), ALLOCATABLE :: starts_array_mem, ends_array_mem
 
       INTEGER(int_8) :: dbcsr_nflop
       REAL(dp)       :: dbcsr_time
@@ -1299,15 +1299,29 @@ CONTAINS
       CALL split_block_sizes([SUM(ri_data%bsizes_RI)], ri_data%bsizes_RI_fit, default_block_size)
 
       IF (ri_data%flavor == ri_pmat) THEN
+
+         CALL create_tensor_batches(ri_data%bsizes_AO_split, ri_data%n_mem, ri_data%starts_array_mem, ri_data%ends_array_mem, &
+                                    ri_data%starts_array_mem_block, ri_data%ends_array_mem_block)
+
          ALLOCATE (ri_data%t_3c_int_ctr_1(1, 1))
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
                                ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
-                               [1, 2], [3], name="(AO RI | AO)")
+                               [1, 2], [3], &
+                               starts_array_block_1=ri_data%starts_array_mem_block, &
+                               ends_array_block_1=ri_data%ends_array_mem_block, &
+                               starts_array_block_3=ri_data%starts_array_mem_block, &
+                               ends_array_block_3=ri_data%ends_array_mem_block, &
+                               name="(AO RI | AO)")
 
          ALLOCATE (ri_data%t_3c_int_ctr_3(1, 1))
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_3(1, 1), ri_data%dist3_RI, ri_data%dist3_AO_1, ri_data%dist3_AO_2, &
                                ri_data%pgrid, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
-                               [1], [2, 3], name="(RI | AO AO)")
+                               [1], [2, 3], &
+                               starts_array_block_2=ri_data%starts_array_mem_block, &
+                               ends_array_block_2=ri_data%ends_array_mem_block, &
+                               starts_array_block_3=ri_data%starts_array_mem_block, &
+                               ends_array_block_3=ri_data%ends_array_mem_block, &
+                               name="(RI | AO AO)")
 
          ALLOCATE (ri_data%t_2c_int(1, 1))
          CALL create_2c_tensor(ri_data%t_2c_int(1, 1), dist1, dist2, ri_data%pgrid_2d, &
@@ -1446,6 +1460,8 @@ CONTAINS
          DEALLOCATE (ri_data%t_2c_int)
          DEALLOCATE (ri_data%nonzero_pairs)
          DEALLOCATE (ri_data%nonzero_rows)
+         DEALLOCATE (ri_data%starts_array_mem_block, ri_data%ends_array_mem_block, &
+                     ri_data%starts_array_mem, ri_data%ends_array_mem)
       ELSEIF (ri_data%flavor == ri_mo) THEN
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_1(1, 1))
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_2(1, 1))
