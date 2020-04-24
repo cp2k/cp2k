@@ -234,15 +234,17 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: cm, cut_memory, eri_method, gw_corr_lev_total, handle, handle2, handle4, i, &
-         i_counter, itmp(2), j, jcell, kcell, LLL, max_row_col_local, max_row_col_local_beta, &
-         max_row_col_local_gw, max_row_col_local_occ_bse, max_row_col_local_virt_bse, min_bsize, &
-         mp_comm_t3c_2, my_B_all_end, my_B_all_size, my_B_all_start, my_B_occ_bse_end, &
-         my_B_occ_bse_size, my_B_occ_bse_start, my_B_size, my_B_size_beta, my_B_virt_bse_end, &
-         my_B_virt_bse_size, my_B_virt_bse_start, my_B_virtual_end, my_B_virtual_end_beta, &
-         my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, my_group_L_size
-      INTEGER :: my_group_L_start, natom, ngroup, ngroup_im_time, ngroup_im_time_P, nimg, nkind, &
-         num_small_eigen, potential_type, ri_metric_type, virtual, virtual_beta
+      INTEGER :: cm, cut_memory, cut_memory_int, eri_method, gw_corr_lev_total, handle, handle2, &
+         handle4, i, i_counter, itmp(2), j, jcell, kcell, LLL, max_row_col_local, &
+         max_row_col_local_beta, max_row_col_local_gw, max_row_col_local_occ_bse, &
+         max_row_col_local_virt_bse, min_bsize, mp_comm_t3c_2, my_B_all_end, my_B_all_size, &
+         my_B_all_start, my_B_occ_bse_end, my_B_occ_bse_size, my_B_occ_bse_start, my_B_size, &
+         my_B_size_beta, my_B_virt_bse_end, my_B_virt_bse_size, my_B_virt_bse_start, &
+         my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, my_B_virtual_start_beta, &
+         my_group_L_end
+      INTEGER :: my_group_L_size, my_group_L_start, natom, ngroup, ngroup_im_time, &
+         ngroup_im_time_P, nimg, nkind, num_small_eigen, potential_type, ri_metric_type, virtual, &
+         virtual_beta
       INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
          ends_array_mc_block_int, ends_array_mc_int, sizes_AO, sizes_AO_split, sizes_RI, &
          sizes_RI_split, starts_array_mc_block_int, starts_array_mc_int, sub_proc_map
@@ -790,10 +792,9 @@ CONTAINS
          CALL basis_set_list_setup(basis_set_ao, "ORB", qs_kind_set)
          CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_AO, basis=basis_set_ao)
 
-         ASSOCIATE (cut_memory=>qs_env%mp2_env%ri_rpa_im_time%cut_memory)
-            CALL create_tensor_batches(sizes_AO, cut_memory, starts_array_mc_int, ends_array_mc_int, &
-                                       starts_array_mc_block_int, ends_array_mc_block_int)
-         END ASSOCIATE
+         cut_memory_int = qs_env%mp2_env%ri_rpa_im_time%cut_memory
+         CALL create_tensor_batches(sizes_AO, cut_memory_int, starts_array_mc_int, ends_array_mc_int, &
+                                    starts_array_mc_block_int, ends_array_mc_block_int)
 
          DEALLOCATE (starts_array_mc_int, ends_array_mc_int)
 
@@ -888,7 +889,7 @@ CONTAINS
          ! note: integrals are stored in terms of atomic blocks. To avoid a memory bottleneck,
          ! integrals are calculated in batches and copied to optimized format with subatomic blocks
 
-         DO cm = 1, cut_memory
+         DO cm = 1, cut_memory_int
             CALL build_3c_integrals(t_3c_overl_int, &
                                     qs_env%mp2_env%ri_rpa_im_time%eps_filter/2, &
                                     qs_env, &
