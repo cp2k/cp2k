@@ -127,7 +127,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: t1, t2
       REAL(KIND=dp), DIMENSION(3)                        :: kpptr
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, eigval, occnum, &
-                                                            occupation_numbers
+                                                            occupation_numbers, wkp
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: kpgeneral, kspecial, xkp
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -230,7 +230,7 @@ CONTAINS
             kp => kpoint%kp_env(1)%kpoint_env
             CALL get_mo_set(kp%mos(1, 1)%mo_set, nmo=nmo)
             ALLOCATE (eigval(nmo), occnum(nmo))
-            CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
+            CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp, wkp=wkp)
 
             IF (unit_nr > 0) THEN
                WRITE (UNIT=unit_nr, FMT="(T2,A,I4,T71,I10)") &
@@ -267,8 +267,8 @@ CONTAINS
                   CALL mp_sum(eigval, kpoint%para_env_inter_kp%group)
                   CALL mp_sum(occnum, kpoint%para_env_inter_kp%group)
                   IF (bs_data_unit > 0) THEN
-                     WRITE (UNIT=bs_data_unit, FMT="(A,I0,T15,A,I0,A,T24,3(1X,F14.8))") &
-                        "#  Point ", ik, "  Spin ", ispin, ":", xkp(1:3, ik)
+                     WRITE (UNIT=bs_data_unit, FMT="(A,I0,T15,A,I0,A,T24,3(1X,F14.8),3X,F14.8)") &
+                        "#  Point ", ik, "  Spin ", ispin, ":", xkp(1:3, ik), wkp(ik)
                      WRITE (UNIT=bs_data_unit, FMT="(A)") &
                         "#   Band    Energy [eV]     Occupation"
                      DO imo = 1, nmo
