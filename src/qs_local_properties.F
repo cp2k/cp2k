@@ -183,12 +183,17 @@ CONTAINS
                              rho_tot_rspace%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
+      NULLIFY (rho_core)
       CALL get_qs_env(qs_env, &
                       v_hartree_rspace=v_hartree_rspace%pw, &
                       rho_core=rho_core, rho=rho)
-      CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
       CALL qs_rho_get(rho, rho_r=rho_r)
-      CALL pw_transfer(rho_core%pw, rho_tot_rspace%pw)
+      IF (ASSOCIATED(rho_core)) THEN
+         CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
+         CALL pw_transfer(rho_core%pw, rho_tot_rspace%pw)
+      ELSE
+         CALL pw_zero(rho_tot_rspace%pw)
+      END IF
       DO ispin = 1, nspins
          CALL pw_axpy(rho_r(ispin)%pw, rho_tot_rspace%pw, alpha=-1.0_dp)
       END DO
