@@ -1573,8 +1573,6 @@ CONTAINS
                ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
                CALL dbcsr_t_clear(ri_data%t_3c_int_ctr_3(1, 1))
 
-               CALL dbcsr_t_filter(t_3c_2, ri_data%filter_eps)
-
                CALL timestop(handle2)
 
                CALL get_tensor_occupancy(t_3c_2, nze, occ)
