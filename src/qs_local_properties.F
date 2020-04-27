@@ -183,12 +183,12 @@ CONTAINS
                              rho_tot_rspace%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      NULLIFY(rho_core)
+      NULLIFY (rho_core)
       CALL get_qs_env(qs_env, &
                       v_hartree_rspace=v_hartree_rspace%pw, &
                       rho_core=rho_core, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r)
-      IF(ASSOCIATED(rho_core)) THEN
+      IF (ASSOCIATED(rho_core)) THEN
          CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
          CALL pw_transfer(rho_core%pw, rho_tot_rspace%pw)
       ELSE
