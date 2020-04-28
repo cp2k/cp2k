@@ -44,12 +44,12 @@ MODULE submatrix_dissection
       dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
       dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
       dbcsr_put_block, dbcsr_type
-   USE dbcsr_mpiwrap, ONLY: mp_allgather, &
-                            mp_alltoall, &
-                            mp_irecv, &
-                            mp_isend, &
-                            mp_send, &
-                            mp_wait
+   USE message_passing, ONLY: mp_allgather, &
+                              mp_alltoall, &
+                              mp_irecv, &
+                              mp_isend, &
+                              mp_send, &
+                              mp_wait
    USE kinds, ONLY: dp
    USE submatrix_types, ONLY: buffer_type, &
                               bufptr_type, &
