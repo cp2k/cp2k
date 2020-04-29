@@ -1709,8 +1709,6 @@ CONTAINS
       ALLOCATE (dist2(tdims(2)))
       ALLOCATE (dist3(tdims(3)))
 
-      CALL dbcsr_t_default_distvec(tdims(1), pdims(1), bs1, dist1)
-
       IF (mem_aware_1) THEN
          DO imem = 1, memcut_1
             size_cut = ends_array_mc_block_1(imem) - starts_array_mc_block_1(imem) + 1

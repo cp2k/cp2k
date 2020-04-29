@@ -407,7 +407,7 @@ MODULE hfx_types
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_1
       TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_1 => NULL()
 
-      ! 3c integral tensor in ( AO | RI AO) format for contraction
+      ! 3c integral tensor in ( AO | RI AO) (MO) or (AO RI | AO) (RHO) format for contraction
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_2
       TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_2 => NULL()
 
@@ -435,13 +435,12 @@ MODULE hfx_types
       ! memory reduction factor
       INTEGER :: n_mem
 
-      ! relevant non-zero RI-AO pairs
-      INTEGER, DIMENSION(:, :), ALLOCATABLE :: nonzero_pairs
-      INTEGER, DIMENSION(:), ALLOCATABLE :: nonzero_rows
-
       ! offsets for memory batches
       INTEGER, DIMENSION(:), ALLOCATABLE :: starts_array_mem_block, ends_array_mem_block
       INTEGER, DIMENSION(:), ALLOCATABLE :: starts_array_mem, ends_array_mem
+
+      INTEGER, DIMENSION(:), ALLOCATABLE :: starts_array_RI_mem_block, ends_array_RI_mem_block
+      INTEGER, DIMENSION(:), ALLOCATABLE :: starts_array_RI_mem, ends_array_RI_mem
 
       INTEGER(int_8) :: dbcsr_nflop
       REAL(dp)       :: dbcsr_time
@@ -1204,8 +1203,8 @@ CONTAINS
 
       INTEGER                                            :: handle, ikind, iproc, MO_dim, &
                                                             mp_comm_3d, natom, nkind, nproc
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist_AO_1, dist_AO_2, &
-                                                            dist_RI
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_AO_store, bsizes_RI_store, dist1, &
+                                                            dist2, dist_AO_1, dist_AO_2, dist_RI
       INTEGER, DIMENSION(2)                              :: pdims_2d
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
       LOGICAL                                            :: same_op
@@ -1301,6 +1300,9 @@ CONTAINS
       CALL pgf_block_sizes(atomic_kind_set, basis_set_AO, ri_data%min_bsize, ri_data%bsizes_AO_split)
       CALL pgf_block_sizes(atomic_kind_set, basis_set_RI, ri_data%min_bsize, ri_data%bsizes_RI_split)
 
+      CALL pgf_block_sizes(atomic_kind_set, basis_set_AO, 1, bsizes_AO_store)
+      CALL pgf_block_sizes(atomic_kind_set, basis_set_RI, 1, bsizes_RI_store)
+
       CALL split_block_sizes([SUM(ri_data%bsizes_AO)], ri_data%bsizes_AO_fit, default_block_size)
       CALL split_block_sizes([SUM(ri_data%bsizes_RI)], ri_data%bsizes_RI_fit, default_block_size)
 
@@ -1309,12 +1311,26 @@ CONTAINS
          CALL create_tensor_batches(ri_data%bsizes_AO_split, ri_data%n_mem, ri_data%starts_array_mem, ri_data%ends_array_mem, &
                                     ri_data%starts_array_mem_block, ri_data%ends_array_mem_block)
 
+         CALL create_tensor_batches(ri_data%bsizes_RI_split, ri_data%n_mem, &
+                                    ri_data%starts_array_RI_mem, ri_data%ends_array_RI_mem, &
+                                    ri_data%starts_array_RI_mem_block, ri_data%ends_array_RI_mem_block)
+
          ALLOCATE (ri_data%t_3c_int_ctr_1(1, 1))
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
                                ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
                                [1, 2], [3], &
                                starts_array_block_1=ri_data%starts_array_mem_block, &
                                ends_array_block_1=ri_data%ends_array_mem_block, &
+                               starts_array_block_2=ri_data%starts_array_RI_mem_block, &
+                               ends_array_block_2=ri_data%ends_array_RI_mem_block, &
+                               name="(AO RI | AO)")
+
+         ALLOCATE (ri_data%t_3c_int_ctr_2(1, 1))
+         CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
+                               ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
+                               [1, 2], [3], &
+                               starts_array_block_2=ri_data%starts_array_RI_mem_block, &
+                               ends_array_block_2=ri_data%ends_array_RI_mem_block, &
                                starts_array_block_3=ri_data%starts_array_mem_block, &
                                ends_array_block_3=ri_data%ends_array_mem_block, &
                                name="(AO RI | AO)")
@@ -1323,10 +1339,10 @@ CONTAINS
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_3(1, 1), ri_data%dist3_RI, ri_data%dist3_AO_1, ri_data%dist3_AO_2, &
                                ri_data%pgrid, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
                                [1], [2, 3], &
+                               starts_array_block_1=ri_data%starts_array_RI_mem_block, &
+                               ends_array_block_1=ri_data%ends_array_RI_mem_block, &
                                starts_array_block_2=ri_data%starts_array_mem_block, &
                                ends_array_block_2=ri_data%ends_array_mem_block, &
-                               starts_array_block_3=ri_data%starts_array_mem_block, &
-                               ends_array_block_3=ri_data%ends_array_mem_block, &
                                name="(RI | AO AO)")
 
          ALLOCATE (ri_data%t_2c_int(1, 1))
@@ -1458,16 +1474,18 @@ CONTAINS
       IF (ri_data%flavor == ri_pmat) THEN
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_1(1, 1))
          DEALLOCATE (ri_data%t_3c_int_ctr_1)
+         CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_2(1, 1))
+         DEALLOCATE (ri_data%t_3c_int_ctr_2)
          DEALLOCATE (ri_data%dist1_RI, ri_data%dist1_AO_1, ri_data%dist1_AO_2)
          DEALLOCATE (ri_data%dist3_RI, ri_data%dist3_AO_1, ri_data%dist3_AO_2)
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_3(1, 1))
          DEALLOCATE (ri_data%t_3c_int_ctr_3)
          CALL dbcsr_t_destroy(ri_data%t_2c_int(1, 1))
          DEALLOCATE (ri_data%t_2c_int)
-         DEALLOCATE (ri_data%nonzero_pairs)
-         DEALLOCATE (ri_data%nonzero_rows)
          DEALLOCATE (ri_data%starts_array_mem_block, ri_data%ends_array_mem_block, &
                      ri_data%starts_array_mem, ri_data%ends_array_mem)
+         DEALLOCATE (ri_data%starts_array_RI_mem_block, ri_data%ends_array_RI_mem_block, &
+                     ri_data%starts_array_RI_mem, ri_data%ends_array_RI_mem)
       ELSEIF (ri_data%flavor == ri_mo) THEN
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_1(1, 1))
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_2(1, 1))
