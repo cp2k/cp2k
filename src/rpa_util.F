@@ -418,7 +418,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reorder_mat_L', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i_size, j_size, nblk
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       LOGICAL                                            :: do_kpoints
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -513,11 +513,11 @@ CONTAINS
       IF (dimen_RI == dimen_RI_red) THEN
          CALL dbcsr_create(mat_L%matrix, template=mat_template)
       ELSE
-         CALL dbcsr_get_info(mat_template, nblkrows_total=nblk)
+         CALL dbcsr_get_info(mat_template, nblkrows_total=nblk, col_blk_size=col_blk_size)
 
          CALL calculate_equal_blk_size(row_blk_size, dimen_RI_red, nblk)
 
-         CALL dbcsr_create(mat_L%matrix, template=mat_template, row_blk_size=row_blk_size)
+         CALL dbcsr_create(mat_L%matrix, template=mat_template, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
 
          DEALLOCATE (row_blk_size)
       END IF
