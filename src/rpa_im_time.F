@@ -394,14 +394,14 @@ CONTAINS
                               dbcsr_nflop = dbcsr_nflop + flops_1_occ
 
                               IF (do_opt_pgrid) THEN
-                                 CPASSERT(ASSOCIATED(pgrid_1_opt_occ))
                                  IF (flops_1_occ .GT. flops_1_max_occ) THEN
+                                    CPASSERT(ASSOCIATED(pgrid_1_opt_occ))
                                     IF (pgrid_1_init_occ) CALL dbcsr_t_pgrid_destroy(pgrid_1_use_occ)
                                     pgrid_1_use_occ = pgrid_1_opt_occ
                                     DEALLOCATE (pgrid_1_opt_occ)
                                     pgrid_1_init_occ = .TRUE.
                                     flops_1_max_occ = flops_1_occ
-                                 ELSE
+                                 ELSEIF (ASSOCIATED(pgrid_1_opt_occ)) THEN
                                     CALL dbcsr_t_pgrid_destroy(pgrid_1_opt_occ)
                                     DEALLOCATE (pgrid_1_opt_occ)
                                  ENDIF
@@ -449,14 +449,14 @@ CONTAINS
                               dbcsr_nflop = dbcsr_nflop + flops_1_virt
 
                               IF (do_opt_pgrid) THEN
-                                 CPASSERT(ASSOCIATED(pgrid_1_opt_virt))
                                  IF (flops_1_virt .GT. flops_1_max_virt) THEN
+                                    CPASSERT(ASSOCIATED(pgrid_1_opt_virt))
                                     IF (pgrid_1_init_virt) CALL dbcsr_t_pgrid_destroy(pgrid_1_use_virt)
                                     pgrid_1_use_virt = pgrid_1_opt_virt
                                     DEALLOCATE (pgrid_1_opt_virt)
                                     pgrid_1_init_virt = .TRUE.
                                     flops_1_max_virt = flops_1_virt
-                                 ELSE
+                                 ELSEIF (ASSOCIATED(pgrid_1_opt_virt)) THEN
                                     CALL dbcsr_t_pgrid_destroy(pgrid_1_opt_virt)
                                     DEALLOCATE (pgrid_1_opt_virt)
                                  ENDIF
@@ -497,14 +497,14 @@ CONTAINS
                         dbcsr_nflop = dbcsr_nflop + flops_2
 
                         IF (do_opt_pgrid) THEN
-                           CPASSERT(ASSOCIATED(pgrid_2_opt))
                            IF (flops_2 .GT. flops_2_max) THEN
+                              CPASSERT(ASSOCIATED(pgrid_2_opt))
                               IF (pgrid_2_init) CALL dbcsr_t_pgrid_destroy(pgrid_2_use)
                               pgrid_2_use = pgrid_2_opt
                               DEALLOCATE (pgrid_2_opt)
                               pgrid_2_init = .TRUE.
                               flops_2_max = flops_2
-                           ELSE
+                           ELSEIF (ASSOCIATED(pgrid_2_opt)) THEN
                               CALL dbcsr_t_pgrid_destroy(pgrid_2_opt)
                               DEALLOCATE (pgrid_2_opt)
                            ENDIF
