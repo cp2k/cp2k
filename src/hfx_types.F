@@ -1116,12 +1116,14 @@ CONTAINS
 
       INTEGER                                            :: handle
       LOGICAL                                            :: explicit
+      REAL(dp)                                           :: eps_storage_scaling
 
       CALL timeset(routineN, handle)
 
       CALL section_vals_val_get(ri_section, "EPS_FILTER", r_val=ri_data%filter_eps)
       CALL section_vals_val_get(ri_section, "EPS_FILTER_2C", r_val=ri_data%filter_eps_2c)
-      CALL section_vals_val_get(ri_section, "EPS_FILTER_3C", r_val=ri_data%filter_eps_3c)
+      CALL section_vals_val_get(ri_section, "EPS_STORAGE_SCALING", r_val=eps_storage_scaling)
+      ri_data%filter_eps_3c = ri_data%filter_eps*eps_storage_scaling
       CALL section_vals_val_get(ri_section, "EPS_FILTER_MO", r_val=ri_data%filter_eps_mo)
 
       ASSOCIATE (ri_metric=>ri_data%ri_metric, hfx_pot=>ri_data%hfx_pot)
@@ -1153,6 +1155,10 @@ CONTAINS
       CALL section_vals_val_get(ri_section, "MIN_BLOCK_SIZE", i_val=ri_data%min_bsize)
       CALL section_vals_val_get(ri_section, "MIN_BLOCK_SIZE_MO", i_val=ri_data%min_bsize_MO)
       CALL section_vals_val_get(ri_section, "MEMORY_CUT", i_val=ri_data%n_mem)
+
+      IF (ri_data%flavor == ri_pmat) THEN
+         ri_data%n_mem = FLOOR(SQRT(REAL(ri_data%n_mem) - 0.1)) + 1
+      ENDIF
 
       ri_data%orb_basis_type = orb_basis_type
       ri_data%ri_basis_type = ri_basis_type
@@ -2624,8 +2630,14 @@ CONTAINS
             "HFX_RI_INFO| Minimum block size", ri_data%min_bsize
          WRITE (UNIT=iw, FMT="(T3, A, T78, I3)") &
             "HFX_RI_INFO| MO block size", ri_data%min_bsize_MO
-         WRITE (UNIT=iw, FMT="(T3, A, T79, I2)") &
-            "HFX_RI_INFO| Memory reduction factor", ri_data%n_mem
+         SELECT CASE (ri_data%flavor)
+         CASE (ri_mo)
+            WRITE (UNIT=iw, FMT="(T3, A, T79, I2)") &
+               "HFX_RI_INFO| Memory reduction factor", ri_data%n_mem
+         CASE (ri_pmat)
+            WRITE (UNIT=iw, FMT="(T3, A, T79, I2)") &
+               "HFX_RI_INFO| Memory reduction factor", ri_data%n_mem**2
+         END SELECT
       ENDIF
 
    END SUBROUTINE
