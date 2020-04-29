@@ -1372,8 +1372,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_update_ks_Pmat', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: col, handle, handle2, i_mem, iblk, iblk_filter, iblkrow, ispin, j_mem, nblk, &
-         nblk_filter, row, row_end, row_start, unit_nr, unit_nr_dbcsr
+      INTEGER :: col, handle, handle2, i_mem, iblk, iblk_filter, iblkrow, ispin, j_mem, n_mem, &
+         nblk, nblk_filter, row, row_end, row_start, unit_nr, unit_nr_dbcsr
       INTEGER(int_8)                                     :: flops_ks_max, flops_ri_max, nblks, &
                                                             nflop, nze, nze_3c, nze_3c_1, &
                                                             nze_3c_2, nze_ks, nze_rho
@@ -1452,6 +1452,8 @@ CONTAINS
 
       CALL mp_sync(para_env%group)
       t1 = m_walltime()
+
+      n_mem = ri_data%n_mem
       DO ispin = 1, nspins
          CALL dbcsr_t_batched_contract_init(ks_t)
          CALL dbcsr_t_batched_contract_init(ri_data%t_2c_int(1, 1))
@@ -1467,7 +1469,7 @@ CONTAINS
          occ_3c_2 = 0.0_dp
          nze_ks = 0
          occ_ks = 0.0_dp
-         DO i_mem = 1, ri_data%n_mem
+         DO i_mem = 1, n_mem
             CALL dbcsr_t_copy_matrix_to_tensor(rho_ao(ispin, 1)%matrix, rho_ao_tmp)
             CALL dbcsr_t_get_info(rho_ao_t, nfull_total=dims_2c)
             bounds_2c(:, 1) = [ri_data%starts_array_mem(i_mem), ri_data%ends_array_mem(i_mem)]
@@ -1482,7 +1484,7 @@ CONTAINS
 
             CALL dbcsr_t_batched_contract_init(rho_ao_t)
 
-            DO j_mem = 1, ri_data%n_mem
+            DO j_mem = 1, n_mem
                CALL timeset(routineN//"_Px3C", handle2)
 
                CALL dbcsr_t_get_info(ri_data%t_3c_int_ctr_1(1, 1), nfull_total=dims_3c)
@@ -1608,7 +1610,7 @@ CONTAINS
                                      dbcsr_scalar(1.0_dp), ks_t, &
                                      contract_1=[1, 2], notcontract_1=[3], &
                                      contract_2=[1, 2], notcontract_2=[3], &
-                                     map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps/ri_data%n_mem, &
+                                     map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps/n_mem, &
                                      bounds_1=bounds_ii, &
                                      bounds_3=bounds_j, &
                                      unit_nr=unit_nr_dbcsr, &

@@ -525,10 +525,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER_3C", &
-                          description="Filter threshold for 3c integrals, limiting memory consumption "// &
-                          "of 3-center integral storage. Can be set looser than EPS_FILTER.", &
-                          default_r_val=1.0E-07_dp)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="EPS_STORAGE_SCALING", &
+                          description="Scaling factor to scale EPS_FILTER for storage of 3-center integrals. Storage threshold "// &
+                          "will be EPS_FILTER*EPS_STORAGE_SCALING.", &
+                          default_r_val=10.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -647,7 +648,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MIN_BLOCK_SIZE", &
                           description="Minimum tensor block size.", &
-                          default_i_val=5)
+                          default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -658,8 +659,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CUT", &
-                          description="Memory reduction factor.", &
-                          default_i_val=5)
+                          description="Memory reduction factor. For RI_FLAVOR RHO, this should be a square number "// &
+                          "(if not, the next greater square number is used).", &
+                          default_i_val=9)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
