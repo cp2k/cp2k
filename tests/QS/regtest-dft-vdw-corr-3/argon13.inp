@@ -21,25 +21,7 @@
       MAX_SCF 10
       EPS_SCF 1.0e-4
     &END SCF
-    &XC
-      &XC_FUNCTIONAL
-        &PBE
-          PARAMETRIZATION revPBE
-          SCALE_C 0.0
-        &END PBE
-        &VWN
-        &END VWN
-      &END XC_FUNCTIONAL
-      &vdW_POTENTIAL
-         DISPERSION_FUNCTIONAL NON_LOCAL
-         &NON_LOCAL
-           TYPE DRSLL
-           VERBOSE_OUTPUT
-           KERNEL_FILE_NAME vdW_kernel_table.dat
-           CUTOFF 40
-         &END NON_LOCAL
-      &END vdW_POTENTIAL
-    &END XC
+    @XCTYPE vdW-DF1
   &END DFT
   &SUBSYS
     &CELL
