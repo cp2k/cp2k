@@ -92,7 +92,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: states
       INTEGER, DIMENSION(2)                              :: nstates
       LOGICAL                                            :: floating, ghost
-      REAL(KIND=dp)                                      :: zeff, zwfc
+      REAL(KIND=dp)                                      :: zeff, zmom, zwfc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charge_set
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: moment_set
       REAL(KIND=dp), DIMENSION(3)                        :: rcc, ria
@@ -243,8 +243,11 @@ CONTAINS
                         CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
                         ria = particle_set(j)%r - rcc
                         ria = pbc(ria, cell)
-                        moment_set(i, imol_now) = moment_set(i, imol_now) + &
-                                                  zeff*ria(1)**lx*ria(2)**ly*ria(3)**lz
+                        zmom = zeff
+                        IF (lx /= 0) zmom = zmom*ria(1)**lx
+                        IF (ly /= 0) zmom = zmom*ria(2)**ly
+                        IF (lz /= 0) zmom = zmom*ria(3)**lz
+                        moment_set(i, imol_now) = moment_set(i, imol_now) + zmom
                      END IF
                   END DO
                END DO
