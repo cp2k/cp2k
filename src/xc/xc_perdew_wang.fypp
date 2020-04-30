@@ -114,7 +114,7 @@
       rsr = r*sr
       rr = r*r
 
-      IF (r < 1.0_dp) THEN
+      IF (r < 0.5_dp) THEN
 
          ! order 0 must always be calculated
          g(0) = c0(z)*LOG(r)-c1(z)+c2(z)*r*LOG(r)-c3(z)*r

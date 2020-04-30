@@ -19,23 +19,7 @@
       MAX_SCF 2
       EPS_SCF 1.0e-4
     &END SCF
-    &XC
-      &XC_FUNCTIONAL
-        &LIBXC
-          FUNCTIONAL XC_GGA_X_RPW86
-        &END LIBXC
-        &PW92
-        &END PW92
-      &END XC_FUNCTIONAL
-      &vdW_POTENTIAL
-         DISPERSION_FUNCTIONAL NON_LOCAL
-         &NON_LOCAL
-           TYPE LMKLL
-           KERNEL_FILE_NAME vdW_kernel_table.dat
-           CUTOFF 40
-         &END NON_LOCAL
-      &END vdW_POTENTIAL
-    &END XC
+    @XCTYPE vdW-DF2
   &END DFT
   &SUBSYS
     &CELL
