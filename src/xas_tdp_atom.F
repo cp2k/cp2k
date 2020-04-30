@@ -1429,7 +1429,7 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP SHARED(co,npgf,ncoset,lmax,lmin,indco,pos,zet,iset,na,sr,er,do_gga,dco), &
-!$OMP PRIVATE(ipgf,start,ico,lx,ly,lz,ia,ir)
+!$OMP PRIVATE(ipgf,start,ico,lx,ly,lz,ia,ir,rmom)
 
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
          DO ir = sr, er
