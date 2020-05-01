@@ -937,8 +937,8 @@ else
     ./scripts/install_libxc.sh
     ./scripts/install_libsmm.sh
     ./scripts/install_libxsmm.sh
-    ./scripts/install_cosma.sh
     ./scripts/install_scalapack.sh
+    ./scripts/install_cosma.sh
     ./scripts/install_elpa.sh
     ./scripts/install_ptscotch.sh
     ./scripts/install_superlu.sh
