@@ -73,12 +73,21 @@ case "$with_elpa" in
             has_AVX512=`grep '\bavx512f\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
             [ "${has_AVX512}" == "yes" ] && AVX512_flags="-mavx512f"
             has_GPU=$([ "$ENABLE_CUDA" == "__TRUE__" ] && echo "yes" || echo "no")
-            FMA_flag=`grep '\bfma\b' /proc/cpuinfo 1>/dev/null && echo '-mfma' || echo '-mno-fma'`
-            SSE4_flag=`grep '\bsse4_1\b' /proc/cpuinfo 1>/dev/null && echo '-msse4' || echo '-mno-sse4'`
-            grep '\bavx512dq\b' /proc/cpuinfo 1>/dev/null && AVX512_flags+=" -mavx512dq"
-            grep '\bavx512cd\b' /proc/cpuinfo 1>/dev/null && AVX512_flags+=" -mavx512cd"
-            grep '\bavx512bw\b' /proc/cpuinfo 1>/dev/null && AVX512_flags+=" -mavx512bw"
-            grep '\bavx512v1\b' /proc/cpuinfo 1>/dev/null && AVX512_flags+=" -mavx512v1"
+            if [ "$OPENBLAS_ARCH" == "x86_64" ] ; then
+               FMA_flag=`grep '\bfma\b' /proc/cpuinfo 1>/dev/null && echo '-mfma' || echo '-mno-fma'`
+               SSE4_flag=`grep '\bsse4_1\b' /proc/cpuinfo 1>/dev/null && echo '-msse4' || echo '-mno-sse4'`
+               grep '\bavx512dq\b' /proc/cpuinfo 1>/dev/null && AVX512_flags+=" -mavx512dq"
+               grep '\bavx512cd\b' /proc/cpuinfo 1>/dev/null && AVX512_flags+=" -mavx512cd"
+               grep '\bavx512bw\b' /proc/cpuinfo 1>/dev/null && AVX512_flags+=" -mavx512bw"
+               grep '\bavx512v1\b' /proc/cpuinfo 1>/dev/null && AVX512_flags+=" -mavx512v1"
+               config_flags="--enable-avx=${has_AVX} --enable-avx2=${has_AVX2} --enable-avx512=${has_AVX512}"
+            else
+               AVX_flag=""
+               AVX512_flags=""
+               FMA_flag=""
+               SSE4_flag=""
+               config_flags="--disable-avx --disable-avx2 --disable-sse --disable-sse-assembly"
+            fi
             # non-threaded version
             mkdir -p obj_no_thread; cd obj_no_thread
             ../configure  --prefix="${pkg_install_dir}" \
@@ -86,9 +95,7 @@ case "$with_elpa" in
                           --enable-openmp=no \
                           --enable-shared=no \
                           --enable-static=yes \
-                          --enable-avx=${has_AVX} \
-                          --enable-avx2=${has_AVX2} \
-                          --enable-avx512=${has_AVX512} \
+                          ${config_flags} \
                           --enable-gpu=${has_GPU} \
                           --with-cuda-path=${CUDA_PATH} \
                           FC=${MPIFC} \
@@ -111,9 +118,7 @@ case "$with_elpa" in
                               --enable-openmp=yes \
                               --enable-shared=no \
                               --enable-static=yes \
-                              --enable-avx=${has_AVX} \
-                              --enable-avx2=${has_AVX2} \
-                              --enable-avx512=${has_AVX512} \
+                              ${config_flags} \
                               --enable-gpu=${has_GPU} \
                               --with-cuda-path=${CUDA_PATH} \
                               FC=${MPIFC} \
