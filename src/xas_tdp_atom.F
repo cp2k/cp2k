@@ -1359,6 +1359,7 @@ CONTAINS
                                                             nspins, sgfi, start
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, nsgf_set
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf
+      REAL(dp)                                           :: rmom
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: sgf
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: co, dsgf, pos
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :, :)       :: dco
@@ -1428,7 +1429,7 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP SHARED(co,npgf,ncoset,lmax,lmin,indco,pos,zet,iset,na,sr,er,do_gga,dco), &
-!$OMP PRIVATE(ipgf,start,ico,lx,ly,lz,ia,ir)
+!$OMP PRIVATE(ipgf,start,ico,lx,ly,lz,ia,ir,rmom)
 
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
          DO ir = sr, er
@@ -1454,8 +1455,13 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                DO ir = sr, er
                   DO ia = 1, na
-                     co(ia, ir, start + ico) = pos(ia, ir, 1)**lx*pos(ia, ir, 2)**ly*pos(ia, ir, 3)**lz &
-                                               *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                     rmom = EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                     IF (lx /= 0) rmom = rmom*pos(ia, ir, 1)**lx
+                     IF (ly /= 0) rmom = rmom*pos(ia, ir, 2)**ly
+                     IF (lz /= 0) rmom = rmom*pos(ia, ir, 3)**lz
+                     co(ia, ir, start + ico) = rmom
+                     !co(ia, ir, start + ico) = pos(ia, ir, 1)**lx*pos(ia, ir, 2)**ly*pos(ia, ir, 3)**lz &
+                     !                          *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                   END DO
                END DO
 !$OMP END DO NOWAIT
