@@ -75,7 +75,6 @@ if [ "$with_scalapack" != "__DONTUSE__" ] ; then
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-export SCALAPACKROOT="${pkg_install_dir}"
 EOF
         cat "${BUILDDIR}/setup_scalapack" >> $SETUPFILE
     fi
