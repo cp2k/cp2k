@@ -1089,7 +1089,7 @@ CONTAINS
 
 !$    if (my_id < plan%num_threads_needed) then
 
-         fftw_plan = plan%fftw_plan
+         fftw_plan = INT(plan%fftw_plan, KIND(fftw_plan))
 
          in_offset = 1
          out_offset = 1
@@ -1105,7 +1105,7 @@ CONTAINS
 !$       scal_offset = 1 + plan%n*plan%num_rows*my_id
 !$       IF (plan%need_alt_plan .AND. my_id .EQ. plan%num_threads_needed - 1) THEN
 !$          num_rows = plan%alt_num_rows
-!$          fftw_plan = plan%alt_fftw_plan
+!$          fftw_plan = INT(plan%alt_fftw_plan, KIND(fftw_plan))
 !$       ELSE
 !$          num_rows = plan%num_rows
 !$       ENDIF
