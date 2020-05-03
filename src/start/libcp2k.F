@@ -523,7 +523,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(active_space_env)) &
             EXIT try
 
-         nze_count = active_space_env%eri%eri(1)%csr_mat%nze_total
+         nze_count = INT(active_space_env%eri%eri(1)%csr_mat%nze_total, KIND(nze_count))
       END BLOCK try
 
       CALL f_env_rm_defaults(f_env, ierr)
@@ -573,7 +573,7 @@ CONTAINS
 
             CALL active_space_env%eri%eri_foreach(1, eri2array(buf_coords, buf_values))
 
-            nelem = nze
+            nelem = INT(nze, KIND(nelem))
          END ASSOCIATE
       END BLOCK try
 
