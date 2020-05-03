@@ -31,7 +31,6 @@ MODULE eri_mme_gaussian
    PUBLIC :: &
       create_gaussian_overlap_dist_to_hermite, &
       create_hermite_to_cartesian, &
-      exp_radius_fast, &
       get_minimax_coeff_v_gspace, &
       hermite_gauss_norm
 
@@ -249,46 +248,4 @@ CONTAINS
       ENDIF
 
    END SUBROUTINE create_gaussian_overlap_dist_to_hermite
-
-! **************************************************************************************************
-!> \brief ...
-!> \param l ...
-!> \param alpha ...
-!> \param threshold ...
-!> \param prefactor ...
-!> \param epsin ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION exp_radius_fast(l, alpha, threshold, prefactor, epsin) RESULT(radius)
-      INTEGER, INTENT(IN)                                :: l
-      REAL(KIND=dp), INTENT(IN)                          :: alpha, threshold, prefactor, epsin
-      REAL(KIND=dp)                                      :: radius
-
-      REAL(KIND=dp)                                      :: a, d, dr, exp_2drsq, exp_2rdr, exp_drsq, &
-                                                            exp_rsq, r, rpowl, t
-
-      t = ABS(threshold)
-
-      d = ABS(prefactor)
-      a = ABS(alpha)
-      r = SQRT(0.5_dp*REAL(l, dp)/a)
-      rpowl = r**l
-      exp_rsq = d*EXP(-a*r*r)
-      dr = ABS(epsin)
-      exp_drsq = EXP(-a*dr*dr)
-      exp_2drsq = exp_drsq*exp_drsq
-      exp_2rdr = EXP(-2*a*r*dr)
-
-      DO
-         IF (rpowl*exp_rsq .LT. t) THEN
-            radius = r
-            RETURN
-         ENDIF
-         r = r + dr
-         rpowl = r**l
-         exp_rsq = exp_rsq*exp_drsq*exp_2rdr
-         exp_2rdr = exp_2rdr*exp_2drsq
-      ENDDO
-   END FUNCTION
-
 END MODULE eri_mme_gaussian

@@ -88,10 +88,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE return_cube_nonortho(info, radius, lb, ub, rp)
 
-      TYPE(cube_info_type)                               :: info
-      REAL(KIND=dp)                                      :: radius
-      INTEGER                                            :: lb(3), ub(3)
-      REAL(KIND=dp)                                      :: rp(3)
+      TYPE(cube_info_type), INTENT(IN)                   :: info
+      REAL(KIND=dp), INTENT(IN)                          :: radius
+      INTEGER, INTENT(OUT)                               :: lb(3), ub(3)
+      REAL(KIND=dp), INTENT(IN)                          :: rp(3)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'return_cube_nonortho', &
          routineP = moduleN//':'//routineN
@@ -110,7 +110,7 @@ CONTAINS
          CPABORT("Called with too large radius.")
       ENDIF
 
-      ! get the min max indices that contain at least the cube that contains a sphere around rp of radius radius
+      ! get the min/max indices of a cube that contains a sphere of the given radius around rp
       ! if the cell is very non-orthogonal this implies that many useless points are included
       ! this estimate can be improved (i.e. not box but sphere should be used)
       lb = HUGE(lb)

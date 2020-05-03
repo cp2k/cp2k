@@ -432,7 +432,7 @@ CONTAINS
       ALLOCATE (S_G_l(0:2*l_max_zet, 3))
       ALLOCATE (S_G_u(0:2*l_max_zet, 3))
 
-      G_rad = exp_radius(2*l_max_zet, alpha_G, eps_G, prefactor, epsin=G_res)
+      G_rad = exp_radius(2*l_max_zet, alpha_G, eps_G, prefactor, epsabs=G_res)
 
       ! Parallelization of sum over G vectors
       my_p = para_env%mepos ! mpi rank

@@ -558,7 +558,7 @@ CONTAINS
                           zet0_h=z0_h, norm_g0l_h=ng0_h)
       r_h = 0.0_dp
       DO l = 0, lmax
-         r_h = MAX(r_h, exp_radius(l, z0_h, eps_Vrho0, ng0_h(l)))
+         r_h = MAX(r_h, exp_radius(l, z0_h, eps_Vrho0, ng0_h(l), rlow=r_h))
       END DO
 
       rho0_mpole%mp_gau(ik)%rpgf0_h = r_h

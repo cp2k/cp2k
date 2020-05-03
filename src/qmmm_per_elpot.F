@@ -200,7 +200,7 @@ CONTAINS
                      alpha = 1.0_dp/pgf%Gk(I)
                      alpha = alpha*alpha
                      Prefactor = pgf%Ak(I)*maxchrg
-                     mymaxradius = MAX(mymaxradius, exp_radius(0, alpha, eps_mm_rspace, Prefactor))
+                     mymaxradius = MAX(mymaxradius, exp_radius(0, alpha, eps_mm_rspace, Prefactor, rlow=mymaxradius))
                   END IF
                END DO
                box(1) = (qm_cell_small%hmat(1, 1) - mm_cell%hmat(1, 1))/2.0_dp

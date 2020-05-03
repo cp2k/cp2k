@@ -16,7 +16,7 @@ MODULE eri_mme_lattice_summation
    USE ao_util, ONLY: exp_radius
    USE eri_mme_gaussian, ONLY: create_gaussian_overlap_dist_to_hermite, &
                                create_hermite_to_cartesian, &
-                               exp_radius_fast, eri_mme_coulomb, eri_mme_yukawa, &
+                               eri_mme_coulomb, eri_mme_yukawa, &
                                eri_mme_longrange
    USE kinds, ONLY: dp, &
                     int_8
@@ -84,8 +84,8 @@ CONTAINS
       G_res = 0.5_dp*G_min
       R_res = 0.5_dp*R_min
 
-      IF (PRESENT(G_rad)) G_rad = exp_radius(l_max, alpha_G, sum_precision, 1.0_dp, epsin=G_res)
-      IF (PRESENT(R_rad)) R_rad = exp_radius(l_max, alpha_R, sum_precision, 1.0_dp, epsin=R_res)
+      IF (PRESENT(G_rad)) G_rad = exp_radius(l_max, alpha_G, sum_precision, 1.0_dp, epsabs=G_res)
+      IF (PRESENT(R_rad)) R_rad = exp_radius(l_max, alpha_R, sum_precision, 1.0_dp, epsabs=R_res)
 
    END SUBROUTINE
 
@@ -136,9 +136,9 @@ CONTAINS
       ! sum method 2
       IF (PRESENT(R_rads_2)) THEN
          R_res = 0.5_dp*R_min
-         R_rads_2(1) = exp_radius(lb_max + lc_max, 0.25_dp/(beta + gamma), sum_precision, 1.0_dp, epsin=R_res)
-         R_rads_2(2) = exp_radius(lc_max + la_max, 0.25_dp/(alpha + gamma), sum_precision, 1.0_dp, epsin=R_res)
-         R_rads_2(3) = exp_radius(lb_max + la_max, 0.25_dp/(alpha + beta), sum_precision, 1.0_dp, epsin=R_res)
+         R_rads_2(1) = exp_radius(lb_max + lc_max, 0.25_dp/(beta + gamma), sum_precision, 1.0_dp, epsabs=R_res)
+         R_rads_2(2) = exp_radius(lc_max + la_max, 0.25_dp/(alpha + gamma), sum_precision, 1.0_dp, epsabs=R_res)
+         R_rads_2(3) = exp_radius(lb_max + la_max, 0.25_dp/(alpha + beta), sum_precision, 1.0_dp, epsabs=R_res)
       ENDIF
 
       ! sum method 3
