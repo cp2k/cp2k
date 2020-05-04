@@ -1157,7 +1157,7 @@ CONTAINS
       CALL section_vals_val_get(ri_section, "MEMORY_CUT", i_val=ri_data%n_mem)
 
       IF (ri_data%flavor == ri_pmat) THEN
-         ri_data%n_mem = FLOOR(SQRT(REAL(ri_data%n_mem) - 0.1)) + 1
+         ri_data%n_mem = FLOOR(SQRT(REAL(ri_data%n_mem, dp) - 0.1)) + 1
       ENDIF
 
       ri_data%orb_basis_type = orb_basis_type
