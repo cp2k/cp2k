@@ -4,5 +4,5 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM links
-C11H24-qmmm-gauss-0-lrigpw.inp                         1    5.0E-13             -28.00745026096176
+C11H24-qmmm-gauss-0-lrigpw.inp                         1    5.0E-13             -28.00745026098937
 #EOF
