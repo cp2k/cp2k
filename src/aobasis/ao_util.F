@@ -155,10 +155,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_radius_fast', &
          routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: step_max = 1.0_dp, step_scale = 0.1_dp
+      REAL(KIND=dp), PARAMETER                           :: scale_init = 0.1_dp, scale_max = 1.2_dp, &
+                                                            step = 1.0_dp
 
       INTEGER                                            :: i, n
-      REAL(KIND=dp)                                      :: a, d, dr, g, h, r, t
+      REAL(KIND=dp)                                      :: a, d, ds, g, h, r, s, t
 
       t = ABS(threshold)
       d = ABS(prefactor)
@@ -183,22 +184,38 @@ CONTAINS
          n = HUGE(i)
       ENDIF
 
-      ! ensure g(radius)<t
-      dr = MIN(step_max, MAX(step_scale*r, t))
+      s = r + MAX(MIN(scale_init*r, step), t)
+      radius = s; ds = 1.0_dp
       DO i = 1, n
-         radius = r + dr
          h = d*radius**l*EXP(-a*radius*radius)
-         IF (h .LT. t) THEN
-            CPASSERT(r .LE. radius)
-            IF (PRESENT(rlow)) rlow = r
-            EXIT
+         ! threshold reached or no progress
+         IF (MIN(g, h) .LT. t) EXIT
+         ! record previous progress
+         IF (0.0_dp .LT. r) ds = radius**2/r
+         IF (h .LT. g) THEN
+            ! estimated next radius
+            s = (radius*g - r*h)/(g - h)
+            ! adjusted progress
+            s = MIN(MAX(s, ds*r), scale_max*radius)
+         ELSE
+            s = MAX(s, scale_max*radius)
          ENDIF
-         dr = (g*radius - h*r)/(g - h + t)
-         r = radius
-         g = h
+         r = radius; radius = s; g = h
       ENDDO
 
+      ! postcondition: rlow <= radius
+      IF (r .LE. radius) THEN
+         IF (PRESENT(rlow)) rlow = r
+      ELSE
+         IF (PRESENT(rlow)) rlow = radius
+         radius = r
+      ENDIF
+
       IF (PRESENT(maxiter)) THEN
+         ! avoid system calls in tight/arithmetic loops
+         IF (maxiter .LT. i) THEN
+            CPABORT("Maximum number of iterations reached")
+         ENDIF
          maxiter = i
       ENDIF
    END FUNCTION exp_radius_fast
@@ -298,11 +315,6 @@ CONTAINS
 
       ! aim for data-dependent iterations only in exp_radius_fast (approximative)
       r1 = exp_radius_fast(l, a, t, d, rlow=r0, maxiter=iter)
-
-      ! avoid system calls in tight/arithmetic loops
-      IF (maxiter .LT. iter) THEN
-         CPABORT("Maximum number of iterations reached")
-      ENDIF
 
       ! facilitate early exit (e.g., search maximum radius)
       IF (PRESENT(rlow)) r0 = MAX(rlow, r0)
