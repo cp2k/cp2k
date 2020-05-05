@@ -3,8 +3,9 @@
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.5.274 Build 20180823
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.3.199 Build 20190206
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.4.243 Build 20190416
+#              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.1.1.217 Build 20200306
 #              Intel MPI, MKL
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, January 2020)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 2020)
 
 CC        = mpiicc
 FC        = mpiifort
