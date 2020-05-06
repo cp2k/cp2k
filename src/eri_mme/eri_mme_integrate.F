@@ -151,7 +151,7 @@ CONTAINS
          G_res = 0.5_dp*param%G_min
          R_res = 0.5_dp*param%R_min
 
-         G_rad = exp_radius(l_max, alpha_G, 0.01*param%sum_precision, 1.0_dp, epsin=G_res)
+         G_rad = exp_radius(l_max, alpha_G, 0.01*param%sum_precision, 1.0_dp, epsabs=G_res)
          G_bounds(:) = ellipsoid_bounds(G_rad, TRANSPOSE(hmat)/(2.0_dp*pi))
          CALL pgf_sum_2c_gspace_3d(S_G_no, l_max, -rab, alpha_G, h_inv, G_bounds, G_rad, vol, potential, pot_par)
       ELSE
@@ -380,7 +380,7 @@ CONTAINS
 
          alpha_R_0 = zeta*zetb/(zeta + zetb)
          lmax_0 = la_max + lb_max
-         R_rad_0 = exp_radius(lmax_0, alpha_R_0, param%sum_precision, 1.0_dp, epsin=R_res)
+         R_rad_0 = exp_radius(lmax_0, alpha_R_0, param%sum_precision, 1.0_dp, epsabs=R_res)
 
          lgth = ABS(hmat(1, 1))
          CALL pgf_sum_2c_rspace_1d(S_G_0(:, 1), RB(1) - RA(1), alpha_R_0, lgth, R_rad_0/lgth)
@@ -524,8 +524,8 @@ CONTAINS
          alpha_R_0 = 0.25_dp/alpha_G_0
          lmax_0 = la_max + lb_max
          R_0 = RB - RA
-         G_rad_0 = exp_radius(lmax_0, alpha_G_0, param%sum_precision, 1.0_dp, epsin=G_res)
-         R_rad_0 = exp_radius(lmax_0, alpha_R_0, param%sum_precision, 1.0_dp, epsin=R_res)
+         G_rad_0 = exp_radius(lmax_0, alpha_G_0, param%sum_precision, 1.0_dp, epsabs=G_res)
+         R_rad_0 = exp_radius(lmax_0, alpha_R_0, param%sum_precision, 1.0_dp, epsabs=R_res)
          G_bound_0 = ellipsoid_bounds(G_rad_0, TRANSPOSE(hmat)/(2.0_dp*pi))
          R_bound_0 = ellipsoid_bounds(R_rad_0, h_inv)
          do_g_sum_0 = PRODUCT(2*R_bound_0 + 1) .GT. PRODUCT(2*G_bound_0 + 1)

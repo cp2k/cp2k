@@ -811,9 +811,9 @@ CONTAINS
             CALL get_qs_kind(qs_kind_set(ikind), &
                              alpha_core_charge=alpha, ccore_charge=core_charge)
             IF (alpha > 0.0_dp .AND. core_charge .NE. 0.0_dp) THEN
-               maxradius = MAX(maxradius, exp_radius(0, alpha, eps_rho, core_charge))
+               maxradius = MAX(maxradius, exp_radius(0, alpha, eps_rho, core_charge, rlow=maxradius))
                ! forces
-               maxradius = MAX(maxradius, exp_radius(1, alpha, eps_rho, core_charge))
+               maxradius = MAX(maxradius, exp_radius(1, alpha, eps_rho, core_charge, rlow=maxradius))
             ENDIF
          END DO
 
@@ -835,7 +835,7 @@ CONTAINS
                         la = lshella(ishell, iset)
                         lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info, zetp)
                         IF (lgrid_level .EQ. igrid_level) THEN
-                           maxradius = MAX(maxradius, exp_radius(la, zetp, eps_rho, 1.0_dp))
+                           maxradius = MAX(maxradius, exp_radius(la, zetp, eps_rho, 1.0_dp, rlow=maxradius))
                         ENDIF
                      END DO
                   END DO
@@ -872,13 +872,13 @@ CONTAINS
                         lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info, zetp)
                         IF (lgrid_level .EQ. igrid_level) THEN
                            ! density (scale is at most 2)
-                           maxradius = MAX(maxradius, exp_radius(lb, zetp, eps_rho, 2.0_dp))
+                           maxradius = MAX(maxradius, exp_radius(lb, zetp, eps_rho, 2.0_dp, rlow=maxradius))
                            ! tau, properties?
-                           maxradius = MAX(maxradius, exp_radius(lb + 1, zetp, eps_rho, 2.0_dp))
+                           maxradius = MAX(maxradius, exp_radius(lb + 1, zetp, eps_rho, 2.0_dp, rlow=maxradius))
                            ! potential
-                           maxradius = MAX(maxradius, exp_radius(lb, zetp, eps_gvg, 2.0_dp))
+                           maxradius = MAX(maxradius, exp_radius(lb, zetp, eps_gvg, 2.0_dp, rlow=maxradius))
                            ! forces
-                           maxradius = MAX(maxradius, exp_radius(lb + 1, zetp, eps_gvg, 2.0_dp))
+                           maxradius = MAX(maxradius, exp_radius(lb + 1, zetp, eps_gvg, 2.0_dp, rlow=maxradius))
                         ENDIF
                      END DO
                      END DO

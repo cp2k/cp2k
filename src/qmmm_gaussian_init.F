@@ -187,7 +187,7 @@ CONTAINS
                   alpha = alpha*alpha
                   ilevel = gaussian_gridlevel(gridlevel_info, alpha)
                   Prefactor = mypgf%Ak(I)*maxchrg
-                  mymaxradius = exp_radius(0, alpha, eps_mm_rspace, Prefactor)
+                  mymaxradius = exp_radius(0, alpha, eps_mm_rspace, Prefactor, rlow=mymaxradius)
                   maxradius(ilevel) = MAX(maxradius(ilevel), mymaxradius)
                   mypgf%grid_level(i) = ilevel
                END IF

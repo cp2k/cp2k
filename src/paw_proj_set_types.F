@@ -306,7 +306,9 @@ CONTAINS
       DO iset = 1, nset
          DO is = 1, nshell(iset)
             set_radius(iset) = MAX(set_radius(iset), &
-                                   exp_radius(l(is, iset), orb_basis%zet(npgf(iset), iset), eps_orb, gcca(npgf(iset), is, iset)))
+                                   exp_radius(l(is, iset), orb_basis%zet(npgf(iset), iset), &
+                                              eps_orb, gcca(npgf(iset), is, iset), &
+                                              rlow=set_radius(iset)))
          END DO ! is
       END DO ! iset
 

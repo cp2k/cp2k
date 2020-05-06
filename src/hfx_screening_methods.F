@@ -772,7 +772,7 @@ CONTAINS
                                  cutoff = 1.0_dp
                                  R1 = exp_radius_very_extended( &
                                       la, la, lb, lb, ra=ra, rb=rb, rp=rp, &
-                                      zetp=zetp, eps=eps_schwarz, prefactor=prefactor, cutoff=cutoff, epsin=1.0E-12_dp)
+                                      zetp=zetp, eps=eps_schwarz, prefactor=prefactor, cutoff=cutoff, epsabs=1.0E-12_dp)
                                  R_max = MAX(R_max, R1)
                               END DO
                            END DO

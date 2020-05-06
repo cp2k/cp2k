@@ -1746,7 +1746,8 @@ CONTAINS
                   DO ipol = 1, npol
                      l = 2*(ipol - 1)
                      potential%radius = MAX(potential%radius, &
-                                            exp_radius(l, alpha(igau), eps_tpot, cval(igau, ipol)))
+                                            exp_radius(l, alpha(igau), eps_tpot, cval(igau, ipol), &
+                                                       rlow=potential%radius))
                   END DO
                END DO
 

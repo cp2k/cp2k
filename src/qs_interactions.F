@@ -184,7 +184,8 @@ CONTAINS
                ppl_radius = MAX(ppl_radius, &
                                 exp_radius(lppl, alpha_ppl, &
                                            qs_control%eps_ppl, &
-                                           cexp_ppl(iexp_ppl)))
+                                           cexp_ppl(iexp_ppl), &
+                                           rlow=ppl_radius))
             END DO
             IF (lpot) THEN
                ! extended local potential
@@ -197,7 +198,8 @@ CONTAINS
                   DO i = 1, nct_lpot(j)
                      lppl = 2*(i - 1)
                      ppl_radius = MAX(ppl_radius, &
-                                      exp_radius(lppl, alpha_lpot(j), qs_control%eps_ppl, cval_lpot(i, j)))
+                                      exp_radius(lppl, alpha_lpot(j), qs_control%eps_ppl, &
+                                                 cval_lpot(i, j), rlow=ppl_radius))
                   END DO
                END DO
             END IF
@@ -212,7 +214,8 @@ CONTAINS
                   DO i = 1, nct_lsd(j)
                      lppl = 2*(i - 1)
                      ppl_radius = MAX(ppl_radius, &
-                                      exp_radius(lppl, alpha_lsd(j), qs_control%eps_ppl, cval_lsd(i, j)))
+                                      exp_radius(lppl, alpha_lsd(j), qs_control%eps_ppl, &
+                                                 cval_lsd(i, j), rlow=ppl_radius))
                   END DO
                END DO
             END IF
@@ -226,7 +229,8 @@ CONTAINS
                   ppnl_radius = MAX(ppnl_radius, &
                                     exp_radius(lprj_ppnl, alpha_ppnl(l), &
                                                qs_control%eps_pgf_orb, &
-                                               cprj_ppnl(iprj_ppnl, l)))
+                                               cprj_ppnl(iprj_ppnl, l), &
+                                               rlow=ppnl_radius))
                END DO
             END DO
             CALL set_potential(potential=gth_potential, &
@@ -251,13 +255,13 @@ CONTAINS
                DO i = 1, nloc
                   lppl = MAX(0, nrloc(i) - 2)
                   ppl_radius = MAX(ppl_radius, &
-                                   exp_radius(lppl, bloc(i), qs_control%eps_ppl, aloc(i)))
+                                   exp_radius(lppl, bloc(i), qs_control%eps_ppl, aloc(i), rlow=ppl_radius))
                END DO
             ELSE
                CALL get_potential(potential=sgp_potential, n_local=n_local, a_local=a_local, c_local=c_local)
                DO i = 1, n_local
                   ppl_radius = MAX(ppl_radius, &
-                                   exp_radius(0, a_local(i), qs_control%eps_ppl, c_local(i)))
+                                   exp_radius(0, a_local(i), qs_control%eps_ppl, c_local(i), rlow=ppl_radius))
                END DO
             END IF
             ! Calculate the radii of the non-local part
@@ -270,7 +274,7 @@ CONTAINS
                   DO i = 1, nloc
                      cval = MAXVAL(ABS(c_nonlocal(i, :, l)))
                      ppnl_radius = MAX(ppnl_radius, &
-                                       exp_radius(l, a_nonlocal(i), qs_control%eps_pgf_orb, cval))
+                                       exp_radius(l, a_nonlocal(i), qs_control%eps_pgf_orb, cval, rlow=ppnl_radius))
                   END DO
                END IF
             END DO
@@ -342,8 +346,8 @@ CONTAINS
                DO ip = 1, nprj(lprj)
                   zeta = zet(ip, lprj)
                   rzetprj(ip, lprj) = MAX(rzetprj(ip, lprj), &
-                                          exp_radius(lprj, zeta, &
-                                                     qs_control%eps_pgf_orb, 1.0_dp))
+                                          exp_radius(lprj, zeta, qs_control%eps_pgf_orb, &
+                                                     1.0_dp, rlow=rzetprj(ip, lprj)))
                   rcprj = MAX(rcprj, rzetprj(ip, lprj))
                ENDDO
             ENDDO
@@ -412,13 +416,11 @@ CONTAINS
                   gcca = gcc(ipgf, ishell, iset)
                   zeta = zet(ipgf, iset)
                   pgf_radius(ipgf, iset) = MAX(pgf_radius(ipgf, iset), &
-                                               exp_radius(l, zeta, &
-                                                          eps_pgf_orb, &
-                                                          gcca))
+                                               exp_radius(l, zeta, eps_pgf_orb, gcca, &
+                                                          rlow=pgf_radius(ipgf, iset)))
                   short_radius = MAX(short_radius, &
-                                     exp_radius(l, zeta, &
-                                                eps_short, &
-                                                gcca))
+                                     exp_radius(l, zeta, eps_short, gcca, &
+                                                rlow=short_radius))
                END DO
                set_radius(iset) = MAX(set_radius(iset), pgf_radius(ipgf, iset))
             END DO

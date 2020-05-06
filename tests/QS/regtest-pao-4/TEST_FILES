@@ -1,7 +1,7 @@
 # generate training-data / reference
-H2_dist_0.7_pao.inp                                   11      2e-13             -1.162990066005036
-H2_dist_0.9_pao.inp                                   11      2e-13             -1.153696829898623
-H2_dist_1.2_pao.inp                                   11      2e-13             -1.105593015894113
+H2_dist_0.7_pao.inp                                   11      2e-13             -1.162990066005303
+H2_dist_0.9_pao.inp                                   11      2e-13             -1.153696829898958
+H2_dist_1.2_pao.inp                                   11      2e-13             -1.105593015895940
 #
 # predict mid-point using machine learning
 H2_dist_0.9_GP.inp                                    11       1e-4             -1.153696829898623

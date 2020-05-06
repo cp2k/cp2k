@@ -215,7 +215,7 @@ CONTAINS
                         DO ipgf = 1, orb_basis_set%npgf(iset)
                            gcc = orb_basis_set%gcc(ipgf, ishell, iset)
                            zeta = orb_basis_set%zet(ipgf, iset)
-                           rad = exp_radius(l, zeta, 1.e-5_dp, gcc)
+                           rad = exp_radius(l, zeta, 1.e-5_dp, gcc, rlow=xradius)
                            xradius = MAX(xradius, rad)
                         END DO
                         lri_env%wbas(i)%vec(i1:i2) = xradius
