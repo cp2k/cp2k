@@ -3669,7 +3669,7 @@ CONTAINS
       type_descriptor%type_handle = 0
 
 #if defined(__parallel)
-      CALL MPI_Type_create_hindexed(count, lengths, displs, MPI_CHARACTER, &
+      CALL MPI_Type_create_hindexed(count, lengths, INT(displs, KIND=address_kind), MPI_CHARACTER, &
                                     type_descriptor%type_handle, ierr)
       IF (ierr /= 0) &
          CPABORT("MPI_Type_create_hindexed @ "//routineN)
