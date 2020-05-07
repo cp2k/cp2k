@@ -15,6 +15,7 @@ MODULE xtb_parameters
                                               gto_basis_set_type,&
                                               set_sto_basis_set,&
                                               sto_basis_set_type
+   USE cp_control_types,                ONLY: xtb_control_type
    USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -545,16 +546,35 @@ CONTAINS
 !> \param zb ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION xtb_set_kab(za, zb) RESULT(kab)
+   FUNCTION xtb_set_kab(za, zb, xtb_control) RESULT(kab)
 
       INTEGER, INTENT(IN)                                :: za, zb
       REAL(KIND=dp)                                      :: kab
-
+      TYPE(xtb_control_type), POINTER,&
+                 INTENT(IN)                              :: xtb_control
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_set_kab', routineP = moduleN//':'//routineN
+      LOGICAL                                            :: custom
 
-      INTEGER                                            :: z
-
+      INTEGER                                            :: j,z
       kab = 1.0_dp
+      custom = .FALSE.
+
+      IF (ASSOCIATED(xtb_control)) THEN
+        DO j = 1,xtb_control%kab_nval
+          IF ((za == xtb_control%kab_types(1,j) .AND.&
+               zb == xtb_control%kab_types(2,j)) .OR.&
+              (za == xtb_control%kab_types(2,j) .AND.&
+               zb == xtb_control%kab_types(1,j))) THEN
+            custom = .TRUE.
+            kab = xtb_control%kab_vals(j)
+         !   write(*,*) 'Found: ', za,zb,kab
+            EXIT
+          END IF
+        END DO
+      END IF
+
+      IF (.NOT. custom) THEN
+      !write (*,*) 'found nothing:', za,zb
       IF (za == 1 .OR. zb == 1) THEN
          ! hydrogen
          z = za + zb - 1
@@ -606,6 +626,7 @@ CONTAINS
             ! 4d/5d/4f
             kab = 1.20_dp
          END IF
+      END IF
       END IF
 
    END FUNCTION xtb_set_kab

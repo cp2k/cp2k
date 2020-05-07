@@ -361,7 +361,7 @@ CONTAINS
             ! get Fen = (1+ken*deltaEN^2)
             fen = 1.0_dp + ken*(ena - enb)**2
             ! Kab
-            kab = xtb_set_kab(za, zb)
+            kab = xtb_set_kab(za, zb, xtb_control)
             DO j = 1, natorb_b
                lb = laob(j)
                nb = naob(j)

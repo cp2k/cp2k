@@ -119,6 +119,9 @@ MODULE cp_control_types
       !
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:, :), POINTER          :: kab_param
+      INTEGER, DIMENSION(:, :), POINTER    :: kab_types
+      INTEGER                              :: kab_nval
+      REAL, DIMENSION(:), POINTER          :: kab_vals
    END TYPE xtb_control_type
 
 ! **************************************************************************************************
