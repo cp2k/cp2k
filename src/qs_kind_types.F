@@ -2560,8 +2560,8 @@ CONTAINS
             CALL check_qs_kind(qs_kind, dft_control, subsys_section)
          END DO
          IF (dft_control%qs_control%xtb) THEN
-            CALL write_xtb_kab_param(qs_kind_set,subsys_section,&
-                 dft_control%qs_control%xtb_control)
+            CALL write_xtb_kab_param(qs_kind_set, subsys_section, &
+                                     dft_control%qs_control%xtb_control)
          END IF
       ELSE
          CPABORT("The pointer qs_kind_set is not associated")
@@ -2573,12 +2573,13 @@ CONTAINS
 !> \brief ...
 !> \param qs_kind_set ...
 !> \param subsys_section ...
+!> \param xtb_control ...
 ! **************************************************************************************************
    SUBROUTINE write_xtb_kab_param(qs_kind_set, subsys_section, xtb_control)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(xtb_control_type), POINTER                    :: xtb_control
       TYPE(section_vals_type), POINTER                   :: subsys_section
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_xtb_kab_param', &
          routineP = moduleN//':'//routineN

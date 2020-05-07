@@ -544,89 +544,89 @@ CONTAINS
 !> \brief ...
 !> \param za ...
 !> \param zb ...
+!> \param xtb_control ...
 !> \return ...
 ! **************************************************************************************************
    FUNCTION xtb_set_kab(za, zb, xtb_control) RESULT(kab)
 
       INTEGER, INTENT(IN)                                :: za, zb
+      TYPE(xtb_control_type), INTENT(IN), POINTER        :: xtb_control
       REAL(KIND=dp)                                      :: kab
-      TYPE(xtb_control_type), POINTER,&
-                 INTENT(IN)                              :: xtb_control
+
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_set_kab', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: j, z
       LOGICAL                                            :: custom
 
-      INTEGER                                            :: j,z
       kab = 1.0_dp
       custom = .FALSE.
 
-      IF (ASSOCIATED(xtb_control)) THEN
-        DO j = 1,xtb_control%kab_nval
-          IF ((za == xtb_control%kab_types(1,j) .AND.&
-               zb == xtb_control%kab_types(2,j)) .OR.&
-              (za == xtb_control%kab_types(2,j) .AND.&
-               zb == xtb_control%kab_types(1,j))) THEN
-            custom = .TRUE.
-            kab = xtb_control%kab_vals(j)
-         !   write(*,*) 'Found: ', za,zb,kab
-            EXIT
-          END IF
-        END DO
+      IF (xtb_control%kab_nval .GT. 0) THEN
+         DO j = 1, xtb_control%kab_nval
+            IF ((za == xtb_control%kab_types(1, j) .AND. &
+                 zb == xtb_control%kab_types(2, j)) .OR. &
+                (za == xtb_control%kab_types(2, j) .AND. &
+                 zb == xtb_control%kab_types(1, j))) THEN
+               custom = .TRUE.
+               kab = xtb_control%kab_vals(j)
+               EXIT
+            END IF
+         END DO
       END IF
 
       IF (.NOT. custom) THEN
-      !write (*,*) 'found nothing:', za,zb
-      IF (za == 1 .OR. zb == 1) THEN
-         ! hydrogen
-         z = za + zb - 1
-         SELECT CASE (z)
-         CASE (1)
-            kab = 0.96_dp
-         CASE (5)
-            kab = 0.95_dp
-         CASE (7)
-            kab = 1.04_dp
-         CASE (28)
-            kab = 0.90_dp
-         CASE (75)
-            kab = 0.80_dp
-         CASE (78)
-            kab = 0.80_dp
-         END SELECT
-      ELSEIF (za == 5 .OR. zb == 5) THEN
-         ! Boron
-         z = za + zb - 5
-         SELECT CASE (z)
-         CASE (15)
-            kab = 0.97_dp
-         END SELECT
-      ELSEIF (za == 7 .OR. zb == 7) THEN
-         ! Nitrogen
-         z = za + zb - 7
-         SELECT CASE (z)
-         CASE (14)
-            !xtb orig code parameter file
-            ! in the paper this is Kab for B-Si
-            kab = 1.01_dp
-         END SELECT
-      ELSEIF (za > 20 .AND. za < 30) THEN
-         ! 3d
-         IF (zb > 20 .AND. zb < 30) THEN
+         IF (za == 1 .OR. zb == 1) THEN
+            ! hydrogen
+            z = za + zb - 1
+            SELECT CASE (z)
+            CASE (1)
+               kab = 0.96_dp
+            CASE (5)
+               kab = 0.95_dp
+            CASE (7)
+               kab = 1.04_dp
+            CASE (28)
+               kab = 0.90_dp
+            CASE (75)
+               kab = 0.80_dp
+            CASE (78)
+               kab = 0.80_dp
+            END SELECT
+         ELSEIF (za == 5 .OR. zb == 5) THEN
+            ! Boron
+            z = za + zb - 5
+            SELECT CASE (z)
+            CASE (15)
+               kab = 0.97_dp
+            END SELECT
+         ELSEIF (za == 7 .OR. zb == 7) THEN
+            ! Nitrogen
+            z = za + zb - 7
+            SELECT CASE (z)
+            CASE (14)
+               !xtb orig code parameter file
+               ! in the paper this is Kab for B-Si
+               kab = 1.01_dp
+            END SELECT
+         ELSEIF (za > 20 .AND. za < 30) THEN
             ! 3d
-            kab = 1.10_dp
-         ELSEIF ((zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
+            IF (zb > 20 .AND. zb < 30) THEN
+               ! 3d
+               kab = 1.10_dp
+            ELSEIF ((zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
+               ! 4d/5d/4f
+               kab = 0.50_dp*(1.20_dp + 1.10_dp)
+            END IF
+         ELSEIF ((za > 38 .AND. za < 48) .OR. (za > 56 .AND. za < 80)) THEN
             ! 4d/5d/4f
-            kab = 0.50_dp*(1.20_dp + 1.10_dp)
+            IF (zb > 20 .AND. zb < 30) THEN
+               ! 3d
+               kab = 0.50_dp*(1.20_dp + 1.10_dp)
+            ELSEIF ((zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
+               ! 4d/5d/4f
+               kab = 1.20_dp
+            END IF
          END IF
-      ELSEIF ((za > 38 .AND. za < 48) .OR. (za > 56 .AND. za < 80)) THEN
-         ! 4d/5d/4f
-         IF (zb > 20 .AND. zb < 30) THEN
-            ! 3d
-            kab = 0.50_dp*(1.20_dp + 1.10_dp)
-         ELSEIF ((zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
-            ! 4d/5d/4f
-            kab = 1.20_dp
-         END IF
-      END IF
       END IF
 
    END FUNCTION xtb_set_kab

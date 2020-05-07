@@ -1121,21 +1121,22 @@ CONTAINS
          ! Check for bad atomic charges
          CALL section_vals_val_get(xtb_section, "CHECK_ATOMIC_CHARGES", &
                                    l_val=qs_control%xtb_control%check_atomic_charges)
+
+         qs_control%xtb_control%kab_nval = n_rep
          IF (n_rep > 0) THEN
             ALLOCATE (qs_control%xtb_control%kab_param(3, n_rep))
             ALLOCATE (qs_control%xtb_control%kab_types(2, n_rep))
             ALLOCATE (qs_control%xtb_control%kab_vals(n_rep))
-            qs_control%xtb_control%kab_nval = n_rep
             DO j = 1, n_rep
                CALL section_vals_val_get(xtb_parameter, "KAB_PARAM", i_rep_val=j, c_vals=clist)
                qs_control%xtb_control%kab_param(1, j) = clist(1)
-               CALL get_ptable_info(clist(1),&
-                      ielement=qs_control%xtb_control%kab_types(1, j))
+               CALL get_ptable_info(clist(1), &
+                                    ielement=qs_control%xtb_control%kab_types(1, j))
                qs_control%xtb_control%kab_param(2, j) = clist(2)
-               CALL get_ptable_info(clist(2),&
-                      ielement=qs_control%xtb_control%kab_types(2, j))
+               CALL get_ptable_info(clist(2), &
+                                    ielement=qs_control%xtb_control%kab_types(2, j))
                qs_control%xtb_control%kab_param(3, j) = clist(3)
-               READ(clist(3),'(F10.0)') qs_control%xtb_control%kab_vals(j)
+               READ (clist(3), '(F10.0)') qs_control%xtb_control%kab_vals(j)
             END DO
          END IF
       END IF
