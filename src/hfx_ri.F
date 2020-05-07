@@ -419,13 +419,13 @@ CONTAINS
                                    qs_env, op_pos=1, sym_jk=.TRUE., own_dist=.TRUE.)
 
       DO i_mem = 1, n_mem
-         CALL build_3c_integrals(t_3c_int_batched, ri_data%filter_eps_3c/2, qs_env, nl_3c, &
+         CALL build_3c_integrals(t_3c_int_batched, ri_data%filter_eps/2, qs_env, nl_3c, &
                                  basis_set_RI, basis_set_AO, basis_set_AO, &
                                  ri_data%ri_metric, int_eps=ri_data%eps_schwarz, op_pos=1, &
                                  desymmetrize=.FALSE., &
                                  bounds_j=[starts_array_mc_block_int(i_mem), ends_array_mc_block_int(i_mem)])
          CALL dbcsr_t_copy(t_3c_int_batched(1, 1), t_3c_int(1, 1), summation=.TRUE., move_data=.TRUE.)
-         CALL dbcsr_t_filter(t_3c_int(1, 1), ri_data%filter_eps_3c/2)
+         CALL dbcsr_t_filter(t_3c_int(1, 1), ri_data%filter_eps/2)
       ENDDO
 
       CALL dbcsr_t_destroy(t_3c_int_batched(1, 1))
@@ -438,8 +438,12 @@ CONTAINS
          ! desymmetrize
          CALL dbcsr_t_copy(t_3c_int(1, 1), t_3c_tmp)
          CALL dbcsr_t_copy(t_3c_tmp, t_3c_int(1, 1), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
-         CALL dbcsr_t_filter(t_3c_int(1, 1), ri_data%filter_eps_3c)
 
+         ! For RI-RHO the less strict filter_eps_3c should be applied to 3-center integrals contracted
+         ! with RI metric but not to bare integral tensor
+         CALL dbcsr_t_filter(t_3c_int(1, 1), ri_data%filter_eps)
+      ELSE
+         CALL dbcsr_t_filter(t_3c_int(1, 1), ri_data%filter_eps_3c/2)
       ENDIF
 
       CALL dbcsr_t_destroy(t_3c_tmp)
