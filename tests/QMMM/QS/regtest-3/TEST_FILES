@@ -16,9 +16,9 @@ C4H10-qmmm-gauss-9.inp                                 7    1.0E-14             
 C4H10-qmmm-gauss-10.inp                                7    1.0E-14            -58.781943551200001
 C4H10-qmmm-gauss-11.inp                                7    1.0E-14            -69.418645194099994
 C11H24-qmmm-gauss-0.inp                                7    1.0E-14            -27.430559483700002
-sio2-qmmm-gauss-1.inp                                  1      7e-14            -487.25602647620707
-sio2-qmmm-gauss-2.inp                                  1      2e-14             -487.3189844762976
-sio2-qmmm-gauss-3.inp                                  1      3e-14            -488.02714101493734
+sio2-qmmm-gauss-1.inp                                  1      7e-14            -487.25602647492343
+sio2-qmmm-gauss-2.inp                                  1      2e-14            -487.31898447501487
+sio2-qmmm-gauss-3.inp                                  1      3e-14            -488.02714101549498
 constr.inp                                             7      7e-12            -28.231415141199999
 # different parallel scheme
 C4H10-qmmm-gauss-12.inp                                1      1E-13              -14.2064009962996

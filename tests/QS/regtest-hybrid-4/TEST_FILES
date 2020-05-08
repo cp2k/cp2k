@@ -5,6 +5,6 @@ CH3-PBE0_TC_LRC.inp                                    1      2e-14            -
 CH4-PBE0_TC_LRC.inp                                    1      7e-14              -7.96099821194773
 farming-1.inp                                          0
 Ne_hybrid-rcam-b3lyp_tc.inp                            1      1e-09            -128.87196715853946
-Ne-periodic-shortrange.inp                             1    1.0E-14            -772.98184640121008
+Ne-periodic-shortrange.inp                             1    1.0E-14            -772.98184619993640
 wB97X-V.inp                                            1      3e-13              -1.11098988553660
 #EOF
