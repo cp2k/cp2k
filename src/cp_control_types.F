@@ -119,6 +119,9 @@ MODULE cp_control_types
       !
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:, :), POINTER          :: kab_param
+      INTEGER, DIMENSION(:, :), POINTER    :: kab_types
+      INTEGER                              :: kab_nval
+      REAL, DIMENSION(:), POINTER          :: kab_vals
    END TYPE xtb_control_type
 
 ! **************************************************************************************************
@@ -1110,6 +1113,8 @@ CONTAINS
       ALLOCATE (xtb_control)
 
       NULLIFY (xtb_control%kab_param)
+      NULLIFY (xtb_control%kab_vals)
+      NULLIFY (xtb_control%kab_types)
 
    END SUBROUTINE xtb_control_create
 
@@ -1126,6 +1131,12 @@ CONTAINS
       IF (ASSOCIATED(xtb_control)) THEN
          IF (ASSOCIATED(xtb_control%kab_param)) THEN
             DEALLOCATE (xtb_control%kab_param)
+         END IF
+         IF (ASSOCIATED(xtb_control%kab_vals)) THEN
+            DEALLOCATE (xtb_control%kab_vals)
+         END IF
+         IF (ASSOCIATED(xtb_control%kab_types)) THEN
+            DEALLOCATE (xtb_control%kab_types)
          END IF
          DEALLOCATE (xtb_control)
       END IF

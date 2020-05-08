@@ -41,7 +41,8 @@ MODULE qs_kind_types
         read_gto_basis_set, read_sto_basis_set, sto_basis_set_type, write_gto_basis_set, &
         write_orb_basis_set
    USE cp_control_types,                ONLY: dft_control_type,&
-                                              qs_control_type
+                                              qs_control_type,&
+                                              xtb_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -2559,7 +2560,8 @@ CONTAINS
             CALL check_qs_kind(qs_kind, dft_control, subsys_section)
          END DO
          IF (dft_control%qs_control%xtb) THEN
-            CALL write_xtb_kab_param(qs_kind_set, subsys_section)
+            CALL write_xtb_kab_param(qs_kind_set, subsys_section, &
+                                     dft_control%qs_control%xtb_control)
          END IF
       ELSE
          CPABORT("The pointer qs_kind_set is not associated")
@@ -2571,11 +2573,13 @@ CONTAINS
 !> \brief ...
 !> \param qs_kind_set ...
 !> \param subsys_section ...
+!> \param xtb_control ...
 ! **************************************************************************************************
-   SUBROUTINE write_xtb_kab_param(qs_kind_set, subsys_section)
+   SUBROUTINE write_xtb_kab_param(qs_kind_set, subsys_section, xtb_control)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: subsys_section
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_xtb_kab_param', &
          routineP = moduleN//':'//routineN
@@ -2605,7 +2609,7 @@ CONTAINS
                   CALL get_qs_kind(qs_kindb, xtb_parameter=xtb_parameter_b)
                   CALL get_xtb_atom_param(xtb_parameter_b, aname=bname, z=zb)
                   WRITE (io_unit, "(A,T10,A15,T25,A15,T71,F10.3)") &
-                     "    Kab:", TRIM(aname), TRIM(bname), xtb_set_kab(za, zb)
+                     "    Kab:", TRIM(aname), TRIM(bname), xtb_set_kab(za, zb, xtb_control)
                END DO
             END DO
             WRITE (io_unit, *)

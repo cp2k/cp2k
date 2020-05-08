@@ -1,0 +1,46 @@
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD xTB
+      &xTB
+         STO_NG 6
+         HYDROGEN_STO_NG 4
+         &PARAMETER
+             DISPERSION_PARAMETER_FILE dftd3.dat
+             KAB_PARAM H H 0.9
+         &END PARAMETER
+      &END XTB
+    &END QS
+    &SCF
+      SCF_GUESS MOPAC
+      MAX_SCF  100
+      EPS_SCF 1.e-10
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   0.40
+      &END
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 40.0 40.0 40.0
+    &END CELL
+    &COORD
+     UNIT bohr
+     H     0.000000    0.000000    0.000000     
+     H     1.360000    0.000000    0.000000    
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2
+  RUN_TYPE DEBUG       
+  PRINT_LEVEL LOW
+&END GLOBAL
+&DEBUG
+   DEBUG_FORCES T
+   DEBUG_STRESS_TENSOR F
+   DX 0.001
+   EPS_NO_ERROR_CHECK  0.000001
+   STOP_ON_MISMATCH T
+&END DEBUG
