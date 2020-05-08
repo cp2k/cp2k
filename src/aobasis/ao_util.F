@@ -223,11 +223,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_radius', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: itermax = 5000, prec_exp = sp
-      REAL(KIND=dp), PARAMETER :: contract = 0.62_dp, cocntrct = 1.0_dp - contract, &
+      REAL(KIND=dp), PARAMETER :: contract = 0.5_dp, cocntrct = 1.0_dp - contract, &
          mineps = EPSILON(0.0_dp)*(1.0E-12_dp/2.22044604925031E-16_dp)
 
-      INTEGER                                            :: iter
-      LOGICAL                                            :: iterexit
+      INTEGER                                            :: iter, iterexit
       REAL(KIND=dp)                                      :: a, c, d, eps, g, r0, r1, rd, t
 
       CPASSERT(cocntrct .LE. contract)
@@ -269,7 +268,7 @@ CONTAINS
       IF (PRESENT(epsrel)) eps = MIN(eps, epsrel*r0)
 
       rd = r1 - r0; c = contract
-      iterexit = .FALSE. ! enable contraction != 0.5
+      iterexit = 0 ! enable contraction != 0.5
       DO iter = iter, itermax
          IF (rd .LT. eps) EXIT ! finished contraction
          radius = r0 + rd*c ! interval contraction
@@ -277,11 +276,11 @@ CONTAINS
          ! orig. approach was exiting if g(r) < t OR rd < eps,
          ! which likely never reached rd < eps
          IF (g .LT. t) THEN
-            IF (iterexit) RETURN
+            IF (0 .LT. iterexit) RETURN
             r1 = radius ! interval [r0, radius)
             c = contract
          ELSE
-            iterexit = (contract .NE. cocntrct)
+            IF (contract .NE. cocntrct) iterexit = iterexit + 1
             r0 = radius ! interval [radius, r1)
             c = cocntrct
          ENDIF
