@@ -1,4 +1,4 @@
 RI_laplace_MP2_H2O.inp                                11      8e-14            -17.005053920483377
-RI_laplace_MP2_CH3.inp                                11      4e-14             -7.261764758821449
-RI_laplace_MP2_CH3_svd.inp                            11      4e-14             -7.261748732479941
+RI_laplace_MP2_CH3.inp                                11      4e-14             -7.261764758834913
+RI_laplace_MP2_CH3_svd.inp                            11      4e-14             -7.261748732493408
 #EOF

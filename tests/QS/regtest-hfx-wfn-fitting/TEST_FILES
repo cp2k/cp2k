@@ -1,13 +1,13 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-CH3-HSE06.inp                                          1      3e-13              -7.36850964072369
-CH3-PBE0.inp                                           1      1e-13              -7.36936246289016
-CH3-PBE0_TC.inp                                        1      1e-13              -7.35880126708166
-CH4-HSE06.inp                                          1      2e-13              -8.07752172779385
-CH4-HSE06_2.inp                                        1      2e-13              -8.07752172779385
-CH4-HSE06_TC_2.inp                                     1      2e-13              -8.07752172779385
-CH4-rsLDA.inp                                          1      3e-13              -8.07876568954620
-CH4-PBE0.inp                                           1      2e-13              -8.07859057523350
-CH4-PBE0_TC.inp                                        1      2e-13              -8.06493647354883
+CH3-HSE06.inp                                          1      3e-13              -7.36850964072616
+CH3-PBE0.inp                                           1      1e-13              -7.36936246289266
+CH3-PBE0_TC.inp                                        1      1e-13              -7.35880126708407
+CH4-HSE06.inp                                          1      2e-13              -8.07752172778367
+CH4-HSE06_2.inp                                        1      2e-13              -8.07752172778382
+CH4-HSE06_TC_2.inp                                     1      2e-13              -8.07752172778382
+CH4-rsLDA.inp                                          1      3e-13              -8.07876568953753
+CH4-PBE0.inp                                           1      2e-13              -8.07859057522359
+CH4-PBE0_TC.inp                                        1      2e-13              -8.06493647353886
 #EOF

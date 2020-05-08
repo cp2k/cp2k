@@ -3,14 +3,14 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-h2o_ot_refine_1.inp                                    1      1e-13             -17.15555830623904
-h2o_ot_refine_2.inp                                    1      2e-13             -17.09533893328151
-h2o_ot_refine_diis_1.inp                               1      7e-14             -17.16034285286554
-h2o_ot_refine_diis_2.inp                               1      3e-14             -17.13286784415185
-o2_ot_refine_1.inp                                     1      1e-13             -31.50322326963158
-o2_ot_refine_2.inp                                     1      1e-13             -31.29867256672030
-o2_ot_refine_diis_1.inp                                1      8e-14             -31.68975974950374
-o2_ot_refine_diis_2.inp                                1      5e-14             -31.26277230139561
+h2o_ot_refine_1.inp                                    1      1e-13             -17.15555830622525
+h2o_ot_refine_2.inp                                    1      2e-13             -17.09533893326597
+h2o_ot_refine_diis_1.inp                               1      7e-14             -17.16034285285233
+h2o_ot_refine_diis_2.inp                               1      3e-14             -17.13286784413787
+o2_ot_refine_1.inp                                     1      1e-13             -31.50322326962441
+o2_ot_refine_2.inp                                     1      1e-13             -31.29867256671142
+o2_ot_refine_diis_1.inp                                1      8e-14             -31.68975974949591
+o2_ot_refine_diis_2.inp                                1      5e-14             -31.26277230138731
 ethylene_l1_loc.inp                                   13    1.0E-14               0.4063601640E+02
-o2_ot_refine_roks.inp                                  1      1e-13             -31.23722653729526
+o2_ot_refine_roks.inp                                  1      1e-13             -31.23722653728602
 #EOF

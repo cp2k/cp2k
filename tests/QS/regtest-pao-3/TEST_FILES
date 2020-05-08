@@ -1,5 +1,5 @@
 # For a single atom PAO's initial guess should be reasonably close to the true solution
-He_ref.inp                                            11      2e-13             -2.889334869156289
+He_ref.inp                                            11      2e-13             -2.889334869153459
 He_pao_initguess_exp.inp                              11       5e-4             -2.889334869153459
 He_pao_initguess_fock.inp                             11       5e-4             -2.889334869153459
 He_pao_initguess_rotinv.inp                           11       5e-4             -2.889334869153459
