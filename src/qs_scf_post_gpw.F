@@ -24,10 +24,10 @@ MODULE qs_scf_post_gpw
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_ddapc_util,                   ONLY: get_ddapc
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -52,11 +52,11 @@ MODULE qs_scf_post_gpw
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
-        dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_csr_create_from_dbcsr, &
-        dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_type, dbcsr_csr_write, &
-        dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_p_type, dbcsr_release, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric,&
-        dbcsr_create, dbcsr_add, dbcsr_set, dbcsr_scale
+        dbcsr_add, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_create, &
+        dbcsr_csr_create_from_dbcsr, dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, &
+        dbcsr_csr_type, dbcsr_csr_write, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_p_type, &
+        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE dct,                             ONLY: pw_shrink
    USE et_coupling_types,               ONLY: set_et_coupling_type
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
@@ -86,8 +86,9 @@ MODULE qs_scf_post_gpw
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE kpoint_types,                    ONLY: kpoint_type, get_kpoint_info
    USE kpoint_methods,                  ONLY: rskp_transform
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
    USE lapack,                          ONLY: lapack_sgesv
    USE mao_wfn_analysis,                ONLY: mao_analysis
    USE mathconstants,                   ONLY: pi
@@ -213,7 +214,9 @@ MODULE qs_scf_post_gpw
    PUBLIC :: scf_post_calculation_gpw, &
              qs_scf_post_moments, &
              write_available_results, &
-             write_mo_free_results
+             write_mo_free_results, &
+             write_ks_matrix_csr, &
+             write_s_matrix_csr
    PUBLIC :: make_lumo_gpw
 
 ! **************************************************************************************************
@@ -3093,32 +3096,32 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: input
 
-      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
       CHARACTER(len=*), PARAMETER :: routineN = 'write_ks_matrix_csr', &
          routineP = moduleN//':'//routineN
+      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       CHARACTER(LEN=default_path_length)                 :: file_name, fileformat
-      INTEGER                                            :: handle, ispin, ik, ikp, kplocal,&
-                                                            nkp_groups, output_unit, unit_nr, igroup
+      INTEGER                                            :: handle, igroup, ik, ikp, ispin, kplocal, &
+                                                            nkp_groups, output_unit, unit_nr
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: bin, do_kpoints, do_ks_csr_write,&
-                                                            uptr, use_real_wfn
+      LOGICAL                                            :: bin, do_kpoints, do_ks_csr_write, uptr, &
+                                                            use_real_wfn
       REAL(KIND=dp)                                      :: thld
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_csr_type)                               :: ks_mat_csr
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
-      TYPE(dbcsr_type)                                   :: matrix_ks_nosym
-      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat!, tmpmat2!,&
-      !                                                      matrix_ks_nosym
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
-      TYPE(section_vals_type), POINTER                   :: dft_section
-      TYPE(kpoint_type), POINTER               :: kpoints
+      TYPE(dbcsr_type)                                   :: matrix_ks_nosym
+      TYPE(dbcsr_type), POINTER                          :: cmatrix, imatrix, imatrix_nosym, &
+                                                            rmatrix, rmatrix_nosym, tmatrix
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
+      TYPE(section_vals_type), POINTER                   :: dft_section
 
       CALL timeset(routineN, handle)
 
@@ -3130,139 +3133,136 @@ CONTAINS
       dft_section => section_vals_get_subs_vals(input, "DFT")
       do_ks_csr_write = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
                                                          "PRINT%KS_CSR_WRITE"), cp_p_file)
-      
+
       IF (do_ks_csr_write) THEN
-        CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%THRESHOLD", r_val=thld)
-        CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%UPPER_TRIANGULAR", l_val=uptr)
-        CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%BINARY", l_val=bin)
-        
-        IF (bin) THEN
-           fileformat = "UNFORMATTED"
-        ELSE
-           fileformat = "FORMATTED"
-        END IF
-           
-        CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
-        
-        IF (do_kpoints) THEN
-          !  Calculate the Hamiltonian at the k-points
-          NULLIFY (sab_nl)
-          CALL get_qs_env(qs_env=qs_env,kpoints=kpoints, matrix_ks_kp=matrix_ks_kp)
-          CALL get_kpoint_info(kpoints, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
-                               nkp_groups=nkp_groups, kp_dist=kp_dist, sab_nl=sab_nl, &
-                               cell_to_index=cell_to_index)
-        
-          ALLOCATE (rmatrix, cmatrix, tmpmat)!, tmpmat2)
-          CALL dbcsr_create(rmatrix, template=matrix_ks_kp(1, 1)%matrix, &
-                            matrix_type=dbcsr_type_symmetric)
-          CALL dbcsr_create(cmatrix, template=matrix_ks_kp(1, 1)%matrix, &
-                            matrix_type=dbcsr_type_antisymmetric)
-          CALL dbcsr_create(tmpmat, template=matrix_ks_kp(1, 1)%matrix, &
-                            matrix_type=dbcsr_type_no_symmetry)
-          !CALL dbcsr_create(tmpmat2, template=matrix_ks_kp(1, 1)%matrix, &
-          !                  matrix_type=dbcsr_type_no_symmetry)
-          CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
-          CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
+         CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%THRESHOLD", r_val=thld)
+         CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%UPPER_TRIANGULAR", l_val=uptr)
+         CALL section_vals_val_get(dft_section, "PRINT%KS_CSR_WRITE%BINARY", l_val=bin)
 
-          CALL dbcsr_create(rmatrix, template=matrix_ks_kp(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_symmetric)
-          CALL dbcsr_create(cmatrix, template=matrix_ks_kp(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_antisymmetric)
-          CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
-          CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
-          
-          kplocal = kp_range(2) - kp_range(1) + 1
-          DO ikp = 1, kplocal
-             DO ispin = 1, SIZE(matrix_ks_kp,1)
-                DO igroup = 1, nkp_groups
-                   ! number of current kpoint
-                   ik = kp_dist(1, igroup) + ikp - 1
-                   IF (use_real_wfn) THEN
-                      ! FT of KS matrix KS
-                      CALL dbcsr_set(rmatrix, 0.0_dp)
-                      CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_ks_kp, ispin=ispin, &
-                                          xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                      CALL dbcsr_desymmetrize(rmatrix, matrix_ks_nosym)
-                   ELSE
-                      ! FT of KS matrix
-                      CALL dbcsr_set(rmatrix, 0.0_dp)
-                      CALL dbcsr_set(cmatrix, 0.0_dp)
-                      CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_ks_kp, ispin=ispin, &
-                                          xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                      
-                      ! Imaginary part
-                      CALL dbcsr_desymmetrize(cmatrix, matrix_ks_nosym)
-                      CALL dbcsr_csr_create_from_dbcsr(matrix_ks_nosym, ks_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
-                      CALL dbcsr_convert_dbcsr_to_csr(matrix_ks_nosym, ks_mat_csr)
+         IF (bin) THEN
+            fileformat = "UNFORMATTED"
+         ELSE
+            fileformat = "FORMATTED"
+         END IF
 
-                      WRITE (file_name, '(2(A,I0))') "KS_IM_SPIN_", ispin, "_K_", ik
-                      unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%KS_CSR_WRITE", &
+         CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
+
+         IF (do_kpoints) THEN
+            !  Calculate the Hamiltonian at the k-points
+            NULLIFY (sab_nl)
+            CALL get_qs_env(qs_env=qs_env, kpoints=kpoints, matrix_ks_kp=matrix_ks_kp)
+            CALL get_kpoint_info(kpoints, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
+                                 nkp_groups=nkp_groups, kp_dist=kp_dist, sab_nl=sab_nl, &
+                                 cell_to_index=cell_to_index)
+
+            ALLOCATE (rmatrix)
+            CALL dbcsr_create(rmatrix, template=matrix_ks_kp(1, 1)%matrix, &
+                              matrix_type=dbcsr_type_symmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
+
+            IF (.NOT. use_real_wfn) THEN
+               ! Allocate temporary variables
+               ALLOCATE (rmatrix_nosym, imatrix, imatrix_nosym, cmatrix, tmatrix)
+               CALL dbcsr_create(rmatrix_nosym, template=matrix_ks_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+               CALL dbcsr_create(imatrix, template=matrix_ks_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_antisymmetric)
+               CALL dbcsr_create(imatrix_nosym, template=matrix_ks_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+               CALL dbcsr_create(cmatrix, template=matrix_ks_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry, &
+                                 data_type=dbcsr_type_complex_8)
+               CALL dbcsr_create(tmatrix, template=matrix_ks_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry, &
+                                 data_type=dbcsr_type_complex_8)
+               CALL cp_dbcsr_alloc_block_from_nbl(rmatrix_nosym, sab_nl)
+               CALL cp_dbcsr_alloc_block_from_nbl(imatrix, sab_nl)
+               CALL cp_dbcsr_alloc_block_from_nbl(imatrix_nosym, sab_nl)
+               CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
+               CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_nl)
+            END IF
+
+            kplocal = kp_range(2) - kp_range(1) + 1
+            DO ikp = 1, kplocal
+               DO ispin = 1, SIZE(matrix_ks_kp, 1)
+                  DO igroup = 1, nkp_groups
+                     ! number of current kpoint
+                     ik = kp_dist(1, igroup) + ikp - 1
+                     CALL dbcsr_set(rmatrix, 0.0_dp)
+                     IF (use_real_wfn) THEN
+                        ! FT of KS matrix
+                        CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_ks_kp, ispin=ispin, &
+                                            xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                        ! Convert to desymmetrized csr matrix
+                        CALL dbcsr_desymmetrize(rmatrix, matrix_ks_nosym)
+                        CALL dbcsr_csr_create_from_dbcsr(matrix_ks_nosym, ks_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
+                        CALL dbcsr_convert_dbcsr_to_csr(matrix_ks_nosym, ks_mat_csr)
+                        CALL dbcsr_release(matrix_ks_nosym)
+                     ELSE
+                        ! FT of KS matrix
+                        CALL dbcsr_set(imatrix, 0.0_dp)
+                        CALL rskp_transform(rmatrix=rmatrix, cmatrix=imatrix, rsmat=matrix_ks_kp, ispin=ispin, &
+                                            xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+
+                        ! Desymmetrize and sum the real and imaginary part into
+                        ! cmatrix
+                        CALL dbcsr_desymmetrize(rmatrix, rmatrix_nosym)
+                        CALL dbcsr_desymmetrize(imatrix, imatrix_nosym)
+                        CALL dbcsr_copy(cmatrix, rmatrix_nosym)
+                        CALL dbcsr_copy(tmatrix, imatrix_nosym)
+                        CALL dbcsr_add(cmatrix, tmatrix, cone, ione)
+                        ! Convert to csr
+                        CALL dbcsr_csr_create_from_dbcsr(cmatrix, ks_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
+                        CALL dbcsr_convert_dbcsr_to_csr(cmatrix, ks_mat_csr)
+                     END IF
+
+                     WRITE (file_name, '(2(A,I0))') "KS_SPIN_", ispin, "_K_", ik
+                     unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%KS_CSR_WRITE", &
                                                     extension=".csr", middle_name=TRIM(file_name), &
                                                     file_status="REPLACE", file_form=fileformat)
-                      CALL dbcsr_csr_write(ks_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
+                     CALL dbcsr_csr_write(ks_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
 
-                      CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%KS_CSR_WRITE")
-                      
-                      CALL dbcsr_csr_destroy(ks_mat_csr)
-                      CALL dbcsr_release(matrix_ks_nosym)
-                      
-                      ! Prepare the real part
-                      CALL dbcsr_desymmetrize(rmatrix, matrix_ks_nosym)
-                      !CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                      !CALL dbcsr_add(matrix_ks_nosym,tmpmat,czero,cone)
-                      !CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-                      !CALL dbcsr_add(matrix_ks_nosym,tmpmat,cone,ione)
-                      
-                      !CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                      !CALL dbcsr_add(matrix_ks_nosym,tmpmat,czero,cone)
-                      !CALL dbcsr_desymmetrize(cmatrix, tmpmat2)
-                      !CALL dbcsr_scale(tmpmat,cone)
-                      !CALL dbcsr_scale(tmpmat2,ione)
-                      !CALL dbcsr_add(tmpmat,tmpmat2,cone,cone)
-                      !CALL dbcsr_copy(matrix_ks_nosym, tmpmat)
-                   END IF
+                     CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%KS_CSR_WRITE")
 
-                   CALL dbcsr_csr_create_from_dbcsr(matrix_ks_nosym, ks_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
-                   CALL dbcsr_convert_dbcsr_to_csr(matrix_ks_nosym, ks_mat_csr)
+                     CALL dbcsr_csr_destroy(ks_mat_csr)
+                  END DO
+               END DO
+            END DO
+            CALL dbcsr_release(rmatrix)
+            DEALLOCATE (rmatrix)
+            IF (.NOT. use_real_wfn) THEN
+               CALL dbcsr_release(rmatrix_nosym)
+               CALL dbcsr_release(imatrix)
+               CALL dbcsr_release(imatrix_nosym)
+               CALL dbcsr_release(cmatrix)
+               CALL dbcsr_release(tmatrix)
+               DEALLOCATE (rmatrix_nosym, imatrix, imatrix_nosym, cmatrix, tmatrix)
+            END IF
+         ELSE
+            CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks)
+            DO ispin = 1, SIZE(matrix_ks)
 
-                   WRITE (file_name, '(2(A,I0))') "KS_RE_SPIN_", ispin, "_K_", ik
-                   unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%KS_CSR_WRITE", &
-                                                 extension=".csr", middle_name=TRIM(file_name), &
-                                                 file_status="REPLACE", file_form=fileformat)
-                   CALL dbcsr_csr_write(ks_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
+               IF (dbcsr_has_symmetry(matrix_ks(ispin)%matrix)) THEN
+                  CALL dbcsr_desymmetrize(matrix_ks(ispin)%matrix, matrix_ks_nosym)
+               ELSE
+                  CALL dbcsr_copy(matrix_ks_nosym, matrix_ks(ispin)%matrix)
+               END IF
 
-                   CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%KS_CSR_WRITE")
+               CALL dbcsr_csr_create_from_dbcsr(matrix_ks_nosym, ks_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
+               CALL dbcsr_convert_dbcsr_to_csr(matrix_ks_nosym, ks_mat_csr)
 
-                   CALL dbcsr_csr_destroy(ks_mat_csr)
-                   CALL dbcsr_release(matrix_ks_nosym)
-                END DO
-             END DO
-          END DO
-        ELSE
-           CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks)
-           DO ispin = 1, SIZE(matrix_ks)
+               WRITE (file_name, '(A,I0)') "KS_SPIN_", ispin
+               unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%KS_CSR_WRITE", &
+                                              extension=".csr", middle_name=TRIM(file_name), &
+                                              file_status="REPLACE", file_form=fileformat)
+               CALL dbcsr_csr_write(ks_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
 
-              IF (dbcsr_has_symmetry(matrix_ks(ispin)%matrix)) THEN
-                 CALL dbcsr_desymmetrize(matrix_ks(ispin)%matrix, matrix_ks_nosym)
-              ELSE
-                 CALL dbcsr_copy(matrix_ks_nosym, matrix_ks(ispin)%matrix)
-              END IF
+               CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%KS_CSR_WRITE")
 
-              CALL dbcsr_csr_create_from_dbcsr(matrix_ks_nosym, ks_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
-              CALL dbcsr_convert_dbcsr_to_csr(matrix_ks_nosym, ks_mat_csr)
-
-              WRITE (file_name, '(A,I0)') "KS_SPIN_", ispin
-              unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%KS_CSR_WRITE", &
-                                             extension=".csr", middle_name=TRIM(file_name), &
-                                             file_status="REPLACE", file_form=fileformat)
-              CALL dbcsr_csr_write(ks_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
-
-              CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%KS_CSR_WRITE")
-
-              CALL dbcsr_csr_destroy(ks_mat_csr)
-              CALL dbcsr_release(matrix_ks_nosym)
-           END DO
-        END IF
+               CALL dbcsr_csr_destroy(ks_mat_csr)
+               CALL dbcsr_release(matrix_ks_nosym)
+            END DO
+         END IF
       END IF
       CALL timestop(handle)
 
@@ -3280,27 +3280,30 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_s_matrix_csr', &
          routineP = moduleN//':'//routineN
+      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       CHARACTER(LEN=default_path_length)                 :: file_name, fileformat
-      INTEGER                                            :: handle, ispin, ik, ikp, kplocal,&
-                                                            nkp_groups, output_unit, unit_nr, igroup
+      INTEGER                                            :: handle, igroup, ik, ikp, ispin, kplocal, &
+                                                            nkp_groups, output_unit, unit_nr
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: bin, do_kpoints, do_s_csr_write,&
-                                                            uptr, use_real_wfn
+      LOGICAL                                            :: bin, do_kpoints, do_s_csr_write, uptr, &
+                                                            use_real_wfn
       REAL(KIND=dp)                                      :: thld
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_csr_type)                               :: s_mat_csr
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(dbcsr_type)                                   :: matrix_s_nosym
-      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
-      TYPE(section_vals_type), POINTER                   :: dft_section
-      TYPE(kpoint_type), POINTER               :: kpoints
+      TYPE(dbcsr_type)                                   :: matrix_s_nosym
+      TYPE(dbcsr_type), POINTER                          :: cmatrix, imatrix, imatrix_nosym, &
+                                                            rmatrix, rmatrix_nosym, tmatrix
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
+      TYPE(section_vals_type), POINTER                   :: dft_section
 
       CALL timeset(routineN, handle)
 
@@ -3312,14 +3315,11 @@ CONTAINS
       dft_section => section_vals_get_subs_vals(input, "DFT")
       do_s_csr_write = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
                                                         "PRINT%S_CSR_WRITE"), cp_p_file)
-      
+
       IF (do_s_csr_write) THEN
          CALL section_vals_val_get(dft_section, "PRINT%S_CSR_WRITE%THRESHOLD", r_val=thld)
          CALL section_vals_val_get(dft_section, "PRINT%S_CSR_WRITE%UPPER_TRIANGULAR", l_val=uptr)
          CALL section_vals_val_get(dft_section, "PRINT%S_CSR_WRITE%BINARY", l_val=bin)
-         
-         CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
-         
 
          IF (bin) THEN
             fileformat = "UNFORMATTED"
@@ -3327,123 +3327,125 @@ CONTAINS
             fileformat = "FORMATTED"
          END IF
 
+         CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
+
          IF (do_kpoints) THEN
-          !  Calculate the overlap matrix at the k-points
-          NULLIFY (sab_nl)
-          CALL get_qs_env(qs_env=qs_env,kpoints=kpoints, matrix_s_kp=matrix_s_kp)
-          CALL get_kpoint_info(kpoints, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
-                               nkp_groups=nkp_groups, kp_dist=kp_dist, sab_nl=sab_nl, &
-                               cell_to_index=cell_to_index)
+            !  Calculate the overlap matrix at the k-points
+            NULLIFY (sab_nl)
+            CALL get_qs_env(qs_env=qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp)
+            CALL get_kpoint_info(kpoints, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
+                                 nkp_groups=nkp_groups, kp_dist=kp_dist, sab_nl=sab_nl, &
+                                 cell_to_index=cell_to_index)
 
-          ALLOCATE (rmatrix, cmatrix, tmpmat)!, tmpmat2)
-          CALL dbcsr_create(rmatrix, template=matrix_s_kp(1, 1)%matrix, &
-                            matrix_type=dbcsr_type_symmetric)
-          CALL dbcsr_create(cmatrix, template=matrix_s_kp(1, 1)%matrix, &
-                            matrix_type=dbcsr_type_antisymmetric)
-          CALL dbcsr_create(tmpmat, template=matrix_s_kp(1, 1)%matrix, &
-                            matrix_type=dbcsr_type_no_symmetry)
-          !CALL dbcsr_create(tmpmat2, template=matrix_s_kp(1, 1)%matrix, &
-          !                  matrix_type=dbcsr_type_no_symmetry)
-          CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
-          CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
+            ALLOCATE (rmatrix)
+            CALL dbcsr_create(rmatrix, template=matrix_s_kp(1, 1)%matrix, &
+                              matrix_type=dbcsr_type_symmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
 
-          CALL dbcsr_create(rmatrix, template=matrix_s_kp(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_symmetric)
-          CALL dbcsr_create(cmatrix, template=matrix_s_kp(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_antisymmetric)
-          CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
-          CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
+            IF (.NOT. use_real_wfn) THEN
+               ! Allocate temporary variables
+               ALLOCATE (rmatrix_nosym, imatrix, imatrix_nosym, cmatrix, tmatrix)
+               CALL dbcsr_create(rmatrix_nosym, template=matrix_s_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+               CALL dbcsr_create(imatrix, template=matrix_s_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_antisymmetric)
+               CALL dbcsr_create(imatrix_nosym, template=matrix_s_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+               CALL dbcsr_create(cmatrix, template=matrix_s_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry, &
+                                 data_type=dbcsr_type_complex_8)
+               CALL dbcsr_create(tmatrix, template=matrix_s_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry, &
+                                 data_type=dbcsr_type_complex_8)
+               CALL cp_dbcsr_alloc_block_from_nbl(rmatrix_nosym, sab_nl)
+               CALL cp_dbcsr_alloc_block_from_nbl(imatrix, sab_nl)
+               CALL cp_dbcsr_alloc_block_from_nbl(imatrix_nosym, sab_nl)
+               CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
+               CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_nl)
+            END IF
 
-          DO ikp = 1, kplocal
-             DO ispin = 1, SIZE(matrix_s_kp,1)
-                DO igroup = 1, nkp_groups
-                   ! number of current kpoint
-                   ik = kp_dist(1, igroup) + ikp - 1
-                   IF (use_real_wfn) THEN
-                      ! FT of S matrix
-                      CALL dbcsr_set(rmatrix, 0.0_dp)
-                      CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_s_kp, ispin=ispin, &
-                                          xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                      CALL dbcsr_desymmetrize(rmatrix, matrix_s_nosym)
-                   ELSE
-                      ! FT of S matrix
-                      CALL dbcsr_set(rmatrix, 0.0_dp)
-                      CALL dbcsr_set(cmatrix, 0.0_dp)
-                      CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s_kp, ispin=ispin, &
-                                          xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+            kplocal = kp_range(2) - kp_range(1) + 1
+            DO ikp = 1, kplocal
+               DO ispin = 1, SIZE(matrix_s_kp, 1)
+                  DO igroup = 1, nkp_groups
+                     ! number of current kpoint
+                     ik = kp_dist(1, igroup) + ikp - 1
+                     CALL dbcsr_set(rmatrix, 0.0_dp)
+                     IF (use_real_wfn) THEN
+                        ! FT of S matrix
+                        CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_s_kp, ispin=ispin, &
+                                            xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                        ! Convert to desymmetrized csr matrix
+                        CALL dbcsr_desymmetrize(rmatrix, matrix_s_nosym)
+                        CALL dbcsr_csr_create_from_dbcsr(matrix_s_nosym, &
+                                                         s_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
+                        CALL dbcsr_convert_dbcsr_to_csr(matrix_s_nosym, s_mat_csr)
+                        CALL dbcsr_release(matrix_s_nosym)
+                     ELSE
+                        ! FT of S matrix
+                        CALL dbcsr_set(imatrix, 0.0_dp)
+                        CALL rskp_transform(rmatrix=rmatrix, cmatrix=imatrix, rsmat=matrix_s_kp, ispin=ispin, &
+                                            xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
 
-                      ! Imaginary part
-                      CALL dbcsr_desymmetrize(cmatrix, matrix_s_nosym)
-                      CALL dbcsr_csr_create_from_dbcsr(matrix_s_nosym, s_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
-                      CALL dbcsr_convert_dbcsr_to_csr(matrix_s_nosym, s_mat_csr)
-
-                      WRITE (file_name, '(2(A,I0))') "S_IM_SPIN_", ispin, "_K_", ik
-                      unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%S_CSR_WRITE", &
+                        ! Desymmetrize and sum the real and imaginary part into
+                        ! cmatrix
+                        CALL dbcsr_desymmetrize(rmatrix, rmatrix_nosym)
+                        CALL dbcsr_desymmetrize(imatrix, imatrix_nosym)
+                        CALL dbcsr_copy(cmatrix, rmatrix_nosym)
+                        CALL dbcsr_copy(tmatrix, imatrix_nosym)
+                        CALL dbcsr_add(cmatrix, tmatrix, cone, ione)
+                        ! Convert to csr
+                        CALL dbcsr_csr_create_from_dbcsr(cmatrix, s_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
+                        CALL dbcsr_convert_dbcsr_to_csr(cmatrix, s_mat_csr)
+                     END IF
+                     ! Print the matrix to file
+                     WRITE (file_name, '(2(A,I0))') "S_SPIN_", ispin, "_K_", ik
+                     unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%S_CSR_WRITE", &
                                                     extension=".csr", middle_name=TRIM(file_name), &
                                                     file_status="REPLACE", file_form=fileformat)
-                      CALL dbcsr_csr_write(s_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
+                     CALL dbcsr_csr_write(s_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
 
-                      CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%S_CSR_WRITE")
+                     CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%S_CSR_WRITE")
 
-                      CALL dbcsr_csr_destroy(s_mat_csr)
-                      CALL dbcsr_release(matrix_s_nosym)
-
-                      ! Prepare the real part
-                      CALL dbcsr_desymmetrize(rmatrix, matrix_s_nosym)
-                      !CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                      !CALL dbcsr_add(matrix_s_nosym,tmpmat,czero,cone)
-                      !CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-                      !CALL dbcsr_add(matrix_s_nosym,tmpmat,cone,ione)
-
-                      !CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                      !CALL dbcsr_add(matrix_s_nosym,tmpmat,czero,cone)
-                      !CALL dbcsr_desymmetrize(cmatrix, tmpmat2)
-                      !CALL dbcsr_scale(tmpmat,cone)
-                      !CALL dbcsr_scale(tmpmat2,ione)
-                      !CALL dbcsr_add(tmpmat,tmpmat2,cone,cone)
-                      !CALL dbcsr_copy(matrix_s_nosym, tmpmat)
-                   END IF
-
-                   CALL dbcsr_csr_create_from_dbcsr(matrix_s_nosym, s_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
-                   CALL dbcsr_convert_dbcsr_to_csr(matrix_s_nosym, s_mat_csr)
-
-                   WRITE (file_name, '(2(A,I0))') "S_RE_SPIN_", ispin, "_K_", ik
-                   unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%S_CSR_WRITE", &
-                                                 extension=".csr", middle_name=TRIM(file_name), &
-                                                 file_status="REPLACE", file_form=fileformat)
-                   CALL dbcsr_csr_write(s_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
-
-                   CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%S_CSR_WRITE")
-
-                   CALL dbcsr_csr_destroy(s_mat_csr)
-                   CALL dbcsr_release(matrix_s_nosym)
-                END DO
-             END DO
-          END DO
+                     CALL dbcsr_csr_destroy(s_mat_csr)
+                  END DO
+               END DO
+            END DO
+            ! Clean up
+            CALL dbcsr_release(rmatrix)
+            DEALLOCATE (rmatrix)
+            IF (.NOT. use_real_wfn) THEN
+               CALL dbcsr_release(rmatrix_nosym)
+               CALL dbcsr_release(imatrix)
+               CALL dbcsr_release(imatrix_nosym)
+               CALL dbcsr_release(cmatrix)
+               CALL dbcsr_release(tmatrix)
+               DEALLOCATE (rmatrix_nosym, imatrix, imatrix_nosym, cmatrix, tmatrix)
+            END IF
          ELSE
-           CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
-           DO ispin = 1, SIZE(matrix_s)
+            CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
+            DO ispin = 1, SIZE(matrix_s)
 
-              IF (dbcsr_has_symmetry(matrix_s(ispin)%matrix)) THEN
-                 CALL dbcsr_desymmetrize(matrix_s(ispin)%matrix, matrix_s_nosym)
-              ELSE
-                 CALL dbcsr_copy(matrix_s_nosym, matrix_s(ispin)%matrix)
-              END IF
+               IF (dbcsr_has_symmetry(matrix_s(ispin)%matrix)) THEN
+                  CALL dbcsr_desymmetrize(matrix_s(ispin)%matrix, matrix_s_nosym)
+               ELSE
+                  CALL dbcsr_copy(matrix_s_nosym, matrix_s(ispin)%matrix)
+               END IF
 
-              CALL dbcsr_csr_create_from_dbcsr(matrix_s_nosym, s_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
-              CALL dbcsr_convert_dbcsr_to_csr(matrix_s_nosym, s_mat_csr)
+               CALL dbcsr_csr_create_from_dbcsr(matrix_s_nosym, s_mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
+               CALL dbcsr_convert_dbcsr_to_csr(matrix_s_nosym, s_mat_csr)
 
-              WRITE (file_name, '(A,I0)') "S_SPIN_", ispin
-              unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%S_CSR_WRITE", &
-                                           extension=".csr", middle_name=TRIM(file_name), &
-                                           file_status="REPLACE", file_form=fileformat)
-              CALL dbcsr_csr_write(s_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
+               WRITE (file_name, '(A,I0)') "S_SPIN_", ispin
+               unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%S_CSR_WRITE", &
+                                              extension=".csr", middle_name=TRIM(file_name), &
+                                              file_status="REPLACE", file_form=fileformat)
+               CALL dbcsr_csr_write(s_mat_csr, unit_nr, upper_triangle=uptr, threshold=thld, binary=bin)
 
-              CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%S_CSR_WRITE")
+               CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%S_CSR_WRITE")
 
-              CALL dbcsr_csr_destroy(s_mat_csr)
-              CALL dbcsr_release(matrix_s_nosym)
-           END DO
+               CALL dbcsr_csr_destroy(s_mat_csr)
+               CALL dbcsr_release(matrix_s_nosym)
+            END DO
          END IF
       END IF
 
