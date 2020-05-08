@@ -1567,10 +1567,10 @@ CONTAINS
                      DO ir = sr, er
                         DO ia = 1, na
                            IF (lz /= 1) THEN
-                              rmom = lz*pos(ia, ir, 3)**(lz - 1) - 2.0_dp*pos(ia, ir, 3)**(lz + 1)* &
-                                     zet(ipgf, iset)*EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                              rmom = (lz*pos(ia, ir, 3)**(lz - 1) - 2.0_dp*pos(ia, ir, 3)**(lz + 1)* &
+                                      zet(ipgf, iset))*EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                            ELSE
-                              rmom = (1.0_dp - 2.0_dp*pos(ia, ir, 3)**2)*zet(ipgf, iset)* &
+                              rmom = (1.0_dp - 2.0_dp*pos(ia, ir, 3)**2*zet(ipgf, iset))* &
                                      EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                            END IF
                            IF (lx /= 0) rmom = rmom*pos(ia, ir, 1)**lx
