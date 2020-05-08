@@ -1476,9 +1476,13 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                      DO ir = sr, er
                         DO ia = 1, na
-                           dco(ia, ir, 1, start + ico) = -2.0_dp*pos(ia, ir, 1)*zet(ipgf, iset) &
-                                                         *pos(ia, ir, 2)**ly*pos(ia, ir, 3)**lz &
-                                                         *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           rmom = -2.0_dp*pos(ia, ir, 1)*zet(ipgf, iset)*EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           IF (ly /= 0) rmom = rmom*pos(ia, ir, 2)**ly
+                           IF (lz /= 0) rmom = rmom*pos(ia, ir, 3)**lz
+                           dco(ia, ir, 1, start + ico) = rmom
+!                          dco(ia, ir, 1, start + ico) = -2.0_dp*pos(ia, ir, 1)*zet(ipgf, iset) &
+!                                                        *pos(ia, ir, 2)**ly*pos(ia, ir, 3)**lz &
+!                                                        *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                         END DO
                      END DO
 !$OMP END DO NOWAIT
@@ -1486,10 +1490,20 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                      DO ir = sr, er
                         DO ia = 1, na
-                           dco(ia, ir, 1, start + ico) = (lx*pos(ia, ir, 1)**(lx - 1) &
-                                                          - 2.0_dp*pos(ia, ir, 1)**(lx + 1)*zet(ipgf, iset)) &
-                                                         *pos(ia, ir, 2)**ly*pos(ia, ir, 3)**lz &
-                                                         *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           IF (lx /= 1) THEN
+                              rmom = (lx*pos(ia, ir, 1)**(lx - 1) - 2.0_dp*pos(ia, ir, 1)**(lx + 1)* &
+                                      zet(ipgf, iset))*EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           ELSE
+                              rmom = (1.0_dp - 2.0_dp*pos(ia, ir, 1)**2*zet(ipgf, iset))* &
+                                     EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           END IF
+                           IF (ly /= 0) rmom = rmom*pos(ia, ir, 2)**ly
+                           IF (lz /= 0) rmom = rmom*pos(ia, ir, 3)**lz
+                           dco(ia, ir, 1, start + ico) = rmom
+!                          dco(ia, ir, 1, start + ico) = (lx*pos(ia, ir, 1)**(lx - 1) &
+!                                                         - 2.0_dp*pos(ia, ir, 1)**(lx + 1)*zet(ipgf, iset)) &
+!                                                        *pos(ia, ir, 2)**ly*pos(ia, ir, 3)**lz &
+!                                                        *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                         END DO
                      END DO
 !$OMP END DO NOWAIT
@@ -1500,9 +1514,13 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                      DO ir = sr, er
                         DO ia = 1, na
-                           dco(ia, ir, 2, start + ico) = -2.0_dp*pos(ia, ir, 2)*zet(ipgf, iset) &
-                                                         *pos(ia, ir, 1)**lx*pos(ia, ir, 3)**lz &
-                                                         *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           rmom = -2.0_dp*pos(ia, ir, 2)*zet(ipgf, iset)*EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           IF (lx /= 0) rmom = rmom*pos(ia, ir, 1)**lx
+                           IF (lz /= 0) rmom = rmom*pos(ia, ir, 3)**lz
+                           dco(ia, ir, 2, start + ico) = rmom
+!                          dco(ia, ir, 2, start + ico) = -2.0_dp*pos(ia, ir, 2)*zet(ipgf, iset) &
+!                                                        *pos(ia, ir, 1)**lx*pos(ia, ir, 3)**lz &
+!                                                        *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                         END DO
                      END DO
 !$OMP END DO NOWAIT
@@ -1510,10 +1528,20 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                      DO ir = sr, er
                         DO ia = 1, na
-                           dco(ia, ir, 2, start + ico) = (ly*pos(ia, ir, 2)**(ly - 1) &
-                                                          - 2.0_dp*pos(ia, ir, 2)**(ly + 1)*zet(ipgf, iset)) &
-                                                         *pos(ia, ir, 1)**lx*pos(ia, ir, 3)**lz &
-                                                         *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           IF (ly /= 1) THEN
+                              rmom = (ly*pos(ia, ir, 2)**(ly - 1) - 2.0_dp*pos(ia, ir, 2)**(ly + 1)*zet(ipgf, iset)) &
+                                     *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           ELSE
+                              rmom = (1.0_dp - 2.0_dp*pos(ia, ir, 2)**2*zet(ipgf, iset)) &
+                                     *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           END IF
+                           IF (lx /= 0) rmom = rmom*pos(ia, ir, 1)**lx
+                           IF (lz /= 0) rmom = rmom*pos(ia, ir, 3)**lz
+                           dco(ia, ir, 2, start + ico) = rmom
+!                          dco(ia, ir, 2, start + ico) = (ly*pos(ia, ir, 2)**(ly - 1) &
+!                                                         - 2.0_dp*pos(ia, ir, 2)**(ly + 1)*zet(ipgf, iset)) &
+!                                                        *pos(ia, ir, 1)**lx*pos(ia, ir, 3)**lz &
+!                                                        *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                         END DO
                      END DO
 !$OMP END DO NOWAIT
@@ -1524,9 +1552,13 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                      DO ir = sr, er
                         DO ia = 1, na
-                           dco(ia, ir, 3, start + ico) = -2.0_dp*pos(ia, ir, 3)*zet(ipgf, iset) &
-                                                         *pos(ia, ir, 1)**lx*pos(ia, ir, 2)**ly &
-                                                         *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           rmom = -2.0_dp*pos(ia, ir, 3)*zet(ipgf, iset)*EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           IF (lx /= 0) rmom = rmom*pos(ia, ir, 1)**lx
+                           IF (ly /= 0) rmom = rmom*pos(ia, ir, 2)**ly
+                           dco(ia, ir, 3, start + ico) = rmom
+!                          dco(ia, ir, 3, start + ico) = -2.0_dp*pos(ia, ir, 3)*zet(ipgf, iset) &
+!                                                        *pos(ia, ir, 1)**lx*pos(ia, ir, 2)**ly &
+!                                                        *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                         END DO
                      END DO
 !$OMP END DO NOWAIT
@@ -1534,10 +1566,20 @@ CONTAINS
 !$OMP DO COLLAPSE(2) SCHEDULE(STATIC)
                      DO ir = sr, er
                         DO ia = 1, na
-                           dco(ia, ir, 3, start + ico) = (lz*pos(ia, ir, 3)**(lz - 1) &
-                                                          - 2.0_dp*pos(ia, ir, 3)**(lz + 1)*zet(ipgf, iset)) &
-                                                         *pos(ia, ir, 1)**lx*pos(ia, ir, 2)**ly &
-                                                         *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           IF (lz /= 1) THEN
+                              rmom = lz*pos(ia, ir, 3)**(lz - 1) - 2.0_dp*pos(ia, ir, 3)**(lz + 1)* &
+                                     zet(ipgf, iset)*EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           ELSE
+                              rmom = (1.0_dp - 2.0_dp*pos(ia, ir, 3)**2)*zet(ipgf, iset)* &
+                                     EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
+                           END IF
+                           IF (lx /= 0) rmom = rmom*pos(ia, ir, 1)**lx
+                           IF (ly /= 0) rmom = rmom*pos(ia, ir, 2)**ly
+                           dco(ia, ir, 3, start + ico) = rmom
+!                          dco(ia, ir, 3, start + ico) = (lz*pos(ia, ir, 3)**(lz - 1) &
+!                                                         - 2.0_dp*pos(ia, ir, 3)**(lz + 1)*zet(ipgf, iset)) &
+!                                                        *pos(ia, ir, 1)**lx*pos(ia, ir, 2)**ly &
+!                                                        *EXP(-zet(ipgf, iset)*pos(ia, ir, 4))
                         END DO
                      END DO
 !$OMP END DO NOWAIT
