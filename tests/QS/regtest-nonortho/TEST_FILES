@@ -1,8 +1,8 @@
-graphite.inp                                           2      2e-09            -0.193294230215E+02
-graphite2.inp                                          2      3e-09            -0.194873227323E+02
-graphite3.inp                                          2      2e-09            -0.193294230215E+02
+graphite.inp                                           2      2e-09            -0.192757851961E+02
+graphite2.inp                                          2      3e-09            -0.191844939061E+02
+graphite3.inp                                          2      2e-09            -0.192757851961E+02
 graphite-stm.inp                                       0
 graphite-lumo.inp                                     30    1.0E-14                     -15.517030
-graph_b111.inp                                        31    1.0E-14                 2.15957011E+01
-graph_b111_gapw.inp                                   31    1.0E-14                 1.70658742E+01
+graph_b111.inp                                        31    1.0E-14                 2.15954942E+01
+graph_b111_gapw.inp                                   31    1.0E-14                 1.70660903E+01
 #EOF

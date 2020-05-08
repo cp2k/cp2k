@@ -6,8 +6,8 @@
 #GEEP library
 H2O-qmmm-gauss-14-geep-2.inp                           1      5e-14             -12.90417644796692
 H2O-qmmm-gauss-14-geep-3.inp                           1    1.0E-14             -12.90712061196071
-H2O-qmmm-gauss-14-geep-4.inp                           1      1e-13             -12.90733560862432
-H2O-qmmm-gauss-14-geep-5.inp                           1      3e-14             -12.92642686633762
+H2O-qmmm-gauss-14-geep-4.inp                           1      1e-13             -12.90733560862245
+H2O-qmmm-gauss-14-geep-5.inp                           1      3e-14             -12.92642686633922
 H2O-qmmm-gauss-14-geep-6.inp                           1      1e-13            -12.922306022304049
 H2O-qmmm-gauss-14-geep-7.inp                           1      8e-14             -12.91849696653665
 H2O-qmmm-gauss-14-geep-8.inp                           1      3e-14             -12.91621682584684

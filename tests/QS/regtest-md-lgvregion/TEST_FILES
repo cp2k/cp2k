@@ -3,11 +3,11 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-langevin_regions-1.inp                                 1      4e-09            -34.28350536797594
-langevin_regions-2.inp                                 1      9e-09            -34.29678137324903
-langevin_regions-3.inp                                 1      4e-09            -34.28350536797594
-langevin_regions-4.inp                                 1      9e-09            -34.28727391904324
-langevin_regions-5.inp                                 1      9e-09            -34.36743922967619
-langevin_regions-6.inp                                 1      9e-09            -34.36335887909725
-langevin_regions-7.inp                                 1      9e-09            -34.37404118349389
+langevin_regions-1.inp                                 1      4e-09             -34.28350376127468
+langevin_regions-2.inp                                 1      9e-09            -34.296779972654349
+langevin_regions-3.inp                                 1      4e-09             -34.28350376127468
+langevin_regions-4.inp                                 1      9e-09            -34.287272756211649
+langevin_regions-5.inp                                 1      9e-09            -34.367438373279330
+langevin_regions-6.inp                                 1      9e-09             -34.36335765731263
+langevin_regions-7.inp                                 1      9e-09             -34.37404052243433
 #EOF
