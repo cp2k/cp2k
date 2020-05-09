@@ -262,7 +262,7 @@ CONTAINS
       ! consider absolute and relative accuracy (interval width)
       IF (PRESENT(epsabs)) THEN
          eps = epsabs
-      ELSE IF (.NOT. PRESENT(epsrel))
+      ELSE IF (.NOT. PRESENT(epsrel)) THEN
          eps = mineps
       ELSE
          eps = HUGE(eps)
