@@ -8,7 +8,7 @@ H2O-5.inp                                              1      2e-14             
 # the added_MOs keyword
 H2O-6.inp                                              1      2e-14             -17.14603641577057
 # tests BFGS and LBFGS and CG
-H2-geo-1.inp                                           1      2e-11           -0.58531808517407002
+H2-geo-1.inp                                           1      2e-11           -0.58531808516099
 H2-geo-2.inp                                           1      2e-14              -1.12365243716306
 H2-geo-3.inp                                           1      4e-14              -1.12364549811055
 H2-geo-4.inp                                           1      8e-13              -1.09108573590439
