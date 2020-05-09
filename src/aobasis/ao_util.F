@@ -262,8 +262,10 @@ CONTAINS
       ! consider absolute and relative accuracy (interval width)
       IF (PRESENT(epsabs)) THEN
          eps = epsabs
+      ELSE IF (.NOT. PRESENT(epsrel)) THEN
+         eps = mineps
       ELSE
-         eps = EPSILON(0.0_dp)*(1.0E-12_dp/2.22044604925031E-16_dp)
+         eps = HUGE(eps)
       ENDIF
       IF (PRESENT(epsrel)) eps = MIN(eps, epsrel*r0)
 
