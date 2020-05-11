@@ -159,19 +159,25 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: scale_next = 2.0_dp, step = 1.0_dp
 
       INTEGER                                            :: i, n
-      REAL(KIND=dp)                                      :: a, d, g, r, t
+      REAL(KIND=dp)                                      :: g, r
 
-      t = ABS(threshold)
-      d = ABS(prefactor)
-      a = ABS(alpha)
-      r = SQRT(0.5_dp*REAL(l, dp)/a)
+      ! call-site is responsible for correct input (exp_radius)
+      CPASSERT(0.0 .LE. threshold)
+      CPASSERT(0.0 .LE. prefactor)
+      CPASSERT(0.0 .LE. alpha)
+
+      r = SQRT(0.5_dp*REAL(l, dp)/alpha)
 
       ! facilitate early exit
       IF (PRESENT(rlow)) r = MAX(r, rlow)
 
+      g = prefactor
+      IF (l .NE. 0) THEN
+         g = g*EXP(REAL(-alpha*r*r, KIND=prec_exp))*r**l
+      END IF
+
       radius = r
-      g = d*EXP(REAL(-a*r*r, KIND=prec_exp))*r**l
-      IF (g .LT. t) THEN ! early exit
+      IF (g .LT. threshold) THEN ! early exit
          IF (PRESENT(maxiter)) maxiter = 0
          IF (PRESENT(rlow)) rlow = r
          RETURN
@@ -185,8 +191,8 @@ CONTAINS
 
       radius = r*scale_next + step
       DO i = 1, n
-         g = d*EXP(REAL(-a*radius*radius, KIND=prec_exp))*radius**l
-         IF (g .LT. t) EXIT
+         g = prefactor*EXP(REAL(-alpha*radius*radius, KIND=prec_exp))*radius**l
+         IF (g .LT. threshold) EXIT
          r = radius; radius = radius*scale_next + step
       ENDDO
 
@@ -246,6 +252,9 @@ CONTAINS
       ELSE
          CPABORT("The requested threshold is zero")
       ENDIF
+
+      radius = 0.0_dp
+      IF (prefactor .EQ. 0.0_dp) RETURN
 
       d = ABS(prefactor)
       iter = itermax
