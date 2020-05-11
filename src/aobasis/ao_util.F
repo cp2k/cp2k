@@ -165,7 +165,7 @@ CONTAINS
          mineps = EPSILON(0.0_dp)*(1.0E-12_dp/2.22044604925031E-16_dp), scale_next = 2.0_dp, &
          step = 1.0_dp
 
-      INTEGER                                            :: i, iterexit
+      INTEGER                                            :: i
       REAL(KIND=dp)                                      :: a, c, d, eps, g, r, rc, rd, t
 
       CPASSERT(cocntrct .LE. contract)
@@ -220,25 +220,22 @@ CONTAINS
       IF (PRESENT(epsrel)) eps = MIN(eps, epsrel*r)
 
       c = contract
-      iterexit = 0 ! enable contraction != 0.5
       DO i = i + 1, itermax
          rd = radius - r
-         IF (rd .LT. eps) EXIT ! finished contraction
+         IF (rd .LT. eps) RETURN ! finished contraction
          rc = r + rd*c ! interval contraction
          g = d*EXP(REAL(-a*rc*rc, KIND=prec_exp))*rc**l
          ! orig. approach was exiting if g(r) < t OR rd < eps,
          ! which likely never reached rd < eps
          IF (g .LT. t) THEN
             radius = rc ! interval [r, rc)
-            IF (0 .LT. iterexit) RETURN
             c = contract
          ELSE
-            IF (contract .NE. cocntrct) iterexit = iterexit + 1
             r = rc ! interval [rc, radius)
             c = cocntrct
          ENDIF
       ENDDO
-      IF (i .EQ. itermax) THEN
+      IF (i .GE. itermax) THEN
          CPABORT("Maximum number of iterations reached")
       ENDIF
 
