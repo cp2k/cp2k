@@ -152,8 +152,8 @@ CONTAINS
 !>        - prec_exp: single/double precision exponential function
 !>        - itermax : Maximum number of iterations
 !>        - contract: Golden Section Search (GSS): [0.38, 0.62]
-!>                    Equidistant sampling: [0.20, 0.40, 0.60, 0.80]
-!>                    Bisection (original approach): [0.50]
+!>                    Equidistant sampling: [0.2, 0.4, 0.6, 0.8]
+!>                    Bisection (original approach): [0.5]
 !>                    Array size may trigger vectorization
 ! **************************************************************************************************
    FUNCTION exp_radius(l, alpha, threshold, prefactor, epsabs, epsrel, rlow) RESULT(radius)
@@ -164,8 +164,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_radius', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: itermax = 5000, prec_exp = sp
-      REAL(KIND=dp), PARAMETER :: contract(*) = (/0.20, 0.40, 0.60, 0.80/), &
-         mineps = EPSILON(0.0_dp)*(1.0E-12_dp/2.22044604925031E-16_dp), next = 2.0_dp, &
+      REAL(KIND=dp), PARAMETER :: contract(*) = (/0.2, 0.4, 0.6, 0.8/), next = 2.0_dp, &
          step = 1.0_dp
 
       INTEGER                                            :: i, j
@@ -215,7 +214,7 @@ CONTAINS
       IF (PRESENT(epsabs)) THEN
          eps = epsabs
       ELSE IF (.NOT. PRESENT(epsrel)) THEN
-         eps = mineps
+         eps = MAX(r*t, t)
       ELSE
          eps = HUGE(eps)
       ENDIF
