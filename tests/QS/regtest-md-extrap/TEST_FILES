@@ -3,16 +3,16 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-extrap-1.inp                                           1      7e-08            -34.297439482884457
-extrap-2.inp                                           1      7e-08             -34.29743973262724
-extrap-3.inp                                           1      7e-08             -34.29743973259221
-extrap-4.inp                                           1      4e-06            -23.968203720587439
-extrap-5.inp                                           1      7e-08             -34.29743973259221
-extrap-6.inp                                           1      7e-08             -34.29743996643133
-extrap-7.inp                                           1      6e-07             -24.76643074460451
-extrap-8.inp                                           1      7e-08             -34.29743818524954
-extrap-9.inp                                           1      7e-08            -34.297439690709957
-extrap-10.inp                                          1      7e-08             -34.29743973259221
+extrap-1.inp                                           1      7e-08             -34.29744582274516
+extrap-2.inp                                           1      7e-08             -34.29744607249130
+extrap-3.inp                                           1      7e-08             -34.29744607245628
+extrap-4.inp                                           1      4e-06             -34.29744607242424
+extrap-5.inp                                           1      7e-08             -34.29744607245628
+extrap-6.inp                                           1      7e-08             -34.29744630631845
+extrap-7.inp                                           1      6e-07             -24.76644712787590
+extrap-8.inp                                           1      7e-08             -34.29744452484488
+extrap-9.inp                                           1      7e-08             -34.29744603057314
+extrap-10.inp                                          1      7e-08             -34.29744607245628
 extrap-1-far.inp                                       1      4e-07            -34.037891375210037
 extrap-2-far.inp                                       1      4e-07            -34.037891355615457
 extrap-3-far.inp                                       1      4e-07             -34.03789135566709

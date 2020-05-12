@@ -5,7 +5,7 @@ c8_broy_gop.inp                                        1      9e-07            -
 c8_broy_gapw.inp                                       1      2e-12            -41.317194609546730
 c8_broy_gapw_gop.inp                                   1       1E-6            -41.827392396518212
 # NLCC corrected pseudos with forces
-Ne_nlcc_md.inp                                         1      5e-14             -70.15254024271441
+Ne_nlcc_md.inp                                         1      5e-14             -70.15254024267080
 # diagonalization library
 c8_broy_elpa.inp                                       1      3e-12             -43.77621008751571
 # NLCC corrected pseudos with forces for GAPW

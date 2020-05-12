@@ -3,16 +3,16 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-h2o_ot_lwdn_on_the_fly_l1.inp                          1      5e-14             -17.13045715682445
-h2o_ot_poly_on_the_fly_l1.inp                          1      6e-14             -17.13045715682446
-o2_ot_lwdn_on_the_fly_l1.inp                           1      2e-13             -31.70815200227994
-o2_ot_poly_on_the_fly_l1.inp                           1      2e-13             -31.70815200227994
-h2o_ot_refine_3.inp                                    1      3e-14             -17.08884672062968
-h2o_ot_refine_4.inp                                    1      2e-14             -17.11857283462895
-o2_ot_refine_3.inp                                     1      5e-13             -31.60858514409655
-o2_ot_refine_4.inp                                     1      4e-14             -31.58768162890875
-h2o_ot_precond_1.inp                                   1      4e-14             -16.05766867320785
-h2o_ot_precond_2.inp                                   1      4e-14             -16.06790080245996
-h2o_ot_precond_3.inp                                   1      4e-14             -16.02559849774122
-h2o_ot_precond_4.inp                                   1      4e-14             -15.85782186381981
+h2o_ot_lwdn_on_the_fly_l1.inp                          1      5e-14             -17.13045715683608
+h2o_ot_poly_on_the_fly_l1.inp                          1      6e-14             -17.13045715683607
+o2_ot_lwdn_on_the_fly_l1.inp                           1      2e-13             -31.70815200232799
+o2_ot_poly_on_the_fly_l1.inp                           1      2e-13             -31.70815200232799
+h2o_ot_refine_3.inp                                    1      3e-14             -17.08884672065130
+h2o_ot_refine_4.inp                                    1      2e-14             -17.11857283464681
+o2_ot_refine_3.inp                                     1      5e-13             -31.60858514413263
+o2_ot_refine_4.inp                                     1      4e-14             -31.58768162895696
+h2o_ot_precond_1.inp                                   1      4e-14             -16.05766867328444
+h2o_ot_precond_2.inp                                   1      4e-14             -16.06790080253932
+h2o_ot_precond_3.inp                                   1      4e-14             -16.02559849782315
+h2o_ot_precond_4.inp                                   1      4e-14             -15.85782186390416
 #EOF

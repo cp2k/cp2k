@@ -3,7 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-ch4-ch4-gpw-vdw.inp                                   11      7e-14            -16.132333052093834
+ch4-ch4-gpw-vdw.inp                                   11      7e-14            -16.132333052131798
 #
 dftd2_t1.inp                                          33    1.0E-14              -0.00291071418172
 dftd2_t2.inp                                          33    1.0E-14              -0.00000858060151
@@ -14,5 +14,5 @@ dftd3_t2.inp                                          33    1.0E-14             
 dftd3_t3.inp                                          33    1.0E-14              -0.00021588485204
 #
 dftd3src1.inp                                         33    1.0E-14              -0.02610167828267
-dftd3src2.inp                                         33    1.0E-14              -0.01190472609911
+dftd3src2.inp                                         33    1.0E-14              -0.01190472610004
 #EOF

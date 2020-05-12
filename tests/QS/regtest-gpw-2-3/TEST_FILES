@@ -2,15 +2,15 @@ hcn_ts.inp                                             7      1e-09             
 hcn_ts_r.inp                                           7      1e-07                    0.084182408
 hcn_ts_kdimer.inp                                      7      1e-07                  -0.0006648450
 # dimer method with fixed atom constraints
-hcn_ts_fix_e.inp                                       7      2e-06                  -0.0641024915
+hcn_ts_fix_e.inp                                       7      2e-06                  -0.0641021810
 hcn_ts_fix_x.inp                                      63      1e-14                   1.2200000000
 hcn_ts_fix_y.inp                                      64      1e-14                  -0.0003000000
 hcn_ts_fix_z.inp                                      65      1e-14                   0.0000000000
 # chain of two coordination numbers
-hcn_md.inp                                             1      2e-14             -16.50121471893103
-hcn_meta_coord.inp                                     1      4e-14             -16.65113632018285
-hcn_meta_chaincoord.inp                                1      7e-14             -16.64019903523853
-hcn_meta_chaincoord_kind.inp                           1      1e-13             -16.64019903523853
+hcn_md.inp                                             1      2e-14             -16.50121471894496
+hcn_meta_coord.inp                                     1      4e-14             -16.65113632017928
+hcn_meta_chaincoord.inp                                1      7e-14             -16.64019903505817
+hcn_meta_chaincoord_kind.inp                           1      1e-13             -16.64019903505817
 # Population colvar
 H2O_meta_pop.inp                                       1      5e-08            -17.155197480118499
 # Metadynamics with langevin on COLVAR
@@ -21,5 +21,5 @@ Au13ico_mtd.inp                                        1      5e-13            -
 Au12_rmsd_AB_mtd.inp                                   1      3e-11            -397.79481882168199
 Au12_rmsd_A_mtd.inp                                    1      2e-11            -397.77606915975093
 # tpss new input
-H2O-tpss_lsd.inp                                       1      3e-13             -34.34058398102035
+H2O-tpss_lsd.inp                                       1      3e-13             -34.34058398103111
 #EOF

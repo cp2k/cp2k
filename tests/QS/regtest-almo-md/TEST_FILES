@@ -1,7 +1,7 @@
-almo-md-full-scf.inp                                  11     1.e-12           -136.705845206653748
-almo-md-full-x-then-scf.inp                           11     1.e-12           -136.986095053499298
-almo-md-no-aspc.inp                                   11     1.e-12           -136.473484271103160
-xalmo-scf-md.inp                                      11     1.e-12           -136.705599282831827
-almo-md.inp                                           11     1.e-12           -136.622582483306388
-almo-md-wannier.inp                                   11     1.e-12           -136.473478972490227
+almo-md-full-scf.inp                                  11     1.e-12           -136.705845207505689
+almo-md-full-x-then-scf.inp                           11     1.e-12           -136.986095053937902
+almo-md-no-aspc.inp                                   11     1.e-12           -136.473484272053895
+xalmo-scf-md.inp                                      11     1.e-12           -136.705599283690901
+almo-md.inp                                           11     1.e-12           -136.622582483934025
+almo-md-wannier.inp                                   11     1.e-12           -136.473478973486891
 #EOF
