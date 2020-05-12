@@ -36,7 +36,7 @@ DFLAGS     += -D__parallel -D__SCALAPACK
 DFLAGS     += -D__CHECK_DIAG
 
 FCFLAGS     = $(CFLAGS) $(DFLAGS)
-FCFLAGS    += -fpp -fp-model precise -free -funroll-loops
+FCFLAGS    += -fpp -free -funroll-loops
 FCFLAGS    += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw
 FCFLAGS    += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
 FCFLAGS    += -I$(LIBINT_INC) -I$(LIBXC_INC) -I$(LIBXSMM_INC)

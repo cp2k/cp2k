@@ -18,7 +18,7 @@ DFLAGS    = -D__FFTW3 -D__MKL -D__MPI_VERSION=3
 DFLAGS   += -D__parallel -D__SCALAPACK
 
 FCFLAGS   = $(CFLAGS) $(DFLAGS)
-FCFLAGS  += -fpp -fp-model precise -free -funroll-loops
+FCFLAGS  += -fpp -free -funroll-loops
 FCFLAGS  += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw
 
 LDFLAGS   = $(FCFLAGS) -static-intel -static_mpi
