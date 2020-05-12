@@ -8,7 +8,7 @@ H2O-5.inp                                              1      2e-14             
 # the added_MOs keyword
 H2O-6.inp                                              1      2e-14             -17.14603641577205
 # tests BFGS and LBFGS and CG
-H2-geo-1.inp                                           1      2e-11           -0.58531808504123
+H2-geo-1.inp                                           1      2e-11              -0.58531808504123
 H2-geo-2.inp                                           1      2e-14              -1.12365243716354
 H2-geo-3.inp                                           1      4e-14              -1.12364549811055
 H2-geo-4.inp                                           1      8e-13              -1.09108573598612
@@ -34,12 +34,12 @@ spin_restraint.inp                                     1      9e-11            -
 #New grouping colvar
 H2O-meta_g.inp                                         1      2e-14             -17.16168353865696
 #Colvar for hydronium
-H2O-meta_hydro.inp                                     1      1e-13             -77.65379785774977
+H2O-meta_hydro.inp                                     1      2e-11             -77.65379785773474
 #NPT ensemble with QS
 H2O-7.inp                                              1      3e-14             -17.14737299477697
 #test wavelet based poisson solver for different boundary conditions
-H2O_wavelet_free.inp                                   1      1e-13            -16.59417144640779
-H2O_wavelet_free2.inp                                  1      3e-14            -16.58217277103780
+H2O_wavelet_free.inp                                   1      1e-13             -16.59417144640779
+H2O_wavelet_free2.inp                                  1      3e-14             -16.58217277103780
 H2O_wavelet_XZ.inp                                     1      3e-14             -16.58705134774041
 #function to compute splined values - distributed grids
 NO2-EFG-1.inp                                         19      7e-09             0.2895206349779316
@@ -59,10 +59,10 @@ He3_multi_ddapc.inp                                    1      3e-09             
 N.inp                                                  1      2e-13              -9.66927782045851
 N_notfixedMM.inp                                       1      2e-13              -9.66080047890004
 #new diagonalization
-h2o-otdiag.inp                                         1      8e-13            -17.09951347027411
-h2o-diag.inp                                           1      6e-14            -16.10105776247043
+h2o-otdiag.inp                                         1      8e-13             -17.09951347027411
+h2o-diag.inp                                           1      6e-14             -16.10105776247043
 h2o-diag-sub.inp                                       1      6e-14             -17.10796281422084
-h2o-otdiag-lsd.inp                                     1      1E-13            -12.43939517336320
+h2o-otdiag-lsd.inp                                     1      1E-13             -12.43939517336320
 #external electrostatic field
 H2O-extpot.inp                                        11      2e-12            -17.140002715561561
 H-extpot.inp                                          11      1e-12              0.367583149161544
