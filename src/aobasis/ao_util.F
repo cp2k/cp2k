@@ -148,10 +148,13 @@ CONTAINS
 !> \param rlow Optional lower bound radius, e.g., when searching maximum radius
 !> \return Calculated radius of the Gaussian function
 !> \par Variables
-!>        - g      : The function g(r).
-!>        - itermax: Maximum number of iterations.
-!>        - contract: 0.62 - Golden Section Search (GSS)
-!>                    0.50 - original approach (Bisection)
+!>        - g       : function g(r)
+!>        - prec_exp: single/double precision exponential function
+!>        - itermax : Maximum number of iterations
+!>        - contract: Golden Section Search (GSS): [0.38, 0.62]
+!>                    Equidistant sampling: [0.20, 0.40, 0.60, 0.80]
+!>                    Bisection (original approach): [0.50]
+!>                    Array size may trigger vectorization
 ! **************************************************************************************************
    FUNCTION exp_radius(l, alpha, threshold, prefactor, epsabs, epsrel, rlow) RESULT(radius)
       INTEGER, INTENT(IN)                                :: l
@@ -161,14 +164,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_radius', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: itermax = 5000, prec_exp = sp
-      REAL(KIND=dp), PARAMETER :: contract = 0.5_dp, cocntrct = 1.0_dp - contract, &
-         mineps = EPSILON(0.0_dp)*(1.0E-12_dp/2.22044604925031E-16_dp), scale_next = 2.0_dp, &
+      REAL(KIND=dp), PARAMETER :: contract(*) = (/0.20, 0.40, 0.60, 0.80/), &
+         mineps = EPSILON(0.0_dp)*(1.0E-12_dp/2.22044604925031E-16_dp), next = 2.0_dp, &
          step = 1.0_dp
 
-      INTEGER                                            :: i
-      REAL(KIND=dp)                                      :: a, c, d, eps, g, r, rc, rd, t
-
-      CPASSERT(cocntrct .LE. contract)
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: a, d, eps, r, rd, t
+      REAL(KIND=dp), DIMENSION(SIZE(contract))           :: g, s
 
       IF (l .LT. 0) THEN
          CPABORT("The angular momentum quantum number is negative")
@@ -187,27 +189,27 @@ CONTAINS
       ENDIF
 
       radius = 0.0_dp
+      IF (PRESENT(rlow)) radius = rlow
       IF (prefactor .EQ. 0.0_dp) RETURN
 
-      ! facilitate early exit
-      radius = SQRT(0.5_dp*REAL(l, dp)/a)
-      IF (PRESENT(rlow)) radius = MAX(radius, rlow)
+      ! MAX: facilitate early exit
+      r = MAX(SQRT(0.5_dp*REAL(l, dp)/a), radius)
 
-      d = ABS(prefactor); g = d
+      d = ABS(prefactor); g(1) = d
       IF (l .NE. 0) THEN
-         g = g*EXP(REAL(-a*radius*radius, KIND=prec_exp))*radius**l
+         g(1) = g(1)*EXP(REAL(-a*r*r, KIND=prec_exp))*r**l
       END IF
-      IF (g .LT. t) THEN ! early exit
-         RETURN
-      ENDIF
+      ! original approach may return radius=0
+      ! with g(r) != g(radius)
+      !radius = r
+      IF (g(1) .LT. t) RETURN ! early exit
 
-      r = radius; radius = r*scale_next + step
+      radius = r*next + step
       DO i = 1, itermax
-         g = d*EXP(REAL(-a*radius*radius, KIND=prec_exp))*radius**l
-         IF (g .LT. t) EXIT
-         r = radius; radius = radius*scale_next + step
+         g(1) = d*EXP(REAL(-a*radius*radius, KIND=prec_exp))*radius**l
+         IF (g(1) .LT. t) EXIT
+         r = radius; radius = r*next + step
       ENDDO
-      CPASSERT((r .EQ. r) .AND. (radius .EQ. radius)) ! NaN
 
       ! consider absolute and relative accuracy (interval width)
       IF (PRESENT(epsabs)) THEN
@@ -219,21 +221,19 @@ CONTAINS
       ENDIF
       IF (PRESENT(epsrel)) eps = MIN(eps, epsrel*r)
 
-      c = contract
       DO i = i + 1, itermax
          rd = radius - r
-         IF (rd .LT. eps) RETURN ! finished contraction
-         rc = r + rd*c ! interval contraction
-         g = d*EXP(REAL(-a*rc*rc, KIND=prec_exp))*rc**l
-         ! orig. approach was exiting if g(r) < t OR rd < eps,
-         ! which likely never reached rd < eps
-         IF (g .LT. t) THEN
-            radius = rc ! interval [r, rc)
-            c = contract
-         ELSE
-            r = rc ! interval [rc, radius)
-            c = cocntrct
-         ENDIF
+         IF (rd .LT. eps) RETURN ! finished
+         s = r + rd*contract ! interval contraction
+         g = d*EXP(REAL(-a*s*s, KIND=prec_exp))*s**l
+         DO j = 1, SIZE(contract)
+            IF (g(j) .LT. t) THEN
+               radius = s(j) ! interval [r, sj)
+               EXIT
+            ELSE
+               r = s(j) ! interval [sj, radius)
+            ENDIF
+         ENDDO
       ENDDO
       IF (i .GE. itermax) THEN
          CPABORT("Maximum number of iterations reached")
