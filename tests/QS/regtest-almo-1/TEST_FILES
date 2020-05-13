@@ -1,8 +1,8 @@
-almo-x.inp                                            11      1e-11           -137.653122950466042
-almo-guess.inp                                        11      1e-11           -137.653042899732242
-almo-scf.inp                                          11      1e-11           -137.652214090101893
-almo-d.inp                                            11      9e-12            -85.963944795578215
-almo-fullx.inp                                        11      1e-12           -137.653899523844018
-almo-fullx-then-scf.inp                               11      1e-12           -137.653043394022006
-almo-then-wannier.inp                                 11      1e-12           -137.653091052205639
+almo-x.inp                                            11      1e-11           -137.653122944336531
+almo-guess.inp                                        11      1e-11           -137.653042893416284
+almo-scf.inp                                          11      1e-11           -137.652214083887657
+almo-d.inp                                            11      9e-12            -85.963944793676802
+almo-fullx.inp                                        11      1e-12           -137.653899517158095
+almo-fullx-then-scf.inp                               11      1e-12           -137.653043387277364
+almo-then-wannier.inp                                 11      1e-12           -137.653091045563713
 #EOF

@@ -1,19 +1,19 @@
-H2O-rks-diag.inp                                      24      1E-11               0.00810388136119
+H2O-rks-diag.inp                                      24      1E-11          0.0081038814259000000
 H2O-rks-otcg.inp                                      24      2e-07          0.0081042461219499994
-H2O-uks-diag.inp                                      24      3e-12               0.00708260998139
+H2O-uks-diag.inp                                      24      3e-12          0.0070826097691200000
 H2O-uks-otcg.inp                                      24      1e-07          0.0070825676291199997
-H2O-rks-diag-mulliken.inp                             24      2e-11               0.04016461178100
-H2O-rks-otcg-mulliken.inp                             24      9e-08           0.040161615018089999
-H2O-uks-diag-mulliken.inp                             24      5e-13               0.04340477283486
-H2O-uks-otcg-mulliken.inp                             24      2e-08           0.043408072784850003
-H2O-rks-diag-lowdin.inp                               24      1E-12               0.03063888607881
-H2O-rks-otcg-lowdin.inp                               24      1E-12               0.03063889566042
-H2O-uks-diag-lowdin.inp                               24      1E-12               0.03279091877125
-H2O-uks-otcg-lowdin.inp                               24      1e-08           0.032790998507939997
+H2O-rks-diag-mulliken.inp                             24      2e-11          0.0401646116479500000
+H2O-rks-otcg-mulliken.inp                             24      9e-08          0.0401616150180899990
+H2O-uks-diag-mulliken.inp                             24      5e-13          0.0434047728284000000
+H2O-uks-otcg-mulliken.inp                             24      2e-08          0.0434080727848500030
+H2O-rks-diag-lowdin.inp                               24      1E-12          0.0306388860861400000
+H2O-rks-otcg-lowdin.inp                               24      1E-12          0.0306388956677500000
+H2O-uks-diag-lowdin.inp                               24      1E-12          0.0327909187785700000
+H2O-uks-otcg-lowdin.inp                               24      1e-08          0.0327909985079399970
 # U ramping
-H2O-rks-u_ramping.inp                                 24      1e-06           0.040161578938120002
-H2O-uks-u_ramping.inp                                 24      3e-07           0.040166725912200003
+H2O-rks-u_ramping.inp                                 24      1e-06          0.0401615789381200020
+H2O-uks-u_ramping.inp                                 24      3e-07          0.0401667259122000030
 # U ramping with reset
-H2O-rks-u_ramping_reset.inp                           24      1e-06           0.040160303621210001
-H2O-uks-u_ramping_reset.inp                           24      3e-07           0.040165185327229999
+H2O-rks-u_ramping_reset.inp                           24      1e-06          0.0401603036212100010
+H2O-uks-u_ramping_reset.inp                           24      3e-07          0.0401651853272299990
 #EOF

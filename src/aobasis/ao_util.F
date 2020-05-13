@@ -94,7 +94,6 @@ MODULE ao_util
    ! *** Public subroutines ***
 
    PUBLIC :: exp_radius, &
-             exp_radius_base, &
              exp_radius_very_extended, &
              gauss_exponent, &
              gaussint_sph, &
@@ -136,73 +135,12 @@ CONTAINS
    END FUNCTION gauss_exponent
 
 ! **************************************************************************************************
-!> \brief  The radius of a primitive Gaussian function for a given threshold is calculated.
-!>         g(r) = prefactor*r**l*exp(-alpha*r**2) - threshold = 0
-!> \param l Angular momentum quantum number l.
-!> \param alpha Exponent of the primitive Gaussian function.
-!> \param threshold Determines if g(r) is accepted to be zero.
-!> \param prefactor Prefactor of the Gaussian function g(r).
-!> \param rlow Optional lower bound of interval with t <= g(rlow).
-!> \param maxiter Optional maximum number of iterations (HUGE if not present).
-!> \return Calculated radius of the Gaussian function such that g(r) < threshold.
-! **************************************************************************************************
-   FUNCTION exp_radius_base(l, alpha, threshold, prefactor, rlow, maxiter) RESULT(radius)
-      INTEGER, INTENT(IN)                                :: l
-      REAL(KIND=dp), INTENT(IN)                          :: alpha, threshold, prefactor
-      REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: rlow
-      INTEGER, INTENT(INOUT), OPTIONAL                   :: maxiter
-      REAL(KIND=dp)                                      :: radius
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'exp_radius_base', &
-         routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: prec_exp = sp
-      REAL(KIND=dp), PARAMETER                           :: scale_next = 2.0_dp, step = 1.0_dp
-
-      INTEGER                                            :: i, n
-      REAL(KIND=dp)                                      :: a, d, g, r, t
-
-      t = ABS(threshold)
-      d = ABS(prefactor)
-      a = ABS(alpha)
-      r = SQRT(0.5_dp*REAL(l, dp)/a)
-
-      ! facilitate early exit
-      IF (PRESENT(rlow)) r = MAX(r, rlow)
-
-      radius = r
-      g = d*EXP(REAL(-a*r*r, KIND=prec_exp))*r**l
-      IF (g .LT. t) THEN ! early exit
-         IF (PRESENT(maxiter)) maxiter = 0
-         IF (PRESENT(rlow)) rlow = r
-         RETURN
-      ENDIF
-
-      IF (PRESENT(maxiter)) THEN
-         n = maxiter
-      ELSE
-         n = HUGE(i)
-      ENDIF
-
-      radius = r*scale_next + step
-      DO i = 1, n
-         g = d*EXP(REAL(-a*radius*radius, KIND=prec_exp))*radius**l
-         IF (g .LT. t) EXIT
-         r = radius; radius = radius*scale_next + step
-      ENDDO
-
-      IF (PRESENT(maxiter)) maxiter = i
-      IF (PRESENT(rlow)) rlow = r
-      CPASSERT(radius .EQ. radius) ! NaN
-
-   END FUNCTION exp_radius_base
-
-! **************************************************************************************************
 !> \brief  The radius of a primitive Gaussian function for a given threshold
 !>         is calculated.
 !>               g(r) = prefactor*r**l*exp(-alpha*r**2) - threshold = 0
 !> \param l Angular momentum quantum number l.
 !> \param alpha Exponent of the primitive Gaussian function.
-!> \param threshold Threshold for radius.
+!> \param threshold Threshold for function g(r).
 !> \param prefactor Prefactor of the Gaussian function (e.g. a contraction
 !>                     coefficient).
 !> \param epsabs Absolute tolerance (radius)
@@ -210,10 +148,13 @@ CONTAINS
 !> \param rlow Optional lower bound radius, e.g., when searching maximum radius
 !> \return Calculated radius of the Gaussian function
 !> \par Variables
-!>        - g      : The function g(r).
-!>        - itermax: Maximum number of iterations.
-!>        - contract: 0.62 - Golden Section Search (GSS)
-!>                    0.50 - original approach (Bisection)
+!>        - g       : function g(r)
+!>        - prec_exp: single/double precision exponential function
+!>        - itermax : Maximum number of iterations
+!>        - contract: Golden Section Search (GSS): [0.38, 0.62]
+!>                    Equidistant sampling: [0.2, 0.4, 0.6, 0.8]
+!>                    Bisection (original approach): [0.5]
+!>                    Array size may trigger vectorization
 ! **************************************************************************************************
    FUNCTION exp_radius(l, alpha, threshold, prefactor, epsabs, epsrel, rlow) RESULT(radius)
       INTEGER, INTENT(IN)                                :: l
@@ -223,13 +164,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_radius', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: itermax = 5000, prec_exp = sp
-      REAL(KIND=dp), PARAMETER :: contract = 0.5_dp, cocntrct = 1.0_dp - contract, &
-         mineps = EPSILON(0.0_dp)*(1.0E-12_dp/2.22044604925031E-16_dp)
+      REAL(KIND=dp), PARAMETER                           :: contract(*) = (/0.38, 0.62/), &
+                                                            mineps = 1.0E-12, next = 2.0, &
+                                                            step = 1.0
 
-      INTEGER                                            :: iter, iterexit
-      REAL(KIND=dp)                                      :: a, c, d, eps, g, r0, r1, rd, t
-
-      CPASSERT(cocntrct .LE. contract)
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: a, d, dr, eps, r, rd, t
+      REAL(KIND=dp), DIMENSION(SIZE(contract))           :: g, s
 
       IF (l .LT. 0) THEN
          CPABORT("The angular momentum quantum number is negative")
@@ -247,17 +188,28 @@ CONTAINS
          CPABORT("The requested threshold is zero")
       ENDIF
 
-      d = ABS(prefactor)
-      iter = itermax
-      r0 = 0.0_dp
+      radius = 0.0_dp
+      IF (PRESENT(rlow)) radius = rlow
+      IF (prefactor .EQ. 0.0_dp) RETURN
 
-      ! facilitate early exit
-      IF (PRESENT(rlow)) r0 = MAX(r0, rlow)
+      ! MAX: facilitate early exit
+      r = MAX(SQRT(0.5_dp*REAL(l, dp)/a), radius)
 
-      ! data-dependent iterations are only in exp_radius_base
-      r1 = exp_radius_base(l, a, t, d, rlow=r0, maxiter=iter)
-      CPASSERT(r1 .EQ. r1) ! NaN
-      radius = r1
+      d = ABS(prefactor); g(1) = d
+      IF (l .NE. 0) THEN
+         g(1) = g(1)*EXP(REAL(-a*r*r, KIND=prec_exp))*r**l
+      END IF
+      ! original approach may return radius=0
+      ! with g(r) != g(radius)
+      !radius = r
+      IF (g(1) .LT. t) RETURN ! early exit
+
+      radius = r*next + step
+      DO i = 1, itermax
+         g(1) = d*EXP(REAL(-a*radius*radius, KIND=prec_exp))*radius**l
+         IF (g(1) .LT. t) EXIT
+         r = radius; radius = r*next + step
+      ENDDO
 
       ! consider absolute and relative accuracy (interval width)
       IF (PRESENT(epsabs)) THEN
@@ -267,31 +219,28 @@ CONTAINS
       ELSE
          eps = HUGE(eps)
       ENDIF
-      IF (PRESENT(epsrel)) eps = MIN(eps, epsrel*r0)
+      IF (PRESENT(epsrel)) eps = MIN(eps, epsrel*r)
 
-      rd = r1 - r0; c = contract
-      iterexit = 0 ! enable contraction != 0.5
-      DO iter = iter, itermax
-         IF (rd .LT. eps) EXIT ! finished contraction
-         radius = r0 + rd*c ! interval contraction
-         g = d*EXP(REAL(-a*radius*radius, KIND=prec_exp))*radius**l
-         ! orig. approach was exiting if g(r) < t OR rd < eps,
-         ! which likely never reached rd < eps
-         IF (g .LT. t) THEN
-            IF (0 .LT. iterexit) RETURN
-            r1 = radius ! interval [r0, radius)
-            c = contract
-         ELSE
-            IF (contract .NE. cocntrct) iterexit = iterexit + 1
-            r0 = radius ! interval [radius, r1)
-            c = cocntrct
-         ENDIF
-         rd = r1 - r0
+      dr = 0.0_dp
+      DO i = i + 1, itermax
+         rd = radius - r
+         ! check if finished or no further progress
+         IF ((rd .LT. eps) .OR. (rd .EQ. dr)) RETURN
+         s = r + rd*contract ! interval contraction
+         g = d*EXP(REAL(-a*s*s, KIND=prec_exp))*s**l
+         DO j = 1, SIZE(contract)
+            IF (g(j) .LT. t) THEN
+               radius = s(j) ! interval [r, sj)
+               EXIT
+            ELSE
+               r = s(j) ! interval [sj, radius)
+            ENDIF
+         ENDDO
+         dr = rd
       ENDDO
-      IF (iter .EQ. itermax) THEN
+      IF (i .GE. itermax) THEN
          CPABORT("Maximum number of iterations reached")
       ENDIF
-      radius = r1
 
    END FUNCTION exp_radius
 

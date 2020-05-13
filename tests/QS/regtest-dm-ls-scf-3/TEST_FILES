@@ -5,12 +5,12 @@ H2_curvy-1.inp                                        11      1e-13            -
 H2_curvy-2.inp                                        11      2e-13            -27.808687287777051
 H2_curvy-3.inp                                        11      1e-13            -27.808687287777047
 H2O-chebyshev-01.inp                                  11      1e-14            -32.574187281046839
-H2O-ewindow-01.inp                                    11      2e-13            -17.178459065017723
-H2O-dft-ecube.inp                                     11      1e-13               -51.496123150109
+H2O-ewindow-01.inp                                    11      2e-13            -17.178459065026125
+H2O-dft-ecube.inp                                     11      1e-13            -51.496123149381503
 H2O-dipole.inp                                        39    1.0E-14            0.48621122999999999
-H2O-restart-write.inp                                 11      1e-13               -51.496123150109
-H2O-restart-read.inp                                  11      3e-13            -51.496123419141597
-H2O-restart-read-curvy.inp                            11      2e-13            -51.496124074418276
+H2O-restart-write.inp                                 11      1e-13            -51.496123149381503
+H2O-restart-read.inp                                  11      3e-13            -51.496123418414186
+H2O-restart-read-curvy.inp                            11      2e-13            -51.496124073690879
 H2O-curvy-prop.inp                                    11      1e-13            -17.163926787927892
 H2O-dftb-tc2-1.inp                                    11      1e-10            -65.156509353902877
 H2O-dftb-tc2-2.inp                                    11      1e-13            -65.156509348964946

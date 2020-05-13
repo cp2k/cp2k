@@ -4,9 +4,9 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # tests simmetry breaking in initialization for spin polarized systems
-cu2cl6_m1_std.inp                                      1      2e-11            -183.77482833875405
-cu2cl6_m3_std.inp                                      1      8e-11            -169.43148337857346
+cu2cl6_m1_std.inp                                      1      2e-11            -183.77482833928417
+cu2cl6_m3_std.inp                                      1      8e-11            -169.43148332807669
 cu2cl6_m1_clp6cud9.inp                                 1      5e-13            -183.98920658853234
-cu2cl6_m3_clp6cud9.inp                                 1      2e-10            -183.76051965991530
+cu2cl6_m3_clp6cud9.inp                                 1      5e-13            -183.76051965979829
 o2.inp                                                 1      5e-13             -31.67129696553070
 #EOF
