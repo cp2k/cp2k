@@ -140,7 +140,7 @@ CONTAINS
 !>               g(r) = prefactor*r**l*exp(-alpha*r**2) - threshold = 0
 !> \param l Angular momentum quantum number l.
 !> \param alpha Exponent of the primitive Gaussian function.
-!> \param threshold Threshold for radius.
+!> \param threshold Threshold for function g(r).
 !> \param prefactor Prefactor of the Gaussian function (e.g. a contraction
 !>                     coefficient).
 !> \param epsabs Absolute tolerance (radius)
@@ -164,11 +164,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_radius', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: itermax = 5000, prec_exp = sp
-      REAL(KIND=dp), PARAMETER :: contract(*) = (/0.2, 0.4, 0.6, 0.8/), next = 2.0_dp, &
-         step = 1.0_dp
+      REAL(KIND=dp), PARAMETER                           :: contract(*) = (/0.38, 0.62/), &
+                                                            mineps = 1.0E-03, next = 2.0_dp, &
+                                                            step = 1.0_dp
 
       INTEGER                                            :: i, j
-      REAL(KIND=dp)                                      :: a, d, eps, r, rd, t
+      REAL(KIND=dp)                                      :: a, d, dr, eps, r, rd, t
       REAL(KIND=dp), DIMENSION(SIZE(contract))           :: g, s
 
       IF (l .LT. 0) THEN
@@ -214,15 +215,17 @@ CONTAINS
       IF (PRESENT(epsabs)) THEN
          eps = epsabs
       ELSE IF (.NOT. PRESENT(epsrel)) THEN
-         eps = MAX(r*t, t)
+         eps = MAX(mineps, r*t)
       ELSE
          eps = HUGE(eps)
       ENDIF
       IF (PRESENT(epsrel)) eps = MIN(eps, epsrel*r)
 
+      dr = 0.0_dp
       DO i = i + 1, itermax
          rd = radius - r
-         IF (rd .LT. eps) RETURN ! finished
+         ! check if finished or no further progress
+         IF ((rd .LT. eps) .OR. (rd .EQ. dr)) RETURN
          s = r + rd*contract ! interval contraction
          g = d*EXP(REAL(-a*s*s, KIND=prec_exp))*s**l
          DO j = 1, SIZE(contract)
@@ -233,6 +236,7 @@ CONTAINS
                r = s(j) ! interval [sj, radius)
             ENDIF
          ENDDO
+         dr = rd
       ENDDO
       IF (i .GE. itermax) THEN
          CPABORT("Maximum number of iterations reached")
