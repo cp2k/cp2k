@@ -6,7 +6,7 @@
 #Periodic calculation
 crys_per_qmmm.inp                                      1      7e-12          -0.08375440741138
 crys_per_qmmm_anal.inp                                 1      4e-11          -0.03306937253896
-crys_per_qmmm_spln.inp                                 1      3e-11          -0.03306936689191
+crys_per_qmmm_spln.inp                                 1      4e-11          -0.03306936689191
 # none calculation + periodic -> switch off periodic
 crys_per_qmmm_none.inp                                 1      7e-12          -0.08375440741161
 # check zero of the potential for charged QM systems
