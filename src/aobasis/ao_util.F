@@ -165,8 +165,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_radius', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: itermax = 5000, prec_exp = sp
       REAL(KIND=dp), PARAMETER                           :: contract(*) = (/0.38, 0.62/), &
-                                                            mineps = 1.0E-03, next = 2.0_dp, &
-                                                            step = 1.0_dp
+                                                            mineps = 1.0E-12, next = 2.0, &
+                                                            step = 1.0
 
       INTEGER                                            :: i, j
       REAL(KIND=dp)                                      :: a, d, dr, eps, r, rd, t
@@ -215,7 +215,7 @@ CONTAINS
       IF (PRESENT(epsabs)) THEN
          eps = epsabs
       ELSE IF (.NOT. PRESENT(epsrel)) THEN
-         eps = MAX(mineps, r*t)
+         eps = mineps
       ELSE
          eps = HUGE(eps)
       ENDIF
