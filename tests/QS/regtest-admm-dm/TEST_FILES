@@ -1,11 +1,11 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-CH3-BP-McWeeny.inp                                     1      2e-13              -7.36936245523513
-CH3-BP-NONE_DM.inp                                     1      5e-13              -7.36784986947910
-CH3-BP-NONE_DM_OT_OFF.inp                              1    5.0E-14              -7.39804787149013
-CH4-BP-NONE_DM.inp                                     1      2e-13              -8.07630758919301
-CH4-BP-NONE_DM_OT_OFF.inp                              1      5e-14              -8.07712135363679
-2H2O-BLOCKED-NONE_DM.inp                               1      3e-14            -34.07703448824965
+CH3-BP-McWeeny.inp                                     1      2e-13              -7.36936245524869
+CH3-BP-NONE_DM.inp                                     1      5e-13              -7.36784986949224
+CH3-BP-NONE_DM_OT_OFF.inp                              1    5.0E-14            -7.3980478715044704
+CH4-BP-NONE_DM.inp                                     1      2e-13              -8.07630758920049
+CH4-BP-NONE_DM_OT_OFF.inp                              1      5e-14              -8.07712135364430
+2H2O-BLOCKED-NONE_DM.inp                               1      3e-14            -34.077034488245907
 H2+-BLOCKED-NONE_DM.inp                                1      3e-13           -0.45795647554813002
 #EOF

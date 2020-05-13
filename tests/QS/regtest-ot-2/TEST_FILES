@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # some tests of restricted
-N3-1.inp                                               1      1e-13             -29.59821176168689
+N3-1.inp                                               1      1e-13             -29.59821176173586
 N3-2.inp                                               1      1e-11            -29.659321253359352
 # some tests of SIC needs restarting from N3-1 for stability
 # teo: no need anymore due to the new way of handling the restart
@@ -16,22 +16,22 @@ N3-6.inp                                               1      2e-10            -
 N3-7.inp                                               1      4e-11             -29.34245996481164
 N3-8.inp                                               1      1e-11             -27.49588880558365
 N3-9.inp                                               1      8e-07            -29.518552099878299
-N3-10.inp                                              1      1E-12             -29.76885496566072
+N3-10.inp                                              1      1E-12             -29.76885496572609
 # further sics
-H2O-sic-ad-1.inp                                       1      6e-14             -16.09479367270865
-H2O-sic-ad-2.inp                                       1      4e-14             -16.19211475612787
+H2O-sic-ad-1.inp                                       1      6e-14             -16.09479367270069
+H2O-sic-ad-2.inp                                       1      4e-14             -16.19211475612121
 # running H LSD
 H-1.inp                                                1      1e-13               -0.4874782292714
 H-2.inp                                                1      8e-14           -0.48747588716604001
 # elec_conf
-H2O-1.inp                                              1      5e-14             -15.42239209735490
+H2O-1.inp                                              1      5e-14             -15.42239209734336
 # outer scf with FULL_ALL
-H2O.inp                                                1      3e-13             -17.16150637178895
+H2O.inp                                                1      3e-13             -17.16150637178126
 # different parallel distributions
-H2O-dist-1.inp                                         1    5.0E-14             -34.28553811389045
-H2O-dist-2.inp                                         1    5.0E-14             -34.28553811389045
-H2O-dist-3.inp                                         1    5.0E-14             -34.28553811389045
-H2O-dist-4.inp                                         1    5.0E-14             -34.28553811389045
+H2O-dist-1.inp                                         1    5.0E-14             -34.28553811387586
+H2O-dist-2.inp                                         1    5.0E-14             -34.28553811387586
+H2O-dist-3.inp                                         1    5.0E-14             -34.28553811387586
+H2O-dist-4.inp                                         1    5.0E-14             -34.28553811387586
 H2O-dist-8.inp                                         1      8e-14             -33.47012389900128
 H2_trip.inp                                            1      2e-12              -0.71619563505473
 C-sic-1.inp                                            1      5e-13              -5.25260234791279
@@ -40,12 +40,12 @@ C-sic-2.inp                                            1      1e-13             
 C_ot.inp                                               1      1e-13              -5.33746454516253
 # use of the fermi distribution
 C_fermi.inp                                            1      1e-13              -5.34109284627944
-Al_fermi.inp                                           1      5e-14              -8.17296838758775
+Al_fermi.inp                                           1      5e-14            -8.1729683875061294
 # go through planned FFTs, but don't check results, they will depend on the selected plan
 H2O-plan-2.inp                                         0
 H2O-plan-3.inp                                         0
 #broyden minimization
-H2O-broy.inp                                           1    5.0E-14             -15.92280592862751
+H2O-broy.inp                                           1    5.0E-14             -15.92280592861541
 #BASIC_SPATIAL_DISTRIBUTION test
 H2O-dist-17.inp                                        1      8e-14             -33.47012389900128
 #EOF
