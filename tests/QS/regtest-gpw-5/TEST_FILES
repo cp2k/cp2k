@@ -4,27 +4,27 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # mixing procedures nr. 1
-si8_pmix.inp                                           1      7e-14            -31.292343006469419
-si8_kerker.inp                                         1      1e-13            -31.152242948509159
-si8_pulay.inp                                          1      1e-13            -31.160585460161109
-si8_broy.inp                                           1      7e-14            -31.148630076168342
-si8_pulay_md.inp                                       1      2e-14             -31.16148751725105
-si8_pulay_skip.inp                                     1      5e-14            -31.161454050888501
+si8_pmix.inp                                           1      7e-14            -31.29234300650718
+si8_kerker.inp                                         1      1e-13            -31.15224294859119
+si8_pulay.inp                                          1      1e-13            -31.16058546019718
+si8_broy.inp                                           1      7e-14            -31.14863007620936
+si8_pulay_md.inp                                       1      2e-14            -31.16148751713639
+si8_pulay_skip.inp                                     1      5e-14            -31.16145405092692
 # cholesky methods
-si8_pulay_reduce.inp                                   1      1e-13            -31.160585460160672
-si8_pulay_restore.inp                                  1      1e-13            -31.160585460161009
-si8_pulay_inverse.inp                                  1      1e-13            -31.160585460160981
-si8_pulay_inv_dbcsr.inp                                1      3e-13             -31.16058546015924
-si8_pulay_off.inp                                      1      5e-13             -33.01431207828869
+si8_pulay_reduce.inp                                   1      1e-13            -31.16058546019707
+si8_pulay_restore.inp                                  1      1e-13            -31.16058546019718
+si8_pulay_inverse.inp                                  1      1e-13            -31.16058546019690
+si8_pulay_inv_dbcsr.inp                                1      3e-13            -31.16058546019509
+si8_pulay_off.inp                                      1      5e-13            -33.01431207828869
 #
-si8_pmix_nosmear_mocubes.inp                           1      5e-13             -31.18760296982239
-si8_pulay_mocubes.inp                                  1      5e-13             -31.16058546016065
+si8_pmix_nosmear_mocubes.inp                           1      5e-13            -31.18760296986724
+si8_pulay_mocubes.inp                                  1      5e-13            -31.16058546019718
 #
-si7c_kerker_test4.inp                                  1      5e-13             -32.89092890918074
-si7c_kerker_test4_nopmix.inp                           1      5e-13             -32.96309487108195
-si7c_pulay_gapw.inp                                    1      5e-13             -32.83710556023730
-si7c_broy_gapw.inp                                     1      5e-13             -32.76991775855248
-si7c_broy_gapw_a04_atomic.inp                          1      5e-13             -32.83664474205771
-si7c_broy_gapw_a04_restart.inp                         1      5e-13             -32.70494373736445
-si7c_broy_gapw_a04_nopmix.inp                          1      5e-13             -32.84202168871438
+si7c_kerker_test4.inp                                  1      5e-13            -32.89092890929145
+si7c_kerker_test4_nopmix.inp                           1      5e-13            -32.96309487122836
+si7c_pulay_gapw.inp                                    1      5e-13            -32.83710556026517
+si7c_broy_gapw.inp                                     1      5e-13            -32.76991775845813
+si7c_broy_gapw_a04_atomic.inp                          1      5e-13            -32.83664474208422
+si7c_broy_gapw_a04_restart.inp                         1      5e-13            -32.70494373739007
+si7c_broy_gapw_a04_nopmix.inp                          1      5e-13            -32.84202168873963
 #EOF

@@ -3,8 +3,8 @@
 # see regtest/TEST_FILES
 # These test would crash in ELPA diagonalization with mpiranks={5,7,8,9,..} if
 # the matrix that is diagonalized is not redistributed to a smaller number of MPI tasks
-H2O-elpa-redistribute.inp                             11      2e-14            -16.973327967225579
+H2O-elpa-redistribute.inp                             11      2e-14            -16.973327966484170
 # Force redistribution onto 2 MPI processes (instead of 6 with 8 MPI tasks in this system)
 # This leads to slower diagonalization at least with the default heuristics
-H2O-elpa-redistribute-forced.inp                      11      2e-14            -16.973327967225579
+H2O-elpa-redistribute-forced.inp                      11      2e-14            -16.973327966484170
 #EOF

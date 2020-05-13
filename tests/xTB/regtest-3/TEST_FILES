@@ -4,10 +4,10 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 NdF3.inp                                   1    1.0E-12             -16.30904020314352
-h2o_rtp.inp                                1    1.0E-12              -5.76549019125162
-h2o_emd.inp                                1    1.0E-12              -5.76683221361977
-si8_wan.inp                                1    1.0E-12             -14.36403406798006
-si_kp.inp                                  1    1.0E-12             -14.75266668089111
+h2o_rtp.inp                                1    1.0E-12              -5.76549019124211
+h2o_emd.inp                                1    1.0E-12              -5.76683221354591
+si8_wan.inp                                1    1.0E-12             -14.36403406802528
+si_kp.inp                                  1    1.0E-12             -14.75266668155253
 tmol.inp                                   1    1.0E-12             -41.90853885813247
 ch2o.inp                                   1    1.0E-12              -7.84456570305608
 ch2o_print.inp                             1    1.0E-12              -7.84456570305608
@@ -15,9 +15,9 @@ ch2o_cube.inp                              1    1.0E-12              -7.84456570
 ch2o_dens.inp                              1    1.0E-12              -7.84456570305607
 ch2o_loc.inp                               1    1.0E-12             -13.55045387785839
 ch2o_mos.inp                               1    1.0E-12              -7.84456570305607
-si_print.inp                               1    1.0E-12             -14.75266668089325
-si_band.inp                                1    1.0E-12             -14.75266668089325
-H2O-geo-pdos.inp                           1    1.0E-12              -5.76984102059289
+si_print.inp                               1    1.0E-12             -14.75266668154365
+si_band.inp                                1    1.0E-12             -14.75266668154365
+H2O-geo-pdos.inp                           1    1.0E-12              -5.76984102056605
 graphite-stm.inp                           1    1.0E-12              -7.91352193418221
-si_dos.inp                                 1    1.0E-12             -14.75266668089111
+si_dos.inp                                 1    1.0E-12             -14.75266668154365
 #EOF

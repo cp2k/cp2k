@@ -11,12 +11,12 @@ dftd3_t12.inp                                         33    1.0E-14             
 dftd3_t13.inp                                         33    1.0E-14              -0.00045037056834
 dftd3_t14.inp                                         33    1.0E-14              -0.00022349123009
 #
-argon-vdW-DF1.inp                                      1      3e-13             -85.04054534686564
-argon-vdW-DF2.inp                                      1      2e-13             -85.20254545249301
-argon-vdW-DF-cx.inp                                    1      2e-13             -84.54205188160201
-argon-vdW-DF1-C09.inp                                  1      9e-14             -84.50117957597702
-argon-vdW-DF-optB88.inp                                1      2e-13             -84.83650261171786
-argon-vdW-DF-optPBE.inp                                1      2e-13             -84.83934531950288
-argon-vdW-DF2-b86r.inp                                 1      2e-13             -84.62927314670310
+argon-vdW-DF1.inp                                      1      3e-13             -85.04054534692069
+argon-vdW-DF2.inp                                      1      2e-13             -85.20254545254821
+argon-vdW-DF-cx.inp                                    1      2e-13             -84.54205188165714
+argon-vdW-DF1-C09.inp                                  1      9e-14             -84.50117957603226
+argon-vdW-DF-optB88.inp                                1      2e-13             -84.83650261177308
+argon-vdW-DF-optPBE.inp                                1      2e-13             -84.83934531955803
+argon-vdW-DF2-b86r.inp                                 1      2e-13             -84.62927314675835
 argon-vdW-DF-cx0p.inp                                  1      2e-13             -42.30331559084088
 #EOF

@@ -3,7 +3,7 @@ almo-no-deloc.inp                                     11      9e-12           -1
 s-almo-no-deloc.inp                                   11       2e-5           -376.101195076451177
 s-almo-no-deloc-odd-ne.inp                            11       2e-5           -115.255611348790495
 FH-chain.inp                                          11      3e-10            -98.108319997143496
-ion-pair.inp                                          11      1e-13           -115.006279649267199
+ion-pair.inp                                          11      1e-13           -115.006279639496825
 LiF.inp                                               11      3e-12           -127.539319485641016
 zero-electron-frag.inp                                11      1e-08            -98.728605260047331
 matrix-iterate.inp                                    11      1e-09           -127.379124535900814

@@ -11,58 +11,58 @@ He2H-.inp                                              1      3e-08           -0
 H+-bloechl.inp                                         1      6e-11           0.018423285333850001
 He2H-bloechl-md.inp                                    1      2e-05           -0.53855807719486004
 He2H-bloechl.inp                                       1      8e-12           -0.33998448719952001
-H2O-bloechl.inp                                        1      1e-13             -17.15579833538235
-H2O-bloechl-Spl.inp                                    1      4e-14            -17.155785426599749
-H2O-bloechl-restraint.inp                              1      3e-12             -17.14839328273856
+H2O-bloechl.inp                                        1      1e-13             -17.15579833528768
+H2O-bloechl-Spl.inp                                    1      4e-14             -17.15578542650509
+H2O-bloechl-restraint.inp                              1      3e-12             -17.14839328266115
 # S**2
 CN.inp                                                 4    1.0E-14                       0.751382
 # testing of distributed rs grids
-rsgrid-dist-1.inp                                      1      3e-11              -1.71460240870923
+rsgrid-dist-1.inp                                      1      3e-11              -1.71460241038275
 #BSSE
 2H2O_bsse.inp                                          5    1.0E-14                      -0.000221
 2H2O_bsse_r.inp                                        5    1.0E-14                      -0.000221
 # This file is created from the previous run..
 #H2O-1_3.restart    5
-3H2O_bsse.inp                                          5    1.0E-14                      -1.271091
-3H2O_bsse_multi_LIST.inp                               5    1.0E-14                      -1.271091
+3H2O_bsse.inp                                          5    1.0E-14                      -1.271011
+3H2O_bsse_multi_LIST.inp                               5    1.0E-14                      -1.271011
 OH-H2O-bsse.inp                                        5    1.0E-14                      -0.112213
 # Langevin dynamics
-H2O-langevin-1.inp                                     1    1.0E-14             -17.14549194477159
-H2O-langevin-2.inp                                     1    1.0E-14             -17.14566019283182
+H2O-langevin-1.inp                                     1    1.0E-14             -17.14549194468292
+H2O-langevin-2.inp                                     1    1.0E-14             -17.14566019286764
 #Ref grid
-H2O-ref-1.inp                                          1      2e-14            -17.140234553218249
-H2O-ref-2.inp                                          1      3e-14             -17.14023455852142
+H2O-ref-1.inp                                          1      2e-14             -17.14023455320299
+H2O-ref-2.inp                                          1      3e-14             -17.14023455845739
 # All-to-all single communication in parallel runs
 H2O-ata.inp                                            1      2e-08             -17.14619639410385
 # Lowdin charges
 CN-lowdin.inp                                         41    1.0E-14                       1.000000
 # High-spin restricted open Kohn-Sham
-H-ROKS.inp                                             1      4e-14           -0.47437344090952999
+H-ROKS.inp                                             1      4e-14              -0.47437344093798
 N-ROKS.inp                                             1      2e-13              -9.72861898224368
-O2-ROKS.inp                                            1    1.0E-14             -31.86289250210089
+O2-ROKS.inp                                            1    1.0E-14             -31.86289250218324
 # Onsager Model
 H+solv1.inp                                            1      3e-12              -0.10460403923644
-H2O-solv.inp                                           1      3e-13             -14.76967241572270
-H2O-solv2.inp                                          1      3e-13             -14.76967241572270
+H2O-solv.inp                                           1      3e-13             -14.76967241543246
+H2O-solv2.inp                                          1      3e-13             -14.76967241543246
 #XC_FUN NONE
-H2O-xc_none.inp                                        1      5e-14             -13.34544335665420
+H2O-xc_none.inp                                        1      5e-14             -13.34544293762806
 # ghost atom dynamics
 dynamics.inp                                           1      8e-09             -15.53408184176079
 # RESP charges
 CH3OH.inp                                              0
 # distributed non-ortho grids
-rsgrid-dist-2.inp                                      1      3e-14             -17.15330028497962
+rsgrid-dist-2.inp                                      1      3e-14             -17.15330028606829
 # also write wavefunctions
 rsgrid-dist-3.inp                                      1      1e-13             -16.47649111001175
 # ghost atom dynamics at high cutoff highlights problems
 dynamics-2.inp                                         1      2e-13             -17.19699427513456
-ghost_overlap.inp                                      1      7e-14             -17.10554013166121
-ghost_overlap_vdw.inp                                  1      7e-14             -17.10561530236850
+ghost_overlap.inp                                      1      7e-14             -17.10554013359490
+ghost_overlap_vdw.inp                                  1      7e-14             -17.10561530430219
 # Population analyses
 NO2-mulliken.inp                                      41    1.0E-14                       1.000000
 NO2-lowdin.inp                                        41    1.0E-14                       1.000000
 # Test the new option relax_multiplicity
-O2-UKS-GPW-relax_multip.inp                            1    5.0E-14             -31.86509210046759
-H2O-UKS-GPW-relax_multip.inp                           1      1e-13             -17.15478069235402
-O2-UKS-OTdiag-relax_multip.inp                         1      5e-14            -31.865092095711109
+O2-UKS-GPW-relax_multip.inp                            1    5.0E-14             -31.86509210053504
+H2O-UKS-GPW-relax_multip.inp                           1      1e-13             -17.15478069242800
+O2-UKS-OTdiag-relax_multip.inp                         1      5e-14             -31.86509209577858
 #EOF

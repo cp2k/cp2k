@@ -2,6 +2,6 @@
 hellium-pbe-3A.inp                                     1    1.0e-10              -5.07324596212970
 hellium-pbe-4A.inp                                     1    1.0e-10              -4.96152027219956
 hellium-pbe-5A.inp                                     1    1.0e-10              -4.96149931118524
-ethylene-pbe-4A.inp                                    1    1.0e-10             -26.56120428551344
-furane-pbe-4A.inp                                      1    1.0e-10             -80.83277822270713
+ethylene-pbe-4A.inp                                    1    1.0e-10             -26.56120428945601
+furane-pbe-4A.inp                                      1    1.0e-10             -80.83277823390648
 #EOF

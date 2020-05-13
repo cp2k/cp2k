@@ -2,9 +2,9 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 #
-si128-elpa.inp                                        48      6e-12               0.24150048520189
-si128-elpa-qr.inp                                     48      6e-12               0.24150048520189
+si128-elpa.inp                                        48      6e-12               0.24150048519605
+si128-elpa-qr.inp                                     48      6e-12               0.24150048519605
 # Disable block size checks for ELPA versions 201605 and more recent
 # Potentially unsafe but not for this system with the allowed mpiranks
-si128-elpa-qr-unsafe.inp                              48      6e-12               0.24150048520189
+si128-elpa-qr-unsafe.inp                              48      6e-12               0.24150048519605
 #EOF
