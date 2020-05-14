@@ -4,11 +4,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Does all kind of post scf calculations for GPW/GAPW
+!> \brief Functions to print the KS and S matrix in the CSR format to file
 !> \par History
-!>      Started as a copy from the relevant part of qs_scf
-!>      Start to adapt for k-points [07.2015, JGH]
-!> \author Joost VandeVondele (10.2003)
+!>      Started as a copy from the relevant part of qs_scf_post_gpw
+!> \author Fabian Ducry (05.2020)
 ! **************************************************************************************************
 MODULE qs_scf_csr_write
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -54,6 +53,8 @@ CONTAINS
 !> \brief writing the KS matrix in csr format into a file
 !> \param qs_env qs environment
 !> \param input the input
+!> \par History
+!>       Moved to module qs_scf_csr_write (05.2020)
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
    SUBROUTINE write_ks_matrix_csr(qs_env, input)
@@ -104,6 +105,8 @@ CONTAINS
 !> \brief writing the overlap matrix in csr format into a file
 !> \param qs_env qs environment
 !> \param input the input
+!> \par History
+!>      Moved to module qs_scf_csr_write
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
    SUBROUTINE write_s_matrix_csr(qs_env, input)
@@ -157,6 +160,8 @@ CONTAINS
 !> \param matrix_to_print_kp Hamiltonian or overlap matrix for k-point calculations
 !> \param kpoints the kpoints
 !> \param prefix string to distinguish between KS and S matrix
+!> \par History
+!>       Moved most of the code from write_ks_matrix_csr and write_s_matrix_csr
 ! **************************************************************************************************
    SUBROUTINE write_matrix_csr(dft_section, matrix_to_print, matrix_to_print_kp, kpoints, prefix)
       TYPE(section_vals_type), INTENT(IN), POINTER       :: dft_section
@@ -206,7 +211,7 @@ CONTAINS
          fileformat = "FORMATTED"
       END IF
 
-      IF (ASSOCIATED(kpoints)) THEN
+      IF (PRESENT(kpoints)) THEN
          !  Calculate the Hamiltonian at the k-points
          NULLIFY (sab_nl)
          CALL get_kpoint_info(kpoints, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &

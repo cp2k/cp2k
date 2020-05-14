@@ -30,6 +30,18 @@
       &END
       ADDED_MOS 100
     &END SCF
+    &PRINT
+      &KS_CSR_WRITE
+        BINARY .TRUE.
+        UPPER_TRIANGULAR .TRUE.
+        THRESHOLD 1.0E-4
+      &END
+      &S_CSR_WRITE
+        BINARY .TRUE.
+        UPPER_TRIANGULAR .TRUE.
+        THRESHOLD 1.0E-4
+      &END
+    &END
   &END DFT
   &SUBSYS
     &TOPOLOGY
