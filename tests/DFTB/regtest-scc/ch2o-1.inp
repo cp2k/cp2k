@@ -28,6 +28,12 @@
       SCF_GUESS CORE
       MAX_SCF  20
     &END SCF
+    &PRINT
+      &KS_CSR_WRITE
+      &END
+      &S_CSR_WRITE
+      &END
+    &END
   &END DFT
   &SUBSYS
     &CELL

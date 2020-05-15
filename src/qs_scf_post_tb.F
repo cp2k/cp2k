@@ -125,6 +125,8 @@ MODULE qs_scf_post_tb
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_set,&
                                               qs_rho_type
+   USE qs_scf_csr_write,                ONLY: write_ks_matrix_csr,&
+                                              write_s_matrix_csr
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type
    USE qs_scf_wfn_mix,                  ONLY: wfn_mix
@@ -646,6 +648,9 @@ CONTAINS
             CPWARN("DFT+U method not implemented for TB methods.")
          END IF
       END IF
+
+      CALL write_ks_matrix_csr(qs_env, qs_env%input)
+      CALL write_s_matrix_csr(qs_env, qs_env%input)
 
       CALL timestop(handle)
 
