@@ -108,7 +108,9 @@ CONTAINS
          END IF
 
          ! Check for energy correction
-         CALL energy_correction(qs_env, ec_init=.TRUE., calculate_forces=.FALSE.)
+         IF (qs_env%energy_correction) THEN
+            CALL energy_correction(qs_env, ec_init=.TRUE., calculate_forces=.FALSE.)
+         END IF
 
          CALL qs_energies_properties(qs_env)
 

@@ -711,11 +711,22 @@ CONTAINS
             CPASSERT(.NOT. (gapw .OR. gapw_xc))
             CPASSERT(nimages == 1)
             ksmat => ks_matrix(:, 1)
+
+            IF (use_virial .AND. calculate_forces) THEN
+               pv_loc = virial%pv_virial
+            END IF
+
             CALL kg_ekin_subset(qs_env, ksmat, ekin_mol, calculate_forces, do_kernel=.FALSE.)
             ! subtract kg corr from the total energy
             energy%exc = energy%exc - ekin_mol
+
             ! virial corrections
             IF (use_virial .AND. calculate_forces) THEN
+
+               ! Integral contribution
+               virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
+
+               ! GGA contribution
                virial%pv_exc = virial%pv_exc + virial%pv_xc
                virial%pv_virial = virial%pv_virial + virial%pv_xc
                virial%pv_xc = 0.0_dp
