@@ -61,7 +61,6 @@ MODULE qs_linres_methods
                                               section_vals_type,&
                                               section_vals_val_get
    USE kg_correction,                   ONLY: kg_ekin_subset
-   USE kg_environment_types,            ONLY: kg_environment_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -115,7 +114,8 @@ MODULE qs_linres_methods
    ! *** Public subroutines ***
    PUBLIC :: linres_localize, linres_solver
    PUBLIC :: linres_write_restart, linres_read_restart
-   PUBLIC :: check_p_env_init
+   PUBLIC :: build_dm_response
+   PUBLIC :: p_env_check_i_alloc
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_methods'
 
@@ -251,6 +251,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: alpha, beta, tr_pAp, tr_rz0, tr_rz00, &
                                                             tr_rz1
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: Ap, chc, mo_coeff_array, p, r, Sc, z
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi_dbg
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -259,6 +260,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+
+! DEBUG
 
       CALL timeset(routineN, handle)
 
@@ -333,6 +336,19 @@ CONTAINS
          CALL cp_fm_get_info(mo_coeff, ncol_global=ncol)
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff, Sc(ispin)%matrix, ncol)
       ENDDO
+      !
+      ! DEBUG
+      ! fm matrix to store ps1 and apply projector
+      ALLOCATE (psi_dbg(nspins))
+      DO ispin = 1, nspins
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL cp_fm_get_info(mo_coeff, matrix_struct=tmp_fm_struct)
+         NULLIFY (psi_dbg(ispin)%matrix)
+         CALL cp_fm_create(psi_dbg(ispin)%matrix, tmp_fm_struct)
+         !CALL cp_fm_set_all(psi_dbg(ispin)%matrix, 0.0_dp)
+      ENDDO
+      ! DEBUG
+      !
       !
       !
       !
@@ -573,6 +589,7 @@ CONTAINS
       ! proj psi1
       CALL preortho(psi1, mo_coeff_array, Sc)
       !
+      !
       ! clean up
       DO ispin = 1, nspins
          CALL cp_fm_release(r(ispin)%matrix)
@@ -763,11 +780,10 @@ CONTAINS
 
       INTEGER                                            :: handle, nspins
       LOGICAL                                            :: gapw, gapw_xc, lr_triplet, lrigpw
-      REAL(KIND=dp)                                      :: alpha, ekin_mol
+      REAL(KIND=dp)                                      :: ekin_mol
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(qs_rho_type), POINTER                         :: rho1, rho1_xc
       TYPE(section_vals_type), POINTER                   :: input, xc_section
@@ -808,22 +824,14 @@ CONTAINS
       IF (dft_control%qs_control%do_kg .AND. .NOT. (lr_triplet .OR. gapw .OR. gapw_xc)) THEN
          IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
 
-            CALL qs_rho_get(rho1, rho_ao=rho1_ao)
-            IF (nspins == 2) THEN
-               alpha = 1.0_dp
-            ELSE
-               alpha = 2.0_dp
-            END IF
-
             ekin_mol = 0.0_dp
-            CALL get_qs_env(qs_env, kg_env=kg_env)
+            CALL qs_rho_get(rho1, rho_ao=rho1_ao)
             CALL kg_ekin_subset(qs_env=qs_env, &
                                 ks_matrix=p_env%kpp1, &
                                 ekin_mol=ekin_mol, &
                                 calc_force=.FALSE., &
                                 do_kernel=.TRUE., &
-                                pmat_ext=rho1_ao, &
-                                alpha=alpha)
+                                pmat_ext=rho1_ao)
          END IF
       END IF
 

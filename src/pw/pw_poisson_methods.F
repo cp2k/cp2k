@@ -231,12 +231,13 @@ CONTAINS
 !> \param h_stress ...
 !> \param rho_core ...
 !> \param greenfn ...
+!> \param aux_density Hartree energy and stress tensor between 2 different densities
 !> \par History
 !>      JGH (13-Mar-2001) : completely revised
 !> \author apsi
 ! **************************************************************************************************
    SUBROUTINE pw_poisson_solve(poisson_env, density, ehartree, vhartree, &
-                               dvhartree, h_stress, rho_core, greenfn)
+                               dvhartree, h_stress, rho_core, greenfn, aux_density)
 
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_type), POINTER                             :: density
@@ -246,7 +247,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h_stress
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_core
-      TYPE(pw_type), OPTIONAL, POINTER                   :: greenfn
+      TYPE(pw_type), OPTIONAL, POINTER                   :: greenfn, aux_density
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
 
@@ -255,11 +256,11 @@ CONTAINS
       LOGICAL                                            :: has_dielectric
       REAL(KIND=dp)                                      :: ffa
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_p_type)                                    :: dvg(3)
+      TYPE(pw_p_type)                                    :: dvg(3), dvg_aux(3)
       TYPE(pw_poisson_parameter_type), POINTER           :: poisson_params
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type), POINTER                             :: influence_fn, rhog, rhor, tmpg, &
-                                                            vhartree_rs
+      TYPE(pw_type), POINTER                             :: influence_fn, rhog, rhog_aux, rhor, &
+                                                            tmpg, vhartree_rs
 
       CALL timeset(routineN, handle)
 
@@ -281,6 +282,10 @@ CONTAINS
       ! density in G space
       NULLIFY (rhog)
       CALL pw_pool_create_pw(pw_pool, rhog, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      IF (PRESENT(aux_density)) THEN
+         NULLIFY (rhog_aux)
+         CALL pw_pool_create_pw(pw_pool, rhog_aux, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      END IF
 
       SELECT CASE (poisson_env%used_grid)
       CASE (use_gs_grid)
@@ -289,6 +294,9 @@ CONTAINS
          CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
 
             CALL pw_transfer(density, rhog)
+            IF (PRESENT(aux_density)) THEN
+               CALL pw_transfer(aux_density, rhog_aux)
+            END IF
             IF (PRESENT(ehartree) .AND. (.NOT. PRESENT(vhartree))) THEN
                CALL pw_pool_create_pw(pw_pool, tmpg, use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
@@ -300,10 +308,17 @@ CONTAINS
                influence_fn => poisson_env%green_fft%influence_fn
             END IF
             rhog%cc(:) = rhog%cc(:)*influence_fn%cc(:)
+            IF (PRESENT(aux_density)) THEN
+               rhog_aux%cc(:) = rhog_aux%cc(:)*influence_fn%cc(:)
+            END IF
             IF (PRESENT(vhartree)) THEN
                CALL pw_transfer(rhog, vhartree)
                IF (PRESENT(ehartree)) THEN
-                  ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
+                  IF (PRESENT(aux_density)) THEN
+                     ehartree = 0.5_dp*pw_integral_ab(aux_density, vhartree)
+                  ELSE
+                     ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
+                  END IF
                END IF
             ELSE IF (PRESENT(ehartree)) THEN
                ehartree = 0.5_dp*pw_integral_ab(rhog, tmpg)
@@ -400,6 +415,13 @@ CONTAINS
             n(i) = 1
             CALL pw_copy(rhog, dvg(i)%pw)
             CALL pw_derive(dvg(i)%pw, n)
+            IF (PRESENT(aux_density)) THEN
+               NULLIFY (dvg_aux(i)%pw)
+               CALL pw_pool_create_pw(pw_pool, dvg_aux(i)%pw, use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE)
+               CALL pw_copy(rhog_aux, dvg_aux(i)%pw)
+               CALL pw_derive(dvg_aux(i)%pw, n)
+            END IF
          END DO
          ! save the derivatives
          IF (PRESENT(dvhartree)) THEN
@@ -414,11 +436,19 @@ CONTAINS
             h_stress = 0.0_dp
             DO alpha = 1, 3
                h_stress(alpha, alpha) = ehartree
-               DO beta = alpha, 3
-                  h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                          + ffa*pw_integral_ab(dvg(alpha)%pw, dvg(beta)%pw)
-                  h_stress(beta, alpha) = h_stress(alpha, beta)
-               END DO
+               IF (PRESENT(aux_density)) THEN
+                  DO beta = alpha, 3
+                     h_stress(alpha, beta) = h_stress(alpha, beta) &
+                                             + ffa*pw_integral_ab(dvg_aux(alpha)%pw, dvg(beta)%pw)
+                     h_stress(beta, alpha) = h_stress(alpha, beta)
+                  END DO
+               ELSE
+                  DO beta = alpha, 3
+                     h_stress(alpha, beta) = h_stress(alpha, beta) &
+                                             + ffa*pw_integral_ab(dvg(alpha)%pw, dvg(beta)%pw)
+                     h_stress(beta, alpha) = h_stress(alpha, beta)
+                  END DO
+               END IF
             END DO
 
             ! Handle the periodicity cases for the Stress Tensor
@@ -481,10 +511,16 @@ CONTAINS
 
          DO i = 1, 3
             CALL pw_pool_give_back_pw(pw_pool, dvg(i)%pw)
+            IF (PRESENT(aux_density)) THEN
+               CALL pw_pool_give_back_pw(pw_pool, dvg_aux(i)%pw)
+            END IF
          END DO
 
       END IF
       CALL pw_pool_give_back_pw(pw_pool, rhog)
+      IF (PRESENT(aux_density)) THEN
+         CALL pw_pool_give_back_pw(pw_pool, rhog_aux)
+      END IF
 
       CALL timestop(handle)
 

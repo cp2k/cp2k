@@ -117,8 +117,8 @@ MODULE kg_environment_types
       !
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: tnadd_mat
       ! LRI
-      TYPE(lri_environment_type), POINTER             :: lri_env
-      TYPE(lri_density_type), POINTER                 :: lri_density
+      TYPE(lri_environment_type), POINTER             :: lri_env, lri_env1
+      TYPE(lri_density_type), POINTER                 :: lri_density, lri_rho1
       ! atomic grid
       TYPE(atom_integration_grid_type), POINTER       :: int_grid_atom
       TYPE(integration_grid_type), POINTER            :: int_grid_molecules
@@ -165,6 +165,12 @@ CONTAINS
       END IF
       IF (ASSOCIATED(kg_env%lri_density)) THEN
          CALL lri_density_release(kg_env%lri_density)
+      END IF
+      IF (ASSOCIATED(kg_env%lri_env1)) THEN
+         CALL lri_env_release(kg_env%lri_env1)
+      END IF
+      IF (ASSOCIATED(kg_env%lri_rho1)) THEN
+         CALL lri_density_release(kg_env%lri_rho1)
       END IF
       ! atom grids
       IF (ASSOCIATED(kg_env%int_grid_atom)) THEN

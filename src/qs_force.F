@@ -32,6 +32,7 @@ MODULE qs_force
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE dft_plus_u,                      ONLY: plus_u
+   USE ec_env_types,                    ONLY: energy_correction_type
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE energy_corrections,              ONLY: energy_correction
    USE input_constants,                 ONLY: do_admm_purify_none
@@ -137,7 +138,7 @@ CONTAINS
                                                             ispin, iw, natom, nkind, nspin, &
                                                             output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind
-      LOGICAL                                            :: has_unit_metric, omit_headers
+      LOGICAL                                            :: has_unit_metric, omit_headers, perform_ec
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
@@ -149,6 +150,7 @@ CONTAINS
                                                             rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(mo_set_type), POINTER                         :: mo_set
@@ -276,6 +278,13 @@ CONTAINS
          END DO
       ENDIF
 
+      ! Check if energy correction should be skipped
+      perform_ec = .FALSE.
+      IF (qs_env%energy_correction) THEN
+         CALL get_qs_env(qs_env, ec_env=ec_env)
+         IF (.NOT. ec_env%do_skip) perform_ec = .TRUE.
+      END IF
+
       ! Compute core forces (also overwrites matrix_w)
       IF (dft_control%qs_control%semi_empirical) THEN
          CALL build_se_core_matrix(qs_env=qs_env, para_env=para_env, &
@@ -289,8 +298,10 @@ CONTAINS
       ELSEIF (dft_control%qs_control%xtb) THEN
          CALL build_xtb_matrices(qs_env=qs_env, para_env=para_env, &
                                  calculate_forces=.TRUE.)
-         ! Dispersion energy and forces are calculated in qs_energy?
+      ELSEIF (perform_ec) THEN
+         CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)
       ELSE
+         ! Dispersion energy and forces are calculated in qs_energy?
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)
          CALL calculate_ecore_self(qs_env)
          CALL calculate_ecore_overlap(qs_env, para_env, calculate_forces=.TRUE.)
@@ -333,8 +344,7 @@ CONTAINS
          CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
          CALL qs_ks_update_qs_env(qs_env, just_energy=.TRUE.)
          energy%total = energy%total + energy%mp2
-      ELSE
-
+      ELSEIF (.NOT. perform_ec) THEN
          ! Compute grid-based forces
          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.)
       END IF
@@ -365,9 +375,6 @@ CONTAINS
          END DO
          CALL calc_mixed_overlap_force(qs_env)
       END IF
-
-      ! Energy_correction
-      CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)
 
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
          CALL update_mp2_forces(qs_env)
@@ -414,9 +421,20 @@ CONTAINS
              (.NOT. (dft_control%qs_control%dftb .OR. &
                      dft_control%qs_control%xtb .OR. &
                      dft_control%qs_control%semi_empirical))) THEN
+
+            ! Harris energy correction requires volume terms from
+            ! 1) Harris functional contribution, and
+            ! 2) Linear Response solver
+            IF (perform_ec) THEN
+               CALL get_qs_env(qs_env, ec_env=ec_env)
+               energy%hartree = ec_env%ehartree
+               energy%exc = ec_env%exc
+            END IF
             DO i = 1, 3
-               virial%pv_ehartree(i, i) = virial%pv_ehartree(i, i) - 2.0_dp*(energy%hartree + energy%sccs_pol)
-               virial%pv_virial(i, i) = virial%pv_virial(i, i) - energy%exc - 2.0_dp*(energy%hartree + energy%sccs_pol)
+               virial%pv_ehartree(i, i) = virial%pv_ehartree(i, i) &
+                                          - 2.0_dp*(energy%hartree + energy%sccs_pol)
+               virial%pv_virial(i, i) = virial%pv_virial(i, i) - energy%exc &
+                                        - 2.0_dp*(energy%hartree + energy%sccs_pol)
                virial%pv_exc(i, i) = virial%pv_exc(i, i) - energy%exc
                IF (dft_control%do_admm) THEN
                   virial%pv_exc(i, i) = virial%pv_exc(i, i) - energy%exc_aux_fit
