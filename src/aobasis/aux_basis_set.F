@@ -212,6 +212,8 @@ CONTAINS
       aux_basis%short_kind_radius = 0.0_dp
       ALLOCATE (aux_basis%set_radius(nsets))
       ALLOCATE (aux_basis%pgf_radius(maxpgf, nsets))
+      aux_basis%set_radius = 0.0_dp
+      aux_basis%pgf_radius = 0.0_dp
 
       ! basis transformation matrices
       ALLOCATE (aux_basis%cphi(maxco, ncgf))
