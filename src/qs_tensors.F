@@ -1757,6 +1757,10 @@ CONTAINS
          spherical_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int + 1)
 
          nbits = EXPONENT(ANINT(spherical_estimate/eps)) + 1
+         IF (nbits > 64) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Overflow during tensor compression. Please use a larger EPS_FILTER or EPS_STORAGE_SCALING")
+         ENDIF
 
          buffer_left = nints
          buffer_start = 1
