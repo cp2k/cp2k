@@ -900,7 +900,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgf_i, rpgf_j, rpgf_k, sphi_i, sphi_j, &
                                                             sphi_k, zeti, zetj, zetk
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: spi, spj, spk, tspi, tspj
+      TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: spi, spk, tspj
       TYPE(cp_libint_t)                                  :: lib
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_t_type)                                 :: t_3c_tmp
@@ -1017,28 +1017,16 @@ CONTAINS
 
       !To minimize expensive memory opsand generally optimize contraction, pre-allocate buffers and
       !contiguous sphi arrays (and transposed in the cas of sphi_i)
-      IF (op_ij /= do_potential_id) THEN
-         ALLOCATE (cpp_buffer(max_nsgfj*max_ncok), ccp_buffer(max_nsgfj*max_nsgfk*max_ncoi))
-      ELSE
-         ALLOCATE (cpp_buffer(max_nsgfi*max_ncoj), ccp_buffer(max_nsgfi*max_nsgfj*max_ncok))
-      END IF
+      ALLOCATE (cpp_buffer(max_nsgfj*max_ncok), ccp_buffer(max_nsgfj*max_nsgfk*max_ncoi))
 
-      NULLIFY (tspi, tspj, spi, spj, spk)
-      IF (op_ij /= do_potential_id) THEN
-         ALLOCATE (spi(max_nset, nbasis), tspj(max_nset, nbasis), spk(max_nset, nbasis))
-      ELSE
-         ALLOCATE (tspi(max_nset, nbasis), spj(max_nset, nbasis), spk(max_nset, nbasis))
-      END IF
+      NULLIFY (tspj, spi, spk)
+      ALLOCATE (spi(max_nset, nbasis), tspj(max_nset, nbasis), spk(max_nset, nbasis))
 
       DO ibasis = 1, nbasis
          DO iset = 1, max_nset
-            IF (op_ij /= do_potential_id) THEN
-               NULLIFY (spi(iset, ibasis)%array)
-               NULLIFY (tspj(iset, ibasis)%array)
-            ELSE
-               NULLIFY (tspi(iset, ibasis)%array)
-               NULLIFY (spj(iset, ibasis)%array)
-            END IF
+            NULLIFY (spi(iset, ibasis)%array)
+            NULLIFY (tspj(iset, ibasis)%array)
+
             NULLIFY (spk(iset, ibasis)%array)
          END DO
       END DO
@@ -1056,21 +1044,13 @@ CONTAINS
                egfi = sgfi + basis_set%nsgf_set(iset) - 1
 
                IF (ilist == 1) THEN
-                  IF (op_ij /= do_potential_id) THEN
-                     ALLOCATE (spi(iset, ibasis)%array(ncoi, basis_set%nsgf_set(iset)))
-                     spi(iset, ibasis)%array(:, :) = basis_set%sphi(1:ncoi, sgfi:egfi)
-                  ELSE
-                     ALLOCATE (tspi(iset, ibasis)%array(basis_set%nsgf_set(iset), ncoi))
-                     tspi(iset, ibasis)%array(:, :) = TRANSPOSE(basis_set%sphi(1:ncoi, sgfi:egfi))
-                  END IF
+                  ALLOCATE (spi(iset, ibasis)%array(ncoi, basis_set%nsgf_set(iset)))
+                  spi(iset, ibasis)%array(:, :) = basis_set%sphi(1:ncoi, sgfi:egfi)
+
                ELSE IF (ilist == 2) THEN
-                  IF (op_ij /= do_potential_id) THEN
-                     ALLOCATE (tspj(iset, ibasis)%array(basis_set%nsgf_set(iset), ncoi))
-                     tspj(iset, ibasis)%array(:, :) = TRANSPOSE(basis_set%sphi(1:ncoi, sgfi:egfi))
-                  ELSE
-                     ALLOCATE (spj(iset, ibasis)%array(ncoi, basis_set%nsgf_set(iset)))
-                     spj(iset, ibasis)%array(:, :) = basis_set%sphi(1:ncoi, sgfi:egfi)
-                  END IF
+                  ALLOCATE (tspj(iset, ibasis)%array(basis_set%nsgf_set(iset), ncoi))
+                  tspj(iset, ibasis)%array(:, :) = TRANSPOSE(basis_set%sphi(1:ncoi, sgfi:egfi))
+
                ELSE
                   ALLOCATE (spk(iset, ibasis)%array(ncoi, basis_set%nsgf_set(iset)))
                   spk(iset, ibasis)%array(:, :) = basis_set%sphi(1:ncoi, sgfi:egfi)
@@ -1187,11 +1167,7 @@ CONTAINS
 
          CALL dbcsr_t_blk_sizes(t3c(jcell, kcell), [iatom, jatom, katom], blk_size)
 
-         IF (op_ij /= do_potential_id) THEN
-            ALLOCATE (block_t(blk_size(2), blk_size(3), blk_size(1)))
-         ELSE
-            ALLOCATE (block_t(blk_size(1), blk_size(2), blk_size(3)))
-         ENDIF
+         ALLOCATE (block_t(blk_size(2), blk_size(3), blk_size(1)))
 
          block_t = 0.0_dp
          block_not_zero = .FALSE.
@@ -1216,32 +1192,17 @@ CONTAINS
                   sgfk = first_sgf_k(1, kset)
 
                   IF (ncoj*ncok*ncoi > 0) THEN
-
-                     IF (op_ij /= do_potential_id) THEN
-                        ALLOCATE (sijk(ncoj, ncok, ncoi))
-                        sijk(:, :, :) = 0.0_dp
-                        !need positions for libint. Only relative positions are needed => set ri to 0.0
-                        ri = 0.0_dp
-                        rj = rij ! ri + rij
-                        rk = rik ! ri + rik
-                        CALL eri_3center(sijk, &
-                                         lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
-                                         lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
-                                         lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
-                                         djk, dij, dik, lib, potential_parameter, int_abc_ext=sijk_ext)
-
-                     ELSE
-                        ALLOCATE (sijk(ncoi, ncoj, ncok))
-                        sijk(:, :, :) = 0.0_dp
-                        ri = 0.0_dp
-                        rj = rij ! ri + rij
-                        rk = rik ! ri + rik
-                        CALL eri_3center(sijk, &
-                                         lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
-                                         lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
-                                         lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
-                                         dij, dik, djk, lib, potential_parameter, int_abc_ext=sijk_ext)
-                     ENDIF
+                     ALLOCATE (sijk(ncoj, ncok, ncoi))
+                     sijk(:, :, :) = 0.0_dp
+                     !need positions for libint. Only relative positions are needed => set ri to 0.0
+                     ri = 0.0_dp
+                     rj = rij ! ri + rij
+                     rk = rik ! ri + rik
+                     CALL eri_3center(sijk, &
+                                      lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
+                                      lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
+                                      lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
+                                      djk, dij, dik, lib, potential_parameter, int_abc_ext=sijk_ext)
 
                      IF (PRESENT(int_eps)) THEN
                         IF (int_eps > sijk_ext*(max_contraction_i(iset)* &
@@ -1254,55 +1215,28 @@ CONTAINS
 
                      block_not_zero = .TRUE.
 
-                     IF (op_ij /= do_potential_id) THEN
-                        ALLOCATE (sijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
-                        CALL libxsmm_abc_contract(sijk_contr, sijk, tspj(jset, jkind)%array, &
-                                                  spk(kset, kkind)%array, spi(iset, ikind)%array, &
-                                                  ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
-                                                  nsgfi(iset), cpp_buffer, ccp_buffer)
-                        DEALLOCATE (sijk)
+                     ALLOCATE (sijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
+                     CALL libxsmm_abc_contract(sijk_contr, sijk, tspj(jset, jkind)%array, &
+                                               spk(kset, kkind)%array, spi(iset, ikind)%array, &
+                                               ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
+                                               nsgfi(iset), cpp_buffer, ccp_buffer)
+                     DEALLOCATE (sijk)
 
-                        block_start_j = sgfj
-                        block_end_j = sgfj + nsgfj(jset) - 1
-                        block_start_k = sgfk
-                        block_end_k = sgfk + nsgfk(kset) - 1
-                        block_start_i = sgfi
-                        block_end_i = sgfi + nsgfi(iset) - 1
+                     block_start_j = sgfj
+                     block_end_j = sgfj + nsgfj(jset) - 1
+                     block_start_k = sgfk
+                     block_end_k = sgfk + nsgfk(kset) - 1
+                     block_start_i = sgfi
+                     block_end_i = sgfi + nsgfi(iset) - 1
 
+                     block_t(block_start_j:block_end_j, &
+                             block_start_k:block_end_k, &
+                             block_start_i:block_end_i) = &
                         block_t(block_start_j:block_end_j, &
                                 block_start_k:block_end_k, &
-                                block_start_i:block_end_i) = &
-                           block_t(block_start_j:block_end_j, &
-                                   block_start_k:block_end_k, &
-                                   block_start_i:block_end_i) + &
-                           prefac*sijk_contr(:, :, :)
-                        DEALLOCATE (sijk_contr)
-                     ELSE
-                        ALLOCATE (sijk_contr(nsgfi(iset), nsgfj(jset), nsgfk(kset)))
-                        CALL libxsmm_abc_contract(sijk_contr, sijk, tspi(iset, ikind)%array, &
-                                                  spj(jset, jkind)%array, spk(kset, kkind)%array, &
-                                                  ncoi, ncoj, ncok, nsgfi(iset), nsgfj(jset), &
-                                                  nsgfk(kset), cpp_buffer, ccp_buffer)
-
-                        DEALLOCATE (sijk)
-
-                        block_start_j = sgfj
-                        block_end_j = sgfj + nsgfj(jset) - 1
-                        block_start_k = sgfk
-                        block_end_k = sgfk + nsgfk(kset) - 1
-                        block_start_i = sgfi
-                        block_end_i = sgfi + nsgfi(iset) - 1
-
-                        block_t(block_start_i:block_end_i, &
-                                block_start_j:block_end_j, &
-                                block_start_k:block_end_k) = &
-                           block_t(block_start_i:block_end_i, &
-                                   block_start_j:block_end_j, &
-                                   block_start_k:block_end_k) + &
-                           prefac*sijk_contr(:, :, :)
-                        DEALLOCATE (sijk_contr)
-
-                     ENDIF
+                                block_start_i:block_end_i) + &
+                        prefac*sijk_contr(:, :, :)
+                     DEALLOCATE (sijk_contr)
 
                   END IF ! number of triples > 0
 
@@ -1321,16 +1255,11 @@ CONTAINS
             ENDIF
             sp = SHAPE(block_t)
 
-            IF (op_ij /= do_potential_id) THEN
+            sp([2, 3, 1]) = sp
 
-               sp([2, 3, 1]) = sp
+            CALL dbcsr_t_put_block(t3c(jcell, kcell), &
+                                   [iatom, jatom, katom], sp, RESHAPE(block_t, SHAPE=sp, ORDER=[2, 3, 1]), summation=.TRUE.)
 
-               CALL dbcsr_t_put_block(t3c(jcell, kcell), &
-                                      [iatom, jatom, katom], sp, RESHAPE(block_t, SHAPE=sp, ORDER=[2, 3, 1]), summation=.TRUE.)
-            ELSE
-               CALL dbcsr_t_put_block(t3c(jcell, kcell), &
-                                      [iatom, jatom, katom], sp, block_t, summation=.TRUE.)
-            ENDIF
             CALL timestop(handle2)
          ENDIF
 
@@ -1382,22 +1311,14 @@ CONTAINS
 
       DO iset = 1, max_nset
          DO ibasis = 1, nbasis
-            IF (op_ij /= do_potential_id) THEN
-               IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
-               IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
-            ELSE
-               IF (ASSOCIATED(tspi(iset, ibasis)%array)) DEALLOCATE (tspi(iset, ibasis)%array)
-               IF (ASSOCIATED(spj(iset, ibasis)%array)) DEALLOCATE (spj(iset, ibasis)%array)
-            END IF
+            IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
+            IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
+
             IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
          END DO
       END DO
 
-      IF (op_ij /= do_potential_id) THEN
-         DEALLOCATE (spi, tspj, spk)
-      ELSE
-         DEALLOCATE (tspi, spj, spk)
-      END IF
+      DEALLOCATE (spi, tspj, spk)
 
       CALL timestop(handle)
    END SUBROUTINE
