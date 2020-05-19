@@ -26,7 +26,6 @@
                 &END
                 &RI
                     CUTOFF_RADIUS 1.5
-                    EPS_FILTER 1.0E-06
                     EPS_PGF_ORB 1.0E-04
                     CALC_COND_NUM T
                 &END
