@@ -529,7 +529,7 @@ CONTAINS
                           name="EPS_STORAGE_SCALING", &
                           description="Scaling factor to scale EPS_FILTER for storage of 3-center integrals. Storage threshold "// &
                           "will be EPS_FILTER*EPS_STORAGE_SCALING.", &
-                          default_r_val=0.1_dp)
+                          default_r_val=0.01_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
