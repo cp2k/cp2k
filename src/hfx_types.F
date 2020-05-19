@@ -47,8 +47,7 @@ MODULE hfx_types
    USE input_constants,                 ONLY: &
         do_hfx_auto_shells, do_potential_coulomb, do_potential_gaussian, do_potential_id, &
         do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, &
-        do_potential_short, do_potential_truncated, hfx_do_eval_energy, hfx_do_eval_forces, &
-        hfx_ri_do_2c_diag, hfx_ri_do_2c_iter
+        do_potential_short, do_potential_truncated, hfx_ri_do_2c_diag, hfx_ri_do_2c_iter
    USE input_cp2k_hfx,                  ONLY: ri_mo,&
                                               ri_pmat
    USE input_section_types,             ONLY: section_vals_get,&
@@ -108,7 +107,7 @@ MODULE hfx_types
              hfx_pgf_product_list, hfx_block_range_type, &
              alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax, &
              hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types, &
-             hfx_ri_type
+             hfx_ri_type, hfx_compression_type
 
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6
@@ -239,13 +238,6 @@ MODULE hfx_types
    END TYPE pair_list_type
 
 ! **************************************************************************************************
-   TYPE hfx_compression_type
-      INTEGER(int_8), DIMENSION(:), POINTER    :: compressed_data
-      INTEGER(int_8)                           :: element_pointer
-      INTEGER                                  :: bit_pointer
-   END TYPE
-
-! **************************************************************************************************
    TYPE hfx_cache_type
       INTEGER(int_8), DIMENSION(CACHE_SIZE)    :: DATA
       INTEGER                                  :: element_counter
@@ -356,9 +348,29 @@ MODULE hfx_types
       INTEGER(int_8)                           :: cost
    END TYPE
 
+   TYPE :: hfx_compression_type
+      TYPE(hfx_container_type), DIMENSION(:), &
+         POINTER        :: maxval_container
+      TYPE(hfx_cache_type), DIMENSION(:), &
+         POINTER            :: maxval_cache
+      TYPE(hfx_container_type), DIMENSION(:, :), &
+         POINTER        :: integral_containers
+      TYPE(hfx_cache_type), DIMENSION(:, :), &
+         POINTER            :: integral_caches
+      TYPE(hfx_container_type), POINTER :: maxval_container_disk
+      TYPE(hfx_cache_type)     :: maxval_cache_disk
+      TYPE(hfx_cache_type)      :: integral_caches_disk(64)
+      TYPE(hfx_container_type), POINTER, &
+         DIMENSION(:)  :: integral_containers_disk
+   END TYPE
+
+   TYPE :: block_ind_type
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: ind
+   END TYPE
+
    TYPE hfx_ri_type
       ! input parameters (see input_cp2k_hfx)
-      REAL(KIND=dp) :: filter_eps, filter_eps_2c, filter_eps_3c, filter_eps_mo, &
+      REAL(KIND=dp) :: filter_eps, filter_eps_2c, filter_eps_storage, filter_eps_mo, &
                        eps_lanczos, eps_pgf_orb, eps_eigval
       INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr_dbcsr, unit_nr, &
                  min_bsize, min_bsize_MO, t2c_method, nelectron_total
@@ -405,6 +417,7 @@ MODULE hfx_types
 
       ! 3c integral tensor in (AO RI | AO) format for contraction
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_1
+      TYPE(block_ind_type), DIMENSION(:, :), ALLOCATABLE :: blk_indices
       TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_1 => NULL()
 
       ! 3c integral tensor in ( AO | RI AO) (MO) or (AO RI | AO) (RHO) format for contraction
@@ -445,6 +458,7 @@ MODULE hfx_types
       INTEGER(int_8) :: dbcsr_nflop
       REAL(dp)       :: dbcsr_time
       INTEGER        :: num_pe
+      TYPE(hfx_compression_type), DIMENSION(:, :), ALLOCATABLE :: store_3c
 
    END TYPE
 
@@ -490,28 +504,9 @@ MODULE hfx_types
       TYPE(hfx_periodic_type)                  :: periodic_parameter
       TYPE(hfx_load_balance_type)              :: load_balance_parameter
       TYPE(hfx_general_type)                   :: general_parameter
-      TYPE(hfx_container_type), DIMENSION(:), &
-         POINTER        :: maxval_container
-      TYPE(hfx_cache_type), DIMENSION(:), &
-         POINTER            :: maxval_cache
-      TYPE(hfx_container_type), DIMENSION(:, :), &
-         POINTER        :: integral_containers
-      TYPE(hfx_cache_type), DIMENSION(:, :), &
-         POINTER            :: integral_caches
-      TYPE(hfx_container_type), DIMENSION(:), &
-         POINTER        :: maxval_container_forces
-      TYPE(hfx_cache_type), DIMENSION(:), &
-         POINTER            :: maxval_cache_forces
-      TYPE(hfx_container_type), DIMENSION(:, :), &
-         POINTER        :: integral_containers_forces
-      TYPE(hfx_cache_type), DIMENSION(:, :), &
-         POINTER            :: integral_caches_forces
 
-      TYPE(hfx_container_type), POINTER        :: maxval_container_disk
-      TYPE(hfx_cache_type)                     :: maxval_cache_disk
-      TYPE(hfx_container_type), POINTER, &
-         DIMENSION(:)  :: integral_containers_disk
-      TYPE(hfx_cache_type)                     :: integral_caches_disk(64)
+      TYPE(hfx_compression_type) :: store_ints
+      TYPE(hfx_compression_type) :: store_forces
 
       TYPE(hfx_cell_type), DIMENSION(:), &
          POINTER                       :: neighbor_cells
@@ -928,41 +923,42 @@ CONTAINS
             CALL cp_libint_set_contrdepth(actual_x_data%lib, 1)
             CALL cp_libint_set_contrdepth(actual_x_data%lib_deriv, 1)
 
-            CALL alloc_containers(actual_x_data, 1, hfx_do_eval_energy)
-            CALL alloc_containers(actual_x_data, 1, hfx_do_eval_forces)
+            CALL alloc_containers(actual_x_data%store_ints, 1)
+            CALL alloc_containers(actual_x_data%store_forces, 1)
 
-            actual_x_data%maxval_cache_disk%element_counter = 1
-            ALLOCATE (actual_x_data%maxval_container_disk)
-            ALLOCATE (actual_x_data%maxval_container_disk%first)
-            actual_x_data%maxval_container_disk%first%prev => NULL()
-            actual_x_data%maxval_container_disk%first%next => NULL()
-            actual_x_data%maxval_container_disk%current => actual_x_data%maxval_container_disk%first
-            actual_x_data%maxval_container_disk%current%data = 0
-            actual_x_data%maxval_container_disk%element_counter = 1
-            actual_x_data%maxval_container_disk%file_counter = 1
-            actual_x_data%maxval_container_disk%desc = 'Max_'
-            actual_x_data%maxval_container_disk%unit = -1
-            WRITE (actual_x_data%maxval_container_disk%filename, '(A,I0,A,A,A)') &
+            actual_x_data%store_ints%maxval_cache_disk%element_counter = 1
+            ALLOCATE (actual_x_data%store_ints%maxval_container_disk)
+            ALLOCATE (actual_x_data%store_ints%maxval_container_disk%first)
+            actual_x_data%store_ints%maxval_container_disk%first%prev => NULL()
+            actual_x_data%store_ints%maxval_container_disk%first%next => NULL()
+            actual_x_data%store_ints%maxval_container_disk%current => actual_x_data%store_ints%maxval_container_disk%first
+            actual_x_data%store_ints%maxval_container_disk%current%data = 0
+            actual_x_data%store_ints%maxval_container_disk%element_counter = 1
+            actual_x_data%store_ints%maxval_container_disk%file_counter = 1
+            actual_x_data%store_ints%maxval_container_disk%desc = 'Max_'
+            actual_x_data%store_ints%maxval_container_disk%unit = -1
+            WRITE (actual_x_data%store_ints%maxval_container_disk%filename, '(A,I0,A,A,A)') &
                TRIM(actual_x_data%memory_parameter%storage_location), &
-               storage_id, "_", actual_x_data%maxval_container_disk%desc, "6"
-            CALL compress(actual_x_data%maxval_container_disk%filename, .TRUE.)
-            ALLOCATE (actual_x_data%integral_containers_disk(64))
+               storage_id, "_", actual_x_data%store_ints%maxval_container_disk%desc, "6"
+            CALL compress(actual_x_data%store_ints%maxval_container_disk%filename, .TRUE.)
+            ALLOCATE (actual_x_data%store_ints%integral_containers_disk(64))
             DO i = 1, 64
-               actual_x_data%integral_caches_disk(i)%element_counter = 1
-               actual_x_data%integral_caches_disk(i)%data = 0
-               ALLOCATE (actual_x_data%integral_containers_disk(i)%first)
-               actual_x_data%integral_containers_disk(i)%first%prev => NULL()
-               actual_x_data%integral_containers_disk(i)%first%next => NULL()
-               actual_x_data%integral_containers_disk(i)%current => actual_x_data%integral_containers_disk(i)%first
-               actual_x_data%integral_containers_disk(i)%current%data = 0
-               actual_x_data%integral_containers_disk(i)%element_counter = 1
-               actual_x_data%integral_containers_disk(i)%file_counter = 1
-               actual_x_data%integral_containers_disk(i)%desc = 'Int_'
-               actual_x_data%integral_containers_disk(i)%unit = -1
-               WRITE (actual_x_data%integral_containers_disk(i)%filename, '(A,I0,A,A,I0)') &
+               actual_x_data%store_ints%integral_caches_disk(i)%element_counter = 1
+               actual_x_data%store_ints%integral_caches_disk(i)%data = 0
+               ALLOCATE (actual_x_data%store_ints%integral_containers_disk(i)%first)
+               actual_x_data%store_ints%integral_containers_disk(i)%first%prev => NULL()
+               actual_x_data%store_ints%integral_containers_disk(i)%first%next => NULL()
+               actual_x_data%store_ints%integral_containers_disk(i)%current => &
+                  actual_x_data%store_ints%integral_containers_disk(i)%first
+               actual_x_data%store_ints%integral_containers_disk(i)%current%data = 0
+               actual_x_data%store_ints%integral_containers_disk(i)%element_counter = 1
+               actual_x_data%store_ints%integral_containers_disk(i)%file_counter = 1
+               actual_x_data%store_ints%integral_containers_disk(i)%desc = 'Int_'
+               actual_x_data%store_ints%integral_containers_disk(i)%unit = -1
+               WRITE (actual_x_data%store_ints%integral_containers_disk(i)%filename, '(A,I0,A,A,I0)') &
                   TRIM(actual_x_data%memory_parameter%storage_location), &
-                  storage_id, "_", actual_x_data%integral_containers_disk(i)%desc, i
-               CALL compress(actual_x_data%integral_containers_disk(i)%filename, .TRUE.)
+                  storage_id, "_", actual_x_data%store_ints%integral_containers_disk(i)%desc, i
+               CALL compress(actual_x_data%store_ints%integral_containers_disk(i)%filename, .TRUE.)
             END DO
 
             actual_x_data%b_first_load_balance_energy = .TRUE.
@@ -1122,7 +1118,7 @@ CONTAINS
       CALL section_vals_val_get(ri_section, "EPS_FILTER", r_val=ri_data%filter_eps)
       CALL section_vals_val_get(ri_section, "EPS_FILTER_2C", r_val=ri_data%filter_eps_2c)
       CALL section_vals_val_get(ri_section, "EPS_STORAGE_SCALING", r_val=eps_storage_scaling)
-      ri_data%filter_eps_3c = ri_data%filter_eps*eps_storage_scaling
+      ri_data%filter_eps_storage = ri_data%filter_eps*eps_storage_scaling
       CALL section_vals_val_get(ri_section, "EPS_FILTER_MO", r_val=ri_data%filter_eps_mo)
 
       ASSOCIATE (ri_metric=>ri_data%ri_metric, hfx_pot=>ri_data%hfx_pot)
@@ -1201,8 +1197,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ikind, iproc, MO_dim, &
-                                                            mp_comm_3d, natom, nkind, nproc
+      INTEGER                                            :: handle, i_mem, ikind, iproc, j_mem, &
+                                                            MO_dim, mp_comm_3d, natom, nkind, nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_AO_store, bsizes_RI_store, dist1, &
                                                             dist2, dist_AO_1, dist_AO_2, dist_RI
       INTEGER, DIMENSION(2)                              :: pdims_2d
@@ -1325,6 +1321,14 @@ CONTAINS
                                ends_array_block_2=ri_data%ends_array_RI_mem_block, &
                                name="(AO RI | AO)")
 
+         ALLOCATE (ri_data%blk_indices(ri_data%n_mem, ri_data%n_mem))
+         ALLOCATE (ri_data%store_3c(ri_data%n_mem, ri_data%n_mem))
+         DO i_mem = 1, ri_data%n_mem
+         DO j_mem = 1, ri_data%n_mem
+            CALL alloc_containers(ri_data%store_3c(i_mem, j_mem), 1)
+         ENDDO
+         ENDDO
+
          ALLOCATE (ri_data%t_3c_int_ctr_2(1, 1))
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
                                ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
@@ -1434,7 +1438,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_release', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin
+      INTEGER                                            :: handle, i_mem, ispin, j_mem, unused
 
       CALL timeset(routineN, handle)
 
@@ -1472,6 +1476,11 @@ CONTAINS
       DEALLOCATE (ri_data%bsizes_RI_fit)
 
       IF (ri_data%flavor == ri_pmat) THEN
+         DO i_mem = 1, ri_data%n_mem
+         DO j_mem = 1, ri_data%n_mem
+            CALL dealloc_containers(ri_data%store_3c(i_mem, j_mem), unused)
+         ENDDO
+         ENDDO
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_1(1, 1))
          DEALLOCATE (ri_data%t_3c_int_ctr_1)
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_2(1, 1))
@@ -1486,6 +1495,9 @@ CONTAINS
                      ri_data%starts_array_mem, ri_data%ends_array_mem)
          DEALLOCATE (ri_data%starts_array_RI_mem_block, ri_data%ends_array_RI_mem_block, &
                      ri_data%starts_array_RI_mem, ri_data%ends_array_RI_mem)
+
+         DEALLOCATE (ri_data%blk_indices)
+         DEALLOCATE (ri_data%store_3c)
       ELSEIF (ri_data%flavor == ri_mo) THEN
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_1(1, 1))
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_2(1, 1))
@@ -1855,29 +1867,29 @@ CONTAINS
             CALL cp_libint_static_cleanup()
 
             !! Deallocate containers
-            CALL dealloc_containers(actual_x_data, hfx_do_eval_energy)
-            CALL dealloc_containers(actual_x_data, hfx_do_eval_forces)
+            CALL dealloc_containers(actual_x_data%store_ints, actual_x_data%memory_parameter%actual_memory_usage)
+            CALL dealloc_containers(actual_x_data%store_forces, actual_x_data%memory_parameter%actual_memory_usage)
 
             !! Deallocate containers
-            CALL hfx_init_container(actual_x_data%maxval_container_disk, &
+            CALL hfx_init_container(actual_x_data%store_ints%maxval_container_disk, &
                                     actual_x_data%memory_parameter%actual_memory_usage_disk, &
                                     .FALSE.)
             IF (actual_x_data%memory_parameter%do_disk_storage) THEN
-               CALL close_file(unit_number=actual_x_data%maxval_container_disk%unit, file_status="DELETE")
+               CALL close_file(unit_number=actual_x_data%store_ints%maxval_container_disk%unit, file_status="DELETE")
             END IF
-            DEALLOCATE (actual_x_data%maxval_container_disk%first)
-            DEALLOCATE (actual_x_data%maxval_container_disk)
+            DEALLOCATE (actual_x_data%store_ints%maxval_container_disk%first)
+            DEALLOCATE (actual_x_data%store_ints%maxval_container_disk)
 
             DO i = 1, 64
-               CALL hfx_init_container(actual_x_data%integral_containers_disk(i), &
+               CALL hfx_init_container(actual_x_data%store_ints%integral_containers_disk(i), &
                                        actual_x_data%memory_parameter%actual_memory_usage_disk, &
                                        .FALSE.)
                IF (actual_x_data%memory_parameter%do_disk_storage) THEN
-                  CALL close_file(unit_number=actual_x_data%integral_containers_disk(i)%unit, file_status="DELETE")
+                  CALL close_file(unit_number=actual_x_data%store_ints%integral_containers_disk(i)%unit, file_status="DELETE")
                END IF
-               DEALLOCATE (actual_x_data%integral_containers_disk(i)%first)
+               DEALLOCATE (actual_x_data%store_ints%integral_containers_disk(i)%first)
             END DO
-            DEALLOCATE (actual_x_data%integral_containers_disk)
+            DEALLOCATE (actual_x_data%store_ints%integral_containers_disk)
 
             ! ** screening functions
             IF (actual_x_data%screen_funct_is_initialized) THEN
@@ -2637,7 +2649,7 @@ CONTAINS
          WRITE (UNIT=iw, FMT="(T3, A, T73, ES8.1)") &
             "HFX_RI_INFO| EPS_FILTER 2-center", ri_data%filter_eps_2c
          WRITE (UNIT=iw, FMT="(T3, A, T73, ES8.1)") &
-            "HFX_RI_INFO| EPS_FILTER 3-center", ri_data%filter_eps_3c
+            "HFX_RI_INFO| EPS_FILTER storage", ri_data%filter_eps_storage
          WRITE (UNIT=iw, FMT="(T3, A, T73, ES8.1)") &
             "HFX_RI_INFO| EPS_FILTER MO", ri_data%filter_eps_mo
          WRITE (UNIT=iw, FMT="(T3, A, T73, ES8.1)") &
@@ -2757,140 +2769,82 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param x_data ...
-!> \param eval_type ...
+!> \param DATA ...
+!> \param memory_usage ...
 ! **************************************************************************************************
-   SUBROUTINE dealloc_containers(x_data, eval_type)
-      TYPE(hfx_type), POINTER                            :: x_data
-      INTEGER, INTENT(IN)                                :: eval_type
+   SUBROUTINE dealloc_containers(DATA, memory_usage)
+      TYPE(hfx_compression_type)                         :: data
+      INTEGER                                            :: memory_usage
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_containers', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: bin, i
 
-      SELECT CASE (eval_type)
-      CASE (hfx_do_eval_energy)
-         DO bin = 1, SIZE(x_data%maxval_container)
-            CALL hfx_init_container(x_data%maxval_container(bin), x_data%memory_parameter%actual_memory_usage, &
+      DO bin = 1, SIZE(data%maxval_container)
+         CALL hfx_init_container(data%maxval_container(bin), memory_usage, &
+                                 .FALSE.)
+         DEALLOCATE (data%maxval_container(bin)%first)
+      END DO
+      DEALLOCATE (data%maxval_container)
+      DEALLOCATE (data%maxval_cache)
+
+      DO bin = 1, SIZE(data%integral_containers, 2)
+         DO i = 1, 64
+            CALL hfx_init_container(data%integral_containers(i, bin), memory_usage, &
                                     .FALSE.)
-            DEALLOCATE (x_data%maxval_container(bin)%first)
+            DEALLOCATE (data%integral_containers(i, bin)%first)
          END DO
-         DEALLOCATE (x_data%maxval_container)
-         DEALLOCATE (x_data%maxval_cache)
+      END DO
+      DEALLOCATE (data%integral_containers)
 
-         DO bin = 1, SIZE(x_data%integral_containers, 2)
-            DO i = 1, 64
-               CALL hfx_init_container(x_data%integral_containers(i, bin), x_data%memory_parameter%actual_memory_usage, &
-                                       .FALSE.)
-               DEALLOCATE (x_data%integral_containers(i, bin)%first)
-            END DO
-         END DO
-         DEALLOCATE (x_data%integral_containers)
-
-         DEALLOCATE (x_data%integral_caches)
-      CASE (hfx_do_eval_forces)
-         DO bin = 1, SIZE(x_data%maxval_container_forces)
-            CALL hfx_init_container(x_data%maxval_container_forces(bin), x_data%memory_parameter%actual_memory_usage, &
-                                    .FALSE.)
-            DEALLOCATE (x_data%maxval_container_forces(bin)%first)
-         END DO
-         DEALLOCATE (x_data%maxval_container_forces)
-         DEALLOCATE (x_data%maxval_cache_forces)
-
-         DO bin = 1, SIZE(x_data%integral_containers_forces, 2)
-            DO i = 1, 64
-               CALL hfx_init_container(x_data%integral_containers_forces(i, bin), x_data%memory_parameter%actual_memory_usage, &
-                                       .FALSE.)
-               DEALLOCATE (x_data%integral_containers_forces(i, bin)%first)
-            END DO
-         END DO
-         DEALLOCATE (x_data%integral_containers_forces)
-
-         DEALLOCATE (x_data%integral_caches_forces)
-
-      END SELECT
+      DEALLOCATE (data%integral_caches)
 
    END SUBROUTINE dealloc_containers
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param x_data ...
+!> \param DATA ...
 !> \param bin_size ...
-!> \param eval_type ...
 ! **************************************************************************************************
-   SUBROUTINE alloc_containers(x_data, bin_size, eval_type)
-      TYPE(hfx_type), POINTER                            :: x_data
-      INTEGER, INTENT(IN)                                :: bin_size, eval_type
+   SUBROUTINE alloc_containers(DATA, bin_size)
+      TYPE(hfx_compression_type)                         :: data
+      INTEGER, INTENT(IN)                                :: bin_size
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'alloc_containers', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: bin, i
 
-      SELECT CASE (eval_type)
-      CASE (hfx_do_eval_energy)
-         ALLOCATE (x_data%maxval_cache(bin_size))
-         DO bin = 1, bin_size
-            x_data%maxval_cache(bin)%element_counter = 1
-         END DO
-         ALLOCATE (x_data%maxval_container(bin_size))
-         DO bin = 1, bin_size
-            ALLOCATE (x_data%maxval_container(bin)%first)
-            x_data%maxval_container(bin)%first%prev => NULL()
-            x_data%maxval_container(bin)%first%next => NULL()
-            x_data%maxval_container(bin)%current => x_data%maxval_container(bin)%first
-            x_data%maxval_container(bin)%current%data = 0
-            x_data%maxval_container(bin)%element_counter = 1
-         END DO
+      ALLOCATE (data%maxval_cache(bin_size))
+      DO bin = 1, bin_size
+         data%maxval_cache(bin)%element_counter = 1
+      END DO
+      ALLOCATE (data%maxval_container(bin_size))
+      DO bin = 1, bin_size
+         ALLOCATE (data%maxval_container(bin)%first)
+         data%maxval_container(bin)%first%prev => NULL()
+         data%maxval_container(bin)%first%next => NULL()
+         data%maxval_container(bin)%current => data%maxval_container(bin)%first
+         data%maxval_container(bin)%current%data = 0
+         data%maxval_container(bin)%element_counter = 1
+      END DO
 
-         ALLOCATE (x_data%integral_containers(64, bin_size))
-         ALLOCATE (x_data%integral_caches(64, bin_size))
+      ALLOCATE (data%integral_containers(64, bin_size))
+      ALLOCATE (data%integral_caches(64, bin_size))
 
-         DO bin = 1, bin_size
-            DO i = 1, 64
-               x_data%integral_caches(i, bin)%element_counter = 1
-               x_data%integral_caches(i, bin)%data = 0
-               ALLOCATE (x_data%integral_containers(i, bin)%first)
-               x_data%integral_containers(i, bin)%first%prev => NULL()
-               x_data%integral_containers(i, bin)%first%next => NULL()
-               x_data%integral_containers(i, bin)%current => x_data%integral_containers(i, bin)%first
-               x_data%integral_containers(i, bin)%current%data = 0
-               x_data%integral_containers(i, bin)%element_counter = 1
-            END DO
+      DO bin = 1, bin_size
+         DO i = 1, 64
+            data%integral_caches(i, bin)%element_counter = 1
+            data%integral_caches(i, bin)%data = 0
+            ALLOCATE (data%integral_containers(i, bin)%first)
+            data%integral_containers(i, bin)%first%prev => NULL()
+            data%integral_containers(i, bin)%first%next => NULL()
+            data%integral_containers(i, bin)%current => data%integral_containers(i, bin)%first
+            data%integral_containers(i, bin)%current%data = 0
+            data%integral_containers(i, bin)%element_counter = 1
          END DO
-      CASE (hfx_do_eval_forces)
-         ALLOCATE (x_data%maxval_cache_forces(bin_size))
-         DO bin = 1, bin_size
-            x_data%maxval_cache_forces(bin)%element_counter = 1
-         END DO
-         ALLOCATE (x_data%maxval_container_forces(bin_size))
-         DO bin = 1, bin_size
-            ALLOCATE (x_data%maxval_container_forces(bin)%first)
-            x_data%maxval_container_forces(bin)%first%prev => NULL()
-            x_data%maxval_container_forces(bin)%first%next => NULL()
-            x_data%maxval_container_forces(bin)%current => x_data%maxval_container_forces(bin)%first
-            x_data%maxval_container_forces(bin)%current%data = 0
-            x_data%maxval_container_forces(bin)%element_counter = 1
-         END DO
-
-         ALLOCATE (x_data%integral_containers_forces(64, bin_size))
-         ALLOCATE (x_data%integral_caches_forces(64, bin_size))
-
-         DO bin = 1, bin_size
-            DO i = 1, 64
-               x_data%integral_caches_forces(i, bin)%element_counter = 1
-               x_data%integral_caches_forces(i, bin)%data = 0
-               ALLOCATE (x_data%integral_containers_forces(i, bin)%first)
-               x_data%integral_containers_forces(i, bin)%first%prev => NULL()
-               x_data%integral_containers_forces(i, bin)%first%next => NULL()
-               x_data%integral_containers_forces(i, bin)%current => x_data%integral_containers_forces(i, bin)%first
-               x_data%integral_containers_forces(i, bin)%current%data = 0
-               x_data%integral_containers_forces(i, bin)%element_counter = 1
-            END DO
-         END DO
-
-      END SELECT
+      END DO
 
    END SUBROUTINE alloc_containers
 

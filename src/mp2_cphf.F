@@ -43,7 +43,6 @@ MODULE mp2_cphf
                                               hfx_container_type,&
                                               hfx_init_container,&
                                               hfx_type
-   USE input_constants,                 ONLY: hfx_do_eval_energy
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -352,11 +351,11 @@ CONTAINS
                END IF
 
                IF (.NOT. actual_x_data%memory_parameter%do_all_on_the_fly) THEN
-                  CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy)
+                  CALL alloc_containers(actual_x_data%store_ints, my_bin_size)
 
                   DO bin = 1, my_bin_size
-                     maxval_container => actual_x_data%maxval_container(bin)
-                     integral_containers => actual_x_data%integral_containers(:, bin)
+                     maxval_container => actual_x_data%store_ints%maxval_container(bin)
+                     integral_containers => actual_x_data%store_ints%integral_containers(:, bin)
                      CALL hfx_init_container(maxval_container, actual_x_data%memory_parameter%actual_memory_usage, .FALSE.)
                      DO i = 1, 64
                         CALL hfx_init_container(integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, .FALSE.)

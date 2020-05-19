@@ -529,7 +529,7 @@ CONTAINS
                           name="EPS_STORAGE_SCALING", &
                           description="Scaling factor to scale EPS_FILTER for storage of 3-center integrals. Storage threshold "// &
                           "will be EPS_FILTER*EPS_STORAGE_SCALING.", &
-                          default_r_val=10.0_dp)
+                          default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -640,9 +640,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="RI_FLAVOR", &
                           description="Flavor of RI: how to contract 3-center integrals", &
                           enum_c_vals=s2a("MO", "RHO"), &
-                          enum_desc=s2a("MO coefficients", "density matrix"), &
+                          enum_desc=s2a("with MO coefficients", "with density matrix"), &
                           enum_i_vals=(/ri_mo, ri_pmat/), &
-                          default_i_val=ri_mo)
+                          default_i_val=ri_pmat)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

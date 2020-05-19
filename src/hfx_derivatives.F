@@ -746,12 +746,12 @@ CONTAINS
       IF (treat_forces_in_core) THEN
          !! IF new md step -> reinitialize containers
          IF (actual_x_data%memory_parameter%recalc_forces) THEN
-            CALL dealloc_containers(actual_x_data, hfx_do_eval_forces)
-            CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_forces)
+            CALL dealloc_containers(actual_x_data%store_forces, memory_parameter%actual_memory_usage)
+            CALL alloc_containers(actual_x_data%store_forces, my_bin_size)
 
             DO bin = 1, my_bin_size
-               maxval_container => actual_x_data%maxval_container_forces(bin)
-               integral_containers => actual_x_data%integral_containers_forces(:, bin)
+               maxval_container => actual_x_data%store_forces%maxval_container(bin)
+               integral_containers => actual_x_data%store_forces%integral_containers(:, bin)
                CALL hfx_init_container(maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
                DO i = 1, 64
                   CALL hfx_init_container(integral_containers(i), memory_parameter%actual_memory_usage, .FALSE.)
@@ -762,10 +762,10 @@ CONTAINS
          !! Decompress the first cache for maxvals and integrals
          IF (.NOT. actual_x_data%memory_parameter%recalc_forces) THEN
             DO bin = 1, my_bin_size
-               maxval_cache => actual_x_data%maxval_cache_forces(bin)
-               maxval_container => actual_x_data%maxval_container_forces(bin)
-               integral_caches => actual_x_data%integral_caches_forces(:, bin)
-               integral_containers => actual_x_data%integral_containers_forces(:, bin)
+               maxval_cache => actual_x_data%store_forces%maxval_cache(bin)
+               maxval_container => actual_x_data%store_forces%maxval_container(bin)
+               integral_caches => actual_x_data%store_forces%integral_caches(:, bin)
+               integral_containers => actual_x_data%store_forces%integral_containers(:, bin)
                CALL hfx_decompress_first_cache(bits_max_val, maxval_cache, maxval_container, &
                                                memory_parameter%actual_memory_usage, .FALSE.)
                DO i = 1, 64
@@ -847,11 +847,11 @@ CONTAINS
 
       IF (treat_forces_in_core) THEN
          IF (my_bin_size > 0) THEN
-            maxval_container => actual_x_data%maxval_container_forces(1)
-            maxval_cache => actual_x_data%maxval_cache_forces(1)
+            maxval_container => actual_x_data%store_forces%maxval_container(1)
+            maxval_cache => actual_x_data%store_forces%maxval_cache(1)
 
-            integral_containers => actual_x_data%integral_containers_forces(:, 1)
-            integral_caches => actual_x_data%integral_caches_forces(:, 1)
+            integral_containers => actual_x_data%store_forces%integral_containers(:, 1)
+            integral_caches => actual_x_data%store_forces%integral_caches(:, 1)
          END IF
       END IF
 
@@ -878,10 +878,10 @@ CONTAINS
                my_thread_id = shm_task_list(shm_task_counter)%thread_id
                my_bin_id = shm_task_list(shm_task_counter)%bin_id
                IF (treat_forces_in_core) THEN
-                  maxval_cache => qs_env%x_data(irep, my_thread_id)%maxval_cache_forces(my_bin_id)
-                  maxval_container => qs_env%x_data(irep, my_thread_id)%maxval_container_forces(my_bin_id)
-                  integral_caches => qs_env%x_data(irep, my_thread_id)%integral_caches_forces(:, my_bin_id)
-                  integral_containers => qs_env%x_data(irep, my_thread_id)%integral_containers_forces(:, my_bin_id)
+                  maxval_cache => qs_env%x_data(irep, my_thread_id)%store_forces%maxval_cache(my_bin_id)
+                  maxval_container => qs_env%x_data(irep, my_thread_id)%store_forces%maxval_container(my_bin_id)
+                  integral_caches => qs_env%x_data(irep, my_thread_id)%store_forces%integral_caches(:, my_bin_id)
+                  integral_containers => qs_env%x_data(irep, my_thread_id)%store_forces%integral_containers(:, my_bin_id)
                END IF
                distribution_forces => qs_env%x_data(irep, my_thread_id)%distribution_forces(my_bin_id)
                do_it = .TRUE.
@@ -1634,10 +1634,10 @@ CONTAINS
       IF (actual_x_data%memory_parameter%recalc_forces) THEN
          IF (treat_forces_in_core) THEN
             DO bin = 1, my_bin_size
-               maxval_cache => actual_x_data%maxval_cache_forces(bin)
-               maxval_container => actual_x_data%maxval_container_forces(bin)
-               integral_caches => actual_x_data%integral_caches_forces(:, bin)
-               integral_containers => actual_x_data%integral_containers_forces(:, bin)
+               maxval_cache => actual_x_data%store_forces%maxval_cache(bin)
+               maxval_container => actual_x_data%store_forces%maxval_container(bin)
+               integral_caches => actual_x_data%store_forces%integral_caches(:, bin)
+               integral_containers => actual_x_data%store_forces%integral_containers(:, bin)
                CALL hfx_flush_last_cache(bits_max_val, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
                                          .FALSE.)
                DO i = 1, 64
@@ -1650,10 +1650,10 @@ CONTAINS
       !! reset all caches except we calculate all on the fly
       IF (treat_forces_in_core) THEN
          DO bin = 1, my_bin_size
-            maxval_cache => actual_x_data%maxval_cache_forces(bin)
-            maxval_container => actual_x_data%maxval_container_forces(bin)
-            integral_caches => actual_x_data%integral_caches_forces(:, bin)
-            integral_containers => actual_x_data%integral_containers_forces(:, bin)
+            maxval_cache => actual_x_data%store_forces%maxval_cache(bin)
+            maxval_container => actual_x_data%store_forces%maxval_container(bin)
+            integral_caches => actual_x_data%store_forces%integral_caches(:, bin)
+            integral_containers => actual_x_data%store_forces%integral_containers(:, bin)
 
             CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
             DO i = 1, 64
