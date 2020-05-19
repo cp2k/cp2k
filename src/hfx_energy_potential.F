@@ -663,11 +663,11 @@ CONTAINS
       counter = 0_int_8
       do_disk_storage = memory_parameter%do_disk_storage
       IF (do_disk_storage) THEN
-         maxval_container_disk => actual_x_data%maxval_container_disk
-         maxval_cache_disk => actual_x_data%maxval_cache_disk
+         maxval_container_disk => actual_x_data%store_ints%maxval_container_disk
+         maxval_cache_disk => actual_x_data%store_ints%maxval_cache_disk
 
-         integral_containers_disk => actual_x_data%integral_containers_disk
-         integral_caches_disk => actual_x_data%integral_caches_disk
+         integral_containers_disk => actual_x_data%store_ints%integral_containers_disk
+         integral_caches_disk => actual_x_data%store_ints%integral_caches_disk
       END IF
 
       IF (my_geo_change) THEN
@@ -928,12 +928,12 @@ CONTAINS
       IF (.NOT. memory_parameter%do_all_on_the_fly) THEN
          !! IF new md step -> reinitialize containers
          IF (my_geo_change) THEN
-            CALL dealloc_containers(actual_x_data, hfx_do_eval_energy)
-            CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy)
+            CALL dealloc_containers(actual_x_data%store_ints, memory_parameter%actual_memory_usage)
+            CALL alloc_containers(actual_x_data%store_ints, my_bin_size)
 
             DO bin = 1, my_bin_size
-               maxval_container => actual_x_data%maxval_container(bin)
-               integral_containers => actual_x_data%integral_containers(:, bin)
+               maxval_container => actual_x_data%store_ints%maxval_container(bin)
+               integral_containers => actual_x_data%store_ints%integral_containers(:, bin)
                CALL hfx_init_container(maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
                DO i = 1, 64
                   CALL hfx_init_container(integral_containers(i), memory_parameter%actual_memory_usage, .FALSE.)
@@ -944,10 +944,10 @@ CONTAINS
          !! Decompress the first cache for maxvals and integrals
          IF (.NOT. my_geo_change) THEN
             DO bin = 1, my_bin_size
-               maxval_cache => actual_x_data%maxval_cache(bin)
-               maxval_container => actual_x_data%maxval_container(bin)
-               integral_caches => actual_x_data%integral_caches(:, bin)
-               integral_containers => actual_x_data%integral_containers(:, bin)
+               maxval_cache => actual_x_data%store_ints%maxval_cache(bin)
+               maxval_container => actual_x_data%store_ints%maxval_container(bin)
+               integral_caches => actual_x_data%store_ints%integral_caches(:, bin)
+               integral_containers => actual_x_data%store_ints%integral_containers(:, bin)
                CALL hfx_decompress_first_cache(bits_max_val, maxval_cache, maxval_container, &
                                                memory_parameter%actual_memory_usage, .FALSE.)
                DO i = 1, 64
@@ -1026,11 +1026,11 @@ CONTAINS
 !$OMP BARRIER
 
       IF (my_bin_size > 0) THEN
-         maxval_container => actual_x_data%maxval_container(1)
-         maxval_cache => actual_x_data%maxval_cache(1)
+         maxval_container => actual_x_data%store_ints%maxval_container(1)
+         maxval_cache => actual_x_data%store_ints%maxval_cache(1)
 
-         integral_containers => actual_x_data%integral_containers(:, 1)
-         integral_caches => actual_x_data%integral_caches(:, 1)
+         integral_containers => actual_x_data%store_ints%integral_containers(:, 1)
+         integral_caches => actual_x_data%store_ints%integral_caches(:, 1)
       END IF
 
 !$OMP BARRIER
@@ -1103,10 +1103,10 @@ CONTAINS
                my_thread_id = shm_task_list(shm_task_counter)%thread_id
                my_bin_id = shm_task_list(shm_task_counter)%bin_id
                IF (.NOT. memory_parameter%do_all_on_the_fly) THEN
-                  maxval_cache => x_data(irep, my_thread_id)%maxval_cache(my_bin_id)
-                  maxval_container => x_data(irep, my_thread_id)%maxval_container(my_bin_id)
-                  integral_caches => x_data(irep, my_thread_id)%integral_caches(:, my_bin_id)
-                  integral_containers => x_data(irep, my_thread_id)%integral_containers(:, my_bin_id)
+                  maxval_cache => x_data(irep, my_thread_id)%store_ints%maxval_cache(my_bin_id)
+                  maxval_container => x_data(irep, my_thread_id)%store_ints%maxval_container(my_bin_id)
+                  integral_caches => x_data(irep, my_thread_id)%store_ints%integral_caches(:, my_bin_id)
+                  integral_containers => x_data(irep, my_thread_id)%store_ints%integral_containers(:, my_bin_id)
                ENDIF
                distribution_energy => x_data(irep, my_thread_id)%distribution_energy(my_bin_id)
                do_it = .TRUE.
@@ -2074,10 +2074,10 @@ CONTAINS
       IF (my_geo_change) THEN
          IF (.NOT. memory_parameter%do_all_on_the_fly) THEN
             DO bin = 1, my_bin_size
-               maxval_cache => actual_x_data%maxval_cache(bin)
-               maxval_container => actual_x_data%maxval_container(bin)
-               integral_caches => actual_x_data%integral_caches(:, bin)
-               integral_containers => actual_x_data%integral_containers(:, bin)
+               maxval_cache => actual_x_data%store_ints%maxval_cache(bin)
+               maxval_container => actual_x_data%store_ints%maxval_container(bin)
+               integral_caches => actual_x_data%store_ints%integral_caches(:, bin)
+               integral_containers => actual_x_data%store_ints%integral_containers(:, bin)
                CALL hfx_flush_last_cache(bits_max_val, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
                                          .FALSE.)
                DO i = 1, 64
@@ -2090,10 +2090,10 @@ CONTAINS
       !! reset all caches except we calculate all on the fly
       IF (.NOT. memory_parameter%do_all_on_the_fly) THEN
          DO bin = 1, my_bin_size
-            maxval_cache => actual_x_data%maxval_cache(bin)
-            maxval_container => actual_x_data%maxval_container(bin)
-            integral_caches => actual_x_data%integral_caches(:, bin)
-            integral_containers => actual_x_data%integral_containers(:, bin)
+            maxval_cache => actual_x_data%store_ints%maxval_cache(bin)
+            maxval_container => actual_x_data%store_ints%maxval_container(bin)
+            integral_caches => actual_x_data%store_ints%integral_caches(:, bin)
+            integral_containers => actual_x_data%store_ints%integral_containers(:, bin)
 
             CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
             DO i = 1, 64
