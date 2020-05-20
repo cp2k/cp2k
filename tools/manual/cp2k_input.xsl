@@ -447,11 +447,29 @@
    <xsl:sort select="NAME[@type='default']"/>
    <xsl:if test="not(starts-with(NAME[@type='default'],'__CONTROL'))">
     <li>
-     <a href="#{string(NAME[@type='default'])}" id="list_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
+     <a href="#{string(NAME[@type='default'])}" id="list_{string(NAME[@type='default'])}">
+     <xsl:call-template name="keyword_name">
+      <xsl:with-param name="element" select="$element"/>
+     </xsl:call-template>
+     </a>
     </li>
    </xsl:if>
   </xsl:for-each>
  </ul>
+</xsl:template>
+
+<xsl:template name="keyword_name">
+ <xsl:param name="element" select="KEYWORD"/>
+ <xsl:choose>
+  <xsl:when test="@removed = 'yes' or string-length(DEPRECATION_NOTICE) > 0 ">
+   <span style="text-decoration: line-through">
+    <xsl:value-of select="NAME[@type='default']"/>
+   </span>
+  </xsl:when>
+  <xsl:otherwise>
+   <xsl:value-of select="NAME[@type='default']"/>
+  </xsl:otherwise>
+ </xsl:choose>
 </xsl:template>
 
 <xsl:template name="describe_keywords">
@@ -469,7 +487,11 @@
       <ul class="disc">
        <li>
         <a id="desc_{string(NAME[@type='default'])}"></a>
-        <a href="#list_{string(NAME[@type='default'])}" id="{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
+        <a href="#list_{string(NAME[@type='default'])}" id="{string(NAME[@type='default'])}">
+         <xsl:call-template name="keyword_name">
+          <xsl:with-param name="element" select="$element"/>
+         </xsl:call-template>
+        </a>
        </li>
       </ul>
      </td>
@@ -517,6 +539,18 @@
      </td>
      <td class="r">
       <em>
+       <xsl:if test="@removed = 'yes'">
+        <p style="font-weight:bold">
+         This keyword was removed.
+         <xsl:value-of select="DEPRECATION_NOTICE"/>
+        </p>
+       </xsl:if>
+       <xsl:if test="@removed = 'no' and string-length(DEPRECATION_NOTICE) > 0">
+        <p style="font-weight:bold">
+         This keyword is deprecated.
+         <xsl:value-of select="DEPRECATION_NOTICE"/>
+        </p>
+       </xsl:if>
        <xsl:if test="string-length(DESCRIPTION) > 0">
         <xsl:value-of disable-output-escaping="yes" select="DESCRIPTION"/>
        </xsl:if>
