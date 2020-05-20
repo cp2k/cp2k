@@ -646,7 +646,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=1000)                                :: string
-      CHARACTER(LEN=3)                                   :: repeats
+      CHARACTER(LEN=3)                                   :: removed, repeats
       CHARACTER(LEN=8)                                   :: short_string
       INTEGER                                            :: i, l0, l1, l2, l3, l4
 
@@ -667,11 +667,18 @@ CONTAINS
          repeats = "no "
       END IF
 
+      IF (keyword%removed) THEN
+         removed = "yes"
+      ELSE
+         removed = "no "
+      END IF
+
       ! Write (special) keyword element
 
       IF (keyword%names(1) == "_SECTION_PARAMETERS_") THEN
          WRITE (UNIT=unit_number, FMT="(A)") &
-            REPEAT(" ", l0)//"<SECTION_PARAMETERS repeats="""//TRIM(repeats)//""">", &
+            REPEAT(" ", l0)//"<SECTION_PARAMETERS repeats="""//TRIM(repeats)// &
+            """ removed="""//TRIM(removed)//""">", &
             REPEAT(" ", l1)//"<NAME type=""default"">SECTION_PARAMETERS</NAME>"
       ELSE IF (keyword%names(1) == "_DEFAULT_KEYWORD_") THEN
          WRITE (UNIT=unit_number, FMT="(A)") &
@@ -679,7 +686,8 @@ CONTAINS
             REPEAT(" ", l1)//"<NAME type=""default"">DEFAULT_KEYWORD</NAME>"
       ELSE
          WRITE (UNIT=unit_number, FMT="(A)") &
-            REPEAT(" ", l0)//"<KEYWORD repeats="""//TRIM(repeats)//""">", &
+            REPEAT(" ", l0)//"<KEYWORD repeats="""//TRIM(repeats)// &
+            """ removed="""//TRIM(removed)//""">", &
             REPEAT(" ", l1)//"<NAME type=""default"">"// &
             TRIM(keyword%names(1))//"</NAME>"
       END IF
