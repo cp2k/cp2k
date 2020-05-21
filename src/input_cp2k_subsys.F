@@ -1104,7 +1104,7 @@ CONTAINS
          description="The RI auxiliary basis set used in WF_CORRELATION (GTO type)", &
          usage="RI_AUX_BASIS_SET DZVP", default_c_val=" ", &
          n_var=1, &
-         deprecation_notice="use 'BASIS_SET RI_AUX ...' instead", &
+         deprecation_notice="Use 'BASIS_SET RI_AUX ...' instead.", &
          removed=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1115,7 +1115,7 @@ CONTAINS
          description="The local resolution of identity basis set (GTO type)", &
          usage="", default_c_val=" ", &
          n_var=1, &
-         deprecation_notice="use 'BASIS_SET AUX_FIT ...' instead", &
+         deprecation_notice="Use 'BASIS_SET LRI ...' instead.", &
          removed=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1127,7 +1127,7 @@ CONTAINS
          usage="AUX_FIT_BASIS_SET DZVP", default_c_val=" ", &
          citations=(/Guidon2010/), &
          n_var=1, &
-         deprecation_notice="use 'BASIS_SET AUX_FIT ...' instead", &
+         deprecation_notice="Use 'BASIS_SET AUX_FIT ...' instead.", &
          removed=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1181,7 +1181,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL_TYPE", &
                           description="The type of this kinds pseudopotential (ECP, ALL, GTH, UPS).", &
-                          deprecation_notice="use 'POTENTIAL <TYPE> ...' instead", &
+                          deprecation_notice="Use 'POTENTIAL <TYPE> ...' instead.", &
                           usage="POTENTIAL_TYPE <TYPE>", default_c_val="", n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
