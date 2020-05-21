@@ -582,9 +582,20 @@ CONTAINS
          dr2 = pw%pw_grid%dr(2)
          dr3 = pw%pw_grid%dr(3)
          grid => pw%cr3d(:, :, :)
+         !$OMP PARALLEL DO DEFAULT(NONE) &
+         !$OMP SHARED(bo, gbo, grid, grid2, pw, npts, per_pot, mm_atom_index) &
+         !$OMP SHARED(dr1, dr2, dr3, dr1c, dr2c, dr3c, par_scheme, mm_charges, mm_particles) &
+         !$OMP SHARED(mm_cell, dOmmOqm, shells, para_env, IRadTyp, qmmm_spherical_cutoff) &
+         !$OMP PRIVATE(Imm, LIndMM, IndMM, qt, sph_chrg_factor, ra, myind) &
+         !$OMP PRIVATE(rt1, rt2, rt3, k, vec, ivec, xd1, xd2, xd3, ik1, ik2, ik3, ik4) &
+         !$OMP PRIVATE(ij1, ij2, ij3, ij4, ii1, ii2, ii3, ii4, my_k, my_j, xs1, xs2, xs3) &
+         !$OMP PRIVATE(p1, p2, p3, q1, q2, q3, r1, r2, r3, v1, v2, v3, v4, e1, e2, e3) &
+         !$OMP PRIVATE(f1, f2, f3, g1, g2, g3, h1, h2, h3, s1, s2, s3, s4, a1, a2, a3) &
+         !$OMP PRIVATE(b1, b2, b3, c1, c2, c3, d1, d2, d3, t1, t2, t3, t4, u1, u2, u3, val) &
+         !$OMP PRIVATE(rv1, rv2, rv3, abc_X, abc_X_Y)
          Atoms: DO Imm = 1, SIZE(per_pot%mm_atom_index)
             IF (par_scheme == do_par_atom) THEN
-               myind = myind + 1
+               myind = Imm+(IRadTyp-1)*SIZE(per_pot%mm_atom_index)
                IF (MOD(myind, para_env%num_pe) /= para_env%mepos) CYCLE
             END IF
             LIndMM = per_pot%mm_atom_index(Imm)
@@ -712,14 +723,16 @@ CONTAINS
                      abc_X_Y(4) = abc_X(1, 4)*t1 + abc_X(2, 4)*t2 + abc_X(3, 4)*t3 + abc_X(4, 4)*t4
 
                      val = abc_X_Y(1)*s1 + abc_X_Y(2)*s2 + abc_X_Y(3)*s3 + abc_X_Y(4)*s4
-
+                     !$OMP ATOMIC
                      grid2(i, j, k) = grid2(i, j, k) - val*qt
+                     !$OMP END ATOMIC
                      xs1 = xs1 + dr1c
                   END DO
                   xs2 = xs2 + dr2c
                END DO
             END DO LoopOnGrid
          END DO Atoms
+         !$OMP END PARALLEL DO
       END DO Radius
       CALL timestop(handle)
    END SUBROUTINE qmmm_elec_with_gaussian_LG
@@ -790,9 +803,14 @@ CONTAINS
          pot => potentials(IRadTyp)%pot
          dx = Pot%dx
          pot0_2 => Pot%pot0_2
+         !$OMP PARALLEL DO DEFAULT(NONE) &
+         !$OMP SHARED(pot, par_scheme, para_env, mm_atom_index, mm_particles, dOmmOqm, mm_cell, qmmm_spherical_cutoff) &
+         !$OMP SHARED(bo, gbo, dr1, dr2, dr3, grid2, shells, pot0_2, dx, mm_charges, IRadTyp) &
+         !$OMP PRIVATE(myind, Imm, LIndMM, IndMM, ra, qt, sph_chrg_factor, rt1, rt2, rt3, my_k, my_j) &
+         !$OMP PRIVATE(rv1, rv2, rv3, rx2, rx3, r, r2, rx, Term, xs1, xs2, xs3, i, j, k, ix)
          Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
             IF (par_scheme == do_par_atom) THEN
-               myind = myind + 1
+               myind = Imm+(IRadTyp-1)*SIZE(pot%mm_atom_index)
                IF (MOD(myind, para_env%num_pe) /= para_env%mepos) CYCLE
             END IF
             LIndMM = pot%mm_atom_index(Imm)
@@ -831,13 +849,16 @@ CONTAINS
                             + pot0_2(2, ix)*(rx - 2.0_dp*rx2 + rx3) &
                             + pot0_2(1, ix + 1)*(3.0_dp*rx2 - 2.0_dp*rx3) &
                             + pot0_2(2, ix + 1)*(-rx2 + rx3)
+                     !$OMP ATOMIC
                      grid2(i, j, k) = grid2(i, j, k) - Term*qt
+                     !$OMP END ATOMIC
                      xs1 = xs1 + dr1
                   END DO
                   xs2 = xs2 + dr2
                END DO
             END DO LoopOnGrid
          END DO Atoms
+         !$OMP END PARALLEL DO
       END DO Radius
       CALL timestop(handle)
    END SUBROUTINE qmmm_elec_with_gaussian_LR
