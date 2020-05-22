@@ -175,7 +175,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_matrix_csr', &
          routineP = moduleN//':'//routineN
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
+         ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       CHARACTER(LEN=default_path_length)                 :: file_name, fileformat, subs_string
       INTEGER                                            :: handle, igroup, ik, ikp, ispin, kplocal, &

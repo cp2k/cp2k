@@ -146,8 +146,8 @@ CONTAINS
 #endif
 
       CALL timeset(routineN, handle)
-      CPASSERT(ASSOCIATED(simpar))
       CPASSERT(ASSOCIATED(force_env))
+      CPASSERT(ASSOCIATED(simpar))
 
 #if defined (__PLUMED2)
       NULLIFY (cell, subsys)
@@ -155,6 +155,9 @@ CONTAINS
       CALL pbc_cp2k_plumed_getset_cell(cell, set=.TRUE.) !Store the cell pointer for later use.
       timestep_plumed = simpar%dt
       natom_plumed = subsys%particles%n_els
+#else
+      MARK_USED(force_env)
+      MARK_USED(simpar)
 #endif
 
       MARK_USED(itimes)

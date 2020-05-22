@@ -8030,6 +8030,11 @@ CONTAINS
       CPASSERT(SIZE(m_s) >= 0)
       CPASSERT(SIZE(m_g_full) >= 0)
       CPASSERT(SIZE(m_FTsiginv) >= 0)
+      MARK_USED(m_siginvTFTsiginv)
+      MARK_USED(m_STsiginv)
+      MARK_USED(m_FTsiginv)
+      MARK_USED(m_g_full)
+      MARK_USED(m_s)
 
       nspins = SIZE(m_ks)
 
@@ -8357,6 +8362,9 @@ CONTAINS
       !JHU use and test for unused debug variables
       CPASSERT(ASSOCIATED(blacs_env))
       CPASSERT(ASSOCIATED(para_env))
+      MARK_USED(blacs_env)
+      MARK_USED(para_env)
+
       CALL dbcsr_get_info(m_s, row_blk_size=ao_blk_sizes)
       CALL dbcsr_get_info(matrix_S_vo, row_blk_size=ao_blk_sizes)
       CALL dbcsr_get_info(matrix_F_vo, row_blk_size=ao_blk_sizes)

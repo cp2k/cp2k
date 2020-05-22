@@ -68,6 +68,7 @@ CONTAINS
 
       n = LEN_TRIM(cp2k_version)
       CPASSERT(str_length >= n + 1)
+      MARK_USED(str_length)
 
       ! copy string
       DO i = 1, n

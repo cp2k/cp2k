@@ -125,6 +125,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(x0))
       CPASSERT(ASSOCIATED(force_env_section))
       CPASSERT(ASSOCIATED(geo_section))
+      MARK_USED(force_env_section)
 
       SELECT CASE (gopt_param%method_id)
       CASE (default_bfgs_method_id)
