@@ -471,6 +471,7 @@ CONTAINS
       NULLIFY (para_env, blacs_env, fm_struct, rhs_matrix, matrix_tdp, lhs_matrix, work)
       NULLIFY (c_diff, c_sum, ex_struct, lr_evals, lr_coeffs)
       CPASSERT(ASSOCIATED(xas_tdp_env))
+      MARK_USED(xas_tdp_env)
 
       do_os = .FALSE.
       do_sf = .FALSE.

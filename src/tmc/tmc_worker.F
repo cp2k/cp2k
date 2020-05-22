@@ -615,6 +615,7 @@ CONTAINS
       CPASSERT(conf%temp_created .GT. 0)
       CPASSERT(conf%temp_created .LE. tmc_env%params%nr_temp)
       CPASSERT(env_id .GT. 0)
+      MARK_USED(env_id)
 
       ! start the timing
       CALL timeset(routineN, handle)

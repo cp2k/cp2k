@@ -404,6 +404,7 @@ CONTAINS
 
       CPASSERT(.NOT. ALLOCATED(m_send%task_int))
       CPASSERT(.NOT. ALLOCATED(m_send%task_real))
+      MARK_USED(m_send)
 
    END SUBROUTINE create_status_message
 

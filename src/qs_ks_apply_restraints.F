@@ -216,6 +216,7 @@ CONTAINS
          CPASSERT(qs_env%requires_mo_derivs)
          ! forces are not implemented (not difficult, but ... )
          CPASSERT(.NOT. calculate_forces)
+         MARK_USED(calculate_forces)
          CALL get_qs_env(qs_env, mo_derivs=mo_derivs, mos=mo_array)
 
          ALLOCATE (fm_mo_derivs(SIZE(mo_derivs, 1))) !fm->dbcsr

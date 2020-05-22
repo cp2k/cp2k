@@ -486,6 +486,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(ana_disp))
       CPASSERT(dim_per_elem .GT. 0)
+      MARK_USED(dim_per_elem)
 
       ALLOCATE (ana_disp)
 

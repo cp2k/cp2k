@@ -580,6 +580,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(scf_env%ref_count > 0)
+      MARK_USED(scf_env)
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &

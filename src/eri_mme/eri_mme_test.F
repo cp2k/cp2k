@@ -372,6 +372,7 @@ CONTAINS
 
       CPASSERT(C_prod_err .LE. tolerance)
       CPASSERT(H_prod_err .LE. tolerance)
+      MARK_USED(tolerance)
 
    END SUBROUTINE overlap_dist_expansion_test
 

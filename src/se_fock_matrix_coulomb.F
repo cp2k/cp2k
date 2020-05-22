@@ -917,6 +917,8 @@ CONTAINS
       CPASSERT(SIZE(ks_matrix) > 0)
       CPASSERT(ASSOCIATED(diagmat_p))
       CPASSERT(ASSOCIATED(diagmat_ks))
+      MARK_USED(ks_matrix)
+      MARK_USED(matrix_p)
 
       nkind = SIZE(atomic_kind_set)
       IF (calculate_forces) THEN
