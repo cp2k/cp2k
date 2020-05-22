@@ -43,11 +43,7 @@ MODULE hfx_ri
         dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
         dbcsr_t_reserved_block_indices, dbcsr_t_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
-   USE hfx_types,                       ONLY: alloc_containers,&
-                                              dealloc_containers,&
-                                              hfx_container_type,&
-                                              hfx_init_container,&
-                                              hfx_ri_type
+   USE hfx_types,                       ONLY: hfx_ri_type
    USE input_constants,                 ONLY: hfx_ri_do_2c_cholesky,&
                                               hfx_ri_do_2c_diag,&
                                               hfx_ri_do_2c_iter
@@ -548,9 +544,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_pre_scf_Pmat', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, handle2, i, i_mem, j_mem, &
-                                                            n_dependent, unit_nr, unit_nr_dbcsr, &
-                                                            unused
+      INTEGER                                            :: handle, handle2, i_mem, j_mem, &
+                                                            n_dependent, unit_nr, unit_nr_dbcsr
       INTEGER(int_8)                                     :: nflop
       INTEGER, DIMENSION(2, 1)                           :: bounds_i
       INTEGER, DIMENSION(2, 2)                           :: bounds_j
@@ -563,8 +558,6 @@ CONTAINS
       TYPE(dbcsr_t_type), DIMENSION(1, 1)                :: t_3c_int_1
       TYPE(dbcsr_type), DIMENSION(1)                     :: t_2c_int_mat, t_2c_op_pot, t_2c_op_RI, &
                                                             t_2c_tmp, t_2c_tmp_2
-      TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
-      TYPE(hfx_container_type), POINTER                  :: maxval_container
 
       CALL timeset(routineN, handle)
 
@@ -657,22 +650,12 @@ CONTAINS
             CALL timestop(handle2)
 
             CALL timeset(routineN//"_copy_2", handle2)
-            CALL dbcsr_t_copy(t_3c_2, ri_data%t_3c_int_ctr_1(1, 1), order=[2, 1, 3], move_data=.TRUE.)
-
-            CALL dealloc_containers(ri_data%store_3c(j_mem, i_mem), unused)
-            CALL alloc_containers(ri_data%store_3c(j_mem, i_mem), 1)
-
-            maxval_container => ri_data%store_3c(j_mem, i_mem)%maxval_container(1)
-            integral_containers => ri_data%store_3c(j_mem, i_mem)%integral_containers(:, 1)
-            CALL hfx_init_container(maxval_container, unused, .FALSE.)
-            DO i = 1, 64
-               CALL hfx_init_container(integral_containers(i), unused, .FALSE.)
-            END DO
+            CALL dbcsr_t_copy(t_3c_2, ri_data%t_3c_int_ctr_1(j_mem, i_mem), order=[2, 1, 3], move_data=.TRUE.)
 
             IF (ALLOCATED(ri_data%blk_indices(j_mem, i_mem)%ind)) DEALLOCATE (ri_data%blk_indices(j_mem, i_mem)%ind)
-            ALLOCATE (ri_data%blk_indices(j_mem, i_mem)%ind(dbcsr_t_get_num_blocks(ri_data%t_3c_int_ctr_1(1, 1)), 3))
-            CALL dbcsr_t_reserved_block_indices(ri_data%t_3c_int_ctr_1(1, 1), ri_data%blk_indices(j_mem, i_mem)%ind)
-            CALL compress_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%store_3c(j_mem, i_mem), ri_data%filter_eps_storage)
+            ALLOCATE (ri_data%blk_indices(j_mem, i_mem)%ind(dbcsr_t_get_num_blocks(ri_data%t_3c_int_ctr_1(j_mem, i_mem)), 3))
+            CALL dbcsr_t_reserved_block_indices(ri_data%t_3c_int_ctr_1(j_mem, i_mem), ri_data%blk_indices(j_mem, i_mem)%ind)
+            CALL compress_tensor(ri_data%t_3c_int_ctr_1(j_mem, i_mem), ri_data%store_3c(j_mem, i_mem), ri_data%filter_eps_storage)
 
             CALL timestop(handle2)
          ENDDO
@@ -1392,16 +1375,25 @@ CONTAINS
          CPABORT("3-center integrals are not available (first call requires geometry_did_change=.TRUE.)")
       ENDIF
 
-      IF (ASSOCIATED(ri_data%pgrid_1)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_1(1, 1), &
-                                                                ri_data%pgrid_1, &
-                                                                starts_array_mc_block_1=ri_data%starts_array_mem_block, &
-                                                                ends_array_mc_block_1=ri_data%ends_array_mem_block, &
-                                                                starts_array_mc_block_2=ri_data%starts_array_RI_mem_block, &
-                                                                ends_array_mc_block_2=ri_data%ends_array_RI_mem_block, &
-                                                                nodata=.TRUE., &
-                                                                unit_nr=unit_nr_dbcsr)
+      n_mem = ri_data%n_mem
 
-      IF (ASSOCIATED(ri_data%pgrid_1)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_2(1, 1), &
+      DO i_mem = 1, n_mem
+         DO j_mem = 1, n_mem
+            IF (ASSOCIATED(ri_data%pgrid_1)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_1(i_mem, j_mem), &
+                                                                      ri_data%pgrid_1, &
+                                                                      starts_array_mc_block_1=ri_data%starts_array_mem_block, &
+                                                                      ends_array_mc_block_1=ri_data%ends_array_mem_block, &
+                                                                      starts_array_mc_block_2=ri_data%starts_array_RI_mem_block, &
+                                                                      ends_array_mc_block_2=ri_data%ends_array_RI_mem_block, &
+                                                                      nodata=.FALSE., &
+                                                                      blk_indices=ri_data%blk_indices(i_mem, j_mem)%ind, &
+                                                                      compressed=ri_data%store_3c(i_mem, j_mem), &
+                                                                      eps=ri_data%filter_eps_storage, &
+                                                                      unit_nr=unit_nr_dbcsr)
+         ENDDO
+      ENDDO
+
+      IF (ASSOCIATED(ri_data%pgrid_2)) CALL tensor_change_pgrid(ri_data%t_3c_int_ctr_2(1, 1), &
                                                                 ri_data%pgrid_2, &
                                                                 starts_array_mc_block_2=ri_data%starts_array_RI_mem_block, &
                                                                 ends_array_mc_block_2=ri_data%ends_array_RI_mem_block, &
@@ -1428,8 +1420,6 @@ CONTAINS
 
       CALL mp_sync(para_env%group)
       t1 = m_walltime()
-
-      n_mem = ri_data%n_mem
 
       flops_ks_max = 0; flops_p_max = 0
 
@@ -1507,14 +1497,14 @@ CONTAINS
                bounds_ij(:, 1) = [ri_data%starts_array_mem(i_mem), ri_data%ends_array_mem(i_mem)]
                bounds_ij(:, 2) = [ri_data%starts_array_RI_mem(j_mem), ri_data%ends_array_RI_mem(j_mem)]
 
-               CALL decompress_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%blk_indices(i_mem, j_mem)%ind, &
+               CALL decompress_tensor(ri_data%t_3c_int_ctr_1(i_mem, j_mem), ri_data%blk_indices(i_mem, j_mem)%ind, &
                                       ri_data%store_3c(i_mem, j_mem), ri_data%filter_eps_storage)
 
-               CALL get_tensor_occupancy(ri_data%t_3c_int_ctr_1(1, 1), nze, occ)
+               CALL get_tensor_occupancy(ri_data%t_3c_int_ctr_1(i_mem, j_mem), nze, occ)
                nze_3c_2 = nze_3c_2 + nze
                occ_3c_2 = occ_3c_2 + occ
                CALL timeset(routineN//"_KS", handle2)
-               CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), ri_data%t_3c_int_ctr_1(1, 1), t_3c_3, &
+               CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), ri_data%t_3c_int_ctr_1(i_mem, j_mem), t_3c_3, &
                                      dbcsr_scalar(1.0_dp), ks_t, &
                                      contract_1=[1, 2], notcontract_1=[3], &
                                      contract_2=[1, 2], notcontract_2=[3], &
