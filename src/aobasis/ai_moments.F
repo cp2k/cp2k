@@ -1497,6 +1497,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: difmab, mab
 
       CPASSERT(order == 1)
+      MARK_USED(order)
 
       rab = rbc - rac
       rab2 = SUM(rab**2)

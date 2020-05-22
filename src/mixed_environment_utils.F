@@ -181,6 +181,7 @@ CONTAINS
             IF (ival == iforce_eval) EXIT
          END DO
          CPASSERT(i <= nforce_eval)
+         MARK_USED(nforce_eval)
          fragments_sys => section_vals_get_subs_vals(map_full_sys, "FRAGMENT")
          fragments_loc => section_vals_get_subs_vals(map_force_ev, "FRAGMENT", i_rep_section=i)
          !Perform few check on the structure of the input mapping section. as provided by the user

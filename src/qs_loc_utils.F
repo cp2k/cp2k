@@ -1776,6 +1776,7 @@ CONTAINS
                localized_wfn_control%loc_states(i, ispin) = localized_wfn_control%lu_bound_states(1, ispin) + i - 1
             END DO
             CPASSERT(max_iloc <= nmo(ispin))
+            MARK_USED(nmo)
          END DO
       CASE (energy_loc_range)
          ! Energy

@@ -2807,6 +2807,7 @@ CONTAINS
          ncontacts = 2
          CPASSERT(just_contact == base_contact)
       END IF
+      MARK_USED(base_contact)
 
       npoints_bundle = 4*sub_env%ngroups
       IF (npoints_bundle > npoints) npoints_bundle = npoints

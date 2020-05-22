@@ -74,6 +74,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
 
       CPASSERT(ASSOCIATED(qs_env))
+      MARK_USED(qs_env)
 
       NULLIFY (logger)
       logger => cp_get_default_logger()

@@ -78,6 +78,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(cell))
+      MARK_USED(cell)
 
       CALL pw_pool_create_pw(pw_pool, influence_fn, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)

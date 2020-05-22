@@ -1394,6 +1394,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(source))
+      MARK_USED(source)
 
       IF (.NOT. cp2k_is_parallel) THEN
          ! Don't do anything - no MPI state for the serial case

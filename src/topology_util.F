@@ -476,6 +476,7 @@ CONTAINS
       IF (ASSOCIATED(graph_set)) THEN
          ldim = SIZE(graph_set)
          CPASSERT(ldim + 1 == idim)
+         MARK_USED(idim)
          NULLIFY (tmp_graph_set)
          CALL allocate_graph_set(graph_set, tmp_graph_set)
       END IF

@@ -454,6 +454,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(act_elem))
       CPASSERT(ASSOCIATED(parent_elem))
       CPASSERT(act_elem%stat .EQ. status_calculated)
+      MARK_USED(parent_elem)
 
       flag = .FALSE.
 

@@ -1138,6 +1138,7 @@ CONTAINS
       CPASSERT(nd3 .GE. n3/2 + 1)
       CPASSERT(MOD(nd3, nproc) .EQ. 0)
       CPASSERT(MOD(nd2, nproc) .EQ. 0)
+      MARK_USED(nd1)
 
       !defining work arrays dimensions
       ncache = ncache_optimal

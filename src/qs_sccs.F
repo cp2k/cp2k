@@ -1059,6 +1059,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(f))
       CPASSERT(ASSOCIATED(pw_env))
       CPASSERT(ASSOCIATED(para_env))
+      MARK_USED(para_env)
 
       ! Perform method specific setup
       SELECT CASE (method)
