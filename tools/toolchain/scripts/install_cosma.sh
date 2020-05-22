@@ -117,7 +117,6 @@ case "$with_cosma" in
         echo "==================== Linking cosma to user paths ===================="
         pkg_install_dir="$with_cosma"
         check_dir "$pkg_install_dir/lib"
-        check_dir "$pkg_install_dir/lib64"
         check_dir "$pkg_install_dir/include"
 
 

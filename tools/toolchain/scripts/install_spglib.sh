@@ -62,7 +62,6 @@ case "$with_spglib" in
         echo "==================== Linking spglib to user paths ===================="
         pkg_install_dir="$with_spglib"
         check_dir "$pkg_install_dir/lib"
-        check_dir "$pkg_install_dir/lib64"
         check_dir "$pkg_install_dir/include"
         SPGLIB_CFLAGS="-I'${pkg_install_dir}/include'"
         SPGLIB_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"

@@ -83,11 +83,16 @@ case "$with_openblas" in
         OPENBLAS_CFLAGS="-I'${pkg_install_dir}/include'"
         OPENBLAS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         OPENBLASROOT='${pkg_install_dir}'
+        OPENBLAS_LIBS="-lopenblas"
   ;;
     __SYSTEM__)
         echo "==================== Finding LAPACK from system paths ===================="
         # assume that system openblas is threaded
         check_lib -lopenblas "OpenBLAS"
+        OPENBLAS_LIBS="-lopenblas"
+        # detect separate omp builds
+        check_lib -lopenblas_openmp 2>/dev/null && OPENBLAS_LIBS="-lopenblas_openmp"
+        check_lib -lopenblas_omp 2>/dev/null && OPENBLAS_LIBS="-lopenblas_omp"
         add_include_from_paths OPENBLAS_CFLAGS "openblas_config.h" $INCLUDE_PATHS
         add_lib_from_paths OPENBLAS_LDFLAGS "libopenblas.*" $LIB_PATHS
         ;;
@@ -100,10 +105,15 @@ case "$with_openblas" in
         check_dir "${pkg_install_dir}/lib"
         OPENBLAS_CFLAGS="-I'${pkg_install_dir}/include'"
         OPENBLAS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+        OPENBLAS_LIBS="-lopenblas"
+        # detect separate omp builds
+        (__libdir="${pkg_install_dir}/lib" LIB_PATHS="__libdir" check_lib -lopenblas_openmp 2>/dev/null) && \
+            OPENBLAS_LIBS="-lopenblas_openmp"
+        (__libdir="${pkg_install_dir}/lib" LIB_PATHS="__libdir" check_lib -lopenblas_omp 2>/dev/null) && \
+            OPENBLAS_LIBS="-lopenblas_omp"
         ;;
 esac
 if [ "$with_openblas" != "__DONTUSE__" ] ; then
-    OPENBLAS_LIBS="-lopenblas"
     if [ "$with_openblas" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_openblas"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
