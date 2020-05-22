@@ -33,12 +33,12 @@ MODULE qs_tensors
         dbcsr_t_blk_sizes, dbcsr_t_clear, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_default_distvec, &
         dbcsr_t_destroy, dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, &
         dbcsr_t_distribution_type, dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_info, &
-        dbcsr_t_get_mapping_info, dbcsr_t_get_nze_total, dbcsr_t_get_stored_coordinates, &
-        dbcsr_t_iterator_blocks_left, dbcsr_t_iterator_next_block, dbcsr_t_iterator_start, &
-        dbcsr_t_iterator_stop, dbcsr_t_iterator_type, dbcsr_t_mp_environ_pgrid, &
-        dbcsr_t_nblks_total, dbcsr_t_ndims, dbcsr_t_ndims_matrix_column, dbcsr_t_ndims_matrix_row, &
-        dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_type, &
-        dbcsr_t_write_split_info
+        dbcsr_t_get_mapping_info, dbcsr_t_get_num_blocks, dbcsr_t_get_nze_total, &
+        dbcsr_t_get_stored_coordinates, dbcsr_t_iterator_blocks_left, dbcsr_t_iterator_next_block, &
+        dbcsr_t_iterator_start, dbcsr_t_iterator_stop, dbcsr_t_iterator_type, &
+        dbcsr_t_mp_environ_pgrid, dbcsr_t_nblks_total, dbcsr_t_ndims, dbcsr_t_ndims_matrix_column, &
+        dbcsr_t_ndims_matrix_row, dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, &
+        dbcsr_t_reserved_block_indices, dbcsr_t_type, dbcsr_t_write_split_info
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gamma,                           ONLY: init_md_ftable
@@ -49,9 +49,12 @@ MODULE qs_tensors
                                               hfx_get_mult_cache_elements,&
                                               hfx_get_single_cache_element,&
                                               hfx_reset_cache_and_container
-   USE hfx_types,                       ONLY: hfx_cache_type,&
+   USE hfx_types,                       ONLY: alloc_containers,&
+                                              dealloc_containers,&
+                                              hfx_cache_type,&
                                               hfx_compression_type,&
-                                              hfx_container_type
+                                              hfx_container_type,&
+                                              hfx_init_container
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_short,&
@@ -1585,12 +1588,16 @@ CONTAINS
 !> \param ends_array_mc_block_2 ...
 !> \param starts_array_mc_block_3 ...
 !> \param ends_array_mc_block_3 ...
+!> \param blk_indices ...
+!> \param compressed ...
+!> \param eps ...
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE tensor_change_pgrid(t_3c, pgrid, nodata, &
                                   starts_array_mc_block_1, ends_array_mc_block_1, &
                                   starts_array_mc_block_2, ends_array_mc_block_2, &
                                   starts_array_mc_block_3, ends_array_mc_block_3, &
+                                  blk_indices, compressed, eps, &
                                   unit_nr)
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: t_3c
       TYPE(dbcsr_t_pgrid_type), INTENT(IN)               :: pgrid
@@ -1598,6 +1605,11 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: starts_array_mc_block_1, &
          ends_array_mc_block_1, starts_array_mc_block_2, ends_array_mc_block_2, &
          starts_array_mc_block_3, ends_array_mc_block_3
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT), OPTIONAL                         :: blk_indices
+      TYPE(hfx_compression_type), INTENT(INOUT), &
+         OPTIONAL                                        :: compressed
+      REAL(dp), INTENT(IN), OPTIONAL                     :: eps
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tensor_change_pgrid', &
@@ -1626,6 +1638,14 @@ CONTAINS
       ENDIF
 
       CALL timeset(routineN, handle)
+
+      IF (PRESENT(compressed)) THEN
+         CPASSERT(PRESENT(blk_indices))
+         CPASSERT(PRESENT(eps))
+         IF (PRESENT(nodata)) THEN
+            CPASSERT(.NOT. nodata)
+         ENDIF
+      ENDIF
 
       mem_aware_1 = PRESENT(starts_array_mc_block_1) .AND. PRESENT(ends_array_mc_block_1)
       mem_aware_2 = PRESENT(starts_array_mc_block_2) .AND. PRESENT(ends_array_mc_block_2)
@@ -1686,6 +1706,10 @@ CONTAINS
       CALL dbcsr_t_create(t_tmp, name, dist, map1, map2, dbcsr_type_real_8, bs1, bs2, bs3)
       CALL dbcsr_t_distribution_destroy(dist)
 
+      IF (PRESENT(compressed)) THEN
+         CALL decompress_tensor(t_3c, blk_indices, compressed, eps)
+      ENDIF
+
       IF (PRESENT(nodata)) THEN
          IF (.NOT. nodata) CALL dbcsr_t_copy(t_3c, t_tmp, move_data=.TRUE.)
       ELSE
@@ -1694,6 +1718,13 @@ CONTAINS
 
       CALL dbcsr_t_destroy(t_3c)
       t_3c = t_tmp
+
+      IF (PRESENT(compressed)) THEN
+         IF (ALLOCATED(blk_indices)) DEALLOCATE (blk_indices)
+         ALLOCATE (blk_indices(dbcsr_t_get_num_blocks(t_3c), 3))
+         CALL dbcsr_t_reserved_block_indices(t_3c, blk_indices)
+         CALL compress_tensor(t_3c, compressed, eps)
+      ENDIF
 
       IF (PRESENT(unit_nr)) THEN
          IF (unit_nr > 0) THEN
@@ -1731,12 +1762,19 @@ CONTAINS
       TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
       TYPE(hfx_container_type), POINTER                  :: maxval_container
 
-      maxval_cache => compressed%maxval_cache(1)
+      CALL dealloc_containers(compressed, unused)
+      CALL alloc_containers(compressed, 1)
+
       maxval_container => compressed%maxval_container(1)
-      integral_caches => compressed%integral_caches(:, 1)
       integral_containers => compressed%integral_containers(:, 1)
 
-      unused = 0
+      CALL hfx_init_container(maxval_container, unused, .FALSE.)
+      DO i = 1, 64
+         CALL hfx_init_container(integral_containers(i), unused, .FALSE.)
+      END DO
+
+      maxval_cache => compressed%maxval_cache(1)
+      integral_caches => compressed%integral_caches(:, 1)
 
       CALL dbcsr_t_iterator_start(iter, tensor)
       DO WHILE (dbcsr_t_iterator_blocks_left(iter))
