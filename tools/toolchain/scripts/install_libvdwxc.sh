@@ -101,7 +101,6 @@ case "$with_libvdwxc" in
         echo "==================== Linking libvdwxc to user paths ===================="
         pkg_install_dir="$with_libvdwxc"
         check_dir "$pkg_install_dir/lib"
-        check_dir "$pkg_install_dir/lib64"
         check_dir "$pkg_install_dir/include"
         LIBVDWXC_CFLAGS="-I'${pkg_install_dir}/include'"
         LIBVDWXC_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"

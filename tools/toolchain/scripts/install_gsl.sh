@@ -58,7 +58,6 @@ case "$with_gsl" in
         echo "==================== Linking gsl to user paths ===================="
         pkg_install_dir="$with_gsl"
         check_dir "$pkg_install_dir/lib"
-        check_dir "$pkg_install_dir/lib64"
         check_dir "$pkg_install_dir/include"
         GSL_CFLAGS="-I'${pkg_install_dir}/include'"
         GSL_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"

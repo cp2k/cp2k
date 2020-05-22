@@ -75,7 +75,6 @@ case "$with_spfft" in
         echo "==================== Linking psfft to user paths ===================="
         pkg_install_dir="$with_spfft"
         check_dir "$pkg_install_dir/lib"
-        check_dir "$pkg_install_dir/lib64"
         check_dir "$pkg_install_dir/include"
         SPFFT_CFLAGS="-I'${pkg_install_dir}/include'"
         SPFFT_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
