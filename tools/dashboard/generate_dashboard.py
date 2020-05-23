@@ -1,5 +1,4 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 # Generates the CP2K Dashboard html page
 # Inspired by Iain's cp2k_page_update.sh

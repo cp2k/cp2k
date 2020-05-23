@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Compare CP2K outputs
 # Author: Alfio Lazzaro
@@ -160,7 +160,7 @@ def main():
         metavar="field",
         type=int,
         dest="field",
-        choices=xrange(1, 5),
+        choices=range(1, 5),
         default=2,
         help="which field to show (default is 2)",
     )

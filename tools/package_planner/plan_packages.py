@@ -1,10 +1,8 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-#
-# A tool to help planning CP2K packages, listing currently violated dependencies if any
-#
+#!/usr/bin/env python3
 
-from __future__ import print_function
+# author: Ole Schuett
+
+# A tool to help planning CP2K packages, listing currently violated dependencies if any
 
 import re, sys, os
 from os import path
@@ -52,7 +50,7 @@ def main():
     mod2fn = dict()
     for fn in src_files:
         for m in parsed_files[fn]["module"]:
-            if mod2fn.has_key(m):
+            if m in mod2fn:
                 error('Multiple declarations of module "%s"' % m)
             mod2fn[m] = fn
     print("Created mod2fn table, found %d modules." % len(mod2fn))
@@ -77,15 +75,15 @@ def main():
     # update with manifest with planned packages
     for pp in planned_pkgs:
         p = abspath(path.join(srcdir, pp["dirname"]))
-        if not packages.has_key(p):
+        if p not in packages:
             packages[p] = {"problems": []}
         packages[p].update(pp)
-        if pp.has_key("files"):
+        if "files" in pp:
             for fn in pp["files"]:
                 fn2pkg[fn] = p
-        if pp.has_key("requires+"):
+        if "requires+" in pp:
             packages[p]["requires"] += pp["requires+"]
-        if pp.has_key("requires-"):
+        if "requires-" in pp:
             for i in pp["requires-"]:
                 while i in packages[p]["requires"]:
                     packages[p]["requires"].remove(i)
@@ -101,9 +99,7 @@ def main():
     for fn in src_files:
         p = fn2pkg[basename(fn)]
         deps = collect_include_deps(parsed_files, fn)
-        deps += [
-            mod2fn[m] for m in collect_use_deps(parsed_files, fn) if mod2fn.has_key(m)
-        ]
+        deps += [mod2fn[m] for m in collect_use_deps(parsed_files, fn) if m in mod2fn]
         n_deps += len(deps)
         for d in deps:
             dp = fn2pkg[basename(d)]
@@ -114,7 +110,7 @@ def main():
             )
             if dp not in packages[p]["allowed_deps"]:
                 packages[p]["problems"].append(msg + "(requirement not listed)")
-            if dp != p and packages[dp].has_key("public"):
+            if dp != p and "public" in packages[dp]:
                 if basename(d) not in packages[dp]["public"]:
                     packages[p]["problems"].append(msg + "(file not public)")
 
@@ -170,7 +166,7 @@ def parse_file(parsed_files, fn):
 
 # =============================================================================
 def read_manifest(packages, p):
-    if packages.has_key(p):
+    if p in packages:
         return
 
     fn = p + "/PACKAGE"
@@ -188,7 +184,7 @@ def read_manifest(packages, p):
 
 # =============================================================================
 def process_manifest(packages, p):
-    if not packages[p].has_key("archive"):
+    if "archive" not in packages[p]:
         packages[p]["archive"] = "libcp2k" + basename(p)
     packages[p]["allowed_deps"] = [normpath(p)]
     packages[p]["allowed_deps"] += [
@@ -197,7 +193,7 @@ def process_manifest(packages, p):
 
     for r in packages[p]["requires"]:
         rp = normpath(path.join(p, r))
-        if not packages.has_key(rp):
+        if rp not in packages:
             error(
                 "Unexpected package requirement: "
                 + r
@@ -224,7 +220,7 @@ def collect_include_deps(parsed_files, fn):
 
     for i in pf["include"]:
         fn_inc = normpath(path.join(dirname(fn), i))
-        if parsed_files.has_key(fn_inc):
+        if fn_inc in parsed_files:
             incs.append(fn_inc)
             incs += collect_include_deps(parsed_files, fn_inc)
 
@@ -238,7 +234,7 @@ def collect_use_deps(parsed_files, fn):
 
     for i in pf["include"]:
         fn_inc = normpath(path.join(dirname(fn), i))
-        if parsed_files.has_key(fn_inc):
+        if fn_inc in parsed_files:
             uses += collect_use_deps(parsed_files, fn_inc)
 
     return list(set(uses))
@@ -247,7 +243,7 @@ def collect_use_deps(parsed_files, fn):
 # =============================================================================
 def find_cycles(parsed_files, mod2fn, fn, S=None):
     pf = parsed_files[fn]
-    if pf.has_key("visited"):
+    if "visited" in pf:
         return
 
     if S == None:
@@ -260,7 +256,7 @@ def find_cycles(parsed_files, mod2fn, fn, S=None):
         S.append(m)
 
     for m in collect_use_deps(parsed_files, fn):
-        if mod2fn.has_key(m):
+        if m in mod2fn:
             find_cycles(parsed_files, mod2fn, mod2fn[m], S)
 
     for m in pf["module"]:

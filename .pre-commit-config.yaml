@@ -7,15 +7,6 @@ repos:
     -   id: check-yaml
     -   id: check-added-large-files
     -   id: check-ast
-    -   id: check-ast
-        name: Check python ast (with Python 2.7)
-        language_version: python2.7
-        stages: [manual]
-        files: '^tools/build_utils/.*\.py'
-    -   id: check-ast
-        name: Check python ast (with Python 3)
-        language_version: python3
-        stages: [manual]
 -   repo: https://github.com/ambv/black
     rev: stable
     hooks:
