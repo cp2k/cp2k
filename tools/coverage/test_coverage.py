@@ -1,9 +1,6 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-#
-# author: Ole Schuett
+#!/usr/bin/env python3
 
-from __future__ import print_function
+# author: Ole Schuett
 
 import sys
 import subprocess
