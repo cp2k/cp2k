@@ -64,6 +64,8 @@ MODULE submatrix_dissection
    IMPLICIT NONE
    PRIVATE
 
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'submatrix_dissection'
+
    TYPE, PUBLIC :: submatrix_dissection_type
       TYPE(dbcsr_type)                                :: dbcsr_mat
       TYPE(dbcsr_distribution_type)                   :: dist
@@ -135,6 +137,9 @@ CONTAINS
 !> \brief initialize submatrix dissection and communicate, needs to be called before constructing any submatrices.
 !> \param this - object of class submatrix_dissection_type
 !> \param matrix_p - dbcsr input matrix
+!> \par History
+!>       2020.02 created [Michael Lass]
+!>       2020.05 add time measurements [Michael Lass]
 ! **************************************************************************************************
    SUBROUTINE submatrix_dissection_init(this, matrix_p) ! Should be PURE but the iterator routines are not
       CLASS(submatrix_dissection_type), INTENT(INOUT)  :: this
@@ -163,6 +168,11 @@ CONTAINS
       LOGICAL                                          :: valid
       REAL(KIND=dp), DIMENSION(:), POINTER             :: blockp
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'submatrix_dissection_init', &
+                                     routineP = moduleN//':'//routineN
+      INTEGER :: handle
+
+      CALL timeset(routineN, handle)
       CALL cite_reference(Lass2018)
 
       this%dbcsr_mat = matrix_p
@@ -520,6 +530,8 @@ CONTAINS
       DEALLOCATE (sendbufs)
 
       this%initialized = .TRUE.
+
+      CALL timestop(handle)
    END SUBROUTINE submatrix_dissection_init
 
 ! **************************************************************************************************
@@ -772,6 +784,9 @@ CONTAINS
 !> \brief finalize results back into a dbcsr matrix
 !> \param this - object of class submatrix_dissection_type
 !> \param resultmat - result dbcsr matrix
+!> \par History
+!>       2020.02 created [Michael Lass]
+!>       2020.05 add time measurements [Michael Lass]
 ! **************************************************************************************************
    SUBROUTINE submatrix_communicate_results(this, resultmat)
       CLASS(submatrix_dissection_type), INTENT(INOUT)                 :: this
@@ -780,6 +795,12 @@ CONTAINS
       INTEGER                                                         :: i, j, k, cur_row, cur_col, cur_sm, cur_buf, last_buf, &
                                                                          bufsize, bufsize_next
       TYPE(buffer_type), DIMENSION(:), ALLOCATABLE                    :: result_recvbufs
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'submatrix_communicate_results', &
+                                     routineP = moduleN//':'//routineN
+      INTEGER :: handle
+
+      CALL timeset(routineN, handle)
 
       ALLOCATE (result_recvbufs(0:this%numnodes - 1))
       DO i = 0, this%numnodes - 1
@@ -830,6 +851,7 @@ CONTAINS
 
       CALL dbcsr_finalize(resultmat)
 
+      CALL timestop(handle)
    END SUBROUTINE submatrix_communicate_results
 
 ! **************************************************************************************************
