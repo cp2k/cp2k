@@ -1175,34 +1175,40 @@ CONTAINS
    END SUBROUTINE dense_matrix_sign_Newton_Schulz
 
 ! **************************************************************************************************
-!> \brief Calculate the sign matrix by direct calculation of all eigenvalues and eigenvectors
-!> \param sm_sign ...
+!> \brief Perform eigendecomposition of a dense matrix
 !> \param sm ...
 !> \param N ...
+!> \param eigvals ...
+!> \param eigvecs ...
+!> \par History
+!>       2020.05 Extracted from dense_matrix_sign_direct [Michael Lass]
 !> \author Michael Lass, Robert Schade
 ! **************************************************************************************************
-   SUBROUTINE dense_matrix_sign_direct(sm_sign, sm, N)
+   SUBROUTINE eigdecomp(sm, N, eigvals, eigvecs)
       INTEGER, INTENT(IN)                                :: N
       REAL(KIND=dp), INTENT(IN)                          :: sm(N, N)
-      REAL(KIND=dp), INTENT(INOUT)                       :: sm_sign(N, N)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                           :: eigvals
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                           :: eigvecs
 
-      INTEGER                                            :: i, info, liwork, lwork
+      INTEGER                                            :: info, liwork, lwork
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: W, work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tmp, U
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tmp
 
-      ALLOCATE (U(N, N), tmp(N, N))
-      ALLOCATE (W(N))
+      ALLOCATE (eigvecs(N, N), tmp(N, N))
+      ALLOCATE (eigvals(N))
 
       ! symmetrize sm
-      U(:, :) = 0.5*(sm + TRANSPOSE(sm))
+      eigvecs(:, :) = 0.5*(sm + TRANSPOSE(sm))
 
       ! probe optimal sizes for WORK and IWORK
       LWORK = -1
       LIWORK = -1
       ALLOCATE (WORK(1))
       ALLOCATE (IWORK(1))
-      CALL dsyevd('V', 'U', N, U, N, W, WORK, LWORK, IWORK, LIWORK, INFO)
+      CALL dsyevd('V', 'U', N, eigvecs, N, eigvals, WORK, LWORK, IWORK, LIWORK, INFO)
       LWORK = INT(WORK(1))
       LIWORK = INT(IWORK(1))
       DEALLOCATE (IWORK)
@@ -1211,17 +1217,40 @@ CONTAINS
       ! calculate eigenvalues and eigenvectors
       ALLOCATE (WORK(LWORK))
       ALLOCATE (IWORK(LIWORK))
-      CALL dsyevd('V', 'U', N, U, N, W, WORK, LWORK, IWORK, LIWORK, INFO)
+      CALL dsyevd('V', 'U', N, eigvecs, N, eigvals, WORK, LWORK, IWORK, LIWORK, INFO)
       DEALLOCATE (IWORK)
       DEALLOCATE (WORK)
-
       IF (INFO .NE. 0) CPABORT("dsyevd did not succeed")
+
+      DEALLOCATE (tmp)
+   END SUBROUTINE eigdecomp
+
+! **************************************************************************************************
+!> \brief Calculate the sign matrix from eigenvalues and eigenvectors of a matrix
+!> \param sm_sign ...
+!> \param eigvals ...
+!> \param eigvecs ...
+!> \param N ...
+!> \param mu_correction ...
+!> \par History
+!>       2020.05 Extracted from dense_matrix_sign_direct [Michael Lass]
+!> \author Michael Lass, Robert Schade
+! **************************************************************************************************
+   SUBROUTINE sign_from_eigdecomp(sm_sign, eigvals, eigvecs, N, mu_correction)
+      INTEGER                          :: N
+      REAL(KIND=dp), INTENT(IN)        :: mu_correction
+      REAL(KIND=dp), INTENT(INOUT)     :: sm_sign(N, N)
+      REAL(KIND=dp), INTENT(IN)        :: eigvals(N)
+      REAL(KIND=dp), INTENT(IN)        :: eigvecs(N, N)
+      INTEGER                          :: i
+      REAL(KIND=dp)                    :: tmp(N, N), modified_eigval
 
       sm_sign = 0
       DO i = 1, N
-         IF (W(i) > 0) THEN
+         modified_eigval = eigvals(i) - mu_correction
+         IF (modified_eigval > 0) THEN
             sm_sign(i, i) = 1.0
-         ELSE IF (W(i) < 0) THEN
+         ELSE IF (modified_eigval < 0) THEN
             sm_sign(i, i) = -1.0
          ELSE
             sm_sign(i, i) = 0.0
@@ -1229,13 +1258,33 @@ CONTAINS
       ENDDO
 
       ! Create matrix with eigenvalues in {-1,0,1} and eigenvectors of sm:
-      ! sm_sign = U * sm_sign * U.T
-      CALL dgemm('N', 'N', N, N, N, 1.0_dp, U, N, sm_sign, N, 0.0_dp, tmp, N)
-      CALL dgemm('N', 'T', N, N, N, 1.0_dp, tmp, N, U, N, 0.0_dp, sm_sign, N)
+      ! sm_sign = eigvecs * sm_sign * eigvecs.T
+      CALL dgemm('N', 'N', N, N, N, 1.0_dp, eigvecs, N, sm_sign, N, 0.0_dp, tmp, N)
+      CALL dgemm('N', 'T', N, N, N, 1.0_dp, tmp, N, eigvecs, N, 0.0_dp, sm_sign, N)
+   END SUBROUTINE sign_from_eigdecomp
 
-      DEALLOCATE (W)
-      DEALLOCATE (tmp)
-      DEALLOCATE (U)
+! **************************************************************************************************
+!> \brief Calculate the sign matrix by direct calculation of all eigenvalues and eigenvectors
+!> \param sm_sign ...
+!> \param sm ...
+!> \param N ...
+!> \par History
+!>       2020.02 Created [Michael Lass, Robert Schade]
+!>       2020.05 Extracted eigdecomp and sign_from_eigdecomp [Michael Lass]
+!> \author Michael Lass, Robert Schade
+! **************************************************************************************************
+   SUBROUTINE dense_matrix_sign_direct(sm_sign, sm, N)
+      INTEGER, INTENT(IN)                                :: N
+      REAL(KIND=dp), INTENT(IN)                          :: sm(N, N)
+      REAL(KIND=dp), INTENT(INOUT)                       :: sm_sign(N, N)
+
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvals
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigvecs
+
+      CALL eigdecomp(sm, N, eigvals, eigvecs)
+      CALL sign_from_eigdecomp(sm_sign, eigvals, eigvecs, N, 0.0_dp)
+
+      DEALLOCATE (eigvals, eigvecs)
    END SUBROUTINE dense_matrix_sign_direct
 
 ! **************************************************************************************************
