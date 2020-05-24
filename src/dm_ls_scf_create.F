@@ -31,6 +31,7 @@ MODULE dm_ls_scf_create
         ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
         ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, ls_scf_pexsi, ls_scf_sign, &
         ls_scf_sign_ns, ls_scf_sign_proot, ls_scf_sign_submatrix, ls_scf_submatrix_sign_direct, &
+        ls_scf_submatrix_sign_direct_muadj, ls_scf_submatrix_sign_direct_muadj_lowmem, &
         ls_scf_submatrix_sign_ns, ls_scf_tc2, ls_scf_trs4
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -312,11 +313,18 @@ CONTAINS
       IF (ls_scf_env%curvy_steps .AND. .NOT. ls_scf_env%use_s_sqrt) &
          CPABORT("CURVY_STEPS requires the use of the sqrt inversion.")
 
-      ! verify requirements for direct submatrix sign method
+      ! verify requirements for direct submatrix sign methods
       IF (ls_scf_env%sign_method .EQ. ls_scf_sign_submatrix &
-          .AND. ls_scf_env%submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct &
-          .AND. .NOT. ls_scf_env%sign_symmetric) &
-         CPABORT("DIRECT submatrix sign method requires SIGN_SYMMETRIC being set.")
+          .AND. ( &
+          ls_scf_env%submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct &
+          .OR. ls_scf_env%submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct_muadj &
+          .OR. ls_scf_env%submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct_muadj_lowmem &
+          ) .AND. .NOT. ls_scf_env%sign_symmetric) &
+         CPABORT("DIRECT submatrix sign methods require SIGN_SYMMETRIC being set.")
+      IF (ls_scf_env%fixed_mu .AND. ( &
+          ls_scf_env%submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct_muadj &
+          .OR. ls_scf_env%submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct_muadj_lowmem &
+          )) CPABORT("Invalid submatrix sign method for FIXED_MU.")
 
       ! sign_symmetric requires computation of s_sqrt
       IF (ls_scf_env%sign_symmetric) ls_scf_env%use_s_sqrt = .TRUE.
@@ -408,6 +416,10 @@ CONTAINS
                   WRITE (unit_nr, '(T2,A,T61,A20)') "Submatrix sign method:", ADJUSTR("newton schulz")
                CASE (ls_scf_submatrix_sign_direct)
                   WRITE (unit_nr, '(T2,A,T61,A20)') "Submatrix sign method:", ADJUSTR("direct")
+               CASE (ls_scf_submatrix_sign_direct_muadj)
+                  WRITE (unit_nr, '(T2,A,T61,A20)') "Submatrix sign method:", ADJUSTR("direct mu-adj")
+               CASE (ls_scf_submatrix_sign_direct_muadj_lowmem)
+                  WRITE (unit_nr, '(T2,A,T61,A20)') "Submatrix sign method:", ADJUSTR("direct mu-adj lowmem")
                CASE DEFAULT
                   CPABORT("Unkown submatrix sign method.")
                END SELECT
