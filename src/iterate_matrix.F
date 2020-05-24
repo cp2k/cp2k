@@ -24,6 +24,8 @@ MODULE iterate_matrix
       dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_transposed, &
       dbcsr_type, dbcsr_type_no_symmetry
    USE input_constants, ONLY: ls_scf_submatrix_sign_direct, &
+                              ls_scf_submatrix_sign_direct_muadj, &
+                              ls_scf_submatrix_sign_direct_muadj_lowmem, &
                               ls_scf_submatrix_sign_ns
    USE kinds, ONLY: dp, &
                     int_8
@@ -41,13 +43,18 @@ MODULE iterate_matrix
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'iterate_matrix'
 
+   TYPE :: eigbuf
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE    :: eigvals
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: eigvecs
+   END TYPE eigbuf
+
    INTERFACE purify_mcweeny
       MODULE PROCEDURE purify_mcweeny_orth, purify_mcweeny_nonorth
    END INTERFACE
 
    PUBLIC :: invert_Hotelling, matrix_sign_Newton_Schulz, matrix_sqrt_Newton_Schulz, &
              matrix_sqrt_proot, matrix_sign_proot, matrix_sign_submatrix, &
-             purify_mcweeny, invert_Taylor, determinant
+             matrix_sign_submatrix_mu_adjust, purify_mcweeny, invert_Taylor, determinant
 
 CONTAINS
 
@@ -1264,6 +1271,51 @@ CONTAINS
    END SUBROUTINE sign_from_eigdecomp
 
 ! **************************************************************************************************
+!> \brief Compute partial trace of a matrix from its eigenvalues and eigenvectors
+!> \param eigvals ...
+!> \param eigvecs ...
+!> \param firstcol ...
+!> \param lastcol ...
+!> \param mu_correction ...
+!> \return ...
+!> \par History
+!>       2020.05 Created [Michael Lass]
+!> \author Michael Lass
+! **************************************************************************************************
+   FUNCTION trace_from_eigdecomp(eigvals, eigvecs, firstcol, lastcol, mu_correction) result(trace)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)   :: eigvals
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(IN) :: eigvecs
+      INTEGER, INTENT(IN)                                    :: firstcol, lastcol
+      REAL(KIND=dp), INTENT(IN)                              :: mu_correction
+      INTEGER                                                :: sm_size, i, j
+      REAL(KIND=dp)                                          :: trace, modified_eigval, tmpsum
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)               :: mapped_eigvals
+
+      sm_size = SIZE(eigvals)
+      ALLOCATE (mapped_eigvals(sm_size))
+
+      DO i = 1, sm_size
+         modified_eigval = eigvals(i) - mu_correction
+         IF (modified_eigval > 0) THEN
+            mapped_eigvals(i) = 1.0
+         ELSE IF (modified_eigval < 0) THEN
+            mapped_eigvals(i) = -1.0
+         ELSE
+            mapped_eigvals(i) = 0.0
+         ENDIF
+      ENDDO
+
+      trace = 0.0_dp
+      DO i = firstcol, lastcol
+         tmpsum = 0.0_dp
+         DO j = 1, sm_size
+            tmpsum = tmpsum + (eigvecs(i, j)*mapped_eigvals(j)*eigvecs(i, j))
+         ENDDO
+         trace = trace - 0.5_dp*tmpsum + 0.5_dp
+      ENDDO
+   END FUNCTION trace_from_eigdecomp
+
+! **************************************************************************************************
 !> \brief Calculate the sign matrix by direct calculation of all eigenvalues and eigenvectors
 !> \param sm_sign ...
 !> \param sm ...
@@ -1354,7 +1406,7 @@ CONTAINS
          SELECT CASE (submatrix_sign_method)
          CASE (ls_scf_submatrix_sign_ns)
             CALL dense_matrix_sign_Newton_Schulz(sm_sign, sm, my_sms(i), threshold, order)
-         CASE (ls_scf_submatrix_sign_direct)
+         CASE (ls_scf_submatrix_sign_direct, ls_scf_submatrix_sign_direct_muadj, ls_scf_submatrix_sign_direct_muadj_lowmem)
             CALL dense_matrix_sign_direct(sm_sign, sm, sm_size)
          CASE DEFAULT
             CPABORT("Unkown submatrix sign method.")
@@ -1371,6 +1423,216 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE matrix_sign_submatrix
+
+! **************************************************************************************************
+!> \brief Submatrix method with internal adjustment of chemical potential
+!> \param matrix_sign ...
+!> \param matrix ...
+!> \param mu ...
+!> \param nelectron ...
+!> \param threshold ...
+!> \param variant ...
+!> \par History
+!>       2020.05 Created [Michael Lass]
+!> \author Robert Schade, Michael Lass
+! **************************************************************************************************
+   SUBROUTINE matrix_sign_submatrix_mu_adjust(matrix_sign, matrix, mu, nelectron, threshold, variant)
+
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sign, matrix
+      REAL(KIND=dp), INTENT(INOUT)                       :: mu
+      INTEGER, INTENT(IN)                                :: nelectron
+      REAL(KIND=dp), INTENT(IN)                          :: threshold
+      INTEGER, INTENT(IN)                                :: variant
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix_mu_adjust', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: group, handle, i, j, k, l, myrank, nblkcols, &
+                                                            sm_size, unit_nr, sm_firstcol, sm_lastcol
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_sms
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mapped_eigvals
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sm, sm_sign, tmp
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_distribution_type)                      :: dist
+      TYPE(submatrix_dissection_type)                    :: dissection
+      REAL(KIND=dp)                                      :: trace, increment, new_mu, modified_eigval, tmpsum, mu_low, mu_high
+      TYPE(eigbuf), DIMENSION(:), ALLOCATABLE            :: eigbufs
+      LOGICAL                                            :: has_mu_low, has_mu_high
+
+      REAL(KIND=dp), PARAMETER                           :: initial_increment = 0.01_dp
+
+      CALL timeset(routineN, handle)
+
+      ! print output on all ranks
+      logger => cp_get_default_logger()
+      unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+
+      CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist, group=group)
+      CALL dbcsr_distribution_get(dist=dist, mynode=myrank)
+
+      CALL dissection%init(matrix)
+      CALL dissection%get_sm_ids_for_rank(myrank, my_sms)
+
+      ALLOCATE (eigbufs(SIZE(my_sms)))
+
+      trace = 0.0_dp
+
+! gfortran before 8.3 complains about internal symbols not being specified in
+! any data clause when using DEFAULT(NONE) and OOP procedures are called from
+! within the parallel region.
+#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
+      !$OMP PARALLEL DEFAULT(SHARED) &
+#else
+      !$OMP PARALLEL DEFAULT(NONE) &
+#endif
+      !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j, tmp) &
+      !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, threshold, variant) &
+      !$OMP          REDUCTION(+:trace)
+      !$OMP DO SCHEDULE(GUIDED)
+      DO i = 1, SIZE(my_sms)
+         CALL dissection%generate_submatrix(my_sms(i), sm)
+         sm_size = SIZE(sm, 1)
+         WRITE (unit_nr, *) "Rank", myrank, "processing submatrix", my_sms(i), "size", sm_size
+
+         CALL dissection%get_relevant_sm_columns(my_sms(i), sm_firstcol, sm_lastcol)
+
+         IF (variant .EQ. ls_scf_submatrix_sign_direct_muadj) THEN
+            ! Store all eigenvectors in buffer. We will use it to compute sm_sign at the end.
+            CALL eigdecomp(sm, sm_size, eigvals=eigbufs(i)%eigvals, eigvecs=eigbufs(i)%eigvecs)
+         ELSE
+            ! Only store eigenvectors that are required for mu adjustment.
+            ! Calculate sm_sign right away in the hope that mu is already correct.
+            CALL eigdecomp(sm, sm_size, eigvals=eigbufs(i)%eigvals, eigvecs=tmp)
+            ALLOCATE (eigbufs(i)%eigvecs(sm_firstcol:sm_lastcol, 1:sm_size))
+            eigbufs(i)%eigvecs(:, :) = tmp(sm_firstcol:sm_lastcol, 1:sm_size)
+
+            ALLOCATE (sm_sign(sm_size, sm_size))
+            CALL sign_from_eigdecomp(sm_sign, eigbufs(i)%eigvals, tmp, sm_size, 0.0_dp)
+            CALL dissection%copy_resultcol(my_sms(i), sm_sign)
+            DEALLOCATE (sm_sign, tmp)
+         ENDIF
+
+         DEALLOCATE (sm)
+         trace = trace + trace_from_eigdecomp(eigbufs(i)%eigvals, eigbufs(i)%eigvecs, sm_firstcol, sm_lastcol, 0.0_dp)
+      ENDDO
+      !$OMP END DO
+      !$OMP END PARALLEL
+
+      has_mu_low = .FALSE.
+      has_mu_high = .FALSE.
+      increment = initial_increment
+      new_mu = mu
+      DO i = 1, 30
+         CALL mp_sum(trace, group)
+         IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,1X,F13.9,1X,F15.9)') &
+            "Density matrix:  mu, trace error: ", new_mu, trace - nelectron
+         IF (ABS(trace - nelectron) < 0.5_dp) EXIT
+         IF (trace < nelectron) THEN
+            mu_low = new_mu
+            new_mu = new_mu + increment
+            has_mu_low = .TRUE.
+            increment = increment*2
+         ELSE
+            mu_high = new_mu
+            new_mu = new_mu - increment
+            has_mu_high = .TRUE.
+            increment = increment*2
+         ENDIF
+
+         IF (has_mu_low .AND. has_mu_high) THEN
+            new_mu = (mu_low + mu_high)/2
+            IF (ABS(mu_high - mu_low) < threshold) EXIT
+         ENDIF
+
+         trace = 0
+! gfortran before 8.3 complains about internal symbols not being specified in
+! any data clause when using DEFAULT(NONE) and OOP procedures are called from
+! within the parallel region.
+#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
+         !$OMP PARALLEL DEFAULT(SHARED) &
+#else
+         !$OMP PARALLEL DEFAULT(NONE) &
+#endif
+         !$OMP          PRIVATE(i, k, l, sm_sign, tmp, sm_size, sm_firstcol, sm_lastcol, modified_eigval, tmpsum, &
+         !$OMP                  mapped_eigvals) &
+         !$OMP          SHARED(dissection, my_sms, unit_nr, eigbufs, mu, new_mu, nelectron) &
+         !$OMP          REDUCTION(+:trace)
+         !$OMP DO SCHEDULE(GUIDED)
+         DO j = 1, SIZE(my_sms)
+            sm_size = SIZE(eigbufs(j)%eigvals)
+            CALL dissection%get_relevant_sm_columns(my_sms(j), sm_firstcol, sm_lastcol)
+            trace = trace + trace_from_eigdecomp(eigbufs(j)%eigvals, eigbufs(j)%eigvecs, sm_firstcol, sm_lastcol, new_mu - mu)
+         ENDDO
+         !$OMP END DO
+         !$OMP END PARALLEL
+      ENDDO
+
+      ! Finalize sign matrix from eigendecompositions if we kept all eigenvectors
+      IF (variant .EQ. ls_scf_submatrix_sign_direct_muadj) THEN
+! gfortran before 8.3 complains about internal symbols not being specified in
+! any data clause when using DEFAULT(NONE) and OOP procedures are called from
+! within the parallel region.
+#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
+         !$OMP PARALLEL DEFAULT(SHARED) &
+#else
+         !$OMP PARALLEL DEFAULT(NONE) &
+#endif
+         !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
+         !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu) &
+         !$OMP          REDUCTION(+:trace)
+         !$OMP DO SCHEDULE(GUIDED)
+         DO i = 1, SIZE(my_sms)
+            WRITE (unit_nr, '(T3,A,1X,I4,1X,A,1X,I6)') "Rank", myrank, "finalizing submatrix", my_sms(i)
+            sm_size = SIZE(eigbufs(i)%eigvals)
+            ALLOCATE (sm_sign(sm_size, sm_size))
+            CALL sign_from_eigdecomp(sm_sign, eigbufs(i)%eigvals, eigbufs(i)%eigvecs, sm_size, new_mu - mu)
+            CALL dissection%copy_resultcol(my_sms(i), sm_sign)
+            DEALLOCATE (sm_sign)
+         ENDDO
+         !$OMP END DO
+         !$OMP END PARALLEL
+      ENDIF
+
+      DEALLOCATE (eigbufs)
+
+      ! If we only stored parts of the eigenvectors and mu has changed, we need to recompute sm_sign
+      IF ((variant .EQ. ls_scf_submatrix_sign_direct_muadj_lowmem) .AND. (mu .NE. new_mu)) THEN
+! gfortran before 8.3 complains about internal symbols not being specified in
+! any data clause when using DEFAULT(NONE) and OOP procedures are called from
+! within the parallel region.
+#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
+         !$OMP PARALLEL DEFAULT(SHARED) &
+#else
+         !$OMP PARALLEL DEFAULT(NONE) &
+#endif
+         !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
+         !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu) &
+         !$OMP          REDUCTION(+:trace)
+         !$OMP DO SCHEDULE(GUIDED)
+         DO i = 1, SIZE(my_sms)
+            WRITE (unit_nr, '(T3,A,1X,I4,1X,A,1X,I6)') "Rank", myrank, "reprocessing submatrix", my_sms(i)
+            CALL dissection%generate_submatrix(my_sms(i), sm)
+            sm_size = SIZE(sm, 1)
+            DO j = 1, sm_size
+               sm(j, j) = sm(j, j) + mu - new_mu
+            ENDDO
+            ALLOCATE (sm_sign(sm_size, sm_size))
+            CALL dense_matrix_sign_direct(sm_sign, sm, sm_size)
+            CALL dissection%copy_resultcol(my_sms(i), sm_sign)
+            DEALLOCATE (sm, sm_sign)
+         ENDDO
+         !$OMP END DO
+         !$OMP END PARALLEL
+      ENDIF
+
+      mu = new_mu
+
+      CALL dissection%communicate_results(matrix_sign)
+      CALL dissection%final
+
+      CALL timestop(handle)
+
+   END SUBROUTINE matrix_sign_submatrix_mu_adjust
 
 ! **************************************************************************************************
 !> \brief compute the sqrt of a matrix via the sign function and the corresponding Newton-Schulz iterations
