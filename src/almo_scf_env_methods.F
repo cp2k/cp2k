@@ -107,8 +107,8 @@ CONTAINS
       INTEGER                                            :: handle
       TYPE(section_vals_type), POINTER :: almo_analysis_section, almo_opt_diis_section, &
          almo_opt_pcg_section, almo_opt_trustr_section, almo_scf_section, matrix_iterate_section, &
-         nlmo_opt_pcg_section, penalty_section, xalmo_opt_newton_pcg_section, xalmo_opt_pcg_section, &
-         xalmo_opt_trustr_section
+         nlmo_opt_pcg_section, penalty_section, xalmo_opt_newton_pcg_section, &
+         xalmo_opt_pcg_section, xalmo_opt_trustr_section
 
       CALL timeset(routineN, handle)
 
