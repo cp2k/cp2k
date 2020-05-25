@@ -4,7 +4,7 @@
 
 # install numpy
 apt-get update -qq
-apt-get install -qq --no-install-recommends python-numpy
+apt-get install -qq --no-install-recommends python3-numpy
 rm -rf /var/lib/apt/lists/*
 
 # setup arch files

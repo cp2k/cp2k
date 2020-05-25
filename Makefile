@@ -39,7 +39,7 @@ EXTSDIR      := exts
 EXTSHOME     := $(CP2KHOME)/$(EXTSDIR)
 EXTSPACKAGES := $(shell cd $(EXTSHOME) ; find * -maxdepth 0 -type d )
 
-PYTHON       := /usr/bin/env python
+PYTHON       := /usr/bin/env python3
 
 # Common Targets ============================================================
 default_target: all

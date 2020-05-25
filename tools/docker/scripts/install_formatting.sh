@@ -9,7 +9,6 @@ apt-get install -qq --no-install-recommends \
     build-essential                         \
     make                                    \
     perl                                    \
-    python                                  \
     python3-{pip,setuptools,wheel,dev}
 
 rm -rf /var/lib/apt/lists/*
