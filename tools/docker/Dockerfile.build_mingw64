@@ -4,7 +4,7 @@ RUN dnf -y upgrade && \
     dnf -y install \
         @development-tools \
         hostname \
-        python \
+        python3 \
         mingw64-gcc-gfortran \
         mingw64-gcc-c++ \
         mingw64-winpthreads-static \

@@ -5,9 +5,8 @@
 # install Ubuntu packages
 apt-get update -qq
 apt-get install -qq --no-install-recommends \
-    python                \
-    python3               \
     libpython3-stdlib     \
+    python3               \
     python3-pip           \
     python3-wheel         \
     python3-setuptools    \

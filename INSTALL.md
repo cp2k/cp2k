@@ -37,10 +37,10 @@ Sub-points here discuss prerequisites needed to build CP2K. Copies of the recomm
 
 ### 2a. GNU make (required, build system)
 
-GNU make should be on your system (gmake or make on linux) and used for the build, go to https://www.gnu.org/software/make/make.html download from https://ftp.gnu.org/pub/gnu/make/ also Python (2.x) is required for building.
+GNU make should be on your system (gmake or make on linux) and used for the build, go to https://www.gnu.org/software/make/make.html download from https://ftp.gnu.org/pub/gnu/make/
 
 ### 2b. Python (required, build system)
-Python 2.7 or 3.5+ is needed to run the dependency generator. On most system Python is already installed. For more information visit: https://www.python.org/
+Python 3.5+ is needed to run the dependency generator. On most system Python is already installed. For more information visit: https://www.python.org/
 
 ### 2c. Fortran and C Compiler (required, build system)
 A Fortran 2008 compiler and matching C99 compiler should be installed on your system. We have good experience with gcc/gfortran (gcc >=4.6 works, later version recommended). Be aware that some compilers have bugs that might cause them to fail (internal compiler errors, segfaults) or, worse, yield a mis-compiled CP2K. Report bugs to compiler vendors; they (and we) have an interest in fixing them. A list of tested compiler can be found [here](https://www.cp2k.org/dev:compiler_support). Always run a `make -j test` (See point 5.) after compilation to identify these problems.
