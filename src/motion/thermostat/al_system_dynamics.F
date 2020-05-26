@@ -147,7 +147,8 @@ CONTAINS
                IF (PRESENT(vel)) THEN
                   WRITE (unit=*, fmt='("VEL ",A20," IPART ",I6," V ",3F20.10)') TRIM(label), ipart, vel(:, ipart)
                ELSE
-                  WRITE (unit=*, fmt='("PARTICLE_SET%VEL ",A20," IPART ",I6," V ",3F20.10)') TRIM(label), ipart, particle_set(ipart)%v(:)
+                  WRITE (unit=*, fmt='("PARTICLE_SET%VEL ",A20," IPART ",I6," V ",3F20.10)') TRIM(label), &
+                      ipart, particle_set(ipart)%v(:)
                ENDIF
             END DO
          END DO
