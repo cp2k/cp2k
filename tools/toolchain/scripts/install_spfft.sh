@@ -99,7 +99,7 @@ EOF
 export SPFFT_CFLAGS="${SPFFT_CFLAGS}"
 export SPFFT_LDFLAGS="${SPFFT_LDFLAGS}"
 export SPFFT_CUDA_LDFLAGS="${SPFFT_CUDA_LDFLAGS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(IF_OMP(-D__SPFFT|)|)"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__SPFFT|)"
 export CP_CFLAGS="\${CP_CFLAGS} ${SPFFT_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_CUDA(${SPFFT_CUDA_LDFLAGS}|${SPFFT_LDFLAGS})"
 export SPFFT_LIBRARY="-lspfft"
@@ -107,7 +107,7 @@ export SPFFT_ROOT="$pkg_install_dir"
 export SPFFT_INCLUDE_DIR="$pkg_install_dir/include"
 export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib64/pkgconfig:$pkg_install_dir/lib/pkgconfig"
 export SPFFT_VERSION=${spfft-ver}
-export CP_LIBS="IF_MPI(IF_OMP(${SPFFT_LIBS}|)|) \${CP_LIBS}"
+export CP_LIBS="IF_MPI(${SPFFT_LIBS}|) \${CP_LIBS}"
 EOF
     cat "${BUILDDIR}/setup_spfft" >> $SETUPFILE
 fi

@@ -147,7 +147,7 @@ EOF
 export COSMA_CFLAGS="${COSMA_CFLAGS}"
 export COSMA_LDFLAGS="${COSMA_LDFLAGS}"
 export COSMA_CUDA_LDFLAGS="${COSMA_CUDA_LDFLAGS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(IF_OMP(-D__COSMA|)|)"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__COSMA|)"
 export CP_CFLAGS="\${CP_CFLAGS} ${COSMA_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_CUDA(${COSMA_CUDA_LDFLAGS}|${COSMA_LDFLAGS})"
 export COSMA_LIBS="${COSMA_LIBS}"
@@ -155,7 +155,7 @@ export COSMA_ROOT="$pkg_install_dir"
 export COSMA_INCLUDE_DIR="$pkg_install_dir/include"
 export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:${COSMA_LIBDIR}/pkgconfig"
 export COSMA_VERSION=${cosma_ver}
-export CP_LIBS="IF_MPI(IF_OMP(${COSMA_LIBS}|)|) \${CP_LIBS}"
+export CP_LIBS="IF_MPI(${COSMA_LIBS}|) \${CP_LIBS}"
 EOF
     cat "${BUILDDIR}/setup_cosma" >> $SETUPFILE
 fi

@@ -72,17 +72,17 @@ EOF
     cat <<EOF >> "${BUILDDIR}/setup_hdf5"
 export HDF5_CFLAGS="${HDF5_CFLAGS}"
 export HDF5_LDFLAGS="${HDF5_LDFLAGS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(IF_OMP(-D__HDF5|)|)"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__HDF5|)"
 export CP_CFLAGS="\${CP_CFLAGS} ${HDF5_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${HDF5_LDFLAGS}"
 ####################################################
 #
 # include hdf5 only if sirius is activated and build
-# depends them on mpi and omp
+# depends them on mpi
 #
 ####################################################
 
-export CP_LIBS="IF_MPI(IF_OMP(${HDF5_LIBS}|)|) \${CP_LIBS}"
+export CP_LIBS="IF_MPI(${HDF5_LIBS}|) \${CP_LIBS}"
 export HDF5_ROOT="$pkg_install_dir"
 export HDF5_LIBRARIES="$HDF5_LIBS"
 export HDF5_HL_LIBRARIES="$HDF5_LIBS"

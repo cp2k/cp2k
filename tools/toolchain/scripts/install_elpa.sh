@@ -15,8 +15,6 @@ source "${INSTALLDIR}"/toolchain.env
 ELPA_CFLAGS=''
 ELPA_LDFLAGS=''
 ELPA_LIBS=''
-ELPA_CFLAGS_OMP=''
-ELPA_LIBS_OMP=''
 # ELPA 2019.05.001 has a parallel build issue, restricting to -j1
 ELPA_MAKEOPTS='-j1'
 
@@ -88,11 +86,10 @@ case "$with_elpa" in
                SSE4_flag=""
                config_flags="--disable-avx --disable-avx2 --disable-sse --disable-sse-assembly"
             fi
-            # non-threaded version
-            mkdir -p obj_no_thread; cd obj_no_thread
+            mkdir -p build; cd build
             ../configure  --prefix="${pkg_install_dir}" \
                           --libdir="${pkg_install_dir}/lib" \
-                          --enable-openmp=no \
+                          --enable-openmp=yes \
                           --enable-shared=no \
                           --enable-static=yes \
                           ${config_flags} \
@@ -105,64 +102,27 @@ case "$with_elpa" in
                           CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
                           CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
                           LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
-                          LIBS="${SCALAPACK_LIBS} $(resolve_string "${MATH_LIBS}")" \
+                          LIBS="${SCALAPACK_LIBS} ${MATH_LIBS}" \
                           >configure.log 2>&1
             make -j $NPROCS ${ELPA_MAKEOPTS} >make.log 2>&1
-            make install > install.log 2>&1
-            cd ..
-            # threaded version
-            if [ "$ENABLE_OMP" = "__TRUE__" ] ; then
-                mkdir -p obj_thread; cd obj_thread
-                ../configure  --prefix="${pkg_install_dir}" \
-                              --libdir="${pkg_install_dir}/lib" \
-                              --enable-openmp=yes \
-                              --enable-shared=no \
-                              --enable-static=yes \
-                              ${config_flags} \
-                              --enable-gpu=${has_GPU} \
-                              --with-cuda-path=${CUDA_PATH} \
-                              FC=${MPIFC} \
-                              CC=${MPICC} \
-                              CXX=${MPICXX} \
-                              FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
-                              CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
-                              CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
-                              LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
-                              LIBS="${SCALAPACK_LIBS} $(resolve_string "${MATH_LIBS}" OMP)" \
-                              >configure.log 2>&1
-                make -j $NPROCS ${ELPA_MAKEOPTS} >make.log 2>&1
-                make install >install.log 2>&1
-                cd ..
-            fi
-            cd ..
+            make install >install.log 2>&1
+            cd ../../
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
-        ELPA_CFLAGS="-I'${pkg_install_dir}/include/elpa-${elpa_ver}/modules' -I'${pkg_install_dir}/include/elpa-${elpa_ver}/elpa'"
-        ELPA_CFLAGS_OMP="-I'${pkg_install_dir}/include/elpa_openmp-${elpa_ver}/modules' -I'${pkg_install_dir}/include/elpa_openmp-${elpa_ver}/elpa'"
+        ELPA_CFLAGS="-I'${pkg_install_dir}/include/elpa_openmp-${elpa_ver}/modules' -I'${pkg_install_dir}/include/elpa_openmp-${elpa_ver}/elpa'"
         ELPA_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         ;;
     __SYSTEM__)
         echo "==================== Finding ELPA from system paths ===================="
-        check_lib -lelpa "ELPA"
-        [ "$ENABLE_OMP" = "__TRUE__" ] && check_lib -lelpa_openmp "ELPA threaded version"
+        check_lib -lelpa_openmp "ELPA"
         # get the include paths
-        elpa_include="$(find_in_paths "elpa-*" $INCLUDE_PATHS)"
+        elpa_include="$(find_in_paths "elpa_openmp-*" $INCLUDE_PATHS)"
         if [ "$elpa_include" != "__FALSE__" ] ; then
-            echo "ELPA include directory is found to be $elpa_include"
+            echo "ELPA include directory threaded version is found to be $elpa_include"
             ELPA_CFLAGS="-I'$elpa_include/modules' -I'$elpa_include/elpa'"
         else
-            echo "Cannot find elpa-* from paths $INCLUDE_PATHS"
+            echo "Cannot find elpa_openmp-${elpa_ver} from paths $INCLUDE_PATHS"
             exit 1
-        fi
-        if [ "$ENABLE_OMP" = "__TRUE__" ] ; then
-            elpa_include_omp="$(find_in_paths "elpa_openmp-*" $INCLUDE_PATHS)"
-            if [ "$elpa_include_omp" != "__FALSE__" ] ; then
-                echo "ELPA include directory threaded version is found to be $elpa_include_omp"
-                ELPA_CFLAGS_OMP="-I'$elpa_include_omp/modules' -I'$elpa_include_omp/elpa'"
-            else
-                echo "Cannot find elpa_openmp-${elpa_ver} from paths $INCLUDE_PATHS"
-                exit 1
-            fi
         fi
         # get the lib paths
         add_lib_from_paths ELPA_LDFLAGS "libelpa.*" $LIB_PATHS
@@ -175,35 +135,22 @@ case "$with_elpa" in
         check_dir "${pkg_install_dir}/include"
         check_dir "${pkg_install_dir}/lib"
         user_include_path="$pkg_install_dir/include"
-        elpa_include="$(find_in_paths "elpa-*" user_include_path)"
+        elpa_include="$(find_in_paths "elpa_openmp-*" user_include_path)"
         if [ "$elpa_include" != "__FALSE__" ] ; then
-            echo "ELPA include directory is found to be $elpa_include/modules"
+            echo "ELPA include directory threaded version is found to be $elpa_include/modules"
             check_dir "$elpa_include/modules"
             ELPA_CFLAGS="-I'$elpa_include/modules' -I'$elpa_include/elpa'"
         else
-            echo "Cannot find elpa-* from path $user_include_path"
+            echo "Cannot find elpa_openmp-* from path $user_include_path"
             exit 1
-        fi
-        if [ "$ENABLE_OMP" = "__TRUE__" ] ; then
-            elpa_include_omp="$(find_in_paths "elpa_openmp-*" user_include_path)"
-            if [ "$elpa_include_omp" != "__FALSE__" ] ; then
-                echo "ELPA include directory threaded version is found to be $elpa_include_omp/modules"
-                check_dir "$elpa_include_omp/modules"
-                ELPA_CFLAGS_OMP="-I'$elpa_include_omp/modules' -I'$elpa_include_omp/elpa'"
-            else
-                echo "Cannot find elpa_openmp-* from path $user_include_path"
-                exit 1
-            fi
         fi
         ELPA_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         ;;
 esac
 if [ "$with_elpa" != "__DONTUSE__" ] ; then
-    ELPA_LIBS="-lelpa"
-    ELPA_LIBS_OMP="-lelpa_openmp"
+    ELPA_LIBS="-lelpa_openmp"
     cat <<EOF > "${BUILDDIR}/setup_elpa"
 prepend_path CPATH "$elpa_include"
-prepend_path CPATH "$elpa_include_omp"
 EOF
     if [ "$with_elpa" != "__SYSTEM__" ] ; then
         cat <<EOF >> "${BUILDDIR}/setup_elpa"
@@ -219,13 +166,10 @@ EOF
 export ELPA_CFLAGS="${ELPA_CFLAGS}"
 export ELPA_LDFLAGS="${ELPA_LDFLAGS}"
 export ELPA_LIBS="${ELPA_LIBS}"
-export ELPA_CFLAGS_OMP="${ELPA_CFLAGS_OMP}"
-export ELPA_LDFLAGS_OMP="${ELPA_LDFLAGS_OMP}"
-export ELPA_LIBS_OMP="${ELPA_LIBS_OMP}"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__ELPA|)"
-export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(IF_OMP(${ELPA_CFLAGS_OMP}|${ELPA_CFLAGS})|)"
+export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${ELPA_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${ELPA_LDFLAGS}|)"
-export CP_LIBS="IF_MPI(IF_OMP(${ELPA_LIBS_OMP}|${ELPA_LIBS})|) \${CP_LIBS}"
+export CP_LIBS="IF_MPI(${ELPA_LIBS}|) \${CP_LIBS}"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 export ELPAROOT="$pkg_install_dir"
 export ELPAVERSION="${elpa_ver}"

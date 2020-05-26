@@ -120,8 +120,6 @@ The --enable-FEATURE options follow the rules:
                           this option forces the master development version
                           to be installed.
                           Default = no
-  --enable-omp            Turn on OpenMP (threading) support.
-                          Default = yes
   --enable-cuda           Turn on GPU (CUDA) support.
                           Default = no
   --enable-cray           Turn on or off support for CRAY Linux Environment
@@ -338,7 +336,6 @@ dry_run=__FALSE__
 enable_tsan=__FALSE__
 enable_gcc_master=__FALSE__
 enable_libxsmm_master=__FALSE__
-enable_omp=__TRUE__
 if (command -v nvcc >&- 2>&-) ; then
    echo "nvcc found, enabling CUDA by default"
    enable_cuda=__TRUE__
@@ -492,13 +489,6 @@ while [ $# -ge 1 ] ; do
                 exit 1
             fi
             ;;
-        --enable-omp*)
-            enable_omp=$(read_enable $1)
-            if [ $enable_omp = "__INVALID__" ] ; then
-                report_error "invalid value for --enable-omp, please use yes or no"
-                exit 1
-            fi
-            ;;
         --enable-cuda*)
             enable_cuda=$(read_enable $1)
             if [ $enable_cuda = "__INVALID__" ] ; then
@@ -636,7 +626,6 @@ done
 
 # consolidate settings after user input
 export ENABLE_TSAN=$enable_tsan
-export ENABLE_OMP=$enable_omp
 export ENABLE_CUDA=$enable_cuda
 export ENABLE_CRAY=$enable_cray
 [ "$enable_gcc_master" = "__TRUE__" ] && export gcc_ver=master
@@ -776,7 +765,7 @@ mkdir -p "$INSTALLDIR"
 # variables used for generating cp2k ARCH file
 export CP_DFLAGS=''
 export CP_LIBS=''
-export CP_CFLAGS='IF_OMP(-fopenmp|)'
+export CP_CFLAGS='-fopenmp'
 export CP_LDFLAGS="-Wl,--enable-new-dtags"
 
 # ------------------------------------------------------------------------

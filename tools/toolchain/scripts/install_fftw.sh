@@ -17,7 +17,6 @@ source "${INSTALLDIR}"/toolchain.env
 FFTW_CFLAGS=''
 FFTW_LDFLAGS=''
 FFTW_LIBS=''
-FFTW_LIBS_OMP=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -60,7 +59,7 @@ case "$with_fftw" in
     __SYSTEM__)
         echo "==================== Finding FFTW from system paths ===================="
         check_lib -lfftw3 "FFTW"
-        [ $ENABLE_OMP = "__TRUE__" ] && check_lib -lfftw3_omp "FFTW"
+        check_lib -lfftw3_omp "FFTW"
         [ "$MPI_MODE" != "no" ] && check_lib -lfftw3_mpi "FFTW"
         add_include_from_paths FFTW_CFLAGS "fftw3.h" $INCLUDE_PATHS
         add_lib_from_paths FFTW_LDFLAGS "libfftw3.*" $LIB_PATHS
@@ -77,8 +76,7 @@ case "$with_fftw" in
         ;;
 esac
 if [ "$with_fftw" != "__DONTUSE__" ] ; then
-    FFTW_LIBS="-lfftw3"
-    FFTW_LIBS_OMP="-lfftw3_omp"
+    FFTW_LIBS="-lfftw3 -lfftw3_omp"
     if [ "$with_fftw" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_fftw"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
@@ -92,11 +90,10 @@ EOF
 export FFTW_CFLAGS="${FFTW_CFLAGS}"
 export FFTW_LDFLAGS="${FFTW_LDFLAGS}"
 export FFTW_LIBS="${FFTW_LIBS}"
-export FFTW_LIBS_OMP="${FFTW_LIBS_OMP}"
 export CP_DFLAGS="\${CP_DFLAGS} -D__FFTW3 IF_COVERAGE(IF_MPI(|-U__FFTW3)|)"
 export CP_CFLAGS="\${CP_CFLAGS} ${FFTW_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${FFTW_LDFLAGS}"
-export CP_LIBS="IF_MPI(-lfftw3_mpi|) ${FFTW_LIBS} IF_OMP(${FFTW_LIBS_OMP}|) \${CP_LIBS}"
+export CP_LIBS="IF_MPI(-lfftw3_mpi|) ${FFTW_LIBS} \${CP_LIBS}"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 export FFTW_ROOT="$pkg_install_dir"
 EOF
