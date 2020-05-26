@@ -148,7 +148,7 @@ CONTAINS
                   WRITE (unit=*, fmt='("VEL ",A20," IPART ",I6," V ",3F20.10)') TRIM(label), ipart, vel(:, ipart)
                ELSE
                   WRITE (unit=*, fmt='("PARTICLE_SET%VEL ",A20," IPART ",I6," V ",3F20.10)') TRIM(label), &
-                      ipart, particle_set(ipart)%v(:)
+                     ipart, particle_set(ipart)%v(:)
                ENDIF
             END DO
          END DO
@@ -182,8 +182,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'al_OU_step', routineP = moduleN//':'//routineN
 
-      INTEGER :: first_atom, i, ii, jj, ikind, imap, imol, imol_local, ipart, iparticle_kind, &
-         iparticle_local, last_atom, nmol_local, nparticle, nparticle_kind, nparticle_local
+      INTEGER :: first_atom, i, ii, ikind, imap, imol, imol_local, ipart, iparticle_kind, &
+         iparticle_local, jj, last_atom, nmol_local, nparticle, nparticle_kind, nparticle_local
       LOGICAL                                            :: check, present_vel
       REAL(KIND=dp)                                      :: mass
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: w(:, :)
@@ -240,14 +240,14 @@ CONTAINS
                atomic_kind => particle_set(ipart)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
                IF (present_vel) THEN
-                  DO jj=1, 3
-                     vel(jj, ipart) = vel(jj, ipart)*map_info%p_scale(jj,ii)%point + &
-                                     map_info%p_kin(jj,ii)%point/SQRT(mass)*w(jj, ipart)
+                  DO jj = 1, 3
+                     vel(jj, ipart) = vel(jj, ipart)*map_info%p_scale(jj, ii)%point + &
+                                      map_info%p_kin(jj, ii)%point/SQRT(mass)*w(jj, ipart)
                   END DO
                ELSE
-                  DO jj=1, 3
-                     particle_set(ipart)%v(jj) = particle_set(ipart)%v(jj)*map_info%p_scale(jj,ii)%point + &
-                                                map_info%p_kin(jj,ii)%point/SQRT(mass)*w(jj, ipart)
+                  DO jj = 1, 3
+                     particle_set(ipart)%v(jj) = particle_set(ipart)%v(jj)*map_info%p_scale(jj, ii)%point + &
+                                                 map_info%p_kin(jj, ii)%point/SQRT(mass)*w(jj, ipart)
                   END DO
                ENDIF
             END DO
