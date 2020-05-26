@@ -81,7 +81,7 @@ EOF
     cat << EOF >> "${BUILDDIR}/setup_gsl"
 export GSL_CFLAGS="${GSL_CFLAGS}"
 export GSL_LDFLAGS="${GSL_LDFLAGS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(IF_OMP(-D__GSL|)|)"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__GSL|)"
 export CP_CFLAGS="\${CP_CFLAGS} ${GSL_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${GSL_LDFLAGS}"
 export GSL_LIBRARY="-lgsl"
@@ -93,12 +93,12 @@ export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib64/pkgconfig:$pkg_i
 ##########################################################
 #
 # I only include the library when SIRIUS is activated
-# which depends explicitly on MPI and OMP
+# which depends explicitly on MPI
 #
 ##########################################################
 
 
-export CP_LIBS="IF_MPI(IF_OMP(${GSL_LIBS}|)|) \${CP_LIBS}"
+export CP_LIBS="IF_MPI(${GSL_LIBS}|) \${CP_LIBS}"
 EOF
     cat "${BUILDDIR}/setup_gsl" >> $SETUPFILE
 fi

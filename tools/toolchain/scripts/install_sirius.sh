@@ -12,8 +12,8 @@ source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
-if [ "$MPI_MODE" = "no" ] && [ "$ENABLE_OMP" = "__FALSE__" ] ; then
-    report_warning $LINENO "MPI and OpenMP are disabled, skipping sirius installation"
+if [ "$MPI_MODE" = "no" ] ; then
+    report_warning $LINENO "MPI is disabled, skipping sirius installation"
     echo 'with_sirius="__FALSE__"' >> ${BUILDDIR}/setup_sirius
     exit 0
 fi
@@ -104,7 +104,7 @@ case "$with_sirius" in
                 if [ -s "$ELPAROOT" ] ; then
                     export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$ELPAROOT/lib/pkgconfig:$ELPAROOT/lib64/pkgconfig
                 fi
-                COMPILATION_OPTIONS="-DUSE_ELPA=ON -DELPA_INCLUDE_DIR=${ELPAROOT}/include/elpa-${ELPAVERSION}/elpa $COMPILATION_OPTIONS"
+                COMPILATION_OPTIONS="-DUSE_ELPA=ON -DELPA_INCLUDE_DIR=${ELPAROOT}/include/elpa_openmp-${ELPAVERSION}/elpa $COMPILATION_OPTIONS"
             fi
 
             if [ -n "$SCALAPACK_LIBS" ] ; then
@@ -239,10 +239,10 @@ export SIRIUS_FFLAGS="IF_CUDA(-I${pkg_install_dir}/include/cuda|-I${pkg_install_
 export SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
 export SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
 export SIRIUS_LIBS="${SIRIUS_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(IF_OMP("-D__SIRIUS"|)|)"
-export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(IF_OMP("\${SIRIUS_CFLAGS}"|)|)"
-export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(IF_OMP(IF_CUDA("\${SIRIUS_CUDA_LDFLAGS}"|"\${SIRIUS_LDFLAGS}")|)|)"
-export CP_LIBS="IF_MPI(IF_OMP("\${SIRIUS_LIBS}"|)|) \${CP_LIBS}"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI("-D__SIRIUS"|)"
+export CP_CFLAGS="\${CP_CFLAGS} IF_MPI("\${SIRIUS_CFLAGS}"|)"
+export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(IF_CUDA("\${SIRIUS_CUDA_LDFLAGS}"|"\${SIRIUS_LDFLAGS}")|)"
+export CP_LIBS="IF_MPI("\${SIRIUS_LIBS}"|) \${CP_LIBS}"
 EOF
 fi
 

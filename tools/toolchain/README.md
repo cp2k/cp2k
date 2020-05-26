@@ -209,8 +209,8 @@ This provides more flexibility.
 ## The IF_XYZ constructs
 
 Due to the fact that `install_cp2k_toolchain.sh` needs to produce
-several different versions of the arch files: `popt`, `psmp`, `pdbg`,
-`sopt`, `ssmp` etc, it will have to resolve different flags for
+several different versions of the arch files: `psmp`, `pdbg`,
+`ssmp`, `sdbg`, etc, it will have to resolve different flags for
 different arch file versions.
 
 The solution used by this script is to use a syntax construct:

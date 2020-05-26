@@ -135,7 +135,6 @@ if __name__ == "__main__":
     # default list of switches used by the parser
     switches = {
         "MPI": False,
-        "OMP": False,
         "CUDA": False,
         "WARNALL": False,
         "DEBUG": False,
