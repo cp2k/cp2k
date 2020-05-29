@@ -13,6 +13,7 @@
 MODULE dm_ls_scf
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE bibliography,                    ONLY: Kolafa2004,&
+                                              Kuhne2007,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_external_control,             ONLY: external_control
@@ -294,6 +295,7 @@ CONTAINS
          CALL ls_scf_dm_to_ks(qs_env, ls_scf_env, ls_scf_env%energy_init, iscf=0)
       CASE (aspc_guess)
          CALL cite_reference(Kolafa2004)
+         CALL cite_reference(Kuhne2007)
          naspc = MIN(ls_scf_env%scf_history%istore, ls_scf_env%scf_history%nstore)
          DO ispin = 1, SIZE(ls_scf_env%matrix_p)
             ! actual extrapolation

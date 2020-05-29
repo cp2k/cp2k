@@ -18,6 +18,7 @@
 ! **************************************************************************************************
 MODULE qs_wf_history_methods
    USE bibliography,                    ONLY: Kolafa2004,&
+                                              Kuhne2007,&
                                               VandeVondele2005a,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
@@ -861,6 +862,7 @@ CONTAINS
       CASE (wfi_aspc_nr)
          CPASSERT(.NOT. do_kpoints)
          CALL cite_reference(Kolafa2004)
+         CALL cite_reference(Kuhne2007)
          ! figure out the actual number of vectors to use in the extrapolation:
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
          CPASSERT(nvec .GT. 0)

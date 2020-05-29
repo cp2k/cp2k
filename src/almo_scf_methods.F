@@ -14,6 +14,7 @@ MODULE almo_scf_methods
    USE almo_scf_types,                  ONLY: almo_scf_env_type,&
                                               almo_scf_history_type
    USE bibliography,                    ONLY: Kolafa2004,&
+                                              Kuhne2007,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
@@ -3374,6 +3375,7 @@ CONTAINS
       ELSE !aspc_guess
 
          CALL cite_reference(Kolafa2004)
+         CALL cite_reference(Kuhne2007)
 
          naspc = MIN(xalmo_history%istore, xalmo_history%nstore)
          IF (unit_nr > 0) THEN

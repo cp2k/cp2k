@@ -27,6 +27,7 @@ MODULE qs_environment
                                               gto_basis_set_type
    USE bibliography,                    ONLY: Iannuzzi2006,&
                                               Iannuzzi2007,&
+                                              cp2kqs2020,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -563,6 +564,8 @@ CONTAINS
 
       be_silent = .FALSE.
       IF (PRESENT(silent)) be_silent = silent
+
+      CALL cite_reference(cp2kqs2020)
 
       ! Initialise the Quickstep environment
       NULLIFY (mos, se_taper, mos_aux_fit)

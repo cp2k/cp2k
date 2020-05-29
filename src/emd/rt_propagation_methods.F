@@ -9,6 +9,7 @@
 ! **************************************************************************************************
 MODULE rt_propagation_methods
    USE bibliography,                    ONLY: Kolafa2004,&
+                                              Kuhne2007,&
                                               cite_reference
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_gemm,&
@@ -677,6 +678,7 @@ CONTAINS
       NULLIFY (rho_hist)
       CALL timeset(routineN, handle)
       CALL cite_reference(Kolafa2004)
+      CALL cite_reference(Kuhne2007)
 
       IF (rtp%linear_scaling) THEN
          CALL get_rtp(rtp=rtp, rho_new=rho_new)

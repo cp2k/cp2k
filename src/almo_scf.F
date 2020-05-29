@@ -39,6 +39,7 @@ MODULE almo_scf
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Khaliullin2013,&
                                               Kolafa2004,&
+                                              Kuhne2007,&
                                               Scheiber2018,&
                                               Staub2019,&
                                               cite_reference
@@ -643,6 +644,7 @@ CONTAINS
       ELSE !aspc_guess
 
          CALL cite_reference(Kolafa2004)
+         CALL cite_reference(Kuhne2007)
 
          naspc = MIN(almo_scf_env%almo_history%istore, almo_scf_env%almo_history%nstore)
          IF (unit_nr > 0) THEN

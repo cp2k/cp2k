@@ -255,6 +255,7 @@ CONTAINS
          "**                                                ... make the atoms dance   **", &
          "**                                                                           **", &
          "**            Copyright (C) by CP2K developers group (2000 - 2020)           **", &
+         "**                      J. Chem. Phys. 152, 194103 (2020)                    **", &
          "**                                                                           **", &
          "*******************************************************************************"
    END SUBROUTINE qs_header
