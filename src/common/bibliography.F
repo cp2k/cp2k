@@ -4520,7 +4520,6 @@ CONTAINS
                          "ER"), &
                          DOI="10.1063/5.0007045")
 
-
    END SUBROUTINE add_all_references
 
 END MODULE bibliography

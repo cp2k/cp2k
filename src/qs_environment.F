@@ -27,8 +27,8 @@ MODULE qs_environment
                                               gto_basis_set_type
    USE bibliography,                    ONLY: Iannuzzi2006,&
                                               Iannuzzi2007,&
-                                              cp2kqs2020,&
-                                              cite_reference
+                                              cite_reference,&
+                                              cp2kqs2020
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&

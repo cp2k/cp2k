@@ -11,8 +11,8 @@
 
 MODULE input_cp2k_md
    USE bibliography,                    ONLY: &
-        Evans1983, Guidon2008, Kantorovich2008, Kantorovich2008a, Kuhne2007, &
-        Minary2003, Ricci2003, Rengaraj2020, Tuckerman1992, VandeVondele2002, West2006
+        Evans1983, Guidon2008, Kantorovich2008, Kantorovich2008a, Kuhne2007, Minary2003, &
+        Rengaraj2020, Ricci2003, Tuckerman1992, VandeVondele2002, West2006
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
