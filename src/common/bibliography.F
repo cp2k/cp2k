@@ -4496,7 +4496,7 @@ CONTAINS
                          "   Bussy,Augustin", &
                          "   Belleflamme,Fabian", &
                          "   Tabacchi,Gloria", &
-                         "   Gloeß,Andreas", &
+                         "   Gloess,Andreas", &
                          "   Lass,Michael", &
                          "   Bethune,Iain", &
                          "   Mundy,Christopher J.", &
