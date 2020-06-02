@@ -219,7 +219,6 @@ CONTAINS
 !> \param env_id ...
 !> \param new_cell ...
 ! **************************************************************************************************
-
    SUBROUTINE cp2k_set_cell(env_id, new_cell) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id
       REAL(C_DOUBLE), DIMENSION(3,3), INTENT(IN)         :: new_cell
@@ -228,7 +227,6 @@ CONTAINS
 
       CALL set_cell(env_id, new_cell, ierr)
       CPASSERT(ierr == 0)
-
    END SUBROUTINE cp2k_set_cell
 
 ! **************************************************************************************************
