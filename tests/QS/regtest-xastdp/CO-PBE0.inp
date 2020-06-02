@@ -1,0 +1,83 @@
+&GLOBAL
+  PROJECT CO_PBE0
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    AUTO_BASIS RI_XAS SMALL
+
+    &QS
+      METHOD GAPW
+    &END QS
+
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT 
+    &END
+
+    &XC
+      &XC_FUNCTIONAL 
+            &LIBXC 
+               FUNCTIONAL GGA_C_PBE 
+            &END LIBXC 
+            &LIBXC 
+               FUNCTIONAL GGA_X_PBE 
+               SCALE 0.75 
+            &END LIBXC
+      &END XC_FUNCTIONAL
+      &HF
+         FRACTION 0.25
+      &END HF
+    &END XC
+
+    &XAS_TDP
+      &DONOR_STATES
+         DEFINE_EXCITED BY_INDEX
+         ATOM_LIST 1 2
+         STATE_TYPES 1s 1s
+         N_SEARCH 2
+      &END DONOR_STATES
+
+      GRID C 60 120
+      GRID O 60 120
+      DIPOLE_FORM LENGTH
+      N_EXCITED 15
+
+      &KERNEL
+         &XC_FUNCTIONAL 
+            &LIBXC 
+               FUNCTIONAL GGA_C_PBE 
+            &END LIBXC 
+            &LIBXC 
+               FUNCTIONAL GGA_X_PBE 
+               SCALE 0.75 
+            &END LIBXC
+         &END XC_FUNCTIONAL
+         &EXACT_EXCHANGE
+            FRACTION 0.25
+         &END EXACT_EXCHANGE
+      &END KERNEL
+    &END XAS_TDP
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC  6.0  6.0  6.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      C  0.00000    0.00000     1.12832
+      O  0.00000    0.00000     0.00000
+    &END COORD
+    &KIND C
+      BASIS_SET 3-21G*
+      POTENTIAL ALL
+    &END KIND
+    &KIND O
+      BASIS_SET 3-21G*
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

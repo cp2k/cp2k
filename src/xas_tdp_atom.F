@@ -1877,6 +1877,7 @@ CONTAINS
 
          END DO !iso_proc
 
+         DEALLOCATE (rexp)
       END DO !ikind
 
       CALL timestop(handle)
