@@ -12,4 +12,6 @@ H2O-dft-ls-NEWTONSCHULZ-SYMMETRIC.inp                        11      2e-13      
 H2O-dft-ls-SUBMATRIX-NS.inp                                  11      2e-13            -17.031737705912356
 H2O-dft-ls-SUBMATRIX-NS3.inp                                 11      2e-13            -17.031737706156235
 H2O-dft-ls-SUBMATRIX-DIRECT.inp                              11      2e-13            -17.031737706156235
+H2O-dft-ls-SUBMATRIX-DIRECT-MUADJ.inp                        11      2e-13            -17.031737706156235
+H2O-dft-ls-SUBMATRIX-DIRECT-MUADJ-LOWMEM.inp                 11      2e-13            -17.031737706156235
 #EOF
