@@ -7,6 +7,8 @@ Ne-LDA-e_range.inp                                     88      1e-08           8
 H2O-B3LYP-full.inp                                     88      1e-08           519.822873
 #Checking the ability to restart for PDOS and CUBES
 H2O-B3LYP-full-restart.inp                             0
+#Checking that 2 atoms of different kinds can be excited
+CO-PBE0.inp                                            88      1e-08           519.471902
 #Checking the non-zero RI_REGION for better density projection
 C2H2-PBE-ri_region.inp                                 88      1e-08           269.849841
 #Checking truncated and shortrange operators for exchange in PBCs
