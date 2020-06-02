@@ -13,6 +13,7 @@ MODULE simpar_methods
    USE bibliography,                    ONLY: Evans1983,&
                                               Kuhne2007,&
                                               Minary2003,&
+                                              Rengaraj2020,&
                                               Ricci2003,&
                                               cite_reference
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -84,6 +85,7 @@ CONTAINS
       IF (simpar%ensemble == langevin_ensemble) THEN
          CALL cite_reference(Ricci2003)
          IF (simpar%noisy_gamma > 0.0_dp) CALL cite_reference(Kuhne2007)
+         IF (simpar%shadow_gamma > 0.0_dp) CALL cite_reference(Rengaraj2020)
          ! Normalization factor using a normal Gaussian random number distribution
          simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*(simpar%gamma + simpar%noisy_gamma)
          IF (iw > 0) THEN

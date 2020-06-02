@@ -68,7 +68,7 @@ MODULE bibliography
                             Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
                             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, &
                             Golze2015, Golze2017a, Golze2017b, Tuckerman1992, Zhao1994, &
-                            Tozer1996, Goedecker2004, &
+                            Tozer1996, Goedecker2004, Rengaraj2020, &
                             Khaliullin2013, Kruse2012, Hutter2014, Bengtsson1999, Kantorovich2008, &
                             Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
                             Rayson2009, Grimme2011, Fattebert2002, Andreussi2012, &
@@ -87,7 +87,7 @@ MODULE bibliography
                             Grimme2017, Kondov2007, &
                             Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, Paziani2006, &
                             Toulouse2004, Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
-                            Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018
+                            Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020
 
 CONTAINS
 
@@ -2016,6 +2016,26 @@ CONTAINS
                          "UT ISI:000244117400046", &
                          "ER"), &
                          DOI="10.1103/PhysRevLett.98.066401")
+
+      CALL add_reference(key=Rengaraj2020, ISI_record=s2a( &
+                         "AU Rengaraj, V", &
+                         "   Lass, M", &
+                         "   Plessl, C", &
+                         "   Kuhne, TD", &
+                         "TI Accurate Sampling with Noisy Forces from Approximate Computing", &
+                         "SO COMPUTATION", &
+                         "SN 2079-3197", &
+                         "J9 COMPUTATION", &
+                         "JI Computation", &
+                         "PD APR", &
+                         "PY 2020", &
+                         "VL 8", &
+                         "IS 2", &
+                         "AR 39", &
+                         "PG 11", &
+                         "UT ISI:000244117400046", &
+                         "ER"), &
+                         DOI="10.3390/computation8020039")
 
       CALL add_reference(key=Kunert2003, ISI_record=s2a( &
                          "AU Kunert, T", &
@@ -4442,6 +4462,63 @@ CONTAINS
                          "PI New York, NY, USA", &
                          "ER"), &
                          DOI="10.1145/3218176.3218231")
+
+      CALL add_reference(key=cp2kqs2020, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Kuehne,Thomas D.", &
+                         "   Iannuzzi,Marcella", &
+                         "   Del Ben,Mauro", &
+                         "   Rybkin,Vladimir V.", &
+                         "   Seewald,Patrick", &
+                         "   Stein,Frederick", &
+                         "   Laino,Teodoro", &
+                         "   Khaliullin,Rustam Z.", &
+                         "   Schuett,Ole", &
+                         "   Schiffmann,Florian", &
+                         "   Golze,Dorothea", &
+                         "   Wilhelm,Jan", &
+                         "   Chulkov,Sergey", &
+                         "   Bani-Hashemian,Mohammad Hossein", &
+                         "   Weber,Valery", &
+                         "   Borstnik,Urban", &
+                         "   Taillefumier,Mathieu", &
+                         "   Jakobovits,Alice Shoshana", &
+                         "   Lazzaro,Alfio", &
+                         "   Pabst,Hans", &
+                         "   Mueller,Tiziano", &
+                         "   Schade,Robert", &
+                         "   Guidon,Manuel", &
+                         "   Andermatt,Samuel", &
+                         "   Holmberg,Nico", &
+                         "   Schenter,Gregory K.", &
+                         "   Hehn,Anna", &
+                         "   Bussy,Augustin", &
+                         "   Belleflamme,Fabian", &
+                         "   Tabacchi,Gloria", &
+                         "   Gloess,Andreas", &
+                         "   Lass,Michael", &
+                         "   Bethune,Iain", &
+                         "   Mundy,Christopher J.", &
+                         "   Plessl,Christian", &
+                         "   Watkins,Matt", &
+                         "   VandeVondele,Joost", &
+                         "   Krack,Matthias", &
+                         "   Hutter,Juerg", &
+                         "TI CP2K: An electronic structure and molecular dynamics software package - ", &
+                         "   Quickstep: Efficient and accurate electronic structure calculations", &
+                         "SO The Journal of Chemical Physics", &
+                         "JF The Journal of Chemical Physics", &
+                         "JO J. Chem. Phys.", &
+                         "SN 0021-9606", &
+                         "IS 19", &
+                         "PY 2020", &
+                         "VL 152", &
+                         "SP 194103", &
+                         "DI 10.1063/5.0007045", &
+                         "PB American Institute of Physics", &
+                         "ER"), &
+                         DOI="10.1063/5.0007045")
 
    END SUBROUTINE add_all_references
 

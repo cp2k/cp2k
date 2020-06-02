@@ -13,6 +13,7 @@ MODULE pao_methods
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE bibliography,                    ONLY: Kolafa2004,&
+                                              Kuhne2007,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -1138,6 +1139,7 @@ CONTAINS
       ls_mstruct => ls_scf_env%ls_mstruct
       CPASSERT(ls_scf_env%scf_history%istore > 0)
       CALL cite_reference(Kolafa2004)
+      CALL cite_reference(Kuhne2007)
       CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s=matrix_s)
 
       IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Calculating initial guess with ASPC"

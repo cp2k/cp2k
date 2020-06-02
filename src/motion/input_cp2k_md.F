@@ -11,8 +11,8 @@
 
 MODULE input_cp2k_md
    USE bibliography,                    ONLY: &
-        Evans1983, Guidon2008, Kantorovich2008, Kantorovich2008a, Kolafa2004, Kuhne2007, &
-        Minary2003, Ricci2003, Tuckerman1992, VandeVondele2002, West2006
+        Evans1983, Guidon2008, Kantorovich2008, Kantorovich2008a, Kuhne2007, Minary2003, &
+        Rengaraj2020, Ricci2003, Tuckerman1992, VandeVondele2002, West2006
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -95,7 +95,7 @@ CONTAINS
                                         "constant pressure ensemble (no thermostat)", &
                                         "constant pressure ensemble using an isotropic cell (no thermostat)", &
                                         "adiabatic dynamics in constant temperature and volume ensemble (CAFES)"), &
-                          citations=(/Evans1983, VandeVondele2002, Minary2003, Kolafa2004/), &
+                          citations=(/Evans1983, VandeVondele2002, Minary2003/), &
                           enum_i_vals=(/nve_ensemble, nvt_ensemble, npt_i_ensemble, npt_f_ensemble, &
                                         nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble, nph_ensemble, isokin_ensemble, &
                                         reftraj_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
@@ -335,10 +335,8 @@ CONTAINS
                           "The user can define regions in the system where the atoms inside "// &
                           "undergoes Langevin MD, while those outside the regions undergoes "// &
                           "NVE Born Oppenheimer MD. To define the regions, the user should "// &
-                          "use THERMAL_REGION subsection of MOTION%MD. The theory for "// &
-                          "Langevin MD involving sub-regions can be found in articles by "// &
-                          "Kantorovitch et al. All the references can be found in the links below.", &
-                          citations=(/Ricci2003, Kantorovich2008, Kantorovich2008a/), &
+                          "use THERMAL_REGION subsection of MOTION%MD. ", &
+                          citations=(/Ricci2003, Kuhne2007, Rengaraj2020/), &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword)
 
@@ -360,7 +358,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="Shadow_Gamma", &
                           variants=(/"ShadowGamma"/), &
                           description="Shadow Langevin Friction term for LD with noisy forces in order to adjust Noisy_Gamma.", &
-                          citations=(/Kuhne2007/), &
+                          citations=(/Rengaraj2020/), &
                           usage="Shadow_Gamma 0.001", default_r_val=0.0_dp, unit_str='fs^-1')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

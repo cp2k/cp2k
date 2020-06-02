@@ -17,10 +17,10 @@ MODULE input_cp2k_dft
         Blochl1995, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, Ehrhardt1985, &
         Fattebert2002, Golze2017a, Golze2017b, Guidon2010, Heinzmann1976, Holmberg2017, &
         Holmberg2018, Hunt2003, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, &
-        Krack2002, Kunert2003, Lippert1997, Lippert1999, Lu2004, Perdew1981, Repasky2002, &
-        Rocha2006, Schenter2008, Schiffmann2015, Stewart1982, Stewart1989, Stewart2007, Thiel1992, &
-        Tozer1996, VanVoorhis2015, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
-        VandeVondele2006, Weber2008, Yin2017, Zhao1994
+        Krack2002, Kuhne2007, Kunert2003, Lippert1997, Lippert1999, Lu2004, Perdew1981, &
+        Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, Stewart1982, Stewart1989, &
+        Stewart2007, Thiel1992, Tozer1996, VanVoorhis2015, VandeVondele2003, VandeVondele2005a, &
+        VandeVondele2005b, VandeVondele2006, Weber2008, Yin2017, Zhao1994
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -3350,7 +3350,7 @@ CONTAINS
          description="Extrapolation strategy for the wavefunction during e.g. MD. "// &
          "Not all options are available for all simulation methods. "// &
          "PS and ASPC are recommended, see also EXTRAPOLATION_ORDER.", &
-         citations=(/Kolafa2004, VandeVondele2005a/), &
+         citations=(/Kolafa2004, VandeVondele2005a, Kuhne2007/), &
          usage="EXTRAPOLATION PS", &
          enum_c_vals=s2a("USE_GUESS", "USE_PREV_P", "USE_PREV_RHO_R", "LINEAR_WF", &
                          "LINEAR_P", "LINEAR_PS", "USE_PREV_WF", "PS", "FROZEN", "ASPC"), &
