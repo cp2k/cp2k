@@ -28,7 +28,7 @@ MODULE libcp2k
    USE f77_interface,                   ONLY: &
         calc_energy_force, create_force_env, destroy_force_env, f_env_add_defaults, &
         f_env_rm_defaults, f_env_type, finalize_cp2k, get_energy, get_force, get_natom, &
-        get_nparticle, get_pos, get_result_r1, init_cp2k, set_pos, set_vel
+        get_nparticle, get_pos, get_result_r1, init_cp2k, set_cell, set_pos, set_vel
    USE force_env_types,                 ONLY: force_env_get,&
                                               use_qs_force
    USE input_cp2k,                      ONLY: create_cp2k_root_section
@@ -213,6 +213,21 @@ CONTAINS
       CALL set_vel(env_id, new_vel, n_el, ierr)
       CPASSERT(ierr == 0)
    END SUBROUTINE cp2k_set_velocities
+
+! **************************************************************************************************
+!> \brief ...
+!> \param env_id ...
+!> \param new_cell ...
+! **************************************************************************************************
+   SUBROUTINE cp2k_set_cell(env_id, new_cell) BIND(C)
+      INTEGER(C_INT), VALUE                              :: env_id
+      REAL(C_DOUBLE), DIMENSION(3, 3), INTENT(IN)        :: new_cell
+
+      INTEGER                                            :: ierr
+
+      CALL set_cell(env_id, new_cell, ierr)
+      CPASSERT(ierr == 0)
+   END SUBROUTINE cp2k_set_cell
 
 ! **************************************************************************************************
 !> \brief ...

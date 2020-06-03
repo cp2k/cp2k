@@ -80,6 +80,12 @@ void cp2k_set_positions(force_env_t force_env, const double* new_pos, int n_el);
  */
 void cp2k_set_velocities(force_env_t force_env, const double* new_vel, int n_el);
 
+/** \brief Set the size of the cell
+ * \param force_env the force environment
+ * \param new_cell Array containing the new cell
+ */
+void cp2k_set_cell(force_env_t force_env, const double* new_cell);
+
 /** \brief Get an arbitrary result as 1D array from CP2K
  * \param force_env the force environment
  * \param description The string tag of the result
