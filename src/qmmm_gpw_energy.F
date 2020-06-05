@@ -595,7 +595,7 @@ CONTAINS
          !$OMP PRIVATE(rv1, rv2, rv3, abc_X, abc_X_Y)
          Atoms: DO Imm = 1, SIZE(per_pot%mm_atom_index)
             IF (par_scheme == do_par_atom) THEN
-               myind = Imm+(IRadTyp-1)*SIZE(per_pot%mm_atom_index)
+               myind = Imm + (IRadTyp - 1)*SIZE(per_pot%mm_atom_index)
                IF (MOD(myind, para_env%num_pe) /= para_env%mepos) CYCLE
             END IF
             LIndMM = per_pot%mm_atom_index(Imm)
@@ -810,7 +810,7 @@ CONTAINS
          !$OMP PRIVATE(rv1, rv2, rv3, rx2, rx3, r, r2, rx, Term, xs1, xs2, xs3, i, j, k, ix)
          Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
             IF (par_scheme == do_par_atom) THEN
-               myind = Imm+(IRadTyp-1)*SIZE(pot%mm_atom_index)
+               myind = Imm + (IRadTyp - 1)*SIZE(pot%mm_atom_index)
                IF (MOD(myind, para_env%num_pe) /= para_env%mepos) CYCLE
             END IF
             LIndMM = pot%mm_atom_index(Imm)
