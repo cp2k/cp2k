@@ -58,10 +58,13 @@ MODULE hfx_admm_utils
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: fourpi
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_transfer
+   USE pw_grid_types,                   ONLY: pw_grid_type
+   USE pw_methods,                      ONLY: pw_copy,&
+                                              pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -73,7 +76,8 @@ MODULE hfx_admm_utils
                                               RECIPROCALSPACE,&
                                               pw_create,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -340,7 +344,7 @@ CONTAINS
                                                             do_adiabatic_rescaling, &
                                                             hfx_treat_lsd_in_core, &
                                                             s_mstruct_changed, use_virial
-      REAL(dp)                                           :: eh1, ehfx, ehfxrt
+      REAL(dp)                                           :: eh1, ehfx, ehfxrt, eold
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: hf_energy
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_1d, matrix_ks_aux_fit, &
@@ -421,7 +425,11 @@ CONTAINS
       END IF
       ALLOCATE (hf_energy(n_rep_hf))
 
+      eold = 0.0_dp
+
       DO irep = 1, n_rep_hf
+         ! Remember: Vhfx is added, energy is calclulated from total Vhfx,
+         ! so energy of last iteration is correct
 
          IF (do_adiabatic_rescaling .AND. hfx_treat_lsd_in_core) &
             CPABORT("HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids")
@@ -455,7 +463,6 @@ CONTAINS
                                   x_data(irep, 1)%general_parameter%fraction)
             IF (dft_control%do_admm) THEN
                !for ADMMS, we need the exchange matrix k(d) for both spins
-
                DO ispin = 1, mspin
                   CALL dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, matrix_ks_orb(ispin, 1)%matrix, &
                                   name="HF exch. part of matrix_ks_aux_fit for ADMMS")
@@ -492,7 +499,7 @@ CONTAINS
          !! If required, the calculation of the forces will be done later with adiabatic rescaling
          IF (do_adiabatic_rescaling) hf_energy(irep) = ehfx
 
-         ! special case RTP/EMD we have a full complex density and HFX has a contrinution from the imaginary part
+         ! special case RTP/EMD we have a full complex density and HFX has a contribution from the imaginary part
          ehfxrt = 0.0_dp
          IF (qs_env%run_rtp) THEN
 
@@ -526,7 +533,6 @@ CONTAINS
                                      x_data(irep, 1)%general_parameter%fraction)
                IF (dft_control%do_admm) THEN
                   !for ADMMS, we need the exchange matrix k(d) for both spins
-
                   DO ispin = 1, mspin
                      CALL dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, matrix_ks_orb(ispin, 1)%matrix, &
                                      name="HF exch. part of matrix_ks_aux_fit for ADMMS")
@@ -552,9 +558,13 @@ CONTAINS
             IF (do_adiabatic_rescaling) hf_energy(irep) = ehfx + ehfxrt
          END IF
 
-         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                         poisson_env=poisson_env)
-         CALL pw_hfx(qs_env, energy, hfx_sections, poisson_env, auxbas_pw_pool, irep)
+         IF (.NOT. qs_env%run_rtp) THEN
+            CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
+                            poisson_env=poisson_env)
+            eh1 = ehfx - eold
+            CALL pw_hfx(qs_env, eh1, hfx_sections, poisson_env, auxbas_pw_pool, irep)
+            eold = ehfx
+         END IF
 
       END DO
 
@@ -594,7 +604,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief computes the Hartree-Fock energy brute force in a pw basis
 !> \param qs_env ...
-!> \param energy ...
+!> \param ehfx ...
 !> \param hfx_section ...
 !> \param poisson_env ...
 !> \param auxbas_pw_pool ...
@@ -604,9 +614,9 @@ CONTAINS
 !> \note
 !>      only computes the HFX energy, no derivatives as yet
 ! **************************************************************************************************
-   SUBROUTINE pw_hfx(qs_env, energy, hfx_section, poisson_env, auxbas_pw_pool, irep)
+   SUBROUTINE pw_hfx(qs_env, ehfx, hfx_section, poisson_env, auxbas_pw_pool, irep)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_energy_type), POINTER                      :: energy
+      REAL(KIND=dp), INTENT(IN)                          :: ehfx
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -614,12 +624,12 @@ CONTAINS
 
       CHARACTER(*), PARAMETER :: routineN = 'pw_hfx', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blocksize, handle, iloc, iorb, &
+      INTEGER                                            :: blocksize, handle, ig, iloc, iorb, &
                                                             iorb_block, ispin, iw, jloc, jorb, &
-                                                            jorb_block, norb
-      LOGICAL                                            :: do_pw_hfx
-      REAL(KIND=dp)                                      :: exchange_energy, fraction, pair_energy, &
-                                                            scaling
+                                                            jorb_block, norb, potential_type
+      LOGICAL                                            :: do_pw_hfx, explicit
+      REAL(KIND=dp)                                      :: exchange_energy, fraction, g2, g3d, gg, &
+                                                            omega, pair_energy, rcut, scaling
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -629,9 +639,12 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_grid_type), POINTER                        :: grid
       TYPE(pw_p_type)                                    :: pot_g, rho_g, rho_r
       TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: rho_i, rho_j
+      TYPE(pw_type), POINTER                             :: greenfn
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: ip_section
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -663,6 +676,44 @@ CONTAINS
 
          ALLOCATE (rho_i(blocksize))
          ALLOCATE (rho_j(blocksize))
+
+         NULLIFY (greenfn)
+         CALL pw_pool_create_pw(auxbas_pw_pool, greenfn, &
+                                use_data=COMPLEXDATA1D, &
+                                in_space=RECIPROCALSPACE)
+         ip_section => section_vals_get_subs_vals(hfx_section, "INTERACTION_POTENTIAL")
+         CALL section_vals_get(ip_section, explicit=explicit)
+         potential_type = do_potential_coulomb
+         IF (explicit) THEN
+            CALL section_vals_val_get(ip_section, "POTENTIAL_TYPE", i_val=potential_type)
+         ENDIF
+         IF (potential_type == do_potential_coulomb) THEN
+            CALL pw_copy(poisson_env%green_fft%influence_fn, greenfn)
+         ELSEIF (potential_type == do_potential_truncated) THEN
+            CALL section_vals_val_get(ip_section, "CUTOFF_RADIUS", r_val=rcut)
+            grid => poisson_env%green_fft%influence_fn%pw_grid
+            DO ig = grid%first_gne0, grid%ngpts_cut_local
+               g2 = grid%gsq(ig)
+               gg = SQRT(g2)
+               g3d = fourpi/g2
+               greenfn%cc(ig) = g3d*(1.0_dp - COS(rcut*gg))
+            END DO
+            IF (grid%have_g0) &
+               greenfn%cc(1) = 0.5_dp*fourpi*rcut*rcut
+         ELSEIF (potential_type == do_potential_short) THEN
+            CALL section_vals_val_get(ip_section, "OMEGA", r_val=omega)
+            IF (omega > 0.0_dp) omega = 0.25_dp/(omega*omega)
+            grid => poisson_env%green_fft%influence_fn%pw_grid
+            DO ig = grid%first_gne0, grid%ngpts_cut_local
+               g2 = grid%gsq(ig)
+               gg = -omega*g2
+               g3d = fourpi/g2
+               greenfn%cc(ig) = g3d*(1.0_dp - EXP(gg))
+            END DO
+            IF (grid%have_g0) greenfn%cc(1) = 0.0_dp
+         ELSE
+            CPWARN("PW_SCF: Potential type not supported, calculation uses Coulomb potential.")
+         END IF
 
          DO iorb_block = 1, blocksize
             NULLIFY (rho_i(iorb_block)%pw)
@@ -719,7 +770,8 @@ CONTAINS
 
                         ! go the g-space and compute hartree energy
                         CALL pw_transfer(rho_r%pw, rho_g%pw)
-                        CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
+                        CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw, &
+                                              greenfn=greenfn)
 
                         ! sum up to the full energy
                         scaling = fraction
@@ -743,6 +795,7 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, greenfn)
 
          iw = cp_print_key_unit_nr(logger, hfx_section, "HF_INFO", &
                                    extension=".scfLog")
@@ -751,11 +804,10 @@ CONTAINS
             WRITE (UNIT=iw, FMT="((T3,A,T61,F20.10))") &
                "HF_PW_HFX| PW exchange energy:", exchange_energy
             WRITE (UNIT=iw, FMT="((T3,A,T61,F20.10),/)") &
-               "HF_PW_HFX| Gaussian exchange energy:", energy%ex
+               "HF_PW_HFX| Gaussian exchange energy:", ehfx
          ENDIF
 
-         CALL cp_print_key_finished_output(iw, logger, hfx_section, &
-                                           "HF_INFO")
+         CALL cp_print_key_finished_output(iw, logger, hfx_section, "HF_INFO")
 
       ENDIF
 

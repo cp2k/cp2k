@@ -235,12 +235,13 @@ CONTAINS
 !> \param dvhartree ...
 !> \param h_stress ...
 !> \param rho_core ...
+!> \param greenfn ...
 !> \par History
 !>      JGH (13-Mar-2001) : completely revised
 !> \author apsi
 ! **************************************************************************************************
    SUBROUTINE pw_poisson_solve(poisson_env, density, ehartree, vhartree, &
-                               dvhartree, h_stress, rho_core)
+                               dvhartree, h_stress, rho_core, greenfn)
 
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_type), POINTER                             :: density
@@ -250,6 +251,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h_stress
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_core
+      TYPE(pw_type), OPTIONAL, POINTER                   :: greenfn
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_solve', &
          routineP = moduleN//':'//routineN
@@ -262,7 +264,8 @@ CONTAINS
       TYPE(pw_p_type)                                    :: dvg(3)
       TYPE(pw_poisson_parameter_type), POINTER           :: poisson_params
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type), POINTER                             :: rhog, rhor, tmpg, vhartree_rs
+      TYPE(pw_type), POINTER                             :: influence_fn, rhog, rhor, tmpg, &
+                                                            vhartree_rs
 
       CALL timeset(routineN, handle)
 
@@ -297,7 +300,12 @@ CONTAINS
                                       in_space=RECIPROCALSPACE)
                CALL pw_copy(rhog, tmpg)
             END IF
-            rhog%cc(:) = rhog%cc(:)*poisson_env%green_fft%influence_fn%cc(:)
+            IF (PRESENT(greenfn)) THEN
+               influence_fn => greenfn
+            ELSE
+               influence_fn => poisson_env%green_fft%influence_fn
+            END IF
+            rhog%cc(:) = rhog%cc(:)*influence_fn%cc(:)
             IF (PRESENT(vhartree)) THEN
                CALL pw_transfer(rhog, vhartree)
                IF (PRESENT(ehartree)) THEN
