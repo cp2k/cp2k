@@ -27,7 +27,7 @@ MODULE qs_energy_utils
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_set, dbcsr_type
    USE et_coupling,                     ONLY: calc_et_coupling
-   USE et_coupling_proj,                ONLY: calc_et_coupling_proj
+   USE et_coupling_pod,                 ONLY: pod_coupling_calc
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -262,7 +262,7 @@ CONTAINS
          section_vals_get_subs_vals(qs_env%input, "PROPERTIES%ET_COUPLING%PROJECTION")
       CALL section_vals_get(proj_section, explicit=do_et_proj)
       IF (do_et_proj) THEN
-         CALL calc_et_coupling_proj(qs_env)
+         CALL pod_coupling_calc(qs_env)
       END IF
 
       ! **********  Calculate the electron transfer coupling elements********
