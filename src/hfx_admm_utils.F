@@ -52,7 +52,6 @@ MODULE hfx_admm_utils
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: fourpi
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
