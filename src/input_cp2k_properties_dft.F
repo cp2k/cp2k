@@ -996,14 +996,14 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
       CHARACTER(len=*), INTENT(in)                       :: section_name
 
-      ! Routine name for dubug purposes
       CHARACTER(len=*), PARAMETER :: routineN = 'create_projection', &
          routineP = moduleN//':'//routineN
 
-      ! Local variables
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, section_bin
-      TYPE(section_type), POINTER                        :: section_block, section_print
+      TYPE(section_type), POINTER                        :: print_key, section_block, section_print
+
+! Routine name for dubug purposes
+! Local variables
 
       ! Sanity check
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -1011,14 +1011,13 @@ CONTAINS
       ! Initialization
       NULLIFY (keyword)
       NULLIFY (print_key)
-      NULLIFY (section_bin)
       NULLIFY (section_block)
       NULLIFY (section_print)
 
       ! PROJECTION (create)
       CALL section_create(section, __LOCATION__, name=TRIM(ADJUSTL(section_name)), &
-              description="Projection-operator approach fo ET coupling calculation", &
-              n_keywords=0, n_subsections=2, repeats=.FALSE.)
+                          description="Projection-operator approach fo ET coupling calculation", &
+                          n_keywords=0, n_subsections=2, repeats=.FALSE.)
 
       ! PROJECTION -> RESTART
       CALL keyword_create(keyword, __LOCATION__, name='RESTART', &
@@ -1029,50 +1028,50 @@ CONTAINS
 
       ! PROJECTION -> PROGRAM_RUN_INFO (create)
       CALL cp_print_key_section_create(print_key, __LOCATION__, name='PROGRAM_RUN_INFO', &
-              description="Controls printing of data and informations to log file", &
-              print_level=low_print_level, filename="__STD_OUT__")
+                                       description="Controls printing of data and informations to log file", &
+                                       print_level=low_print_level, filename="__STD_OUT__")
 
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
       ! PROJECTION -> PRINT
       CALL section_create(section_print, __LOCATION__, name='PRINT', &
-              description="Data printing during POD coupling calculation", &
-              n_keywords=0, n_subsections=1, repeats=.FALSE.)
+                          description="Data printing during POD coupling calculation", &
+                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
       CALL section_add_subsection(section, section_print)
 
       ! PROJECTION -> PRINT -> HAMILTONIAN
       CALL cp_print_key_section_create(print_key, __LOCATION__, name='HAMILTONIAN', &
-              description="Save elements of POD Hamiltonian to binary file", &
-              filename="POD")
+                                       description="Save elements of POD Hamiltonian to binary file", &
+                                       filename="POD")
       CALL section_add_subsection(section_print, print_key)
       CALL section_release(print_key)
 
       ! PROJECTION -> PRINT -> WAVEFUNCTION
       CALL cp_print_key_section_create(print_key, __LOCATION__, name='WAVEFUNCTION', &
-              description="Save coefficients of POD orbitals to binary file", &
-              filename="POD")
+                                       description="Save coefficients of POD orbitals to binary file", &
+                                       filename="POD")
       CALL section_add_subsection(section_print, print_key)
       CALL section_release(print_key)
 
       ! PROJECTION -> PRINT -> TRANSF_MATRIX_F
       CALL cp_print_key_section_create(print_key, __LOCATION__, name='TRANSF_MATRIX_F', &
-              description="Save transformation matrix S^{-1/2} to binary file", &
-              filename="POD")
+                                       description="Save transformation matrix S^{-1/2} to binary file", &
+                                       filename="POD")
       CALL section_add_subsection(section_print, print_key)
       CALL section_release(print_key)
 
       ! PROJECTION -> PRINT -> TRANSF_MATRIX_R
       CALL cp_print_key_section_create(print_key, __LOCATION__, name='TRANSF_MATRIX_R', &
-              description="Save transformation matrix S^{+1/2} to binary file", &
-              filename="POD")
+                                       description="Save transformation matrix S^{+1/2} to binary file", &
+                                       filename="POD")
       CALL section_add_subsection(section_print, print_key)
       CALL section_release(print_key)
 
       ! PROJECTION -> PRINT -> COUPLING_ELEMENTS
       CALL cp_print_key_section_create(print_key, __LOCATION__, name='COUPLING_ELEMENTS', &
-              description="Print coupling elements to log file", &
-              print_level=low_print_level)
+                                       description="Print coupling elements to log file", &
+                                       print_level=low_print_level)
       CALL section_add_subsection(section_print, print_key)
       CALL section_release(print_key)
 

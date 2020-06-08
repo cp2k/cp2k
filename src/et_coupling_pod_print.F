@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2020  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -9,19 +9,18 @@
 ! **************************************************************************************************
 MODULE et_coupling_pod_print
 
-   USE cp_blacs_calls,                  ONLY: cp_blacs_gridinfo,&
-                                              cp_blacs_gridinit,&
-                                              cp_blacs_gridexit
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
+   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
+                                              cp_blacs_gridinfo,&
+                                              cp_blacs_gridinit
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_p_type,&
-                                              cp_fm_type,&
-                                              cp_fm_release
+                                              cp_fm_release,&
+                                              cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
-                                              cp_print_key_should_output,&
-                                              cp_print_key_unit_nr
+                                              cp_print_key_should_output
    USE et_coupling_pod_mo,              ONLY: pod_mo_sum_c2
    USE et_coupling_pod_types,           ONLY: et_cpl
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -33,10 +32,9 @@ MODULE et_coupling_pod_print
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kind_types,                   ONLY: qs_kind_type,&
-                                              get_qs_kind_set
+   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                              qs_kind_type
    USE qs_mo_types,                     ONLY: mo_set_p_type
-
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -45,8 +43,8 @@ MODULE et_coupling_pod_print
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'et_coupling_pod_print'
 
-   PUBLIC :: pod_print_couplings,&
-             pod_print_state_fracs,&
+   PUBLIC :: pod_print_couplings, &
+             pod_print_state_fracs, &
              pod_print_states
 
 CONTAINS
@@ -68,17 +66,18 @@ CONTAINS
       TYPE(et_cpl), POINTER                              :: ec
       INTEGER                                            :: blk, n_spins
 
-      ! Routine name for debug purposes
       CHARACTER(len=*), PARAMETER :: routineN = 'pod_print_state_fracs', &
-                                     routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-      ! Local variables
       INTEGER                                            :: j, k, l, m, n, n_ao, n_mo
       INTEGER, DIMENSION(:), POINTER                     :: list_at, list_mo
       REAL(KIND=dp)                                      :: c1, c2
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_w
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: block_sec, print_sec
+
+! Routine name for debug purposes
+! Local variables
 
       ! Initialization
       NULLIFY (block_sec)
@@ -95,7 +94,7 @@ CONTAINS
       CALL section_vals_val_get(print_sec, keyword_name='MO_COEFF_ATOM', n_rep_val=n)
 
       IF (n > 0) THEN
- 
+
          IF (output_unit > 0) &
             WRITE (output_unit, '(/,T3,A/)') 'Block state fractions:'
 
@@ -168,7 +167,7 @@ CONTAINS
             CALL cp_fm_release(matrix=mat_w(j)%matrix)
          END DO
          IF (ASSOCIATED(mat_w)) &
-           DEALLOCATE (mat_w)
+            DEALLOCATE (mat_w)
 
       END IF
 
@@ -195,12 +194,14 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: mx_mo_a, mx_mo_b
       LOGICAL, OPTIONAL                                  :: fermi
 
-      ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'pod_print_states', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pod_print_states', &
+         routineP = moduleN//':'//routineN
 
-      ! Local variables
       INTEGER                                            :: i, mx_a, mx_b, n
       LOGICAL                                            :: prnt_fm
+
+! Routine name for debug purposes
+! Local variables
 
       prnt_fm = .FALSE.
       IF (PRESENT(fermi)) &
@@ -269,8 +270,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Print out donor-acceptor state couplings
-!> \param qs_env QuickStep environment containing all system data
 !> \param output_unit unit number of the open output stream
+!> \param qs_env QuickStep environment containing all system data
 !> \param ec electronic coupling data structure
 !> \param n_states number of states
 !> \param n_beta_states number of beta-spin states
@@ -293,30 +294,30 @@ CONTAINS
 
       ! Local variables
       LOGICAL                                            :: do_print
-      INTEGER                                            :: i,j,k,l,id
+      INTEGER                                            :: i, j, k, l, id
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: et_proj_sec,print_key
+      TYPE(section_vals_type), POINTER                   :: et_proj_sec, print_key
 #if defined(__SCALAPACK)
-      INTEGER                                            :: n,cntxt_loc,info,tg1,tg2
-      INTEGER                                            :: ib,ix,ic,ir,ir_loc,ic_loc
-      INTEGER                                            :: n_b_row,n_b_col
-      INTEGER                                            :: n_p_row,n_p_col
-      INTEGER                                            :: n_t_row,n_t_col
-      INTEGER                                            :: p_row_i,p_col_i
-      INTEGER                                            :: p_row_0,p_col_0
+      INTEGER                                            :: n, cntxt_loc, info, tg1, tg2
+      INTEGER                                            :: ib, ix, ic, ir, ir_loc, ic_loc
+      INTEGER                                            :: n_b_row, n_b_col
+      INTEGER                                            :: n_p_row, n_p_col
+      INTEGER                                            :: n_t_row, n_t_col
+      INTEGER                                            :: p_row_i, p_col_i
+      INTEGER                                            :: p_row_0, p_col_0
       INTEGER, DIMENSION(9)                              :: desc
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: v1,v2
-      REAL(KIND=dp), DIMENSION(:,:), POINTER             :: d1,d2
-      TYPE(cp_fm_type), POINTER                          :: m1,m2
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: v1, v2
+      REAL(KIND=dp), DIMENSION(:, :), POINTER             :: d1, d2
+      TYPE(cp_fm_type), POINTER                          :: m1, m2
 
       INTEGER, EXTERNAL                                  :: numroc
 
-      NULLIFY(m1)
-      NULLIFY(m2)
-      NULLIFY(d1)
-      NULLIFY(d2)
-      NULLIFY(v1)
-      NULLIFY(v2)
+      NULLIFY (m1)
+      NULLIFY (m2)
+      NULLIFY (d1)
+      NULLIFY (d2)
+      NULLIFY (v1)
+      NULLIFY (v2)
 
       tg1 = 0
       tg2 = 0
@@ -324,28 +325,28 @@ CONTAINS
 #endif
 
       ! Initialization
-      NULLIFY(et_proj_sec)
-      NULLIFY(logger)
+      NULLIFY (et_proj_sec)
+      NULLIFY (logger)
 
       ! Check whether to print coupling elements or not
       logger => cp_get_default_logger()
       et_proj_sec => section_vals_get_subs_vals(qs_env%input, &
-                       'PROPERTIES%ET_COUPLING%PROJECTION')
+                                                'PROPERTIES%ET_COUPLING%PROJECTION')
       print_key => section_vals_get_subs_vals(et_proj_sec, &
-                      'PRINT%COUPLING_ELEMENTS')
-      do_print = BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)
+                                              'PRINT%COUPLING_ELEMENTS')
+      do_print = BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
 
       IF (do_print) THEN
 
          ! Header
-         IF (output_unit>0) &
+         IF (output_unit > 0) &
             WRITE (output_unit, '(/,T3,A/)') 'Coupling elements [meV]:'
 
 #if defined(__SCALAPACK)
 
          DO i = 1, ec%n_blocks
             id = 1
-            DO j = i+1, ec%n_blocks
+            DO j = i + 1, ec%n_blocks
 
                ! Matrix pointers
                m1 => ec%block(i)%hab(1, id)%matrix
@@ -360,32 +361,32 @@ CONTAINS
 
                ! Context and descriptor
                cntxt_loc = m1%matrix_struct%para_env%group
-               CALL cp_blacs_gridinit(cntxt_loc,'R',1,m1%matrix_struct%para_env%num_pe)
-               CALL cp_blacs_gridinfo(cntxt_loc,n_p_row,n_p_col,p_row_i,p_col_i)
-               CALL descinit(desc,n_t_row,n_t_col,n_b_row,n_t_col,0,0,cntxt_loc,n_t_row,info)
+               CALL cp_blacs_gridinit(cntxt_loc, 'R', 1, m1%matrix_struct%para_env%num_pe)
+               CALL cp_blacs_gridinfo(cntxt_loc, n_p_row, n_p_col, p_row_i, p_col_i)
+               CALL descinit(desc, n_t_row, n_t_col, n_b_row, n_t_col, 0, 0, cntxt_loc, n_t_row, info)
                CPASSERT(info == 0)
 
                ! Number of rows on the actual processor
-               n = numroc(n_t_row,n_b_row,p_row_i,0,n_p_row)
+               n = numroc(n_t_row, n_b_row, p_row_i, 0, n_p_row)
 
                ! Local data arrays
-               ALLOCATE (d1(MAX(1,n),n_t_col))
+               ALLOCATE (d1(MAX(1, n), n_t_col))
                ALLOCATE (v1(n_b_row*n_t_col))
                v1 = HUGE(1.0_dp)
                IF (SIZE(ec%block(i)%hab, 1) > 1) THEN
-                  ALLOCATE (d2(MAX(1,n),n_t_col))
+                  ALLOCATE (d2(MAX(1, n), n_t_col))
                   ALLOCATE (v2(n_b_row*n_t_col))
                   v2 = HUGE(1.0_dp)
                END IF
 
                ! Get the matrix elements
-               CALL pdgemr2d(n_t_row,n_t_col,m1%local_data(1,1),1,1,&
-                             m1%matrix_struct%descriptor,&
-                             d1(1,1),1,1,desc,cntxt_loc)
+               CALL pdgemr2d(n_t_row, n_t_col, m1%local_data(1, 1), 1, 1, &
+                             m1%matrix_struct%descriptor, &
+                             d1(1, 1), 1, 1, desc, cntxt_loc)
                IF (SIZE(ec%block(i)%hab, 1) > 1) THEN
-                  CALL pdgemr2d(n_t_row,n_t_col,m2%local_data(1,1),1,1,&
-                                m2%matrix_struct%descriptor,&
-                                d2(1,1),1,1,desc,cntxt_loc)
+                  CALL pdgemr2d(n_t_row, n_t_col, m2%local_data(1, 1), 1, 1, &
+                                m2%matrix_struct%descriptor, &
+                                d2(1, 1), 1, 1, desc, cntxt_loc)
                END IF
 
                ! Row / column index
@@ -393,55 +394,55 @@ CONTAINS
                l = 1
 
                ! Loop over blocks of rows
-               DO ir = 1, n_t_row, MAX(n_b_row,1)
+               DO ir = 1, n_t_row, MAX(n_b_row, 1)
 
                   ! Number of rows in the block
-                  ib = MIN(n_b_row,n_t_row-ir+1)
+                  ib = MIN(n_b_row, n_t_row - ir + 1)
 
                   ! Local element position
-                  CALL infog2l(ir,1,desc,n_p_row,n_p_col,p_row_i,p_col_i,&
-                               ir_loc,ic_loc,p_row_0,p_col_0)
+                  CALL infog2l(ir, 1, desc, n_p_row, n_p_col, p_row_i, p_col_i, &
+                               ir_loc, ic_loc, p_row_0, p_col_0)
 
                   ! Save block-row columns
                   IF (p_row_0 == p_row_i) THEN
                      DO ix = 1, ib
-                        v1((ix-1)*n_t_col+1:n_t_col*ix) = d1(ir_loc+ix-1,:)
+                        v1((ix - 1)*n_t_col + 1:n_t_col*ix) = d1(ir_loc + ix - 1, :)
                         IF (SIZE(ec%block(i)%hab, 1) > 1) &
-                           v2((ix-1)*n_t_col+1:n_t_col*ix) = d2(ir_loc+ix-1,:)
+                           v2((ix - 1)*n_t_col + 1:n_t_col*ix) = d2(ir_loc + ix - 1, :)
                      END DO
                   END IF
 
                   ! Transfer data
                   IF (p_row_0 /= 0) THEN
                      IF (p_row_0 == p_row_i) THEN
-                        CALL mp_send(v1(:),0,tg1,m1%matrix_struct%para_env%group)
+                        CALL mp_send(v1(:), 0, tg1, m1%matrix_struct%para_env%group)
                         IF (SIZE(ec%block(i)%hab, 1) > 1) &
-                           CALL mp_send(v2(:),0,tg2,m2%matrix_struct%para_env%group)
+                           CALL mp_send(v2(:), 0, tg2, m2%matrix_struct%para_env%group)
                      END IF
                      IF (p_row_i == 0) THEN
-                        CALL mp_recv(v1(:),p_row_0,tg1,m1%matrix_struct%para_env%group)
+                        CALL mp_recv(v1(:), p_row_0, tg1, m1%matrix_struct%para_env%group)
                         IF (SIZE(ec%block(i)%hab, 1) > 1) &
-                           CALL mp_recv(v2(:),p_row_0,tg2,m2%matrix_struct%para_env%group)
+                           CALL mp_recv(v2(:), p_row_0, tg2, m2%matrix_struct%para_env%group)
                      END IF
                   END IF
 
                   ! Output
                   IF (output_unit > 0) THEN
                      DO ix = 1, ib
-                        DO ic = (ix-1)*n_t_col+1, n_t_col*ix
+                        DO ic = (ix - 1)*n_t_col + 1, n_t_col*ix
 
                            IF (k <= MIN(ec%block(i)%n_ao, n_states) .AND. &
                                l <= MIN(ec%block(j)%n_ao, n_states)) THEN
 
-                              WRITE (output_unit,'(T3,I3,A,I4,A,I1,A,I4,A,E20.6)',ADVANCE='no') &
-                                     i, "[", k, "] - ", j, "[", l, "] ", &
-                                     v1(ic)*evolt*1000.0_dp
+                              WRITE (output_unit, '(T3,I3,A,I4,A,I1,A,I4,A,E20.6)', ADVANCE='no') &
+                                 i, "[", k, "] - ", j, "[", l, "] ", &
+                                 v1(ic)*evolt*1000.0_dp
 
                               ! Second spin component
                               IF (SIZE(ec%block(i)%hab, 1) > 1 .AND. &
                                   k <= n_beta_states .AND. l <= n_beta_states) THEN
-                                  WRITE (output_unit,'(E20.6)',ADVANCE='no') &
-                                         v2(ic)*evolt*1000.0_dp
+                                 WRITE (output_unit, '(E20.6)', ADVANCE='no') &
+                                    v2(ic)*evolt*1000.0_dp
                               END IF
 
                               WRITE (output_unit, *)
@@ -451,8 +452,8 @@ CONTAINS
                            ! Row / column IDs
                            l = l + 1
                            IF (l > n_t_col) THEN
-                             l = 1
-                             k = k + 1
+                              l = 1
+                              k = k + 1
                            END IF
 
                         END DO
@@ -465,34 +466,34 @@ CONTAINS
                CALL cp_blacs_gridexit(cntxt_loc)
 
                IF (ASSOCIATED(d1)) &
-                 DEALLOCATE (d1)
+                  DEALLOCATE (d1)
                IF (ASSOCIATED(v1)) &
-                 DEALLOCATE (v1)
+                  DEALLOCATE (v1)
                IF (SIZE(ec%block(i)%hab, 1) > 1) THEN
                   IF (ASSOCIATED(d2)) &
-                    DEALLOCATE (d2)
+                     DEALLOCATE (d2)
                   IF (ASSOCIATED(v2)) &
-                    DEALLOCATE (v2)
+                     DEALLOCATE (v2)
                END IF
 
                id = id + 1
-         
+
             END DO
          END DO
-   
+
 #else
-   
+
          IF (output_unit > 0) THEN
-   
+
             DO i = 1, ec%n_blocks
                id = 1
-               DO j = i+1, ec%n_blocks
-           
+               DO j = i + 1, ec%n_blocks
+
                   DO k = 1, MIN(ec%block(i)%n_ao, n_states)
                      DO l = 1, MIN(ec%block(j)%n_ao, n_states)
-                  
+
                         IF (SIZE(ec%block(i)%hab, 1) > 1) THEN
-                  
+
                            WRITE (output_unit, '(T3,I3,A,I4,A,I1,A,I4,A,E20.6)', ADVANCE='no') &
                               i, "[", k, "] - ", j, "[", l, "] ", &
                               ec%block(i)%hab(1, id)%matrix%local_data(k, l)*evolt*1000.0_dp
@@ -502,25 +503,25 @@ CONTAINS
                            ELSE
                               WRITE (output_unit, *)
                            END IF
-                  
+
                         ELSE
-                  
+
                            WRITE (output_unit, '(T3,I3,A,I4,A,I1,A,I4,A,E20.6)') &
                               i, "[", k, "] - ", j, "[", l, "] ", &
                               ec%block(i)%hab(1, id)%matrix%local_data(k, l)*evolt*1000.0_dp
-                  
+
                         END IF
-                  
+
                      END DO
                   END DO
 
-                  id = id +1
-           
+                  id = id + 1
+
                END DO
             END DO
-   
+
          END IF
-   
+
 #endif
 
       END IF

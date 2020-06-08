@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2020  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -16,7 +16,7 @@ MODULE et_coupling_pod_mo
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_release,\
+                                              cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
@@ -32,11 +32,11 @@ MODULE et_coupling_pod_mo
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE et_coupling_pod_types,           ONLY: et_cpl,&
                                               et_cpl_atom
+   USE input_section_types,             ONLY: section_get_ivals,&
+                                              section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE input_section_types,             ONLY: section_get_ivals,&
-                                              section_vals_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -61,7 +61,6 @@ MODULE et_coupling_pod_mo
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE scf_control_types,               ONLY: scf_control_type
-
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -70,8 +69,8 @@ MODULE et_coupling_pod_mo
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'et_coupling_pod_mo'
 
-   PUBLIC :: pod_mo_set,&
-             pod_mo_save,&
+   PUBLIC :: pod_mo_set, &
+             pod_mo_save, &
              pod_mo_sum_c2
 
 CONTAINS
@@ -91,17 +90,17 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo
       INTEGER                                            :: n_ao, n_mo
 
-      ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'pod_mo_norm', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pod_mo_norm', routineP = moduleN//':'//routineN
 
-      ! Local variables
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_t
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
       TYPE(cp_fm_type), POINTER                          :: mat_sc, mat_t
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_s
+
+! Routine name for debug purposes
+! Local variables
 
 ! Routine name for debug purposes
 
@@ -220,7 +219,7 @@ CONTAINS
             DO ic = 1, ec%block(id)%n_atoms
                DO jc = 1, ec%block(id)%atom(ic)%n_ao
 #if defined(__SCALAPACK)
-                  CALL infog2l(ec%block(id)%atom(ir)%ao_pos+jr-1, nc, &
+                  CALL infog2l(ec%block(id)%atom(ir)%ao_pos + jr - 1, nc, &
                                mat_w%matrix_struct%descriptor, &
                                ns_p_rows, ns_p_cols, cs_row, cs_col, &
                                is_p_row, is_p_col, cs_row_f, cs_col_f)
@@ -243,13 +242,13 @@ CONTAINS
                      END IF
                   END IF
 #else
-                  mat_w%local_data(ec%block(id)%atom(ir)%ao_pos+jr-1, nc) = &
+                  mat_w%local_data(ec%block(id)%atom(ir)%ao_pos + jr - 1, nc) = &
                      mat_u%local_data(nr, nc)
 #endif
-                  nc = nc+1
+                  nc = nc + 1
                END DO
             END DO
-            nr = nr+1
+            nr = nr + 1
          END DO
       END DO
 
@@ -281,11 +280,8 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mat_u
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_e
 
-      ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'pod_mo_set', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pod_mo_set', routineP = moduleN//':'//routineN
 
-      ! Local variables
       INTEGER                                            :: n_ao, n_el, n_mo
       REAL(KIND=dp)                                      :: mx_occ
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -295,6 +291,9 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(scf_control_type), POINTER                    :: scf_cntrl
+
+! Routine name for debug purposes
+! Local variables
 
       NULLIFY (blacs_env)
       NULLIFY (fm_s)
@@ -327,7 +326,7 @@ CONTAINS
          n_el = n_el/2
          IF (MOD(ec%block(id)%n_electrons, 2) == 1) THEN
             IF (spin == 1) &
-               n_el = n_el+1
+               n_el = n_el + 1
          END IF
       END IF
 
@@ -337,7 +336,7 @@ CONTAINS
       mo => ec%block(id)%mo(spin)%mo_set
 
       ! State energies
-      NULLIFY(mo%eigenvalues)
+      NULLIFY (mo%eigenvalues)
       ALLOCATE (mo%eigenvalues(n_mo))
       CPASSERT(ASSOCIATED(mo%eigenvalues))
       mo%eigenvalues = vec_e
@@ -352,7 +351,7 @@ CONTAINS
       CALL pod_mo_set_coeffs(qs_env, ec, id, mo, mat_u, n_ao, n_mo)
 
       ! Occupancies
-      NULLIFY(mo%occupation_numbers)
+      NULLIFY (mo%occupation_numbers)
       ALLOCATE (mo%occupation_numbers(n_mo))
       CPASSERT(ASSOCIATED(mo%occupation_numbers))
       mo%occupation_numbers = 0.0_dp
@@ -387,11 +386,8 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo
       INTEGER                                            :: ib, im, is
 
-      ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'pod_mo_save', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pod_mo_save', routineP = moduleN//':'//routineN
 
-      ! Local variables
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: title
       INTEGER                                            :: unit_nr
@@ -406,6 +402,9 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
+
+! Routine name for debug purposes
+! Local variables
 
       ! Initialization
       NULLIFY (particles)
@@ -525,7 +524,7 @@ CONTAINS
          DO k = 1, blk_at(j)%n_ao
 #if defined(__SCALAPACK)
             c = 0.0_dp
-            CALL infog2l(blk_at(j)%ao_pos+k-1, id, mo%matrix_struct%descriptor, &
+            CALL infog2l(blk_at(j)%ao_pos + k - 1, id, mo%matrix_struct%descriptor, &
                          n_p_rows, n_p_cols, c_row, c_col, &
                          i_p_row, i_p_col, c_row_f, c_col_f)
             ! local element
@@ -537,9 +536,9 @@ CONTAINS
                CALL dgebr2d(mo%matrix_struct%context%group, 'All', ' ', 1, 1, c, 1, c_row_f, c_col_f)
             END IF
 #else
-            c = mo%local_data(blk_at(j)%ao_pos+k-1, id)
+            c = mo%local_data(blk_at(j)%ao_pos + k - 1, id)
 #endif
-            c2 = c2+c*c
+            c2 = c2 + c*c
          END DO
 
       END DO

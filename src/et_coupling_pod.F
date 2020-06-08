@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2020  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -69,7 +69,6 @@ MODULE et_coupling_pod
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_mo_types,                     ONLY: mo_set_p_type
-
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -96,9 +95,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: fa
       REAL(KIND=dp), OPTIONAL                            :: fb
 
-      ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'pod_set_fermi', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pod_set_fermi', routineP = moduleN//':'//routineN
+
+! Routine name for debug purposes
 
       NULLIFY (ec%fermi)
 
@@ -133,11 +132,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: et_proj_sec
       TYPE(et_cpl), POINTER                              :: ec
 
-      ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'pod_block_init', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pod_block_init', routineP = moduleN//':'//routineN
 
-      ! Local variables
       INTEGER                                            :: i, j, k, l, n, n_ao, n_atoms, n_set
       INTEGER, DIMENSION(:), POINTER                     :: atom_id, atom_nf, atom_ps, n_shell, t
       INTEGER, DIMENSION(:, :), POINTER                  :: ang_mom_id
@@ -145,6 +141,9 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: block_sec
+
+! Routine name for debug purposes
+! Local variables
 
       NULLIFY (ang_mom_id)
       NULLIFY (ao_basis_set)
@@ -173,7 +172,7 @@ CONTAINS
       ! Number of AO functions per atom
       ALLOCATE (atom_nf(n_atoms))
       IF (.NOT. ASSOCIATED(atom_nf)) &
-        CPABORT('Cannot allocate working "atom_nf" array. ')
+         CPABORT('Cannot allocate working "atom_nf" array. ')
 
       atom_nf = 0
       DO i = 1, n_atoms
@@ -185,7 +184,7 @@ CONTAINS
                                 nset=n_set, nshell=n_shell, l=ang_mom_id)
          DO j = 1, n_set
             DO k = 1, n_shell(j)
-               atom_nf(i) = atom_nf(i)+nso(ang_mom_id(k, j))
+               atom_nf(i) = atom_nf(i) + nso(ang_mom_id(k, j))
             END DO
          END DO
       END DO
@@ -193,18 +192,18 @@ CONTAINS
       ! Sanity check
       n = 0
       DO i = 1, n_atoms
-         n = n+atom_nf(i)
+         n = n + atom_nf(i)
       END DO
       IF (n /= n_ao) &
-        CPABORT('Inconsistent number of atomic orbitals. ')
+         CPABORT('Inconsistent number of atomic orbitals. ')
 
       ! Atom position in AO array
       ALLOCATE (atom_ps(n_atoms))
       IF (.NOT. ASSOCIATED(atom_ps)) &
-        CPABORT('Cannot allocate working "atom_ps" array. ')
+         CPABORT('Cannot allocate working "atom_ps" array. ')
       atom_ps = 1
-      DO i = 1, n_atoms-1
-         atom_ps(i+1) = atom_ps(i)+atom_nf(i)
+      DO i = 1, n_atoms - 1
+         atom_ps(i + 1) = atom_ps(i) + atom_nf(i)
       END DO
 
       ! Number of blocks
@@ -212,12 +211,12 @@ CONTAINS
       CALL section_vals_get(block_sec, n_repetition=ec%n_blocks)
       ALLOCATE (ec%block(ec%n_blocks))
       IF (.NOT. ASSOCIATED(ec%block)) &
-        CPABORT('Cannot allocate memory for POD block data. ')
+         CPABORT('Cannot allocate memory for POD block data. ')
 
       ! Block data
       ALLOCATE (t(n_atoms))
       IF (.NOT. ASSOCIATED(t)) &
-        CPABORT('Cannot allocate memory for working "t" array. ')
+         CPABORT('Cannot allocate memory for working "t" array. ')
 
       ec%n_atoms = 0
       DO i = 1, ec%n_blocks
@@ -244,7 +243,7 @@ CONTAINS
             IF (atom_id(j) < 1 .OR. atom_id(j) > n_atoms) &
                CPABORT('invalid fragment atom ID ('//TRIM(ADJUSTL(cp_to_string(atom_id(j))))//')')
             ! Check if the atom is not in previously-defined blocks
-            DO k = 1, i-1
+            DO k = 1, i - 1
                DO l = 1, ec%block(k)%n_atoms
                   IF (ec%block(k)%atom(l)%id == atom_id(j)) &
                      CPABORT('multiple assignment of atom'//TRIM(ADJUSTL(cp_to_string(atom_id(j)))))
@@ -256,24 +255,24 @@ CONTAINS
                   CPABORT('multiple assignment of atom'//TRIM(ADJUSTL(cp_to_string(atom_id(j)))))
             END DO
             ! Save the atom
-            ec%block(i)%n_atoms = ec%block(i)%n_atoms+1
+            ec%block(i)%n_atoms = ec%block(i)%n_atoms + 1
             t(ec%block(i)%n_atoms) = atom_id(j)
          END DO
 
          ! Memory allocation
          ALLOCATE (ec%block(i)%atom(ec%block(i)%n_atoms))
          IF (.NOT. ASSOCIATED(ec%block(i)%atom)) &
-           CPABORT('Cannot allocate memory for atom IDs')
+            CPABORT('Cannot allocate memory for atom IDs')
 
          ! Save atom IDs and number of AOs
          DO j = 1, ec%block(i)%n_atoms
             ec%block(i)%atom(j)%id = t(j)
             ec%block(i)%atom(j)%n_ao = atom_nf(ec%block(i)%atom(j)%id)
             ec%block(i)%atom(j)%ao_pos = atom_ps(ec%block(i)%atom(j)%id)
-            ec%block(i)%n_ao = ec%block(i)%n_ao+ec%block(i)%atom(j)%n_ao
+            ec%block(i)%n_ao = ec%block(i)%n_ao + ec%block(i)%atom(j)%n_ao
          END DO
 
-         ec%n_atoms = ec%n_atoms+ec%block(i)%n_atoms
+         ec%n_atoms = ec%n_atoms + ec%block(i)%n_atoms
       END DO
 
       ! Clean memory
@@ -347,8 +346,8 @@ CONTAINS
                                      nw_p_rows, nw_p_cols, cw_row, cw_col, &
                                      iw_p_row, iw_p_col, cw_row_f, cw_col_f)
                         CALL infog2l( &
-                           ec%block(ir)%atom(jr)%ao_pos+kr-1, &
-                           ec%block(ic)%atom(jc)%ao_pos+kc-1, &
+                           ec%block(ir)%atom(jr)%ao_pos + kr - 1, &
+                           ec%block(ic)%atom(jc)%ao_pos + kc - 1, &
                            mat_h%matrix_struct%descriptor, &
                            nh_p_rows, nh_p_cols, ch_row, ch_col, &
                            ih_p_row, ih_p_col, ch_row_f, ch_col_f)
@@ -359,7 +358,7 @@ CONTAINS
                            IF ((cw_row_f == cw_row) .AND. (cw_col_f == cw_col)) THEN
                               mat_w%local_data(iw_p_row, iw_p_col) = xh
                            END IF
-                        ! Remote H element
+                           ! Remote H element
                         ELSE
                            CALL dgebr2d(mat_h%matrix_struct%context%group, &
                                         'All', ' ', 1, 1, xh, 1, ch_row_f, ch_col_f)
@@ -369,14 +368,14 @@ CONTAINS
                         END IF
 #else
                         mat_w%local_data(nr, nc) = mat_h%local_data( &
-                                                   ec%block(ir)%atom(jr)%ao_pos+kr-1, &
-                                                   ec%block(ic)%atom(jc)%ao_pos+kc-1)
+                                                   ec%block(ir)%atom(jr)%ao_pos + kr - 1, &
+                                                   ec%block(ic)%atom(jc)%ao_pos + kc - 1)
 #endif
-                        nc = nc+1
+                        nc = nc + 1
                      END DO
                   END DO
                END DO
-               nr = nr+1
+               nr = nr + 1
             END DO
          END DO
       END DO
@@ -407,16 +406,16 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_t
       TYPE(cp_fm_type), POINTER                          :: mat_w
-      INTEGER                                            :: n_ao
-      INTEGER                                            :: n_spins
+      INTEGER                                            :: n_ao, n_spins
 
-      ! Routine name for debug purposes
       CHARACTER(len=*), PARAMETER :: routineN = 'pod_block_hamiltonian', &
          routineP = moduleN//':'//routineN
 
-      ! Local variables
       INTEGER                                            :: i
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_h
+
+! Routine name for debug purposes
+! Local variables
 
       NULLIFY (mat_h)
 
@@ -455,33 +454,31 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Diagonalize diagonal blocks of the KS hamiltonian in separated orthogonalized basis set
-!> \param output_unit unit number of the open output stream
 !> \param qs_env QuickStep environment containing all system data
 !> \param ec electronic coupling data structure
 !> \param mat_h Hamiltonian in separated orthogonalized basis set
 !> \author Z. Futera (02.2017)
 ! **************************************************************************************************
-   SUBROUTINE pod_block_diag(output_unit, qs_env, ec, mat_h)
+   SUBROUTINE pod_block_diag(qs_env, ec, mat_h)
 
       ! Routine arguments
-      INTEGER                                            :: output_unit
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_h
 
-      ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'pod_block_diag', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pod_block_diag', routineP = moduleN//':'//routineN
 
-      ! Local variables
-      INTEGER                                            :: i,j,k,l,id,n_spins,spin
-      INTEGER                                            :: unit_hab,unit_wfn
+      INTEGER                                            :: i, id, j, k, l, n_spins, spin, unit_hab, &
+                                                            unit_wfn
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_e
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: dat
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
       TYPE(cp_fm_type), POINTER                          :: mat_u
       TYPE(cp_para_env_type), POINTER                    :: para_env
+
+! Routine name for debug purposes
+! Local variables
 
       NULLIFY (vec_e)
       NULLIFY (blacs_env)
@@ -501,7 +498,7 @@ CONTAINS
       n_spins = SIZE(mat_h)
       DO i = 1, ec%n_blocks
          ! Memory for states
-         CPASSERT(.NOT.ASSOCIATED(ec%block(i)%mo))
+         CPASSERT(.NOT. ASSOCIATED(ec%block(i)%mo))
          ALLOCATE (ec%block(i)%mo(n_spins))
          CPASSERT(ASSOCIATED(ec%block(i)%mo))
          DO j = 1, n_spins
@@ -509,7 +506,7 @@ CONTAINS
          END DO
          ! Memory for couplings
          ec%block(i)%n_hab_blocks = ec%n_blocks - i
-         CPASSERT(.NOT.ASSOCIATED(ec%block(i)%hab))
+         CPASSERT(.NOT. ASSOCIATED(ec%block(i)%hab))
          IF (ec%block(i)%n_hab_blocks > 0) THEN
             ALLOCATE (ec%block(i)%hab(n_spins, ec%block(i)%n_hab_blocks))
             CPASSERT(ASSOCIATED(ec%block(i)%hab))
@@ -522,9 +519,8 @@ CONTAINS
       END DO
 
       ! Binary data files - header
-      CALL pod_save_coupl_header(qs_env, ec, n_spins, unit_hab);
-      CALL pod_save_state_header(qs_env, ec, n_spins, unit_wfn);
-
+      CALL pod_save_coupl_header(qs_env, ec, n_spins, unit_hab); 
+      CALL pod_save_state_header(qs_env, ec, n_spins, unit_wfn); 
       ! Spin components
       DO spin = 1, n_spins
 
@@ -538,7 +534,7 @@ CONTAINS
             CALL cp_fm_create(matrix=dat(i)%matrix, matrix_struct=fm_s, &
                               name='H_KS DIAGONAL BLOCK')
 
-            CPASSERT(.NOT.ASSOCIATED(vec_e))
+            CPASSERT(.NOT. ASSOCIATED(vec_e))
             ALLOCATE (vec_e(ec%block(i)%n_ao))
             CPASSERT(ASSOCIATED(vec_e))
 
@@ -566,11 +562,11 @@ CONTAINS
             CALL cp_fm_release(matrix=mat_u)
             NULLIFY (mat_u)
             IF (ASSOCIATED(vec_e)) &
-              DEALLOCATE (vec_e)
+               DEALLOCATE (vec_e)
             NULLIFY (vec_e)
 
             ! Off-set for next block
-            j = j+ec%block(i)%n_ao
+            j = j + ec%block(i)%n_ao
 
          END DO
 
@@ -584,25 +580,24 @@ CONTAINS
 
                   ! Memory allocation
                   CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
-                          nrow_global=ec%block(i)%n_ao, ncol_global=ec%block(j)%n_ao)
+                                           nrow_global=ec%block(i)%n_ao, ncol_global=ec%block(j)%n_ao)
                   CALL cp_fm_create(matrix=ec%block(i)%hab(spin, id)%matrix, matrix_struct=fm_s, &
-                          name='H_KS OFF-DIAGONAL BLOCK')
+                                    name='H_KS OFF-DIAGONAL BLOCK')
 
                   ! Copy block data
                   CALL cp_fm_to_fm_submat(mat_h(spin)%matrix, &
-                          ec%block(i)%hab(spin, id)%matrix, ec%block(i)%n_ao, &
-                          ec%block(j)%n_ao, k, l, 1, 1)
+                                          ec%block(i)%hab(spin, id)%matrix, ec%block(i)%n_ao, &
+                                          ec%block(j)%n_ao, k, l, 1, 1)
 
                   ! Transformation
                   CALL cp_fm_create(matrix=mat_u, matrix_struct=fm_s, name='FULL WORK MATRIX')
                   CALL cp_gemm("T", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(i)%n_ao, &
-                          1.0_dp, dat(i)%matrix, ec%block(i)%hab(spin, id)%matrix, 0.0_dp, mat_u)
+                               1.0_dp, dat(i)%matrix, ec%block(i)%hab(spin, id)%matrix, 0.0_dp, mat_u)
                   CALL cp_gemm("N", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(j)%n_ao, &
-                          1.0_dp, mat_u, dat(j)%matrix, 0.0_dp, ec%block(i)%hab(spin, id)%matrix)
+                               1.0_dp, mat_u, dat(j)%matrix, 0.0_dp, ec%block(i)%hab(spin, id)%matrix)
 
                   ! Save coupling elements to binary data file
-                  CALL pod_save_coupl_elements(ec, i, id, spin, unit_hab);
-
+                  CALL pod_save_coupl_elements(ec, i, id, spin, unit_hab); 
                   ! Clean memory
                   CALL cp_fm_struct_release(fmstruct=fm_s)
                   NULLIFY (fm_s)
@@ -613,10 +608,10 @@ CONTAINS
 
                END IF
                ! Off-set for next block
-               l = l+ec%block(j)%n_ao
+               l = l + ec%block(j)%n_ao
             END DO
             ! Off-set for next block
-            k = k+ec%block(i)%n_ao
+            k = k + ec%block(i)%n_ao
          END DO
 
          ! Clean memory
@@ -635,8 +630,8 @@ CONTAINS
          DEALLOCATE (dat)
 
       ! Close output streams
-      CALL pod_save_coupl_close(qs_env,unit_hab)
-      CALL pod_save_state_close(qs_env,unit_wfn)
+      CALL pod_save_coupl_close(qs_env, unit_hab)
+      CALL pod_save_state_close(qs_env, unit_wfn)
 
    END SUBROUTINE pod_block_diag
 
@@ -651,13 +646,11 @@ CONTAINS
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      ! Routine name for debug purposes
       CHARACTER(len=*), PARAMETER :: routineN = 'pod_coupling_calc', &
          routineP = moduleN//':'//routineN
 
-      ! Local variables
-      CHARACTER(LEN=default_path_length)                 :: file_tmf,file_tmr,file_hab,file_wfn
-      INTEGER                                            :: i,j,k,n_ao,n_atoms,output_unit
+      CHARACTER(LEN=default_path_length)                 :: file_hab, file_tmf, file_tmr, file_wfn
+      INTEGER                                            :: i, j, k, n_ao, n_atoms, output_unit
       LOGICAL                                            :: do_kp, restart
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_h
@@ -671,6 +664,9 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: et_proj_sec
+
+! Routine name for debug purposes
+! Local variables
 
       ! Pointer initialization
       NULLIFY (logger)
@@ -730,7 +726,7 @@ CONTAINS
          WRITE (output_unit, '(T3,A,I10)') &
             'Number of fragment atoms           = ', ec%n_atoms
          WRITE (output_unit, '(T3,A,I10)') &
-            'Number of unassigned atoms         = ', n_atoms-ec%n_atoms
+            'Number of unassigned atoms         = ', n_atoms - ec%n_atoms
          WRITE (output_unit, '(T3,A,I10)') &
             'Number of AO basis functions       = ', n_ao
 
@@ -739,7 +735,7 @@ CONTAINS
             WRITE (output_unit, '(/,T3,A,I0,A)') &
                'Block ', i, ':'
             WRITE (output_unit, '(T3,A,I10)') &
-              'Number of block atoms              = ', ec%block(i)%n_atoms
+               'Number of block atoms              = ', ec%block(i)%n_atoms
             WRITE (output_unit, '(T3,A,I10)') &
                'Number of block electrons          = ', ec%block(i)%n_electrons
             WRITE (output_unit, '(T3,A,I10)') &
@@ -756,11 +752,11 @@ CONTAINS
                WRITE (output_unit, '(T3,A)') 'Block atom IDs                     ='
                DO j = 1, ec%block(i)%n_atoms/10
                   WRITE (output_unit, '(T3,A,10I6)') '      ', &
-                     (ec%block(i)%atom((j-1)*10+k)%id, k=1, 10)
+                     (ec%block(i)%atom((j - 1)*10 + k)%id, k=1, 10)
                END DO
                IF (MOD(ec%block(i)%n_atoms, 10) /= 0) THEN
                   WRITE (output_unit, '(T3,A,10I6)') '      ', &
-                     (ec%block(i)%atom(k+10*(ec%block(i)%n_atoms/10))%id, &
+                     (ec%block(i)%atom(k + 10*(ec%block(i)%n_atoms/10))%id, &
                       k=1, MOD(ec%block(i)%n_atoms, 10))
                END IF
 
@@ -805,7 +801,7 @@ CONTAINS
             CALL get_qs_env(qs_env, kpoints=kpoints)
             IF (output_unit > 0) &
                WRITE (output_unit, '(T3,A,I10)') 'Number of K-points                 = ', &
-                  kpoints%nkp
+               kpoints%nkp
 
          ELSE
 
@@ -828,7 +824,7 @@ CONTAINS
                   'Number of beta states              = ', mo(2)%mo_set%nmo
             END IF
             CALL pod_print_states(output_unit, mo, dft_cntrl%nspins, &
-                   'the whole system', fermi=.TRUE.)
+                                  'the whole system', fermi=.TRUE.)
             CALL pod_set_fermi(ec, mo(1)%mo_set%mu, mo(2)%mo_set%mu)
 
             ! Read data from files
@@ -836,15 +832,15 @@ CONTAINS
 
                ! Hamiltonian & wavefunction
                CALL pod_read_restart_data(qs_env, ec, dft_cntrl%nspins, fm_s, &
-                      file_tmf, file_tmr, file_hab, file_wfn)
+                                          file_tmf, file_tmr, file_hab, file_wfn)
 
-            ! POD calculation
+               ! POD calculation
             ELSE
 
                ! KS Hamiltonian
                CALL pod_block_hamiltonian(output_unit, qs_env, ec, fm_s, mat_h, mat_w, n_ao, 2)
                ! Block diagonization
-               CALL pod_block_diag(output_unit, qs_env, ec, mat_h)
+               CALL pod_block_diag(qs_env, ec, mat_h)
 
             END IF
 
@@ -852,22 +848,22 @@ CONTAINS
             DO i = 1, ec%n_blocks
                IF (output_unit > 0) THEN
                   CALL pod_print_states(output_unit, ec%block(i)%mo, dft_cntrl%nspins, &
-                                    'block '//TRIM(ADJUSTL(cp_to_string(i)))//' states', &
-                                    mx_mo_a=mo(1)%mo_set%nmo, mx_mo_b=mo(2)%mo_set%nmo, &
-                                    fermi=.TRUE.)
+                                        'block '//TRIM(ADJUSTL(cp_to_string(i)))//' states', &
+                                        mx_mo_a=mo(1)%mo_set%nmo, mx_mo_b=mo(2)%mo_set%nmo, &
+                                        fermi=.TRUE.)
                END IF
                CALL pod_print_state_fracs(output_unit, qs_env, ec, i, dft_cntrl%nspins)
             END DO
 
             CALL pod_print_couplings(output_unit, qs_env, ec, &
-                   mo(1)%mo_set%nmo, mo(2)%mo_set%nmo)
+                                     mo(1)%mo_set%nmo, mo(2)%mo_set%nmo)
 
             ! Save electronic states
             CALL pod_save_state_cube(qs_env, ec, dft_cntrl%nspins)
 
          END IF
 
-      ! Spin non-polarized wavefunction
+         ! Spin non-polarized wavefunction
       ELSE
 
          IF (output_unit > 0) &
@@ -880,7 +876,7 @@ CONTAINS
             CALL get_qs_env(qs_env, kpoints=kpoints)
             IF (output_unit > 0) &
                WRITE (output_unit, '(T3,A,I10)') 'Number of K-points                 = ', &
-                 kpoints%nkp
+               kpoints%nkp
 
          ELSE
 
@@ -899,7 +895,7 @@ CONTAINS
                   'Number of states                   = ', mo(1)%mo_set%nmo
             END IF
             CALL pod_print_states(output_unit, mo, dft_cntrl%nspins, &
-                   'the whole system', fermi=.TRUE.)
+                                  'the whole system', fermi=.TRUE.)
             CALL pod_set_fermi(ec, mo(1)%mo_set%mu)
 
             ! Read data from files
@@ -907,15 +903,15 @@ CONTAINS
 
                ! Hamiltonian & wavefunction
                CALL pod_read_restart_data(qs_env, ec, dft_cntrl%nspins, fm_s, &
-                      file_tmf, file_tmr, file_hab, file_wfn)
+                                          file_tmf, file_tmr, file_hab, file_wfn)
 
-            ! POD calculation
+               ! POD calculation
             ELSE
 
                ! KS Hamiltonian
                CALL pod_block_hamiltonian(output_unit, qs_env, ec, fm_s, mat_h, mat_w, n_ao, 1)
                ! Block diagonization
-               CALL pod_block_diag(output_unit, qs_env, ec, mat_h)
+               CALL pod_block_diag(qs_env, ec, mat_h)
 
             END IF
 
@@ -923,14 +919,14 @@ CONTAINS
             DO i = 1, ec%n_blocks
                IF (output_unit > 0) THEN
                   CALL pod_print_states(output_unit, ec%block(i)%mo, dft_cntrl%nspins, &
-                                    'block '//TRIM(ADJUSTL(cp_to_string(i)))//' states', &
-                                    mx_mo_a=mo(1)%mo_set%nmo, fermi=.TRUE.)
+                                        'block '//TRIM(ADJUSTL(cp_to_string(i)))//' states', &
+                                        mx_mo_a=mo(1)%mo_set%nmo, fermi=.TRUE.)
                END IF
                CALL pod_print_state_fracs(output_unit, qs_env, ec, i, dft_cntrl%nspins)
             END DO
 
             CALL pod_print_couplings(output_unit, qs_env, ec, mo(1)%mo_set%nmo)
-                   
+
             ! Save electronic states
             CALL pod_save_state_cube(qs_env, ec, dft_cntrl%nspins)
 
@@ -954,7 +950,7 @@ CONTAINS
                CALL cp_fm_release(matrix=mat_h(i)%matrix)
          END DO
          IF (ASSOCIATED(mat_h)) &
-           DEALLOCATE (mat_h)
+            DEALLOCATE (mat_h)
       END IF
       CALL pod_data_release(ec)
 

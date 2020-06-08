@@ -27,22 +27,24 @@
     SPIN_POLARIZED .true.
     # Realspace multi-grids
     &MGRID
-      CUTOFF 250.0 
+      CUTOFF 150.0 
       REL_CUTOFF 50.0
     &END MGRID
     # QuickStep solver setting
     &QS
-      EPS_DEFAULT 1.0e-8
+      EPS_DEFAULT 1.0e-12
       EXTRAPOLATION ps
       EXTRAPOLATION_ORDER 3 
     &END QS
     # SCF procedure
     &SCF
-      MAX_SCF 25
+      MAX_SCF 50
       SCF_GUESS atomic
-      EPS_SCF 1.0e-5
-      ADDED_MOS 2
-      &DIAGONALIZATION
+      EPS_SCF 1.0e-6
+      ADDED_MOS 8
+      &OT off
+      &END OT
+      &DIAGONALIZATION on
         ALGORITHM standard
       &END DIAGONALIZATION
       &PRINT
@@ -55,21 +57,23 @@
       &XC_FUNCTIONAL pbe
       &END XC_FUNCTIONAL
     &END XC
+    # Poission solver
+    &POISSON
+      POISSON_SOLVER wavelet
+      PERIODIC none
+    &END POISSON
   &END DFT
   # Electronic coupling
   &PROPERTIES
     &ET_COUPLING
-      # POD method
       &PROJECTION
         # Donor
         &BLOCK
-          ATOMS  1  2  3  4  5  6  7  8  9
-          NELECTRON 26
+          ATOMS  1..9
         &END BLOCK
         # Acceptor
         &BLOCK
-          ATOMS 10 11 12 13 14 15 16 17 18
-          NELECTRON 12
+          ATOMS  10..18
         &END BLOCK
       &END PROJECTION
     &END ET_COUPLING
@@ -78,30 +82,30 @@
   &SUBSYS
     # Cell vectors [A]
     &CELL
-      ABC 10.000 10.000 10.000
+      ABC 15.0 15.0 15.0
       ALPHA_BETA_GAMMA 90.0 90.0 90.0
-      PERIODIC xyz
+      PERIODIC none
     &END CELL
     # Coordinates [A]
     &COORD
- C         0.0003256473      -1.9999999997       0.0013249932
- C         0.0014092865      -1.9999999814       1.4364437174
- C         1.3010935359      -2.0000000399      -0.3746548503
- O         2.1180971120      -2.0000001350       0.7256793380
- C         1.3009254062      -2.0000000075       1.8226286834
- H        -0.8548137767      -1.9999999764       2.0878200637
- H        -0.8549106042      -2.0000000060      -0.6513387652
- H         1.7990961550      -2.0000000098      -1.3264183895
- H         1.7926849519      -2.0000000206       2.7776640546
- C         0.0003256473       2.0000000003       0.0013249932
- C         0.0014092865       2.0000000186       1.4364437174
- C         1.3010935359       1.9999999601      -0.3746548503
- O         2.1180971120       1.9999998650       0.7256793380
- C         1.3009254062       1.9999999925       1.8226286834
- H        -0.8548137767       2.0000000236       2.0878200637
- H        -0.8549106042       1.9999999940      -0.6513387652
- H         1.7990961550       1.9999999902      -1.3264183895
- H         1.7926849519       1.9999999794       2.7776640546
+ C         6.7665581235       5.5000000199       6.7791973437
+ C         6.7676417627       5.5000000382       8.2143160679
+ C         8.0673260121       5.4999999797       6.4032175002
+ O         8.8843295882       5.4999998846       7.5035516885
+ C         8.0671578824       5.5000000121       8.6005010339
+ H         5.9114186995       5.5000000432       8.8656924142
+ H         5.9113218720       5.5000000136       6.1265335853
+ H         8.5653286312       5.5000000098       5.4514539610
+ H         8.5589174281       5.4999999990       9.5555364051
+ C         6.7665581235       9.5000000199       6.7791973437
+ C         6.7676417627       9.5000000382       8.2143160679
+ C         8.0673260121       9.4999999797       6.4032175002
+ O         8.8843295882       9.4999998846       7.5035516885
+ C         8.0671578824       9.5000000121       8.6005010339
+ H         5.9114186995       9.5000000432       8.8656924142
+ H         5.9113218720       9.5000000136       6.1265335853
+ H         8.5653286312       9.5000000098       5.4514539610
+ H         8.5589174281       9.4999999990       9.5555364051
     &END COORD
     # Atomic types
     &KIND H

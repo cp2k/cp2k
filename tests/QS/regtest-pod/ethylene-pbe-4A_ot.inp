@@ -3,7 +3,7 @@
   ECHO_INPUT .false.
   PRINT_LEVEL low
   PROGRAM_NAME cp2k
-  PROJECT_NAME ethylene-pbe-4A
+  PROJECT_NAME ethylene-pbe-4A_ot
   RUN_TYPE energy
   SAVE_MEM .true.
   WALLTIME 01:00:00
@@ -27,31 +27,26 @@
     SPIN_POLARIZED .true.
     # Realspace multi-grids
     &MGRID
-      CUTOFF 250.0 
+      CUTOFF 150.0 
       REL_CUTOFF 50.0
     &END MGRID
     # QuickStep solver setting
     &QS
-      EPS_DEFAULT 1.0e-8
+      EPS_DEFAULT 1.0e-12
       EXTRAPOLATION ps
       EXTRAPOLATION_ORDER 3 
     &END QS
     # SCF procedure
     &SCF
-      MAX_SCF 15
+      MAX_SCF 75
       SCF_GUESS atomic
-      EPS_SCF 1.0e-5
-##      ADDED_MOS 2
-      &OT
-      &END
-#      &DIAGONALIZATION
-#        ALGORITHM standard
-#      &END DIAGONALIZATION
-#      &MIXING
-#        METHOD direct_p_mixing
-#        ALPHA 0.1
-#        NSKIP 10
-#      &END MIXING
+      EPS_SCF 1.0e-7
+      &OT on
+        MINIMIZER diis
+        PRECONDITIONER full_all
+        ENERGY_GAP 0.01
+        STEPSIZE 0.15
+      &END OT
       &PRINT
         &RESTART off
         &END
@@ -62,22 +57,56 @@
       &XC_FUNCTIONAL pbe
       &END XC_FUNCTIONAL
     &END XC
+    # Poission solver
+    &POISSON
+      POISSON_SOLVER wavelet
+      PERIODIC none
+    &END POISSON
   &END DFT
   # Electronic coupling
   &PROPERTIES
     &ET_COUPLING
-      # POD method
       &PROJECTION
         # Donor
         &BLOCK
-          ATOMS  1  2  3  4  5  6
+          ATOMS  1..6
           NELECTRON 12
+#          &PRINT
+#            MO_COEFF_ATOM 1 2
+#            MO_COEFF_ATOM_STATE 6
+#            &MO_CUBES
+#              MO_LIST 5 6 7
+#            &END MO_CUBES
+#          &END PRINT
         &END BLOCK
         # Acceptor
         &BLOCK
-          ATOMS  7  8  9 10 11 12
-          NELECTRON 11
+          ATOMS  7..12
+          NELECTRON 12
+#          &PRINT
+#            MO_COEFF_ATOM 7 8
+#            MO_COEFF_ATOM_STATE 6
+#            &MO_CUBES
+#              NHOMO 2
+#              NLUMO 1
+#            &END MO_CUBES
+#          &END PRINT
         &END BLOCK
+        # Restart
+        RESTART off
+        # Data
+#        &PRINT
+#          &HAMILTONIAN
+#          &END HAMILTONIAN
+#          &WAVEFUNCTION
+#          &END WAVEFUNCTION
+#          &TRANSF_MATRIX_F
+#          &END TRANSF_MATRIX_F
+#          &TRANSF_MATRIX_R
+#          &END TRANSF_MATRIX_R
+#          &COUPLING_ELEMENTS
+#          &END COUPLING_ELEMENTS
+#        &END PRINT
       &END PROJECTION
     &END ET_COUPLING
   &END PROPERTIES
@@ -85,24 +114,24 @@
   &SUBSYS
     # Cell vectors [A]
     &CELL
-      ABC 8.000 10.000 8.000
+      ABC 15.000 15.000 15.000
       ALPHA_BETA_GAMMA 90.0 90.0 90.0
-      PERIODIC xyz
+      PERIODIC none
     &END CELL
     # Coordinates [A]
     &COORD
- C         0.0000001495      -2.0000004611       0.0623172861
- C         0.0000001471      -2.0000005746       1.3883843988
- H         0.9209880052      -2.0000002746      -0.5055759834
- H        -0.9209880605      -2.0000002249      -0.5055760233
- H         0.9212802030      -2.0000000346       1.9558762357
- H        -0.9212799857      -2.0000000210       1.9558761301
- C         0.0000001495       1.9999995389       0.0623172861
- C         0.0000001471       1.9999994254       1.3883843988
- H         0.9209880052       1.9999997254      -0.5055759834
- H        -0.9209880605       1.9999997751      -0.5055760233
- H         0.9212802030       1.9999999654       1.9558762357
- H        -0.9212799857       1.9999999790       1.9558761301
+ C         7.5000000731       5.4999998040       6.8371002788
+ C         7.5000000707       5.4999996905       8.1631673915
+ H         8.4209879288       5.4999999905       6.2692070093
+ H         6.5790118631       5.5000000402       6.2692069694
+ H         8.4212801266       5.5000002305       8.7306592284
+ H         6.5787199379       5.5000002441       8.7306591228
+ C         7.5000000731       9.4999998040       6.8371002788
+ C         7.5000000707       9.4999996905       8.1631673915
+ H         8.4209879288       9.4999999905       6.2692070093
+ H         6.5790118631       9.5000000402       6.2692069694
+ H         8.4212801266       9.5000002305       8.7306592284
+ H         6.5787199379       9.5000002441       8.7306591228
     &END COORD
     # Atomic types
     &KIND H

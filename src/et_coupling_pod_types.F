@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2018  CP2K developers group                                               !
+!   Copyright (C) 2000 - 2020  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -15,7 +15,6 @@ MODULE et_coupling_pod_types
    USE kinds,                           ONLY: dp
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               mo_set_p_type
-
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -25,7 +24,7 @@ MODULE et_coupling_pod_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'et_coupling_pod_types'
 
    PUBLIC :: et_cpl, &
-             et_cpl_block, & 
+             et_cpl_block, &
              et_cpl_atom
 
    ! Electronic-coupling calculation data structure
@@ -87,11 +86,13 @@ CONTAINS
       ! Routine arguments
       TYPE(et_cpl), POINTER                              :: ec
 
-      ! Routine name for debug purposes
       CHARACTER(len=*), PARAMETER :: routineN = 'pod_data_release', &
-                                     routineP = moduleN//':'//routineN
-      ! Local variables
+         routineP = moduleN//':'//routineN
+
       INTEGER                                            :: i, j, k
+
+! Routine name for debug purposes
+! Local variables
 
       IF (ASSOCIATED(ec)) THEN
 

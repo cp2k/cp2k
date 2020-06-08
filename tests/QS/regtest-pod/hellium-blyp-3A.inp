@@ -3,10 +3,9 @@
   ECHO_INPUT .false.
   PRINT_LEVEL low
   PROGRAM_NAME cp2k
-  PROJECT_NAME hellium-pbe-3A
+  PROJECT_NAME hellium-blyp-3A
   RUN_TYPE energy
   SAVE_MEM .true.
-  SEED 50801
   WALLTIME 01:00:00
   &TIMINGS
     THRESHOLD 1.0e-3
@@ -20,38 +19,35 @@
   # DFT settings
   &DFT
     # Basis set & pseudopotentials
-    BASIS_SET_FILE_NAME GTH_BASIS_SETS
-    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
     # Charge & multiplicity
     CHARGE 1
     MULTIPLICITY 2
     SPIN_POLARIZED .true.
     # Realspace multi-grids
     &MGRID
-      CUTOFF 300.0 
+      CUTOFF 150.0 
       REL_CUTOFF 50.0
     &END MGRID
     # QuickStep solver setting
     &QS
-      EPS_DEFAULT 1.0e-8
+      EPS_DEFAULT 1.0e-12
       EXTRAPOLATION ps
       EXTRAPOLATION_ORDER 3 
       METHOD GAPW
     &END QS
     # SCF procedure
     &SCF
-      MAX_SCF 25
+      MAX_SCF 50
       SCF_GUESS atomic
-      EPS_SCF 1.0e-5
-      ADDED_MOS 2
-      &DIAGONALIZATION on
-        ALGORITHM standard
-      &END DIAGONALIZATION
-      &MIXING
-        METHOD direct_p_mixing
-        ALPHA 0.1
-        NSKIP 10
-      &END MIXING
+      EPS_SCF 1.0e-8
+      &OT on
+        MINIMIZER diis
+        PRECONDITIONER full_all
+        ENERGY_GAP 0.01
+        STEPSIZE 0.15
+      &END OT
       &PRINT
         &RESTART off
         &END
@@ -59,14 +55,18 @@
     &END SCF
     # Exchange-correlation functional
     &XC
-      &XC_FUNCTIONAL pbe
+      &XC_FUNCTIONAL blyp
       &END XC_FUNCTIONAL
     &END XC
+    # Poission solver
+    &POISSON
+      POISSON_SOLVER wavelet
+      PERIODIC none
+    &END POISSON
   &END DFT
   # Electronic coupling
   &PROPERTIES
     &ET_COUPLING
-      # POD method
       &PROJECTION
         # Donor
         &BLOCK
@@ -85,19 +85,19 @@
   &SUBSYS
     # Cell vectors [A]
     &CELL
-      ABC 8.000 8.000 10.000
+      ABC 15.0 15.0 15.0
       ALPHA_BETA_GAMMA 90.0 90.0 90.0
-      PERIODIC xyz
+      PERIODIC none
     &END CELL
     # Coordinates [A]
     &COORD
-      He     4.000000     4.000000     3.500000
-      He     4.000000     4.000000     6.500000
+      He   7.500  7.500  6.000
+      He   7.500  7.500  9.000
     &END COORD
     # Atomic types
     &KIND He
-      BASIS_SET DZVP-GTH
-      POTENTIAL GTH-PBE
+      BASIS_SET Ahlrichs-def2-QZVP
+      POTENTIAL ALL
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
