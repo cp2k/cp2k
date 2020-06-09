@@ -32,7 +32,7 @@
     &END MGRID
     # QuickStep solver setting
     &QS
-      EPS_DEFAULT 1.0e-12
+      EPS_DEFAULT 1.0e-10
       EXTRAPOLATION ps
       EXTRAPOLATION_ORDER 3 
     &END QS
@@ -40,7 +40,7 @@
     &SCF
       MAX_SCF 75
       SCF_GUESS atomic
-      EPS_SCF 1.0e-7
+      EPS_SCF 1.0e-6
       &OT on
         MINIMIZER diis
         PRECONDITIONER full_all

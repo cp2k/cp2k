@@ -3,6 +3,6 @@ hellium-blyp-3A.inp                                    1    1.0e-08             
 hellium-blyp-4A.inp                                    1    1.0e-08              -5.03034932442262
 hellium-blyp-5A.inp                                    1    1.0e-08              -5.03684287564796
 ethylene-pbe-4A.inp                                    1    1.0e-07             -26.44959035918877
-ethylene-pbe-4A_ot.inp                                 1    1.0e-07             -26.44959035917973
+ethylene-pbe-4A_ot.inp                                 1    1.0e-06             -26.44959035404620
 furane-pbe-4A.inp                                      1    1.0e-06             -80.72183817653978
 #EOF
