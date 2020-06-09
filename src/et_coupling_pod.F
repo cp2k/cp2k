@@ -345,16 +345,16 @@ CONTAINS
                         CALL infog2l(nr, nc, mat_w%matrix_struct%descriptor, &
                                      nw_p_rows, nw_p_cols, cw_row, cw_col, &
                                      iw_p_row, iw_p_col, cw_row_f, cw_col_f)
-                        CALL infog2l( &
-                           ec%block(ir)%atom(jr)%ao_pos + kr - 1, &
-                           ec%block(ic)%atom(jc)%ao_pos + kc - 1, &
-                           mat_h%matrix_struct%descriptor, &
-                           nh_p_rows, nh_p_cols, ch_row, ch_col, &
-                           ih_p_row, ih_p_col, ch_row_f, ch_col_f)
+                        CALL infog2l(ec%block(ir)%atom(jr)%ao_pos + kr - 1, &
+                                     ec%block(ic)%atom(jc)%ao_pos + kc - 1, &
+                                     mat_h%matrix_struct%descriptor, &
+                                     nh_p_rows, nh_p_cols, ch_row, ch_col, &
+                                     ih_p_row, ih_p_col, ch_row_f, ch_col_f)
                         ! Local H element
                         IF ((ch_row_f == ch_row) .AND. (ch_col_f == ch_col)) THEN
                            xh = mat_h%local_data(ih_p_row, ih_p_col)
-                           CALL dgebs2d(mat_h%matrix_struct%context%group, 'All', ' ', 1, 1, xh, 1)
+                           CALL dgebs2d(mat_h%matrix_struct%context%group, &
+                                        'All', ' ', 1, 1, xh, 1)
                            IF ((cw_row_f == cw_row) .AND. (cw_col_f == cw_col)) THEN
                               mat_w%local_data(iw_p_row, iw_p_col) = xh
                            END IF

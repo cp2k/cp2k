@@ -14,6 +14,8 @@ MODULE et_coupling_pod_utils
                                               cp_fm_upper_to_full
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_indxg2l,&
+                                              cp_fm_indxg2p,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -61,26 +63,20 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mat_w
       INTEGER                                            :: n_ao
 
-      ! Routine name for debug purposes
       CHARACTER(len=*), PARAMETER :: routineN = 'pod_get_transf_mat', &
-                                     routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-      ! Local variables
-      INTEGER                                            :: i
-      INTEGER                                            :: n_deps
+      INTEGER                                            :: i, ic, ic_loc, ir, ir_loc, j, n_b_col, &
+                                                            n_b_row, n_deps, n_p_col, n_p_row, &
+                                                            p_col_0, p_col_i, p_row_0, p_row_i
       REAL(KIND=dp)                                      :: f
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: et, ei
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ei, et
       TYPE(cp_fm_type), POINTER                          :: mat_u
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_s
       TYPE(scf_control_type), POINTER                    :: scf_cntrl
-#if defined(__SCALAPACK)
-      INTEGER, EXTERNAL                                  :: indxg2l, indxg2p
 
-      INTEGER                                            :: j, ic, ir, ic_loc, ir_loc
-      INTEGER                                            :: n_b_row, n_b_col
-      INTEGER                                            :: n_p_row, n_p_col
-      INTEGER                                            :: p_row_0, p_col_0
-      INTEGER                                            :: p_row_i, p_col_i
+! Routine name for debug purposes
+! Local variables
 
       ! Number of rows/columns in Scalapack blocks
       n_b_row = mat_w%matrix_struct%nrow_block
@@ -94,7 +90,6 @@ CONTAINS
       ! Position of the actual processor
       p_row_i = mat_w%matrix_struct%context%mepos(1)
       p_col_i = mat_w%matrix_struct%context%mepos(2)
-#endif
 
       ! Initialization
       NULLIFY (mat_u)
@@ -121,21 +116,17 @@ CONTAINS
       n_deps = 0
       DO i = 1, n_ao
          IF (et(i) < scf_cntrl%eps_eigval) THEN
-#if defined(__SCALAPACK)
-            ic = indxg2p(i, n_b_col, p_col_i, p_col_0, n_p_col)
+            ic = cp_fm_indxg2p(i, n_b_col, p_col_i, p_col_0, n_p_col)
             IF (p_col_i == ic) THEN
-               ic_loc = indxg2l(i, n_b_col, p_col_i, p_col_0, n_p_col)
+               ic_loc = cp_fm_indxg2l(i, n_b_col, p_col_i, p_col_0, n_p_col)
                DO j = 1, n_ao
-                  ir = indxg2p(j, n_b_row, p_row_i, p_row_0, n_p_row)
+                  ir = cp_fm_indxg2p(j, n_b_row, p_row_i, p_row_0, n_p_row)
                   IF (p_row_i == ir) THEN
-                     ir_loc = indxg2l(j, n_b_row, p_row_i, p_row_0, n_p_row)
+                     ir_loc = cp_fm_indxg2l(j, n_b_row, p_row_i, p_row_0, n_p_row)
                      mat_w%local_data(ir_loc, ic_loc) = 0.0_dp
                   END IF
                END DO
             END IF
-#else
-            mat_w%local_data(1:n_ao, i) = 0.0_dp
-#endif
             n_deps = n_deps + 1
          END IF
       END DO
@@ -156,21 +147,17 @@ CONTAINS
       DO i = 1, n_ao
          IF (et(i) >= scf_cntrl%eps_eigval) THEN
             f = et(i)**(-0.25_dp)
-#if defined(__SCALAPACK)
-            ic = indxg2p(i, n_b_col, p_col_i, p_col_0, n_p_col)
+            ic = cp_fm_indxg2p(i, n_b_col, p_col_i, p_col_0, n_p_col)
             IF (p_col_i == ic) THEN
-               ic_loc = indxg2l(i, n_b_col, p_col_i, p_col_0, n_p_col)
+               ic_loc = cp_fm_indxg2l(i, n_b_col, p_col_i, p_col_0, n_p_col)
                DO j = 1, n_ao
-                  ir = indxg2p(j, n_b_row, p_row_i, p_row_0, n_p_row)
+                  ir = cp_fm_indxg2p(j, n_b_row, p_row_i, p_row_0, n_p_row)
                   IF (p_row_i == ir) THEN
-                     ir_loc = indxg2l(j, n_b_row, p_row_i, p_row_0, n_p_row)
+                     ir_loc = cp_fm_indxg2l(j, n_b_row, p_row_i, p_row_0, n_p_row)
                      mat_w%local_data(ir_loc, ic_loc) = f*mat_w%local_data(ir_loc, ic_loc)
                   END IF
                END DO
             END IF
-#else
-            mat_w%local_data(1:n_ao, i) = f*mat_w%local_data(1:n_ao, i)
-#endif
          END IF
       END DO
 
@@ -189,21 +176,17 @@ CONTAINS
       DO i = 1, n_ao
          IF (ei(i) >= scf_cntrl%eps_eigval) THEN
             f = ei(i)**(+0.25_dp)
-#if defined(__SCALAPACK)
-            ic = indxg2p(i, n_b_col, p_col_i, p_col_0, n_p_col)
+            ic = cp_fm_indxg2p(i, n_b_col, p_col_i, p_col_0, n_p_col)
             IF (p_col_i == ic) THEN
-               ic_loc = indxg2l(i, n_b_col, p_col_i, p_col_0, n_p_col)
+               ic_loc = cp_fm_indxg2l(i, n_b_col, p_col_i, p_col_0, n_p_col)
                DO j = 1, n_ao
-                  ir = indxg2p(j, n_b_row, p_row_i, p_row_0, n_p_row)
+                  ir = cp_fm_indxg2p(j, n_b_row, p_row_i, p_row_0, n_p_row)
                   IF (p_row_i == ir) THEN
-                     ir_loc = indxg2l(j, n_b_row, p_row_i, p_row_0, n_p_row)
+                     ir_loc = cp_fm_indxg2l(j, n_b_row, p_row_i, p_row_0, n_p_row)
                      mat_w%local_data(ir_loc, ic_loc) = f*mat_w%local_data(ir_loc, ic_loc)
                   END IF
                END DO
             END IF
-#else
-            mat_w%local_data(1:n_ao, i) = f*mat_w%local_data(1:n_ao, i)
-#endif
          END IF
       END DO
 

@@ -229,7 +229,8 @@ CONTAINS
                   ! Local U element
                   IF ((cu_row_f == cu_row) .AND. (cu_col_f == cu_col)) THEN
                      xu = mat_u%local_data(iu_p_row, iu_p_col)
-                     CALL dgebs2d(mat_u%matrix_struct%context%group, 'All', ' ', 1, 1, xu, 1)
+                     CALL dgebs2d(mat_u%matrix_struct%context%group, &
+                                  'All', ' ', 1, 1, xu, 1)
                      IF ((cs_row_f == cs_row) .AND. (cs_col_f == cs_col)) THEN
                         mat_w%local_data(is_p_row, is_p_col) = xu
                      END IF
