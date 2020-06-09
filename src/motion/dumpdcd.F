@@ -5,7 +5,7 @@
 
 PROGRAM dumpdcd
 
-! Version: 3.0
+! Version: 3.1
 ! Author:  Matthias Krack (MK)
 ! History: - Creation (13.02.2012,MK)
 !          - XYZ file option added (13.02.2012,MK)
@@ -20,6 +20,7 @@ PROGRAM dumpdcd
 !          - Dump the atomic displacements (CORD file) or temperatures (VEL file as x-coordinates of a DCD file (28.06.2012,MK)
 !          - FRC to CORD (-frc2cord flag) hack added (28.01.2016,MK)
 !          - Option -eformat added (15.02.2016,MK)
+!          - Fix box unit string for velocity dump (07.06.2020,MK)
 !
 ! Note: For -ekin a XYZ file is required to obtain the atomic labels.
 !       The -info and the -debug flags provide a more detailed output which is especially handy for tracing problems.
@@ -527,11 +528,12 @@ PROGRAM dumpdcd
          ! Print unit cell information, if available
          IF (info .AND. dump_frame) THEN
             IF (have_unit_cell == 1) THEN
-               WRITE (UNIT=error_unit, FMT="(A,/,(A,F12.6))") &
+               WRITE (UNIT=error_unit, FMT="(A,/,(A,T19,A,F12.6))") &
                   "#", &
-                  "# a [Angstrom]    : ", a, &
-                  "# b [Angstrom]    : ", b, &
-                  "# c [Angstrom]    : ", c, &
+                  "# a "//TRIM(unit_string), ": ", a, &
+                  "# b "//TRIM(unit_string), ": ", b, &
+                  "# c "//TRIM(unit_string), ": ", c
+               WRITE (UNIT=error_unit, FMT="(A,F12.6)") &
                   "# alpha [degree]  : ", alpha, &
                   "# beta  [degree]  : ", beta, &
                   "# gamma [degree]  : ", gamma
@@ -848,7 +850,7 @@ CONTAINS
 
       error_message = "*** ERROR in "//TRIM(routine)//": "//TRIM(message)//" ***"
       WRITE (UNIT=default_error_unit, FMT="(/,A,/)") TRIM(error_message)
-      STOP "*** ABNORMAL PROGRAM TERMINATION of dumpdcd v3.0 ***"
+      STOP "*** ABNORMAL PROGRAM TERMINATION of dumpdcd v3.1 ***"
 
    END SUBROUTINE abort_program
 
@@ -1120,68 +1122,68 @@ CONTAINS
       ! Print the program flags for help
 
       WRITE (UNIT=*, FMT="(T2,A)") &
-         "", &
-         "Program flags for "//TRIM(version_info)//":", &
-         "", &
-         " -debug, -d                     : Print debug information", &
-         " -ekin                          : Dump just the ""temperature"" of each atom", &
-         " -eformat                       : Print coordinates in scientific format", &
-         " -eo                            : Write standard output and standard error to the same logical unit", &
-         " -first_frame, -ff <int>        : Number of the first frame which is dumped", &
-         " -help, -h                      : Print this information", &
-         " -info, -i                      : Print additional information for each frame (see also -debug flag)", &
-         " -last_frame, -lf <int>         : Number of the last frame which is dumped", &
-         " -output, -o <file_name>        : Name of the output file (default is stdout)", &
-         " -output_format, -of <DCD|XMOL> : Output format for dump", &
-         " -pbc                           : Apply the periodic boundary conditions (PBC) to each frame before it is dumped", &
-         "                                  (origin at lower left)", &
-         " -pbc0                          : Apply the periodic boundary conditions (PBC) to each frame before it is dumped", &
-         "                                  (origin at box centre)", &
-         " -stride <int>                  : Stride for frame dump (allows to skip frames, e.g. by dumping each 10th frame)", &
-        " -trace_atoms <real>            : Print the atoms which left the simulation box given a threshold value in scaled units", &
-         " -vel2cord, -v2c                : Dump a VELocity DCD file as COoRDinate DCD file (hack which allows a digest by VMD)", &
-         " -xyz_file, -xyz <file_name>    : Name of a reference XYZ file in XMOL format that provides the atomic labels", &
-         ""
+      "", &
+      "Program flags for "//TRIM(version_info)//":", &
+      "", &
+      " -debug, -d                     : Print debug information", &
+      " -ekin                          : Dump just the ""temperature"" of each atom", &
+      " -eformat                       : Print coordinates in scientific format", &
+      " -eo                            : Write standard output and standard error to the same logical unit", &
+      " -first_frame, -ff <int>        : Number of the first frame which is dumped", &
+      " -help, -h                      : Print this information", &
+      " -info, -i                      : Print additional information for each frame (see also -debug flag)", &
+      " -last_frame, -lf <int>         : Number of the last frame which is dumped", &
+      " -output, -o <file_name>        : Name of the output file (default is stdout)", &
+      " -output_format, -of <DCD|XMOL> : Output format for dump", &
+      " -pbc                           : Apply the periodic boundary conditions (PBC) to each frame before it is dumped", &
+      "                                  (origin at lower left)", &
+      " -pbc0                          : Apply the periodic boundary conditions (PBC) to each frame before it is dumped", &
+      "                                  (origin at box centre)", &
+      " -stride <int>                  : Stride for frame dump (allows to skip frames, e.g. by dumping each 10th frame)", &
+      " -trace_atoms <real>            : Print the atoms which left the simulation box given a threshold value in scaled units", &
+      " -vel2cord, -v2c                : Dump a VELocity DCD file as COoRDinate DCD file (hack which allows a digest by VMD)", &
+      " -xyz_file, -xyz <file_name>    : Name of a reference XYZ file in XMOL format that provides the atomic labels", &
+      ""
 
       WRITE (UNIT=*, FMT="(T2,A)") &
-         "Usage examples:", &
-         "", &
-         " dumpdcd <optional flags> <DCD file(s)>", &
-         "", &
-         "Specific usage examples:", &
-         "", &
-         " dumpdcd UO2-2x2x2-pos-1.dcd (without atomic labels from XYZ file)", &
-         " dumpdcd -xyz UO2-2x2x2.xyz UO2-2x2x2-pos-1.dcd (single DCD file)", &
-         " dumpdcd -xyz UO2-2x2x2.xyz UO2-2x2x2-pos-1.dcd UO2-2x2x2-pos-2.dcd ... (multiple DCD files are dumped consecutively)", &
-         " dumpdcd -info -xyz UO2-2x2x2.xyz UO2-2x2x2-pos-1.dcd UO2-2x2x2-pos-2.dcd (print additional information)", &
-         " dumpdcd -debug -xyz UO2-2x2x2.xyz UO2-2x2x2-pos-1.dcd UO2-2x2x2-pos-2.dcd (print debug information)", &
-         " dumpdcd -ekin -d -xyz UO2-2x2x2.xyz UO2-2x2x2-vel-1.dcd (print the ""temperature"" of each atom)", &
-         " dumpdcd -ekin -xyz UO2-2x2x2.xyz UO2-2x2x2-vel-1.dcd (print just the temperature of each atom)", &
-         " dumpdcd -first_frame 5 -last_frame 10 UO2-2x2x2-pos-1.dcd (just dump frame 5 to 10, ie. 6 frames in total)", &
-         " dumpdcd -o outfile.xyz UO2-2x2x2-pos-1.dcd (write output to the file ""outfile.xyz"" instead of stdout)", &
-         " dumpdcd -o test.xyz -output_format xmol -xyz ref.xyz -first 10 -last 10 test.dcd (dump 10th frame in XMOL format)", &
-         " dumpdcd -of dcd -ff 10 -lf 20 test.dcd (dump the frames 10 to 20 in DCD format to the default output file output.dcd)", &
-         " dumpdcd -o part.dcd -of dcd -ff 1 -lf 3 test.dcd (dump the frames 1 to 3 in DCD format to the output file part.dcd)", &
-     " dumpdcd -o part.dcd -of dcd -first 10 -lf 100 -stride 10 test.dcd (dump the frames 10, 20, ..., 100 to the file part.dcd)", &
-         " dumpdcd -output new.dcd -output_format dcd -pbc old.dcd (dump all frames applying PBC to the output file new.dcd)", &
-         " dumpdcd -o new.dcd -of dcd -pbc -trace_atoms 0.02 old.dcd (all atoms more than 2% out of the box are listed)", &
-    " dumpdcd -o new.dcd -e out_of_box.log -of dcd -pbc -trace_atoms 0.1 old.dcd (atoms more than 10% out of the box are listed)", &
-     " dumpdcd -o new.dcd -of dcd -vel2cord old.dcd (dump old.dcd as new.dcd and change only the DCD id string from VEL to CORD)", &
-     " dumpdcd -o new.dcd -of dcd -frc2cord old.dcd (dump old.dcd as new.dcd and change only the DCD id string from FRC to CORD)", &
-         " dumpdcd -i -disp UO2-2x2x2-pos-1.dcd (dump the displacements of all atoms w.r.t. their positions in the first frame)", &
-         " dumpdcd -i -of dcd -disp UO2-2x2x2-pos-1.dcd (dump the atomic displacements as x-coordinates of a DCD CORD file)", &
-     " dumpdcd -i -of dcd -ekin -v2c -xyz UO2-2x2x2.xyz UO2-2x2x2-vel-1.dcd (dump the atomic temperatures as x-coordinates of a ", &
-         "                                                                       DCD CORD file -> hack for VMD)", &
-         ""
+      "Usage examples:", &
+      "", &
+      " dumpdcd <optional flags> <DCD file(s)>", &
+      "", &
+      "Specific usage examples:", &
+      "", &
+      " dumpdcd UO2-2x2x2-pos-1.dcd (without atomic labels from XYZ file)", &
+      " dumpdcd -xyz UO2-2x2x2.xyz UO2-2x2x2-pos-1.dcd (single DCD file)", &
+      " dumpdcd -xyz UO2-2x2x2.xyz UO2-2x2x2-pos-1.dcd UO2-2x2x2-pos-2.dcd ... (multiple DCD files are dumped consecutively)", &
+      " dumpdcd -info -xyz UO2-2x2x2.xyz UO2-2x2x2-pos-1.dcd UO2-2x2x2-pos-2.dcd (print additional information)", &
+      " dumpdcd -debug -xyz UO2-2x2x2.xyz UO2-2x2x2-pos-1.dcd UO2-2x2x2-pos-2.dcd (print debug information)", &
+      " dumpdcd -ekin -d -xyz UO2-2x2x2.xyz UO2-2x2x2-vel-1.dcd (print the ""temperature"" of each atom)", &
+      " dumpdcd -ekin -xyz UO2-2x2x2.xyz UO2-2x2x2-vel-1.dcd (print just the temperature of each atom)", &
+      " dumpdcd -first_frame 5 -last_frame 10 UO2-2x2x2-pos-1.dcd (just dump frame 5 to 10, ie. 6 frames in total)", &
+      " dumpdcd -o outfile.xyz UO2-2x2x2-pos-1.dcd (write output to the file ""outfile.xyz"" instead of stdout)", &
+      " dumpdcd -o test.xyz -output_format xmol -xyz ref.xyz -first 10 -last 10 test.dcd (dump 10th frame in XMOL format)", &
+      " dumpdcd -of dcd -ff 10 -lf 20 test.dcd (dump the frames 10 to 20 in DCD format to the default output file output.dcd)", &
+      " dumpdcd -o part.dcd -of dcd -ff 1 -lf 3 test.dcd (dump the frames 1 to 3 in DCD format to the output file part.dcd)", &
+      " dumpdcd -o part.dcd -of dcd -first 10 -lf 100 -stride 10 test.dcd (dump the frames 10, 20, ..., 100 to the file part.dcd)", &
+      " dumpdcd -output new.dcd -output_format dcd -pbc old.dcd (dump all frames applying PBC to the output file new.dcd)", &
+      " dumpdcd -o new.dcd -of dcd -pbc -trace_atoms 0.02 old.dcd (all atoms more than 2% out of the box are listed)", &
+      " dumpdcd -o new.dcd -e out_of_box.log -of dcd -pbc -trace_atoms 0.1 old.dcd (atoms more than 10% out of the box are listed)", &
+      " dumpdcd -o new.dcd -of dcd -vel2cord old.dcd (dump old.dcd as new.dcd and change only the DCD id string from VEL to CORD)", &
+      " dumpdcd -o new.dcd -of dcd -frc2cord old.dcd (dump old.dcd as new.dcd and change only the DCD id string from FRC to CORD)", &
+      " dumpdcd -i -disp UO2-2x2x2-pos-1.dcd (dump the displacements of all atoms w.r.t. their positions in the first frame)", &
+      " dumpdcd -i -of dcd -disp UO2-2x2x2-pos-1.dcd (dump the atomic displacements as x-coordinates of a DCD CORD file)", &
+      " dumpdcd -i -of dcd -ekin -v2c -xyz UO2-2x2x2.xyz UO2-2x2x2-vel-1.dcd (dump the atomic temperatures as x-coordinates of a ", &
+      "                                                                       DCD CORD file -> hack for VMD)", &
+      ""
 
       WRITE (UNIT=*, FMT="(T2,A)") &
-         "Notes:", &
-         "", &
-         " - For -ekin a XYZ file is required to obtain the atomic labels", &
-         " - The -info and the -debug flags provide a more detailed output which is especially handy for tracing problems", &
-         " - The output in DCD format is in binary format", &
-         " - The input coordinates should be in Angstrom. Velocities and forces are expected to be in atomic units", &
-         ""
+      "Notes:", &
+      "", &
+      " - For -ekin a XYZ file is required to obtain the atomic labels", &
+      " - The -info and the -debug flags provide a more detailed output which is especially handy for tracing problems", &
+      " - The output in DCD format is in binary format", &
+      " - The input coordinates should be in Angstrom. Velocities and forces are expected to be in atomic units", &
+      ""
 
    END SUBROUTINE print_help
 
