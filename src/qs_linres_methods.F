@@ -844,9 +844,8 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: aocg, aocg1, charges, charges1
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_p1, matrix_s
-      TYPE(dbcsr_type), POINTER                          :: s_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -900,8 +899,6 @@ CONTAINS
          aocg = 0.0_dp
          ALLOCATE (aocg1(nsgf, natom))
          aocg1 = 0.0_dp
-         p_matrix => matrix_p(:, 1)
-         s_matrix => matrix_s(1, 1)%matrix
          CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
          CALL ao_charges(matrix_p1, matrix_s, aocg1, para_env)
          DO ikind = 1, nkind

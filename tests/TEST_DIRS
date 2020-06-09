@@ -44,6 +44,7 @@ QS/regtest-debug-1
 QS/regtest-debug-2                                          libint
 QS/regtest-debug-3                                          libint
 QS/regtest-debug-4                                          libint
+QS/regtest-stda-force                                       libint
 QS/regtest-cdft-diag
 xTB/regtest-1
 xTB/regtest-2
@@ -57,6 +58,11 @@ QS/regtest-tddfpt-2                                         libint
 QS/regtest-tddfpt-3
 QS/regtest-stda                                             libint
 QS/regtest-p-efield
+QS/regtest-mp2-stress                                       libint
+QS/regtest-ri-rpa                                           libint
+QS/regtest-kg                                               libxc
+QS/regtest-ec                                               libint
+QS/regtest-ec-force                                         libint
 QS/regtest-gpw-4
 QS/regtest-pod
 QS/regtest-gpw-2-3

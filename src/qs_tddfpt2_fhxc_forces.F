@@ -18,8 +18,7 @@ MODULE qs_tddfpt2_fhxc_forces
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_row_scale,&
-                                              cp_fm_schur_product,&
-                                              cp_fm_trace
+                                              cp_fm_schur_product
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm,&
                                               fm_pool_give_back_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -38,10 +37,10 @@ MODULE qs_tddfpt2_fhxc_forces
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_block_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, dbcsr_scale, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_methods_tb,                ONLY: tb_ewald_overlap,&
@@ -475,15 +474,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'stda_force', routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, idim, ikind, iounit, is, &
+      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, idimk, ikind, iounit, is, &
          ispin, jatom, jkind, jspin, nao, natom, norb, nsgf, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, first_sgf, kind_of, &
                                                             last_sgf
       INTEGER, DIMENSION(2)                              :: nactive, nlim
       LOGICAL                                            :: calculate_forces, do_coulomb, do_ewald, &
-                                                            is_rks_triplets, use_virial
-      REAL(KIND=dp)                                      :: alpha, bp, cptr, dgabr, dr, eta, fdim, &
-                                                            gabr, hfx, rbeta, spinfac, xfac
+                                                            found, is_rks_triplets, use_virial
+      REAL(KIND=dp)                                      :: alpha, bp, dgabr, dr, eta, fdim, gabr, &
+                                                            hfx, rbeta, spinfac, xfac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tcharge, tv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gtcharge
       REAL(KIND=dp), DIMENSION(3)                        :: fij, fodeb, rij
@@ -518,10 +517,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-!deb
-      WRITE (6, *) "START sTDA forces"
-!deb
-
       CPASSERT(ASSOCIATED(ex_env))
       CPASSERT(ASSOCIATED(gs_mos))
 
@@ -537,7 +532,7 @@ CONTAINS
       X => ex_env%evect
 
       nactive(:) = stda_env%nactive(:)
-      xfac = 1.0_dp
+      xfac = 2.0_dp
       spinfac = 2.0_dp
       IF (nspins == 2) spinfac = 1.0_dp
       spinfac = 2.0_dp*spinfac
@@ -577,10 +572,6 @@ CONTAINS
       ALLOCATE (tcharge(natom), gtcharge(natom, 4))
 
       cpmos => ex_env%cpmos
-!deb
-      CALL cp_fm_trace(cpmos(1)%matrix, cpmos(1)%matrix, cptr)
-      WRITE (6, *) "CP TRACE  0   ", cptr
-!deb
 
       DO ispin = 1, nspins
          ct => work%ctransformed(ispin)%matrix
@@ -636,20 +627,26 @@ CONTAINS
             ! short range contribution
             NULLIFY (gamma_matrix)
             CALL setup_gamma(qs_env, stda_env, sub_env, gamma_matrix, ndim=4)
-            DO idim = 1, 4
-               fdim = 1.0_dp
-               IF (idim > 1) fdim = -1.0_dp
-               tempmat => gamma_matrix(idim)%matrix
-               CALL dbcsr_iterator_start(iter, tempmat)
-               DO WHILE (dbcsr_iterator_blocks_left(iter))
-                  CALL dbcsr_iterator_next_block(iter, iatom, jatom, gab, blk)
-                  gtcharge(iatom, idim) = gtcharge(iatom, idim) + gab(1, 1)*tcharge(jatom)
-                  IF (iatom /= jatom) THEN
-                     gtcharge(jatom, idim) = gtcharge(jatom, idim) + fdim*gab(1, 1)*tcharge(iatom)
+            tempmat => gamma_matrix(1)%matrix
+            CALL dbcsr_iterator_start(iter, tempmat)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, gab, blk)
+               gtcharge(iatom, 1) = gtcharge(iatom, 1) + gab(1, 1)*tcharge(jatom)
+               IF (iatom /= jatom) THEN
+                  gtcharge(jatom, 1) = gtcharge(jatom, 1) + gab(1, 1)*tcharge(iatom)
+               END IF
+               DO idimk = 2, 4
+                  fdim = -1.0_dp
+                  CALL dbcsr_get_block_p(matrix=gamma_matrix(idimk)%matrix, &
+                                         row=iatom, col=jatom, block=gab, found=found)
+                  IF (found) THEN
+                     gtcharge(iatom, idimk) = gtcharge(iatom, idimk) + gab(1, 1)*tcharge(jatom)
+                     IF (iatom /= jatom) THEN
+                        gtcharge(jatom, idimk) = gtcharge(jatom, idimk) + fdim*gab(1, 1)*tcharge(iatom)
+                     END IF
                   END IF
                END DO
             END DO
-            CALL dbcsr_iterator_stop(iter)
             ! Ewald long range contribution
             IF (do_ewald) THEN
                ewald_env => work%ewald_env
@@ -675,9 +672,9 @@ CONTAINS
                      IF (dr > 1.e-6_dp) THEN
                         gtcharge(iatom, 1) = gtcharge(iatom, 1) + tcharge(jatom)/dr
                         gtcharge(jatom, 1) = gtcharge(jatom, 1) + tcharge(iatom)/dr
-                        DO idim = 2, 4
-                           gtcharge(iatom, idim) = gtcharge(iatom, idim) + rij(idim - 1)*tcharge(jatom)/dr**3
-                           gtcharge(jatom, idim) = gtcharge(jatom, idim) - rij(idim - 1)*tcharge(iatom)/dr**3
+                        DO idimk = 2, 4
+                           gtcharge(iatom, idimk) = gtcharge(iatom, idimk) + rij(idimk - 1)*tcharge(jatom)/dr**3
+                           gtcharge(jatom, idimk) = gtcharge(jatom, idimk) - rij(idimk - 1)*tcharge(iatom)/dr**3
                         END DO
                      END IF
                   END DO
@@ -697,16 +694,24 @@ CONTAINS
                ikind = kind_of(iatom)
                atom_i = atom_of_kind(iatom)
                ! long range
+!
+! this factor 4 could also be 2*spinfac ?
+!
                DO i = 1, 3
-                  fij(i) = gtcharge(iatom, i + 1)*tcharge(iatom)
+                  fij(i) = 4.0_dp*gtcharge(iatom, i + 1)*tcharge(iatom)
                END DO
                force(ikind)%rho_elec(1, atom_i) = force(ikind)%rho_elec(1, atom_i) - fij(1)
                force(ikind)%rho_elec(2, atom_i) = force(ikind)%rho_elec(2, atom_i) - fij(2)
                force(ikind)%rho_elec(3, atom_i) = force(ikind)%rho_elec(3, atom_i) - fij(3)
             END DO
+            !
+            IF (debug_forces) THEN
+               fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+               CALL mp_sum(fodeb, para_env%group)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Coul[X]   ", fodeb
+            END IF
             norb = nactive(ispin)
             ! forces from Lowdin charge derivative
-!deb
             CALL cp_fm_get_info(work%S_C0_C0T(ispin)%matrix, matrix_struct=fmstruct)
             CALL cp_fm_create(t0matrix, matrix_struct=fmstruct, name="T0 SCRATCH")
             CALL cp_fm_create(t1matrix, matrix_struct=fmstruct, name="T1 SCRATCH")
@@ -729,31 +734,25 @@ CONTAINS
                          gs_mos(ispin)%mos_occ, 0.0_dp, ucmatrix)
             CALL cp_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, ucmatrix, uxmatrix, 1.0_dp, t0matrix)
             CALL cp_fm_schur_product(work%slambda, t0matrix, t1matrix)
-            CALL cp_gemm('N', 'N', nsgf, nsgf, nsgf, 1.0_dp, work%S_eigenvectors, t1matrix, &
+!
+! this factor 4 could also be 2*spinfac ?
+!
+            CALL cp_gemm('N', 'N', nsgf, nsgf, nsgf, 4.0_dp, work%S_eigenvectors, t1matrix, &
                          0.0_dp, t0matrix)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=t0matrix, &
-                                       matrix_g=work%S_eigenvectors, ncol=nsgf, alpha=1.0_dp)
+                                       matrix_g=work%S_eigenvectors, ncol=nsgf, alpha=0.5_dp)
+            CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=work%S_eigenvectors, &
+                                       matrix_g=t0matrix, ncol=nsgf, alpha=0.5_dp)
             CALL fm_pool_give_back_fm(work%fm_pool_ao_mo_occ(ispin)%pool, ucmatrix)
             CALL fm_pool_give_back_fm(work%fm_pool_ao_mo_occ(ispin)%pool, uxmatrix)
             CALL cp_fm_release(t0matrix)
             CALL cp_fm_release(t1matrix)
-!deb
             !
             ! CV(mu,i) = TV(mu)*XT(mu,i)
             xt => xtransformed(ispin)%matrix
             CALL cp_fm_to_fm(xt, cvec)
             CALL cp_fm_row_scale(cvec, tv)
-!deb
-            CALL cp_fm_trace(cpmos(1)%matrix, cpmos(1)%matrix, cptr)
-            WRITE (6, *) "CP TRACE C0   ", cptr
-            CALL cp_fm_trace(cvec, cvec, cptr)
-            WRITE (6, *) "CP TRACE CVEC ", cptr
-!deb
             CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, cpmos(ispin)%matrix, norb, spinfac, 1.0_dp)
-!deb
-            CALL cp_fm_trace(cpmos(1)%matrix, cpmos(1)%matrix, cptr)
-            WRITE (6, *) "CP TRACE C1   ", cptr
-!deb
             ! CV(mu,i) = TV(mu)*CT(mu,i)
             ct => work%ctransformed(ispin)%matrix
             CALL cp_fm_to_fm(ct, cvec)
@@ -761,7 +760,7 @@ CONTAINS
             ! Shalf(nu,mu)*CV(mu,i)
             CALL cp_fm_get_info(cvec, matrix_struct=fmstruct, nrow_global=nao)
             CALL cp_fm_create(vcvec, fmstruct)
-            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, vcvec, norb, spinfac, 0.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, vcvec, norb, 1.0_dp, 0.0_dp)
             CALL cp_fm_struct_create(fmstruct_mat, context=fmstruct%context, nrow_global=norb, &
                                      ncol_global=norb, para_env=fmstruct%para_env)
             CALL cp_fm_create(cvcmat, fmstruct_mat)
@@ -769,33 +768,18 @@ CONTAINS
             CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, gs_mos(ispin)%mos_occ, vcvec, 0.0_dp, cvcmat)
             CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, X(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
-                                         nactive(ispin), alpha=-1.0_dp, beta=1.0_dp)
-!deb
-            CALL cp_fm_trace(cpmos(1)%matrix, cpmos(1)%matrix, cptr)
-            WRITE (6, *) "CP TRACE C2   ", cptr
-!deb
+                                         nactive(ispin), alpha=-spinfac, beta=1.0_dp)
             ! wx1
-            CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, X(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
+            alpha = 2.0_dp
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=gs_mos(ispin)%mos_occ, &
-                                       matrix_g=vcvec, &
-                                       ncol=norb, alpha=1.0_dp)
+                                       matrix_g=vcvec, ncol=norb, alpha=alpha)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, &
-                                       matrix_g=gs_mos(ispin)%mos_occ, &
-                                       ncol=norb, alpha=1.0_dp)
+                                       matrix_g=gs_mos(ispin)%mos_occ, ncol=norb, alpha=alpha)
             CALL cp_fm_release(vcvec)
             CALL cp_fm_release(cvcmat)
             CALL dbcsr_deallocate_matrix_set(gamma_matrix)
-            !
-            IF (debug_forces) THEN
-               fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
-               CALL mp_sum(fodeb, para_env%group)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Coul[X]   ", fodeb
-            END IF
 
             DEALLOCATE (atom_of_kind, kind_of)
-!deb
-            WRITE (6, *) "CPMOS coulomb"
-!deb
          END IF
          !
          ! *** Exchange contribution
@@ -803,6 +787,8 @@ CONTAINS
          IF (stda_env%hfx_fraction > 0.0_dp) THEN
             !
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+            !
+            norb = nactive(ispin)
             !
             ALLOCATE (kind_of(natom), atom_of_kind(natom))
             CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
@@ -814,8 +800,11 @@ CONTAINS
             ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
             ct => work%ctransformed(ispin)%matrix
             xt => xtransformed(ispin)%matrix
+            CALL dbcsr_set(pdens, 0.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(pdens, xt, ct, nactive(ispin), &
-                                       1.0_dp, keep_sparsity=.FALSE.)
+                                       0.5_dp, keep_sparsity=.FALSE.)
+            CALL cp_dbcsr_plus_fm_fm_t(pdens, ct, xt, nactive(ispin), &
+                                       0.5_dp, keep_sparsity=.FALSE.)
             CALL dbcsr_filter(pdens, stda_env%eps_td_filter)
             ! Apply PP*gab -> PP; gab = gamma_coulomb
             ! P(nu,mu) = P(nu,mu)*g(a of nu,b of mu)
@@ -835,7 +824,7 @@ CONTAINS
                gabr = (1._dp/(rbeta + (hfx*eta)**(-bp)))**(1._dp/bp)
                ! forces
                IF (dr > 1.0e-6_dp) THEN
-                  dgabr = -(1._dp/bp)*(1._dp/(rbeta + (hfx*eta)**(-bp)))**(1._dp/bp - 3._dp)
+                  dgabr = -(1._dp/bp)*(1._dp/(rbeta + (hfx*eta)**(-bp)))**(1._dp/bp + 1._dp)
                   dgabr = bp*rbeta/dr**2*dgabr
                   dgabr = SUM(pblock**2)*dgabr
                   atom_i = atom_of_kind(iatom)
@@ -855,9 +844,7 @@ CONTAINS
             END DO
             CALL dbcsr_iterator_stop(iter)
             !
-            norb = nactive(ispin)
             ! forces from Lowdin charge derivative
-!deb
             CALL cp_fm_get_info(work%S_C0_C0T(ispin)%matrix, matrix_struct=fmstruct)
             CALL cp_fm_create(t0matrix, matrix_struct=fmstruct, name="T0 SCRATCH")
             CALL cp_fm_create(t1matrix, matrix_struct=fmstruct, name="T1 SCRATCH")
@@ -878,33 +865,20 @@ CONTAINS
                          gs_mos(ispin)%mos_occ, 0.0_dp, ucmatrix)
             CALL cp_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, ucmatrix, uxmatrix, 1.0_dp, t0matrix)
             CALL cp_fm_schur_product(work%slambda, t0matrix, t1matrix)
-            CALL cp_gemm('N', 'N', nsgf, nsgf, nsgf, 1.0_dp, work%S_eigenvectors, t1matrix, &
+            CALL cp_gemm('N', 'N', nsgf, nsgf, nsgf, -1.0_dp, work%S_eigenvectors, t1matrix, &
                          0.0_dp, t0matrix)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=t0matrix, &
                                        matrix_g=work%S_eigenvectors, ncol=nsgf, alpha=1.0_dp)
+            CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=work%S_eigenvectors, &
+                                       matrix_g=t0matrix, ncol=nsgf, alpha=1.0_dp)
             CALL fm_pool_give_back_fm(work%fm_pool_ao_mo_occ(ispin)%pool, ucmatrix)
             CALL fm_pool_give_back_fm(work%fm_pool_ao_mo_occ(ispin)%pool, uxmatrix)
             CALL cp_fm_release(t0matrix)
             CALL cp_fm_release(t1matrix)
-!deb
             ! CV(mu,i) = P(nu,mu)*XT(mu,i)
-            CALL cp_dbcsr_sm_fm_multiply(pdens, xt, cvec, norb, -xfac, 0.0_dp)
-!deb
-            CALL cp_fm_trace(cpmos(1)%matrix, cpmos(1)%matrix, cptr)
-            WRITE (6, *) "CP TRACE X0   ", cptr
-            CALL cp_fm_trace(cvec, cvec, cptr)
-            WRITE (6, *) "CP TRACE CVEC ", cptr
-            CALL cp_fm_trace(xt, xt, cptr)
-            WRITE (6, *) "CP TRACE XT   ", cptr
-            CALL dbcsr_trace(pdens, cptr)
-            WRITE (6, *) "PDENS TRACE   ", cptr
-!deb
+            CALL cp_dbcsr_sm_fm_multiply(pdens, xt, cvec, norb, 1.0_dp, 0.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, cpmos(ispin)%matrix, norb, &
-                                         alpha=1.0_dp, beta=1.0_dp)
-!deb
-            CALL cp_fm_trace(cpmos(1)%matrix, cpmos(1)%matrix, cptr)
-            WRITE (6, *) "CP TRACE X1   ", cptr
-!deb
+                                         alpha=-xfac, beta=1.0_dp)
             !
             CALL cp_fm_get_info(cvec, matrix_struct=fmstruct, nrow_global=nao)
             CALL cp_fm_create(vcvec, fmstruct)
@@ -918,19 +892,15 @@ CONTAINS
             CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, gs_mos(ispin)%mos_occ, vcvec, 0.0_dp, cvcmat)
             CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, X(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
-                                         nactive(ispin), alpha=xfac, beta=1.0_dp)
-!deb
-            CALL cp_fm_trace(cpmos(1)%matrix, cpmos(1)%matrix, cptr)
-            WRITE (6, *) "CP TRACE X2   ", cptr
-!deb
+                                         norb, alpha=xfac, beta=1.0_dp)
             ! wx1
-            CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, X(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
+            alpha = -1.0_dp
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=gs_mos(ispin)%mos_occ, &
                                        matrix_g=vcvec, &
-                                       ncol=norb, alpha=1.0_dp)
+                                       ncol=norb, alpha=alpha)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, &
                                        matrix_g=gs_mos(ispin)%mos_occ, &
-                                       ncol=norb, alpha=1.0_dp)
+                                       ncol=norb, alpha=alpha)
             CALL cp_fm_release(vcvec)
             CALL cp_fm_release(cvcmat)
             !
@@ -942,9 +912,6 @@ CONTAINS
                CALL mp_sum(fodeb, para_env%group)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Exch[X]   ", fodeb
             END IF
-!deb
-            WRITE (6, *) "CPMOS exchange"
-!deb
          END IF
          !
          CALL cp_fm_release(cvec)
@@ -964,6 +931,7 @@ CONTAINS
          CALL dbcsr_add(matrix_plo(1)%matrix, matrix_plo(2)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
       END IF
+      CALL dbcsr_scale(matrix_plo(1)%matrix, -1.0_dp)
       NULLIFY (scrm)
       IF (debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
       CALL build_overlap_matrix(ks_env, matrix_s=scrm, &
@@ -983,9 +951,6 @@ CONTAINS
       ex_env%matrix_wx1 => matrix_wx1
 
       CALL timestop(handle)
-!deb
-      WRITE (6, *) "END sTDA forces"
-!deb
 
    END SUBROUTINE stda_force
 

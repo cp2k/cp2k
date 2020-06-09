@@ -23,8 +23,7 @@ MODULE qs_tddfpt2_stda_utils
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_row_scale,&
-                                              cp_fm_schur_product,&
-                                              cp_fm_trace
+                                              cp_fm_schur_product
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -41,8 +40,8 @@ MODULE qs_tddfpt2_stda_utils
         dbcsr_add_on_diag, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
                                               ewald_env_set,&
@@ -213,8 +212,8 @@ CONTAINS
 
       ! setup the matrices using the neighbor list
       DO imat = 1, nmat
-         CALL cp_dbcsr_alloc_block_from_nbl(gamma_matrix(1)%matrix, n_list)
-         CALL dbcsr_set(gamma_matrix(1)%matrix, 0.0_dp)
+         CALL cp_dbcsr_alloc_block_from_nbl(gamma_matrix(imat)%matrix, n_list)
+         CALL dbcsr_set(gamma_matrix(imat)%matrix, 0.0_dp)
       END DO
 
       NULLIFY (nl_iterator)
@@ -517,8 +516,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: nactive, nlim
       LOGICAL                                            :: calculate_forces, do_coulomb, do_ewald, &
                                                             use_virial
-      REAL(KIND=dp)                                      :: alpha, bp, cptr, dr, eta, gabr, hfx, &
-                                                            rbeta, spinfac
+      REAL(KIND=dp)                                      :: alpha, bp, dr, eta, gabr, hfx, rbeta, &
+                                                            spinfac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tcharge, tv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gtcharge
       REAL(KIND=dp), DIMENSION(3)                        :: rij
@@ -683,8 +682,11 @@ CONTAINS
             ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
             ct => work%ctransformed(ispin)%matrix
             xt => xtransformed(ispin)%matrix
+            CALL dbcsr_set(pdens, 0.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(pdens, xt, ct, nactive(ispin), &
-                                       1.0_dp, keep_sparsity=.FALSE.)
+                                       0.5_dp, keep_sparsity=.FALSE.)
+            CALL cp_dbcsr_plus_fm_fm_t(pdens, ct, xt, nactive(ispin), &
+                                       0.5_dp, keep_sparsity=.FALSE.)
             CALL dbcsr_filter(pdens, stda_env%eps_td_filter)
             ! Apply PP*gab -> PP; gab = gamma_coulomb
             ! P(nu,mu) = P(nu,mu)*g(a of nu,b of mu)
@@ -707,12 +709,6 @@ CONTAINS
             CALL dbcsr_iterator_stop(iter)
             ! CV(mu,i) = P(nu,mu)*CT(mu,i)
             CALL cp_dbcsr_sm_fm_multiply(pdens, ct, cvec, nactive(ispin), 1.0_dp, 0.0_dp)
-!deb
-            CALL cp_fm_trace(cvec, cvec, cptr)
-            WRITE (6, *) "Ax TRACE 00   ", cptr
-            CALL dbcsr_trace(pdens, cptr)
-            WRITE (6, *) "PDENS TRACE   ", cptr
-!deb
             ! rho(nu,i) = rho(nu,i) + ShalfP(nu,mu)*CV(mu,i)
             CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin)%matrix, nactive(ispin), -1.0_dp, 1.0_dp)
             !

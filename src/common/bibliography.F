@@ -1982,8 +1982,8 @@ CONTAINS
 
       CALL add_reference(key=Kolafa2004, ISI_record=s2a( &
                          "AU Kolafa, J", &
-                         "TI Time-reversible always stable predictor-corrector method for "// &
-                         "molecular dynamics of polarizable molecules", &
+                         "TI Time-reversible always stable predictor-corrector method for ", &
+                         "   molecular dynamics of polarizable molecules", &
                          "SO JOURNAL OF COMPUTATIONAL CHEMISTRY", &
                          "SN 0192-8651", &
                          "J9 J COMPUT CHEM", &

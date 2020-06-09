@@ -1,0 +1,31 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+h2o_f01.inp                                                 1    1.0E-14             -17.08170300163671
+h2o_f02.inp                                                 1    1.0E-14             -17.12151381196930
+h2o_f03.inp                                                 1    1.0E-14             -17.00263645266693
+h2o_f04.inp                                                 1    1.0E-14             -17.08075107776246
+h2o_f05.inp                                                 1    1.0E-14             -17.20744351152847
+h2o_f06.inp                                                 1    1.0E-14             -17.20744351153795
+#h2o_f07.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f08.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f09.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f10.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f11.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f12.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f13.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f14.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f15.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f16.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f17.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f18.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f19.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f20.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f21.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f22.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f23.inp                                                1    1.0E-14               0.000000E+00
+#h2o_f24.inp                                                1    1.0E-14               0.000000E+00
+#EOF

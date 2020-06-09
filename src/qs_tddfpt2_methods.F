@@ -66,6 +66,7 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_resvec1,&
                                               tddfpt_resvec1_admm,&
                                               tddfpt_resvec2,&
+                                              tddfpt_resvec2_xtb,&
                                               tddfpt_resvec3
    USE qs_tddfpt2_properties,           ONLY: tddfpt_dipole_operator,&
                                               tddfpt_print_excitation_analysis,&
@@ -481,8 +482,12 @@ CONTAINS
                CALL dbcsr_copy(ex_env%matrix_hz(ispin)%matrix, matrix_s(1)%matrix)
                CALL dbcsr_set(ex_env%matrix_hz(ispin)%matrix, 0.0_dp)
             END DO
-            CALL tddfpt_resvec2(qs_env, ex_env%matrix_pe, ex_env%matrix_pe_admm, &
-                                gs_mos, ex_env%matrix_hz, ex_env%cpmos)
+            IF (dft_control%qs_control%xtb) THEN
+               CALL tddfpt_resvec2_xtb(qs_env, ex_env%matrix_pe, gs_mos, ex_env%matrix_hz, ex_env%cpmos)
+            ELSE
+               CALL tddfpt_resvec2(qs_env, ex_env%matrix_pe, ex_env%matrix_pe_admm, &
+                                   gs_mos, ex_env%matrix_hz, ex_env%cpmos)
+            END IF
             !
             CALL dbcsr_allocate_matrix_set(ex_env%matrix_px1, nspins)
             DO ispin = 1, nspins

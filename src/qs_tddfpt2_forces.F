@@ -6,6 +6,7 @@
 MODULE qs_tddfpt2_forces
    USE admm_types,                      ONLY: admm_type
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind,&
                                               get_atomic_kind_set
    USE core_ppl,                        ONLY: build_core_ppl
    USE core_ppnl,                       ONLY: build_core_ppnl
@@ -55,6 +56,7 @@ MODULE qs_tddfpt2_forces
    USE kg_tnadd_mat,                    ONLY: build_tnadd_mat
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
+   USE mulliken,                        ONLY: ao_charges
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -87,7 +89,9 @@ MODULE qs_tddfpt2_forces
                                               zero_qs_force
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              get_qs_kind_set,&
+                                              qs_kind_type
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -117,6 +121,10 @@ MODULE qs_tddfpt2_forces
                                               xc_rho_set_release,&
                                               xc_rho_set_type,&
                                               xc_rho_set_update
+   USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
+   USE xtb_matrices,                    ONLY: xtb_hab_force
+   USE xtb_types,                       ONLY: get_xtb_atom_param,&
+                                              xtb_atom_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -125,7 +133,10 @@ MODULE qs_tddfpt2_forces
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt2_forces'
 
-   PUBLIC :: tddfpt_forces, tddfpt_resvec1, tddfpt_resvec1_admm, tddfpt_resvec2, tddfpt_resvec3
+   PUBLIC :: tddfpt_forces, &
+             tddfpt_resvec1, tddfpt_resvec1_admm, &
+             tddfpt_resvec2, tddfpt_resvec2_xtb, &
+             tddfpt_resvec3
 
 ! **************************************************************************************************
 
@@ -159,6 +170,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: natom_of_kind
       REAL(KIND=dp)                                      :: ehartree, exc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vtau_rspace, vxc_rspace
       TYPE(pw_p_type), POINTER                           :: vh_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force, td_force
@@ -166,7 +178,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! prepare force array
-      CALL get_qs_env(qs_env, force=ks_force, atomic_kind_set=atomic_kind_set)
+      CALL get_qs_env(qs_env, dft_control=dft_control, force=ks_force, &
+                      atomic_kind_set=atomic_kind_set)
       nkind = SIZE(atomic_kind_set)
       ALLOCATE (natom_of_kind(nkind))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=natom_of_kind)
@@ -197,12 +210,18 @@ CONTAINS
       END IF
       !
       NULLIFY (vh_rspace, vxc_rspace, vtau_rspace)
-      CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, ehartree, exc)
+      IF (.NOT. dft_control%qs_control%xtb) THEN
+         CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, ehartree, exc)
+      END IF
       ex_env%vh_rspace => vh_rspace
       ex_env%vxc_rspace => vxc_rspace
       ex_env%vtau_rspace => vtau_rspace
       !
-      CALL tddfpt_force_direct(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices, debug_forces)
+      IF (dft_control%qs_control%xtb) THEN
+         CALL tddfpt_force_direct_xtb(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices, debug_forces)
+      ELSE
+         CALL tddfpt_force_direct(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices, debug_forces)
+      END IF
       !
       ! add TD and KS forces
       CALL get_qs_env(qs_env, force=td_force)
@@ -762,8 +781,14 @@ CONTAINS
             CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
          END IF
          resp_only = .TRUE.
+         IF (debug_forces) fodeb(1:3) = force(1)%fock_4c(1:3, 1)
          CALL derivatives_four_center(qs_env, matrix_p, matrix_pe, hfx_section, para_env, &
                                       1, use_virial, resp_only=resp_only)
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%fock_4c(1:3, 1) - fodeb(1:3)
+            CALL mp_sum(fodeb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*d(Ehfx(P)) ", fodeb
+         END IF
          CALL dbcsr_deallocate_matrix_set(mhz)
          DEALLOCATE (mpz)
       END IF
@@ -869,6 +894,208 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt_force_direct
+
+! **************************************************************************************************
+!> \brief Calculate direct tddft forces
+!> \param qs_env ...
+!> \param ex_env ...
+!> \param gs_mos ...
+!> \param kernel_env ...
+!> \param sub_env ...
+!> \param work_matrices ...
+!> \param debug_forces ...
+!> \par History
+!>    * 01.2020 screated [JGH]
+! **************************************************************************************************
+   SUBROUTINE tddfpt_force_direct_xtb(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices, &
+                                      debug_forces)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(excited_energy_type), POINTER                 :: ex_env
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         POINTER                                         :: gs_mos
+      TYPE(tddfpt_kernel_env_type), INTENT(IN)           :: kernel_env
+      TYPE(tddfpt_subgroup_env_type)                     :: sub_env
+      TYPE(tddfpt_work_matrices)                         :: work_matrices
+      LOGICAL                                            :: debug_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_force_direct_xtb', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, iounit, ispin, natom, norb, &
+                                                            nspins
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2, ftot3
+      REAL(KIND=dp), DIMENSION(3)                        :: fodeb
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: evect
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_pe, matrix_wx1, &
+                                                            matrix_wz, scrm
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+
+      CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_unit_nr(logger)
+
+      evect => ex_env%evect
+      matrix_pe => ex_env%matrix_pe
+
+      NULLIFY (ks_env, sab_orb)
+      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, para_env=para_env, &
+                      sab_orb=sab_orb, force=force)
+      IF (debug_forces) THEN
+         CALL get_qs_env(qs_env, natom=natom, atomic_kind_set=atomic_kind_set)
+         ALLOCATE (ftot1(3, natom))
+         CALL total_qs_force(ftot1, force, atomic_kind_set)
+      END IF
+
+      nspins = SIZE(matrix_pe, 1)
+      IF (nspins == 2) THEN
+         CALL dbcsr_add(matrix_pe(1)%matrix, matrix_pe(2)%matrix, &
+                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      END IF
+      ! Hcore energy matrix
+      NULLIFY (scrm)
+      IF (debug_forces) fodeb(1:3) = force(1)%all_potential(1:3, 1)
+      CALL xtb_hab_force(qs_env, matrix_pe(1)%matrix)
+      IF (debug_forces) THEN
+         fodeb(1:3) = force(1)%all_potential(1:3, 1) - fodeb(1:3)
+         CALL mp_sum(fodeb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pe*dT      ", fodeb
+      END IF
+      IF (nspins == 2) THEN
+         CALL dbcsr_add(matrix_pe(1)%matrix, matrix_pe(2)%matrix, &
+                        alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+      END IF
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! V electrostatic
+      IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+      !
+      NULLIFY (matrix_p)
+      !
+      IF (debug_forces) THEN
+         fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+         CALL mp_sum(fodeb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pe*dVhxc   ", fodeb
+      END IF
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !
+      IF (debug_forces) THEN
+         ALLOCATE (ftot3(3, natom))
+         CALL total_qs_force(ftot3, force, atomic_kind_set)
+         fodeb(1:3) = ftot3(1:3, 1) - ftot2(1:3, 1)
+         CALL mp_sum(fodeb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Force Pin*V(rhoe)", fodeb
+      END IF
+
+      CALL tddfpt_kernel_force(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices, debug_forces)
+
+      ! Overlap matrix
+      matrix_wx1 => ex_env%matrix_wx1
+      CALL get_qs_env(qs_env=qs_env, matrix_s=scrm, matrix_ks=matrix_ks)
+      NULLIFY (matrix_wz)
+      CALL dbcsr_allocate_matrix_set(matrix_wz, nspins)
+      DO ispin = 1, nspins
+         ALLOCATE (matrix_wz(ispin)%matrix)
+         CALL dbcsr_create(matrix=matrix_wz(ispin)%matrix, template=scrm(1)%matrix)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_wz(ispin)%matrix, sab_orb)
+         CALL dbcsr_set(matrix_wz(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=norb)
+         CALL cp_dbcsr_plus_fm_fm_t(matrix_wz(ispin)%matrix, matrix_v=evect(ispin)%matrix, ncol=norb)
+         CALL dbcsr_scale(matrix_wz(ispin)%matrix, ex_env%evalue)
+         CALL calculate_wx_matrix(gs_mos(ispin)%mos_occ, evect(ispin)%matrix, matrix_ks(ispin)%matrix, &
+                                  matrix_wz(ispin)%matrix)
+      END DO
+      IF (nspins == 2) THEN
+         CALL dbcsr_add(matrix_wz(1)%matrix, matrix_wz(2)%matrix, &
+                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      END IF
+      NULLIFY (scrm)
+      IF (debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
+      CALL build_overlap_matrix(ks_env, matrix_s=scrm, &
+                                matrix_name="OVERLAP MATRIX", &
+                                basis_type_a="ORB", basis_type_b="ORB", &
+                                sab_nl=sab_orb, calculate_forces=.TRUE., &
+                                matrix_p=matrix_wz(1)%matrix)
+      CALL dbcsr_deallocate_matrix_set(scrm)
+      CALL dbcsr_deallocate_matrix_set(matrix_wz)
+      IF (debug_forces) THEN
+         fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
+         CALL mp_sum(fodeb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Wx*dS ", fodeb
+      END IF
+
+      ! Overlap matrix
+      CALL get_qs_env(qs_env=qs_env, matrix_s=scrm, matrix_ks=matrix_ks)
+      NULLIFY (matrix_wz)
+      CALL dbcsr_allocate_matrix_set(matrix_wz, nspins)
+      DO ispin = 1, nspins
+         ALLOCATE (matrix_wz(ispin)%matrix)
+         CALL dbcsr_create(matrix=matrix_wz(ispin)%matrix, template=scrm(1)%matrix)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_wz(ispin)%matrix, sab_orb)
+         CALL dbcsr_set(matrix_wz(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=norb)
+         CALL calculate_xwx_matrix(gs_mos(ispin)%mos_occ, evect(ispin)%matrix, scrm(1)%matrix, &
+                                   matrix_ks(ispin)%matrix, matrix_wz(ispin)%matrix, ex_env%evalue)
+      END DO
+      IF (nspins == 2) THEN
+         CALL dbcsr_add(matrix_wz(1)%matrix, matrix_wz(2)%matrix, &
+                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      END IF
+      NULLIFY (scrm)
+      IF (debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
+      CALL build_overlap_matrix(ks_env, matrix_s=scrm, &
+                                matrix_name="OVERLAP MATRIX", &
+                                basis_type_a="ORB", basis_type_b="ORB", &
+                                sab_nl=sab_orb, calculate_forces=.TRUE., &
+                                matrix_p=matrix_wz(1)%matrix)
+      CALL dbcsr_deallocate_matrix_set(scrm)
+      CALL dbcsr_deallocate_matrix_set(matrix_wz)
+      IF (debug_forces) THEN
+         fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
+         CALL mp_sum(fodeb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: xWx*dS ", fodeb
+      END IF
+
+      ! Overlap matrix
+      IF (ASSOCIATED(matrix_wx1)) THEN
+         IF (nspins == 2) THEN
+            CALL dbcsr_add(matrix_wx1(1)%matrix, matrix_wx1(2)%matrix, &
+                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         END IF
+         NULLIFY (scrm)
+         IF (debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
+         CALL build_overlap_matrix(ks_env, matrix_s=scrm, &
+                                   matrix_name="OVERLAP MATRIX", &
+                                   basis_type_a="ORB", basis_type_b="ORB", &
+                                   sab_nl=sab_orb, calculate_forces=.TRUE., &
+                                   matrix_p=matrix_wx1(1)%matrix)
+         CALL dbcsr_deallocate_matrix_set(scrm)
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
+            CALL mp_sum(fodeb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: WK*dS ", fodeb
+         END IF
+      END IF
+
+      IF (debug_forces) THEN
+         CALL total_qs_force(ftot2, force, atomic_kind_set)
+         fodeb(1:3) = ftot2(1:3, 1) - ftot1(1:3, 1)
+         CALL mp_sum(fodeb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Excitation Force", fodeb
+         DEALLOCATE (ftot1, ftot2, ftot3)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_force_direct_xtb
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1209,6 +1436,116 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt_resvec2
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param matrix_pe ...
+!> \param gs_mos ...
+!> \param matrix_hz ...
+!> \param cpmos ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_resvec2_xtb(qs_env, matrix_pe, gs_mos, matrix_hz, cpmos)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pe
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         POINTER                                         :: gs_mos
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_resvec2_xtb', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: atom_a, handle, iatom, ikind, is, ispin, &
+                                                            na, natom, natorb, nkind, norb, ns, &
+                                                            nsgf, nspins
+      INTEGER, DIMENSION(25)                             :: lao
+      INTEGER, DIMENSION(5)                              :: occ
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mcharge, mcharge1
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: aocg, aocg1, charges, charges1
+      REAL(KIND=dp)                                      :: focc
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_fm_type), POINTER                          :: mos
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(matrix_pe))
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+      nspins = dft_control%nspins
+
+      DO ispin = 1, nspins
+         CALL dbcsr_set(matrix_hz(ispin)%matrix, 0.0_dp)
+      END DO
+
+      IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
+         ! Mulliken charges
+         CALL get_qs_env(qs_env, rho=rho, particle_set=particle_set, &
+                         matrix_s_kp=matrix_s, para_env=para_env)
+         natom = SIZE(particle_set)
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+         ALLOCATE (mcharge(natom), charges(natom, 5))
+         ALLOCATE (mcharge1(natom), charges1(natom, 5))
+         charges = 0.0_dp
+         charges1 = 0.0_dp
+         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
+         nkind = SIZE(atomic_kind_set)
+         CALL get_qs_kind_set(qs_kind_set, maxsgf=nsgf)
+         ALLOCATE (aocg(nsgf, natom))
+         aocg = 0.0_dp
+         ALLOCATE (aocg1(nsgf, natom))
+         aocg1 = 0.0_dp
+         p_matrix => matrix_p(:, 1)
+         s_matrix => matrix_s(1, 1)%matrix
+         CALL ao_charges(p_matrix, s_matrix, aocg, para_env)
+         CALL ao_charges(matrix_pe, s_matrix, aocg1, para_env)
+         DO ikind = 1, nkind
+            CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)
+            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+            CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, occupation=occ)
+            DO iatom = 1, na
+               atom_a = atomic_kind_set(ikind)%atom_list(iatom)
+               charges(atom_a, :) = REAL(occ(:), KIND=dp)
+               DO is = 1, natorb
+                  ns = lao(is) + 1
+                  charges(atom_a, ns) = charges(atom_a, ns) - aocg(is, atom_a)
+                  charges1(atom_a, ns) = charges1(atom_a, ns) - aocg1(is, atom_a)
+               END DO
+            END DO
+         END DO
+         DEALLOCATE (aocg, aocg1)
+         DO iatom = 1, natom
+            mcharge(iatom) = SUM(charges(iatom, :))
+            mcharge1(iatom) = SUM(charges1(iatom, :))
+         END DO
+         ! Coulomb Kernel
+         CALL xtb_coulomb_hessian(qs_env, matrix_hz, charges1, mcharge1, mcharge)
+         !
+         DEALLOCATE (charges, mcharge, charges1, mcharge1)
+      END IF
+
+      focc = 4.0_dp
+      IF (nspins == 2) focc = 2.0_dp
+      DO ispin = 1, nspins
+         mos => gs_mos(ispin)%mos_occ
+         CALL cp_fm_get_info(mos, ncol_global=norb)
+         CALL cp_dbcsr_sm_fm_multiply(matrix_hz(ispin)%matrix, mos, cpmos(ispin)%matrix, &
+                                      norb, alpha=focc, beta=0.0_dp)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_resvec2_xtb
 
 ! **************************************************************************************************
 !> \brief ...

@@ -1190,6 +1190,40 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
             'STRESS| INT 2nd f_Hxc[dP]*Pin    ', one_third_sum_diag(stdeb), det_3x3(stdeb)
       END IF
+      ! CPKS vector
+      !
+      ! sign is changed in linres_solver!
+      ! Projector Q applied in linres_solver!
+      focc = 2.0_dp
+      IF (nspins == 1) focc = 4.0_dp
+      CALL get_qs_env(qs_env=qs_env, mos=mos)
+      ALLOCATE (vmos(nspins))
+      DO ispin = 1, nspins
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct, nrow_global=nao, ncol_global=norb)
+         NULLIFY (vmos(ispin)%matrix)
+         CALL cp_fm_create(vmos(ispin)%matrix, fm_struct)
+         CALL cp_dbcsr_sm_fm_multiply(ec_env%matrix_hz(ispin)%matrix, mo_coeff, vmos(ispin)%matrix, &
+                                      norb, alpha=focc, beta=0.0_dp)
+      END DO
+      !MK The Intel compiler has trouble with that pointer assignment
+      !MK ec_env%matrix_hz => matrix_v(:, 1)
+      !MK Begin explicit copy
+      CALL dbcsr_allocate_matrix_set(ec_env%matrix_hz, nspins)
+      DO ispin = 1, nspins
+         ALLOCATE (ec_env%matrix_hz(ispin)%matrix)
+         CALL dbcsr_create(ec_env%matrix_hz(ispin)%matrix, template=matrix_v(ispin, 1)%matrix)
+         CALL dbcsr_copy(ec_env%matrix_hz(ispin)%matrix, matrix_v(ispin, 1)%matrix)
+      END DO
+      CALL dbcsr_deallocate_matrix_set(matrix_v)
+      !MK End
+      IF (ASSOCIATED(ec_env%cpmos)) THEN
+         DO i = 1, SIZE(ec_env%cpmos)
+            CALL cp_fm_release(ec_env%cpmos(i)%matrix)
+         END DO
+         DEALLOCATE (ec_env%cpmos)
+         NULLIFY (ec_env%cpmos)
+      END IF
 
       ! Stress-tensor 2nd derivative integral contribution
       IF (use_virial) THEN
