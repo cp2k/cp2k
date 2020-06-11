@@ -1,8 +1,0 @@
-CC       = gcc
-FC       = mpif90
-LD       = mpif90
-AR       = ar -r
-DFLAGS   = -D__FFTW3 -D__NO_STATM_ACCESS -D__MPI_VERSION=2 -D__parallel -D__SCALAPACK
-FCFLAGS  = -O2 -funroll-loops -ftree-vectorize -march=native -ffree-form $(DFLAGS)
-LDFLAGS  = $(FCFLAGS)
-LIBS     = -llapack -lblas -lscalapack -lfftw3 -lmpich

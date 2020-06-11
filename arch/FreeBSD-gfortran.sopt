@@ -1,9 +1,0 @@
-CC       = gcc
-FC       = gfortran
-LD       = gfortran
-AR       = ar -r
-DFLAGS   = -D__FFTW3 -D__NO_STATM_ACCESS
-FCFLAGS  = -O2 -funroll-loops -ftree-vectorize -march=native -ffree-form $(DFLAGS)
-LDFLAGS  = $(FCFLAGS)
-LIBS     = -llapack -lblas -lfftw3
-
