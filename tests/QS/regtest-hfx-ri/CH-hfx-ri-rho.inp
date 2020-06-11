@@ -23,10 +23,7 @@
             &HF
                 &RI
                     RI_FLAVOR RHO
-                &END
-                &SCREENING
-                    EPS_SCHWARZ 1.0E-10
-                    SCREEN_P_FORCES FALSE
+                    EPS_FILTER 1.0E-11
                 &END
                 &MEMORY
                     MAX_MEMORY  10
