@@ -36,7 +36,6 @@ def main():
         ref_energies.append(float(rest_args.pop(0)))
 
     configs = [
-        (8, 1, "popt"),
         (8, 1, "psmp"),
         (4, 2, "psmp"),
         (2, 4, "psmp"),

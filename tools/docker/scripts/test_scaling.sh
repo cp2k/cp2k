@@ -7,7 +7,7 @@ source /opt/cp2k-toolchain/install/setup
 
 echo -e '\n========== Compiling CP2K =========='
 cd /workspace/cp2k
-for VERSION in 'popt' 'psmp' 'ssmp' ; do
+for VERSION in 'psmp' 'ssmp' ; do
    echo -n "Compiling cp2k.${VERSION}... "
    if make -j VERSION="${VERSION}" &> /dev/null ; then
       echo 'done.'
