@@ -1731,6 +1731,9 @@ CONTAINS
 
          DO jquad = 1, num_integ_points
 
+            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3, A, 1X, I3, 1X, A, 1X, I3)") &
+               "INTEG_INFO| Started with Integration point", jquad, "of", num_integ_points
+
             IF (MODULO(jquad, num_integ_group) /= color_rpa_group) CYCLE
 
             CALL timeset(routineN//"_RPA_matrix_operations", handle3)
