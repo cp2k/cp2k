@@ -39,6 +39,7 @@
 ! **************************************************************************************************
 PROGRAM cp2k
 
+   USE OMP_LIB,                         ONLY: omp_set_num_threads
    USE cp2k_info,                       ONLY: compile_revision,&
                                               cp2k_flags,&
                                               cp2k_version,&
@@ -98,7 +99,7 @@ PROGRAM cp2k
    ALLOCATE (initial_variables(2, 1:0))
 
    ! get command and strip path
-   CALL GET_COMMAND(command, status=ierr)
+   CALL GET_COMMAND_ARGUMENT(0, command, status=ierr)
    CPASSERT(ierr == 0)
    l = LEN_TRIM(command)
    DO i = l, 1, -1
@@ -115,6 +116,12 @@ PROGRAM cp2k
          "ERROR: At least one command line argument must be specified"
       command_line_error = .TRUE.
    END IF
+
+   ! check if binary was invoked as sopt or popt alias
+   l = LEN_TRIM(command)
+   IF (command(l - 4:l) == ".sopt" .OR. command(l - 4:l) == ".popt") THEN
+      CALL omp_set_num_threads(1)
+   ENDIF
 
    i_arg = 0
    arg_loop: DO WHILE (i_arg < COMMAND_ARGUMENT_COUNT())
