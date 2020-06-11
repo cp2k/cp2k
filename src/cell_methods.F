@@ -514,17 +514,17 @@ CONTAINS
          CALL get_cell(cell=cell, abc=abc, alpha=alpha, beta=beta, gamma=gamma)
          WRITE (UNIT=output_unit, FMT='( )')
          val = cp_unit_from_cp2k(cell%deth, TRIM(unit_str)//"^3")
-         WRITE (UNIT=output_unit, FMT="(T2,A,T61,F20.3)") &
+         WRITE (UNIT=output_unit, FMT="(T2,A,T61,F20.6)") &
             TRIM(my_label)//" Volume ["//TRIM(unit_str)//"^3]:", val
          val = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
-         WRITE (UNIT=output_unit, FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)") &
+         WRITE (UNIT=output_unit, FMT="(T2,A,T30,3F10.3,3X,A6,F12.6)") &
             TRIM(my_label)//" Vector a ["//TRIM(unit_str)//"]:", cell%hmat(:, 1)*val, &
             "|a| = ", abc(1)*val, &
             TRIM(my_label)//" Vector b ["//TRIM(unit_str)//"]:", cell%hmat(:, 2)*val, &
             "|b| = ", abc(2)*val, &
             TRIM(my_label)//" Vector c ["//TRIM(unit_str)//"]:", cell%hmat(:, 3)*val, &
             "|c| = ", abc(3)*val
-         WRITE (UNIT=output_unit, FMT="(T2,A,T70,F11.3)") &
+         WRITE (UNIT=output_unit, FMT="(T2,A,T69,F12.6)") &
             TRIM(my_label)//" Angle (b,c), alpha [degree]: ", alpha, &
             TRIM(my_label)//" Angle (a,c), beta  [degree]: ", beta, &
             TRIM(my_label)//" Angle (a,b), gamma [degree]: ", gamma
