@@ -126,8 +126,17 @@ $(EXE_NAMES) all toolversions extversions extclean libcp2k cp2k_shell exts $(EXT
 
 # stage 2: Store the version target in $(ONEVERSION),
 #          Call make recursively with $(ORIG_TARGET) as target.
-$(VERSION) :
+$(filter-out sopt, popt, $(VERSION)) :
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(ORIG_TARGET) ORIG_TARGET="" VERSION="" ONEVERSION=$@
+
+sopt:
+	@+echo "Version sopt is now an alias for ssmp with OMP_NUM_THREADS=1."
+	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(ORIG_TARGET) ORIG_TARGET="" VERSION="" ONEVERSION="ssmp"
+	cd $(EXEDIR); ln -sf cp2k.ssmp cp2k.sopt
+popt:
+	@+echo "Version popt is now an alias for psmp with OMP_NUM_THREADS=1."
+	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(ORIG_TARGET) ORIG_TARGET="" VERSION="" ONEVERSION="psmp"
+	cd $(EXEDIR); ln -sf cp2k.psmp cp2k.popt
 
 else
 
