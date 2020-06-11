@@ -51,6 +51,7 @@
         &LOW_SCALING
           !MEMORY_INFO
           DO_KPOINTS
+          MEMORY_CUT 2
         &END LOW_SCALING
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6
