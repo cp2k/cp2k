@@ -219,6 +219,7 @@ CONTAINS
             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T67,'Pair Potential')")
             ! Pair potentials
             IF (dispersion_env%pp_type == vdw_pairpot_dftd2) THEN
+               WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'DFT-D2')")
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Potential Form: S. Grimme, JCC 27: 1787 (2006)')")
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Scaling Factor:',T73,F8.4)") dispersion_env%scaling
