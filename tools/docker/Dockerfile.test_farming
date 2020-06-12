@@ -9,7 +9,7 @@ COPY ./scripts/install_basics.sh .
 RUN ./install_basics.sh
 
 COPY ./scripts/install_regtest.sh .
-RUN ./install_regtest.sh local popt
+RUN ./install_regtest.sh local pdbg
 
 COPY ./scripts/ci_entrypoint.sh ./scripts/test_farming.sh ./
 CMD ["./ci_entrypoint.sh", "./test_farming.sh"]
