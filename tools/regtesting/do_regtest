@@ -537,7 +537,14 @@ function run_unittest() {
   t1=`date +%s`
   output_file=${dir_test}/${dir}.out
   unittest=${dir##*/}
-  testcmd="${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/${unittest}.${cp2k_version} ${dir_base}/${cp2k_dir}"
+  if [[ "${cp2k_version}" == "sopt" ]]; then
+     ext="ssmp"
+  elif [[ "${cp2k_version}" == "popt" ]]; then
+     ext="psmp"
+  else
+     ext="${cp2k_version}"
+  fi
+  testcmd="${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/${unittest}.${ext} ${dir_base}/${cp2k_dir}"
   ( ulimit -t ${job_max_time} -v ${mem_limit} ; ${testcmd} &> ${output_file} ) >& /dev/null
   (( cp2k_exit_status = $? ))
   t2=`date +%s`
@@ -942,7 +949,14 @@ if [[ ${skiptest} != "skiptest" ]]; then
 
    # prepend list of unit-tests to dirs, use a special "UNIT/" prefix
    if [[ "$do_unit_test" == "yes" ]]; then
-      for unittest in ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/*_unittest.${cp2k_version}
+      if [[ "${cp2k_version}" == "sopt" ]]; then
+         ext="ssmp"
+      elif [[ "${cp2k_version}" == "popt" ]]; then
+         ext="psmp"
+      else
+         ext="${cp2k_version}"
+      fi
+      for unittest in ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/*_unittest.${ext}
       do
        t=${unittest##*/}
        dirs="UNIT/${t%.*} $dirs "
