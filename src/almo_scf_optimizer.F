@@ -9310,35 +9310,38 @@ CONTAINS
                map=almo_scf_env%domain_map(ispin), &
                node_of_domain=almo_scf_env%cpu_of_domain)
 
-         ELSE IF (my_special_case .EQ. xalmo_case_block_diag) THEN
-
-            CALL dbcsr_create(m_s_inv, &
-                              template=almo_scf_env%matrix_s(1), &
-                              matrix_type=dbcsr_type_no_symmetry)
-            CALL invert_Hotelling(m_s_inv, &
-                                  almo_scf_env%matrix_s_blk(1), &
-                                  threshold=almo_scf_env%eps_filter, &
-                                  filter_eps=almo_scf_env%eps_filter)
-
-         ELSE IF (my_special_case .EQ. xalmo_case_fully_deloc) THEN
-
-            ! invert S using cholesky
-            CALL dbcsr_create(m_s_inv, &
-                              template=almo_scf_env%matrix_s(1), &
-                              matrix_type=dbcsr_type_no_symmetry)
-            CALL dbcsr_desymmetrize(almo_scf_env%matrix_s(1), m_s_inv)
-            CALL cp_dbcsr_cholesky_decompose(m_s_inv, &
-                                             para_env=almo_scf_env%para_env, &
-                                             blacs_env=almo_scf_env%blacs_env)
-            CALL cp_dbcsr_cholesky_invert(m_s_inv, &
-                                          para_env=almo_scf_env%para_env, &
-                                          blacs_env=almo_scf_env%blacs_env, &
-                                          upper_to_full=.TRUE.)
-            CALL dbcsr_filter(m_s_inv, eps=almo_scf_env%eps_filter)
-
          ENDIF
 
       ENDDO ! ispin
+
+      ! invert metric for special case where metric is spin independent
+      IF (my_special_case .EQ. xalmo_case_block_diag) THEN
+
+         CALL dbcsr_create(m_s_inv, &
+                           template=almo_scf_env%matrix_s(1), &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL invert_Hotelling(m_s_inv, &
+                               almo_scf_env%matrix_s_blk(1), &
+                               threshold=almo_scf_env%eps_filter, &
+                               filter_eps=almo_scf_env%eps_filter)
+
+      ELSE IF (my_special_case .EQ. xalmo_case_fully_deloc) THEN
+
+         ! invert S using cholesky
+         CALL dbcsr_create(m_s_inv, &
+                           template=almo_scf_env%matrix_s(1), &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_desymmetrize(almo_scf_env%matrix_s(1), m_s_inv)
+         CALL cp_dbcsr_cholesky_decompose(m_s_inv, &
+                                          para_env=almo_scf_env%para_env, &
+                                          blacs_env=almo_scf_env%blacs_env)
+         CALL cp_dbcsr_cholesky_invert(m_s_inv, &
+                                       para_env=almo_scf_env%para_env, &
+                                       blacs_env=almo_scf_env%blacs_env, &
+                                       upper_to_full=.TRUE.)
+         CALL dbcsr_filter(m_s_inv, eps=almo_scf_env%eps_filter)
+
+      ENDIF ! s_inv
 
       radius_max = optimizer%max_trust_radius
       radius_current = MIN(optimizer%initial_trust_radius, radius_max)
@@ -10221,6 +10224,11 @@ CONTAINS
          CALL release_submatrices(domain_r_down(:, ispin))
          CALL release_submatrices(domain_model_hessian_inv(:, ispin))
       ENDDO ! ispin
+
+      IF (my_special_case .EQ. xalmo_case_block_diag .OR. &
+          my_special_case .EQ. xalmo_case_fully_deloc) THEN
+         CALL dbcsr_release(m_s_inv)
+      ENDIF
 
       DEALLOCATE (m_model_hessian)
       DEALLOCATE (m_model_hessian_inv)
