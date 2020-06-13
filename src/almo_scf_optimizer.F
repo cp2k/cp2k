@@ -10551,7 +10551,7 @@ CONTAINS
       discrim_sign = 1.0_dp
       nsolutions_found = 0
       DO isol = 1, nsolutions
-         solution = -coef(2) + discrim_sign*SQRT(discriminant)/(2.0_dp*coef(1))
+         solution = ( -coef(2) + discrim_sign*SQRT(discriminant) ) /(2.0_dp*coef(1))
          IF (solution .GT. 0.0_dp) THEN
             nsolutions_found = nsolutions_found + 1
             step_size_out = solution
