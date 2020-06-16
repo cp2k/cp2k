@@ -1,0 +1,148 @@
+&GLOBAL
+  PROJECT CIC
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QMMM
+
+  &DFT
+    CHARGE 1
+    MULTIPLICITY 1
+    BASIS_SET_FILE_NAME  BASIS_MOLOPT
+    POTENTIAL_FILE_NAME  POTENTIAL
+
+    &MGRID
+      CUTOFF 400
+      COMMENSURATE
+    &END MGRID
+    &SCF                        ! Parameters controlling the convergence of the scf. This section should not be changed. 
+      SCF_GUESS RESTART
+      EPS_SCF 1.0E-6
+      MAX_SCF 300
+      &OT  T
+        MINIMIZER  DIIS
+        STEPSIZE     1.4999999999999999E-01
+        PRECONDITIONER  FULL_ALL
+      &END OT
+    &END SCF
+    &XC                        ! Parameters needed to compute the electronic exchange potential 
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+    &QS
+     METHOD GPW
+     EPS_DEFAULT 1.0E-12
+    &END QS
+  &END DFT
+
+  &QMMM  			! This defines the QS cell in the QMMM calc
+    &CELL
+      ABC 17.7 17.7 17.7
+      PERIODIC XYZ
+    &END CELL
+    CENTER EVERY_STEP
+    ECOUPL GAUSS
+    USE_GEEP_LIB 15
+    &PERIODIC # apply periodic potential
+      #turn on/off coupling/recoupling of the QM multipole
+      &MULTIPOLE ON
+      &END
+    &END PERIODIC
+    &QM_KIND O
+      MM_INDEX 2887 2888 2080 2079
+    &END QM_KIND
+    &QM_KIND C
+      MM_INDEX 2880 2883 2886 2072 2075 2078 
+    &END QM_KIND
+    &QM_KIND H
+      MM_INDEX 2884 2885 2881 2882 2074 2073 2077 2076 2081
+    &END QM_KIND
+    &LINK
+       MM_INDEX 2878
+       QM_INDEX 2880
+       LINK_TYPE IMOMM
+    &END LINK
+    &LINK
+       MM_INDEX 2070
+       QM_INDEX 2072
+       LINK_TYPE IMOMM
+    &END LINK
+ &END QMMM
+ &MM
+    &FORCEFIELD
+      PARMTYPE AMBER
+      PARM_FILE_NAME ClC.prmtop
+      DO_NONBONDED .TRUE.
+      EI_SCALE14 1.0
+      VDW_SCALE14 1.0
+      &SPLINE
+        EMAX_SPLINE 1.0E14
+        RCUT_NB [angstrom] 12
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE SPME
+        ALPHA .40
+        GMAX 80
+      &END EWALD
+    &END POISSON
+  &END MM
+
+
+  &SUBSYS
+    &CELL
+      ABC 126.9338000 126.9338000  90.6262000
+      PERIODIC XYZ
+      ALPHA_BETA_GAMMA 90 90 90
+    &END CELL
+    &TOPOLOGY                    ! Section used to center the atomic coordinates in the given box. Useful for big molecules
+      CONN_FILE_FORMAT AMBER
+      CONN_FILE_NAME ClC.prmtop
+      COORD_FILE_FORMAT PDB
+      COORD_FILE_NAME  ClC.pdb 
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+    &KIND H
+      ELEMENT H
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND C
+      ELEMENT C
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-BLYP-q4
+    &END KIND
+   &KIND O
+      ELEMENT O
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+   &KIND CL-
+      ELEMENT CL
+   &END KIND
+   &KIND NA+
+      ELEMENT NA
+   &END KIND
+   &KIND HX1
+      ELEMENT H
+   &END KIND
+   &KIND HX2
+      ELEMENT H
+   &END KIND
+  &END SUBSYS
+
+&END FORCE_EVAL
+
+&MOTION
+   &MD 
+      ENSEMBLE NVE
+      STEPS 5
+      TEMPERATURE 300
+      TIMESTEP 1
+   &END MD
+&END MOTION
+
