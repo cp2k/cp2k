@@ -1,4 +1,4 @@
-# QM/MM CBD_PHY
+# QM/MM - CBD_PHY
 
 ## Description
 
