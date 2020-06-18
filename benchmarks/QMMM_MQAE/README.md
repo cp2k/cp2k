@@ -13,6 +13,8 @@ The QM/MM coupling is described with the Gaussian Expansion of the Electrostatic
 Potential (GEEP) method, and the bonds between theQM and MM atoms are treated
  using the Generalized Hybrid Orbital (GHO) method.
 
+See also https://doi.org/10.1021/acs.jctc.9b00424
+
 ## Files description
 
 ``MQAE.inp`` - CP2K input file.
