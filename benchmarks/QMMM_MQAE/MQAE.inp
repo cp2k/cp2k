@@ -65,7 +65,7 @@
  &MM
     &FORCEFIELD
       PARMTYPE AMBER
-      PARM_FILE_NAME mqae.prmtop
+      PARM_FILE_NAME MQAE.prmtop
       EI_SCALE14 1.0
       VDW_SCALE14 1.0
       &SPLINE
@@ -91,9 +91,9 @@
     &END CELL
     &TOPOLOGY                    ! Section used to center the atomic coordinates in the given box. Useful for big molecules
       CONN_FILE_FORMAT AMBER
-      CONN_FILE_NAME mqae.prmtop
+      CONN_FILE_NAME MQAE.prmtop
       COORD_FILE_FORMAT PDB
-      COORD_FILE_NAME mqae.pdb 
+      COORD_FILE_NAME MQAE.pdb 
     &END TOPOLOGY
     &KIND H
       ELEMENT H

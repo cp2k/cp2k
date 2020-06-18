@@ -1,9 +1,8 @@
-# QMMM_MQAE
+# QM/MM - MQAE
 
 ## Description
 
-
-This benchmark performs of a short QM/MM MD simulation of 5 steps.
+This benchmark performs a short QM/MM MD simulation of 5 steps.
 The MQAE system is a solute-solvent system consisting of a N-(6-methoxyquinolyl) 
 acetoethyl ester in solution. All 34 atoms of the ester are treated with QM whereas
  the remaining water atoms are treated with MM. The parameters for the organic molecule
@@ -16,12 +15,12 @@ Potential (GEEP) method, and the bonds between theQM and MM atoms are treated
 
 ## Files description
 
-``mqae-cp2k.inp`` - The CP2K input file.
+``MQAE.inp`` - CP2K input file.
 
-``mqae.prmtop`` - Amber forcefield for MM atoms. The Amber14 forcefield and
+``MQAE.prmtop`` - Amber forcefield for MM atoms. The Amber14 forcefield and
 the SPCE water model are used.
 
-``mqae.pdb`` - Atomic input coordinates.
+``MQAE.pdb`` - Atomic input coordinates.
 
 ## Results
 
