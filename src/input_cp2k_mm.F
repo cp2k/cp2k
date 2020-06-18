@@ -13,8 +13,8 @@
 ! **************************************************************************************************
 MODULE input_cp2k_mm
    USE bibliography,                    ONLY: &
-        Devynck2012, Dick1958, Foiles1986, Mitchell1993, QUIP_ref, Siepmann1995, Tersoff1988, &
-        Tosi1964a, Tosi1964b, Yamada2000
+        Clabaut2020, Devynck2012, Dick1958, Foiles1986, Mitchell1993, QUIP_ref, Siepmann1995, &
+        Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               debug_print_level,&
                                               high_print_level,&
@@ -1255,6 +1255,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_Gal_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_NONBONDED_section
 
 ! **************************************************************************************************
@@ -2476,6 +2480,178 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_Siepmann_section
+
+! **************************************************************************************************
+!> \brief This section specifies the input parameters for GAL19
+!>        potential type
+!>      (??)
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_Gal_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_Gal_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="GAL19", &
+                          description="Implementation of the GAL19 forcefield, see associated paper", &
+                          citations=(/Clabaut2020/), n_keywords=1, n_subsections=1, repeats=.TRUE.)
+
+      NULLIFY (keyword, subsection)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
+                          description="Defines the atomic kind involved in the nonbond potential", &
+                          usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
+                          n_var=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="METALS", &
+                          description="Defines the two atomic kinds to be considered as part of the metallic phase in the system", &
+                          usage="METALS {KIND1} {KIND2} ..", type_of_var=char_t, &
+                          n_var=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="epsilon", &
+                          description="Defines the epsilon_a parameter of GAL19 potential", &
+                          usage="epsilon {real}", type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=0.6_dp, &
+                                                        unit_str="kcalmol"), &
+                          n_var=1, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="bxy", &
+                          description="Defines the b perpendicular parameter of GAL19 potential", &
+                          usage="bxy {real}", type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=3.688388_dp, &
+                                                        unit_str="internal_cp2k"), &
+                          n_var=1, unit_str="angstrom^-2")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="bz", &
+                          description="Defines the b parallel parameter of GAL19 potential", &
+                          usage="bz {real}", type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=9.069025_dp, &
+                                                        unit_str="internal_cp2k"), &
+                          n_var=1, unit_str="angstrom^-2")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="r", &
+                          description="Defines the R_0 parameters of GAL19 potential for the two METALS."// &
+        "This is the only parameter that is shared between the two section of the forcefield in the case of two metals (alloy)."// &
+                          "If one metal only is present, a second number should be given but won't be read", &
+                          usage="r {real} {real}", type_of_var=real_t, n_var=2, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="a1", &
+                          description="Defines the a1 parameter of GAL19 potential", &
+                          usage="a1 {real}", type_of_var=real_t, &
+                          default_r_val=10.0_dp, n_var=1, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="a2", &
+                          description="Defines the a2 parameter of GAL19 potential", &
+                          usage="a2 {real}", type_of_var=real_t, &
+                          default_r_val=10.0_dp, n_var=1, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="a3", &
+                          description="Defines the a3 parameter of GAL19 potential", &
+                          usage="a3 {real}", type_of_var=real_t, &
+                          default_r_val=10.0_dp, n_var=1, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="a4", &
+                          description="Defines the a4 parameter of GAL19 potential", &
+                          usage="a4 {real}", type_of_var=real_t, &
+                          default_r_val=10.0_dp, n_var=1, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="A", &
+                          description="Defines the A parameter of GAL19 potential", &
+                          usage="A {real}", type_of_var=real_t, &
+                          default_r_val=10.0_dp, n_var=1, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="B", &
+                          description="Defines the B parameter of GAL19 potential", &
+                          usage="B {real}", type_of_var=real_t, &
+                          default_r_val=10.0_dp, n_var=1, unit_str="angstrom^-1")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="C", &
+                          description="Defines the C parameter of GAL19 potential", &
+                          usage="C {real}", type_of_var=real_t, &
+                          default_r_val=10.0_dp, n_var=1, unit_str="angstrom^6*kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
+                          description="Defines the cutoff parameter of GAL19 potential", &
+                          usage="RCUT {real}", type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=3.2_dp, &
+                                                        unit_str="angstrom"), &
+                          n_var=1, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="Fit_express", &
+                          description="Demands the particular output needed to a least square fit", &
+                          usage="Fit_express TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL create_GCN_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_Gal_section
+
+! **************************************************************************************************
+!> \brief This section specifies the input parameters for the subsection GCN of GAL19
+!>        potential type
+!>      (??)
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_GCN_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_GCN_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="GCN", &
+                          description="Allow to specify the generalized coordination number of the atoms."// &
+                          "Those numbers msust be generated by another program ", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
+                          description="Value of the GCN for the individual atom. Order MUST reflect"// &
+                          " the one specified for the geometry.", repeats=.TRUE., usage="{Real}", &
+                          default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_GCN_section
 
 ! **************************************************************************************************
 !> \brief creates the input section for the qs part

@@ -1,0 +1,153 @@
+&GLOBAL
+  PROJECT md_gal
+  RUN_TYPE energy
+&END GLOBAL
+
+&MOTION
+  &PRINT
+   &TRAJECTORY
+     &EACH
+       MD 1
+     &END EACH
+   &END TRAJECTORY
+  &END PRINT
+  &CONSTRAINT
+    &FIXED_ATOMS
+      LIST 1..192 !Pt atoms
+    &END FIXED_ATOMS
+    &G3X3
+      DISTANCES 1.808845716 1.808845716 2.860856174
+      MOLNAME WAT !To be specified in the coord.inc file
+      ATOMS 1 2 3
+    &END G3X3
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVT
+    STEPS 10
+    TIMESTEP 2
+    &THERMOSTAT
+    &END THERMOSTAT
+    TEMPERATURE 298
+  &END MD
+&END MOTION
+
+&MULTIPLE_FORCE_EVALS
+  FORCE_EVAL_ORDER  1 2 3
+&END MULTIPLE_FORCE_EVALS
+
+&FORCE_EVAL
+  METHOD MIXED
+  &MIXED
+    GROUP_PARTITION 1 1
+  # MIXING_TYPE LINEAR_COMBINATION
+   MIXING_TYPE GENMIX
+   &GENERIC
+     # X: Energy force_eval 2
+     # Y: Energy force_eval 3
+     MIXING_FUNCTION X+Y
+     VARIABLES X Y
+   &END
+  &END
+  &SUBSYS
+    &CELL
+      ABC  16.8721334845359721 19.4822616182002832 75
+      ALPHA_BETA_GAMMA 90 90 90
+      PERIODIC  XYZ
+    &END CELL
+    &COORD
+      @INCLUDE "coord.inc"
+    &END COORD
+    &TOPOLOGY
+     &GENERATE
+       BONDPARM_FACTOR 0.95
+     &END GENERATE
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+
+&FORCE_EVAL
+   METHOD FIST
+   &MM
+    &FORCEFIELD
+     MULTIPLE_POTENTIAL .TRUE.
+     IGNORE_MISSING_CRITICAL_PARAMS T
+     &SPLINE
+       EMAX_SPLINE 10
+     &END SPLINE
+     &CHARGE
+       ATOM O
+       CHARGE -0.830
+     &END CHARGE
+     &CHARGE
+       ATOM Pt
+       CHARGE 0.0
+     &END CHARGE
+     &CHARGE
+       ATOM H
+       CHARGE 0.415
+     &END CHARGE
+     &NONBONDED
+        &LENNARD-JONES
+          atoms O O
+          EPSILON [kcalmol] 0.102
+          SIGMA [angstrom] 3.188
+          RCUT 10
+        &END LENNARD-JONES
+     &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        GMAX 17 20 75 !About box dimensions
+      &END EWALD
+    &END POISSON
+  &END MM
+&END FORCE_EVAL
+
+
+&FORCE_EVAL
+   METHOD FIST
+   &MM
+    &FORCEFIELD
+     &SPLINE
+       EMAX_SPLINE 10
+     &END SPLINE
+     IGNORE_MISSING_CRITICAL_PARAMS T
+     &NONBONDED
+      &GAL19
+         ATOMS  Pt O
+         METALS Pt Cu
+         RCUT 8
+         epsilon 17.3927912218
+         bxy .8941304
+         bz .1295121
+         r 2.4120767 4.0
+         a1 35.2466895952
+         a2 12.8710527902
+         a3 -5.5830632106
+         a4 3.13229216299
+         A 26445.8258883
+         B 3.7168091
+         C 917.455856665695
+         Fit_express FALSE
+         &GCN
+          @INCLUDE "gcn.inc"
+         &END GCN
+      &END GAL19
+      &WILLIAMS
+         ATOMS Pt H
+         RCUT 8
+         B 1/.347004
+         A [kcalmol] 3010.3280558906
+         C 0.0
+      &END WILLIAMS
+     &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        GMAX 17 20 75 !About box size
+      &END EWALD
+    &END POISSON
+  &END MM
+&END FORCE_EVAL

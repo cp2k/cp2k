@@ -16,12 +16,15 @@
 !> \author CJM
 ! **************************************************************************************************
 MODULE force_fields_input
-   USE bibliography,                    ONLY: Siepmann1995,&
+   USE bibliography,                    ONLY: Clabaut2020,&
+                                              Siepmann1995,&
                                               Tersoff1988,&
                                               Tosi1964a,&
                                               Tosi1964b,&
                                               Yamada2000,&
                                               cite_reference
+   USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
+                                              cp_sll_val_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -46,8 +49,11 @@ MODULE force_fields_input
    USE force_fields_util,               ONLY: get_generic_info
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
+                                              section_vals_list_get,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE input_val_types,                 ONLY: val_get,&
+                                              val_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
@@ -55,7 +61,7 @@ MODULE force_fields_input
    USE memory_utilities,                ONLY: reallocate
    USE pair_potential_types,            ONLY: &
         b4_type, bm_type, do_potential_single_allocation, ea_type, eam_pot_type, ft_pot_type, &
-        ft_type, ftd_type, gp_type, gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
+        ft_type, ftd_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
         no_potential_single_allocation, pair_potential_p_type, pair_potential_reallocate, &
         potential_single_allocation, quip_type, siepmann_type, tersoff_type, wl_type
    USE shell_potential_types,           ONLY: shell_p_create,&
@@ -93,8 +99,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngd, ngp, nimpr, nipbv, &
-         nlj, nopbend, nquip, nshell, nsiepmann, ntersoff, ntors, ntot, nubs, nwl
+      INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngal, ngd, ngp, nimpr, &
+         nipbv, nlj, nopbend, nquip, nshell, nsiepmann, ntersoff, ntors, ntot, nubs, nwl
       LOGICAL                                            :: explicit, unique_spline
       REAL(KIND=dp)                                      :: min_eps_spline_allowed
       TYPE(input_info_type), POINTER                     :: inp_info
@@ -238,9 +244,18 @@ CONTAINS
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + ntersoff, tersoff=.TRUE.)
             CALL read_tersoff_section(inp_info%nonbonded, tmp_section2, ntot, tmp_section2)
          END IF
+
+         tmp_section2 => section_vals_get_subs_vals(tmp_section, "GAL19")
+         CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=ngal)
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff
+         IF (explicit) THEN
+            CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + ngal, gal=.TRUE.)
+            CALL read_gal_section(inp_info%nonbonded, tmp_section2, ntot, tmp_section2)
+         END IF
+
          tmp_section2 => section_vals_get_subs_vals(tmp_section, "SIEPMANN")
          CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=nsiepmann)
-         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal
          IF (explicit) THEN
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nsiepmann, siepmann=.TRUE.)
             CALL read_siepmann_section(inp_info%nonbonded, tmp_section2, ntot, tmp_section2)
@@ -248,7 +263,7 @@ CONTAINS
 
          tmp_section2 => section_vals_get_subs_vals(tmp_section, "quip")
          CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=nquip)
-         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + nsiepmann
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + nsiepmann
          IF (explicit) THEN
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nquip, quip=.TRUE.)
             CALL read_quip_section(inp_info%nonbonded, tmp_section2, ntot)
@@ -1274,6 +1289,101 @@ CONTAINS
          END IF
       END DO
    END SUBROUTINE read_tersoff_section
+
+! **************************************************************************************************
+!> \brief Reads the gal19 section
+!> \param nonbonded ...
+!> \param section ...
+!> \param start ...
+!> \param gal_section ...
+!> \author Clabaut Paul
+! **************************************************************************************************
+   SUBROUTINE read_gal_section(nonbonded, section, start, gal_section)
+      TYPE(pair_potential_p_type), POINTER               :: nonbonded
+      TYPE(section_vals_type), POINTER                   :: section
+      INTEGER, INTENT(IN)                                :: start
+      TYPE(section_vals_type), POINTER                   :: gal_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_gal_section', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: atm_names
+      INTEGER                                            :: iatom, isec, n_items, n_rep, nval
+      LOGICAL                                            :: is_ok
+      REAL(KIND=dp)                                      :: rcut, rval
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rvalues
+      TYPE(cp_sll_val_type), POINTER                     :: list
+      TYPE(section_vals_type), POINTER                   :: subsection
+      TYPE(val_type), POINTER                            :: val
+
+      CALL section_vals_get(section, n_repetition=n_items)
+      DO isec = 1, n_items
+         CALL cite_reference(Clabaut2020)
+         CALL section_vals_val_get(section, "ATOMS", i_rep_section=isec, c_vals=atm_names)
+
+         nonbonded%pot(start + isec)%pot%type = gal_type
+         nonbonded%pot(start + isec)%pot%at1 = atm_names(1)
+         nonbonded%pot(start + isec)%pot%at2 = atm_names(2)
+         CALL uppercase(nonbonded%pot(start + isec)%pot%at1)
+         CALL uppercase(nonbonded%pot(start + isec)%pot%at2)
+
+         CALL section_vals_val_get(section, "METALS", i_rep_section=isec, c_vals=atm_names)
+         nonbonded%pot(start + isec)%pot%set(1)%gal%met1 = atm_names(1)
+         nonbonded%pot(start + isec)%pot%set(1)%gal%met2 = atm_names(2)
+
+         CALL section_vals_val_get(gal_section, "epsilon", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start + isec)%pot%set(1)%gal%epsilon)
+         CALL section_vals_val_get(gal_section, "bxy", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start + isec)%pot%set(1)%gal%bxy)
+         CALL section_vals_val_get(gal_section, "bz", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start + isec)%pot%set(1)%gal%bz)
+
+         CALL section_vals_val_get(gal_section, "r", i_rep_section=isec, r_vals=rvalues)
+         nonbonded%pot(start + isec)%pot%set(1)%gal%r1 = rvalues(1)
+         nonbonded%pot(start + isec)%pot%set(1)%gal%r2 = rvalues(2)
+
+         CALL section_vals_val_get(gal_section, "a1", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start + isec)%pot%set(1)%gal%a1)
+         CALL section_vals_val_get(gal_section, "a2", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start + isec)%pot%set(1)%gal%a2)
+         CALL section_vals_val_get(gal_section, "a3", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start + isec)%pot%set(1)%gal%a3)
+         CALL section_vals_val_get(gal_section, "a4", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start + isec)%pot%set(1)%gal%a4)
+         CALL section_vals_val_get(gal_section, "A", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start + isec)%pot%set(1)%gal%a)
+         CALL section_vals_val_get(gal_section, "B", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start + isec)%pot%set(1)%gal%b)
+         CALL section_vals_val_get(gal_section, "C", i_rep_section=isec, &
+                                   r_val=nonbonded%pot(start + isec)%pot%set(1)%gal%c)
+         NULLIFY (list)
+         subsection => section_vals_get_subs_vals(section, "GCN", i_rep_section=isec)
+         CALL section_vals_val_get(subsection, "_DEFAULT_KEYWORD_", n_rep_val=nval)
+         ALLOCATE (nonbonded%pot(start + isec)%pot%set(1)%gal%gcn(nval))
+         CALL section_vals_list_get(subsection, "_DEFAULT_KEYWORD_", list=list)
+         DO iatom = 1, nval
+            ! we use only the first default_string_length characters of each line
+            is_ok = cp_sll_val_next(list, val)
+            CALL val_get(val, r_val=rval)
+            ! assign values
+            nonbonded%pot(start + isec)%pot%set(1)%gal%gcn(iatom) = rval
+         END DO
+
+         !WRITE(*,*) "Youhou", SIZE(nonbonded%pot(start+isec)%pot%set(1)%gal%gcn)
+
+         CALL section_vals_val_get(gal_section, "Fit_express", i_rep_section=isec, &
+                                   l_val=nonbonded%pot(start + isec)%pot%set(1)%gal%express)
+
+         ! ! In case it is defined override the standard specification of RCUT
+         CALL section_vals_val_get(gal_section, "RCUT", i_rep_section=isec, n_rep_val=n_rep)
+         IF (n_rep == 1) THEN
+            CALL section_vals_val_get(gal_section, "RCUT", i_rep_section=isec, r_val=rcut)
+            nonbonded%pot(start + isec)%pot%rcutsq = rcut**2
+            nonbonded%pot(start + isec)%pot%set(1)%gal%rcutsq = rcut**2
+         END IF
+      END DO
+   END SUBROUTINE read_gal_section
 
 ! **************************************************************************************************
 !> \brief Reads the siepmann section

@@ -27,8 +27,8 @@ MODULE pair_potential
                                               default_string_length,&
                                               dp
    USE pair_potential_types,            ONLY: &
-        b4_type, bm_type, compare_pot, ea_type, ft_type, ftd_type, gp_type, gw_type, ip_type, &
-        list_pot, lj_charmm_type, lj_type, multi_type, nn_type, pair_potential_pp_type, &
+        b4_type, bm_type, compare_pot, ea_type, ft_type, ftd_type, gal_type, gp_type, gw_type, &
+        ip_type, list_pot, lj_charmm_type, lj_type, multi_type, nn_type, pair_potential_pp_type, &
         pair_potential_single_type, potential_single_allocation, quip_type, siepmann_type, &
         tersoff_type, wl_type
    USE pair_potential_util,             ONLY: ener_pot,&
@@ -189,6 +189,8 @@ CONTAINS
                CASE (tersoff_type)
                   pot%no_mb = .FALSE.
                CASE (siepmann_type)
+                  pot%no_mb = .FALSE.
+               CASE (gal_type)
                   pot%no_mb = .FALSE.
                CASE (nn_type)
                   ! Do nothing..
@@ -623,6 +625,8 @@ CONTAINS
             nvar = 13 + nvar
          CASE (siepmann_type)
             nvar = 5 + nvar
+         CASE (gal_type)
+            nvar = 12 + nvar
          CASE (nn_type)
             nvar = nvar
          CASE DEFAULT
@@ -733,6 +737,19 @@ CONTAINS
                         pot_par(nk, 3) = potparm%pot(i, j)%pot%set(1)%siepmann%E
                         pot_par(nk, 4) = potparm%pot(i, j)%pot%set(1)%siepmann%F
                         pot_par(nk, 5) = potparm%pot(i, j)%pot%set(1)%siepmann%beta
+                     CASE (gal_type)
+                        pot_par(nk, 1) = potparm%pot(i, j)%pot%set(1)%gal%epsilon
+                        pot_par(nk, 2) = potparm%pot(i, j)%pot%set(1)%gal%bxy
+                        pot_par(nk, 3) = potparm%pot(i, j)%pot%set(1)%gal%bz
+                        pot_par(nk, 4) = potparm%pot(i, j)%pot%set(1)%gal%r1
+                        pot_par(nk, 5) = potparm%pot(i, j)%pot%set(1)%gal%r2
+                        pot_par(nk, 6) = potparm%pot(i, j)%pot%set(1)%gal%a1
+                        pot_par(nk, 7) = potparm%pot(i, j)%pot%set(1)%gal%a2
+                        pot_par(nk, 8) = potparm%pot(i, j)%pot%set(1)%gal%a3
+                        pot_par(nk, 9) = potparm%pot(i, j)%pot%set(1)%gal%a4
+                        pot_par(nk, 10) = potparm%pot(i, j)%pot%set(1)%gal%a
+                        pot_par(nk, 11) = potparm%pot(i, j)%pot%set(1)%gal%b
+                        pot_par(nk, 12) = potparm%pot(i, j)%pot%set(1)%gal%c
                      CASE (nn_type)
                         ! no checks
                      CASE DEFAULT
