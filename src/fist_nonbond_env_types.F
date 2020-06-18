@@ -16,7 +16,8 @@ MODULE fist_nonbond_env_types
                                               fist_neighbor_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE pair_potential_types,            ONLY: pair_potential_pp_release,&
+   USE pair_potential_types,            ONLY: gal_type,&
+                                              pair_potential_pp_release,&
                                               pair_potential_pp_type,&
                                               siepmann_type,&
                                               tersoff_type
@@ -405,6 +406,10 @@ CONTAINS
                   END IF
                   IF (ANY(potparm%pot(idim, jdim)%pot%type == siepmann_type)) THEN
                      ! TODO:see tersoff_type
+                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                  END IF
+                  IF (ANY(potparm%pot(idim, jdim)%pot%type == gal_type)) THEN
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
                   END IF

@@ -35,7 +35,8 @@ MODULE fist_neighbor_list_control
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_max
-   USE pair_potential_types,            ONLY: pair_potential_pp_type,&
+   USE pair_potential_types,            ONLY: gal_type,&
+                                              pair_potential_pp_type,&
                                               siepmann_type,&
                                               tersoff_type
    USE particle_types,                  ONLY: particle_type
@@ -213,6 +214,9 @@ CONTAINS
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
                   IF (ANY(potparm%pot(ikind, jkind)%pot%type == siepmann_type)) THEN
+                     full_nl(ikind, jkind) = .TRUE.
+                  END IF
+                  IF (ANY(potparm%pot(ikind, jkind)%pot%type == gal_type)) THEN
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
                   full_nl(jkind, ikind) = full_nl(ikind, jkind)
