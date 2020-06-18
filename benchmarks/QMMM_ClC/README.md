@@ -1,8 +1,8 @@
-# QMMM_ClC
+# QM/MM - ClC
 
 ## Description
 
-This benchmark performs of a short QM/MM MD simulation of 5 steps.
+This benchmark performs a short QM/MM MD simulation of 5 steps.
 ClC consists of a (ClC-ec1) chloride ion channel embedded in a lipid bilayer (PDB-ID: 1KPK), 
 which is solvated in water. Two variants are included for this system - ClC-19 and ClC-253 
 which differ only in having respectively 19 and 253 atoms treated quantum mechanically, 
@@ -14,11 +14,13 @@ lipid14 forcefield is used for the lipid molecules, and water molecules are trea
 The QM/MM coupling is described with the Gaussian Expansion of the Electrostatic Potential (GEEP)
  method, and the bonds between the QM and MM atoms are treated using the Generalized Hybrid Orbital (GHO) method.
 
+See also https://doi.org/10.1021/acs.jctc.9b00424
+
 ## Files description
 
-``ClC-19-cp2k.inp`` - ClC with 19 QM atoms.
+``ClC-19.inp`` - ClC with 19 QM atoms.
 
-``ClC-253-cp2k.inp`` - ClC with 253 QM atoms.
+``ClC-253.inp`` - ClC with 253 QM atoms.
 
 ``ClC.prmtop`` - Amber forcefield for MM atoms. The Amber14 forcefield and
 the TIP3P water model are used.
