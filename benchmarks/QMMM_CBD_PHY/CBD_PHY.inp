@@ -88,7 +88,7 @@
     &FORCEFIELD
       PARMTYPE AMBER
       DO_NONBONDED .TRUE.
-      PARM_FILE_NAME cbd_phy.prmtop
+      PARM_FILE_NAME CBD_PHY.prmtop
       EI_SCALE14 1.0
       VDW_SCALE14 1.0
       &SPLINE
@@ -118,9 +118,9 @@
     &END CELL
     &TOPOLOGY                    ! Section used to center the atomic coordinates in the given box. Useful for big molecules
       CONN_FILE_FORMAT AMBER
-      CONN_FILE_NAME cbd_phy.prmtop
+      CONN_FILE_NAME CBD_PHY.prmtop
       COORD_FILE_FORMAT PDB 
-      COORD_FILE_NAME cbd_phy.pdb
+      COORD_FILE_NAME CBD_PHY.pdb
       &CENTER_COORDINATES
         CENTER_POINT  9.5 11.7 15.3
       &END CENTER_COORDINATES
