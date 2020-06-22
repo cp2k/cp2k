@@ -90,6 +90,8 @@ MODULE qs_dispersion_types
       !! kernel matrix at each of the q points.  Stored as
       !! d2phi_dk2(k_point, q1_value, q2_value)
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d2y_dx2 !! 2nd derivatives of q_mesh for interpolation
+      INTEGER, DIMENSION(:, :), POINTER  :: d3_exclude_pair
+      INTEGER  :: nd3_exclude_pair
    END TYPE qs_dispersion_type
 
    TYPE qs_atom_dispersion_type
@@ -161,6 +163,9 @@ CONTAINS
          END IF
          IF (ASSOCIATED(dispersion_env%d2y_dx2)) THEN
             DEALLOCATE (dispersion_env%d2y_dx2)
+         END IF
+         IF (ASSOCIATED(dispersion_env%d3_exclude_pair)) THEN
+            DEALLOCATE (dispersion_env%d3_exclude_pair)
          END IF
          ! neighborlists
          CALL release_neighbor_list_sets(dispersion_env%sab_vdw)

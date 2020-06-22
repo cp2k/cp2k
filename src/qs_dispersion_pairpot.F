@@ -328,6 +328,16 @@ CONTAINS
                      disp%defined = .FALSE.
                   END DO
                END IF
+               CALL section_vals_val_get(pp_section, "D3_EXCLUDE_KIND_PAIR", n_rep_val=n_rep)
+               dispersion_env%nd3_exclude_pair = n_rep
+               IF (n_rep > 0) THEN
+                  ALLOCATE (dispersion_env%d3_exclude_pair(n_rep, 2))
+                  DO i = 1, n_rep
+                     CALL section_vals_val_get(pp_section, "D3_EXCLUDE_KIND_PAIR", i_rep_val=i, &
+                                               i_vals=exlist)
+                     dispersion_env%d3_exclude_pair(i, :) = exlist
+                  END DO
+               END IF
             END IF
 
          END SELECT
@@ -1199,8 +1209,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
       INTEGER, DIMENSION(3)                              :: cell_b, cell_c, ncell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL :: atenergy, atstress, debug, debugall, debugx, domol, floating_a, floating_b, &
-         floating_c, ghost_a, ghost_b, ghost_c, is000, use_virial
+      LOGICAL :: atenergy, atstress, debug, debugall, debugx, domol, exclude_pair, floating_a, &
+         floating_b, floating_c, ghost_a, ghost_b, ghost_c, is000, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, floating, ghost
       REAL(KIND=dp) :: a1, a2, alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, cc6ca, cnum, dc6a, dc6b, &
          dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, dcc6bcc, dcc6caa, dcc6cac, dd, de6, de8, de91, &
@@ -1550,6 +1560,10 @@ CONTAINS
                   atener(jatom) = atener(jatom) - 0.5_dp*xp*fdmp*fac
                END IF
             ELSE IF (disp_a%type == dftd3_pp .AND. dr > 0.001_dp) THEN
+               IF (dispersion_env%nd3_exclude_pair > 0) THEN
+                  CALL exclude_d3_kind_pair(dispersion_env%d3_exclude_pair, ikind, jkind, exclude=exclude_pair)
+                  IF (exclude_pair) CYCLE
+               END IF
                ! C6 coefficient
                CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
                           cnumbers(iatom), cnumbers(jatom), dispersion_env%k3, c6, dc6a, dc6b)
@@ -1719,6 +1733,11 @@ CONTAINS
                               IF (r2ca >= rc2) CYCLE
                               r2abc = r2ab*r2bc*r2ca
                               IF (r2abc <= 0.001_dp) CYCLE
+                              IF (dispersion_env%nd3_exclude_pair > 0) THEN
+                                 CALL exclude_d3_kind_pair(dispersion_env%d3_exclude_pair, ikind, jkind, &
+                                                           kkind, exclude_pair)
+                                 IF (exclude_pair) CYCLE
+                              END IF
                               ! this is an empirical scaling
                               IF (r2abc <= 0.01*rc2*rc2*rc2) THEN
                                  kkind = kind_of(katom)
@@ -1962,6 +1981,10 @@ CONTAINS
                   CALL get_atomic_kind(atomic_kind_set(jkind), natom=nb, z=zb)
                   CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_b, ghost=ghost_b, floating=floating_b)
                   IF (.NOT. disp_b%defined .OR. ghost_b .OR. floating_b) CYCLE
+                  IF (dispersion_env%nd3_exclude_pair > 0) THEN
+                     CALL exclude_d3_kind_pair(dispersion_env%d3_exclude_pair, ikind, jkind, exclude=exclude_pair)
+                     IF (exclude_pair) CYCLE
+                  END IF
                   CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
                              cnkind(ikind), cnkind(jkind), dispersion_env%k3, cc6ab, dcc6aba, dcc6abb)
                   elrc6 = elrc6 - s6*twopi*REAL(na*nb, KIND=dp)*cc6ab/(3._dp*rcut**3*cell%deth)
@@ -1972,6 +1995,10 @@ CONTAINS
                         CALL get_atomic_kind(atomic_kind_set(kkind), natom=nc, z=zc)
                         CALL get_qs_kind(qs_kind_set(kkind), dispersion=disp_c, ghost=ghost_c, floating=floating_c)
                         IF (.NOT. disp_c%defined .OR. ghost_c .OR. floating_c) CYCLE
+                        IF (dispersion_env%nd3_exclude_pair > 0) THEN
+                           CALL exclude_d3_kind_pair(dispersion_env%d3_exclude_pair, ikind, jkind, kkind, exclude_pair)
+                           IF (exclude_pair) CYCLE
+                        END IF
                         CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
                                    cnkind(ikind), cnkind(jkind), dispersion_env%k3, cc6ab, dcc6aba, dcc6abb)
                         CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zc, za, &
@@ -3382,6 +3409,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iatom, ikind, jatom, jkind, &
                                                             mepos, natom, ni, nj, num_pe, za, zb
+      LOGICAL                                            :: exclude_pair
       REAL(KIND=dp)                                      :: cnab, dcnab, eps_cn, rcc, rcova, rcovb
       REAL(KIND=dp), DIMENSION(3)                        :: rij
       TYPE(neighbor_list_iterator_p_type), &
@@ -3416,7 +3444,7 @@ CONTAINS
 !$OMP          PRIVATE( mepos                                         &
 !$OMP                 , ikind, jkind, iatom, jatom, rij, rcc          &
 !$OMP                 , za, zb, rcova, rcovb, cnab, dcnab             &
-!$OMP                 , ni, nj                                        &
+!$OMP                 , ni, nj, exclude_pair                          &
 !$OMP                 )
 
 !$OMP SINGLE
@@ -3435,6 +3463,10 @@ CONTAINS
 
          CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
          IF (ghost(ikind) .OR. ghost(jkind) .OR. floating(ikind) .OR. floating(jkind)) CYCLE
+         IF (dispersion_env%nd3_exclude_pair > 0) THEN
+            CALL exclude_d3_kind_pair(dispersion_env%d3_exclude_pair, ikind, jkind, exclude=exclude_pair)
+            IF (exclude_pair) CYCLE
+         END IF
 
          rcc = SQRT(rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3))
          IF (rcc > 1.e-6_dp) THEN
@@ -3501,5 +3533,48 @@ CONTAINS
    END SUBROUTINE d3_cnumber
 
 ! **************************************************************************************************
+
+! **************************************************************************************************
+!> \brief ...
+!> \param exclude_list List of kind pairs to exclude
+!> \param za first kind
+!> \param zb second kind
+!> \param zc third kind in case of the three-body term
+!> \param exclude whether to exclude the interaction or not
+! **************************************************************************************************
+   SUBROUTINE exclude_d3_kind_pair(exclude_list, za, zb, zc, exclude)
+
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: exclude_list
+      INTEGER, INTENT(in)                                :: za, zb
+      INTEGER, INTENT(in), OPTIONAL                      :: zc
+      LOGICAL, INTENT(out)                               :: exclude
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'exclude_d3_kind_pair', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i
+
+      CALL timeset(routineN, handle)
+      exclude = .FALSE.
+      DO i = 1, SIZE(exclude_list, 1)
+         IF (exclude_list(i, 1) == za .AND. exclude_list(i, 2) == zb .OR. &
+             exclude_list(i, 1) == zb .AND. exclude_list(i, 2) == za) THEN
+            exclude = .TRUE.
+            EXIT
+         END IF
+         IF (PRESENT(zc)) THEN
+            IF (exclude_list(i, 1) == za .AND. exclude_list(i, 2) == zc .OR. &
+                exclude_list(i, 1) == zc .AND. exclude_list(i, 2) == za .OR. &
+                exclude_list(i, 1) == zb .AND. exclude_list(i, 2) == zc .OR. &
+                exclude_list(i, 1) == zc .AND. exclude_list(i, 2) == zb) THEN
+               exclude = .TRUE.
+               EXIT
+            END IF
+         END IF
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE exclude_d3_kind_pair
 
 END MODULE qs_dispersion_pairpot

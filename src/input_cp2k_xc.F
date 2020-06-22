@@ -1038,6 +1038,14 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
+      ! Ignore selected pair interactins
+      CALL keyword_create(keyword, __LOCATION__, name="D3_EXCLUDE_KIND_PAIR", &
+                          description="Specifies the atomic kinds for interactions excluded from the DFT-D3 calculation.", &
+                          usage="D3_EXCLUDE_KIND kind1 kind2 ", repeats=.TRUE., &
+                          n_var=2, type_of_var=integer_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       ! Set coordination numbers by atom kinds
       CALL keyword_create(keyword, __LOCATION__, name="KIND_COORDINATION_NUMBERS", &
                           description="Specifies the coordination number for a kind for the C9 term in DFT-D3.", &
