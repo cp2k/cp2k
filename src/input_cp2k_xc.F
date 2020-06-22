@@ -1041,7 +1041,7 @@ CONTAINS
       ! Ignore selected pair interactins
       CALL keyword_create(keyword, __LOCATION__, name="D3_EXCLUDE_KIND_PAIR", &
                           description="Specifies the atomic kinds for interactions excluded from the DFT-D3 calculation.", &
-                          usage="D3_EXCLUDE_KIND kind1 kind2 ", repeats=.TRUE., &
+                          usage="D3_EXCLUDE_KIND_PAIR kind1 kind2 ", repeats=.TRUE., &
                           n_var=2, type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
