@@ -1169,7 +1169,8 @@ CONTAINS
          dispersion_env%srb = .FALSE.
          dispersion_env%verbose = .FALSE.
          NULLIFY (dispersion_env%c6ab, dispersion_env%maxci, dispersion_env%r0ab, dispersion_env%rcov, &
-                  dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist)
+                  dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist, &
+                  dispersion_env%d3_exclude_pair)
          NULLIFY (dispersion_env%q_mesh, dispersion_env%kernel, dispersion_env%d2phi_dk2, &
                   dispersion_env%d2y_dx2, dispersion_env%dftd_section)
          NULLIFY (dispersion_env%sab_vdw, dispersion_env%sab_cn)
@@ -1185,6 +1186,7 @@ CONTAINS
             dispersion_env%rc_disp = dftb_control%rcdisp
             dispersion_env%exp_pre = 0._dp
             dispersion_env%scaling = 0._dp
+            dispersion_env%nd3_exclude_pair = 0
             dispersion_env%parameter_file_name = dftb_control%dispersion_parameter_file
             CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
          ELSE
@@ -1200,7 +1202,8 @@ CONTAINS
          dispersion_env%srb = .FALSE.
          dispersion_env%verbose = .FALSE.
          NULLIFY (dispersion_env%c6ab, dispersion_env%maxci, dispersion_env%r0ab, dispersion_env%rcov, &
-                  dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist)
+                  dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist, &
+                  dispersion_env%d3_exclude_pair)
          NULLIFY (dispersion_env%q_mesh, dispersion_env%kernel, dispersion_env%d2phi_dk2, &
                   dispersion_env%d2y_dx2, dispersion_env%dftd_section)
          NULLIFY (dispersion_env%sab_vdw, dispersion_env%sab_cn)
@@ -1216,6 +1219,7 @@ CONTAINS
          dispersion_env%rc_disp = xtb_control%rcdisp
          dispersion_env%exp_pre = 0._dp
          dispersion_env%scaling = 0._dp
+         dispersion_env%nd3_exclude_pair = 0
          dispersion_env%parameter_file_name = xtb_control%dispersion_parameter_file
          CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
          CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
@@ -1228,7 +1232,8 @@ CONTAINS
          dispersion_env%srb = .FALSE.
          dispersion_env%verbose = .FALSE.
          NULLIFY (dispersion_env%c6ab, dispersion_env%maxci, dispersion_env%r0ab, dispersion_env%rcov, &
-                  dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist)
+                  dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist, &
+                  dispersion_env%d3_exclude_pair)
          NULLIFY (dispersion_env%q_mesh, dispersion_env%kernel, dispersion_env%d2phi_dk2, &
                   dispersion_env%d2y_dx2, dispersion_env%dftd_section)
          NULLIFY (dispersion_env%sab_vdw, dispersion_env%sab_cn)
@@ -1244,6 +1249,7 @@ CONTAINS
             dispersion_env%rc_disp = se_control%rcdisp
             dispersion_env%exp_pre = 0._dp
             dispersion_env%scaling = 0._dp
+            dispersion_env%nd3_exclude_pair = 0
             dispersion_env%parameter_file_name = se_control%dispersion_parameter_file
             CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
          ELSE

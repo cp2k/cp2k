@@ -75,8 +75,10 @@ CONTAINS
       dispersion_env%lrc = .FALSE.
       dispersion_env%srb = .FALSE.
       dispersion_env%verbose = .FALSE.
+      dispersion_env%nd3_exclude_pair = 0
       NULLIFY (dispersion_env%c6ab, dispersion_env%maxci, dispersion_env%r0ab, dispersion_env%rcov, &
-               dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist)
+               dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist, &
+               dispersion_env%d3_exclude_pair)
       NULLIFY (dispersion_env%q_mesh, dispersion_env%kernel, dispersion_env%d2phi_dk2, &
                dispersion_env%d2y_dx2)
       NULLIFY (dispersion_env%sab_vdw, dispersion_env%sab_cn)
@@ -246,6 +248,12 @@ CONTAINS
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'sr6 Scaling Factor:',T73,F8.4)") dispersion_env%sr6
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s8 Scaling Factor:',T73,F8.4)") dispersion_env%s8
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff for CN calculation:',T69,E12.4)") dispersion_env%eps_cn
+               IF (dispersion_env%nd3_exclude_pair > 0) THEN
+                  DO i = 1, dispersion_env%nd3_exclude_pair
+                     WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Excluded Pairs: ',T76,I2,' ',I2)") &
+                        dispersion_env%d3_exclude_pair(i, :)
+                  END DO
+               END IF
             ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'DFT-D3 (Version 3.1)')")
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Potential Form: S. Grimme et al, JCP 132: 154104 (2010)')")
@@ -256,6 +264,12 @@ CONTAINS
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s8 Scaling Factor:',T73,F8.4)") dispersion_env%s8
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'a2 Damping Factor:',T73,F8.4)") dispersion_env%a2
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff for CN calculation:',T69,E12.4)") dispersion_env%eps_cn
+               IF (dispersion_env%nd3_exclude_pair > 0) THEN
+                  DO i = 1, dispersion_env%nd3_exclude_pair
+                     WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Excluded Kind Pairs: ',T76,I2,' ',I2)") &
+                        dispersion_env%d3_exclude_pair(i, :)
+                  END DO
+               END IF
             END IF
          ELSE IF (dispersion_env%type == xc_vdw_fun_nonloc) THEN
             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T61,'Non-local Functional')")
