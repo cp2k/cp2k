@@ -211,8 +211,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: border_size, dir, handle, i, j, k, l, &
-                                                            lb(2), n_slices(3), n_slices_tmp(3), &
-                                                            neighbours(3), nmin
+                                                            lb(2), min_npts_real, n_slices(3), &
+                                                            n_slices_tmp(3), nmin
       LOGICAL                                            :: overlap
       REAL(KIND=dp)                                      :: ratio, ratio_best, volume, volume_dist
 
@@ -310,23 +310,17 @@ CONTAINS
                                   (/-1, -1, -1/) /= input_settings%distribution_layout) &
                              )) CYCLE
 
-               ! we currently can not work with a grid that has borders that overlaps with the local data of the grid itself
+               ! We can not work with a grid that has more local than global grid points.
+               ! This can happen when a halo region wraps around and overlaps with the other halo.
                overlap = .FALSE.
                DO dir = 1, 3
                   IF (n_slices_tmp(dir) > 1) THEN
-                     neighbours(dir) = HUGE(0)
                      DO l = 0, n_slices_tmp(dir) - 1
                         lb = get_limit(desc%npts(dir), n_slices_tmp(dir), l)
-                        neighbours(dir) = MIN(lb(2) - lb(1) + 1, neighbours(dir))
+                        IF (lb(2) - lb(1) + 1 + 2*nmin > desc%npts(dir)) overlap = .TRUE.
                      ENDDO
-                     desc%neighbours(dir) = (nmin + neighbours(dir) - 1)/neighbours(dir)
-                     IF (desc%neighbours(dir) .GE. n_slices_tmp(dir)) overlap = .TRUE.
-                  ELSE
-                     neighbours(dir) = 0
                   ENDIF
                ENDDO
-               ! XXXXXXX I think the overlap criterion / neighbour calculation is too conservative
-               ! write(*,*) n_slices_tmp,desc % neighbours, overlap
                IF (overlap) CYCLE
 
                ! a heuristic optimisation to reduce the memory usage
@@ -459,12 +453,12 @@ CONTAINS
             DO dir = 1, 3
                desc%neighbours(dir) = 0
                IF ((n_slices(dir) > 1) .OR. (border_size > 0)) THEN
-                  neighbours(dir) = HUGE(0)
+                  min_npts_real = HUGE(0)
                   DO l = 0, n_slices(dir) - 1
                      lb = get_limit(desc%npts(dir), n_slices(dir), l)
-                     neighbours(dir) = MIN(lb(2) - lb(1) + 1, neighbours(dir))
+                     min_npts_real = MIN(lb(2) - lb(1) + 1, min_npts_real)
                   END DO
-                  desc%neighbours(dir) = (desc%border + neighbours(dir) - 1)/neighbours(dir)
+                  desc%neighbours(dir) = (desc%border + min_npts_real - 1)/min_npts_real
                END IF
             END DO
 
