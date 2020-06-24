@@ -20,8 +20,8 @@
   IMPLICIT NONE
   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_linked_list'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN = 'cp_linked_list'
 
 #:set inst = range(0,len(nametype1))
 
@@ -42,15 +42,15 @@
   !API underlying routines
 
 #:for nametype in nametype1
-  PUBLIC :: cp_sll_${nametype}$_create, cp_sll_${nametype}$_dealloc,&
-       cp_sll_${nametype}$_next,&
-       cp_sll_${nametype}$_get_length,&
-       cp_sll_${nametype}$_get_el_at, cp_sll_${nametype}$_set_el_at,&
-       cp_sll_${nametype}$_get_first_el, cp_sll_${nametype}$_get_rest,&
-       cp_sll_${nametype}$_insert_el, cp_sll_${nametype}$_insert_el_at,&
-       cp_sll_${nametype}$_rm_first_el, cp_sll_${nametype}$_rm_el_at,&
-       cp_sll_${nametype}$_rm_all_el, &
-       cp_sll_${nametype}$_to_array
+  PUBLIC :: cp_sll_${nametype}$_create, cp_sll_${nametype}$_dealloc, &
+            cp_sll_${nametype}$_next, &
+            cp_sll_${nametype}$_get_length, &
+            cp_sll_${nametype}$_get_el_at, cp_sll_${nametype}$_set_el_at, &
+            cp_sll_${nametype}$_get_first_el, cp_sll_${nametype}$_get_rest, &
+            cp_sll_${nametype}$_insert_el, cp_sll_${nametype}$_insert_el_at, &
+            cp_sll_${nametype}$_rm_first_el, cp_sll_${nametype}$_rm_el_at, &
+            cp_sll_${nametype}$_rm_all_el, &
+            cp_sll_${nametype}$_to_array
 #:endfor
 
 ! creation of an object (from a pointer)
@@ -116,7 +116,7 @@
   INTERFACE cp_remove_el
 #:for nametype in nametype1
      MODULE PROCEDURE cp_sll_${nametype}$_rm_first_el, &
-          cp_sll_${nametype}$_rm_el_at
+        cp_sll_${nametype}$_rm_el_at
 #:endfor
   END INTERFACE
 ! removes the first el
@@ -180,11 +180,10 @@
   END TYPE cp_sll_${nametype1[i]}$_p_type
 #:endfor
 
-CONTAINS
+  CONTAINS
 
-${private_routines}$
+  ${private_routines}$
 ! =========== creation / destruction ========
-
 
 #:for i in inst
 ! **************************************************************************************************
@@ -196,22 +195,22 @@ ${private_routines}$
 !>      none
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-  SUBROUTINE cp_sll_${nametype1[i]}$_create(sll,first_el,rest)
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
-    ${type1in[i]}$, OPTIONAL :: first_el
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER, OPTIONAL :: rest
+  SUBROUTINE cp_sll_${nametype1[i]}$_create(sll, first_el, rest)
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+     ${type1in[i]}$, OPTIONAL :: first_el
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER, OPTIONAL :: rest
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$:cp_sll_${nametype1[i]}$_create'
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$:cp_sll_${nametype1[i]}$_create'
 
-    IF (.NOT.PRESENT(first_el)) THEN
-       NULLIFY(sll)
-       IF (PRESENT(rest)) sll => rest
-    ELSE
-       ALLOCATE(sll)
-       sll%first_el ${eq[i]}$ first_el
-       NULLIFY(sll%rest)
-       IF (PRESENT(rest)) sll%rest => rest
-    END IF
+     IF (.NOT. PRESENT(first_el)) THEN
+        NULLIFY (sll)
+        IF (PRESENT(rest)) sll => rest
+     ELSE
+        ALLOCATE (sll)
+        sll%first_el ${eq[i]}$first_el
+        NULLIFY (sll%rest)
+        IF (PRESENT(rest)) sll%rest => rest
+     END IF
   END SUBROUTINE cp_sll_${nametype1[i]}$_create
 #:endfor
 
@@ -228,11 +227,11 @@ ${private_routines}$
 !>      check more?
 ! **************************************************************************************************
   SUBROUTINE cp_sll_${nametype1[i]}$_dealloc(sll)
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_dealloc'
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_dealloc'
 
-    CALL cp_sll_${nametype1[i]}$_rm_all_el(sll)
+     CALL cp_sll_${nametype1[i]}$_rm_all_el(sll)
   END SUBROUTINE cp_sll_${nametype1[i]}$_dealloc
 #:endfor
 
@@ -247,12 +246,11 @@ ${private_routines}$
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
   SUBROUTINE cp_sll_${nametype1[i]}$_dealloc_node(sll)
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
 
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_dealloc_node'
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_dealloc_node'
-
-    DEALLOCATE(sll)
+     DEALLOCATE (sll)
   END SUBROUTINE cp_sll_${nametype1[i]}$_dealloc_node
 #:endfor
 
@@ -268,12 +266,12 @@ ${private_routines}$
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
   FUNCTION cp_sll_${nametype1[i]}$_get_first_el(sll) RESULT(res)
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
-    ${type1[i]}$ :: res
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+     ${type1[i]}$ :: res
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$:cp_sll_${nametype1[i]}$_get_first'
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$:cp_sll_${nametype1[i]}$_get_first'
 
-    res ${eq[i]}$ sll%first_el
+     res ${eq[i]}$sll%first_el
   END FUNCTION cp_sll_${nametype1[i]}$_get_first_el
 #:endfor
 
@@ -291,36 +289,36 @@ ${private_routines}$
 !>      split the case iter=1 to make it more optimized?
 ! **************************************************************************************************
   FUNCTION cp_sll_${nametype1[i]}$_get_rest(sll, iter) RESULT(res)
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
-    INTEGER, OPTIONAL :: iter
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+     INTEGER, OPTIONAL :: iter
 
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: res
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: res
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$:cp_sll_${nametype1[i]}$_get_first'
-    INTEGER :: i
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$:cp_sll_${nametype1[i]}$_get_first'
+     INTEGER :: i
 
-    IF (.NOT.ASSOCIATED(sll)) THEN
-       NULLIFY(res)
-    ELSE
-       IF (PRESENT(iter)) THEN
-          res => sll
-          DO i=1,iter
-             IF (ASSOCIATED(res%rest)) THEN
-                res => res%rest
-             ELSE
-                CPABORT("tried to go past end")
-             END IF
-          END DO
-          IF (iter==-1) THEN
-             DO
-                IF (.NOT.ASSOCIATED(res%rest)) EXIT
-                res => res%rest
-             END DO
-          END IF
-       ELSE
-          res => sll%rest ! make the common case fast...
-       END IF
-    END IF
+     IF (.NOT. ASSOCIATED(sll)) THEN
+        NULLIFY (res)
+     ELSE
+        IF (PRESENT(iter)) THEN
+           res => sll
+           DO i = 1, iter
+              IF (ASSOCIATED(res%rest)) THEN
+                 res => res%rest
+              ELSE
+                 CPABORT("tried to go past end")
+              END IF
+           END DO
+           IF (iter == -1) THEN
+              DO
+                 IF (.NOT. ASSOCIATED(res%rest)) EXIT
+                 res => res%rest
+              END DO
+           END IF
+        ELSE
+           res => sll%rest ! make the common case fast...
+        END IF
+     END IF
   END FUNCTION cp_sll_${nametype1[i]}$_get_rest
 #:endfor
 
@@ -336,22 +334,22 @@ ${private_routines}$
 !>      slow (O(n))
 ! **************************************************************************************************
   FUNCTION cp_sll_${nametype1[i]}$_get_length(sll) RESULT(res)
-    TYPE(cp_sll_${nametype1[i]}$_type), pointer :: sll
-    INTEGER ::res
+     TYPE(cp_sll_${nametype1[i]}$_type), pointer :: sll
+     INTEGER ::res
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_get_length'
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: iterator
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_get_length'
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: iterator
 
-    res=0
-    iterator => sll
-    DO
-       IF (ASSOCIATED(iterator)) THEN
-          res=res+1
-          iterator => iterator%rest
-       ELSE
-          EXIT
-       END IF
-    END DO
+     res = 0
+     iterator => sll
+     DO
+        IF (ASSOCIATED(iterator)) THEN
+           res = res + 1
+           iterator => iterator%rest
+        ELSE
+           EXIT
+        END IF
+     END DO
   END FUNCTION cp_sll_${nametype1[i]}$_get_length
 #:endfor
 
@@ -367,22 +365,22 @@ ${private_routines}$
 !> \note
 !>      slow (O(index))
 ! **************************************************************************************************
-  FUNCTION cp_sll_${nametype1[i]}$_get_el_at(sll,index) RESULT(res)
-    ${type1[i]}$ :: res
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
-    INTEGER, INTENT(in) :: index
+  FUNCTION cp_sll_${nametype1[i]}$_get_el_at(sll, index) RESULT(res)
+     ${type1[i]}$ :: res
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+     INTEGER, INTENT(in) :: index
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_get_el_at'
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: pos
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_get_el_at'
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: pos
 
-    IF (index==-1) THEN
-       pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=-1)
-    ELSE
-       pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=index-1)
-    END IF
-    CPASSERT(ASSOCIATED(pos))
+     IF (index == -1) THEN
+        pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=-1)
+     ELSE
+        pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=index - 1)
+     END IF
+     CPASSERT(ASSOCIATED(pos))
 
-    res ${eq[i]}$ pos%first_el
+     res ${eq[i]}$pos%first_el
   END FUNCTION cp_sll_${nametype1[i]}$_get_el_at
 #:endfor
 
@@ -399,22 +397,22 @@ ${private_routines}$
 !> \note
 !>      slow (O(index))
 ! **************************************************************************************************
-  SUBROUTINE cp_sll_${nametype1[i]}$_set_el_at(sll,index,value)
-    ${type1in[i]}$ :: value
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
-    INTEGER, INTENT(in) :: index
+  SUBROUTINE cp_sll_${nametype1[i]}$_set_el_at(sll, index, value)
+     ${type1in[i]}$ :: value
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+     INTEGER, INTENT(in) :: index
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_set_el_at'
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: pos
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_set_el_at'
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: pos
 
-    IF (index==-1) THEN
-       pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=-1)
-    ELSE
-       pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=index-1)
-    END IF
-    CPASSERT(ASSOCIATED(pos))
+     IF (index == -1) THEN
+        pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=-1)
+     ELSE
+        pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=index - 1)
+     END IF
+     CPASSERT(ASSOCIATED(pos))
 
-    pos%first_el ${eq[i]}$ value
+     pos%first_el ${eq[i]}$value
   END SUBROUTINE cp_sll_${nametype1[i]}$_set_el_at
 #:endfor
 
@@ -431,20 +429,20 @@ ${private_routines}$
 !>      none
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-  FUNCTION cp_sll_${nametype1[i]}$_next(iterator,el_att) RESULT(res)
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: iterator
-    ${type1out[i]}$, OPTIONAL :: el_att
-    LOGICAL :: res
+  FUNCTION cp_sll_${nametype1[i]}$_next(iterator, el_att) RESULT(res)
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: iterator
+     ${type1out[i]}$, OPTIONAL :: el_att
+     LOGICAL :: res
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$:cp_sll_${nametype1[i]}$_next'
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$:cp_sll_${nametype1[i]}$_next'
 
-    IF (ASSOCIATED(iterator)) THEN
-       res=.TRUE.
-       if (present(el_att)) el_att ${eq[i]}$ iterator%first_el
-       iterator => iterator%rest
-    ELSE
-       res=.FALSE.
-    END IF
+     IF (ASSOCIATED(iterator)) THEN
+        res = .TRUE.
+        if (present(el_att)) el_att ${eq[i]}$iterator%first_el
+        iterator => iterator%rest
+     ELSE
+        res = .FALSE.
+     END IF
   END FUNCTION cp_sll_${nametype1[i]}$_next
 #:endfor
 
@@ -462,18 +460,18 @@ ${private_routines}$
 !> \note
 !>      fast (O(1))
 ! **************************************************************************************************
-  SUBROUTINE cp_sll_${nametype1[i]}$_insert_el(sll,el)
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
-    ${type1in[i]}$:: el
+  SUBROUTINE cp_sll_${nametype1[i]}$_insert_el(sll, el)
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+     ${type1in[i]}$:: el
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$:cp_sll_${nametype1[i]}$_add_el'
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: newSlot
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$:cp_sll_${nametype1[i]}$_add_el'
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: newSlot
 
-    NULLIFY(newSlot)
+     NULLIFY (newSlot)
 
-    CALL cp_sll_${nametype1[i]}$_create(newSlot,first_el=el,&
-         rest=sll)
-    sll => newSlot
+     CALL cp_sll_${nametype1[i]}$_create(newSlot, first_el=el, &
+                                         rest=sll)
+     sll => newSlot
   END SUBROUTINE cp_sll_${nametype1[i]}$_insert_el
 #:endfor
 
@@ -488,18 +486,18 @@ ${private_routines}$
 !>      fast (O(1))
 ! **************************************************************************************************
   SUBROUTINE cp_sll_${nametype1[i]}$_rm_first_el(sll)
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_rm_first_el'
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: node_to_rm
-    node_to_rm => sll
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_rm_first_el'
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: node_to_rm
+     node_to_rm => sll
 
-    IF (ASSOCIATED(sll)) THEN
-       sll => sll%rest
-       CALL cp_sll_${nametype1[i]}$_dealloc_node(node_to_rm)
-    ELSE
-       CPABORT("tried to remove first el of an empty list")
-    END IF
+     IF (ASSOCIATED(sll)) THEN
+        sll => sll%rest
+        CALL cp_sll_${nametype1[i]}$_dealloc_node(node_to_rm)
+     ELSE
+        CPABORT("tried to remove first el of an empty list")
+     END IF
   END SUBROUTINE cp_sll_${nametype1[i]}$_rm_first_el
 #:endfor
 
@@ -516,25 +514,25 @@ ${private_routines}$
 !> \note
 !>      slow (O(index))
 ! **************************************************************************************************
-  SUBROUTINE cp_sll_${nametype1[i]}$_insert_el_at(sll,el,index)
-    ${type1in[i]}$ :: el
-    INTEGER, INTENT(in) :: index
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+  SUBROUTINE cp_sll_${nametype1[i]}$_insert_el_at(sll, el, index)
+     ${type1in[i]}$ :: el
+     INTEGER, INTENT(in) :: index
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_insert_el_at'
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: pos
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_insert_el_at'
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: pos
 
-    IF (index==1) THEN
-       CALL cp_sll_${nametype1[i]}$_insert_el(sll,el)
-    ELSE
-       IF (index==-1) THEN
-          pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=-1)
-       ELSE
-          pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=index-2)
-       END IF
-       CPASSERT(ASSOCIATED(pos))
-       CALL cp_sll_${nametype1[i]}$_insert_el(pos%rest,el)
-    END IF
+     IF (index == 1) THEN
+        CALL cp_sll_${nametype1[i]}$_insert_el(sll, el)
+     ELSE
+        IF (index == -1) THEN
+           pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=-1)
+        ELSE
+           pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=index - 2)
+        END IF
+        CPASSERT(ASSOCIATED(pos))
+        CALL cp_sll_${nametype1[i]}$_insert_el(pos%rest, el)
+     END IF
   END SUBROUTINE cp_sll_${nametype1[i]}$_insert_el_at
 #:endfor
 
@@ -549,24 +547,24 @@ ${private_routines}$
 !> \note
 !>      slow (O(index))
 ! **************************************************************************************************
-  SUBROUTINE cp_sll_${nametype1[i]}$_rm_el_at(sll,index)
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
-    INTEGER, INTENT(in)::index
+  SUBROUTINE cp_sll_${nametype1[i]}$_rm_el_at(sll, index)
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+     INTEGER, INTENT(in)::index
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_remove_el_at'
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: pos
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_remove_el_at'
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: pos
 
-    IF (index==1) THEN
-       CALL cp_sll_${nametype1[i]}$_rm_first_el(sll)
-    ELSE
-       IF (index==-1) THEN
-          pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=-1)
-       ELSE
-          pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=index-2)
-       END IF
-       CPASSERT(ASSOCIATED(pos))
-       CALL cp_sll_${nametype1[i]}$_rm_first_el(pos%rest)
-    END IF
+     IF (index == 1) THEN
+        CALL cp_sll_${nametype1[i]}$_rm_first_el(sll)
+     ELSE
+        IF (index == -1) THEN
+           pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=-1)
+        ELSE
+           pos => cp_sll_${nametype1[i]}$_get_rest(sll, iter=index - 2)
+        END IF
+        CPASSERT(ASSOCIATED(pos))
+        CALL cp_sll_${nametype1[i]}$_rm_first_el(pos%rest)
+     END IF
   END SUBROUTINE cp_sll_${nametype1[i]}$_rm_el_at
 #:endfor
 
@@ -581,19 +579,19 @@ ${private_routines}$
 !>      check more?
 ! **************************************************************************************************
   SUBROUTINE cp_sll_${nametype1[i]}$_rm_all_el(sll)
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_rm_all_el'
-    TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: next_node, actual_node
+     CHARACTER(len=*), PARAMETER :: routineP = 'cp_linked_list_${nametype1[i]}$/cp_sll_${nametype1[i]}$_rm_all_el'
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: next_node, actual_node
 
-    actual_node => sll
-    DO
-       IF (.NOT.ASSOCIATED(actual_node)) EXIT
-       next_node => actual_node%rest
-       CALL cp_sll_${nametype1[i]}$_dealloc_node(actual_node)
-       actual_node => next_node
-    END DO
-    NULLIFY(sll)
+     actual_node => sll
+     DO
+        IF (.NOT. ASSOCIATED(actual_node)) EXIT
+        next_node => actual_node%rest
+        CALL cp_sll_${nametype1[i]}$_dealloc_node(actual_node)
+        actual_node => next_node
+     END DO
+     NULLIFY (sll)
   END SUBROUTINE cp_sll_${nametype1[i]}$_rm_all_el
 #:endfor
 
@@ -607,25 +605,25 @@ ${private_routines}$
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-FUNCTION cp_sll_${nametype1[i]}$_to_array(sll) RESULT(res)
-  TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
-  ${type1arrayEl[i]}$, DIMENSION(:), POINTER :: res
+  FUNCTION cp_sll_${nametype1[i]}$_to_array(sll) RESULT(res)
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: sll
+     ${type1arrayEl[i]}$, DIMENSION(:), POINTER :: res
 
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_${nametype1[i]}$_to_array',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: len,i
-  LOGICAL :: ok
-  TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: iter
+     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_${nametype1[i]}$_to_array', &
+                                    routineP = moduleN//':'//routineN
+     INTEGER :: len, i
+     LOGICAL :: ok
+     TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: iter
 
-  len=cp_sll_${nametype1[i]}$_get_length(sll)
-  ALLOCATE(res(len))
-  iter => sll
-  DO i=1,len
-     res(i)${arrayEl[i]}$ ${arrayeq[i]}$ iter%first_el
-     ok = cp_sll_${nametype1[i]}$_next(iter)
-     CPASSERT(ok .OR. i == len)
-  END DO
-END FUNCTION cp_sll_${nametype1[i]}$_to_array
+     len = cp_sll_${nametype1[i]}$_get_length(sll)
+     ALLOCATE (res(len))
+     iter => sll
+     DO i = 1, len
+        res(i) ${arrayEl[i]}$${arrayeq[i]}$iter%first_el
+        ok = cp_sll_${nametype1[i]}$_next(iter)
+        CPASSERT(ok .OR. i == len)
+     END DO
+  END FUNCTION cp_sll_${nametype1[i]}$_to_array
 #:endfor
 #:enddef
 #:endmute
