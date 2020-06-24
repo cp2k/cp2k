@@ -4,21 +4,21 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM links
-C4H10-qmmm-gauss-0.inp                                 1      2E-14            -27.99541166137045
-C4H10-qmmm-gauss-1.inp                                 1    1.0E-14            -27.99615935897715
+C4H10-qmmm-gauss-0.inp                                 1      3e-14            -27.99541166137045
+C4H10-qmmm-gauss-1.inp                                 1      2e-14            -27.99615935897715
 C4H10-qmmm-gauss-2.inp                                 7    1.0E-14            -14.5644203760
 C4H10-qmmm-gauss-3.inp                                 1      6e-14            -16.28646466174783
-C4H10-qmmm-gauss-4.inp                                 1      3e-14            -14.20640099562936
-C4H10-qmmm-gauss-5.inp                                 1      4e-14            -14.20640099562948
+C4H10-qmmm-gauss-4.inp                                 1      2e-13            -14.20640099562936
+C4H10-qmmm-gauss-5.inp                                 1      1e-13            -14.20640099562948
 C4H10-qmmm-gauss-6.inp                                 1      1E-13            -14.20640099562919
-C4H10-qmmm-gauss-7.inp                                 1      1E-13            -14.93841856836989
+C4H10-qmmm-gauss-7.inp                                 1      2e-13            -14.93841856836989
 C4H10-qmmm-gauss-9.inp                                 7    1.0E-14            -14.5593809076
 C4H10-qmmm-gauss-10.inp                                7    1.0E-14            -58.7819435511
 C4H10-qmmm-gauss-11.inp                                7    1.0E-14            -69.4186451942
 C11H24-qmmm-gauss-0.inp                                7    1.0E-14            -27.4305594836
-sio2-qmmm-gauss-1.inp                                  1      7e-14           -487.25602648630161
-sio2-qmmm-gauss-2.inp                                  1      2e-14           -487.31898448582240
-sio2-qmmm-gauss-3.inp                                  1      3e-14           -488.02714102063817
+sio2-qmmm-gauss-1.inp                                  1      2e-13           -487.25602648630161
+sio2-qmmm-gauss-2.inp                                  1      2e-13           -487.31898448582240
+sio2-qmmm-gauss-3.inp                                  1      2e-13           -488.02714102063817
 constr.inp                                             7      7e-12            -28.231415141199999
 # different parallel scheme
 C4H10-qmmm-gauss-12.inp                                1      1E-13            -14.20640099562919

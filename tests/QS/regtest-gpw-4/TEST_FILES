@@ -26,7 +26,7 @@ H2O-debug-7.inp                                        1      4e-12             
 # new colvar
 C2H4-meta.inp                                          1      7e-14             -14.34735860769572
 # improved atomic_kind
-test-pdb.inp                                           1      3e-13            -115.77996962516318
+test-pdb.inp                                           1      2e-12            -115.77996962516318
 # Spin density DDAP charges
 H2O+SC.inp                                             0
 # spin restraint
@@ -38,12 +38,12 @@ H2O-meta_hydro.inp                                     1      2e-13             
 #NPT ensemble with QS
 H2O-7.inp                                              1      3e-14             -17.14737299451047
 #test wavelet based poisson solver for different boundary conditions
-H2O_wavelet_free.inp                                   1      1e-13             -16.59417144640717
-H2O_wavelet_free2.inp                                  1      3e-14             -16.58217277110943
+H2O_wavelet_free.inp                                   1      2e-13             -16.59417144640717
+H2O_wavelet_free2.inp                                  1      6e-14             -16.58217277110943
 H2O_wavelet_XZ.inp                                     1      3e-14             -16.58705134722980
 #function to compute splined values - distributed grids
 NO2-EFG-1.inp                                         19      7e-09             0.2895206349779316
-H2O-8.inp                                              1      2e-13             -16.99998002342145
+H2O-8.inp                                              1      4e-13             -16.99998002342145
 H2O-9.inp                                              1      2e-13             -17.16151288984377
 # a system with a very small (1x1) KS matrix
 H.inp                                                  1      2e-13              -0.40345508311902
