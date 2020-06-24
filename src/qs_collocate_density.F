@@ -1441,9 +1441,8 @@ CONTAINS
       LOGICAL                                            :: atom_pair_changed, distributed_rs_grids, &
                                                             do_kp, my_compute_grad, &
                                                             my_compute_tau, my_soft, use_subpatch
-      REAL(KIND=dp)                                      :: eps_rho_rspace, f, prefactor, rab2, &
-                                                            radius, scale, zetp
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rb, rp
+      REAL(KIND=dp)                                      :: scale
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, pab, sphi_a, sphi_b, work, &
                                                             zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pabt, workt
@@ -1614,8 +1613,6 @@ CONTAINS
          CALL lgrid_allocate_grid(lgrid, nthread)
       END IF
 
-      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-
       !   *** Initialize working density matrix ***
       ! distributed rs grids require a matrix that will be changed
       ! whereas this is not the case for replicated grids
@@ -1658,14 +1655,14 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          SHARED(ntasks,tasks,nimages,natoms,particle_set,pabt,workt), &
 !$OMP          SHARED(my_basis_type,my_soft,maxco,ncoset,nthread), &
-!$OMP          SHARED(cell,cube_info,eps_rho_rspace,ga_gb_function), &
+!$OMP          SHARED(cell,cube_info,ga_gb_function), &
 !$OMP          SHARED(rs_rho,lgrid,gridlevel_info,task_list,qs_kind_set, blocks_recv), &
 !$OMP          PRIVATE(igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,ikind,jkind,pab,work), &
 !$OMP          PRIVATE(img,img_old,iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
 !$OMP          PRIVATE(qs_kind,orb_basis_set,first_sgfa,la_max,la_min), &
 !$OMP          PRIVATE(npgfa,nseta,nsgfa,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
-!$OMP          PRIVATE(nsetb,nsgfb,sphi_b,zetb,p_block,prefactor,radius), &
-!$OMP          PRIVATE(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,rp,zetp,f), &
+!$OMP          PRIVATE(nsetb,nsgfb,sphi_b,zetb,p_block), &
+!$OMP          PRIVATE(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,ra,rb), &
 !$OMP          PRIVATE(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,lb,ub,n,nw), &
 !$OMP          PRIVATE(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,threadlocal_rsgrid)
 
@@ -1776,18 +1773,7 @@ CONTAINS
             ENDIF
 
             rab(:) = tasks(itask)%rab
-            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             rb(:) = ra(:) + rab(:)
-            zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
-
-            f = zetb(jpgf, jset)/zetp
-            rp(:) = ra(:) + f*rab(:)
-            prefactor = EXP(-zeta(ipgf, iset)*f*DOT_PRODUCT(rab, rab))
-            radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
-                                              lb_min=lb_min(jset), lb_max=lb_max(jset), &
-                                              ra=ra, rb=rb, rp=rp, &
-                                              zetp=zetp, eps=eps_rho_rspace, &
-                                              prefactor=prefactor, cutoff=1.0_dp)
 
             na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
             na2 = ipgf*ncoset(la_max(iset))
@@ -1819,7 +1805,7 @@ CONTAINS
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   ra, rab, scale, pab, na1 - 1, nb1 - 1, &
                   threadlocal_rsgrid, cell, cube_info(igrid_level), &
-                  radius=radius, &
+                  radius=tasks(itask)%radius, &
                   ga_gb_function=ga_gb_function, &
                   use_subpatch=use_subpatch, &
                   subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -1830,7 +1816,7 @@ CONTAINS
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
                   threadlocal_rsgrid, cell, cube_info(igrid_level), &
-                  radius=radius, &
+                  radius=tasks(itask)%radius, &
                   ga_gb_function=ga_gb_function, &
                   use_subpatch=use_subpatch, &
                   subpatch_pattern=tasks(itask)%subpatch_pattern)

@@ -577,7 +577,7 @@ CONTAINS
                                     rab, cindex, iatom, jatom, iset, jset, ipgf, jpgf, &
                                     la_max(iset), lb_max(jset), rs_descs(igrid_level)%rs_desc, &
                                     igrid_level, gridlevel_info%ngrid_levels, cube_center, &
-                                    lb_cube, ub_cube)
+                                    lb_cube, ub_cube, radius)
 
                END DO loop_jpgf
 
@@ -749,7 +749,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pgf_to_tasks(tasks, ntasks, curr_tasks, &
                            rab, cindex, iatom, jatom, iset, jset, ipgf, jpgf, &
-                           la_max, lb_max, rs_desc, igrid_level, n_levels, cube_center, lb_cube, ub_cube)
+                           la_max, lb_max, rs_desc, igrid_level, n_levels, &
+                           cube_center, lb_cube, ub_cube, radius)
 
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
       INTEGER, INTENT(INOUT)                             :: ntasks, curr_tasks
@@ -759,6 +760,7 @@ CONTAINS
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       INTEGER, INTENT(IN)                                :: igrid_level, n_levels
       INTEGER, DIMENSION(3), INTENT(IN)                  :: cube_center, lb_cube, ub_cube
+      REAL(KIND=dp), INTENT(IN)                          :: radius
 
       INTEGER, PARAMETER                                 :: add_tasks = 1000
       REAL(kind=dp), PARAMETER                           :: mult_tasks = 2.0_dp
@@ -809,6 +811,7 @@ CONTAINS
          tasks(ntasks - added_tasks + j)%ipgf = ipgf
          tasks(ntasks - added_tasks + j)%jpgf = jpgf
          tasks(ntasks - added_tasks + j)%rab = rab
+         tasks(ntasks - added_tasks + j)%radius = radius
       ENDDO
 
    END SUBROUTINE pgf_to_tasks
