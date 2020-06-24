@@ -6,6 +6,6 @@ CH3-BP-NONE_DM.inp                                     1      5e-13             
 CH3-BP-NONE_DM_OT_OFF.inp                              1    5.0E-14              -7.39804787149080
 CH4-BP-NONE_DM.inp                                     1      2e-13              -8.07630758920456
 CH4-BP-NONE_DM_OT_OFF.inp                              1      5e-14              -8.07712135364825
-2H2O-BLOCKED-NONE_DM.inp                               1      3e-14             -34.07703448825141
-H2+-BLOCKED-NONE_DM.inp                                1      3e-13           -0.45795647554813002
+2H2O-BLOCKED-NONE_DM.inp                               1      2e-13             -34.07703448825141
+H2+-BLOCKED-NONE_DM.inp                                1      2e-12           -0.45795647554813002
 #EOF

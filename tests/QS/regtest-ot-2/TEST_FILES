@@ -26,7 +26,7 @@ H-2.inp                                                1      8e-14           -0
 # elec_conf
 H2O-1.inp                                              1      5e-14             -15.42239209735920
 # outer scf with FULL_ALL
-H2O.inp                                                1      3e-13             -17.16150637179184
+H2O.inp                                                1      4e-13             -17.16150637179184
 # different parallel distributions
 H2O-dist-1.inp                                         1    5.0E-14             -34.28553811389267
 H2O-dist-2.inp                                         1    5.0E-14             -34.28553811389267
