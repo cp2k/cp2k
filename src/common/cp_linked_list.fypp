@@ -614,6 +614,7 @@ FUNCTION cp_sll_${nametype1[i]}$_to_array(sll) RESULT(res)
   CHARACTER(len=*), PARAMETER :: routineN='cp_sll_${nametype1[i]}$_to_array',&
         routineP=moduleN//':'//routineN
   INTEGER :: len,i
+  LOGICAL :: ok
   TYPE(cp_sll_${nametype1[i]}$_type), POINTER :: iter
 
   len=cp_sll_${nametype1[i]}$_get_length(sll)
@@ -621,7 +622,8 @@ FUNCTION cp_sll_${nametype1[i]}$_to_array(sll) RESULT(res)
   iter => sll
   DO i=1,len
      res(i)${arrayEl[i]}$ ${arrayeq[i]}$ iter%first_el
-     CPASSERT(cp_sll_${nametype1[i]}$_next(iter).OR.i==len)
+     ok = cp_sll_${nametype1[i]}$_next(iter)
+     CPASSERT(ok .OR. i == len)
   END DO
 END FUNCTION cp_sll_${nametype1[i]}$_to_array
 #:endfor
