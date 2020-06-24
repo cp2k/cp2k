@@ -22,7 +22,7 @@
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
 
       CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_init', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: k
 
@@ -74,7 +74,7 @@
          c1(k) = -2.0_dp*c0(k)*LOG(2.0_dp*A(k)*b1(k))
          c2(k) = A(k)*a1(k)
          c3(k) = -2.0_dp*A(k)*(a1(k)*LOG(2.0_dp*A(k)*b1(k)) &
-                               -(b2(k)/b1(k))**2+(b3(k)/b1(k)))
+                               - (b2(k)/b1(k))**2 + (b3(k)/b1(k)))
          d0(k) = a1(k)/b4(k)
          d1(k) = a1(k)*b3(k)/(b4(k)**2)
       END DO
@@ -117,37 +117,37 @@
       IF (r < 0.5_dp) THEN
 
          ! order 0 must always be calculated
-         g(0) = c0(z)*LOG(r)-c1(z)+c2(z)*r*LOG(r)-c3(z)*r
-         IF (order >= 1) g(1) = c0(z)/r+c2(z)*LOG(r)+c2(z)-c3(z)
-         IF (order >= 2) g(2) = -c0(z)/rr+c2(z)/r
-         IF (order >= 3) g(3) = 2.0_dp*c0(z)/(rr*r)-c2(z)/rr
+         g(0) = c0(z)*LOG(r) - c1(z) + c2(z)*r*LOG(r) - c3(z)*r
+         IF (order >= 1) g(1) = c0(z)/r + c2(z)*LOG(r) + c2(z) - c3(z)
+         IF (order >= 2) g(2) = -c0(z)/rr + c2(z)/r
+         IF (order >= 3) g(3) = 2.0_dp*c0(z)/(rr*r) - c2(z)/rr
 
       ELSE IF (r <= 100.0_dp) THEN
 
-         t3 = 1.0_dp+a1_*r
-         t11 = b1_*sr+b2_*r+b3_*rsr+b4_*rr
+         t3 = 1.0_dp + a1_*r
+         t11 = b1_*sr + b2_*r + b3_*rsr + b4_*rr
          t12 = t11**2
-         t15 = 1.0_dp+0.5_dp/A_/t11
+         t15 = 1.0_dp + 0.5_dp/A_/t11
          t16 = LOG(t15)
-         t20 = 0.5_dp*b1_/sr+b2_+1.5_dp*b3_*sr+2.0_dp*b4_*r
+         t20 = 0.5_dp*b1_/sr + b2_ + 1.5_dp*b3_*sr + 2.0_dp*b4_*r
 
          ! order 0 must always be calculated
          g(0) = -2.0_dp*A_*t3*t16
 
          IF (order >= 1) THEN
 
-            g(1) = -2.0_dp*A_*a1_*t16+t3*t20/(t12*t15)
+            g(1) = -2.0_dp*A_*a1_*t16 + t3*t20/(t12*t15)
 
          END IF
 
          IF (order >= 2) THEN
 
-            t40 = -0.25_dp*b1_/rsr+0.75_dp*b3_/sr+2.0_dp*b4_
+            t40 = -0.25_dp*b1_/rsr + 0.75_dp*b3_/sr + 2.0_dp*b4_
 
             g(2) = 2.0_dp*a1_*t20/(t12*t15) &
-                   -2.0_dp*(t20**2)*t3/(t12*t11*t15) &
-                   +t3*t40/(t12*t15) &
-                   +0.5_dp*t3*(t20**2)/(A_*(t12**2)*(t15**2))
+                   - 2.0_dp*(t20**2)*t3/(t12*t11*t15) &
+                   + t3*t40/(t12*t15) &
+                   + 0.5_dp*t3*(t20**2)/(A_*(t12**2)*(t15**2))
 
          END IF
 
@@ -165,24 +165,24 @@
 
             g(3) = &
                -6.0_dp*a1_*t14*t22/t15 &
-               +3.0_dp*a1_*t40/(t15*t12) &
-               +1.5_dp*a1_*t45*t22*t48/A_ &
-               +6.0_dp*t55*t56/t15 &
-               -6.0_dp*t3*t14*t20*t40/t15 &
-               -3.0_dp*t3*t56*t48/(A_*t44*t11) &
-               +0.375_dp*t3*(b1_/(rr*sr)-b3_/rsr)/(t12*t15) &
-               +1.5_dp*t55*t40*t48*t20/A_ &
-               +0.5_dp*t3*t56/((A_**2)*t44*t12*t47*t15)
+               + 3.0_dp*a1_*t40/(t15*t12) &
+               + 1.5_dp*a1_*t45*t22*t48/A_ &
+               + 6.0_dp*t55*t56/t15 &
+               - 6.0_dp*t3*t14*t20*t40/t15 &
+               - 3.0_dp*t3*t56*t48/(A_*t44*t11) &
+               + 0.375_dp*t3*(b1_/(rr*sr) - b3_/rsr)/(t12*t15) &
+               + 1.5_dp*t55*t40*t48*t20/A_ &
+               + 0.5_dp*t3*t56/((A_**2)*t44*t12*t47*t15)
 
          END IF
 
       ELSE
 
          ! order 0 must always be calculated
-         g(0) = -d0(z)/r+d1(z)/rsr
-         IF (order >= 1) g(1) = d0(z)/rr-1.5_dp*d1(z)/(rsr*r)
-         IF (order >= 2) g(2) = -2.0_dp*d0(z)/(rr*r)+3.75_dp*d1(z)/(rsr*rr)
-         IF (order >= 3) g(3) = 6.0_dp*d0(z)/(rr*rr)-13.125_dp*d1(z)/(rsr*rr*r)
+         g(0) = -d0(z)/r + d1(z)/rsr
+         IF (order >= 1) g(1) = d0(z)/rr - 1.5_dp*d1(z)/(rsr*r)
+         IF (order >= 2) g(2) = -2.0_dp*d0(z)/(rr*r) + 3.75_dp*d1(z)/(rsr*rr)
+         IF (order >= 3) g(3) = 6.0_dp*d0(z)/(rr*rr) - 13.125_dp*d1(z)/(rsr*rr*r)
 
       END IF
 
