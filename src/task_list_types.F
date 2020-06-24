@@ -39,6 +39,7 @@ MODULE task_list_types
       INTEGER                                       :: pair_index = 0
 
       REAL(KIND=dp), DIMENSION(3)                   :: rab = 0.0_dp
+      REAL(KIND=dp)                                 :: radius = 0.0_dp
    END TYPE task_type
 
    TYPE atom_pair_type
@@ -57,7 +58,7 @@ MODULE task_list_types
       INTEGER, DIMENSION(:), POINTER                :: npairs
    END TYPE task_list_type
 
-   INTEGER, PARAMETER                               :: task_size_in_int8 = 16
+   INTEGER, PARAMETER                               :: task_size_in_int8 = 17
 
    PUBLIC :: task_type, atom_pair_type, task_list_type
    PUBLIC :: task_size_in_int8, serialize_task, deserialize_task
@@ -179,6 +180,7 @@ CONTAINS
       serialized_task(14) = TRANSFER(task%rab(1), mold=1_int_8)
       serialized_task(15) = TRANSFER(task%rab(2), mold=1_int_8)
       serialized_task(16) = TRANSFER(task%rab(3), mold=1_int_8)
+      serialized_task(17) = TRANSFER(task%radius, mold=1_int_8)
    END SUBROUTINE serialize_task
 
 ! **************************************************************************************************
@@ -210,6 +212,7 @@ CONTAINS
       task%rab(1) = TRANSFER(serialized_task(14), mold=1.0_dp)
       task%rab(2) = TRANSFER(serialized_task(15), mold=1.0_dp)
       task%rab(3) = TRANSFER(serialized_task(16), mold=1.0_dp)
+      task%radius = TRANSFER(serialized_task(17), mold=1.0_dp)
    END SUBROUTINE deserialize_task
 
 END MODULE task_list_types
