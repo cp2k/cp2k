@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-reflapack_ver="3.8.0"
-reflapack_sha256="deb22cc4a6120bff72621155a9917f485f96ef8319ac074a7afbc68aab88bcf6"
+reflapack_ver="3.9.0"
+reflapack_sha256="106087f1bb5f46afdfba7f569d0cbe23dacb9a07cd24733765a0e89dbe1ad573"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -63,7 +63,7 @@ EOF
             make -j 1 lib blaslib > make1.log 2>&1
             # no make install, so have to do this manually
             ! [ -d "${pkg_install_dir}/lib" ] && mkdir -p "${pkg_install_dir}/lib"
-            cp libblas.a liblapack.a "${pkg_install_dir}/lib"
+            cp libblas.a SRC/liblapack.a "${pkg_install_dir}/lib"
             cd ..
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi

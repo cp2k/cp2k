@@ -1,8 +1,8 @@
 #!/bin/bash -e
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
-spglib_ver="1.12.2"
-spglib_sha256="d92f5e4fa0f54cc0abd0209b81c4d5c647dae9d25b774c2296f44b8558b17976"
+spglib_ver="1.15.1"
+spglib_sha256="b6dc2c8adcc7d0edee7a076e765c28b2941b2aeba590d213a0b4893c8af0c026"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh

@@ -27,6 +27,7 @@ dnf -qy install                             \
     vim-common                              \
     wget                                    \
     which                                   \
+    openssl-devel                           \
     zlib-devel
 
 dnf clean -q all

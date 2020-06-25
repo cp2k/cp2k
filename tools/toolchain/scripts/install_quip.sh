@@ -2,8 +2,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-quip_ver="cc83ceea5776c40fcb5ab224a25ab04d62175449"
-quip_sha256="cd8708368c407f9b5775adf5c982ff92b829fe467e870cf82d595e7334c292d5"
+quip_ver="1ff93b3400b83e804f0f2e857e70c5e4133d9705"
+quip_sha256="7ae866e9d8187a9a73ac39bc2d87b975182165843890bdc7859eeb7bb389cad6"
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -35,15 +36,15 @@ case "$with_quip" in
         if verify_checksums "${install_lock_file}" ; then
             echo "quip_dist-${quip_ver} is already installed, skipping it."
         else
-            if [ -f QUIP-${quip_ver}.zip ] ; then
-                echo "QUIP-${quip_ver}.zip is found"
+            if [ -f QUIP-${quip_ver}.tar.gz ] ; then
+                echo "QUIP-${quip_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${quip_sha256} \
-                             https://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
+                             https://www.cp2k.org/static/downloads/QUIP-${quip_ver}.tar.gz
             fi
             [ -d QUIP-${quip_ver} ] && rm -rf QUIP-${quip_ver}
             echo "Installing from scratch into ${pkg_install_dir}"
-            unzip -q -o QUIP-${quip_ver}.zip
+            tar -xzf QUIP-${quip_ver}.tar.gz
             cd QUIP-${quip_ver}
             # translate OPENBLAS_ARCH
             case $OPENBLAS_ARCH in
@@ -86,7 +87,7 @@ case "$with_quip" in
             echo "CPLUSPLUSFLAGS += -g" >> arch/Makefile.linux_${quip_arch}_gfortran
             export QUIP_ARCH=linux_${quip_arch}_gfortran
             # hit enter a few times to accept defaults
-            echo -e "${MATH_LDFLAGS} $(resolve_string "${MATH_LIBS}") \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > configure.log
+            echo -e "${MATH_LDFLAGS} $(resolve_string "${MATH_LIBS}") \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > configure.log
             # make -j does not work :-(
             make > make.log 2>&1
             ! [ -d "${pkg_install_dir}/include" ] && mkdir -p "${pkg_install_dir}/include"
@@ -95,7 +96,7 @@ case "$with_quip" in
                "${pkg_install_dir}/include/"
             cp build/linux_x86_64_gfortran/*.a \
                "${pkg_install_dir}/lib/"
-            cp src/FoX-4.0.3/objs.linux_${quip_arch}_gfortran/lib/*.a \
+            cp src/fox/objs.linux_${quip_arch}_gfortran/lib/*.a \
                "${pkg_install_dir}/lib/"
             cd ..
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"

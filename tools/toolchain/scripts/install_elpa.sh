@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-elpa_ver="2019.05.001"
-elpa_sha256="772c03dab8713ba3891b17757a0b8429b3c4bec4b261dd337ed4b34311f6b221"
+elpa_ver="2020.05.001"
+elpa_sha256="66ff1cf332ce1c82075dc7b5587ae72511d2bcb3a45322c94af6b01996439ce5"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
