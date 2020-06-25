@@ -28,7 +28,7 @@ H2O_Onopaw_gop.inp                                     1      1e-13             
 Fe.inp                                                 1      6e-14           -1169.32261586004188
 # GAPW with an external potential
 H2O_constant_extpot_GAPW.inp                           1      2e-13            -17.156932432160339
-H2O_uniform_efield_GAPW.inp                            1      6e-14             -17.15696477358598
+H2O_uniform_efield_GAPW.inp                            1      2e-13             -17.15696477358598
 #XAS with for beta channel
 O2_xas_beta_spin.inp                                  84      2e-14             -20.79715367779695
 #EOF
