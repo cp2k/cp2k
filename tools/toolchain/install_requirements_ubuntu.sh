@@ -27,6 +27,7 @@ apt-get install -qq --no-install-recommends \
     unzip                                   \
     wget                                    \
     xxd                                     \
+    libssl-dev                              \
     zlib1g-dev
 
 rm -rf /var/lib/apt/lists/*

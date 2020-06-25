@@ -5,6 +5,9 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 scalapack_ver="2.1.0"
 scalapack_sha256="61d9216cf81d246944720cfce96255878a3f85dec13b9351f1fa0fd6768220a6"
 scalapack_pkg="scalapack-${scalapack_ver}.tgz"
+patches=(
+    "${SCRIPT_DIR}/files/scalapack-${scalapack_ver}-gcc10.patch"
+    )
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -38,6 +41,12 @@ case "$with_scalapack" in
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d scalapack-${scalapack_ver} ] && rm -rf scalapack-${scalapack_ver}
             tar -xzf ${scalapack_pkg}
+
+            pushd "scalapack-${scalapack_ver}" >/dev/null
+            for patch in "${patches[@]}" ; do
+                patch -p1 < "${patch}"
+            done
+            popd >/dev/null
 
             mkdir -p "scalapack-${scalapack_ver}/build"
             pushd "scalapack-${scalapack_ver}/build" >/dev/null

@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-hdf5_ver="1.10.4"
-hdf5_sha256="1267ff06aaedc04ca25f7c6026687ea2884b837043431195f153401d942b28df"
+hdf5_ver="1.12.0"
+hdf5_sha256="97906268640a6e9ce0cde703d5a71c9ac3092eded729591279bf2e3ca9765f61"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
