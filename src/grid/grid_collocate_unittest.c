@@ -26,7 +26,7 @@ static int run_test(const char cp2k_root_dir[], const char task_file[]) {
         printf("Max diff too high, test failed.\n");
         return 1;
     } else {
-        printf("Max diff looks good, test passed.\n\n");
+        //printf("Max diff looks good, test passed.\n\n");
         return 0;
     }
 }

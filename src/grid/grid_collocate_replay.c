@@ -115,7 +115,6 @@ void grid_collocate_record(const bool orthorhombic,
 
 // *****************************************************************************
 double grid_collocate_replay(const char* filename, const int cycles){
-    printf("Task:     %s\n", filename);
     FILE *fp = fopen(filename, "r");
     assert(fp != NULL && "Could not open task file.");
 
@@ -289,8 +288,6 @@ double grid_collocate_replay(const char* filename, const int cycles){
     double* grid_test = malloc(sizeof_grid);
     memset(grid_test, 0, sizeof_grid);
 
-    printf("Cycles:   %e\n", (float)cycles);
-
     struct timespec start_time;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
 
@@ -325,6 +322,7 @@ double grid_collocate_replay(const char* filename, const int cycles){
 
     struct timespec end_time;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
+    const double delta_sec = (end_time.tv_sec - start_time.tv_sec) + 1e-9 * (end_time.tv_nsec - start_time.tv_nsec);
 
     double max_value = 0.0;
     double max_diff = 0.0;
@@ -335,11 +333,8 @@ double grid_collocate_replay(const char* filename, const int cycles){
         max_value = fmax(max_value, fabs(grid_test[i]));
     }
 
-    printf("Max diff: %le\n", max_diff);
-    printf("Max value: %le\n", max_value);
-
-    const double delta_sec = (end_time.tv_sec - start_time.tv_sec) + 1e-9 * (end_time.tv_nsec - start_time.tv_nsec);
-    printf("Time:     %le sec\n", delta_sec);
+    printf("Task: %-65s   Cycles: %e   Max value: %le   Max diff: %le   Time: %le sec\n",
+           filename, (float)cycles, max_value, max_diff, delta_sec);
 
     free(grid_ref);
     free(grid_test);
