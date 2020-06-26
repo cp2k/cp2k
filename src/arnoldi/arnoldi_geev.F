@@ -103,7 +103,7 @@ CONTAINS
       lrwork = 1 + 5*ndim + 2*ndim**2
       liwork = 3 + 5*ndim
 
-      CALL zheevd(jobvr, 'U', ndim, tmp_array, evals, ndim, work, lwork, rwork, lrwork, iwork, liwork, info)
+      CALL cheevd(jobvr, 'U', ndim, tmp_array, evals, ndim, work, lwork, rwork, lrwork, iwork, liwork, info)
 
       DO i = 1, ndim
          revec(:, i) = tmp_array(:, i)
