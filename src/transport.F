@@ -16,6 +16,7 @@
 ! **************************************************************************************************
 MODULE transport
    USE ISO_C_BINDING,                   ONLY: C_ASSOCIATED,&
+                                              C_BOOL,&
                                               C_DOUBLE,&
                                               C_F_PROCPOINTER,&
                                               C_INT,&
@@ -408,7 +409,7 @@ CONTAINS
       transport_env%params%boltzmann = boltzmann
       transport_env%params%h_bar = h_bar
       transport_env%params%iscf = iscf
-      transport_env%params%extra_scf = extra_scf
+      transport_env%params%extra_scf = LOGICAL(extra_scf, C_BOOL) ! C_BOOL and Fortran logical don't have the same size
 
       CALL csr_interop_nullify(s_mat)
       CALL csr_interop_nullify(ks_mat)
@@ -787,4 +788,3 @@ CONTAINS
    END SUBROUTINE qs_scf_post_transport
 
 END MODULE transport
-
