@@ -1370,8 +1370,6 @@ CONTAINS
             nonbonded%pot(start + isec)%pot%set(1)%gal%gcn(iatom) = rval
          END DO
 
-         !WRITE(*,*) "Youhou", SIZE(nonbonded%pot(start+isec)%pot%set(1)%gal%gcn)
-
          CALL section_vals_val_get(gal_section, "Fit_express", i_rep_section=isec, &
                                    l_val=nonbonded%pot(start + isec)%pot%set(1)%gal%express)
 

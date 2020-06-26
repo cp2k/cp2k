@@ -14,7 +14,8 @@ MODULE manybody_gal
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
+                                              cp_logger_type,&
+                                              cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -52,10 +53,11 @@ CONTAINS
 !> \param jparticle second index of the atom of the evaluated pair
 !> \param cell dimension of the pbc cell
 !> \param particle_set full list of atoms of the system
+!> \param mm_section ...
 !> \author Clabaut Paul - 2019 - ENS de Lyon
 ! **************************************************************************************************
    SUBROUTINE gal_energy(pot_loc, gal, r_last_update_pbc, iparticle, jparticle, &
-                         cell, particle_set)
+                         cell, particle_set, mm_section)
 
       REAL(KIND=dp), INTENT(OUT)                         :: pot_loc
       TYPE(gal_pot_type), POINTER                        :: gal
@@ -63,14 +65,17 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iparticle, jparticle
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(section_vals_type), POINTER                   :: mm_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gal_energy', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=2)                                   :: element_symbol
+      INTEGER                                            :: index_outfile
       REAL(KIND=dp)                                      :: anglepart, cosalpha, drji2, gcn_weight, &
                                                             gcn_weight2, nvec(3), rji(3), &
                                                             sinalpha, sum_weight, Vang, Vgaussian, &
                                                             VTT, weight
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       pot_loc = 0.0_dp
       CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind, &
@@ -112,12 +117,20 @@ CONTAINS
             weight = EXP(-SQRT(DOT_PRODUCT(rji, rji))/gal%r1)
 
             !Calculation of the truncated fourier series of the water-dipole/surface-normal angle
-            anglepart = angular(gal, r_last_update_pbc, iparticle, cell, particle_set, nvec, .TRUE.)
+            anglepart = angular(gal, r_last_update_pbc, iparticle, cell, particle_set, nvec, &
+                                .TRUE., mm_section)
 
             !Build the complete angular potential while avoiding division by 0
             IF (weight /= 0) THEN
                Vang = gcn_weight2*weight*weight*anglepart/sum_weight
-               IF (gal%express) WRITE (*, *) "Fermi", gcn_weight2*weight*weight/sum_weight
+               IF (gal%express) THEN
+                  logger => cp_get_default_logger()
+                  index_outfile = cp_print_key_unit_nr(logger, mm_section, &
+                                                       "PRINT%PROGRAM_RUN_INFO", extension=".mmLog")
+                  IF (index_outfile > 0) WRITE (index_outfile, *) "Fermi", gcn_weight2*weight*weight/sum_weight
+                  CALL cp_print_key_finished_output(index_outfile, logger, mm_section, &
+                                                    "PRINT%PROGRAM_RUN_INFO")
+               END IF
             END IF
          END IF
          !END Angular%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -150,19 +163,25 @@ CONTAINS
                *gal%c/(SQRT(drji2)**6)
 
          !For fit purpose only
-         IF (gal%express) WRITE (*, *) "Gau", gcn_weight*(-1.0_dp*EXP(-gal%bz*drji2*cosalpha*cosalpha &
-                                                                      - gal%bxy*drji2*sinalpha*sinalpha))
-         IF (weight == 0 .AND. gal%express) WRITE (*, *) "Fermi  0"
-         IF (gal%express) WRITE (*, *) "expO", EXP(-gal%b*SQRT(drji2))
-         IF (gal%express) WRITE (*, *) "cstpart", -(1.0 - EXP(-gal%b*SQRT(drji2)) &
-                                                    - gal%b*SQRT(drji2)*EXP(-gal%b*SQRT(drji2)) &
-                                                    - (((gal%b*SQRT(drji2))**2)/2)*EXP(-gal%b*SQRT(drji2)) &
-                                                    - (((gal%b*SQRT(drji2))**3)/6)*EXP(-gal%b*SQRT(drji2)) &
-                                                    - (((gal%b*SQRT(drji2))**4)/24)*EXP(-gal%b*SQRT(drji2)) &
-                                                    - (((gal%b*SQRT(drji2))**5)/120)*EXP(-gal%b*SQRT(drji2)) &
-                                                    - (((gal%b*SQRT(drji2))**6)/720)*EXP(-gal%b*SQRT(drji2))) &
-            *gal%c/(SQRT(drji2)**6)
-
+         IF (gal%express) THEN
+            logger => cp_get_default_logger()
+            index_outfile = cp_print_key_unit_nr(logger, mm_section, &
+                                                 "PRINT%PROGRAM_RUN_INFO", extension=".mmLog")
+            IF (index_outfile > 0) WRITE (index_outfile, *) "Gau", gcn_weight*(-1.0_dp*EXP(-gal%bz*drji2*cosalpha*cosalpha &
+                                                                                           - gal%bxy*drji2*sinalpha*sinalpha))
+            IF (weight == 0 .AND. index_outfile > 0) WRITE (index_outfile, *) "Fermi  0"
+            IF (index_outfile > 0) WRITE (index_outfile, *) "expO", EXP(-gal%b*SQRT(drji2))
+            IF (index_outfile > 0) WRITE (index_outfile, *) "cstpart", -(1.0 - EXP(-gal%b*SQRT(drji2)) &
+                                                                         - gal%b*SQRT(drji2)*EXP(-gal%b*SQRT(drji2)) &
+                                                                         - (((gal%b*SQRT(drji2))**2)/2)*EXP(-gal%b*SQRT(drji2)) &
+                                                                         - (((gal%b*SQRT(drji2))**3)/6)*EXP(-gal%b*SQRT(drji2)) &
+                                                                         - (((gal%b*SQRT(drji2))**4)/24)*EXP(-gal%b*SQRT(drji2)) &
+                                                                         - (((gal%b*SQRT(drji2))**5)/120)*EXP(-gal%b*SQRT(drji2)) &
+                                                                         - (((gal%b*SQRT(drji2))**6)/720)*EXP(-gal%b*SQRT(drji2))) &
+               *gal%c/(SQRT(drji2)**6)
+            CALL cp_print_key_finished_output(index_outfile, logger, mm_section, &
+                                              "PRINT%PROGRAM_RUN_INFO")
+         END IF
          !Compute the total energy
          pot_loc = Vgaussian + Vang + VTT
 
@@ -271,10 +290,11 @@ CONTAINS
 !> \param particle_set ...
 !> \param nvec ...
 !> \param energy ...
+!> \param mm_section ...
 !> \return ...
 !> \retval angular ...
 ! **************************************************************************************************
-   FUNCTION angular(gal, r_last_update_pbc, iparticle, cell, particle_set, nvec, energy) !nr_oh, nr_h3o, nr_o
+   FUNCTION angular(gal, r_last_update_pbc, iparticle, cell, particle_set, nvec, energy, mm_section)
       TYPE(gal_pot_type), POINTER                        :: gal
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       INTEGER, INTENT(IN)                                :: iparticle
@@ -282,14 +302,17 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(3)                        :: nvec
       LOGICAL                                            :: energy
+      TYPE(section_vals_type), POINTER                   :: mm_section
       REAL(KIND=dp)                                      :: angular
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'angular', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER                                            :: count_h, iatom, index_h1, index_h2, natom
+      INTEGER                                            :: count_h, iatom, index_h1, index_h2, &
+                                                            index_outfile, natom
       REAL(KIND=dp)                                      :: costheta, h_max_dist, rih(3), rih1(3), &
                                                             rih2(3), rix(3), theta
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       count_h = 0
       index_h1 = 0
@@ -312,36 +335,32 @@ CONTAINS
       ENDDO
 
       ! Abort if the oxygen is not part of a water molecule (2 H)
-      IF (count_h == 0) THEN
-         WRITE (*, *) "Faulty atom :", iparticle
-         CPABORT("No H atoms for O found")
-      ELSEIF (count_h == 1) THEN
-         WRITE (*, *) "Faulty atom :", iparticle
-         CPABORT("Only one H atom of O atom found")
-      ELSEIF (count_h == 3) THEN
-         WRITE (*, *) "Faulty atom :", iparticle
-         CPABORT("Three H atoms for O atom found")
-      ELSEIF (count_h > 3) THEN
-         WRITE (*, *) "Faulty atom :", iparticle
-         CPABORT("Error in gal part: too many H atoms for O")
+      IF (count_h /= 2) THEN
+         CALL cp_abort(__LOCATION__, &
+                       " Error: Found "//cp_to_string(count_h)//" H atoms for O atom "//cp_to_string(iparticle))
       ENDIF
 
-      IF (count_h == 2) THEN
-         rih1(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
-         rih2(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
-         rix(:) = rih1(:) + rih2(:) ! build the dipole vector rix of the H2O molecule
-         costheta = DOT_PRODUCT(rix, nvec)/SQRT(DOT_PRODUCT(rix, rix))
-         IF (costheta < -1.0_dp) costheta = -1.0_dp
-         IF (costheta > +1.0_dp) costheta = +1.0_dp
-         theta = ACOS(costheta) ! Theta is the angle between the normal to the surface and the dipole
-         angular = gal%a1*costheta + gal%a2*COS(2.0_dp*theta) + gal%a3*COS(3.0_dp*theta) &
-                   + gal%a4*COS(4.0_dp*theta) ! build the fourier series
+      rih1(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
+      rih2(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
+      rix(:) = rih1(:) + rih2(:) ! build the dipole vector rix of the H2O molecule
+      costheta = DOT_PRODUCT(rix, nvec)/SQRT(DOT_PRODUCT(rix, rix))
+      IF (costheta < -1.0_dp) costheta = -1.0_dp
+      IF (costheta > +1.0_dp) costheta = +1.0_dp
+      theta = ACOS(costheta) ! Theta is the angle between the normal to the surface and the dipole
+      angular = gal%a1*costheta + gal%a2*COS(2.0_dp*theta) + gal%a3*COS(3.0_dp*theta) &
+                + gal%a4*COS(4.0_dp*theta) ! build the fourier series
 
-         ! For fit purpose
-         IF (gal%express .AND. energy) THEN
-            WRITE (*, *) "Fourier", costheta, COS(2.0_dp*theta), COS(3.0_dp*theta), &
-               COS(4.0_dp*theta) !, theta
-         ENDIF
+      ! For fit purpose
+      IF (gal%express .AND. energy) THEN
+         logger => cp_get_default_logger()
+         index_outfile = cp_print_key_unit_nr(logger, mm_section, &
+                                              "PRINT%PROGRAM_RUN_INFO", extension=".mmLog")
+
+         IF (index_outfile > 0) WRITE (index_outfile, *) "Fourier", costheta, COS(2.0_dp*theta), COS(3.0_dp*theta), &
+            COS(4.0_dp*theta) !, theta
+
+         CALL cp_print_key_finished_output(index_outfile, logger, mm_section, &
+                                           "PRINT%PROGRAM_RUN_INFO")
       ENDIF
 
    END FUNCTION angular
@@ -373,6 +392,7 @@ CONTAINS
       REAL(KIND=dp) :: anglepart, cosalpha, dGauss(3), drji, drjicosalpha(3), drjisinalpha(3), &
          dTT(3), dweight(3), gcn_weight, gcn_weight2, nvec(3), prefactor, rji(3), rji_hat(3), &
          sinalpha, sum_weight, Vgaussian, weight
+      TYPE(section_vals_type), POINTER                   :: mm_section
 
       CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind, &
                            element_symbol=element_symbol)
@@ -415,7 +435,8 @@ CONTAINS
             dweight(:) = 1.0_dp/gal%r1*weight*rji_hat(:) !Derivativ of it
 
             !Calculation of the truncated fourier series of the water-dipole/surface-normal angle
-            anglepart = angular(gal, r_last_update_pbc, iparticle, cell, particle_set, nvec, .FALSE.)
+            NULLIFY (mm_section)
+            anglepart = angular(gal, r_last_update_pbc, iparticle, cell, particle_set, nvec, .FALSE., mm_section)
 
             !Build the average of the exponential weight while avoiding division by 0
             IF (weight /= 0) THEN
@@ -590,42 +611,35 @@ CONTAINS
       ENDDO
 
       ! Abort if the oxygen is not part of a water molecule (2 H)
-      IF (count_h == 0) THEN
-         CPABORT("No H atoms for O found")
-      ELSEIF (count_h == 1) THEN
-         CPABORT("Only one H atom of O atom found")
-      ELSEIF (count_h == 3) THEN
-         CPABORT("Three H atoms for O atom found")
-      ELSEIF (count_h > 3) THEN
-         CPABORT("Error in gal part: too many H atoms for O")
+      IF (count_h /= 2) THEN
+         CALL cp_abort(__LOCATION__, &
+                       " Error: Found "//cp_to_string(count_h)//" H atoms for O atom "//cp_to_string(iparticle))
       ENDIF
 
       rji(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(iparticle)%r(:), cell)
       rji_hat(:) = rji(:)/SQRT(DOT_PRODUCT(rji, rji)) ! hat = pure directional component of a given vector
 
-      IF (count_h == 2) THEN
-         !dipole vector rix of the H2O molecule
-         rih1(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
-         rih2(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
-         rix(:) = rih1(:) + rih2(:) ! build the dipole vector rix of the H2O molecule
-         rix_hat(:) = rix(:)/SQRT(DOT_PRODUCT(rix, rix)) ! hat = pure directional component of a given vector
-         costheta = DOT_PRODUCT(rix, nvec)/SQRT(DOT_PRODUCT(rix, rix)) ! Theta is the angle between the normal to the surface and the dipole
-         IF (costheta < -1.0_dp) costheta = -1.0_dp
-         IF (costheta > +1.0_dp) costheta = +1.0_dp
-         theta = ACOS(costheta) ! Theta is the angle between the normal to the surface and the dipole
+      !dipole vector rix of the H2O molecule
+      rih1(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
+      rih2(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
+      rix(:) = rih1(:) + rih2(:) ! build the dipole vector rix of the H2O molecule
+      rix_hat(:) = rix(:)/SQRT(DOT_PRODUCT(rix, rix)) ! hat = pure directional component of a given vector
+      costheta = DOT_PRODUCT(rix, nvec)/SQRT(DOT_PRODUCT(rix, rix)) ! Theta is the angle between the normal to the surface and the dipole
+      IF (costheta < -1.0_dp) costheta = -1.0_dp
+      IF (costheta > +1.0_dp) costheta = +1.0_dp
+      theta = ACOS(costheta) ! Theta is the angle between the normal to the surface and the dipole
 
-         ! Calculation of partial derivativ of the angular components
-         dsumdtheta = -1.0_dp*gal%a1*SIN(theta) - gal%a2*2.0_dp*SIN(2.0_dp*theta) - &
-                      gal%a3*3.0_dp*SIN(3.0_dp*theta) - gal%a4*4.0_dp*SIN(4.0_dp*theta)
-         dcostheta(:) = (1.0_dp/SQRT(DOT_PRODUCT(rix, rix)))*(nvec(:) - costheta*rix_hat(:))
-         dangular(:) = prefactor*dsumdtheta*(-1.0_dp/SIN(theta))*dcostheta(:)
+      ! Calculation of partial derivativ of the angular components
+      dsumdtheta = -1.0_dp*gal%a1*SIN(theta) - gal%a2*2.0_dp*SIN(2.0_dp*theta) - &
+                   gal%a3*3.0_dp*SIN(3.0_dp*theta) - gal%a4*4.0_dp*SIN(4.0_dp*theta)
+      dcostheta(:) = (1.0_dp/SQRT(DOT_PRODUCT(rix, rix)))*(nvec(:) - costheta*rix_hat(:))
+      dangular(:) = prefactor*dsumdtheta*(-1.0_dp/SIN(theta))*dcostheta(:)
 
-         !Force due to the third component of the derivativ of the angular term
-         f_nonbond(1:3, iparticle) = f_nonbond(1:3, iparticle) - dangular(1:3)*2.0_dp !(one per H)
-         f_nonbond(1:3, index_h1) = f_nonbond(1:3, index_h1) + dangular(1:3)
-         f_nonbond(1:3, index_h2) = f_nonbond(1:3, index_h2) + dangular(1:3)
+      !Force due to the third component of the derivativ of the angular term
+      f_nonbond(1:3, iparticle) = f_nonbond(1:3, iparticle) - dangular(1:3)*2.0_dp !(one per H)
+      f_nonbond(1:3, index_h1) = f_nonbond(1:3, index_h1) + dangular(1:3)
+      f_nonbond(1:3, index_h2) = f_nonbond(1:3, index_h2) + dangular(1:3)
 
-      ENDIF
    END SUBROUTINE angular_d
 
 ! **************************************************************************************************

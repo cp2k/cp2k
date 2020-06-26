@@ -162,6 +162,7 @@ CONTAINS
             any_tersoff = any_tersoff .OR. ANY(pot%type == tersoff_type)
             any_quip = any_quip .OR. ANY(pot%type == quip_type)
             any_siepmann = any_siepmann .OR. ANY(pot%type == siepmann_type)
+            any_gal = any_gal .OR. ANY(pot%type == gal_type)
          END DO
       END DO
       CALL fist_nonbond_env_get(fist_nonbond_env, nonbonded=nonbonded, natom_types=nkinds)
@@ -404,7 +405,7 @@ CONTAINS
                            IF (drij > rab2_max) CYCLE
                            drij = SQRT(drij)
                            CALL gal_energy(pot_loc, gal, r_last_update_pbc, atom_a, atom_b, &
-                                           cell, particle_set)
+                                           cell, particle_set, mm_section)
 
                            pot_manybody = pot_manybody + pot_loc
                         END DO
