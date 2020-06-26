@@ -49,6 +49,10 @@ case "$with_spglib" in
 
         SPGLIB_CFLAGS="-I${pkg_install_dir}/include"
         SPGLIB_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+        if [ -d "${pkg_install_dir}/lib64" ]; then
+           ln -sf lib64 ${pkg_install_dir}/lib
+           cd ${pkg_install_dir}
+        fi
         ;;
     __SYSTEM__)
         echo "==================== Finding spglib from system paths ===================="
