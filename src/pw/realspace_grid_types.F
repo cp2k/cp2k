@@ -912,7 +912,7 @@ CONTAINS
          IF (pw%in_use == REALDATA3D) THEN
             CALL dcopy(nn, pw%cr3d, 1, sendbuf, 1)
          ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
-            CALL dcopy(nn, pw%cc3d, 2, sendbuf, 1)
+            CALL dcopy(nn, TRANSFER(pw%cc3d, sendbuf), 2, sendbuf, 1)
          ELSE
             CPABORT("PW type not compatible")
          END IF
