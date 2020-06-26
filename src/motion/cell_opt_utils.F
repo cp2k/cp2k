@@ -272,7 +272,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dg_dh', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, my_constraint_id
+      INTEGER                                            :: my_constraint_id
       LOGICAL                                            :: my_keep_angles, my_keep_symmetry
       REAL(KIND=dp), DIMENSION(3, 3)                     :: correction, pten_hinv_old, ptens
 
@@ -292,10 +292,22 @@ CONTAINS
       ptens = av_ptens
 
       ! Evaluating the internal pressure
-      pres_int = 0.0_dp
-      DO i = 1, 3
-         pres_int = pres_int + ptens(i, i)
-      ENDDO
+      SELECT CASE (my_constraint_id)
+      CASE (fix_x)
+         pres_int = ptens(2, 2) + ptens(3, 3)
+      CASE (fix_y)
+         pres_int = ptens(1, 1) + ptens(3, 3)
+      CASE (fix_z)
+         pres_int = ptens(1, 1) + ptens(2, 2)
+      CASE (fix_xy)
+         pres_int = ptens(3, 3)
+      CASE (fix_xz)
+         pres_int = ptens(2, 2)
+      CASE (fix_yz)
+         pres_int = ptens(1, 1)
+      CASE (fix_none)
+         pres_int = ptens(1, 1) + ptens(2, 2) + ptens(3, 3)
+      END SELECT
       pres_int = pres_int/3.0_dp
 
       ptens(1, 1) = av_ptens(1, 1) - pres_ext
