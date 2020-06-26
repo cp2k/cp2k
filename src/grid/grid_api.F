@@ -9,6 +9,7 @@ MODULE grid_api
                                               C_LOC,&
                                               C_PTR
    USE cell_types,                      ONLY: cell_type
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cube_utils,                      ONLY: cube_info_type
    USE grid_collocate,                  ONLY: &
         GRID_FUNC_AB, GRID_FUNC_ADBmDAB_X, GRID_FUNC_ADBmDAB_Y, GRID_FUNC_ADBmDAB_Z, &
@@ -114,7 +115,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, j, k, my_pos, my_subpatch_pattern
+      INTEGER                                            :: i, iw, j, k, my_pos, my_subpatch_pattern
       INTEGER, DIMENSION(3), TARGET                      :: npts_global, npts_local, shift_local
       INTEGER, SAVE                                      :: counter = 0
       LOGICAL(KIND=C_BOOL)                               :: my_use_subpatch, orthorhombic
@@ -295,18 +296,19 @@ CONTAINS
             rel_diff = diff/MAX(1.0_dp, ABS(ref_value))
             !IF ((ref_value==0.0_dp) .NEQV. (grid(i, j, k)==0.0_dp)) THEN
             IF (rel_diff > tolerance) THEN
-               WRITE (*, *) "counter: ", counter, "my_pos: ", my_pos, "diff: ", diff
-               WRITE (*, *) "counter: ", counter, "my_pos: ", my_pos, "rel. diff: ", rel_diff
-               WRITE (*, *) "counter: ", counter, "my_pos: ", my_pos, "value:", grid(i, j, k), "ref_value:", ref_value
-               WRITE (*, *) "counter: ", counter, "my_pos: ", my_pos, "ijk:", i - 1, j - 1, k - 1
-               WRITE (*, *) "counter: ", counter, "my_pos: ", my_pos, "npts_global:", npts_global
-               WRITE (*, *) "counter: ", counter, "my_pos: ", my_pos, "npts_local:", npts_local
-               WRITE (*, *) "counter: ", counter, "my_pos: ", my_pos, "shift_local:", shift_local
-               WRITE (*, *) "counter: ", counter, "my_pos: ", my_pos, "orthorhombic:", orthorhombic
-               WRITE (*, *) "counter: ", counter, "my_pos: ", my_pos, "ga_gb_function:", ga_gb_function
-               WRITE (*, *) "counter: ", counter, "my_pos: ", my_pos, "use_subpatch:", my_use_subpatch
-               WRITE (*, *) "counter: ", counter, "my_pos: ", my_pos, "subpatch_pattern:", my_subpatch_pattern
-               WRITE (*, *) "counter: ", counter, "my_pos: ", my_pos, "border:", rsgrid%desc%border
+               iw = cp_logger_get_default_io_unit()
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "diff: ", diff
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "rel. diff: ", rel_diff
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "value:", grid(i, j, k), "ref_value:", ref_value
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "ijk:", i - 1, j - 1, k - 1
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "npts_global:", npts_global
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "npts_local:", npts_local
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "shift_local:", shift_local
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "orthorhombic:", orthorhombic
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "ga_gb_function:", ga_gb_function
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "use_subpatch:", my_use_subpatch
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "subpatch_pattern:", my_subpatch_pattern
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "border:", rsgrid%desc%border
                CPABORT("Collocate validation failed.")
             END IF
          ENDDO
