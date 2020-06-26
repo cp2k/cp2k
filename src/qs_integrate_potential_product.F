@@ -46,8 +46,7 @@ MODULE qs_integrate_potential_product
    USE grid_api,                        ONLY: integrate_pgf_product
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
    USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
-                                              int_8
+                                              dp
    USE memory_utilities,                ONLY: reallocate
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
@@ -66,7 +65,8 @@ MODULE qs_integrate_potential_product
                                               rs_grid_retain
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_methods,               ONLY: rs_distribute_matrix
-   USE task_list_types,                 ONLY: task_list_type,&
+   USE task_list_types,                 ONLY: atom_pair_type,&
+                                              task_list_type,&
                                               task_type
    USE virial_types,                    ONLY: virial_type
 
@@ -201,7 +201,6 @@ CONTAINS
          ipair, ipgf, ipgf_new, iset, iset_new, iset_old, itask, ithread, jatom, jkind, jkind_old, &
          jpgf, jpgf_new, jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, na1, na2, &
          nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, nthread, offs_dv, sgfa, sgfb
-      INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: block_touched
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
@@ -209,7 +208,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, do_kp, found, h_duplicated, &
          has_threads, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, p_duplicated, &
-         pab_required, scatter, use_subpatch, use_virial
+         pab_required, use_subpatch, use_virial
       REAL(KIND=dp)                                      :: admm_scal_fac, eps_rho_rspace, f, &
                                                             prefactor, radius, scalef, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb, &
@@ -222,6 +221,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: habt, hadb, hdab, pabt, workt
       REAL(kind=dp), DIMENSION(:, :, :, :), POINTER      :: hadbt, hdabt
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_recv, atom_pair_send
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
@@ -446,8 +446,9 @@ CONTAINS
       END DO
 
       IF (distributed_grids .AND. pab_required) THEN
-         CALL rs_distribute_matrix(rs_descs, deltap, atom_pair_send, atom_pair_recv, &
-                                   natom, nimages, scatter=.TRUE.)
+         CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=deltap, &
+                                   atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
+                                   nimages=nimages, scatter=.TRUE.)
       ENDIF
 
       IF (debug_this_module) THEN
@@ -817,16 +818,17 @@ CONTAINS
       IF (h_duplicated) THEN
          ! Reconstruct H matrix if using distributed RS grids
          ! note send and recv direction reversed WRT collocate
-         scatter = .FALSE.
          IF (do_kp) THEN
-            CALL rs_distribute_matrix(rs_descs, dhmat, atom_pair_recv, atom_pair_send, &
-                                      natom, nimages, scatter, hmats=hmat_kp)
+            CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=dhmat, &
+                                      atom_pair_send=atom_pair_recv, atom_pair_recv=atom_pair_send, &  ! swapped
+                                      nimages=nimages, scatter=.FALSE., hmats=hmat_kp)
          ELSE
             ALLOCATE (htemp(1))
             htemp(1)%matrix => hmat%matrix
 
-            CALL rs_distribute_matrix(rs_descs, dhmat, atom_pair_recv, atom_pair_send, &
-                                      natom, nimages, scatter, hmats=htemp)
+            CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=dhmat, &
+                                      atom_pair_send=atom_pair_recv, atom_pair_recv=atom_pair_send, &  ! swapped
+                                      nimages=nimages, scatter=.FALSE., hmats=htemp)
 
             NULLIFY (htemp(1)%matrix)
             DEALLOCATE (htemp)

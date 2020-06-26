@@ -61,6 +61,7 @@ MODULE task_list_methods
                               reallocate_tasks, &
                               serialize_task, &
                               task_list_type, &
+                              atom_pair_type, &
                               task_size_in_int8, &
                               task_type
    USE util, ONLY: sort
@@ -298,8 +299,8 @@ CONTAINS
 
       ! redistribute the task list so that all tasks map on the local rs grids
       CALL distribute_tasks( &
-         rs_descs, task_list%ntasks, natoms, nimages, &
-         task_list%tasks, atom_pair_send=task_list%atom_pair_send, &
+         rs_descs=rs_descs, ntasks=task_list%ntasks, natoms=natoms, &
+         tasks=task_list%tasks, atom_pair_send=task_list%atom_pair_send, &
          atom_pair_recv=task_list%atom_pair_recv, symmetric=.TRUE., &
          reorder_rs_grid_ranks=reorder_rs_grid_ranks, skip_load_balance_distributed=skip_load_balance_distributed)
 
@@ -1753,15 +1754,15 @@ CONTAINS
 !>      none
 !> \author MattW 21/11/2007
 ! **************************************************************************************************
-   SUBROUTINE distribute_tasks(rs_descs, ntasks, natoms, nimages, &
+   SUBROUTINE distribute_tasks(rs_descs, ntasks, natoms, &
                                tasks, atom_pair_send, atom_pair_recv, &
                                symmetric, reorder_rs_grid_ranks, skip_load_balance_distributed)
 
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      INTEGER                                            :: ntasks, natoms, nimages
+      INTEGER                                            :: ntasks, natoms
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
-      INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: atom_pair_send, atom_pair_recv
+      TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_send, atom_pair_recv
       LOGICAL, INTENT(IN)                                :: symmetric, reorder_rs_grid_ranks, &
                                                             skip_load_balance_distributed
 
@@ -1911,9 +1912,7 @@ CONTAINS
          ! tasks list are complete, we can compute the list of atomic blocks (atom pairs)
          ! we will be sending. These lists are needed for redistribute_matrix.
          !
-         ALLOCATE (atom_pair_send(ntasks))
-         CALL get_atom_pair(atom_pair_send, tasks, send=.TRUE., &
-                            symmetric=symmetric, natoms=natoms, nimages=nimages, rs_descs=rs_descs)
+         CALL get_atom_pair(atom_pair_send, tasks, ntasks=ntasks, send=.TRUE., symmetric=symmetric, rs_descs=rs_descs)
 
          ! natom_send=SIZE(atom_pair_send)
          ! CALL mp_sum(natom_send,desc%group)
@@ -1922,9 +1921,7 @@ CONTAINS
          !     WRITE(*,*) "Total number of atomic blocks to be send:",natom_send
          ! ENDIF
 
-         ALLOCATE (atom_pair_recv(ntasks_recv))
-         CALL get_atom_pair(atom_pair_recv, tasks_recv, send=.FALSE., &
-                            symmetric=symmetric, natoms=natoms, nimages=nimages, rs_descs=rs_descs)
+         CALL get_atom_pair(atom_pair_recv, tasks_recv, ntasks=ntasks_recv, send=.FALSE., symmetric=symmetric, rs_descs=rs_descs)
 
          ! cleanup, at this point we  don't need the original tasks anymore
          DEALLOCATE (tasks)
@@ -1964,82 +1961,72 @@ CONTAINS
 !> \param nimages ...
 !> \param rs_descs ...
 ! **************************************************************************************************
-   SUBROUTINE get_atom_pair(atom_pair, my_tasks, send, symmetric, natoms, nimages, rs_descs)
+   SUBROUTINE get_atom_pair(atom_pair, tasks, ntasks, send, symmetric, rs_descs)
 
-      INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: atom_pair
-      TYPE(task_type), DIMENSION(:), POINTER             :: my_tasks
-      LOGICAL                                            :: send, symmetric
-      INTEGER                                            :: natoms, nimages
-      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
-         POINTER                                         :: rs_descs
+      TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair
+      TYPE(task_type), DIMENSION(:), INTENT(IN)          :: tasks
+      INTEGER, INTENT(IN)                                :: ntasks
+      LOGICAL, INTENT(IN)                                :: send, symmetric
+      TYPE(realspace_grid_desc_p_type), DIMENSION(:), INTENT(IN) :: rs_descs
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_pair', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_pair'
 
-      INTEGER                                            :: acol, arow, i, iatom, ilevel, img, ipgf, &
-                                                            iset, j, jatom, jpgf, jset
-      INTEGER(KIND=int_8)                                :: natom8, nim8
-      INTEGER, DIMENSION(:), POINTER                     :: index
+      INTEGER                                            :: i, ilevel, iatom, jatom, npairs, virt_rank
+      INTEGER, DIMENSION(:), POINTER                     :: indices
+      TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_tmp
+
+      CPASSERT(.NOT. ASSOCIATED(atom_pair))
+      IF (ntasks == 0) THEN
+         ALLOCATE (atom_pair(0))
+         RETURN
+      ENDIF
 
       ! calculate list of atom pairs
       ! fill pair list taking into account symmetry
-
-      natom8 = natoms
-      nim8 = nimages
-
-      atom_pair = 0
-      DO i = 1, SIZE(atom_pair)
-         ilevel = my_tasks(i)%grid_level
-         img = my_tasks(i)%image
-         iatom = my_tasks(i)%iatom
-         jatom = my_tasks(i)%jatom
-         iset = my_tasks(i)%iset
-         jset = my_tasks(i)%jset
-         ipgf = my_tasks(i)%ipgf
-         jpgf = my_tasks(i)%jpgf
-         IF (symmetric) THEN
-            IF (iatom .LE. jatom) THEN
-               arow = iatom
-               acol = jatom
-            ELSE
-               arow = jatom
-               acol = iatom
-            ENDIF
+      ALLOCATE (atom_pair_tmp(ntasks))
+      DO i = 1, ntasks
+         atom_pair_tmp(i)%image = tasks(i)%image
+         iatom = tasks(i)%iatom
+         jatom = tasks(i)%jatom
+         IF (symmetric .AND. iatom > jatom) THEN
+            ! swapped
+            atom_pair_tmp(i)%row = jatom
+            atom_pair_tmp(i)%col = iatom
          ELSE
-            arow = iatom
-            acol = jatom
+            atom_pair_tmp(i)%row = iatom
+            atom_pair_tmp(i)%col = jatom
          ENDIF
+
          IF (send) THEN
             ! If sending, we need to use the 'real rank' as the pair has to be sent to the process which
             ! actually has the correct part of the rs_grid to do the mapping
-            atom_pair(i) = rs_descs(ilevel)%rs_desc%virtual2real(decode_rank(my_tasks(i)%destination, SIZE(rs_descs))) &
-                           *natom8*natom8*nim8 + (arow - 1)*natom8*nim8 + (acol - 1)*nim8 + (img - 1)
+            ilevel = tasks(i)%grid_level
+            virt_rank = decode_rank(tasks(i)%destination, SIZE(rs_descs))
+            atom_pair_tmp(i)%rank = rs_descs(ilevel)%rs_desc%virtual2real(virt_rank)
          ELSE
             ! If we are receiving, then no conversion is needed as the rank is that of the process with the
             ! required matrix block, and the ordering of the rs grid is irrelevant
-            atom_pair(i) = decode_rank(my_tasks(i)%source, SIZE(rs_descs)) &
-                           *natom8*natom8*nim8 + (arow - 1)*natom8*nim8 + (acol - 1)*nim8 + (img - 1)
+            atom_pair_tmp(i)%rank = decode_rank(tasks(i)%source, SIZE(rs_descs))
          ENDIF
       ENDDO
 
-      ALLOCATE (INDEX(SIZE(atom_pair)))
-
       ! find unique atom pairs that I'm sending/receiving
-      CALL sort(atom_pair, SIZE(atom_pair), index)
+      ALLOCATE (indices(ntasks))
+      CALL atom_pair_sort(atom_pair_tmp, ntasks, indices)
+      DEALLOCATE (indices)
 
-      DEALLOCATE (index)
+      npairs = 1
+      DO i = 2, ntasks
+         IF (atom_pair_less_than(atom_pair_tmp(i - 1), atom_pair_tmp(i))) THEN
+            npairs = npairs + 1
+            atom_pair_tmp(npairs) = atom_pair_tmp(i)
+         ENDIF
+      ENDDO
 
-      IF (SIZE(atom_pair) > 1) THEN
-         j = 1
-         ! first atom pair must be allowed
-         DO i = 2, SIZE(atom_pair)
-            IF (atom_pair(i) .GT. atom_pair(i - 1)) THEN
-               j = j + 1
-               atom_pair(j) = atom_pair(i)
-            ENDIF
-         ENDDO
-         ! reallocate the atom pair list
-         CALL reallocate(atom_pair, 1, j)
-      ENDIF
+      ! Copy unique pairs to final location.
+      ALLOCATE (atom_pair(npairs))
+      atom_pair(:) = atom_pair_tmp(:npairs)
+      DEALLOCATE (atom_pair_tmp)
 
    END SUBROUTINE get_atom_pair
 
@@ -2057,13 +2044,13 @@ CONTAINS
 !> \param hmats ...
 ! **************************************************************************************************
    SUBROUTINE rs_distribute_matrix(rs_descs, pmats, atom_pair_send, atom_pair_recv, &
-                                   natoms, nimages, scatter, hmats)
+                                   nimages, scatter, hmats)
 
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmats
-      INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: atom_pair_send, atom_pair_recv
-      INTEGER                                            :: natoms, nimages
+      TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_send, atom_pair_recv
+      INTEGER                                            :: nimages
       LOGICAL                                            :: scatter
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: hmats
@@ -2074,7 +2061,6 @@ CONTAINS
       INTEGER                                            :: acol, arow, handle, i, img, j, k, l, me, &
                                                             nblkcols_total, nblkrows_total, ncol, &
                                                             nrow, nthread, nthread_left
-      INTEGER(KIND=int_8)                                :: natom8, nim8, pair
       INTEGER, ALLOCATABLE, DIMENSION(:) :: first_col, first_row, last_col, last_row, recv_disps, &
                                             recv_pair_count, recv_pair_disps, recv_sizes, send_disps, send_pair_count, &
                                             send_pair_disps, send_sizes
@@ -2116,28 +2102,18 @@ CONTAINS
                 first_col(nblkcols_total), last_col(nblkcols_total))
       CALL dbcsr_convert_sizes_to_offsets(row_blk_size, first_row, last_row)
       CALL dbcsr_convert_sizes_to_offsets(col_blk_size, first_col, last_col)
-      ! set up send buffer sizes
-      natom8 = natoms
-      nim8 = nimages
 
+      ! set up send buffer sizes
       send_sizes = 0
       send_pair_count = 0
       DO i = 1, SIZE(atom_pair_send)
-
-         ! proc we're sending this block to
-         k = INT(atom_pair_send(i)/(nim8*natom8**2)) + 1
-
-         pair = MOD(atom_pair_send(i), nim8*natom8**2)
-
-         arow = INT(pair/(nim8*natom8)) + 1
-         acol = INT(MOD(pair, nim8*natom8)/nim8) + 1
-
+         k = atom_pair_send(i)%rank + 1 ! proc we're sending this block to
+         arow = atom_pair_send(i)%row
+         acol = atom_pair_send(i)%col
          nrow = last_row(arow) - first_row(arow) + 1
          ncol = last_col(acol) - first_col(acol) + 1
-
          send_sizes(k) = send_sizes(k) + nrow*ncol
          send_pair_count(k) = send_pair_count(k) + 1
-
       ENDDO
 
       send_disps = 0
@@ -2154,21 +2130,13 @@ CONTAINS
       recv_sizes = 0
       recv_pair_count = 0
       DO i = 1, SIZE(atom_pair_recv)
-
-         ! proc we're receiving this data from
-         k = INT(atom_pair_recv(i)/(nim8*natom8**2)) + 1
-
-         pair = MOD(atom_pair_recv(i), nim8*natom8**2)
-
-         arow = INT(pair/(nim8*natom8)) + 1
-         acol = INT(MOD(pair, nim8*natom8)/nim8) + 1
-
+         k = atom_pair_recv(i)%rank + 1 ! proc we're receiving this data from
+         arow = atom_pair_recv(i)%row
+         acol = atom_pair_recv(i)%col
          nrow = last_row(arow) - first_row(arow) + 1
          ncol = last_col(acol) - first_col(acol) + 1
-
          recv_sizes(k) = recv_sizes(k) + nrow*ncol
          recv_pair_count(k) = recv_pair_count(k) + 1
-
       ENDDO
 
       recv_disps = 0
@@ -2180,13 +2148,13 @@ CONTAINS
       ALLOCATE (recv_buf_r(SUM(recv_sizes)))
 
 !$OMP PARALLEL DEFAULT(NONE), &
-!$OMP          SHARED(desc,send_pair_count,send_pair_disps,natom8,nim8,nimages),&
+!$OMP          SHARED(desc,send_pair_count,send_pair_disps,nimages),&
 !$OMP          SHARED(last_row,first_row,last_col,first_col),&
 !$OMP          SHARED(pmats,send_buf_r,send_disps,send_sizes),&
 !$OMP          SHARED(atom_pair_send,me,hmats,nblkrows_total),&
 !$OMP          SHARED(atom_pair_recv,recv_buf_r,scatter,recv_pair_disps), &
 !$OMP          SHARED(recv_sizes,recv_disps,recv_pair_count,locks), &
-!$OMP          PRIVATE(i,img,pair,arow,acol,nrow,ncol,p_block,found,j,k,l),&
+!$OMP          PRIVATE(i,img,arow,acol,nrow,ncol,p_block,found,j,k,l),&
 !$OMP          PRIVATE(nthread,h_block,nthread_left,hmat,pmat)
 
       nthread = 1
@@ -2200,18 +2168,13 @@ CONTAINS
          IF (l .EQ. me) CYCLE
          send_sizes(l) = 0
          DO i = 1, send_pair_count(l)
-            pair = MOD(atom_pair_send(send_pair_disps(l) + i), nim8*natom8**2)
-
-            arow = INT(pair/(nim8*natom8)) + 1
-            acol = INT(MOD(pair, nim8*natom8)/nim8) + 1
-            img = INT(MOD(pair, nim8)) + 1
-
+            arow = atom_pair_send(send_pair_disps(l) + i)%row
+            acol = atom_pair_send(send_pair_disps(l) + i)%col
+            img = atom_pair_send(send_pair_disps(l) + i)%image
             nrow = last_row(arow) - first_row(arow) + 1
             ncol = last_col(acol) - first_col(acol) + 1
-
             pmat => pmats(img)%matrix
-            CALL dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, &
-                                   block=p_block, found=found)
+            CALL dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, block=p_block, found=found)
             CPASSERT(found)
 
             DO k = 1, ncol
@@ -2250,22 +2213,16 @@ CONTAINS
          ! Distribute work over remaining threads assuming one is still in the alltoall
 !$OMP DO schedule(dynamic,MAX(1,send_pair_count(me)/nthread_left))
          DO i = 1, send_pair_count(me)
-            pair = MOD(atom_pair_send(send_pair_disps(me) + i), nim8*natom8**2)
-
-            arow = INT(pair/(nim8*natom8)) + 1
-            acol = INT(MOD(pair, nim8*natom8)/nim8) + 1
-            img = INT(MOD(pair, nim8)) + 1
-
+            arow = atom_pair_send(send_pair_disps(me) + i)%row
+            acol = atom_pair_send(send_pair_disps(me) + i)%col
+            img = atom_pair_send(send_pair_disps(me) + i)%image
             nrow = last_row(arow) - first_row(arow) + 1
             ncol = last_col(acol) - first_col(acol) + 1
-
             hmat => hmats(img)%matrix
             pmat => pmats(img)%matrix
-            CALL dbcsr_get_block_p(matrix=hmat, row=arow, col=acol, &
-                                   BLOCK=h_block, found=found)
+            CALL dbcsr_get_block_p(matrix=hmat, row=arow, col=acol, BLOCK=h_block, found=found)
             CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, &
-                                   BLOCK=p_block, found=found)
+            CALL dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, BLOCK=p_block, found=found)
             CPASSERT(found)
 
 !$          call omp_set_lock(locks((arow - 1)*nthread*10/nblkrows_total + 1))
@@ -2296,24 +2253,18 @@ CONTAINS
          IF (l .EQ. me) CYCLE
          recv_sizes(l) = 0
          DO i = 1, recv_pair_count(l)
-            pair = MOD(atom_pair_recv(recv_pair_disps(l) + i), nim8*natom8**2)
-
-            arow = INT(pair/(nim8*natom8)) + 1
-            acol = INT(MOD(pair, nim8*natom8)/nim8) + 1
-            img = INT(MOD(pair, nim8)) + 1
-
+            arow = atom_pair_recv(recv_pair_disps(l) + i)%row
+            acol = atom_pair_recv(recv_pair_disps(l) + i)%col
+            img = atom_pair_recv(recv_pair_disps(l) + i)%image
             nrow = last_row(arow) - first_row(arow) + 1
             ncol = last_col(acol) - first_col(acol) + 1
-
             pmat => pmats(img)%matrix
             NULLIFY (p_block)
-            CALL dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, &
-                                   BLOCK=p_block, found=found)
+            CALL dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, BLOCK=p_block, found=found)
 
             IF (PRESENT(hmats)) THEN
                hmat => hmats(img)%matrix
-               CALL dbcsr_get_block_p(matrix=hmat, row=arow, col=acol, &
-                                      BLOCK=h_block, found=found)
+               CALL dbcsr_get_block_p(matrix=hmat, row=arow, col=acol, BLOCK=h_block, found=found)
                CPASSERT(found)
             ENDIF
 
@@ -2662,6 +2613,35 @@ CONTAINS
    END FUNCTION tasks_less_than
 
 #:call array_sort(prefix='tasks', type='TYPE(task_type)')
+#:endcall
+
+! **************************************************************************************************
+!> \brief Order atom pairs to find duplicates.
+!> \param a ...
+!> \param b ...
+!> \return ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   PURE FUNCTION atom_pair_less_than(a, b) RESULT(res)
+      TYPE(atom_pair_type), INTENT(IN)                   :: a, b
+      LOGICAL                                            :: res
+
+      IF (a%rank /= b%rank) THEN
+         res = a%rank < b%rank
+
+      ELSE IF (a%row /= b%row) THEN
+         res = a%row < b%row
+
+      ELSE IF (a%col /= b%col) THEN
+         res = a%col < b%col
+
+      ELSE
+         res = a%image < b%image
+
+      ENDIF
+   END FUNCTION atom_pair_less_than
+
+#:call array_sort(prefix='atom_pair', type='TYPE(atom_pair_type)')
 #:endcall
 
 END MODULE task_list_methods
