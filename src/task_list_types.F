@@ -40,9 +40,17 @@ MODULE task_list_types
       REAL(KIND=dp), DIMENSION(3)                   :: rab = 0.0_dp
    END TYPE task_type
 
+   TYPE atom_pair_type
+      INTEGER                                       :: rank = 0
+      INTEGER                                       :: row = 0
+      INTEGER                                       :: col = 0
+      INTEGER                                       :: image = 0
+   END TYPE atom_pair_type
+
    TYPE task_list_type
       TYPE(task_type), DIMENSION(:), POINTER        :: tasks => Null()
-      INTEGER(kind=int_8), DIMENSION(:), POINTER    :: atom_pair_send, atom_pair_recv
+      TYPE(atom_pair_type), DIMENSION(:), POINTER   :: atom_pair_send => Null()
+      TYPE(atom_pair_type), DIMENSION(:), POINTER   :: atom_pair_recv => Null()
       INTEGER                                       :: ntasks
       INTEGER, DIMENSION(:, :), POINTER             :: taskstart, taskstop
       INTEGER, DIMENSION(:), POINTER                :: npairs
@@ -50,7 +58,7 @@ MODULE task_list_types
 
    INTEGER, PARAMETER                               :: task_size_in_int8 = 16
 
-   PUBLIC :: task_type, task_list_type
+   PUBLIC :: task_type, atom_pair_type, task_list_type
    PUBLIC :: task_size_in_int8, serialize_task, deserialize_task
    PUBLIC :: allocate_task_list, deallocate_task_list, reallocate_tasks
 

@@ -108,7 +108,8 @@ MODULE qs_collocate_density
    USE rs_pw_interface,                 ONLY: density_rs2pw,&
                                               density_rs2pw_basic
    USE task_list_methods,               ONLY: rs_distribute_matrix
-   USE task_list_types,                 ONLY: task_list_type,&
+   USE task_list_types,                 ONLY: atom_pair_type,&
+                                              task_list_type,&
                                               task_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -1430,7 +1431,6 @@ CONTAINS
          jkind, jkind_old, jpgf, jset, jset_old, lb, lbr, lbw, maxco, maxsgf_set, n, na1, na2, &
          natoms, nb1, nb2, nblock, ncoa, ncob, nimages, nr, nrlevel, nseta, nsetb, ntasks, &
          nthread, nw, nxy, nz, nzsize, sgfa, sgfb, ub
-      INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -1443,6 +1443,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, pab, sphi_a, sphi_b, work, &
                                                             zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pabt, workt
+      TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_recv, atom_pair_send
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap
@@ -1641,8 +1642,9 @@ CONTAINS
 
       ! distribute the matrix
       IF (distributed_rs_grids) THEN
-         CALL rs_distribute_matrix(rs_descs, deltap, atom_pair_send, atom_pair_recv, &
-                                   natoms, nimages, scatter=.TRUE.)
+         CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=deltap, &
+                                   atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
+                                   nimages=nimages, scatter=.TRUE.)
       ENDIF
 
       ! map all tasks on the grids
@@ -1940,7 +1942,6 @@ CONTAINS
          ikind_old, img, img_old, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, jkind, &
          jkind_old, jpgf, jset, jset_old, maxco, maxsgf_set, na1, na2, natoms, nb1, nb2, ncoa, &
          ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb
-      INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -1952,6 +1953,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, pab, sphi_a, sphi_b, work, &
                                                             zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pabt, workt
+      TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_recv, atom_pair_send
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap
@@ -2076,8 +2078,9 @@ CONTAINS
 
       ! distribute the matrix
       IF (distributed_rs_grids) THEN
-         CALL rs_distribute_matrix(rs_descs, deltap, atom_pair_send, atom_pair_recv, &
-                                   natoms, nimages, scatter=.TRUE.)
+         CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=deltap, &
+                                   atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
+                                   nimages=nimages, scatter=.TRUE.)
       ENDIF
 
       ! map all tasks on the grids

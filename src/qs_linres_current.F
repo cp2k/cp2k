@@ -68,8 +68,7 @@ MODULE qs_linres_current
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
-                                              dp,&
-                                              int_8
+                                              dp
    USE mathconstants,                   ONLY: twopi
    USE memory_utilities,                ONLY: reallocate
    USE orbital_pointers,                ONLY: ncoset
@@ -126,7 +125,8 @@ MODULE qs_linres_current
    USE task_list_methods,               ONLY: distribute_tasks,&
                                               rs_distribute_matrix,&
                                               task_list_inner_loop
-   USE task_list_types,                 ONLY: reallocate_tasks,&
+   USE task_list_types,                 ONLY: atom_pair_type,&
+                                              reallocate_tasks,&
                                               task_type
 #include "./base/base_uses.f90"
 
@@ -595,7 +595,6 @@ CONTAINS
          jatom_old, jkind, jkind_old, jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, &
          maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, ntasks, &
          nthread, sgfa, sgfb
-      INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -612,6 +611,7 @@ CONTAINS
          jpab_a, jpab_b, jpab_c, jpab_d, jpblock_a, jpblock_b, jpblock_c, jpblock_d, rpgfa, rpgfb, &
          sphi_a, sphi_b, work, zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: jpabt_a, jpabt_b, jpabt_c, jpabt_d, workt
+      TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_recv, atom_pair_send
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
@@ -871,8 +871,8 @@ CONTAINS
       ENDIF
 
       ! sorts / redistributes the task list
-      CALL distribute_tasks(rs_descs, ntasks, natom, nimages, &
-                            tasks, atom_pair_send, atom_pair_recv, &
+      CALL distribute_tasks(rs_descs=rs_descs, ntasks=ntasks, natoms=natom, tasks=tasks, &
+                            atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
                             symmetric=.FALSE., reorder_rs_grid_ranks=.TRUE., &
                             skip_load_balance_distributed=.FALSE.)
 
@@ -941,14 +941,18 @@ CONTAINS
       !-------------------------------------------------------------
 
       IF (distributed_rs_grids) THEN
-         CALL rs_distribute_matrix(rs_descs, deltajp_a, atom_pair_send, atom_pair_recv, &
-                                   natom, nimages, scatter=.TRUE.)
-         CALL rs_distribute_matrix(rs_descs, deltajp_b, atom_pair_send, atom_pair_recv, &
-                                   natom, nimages, scatter=.TRUE.)
-         CALL rs_distribute_matrix(rs_descs, deltajp_c, atom_pair_send, atom_pair_recv, &
-                                   natom, nimages, scatter=.TRUE.)
-         IF (do_igaim) CALL rs_distribute_matrix(rs_descs, deltajp_d, atom_pair_send, atom_pair_recv, &
-                                                 natom, nimages, scatter=.TRUE.)
+         CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=deltajp_a, &
+                                   atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
+                                   nimages=nimages, scatter=.TRUE.)
+         CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=deltajp_b, &
+                                   atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
+                                   nimages=nimages, scatter=.TRUE.)
+         CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=deltajp_c, &
+                                   atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
+                                   nimages=nimages, scatter=.TRUE.)
+         IF (do_igaim) CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=deltajp_d, &
+                                                 atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
+                                                 nimages=nimages, scatter=.TRUE.)
       ENDIF
 
       ithread = 0
