@@ -158,7 +158,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       LOGICAL :: calc_ex, do_admm, do_admm_rpa_exx, do_dynamic_load_balancing, do_exx, do_gw, &
-         do_kpoints_cubic_RPA, free_hfx_buffer
+         do_kpoints_cubic_RPA, free_hfx_buffer, update_xc_energy
       REAL(KIND=dp) :: E_ex_from_GW, Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, Emp2_AB, Emp2_AB_Cou, &
          Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T, maxocc, &
          mem_real, t1, t2, t3
@@ -722,7 +722,12 @@ CONTAINS
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Second order perturbation energy  =   ', Emp2
       ELSE
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.6)') 'Total RI-RPA Time=', t2 - t1
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA energy  =   ', Emp2
+
+         update_xc_energy = .TRUE. 
+         IF(mp2_env%ri_rpa%do_ri_g0w0 .AND. .NOT. mp2_env%ri_g0w0%update_xc_energy) update_xc_energy = .FALSE.
+         IF(.NOT. update_xc_energy) Emp2 = 0.0_dp
+
+         IF (unit_nr > 0 .AND. update_xc_energy) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA energy  =   ', Emp2
          IF (mp2_env%ri_rpa%do_ri_axk) THEN
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA-AXK energy=', mp2_env%ri_rpa%ener_axk
          ENDIF
@@ -1198,21 +1203,18 @@ CONTAINS
          END IF
       END DO
 
-      ! Remove the Exchange-correlation energy contributions from the total energy
-      energy%total = energy%total - (energy%exc + energy%exc1 + energy%ex + &
-                                     energy%exc_aux_fit + energy%exc1_aux_fit)
-
-      energy%exc = 0.0_dp
-      energy%exc1 = 0.0_dp
-      energy%exc_aux_fit = 0.0_dp
-      energy%exc1_aux_fit = 0.0_dp
-      energy%ex = 0.0_dp
-
       ! take the exact exchange energy from GW or calculate it
       IF (do_gw) THEN
-         energy%total = energy%total + E_ex_from_GW
-         energy%ex = E_ex_from_GW
+
+         IF(qs_env%mp2_env%ri_g0w0%update_xc_energy) THEN
+            CALL remove_exc_energy(energy)
+            energy%total = energy%total + E_ex_from_GW
+            energy%ex = E_ex_from_GW
+         END IF
+
       ELSE
+
+         CALL remove_exc_energy(energy)
 
          ehfx = 0.0_dp
          DO irep = 1, n_rep_hf
@@ -1247,6 +1249,28 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_exx
+
+
+   SUBROUTINE remove_exc_energy(energy)
+      TYPE(qs_energy_type), POINTER                      :: energy
+      CHARACTER(len=*), PARAMETER :: routineN = 'remove_exc_energy', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      CALL timeset(routineN, handle)
+
+         ! Remove the Exchange-correlation energy contributions from the total energy
+         energy%total = energy%total - (energy%exc + energy%exc1 + energy%ex + &
+                                        energy%exc_aux_fit + energy%exc1_aux_fit)
+
+         energy%exc = 0.0_dp
+         energy%exc1 = 0.0_dp
+         energy%exc_aux_fit = 0.0_dp
+         energy%exc1_aux_fit = 0.0_dp
+         energy%ex = 0.0_dp
+
+     CALL timestop(handle)
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...
