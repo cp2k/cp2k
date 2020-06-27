@@ -36,6 +36,7 @@ MODULE task_list_types
       INTEGER                                       :: jset = 0
       INTEGER                                       :: ipgf = 0
       INTEGER                                       :: jpgf = 0
+      INTEGER                                       :: pair_index = 0
 
       REAL(KIND=dp), DIMENSION(3)                   :: rab = 0.0_dp
    END TYPE task_type

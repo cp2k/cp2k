@@ -647,6 +647,7 @@ CONTAINS
       NULLIFY (jp_block_a, jp_block_b, jp_block_c, jp_block_d)
       NULLIFY (jpblock_a, jpblock_b, jpblock_c, jpblock_d)
       NULLIFY (jpabt_a, jpabt_b, jpabt_c, jpabt_d)
+      NULLIFY (atom_pair_send, atom_pair_recv)
 
       CALL timeset(routineN, handle)
 
@@ -1234,9 +1235,8 @@ CONTAINS
 
       DEALLOCATE (jpabt_a, jpabt_b, jpabt_c, jpabt_d, workt, tasks)
 
-      IF (distributed_rs_grids) THEN
-         DEALLOCATE (atom_pair_send, atom_pair_recv)
-      ENDIF
+      IF (ASSOCIATED(atom_pair_send)) DEALLOCATE (atom_pair_send)
+      IF (ASSOCIATED(atom_pair_recv)) DEALLOCATE (atom_pair_recv)
 
       CALL density_rs2pw(pw_env, rs_current, current_rs, current_gs)
 
