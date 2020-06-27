@@ -107,7 +107,11 @@ MODULE qs_collocate_density
                                               rs_pw_transfer
    USE rs_pw_interface,                 ONLY: density_rs2pw,&
                                               density_rs2pw_basic
-   USE task_list_methods,               ONLY: rs_distribute_matrix
+   USE task_list_methods,               ONLY: rs_blocks_type,&
+                                              rs_copy_matrix,&
+                                              rs_distribute_matrix,&
+                                              rs_get_block_p,&
+                                              rs_scatter_matrix
    USE task_list_types,                 ONLY: atom_pair_type,&
                                               task_list_type,&
                                               task_type
@@ -1426,16 +1430,16 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
-      INTEGER :: bcol, brow, ga_gb_function, handle, iatom, iatom_old, igrid_level, ikind, &
-         ikind_old, img, img_old, ipair, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, &
-         jkind, jkind_old, jpgf, jset, jset_old, lb, lbr, lbw, maxco, maxsgf_set, n, na1, na2, &
-         natoms, nb1, nb2, nblock, ncoa, ncob, nimages, nr, nrlevel, nseta, nsetb, ntasks, &
-         nthread, nw, nxy, nz, nzsize, sgfa, sgfb, ub
+      INTEGER :: ga_gb_function, handle, iatom, iatom_old, igrid_level, ikind, ikind_old, img, &
+         img_old, ipair, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, jkind, jkind_old, &
+         jpgf, jset, jset_old, lb, lbr, lbw, maxco, maxsgf_set, n, na1, na2, natoms, nb1, nb2, &
+         nblock, ncoa, ncob, nimages, nr, nrlevel, nseta, nsetb, ntasks, nthread, nw, nxy, nz, &
+         nzsize, sgfa, sgfb, ub
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: atom_pair_changed, distributed_rs_grids, &
-                                                            do_kp, found, my_compute_grad, &
+                                                            do_kp, my_compute_grad, &
                                                             my_compute_tau, my_soft, use_subpatch
       REAL(KIND=dp)                                      :: eps_rho_rspace, f, prefactor, rab2, &
                                                             radius, scale, zetp
@@ -1459,6 +1463,7 @@ CONTAINS
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
       TYPE(realspace_grid_type)                          :: threadlocal_rsgrid
+      TYPE(rs_blocks_type)                               :: blocks_recv
       TYPE(task_list_type), POINTER                      :: task_list, task_list_soft
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
 
@@ -1642,23 +1647,24 @@ CONTAINS
 
       ! distribute the matrix
       IF (distributed_rs_grids) THEN
-         CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=deltap, &
-                                   atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
-                                   nimages=nimages, scatter=.TRUE.)
+         CALL rs_scatter_matrix(rs_descs=rs_descs, pmats=deltap, blocks_recv=blocks_recv, &
+                                atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv)
+      ELSE
+         CALL rs_copy_matrix(pmats=deltap, blocks_recv=blocks_recv, atom_pair_recv=atom_pair_recv)
       ENDIF
 
       ! map all tasks on the grids
 
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          SHARED(ntasks,tasks,nimages,natoms,particle_set,pabt,workt), &
-!$OMP          SHARED(my_basis_type,my_soft,deltap,maxco,ncoset,nthread), &
+!$OMP          SHARED(my_basis_type,my_soft,maxco,ncoset,nthread), &
 !$OMP          SHARED(cell,cube_info,eps_rho_rspace,ga_gb_function), &
-!$OMP          SHARED(rs_rho,lgrid,gridlevel_info,task_list,qs_kind_set), &
+!$OMP          SHARED(rs_rho,lgrid,gridlevel_info,task_list,qs_kind_set, blocks_recv), &
 !$OMP          PRIVATE(igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,ikind,jkind,pab,work), &
 !$OMP          PRIVATE(img,img_old,iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
-!$OMP          PRIVATE(brow,bcol,qs_kind,orb_basis_set,first_sgfa,la_max,la_min), &
+!$OMP          PRIVATE(qs_kind,orb_basis_set,first_sgfa,la_max,la_min), &
 !$OMP          PRIVATE(npgfa,nseta,nsgfa,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
-!$OMP          PRIVATE(nsetb,nsgfb,sphi_b,zetb,p_block,found,prefactor,radius), &
+!$OMP          PRIVATE(nsetb,nsgfb,sphi_b,zetb,p_block,prefactor,radius), &
 !$OMP          PRIVATE(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,rp,zetp,f), &
 !$OMP          PRIVATE(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,lb,ub,n,nw), &
 !$OMP          PRIVATE(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,threadlocal_rsgrid)
@@ -1704,14 +1710,6 @@ CONTAINS
 
                IF (iatom .NE. iatom_old) ra(:) = pbc(particle_set(iatom)%r, cell)
 
-               IF (iatom <= jatom) THEN
-                  brow = iatom
-                  bcol = jatom
-               ELSE
-                  brow = jatom
-                  bcol = iatom
-               END IF
-
                IF (ikind .NE. ikind_old) THEN
                   CALL get_qs_kind(qs_kind_set(ikind), softb=my_soft, &
                                    basis_set=orb_basis_set, basis_type=my_basis_type)
@@ -1740,9 +1738,7 @@ CONTAINS
                                          zet=zetb)
                ENDIF
 
-               CALL dbcsr_get_block_p(matrix=deltap(img)%matrix, &
-                                      row=brow, col=bcol, BLOCK=p_block, found=found)
-               CPASSERT(found)
+               CALL rs_get_block_p(blocks_recv, tasks(itask), symmetric=.TRUE., block=p_block)
 
                iatom_old = iatom
                jatom_old = jatom

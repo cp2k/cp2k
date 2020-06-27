@@ -83,7 +83,18 @@ MODULE task_list_methods
    PUBLIC :: generate_qs_task_list, &
              task_list_inner_loop
    PUBLIC :: distribute_tasks, &
-             rs_distribute_matrix
+             rs_distribute_matrix, &
+             rs_scatter_matrix, &
+             rs_copy_matrix, &
+             rs_blocks_type, &
+             rs_get_block_p
+
+   TYPE rs_blocks_type
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: buffer
+      INTEGER, DIMENSION(:), ALLOCATABLE       :: pair_offsets
+      INTEGER, DIMENSION(:), POINTER           :: col_blk_size => Null() ! owned by DBCSR, do not deallocate
+      INTEGER, DIMENSION(:), POINTER           :: row_blk_size => Null() ! owned by DBCSR, do not deallocate
+   END TYPE rs_blocks_type
 
 CONTAINS
 
@@ -1929,10 +1940,10 @@ CONTAINS
          DEALLOCATE (total_loads)
 
       ELSE
-
          tasks_recv => tasks
          ntasks_recv = ntasks
-
+         CALL get_atom_pair(atom_pair_recv, tasks_recv, ntasks=ntasks_recv, send=.FALSE., symmetric=symmetric, rs_descs=rs_descs)
+         ! not distributed, hence atom_pair_send not needed
       ENDIF
 
       ! here we sort the task list we will process locally.
@@ -1964,7 +1975,7 @@ CONTAINS
    SUBROUTINE get_atom_pair(atom_pair, tasks, ntasks, send, symmetric, rs_descs)
 
       TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair
-      TYPE(task_type), DIMENSION(:), INTENT(IN)          :: tasks
+      TYPE(task_type), DIMENSION(:), INTENT(INOUT)       :: tasks
       INTEGER, INTENT(IN)                                :: ntasks
       LOGICAL, INTENT(IN)                                :: send, symmetric
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), INTENT(IN) :: rs_descs
@@ -1972,8 +1983,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_pair'
 
       INTEGER                                            :: i, ilevel, iatom, jatom, npairs, virt_rank
-      INTEGER, DIMENSION(:), POINTER                     :: indices
-      TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_tmp
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: indices
+      TYPE(atom_pair_type), DIMENSION(:), ALLOCATABLE    :: atom_pair_tmp
 
       CPASSERT(.NOT. ASSOCIATED(atom_pair))
       IF (ntasks == 0) THEN
@@ -1989,7 +2000,7 @@ CONTAINS
          iatom = tasks(i)%iatom
          jatom = tasks(i)%jatom
          IF (symmetric .AND. iatom > jatom) THEN
-            ! swapped
+            ! iatom / jatom swapped
             atom_pair_tmp(i)%row = jatom
             atom_pair_tmp(i)%col = iatom
          ELSE
@@ -2013,15 +2024,16 @@ CONTAINS
       ! find unique atom pairs that I'm sending/receiving
       ALLOCATE (indices(ntasks))
       CALL atom_pair_sort(atom_pair_tmp, ntasks, indices)
-      DEALLOCATE (indices)
-
       npairs = 1
+      tasks(indices(1))%pair_index = 1
       DO i = 2, ntasks
          IF (atom_pair_less_than(atom_pair_tmp(i - 1), atom_pair_tmp(i))) THEN
             npairs = npairs + 1
             atom_pair_tmp(npairs) = atom_pair_tmp(i)
          ENDIF
+         tasks(indices(i))%pair_index = npairs
       ENDDO
+      DEALLOCATE (indices)
 
       ! Copy unique pairs to final location.
       ALLOCATE (atom_pair(npairs))
@@ -2326,6 +2338,221 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE rs_distribute_matrix
+
+! **************************************************************************************************
+!> \brief Scatters dbcsr matrix blocks and receives them into a buffer as needed for collocation.
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE rs_scatter_matrix(rs_descs, pmats, blocks_recv, atom_pair_send, atom_pair_recv)
+
+      TYPE(realspace_grid_desc_p_type), DIMENSION(:), INTENT(IN)   :: rs_descs
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: pmats
+      TYPE(rs_blocks_type), INTENT(INOUT)                :: blocks_recv
+      TYPE(atom_pair_type), DIMENSION(:), INTENT(IN)    :: atom_pair_send, atom_pair_recv
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_scatter_matrix'
+
+      INTEGER                                            :: handle
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: send_pair_offsets, send_rank_offsets, send_rank_sizes
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: recv_rank_offsets, recv_rank_sizes
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size, col_blk_size
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: send_buffer
+      TYPE(realspace_grid_desc_type), POINTER            :: desc
+
+      CALL timeset(routineN, handle)
+      desc => rs_descs(1)%rs_desc
+
+      ! calculate sizes and offsets
+      CALL dbcsr_get_info(pmats(1)%matrix, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
+      blocks_recv%row_blk_size => row_blk_size  ! owned by DBCSR, do not deallocate
+      blocks_recv%col_blk_size => col_blk_size  ! owned by DBCSR, do not deallocate
+
+      CALL rs_calc_pair_offsets(atom_pair_send, row_blk_size=row_blk_size, col_blk_size=col_blk_size, &
+                                pair_offsets=send_pair_offsets, buffer=send_buffer)
+
+      CALL rs_calc_rank_offsets(atom_pair_send, pair_offsets=send_pair_offsets, &
+                                group_size=desc%group_size, buffer_size=SIZE(send_buffer), &
+                                rank_offsets=send_rank_offsets, rank_sizes=send_rank_sizes)
+
+      CALL rs_calc_pair_offsets(atom_pair_recv, row_blk_size=row_blk_size, col_blk_size=col_blk_size, &
+                                pair_offsets=blocks_recv%pair_offsets, buffer=blocks_recv%buffer)
+
+      CALL rs_calc_rank_offsets(atom_pair_recv, pair_offsets=blocks_recv%pair_offsets, &
+                                group_size=desc%group_size, buffer_size=SIZE(blocks_recv%buffer), &
+                                rank_offsets=recv_rank_offsets, rank_sizes=recv_rank_sizes)
+
+      ! pack dbcsr blocks into send buffer
+      CALL rs_pack_matrix(pmats, atom_pair=atom_pair_send, pair_offsets=send_pair_offsets, &
+                          row_blk_size=row_blk_size, col_blk_size=col_blk_size, buffer=send_buffer)
+
+      ! mpi all-to-all communication, receiving directly into blocks_recv%buffer.
+      CALL mp_alltoall(send_buffer, send_rank_sizes, send_rank_offsets, &
+                       blocks_recv%buffer, recv_rank_sizes, recv_rank_offsets, desc%group)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE rs_scatter_matrix
+
+! **************************************************************************************************
+!> \brief Copies the DBCSR blocks into buffer, replaces rs_scatter_matrix for non-distributed grids.
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE rs_copy_matrix(pmats, blocks_recv, atom_pair_recv)
+
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: pmats
+      TYPE(rs_blocks_type), INTENT(INOUT)                :: blocks_recv
+      TYPE(atom_pair_type), DIMENSION(:), INTENT(IN)    :: atom_pair_recv
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_copy_matrix'
+
+      INTEGER                                            :: handle
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size, col_blk_size
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_get_info(pmats(1)%matrix, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
+      blocks_recv%row_blk_size => row_blk_size  ! owned by DBCSR, do not deallocate
+      blocks_recv%col_blk_size => col_blk_size  ! owned by DBCSR, do not deallocate
+
+      CALL rs_calc_pair_offsets(pairs=atom_pair_recv, row_blk_size=row_blk_size, col_blk_size=col_blk_size, &
+                                pair_offsets=blocks_recv%pair_offsets, buffer=blocks_recv%buffer)
+
+      CALL rs_pack_matrix(pmats, atom_pair=atom_pair_recv, pair_offsets=blocks_recv%pair_offsets, &
+                          row_blk_size=row_blk_size, col_blk_size=col_blk_size, buffer=blocks_recv%buffer)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE rs_copy_matrix
+
+! **************************************************************************************************
+!> \brief Helper routine for rs_scatter_matrix and rs_copy_matrix.
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE rs_calc_pair_offsets(pairs, row_blk_size, col_blk_size, pair_offsets, buffer)
+      TYPE(atom_pair_type), DIMENSION(:), INTENT(IN)     :: pairs
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: row_blk_size, col_blk_size
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: pair_offsets
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: buffer
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_calc_pair_offsets'
+
+      INTEGER                                            :: acol, arow, i, ncol, nrow, total_size
+
+      ALLOCATE (pair_offsets(SIZE(pairs)))
+
+      total_size = 0
+      DO i = 1, SIZE(pairs)
+         pair_offsets(i) = total_size
+         arow = pairs(i)%row
+         acol = pairs(i)%col
+         nrow = row_blk_size(arow)
+         ncol = col_blk_size(acol)
+         total_size = total_size + nrow*ncol
+      END DO
+
+      ALLOCATE (buffer(total_size))
+
+   END SUBROUTINE rs_calc_pair_offsets
+
+! **************************************************************************************************
+!> \brief Helper routine for rs_scatter_matrix.
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE rs_calc_rank_offsets(pairs, pair_offsets, group_size, buffer_size, rank_offsets, rank_sizes)
+      TYPE(atom_pair_type), DIMENSION(:), INTENT(IN)     :: pairs
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: pair_offsets
+      INTEGER, INTENT(IN)                                :: group_size, buffer_size
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: rank_offsets, rank_sizes
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_calc_rank_offsets'
+
+      INTEGER                                            :: i, k, prev_k
+
+      CPASSERT(SIZE(pairs) == SIZE(pair_offsets))
+      ALLOCATE (rank_offsets(group_size))
+      ALLOCATE (rank_sizes(group_size))
+      rank_offsets = 0
+      rank_sizes = 0
+
+      IF (SIZE(pairs) > 0) THEN
+         prev_k = pairs(1)%rank + 1
+         DO i = 1, SIZE(pairs)
+            k = pairs(i)%rank + 1
+            CPASSERT(k >= prev_k) ! expecting the pairs to be ordered by rank
+            IF (k > prev_k) THEN
+               rank_offsets(k) = pair_offsets(i)
+               rank_sizes(prev_k) = rank_offsets(k) - rank_offsets(prev_k)
+               prev_k = k
+            ENDIF
+         END DO
+         rank_sizes(k) = buffer_size - rank_offsets(k) ! complete last rank
+      ENDIF
+
+   END SUBROUTINE rs_calc_rank_offsets
+
+! **************************************************************************************************
+!> \brief Helper routine for rs_scatter_matrix and rs_copy_matrix.
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE rs_pack_matrix(pmats, atom_pair, pair_offsets, row_blk_size, col_blk_size, buffer)
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: pmats
+      TYPE(atom_pair_type), DIMENSION(:), INTENT(IN)     :: atom_pair
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: pair_offsets, row_blk_size, col_blk_size
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: buffer
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pack_matrix'
+
+      INTEGER                                            :: acol, arow, img, i, l, ncol, nrow
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
+
+!$OMP PARALLEL DEFAULT(NONE), &
+!$OMP          SHARED(pmats,atom_pair,pair_offsets,row_blk_size,col_blk_size,buffer), &
+!$OMP          PRIVATE(acol,arow,img,i,l,ncol,nrow,found,p_block)
+!$OMP DO schedule(guided)
+      DO i = 1, SIZE(atom_pair)
+         arow = atom_pair(i)%row
+         acol = atom_pair(i)%col
+         nrow = row_blk_size(arow)
+         ncol = col_blk_size(acol)
+         img = atom_pair(i)%image
+         CALL dbcsr_get_block_p(matrix=pmats(img)%matrix, row=arow, col=acol, block=p_block, found=found)
+         CPASSERT(found)
+         l = pair_offsets(i)
+         buffer(l + 1:l + nrow*ncol) = RESHAPE(p_block, shape=(/nrow*ncol/))
+      ENDDO
+!$OMP END DO
+!$OMP END PARALLEL
+
+   END SUBROUTINE rs_pack_matrix
+
+! **************************************************************************************************
+!> \brief Returns a block pointer into a buffer, similar to dbcsr_get_block_p for dbcsr matrices.
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE rs_get_block_p(blocks, task, symmetric, block)
+      TYPE(rs_blocks_type), TARGET, INTENT(IN)        :: blocks
+      TYPE(task_type), INTENT(IN)                     :: task
+      LOGICAL, INTENT(IN)                             :: symmetric
+      REAL(KIND=dp), DIMENSION(:, :), POINTER         :: block
+
+      INTEGER :: nrow, ncol, iatom, jatom, l
+
+      iatom = task%iatom
+      jatom = task%jatom
+      IF (symmetric .AND. iatom > jatom) THEN
+         ! iatom / jatom swapped
+         nrow = blocks%row_blk_size(jatom)
+         ncol = blocks%col_blk_size(iatom)
+      ELSE
+         nrow = blocks%row_blk_size(iatom)
+         ncol = blocks%col_blk_size(jatom)
+      END IF
+
+      l = blocks%pair_offsets(task%pair_index)
+      block(1:nrow, 1:ncol) => blocks%buffer(l + 1:l + nrow*ncol)
+
+   END SUBROUTINE rs_get_block_p
 
 ! **************************************************************************************************
 !> \brief determines the rank of the processor who's real rs grid contains point
