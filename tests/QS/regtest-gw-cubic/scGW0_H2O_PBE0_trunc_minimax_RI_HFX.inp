@@ -58,6 +58,7 @@
             CORR_MOS_OCC          1
             CORR_MOS_VIRT         1
             RI_SIGMA_X
+            UPDATE_XC_ENERGY
           &END GW
         &END RI_RPA
       &END
