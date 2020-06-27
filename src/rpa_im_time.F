@@ -273,7 +273,7 @@ CONTAINS
                                     Eigenval, e_fermi, eps_filter, memory_info, &
                                     unit_nr, &
                                     jquad, do_kpoints_cubic_RPA, qs_env, &
-                                    num_cells_dm, index_to_cell_dm)
+                                    num_cells_dm, index_to_cell_dm, para_env)
 
          ALLOCATE (t_dm_virt(num_cells_dm))
          ALLOCATE (t_dm_occ(num_cells_dm))
@@ -671,6 +671,7 @@ CONTAINS
 !> \param qs_env ...
 !> \param num_cells_dm ...
 !> \param index_to_cell_dm ...
+!> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, nmo, &
                                     fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
@@ -679,7 +680,7 @@ CONTAINS
                                     Eigenval, e_fermi, eps_filter, memory_info, &
                                     unit_nr, &
                                     jquad, do_kpoints_cubic_RPA, qs_env, &
-                                    num_cells_dm, index_to_cell_dm)
+                                    num_cells_dm, index_to_cell_dm, para_env)
 
       TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
@@ -701,6 +702,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(OUT)                               :: num_cells_dm
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_dm_global', &
          routineP = moduleN//':'//routineN
@@ -732,6 +734,8 @@ CONTAINS
       ELSE
 
          num_cells_dm = 1
+
+         CALL mp_sync(para_env%group)
 
          ! get info of fm_mo_coeff_occ
          CALL cp_fm_get_info(matrix=fm_mo_coeff_occ, &
@@ -782,6 +786,8 @@ CONTAINS
 
             END DO
          END DO
+
+         CALL mp_sync(para_env%group)
 
          size_dm_occ = nmo
          size_dm_virt = nmo
