@@ -377,8 +377,8 @@ CONTAINS
 
       IF (mp2_env%ri_g0w0%analytic_continuation == gw_pade_approx) THEN
          IF (mp2_env%ri_g0w0%nparam_pade > num_fit_points) THEN
-            IF (unit_nr > 0) &
-               CPWARN("Pade approximation: more parameters than data points. Reset # of parameters.")
+            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A)") &
+               "Pade approximation: more parameters than data points. Reset # of parameters."
             mp2_env%ri_g0w0%nparam_pade = num_fit_points
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T74,I7)") &
                "Number of pade parameters:", mp2_env%ri_g0w0%nparam_pade
