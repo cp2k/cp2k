@@ -151,6 +151,7 @@ MODULE mp2_types
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta
       INTEGER :: print_exx
       LOGICAL :: do_gamma_only_sigma
+      LOGICAL :: update_xc_energy
    END TYPE
 
    TYPE ri_basis_opt

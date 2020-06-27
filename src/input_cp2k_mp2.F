@@ -804,6 +804,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="UPDATE_XC_ENERGY", &
+                          description="If true, the Hartree-Fock and RPA total energy are printed and the total energy "// &
+                          "is corrected using exact exchange and the RPA correlation energy.", &
+                          usage="UPDATE_XC_ENERGY", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! here we generate a subsection for the periodic GW correction
       CALL create_periodic_gw_correction_section(subsection)
       CALL section_add_subsection(section, subsection)
