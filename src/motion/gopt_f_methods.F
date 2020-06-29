@@ -44,7 +44,8 @@ MODULE gopt_f_methods
                                               default_cell_method_id,&
                                               default_minimization_method_id,&
                                               default_shellcore_method_id,&
-                                              default_ts_method_id
+                                              default_ts_method_id,&
+                                              fix_none
    USE input_cp2k_restarts,             ONLY: write_restart
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
@@ -257,7 +258,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io', routineP = moduleN//':'//routineN
 
-      REAL(KIND=dp)                                      :: pres_diff, pres_int, pres_tol
+      REAL(KIND=dp)                                      :: pres_diff, pres_diff_constr, pres_int, &
+                                                            pres_tol
 
       SELECT CASE (gopt_env%type_id)
       CASE (default_ts_method_id, default_minimization_method_id)
@@ -300,7 +302,12 @@ CONTAINS
             CPASSERT(PRESENT(ndf))
             CPASSERT(PRESENT(dx))
             CPASSERT(PRESENT(xi))
-            CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, pres_diff, pres_tol)
+            IF (gopt_env%cell_env%constraint_id == fix_none) THEN
+               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, pres_diff, pres_tol)
+            ELSE
+               pres_diff_constr = gopt_env%cell_env%pres_constr - gopt_env%cell_env%pres_ext
+               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, pres_diff, pres_tol, pres_diff_constr)
+            END IF
          END IF
       CASE (default_shellcore_method_id)
          CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy - eold, &
@@ -498,15 +505,17 @@ CONTAINS
 !> \param gopt_param ...
 !> \param pres_diff ...
 !> \param pres_tol ...
+!> \param pres_diff_constr ...
 ! **************************************************************************************************
-   SUBROUTINE check_converg(ndf, dr, g, output_unit, conv, gopt_param, pres_diff, pres_tol)
+   SUBROUTINE check_converg(ndf, dr, g, output_unit, conv, gopt_param, pres_diff, &
+                            pres_tol, pres_diff_constr)
 
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(IN)                          :: dr(ndf), g(ndf)
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(OUT)                               :: conv
       TYPE(gopt_param_type), POINTER                     :: gopt_param
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol, pres_diff_constr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_converg', routineP = moduleN//':'//routineN
 
@@ -550,7 +559,11 @@ CONTAINS
       IF (dumm > (rmsgcon*rmsgcon*ndf)) conv_rg = .FALSE.
       maxdum(4) = SQRT(dumm/ndf)
 
-      IF (PRESENT(pres_diff) .AND. PRESENT(pres_tol)) conv_p = ABS(pres_diff) < ABS(pres_tol)
+      IF (PRESENT(pres_diff_constr) .AND. PRESENT(pres_tol)) THEN
+         conv_p = ABS(pres_diff_constr) < ABS(pres_tol)
+      ELSEIF (PRESENT(pres_diff) .AND. PRESENT(pres_tol)) THEN
+         conv_p = ABS(pres_diff) < ABS(pres_tol)
+      END IF
 
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
@@ -610,8 +623,18 @@ CONTAINS
          END IF
          IF (PRESENT(pres_diff) .AND. PRESENT(pres_tol)) THEN
             tmp_r1 = cp_unit_from_cp2k(pres_diff, "bar")
-            WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-               " Pressure Deviation [bar]   = ", tmp_r1
+            IF (PRESENT(pres_diff_constr)) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
+                  " Pressure Deviation [bar]   = ", tmp_r1, &
+                  " (without constraint)"
+               tmp_r1 = cp_unit_from_cp2k(pres_diff_constr, "bar")
+               WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
+                  " Pressure Deviation [bar]   = ", tmp_r1, &
+                  " (with constraint)"
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
+                  " Pressure Deviation [bar]   = ", tmp_r1
+            END IF
             tmp_r1 = cp_unit_from_cp2k(pres_tol, "bar")
             WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
                " Pressure Tolerance [bar]   = ", tmp_r1
