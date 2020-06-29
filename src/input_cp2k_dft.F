@@ -2268,6 +2268,27 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create( &
+         print_key, __LOCATION__, name="CHARGEMOL", &
+         description="Write .wfx input file for Chargemol", &
+         print_level=debug_print_level + 1, &
+         filename="CHARGEMOL", &
+         add_last=add_last_numeric)
+      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
+                          description="Maximum index of backup copies.", &
+                          usage="BACKUP_COPIES {int}", &
+                          default_i_val=3)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
+                          description="Write information about cell periodicity.", &
+                          usage="PERIODIC {LOGICAL}", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create( &
          print_key, __LOCATION__, name="SCCS", &
          description="Controls the printing for the SCCS models", &
          print_level=high_print_level, &
