@@ -54,7 +54,8 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                               nvt_ensemble, &
                               mol_dyn_run, &
                               geo_opt_run, &
-                              cell_opt_run
+                              cell_opt_run, &
+                              fix_none
    USE input_section_types, ONLY: section_vals_get, &
                                   section_vals_get_subs_vals, &
                                   section_vals_type, &
@@ -208,11 +209,14 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                               keep_angles=gopt_env%cell_env%keep_angles, &
                               keep_symmetry=gopt_env%cell_env%keep_symmetry, &
                               pres_int=gopt_env%cell_env%pres_int, &
+                              pres_constr=gopt_env%cell_env%pres_constr, &
                               constraint_id=gopt_env%cell_env%constraint_id)
             END IF
             ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
             ! Assume at least master==0
             CALL mp_bcast(gopt_env%cell_env%pres_int, 0, para_env%group)
+            IF (gopt_env%cell_env%constraint_id /= fix_none) &
+               CALL mp_bcast(gopt_env%cell_env%pres_constr, 0, para_env%group)
          END IF
          CALL virial_release(virial_avg)
       CASE (default_cell_geo_opt_id, default_cell_md_id)
@@ -291,11 +295,14 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                               keep_angles=gopt_env%cell_env%keep_angles, &
                               keep_symmetry=gopt_env%cell_env%keep_symmetry, &
                               pres_int=gopt_env%cell_env%pres_int, &
+                              pres_constr=gopt_env%cell_env%pres_constr, &
                               constraint_id=gopt_env%cell_env%constraint_id)
             END IF
             ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
             ! Assume at least master==0
             CALL mp_bcast(gopt_env%cell_env%pres_int, 0, para_env%group)
+            IF (gopt_env%cell_env%constraint_id /= fix_none) &
+               CALL mp_bcast(gopt_env%cell_env%pres_constr, 0, para_env%group)
          END IF
          CALL virial_release(virial_avg)
       CASE DEFAULT

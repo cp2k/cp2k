@@ -60,7 +60,7 @@ MODULE cell_opt_types
       INTEGER                                    :: constraint_id, id_nr, ref_count
       LOGICAL                                    :: keep_angles, &
                                                     keep_symmetry
-      REAL(KIND=dp)                              :: pres_ext, pres_int, pres_tol
+      REAL(KIND=dp)                              :: pres_ext, pres_int, pres_tol, pres_constr
       REAL(KIND=dp), DIMENSION(3, 3)             :: mtrx
       REAL(KIND=dp), DIMENSION(3, 3)             :: rot_matrix
       TYPE(cell_type), POINTER                   :: ref_cell
