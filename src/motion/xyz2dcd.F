@@ -36,8 +36,8 @@ PROGRAM xyz2dcd
                          xyz_file_unit = default_input_unit
 
    REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
-   REAL(KIND=dp), PARAMETER :: angstrom = 0.52917720859_dp, &              ! [a.u.] -> [Angstrom]
-                               degree = 180.0_dp/pi                     ! [rad]  -> [degree]
+!  REAL(KIND=dp), PARAMETER :: angstrom = 0.52917720859_dp            ! [a.u.] -> [Angstrom]
+   REAL(KIND=dp), PARAMETER :: degree = 180.0_dp/pi                   ! [rad]  -> [degree]
 
    ! Variables
   CHARACTER(LEN=default_string_length)               :: arg, cell_file_name, dcd_file_name, message, remark1, remark2, remark_xyz, &
@@ -417,7 +417,7 @@ PROGRAM xyz2dcd
       ! Read in the atomic positions of the current frame from the XYZ file
       iatom = 0
       DO
-         READ (UNIT=xyz_file_unit, FMT=*, IOSTAT=istat) arg
+         READ (UNIT=xyz_file_unit, FMT=*) arg
          IF (arg(1:1) == "#") THEN
             CYCLE
          ELSE

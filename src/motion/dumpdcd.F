@@ -365,9 +365,9 @@ PROGRAM dumpdcd
                CALL abort_program(routineN, "Reading line 1 of the XYZ file (number of atoms) failed")
             END IF
             IF (arg(1:1) == "#") THEN
-               READ (UNIT=arg, FMT=*, IOSTAT=istat) string, natom_xyz
+               READ (UNIT=arg, FMT=*) string, natom_xyz
             ELSE
-               READ (UNIT=arg, FMT=*, IOSTAT=istat) natom_xyz
+               READ (UNIT=arg, FMT=*) natom_xyz
             END IF
             IF (istat /= 0) THEN
                CALL abort_program(routineN, "Reading line 1 of the XYZ file (number of atoms) failed")
@@ -385,7 +385,7 @@ PROGRAM dumpdcd
             IF (istat /= 0) CALL abort_program(routineN, "Reading line 2 of the XYZ file (remark line) failed")
             iatom = 0
             DO
-               READ (UNIT=xyz_input_unit, FMT=*, IOSTAT=istat) arg
+               READ (UNIT=xyz_input_unit, FMT=*) arg
                IF (arg(1:1) == "#") THEN
                   CYCLE
                ELSE
