@@ -372,18 +372,12 @@ PROGRAM dumpdcd
             IF (istat /= 0) THEN
                CALL abort_program(routineN, "Reading line 1 of the XYZ file (number of atoms) failed")
             END IF
-            IF (ALLOCATED(atomic_label)) THEN
-               DEALLOCATE (atomic_label, STAT=istat)
-               IF (istat /= 0) CALL abort_program(routineN, "Deallocation of the vector atomic_label failed")
-            END IF
+            IF (ALLOCATED(atomic_label)) DEALLOCATE (atomic_label)
             ALLOCATE (atomic_label(natom_xyz), STAT=istat)
             IF (istat /= 0) CALL abort_program(routineN, "Allocation of the vector atomic_label failed")
             atomic_label(:) = ""
             IF (ekin) THEN
-               IF (ALLOCATED(atomic_mass)) THEN
-                  DEALLOCATE (atomic_mass, STAT=istat)
-                  IF (istat /= 0) CALL abort_program(routineN, "Deallocation of the vector atomic_mass failed")
-               END IF
+               IF (ALLOCATED(atomic_mass)) DEALLOCATE (atomic_mass)
                ALLOCATE (atomic_mass(natom_xyz), STAT=istat)
                IF (istat /= 0) CALL abort_program(routineN, "Allocation of the vector atomic_mass failed")
             END IF
@@ -771,68 +765,15 @@ PROGRAM dumpdcd
    IF (LEN_TRIM(out_file_name) > 0) CLOSE (UNIT=output_unit)
 
    ! Cleanup
-   IF (ALLOCATED(atomic_label)) THEN
-      DEALLOCATE (atomic_label, STAT=istat)
-      IF (istat /= 0) THEN
-         CALL abort_program(routineN, "Deallocation of the vector atomic_label failed")
-      END IF
-   END IF
-
-   IF (ALLOCATED(atomic_displacement)) THEN
-      DEALLOCATE (atomic_displacement, STAT=istat)
-      IF (istat /= 0) THEN
-         CALL abort_program(routineN, "Deallocation of the vector atomic_displacement failed")
-      END IF
-   END IF
-
-   IF (ALLOCATED(atomic_mass)) THEN
-      DEALLOCATE (atomic_mass, STAT=istat)
-      IF (istat /= 0) THEN
-         CALL abort_program(routineN, "Deallocation of the vector atomic_mass failed")
-      END IF
-   END IF
-
-   IF (ALLOCATED(atomic_temperature)) THEN
-      DEALLOCATE (atomic_temperature, STAT=istat)
-      IF (istat /= 0) THEN
-         CALL abort_program(routineN, "Deallocation of the vector atomic_temperature failed")
-      END IF
-   END IF
-
-   IF (ALLOCATED(r)) THEN
-      DEALLOCATE (r, STAT=istat)
-      IF (istat /= 0) THEN
-         CALL abort_program(routineN, "Deallocation of the array r failed")
-      END IF
-   END IF
-
-   IF (ALLOCATED(r0)) THEN
-      DEALLOCATE (r0, STAT=istat)
-      IF (istat /= 0) THEN
-         CALL abort_program(routineN, "Deallocation of the array r0 failed")
-      END IF
-   END IF
-
-   IF (ALLOCATED(r_pbc)) THEN
-      DEALLOCATE (r_pbc, STAT=istat)
-      IF (istat /= 0) THEN
-         CALL abort_program(routineN, "Deallocation of the array r_pbc failed")
-      END IF
-   END IF
-
-   IF (ALLOCATED(s)) THEN
-      DEALLOCATE (s, STAT=istat)
-      IF (istat /= 0) THEN
-         CALL abort_program(routineN, "Deallocation of the array s failed")
-      END IF
-   END IF
-
-   IF (ALLOCATED(s_pbc)) THEN
-      DEALLOCATE (s_pbc, STAT=istat)
-      IF (istat /= 0) THEN
-         CALL abort_program(routineN, "Deallocation of the array s_pbc failed")
-      END IF
-   END IF
+   IF (ALLOCATED(atomic_label)) DEALLOCATE (atomic_label)
+   IF (ALLOCATED(atomic_displacement)) DEALLOCATE (atomic_displacement)
+   IF (ALLOCATED(atomic_mass)) DEALLOCATE (atomic_mass)
+   IF (ALLOCATED(atomic_temperature)) DEALLOCATE (atomic_temperature)
+   IF (ALLOCATED(r)) DEALLOCATE (r)
+   IF (ALLOCATED(r0)) DEALLOCATE (r0)
+   IF (ALLOCATED(r_pbc)) DEALLOCATE (r_pbc)
+   IF (ALLOCATED(s)) DEALLOCATE (s)
+   IF (ALLOCATED(s_pbc)) DEALLOCATE (s_pbc)
 
 CONTAINS
 
