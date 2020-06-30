@@ -189,9 +189,9 @@ CONTAINS
             END IF
          END IF
 
-       !!---------------------------------------------------------------------------------!
+         !!---------------------------------------------------------------------------------!
          ! Initial parsing of topology and basis set, check maximum l .le. chargemol_lmax
-       !!---------------------------------------------------------------------------------!
+         !!---------------------------------------------------------------------------------!
          num_atoms = SIZE(particle_set)
          ALLOCATE (atoms_cart(3, num_atoms))
          ALLOCATE (atom_symbols(num_atoms))
@@ -510,9 +510,9 @@ CONTAINS
          ! ===========================================================================!
          ! Primitive Exponents
          ! ===========================================================================!
-       !! NOTE: CP2K orders the atomic orbitals as follows:
-       !! Cartesian orbitals: x (slowest loop), y, z (fastest loop)
-       !! Spherical orbitals: m = -l, ..., 0, ..., +l
+         !! NOTE: CP2K orders the atomic orbitals as follows:
+         !! Cartesian orbitals: x (slowest loop), y, z (fastest loop)
+         !! Spherical orbitals: m = -l, ..., 0, ..., +l
 
          WRITE (iwfx, "(A)") "<Primitive Exponents>"
          DO iatom = 1, num_atoms
