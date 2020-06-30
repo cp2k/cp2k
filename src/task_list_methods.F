@@ -1983,7 +1983,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: send, symmetric
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), INTENT(IN) :: rs_descs
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_pair'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_pair', &
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, ilevel, iatom, jatom, npairs, virt_rank
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: indices
@@ -2353,7 +2354,8 @@ CONTAINS
       TYPE(rs_blocks_type), INTENT(INOUT)                :: blocks_recv
       TYPE(atom_pair_type), DIMENSION(:), INTENT(IN)    :: atom_pair_send, atom_pair_recv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_scatter_matrix'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_scatter_matrix', &
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: send_pair_offsets, send_rank_offsets, send_rank_sizes
@@ -2406,7 +2408,8 @@ CONTAINS
       TYPE(rs_blocks_type), INTENT(INOUT)                :: blocks_recv
       TYPE(atom_pair_type), DIMENSION(:), INTENT(IN)    :: atom_pair_recv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_copy_matrix'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_copy_matrix', &
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_size, col_blk_size
@@ -2437,7 +2440,8 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: pair_offsets
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: buffer
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_calc_pair_offsets'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_calc_pair_offsets', &
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: acol, arow, i, ncol, nrow, total_size
 
@@ -2467,7 +2471,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: group_size, buffer_size
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: rank_offsets, rank_sizes
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_calc_rank_offsets'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_calc_rank_offsets', &
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, k, prev_k
 
@@ -2503,7 +2508,8 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: pair_offsets, row_blk_size, col_blk_size
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: buffer
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pack_matrix'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pack_matrix', &
+                                     routineP = moduleN//':'//routineN
 
       INTEGER                                            :: acol, arow, img, i, l, ncol, nrow
       LOGICAL                                            :: found
@@ -2584,7 +2590,8 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: lb_cube, ub_cube
       INTEGER, INTENT(OUT)                               :: added_tasks
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_find_node', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_find_node', &
+                                     routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: add_tasks = 1000
       REAL(kind=dp), PARAMETER                           :: mult_tasks = 2.0_dp
 
