@@ -69,7 +69,7 @@ H-extpot.inp                                          11      1e-12             
 H2O-analytic_vee.inp                                  11      3e-12            -17.165089831918642
 H2O-read_cube.inp                                     11      3e-12            -17.165069594404645
 # welltempered metadynamics
-2H2O_meta_welltemp.inp                                 1      4e-14             -34.16302155139748
+2H2O_meta_welltemp.inp                                 1      5e-14             -34.16302155139748
 ND3_meta_welltemp.inp                                  1      2e-14             -11.80921591725154
 # gapw + npt
 H2O-gapw.inp                                           1      3e-14            -17.138804316237351
