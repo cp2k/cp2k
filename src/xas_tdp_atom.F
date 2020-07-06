@@ -37,7 +37,8 @@ MODULE xas_tdp_atom
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_block_p, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_replicate_all, dbcsr_type
+        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_replicate_all, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
                                               dbcsr_t_get_block,&
                                               dbcsr_t_iterator_blocks_left,&
@@ -491,9 +492,9 @@ CONTAINS
                      factor = orbtramat(l)%s2c(iso, ico) &
                               *SQRT(4.0_dp*pi/dfac(2*l + 1)*dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
 
-                     CALL daxpy(nsgf_set(iset), factor, &
-                                sphi(start_c + ncoset(l - 1) + ico, sgfi:sgfi + nsgf_set(iset) - 1), 1, &
-                                sphi_so(start_s + nsoset(l - 1) + iso, sgfi:sgfi + nsgf_set(iset) - 1), 1)
+                     sphi_so(start_s + nsoset(l - 1) + iso, sgfi:sgfi + nsgf_set(iset) - 1) = &
+                        sphi_so(start_s + nsoset(l - 1) + iso, sgfi:sgfi + nsgf_set(iset) - 1) &
+                        + factor*sphi(start_c + ncoset(l - 1) + ico, sgfi:sgfi + nsgf_set(iset) - 1)
 
                   END DO !ico
                END DO !iso
@@ -735,8 +736,8 @@ CONTAINS
       CALL dbcsr_distribution_new(sinv_dist, group=group, pgrid=pgrid, row_dist=row_dist, &
                                   col_dist=col_dist)
 
-      CALL dbcsr_create(matrix=ri_sinv, name="RI_SINV", matrix_type="S", dist=sinv_dist, &
-                        row_blk_size=nsgf, col_blk_size=nsgf)
+      CALL dbcsr_create(matrix=ri_sinv, name="RI_SINV", matrix_type=dbcsr_type_symmetric, &
+                        dist=sinv_dist, row_blk_size=nsgf, col_blk_size=nsgf)
       !reserving the blocks in the correct pattern
       DO inb = 1, nnb
          ri = pbc(particle_set(neighbors(inb))%r, cell)
@@ -1086,11 +1087,11 @@ CONTAINS
 
                   IF (sinv_found) THEN
                      DO i = 1, blk_size_ri(katom)
-                        CALL daxpy(SIZE(work2), factor*work1(i, 1), sinv_block(i, :), 1, work2(:), 1)
+                        work2(:) = work2(:) + factor*work1(i, 1)*sinv_block(i, :)
                      END DO
                   ELSE
                      DO i = 1, blk_size_ri(katom)
-                        CALL daxpy(SIZE(work2), factor*work1(i, 1), sinv_blockt(:, i), 1, work2(:), 1)
+                        work2(:) = work2(:) + factor*work1(i, 1)*sinv_blockt(:, i)
                      END DO
                   END IF
 
@@ -1172,7 +1173,7 @@ CONTAINS
                                                             nsoi, nspins, sgfi, starti
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, nsgf_set
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: so, work1, work2
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: so
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: dso
       REAL(dp), DIMENSION(:, :), POINTER                 :: dgr1, dgr2, ga, gr, ri_sphi_so, zet
       REAL(dp), DIMENSION(:, :, :), POINTER              :: dga1, dga2, rhoa, rhob
@@ -1237,16 +1238,12 @@ CONTAINS
             sgfi = first_sgf(1, iset)
             nsoi = npgf(iset)*nsoset(lmax(iset))
             nsgfi = nsgf_set(iset)
-            ALLOCATE (work1(nsoi, 1), work2(nsgfi, 1))
 
-            work2(:, 1) = ri_dcoeff(ispin)%array(sgfi:sgfi + nsgfi - 1)
-            CALL dgemm('N', 'N', nsoi, 1, nsgfi, 1.0_dp, ri_sphi_so(1:nsoi, sgfi:sgfi + nsgfi - 1), &
-                       nsoi, work2, nsgfi, 0.0_dp, work1, nsoi)
-            ri_dcoeff_so(ispin)%array((iset - 1)*maxso + 1:(iset - 1)*maxso + nsoi) = work1(:, 1)
+            CALL dgemv('N', nsoi, nsgfi, 1.0_dp, ri_sphi_so(1:nsoi, sgfi:sgfi + nsgfi - 1), nsoi, &
+                       ri_dcoeff(ispin)%array(sgfi:sgfi + nsgfi - 1), 1, 0.0_dp, &
+                       ri_dcoeff_so(ispin)%array((iset - 1)*maxso + 1:(iset - 1)*maxso + nsoi), 1)
 
-            DEALLOCATE (work1, work2)
          END DO
-
       END DO
 
       !allocate space to store the spherical orbitals on the grid
@@ -3424,7 +3421,7 @@ CONTAINS
 !  Build the matrix_soc based on the matrix_s (but anti-symmetric)
       DO i = 1, 3
          CALL dbcsr_create(matrix_soc(i)%matrix, name="SOC MATRIX", template=matrix_s(1)%matrix, &
-                           matrix_type="A")
+                           matrix_type=dbcsr_type_antisymmetric)
       END DO
 
 !  Iterate over its diagonal blocks and fill=it

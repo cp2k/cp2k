@@ -47,14 +47,9 @@ MODULE xas_tdp_methods
                                               cp_print_key_unit_nr,&
                                               debug_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_add_on_diag,&
-                                              dbcsr_copy,&
-                                              dbcsr_create,&
-                                              dbcsr_finalize,&
-                                              dbcsr_get_info,&
-                                              dbcsr_multiply,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_finalize, dbcsr_get_info, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: &
         do_loc_none, do_potential_coulomb, do_potential_id, do_potential_short, &
         do_potential_truncated, op_loc_berry, state_loc_list, tddfpt_singlet, tddfpt_spin_cons, &
@@ -759,11 +754,11 @@ CONTAINS
       ALLOCATE (xas_tdp_env%q_projector(nspins))
       ALLOCATE (xas_tdp_env%q_projector(1)%matrix)
       CALL dbcsr_create(xas_tdp_env%q_projector(1)%matrix, name="Q PROJECTOR ALPHA", &
-                        template=matrix_s(1)%matrix, matrix_type="N")
+                        template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       IF (do_os) THEN
          ALLOCATE (xas_tdp_env%q_projector(2)%matrix)
          CALL dbcsr_create(xas_tdp_env%q_projector(2)%matrix, name="Q PROJECTOR BETA", &
-                           template=matrix_s(1)%matrix, matrix_type="N")
+                           template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       END IF
 
 !     In the case of spin-restricted calculations, rho_ao includes double occupency => 0.5 prefactor
