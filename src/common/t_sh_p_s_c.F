@@ -1080,7 +1080,7 @@ CONTAINS
                ENDIF
             ENDIF
          ELSE
-            DO i = 0, NDERIV
+            DO i = 1, NDERIV + 1
                RES(i) = 0.0_dp
             END DO
          END IF
