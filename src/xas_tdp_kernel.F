@@ -20,7 +20,7 @@ MODULE xas_tdp_kernel
         dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_block2d, &
-        dbcsr_set, dbcsr_transposed, dbcsr_type
+        dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE dbcsr_tensor_api,                ONLY: dbcsr_t_get_block,&
                                               dbcsr_t_iterator_blocks_left,&
                                               dbcsr_t_iterator_next_block,&
@@ -231,7 +231,7 @@ CONTAINS
       PQ => xas_tdp_env%ri_inv_coul
 
       ! Create a normal type work matrix
-      CALL dbcsr_create(work_mat, name="WORK", matrix_type="N", dist=dist, &
+      CALL dbcsr_create(work_mat, name="WORK", matrix_type=dbcsr_type_no_symmetry, dist=dist, &
                         row_blk_size=blk_size, col_blk_size=blk_size)
 
       ! Compute the product (aI|P) * (P|Q)^-1 * (Q|Jb) = (aI|Jb)
@@ -252,7 +252,7 @@ CONTAINS
       CALL dbcsr_finalize(work_mat)
 
       !Create the symmetric kernel matrix and redistribute work_mat into it
-      CALL dbcsr_create(coul_ker, name="COULOMB KERNEL", matrix_type="S", dist=dist, &
+      CALL dbcsr_create(coul_ker, name="COULOMB KERNEL", matrix_type=dbcsr_type_symmetric, dist=dist, &
                         row_blk_size=blk_size, col_blk_size=blk_size)
       CALL dbcsr_complete_redistribute(work_mat, coul_ker)
 
@@ -300,7 +300,7 @@ CONTAINS
       ndo_mo = donor_state%ndo_mo
       ri_atom = donor_state%at_index
       !normal type work matrix such that distribution of all spin quadrants match
-      CALL dbcsr_create(work_mat, name="WORK", matrix_type="N", dist=dist, &
+      CALL dbcsr_create(work_mat, name="WORK", matrix_type=dbcsr_type_no_symmetry, dist=dist, &
                         row_blk_size=blk_size, col_blk_size=blk_size)
 
       rhs_int => contr1_int_PQ ! contains [ (aI|P)*(P|Q)^-1 ]^T
@@ -377,7 +377,7 @@ CONTAINS
       CALL dbcsr_finalize(work_mat)
 
       ! Create a symmetric kernel matrix and redistribute the normal work matrix into it
-      CALL dbcsr_create(xc_ker, name="SC OS XC KERNEL", matrix_type="S", dist=dist, &
+      CALL dbcsr_create(xc_ker, name="SC OS XC KERNEL", matrix_type=dbcsr_type_symmetric, dist=dist, &
                         row_blk_size=blk_size, col_blk_size=blk_size)
       CALL dbcsr_complete_redistribute(work_mat, xc_ker)
 
@@ -428,7 +428,7 @@ CONTAINS
       ndo_mo = donor_state%ndo_mo
       ri_atom = donor_state%at_index
       !normal type work matrix such that distribution of all spin quadrants match
-      CALL dbcsr_create(work_mat, name="WORK", matrix_type="N", dist=dist, &
+      CALL dbcsr_create(work_mat, name="WORK", matrix_type=dbcsr_type_no_symmetry, dist=dist, &
                         row_blk_size=blk_size, col_blk_size=blk_size)
 
       !Create a lhs_int, in which the whole (aI_sigma|P) (P|Q)^-1 (Q|fxc|R) will be put
@@ -468,8 +468,8 @@ CONTAINS
       CALL dbcsr_finalize(work_mat)
 
       ! Create a symmetric kernel matrix and redistribute the normal work matrix into it
-      CALL dbcsr_create(xc_ker, name="ON-DIAG SF OS XC KERNEL", matrix_type="S", dist=dist, &
-                        row_blk_size=blk_size, col_blk_size=blk_size)
+      CALL dbcsr_create(xc_ker, name="ON-DIAG SF OS XC KERNEL", matrix_type=dbcsr_type_symmetric, &
+                        dist=dist, row_blk_size=blk_size, col_blk_size=blk_size)
       CALL dbcsr_complete_redistribute(work_mat, xc_ker)
 
       !clean-up
@@ -523,7 +523,7 @@ CONTAINS
 
       ! Work structures
       ALLOCATE (fxc(nsgfp, nsgfp))
-      CALL dbcsr_create(work_mat, name="WORK", matrix_type="N", dist=dist, &
+      CALL dbcsr_create(work_mat, name="WORK", matrix_type=dbcsr_type_no_symmetry, dist=dist, &
                         row_blk_size=blk_size, col_blk_size=blk_size)
 
       ! Case study: singlet and/or triplet ?
@@ -544,8 +544,8 @@ CONTAINS
          CALL dbcsr_finalize(work_mat)
 
          !Create the symmetric kernel matrix and redistribute work_mat into it
-         CALL dbcsr_create(sg_xc_ker, name="XC SINGLET KERNEL", matrix_type="S", dist=dist, &
-                           row_blk_size=blk_size, col_blk_size=blk_size)
+         CALL dbcsr_create(sg_xc_ker, name="XC SINGLET KERNEL", matrix_type=dbcsr_type_symmetric, &
+                           dist=dist, row_blk_size=blk_size, col_blk_size=blk_size)
          CALL dbcsr_complete_redistribute(work_mat, sg_xc_ker)
 
       END IF
@@ -567,8 +567,8 @@ CONTAINS
          CALL dbcsr_finalize(work_mat)
 
          !Create the symmetric kernel matrix and redistribute work_mat into it
-         CALL dbcsr_create(tp_xc_ker, name="XC TRIPLET KERNEL", matrix_type="S", dist=dist, &
-                           row_blk_size=blk_size, col_blk_size=blk_size)
+         CALL dbcsr_create(tp_xc_ker, name="XC TRIPLET KERNEL", matrix_type=dbcsr_type_symmetric, &
+                           dist=dist, row_blk_size=blk_size, col_blk_size=blk_size)
          CALL dbcsr_complete_redistribute(work_mat, tp_xc_ker)
 
       END IF
@@ -724,7 +724,7 @@ CONTAINS
 
       CALL dbcsr_release(mats_desymm)
 
-      CALL dbcsr_create(work_mat, name="WORK", matrix_type="N", dist=dist, &
+      CALL dbcsr_create(work_mat, name="WORK", matrix_type=dbcsr_type_no_symmetry, dist=dist, &
                         row_blk_size=blk_size, col_blk_size=blk_size)
 
       ! Loop over donor spin-orbitals. End matrix is symmetric => span only upper half
@@ -789,8 +789,8 @@ CONTAINS
       END DO !iso
 
       CALL dbcsr_finalize(work_mat)
-      CALL dbcsr_create(ondiag_ex_ker, name="ONDIAG EX KERNEL", matrix_type="S", dist=dist, &
-                        row_blk_size=blk_size, col_blk_size=blk_size)
+      CALL dbcsr_create(ondiag_ex_ker, name="ONDIAG EX KERNEL", matrix_type=dbcsr_type_symmetric, &
+                        dist=dist, row_blk_size=blk_size, col_blk_size=blk_size)
       CALL dbcsr_complete_redistribute(work_mat, ondiag_ex_ker)
 
       !Clean-up
@@ -852,7 +852,7 @@ CONTAINS
       !the transpose of the later, and put the result in the correct spin quadrants
 
       !Create a normal type work matrix
-      CALL dbcsr_create(work_mat, name="WORK", matrix_type="N", dist=dist, &
+      CALL dbcsr_create(work_mat, name="WORK", matrix_type=dbcsr_type_no_symmetry, dist=dist, &
                         row_blk_size=blk_size, col_blk_size=blk_size)
 
       !Case study on closed-shell, ROKS or UKS
@@ -882,8 +882,8 @@ CONTAINS
       CALL dbcsr_finalize(work_mat)
 
       !Create the symmetric kernel matrix and redistribute work_mat into it
-      CALL dbcsr_create(offdiag_ex_ker, name="OFFDIAG EX KERNEL", matrix_type="S", dist=dist, &
-                        row_blk_size=blk_size, col_blk_size=blk_size)
+      CALL dbcsr_create(offdiag_ex_ker, name="OFFDIAG EX KERNEL", matrix_type=dbcsr_type_symmetric, &
+                        dist=dist, row_blk_size=blk_size, col_blk_size=blk_size)
       CALL dbcsr_complete_redistribute(work_mat, offdiag_ex_ker)
 
       !clean-up
@@ -1035,10 +1035,10 @@ CONTAINS
       CALL cp_dbcsr_dist2d_to_dist(opt_dist2d, opt_dbcsr_dist)
 
       ALLOCATE (aI_P, P_Ib, work, matrices(2))
-      CALL dbcsr_create(aI_P, dist=opt_dbcsr_dist, matrix_type="N", name="(aI|P)", &
+      CALL dbcsr_create(aI_P, dist=opt_dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, name="(aI|P)", &
                         row_blk_size=std_blk_size, col_blk_size=ri_blk_size)
 
-      CALL dbcsr_create(P_Ib, dist=opt_dbcsr_dist, matrix_type="N", name="(P|Ib)", &
+      CALL dbcsr_create(P_Ib, dist=opt_dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, name="(P|Ib)", &
                         row_blk_size=ri_blk_size, col_blk_size=std_blk_size)
 
       !reserve the blocks (needed for 3c contraction routines)
@@ -1050,8 +1050,9 @@ CONTAINS
       ALLOCATE (contr_int(ndo_so))
       DO i = 1, ndo_so
          ALLOCATE (contr_int(i)%matrix)
-         CALL dbcsr_create(matrix=contr_int(i)%matrix, template=matrix_s(1)%matrix, matrix_type="N", &
-                           row_blk_size=std_blk_size, col_blk_size=ri_blk_size)
+         CALL dbcsr_create(matrix=contr_int(i)%matrix, template=matrix_s(1)%matrix, &
+                           matrix_type=dbcsr_type_no_symmetry, row_blk_size=std_blk_size, &
+                           col_blk_size=ri_blk_size)
       END DO
 
       ! Only take the coeffs for atom on which MOs I,J are localized
@@ -1183,7 +1184,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract2_AO_to_doMO_low', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk, handle, i, iatom, ind(3), jatom, &
+      INTEGER                                            :: blk, handle, i, iatom, ind(3), j, jatom, &
                                                             katom, n, s1, s2
       INTEGER, DIMENSION(:), POINTER                     :: atom_blk_size
       LOGICAL                                            :: found, t_found
@@ -1219,8 +1220,10 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix=mat_aIb, row=iatom, col=jatom, BLOCK=pblock, found=found)
 
             IF (found) THEN
-               DO i = 1, n
-                  CALL daxpy(s1*s2, vec(i), iabc(:, i, :), 1, pblock(:, :), 1)
+               DO j = 1, s2
+                  DO i = 1, n
+                     pblock(:, j) = pblock(:, j) + vec(i)*iabc(:, i, j)
+                  END DO
                END DO
             END IF
          END IF ! jatom == atom_k
@@ -1363,7 +1366,7 @@ CONTAINS
       CPASSERT(ANY(quadrants))
       ndo_so = SIZE(lhs_int)
       CALL get_qs_env(qs_env, matrix_s=matrix_s, natom=nblk)
-      CALL dbcsr_create(prod, template=matrix_s(1)%matrix, matrix_type="N")
+      CALL dbcsr_create(prod, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       my_mt = .FALSE.
       IF (PRESENT(mo_transpose)) my_mt = mo_transpose
 

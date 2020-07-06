@@ -46,7 +46,7 @@ MODULE xas_tdp_utils
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_set, &
-        dbcsr_type
+        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE input_constants,                 ONLY: tddfpt_singlet,&
                                               tddfpt_spin_cons,&
                                               tddfpt_spin_flip,&
@@ -221,8 +221,8 @@ CONTAINS
       IF (do_sf) THEN !spin-flip
          CALL get_q_projector(proj_Q_sf, donor_state, do_os, xas_tdp_env, do_sf=.TRUE.)
       END IF
-      CALL dbcsr_create(matrix=work, matrix_type="N", dist=submat_dist, name="WORK", &
-                        row_blk_size=submat_blk_size, col_blk_size=submat_blk_size)
+      CALL dbcsr_create(matrix=work, matrix_type=dbcsr_type_no_symmetry, dist=submat_dist, &
+                        name="WORK", row_blk_size=submat_blk_size, col_blk_size=submat_blk_size)
 
       ! The ground state contribution(s)
       IF (do_sg .OR. do_tp .OR. do_sc) THEN !spin-conserving
@@ -530,7 +530,7 @@ CONTAINS
 
 !        Need to multiply the current matrix_tdp with the auxiliary matrix
 !        tmp_mat =  (A-D+E)^0.5 * M * (A-D+E)^0.5
-         CALL dbcsr_create(matrix=tmp_mat, template=matrix_tdp, matrix_type="N")
+         CALL dbcsr_create(matrix=tmp_mat, template=matrix_tdp, matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%matrix_aux, matrix_tdp, &
                              0.0_dp, tmp_mat, filter_eps=xas_tdp_control%eps_filter)
          CALL dbcsr_multiply('N', 'N', 1.0_dp, tmp_mat, donor_state%matrix_aux, &
@@ -827,7 +827,7 @@ CONTAINS
       blk_size_q => donor_state%blk_size
 
       ! the projector is not symmetric
-      CALL dbcsr_create(matrix=proj_Q, name="PROJ Q", matrix_type="N", dist=dist_q, &
+      CALL dbcsr_create(matrix=proj_Q, name="PROJ Q", matrix_type=dbcsr_type_no_symmetry, dist=dist_q, &
                         row_blk_size=blk_size_q, col_blk_size=blk_size_q)
 
 !  Fill the projector by looping over 1-SP and duplicating blocks. (all on the spin-MO block diagonal)
@@ -931,10 +931,10 @@ CONTAINS
       END IF
 
 !  Creating the symmetric matrix A (and work)
-      CALL dbcsr_create(matrix=matrix_a, name="MATRIX A", matrix_type="S", dist=dist_a, &
-                        row_blk_size=blk_size_a, col_blk_size=blk_size_a)
-      CALL dbcsr_create(matrix=work_matrix, name="WORK MAT", matrix_type="S", dist=dist_a, &
-                        row_blk_size=blk_size_a, col_blk_size=blk_size_a)
+      CALL dbcsr_create(matrix=matrix_a, name="MATRIX A", matrix_type=dbcsr_type_symmetric, &
+                        dist=dist_a, row_blk_size=blk_size_a, col_blk_size=blk_size_a)
+      CALL dbcsr_create(matrix=work_matrix, name="WORK MAT", matrix_type=dbcsr_type_symmetric, &
+                        dist=dist_a, row_blk_size=blk_size_a, col_blk_size=blk_size_a)
 
       DO ispin = 1, nspins
 
@@ -1051,8 +1051,8 @@ CONTAINS
 
 !  Creating the symmetric  matrices G and G^-1 with the right size and distribution
       ALLOCATE (matrix_g(1)%matrix)
-      CALL dbcsr_create(matrix=matrix_g(1)%matrix, name="MATRIX G", matrix_type="S", dist=dist_g, &
-                        row_blk_size=blk_size_g, col_blk_size=blk_size_g)
+      CALL dbcsr_create(matrix=matrix_g(1)%matrix, name="MATRIX G", matrix_type=dbcsr_type_symmetric, &
+                        dist=dist_g, row_blk_size=blk_size_g, col_blk_size=blk_size_g)
 
 !  Fill the matrices G by looping over the block of S and putting them on the diagonal
       CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
@@ -1086,8 +1086,9 @@ CONTAINS
 
          ! Create the matrix
          ALLOCATE (matrix_g(2)%matrix)
-         CALL dbcsr_create(matrix=matrix_g(2)%matrix, name="MATRIX GINV", matrix_type="S", &
-                           dist=dist_g, row_blk_size=blk_size_g, col_blk_size=blk_size_g)
+         CALL dbcsr_create(matrix=matrix_g(2)%matrix, name="MATRIX GINV", &
+                           matrix_type=dbcsr_type_symmetric, dist=dist_g, &
+                           row_blk_size=blk_size_g, col_blk_size=blk_size_g)
 
          ! Invert the overlap matrix
          CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
@@ -1332,20 +1333,20 @@ CONTAINS
       CALL dbcsr_get_info(matrix_s(1)%matrix, row_blk_size=row_blk_size)
 
       ALLOCATE (dbcsr_sc, dbcsr_sf, dbcsr_work, dbcsr_ovlp, dbcsr_tmp, dbcsr_prod)
-      CALL dbcsr_create(matrix=dbcsr_sc, name="SPIN CONS", matrix_type="N", dist=coeffs_dist, &
-                        row_blk_size=row_blk_size, col_blk_size=col_blk_size)
-      CALL dbcsr_create(matrix=dbcsr_sf, name="SPIN FLIP", matrix_type="N", dist=coeffs_dist, &
-                        row_blk_size=row_blk_size, col_blk_size=col_blk_size)
-      CALL dbcsr_create(matrix=dbcsr_work, name="WORK", matrix_type="N", dist=coeffs_dist, &
-                        row_blk_size=row_blk_size, col_blk_size=col_blk_size)
-      CALL dbcsr_create(matrix=dbcsr_prod, name="PROD", matrix_type="N", dist=prod_dist, &
-                        row_blk_size=col_blk_size, col_blk_size=col_blk_size)
-      CALL dbcsr_create(matrix=dbcsr_ovlp, name="OVLP", matrix_type="N", dist=prod_dist, &
-                        row_blk_size=col_blk_size, col_blk_size=col_blk_size)
+      CALL dbcsr_create(matrix=dbcsr_sc, name="SPIN CONS", matrix_type=dbcsr_type_no_symmetry, &
+                        dist=coeffs_dist, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
+      CALL dbcsr_create(matrix=dbcsr_sf, name="SPIN FLIP", matrix_type=dbcsr_type_no_symmetry, &
+                        dist=coeffs_dist, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
+      CALL dbcsr_create(matrix=dbcsr_work, name="WORK", matrix_type=dbcsr_type_no_symmetry, &
+                        dist=coeffs_dist, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
+      CALL dbcsr_create(matrix=dbcsr_prod, name="PROD", matrix_type=dbcsr_type_no_symmetry, &
+                        dist=prod_dist, row_blk_size=col_blk_size, col_blk_size=col_blk_size)
+      CALL dbcsr_create(matrix=dbcsr_ovlp, name="OVLP", matrix_type=dbcsr_type_no_symmetry, &
+                        dist=prod_dist, row_blk_size=col_blk_size, col_blk_size=col_blk_size)
 
       col_blk_size = 1
-      CALL dbcsr_create(matrix=dbcsr_tmp, name="TMP", matrix_type="N", dist=prod_dist, &
-                        row_blk_size=col_blk_size, col_blk_size=col_blk_size)
+      CALL dbcsr_create(matrix=dbcsr_tmp, name="TMP", matrix_type=dbcsr_type_no_symmetry, &
+                        dist=prod_dist, row_blk_size=col_blk_size, col_blk_size=col_blk_size)
       CALL dbcsr_reserve_all_blocks(dbcsr_tmp)
 
       dbcsr_soc_package%dbcsr_sc => dbcsr_sc
@@ -1751,20 +1752,20 @@ CONTAINS
       CALL dbcsr_get_info(matrix_s(1)%matrix, row_blk_size=row_blk_size)
 
       ALLOCATE (dbcsr_sg, dbcsr_tp, dbcsr_work, dbcsr_ovlp, dbcsr_tmp, dbcsr_prod)
-      CALL dbcsr_create(matrix=dbcsr_sg, name="SINGLETS", matrix_type="N", dist=coeffs_dist, &
-                        row_blk_size=row_blk_size, col_blk_size=col_blk_size)
-      CALL dbcsr_create(matrix=dbcsr_tp, name="TRIPLETS", matrix_type="N", dist=coeffs_dist, &
-                        row_blk_size=row_blk_size, col_blk_size=col_blk_size)
-      CALL dbcsr_create(matrix=dbcsr_work, name="WORK", matrix_type="N", dist=coeffs_dist, &
-                        row_blk_size=row_blk_size, col_blk_size=col_blk_size)
-      CALL dbcsr_create(matrix=dbcsr_prod, name="PROD", matrix_type="N", dist=prod_dist, &
-                        row_blk_size=col_blk_size, col_blk_size=col_blk_size)
-      CALL dbcsr_create(matrix=dbcsr_ovlp, name="OVLP", matrix_type="N", dist=prod_dist, &
-                        row_blk_size=col_blk_size, col_blk_size=col_blk_size)
+      CALL dbcsr_create(matrix=dbcsr_sg, name="SINGLETS", matrix_type=dbcsr_type_no_symmetry, &
+                        dist=coeffs_dist, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
+      CALL dbcsr_create(matrix=dbcsr_tp, name="TRIPLETS", matrix_type=dbcsr_type_no_symmetry, &
+                        dist=coeffs_dist, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
+      CALL dbcsr_create(matrix=dbcsr_work, name="WORK", matrix_type=dbcsr_type_no_symmetry, &
+                        dist=coeffs_dist, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
+      CALL dbcsr_create(matrix=dbcsr_prod, name="PROD", matrix_type=dbcsr_type_no_symmetry, &
+                        dist=prod_dist, row_blk_size=col_blk_size, col_blk_size=col_blk_size)
+      CALL dbcsr_create(matrix=dbcsr_ovlp, name="OVLP", matrix_type=dbcsr_type_no_symmetry, &
+                        dist=prod_dist, row_blk_size=col_blk_size, col_blk_size=col_blk_size)
 
       col_blk_size = 1
-      CALL dbcsr_create(matrix=dbcsr_tmp, name="TMP", matrix_type="N", dist=prod_dist, &
-                        row_blk_size=col_blk_size, col_blk_size=col_blk_size)
+      CALL dbcsr_create(matrix=dbcsr_tmp, name="TMP", matrix_type=dbcsr_type_no_symmetry, &
+                        dist=prod_dist, row_blk_size=col_blk_size, col_blk_size=col_blk_size)
       CALL dbcsr_reserve_all_blocks(dbcsr_tmp)
 
       dbcsr_soc_package%dbcsr_sg => dbcsr_sg
