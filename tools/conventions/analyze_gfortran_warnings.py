@@ -33,6 +33,7 @@ warning_re_subst = re.compile(r"'\d+'")  # replace occurrences of '49' with *
 IGNORED_WARNINGS = (
     "-Wrealloc-lhs",
     "-Wdo-subscript",
+    "-Winteger-division",
     "-Wmaybe-uninitialized",
     "-Wfunction-elimination",
     "Creating array temporary",
