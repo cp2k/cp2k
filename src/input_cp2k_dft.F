@@ -7834,7 +7834,7 @@ CONTAINS
                           description="XAS simulations using linear-response TDDFT. Excitation from "// &
                           "specified core orbitals are considered one at a time. In case of high "// &
                           "symmetry structures, donor core orbitals should be localized.", &
-                          n_keywords=15, n_subsections=3, repeats=.FALSE.)
+                          n_keywords=15, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -8017,6 +8017,52 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 ! End of the donor states subsection
+
+! The OT solver subsection
+      CALL section_create(subsection, __LOCATION__, name="OT_SOLVER", &
+                          description="Specifications for the iterative OT solver. Note: only "// &
+                          "available within the Tamm-Dancoff approximation. Recommanded if excitations "// &
+                          "from multiple donor states take place.", &
+                          n_keywords=4, &
+                          n_subsections=0, &
+                          repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Enables the usage of the OT iterator solver", &
+                          usage="&XC_FUNCTIONAL {logical}", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
+                          description="Maximum number of iterations allowed for the OT solver", &
+                          usage="MAX_ITER {integer}", &
+                          default_i_val=50)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_ITER", &
+                          description="Convergence threshold for the OT solver", &
+                          usage="EPS_ITER {double}", &
+                          default_r_val=1.0E-4_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MINIMIZER", &
+                          description="Minimizer to be used with the OT solver", &
+                          usage="MINIMIZER DIIS", &
+                          default_i_val=ot_mini_diis, &
+                          enum_c_vals=s2a("CG", "DIIS"), &
+                          enum_desc=s2a("Conjugated gradient: safer", &
+                                        "Direct inversion of the iterative subspace: faster"), &
+                          enum_i_vals=(/ot_mini_cg, ot_mini_diis/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+! End of the OT solver subsection
 
       CALL keyword_create(keyword, __LOCATION__, name="SPIN_ORBIT_COUPLING", &
                           variants=(/"SOC"/), &

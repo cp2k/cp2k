@@ -2340,7 +2340,7 @@ CONTAINS
 
       !Vxc, second term
       deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drho)")
-      
+
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2401,7 +2401,7 @@ CONTAINS
       END IF
 
       !Vxg, fourth term (to be multiplied by drhoa)
-      deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)") 
+      deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)")
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d1e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)

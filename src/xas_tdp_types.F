@@ -15,7 +15,8 @@ MODULE xas_tdp_types
                                               cp_2d_r_p_type,&
                                               cp_3d_r_p_type
    USE cp_files,                        ONLY: file_exists
-   USE cp_fm_types,                     ONLY: cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -30,9 +31,9 @@ MODULE xas_tdp_types
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
    USE input_constants,                 ONLY: &
-        do_potential_coulomb, do_potential_short, do_potential_truncated, tddfpt_singlet, &
-        tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, xas_dip_vel, xas_tdp_by_index, &
-        xas_tdp_by_kind, xc_none
+        do_potential_coulomb, do_potential_short, do_potential_truncated, ot_mini_cg, &
+        ot_mini_diis, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, &
+        xas_dip_vel, xas_tdp_by_index, xas_tdp_by_kind, xc_none
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -50,6 +51,8 @@ MODULE xas_tdp_types
                                               harmonics_atom_type
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                               qs_loc_env_release
+   USE qs_ot_types,                     ONLY: qs_ot_settings_init,&
+                                              qs_ot_settings_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -91,21 +94,28 @@ MODULE xas_tdp_types
 !>                    the number of rows is the number of times the keyword is repeated
 !> \param grid_info the information about the atomic grids used for the xc kernel integrals
 !> \param is_periodic self-explanatory
+!> \param ot_settings settings for the iterative OT solver
+!> \param do_ot whether iterative OT solver should be used
+!> \param ot_max_iter maximum number ot OT iteration allowed
+!> \param ot_eps_iter convergence threshold for OT diagonalization
 ! **************************************************************************************************
    TYPE xas_tdp_control_type
       INTEGER                                 :: define_excited
       INTEGER                                 :: dipole_form
       INTEGER                                 :: n_search
       INTEGER                                 :: n_excited
+      INTEGER                                 :: ot_max_iter
       REAL(dp)                                :: e_range
       REAL(dp)                                :: sx
       REAL(dp)                                :: eps_range
       REAL(dp)                                :: eps_screen
       REAL(dp)                                :: eps_pgf
       REAL(dp)                                :: eps_filter
+      REAL(dp)                                :: ot_eps_iter
       TYPE(libint_potential_type)             :: x_potential
       TYPE(libint_potential_type)             :: ri_m_potential
       REAL(dp)                                :: ri_radius
+      LOGICAL                                 :: do_ot
       LOGICAL                                 :: do_hfx
       LOGICAL                                 :: do_xc
       LOGICAL                                 :: do_coulomb
@@ -130,6 +140,7 @@ MODULE xas_tdp_types
       TYPE(section_vals_type), POINTER        :: print_loc_subsection
       CHARACTER(len=default_string_length), &
          DIMENSION(:, :), POINTER  :: grid_info
+      TYPE(qs_ot_settings_type), POINTER      :: ot_settings
 
    END TYPE xas_tdp_control_type
 
@@ -166,6 +177,9 @@ MODULE xas_tdp_types
 !> \param fxc_avail a boolean telling whwther fxc is availavle on all procs
 !> \param orb_soc the matrix where the SOC is evaluated wrt the orbital basis set, for x,y,z
 !> \param matrix_shalf the SQRT of the orbital overlap matrix, stored for PDOS use
+!> \param ot_prec roeconditioner for the OT solver
+!> \param lumo_evecs the LUMOs used as guess for OT
+!> \param lumo_evals the associated LUMO evals
 !> *************************************************************************************************
    TYPE xas_tdp_env_type
       CHARACTER(len=2), DIMENSION(3)          :: state_type_char
@@ -178,12 +192,12 @@ MODULE xas_tdp_types
       TYPE(dbcsr_t_type), POINTER             :: ri_3c_ex
       TYPE(donor_state_type), DIMENSION(:), &
          POINTER   :: donor_states
-      INTEGER, DIMENSION(:, :, :), POINTER      :: mos_of_ex_atoms
-      TYPE(qs_loc_env_new_type), POINTER      :: qs_loc_env
+      INTEGER, DIMENSION(:, :, :), POINTER     :: mos_of_ex_atoms
+      TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
       REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_coul
       REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_ex
-      TYPE(distribution_2d_type), POINTER     :: opt_dist2d_coul
-      TYPE(distribution_2d_type), POINTER     :: opt_dist2d_ex
+      TYPE(distribution_2d_type), POINTER      :: opt_dist2d_coul
+      TYPE(distribution_2d_type), POINTER      :: opt_dist2d_ex
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER   :: q_projector
       TYPE(dbcsr_p_type), DIMENSION(:), &
@@ -196,6 +210,13 @@ MODULE xas_tdp_types
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER   :: orb_soc
       TYPE(cp_fm_type), POINTER               :: matrix_shalf
+      TYPE(cp_fm_p_type), DIMENSION(:), &
+         POINTER                              :: lumo_evecs
+
+      TYPE(cp_1d_r_p_type), DIMENSION(:), &
+         POINTER                              :: lumo_evals
+      TYPE(dbcsr_p_type), DIMENSION(:), &
+         POINTER                              :: ot_prec
    END TYPE xas_tdp_env_type
 
 !> *************************************************************************************************
@@ -370,6 +391,7 @@ CONTAINS
       xas_tdp_control%ri_m_potential%filename = " "
       xas_tdp_control%check_only = .FALSE.
       xas_tdp_control%tamm_dancoff = .FALSE.
+      xas_tdp_control%do_ot = .TRUE.
       xas_tdp_control%do_quad = .FALSE.
       xas_tdp_control%do_loc = .FALSE.
       xas_tdp_control%do_uks = .FALSE.
@@ -382,12 +404,15 @@ CONTAINS
       xas_tdp_control%is_periodic = .FALSE.
       xas_tdp_control%n_excited = -1
       xas_tdp_control%e_range = -1.0_dp
+      xas_tdp_control%ot_max_iter = 500
+      xas_tdp_control%ot_eps_iter = 1.0E-4_dp
       NULLIFY (xas_tdp_control%state_types)
       NULLIFY (xas_tdp_control%list_ex_atoms)
       NULLIFY (xas_tdp_control%list_ex_kinds)
       NULLIFY (xas_tdp_control%loc_subsection)
       NULLIFY (xas_tdp_control%print_loc_subsection)
       NULLIFY (xas_tdp_control%grid_info)
+      NULLIFY (xas_tdp_control%ot_settings)
 
    END SUBROUTINE xas_tdp_control_create
 
@@ -416,6 +441,9 @@ CONTAINS
             !recursive, print_loc_subsection removed too
             CALL section_vals_release(xas_tdp_control%loc_subsection)
          END IF
+         IF (ASSOCIATED(xas_tdp_control%ot_settings)) THEN
+            DEALLOCATE (xas_tdp_control%ot_settings)
+         END IF
          DEALLOCATE (xas_tdp_control)
       END IF
 
@@ -433,7 +461,8 @@ CONTAINS
 
       CHARACTER(len=default_string_length), &
          DIMENSION(:), POINTER                           :: k_list
-      INTEGER                                            :: excitation, irep, nexc, nrep, xc_param
+      INTEGER                                            :: excitation, irep, nexc, nrep, ot_method, &
+                                                            xc_param
       INTEGER, DIMENSION(:), POINTER                     :: a_list, t_list
 
       NULLIFY (k_list, a_list, t_list)
@@ -630,6 +659,25 @@ CONTAINS
          xas_tdp_control%do_coulomb = .FALSE.
       END IF
 
+      !Set up OT settings
+      ALLOCATE (xas_tdp_control%ot_settings)
+      CALL qs_ot_settings_init(xas_tdp_control%ot_settings)
+      CALL section_vals_val_get(xas_tdp_section, "OT_SOLVER%_SECTION_PARAMETERS_", &
+                                l_val=xas_tdp_control%do_ot)
+
+      CALL section_vals_val_get(xas_tdp_section, "OT_SOLVER%MINIMIZER", i_val=ot_method)
+      SELECT CASE (ot_method)
+      CASE (ot_mini_cg)
+         xas_tdp_control%ot_settings%ot_method = "CG"
+      CASE (ot_mini_diis)
+         xas_tdp_control%ot_settings%ot_method = "DIIS"
+      END SELECT
+
+      CALL section_vals_val_get(xas_tdp_section, "OT_SOLVER%MAX_ITER", &
+                                i_val=xas_tdp_control%ot_max_iter)
+      CALL section_vals_val_get(xas_tdp_section, "OT_SOLVER%EPS_ITER", &
+                                r_val=xas_tdp_control%ot_eps_iter)
+
    END SUBROUTINE read_xas_tdp_control
 
 ! **************************************************************************************************
@@ -664,6 +712,9 @@ CONTAINS
       NULLIFY (xas_tdp_env%ri_fxc)
       NULLIFY (xas_tdp_env%orb_soc)
       NULLIFY (xas_tdp_env%matrix_shalf)
+      NULLIFY (xas_tdp_env%lumo_evecs)
+      NULLIFY (xas_tdp_env%lumo_evals)
+      NULLIFY (xas_tdp_env%ot_prec)
 
 !     Putting the state types as char manually
       xas_tdp_env%state_type_char(1) = "1s"
@@ -756,6 +807,25 @@ CONTAINS
                DEALLOCATE (xas_tdp_env%orb_soc(i)%matrix)
             END DO
             DEALLOCATE (xas_tdp_env%orb_soc)
+         END IF
+         IF (ASSOCIATED(xas_tdp_env%lumo_evecs)) THEN
+            DO i = 1, SIZE(xas_tdp_env%lumo_evecs)
+               CALL cp_fm_release(xas_tdp_env%lumo_evecs(i)%matrix)
+            END DO
+            DEALLOCATE (xas_tdp_env%lumo_evecs)
+         END IF
+         IF (ASSOCIATED(xas_tdp_env%lumo_evals)) THEN
+            DO i = 1, SIZE(xas_tdp_env%lumo_evals)
+               DEALLOCATE (xas_tdp_env%lumo_evals(i)%array)
+            END DO
+            DEALLOCATE (xas_tdp_env%lumo_evals)
+         END IF
+         IF (ASSOCIATED(xas_tdp_env%ot_prec)) THEN
+            DO i = 1, SIZE(xas_tdp_env%ot_prec)
+               CALL dbcsr_release(xas_tdp_env%ot_prec(i)%matrix)
+               DEALLOCATE (xas_tdp_env%ot_prec(i)%matrix)
+            END DO
+            DEALLOCATE (xas_tdp_env%ot_prec)
          END IF
          IF (ASSOCIATED(xas_tdp_env%matrix_shalf)) THEN
             CALL cp_fm_release(xas_tdp_env%matrix_shalf)
