@@ -10,14 +10,14 @@ MODULE xc_write_output
 
    USE input_constants,                 ONLY: xc_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
-   USE input_section_types,             ONLY: section_vals_duplicate,&
+   USE input_section_types,             ONLY: section_get_keyword_index,&
+                                              section_vals_duplicate,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
                                               section_vals_release,&
                                               section_vals_type,&
-                                              section_vals_val_get, &
-                                              section_get_keyword_index
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_string_length
    USE xc_derivatives,                  ONLY: xc_functional_get_info
    USE xc_libxc,                        ONLY: libxc_version_info

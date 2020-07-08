@@ -11,6 +11,8 @@ H2O-B3LYP-full-restart.inp                             0
 CO-PBE0.inp                                            88      1e-08           519.471902
 #Checking the non-zero RI_REGION for better density projection
 C2H2-PBE-ri_region.inp                                 88      1e-08           269.849841
+#Checking the iterative OT solver
+H2O-32-ot_solver.inp                                   88      1e-07           500.422869 
 #Checking truncated and shortrange operators for exchange in PBCs
 #as well as the use of RI metrics for screening
 Ne-pbc-truncated.inp                                   88      1e-08           890.773794

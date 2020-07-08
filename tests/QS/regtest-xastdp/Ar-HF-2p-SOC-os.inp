@@ -44,6 +44,8 @@
       N_EXCITED 4
 
       &KERNEL
+         &XC_FUNCTIONAL NONE
+         &END XC_FUNCTIONAL
          &EXACT_EXCHANGE
             OPERATOR COULOMB
          &END EXACT_EXCHANGE
