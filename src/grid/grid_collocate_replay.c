@@ -116,7 +116,10 @@ void grid_collocate_record(const bool orthorhombic,
 // *****************************************************************************
 double grid_collocate_replay(const char* filename, const int cycles){
     FILE *fp = fopen(filename, "r");
-    assert(fp != NULL && "Could not open task file.");
+    if (fp == NULL) {
+        fprintf(stderr, "Could not open task file: %s\n", filename);
+        exit(1);
+    }
 
     char line[100], key[100];
 
