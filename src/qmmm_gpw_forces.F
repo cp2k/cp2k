@@ -540,7 +540,7 @@ CONTAINS
                                            qmmm_env%added_charges%mm_atom_index, qmmm_env%added_charges%num_mm_atoms, &
                                        cube_info, para_env, eps_mm_rspace, auxbas_grid, coarser_grid, qmmm_env%added_charges%pgfs, &
                                            qmmm_env%added_charges%potentials, Forces_added_charges, aug_pools, mm_cell, &
-                                           qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%added_charges%per_potentials, iw, qmmm_env%par_scheme, &
+                              qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%added_charges%per_potentials, iw, qmmm_env%par_scheme, &
                                            qmmm_env%spherical_cutoff, shells)
       END IF
 
