@@ -27,7 +27,8 @@ MODULE xc
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kahan_sum,                       ONLY: accurate_sum
+   USE kahan_sum,                       ONLY: accurate_dot_product,&
+                                              accurate_sum
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE message_passing,                 ONLY: mp_sum
@@ -1320,8 +1321,8 @@ CONTAINS
                   END DO
                   DO jdir = 1, idir
                      virial_xc(idir, jdir) = pw_grid%dvol* &
-                                             accurate_sum(virial_pw%cr3d(:, :, :)* &
-                                                          drho(jdir)%array(:, :, :))
+                                             accurate_dot_product(virial_pw%cr3d(:, :, :), &
+                                                                  drho(jdir)%array(:, :, :))
                      virial_xc(jdir, idir) = virial_xc(idir, jdir)
                   END DO
                END DO
@@ -1451,8 +1452,8 @@ CONTAINS
                      END DO
                      DO jdir = 1, idir
                         virial_xc(idir, jdir) = virial_xc(idir, jdir) + pw_grid%dvol* &
-                                                accurate_sum(virial_pw%cr3d(:, :, :)* &
-                                                             drho_spin(jdir)%array(:, :, :))
+                                                accurate_dot_product(virial_pw%cr3d(:, :, :), &
+                                                                     drho_spin(jdir)%array(:, :, :))
                         virial_xc(jdir, idir) = virial_xc(idir, jdir)
                      END DO
                   END DO
@@ -1908,7 +1909,8 @@ CONTAINS
 !>      look to the old version. [fawzi]
 ! **************************************************************************************************
    SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
-                                pw_pool, xc_section, gapw, vxg, tddfpt_fac)
+                                pw_pool, xc_section, gapw, vxg, tddfpt_fac, &
+                                compute_virial, virial_xc)
 
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
@@ -1919,34 +1921,39 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :, :, :), OPTIONAL, &
          POINTER                                         :: vxg
       REAL(kind=dp), INTENT(in), OPTIONAL                :: tddfpt_fac
+      LOGICAL, INTENT(IN), OPTIONAL                      :: compute_virial
+      REAL(KIND=dp), INTENT(INOUT), DIMENSION(3, 3), OPTIONAL :: virial_xc
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_calc_2nd_deriv'
 
       CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: desc
       CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
          POINTER                                         :: split_desc
-      INTEGER                                            :: handle, i, ia, idir, ir, ispin, j, k, &
+      INTEGER                                            :: handle, i, ia, idir, ir, ispin, j, jdir, k, &
                                                             nspins, order, xc_deriv_method_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       INTEGER, DIMENSION(3, 3)                           :: nd
-      LOGICAL                                            :: gradient_f, lsd, my_gapw, unknown_deriv
-      REAL(KIND=dp)                                      :: dr1dr, fac, gradient_cut
+      LOGICAL                                            :: gradient_f, lsd, my_gapw, my_compute_virial, unknown_deriv
+      REAL(KIND=dp)                                      :: dr1dr, fac, gradient_cut, tmp
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, e_drhoa, e_drhob, &
                                                             e_norm_drho, rho1, rho1a, rho1b
       TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER        :: drho, drho1, drho1a, drho1b, drhoa, drhob
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(pw_p_type)                                    :: v_drho
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: tmp_a, tmp_b, tmp_c, tmp_r, tmp_r2
-      TYPE(pw_type), POINTER                             :: tmp_g
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: tmp_a, tmp_b, tmp_c, tmp_r
+      TYPE(pw_type), POINTER                             :: tmp_g, virial_pw
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (tmp_r, tmp_r2, tmp_a, tmp_b, tmp_c, e_drhoa, e_drhob, e_norm_drho, &
+      NULLIFY (tmp_r, tmp_a, tmp_b, tmp_c, e_drhoa, e_drhob, e_norm_drho, &
                split_desc)
 
       my_gapw = .FALSE.
       IF (PRESENT(gapw)) my_gapw = gapw
+
+      my_compute_virial = .FALSE.
+      IF (PRESENT(compute_virial)) my_compute_virial = compute_virial
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(ASSOCIATED(rho1_set))
@@ -1954,6 +1961,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(xc_section))
       IF (my_gapw) THEN
          CPASSERT(PRESENT(vxg))
+      END IF
+      IF (my_compute_virial) THEN
+         CPASSERT(PRESENT(virial_xc))
       END IF
 
       CALL section_vals_val_get(xc_section, "XC_GRID%XC_DERIV", &
@@ -1964,9 +1974,9 @@ CONTAINS
       fac = 0.0_dp
       IF (PRESENT(tddfpt_fac)) fac = tddfpt_fac
 
-      ALLOCATE (tmp_r(nspins), tmp_r2(nspins), tmp_a(nspins), tmp_b(nspins), tmp_c(nspins))
+      ALLOCATE (tmp_r(nspins), tmp_a(nspins), tmp_b(nspins), tmp_c(nspins))
       DO ispin = 1, nspins
-         NULLIFY (tmp_r(ispin)%pw, tmp_r2(ispin)%pw, tmp_a(ispin)%pw, tmp_b(nspins)%pw, tmp_c(nspins)%pw)
+         NULLIFY (tmp_r(ispin)%pw, tmp_a(ispin)%pw, tmp_b(nspins)%pw, tmp_c(nspins)%pw)
       END DO
 
       nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
@@ -2047,6 +2057,8 @@ CONTAINS
                           "): '"//TRIM(desc)//"'")
       END DO
 
+      IF (my_compute_virial .AND. gradient_f) CALL allocate_pw(virial_pw, pw_pool, bo)
+
       IF (lsd) THEN
 
          !-------------------!
@@ -2073,33 +2085,10 @@ CONTAINS
             END IF
 
             DO ispin = 1, nspins
-               IF (ASSOCIATED(pw_pool)) THEN
-                  CALL pw_pool_create_pw(pw_pool, tmp_a(ispin)%pw, &
-                                         use_data=REALDATA3D, &
-                                         in_space=REALSPACE)
-                  CALL pw_zero(tmp_a(ispin)%pw)
-                  CALL pw_pool_create_pw(pw_pool, tmp_b(ispin)%pw, &
-                                         use_data=REALDATA3D, &
-                                         in_space=REALSPACE)
-                  CALL pw_zero(tmp_b(ispin)%pw)
-                  CALL pw_pool_create_pw(pw_pool, tmp_c(ispin)%pw, &
-                                         use_data=REALDATA3D, &
-                                         in_space=REALSPACE)
-                  CALL pw_zero(tmp_c(ispin)%pw)
-                  CALL pw_pool_create_pw(pw_pool, tmp_r(ispin)%pw, &
-                                         use_data=REALDATA3D, &
-                                         in_space=REALSPACE)
-                  CALL pw_zero(tmp_r(ispin)%pw)
-               ELSE
-                  ALLOCATE (tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_c(ispin)%pw, tmp_r(ispin)%pw)
-                  ALLOCATE (tmp_a(ispin)%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
-                            tmp_b(ispin)%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
-                            tmp_c(ispin)%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
-                            tmp_r(ispin)%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
-                  tmp_a(ispin)%pw%cr3d = 0.0_dp
-                  tmp_b(ispin)%pw%cr3d = 0.0_dp
-                  tmp_c(ispin)%pw%cr3d = 0.0_dp
-               END IF
+               CALL allocate_pw(tmp_a(ispin)%pw, pw_pool, bo)
+               CALL allocate_pw(tmp_b(ispin)%pw, pw_pool, bo)
+               CALL allocate_pw(tmp_c(ispin)%pw, pw_pool, bo)
+               CALL allocate_pw(tmp_r(ispin)%pw, pw_pool, bo)
             END DO
 
          END IF
@@ -2107,30 +2096,20 @@ CONTAINS
          deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)")
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-!$OMP         PARALLEL DO PRIVATE(k,j,i) SHARED(v_xc,bo,rho1a,deriv_data) DEFAULT(NONE) COLLAPSE(3)
-            DO k = bo(1, 3), bo(2, 3)
-               DO j = bo(1, 2), bo(2, 2)
-                  DO i = bo(1, 1), bo(2, 1)
-                     v_xc(1)%pw%cr3d(i, j, k) = v_xc(1)%pw%cr3d(i, j, k) + &
-                                                deriv_data(i, j, k)*rho1a(i, j, k)
-                  END DO
-               END DO
-            END DO
+!$OMP       PARALLEL WORKSHARE SHARED(v_xc,rho1a,deriv_data) DEFAULT(NONE)
+            v_xc(1)%pw%cr3d(:, :, :) = v_xc(1)%pw%cr3d(:, :, :) + &
+                                       deriv_data(:, :, :)*rho1a(:, :, :)
+!$OMP       END PARALLEL WORKSHARE
          END IF
 
          IF (nspins /= 1) THEN
             deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)")
             IF (ASSOCIATED(deriv_att)) THEN
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-!$OMP            PARALLEL DO PRIVATE(k,j,i) DEFAULT(NONE) SHARED(bo,v_xc,deriv_data,rho1b) COLLAPSE(3)
-               DO k = bo(1, 3), bo(2, 3)
-                  DO j = bo(1, 2), bo(2, 2)
-                     DO i = bo(1, 1), bo(2, 1)
-                        v_xc(2)%pw%cr3d(i, j, k) = v_xc(2)%pw%cr3d(i, j, k) + &
-                                                   deriv_data(i, j, k)*rho1b(i, j, k)
-                     END DO
-                  END DO
-               END DO
+!$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(v_xc,deriv_data,rho1b)
+               v_xc(2)%pw%cr3d(:, :, :) = v_xc(2)%pw%cr3d(:, :, :) + &
+                                          deriv_data(:, :, :)*rho1b(:, :, :)
+!$OMP          END PARALLEL WORKSHARE
             END IF
          END IF
 
@@ -2254,35 +2233,30 @@ CONTAINS
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 !$OMP         PARALLEL DO PRIVATE(k,j,i,dr1dr,idir) DEFAULT(NONE)&
-!$OMP           SHARED(bo,drhob,drho1a,deriv_data,v_xc,drhoa,drho1b,tmp_a,tmp_b,tmp_c,nspins,rho1a,fac) COLLAPSE(3)
+!$OMP           SHARED(bo,drhob,drho1a,deriv_data,v_xc,drhoa,drho1b,tmp_c,nspins,rho1a,fac) COLLAPSE(3)
             DO k = bo(1, 3), bo(2, 3)
                DO j = bo(1, 2), bo(2, 2)
                   DO i = bo(1, 1), bo(2, 1)
+                     dr1dr = 0._dp
                      IF (nspins /= 1) THEN
-                        dr1dr = 0._dp
                         DO idir = 1, 3
                            dr1dr = dr1dr + (drhoa(idir)%array(i, j, k) + drhob(idir)%array(i, j, k))* &
                                    (drho1a(idir)%array(i, j, k) + drho1b(idir)%array(i, j, k))
                         END DO
-                        v_xc(1)%pw%cr3d(i, j, k) = v_xc(1)%pw%cr3d(i, j, k) + &
-                                                   deriv_data(i, j, k)*dr1dr
-                        tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*rho1a(i, j, k)
-                        tmp_c(2)%pw%cr3d(i, j, k) = tmp_c(2)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*rho1a(i, j, k)
                      ELSE
-                        dr1dr = 0._dp
                         DO idir = 1, 3
                            dr1dr = dr1dr + drhoa(idir)%array(i, j, k)*drho1a(idir)%array(i, j, k) + &
                                    fac*drhoa(idir)%array(i, j, k)*drho1b(idir)%array(i, j, k) + &
                                    fac*drhob(idir)%array(i, j, k)*drho1a(idir)%array(i, j, k) + &
                                    drhob(idir)%array(i, j, k)*drho1b(idir)%array(i, j, k)
                         END DO
-                        v_xc(1)%pw%cr3d(i, j, k) = v_xc(1)%pw%cr3d(i, j, k) + &
-                                                   deriv_data(i, j, k)*dr1dr
-                        tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*rho1a(i, j, k)
                      END IF
+                     v_xc(1)%pw%cr3d(i, j, k) = v_xc(1)%pw%cr3d(i, j, k) + &
+                                                   deriv_data(i, j, k)*dr1dr
+                     DO ispin = 1, nspins
+                        tmp_c(ispin)%pw%cr3d(i, j, k) = tmp_c(ispin)%pw%cr3d(i, j, k) - &
+                                                        deriv_data(i, j, k)*rho1a(i, j, k)
+                     END DO
                   END DO
                END DO
             END DO
@@ -2292,47 +2266,34 @@ CONTAINS
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 !$OMP         PARALLEL DO PRIVATE(k,j,i,dr1dr,idir) DEFAULT(NONE) &
-!$OMP         SHARED(bo,nspins,drhob,drho1a,deriv_data,drhoa,drho1b,tmp_a,tmp_b,tmp_c,fac) COLLAPSE(3)
+!$OMP         SHARED(bo,nspins,drhob,drho1a,deriv_data,drhoa,drho1b,tmp_a,tmp_c,fac) COLLAPSE(3)
             DO k = bo(1, 3), bo(2, 3)
                DO j = bo(1, 2), bo(2, 2)
                   DO i = bo(1, 1), bo(2, 1)
+                     dr1dr = 0._dp
                      IF (nspins /= 1) THEN
-                        dr1dr = 0._dp
                         DO idir = 1, 3
                            dr1dr = dr1dr + (drhoa(idir)%array(i, j, k) + drhob(idir)%array(i, j, k))* &
                                    (drho1a(idir)%array(i, j, k) + drho1b(idir)%array(i, j, k))
                         END DO
-                        tmp_a(1)%pw%cr3d(i, j, k) = tmp_a(1)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*dr1dr
-                        dr1dr = 0._dp
-                        DO idir = 1, 3
-                           dr1dr = dr1dr + drhoa(idir)%array(i, j, k)*drho1a(idir)%array(i, j, k)
-                        END DO
-                        tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*dr1dr
-                        dr1dr = 0._dp
-                        DO idir = 1, 3
-                           dr1dr = dr1dr + drhoa(idir)%array(i, j, k)*drho1a(idir)%array(i, j, k)
-                        END DO
-                        tmp_c(2)%pw%cr3d(i, j, k) = tmp_c(2)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*dr1dr
                      ELSE
-                        dr1dr = 0._dp
                         DO idir = 1, 3
                            dr1dr = dr1dr + drhoa(idir)%array(i, j, k)*drho1a(idir)%array(i, j, k) + &
                                    fac*drhoa(idir)%array(i, j, k)*drho1b(idir)%array(i, j, k) + &
                                    fac*drhob(idir)%array(i, j, k)*drho1a(idir)%array(i, j, k) + &
                                    drhob(idir)%array(i, j, k)*drho1b(idir)%array(i, j, k)
                         END DO
-                        tmp_a(1)%pw%cr3d(i, j, k) = tmp_a(1)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*dr1dr
-                        dr1dr = 0._dp
-                        DO idir = 1, 3
-                           dr1dr = dr1dr + drhoa(idir)%array(i, j, k)*drho1a(idir)%array(i, j, k)
-                        END DO
-                        tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*dr1dr
                      END IF
+                     tmp_a(1)%pw%cr3d(i, j, k) = tmp_a(1)%pw%cr3d(i, j, k) - &
+                                                 deriv_data(i, j, k)*dr1dr
+                     dr1dr = 0._dp
+                     DO idir = 1, 3
+                        dr1dr = dr1dr + drhoa(idir)%array(i, j, k)*drho1a(idir)%array(i, j, k)
+                     END DO
+                     DO ispin = 1, nspins
+                        tmp_c(ispin)%pw%cr3d(i, j, k) = tmp_c(ispin)%pw%cr3d(i, j, k) - &
+                                                    deriv_data(i, j, k)*dr1dr
+                     END DO
                   END DO
                END DO
             END DO
@@ -2342,7 +2303,7 @@ CONTAINS
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 !$OMP         PARALLEL DO PRIVATE(k,j,i,dr1dr,idir)  DEFAULT(NONE) &
-!$OMP         SHARED(bo,nspins,drhob,drho1a,deriv_data,drhoa,drho1b,tmp_a,tmp_b,tmp_c,fac,v_xc,rho1b) COLLAPSE(3)
+!$OMP         SHARED(bo,nspins,drhob,drho1a,deriv_data,drhoa,drho1b,tmp_c,fac,v_xc,rho1b) COLLAPSE(3)
             DO k = bo(1, 3), bo(2, 3)
                DO j = bo(1, 2), bo(2, 2)
                   DO i = bo(1, 1), bo(2, 1)
@@ -2354,10 +2315,10 @@ CONTAINS
                         END DO
                         v_xc(2)%pw%cr3d(i, j, k) = v_xc(2)%pw%cr3d(i, j, k) + &
                                                    deriv_data(i, j, k)*dr1dr
-                        tmp_c(2)%pw%cr3d(i, j, k) = tmp_c(2)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*rho1b(i, j, k)
-                        tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*rho1b(i, j, k)
+                        DO ispin = 1, nspins
+                           tmp_c(ispin)%pw%cr3d(i, j, k) = tmp_c(ispin)%pw%cr3d(i, j, k) - &
+                                                           deriv_data(i, j, k)*rho1b(i, j, k)
+                        END DO
                      ELSE
                         tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) - &
                                                     fac*deriv_data(i, j, k)*rho1b(i, j, k)
@@ -2371,7 +2332,7 @@ CONTAINS
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 !$OMP         PARALLEL DO PRIVATE(k,j,i,dr1dr,idir)  DEFAULT(NONE) &
-!$OMP         SHARED(bo,nspins,drhob,drho1a,deriv_data,drhoa,drho1b,tmp_a,tmp_b,tmp_c,fac) COLLAPSE(3)
+!$OMP         SHARED(bo,nspins,drhob,drho1a,deriv_data,drhoa,drho1b,tmp_b,tmp_c,fac) COLLAPSE(3)
             DO k = bo(1, 3), bo(2, 3)
                DO j = bo(1, 2), bo(2, 2)
                   DO i = bo(1, 1), bo(2, 1)
@@ -2387,14 +2348,10 @@ CONTAINS
                         DO idir = 1, 3
                            dr1dr = dr1dr + drhob(idir)%array(i, j, k)*drho1b(idir)%array(i, j, k)
                         END DO
-                        tmp_c(2)%pw%cr3d(i, j, k) = tmp_c(2)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*dr1dr
-                        dr1dr = 0._dp
-                        DO idir = 1, 3
-                           dr1dr = dr1dr + drhob(idir)%array(i, j, k)*drho1b(idir)%array(i, j, k)
+                        DO ispin = 1, nspins
+                           tmp_c(ispin)%pw%cr3d(i, j, k) = tmp_c(ispin)%pw%cr3d(i, j, k) - &
+                                                           deriv_data(i, j, k)*dr1dr
                         END DO
-                        tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*dr1dr
                      ELSE
                         dr1dr = 0._dp
                         DO idir = 1, 3
@@ -2482,6 +2439,11 @@ CONTAINS
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
             CALL xc_derivative_get(deriv_att, deriv_data=e_drhoa)
+
+            IF (my_compute_virial) THEN
+               CALL virial_drho_drho1(virial_pw, drhoa, drho1a, deriv_data, virial_xc)
+            END IF ! my_compute_virial
+
 !$OMP         PARALLEL DO PRIVATE(k,j,i,dr1dr,idir) DEFAULT(NONE)&
 !$OMP         SHARED(bo,drhoa,drho1a,gradient_cut,rho_set,tmp_a,deriv_data) COLLAPSE(3)
             DO k = bo(1, 3), bo(2, 3)
@@ -2506,6 +2468,11 @@ CONTAINS
             IF (ASSOCIATED(deriv_att)) THEN
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
                CALL xc_derivative_get(deriv_att, deriv_data=e_drhob)
+
+               IF (my_compute_virial) THEN
+                  CALL virial_drho_drho1(virial_pw, drhob, drho1b, deriv_data, virial_xc)
+               END IF ! my_compute_virial
+
 !$OMP            PARALLEL DO PRIVATE(k,j,i,dr1dr,idir) DEFAULT(NONE) &
 !$OMP            SHARED(bo,drhob,drho1b,gradient_cut,rho_set,tmp_b,deriv_data) COLLAPSE(3)
                DO k = bo(1, 3), bo(2, 3)
@@ -2540,10 +2507,6 @@ CONTAINS
                            dr1dr = dr1dr + (drhoa(idir)%array(i, j, k) + drhob(idir)%array(i, j, k))* &
                                    (drho1a(idir)%array(i, j, k) + drho1b(idir)%array(i, j, k))
                         END DO
-                        tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*dr1dr
-                        tmp_c(2)%pw%cr3d(i, j, k) = tmp_c(2)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*dr1dr
                      ELSE
                         dr1dr = 0._dp
                         DO idir = 1, 3
@@ -2552,9 +2515,11 @@ CONTAINS
                                    fac*drhob(idir)%array(i, j, k)*drho1a(idir)%array(i, j, k) + &
                                    drhob(idir)%array(i, j, k)*drho1b(idir)%array(i, j, k)
                         END DO
-                        tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) - &
-                                                    deriv_data(i, j, k)*dr1dr
                      END IF
+                     DO ispin = 1, nspins
+                        tmp_c(ispin)%pw%cr3d(i, j, k) = tmp_c(ispin)%pw%cr3d(i, j, k) - &
+                                                        deriv_data(i, j, k)*dr1dr
+                     END DO
                   END DO
                END DO
             END DO
@@ -2563,37 +2528,52 @@ CONTAINS
          deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)")
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+
+            IF (my_compute_virial) THEN
+               DO idir = 1, 3
+!$OMP         PARALLEL DO PRIVATE(k,j,i,tmp) DEFAULT(NONE)&
+!$OMP         SHARED(bo,drhoa,drhob,deriv_data,idir,virial_pw) COLLAPSE(3)
+                  DO k = bo(1, 3), bo(2, 3)
+                     DO j = bo(1, 2), bo(2, 2)
+                        DO i = bo(1, 1), bo(2, 1)
+                           virial_pw%cr3d(i, j, k) = (drhoa(idir)%array(i, j, k)+drhob(idir)%array(i, j, k))*deriv_data(i, j, k)
+                        END DO
+                     END DO
+                  END DO
+                  DO jdir = 1, 3
+                     tmp = virial_pw%pw_grid%dvol*accurate_dot_product(virial_pw%cr3d(:, :, :), &
+                                                                       (drho1a(jdir)%array(:, :, :)+drho1b(jdir)%array(:, :, :)))
+                     virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
+                     virial_xc(idir, jdir) = virial_xc(idir, jdir) + tmp
+                  END DO
+               END DO
+            END IF ! my_compute_virial
+
 !$OMP         PARALLEL DO PRIVATE(k,j,i,dr1dr,idir) DEFAULT(NONE)&
 !$OMP         SHARED(bo,nspins,drhoa,drhob,drho1a,drho1b,tmp_c,fac,deriv_data,rho_set,gradient_cut) COLLAPSE(3)
             DO k = bo(1, 3), bo(2, 3)
                DO j = bo(1, 2), bo(2, 2)
                   DO i = bo(1, 1), bo(2, 1)
+                     dr1dr = 0._dp
                      IF (nspins /= 1) THEN
-                        dr1dr = 0._dp
                         DO idir = 1, 3
                            dr1dr = dr1dr + (drhoa(idir)%array(i, j, k) + drhob(idir)%array(i, j, k))* &
                                    (drho1a(idir)%array(i, j, k) + drho1b(idir)%array(i, j, k))
                         END DO
-                        IF (rho_set%norm_drho(i, j, k) > gradient_cut) THEN
-                           dr1dr = dr1dr/(rho_set%norm_drho(i, j, k))**2
-                           tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) + &
-                                                       deriv_data(i, j, k)*dr1dr
-                           tmp_c(2)%pw%cr3d(i, j, k) = tmp_c(2)%pw%cr3d(i, j, k) + &
-                                                       deriv_data(i, j, k)*dr1dr
-                        END IF
                      ELSE
-                        dr1dr = 0._dp
                         DO idir = 1, 3
                            dr1dr = dr1dr + drhoa(idir)%array(i, j, k)*drho1a(idir)%array(i, j, k) + &
                                    fac*drhoa(idir)%array(i, j, k)*drho1b(idir)%array(i, j, k) + &
                                    fac*drhob(idir)%array(i, j, k)*drho1a(idir)%array(i, j, k) + &
                                    drhob(idir)%array(i, j, k)*drho1b(idir)%array(i, j, k)
                         END DO
-                        IF (rho_set%norm_drho(i, j, k) > gradient_cut) THEN
-                           dr1dr = dr1dr/(rho_set%norm_drho(i, j, k))**2
-                           tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) + &
-                                                       deriv_data(i, j, k)*dr1dr
-                        END IF
+                     END IF
+                     IF (rho_set%norm_drho(i, j, k) > gradient_cut) THEN
+                        dr1dr = dr1dr/(rho_set%norm_drho(i, j, k))**2
+                        DO ispin = 1, nspins
+                           tmp_c(ispin)%pw%cr3d(i, j, k) = tmp_c(ispin)%pw%cr3d(i, j, k) + &
+                                                           deriv_data(i, j, k)*dr1dr
+                        END DO
                      END IF
                   END DO
                END DO
@@ -2606,6 +2586,24 @@ CONTAINS
          END IF
 
          IF (gradient_f) THEN
+
+            IF (my_compute_virial) THEN
+               CALL virial_drho_drho(virial_pw, drhoa, tmp_a(1), virial_xc)
+               CALL virial_drho_drho(virial_pw, drhob, tmp_b(2), virial_xc)
+               DO idir = 1, 3
+!$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(drhoa,drhob,idir,tmp_c,virial_pw)
+                  virial_pw%cr3d(:, :, :) = (drhoa(idir)%array(:, :, :)+drhob(idir)%array(:, :, :)) &
+                                            *(tmp_c(1)%pw%cr3d(:, :, :)+tmp_c(2)%pw%cr3d(:, :, :))
+!$OMP          END PARALLEL WORKSHARE
+                  DO jdir = 1, idir
+                     tmp = -0.5_dp*virial_pw%pw_grid%dvol*accurate_dot_product(virial_pw%cr3d(:, :, :), &
+                                                                       drhoa(jdir)%array(:, :, :) &
+                                                                       + drhob(jdir)%array(:, :, :))
+                     virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
+                     virial_xc(idir, jdir) = virial_xc(jdir, idir)
+                  END DO
+               END DO
+            END IF ! my_compute_virial
 
             IF (my_gapw) THEN
 !$OMP            PARALLEL DO PRIVATE(ia,idir,ispin,ir) DEFAULT(NONE) &
@@ -2652,43 +2650,28 @@ CONTAINS
                DO idir = 1, 3
 
                   DO ispin = 1, nspins
-!$OMP                  PARALLEL DO PRIVATE(k,j,i,dr1dr) DEFAULT(NONE) &
-!$OMP                  SHARED(bo,tmp_r,tmp_a,tmp_b,tmp_c,drhoa,drhob,ispin,idir) COLLAPSE(3)
-                     DO k = bo(1, 3), bo(2, 3)
-                        DO j = bo(1, 2), bo(2, 2)
-                           DO i = bo(1, 1), bo(2, 1)
-                              tmp_r(ispin)%pw%cr3d(i, j, k) = &
-                                 tmp_a(ispin)%pw%cr3d(i, j, k)*drhoa(idir)%array(i, j, k) + &
-                                 tmp_b(ispin)%pw%cr3d(i, j, k)*drhob(idir)%array(i, j, k) + &
-                                 tmp_c(ispin)%pw%cr3d(i, j, k)*(drhoa(idir)%array(i, j, k) + &
-                                                                drhob(idir)%array(i, j, k))
-                           END DO
-                        END DO
-                     END DO
+!$OMP                PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP                SHARED(tmp_r,tmp_a,tmp_b,tmp_c,drhoa,drhob,ispin,idir)
+                     tmp_r(ispin)%pw%cr3d(:, :, :) = &
+                        tmp_a(ispin)%pw%cr3d(:, :, :)*drhoa(idir)%array(:, :, :) + &
+                        tmp_b(ispin)%pw%cr3d(:, :, :)*drhob(idir)%array(:, :, :) + &
+                        tmp_c(ispin)%pw%cr3d(:, :, :)*(drhoa(idir)%array(:, :, :) + &
+                                                       drhob(idir)%array(:, :, :))
+!$OMP                END PARALLEL WORKSHARE
                   END DO
                   IF (ASSOCIATED(e_drhoa)) THEN
-!$OMP                  PARALLEL DO PRIVATE(k,j,i) DEFAULT(NONE) &
-!$OMP                  SHARED(bo,tmp_r,e_drhoa,drho1a,idir) COLLAPSE(3)
-                     DO k = bo(1, 3), bo(2, 3)
-                        DO j = bo(1, 2), bo(2, 2)
-                           DO i = bo(1, 1), bo(2, 1)
-                              tmp_r(1)%pw%cr3d(i, j, k) = tmp_r(1)%pw%cr3d(i, j, k) - &
-                                                          e_drhoa(i, j, k)*drho1a(idir)%array(i, j, k)
-                           END DO
-                        END DO
-                     END DO
+!$OMP                PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP                SHARED(tmp_r,e_drhoa,drho1a,idir)
+                     tmp_r(1)%pw%cr3d(:, :, :) = tmp_r(1)%pw%cr3d(:, :, :) - &
+                                                 e_drhoa(:, :, :)*drho1a(idir)%array(:, :, :)
+!$OMP                END PARALLEL WORKSHARE
                   END IF
                   IF (nspins /= 1 .AND. ASSOCIATED(e_drhob)) THEN
-!$OMP                  PARALLEL DO PRIVATE(k,j,i) DEFAULT(NONE)&
-!$OMP                  SHARED(bo,tmp_r,e_drhob,drho1b,idir) COLLAPSE(3)
-                     DO k = bo(1, 3), bo(2, 3)
-                        DO j = bo(1, 2), bo(2, 2)
-                           DO i = bo(1, 1), bo(2, 1)
-                              tmp_r(2)%pw%cr3d(i, j, k) = tmp_r(2)%pw%cr3d(i, j, k) - &
-                                                          e_drhob(i, j, k)*drho1b(idir)%array(i, j, k)
-                           END DO
-                        END DO
-                     END DO
+!$OMP                PARALLEL WORKSHARE DEFAULT(NONE)&
+!$OMP                SHARED(tmp_r,e_drhob,drho1b,idir)
+                     tmp_r(2)%pw%cr3d(:, :, :) = tmp_r(2)%pw%cr3d(:, :, :) - &
+                                                 e_drhob(:, :, :)*drho1b(idir)%array(:, :, :)
+!$OMP                END PARALLEL WORKSHARE
                   END IF
                   IF (ASSOCIATED(e_norm_drho)) THEN
 !$OMP                  PARALLEL DO PRIVATE(k,j,i) DEFAULT(NONE)&
@@ -2763,16 +2746,10 @@ CONTAINS
             END IF
 
             DO ispin = 1, nspins
-               IF (ASSOCIATED(pw_pool)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, tmp_a(ispin)%pw)
-                  CALL pw_pool_give_back_pw(pw_pool, tmp_b(ispin)%pw)
-                  CALL pw_pool_give_back_pw(pw_pool, tmp_c(ispin)%pw)
-                  CALL pw_pool_give_back_pw(pw_pool, tmp_r(ispin)%pw)
-               ELSE
-                  DEALLOCATE (tmp_a(ispin)%pw%cr3d, tmp_b(ispin)%pw%cr3d, &
-                              tmp_c(ispin)%pw%cr3d, tmp_r(ispin)%pw%cr3d)
-                  DEALLOCATE (tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_c(ispin)%pw, tmp_r(ispin)%pw)
-               END IF
+               CALL deallocate_pw(tmp_a(ispin)%pw, pw_pool)
+               CALL deallocate_pw(tmp_b(ispin)%pw, pw_pool)
+               CALL deallocate_pw(tmp_c(ispin)%pw, pw_pool)
+               CALL deallocate_pw(tmp_r(ispin)%pw, pw_pool)
             END DO
 
             IF (xc_deriv_method_id == xc_deriv_pw .OR. &
@@ -2796,31 +2773,16 @@ CONTAINS
          IF (gradient_f) THEN
             CALL xc_rho_set_get(rho_set, drho=drho)
             CALL xc_rho_set_get(rho1_set, drho=drho1)
-            IF (ASSOCIATED(pw_pool)) THEN
-               CALL pw_pool_create_pw(pw_pool, v_drho%pw, &
-                                      use_data=REALDATA3D, &
-                                      in_space=REALSPACE)
-               CALL pw_zero(v_drho%pw)
-            ELSE
-               ALLOCATE (v_drho%pw)
-               ALLOCATE (v_drho%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
-               v_drho%pw%cr3d = 0.0_dp
-            END IF
+            CALL allocate_pw(v_drho%pw, pw_pool, bo)
          END IF
 
          deriv_att => xc_dset_get_derivative(deriv_set, "(rho)(rho)")
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-!$OMP         PARALLEL DO PRIVATE(k,j,i) DEFAULT(NONE) &
-!$OMP         SHARED(bo,v_xc,deriv_data,rho1) COLLAPSE(3)
-            DO k = bo(1, 3), bo(2, 3)
-               DO j = bo(1, 2), bo(2, 2)
-                  DO i = bo(1, 1), bo(2, 1)
-                     v_xc(1)%pw%cr3d(i, j, k) = &
-                        deriv_data(i, j, k)*rho1(i, j, k)
-                  END DO
-               END DO
-            END DO
+!$OMP         PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP         SHARED(v_xc,deriv_data,rho1)
+              v_xc(1)%pw%cr3d(:, :, :) = deriv_data(:, :, :)*rho1(:, :, :)
+!$OMP         END PARALLEL WORKSHARE
          END IF
 
          deriv_att => xc_dset_get_derivative(deriv_set, "(rho)(norm_drho)")
@@ -2864,7 +2826,9 @@ CONTAINS
          deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)")
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-            CALL xc_derivative_get(deriv_att, deriv_data=e_norm_drho)
+            IF (my_compute_virial) THEN
+               CALL virial_drho_drho1(virial_pw, drho, drho1, deriv_data, virial_xc)
+            END IF ! my_compute_virial
 !$OMP         PARALLEL DO PRIVATE(k,j,i,idir,dr1dr) DEFAULT(NONE)&
 !$OMP         SHARED(bo,drho,drho1,gradient_cut,rho_set,v_drho,deriv_data) COLLAPSE(3)
             DO k = bo(1, 3), bo(2, 3)
@@ -2884,6 +2848,10 @@ CONTAINS
          END IF
 
          IF (gradient_f) THEN
+
+            IF (my_compute_virial) THEN
+               CALL virial_drho_drho(virial_pw, drho, v_drho, virial_xc)
+            END IF ! my_compute_virial
 
             IF (my_gapw) THEN
 
@@ -2931,16 +2899,11 @@ CONTAINS
                END IF
 
                DO idir = 1, 3
-!$OMP               PARALLEL DO PRIVATE(k,j,i) DEFAULT(NONE)&
-!$OMP               SHARED(bo,tmp_r,drho,v_drho,drho1,deriv_data,idir) COLLAPSE(3)
-                  DO k = bo(1, 3), bo(2, 3)
-                     DO j = bo(1, 2), bo(2, 2)
-                        DO i = bo(1, 1), bo(2, 1)
-                           tmp_r(1)%pw%cr3d(i, j, k) = drho(idir)%array(i, j, k)*v_drho%pw%cr3d(i, j, k) - &
-                                                       drho1(idir)%array(i, j, k)*deriv_data(i, j, k)
-                        END DO
-                     END DO
-                  END DO
+!$OMP             PARALLEL WORKSHARE DEFAULT(NONE)&
+!$OMP             SHARED(tmp_r,drho,v_drho,drho1,deriv_data,idir)
+                  tmp_r(1)%pw%cr3d(:, :, :) = drho(idir)%array(:, :, :)*v_drho%pw%cr3d(:, :, :) - &
+                                              drho1(idir)%array(:, :, :)*deriv_data(:, :, :)
+!$OMP             END PARALLEL WORKSHARE
 
                   SELECT CASE (xc_deriv_method_id)
 
@@ -2987,32 +2950,108 @@ CONTAINS
                END DO
 
                IF (ASSOCIATED(pw_pool)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, tmp_r(1)%pw)
                   IF (xc_deriv_method_id == xc_deriv_pw .OR. &
                       xc_deriv_method_id == xc_deriv_spline3 .OR. &
                       xc_deriv_method_id == xc_deriv_spline2) THEN
                      CALL pw_pool_give_back_pw(pw_pool, tmp_g)
                   END IF
-               ELSE
-                  DEALLOCATE (tmp_r(1)%pw%cr3d)
-                  DEALLOCATE (tmp_r(1)%pw)
                END IF
+               CALL deallocate_pw(tmp_r(1)%pw, pw_pool)
             END IF
-            IF (ASSOCIATED(pw_pool)) THEN
-               CALL pw_pool_give_back_pw(pw_pool, v_drho%pw)
-            ELSE
-               DEALLOCATE (v_drho%pw%cr3d)
-               DEALLOCATE (v_drho%pw)
-            END IF
+            CALL deallocate_pw(v_drho%pw, pw_pool)
 
          END IF
 
       END IF
 
-      DEALLOCATE (tmp_r, tmp_r2, tmp_a, tmp_b, tmp_c)
+      IF (my_compute_virial .AND. gradient_f) THEN
+         CALL deallocate_pw(virial_pw, pw_pool)
+      END IF
+
+      DEALLOCATE (tmp_r, tmp_a, tmp_b, tmp_c)
 
       CALL timestop(handle)
    END SUBROUTINE xc_calc_2nd_deriv
+
+   SUBROUTINE allocate_pw(pw, pw_pool, bo)
+      TYPE(pw_type), POINTER, INTENT(INOUT) :: pw
+      TYPE(pw_pool_type), POINTER, INTENT(IN) :: pw_pool
+      INTEGER, DIMENSION(2, 3), INTENT(IN) :: bo
+
+      IF (ASSOCIATED(pw_pool)) THEN
+         CALL pw_pool_create_pw(pw_pool, pw, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         CALL pw_zero(pw)
+      ELSE
+         NULLIFY (pw)
+         ALLOCATE (pw)
+         ALLOCATE (pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+         pw%cr3d = 0.0_dp
+      END IF
+
+   END SUBROUTINE allocate_pw
+
+   SUBROUTINE deallocate_pw(pw, pw_pool)
+      TYPE(pw_type), POINTER, INTENT(INOUT) :: pw
+      TYPE(pw_pool_type), POINTER, INTENT(IN) :: pw_pool
+
+      IF (ASSOCIATED(pw_pool)) THEN
+         CALL pw_pool_give_back_pw(pw_pool, pw)
+      ELSE
+         DEALLOCATE (pw%cr3d)
+         DEALLOCATE (pw)
+      END IF
+
+   END SUBROUTINE deallocate_pw
+
+   SUBROUTINE virial_drho_drho1(virial_pw, drho, drho1, deriv_data, virial_xc)
+      TYPE(pw_type), INTENT(IN) :: virial_pw
+      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN) :: drho, drho1
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN) :: deriv_data
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT) :: virial_xc
+
+      INTEGER :: idir, jdir
+      REAL(KIND=dp) :: tmp
+
+      DO idir = 1, 3
+!$OMP    PARALLEL WORKSHARE DEFAULT(NONE)&
+!$OMP    SHARED(drho,idir,virial_pw,deriv_data)
+         virial_pw%cr3d(:, :, :) = drho(idir)%array(:, :, :)*deriv_data(:, :, :)
+!$OMP    END PARALLEL WORKSHARE
+         DO jdir = 1, 3
+            tmp = virial_pw%pw_grid%dvol*accurate_dot_product(virial_pw%cr3d(:, :, :), &
+                                                              drho1(jdir)%array(:, :, :))
+            virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
+            virial_xc(idir, jdir) = virial_xc(idir, jdir) + tmp
+         END DO
+      END DO
+
+   END SUBROUTINE virial_drho_drho1
+
+   SUBROUTINE virial_drho_drho(virial_pw, drho, v_drho, virial_xc)
+      TYPE(pw_type), INTENT(IN) :: virial_pw
+      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN) :: drho
+      TYPE(pw_p_type), INTENT(IN) :: v_drho
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT) :: virial_xc
+
+      INTEGER :: idir, jdir
+      REAL(KIND=dp) :: tmp
+
+      DO idir = 1, 3
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE)&
+!$OMP SHARED(drho,idir,v_drho,virial_pw)
+         virial_pw%cr3d(:, :, :) = drho(idir)%array(:, :, :)*v_drho%pw%cr3d(:, :, :)
+!$OMP END PARALLEL WORKSHARE
+         DO jdir = 1, idir
+            tmp = -virial_pw%pw_grid%dvol*accurate_dot_product(virial_pw%cr3d(:, :, :), &
+                                                               drho(jdir)%array(:, :, :))
+            virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
+            virial_xc(idir, jdir) = virial_xc(jdir, idir)
+         END DO
+      END DO
+
+   END SUBROUTINE virial_drho_drho
 
 ! **************************************************************************************************
 !> \brief Prepare objects for the calculation of the 2nd derivatives of the density functional.

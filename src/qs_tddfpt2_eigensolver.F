@@ -40,6 +40,7 @@ MODULE qs_tddfpt2_eigensolver
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kernel_types,                 ONLY: full_kernel_env_type
    USE qs_scf_methods,                  ONLY: eigensolver
    USE qs_tddfpt2_fhxc,                 ONLY: fhxc_kernel,&
                                               stda_kernel
@@ -47,9 +48,8 @@ MODULE qs_tddfpt2_eigensolver
                                               tddfpt_apply_hfx
    USE qs_tddfpt2_restart,              ONLY: tddfpt_write_restart
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
-   USE qs_tddfpt2_types,                ONLY: full_kernel_env_type,&
+   USE qs_tddfpt2_types,                ONLY: kernel_env_type,&
                                               tddfpt_ground_state_mos,&
-                                              tddfpt_kernel_env_type,&
                                               tddfpt_work_matrices
    USE qs_tddfpt2_utils,                ONLY: tddfpt_total_number_of_states
 #include "./base/base_uses.f90"
@@ -310,7 +310,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: do_hfx
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_ks
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(tddfpt_kernel_env_type), INTENT(in)           :: kernel_env
+      TYPE(kernel_env_type), INTENT(in)                  :: kernel_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
 
@@ -646,7 +646,7 @@ CONTAINS
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(tddfpt_kernel_env_type), INTENT(in)           :: kernel_env
+      TYPE(kernel_env_type), INTENT(in)                  :: kernel_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER, INTENT(in)                                :: iter_unit, energy_unit

@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE group_dist_types
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_allgather
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
@@ -144,19 +144,12 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ALLOCATE (this%starts(0:para_env%num_pe - 1))
-      this%starts = 0
       ALLOCATE (this%ends(0:para_env%num_pe - 1))
-      this%ends = 0
       ALLOCATE (this%sizes(0:para_env%num_pe - 1))
-      this%sizes = 0
 
-      this%starts(para_env%mepos) = starts
-      this%ends(para_env%mepos) = ends
-      this%sizes(para_env%mepos) = sizes
-
-      CALL mp_sum(this%starts, para_env%group)
-      CALL mp_sum(this%ends, para_env%group)
-      CALL mp_sum(this%sizes, para_env%group)
+      CALL mp_allgather(starts, this%starts, para_env%group)
+      CALL mp_allgather(ends, this%ends, para_env%group)
+      CALL mp_allgather(sizes, this%sizes, para_env%group)
 
       CALL timestop(handle)
 
@@ -180,19 +173,12 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ALLOCATE (this%starts(0:para_env%num_pe - 1))
-      this%starts = 0
       ALLOCATE (this%ends(0:para_env%num_pe - 1))
-      this%ends = 0
       ALLOCATE (this%sizes(0:para_env%num_pe - 1))
-      this%sizes = 0
 
-      this%starts(para_env%mepos) = group_dist_ext%starts
-      this%ends(para_env%mepos) = group_dist_ext%ends
-      this%sizes(para_env%mepos) = group_dist_ext%sizes
-
-      CALL mp_sum(this%starts, para_env%group)
-      CALL mp_sum(this%ends, para_env%group)
-      CALL mp_sum(this%sizes, para_env%group)
+      CALL mp_allgather(group_dist_ext%starts, this%starts, para_env%group)
+      CALL mp_allgather(group_dist_ext%ends, this%ends, para_env%group)
+      CALL mp_allgather(group_dist_ext%sizes, this%sizes, para_env%group)
 
       CALL timestop(handle)
 

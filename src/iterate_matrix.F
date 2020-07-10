@@ -1444,15 +1444,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix_mu_adjust'
 
-      INTEGER                                            :: group, handle, i, j, k, l, myrank, nblkcols, &
+      INTEGER                                            :: group, handle, i, j, myrank, nblkcols, &
                                                             sm_size, unit_nr, sm_firstcol, sm_lastcol
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_sms
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mapped_eigvals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sm, sm_sign, tmp
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(submatrix_dissection_type)                    :: dissection
-      REAL(KIND=dp)                                      :: trace, increment, new_mu, modified_eigval, tmpsum, mu_low, mu_high
+      REAL(KIND=dp)                                      :: trace, increment, new_mu, mu_low, mu_high
       TYPE(eigbuf), DIMENSION(:), ALLOCATABLE            :: eigbufs
       LOGICAL                                            :: has_mu_low, has_mu_high
 
@@ -1550,8 +1549,7 @@ CONTAINS
 #else
          !$OMP PARALLEL DEFAULT(NONE) &
 #endif
-         !$OMP          PRIVATE(i, k, l, sm_sign, tmp, sm_size, sm_firstcol, sm_lastcol, modified_eigval, tmpsum, &
-         !$OMP                  mapped_eigvals) &
+         !$OMP          PRIVATE(i, sm_sign, tmp, sm_size, sm_firstcol, sm_lastcol) &
          !$OMP          SHARED(dissection, my_sms, unit_nr, eigbufs, mu, new_mu, nelectron) &
          !$OMP          REDUCTION(+:trace)
          !$OMP DO SCHEDULE(GUIDED)

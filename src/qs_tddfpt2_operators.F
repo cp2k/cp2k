@@ -22,6 +22,9 @@ MODULE qs_tddfpt2_operators
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_set
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -40,10 +43,10 @@ MODULE qs_tddfpt2_operators
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kernel_types,                 ONLY: full_kernel_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_tddfpt2_types,                ONLY: full_kernel_env_type,&
-                                              tddfpt_ground_state_mos
+   USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
    USE xc,                              ONLY: xc_calc_2nd_deriv,&
                                               xc_vxc_pw_create
    USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
@@ -505,80 +508,91 @@ CONTAINS
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: work_rho_ia_ao, work_hmat
-      TYPE(cp_fm_type), POINTER                          :: wfm_rho_orb
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: work_rho_ia_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
+         TARGET                                          :: work_hmat
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: wfm_rho_orb
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_apply_hfx'
 
       INTEGER                                            :: handle, ispin, ivect, nao, nao_aux, &
                                                             nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nactive
+      LOGICAL                                            :: do_hfx
       REAL(kind=dp)                                      :: alpha
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(section_vals_type), POINTER                   :: hfx_section, input
 
       CALL timeset(routineN, handle)
 
-      nspins = SIZE(evects, 1)
-      nvects = SIZE(evects, 2)
+      ! Check for hfx section
+      CALL get_qs_env(qs_env, input=input)
+      hfx_section => section_vals_get_subs_vals(input, "DFT%XC%HF")
+      CALL section_vals_get(hfx_section, explicit=do_hfx)
 
-      IF (nspins > 1) THEN
-         alpha = 2.0_dp
-      ELSE
-         alpha = 4.0_dp
-      END IF
+      IF (do_hfx) THEN
+         nspins = SIZE(evects, 1)
+         nvects = SIZE(evects, 2)
 
-      CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
-      DO ispin = 1, nspins
-         CALL cp_fm_get_info(evects(ispin, 1)%matrix, ncol_global=nactive(ispin))
-      END DO
+         IF (nspins > 1) THEN
+            alpha = 1.0_dp
+         ELSE
+            alpha = 2.0_dp
+         END IF
 
-      IF (do_admm) THEN
-         CALL get_qs_env(qs_env, admm_env=admm_env)
-         CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux)
-      END IF
-
-      ! some stuff from qs_ks_build_kohn_sham_matrix
-      ! TO DO: add SIC support
-      DO ivect = 1, nvects
+         CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
          DO ispin = 1, nspins
-            CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, gs_mos(ispin)%mos_occ, &
-                         evects(ispin, ivect)%matrix, 0.0_dp, wfm_rho_orb)
-            CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
-                         gs_mos(ispin)%mos_occ, 1.0_dp, wfm_rho_orb)
-
-            CALL dbcsr_set(work_hmat(ispin)%matrix, 0.0_dp)
-            IF (do_admm) THEN
-               CALL cp_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, &
-                            wfm_rho_orb, 0.0_dp, admm_env%work_aux_orb)
-               CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
-                            0.0_dp, admm_env%work_aux_aux)
-               CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, work_rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
-            ELSE
-               CALL copy_fm_to_dbcsr(wfm_rho_orb, work_rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
-            END IF
+            CALL cp_fm_get_info(evects(ispin, 1)%matrix, ncol_global=nactive(ispin))
          END DO
 
-         CALL tddft_hfx_matrix(work_hmat, work_rho_ia_ao, qs_env)
-
          IF (do_admm) THEN
-            DO ispin = 1, nspins
-               CALL cp_dbcsr_sm_fm_multiply(work_hmat(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
-                                            ncol=nao, alpha=1.0_dp, beta=0.0_dp)
-
-               CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
-                            admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
-
-               CALL cp_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
-                            gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
-            END DO
-         ELSE
-            DO ispin = 1, nspins
-               CALL cp_dbcsr_sm_fm_multiply(work_hmat(ispin)%matrix, gs_mos(ispin)%mos_occ, &
-                                            Aop_evects(ispin, ivect)%matrix, ncol=nactive(ispin), &
-                                            alpha=alpha, beta=1.0_dp)
-            END DO
+            CALL get_qs_env(qs_env, admm_env=admm_env)
+            CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux)
          END IF
-      END DO
+
+         ! some stuff from qs_ks_build_kohn_sham_matrix
+         ! TO DO: add SIC support
+         DO ivect = 1, nvects
+            DO ispin = 1, nspins
+               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 1.0_dp, gs_mos(ispin)%mos_occ, &
+                            evects(ispin, ivect)%matrix, 0.0_dp, wfm_rho_orb)
+               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 1.0_dp, evects(ispin, ivect)%matrix, &
+                            gs_mos(ispin)%mos_occ, 1.0_dp, wfm_rho_orb)
+
+               CALL dbcsr_set(work_hmat(ispin)%matrix, 0.0_dp)
+               IF (do_admm) THEN
+                  CALL cp_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, &
+                               wfm_rho_orb, 0.0_dp, admm_env%work_aux_orb)
+                  CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
+                               0.0_dp, admm_env%work_aux_aux)
+                  CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, work_rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
+               ELSE
+                  CALL copy_fm_to_dbcsr(wfm_rho_orb, work_rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
+               END IF
+            END DO
+
+            CALL tddft_hfx_matrix(work_hmat, work_rho_ia_ao, qs_env)
+
+            IF (do_admm) THEN
+               DO ispin = 1, nspins
+                  CALL cp_dbcsr_sm_fm_multiply(work_hmat(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
+                                               ncol=nao, alpha=1.0_dp, beta=0.0_dp)
+
+                  CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
+                               admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
+
+                  CALL cp_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
+                               gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
+               END DO
+            ELSE
+               DO ispin = 1, nspins
+                  CALL cp_dbcsr_sm_fm_multiply(work_hmat(ispin)%matrix, gs_mos(ispin)%mos_occ, &
+                                               Aop_evects(ispin, ivect)%matrix, ncol=nactive(ispin), &
+                                               alpha=alpha, beta=1.0_dp)
+               END DO
+            END IF
+         END DO
+      END IF
 
       CALL timestop(handle)
 

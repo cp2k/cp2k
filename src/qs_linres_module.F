@@ -368,7 +368,6 @@ CONTAINS
       ! update the m_epsilon matrix
       CALL p_env_psi0_changed(p_env, qs_env)
 
-      p_env%os_valid = .FALSE.
       p_env%new_preconditioner = .TRUE.
       CALL cp_print_key_finished_output(iounit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")

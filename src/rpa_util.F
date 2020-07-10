@@ -30,17 +30,12 @@ MODULE rpa_util
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release
+   USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                              cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_filter,&
@@ -62,13 +57,10 @@ MODULE rpa_util
                                               kpoint_type
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: z_zero
-   USE message_passing,                 ONLY: mp_comm_split_direct,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_sum
    USE mp2_laplace,                     ONLY: calc_fm_mat_S_laplace
-   USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE rpa_communication,               ONLY: fm_redistribute
    USE rpa_gw_kpoints,                  ONLY: compute_wkp_W
 #include "./base/base_uses.f90"
 
@@ -581,21 +573,13 @@ CONTAINS
 !> \param para_env_RPA ...
 !> \param do_bse ...
 !> \param fm_mat_Q_static_bse_gemm ...
-!> \param RPA_proc_map ...
-!> \param buffer_rec ...
-!> \param buffer_send ...
-!> \param number_of_send ...
-!> \param map_send_size ...
-!> \param map_rec_size ...
-!> \param local_size_source ...
 !> \param my_num_dgemm_call ...
 !> \param my_flop_rate ...
 ! **************************************************************************************************
    SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
                          Eigenval, Eigenval_last, Eigenval_scf, &
                          homo, omega, omega_old, jquad, mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, &
-                         para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec, buffer_send, number_of_send, &
-                         map_send_size, map_rec_size, local_size_source, my_num_dgemm_call, my_flop_rate)
+                         para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, my_num_dgemm_call, my_flop_rate)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, first_cycle
       INTEGER, INTENT(IN)                                :: count_ev_sc_GW, iter_sc_GW0, virtual
@@ -605,17 +589,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_Q_gemm
-      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_RPA
       LOGICAL, INTENT(IN)                                :: do_bse
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q_static_bse_gemm
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: RPA_proc_map
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:), INTENT(INOUT)                     :: buffer_rec, buffer_send
-      INTEGER, INTENT(IN)                                :: number_of_send
-      INTEGER, DIMENSION(0:para_env_RPA%num_pe-1), &
-         INTENT(IN)                                      :: map_send_size, map_rec_size
-      INTEGER, DIMENSION(2, 0:para_env_RPA%num_pe-1), &
-         INTENT(IN)                                      :: local_size_source
       INTEGER, INTENT(INOUT)                             :: my_num_dgemm_call
       REAL(KIND=dp), INTENT(INOUT)                       :: my_flop_rate
 
@@ -639,8 +615,7 @@ CONTAINS
       END IF
 
       CALL contract_S_to_Q(mm_style, dimen_RI, dimen_ia, alpha, fm_mat_S, fm_mat_Q_gemm, para_env_RPA, &
-                           my_num_dgemm_call, fm_mat_Q, RPA_proc_map, buffer_rec, buffer_send, number_of_send, &
-                           map_send_size, map_rec_size, local_size_source, my_flop_rate)
+                           my_num_dgemm_call, fm_mat_Q, my_flop_rate)
 
       IF (do_bse .AND. jquad == 1) THEN
          CALL cp_fm_to_fm(fm_mat_Q_gemm, fm_mat_Q_static_bse_gemm)
@@ -764,18 +739,10 @@ CONTAINS
 !> \param para_env_RPA ...
 !> \param my_num_dgemm_call ...
 !> \param fm_mat_Q ...
-!> \param RPA_proc_map ...
-!> \param buffer_rec ...
-!> \param buffer_send ...
-!> \param number_of_send ...
-!> \param map_send_size ...
-!> \param map_rec_size ...
-!> \param local_size_source ...
 !> \param my_flop_rate ...
 ! **************************************************************************************************
    SUBROUTINE contract_S_to_Q(mm_style, dimen_RI, dimen_ia, alpha, fm_mat_S, fm_mat_Q_gemm, para_env_RPA, my_num_dgemm_call, &
-                              fm_mat_Q, RPA_proc_map, buffer_rec, buffer_send, number_of_send, &
-                              map_send_size, map_rec_size, local_size_source, my_flop_rate)
+                              fm_mat_Q, my_flop_rate)
 
       INTEGER, INTENT(IN)                                :: mm_style, dimen_RI, dimen_ia
       REAL(KIND=dp), INTENT(IN)                          :: alpha
@@ -783,14 +750,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
       INTEGER, INTENT(INOUT)                             :: my_num_dgemm_call
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: RPA_proc_map
-      TYPE(integ_mat_buffer_type), DIMENSION(:), &
-         INTENT(INOUT)                                   :: buffer_rec, buffer_send
-      INTEGER, INTENT(IN)                                :: number_of_send
-      INTEGER, DIMENSION(0:para_env_RPA%num_pe-1), &
-         INTENT(IN)                                      :: map_send_size, map_rec_size
-      INTEGER, DIMENSION(2, 0:para_env_RPA%num_pe-1), &
-         INTENT(IN)                                      :: local_size_source
       REAL(KIND=dp), INTENT(INOUT)                       :: my_flop_rate
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_S_to_Q'
@@ -821,8 +780,8 @@ CONTAINS
 
       ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
       CALL cp_fm_set_all(matrix=fm_mat_Q, alpha=0.0_dp)
-      CALL fm_redistribute(fm_mat_Q_gemm, fm_mat_Q, RPA_proc_map, buffer_rec, buffer_send, &
-                           number_of_send, map_send_size, map_rec_size, local_size_source, para_env_RPA)
+      CALL cp_fm_to_fm_submat_general(fm_mat_Q_gemm, fm_mat_Q, dimen_RI, dimen_RI, 1, 1, 1, 1, &
+                                      fm_mat_Q_gemm%matrix_struct%context%group)
 
       CALL timestop(handle)
 
@@ -973,7 +932,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_sub_para_kp'
 
-      INTEGER                                            :: color_sub_kp, comm_sub_kp, handle, ikp, &
+      INTEGER                                            :: color_sub_kp, handle, ikp, &
                                                             num_proc_per_kp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub_kp
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub_kp
@@ -989,9 +948,8 @@ CONTAINS
       END IF
 
       color_sub_kp = MOD(para_env%mepos/num_proc_per_kp, nkp)
-      CALL mp_comm_split_direct(para_env%group, comm_sub_kp, color_sub_kp)
-      NULLIFY (para_env_sub_kp)
-      CALL cp_para_env_create(para_env_sub_kp, comm_sub_kp)
+      CALL cp_para_env_split(para_env_sub_kp, para_env, color_sub_kp)
+
       NULLIFY (blacs_env_sub_kp)
       CALL cp_blacs_env_create(blacs_env=blacs_env_sub_kp, para_env=para_env_sub_kp)
 

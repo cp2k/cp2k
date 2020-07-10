@@ -741,8 +741,8 @@ CONTAINS
          trace = accurate_sum(a(1:nrow_local, 1:ncol_local)* &
                               REAL(b_sp(1:nrow_local, 1:ncol_local), dp))
       ELSE
-         trace = accurate_sum(a(1:nrow_local, 1:ncol_local)* &
-                              b(1:nrow_local, 1:ncol_local))
+         trace = accurate_dot_product(a(1:nrow_local, 1:ncol_local), &
+                                      b(1:nrow_local, 1:ncol_local))
       ENDIF
 
       CALL mp_sum(trace, group)

@@ -14,9 +14,6 @@ MODULE qs_tddfpt2_stda_types
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cp_control_types,                ONLY: stda_control_type
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_io_unit,&
-                                              cp_logger_type
    USE kinds,                           ONLY: dp
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -119,18 +116,13 @@ CONTAINS
       TYPE(stda_env_type)                                :: stda_kernel
       TYPE(stda_control_type)                            :: stda_control
 
-      INTEGER                                            :: ikind, iounit, nkind
+      INTEGER                                            :: ikind, nkind
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: tmp_basis_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(stda_kind_type), POINTER                      :: kind_param
-
-      NULLIFY (logger)
-      logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_io_unit(logger)
 
       CPASSERT(ASSOCIATED(stda_kernel%kind_param_set))
 

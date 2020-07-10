@@ -39,8 +39,7 @@ MODULE qs_cdft_methods
                                               outer_scf_hirshfeld_constraint
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
-   USE kahan_sum,                       ONLY: accurate_dot_product,&
-                                              accurate_sum
+   USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
@@ -861,12 +860,12 @@ CONTAINS
                dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_r(i)%pw%cr3d, &
                                                                    becke_control%cavity_mat, eps_cavity)*dvol
             ELSE
-               dE(igroup) = dE(igroup) + sign*accurate_sum(group(igroup)%weight%pw%cr3d*rho_r(i)%pw%cr3d)*dvol
+               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_r(i)%pw%cr3d)*dvol
             END IF
          END DO
          IF (cdft_control%atomic_charges) THEN
             DO iatom = 1, cdft_control%natoms
-               electronic_charge(iatom, i) = accurate_sum(charge(iatom)%pw%cr3d*rho_r(i)%pw%cr3d)*dvol
+               electronic_charge(iatom, i) = accurate_dot_product(charge(iatom)%pw%cr3d, rho_r(i)%pw%cr3d)*dvol
             END DO
          END IF
       END DO
@@ -1083,7 +1082,7 @@ CONTAINS
                                                                becke_control%cavity_mat, becke_control%eps_cavity)*dvol
          ELSE
             cdft_control%target(igroup) = cdft_control%target(igroup) + &
-                                          accurate_sum(group(igroup)%weight%pw%cr3d*rho_frag(i)%pw%cr3d)*dvol
+                                          accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_frag(i)%pw%cr3d)*dvol
          END IF
       END DO
       CALL mp_sum(cdft_control%target, para_env%group)
@@ -1092,7 +1091,8 @@ CONTAINS
          ALLOCATE (cdft_control%charges_fragment(cdft_control%natoms, nfrag_spins))
          DO i = 1, nfrag_spins
             DO iatom = 1, cdft_control%natoms
-               cdft_control%charges_fragment(iatom, i) = accurate_sum(cdft_control%charge(iatom)%pw%cr3d*rho_frag(i)%pw%cr3d)*dvol
+               cdft_control%charges_fragment(iatom, i) = &
+                  accurate_dot_product(cdft_control%charge(iatom)%pw%cr3d, rho_frag(i)%pw%cr3d)*dvol
             END DO
          END DO
          CALL mp_sum(cdft_control%charges_fragment, para_env%group)

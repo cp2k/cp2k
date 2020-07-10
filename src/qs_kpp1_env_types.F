@@ -41,22 +41,14 @@ MODULE qs_kpp1_env_types
 !> \param v_ao the potential in the ao basis (used togheter with v_rspace
 !>        to update only what changed
 !> \param id_nr identification number, unique for each kpp1 env
-!> \param print_count counter to create unique filename
 !> \param iter number of iterations
 !> \param drho_r (idir,ispin): the derivative of rho wrt. x,y,z in the real space
 !> \param deriv_xc (ii,ipot): the second derivative of the xc potential at psi0
 !>        (qs_env%c), if grad pot is true it should already be divised
 !>        by the gradient
-!> \param spin_pot (1:2,ipot): information about wrt. to which spins the
-!>         corresponding component of deriv_xc was derived (see
-!>         xc_create_2nd_deriv_info)
-!> \param grad_pot (1:2,ipot): if the derivative spin_pot was wrt. to
-!>        the gradient (see xc_create_2nd_deriv_info)
-!> \param ndiag_term (ipot): it the term is an off diagonal term (see
-!>        xc_create_2nd_deriv_info)
 ! **************************************************************************************************
    TYPE qs_kpp1_env_type
-      INTEGER :: ref_count, id_nr, print_count, iter
+      INTEGER :: ref_count, id_nr
       TYPE(pw_p_type), DIMENSION(:), POINTER :: v_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: v_ao
       TYPE(pw_p_type), DIMENSION(:, :), POINTER :: drho_r
@@ -64,9 +56,6 @@ MODULE qs_kpp1_env_types
       TYPE(xc_rho_set_type), POINTER        :: rho_set
       TYPE(xc_derivative_set_type), POINTER :: deriv_set_admm
       TYPE(xc_rho_set_type), POINTER        :: rho_set_admm
-      INTEGER, DIMENSION(:, :), POINTER :: spin_pot
-      LOGICAL, DIMENSION(:, :), POINTER :: grad_pot
-      LOGICAL, DIMENSION(:), POINTER :: ndiag_term
    END TYPE qs_kpp1_env_type
 
 ! **************************************************************************************************
@@ -130,15 +119,6 @@ CONTAINS
             IF (ASSOCIATED(kpp1_env%rho_set_admm)) THEN
                CALL xc_rho_set_release(kpp1_env%rho_set_admm)
                NULLIFY (kpp1_env%rho_set_admm)
-            END IF
-            IF (ASSOCIATED(kpp1_env%spin_pot)) THEN
-               DEALLOCATE (kpp1_env%spin_pot)
-            END IF
-            IF (ASSOCIATED(kpp1_env%grad_pot)) THEN
-               DEALLOCATE (kpp1_env%grad_pot)
-            END IF
-            IF (ASSOCIATED(kpp1_env%ndiag_term)) THEN
-               DEALLOCATE (kpp1_env%ndiag_term)
             END IF
             DEALLOCATE (kpp1_env)
          END IF

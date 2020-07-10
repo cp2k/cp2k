@@ -14,8 +14,8 @@
 MODULE mp2_grids
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release
+   USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                              cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -24,7 +24,7 @@ MODULE mp2_grids
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_bcast,&
-                                              mp_comm_split_direct,&
+                                              mp_max,&
                                               mp_sum
    USE minimax_exp,                     ONLY: get_exp_minimax_coeff
    USE minimax_exp_gw,                  ONLY: get_exp_minimax_coeff_gw
@@ -562,9 +562,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ia_ia_integrals'
 
-      INTEGER                                            :: avirt, color_col, color_row, comm_col, &
-                                                            comm_row, handle, i_global, iiB, iocc, &
-                                                            jjB, ncol_local
+      INTEGER                                            :: avirt, color_col, color_row, handle, &
+                                                            i_global, iiB, iocc, jjB, ncol_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: eigen_diff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: iaia_RI_dp
@@ -610,9 +609,7 @@ CONTAINS
       !
 
       color_row = fm_mat_S%matrix_struct%context%mepos(1)
-      CALL mp_comm_split_direct(para_env_RPA%group, comm_row, color_row)
-      NULLIFY (para_env_row)
-      CALL cp_para_env_create(para_env_row, comm_row)
+      CALL cp_para_env_split(para_env_row, para_env_RPA, color_row)
 
       CALL mp_sum(iaia_RI_dp, para_env_row%group)
 
@@ -652,9 +649,7 @@ CONTAINS
 
       ! sum the result with the processes of the RPA_group having the same col
       color_col = fm_mat_S%matrix_struct%context%mepos(2)
-      CALL mp_comm_split_direct(para_env_RPA%group, comm_col, color_col)
-      NULLIFY (para_env_col)
-      CALL cp_para_env_create(para_env_col, comm_col)
+      CALL cp_para_env_split(para_env_col, para_env_RPA, color_col)
 
       ! allocate communication array for columns
       CALL mp_sum(right_term_ref, para_env_col%group)
@@ -1488,8 +1483,7 @@ CONTAINS
                                                             nmo, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
       REAL(KIND=dp)                                      :: e_homo, e_homo_temp, e_lumo, e_lumo_temp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_homo_array, e_lumo_array, &
-                                                            max_eig_diff_array
+      REAL(KIND=dp), DIMENSION(3)                        :: tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoint
@@ -1527,31 +1521,16 @@ CONTAINS
          END DO
       END DO
 
-      ALLOCATE (e_homo_array(0:para_env%num_pe - 1))
-      e_homo_array = 0.0_dp
-      e_homo_array(para_env%mepos) = e_homo
+      ! Collect all three numbers in an array
+      ! Reverse sign of lumo to reduce number of MPI calls
+      tmp(1) = e_homo
+      tmp(2) = -e_lumo
+      tmp(3) = max_eig_diff
+      CALL mp_max(tmp, para_env%group)
 
-      ALLOCATE (e_lumo_array(0:para_env%num_pe - 1))
-      e_lumo_array = 0.0_dp
-      e_lumo_array(para_env%mepos) = e_lumo
-
-      ALLOCATE (max_eig_diff_array(0:para_env%num_pe - 1))
-      max_eig_diff_array = 0.0_dp
-      max_eig_diff_array(para_env%mepos) = max_eig_diff
-
-      CALL mp_sum(e_homo_array, para_env%group)
-
-      CALL mp_sum(e_lumo_array, para_env%group)
-
-      CALL mp_sum(max_eig_diff_array, para_env%group)
-
-      gap = MINVAL(e_lumo_array) - MAXVAL(e_homo_array)
-
-      e_fermi = (MAXVAL(e_homo_array) + MINVAL(e_lumo_array))/2.0_dp
-
-      max_eig_diff = MAXVAL(max_eig_diff_array)
-
-      DEALLOCATE (max_eig_diff_array, e_homo_array, e_lumo_array)
+      gap = -tmp(2) - tmp(1)
+      e_fermi = (tmp(1) - tmp(2))*0.5_dp
+      max_eig_diff = tmp(3)
 
       CALL timestop(handle)
 

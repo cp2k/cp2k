@@ -78,7 +78,8 @@ MODULE cp_fm_types
              cp_fm_read_unformatted, & ! reads a full matrix from an open unit
              cp_fm_setup, & ! allows to set flags for fms
              cp_fm_get_mm_type, &
-             cp_fm_write_info
+             cp_fm_write_info, &
+             cp_fm_to_fm_submat_general ! copy matrix across different contexts
 
    PUBLIC :: cp_fm_indxg2p, &
              cp_fm_indxg2l, &

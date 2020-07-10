@@ -36,8 +36,8 @@ MODULE rpa_main
                                               cp_fm_set_element,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release
+   USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                              cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
                                               dbcsr_p_type,&
@@ -58,8 +58,7 @@ MODULE rpa_main
    USE machine,                         ONLY: m_flush,&
                                               m_memory
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_comm_split_direct,&
-                                              mp_min,&
+   USE message_passing,                 ONLY: mp_min,&
                                               mp_sendrecv,&
                                               mp_sum
    USE minimax_exp,                     ONLY: check_exp_minimax_range
@@ -67,12 +66,9 @@ MODULE rpa_main
                                               get_minimax_grid
    USE mp2_laplace,                     ONLY: SOS_MP2_postprocessing
    USE mp2_ri_grad_util,                ONLY: array2fm
-   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
-                                              mp2_type
+   USE mp2_types,                       ONLY: mp2_type
    USE qs_environment_types,            ONLY: qs_environment_type
    USE rpa_axk,                         ONLY: compute_axk_ener
-   USE rpa_communication,               ONLY: initialize_buffer,&
-                                              release_buffer
    USE rpa_gw,                          ONLY: GW_matrix_operations,&
                                               allocate_matrices_gw,&
                                               allocate_matrices_gw_im_time,&
@@ -926,8 +922,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_integ_mat'
 
-      INTEGER :: comm_exchange, comm_rpa, grid_2D(2), handle, handle2, i, iproc, iproc_col, &
-         iproc_row, mepos_in_RPA_group, row_col_proc_ratio, sub_sub_color
+      INTEGER                                            :: grid_2D(2), handle, handle2, i, iproc, &
+                                                            iproc_col, iproc_row, &
+                                                            mepos_in_RPA_group, &
+                                                            row_col_proc_ratio, sub_sub_color
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: RPA_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos
       LOGICAL                                            :: my_beta_case, my_blacs_ext, &
@@ -953,9 +951,7 @@ CONTAINS
 
       ! create the RPA para_env
       IF (.NOT. my_beta_case) THEN
-         CALL mp_comm_split_direct(para_env%group, comm_rpa, color_rpa_group)
-         NULLIFY (para_env_RPA)
-         CALL cp_para_env_create(para_env_RPA, comm_rpa)
+         CALL cp_para_env_split(para_env_RPA, para_env, color_rpa_group)
       END IF
 
       ! create the RPA blacs env
@@ -1060,9 +1056,7 @@ CONTAINS
          ! mp_sum the local data across processes belonging to different RPA group.
          ! first create the para_env then mp_sum
          sub_sub_color = para_env_RPA%mepos
-         CALL mp_comm_split_direct(para_env%group, comm_exchange, sub_sub_color)
-         NULLIFY (para_env_exchange)
-         CALL cp_para_env_create(para_env_exchange, comm_exchange)
+         CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
 
          CALL timeset(routineN//"_sum", handle2)
          CALL mp_sum(fm_mat_S%local_data, para_env_exchange%group)
@@ -1331,13 +1325,11 @@ CONTAINS
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
          iter_evGW, iter_sc_GW0, jquad, max_iter_bse, min_bsize, mm_style, my_num_dgemm_call, nkp, &
          nkp_self_energy, nmo, num_3c_repl, num_cells_dm, num_fit_points, num_points_corr, &
-         num_Z_vectors, number_of_rec, number_of_rec_axk, number_of_rec_beta, number_of_send, &
-         number_of_send_axk, number_of_send_beta, size_P
+         num_Z_vectors, size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: ikp_local, map_rec_size, map_rec_size_axk, &
-         map_rec_size_beta, map_send_size, map_send_size_axk, map_send_size_beta, RPA_proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: index_to_cell_3c, local_size_source, &
-         local_size_source_axk, local_size_source_beta, t_3c_O_mo_ind, t_3c_O_mo_ind_beta
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ikp_local
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c, t_3c_O_mo_ind, &
+                                                            t_3c_O_mo_ind_beta
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes
@@ -1377,10 +1369,6 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: mat_W, mat_work
       TYPE(hfx_compression_type)                         :: t_3c_O_mo_compressed, &
                                                             t_3c_O_mo_compressed_beta
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_rec_axk, &
-                                                            buffer_rec_beta, buffer_send, &
-                                                            buffer_send_axk, buffer_send_beta
 
       CALL timeset(routineN, handle)
 
@@ -1547,25 +1535,6 @@ CONTAINS
                                    num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
                                    ext_scaling, a_scaling, tj, wj)
          END IF
-      END IF
-
-      IF (.NOT. do_im_time) THEN
-
-         ! initialize buffer for matrix redistribution
-         CALL initialize_buffer(fm_mat_Q_gemm, fm_mat_Q, RPA_proc_map, buffer_rec, buffer_send, &
-                                number_of_rec, number_of_send, &
-                                map_send_size, map_rec_size, local_size_source, para_env_RPA)
-         IF (my_open_shell) THEN
-            CALL initialize_buffer(fm_mat_Q_gemm_beta, fm_mat_Q_beta, RPA_proc_map, buffer_rec_beta, buffer_send_beta, &
-                                   number_of_rec_beta, number_of_send_beta, &
-                                   map_send_size_beta, map_rec_size_beta, local_size_source_beta, para_env_RPA)
-         END IF
-         ! Another buffer for AXK RPA
-         IF (mp2_env%ri_rpa%do_ri_axk) THEN
-            CALL initialize_buffer(fm_mat_Q, fm_mat_Q_gemm, RPA_proc_map, buffer_rec_axk, buffer_send_axk, &
-                                   number_of_rec_axk, number_of_send_axk, &
-                                   map_send_size_axk, map_rec_size_axk, local_size_source_axk, para_env_RPA)
-         ENDIF
       END IF
 
       ! This array is needed for RPA
@@ -1783,18 +1752,14 @@ CONTAINS
                CALL calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
                                Eigenval, Eigenval_last, Eigenval_scf, &
                                homo, omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia, alpha, fm_mat_Q, &
-                               fm_mat_Q_gemm, para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec, &
-                               buffer_send, number_of_send, map_send_size, map_rec_size, local_size_source, my_num_dgemm_call, &
-                               my_flop_rate)
+                               fm_mat_Q_gemm, para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, my_num_dgemm_call, my_flop_rate)
 
                IF (my_open_shell) THEN
                   CALL calc_mat_Q(fm_mat_S_beta, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual_beta, &
                                   Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, &
                                   homo_beta, omega, omega_old, jquad, mm_style, &
                                   dimen_RI_red, dimen_ia_beta, alpha, fm_mat_Q_beta, fm_mat_Q_gemm_beta, para_env_RPA, do_bse, &
-                                  fm_mat_Q_static_bse_gemm, RPA_proc_map, buffer_rec_beta, buffer_send_beta, &
-                                  number_of_send_beta, map_send_size_beta, map_rec_size_beta, local_size_source_beta, &
-                                  my_num_dgemm_call, my_flop_rate)
+                                  fm_mat_Q_static_bse_gemm, my_num_dgemm_call, my_flop_rate)
 
                   ! For SOS-MP2 we need both matrices separately
                   IF (.NOT. do_ri_sos_laplace_mp2) THEN
@@ -1807,12 +1772,9 @@ CONTAINS
 
             ! Calculate AXK energy correction
             IF (mp2_env%ri_rpa%do_ri_axk) THEN
-               CALL compute_axk_ener(qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI_red, dimen_ia, &
-                                     para_env_sub, &
-                                     para_env_RPA, RPA_proc_map, eigenval, fm_mat_S, homo, virtual, omega, &
-                                     buffer_send_axk, buffer_rec_axk, &
-                                     number_of_send_axk, map_send_size_axk, map_rec_size_axk, &
-                                     local_size_source_axk, mp2_env, mat_munu, unit_nr, e_axk_corr)
+               CALL compute_axk_ener(qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI_red, dimen_ia, para_env_sub, &
+                                     para_env_RPA, eigenval, fm_mat_S, homo, virtual, omega, &
+                                     mp2_env, mat_munu, unit_nr, e_axk_corr)
 
                ! Evaluate the final AXK energy correction
                e_axk = e_axk + e_axk_corr*wj(jquad)
@@ -2001,23 +1963,6 @@ CONTAINS
                                      B_iaQ_bse_local, homo, virtual, num_Z_vectors, &
                                      max_iter_bse, eps_min_trans, Eigenval, para_env)
 
-      END IF
-
-      ! release buffer
-      CALL release_buffer(RPA_proc_map, buffer_rec, buffer_send, &
-                          number_of_rec, number_of_send, &
-                          map_send_size, map_rec_size, local_size_source)
-
-      IF (mp2_env%ri_rpa%do_ri_axk) THEN
-         CALL release_buffer(RPA_proc_map, buffer_rec_axk, buffer_send_axk, &
-                             number_of_rec_axk, number_of_send_axk, &
-                             map_send_size_axk, map_rec_size_axk, local_size_source_axk)
-      ENDIF
-
-      IF (my_open_shell) THEN
-         CALL release_buffer(RPA_proc_map, buffer_rec_beta, buffer_send_beta, &
-                             number_of_rec_beta, number_of_send_beta, &
-                             map_send_size_beta, map_rec_size_beta, local_size_source_beta)
       END IF
 
       IF (my_do_gw) THEN

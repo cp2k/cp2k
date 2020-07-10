@@ -27,16 +27,13 @@ MODULE mp2_ri_libint
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_submatrix,&
                                               cp_fm_release,&
-                                              cp_fm_set_all,&
                                               cp_fm_set_submatrix,&
-                                              cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE gamma,                           ONLY: init_md_ftable
@@ -1301,44 +1298,5 @@ CONTAINS
       ENDDO
 
    END SUBROUTINE get_max_contraction
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param size_matrix ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION calc_cond_num(matrix, size_matrix) RESULT(cond_num)
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: matrix
-      INTEGER, INTENT(IN)                                :: size_matrix
-      REAL(KIND=dp)                                      :: cond_num
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
-      TYPE(cp_fm_type), POINTER                          :: matrix_diag, matrix_work
-
-      ! create a work matrix that later contains the eigenvectors (not needed here)
-      NULLIFY (matrix_diag)
-      NULLIFY (matrix_work)
-
-      CALL cp_fm_create(matrix_diag, matrix%matrix_struct, name="fm_matrix_diag")
-      CALL cp_fm_create(matrix_work, matrix%matrix_struct, name="fm_matrix_work")
-
-      CALL cp_fm_set_all(matrix=matrix_diag, alpha=0.0_dp)
-      CALL cp_fm_set_all(matrix=matrix_work, alpha=0.0_dp)
-
-      CALL cp_fm_to_fm(source=matrix, destination=matrix_diag)
-
-      ALLOCATE (evals(size_matrix))
-
-      evals = 0.0_dp
-      CALL choose_eigv_solver(matrix=matrix_diag, eigenvectors=matrix_work, eigenvalues=evals)
-
-      cond_num = MAXVAL(ABS(evals))/MINVAL(ABS(evals))
-
-      CALL cp_fm_release(matrix_diag)
-      CALL cp_fm_release(matrix_work)
-
-      DEALLOCATE (evals)
-   END FUNCTION calc_cond_num
 
 END MODULE mp2_ri_libint
