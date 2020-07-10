@@ -23,7 +23,7 @@ constr.inp                                             7      7e-12            -
 # different parallel scheme
 C4H10-qmmm-gauss-12.inp                                1      2E-13            -14.20640099562919
 # hbonds selective constraints on QM and MM subsystems
-constr_hb_mm.inp                                       1      9e-14            -30.72831524249530
+constr_hb_mm.inp                                       1      2e-13            -30.72831524249530
 constr_hb_qm.inp                                       1      8e-14            -30.55019251858206
 #constraints
 water_3_dist.inp                                       2    1.0E-14             -0.171314409828E+02
