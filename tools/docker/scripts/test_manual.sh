@@ -8,7 +8,16 @@ source /opt/cp2k-toolchain/install/setup
 echo -e "\n========== Compiling CP2K =========="
 cd /workspace/cp2k
 touch src/cp2k_info.F  # ensure latest REVISION is picked up.
-make -j VERSION="psmp" cp2k
+echo -n "Compiling cp2k... "
+if make -j VERSION=psmp &> make.out ; then
+    echo "done."
+else
+    echo -e "failed.\n\n"
+    tail -n 100 make.out
+    echo -e "\nSummary: Compilation failed."
+    echo -e "Status: FAILED\n"
+    exit 0
+fi
 
 echo -e "\n========== Generating Manual =========="
 

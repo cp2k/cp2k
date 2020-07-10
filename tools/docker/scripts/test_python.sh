@@ -40,7 +40,6 @@ cd /workspace/cp2k
 
 # find executable python scripts
 ALL_TEST_SCRIPTS=$(find ./src/ ./tools/ -name "*_test.py"  -executable)
-ESSENTIAL_TEST_SCRIPTS=$(find ./tools/build_utils -name "*_test.py"  -executable)
 
 # python 3.x
 run_tests python3 "${ALL_TEST_SCRIPTS}"
