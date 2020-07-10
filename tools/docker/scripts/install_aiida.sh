@@ -20,7 +20,7 @@ rm -rf /var/lib/apt/lists/*
 # install dependencies of aiida-cp2k
 cd /opt/
 git clone --quiet https://github.com/aiidateam/aiida-cp2k.git
-pip3 install --quiet ./aiida-cp2k/[test]
+pip3 install --quiet './aiida-cp2k/[test]'
 pip3 uninstall --quiet --yes aiida-cp2k
 
 # create ubuntu user with sudo powers
@@ -31,7 +31,8 @@ echo "ubuntu ALL=(ALL) NOPASSWD: ALL" >>  /etc/sudoers
 source /opt/cp2k-toolchain/install/setup
 
 # link mpi executables into path
-for i in $(dirname "$(which mpirun)")/* ; do ln -sf "$i" /usr/bin/; done
+MPI_INSTALL_DIR=$(dirname "$(command -v mpirun)")
+for i in "${MPI_INSTALL_DIR}"/* ; do ln -sf "$i" /usr/bin/; done
 
 # setup arch files
 cd /workspace/cp2k/arch

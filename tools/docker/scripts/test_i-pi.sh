@@ -8,13 +8,14 @@ source /opt/cp2k-toolchain/install/setup
 echo -e "\n========== Compiling CP2K =========="
 cd /workspace/cp2k
 echo -n "Compiling cp2k... "
-if make -j VERSION=pdbg &> /dev/null ; then
-   echo "done."
+if make -j VERSION=pdbg &> make.out ; then
+    echo "done."
 else
-   echo -e "failed.\n\n"
-   echo "Summary: Compilation failed."
-   echo "Status: FAILED"
-   exit
+    echo -e "failed.\n\n"
+    tail -n 100 make.out
+    echo -e "\nSummary: Compilation failed."
+    echo -e "Status: FAILED\n"
+    exit 0
 fi
 
 echo -e "\n========== Installing i-Pi =========="

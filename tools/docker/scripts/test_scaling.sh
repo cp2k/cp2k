@@ -8,15 +8,16 @@ source /opt/cp2k-toolchain/install/setup
 echo -e '\n========== Compiling CP2K =========='
 cd /workspace/cp2k
 for VERSION in 'psmp' 'ssmp' ; do
-   echo -n "Compiling cp2k.${VERSION}... "
-   if make -j VERSION="${VERSION}" &> /dev/null ; then
-      echo 'done.'
-   else
-      echo -e 'failed.\n\n'
-      echo 'Summary: Compilation failed.'
-      echo 'Status: FAILED'
-      exit
-   fi
+    echo -n "Compiling cp2k.${VERSION}... "
+    if make -j VERSION="${VERSION}" &> make.out ; then
+        echo "done."
+    else
+        echo -e "failed.\n\n"
+        tail -n 100 make.out
+        echo -e "\nSummary: Compilation failed."
+        echo -e "Status: FAILED\n"
+        exit 0
+    fi
 done
 
 echo -e '\n========== Running Scaling Test =========='
