@@ -294,7 +294,7 @@ CONTAINS
                                           cube_info, para_env, eps_mm_rspace, qmmm_env%added_charges%pgfs, auxbas_grid, &
                                           coarser_grid, qmmm_env%added_charges%potentials, &
                                           mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm, periodic=qmmm_env%periodic, &
-                                          per_potentials=qmmm_env%per_potentials, par_scheme=qmmm_env%par_scheme, &
+                                          per_potentials=qmmm_env%added_charges%per_potentials, par_scheme=qmmm_env%par_scheme, &
                                           qmmm_spherical_cutoff=qmmm_env%spherical_cutoff, shells=shells)
       END IF
       IF (qmmm_env%added_shells%num_mm_atoms .GT. 0) THEN
