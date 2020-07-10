@@ -16,6 +16,7 @@ MODULE cp_para_env
    USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                               cp_para_env_type
    USE message_passing,                 ONLY: mp_comm_free,&
+                                              mp_comm_split_direct,&
                                               mp_environ
 #include "../base/base_uses.f90"
 
@@ -25,7 +26,7 @@ MODULE cp_para_env
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_para_env'
 
-   PUBLIC :: cp_para_env_retain, cp_para_env_release, cp_para_env_create
+   PUBLIC :: cp_para_env_retain, cp_para_env_release, cp_para_env_create, cp_para_env_split
    PUBLIC :: cp_cart_create, cp_cart_release
 !***
 CONTAINS
@@ -81,6 +82,28 @@ CONTAINS
       CPASSERT(para_env%ref_count > 0)
       para_env%ref_count = para_env%ref_count + 1
    END SUBROUTINE cp_para_env_retain
+
+! **************************************************************************************************
+!> \brief splits the communicator of the template para_env according to the provided color
+!> \param para_env para_env with new sub communicator
+!> \param para_env_template para_env to be split
+!> \param color all processes with same color will belong to the same sub communicator
+! **************************************************************************************************
+   SUBROUTINE cp_para_env_split(para_env, para_env_template, color)
+      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_template
+      INTEGER, INTENT(IN)                                :: color
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_split', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: comm
+
+      CPASSERT(ASSOCIATED(para_env_template))
+      CALL mp_comm_split_direct(para_env_template%group, comm, color)
+      NULLIFY (para_env)
+      CALL cp_para_env_create(para_env, comm)
+
+   END SUBROUTINE cp_para_env_split
 
 ! **************************************************************************************************
 !> \brief releases the para object (to be called when you don't want anymore

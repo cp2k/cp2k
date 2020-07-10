@@ -82,6 +82,7 @@ MODULE response_solver
                                               pw_create,&
                                               pw_p_type,&
                                               pw_release
+   USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ecore_self
@@ -97,8 +98,7 @@ MODULE response_solver
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
    USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE qs_linres_methods,               ONLY: build_dm_response,&
-                                              linres_solver
+   USE qs_linres_methods,               ONLY: linres_solver
    USE qs_linres_types,                 ONLY: linres_control_create,&
                                               linres_control_release,&
                                               linres_control_type
@@ -165,7 +165,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_s_aux
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -210,7 +210,6 @@ CONTAINS
                         linres_control=linres_control)
       CALL set_qs_env(qs_env, linres_control=linres_control)
       CALL p_env_psi0_changed(p_env, qs_env)
-      p_env%os_valid = .FALSE.
       p_env%new_preconditioner = .TRUE.
       !
       CALL get_qs_env(qs_env, dft_control=dft_control, mos=mos)
@@ -236,17 +235,6 @@ CONTAINS
          CALL cp_dbcsr_alloc_block_from_nbl(p_env%p1(ispin)%matrix, sab_orb)
          CALL cp_dbcsr_alloc_block_from_nbl(p_env%w1(ispin)%matrix, sab_orb)
       END DO
-      IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s_aux)
-         CALL dbcsr_allocate_matrix_set(p_env%p1_admm, nspins)
-         DO ispin = 1, nspins
-            ALLOCATE (p_env%p1_admm(ispin)%matrix)
-            CALL dbcsr_create(p_env%p1_admm(ispin)%matrix, &
-                              template=matrix_s_aux(1)%matrix)
-            CALL dbcsr_copy(p_env%p1_admm(ispin)%matrix, matrix_s_aux(1)%matrix)
-            CALL dbcsr_set(p_env%p1_admm(ispin)%matrix, 0.0_dp)
-         END DO
-      END IF
 
       CALL linres_solver(p_env, qs_env, psi1, cpmos, psi0, iounit, should_stop)
 

@@ -16,8 +16,7 @@ MODULE mp2_ri_grad_util
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                              cp_dbcsr_m_by_n_from_template,&
-                                              dbcsr_allocate_matrix_set
+                                              cp_dbcsr_m_by_n_from_template
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -37,7 +36,8 @@ MODULE mp2_ri_grad_util
                                               group_dist_d1_type,&
                                               release_group_dist
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_irecv,&
+   USE message_passing,                 ONLY: mp_allgather,&
+                                              mp_irecv,&
                                               mp_isend,&
                                               mp_sendrecv,&
                                               mp_sum,&
@@ -177,10 +177,10 @@ CONTAINS
                ! Closed-shell, open-shell alpha-alpha component
                IF (alpha_case) THEN
                   Gamma_2D(ia_global - my_ia_start + 1, 1:my_group_L_size) = &
-                     mp2_env%ri_grad%Gamma_P_ia(iiB, jjB, 1:my_group_L_size)
+                     mp2_env%ri_grad%Gamma_P_ia(1)%array(iiB, jjB, 1:my_group_L_size)
                ELSE ! Open-shell beta-beta component
                   Gamma_2D(ia_global - my_ia_start + 1, 1:my_group_L_size) = &
-                     mp2_env%ri_grad%Gamma_P_ia_beta(iiB, jjB, 1:my_group_L_size)
+                     mp2_env%ri_grad%Gamma_P_ia(2)%array(iiB, jjB, 1:my_group_L_size)
                ENDIF
             END IF
          END DO
@@ -196,11 +196,11 @@ CONTAINS
          BIb_C_rec = 0.0_dp
 
          IF (alpha_case) THEN
-            CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia, proc_send, &
+            CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(1)%array, proc_send, &
                              BIb_C_rec, proc_receive, &
                              para_env_sub%group)
          ELSE
-            CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia_beta, proc_send, &
+            CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(2)%array, proc_send, &
                              BIb_C_rec, proc_receive, &
                              para_env_sub%group)
          ENDIF
@@ -217,9 +217,9 @@ CONTAINS
          DEALLOCATE (BIb_C_rec)
       END DO
       IF (alpha_case) THEN
-         DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia)
+         DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(1)%array)
       ELSE
-         DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia_beta)
+         DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(2)%array)
       ENDIF
 
       ! create the processor map and size arrays
@@ -275,18 +275,18 @@ CONTAINS
 
       ! since we will need (P|Q)^(-1/2) in the future, make a copy
       IF (alpha_case) THEN
-         ALLOCATE (mp2_env%ri_grad%Gamma_PQ(my_P_size, my_group_L_size))
-         mp2_env%ri_grad%Gamma_PQ(:, :) = mp2_env%ri_grad%PQ_half
-         CALL array2fm(mp2_env%ri_grad%Gamma_PQ, fm_struct, dimen_RI, dimen_RI, para_env, proc_map, &
+         ALLOCATE (mp2_env%ri_grad%Gamma_PQ(1)%array(my_P_size, my_group_L_size))
+         mp2_env%ri_grad%Gamma_PQ(1)%array(:, :) = mp2_env%ri_grad%PQ_half(:, :)
+         CALL array2fm(mp2_env%ri_grad%Gamma_PQ(1)%array, fm_struct, dimen_RI, dimen_RI, para_env, proc_map, &
                        my_P_start, my_P_end, &
                        my_group_L_start, my_group_L_end, &
                        gd_P_new, gd_array_new, &
                        group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
                        PQ_half)
       ELSE
-         ALLOCATE (mp2_env%ri_grad%Gamma_PQ_beta(my_P_size, my_group_L_size))
-         mp2_env%ri_grad%Gamma_PQ_beta(:, :) = mp2_env%ri_grad%PQ_half
-         CALL array2fm(mp2_env%ri_grad%Gamma_PQ_beta, fm_struct, dimen_RI, dimen_RI, para_env, proc_map, &
+         ALLOCATE (mp2_env%ri_grad%Gamma_PQ(2)%array(my_P_size, my_group_L_size))
+         mp2_env%ri_grad%Gamma_PQ(2)%array(:, :) = mp2_env%ri_grad%PQ_half(:, :)
+         CALL array2fm(mp2_env%ri_grad%Gamma_PQ(2)%array, fm_struct, dimen_RI, dimen_RI, para_env, proc_map, &
                        my_P_start, my_P_end, &
                        my_group_L_start, my_group_L_end, &
                        gd_P_new, gd_array_new, &
@@ -343,10 +343,7 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local)
       ALLOCATE (sizes(2, 0:para_env%num_pe - 1))
-      sizes = 0
-      sizes(1, para_env%mepos) = nrow_local
-      sizes(2, para_env%mepos) = ncol_local
-      CALL mp_sum(sizes, para_env%group)
+      CALL mp_allgather([nrow_local, ncol_local], sizes, para_env%group)
 
       ! now redistribute the data, in this case we go back
       ! to the original way the integrals were distributed
@@ -361,19 +358,16 @@ CONTAINS
       CALL cp_fm_get_info(matrix=fm_Gamma_PQ, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local)
-      sizes = 0
-      sizes(1, para_env%mepos) = nrow_local
-      sizes(2, para_env%mepos) = ncol_local
-      CALL mp_sum(sizes, para_env%group)
+      CALL mp_allgather([nrow_local, ncol_local], sizes, para_env%group)
       IF (alpha_case) THEN
-         CALL fm2array(mp2_env%ri_grad%Gamma_PQ, dimen_RI, dimen_RI, para_env, proc_map, &
+         CALL fm2array(mp2_env%ri_grad%Gamma_PQ(1)%array, dimen_RI, dimen_RI, para_env, proc_map, &
                        my_P_size, my_P_start, my_P_end, &
                        my_group_L_size, my_group_L_start, my_group_L_end, &
                        sizes, group_grid_2_mepos, mepos_2_grid_group, &
                        para_env_sub%num_pe, ngroup, &
                        fm_Gamma_PQ)
       ELSE
-         CALL fm2array(mp2_env%ri_grad%Gamma_PQ_beta, dimen_RI, dimen_RI, para_env, proc_map, &
+         CALL fm2array(mp2_env%ri_grad%Gamma_PQ(2)%array, dimen_RI, dimen_RI, para_env, proc_map, &
                        my_P_size, my_P_start, my_P_end, &
                        my_group_L_size, my_group_L_start, my_group_L_end, &
                        sizes, group_grid_2_mepos, mepos_2_grid_group, &
@@ -493,15 +487,11 @@ CONTAINS
       CALL timeset(routineN//"_info", handle2)
       ALLOCATE (grid_2_mepos(0:nprow - 1, 0:npcol - 1))
       grid_2_mepos = 0
-      ALLOCATE (mepos_2_grid(0:para_env%num_pe - 1, 2))
-      mepos_2_grid = 0
-      ! fill the info array
+      ALLOCATE (mepos_2_grid(2, 0:para_env%num_pe - 1))
       grid_2_mepos(myprow, mypcol) = para_env%mepos
-      mepos_2_grid(para_env%mepos, 1) = myprow
-      mepos_2_grid(para_env%mepos, 2) = mypcol
       ! sum infos
       CALL mp_sum(grid_2_mepos, para_env%group)
-      CALL mp_sum(mepos_2_grid, para_env%group)
+      CALL mp_allgather([myprow, mypcol], mepos_2_grid, para_env%group)
 
       ! 1) loop over my local data and define a map for the proc to send data
       ALLOCATE (map_send_size(0:para_env%num_pe - 1))
@@ -616,8 +606,8 @@ CONTAINS
             buffer_send(send_counter)%proc = proc_send
             ! get the pointer to prow, pcol of the process that has
             ! to receive this message
-            ref_send_prow = mepos_2_grid(proc_send, 1)
-            ref_send_pcol = mepos_2_grid(proc_send, 2)
+            ref_send_prow = mepos_2_grid(1, proc_send)
+            ref_send_pcol = mepos_2_grid(2, proc_send)
             ! save the rank of the process that has to receive this message
             grid_ref_2_send_pos(ref_send_prow, ref_send_pcol) = send_counter
          END IF
@@ -898,20 +888,14 @@ CONTAINS
       CALL timeset(routineN//"_info", handle2)
       ALLOCATE (grid_2_mepos(0:nprow - 1, 0:npcol - 1))
       grid_2_mepos = 0
-      ALLOCATE (mepos_2_grid(0:para_env%num_pe - 1, 2))
-      mepos_2_grid = 0
+      ALLOCATE (mepos_2_grid(2, 0:para_env%num_pe - 1))
 
-      ! ALLOCATE(mepos_2_grid_group(0:para_env%num_pe-1,2),STAT=stat)
-      ! CPPostcondition(stat==0,cp_failure_level,routineP,failure)
-      ! mepos_2_grid_group=0
       ! fill the info array
       grid_2_mepos(myprow, mypcol) = para_env%mepos
-      mepos_2_grid(para_env%mepos, 1) = myprow
-      mepos_2_grid(para_env%mepos, 2) = mypcol
 
       ! sum infos
       CALL mp_sum(grid_2_mepos, para_env%group)
-      CALL mp_sum(mepos_2_grid, para_env%group)
+      CALL mp_allgather([myprow, mypcol], mepos_2_grid, para_env%group)
 
       ! 1) loop over my local data and define a map for the proc to send data
       ALLOCATE (map_send_size(0:para_env%num_pe - 1))
@@ -1017,8 +1001,8 @@ CONTAINS
             buffer_send(send_counter)%proc = proc_send
             ! get the pointer to prow, pcol of the process that has
             ! to receive this message
-            ref_send_prow = mepos_2_grid_group(proc_send, 1)
-            ref_send_pcol = mepos_2_grid_group(proc_send, 2)
+            ref_send_prow = mepos_2_grid_group(1, proc_send)
+            ref_send_pcol = mepos_2_grid_group(2, proc_send)
             ! save the rank of the process that has to receive this message
             grid_ref_2_send_pos(ref_send_prow, ref_send_pcol) = send_counter
          END IF
@@ -1134,7 +1118,7 @@ CONTAINS
             ! precompute the indeces of the rows
             num_rec_rows = 0
             DO iiB = 1, rec_row_size
-               i_global = cp_fm_indxl2g(iiB, nrow_block, mepos_2_grid(proc_receive, 1), &
+               i_global = cp_fm_indxl2g(iiB, nrow_block, mepos_2_grid(1, proc_receive), &
                                         fm_mat%matrix_struct%first_p_pos(1), nprow)
                IF (i_global >= my_start_row .AND. i_global <= my_end_row) THEN
                   num_rec_rows = num_rec_rows + 1
@@ -1146,7 +1130,7 @@ CONTAINS
 
             iii = 0
             DO jjB = 1, rec_col_size
-               j_global = cp_fm_indxl2g(jjB, ncol_block, mepos_2_grid(proc_receive, 2), &
+               j_global = cp_fm_indxl2g(jjB, ncol_block, mepos_2_grid(2, proc_receive), &
                                         fm_mat%matrix_struct%first_p_pos(2), npcol)
                IF (j_global >= my_start_col .AND. j_global <= my_end_col) THEN
                   DO iiB = 1, num_rec_rows
@@ -1207,9 +1191,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dbcsr_gamma'
 
-      INTEGER :: dummy_proc, handle, i_global, i_local, iaia, iiB, iii, itmp(2), j_global, &
+      INTEGER :: dummy_proc, handle, i_global, i_local, iaia, iiB, iii, ispin, itmp(2), j_global, &
          j_local, jjB, jjj, kkB, mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, &
-         nrow_local, number_of_rec, number_of_send, proc_receive, proc_send, proc_shift, &
+         nrow_local, nspins, number_of_rec, number_of_send, proc_receive, proc_send, proc_shift, &
          rec_counter, rec_iaia_end, rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, &
          ref_send_pcol, ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, &
          size_send_buffer
@@ -1229,15 +1213,15 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! allocate G_P_ia (DBCSR)
-      IF (alpha_case) THEN
-         NULLIFY (mp2_env%ri_grad%G_P_ia)
-         CALL dbcsr_allocate_matrix_set(mp2_env%ri_grad%G_P_ia, &
-                                        my_group_L_size)
-      ELSE
-         NULLIFY (mp2_env%ri_grad%G_P_ia_beta)
-         CALL dbcsr_allocate_matrix_set(mp2_env%ri_grad%G_P_ia_beta, &
-                                        my_group_L_size)
-      ENDIF
+      IF (.NOT. ALLOCATED(mp2_env%ri_grad%G_P_ia)) THEN
+         nspins = SIZE(mp2_env%ri_grad%mo_coeff_o)
+         ALLOCATE (mp2_env%ri_grad%G_P_ia(my_group_L_size, nspins))
+         DO ispin = 1, nspins
+         DO kkB = 1, my_group_L_size
+            NULLIFY (mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix)
+         END DO
+         END DO
+      END IF
 
       ! create sub blacs env
       NULLIFY (blacs_env)
@@ -1270,15 +1254,12 @@ CONTAINS
       ! 0) create array containing the processes position and supporting infos
       ALLOCATE (grid_2_mepos(0:nprow - 1, 0:npcol - 1))
       grid_2_mepos = 0
-      ALLOCATE (mepos_2_grid(0:para_env_sub%num_pe - 1, 2))
-      mepos_2_grid = 0
+      ALLOCATE (mepos_2_grid(2, 0:para_env_sub%num_pe - 1))
       ! fill the info array
       grid_2_mepos(myprow, mypcol) = para_env_sub%mepos
-      mepos_2_grid(para_env_sub%mepos, 1) = myprow
-      mepos_2_grid(para_env_sub%mepos, 2) = mypcol
       ! sum infos
       CALL mp_sum(grid_2_mepos, para_env_sub%group)
-      CALL mp_sum(mepos_2_grid, para_env_sub%group)
+      CALL mp_allgather([myprow, mypcol], mepos_2_grid, para_env_sub%group)
 
       ! loop over local index range and define the sending map
       ALLOCATE (map_send_size(0:para_env_sub%num_pe - 1))
@@ -1343,8 +1324,8 @@ CONTAINS
             buffer_send(send_counter)%proc = proc_send
             ! get the pointer to prow, pcol of the process that has
             ! to receive this message
-            ref_send_prow = mepos_2_grid(proc_send, 1)
-            ref_send_pcol = mepos_2_grid(proc_send, 2)
+            ref_send_prow = mepos_2_grid(1, proc_send)
+            ref_send_pcol = mepos_2_grid(2, proc_send)
             ! save the rank of the process that has to receive this message
             grid_ref_2_send_pos(ref_send_prow, ref_send_pcol) = send_counter
          END IF
@@ -1499,19 +1480,13 @@ CONTAINS
          CALL mp_waitall(req_send(:))
 
          ! now create the DBCSR matrix and copy fm_ia into it
-         IF (alpha_case) THEN
-            ALLOCATE (mp2_env%ri_grad%G_P_ia(kkB)%matrix)
-            CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia(kkB)%matrix, &
-                                               template=mp2_env%ri_grad%mo_coeff_o, &
-                                               m=homo, n=virtual, sym=dbcsr_type_no_symmetry)
-            CALL copy_fm_to_dbcsr(fm_ia, mp2_env%ri_grad%G_P_ia(kkB)%matrix, keep_sparsity=.FALSE.)
-         ELSE
-            ALLOCATE (mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
-            CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix, &
-                                               template=mp2_env%ri_grad%mo_coeff_o_beta, &
-                                               m=homo, n=virtual, sym=dbcsr_type_no_symmetry)
-            CALL copy_fm_to_dbcsr(fm_ia, mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix, keep_sparsity=.FALSE.)
-         ENDIF
+         ispin = 2
+         IF (alpha_case) ispin = 1
+         ALLOCATE (mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix)
+         CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix, &
+                                            template=mp2_env%ri_grad%mo_coeff_o(ispin)%matrix, &
+                                            m=homo, n=virtual, sym=dbcsr_type_no_symmetry)
+         CALL copy_fm_to_dbcsr(fm_ia, mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix, keep_sparsity=.FALSE.)
 
       END DO
 
@@ -1576,13 +1551,11 @@ CONTAINS
       ALLOCATE (proc_map(-para_env%num_pe:2*para_env%num_pe - 1))
       proc_map = 0
       ALLOCATE (my_pos_info(0:para_env%num_pe - 1))
-      my_pos_info = 0
-      my_pos_info(para_env%mepos) = para_env_sub%mepos
-      CALL mp_sum(my_pos_info, para_env%group)
+      CALL mp_allgather(para_env_sub%mepos, my_pos_info, para_env%group)
 
       ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe - 1, 0:ngroup - 1))
       group_grid_2_mepos = 0
-      ALLOCATE (mepos_2_grid_group(0:para_env%num_pe - 1, 2))
+      ALLOCATE (mepos_2_grid_group(2, 0:para_env%num_pe - 1))
       mepos_2_grid_group = 0
 
       DO i = 0, para_env%num_pe - 1
@@ -1596,8 +1569,8 @@ CONTAINS
          ! fill the map from the grid of groups to process
          group_grid_2_mepos(pos_sub, pos_group) = i
          ! and the opposite, from the global pos to the grid pos
-         mepos_2_grid_group(i, 1) = pos_sub
-         mepos_2_grid_group(i, 2) = pos_group
+         mepos_2_grid_group(1, i) = pos_sub
+         mepos_2_grid_group(2, i) = pos_group
       ENDDO
 
       IF (PRESENT(fm_mat_Gamma) .AND. PRESENT(sizes)) THEN
@@ -1606,10 +1579,7 @@ CONTAINS
                              ncol_local=ncol_local)
 
          ALLOCATE (sizes(2, 0:para_env%num_pe - 1))
-         sizes = 0
-         sizes(1, para_env%mepos) = nrow_local
-         sizes(2, para_env%mepos) = ncol_local
-         CALL mp_sum(sizes, para_env%group)
+         CALL mp_allgather([nrow_local, ncol_local], sizes, para_env%group)
       END IF
 
       IF (PRESENT(pos_info)) CALL move_alloc(my_pos_info, pos_info)

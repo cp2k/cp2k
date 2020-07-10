@@ -32,6 +32,7 @@ MODULE mp2_integrals
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -60,7 +61,8 @@ MODULE mp2_integrals
                                               do_potential_long,&
                                               do_potential_short,&
                                               do_potential_truncated
-   USE kinds,                           ONLY: dp,&
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp,&
                                               int_8
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_types,                    ONLY: kpoint_type
@@ -77,6 +79,7 @@ MODULE mp2_integrals
                                               mp2_eri_3c_integrate_gpw,&
                                               prepare_gpw
    USE mp2_ri_2c,                       ONLY: get_2c_integrals
+   USE mp2_types,                       ONLY: three_dim_real_array
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_type
@@ -113,6 +116,14 @@ MODULE mp2_integrals
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_integrals'
 
    PUBLIC :: mp2_ri_gpw_compute_in
+
+   TYPE intermediate_matrix_type
+      TYPE(dbcsr_type) :: matrix_ia_jnu, matrix_ia_jb
+      INTEGER :: max_row_col_local
+      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: local_col_row_info
+      TYPE(cp_fm_type), POINTER :: fm_BIb_jb
+      CHARACTER(LEN=default_string_length) :: descr
+   END TYPE intermediate_matrix_type
 
 CONTAINS
 
@@ -169,14 +180,6 @@ CONTAINS
 !> \param ri_metric ...
 !> \param gd_B_occ_bse ...
 !> \param gd_B_virt_bse ...
-!> \param BIb_C_beta ...
-!> \param BIb_C_gw_beta ...
-!> \param gd_B_virtual_beta ...
-!> \param homo_beta ...
-!> \param mo_coeff_o_beta ...
-!> \param mo_coeff_v_beta ...
-!> \param mo_coeff_all_beta ...
-!> \param mo_coeff_gw_beta ...
 !> \author Mauro Del Ben
 ! **************************************************************************************************
    SUBROUTINE mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, &
@@ -192,14 +195,15 @@ CONTAINS
                                     gw_corr_lev_occ, gw_corr_lev_virt, &
                                     do_im_time, do_kpoints_cubic_RPA, kpoints, &
                                     t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
-                                    ri_metric, gd_B_occ_bse, gd_B_virt_bse, BIb_C_beta, BIb_C_gw_beta, &
-                                    gd_B_virtual_beta, homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
-                                    mo_coeff_all_beta, mo_coeff_gw_beta)
+                                    ri_metric, gd_B_occ_bse, gd_B_virt_bse)
 
+      TYPE(three_dim_real_array), ALLOCATABLE, &
+         DIMENSION(:), INTENT(OUT)                       :: BIb_C, BIb_C_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(OUT)                                     :: BIb_C, BIb_C_gw, BIb_C_bse_ij, &
-                                                            BIb_C_bse_ab
-      TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array, gd_B_virtual
+         INTENT(OUT)                                     :: BIb_C_bse_ij, BIb_C_bse_ab
+      TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
+      TYPE(group_dist_d1_type), ALLOCATABLE, &
+         DIMENSION(:), INTENT(OUT)                       :: gd_B_virtual
       INTEGER, INTENT(OUT)                               :: dimen_RI, dimen_RI_red
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -208,13 +212,14 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
-      INTEGER, INTENT(IN)                                :: nmo, homo
+      INTEGER, INTENT(IN)                                :: nmo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          INTENT(IN), POINTER                             :: sab_orb_sub
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v, mo_coeff_all, &
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o, mo_coeff_v, mo_coeff_all, &
                                                             mo_coeff_gw
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -238,56 +243,42 @@ CONTAINS
          DIMENSION(:, :, :)                              :: t_3c_O_ind
       TYPE(libint_potential_type), INTENT(IN)            :: ri_metric
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_B_occ_bse, gd_B_virt_bse
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(OUT), OPTIONAL                           :: BIb_C_beta, BIb_C_gw_beta
-      TYPE(group_dist_d1_type), INTENT(OUT), OPTIONAL    :: gd_B_virtual_beta
-      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta
-      TYPE(dbcsr_type), OPTIONAL, POINTER                :: mo_coeff_o_beta, mo_coeff_v_beta, &
-                                                            mo_coeff_all_beta, mo_coeff_gw_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in'
 
       INTEGER :: cm, cut_memory, cut_memory_int, eri_method, gw_corr_lev_total, handle, handle2, &
-         handle4, i, i_counter, i_mem, itmp(2), j, jcell, kcell, LLL, max_row_col_local, &
-         max_row_col_local_beta, max_row_col_local_gw, max_row_col_local_occ_bse, &
-         max_row_col_local_virt_bse, min_bsize, mp_comm_t3c_2, my_B_all_end, my_B_all_size, &
-         my_B_all_start, my_B_occ_bse_end, my_B_occ_bse_size, my_B_occ_bse_start, my_B_size, &
-         my_B_size_beta, my_B_virt_bse_end, my_B_virt_bse_size, my_B_virt_bse_start, &
-         my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, my_B_virtual_start_beta, &
-         my_group_L_end
-      INTEGER :: my_group_L_size, my_group_L_start, natom, ngroup, nimg, nkind, num_small_eigen, &
-         potential_type, ri_metric_type, virtual, virtual_beta
+         handle4, i, i_counter, i_mem, ispin, itmp(2), j, jcell, kcell, LLL, min_bsize, &
+         mp_comm_t3c_2, my_B_all_end, my_B_all_size, my_B_all_start, my_B_occ_bse_end, &
+         my_B_occ_bse_size, my_B_occ_bse_start, my_B_virt_bse_end, my_B_virt_bse_size, &
+         my_B_virt_bse_start, my_group_L_end, my_group_L_size, my_group_L_start, natom, ngroup, &
+         nimg, nkind, nspins, num_small_eigen, potential_type, ri_metric_type
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
-         ends_array_mc_block_int, ends_array_mc_int, sizes_AO, sizes_AO_split, sizes_RI, &
-         sizes_RI_split, starts_array_mc_block_int, starts_array_mc_int, sub_proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: local_col_row_info, local_col_row_info_beta, &
-         local_col_row_info_gw, local_col_row_info_occ_bse, local_col_row_info_virt_bse
+         ends_array_mc_block_int, ends_array_mc_int, my_B_size, my_B_virtual_end, &
+         my_B_virtual_start, sizes_AO, sizes_AO_split, sizes_RI, sizes_RI_split, &
+         starts_array_mc_block_int, starts_array_mc_int, sub_proc_map, virtual
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(3)                              :: bounds_3c, pcoord, pdims, pdims_t3c, &
                                                             periodic
-      LOGICAL                                            :: do_alpha_beta, do_gpw, &
-                                                            do_kpoints_from_Gamma, do_svd, &
+      LOGICAL                                            :: do_gpw, do_kpoints_from_Gamma, do_svd, &
                                                             memory_info
       REAL(KIND=dp) :: compression_factor, cond_num, cutoff_old, eps_svd, mem_for_iaK, memory_3c, &
          occ, omega_pot, rc_ang, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
-      TYPE(cp_fm_type), POINTER                          :: fm_BIb_bse_ab, fm_BIb_bse_ij, fm_BIb_gw, &
-                                                            fm_BIb_gw_beta, fm_BIb_jb, &
-                                                            fm_BIb_jb_beta, fm_matrix_L
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local_L
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_t3c_M, pgrid_t3c_overl
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_template, t_3c_tmp
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_overl_int
-      TYPE(dbcsr_type) :: matrix_bse_ab, matrix_bse_anu, matrix_bse_ij, matrix_bse_inu, &
-         matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, matrix_ia_jnu_beta, matrix_in_jm, &
-         matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_ao, basis_set_ri_aux
+      TYPE(intermediate_matrix_type)                     :: intermed_mat_bse_ab, intermed_mat_bse_ij
+      TYPE(intermediate_matrix_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: intermed_mat, intermed_mat_gw
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_p_type)                                    :: pot_g, psi_L, rho_g, rho_r
@@ -299,19 +290,15 @@ CONTAINS
 
       CALL cite_reference(DelBen2013)
 
-      do_alpha_beta = .FALSE.
-      IF (PRESENT(BIb_C_beta) .AND. &
-          PRESENT(gd_B_virtual_beta) .AND. &
-          PRESENT(homo_beta) .AND. &
-          PRESENT(mo_coeff_o_beta) .AND. &
-          PRESENT(mo_coeff_v_beta)) do_alpha_beta = .TRUE.
+      nspins = SIZE(homo)
 
       IF ((ri_metric%potential_type == do_potential_short .OR. ri_metric%potential_type == do_potential_truncated) &
           .AND. .NOT. do_im_time) THEN
          CPABORT("TRUNCATED and SHORTRANGE RI metrics not yet implemented")
       ENDIF
 
-      virtual = nmo - homo
+      ALLOCATE (virtual(nspins))
+      virtual(:) = nmo - homo(:)
       gw_corr_lev_total = gw_corr_lev_virt + gw_corr_lev_occ
 
       eri_method = qs_env%mp2_env%eri_method
@@ -341,83 +328,11 @@ CONTAINS
          CALL compute_kpoints(qs_env, kpoints, unit_nr)
       END IF
 
-      ! in case of imaginary time, we do not need the intermediate matrices
-      IF (.NOT. do_im_time) THEN
-
-         CALL create_intermediate_matrices(matrix_ia_jnu, matrix_ia_jb, mo_coeff_o, virtual, homo, &
-                                           fm_BIb_jb, "fm_BIb_jb", max_row_col_local, &
-                                           blacs_env_sub, para_env_sub, local_col_row_info)
-
-         CALL create_group_dist(gd_B_virtual, para_env_sub%num_pe, virtual)
-         CALL get_group_dist(gd_B_virtual, para_env_sub%mepos, my_B_virtual_start, my_B_virtual_end, my_B_size)
-
-         IF (do_alpha_beta) THEN
-
-            virtual_beta = nmo - homo_beta
-
-            CALL create_intermediate_matrices(matrix_ia_jnu_beta, matrix_ia_jb_beta, mo_coeff_o_beta, &
-                                              virtual_beta, homo_beta, &
-                                              fm_BIb_jb_beta, "fm_BIb_jb_beta", &
-                                              max_row_col_local_beta, &
-                                              blacs_env_sub, para_env_sub, local_col_row_info_beta)
-
-            CALL create_group_dist(gd_B_virtual_beta, para_env_sub%num_pe, virtual_beta)
-            CALL get_group_dist(gd_B_virtual_beta, para_env_sub%mepos, my_B_virtual_start_beta, my_B_virtual_end_beta, &
-                                my_B_size_beta)
-
-         END IF
-
-         ! in the case of G0W0, we need (K|nm), n,m may be occ or virt (m restricted to corrected levels)
-         IF (my_do_gw) THEN
-
-            CALL create_intermediate_matrices(matrix_in_jnu, matrix_in_jm, mo_coeff_gw, &
-                                              nmo, gw_corr_lev_total, &
-                                              fm_BIb_gw, "fm_BIb_gw", &
-                                              max_row_col_local_gw, &
-                                              blacs_env_sub, para_env_sub, local_col_row_info_gw)
-
-            CALL create_group_dist(gd_B_all, para_env_sub%num_pe, nmo)
-            CALL get_group_dist(gd_B_all, para_env_sub%mepos, my_B_all_start, my_B_all_end, my_B_all_size)
-
-            IF (do_alpha_beta) THEN
-               ! deallocate local_col_row_info_gw, otherwise it gets twice allocated in create_intermediate_m
-               DEALLOCATE (local_col_row_info_gw)
-               CALL create_intermediate_matrices(matrix_in_jnu_beta, matrix_in_jm_beta, mo_coeff_gw_beta, &
-                                                 nmo, gw_corr_lev_total, &
-                                                 fm_BIb_gw_beta, "fm_BIb_gw_beta", &
-                                                 max_row_col_local_gw, &
-                                                 blacs_env_sub, para_env_sub, local_col_row_info_gw)
-
-               ! we don"t need parallelization arrays for beta since the matrix sizes of B_nm^P is the same
-               ! for the beta case and therefore the parallelization of beta is the same than for alpha
-
-            END IF
-         END IF
-      END IF ! not for imaginary time
-
       IF (do_bse) THEN
-
          CPASSERT(my_do_gw)
          CPASSERT(.NOT. do_im_time)
          ! GPW integrals have to be implemented later
          CPASSERT(.NOT. (eri_method == do_eri_gpw))
-
-         ! virt x virt matrices
-         CALL create_intermediate_matrices(matrix_bse_anu, matrix_bse_ab, mo_coeff_v, virtual, virtual, &
-                                           fm_BIb_bse_ab, "fm_BIb_bse_ab", max_row_col_local_virt_bse, &
-                                           blacs_env_sub, para_env_sub, local_col_row_info_virt_bse)
-
-         CALL create_group_dist(gd_B_virt_bse, para_env_sub%num_pe, virtual)
-         CALL get_group_dist(gd_B_virt_bse, para_env_sub%mepos, my_B_virt_bse_start, my_B_virt_bse_end, my_B_virt_bse_size)
-
-         ! occ x occ matrices
-         CALL create_intermediate_matrices(matrix_bse_inu, matrix_bse_ij, mo_coeff_o, homo, homo, &
-                                           fm_BIb_bse_ij, "fm_BIb_bse_ij", max_row_col_local_occ_bse, &
-                                           blacs_env_sub, para_env_sub, local_col_row_info_occ_bse)
-
-         CALL create_group_dist(gd_B_occ_bse, para_env_sub%num_pe, homo)
-         CALL get_group_dist(gd_B_occ_bse, para_env_sub%mepos, my_B_occ_bse_start, my_B_occ_bse_end, my_B_occ_bse_size)
-
       END IF
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
@@ -439,7 +354,7 @@ CONTAINS
       END IF
 
       CALL get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                            fm_matrix_L, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, mo_coeff, &
+                            fm_matrix_L, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, mo_coeff(1)%matrix, &
                             my_group_L_size, my_group_L_start, my_group_L_end, &
                             gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, cond_num, do_svd, eps_svd, &
                             num_small_eigen, qs_env%mp2_env%potential_parameter, ri_metric, &
@@ -520,17 +435,15 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
             "RI_INFO| Number of auxiliary basis functions:", dimen_RI, &
-            "GENERAL_INFO| Number of basis functions:", homo + virtual, &
-            "GENERAL_INFO| Number of occupied orbitals:", homo, &
-            "GENERAL_INFO| Number of virtual orbitals:", virtual
+            "GENERAL_INFO| Number of basis functions:", nmo, &
+            "GENERAL_INFO| Number of occupied orbitals:", homo(1), &
+            "GENERAL_INFO| Number of virtual orbitals:", virtual(1)
          IF (do_svd) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "RI_INFO| Reduced auxiliary basis set size:", dimen_RI_red
          END IF
 
-         mem_for_iaK = dimen_RI*REAL(homo, KIND=dp)*virtual*8.0_dp/(1024_dp**2)
-         IF (do_alpha_beta) mem_for_iaK = mem_for_iaK + &
-                                          dimen_RI*REAL(homo_beta, KIND=dp)*(nmo - homo_beta)*8.0_dp/(1024_dp**2)
+         mem_for_iaK = dimen_RI*REAL(SUM(homo*virtual), KIND=dp)*8.0_dp/(1024_dp**2)
 
          IF (.NOT. do_im_time) THEN
             WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for (ia|K) integrals:', &
@@ -550,6 +463,53 @@ CONTAINS
       ! in case we do imaginary time, we need the overlap tensor (alpha beta P) or trunc. Coulomb tensor
       IF (.NOT. do_im_time) THEN
 
+         ALLOCATE (gd_B_virtual(nspins), intermed_mat(nspins))
+         ALLOCATE (my_B_virtual_start(nspins), my_B_virtual_end(nspins), my_B_size(nspins))
+         DO ispin = 1, nspins
+
+            CALL create_intermediate_matrices(intermed_mat(ispin), mo_coeff_o(ispin)%matrix, virtual(ispin), homo(ispin), &
+                                              TRIM(ADJUSTL(cp_to_string(ispin))), blacs_env_sub, para_env_sub)
+
+            CALL create_group_dist(gd_B_virtual(ispin), para_env_sub%num_pe, virtual(ispin))
+            CALL get_group_dist(gd_B_virtual(ispin), para_env_sub%mepos, my_B_virtual_start(ispin), my_B_virtual_end(ispin), &
+                                my_B_size(ispin))
+
+         END DO
+
+         ! in the case of G0W0, we need (K|nm), n,m may be occ or virt (m restricted to corrected levels)
+         IF (my_do_gw) THEN
+
+            ALLOCATE (intermed_mat_gw(nspins))
+            DO ispin = 1, nspins
+               CALL create_intermediate_matrices(intermed_mat_gw(ispin), mo_coeff_gw(ispin)%matrix, &
+                                                 nmo, gw_corr_lev_total, &
+                                                 "gw_"//TRIM(ADJUSTL(cp_to_string(ispin))), &
+                                                 blacs_env_sub, para_env_sub)
+
+            END DO
+
+            CALL create_group_dist(gd_B_all, para_env_sub%num_pe, nmo)
+            CALL get_group_dist(gd_B_all, para_env_sub%mepos, my_B_all_start, my_B_all_end, my_B_all_size)
+
+            IF (do_bse) THEN
+
+               ! virt x virt matrices
+               CALL create_intermediate_matrices(intermed_mat_bse_ab, mo_coeff_v(1)%matrix, virtual(1), virtual(1), &
+                                                 "bse_ab", blacs_env_sub, para_env_sub)
+
+               CALL create_group_dist(gd_B_virt_bse, para_env_sub%num_pe, virtual(1))
+               CALL get_group_dist(gd_B_virt_bse, para_env_sub%mepos, my_B_virt_bse_start, my_B_virt_bse_end, my_B_virt_bse_size)
+
+               ! occ x occ matrices
+               CALL create_intermediate_matrices(intermed_mat_bse_ij, mo_coeff_o(1)%matrix, homo(1), homo(1), &
+                                                 "bse_ij", blacs_env_sub, para_env_sub)
+
+               CALL create_group_dist(gd_B_occ_bse, para_env_sub%num_pe, homo(1))
+               CALL get_group_dist(gd_B_occ_bse, para_env_sub%mepos, my_B_occ_bse_start, my_B_occ_bse_end, my_B_occ_bse_size)
+
+            END IF
+         END IF
+
          ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
          DO i = 0, para_env_sub%num_pe - 1
             sub_proc_map(i) = i
@@ -558,32 +518,29 @@ CONTAINS
          END DO
 
          ! array that will store the (ia|K) integrals
-         ALLOCATE (BIb_C(my_group_L_size, my_B_size, homo))
-         BIb_C = 0.0_dp
-
-         IF (do_alpha_beta) THEN
-            ALLOCATE (BIb_C_beta(my_group_L_size, my_B_size_beta, homo_beta))
-            BIb_C_beta = 0.0_dp
-         END IF
+         ALLOCATE (BIb_C(nspins))
+         DO ispin = 1, nspins
+            ALLOCATE (BIb_C(ispin)%array(my_group_L_size, my_B_size(ispin), homo(ispin)))
+            BIb_C(ispin)%array = 0.0_dp
+         END DO
 
          ! in the case of GW, we also need (nm|K)
          IF (my_do_gw) THEN
 
-            ALLOCATE (BIb_C_gw(my_group_L_size, my_B_all_size, gw_corr_lev_total))
-            BIb_C_gw = 0.0_dp
-            IF (do_alpha_beta) THEN
-               ALLOCATE (BIb_C_gw_beta(my_group_L_size, my_B_all_size, gw_corr_lev_total))
-               BIb_C_gw_beta = 0.0_dp
-            END IF
+            ALLOCATE (BIb_C_gw(nspins))
+            DO ispin = 1, nspins
+               ALLOCATE (BIb_C_gw(ispin)%array(my_group_L_size, my_B_all_size, gw_corr_lev_total))
+               BIb_C_gw(ispin)%array = 0.0_dp
+            END DO
 
          END IF
 
          IF (do_bse) THEN
 
-            ALLOCATE (BIb_C_bse_ij(my_group_L_size, my_B_occ_bse_size, homo))
+            ALLOCATE (BIb_C_bse_ij(my_group_L_size, my_B_occ_bse_size, homo(1)))
             BIb_C_bse_ij = 0.0_dp
 
-            ALLOCATE (BIb_C_bse_ab(my_group_L_size, my_B_virt_bse_size, virtual))
+            ALLOCATE (BIb_C_bse_ab(my_group_L_size, my_B_virt_bse_size, virtual(1)))
             BIb_C_bse_ab = 0.0_dp
 
          END IF
@@ -609,72 +566,51 @@ CONTAINS
                                       basis_type_c="RI_AUX", &
                                       sab_nl=sab_orb_sub, eri_method=eri_method)
 
-            DO LLL = 1, my_group_L_size
-               CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_ia_jnu, matrix_ia_jb, &
-                                         fm_BIb_jb, BIb_C(LLL, 1:my_B_size, 1:homo), &
-                                         mo_coeff_o, mo_coeff_v, eps_filter, max_row_col_local, sub_proc_map, &
-                                         local_col_row_info, my_B_virtual_end, my_B_virtual_start, "alpha")
-            ENDDO
-            CALL contract_B_L(BIb_C, my_Lrows, gd_B_virtual%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
-                              ngroup, color_sub, para_env%group, para_env_sub)
-
-            IF (do_alpha_beta) THEN
-
+            DO ispin = 1, nspins
                DO LLL = 1, my_group_L_size
-                  CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_ia_jnu_beta, matrix_ia_jb_beta, &
-                                            fm_BIb_jb_beta, BIb_C_beta(LLL, 1:my_B_size_beta, 1:homo_beta), &
-                                            mo_coeff_o_beta, mo_coeff_v_beta, eps_filter, max_row_col_local_beta, sub_proc_map, &
-                                            local_col_row_info_beta, my_B_virtual_end_beta, my_B_virtual_start_beta, "beta")
+                  CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), intermed_mat(ispin), &
+                                            BIb_C(ispin)%array(LLL, :, :), &
+                                            mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, &
+                                            eps_filter, sub_proc_map, &
+                                            my_B_virtual_end(ispin), my_B_virtual_start(ispin))
                ENDDO
-               CALL contract_B_L(BIb_C_beta, my_Lrows, gd_B_virtual_beta%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
+               CALL contract_B_L(BIb_C(ispin)%array, my_Lrows, gd_B_virtual(ispin)%sizes, &
+                                 gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
-
-            ENDIF
+            ENDDO
 
             IF (my_do_gw) THEN
 
-               DO LLL = 1, my_group_L_size
-                  CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_in_jnu, matrix_in_jm, &
-                                            fm_BIb_gw, BIb_C_gw(LLL, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                            mo_coeff_gw, mo_coeff_all, eps_filter, max_row_col_local_gw, sub_proc_map, &
-                                            local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_alpha")
-               ENDDO
-               CALL contract_B_L(BIb_C_gw, my_Lrows, gd_B_all%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
-                                 ngroup, color_sub, para_env%group, para_env_sub)
-
-               IF (do_alpha_beta) THEN
-
+               DO ispin = 1, nspins
                   DO LLL = 1, my_group_L_size
-                     CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_in_jnu_beta, matrix_in_jm_beta, &
-                                               fm_BIb_gw_beta, BIb_C_gw_beta(LLL, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                               mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, &
-                                               sub_proc_map, local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
+                     CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), intermed_mat_gw(ispin), &
+                                               BIb_C_gw(ispin)%array(LLL, :, :), &
+                                               mo_coeff_gw(ispin)%matrix, mo_coeff_all(ispin)%matrix, eps_filter, &
+                                               sub_proc_map, my_B_all_end, my_B_all_start)
                   ENDDO
-                  CALL contract_B_L(BIb_C_gw_beta, my_Lrows, gd_B_all%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
+                  CALL contract_B_L(BIb_C_gw(ispin)%array, my_Lrows, gd_B_all%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                     ngroup, color_sub, para_env%group, para_env_sub)
-
-               ENDIF
+               ENDDO
             ENDIF
 
             IF (do_bse) THEN
 
                ! B^ab_P matrix elements for BSE
                DO LLL = 1, my_group_L_size
-                  CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_bse_anu, matrix_bse_ab, &
-                                            fm_BIb_bse_ab, BIb_C_bse_ab(LLL, 1:my_B_virt_bse_size, 1:virtual), &
-                                            mo_coeff_v, mo_coeff_v, eps_filter, max_row_col_local_virt_bse, &
-                                            sub_proc_map, local_col_row_info_virt_bse, my_B_all_end, my_B_all_start, "bse_ab")
+                  CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), intermed_mat_bse_ab, &
+                                            BIb_C_bse_ab(LLL, :, :), &
+                                            mo_coeff_v(1)%matrix, mo_coeff_v(1)%matrix, eps_filter, &
+                                            sub_proc_map, my_B_all_end, my_B_all_start)
                ENDDO
                CALL contract_B_L(BIb_C_bse_ab, my_Lrows, gd_B_virt_bse%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
 
                ! B^ij_P matrix elements for BSE
                DO LLL = 1, my_group_L_size
-                  CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_bse_inu, matrix_bse_ij, &
-                                            fm_BIb_bse_ij, BIb_C_bse_ij(LLL, 1:my_B_occ_bse_size, 1:homo), &
-                                            mo_coeff_o, mo_coeff_o, eps_filter, max_row_col_local_occ_bse, &
-                                            sub_proc_map, local_col_row_info_occ_bse, &
-                                            my_B_occ_bse_end, my_B_occ_bse_start, "bse_ij")
+                  CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), intermed_mat_bse_ij, &
+                                            BIb_C_bse_ij(LLL, :, :), &
+                                            mo_coeff_o(1)%matrix, mo_coeff_o(1)%matrix, eps_filter, &
+                                            sub_proc_map, my_B_occ_bse_end, my_B_occ_bse_start)
                ENDDO
                CALL contract_B_L(BIb_C_bse_ij, my_Lrows, gd_B_occ_bse%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
@@ -693,38 +629,27 @@ CONTAINS
 
             DO i_counter = 1, my_group_L_size
 
-               CALL mp2_eri_3c_integrate_gpw(mo_coeff, psi_L, rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, &
+               CALL mp2_eri_3c_integrate_gpw(mo_coeff(1)%matrix, psi_L, rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, &
                                              particle_set, pw_env_sub, my_Lrows(:, i_counter), poisson_env, rho_r, pot_g, &
                                              ri_metric%potential_type, ri_metric%omega, mat_munu, qs_env, task_list_sub)
 
-               CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_ia_jnu, matrix_ia_jb, &
-                                         fm_BIb_jb, BIb_C(i_counter, 1:my_B_size, 1:homo), &
-                                         mo_coeff_o, mo_coeff_v, eps_filter, max_row_col_local, sub_proc_map, &
-                                         local_col_row_info, my_B_virtual_end, my_B_virtual_start, "alpha")
+               DO ispin = 1, nspins
+                  CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, intermed_mat(ispin), &
+                                            BIb_C(ispin)%array(i_counter, :, :), &
+                                            mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, eps_filter, &
+                                            sub_proc_map, my_B_virtual_end(ispin), my_B_virtual_start(ispin))
 
-               IF (do_alpha_beta) THEN
-                  CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_ia_jnu_beta, matrix_ia_jb_beta, &
-                                            fm_BIb_jb_beta, BIb_C_beta(i_counter, 1:my_B_size_beta, 1:homo_beta), &
-                                            mo_coeff_o_beta, mo_coeff_v_beta, eps_filter, max_row_col_local_beta, sub_proc_map, &
-                                            local_col_row_info_beta, my_B_virtual_end_beta, my_B_virtual_start_beta, "beta")
-
-               ENDIF
+               ENDDO
 
                IF (my_do_gw) THEN
                   ! transform (K|mu nu) to (K|nm), n corresponds to corrected GW levels, m is in nmo
-                  CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu, matrix_in_jm, &
-                                            fm_BIb_gw, BIb_C_gw(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                            mo_coeff_gw, mo_coeff_all, eps_filter, max_row_col_local_gw, sub_proc_map, &
-                                            local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_alpha")
+                  DO ispin = 1, nspins
+                     CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, intermed_mat_gw(ispin), &
+                                               BIb_C_gw(ispin)%array(i_counter, :, :), &
+                                               mo_coeff_gw(ispin)%matrix, mo_coeff_all(ispin)%matrix, eps_filter, &
+                                               sub_proc_map, my_B_all_end, my_B_all_start)
 
-                  ! the same for beta
-                  IF (do_alpha_beta) THEN
-                     CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu_beta, matrix_in_jm_beta, &
-                                               fm_BIb_gw_beta, BIb_C_gw_beta(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                               mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, &
-                                               sub_proc_map, local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
-
-                  END IF
+                  END DO
                END IF
 
             END DO
@@ -739,37 +664,21 @@ CONTAINS
 
          DEALLOCATE (my_Lrows)
 
-         CALL cp_fm_release(fm_BIb_jb)
-         DEALLOCATE (local_col_row_info)
-
-         CALL dbcsr_release(matrix_ia_jnu)
-         CALL dbcsr_release(matrix_ia_jb)
-         IF (do_alpha_beta) THEN
-            CALL dbcsr_release(matrix_ia_jnu_beta)
-            CALL dbcsr_release(matrix_ia_jb_beta)
-            CALL cp_fm_release(fm_BIb_jb_beta)
-            DEALLOCATE (local_col_row_info_beta)
-         END IF
+         DO ispin = 1, nspins
+            CALL release_intermediate_matrices(intermed_mat(ispin))
+         END DO
+         DEALLOCATE (intermed_mat)
 
          IF (my_do_gw) THEN
-            CALL dbcsr_release(matrix_in_jnu)
-            CALL dbcsr_release(matrix_in_jm)
-            CALL cp_fm_release(fm_BIb_gw)
-            DEALLOCATE (local_col_row_info_gw)
-            IF (do_alpha_beta) THEN
-               CALL dbcsr_release(matrix_in_jnu_beta)
-               CALL dbcsr_release(matrix_in_jm_beta)
-               CALL cp_fm_release(fm_BIb_gw_beta)
-            END IF
+            DO ispin = 1, nspins
+               CALL release_intermediate_matrices(intermed_mat_gw(ispin))
+            END DO
+            DEALLOCATE (intermed_mat_gw)
          END IF
 
          IF (do_bse) THEN
-            CALL dbcsr_release(matrix_bse_anu)
-            CALL dbcsr_release(matrix_bse_ab)
-            CALL cp_fm_release(fm_BIb_bse_ab)
-            CALL dbcsr_release(matrix_bse_inu)
-            CALL dbcsr_release(matrix_bse_ij)
-            CALL cp_fm_release(fm_BIb_bse_ij)
+            CALL release_intermediate_matrices(intermed_mat_bse_ab)
+            CALL release_intermediate_matrices(intermed_mat_bse_ij)
          END IF
 
          DEALLOCATE (sub_proc_map)
@@ -1162,32 +1071,24 @@ CONTAINS
 !> \brief Encapsulate building of intermediate matrices matrix_ia_jnu(_beta
 !>         matrix_ia_jb(_beta),fm_BIb_jb(_beta),matrix_in_jnu(for G0W0) and
 !>         fm_BIb_all(for G0W0)
-!> \param matrix_ia_jnu ...
-!> \param matrix_ia_jb ...
+!> \param intermed_mat ...
 !> \param mo_coeff_templ ...
 !> \param size_1 ...
 !> \param size_2 ...
-!> \param fm_BIb_jb ...
 !> \param matrix_name_2 ...
-!> \param max_row_col_local ...
 !> \param blacs_env_sub ...
 !> \param para_env_sub ...
-!> \param local_col_row_info ...
 !> \author Jan Wilhelm
 ! **************************************************************************************************
-   SUBROUTINE create_intermediate_matrices(matrix_ia_jnu, matrix_ia_jb, mo_coeff_templ, size_1, size_2, &
-                                           fm_BIb_jb, matrix_name_2, max_row_col_local, &
-                                           blacs_env_sub, para_env_sub, local_col_row_info)
+   SUBROUTINE create_intermediate_matrices(intermed_mat, mo_coeff_templ, size_1, size_2, &
+                                           matrix_name_2, blacs_env_sub, para_env_sub)
 
-      TYPE(dbcsr_type), INTENT(OUT)                      :: matrix_ia_jnu, matrix_ia_jb
+      TYPE(intermediate_matrix_type), INTENT(OUT)        :: intermed_mat
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mo_coeff_templ
       INTEGER, INTENT(IN)                                :: size_1, size_2
-      TYPE(cp_fm_type), POINTER                          :: fm_BIb_jb
       CHARACTER(LEN=*), INTENT(IN)                       :: matrix_name_2
-      INTEGER, INTENT(OUT)                               :: max_row_col_local
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: local_col_row_info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_intermediate_matrices'
 
@@ -1199,44 +1100,46 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! initialize and create the matrix (K|jnu)
-      CALL dbcsr_create(matrix_ia_jnu, template=mo_coeff_templ)
+      CALL dbcsr_create(intermed_mat%matrix_ia_jnu, template=mo_coeff_templ)
 
       ! Allocate Sparse matrices: (K|jb)
-      CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb, template=mo_coeff_templ, m=size_2, n=size_1, &
+      CALL cp_dbcsr_m_by_n_from_template(intermed_mat%matrix_ia_jb, template=mo_coeff_templ, m=size_2, n=size_1, &
                                          sym=dbcsr_type_no_symmetry)
 
       ! set all to zero in such a way that the memory is actually allocated
-      CALL dbcsr_set(matrix_ia_jnu, 0.0_dp)
-      CALL dbcsr_set(matrix_ia_jb, 0.0_dp)
+      CALL dbcsr_set(intermed_mat%matrix_ia_jnu, 0.0_dp)
+      CALL dbcsr_set(intermed_mat%matrix_ia_jb, 0.0_dp)
 
       ! create the analogous of matrix_ia_jb in fm type
-      NULLIFY (fm_BIb_jb)
+      NULLIFY (intermed_mat%fm_BIb_jb)
       NULLIFY (fm_struct)
-      CALL dbcsr_get_info(matrix_ia_jb, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
+      CALL dbcsr_get_info(intermed_mat%matrix_ia_jb, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env_sub, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env_sub)
-      CALL cp_fm_create(fm_BIb_jb, fm_struct, name=matrix_name_2)
+      CALL cp_fm_create(intermed_mat%fm_BIb_jb, fm_struct, name="fm_BIb_jb_"//matrix_name_2)
 
-      CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb)
+      CALL copy_dbcsr_to_fm(intermed_mat%matrix_ia_jb, intermed_mat%fm_BIb_jb)
       CALL cp_fm_struct_release(fm_struct)
 
-      CALL cp_fm_get_info(matrix=fm_BIb_jb, &
+      CALL cp_fm_get_info(matrix=intermed_mat%fm_BIb_jb, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
                           col_indices=col_indices)
 
-      max_row_col_local = MAX(nrow_local, ncol_local)
-      CALL mp_max(max_row_col_local, para_env_sub%group)
+      intermed_mat%max_row_col_local = MAX(nrow_local, ncol_local)
+      CALL mp_max(intermed_mat%max_row_col_local, para_env_sub%group)
 
-      ALLOCATE (local_col_row_info(0:max_row_col_local, 2))
-      local_col_row_info = 0
+      ALLOCATE (intermed_mat%local_col_row_info(0:intermed_mat%max_row_col_local, 2))
+      intermed_mat%local_col_row_info = 0
       ! 0,1 nrows
-      local_col_row_info(0, 1) = nrow_local
-      local_col_row_info(1:nrow_local, 1) = row_indices(1:nrow_local)
+      intermed_mat%local_col_row_info(0, 1) = nrow_local
+      intermed_mat%local_col_row_info(1:nrow_local, 1) = row_indices(1:nrow_local)
       ! 0,2 ncols
-      local_col_row_info(0, 2) = ncol_local
-      local_col_row_info(1:ncol_local, 2) = col_indices(1:ncol_local)
+      intermed_mat%local_col_row_info(0, 2) = ncol_local
+      intermed_mat%local_col_row_info(1:ncol_local, 2) = col_indices(1:ncol_local)
+
+      intermed_mat%descr = matrix_name_2
 
       CALL timestop(handle)
 
@@ -1246,62 +1149,66 @@ CONTAINS
 !> \brief Encapsulate ERI postprocessing: AO to MO transformation and store in B matrix.
 !> \param para_env ...
 !> \param mat_munu ...
-!> \param matrix_ia_jnu ...
-!> \param matrix_ia_jb ...
-!> \param fm_BIb_jb ...
+!> \param intermed_mat ...
 !> \param BIb_jb ...
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param eps_filter ...
-!> \param max_row_col_local ...
 !> \param sub_proc_map ...
-!> \param local_col_row_info ...
 !> \param my_B_end ...
 !> \param my_B_start ...
-!> \param descr ...
 ! **************************************************************************************************
-   SUBROUTINE ao_to_mo_and_store_B(para_env, mat_munu, matrix_ia_jnu, matrix_ia_jb, fm_BIb_jb, BIb_jb, &
+   SUBROUTINE ao_to_mo_and_store_B(para_env, mat_munu, intermed_mat, BIb_jb, &
                                    mo_coeff_o, mo_coeff_v, eps_filter, &
-                                   max_row_col_local, sub_proc_map, local_col_row_info, &
-                                   my_B_end, my_B_start, descr)
+                                   sub_proc_map, my_B_end, my_B_start)
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_ia_jnu, matrix_ia_jb
-      TYPE(cp_fm_type), POINTER                          :: fm_BIb_jb
+      TYPE(intermediate_matrix_type), INTENT(INOUT)      :: intermed_mat
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: BIb_jb
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
-      INTEGER, INTENT(IN)                                :: max_row_col_local
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_col_row_info
       INTEGER, INTENT(IN)                                :: my_B_end, my_B_start
-      CHARACTER(LEN=*), INTENT(IN)                       :: descr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ao_to_mo_and_store_B'
 
-      INTEGER                                            :: handle1, handle2
+      INTEGER                                            :: handle
 
-      CALL timeset(routineN//"_mult_"//descr, handle1)
+      CALL timeset(routineN//"_mult_"//TRIM(intermed_mat%descr), handle)
 
       CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
-                          0.0_dp, matrix_ia_jnu, filter_eps=eps_filter)
-      CALL dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu, mo_coeff_v, &
-                          0.0_dp, matrix_ia_jb, filter_eps=eps_filter)
-      CALL timestop(handle1)
+                          0.0_dp, intermed_mat%matrix_ia_jnu, filter_eps=eps_filter)
+      CALL dbcsr_multiply("T", "N", 1.0_dp, intermed_mat%matrix_ia_jnu, mo_coeff_v, &
+                          0.0_dp, intermed_mat%matrix_ia_jb, filter_eps=eps_filter)
+      CALL timestop(handle)
 
-      CALL timeset(routineN//"_E_Ex_"//descr, handle2)
-      CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb)
+      CALL timeset(routineN//"_E_Ex_"//TRIM(intermed_mat%descr), handle)
+      CALL copy_dbcsr_to_fm(intermed_mat%matrix_ia_jb, intermed_mat%fm_BIb_jb)
 
-      IF (.NOT. (descr .EQ. "bse_ab")) THEN
+      IF (.NOT. (TRIM(intermed_mat%descr) .EQ. "bse_ab")) THEN
 
-         CALL grep_my_integrals(para_env, fm_BIb_jb, BIb_jb, max_row_col_local, &
-                                sub_proc_map, local_col_row_info, &
+         CALL grep_my_integrals(para_env, intermed_mat%fm_BIb_jb, BIb_jb, intermed_mat%max_row_col_local, &
+                                sub_proc_map, intermed_mat%local_col_row_info, &
                                 my_B_end, my_B_start)
 
       END IF
 
-      CALL timestop(handle2)
+      CALL timestop(handle)
    END SUBROUTINE ao_to_mo_and_store_B
+
+! **************************************************************************************************
+!> \brief ...
+!> \param intermed_mat ...
+! **************************************************************************************************
+   SUBROUTINE release_intermediate_matrices(intermed_mat)
+      TYPE(intermediate_matrix_type), INTENT(INOUT)      :: intermed_mat
+
+      CALL dbcsr_release(intermed_mat%matrix_ia_jnu)
+      CALL dbcsr_release(intermed_mat%matrix_ia_jb)
+      CALL cp_fm_release(intermed_mat%fm_BIb_jb)
+      DEALLOCATE (intermed_mat%local_col_row_info)
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...

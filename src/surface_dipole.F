@@ -10,7 +10,8 @@ MODULE surface_dipole
 
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE kahan_sum,                       ONLY: accurate_sum
+   USE kahan_sum,                       ONLY: accurate_dot_product,&
+                                              accurate_sum
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_sum
@@ -265,7 +266,7 @@ CONTAINS
       END DO
 
 !    Dipole correction contribution to the energy
-      energy%surf_dipole = 0.5_dp*accurate_sum(vdip_r%pw%cr3d*wf_r%pw%cr3d)
+      energy%surf_dipole = 0.5_dp*accurate_dot_product(vdip_r%pw%cr3d, wf_r%pw%cr3d)
       IF (wf_r%pw%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
          CALL mp_sum(energy%surf_dipole, wf_r%pw%pw_grid%para%group)
       END IF

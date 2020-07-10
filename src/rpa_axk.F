@@ -28,6 +28,7 @@ MODULE rpa_axk
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
+                                              cp_fm_to_fm_submat_general,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -42,8 +43,7 @@ MODULE rpa_axk
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
-                                              mp2_type
+   USE mp2_types,                       ONLY: mp2_type
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -51,8 +51,7 @@ MODULE rpa_axk
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
-   USE rpa_communication,               ONLY: fm_redistribute,&
-                                              gamma_fm_to_dbcsr
+   USE rpa_communication,               ONLY: gamma_fm_to_dbcsr
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
@@ -75,18 +74,11 @@ CONTAINS
 !> \param dimen_ia ...
 !> \param para_env_sub ...
 !> \param para_env_RPA ...
-!> \param RPA_proc_map ...
 !> \param eig ...
 !> \param fm_mat_S ...
 !> \param homo ...
 !> \param virtual ...
 !> \param omega ...
-!> \param buffer_send_axk ...
-!> \param buffer_rec_axk ...
-!> \param number_of_send_axk ...
-!> \param map_send_size_axk ...
-!> \param map_rec_size_axk ...
-!> \param local_size_source_axk ...
 !> \param mp2_env ...
 !> \param mat_munu ...
 !> \param unit_nr ...
@@ -95,25 +87,16 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_axk_ener(qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
                                para_env_sub, para_env_RPA, &
-                               RPA_proc_map, eig, fm_mat_S, homo, virtual, omega, &
-                               buffer_send_axk, buffer_rec_axk, &
-                               number_of_send_axk, map_send_size_axk, map_rec_size_axk, &
-                               local_size_source_axk, mp2_env, mat_munu, unit_nr, e_axk_corr)
+                               eig, fm_mat_S, homo, virtual, omega, &
+                               mp2_env, mat_munu, unit_nr, e_axk_corr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_ia
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub, para_env_RPA
-      INTEGER, DIMENSION(-para_env_RPA%num_pe:2*&
-         para_env_RPA%num_pe-1), INTENT(IN)              :: RPA_proc_map
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eig
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       INTEGER, INTENT(IN)                                :: homo, virtual
       REAL(KIND=dp), INTENT(IN)                          :: omega
-      TYPE(integ_mat_buffer_type), DIMENSION(:), &
-         INTENT(INOUT)                                   :: buffer_send_axk, buffer_rec_axk
-      INTEGER, INTENT(IN)                                :: number_of_send_axk
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: map_send_size_axk, map_rec_size_axk
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: local_size_source_axk
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -125,13 +108,13 @@ CONTAINS
       INTEGER :: avirt, color_sub, handle, i_global, iib, iitmp(2), iocc, j_global, jjb, kkb, &
          L_counter, my_group_L_end, my_group_L_size, my_group_L_start, ncol_local, ngroup, &
          nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: eigen_diff, eps_filter, trace_corr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3, fm_mat_Q_tmp, &
                                                             fm_mat_R_half, fm_mat_R_half_gemm, &
                                                             fm_mat_U
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
-      REAL(KIND=dp)                                      :: eigen_diff, eps_filter, trace_corr
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3, dbcsr_Gamma_inu_P, &
                                                             dbcsr_Gamma_munu_P
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
@@ -238,9 +221,8 @@ CONTAINS
       CALL cp_fm_create(fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
       CALL cp_fm_set_all(matrix=fm_mat_R_half_gemm, alpha=0.0_dp)
 
-      CALL fm_redistribute(fm_mat_R_half, fm_mat_R_half_gemm, RPA_proc_map, buffer_rec_axk, buffer_send_axk, &
-                           number_of_send_axk, &
-                           map_send_size_axk, map_rec_size_axk, local_size_source_axk, para_env_RPA)
+      CALL cp_fm_to_fm_submat_general(fm_mat_R_half, fm_mat_R_half_gemm, dimen_RI, dimen_RI, 1, 1, 1, 1, &
+                                      fm_mat_R_half%matrix_struct%context%group)
 
       ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2) )
       CALL cp_gemm(transa="N", transb="N", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &

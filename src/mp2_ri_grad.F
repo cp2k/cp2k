@@ -25,30 +25,25 @@ MODULE mp2_ri_grad
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_indxg2l,&
-                                              cp_fm_indxg2p,&
-                                              cp_fm_indxl2g,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_p_type, &
+        cp_fm_release, cp_fm_set_all, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release
+   USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                              cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: &
-        mp_alltoall, mp_comm_split_direct, mp_irecv, mp_isend, mp_request_null, mp_sendrecv, &
-        mp_sum, mp_wait, mp_waitall
+        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_request_null, mp_sendrecv, mp_sum, &
+        mp_wait, mp_waitall
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate,&
                                               mp2_eri_3c_integrate,&
                                               mp2_eri_deallocate_forces,&
@@ -67,15 +62,14 @@ MODULE mp2_ri_grad
                                               pw_derive,&
                                               pw_integral_ab,&
                                               pw_scale,&
-                                              pw_transfer
+                                              pw_transfer,&
+                                              pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
@@ -131,15 +125,12 @@ CONTAINS
 !> \param sab_orb_sub ...
 !> \param mat_munu ...
 !> \param blacs_env_sub ...
-!> \param Eigenval_beta ...
-!> \param homo_beta ...
-!> \param mo_coeff_beta ...
 !> \author Mauro Del Ben
 ! **************************************************************************************************
    SUBROUTINE calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, cell, particle_set, &
                                  atomic_kind_set, qs_kind_set, mo_coeff, nmo, homo, dimen_RI, Eigenval, &
                                  my_group_L_start, my_group_L_end, my_group_L_size, sab_orb_sub, mat_munu, &
-                                 blacs_env_sub, Eigenval_beta, homo_beta, mo_coeff_beta)
+                                 blacs_env_sub)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -147,26 +138,25 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      INTEGER, INTENT(IN)                                :: nmo, homo, dimen_RI
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff
+      INTEGER, INTENT(IN)                                :: nmo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
                                                             my_group_L_size
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
-      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ri_mp2_nonsep'
 
       INTEGER :: alpha, atom_a, beta, dimen, dir, eri_method, handle, handle2, handle3, i, iatom, &
-         igrid_level, ikind, iorb, ipgf, iset, itmp(2), L_counter, lb(3), LLL, location(3), &
-         my_P_end, my_P_size, my_P_start, na1, na2, natom, ncoa, nseta, offset, potential_type, &
-         sgfa, tp(3), ub(3), virtual, virtual_beta
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
+         igrid_level, ikind, iorb, ipgf, iset, ispin, itmp(2), L_counter, lb(3), LLL, location(3), &
+         my_P_end, my_P_size, my_P_start, na1, na2, natom, ncoa, nseta, nspins, offset, &
+         potential_type, sgfa, tp(3), ub(3)
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, virtual
       INTEGER, DIMENSION(3)                              :: comp
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
@@ -182,22 +172,20 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, pab, rpgfa, sphi_a, zeta
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: L1_mu_i, L1_mu_i_beta, L2_nu_a, &
-                                                            L2_nu_a_beta
-      TYPE(dbcsr_p_type) :: Lag_mu_i_1, Lag_mu_i_1_beta, Lag_nu_a_2, Lag_nu_a_2_beta, &
-         matrix_P_inu, matrix_P_inu_beta, matrix_P_munu, matrix_P_munu_nosym
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: G_P_ia, G_P_ia_beta, mat_munu_local, &
-                                                            matrix_P_munu_local
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, &
-                                                            mo_coeff_v_beta
+      TYPE(dbcsr_p_type)                                 :: matrix_P_munu, matrix_P_munu_nosym
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: Lag_mu_i_1, Lag_nu_a_2, matrix_P_inu, &
+                                                            mo_coeff_o, mo_coeff_v
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:, :)   :: G_P_ia
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local, matrix_P_munu_local
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_3c_aux, force_3c_orb_mu, &
                                                             force_3c_orb_nu
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_p_type)                                    :: dvg(3), pot_g, psi_L, psi_L_beta, rho_g, &
-                                                            rho_r, temp_pw_g
+      TYPE(pw_p_type)                                    :: dvg(3), pot_g, psi_L, rho_g, rho_r, &
+                                                            temp_pw_g
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -214,26 +202,24 @@ CONTAINS
       eri_param => mp2_env%eri_mme_param
 
       ! Find out whether we have a closed or open shell
-      alpha_beta = .FALSE.
-      IF (PRESENT(homo_beta) .AND. PRESENT(Eigenval_beta)) alpha_beta = .TRUE.
+      nspins = SIZE(homo)
+      alpha_beta = (nspins == 2)
 
       dimen = nmo
-      virtual = dimen - homo
+      ALLOCATE (virtual(nspins))
+      virtual(:) = dimen - homo(:)
       potential_type = mp2_env%potential_parameter%potential_type
       omega = mp2_env%potential_parameter%omega
-      IF (alpha_beta) virtual_beta = dimen - homo_beta
       eps_filter = mp2_env%mp2_gpw%eps_filter
-      NULLIFY (mo_coeff_o, mo_coeff_v, G_P_ia, ks_env)
-      mo_coeff_o => mp2_env%ri_grad%mo_coeff_o
-      mo_coeff_v => mp2_env%ri_grad%mo_coeff_v
-      G_P_ia => mp2_env%ri_grad%G_P_ia
-
-      IF (alpha_beta) THEN
-         NULLIFY (mo_coeff_o_beta, mo_coeff_v_beta, G_P_ia_beta)
-         mo_coeff_o_beta => mp2_env%ri_grad%mo_coeff_o_beta
-         mo_coeff_v_beta => mp2_env%ri_grad%mo_coeff_v_beta
-         G_P_ia_beta => mp2_env%ri_grad%G_P_ia_beta
-      ENDIF
+      ALLOCATE (mo_coeff_o(nspins), mo_coeff_v(nspins), G_P_ia(nspins, my_group_L_size))
+      DO ispin = 1, nspins
+         mo_coeff_o(ispin)%matrix => mp2_env%ri_grad%mo_coeff_o(ispin)%matrix
+         mo_coeff_v(ispin)%matrix => mp2_env%ri_grad%mo_coeff_v(ispin)%matrix
+         DO LLL = 1, my_group_L_size
+            G_P_ia(ispin, LLL)%matrix => mp2_env%ri_grad%G_P_ia(LLL, ispin)%matrix
+         END DO
+      ENDDO
+      DEALLOCATE (mp2_env%ri_grad%G_P_ia)
 
       itmp = get_limit(dimen_RI, para_env_sub%num_pe, para_env_sub%mepos)
       my_P_start = itmp(1)
@@ -243,14 +229,14 @@ CONTAINS
 
       G_PQ_local = 0.0_dp
       IF (.NOT. alpha_beta) THEN
-         G_PQ_local(my_P_start:my_P_end, 1:my_group_L_size) = mp2_env%ri_grad%Gamma_PQ
+         G_PQ_local(my_P_start:my_P_end, 1:my_group_L_size) = mp2_env%ri_grad%Gamma_PQ(1)%array
       ELSE
          G_PQ_local(my_P_start:my_P_end, 1:my_group_L_size) = &
-            0.50_dp*(mp2_env%ri_grad%Gamma_PQ + mp2_env%ri_grad%Gamma_PQ_beta)
+            0.50_dp*(mp2_env%ri_grad%Gamma_PQ(1)%array + mp2_env%ri_grad%Gamma_PQ(2)%array)
       ENDIF
-      DEALLOCATE (mp2_env%ri_grad%Gamma_PQ)
+      DEALLOCATE (mp2_env%ri_grad%Gamma_PQ(1)%array)
       IF (alpha_beta) THEN
-         DEALLOCATE (mp2_env%ri_grad%Gamma_PQ_beta)
+         DEALLOCATE (mp2_env%ri_grad%Gamma_PQ(2)%array)
       ENDIF
       CALL mp_sum(G_PQ_local, para_env_sub%group)
 
@@ -259,12 +245,11 @@ CONTAINS
       DEALLOCATE (mp2_env%ri_grad%PQ_half)
 
       ! create matrix holding the back transformation (G_P_inu)
-      ALLOCATE (matrix_P_inu%matrix)
-      CALL dbcsr_create(matrix_P_inu%matrix, template=mo_coeff_o)
-      IF (alpha_beta) THEN
-         ALLOCATE (matrix_P_inu_beta%matrix)
-         CALL dbcsr_create(matrix_P_inu_beta%matrix, template=mo_coeff_o_beta)
-      ENDIF
+      ALLOCATE (matrix_P_inu(nspins))
+      DO ispin = 1, nspins
+         ALLOCATE (matrix_P_inu(ispin)%matrix)
+         CALL dbcsr_create(matrix_P_inu(ispin)%matrix, template=mo_coeff_o(ispin)%matrix)
+      ENDDO
 
       ! non symmetric matrix
       ALLOCATE (matrix_P_munu_nosym%matrix)
@@ -272,23 +257,19 @@ CONTAINS
                         matrix_type=dbcsr_type_no_symmetry)
 
       ! create Lagrangian matrices in mixed AO/MO formalism
-      ALLOCATE (Lag_mu_i_1%matrix)
-      CALL dbcsr_create(Lag_mu_i_1%matrix, template=mo_coeff_o)
-      CALL dbcsr_set(Lag_mu_i_1%matrix, 0.0_dp)
-      IF (alpha_beta) THEN
-         ALLOCATE (Lag_mu_i_1_beta%matrix)
-         CALL dbcsr_create(Lag_mu_i_1_beta%matrix, template=mo_coeff_o_beta)
-         CALL dbcsr_set(Lag_mu_i_1_beta%matrix, 0.0_dp)
-      ENDIF
+      ALLOCATE (Lag_mu_i_1(nspins))
+      DO ispin = 1, nspins
+         ALLOCATE (Lag_mu_i_1(ispin)%matrix)
+         CALL dbcsr_create(Lag_mu_i_1(ispin)%matrix, template=mo_coeff_o(ispin)%matrix)
+         CALL dbcsr_set(Lag_mu_i_1(ispin)%matrix, 0.0_dp)
+      ENDDO
 
-      ALLOCATE (Lag_nu_a_2%matrix)
-      CALL dbcsr_create(Lag_nu_a_2%matrix, template=mo_coeff_v)
-      CALL dbcsr_set(Lag_nu_a_2%matrix, 0.0_dp)
-      IF (alpha_beta) THEN
-         ALLOCATE (Lag_nu_a_2_beta%matrix)
-         CALL dbcsr_create(Lag_nu_a_2_beta%matrix, template=mo_coeff_v_beta)
-         CALL dbcsr_set(Lag_nu_a_2_beta%matrix, 0.0_dp)
-      ENDIF
+      ALLOCATE (Lag_nu_a_2(nspins))
+      DO ispin = 1, nspins
+         ALLOCATE (Lag_nu_a_2(ispin)%matrix)
+         CALL dbcsr_create(Lag_nu_a_2(ispin)%matrix, template=mo_coeff_v(ispin)%matrix)
+         CALL dbcsr_set(Lag_nu_a_2(ispin)%matrix, 0.0_dp)
+      ENDDO
 
       ! get forces
       NULLIFY (force, virial)
@@ -310,16 +291,9 @@ CONTAINS
             CALL dbcsr_copy(mat_munu_local(L_counter)%matrix, mat_munu%matrix)
             CALL dbcsr_set(mat_munu_local(L_counter)%matrix, 0.0_dp)
 
-            IF (alpha_beta) THEN
-               CALL G_P_transform_MO_to_AO(matrix_P_munu_local(L_counter), matrix_P_munu_nosym, mat_munu, &
-                                           G_P_ia(L_counter), matrix_P_inu, &
-                                           mo_coeff_v, mo_coeff_o, eps_filter, &
-                                           G_P_ia_beta(L_counter), matrix_P_inu_beta, mo_coeff_v_beta, mo_coeff_o_beta)
-            ELSE
-               CALL G_P_transform_MO_to_AO(matrix_P_munu_local(L_counter), matrix_P_munu_nosym, mat_munu, &
-                                           G_P_ia(L_counter), matrix_P_inu, &
-                                           mo_coeff_v, mo_coeff_o, eps_filter)
-            ENDIF
+            CALL G_P_transform_MO_to_AO(matrix_P_munu_local(L_counter), matrix_P_munu_nosym, mat_munu, &
+                                        G_P_ia(:, L_counter), matrix_P_inu, &
+                                        mo_coeff_v, mo_coeff_o, eps_filter)
          ENDDO
 
          ALLOCATE (I_tmp2(dimen_RI, my_group_L_size))
@@ -341,24 +315,15 @@ CONTAINS
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
             ! we recompute matrix_P_inu
-            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, G_P_ia(L_counter)%matrix, &
-                                0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
-            IF (alpha_beta) THEN
-               CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v_beta, G_P_ia_beta(L_counter)%matrix, &
-                                   0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter)
-            ENDIF
+            DO ispin = 1, nspins
+               CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin, L_counter)%matrix, &
+                                   0.0_dp, matrix_P_inu(ispin)%matrix, filter_eps=eps_filter)
+            ENDDO
 
-            IF (alpha_beta) THEN
-               CALL update_lagrangian(mat_munu_local(L_counter), matrix_P_inu, Lag_mu_i_1, &
-                                      G_P_ia(L_counter), mo_coeff_o, Lag_nu_a_2, &
-                                      eps_filter, &
-                                      matrix_P_inu_beta, Lag_mu_i_1_beta, G_P_ia_beta(L_counter), mo_coeff_o_beta, Lag_nu_a_2_beta)
-            ELSE
-               CALL update_lagrangian(mat_munu_local(L_counter), matrix_P_inu, Lag_mu_i_1, &
-                                      G_P_ia(L_counter), mo_coeff_o, Lag_nu_a_2, &
-                                      eps_filter)
-
-            ENDIF
+            ! The matrices of G_P_ia are deallocated here
+            CALL update_lagrangian(mat_munu_local(L_counter), matrix_P_inu, Lag_mu_i_1, &
+                                   G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
+                                   eps_filter)
          ENDDO
 
          DO ikind = 1, SIZE(force)
@@ -394,12 +359,6 @@ CONTAINS
 
          ! wave function vector and supporting stuff
          ALLOCATE (wf_vector(dimen_RI))
-         IF (alpha_beta) THEN
-            NULLIFY (psi_L_beta%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, psi_L_beta%pw, &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
-         ENDIF
 
          ! check if we want to calculate the virial
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
@@ -427,40 +386,24 @@ CONTAINS
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
 
-            IF (alpha_beta) THEN
-               CALL G_P_transform_MO_to_AO(matrix_P_munu, matrix_P_munu_nosym, mat_munu, &
-                                           G_P_ia(L_counter), &
-                                           matrix_P_inu, &
-                                           mo_coeff_v, mo_coeff_o, &
-                                           eps_filter, &
-                                           G_P_ia_beta(L_counter), matrix_P_inu_beta, &
-                                           mo_coeff_v_beta, mo_coeff_o_beta)
-            ELSE
-               CALL G_P_transform_MO_to_AO(matrix_P_munu, matrix_P_munu_nosym, mat_munu, &
-                                           G_P_ia(L_counter), &
-                                           matrix_P_inu, &
-                                           mo_coeff_v, mo_coeff_o, &
-                                           eps_filter)
-            ENDIF
+            CALL G_P_transform_MO_to_AO(matrix_P_munu, matrix_P_munu_nosym, mat_munu, &
+                                        G_P_ia(:, L_counter), matrix_P_inu, &
+                                        mo_coeff_v, mo_coeff_o, eps_filter)
 
             ! calculate potential associted to the single aux function
             CALL timeset(routineN//"_wf_pot", handle3)
             wf_vector = 0.0_dp
             wf_vector(LLL) = 1.0_dp
             ! pseudo psi_L
-            CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                        qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                        basis_type="RI_AUX", &
-                                        external_vector=wf_vector)
-
-            rho_r%pw%cr3d = psi_L%pw%cr3d
-            IF (alpha_beta) THEN
-               CALL calculate_wavefunction(mo_coeff_beta, 1, psi_L_beta, rho_g, atomic_kind_set, &
+            CALL pw_zero(rho_r%pw)
+            DO ispin = 1, nspins
+               CALL calculate_wavefunction(mo_coeff(ispin)%matrix, 1, psi_L, rho_g, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, &
                                            pw_env_sub, basis_type='RI_AUX', &
                                            external_vector=wf_vector)
-               rho_r%pw%cr3d = 0.50_dp*(rho_r%pw%cr3d+psi_L_beta%pw%cr3d)
-            ENDIF
+               rho_r%pw%cr3d = rho_r%pw%cr3d+psi_L%pw%cr3d
+            ENDDO
+            IF (alpha_beta) rho_r%pw%cr3d = rho_r%pw%cr3d*0.5_dp
 
             CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega)
             CALL timestop(handle3)
@@ -595,11 +538,6 @@ CONTAINS
 
                      END DO
 
-                     ! CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
-                     !             1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                     !             I_tmp2(1,1),SIZE(I_tmp2,1),&
-                     !             1.0_dp,I_ab(1,1),SIZE(I_ab,1))
-                     ! L_local_col(offset-nsgfa(iset)+1:offset,i_counter)=I_ab(1:nsgfa(iset),1)
                   END IF
 
                   DEALLOCATE (I_tmp2)
@@ -622,9 +560,6 @@ CONTAINS
             CALL timestop(handle3)
             ! here we are done with the 2 centers
 
-            ! CALL cp_dbcsr_write_sparse_matrix(matrix_P_munu%matrix,4,12,qs_env,para_env_sub,&
-            !                                   output_unit=unit_nr)
-
             ! integrate the potential of the single gaussian and update
             ! 3-center forces
             CALL timeset(routineN//"_int", handle3)
@@ -635,17 +570,10 @@ CONTAINS
                                     task_list_external=task_list_sub)
             CALL timestop(handle3)
 
-            IF (alpha_beta) THEN
-               CALL update_lagrangian(mat_munu, matrix_P_inu, Lag_mu_i_1, &
-                                      G_P_ia(L_counter), mo_coeff_o, Lag_nu_a_2, &
-                                      eps_filter, &
-                                      matrix_P_inu_beta, Lag_mu_i_1_beta, G_P_ia_beta(L_counter), mo_coeff_o_beta, Lag_nu_a_2_beta)
-            ELSE
-               CALL update_lagrangian(mat_munu, matrix_P_inu, Lag_mu_i_1, &
-                                      G_P_ia(L_counter), mo_coeff_o, Lag_nu_a_2, &
-                                      eps_filter)
-
-            ENDIF
+            ! The matrices of G_P_ia are deallocated here
+            CALL update_lagrangian(mat_munu, matrix_P_inu, Lag_mu_i_1, &
+                                   G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
+                                   eps_filter)
 
             IF (use_virial) THEN
                ! add the volume contribution to the virial due to
@@ -655,7 +583,7 @@ CONTAINS
                CALL timeset(routineN//"_Virial", handle3)
                wf_vector = 0.0_dp
                wf_vector(:) = -2.0_dp*G_PQ_local(:, L_counter)
-               CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+               CALL calculate_wavefunction(mo_coeff(1)%matrix, 1, psi_L, rho_g, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                            basis_type="RI_AUX", &
                                            external_vector=wf_vector)
@@ -694,7 +622,6 @@ CONTAINS
                                     pw_env_external=pw_env_sub, &
                                     ks_env=ks_env)
             ! calculate associated hartree potential
-            ! CALL pw_transfer(rho_r%pw, rho_g%pw)
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
             CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
             CALL pw_transfer(pot_g%pw, rho_r%pw)
@@ -850,10 +777,6 @@ CONTAINS
                                                    force_a=force_a, force_b=force_b, &
                                                    use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
                      END DO
-                     ! CALL dgemm("T","N".0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                     !             I_tmp2(1,1),SIZE(I_tmp2,1),&
-                     !             1.0_dp,I_ab(1,1),SIZE(I_ab,1))
-                     ! L_local_col(offset-nsgfa(iset)+1:offset,i_counter)=I_ab(1:nsgfa(iset),1)
                   END IF
 
                   DEALLOCATE (I_tmp2)
@@ -882,10 +805,6 @@ CONTAINS
          DEALLOCATE (atom_of_kind)
          DEALLOCATE (wf_vector)
 
-         IF (alpha_beta) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L_beta%pw)
-         ENDIF
-
          IF (use_virial) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, temp_pw_g%pw)
             DO i = 1, 3
@@ -903,21 +822,14 @@ CONTAINS
 
       DEALLOCATE (G_PQ_local)
 
-      CALL dbcsr_release(matrix_P_inu%matrix)
-      DEALLOCATE (matrix_P_inu%matrix)
-
       CALL dbcsr_release(matrix_P_munu_nosym%matrix)
       DEALLOCATE (matrix_P_munu_nosym%matrix)
 
-      ! release the full gamma_P_ia structure
-      DEALLOCATE (G_P_ia)
-
-      ! Release G_P_ia_beta and and matrix_P_inu_beta
-      IF (alpha_beta) THEN
-         CALL dbcsr_release(matrix_P_inu_beta%matrix)
-         DEALLOCATE (matrix_P_inu_beta%matrix)
-         DEALLOCATE (G_P_ia_beta)
-      ENDIF
+      DO ispin = 1, nspins
+         CALL dbcsr_release(matrix_P_inu(ispin)%matrix)
+         DEALLOCATE (matrix_P_inu(ispin)%matrix)
+      ENDDO
+      DEALLOCATE (matrix_P_inu, G_P_ia)
 
       ! move the forces in the correct place
       IF (eri_method .EQ. do_eri_gpw) THEN
@@ -930,72 +842,47 @@ CONTAINS
       ! Now we move from the local matrices to the global ones
       ! defined over all MPI tasks
       ! Start with moving from the DBCSR to FM for the lagrangians
-      NULLIFY (L1_mu_i, fm_struct_tmp)
-      CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
-                               nrow_global=dimen, ncol_global=homo)
-      CALL cp_fm_create(L1_mu_i, fm_struct_tmp, name="Lag_mu_i")
-      CALL cp_fm_struct_release(fm_struct_tmp)
-      CALL cp_fm_set_all(L1_mu_i, 0.0_dp)
-      CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1%matrix, fm=L1_mu_i)
 
-      ! release Lag_mu_i_1
-      CALL dbcsr_release(Lag_mu_i_1%matrix)
-      DEALLOCATE (Lag_mu_i_1%matrix)
-
-      NULLIFY (L2_nu_a, fm_struct_tmp)
-      CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
-                               nrow_global=dimen, ncol_global=virtual)
-      CALL cp_fm_create(L2_nu_a, fm_struct_tmp, name="Lag_nu_a")
-      CALL cp_fm_struct_release(fm_struct_tmp)
-      CALL cp_fm_set_all(L2_nu_a, 0.0_dp)
-      CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2%matrix, fm=L2_nu_a)
-
-      ! release Lag_nu_a_2
-      CALL dbcsr_release(Lag_nu_a_2%matrix)
-      DEALLOCATE (Lag_nu_a_2%matrix)
-
-      ! The same for the beta Lagrangians
-      IF (alpha_beta) THEN
+      ALLOCATE (L1_mu_i(nspins), L2_nu_a(nspins))
+      DO ispin = 1, nspins
          ! Now we move from the local matrices to the global ones
          ! defined over all MPI tasks
          ! Start with moving from the DBCSR to FM for the lagrangians
-         NULLIFY (L1_mu_i_beta, fm_struct_tmp)
+         NULLIFY (L1_mu_i(ispin)%matrix, fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
-                                  nrow_global=dimen, ncol_global=homo_beta)
-         CALL cp_fm_create(L1_mu_i_beta, fm_struct_tmp, name="Lag_mu_i_beta")
+                                  nrow_global=dimen, ncol_global=homo(ispin))
+         CALL cp_fm_create(L1_mu_i(ispin)%matrix, fm_struct_tmp, name="Lag_mu_i")
          CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(L1_mu_i_beta, 0.0_dp)
-         CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1_beta%matrix, fm=L1_mu_i_beta)
+         CALL cp_fm_set_all(L1_mu_i(ispin)%matrix, 0.0_dp)
+         CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1(ispin)%matrix, fm=L1_mu_i(ispin)%matrix)
 
          ! release Lag_mu_i_1
-         CALL dbcsr_release(Lag_mu_i_1_beta%matrix)
-         DEALLOCATE (Lag_mu_i_1_beta%matrix)
+         CALL dbcsr_release(Lag_mu_i_1(ispin)%matrix)
+         DEALLOCATE (Lag_mu_i_1(ispin)%matrix)
 
-         NULLIFY (L2_nu_a_beta, fm_struct_tmp)
+         NULLIFY (L2_nu_a(ispin)%matrix, fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
-                                  nrow_global=dimen, ncol_global=virtual_beta)
-         CALL cp_fm_create(L2_nu_a_beta, fm_struct_tmp, name="Lag_nu_a_beta")
+                                  nrow_global=dimen, ncol_global=virtual(ispin))
+         CALL cp_fm_create(L2_nu_a(ispin)%matrix, fm_struct_tmp, name="Lag_nu_a")
          CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(L2_nu_a_beta, 0.0_dp)
-         CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2_beta%matrix, fm=L2_nu_a_beta)
+         CALL cp_fm_set_all(L2_nu_a(ispin)%matrix, 0.0_dp)
+         CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2(ispin)%matrix, fm=L2_nu_a(ispin)%matrix)
 
          ! release Lag_nu_a_2
-         CALL dbcsr_release(Lag_nu_a_2_beta%matrix)
-         DEALLOCATE (Lag_nu_a_2_beta%matrix)
-      ENDIF
+         CALL dbcsr_release(Lag_nu_a_2(ispin)%matrix)
+         DEALLOCATE (Lag_nu_a_2(ispin)%matrix)
+      ENDDO
+      DEALLOCATE (Lag_mu_i_1, Lag_nu_a_2)
 
       ! Set the factor to multiply P_ij (depends on the open or closed shell)
       factor = 1.0_dp
       IF (alpha_beta) factor = 0.50_dp
 
-      CALL create_W_P(qs_env, mp2_env, mo_coeff, homo, virtual, dimen, para_env, para_env_sub, &
-                      Eigenval, L1_mu_i, L2_nu_a, factor, .FALSE.)
-      ! Alpha_beta_case
-      IF (alpha_beta) THEN
-         CALL create_W_P(qs_env, mp2_env, mo_coeff_beta, homo_beta, virtual_beta, dimen, para_env, &
-                         para_env_sub, Eigenval_beta, L1_mu_i_beta, L2_nu_a_beta, &
-                         factor, .TRUE.)
-      ENDIF
+      DO ispin = 1, nspins
+         CALL create_W_P(qs_env, mp2_env, mo_coeff(ispin)%matrix, homo(ispin), virtual(ispin), dimen, para_env, &
+                         para_env_sub, Eigenval(:, ispin), L1_mu_i(ispin)%matrix, L2_nu_a(ispin)%matrix, &
+                         factor, ispin /= 1)
+      ENDDO
 
       CALL timestop(handle)
 
@@ -1011,37 +898,20 @@ CONTAINS
 !> \param mo_coeff_v ...
 !> \param mo_coeff_o ...
 !> \param eps_filter ...
-!> \param G_P_ia_beta ...
-!> \param G_P_inu_beta ...
-!> \param mo_coeff_v_beta ...
-!> \param mo_coeff_o_beta ...
 ! **************************************************************************************************
    SUBROUTINE G_P_transform_MO_to_AO(G_P_munu, G_P_munu_nosym, mat_munu, G_P_ia, G_P_inu, &
-                                     mo_coeff_v, mo_coeff_o, eps_filter, &
-                                     G_P_ia_beta, G_P_inu_beta, mo_coeff_v_beta, mo_coeff_o_beta)
+                                     mo_coeff_v, mo_coeff_o, eps_filter)
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: G_P_munu, G_P_munu_nosym, mat_munu
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: G_P_ia
-      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: G_P_inu
-      TYPE(dbcsr_type), INTENT(IN)                       :: mo_coeff_v, mo_coeff_o
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: G_P_ia
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_inu
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_v, mo_coeff_o
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
-      TYPE(dbcsr_p_type), INTENT(IN), OPTIONAL           :: G_P_ia_beta
-      TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: G_P_inu_beta
-      TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: mo_coeff_v_beta, mo_coeff_o_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'G_P_transform_MO_to_AO'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: alpha_beta
 
-      alpha_beta = PRESENT(G_P_ia_beta) .AND. PRESENT(G_P_inu_beta) .AND. PRESENT(mo_coeff_v_beta) .AND. PRESENT(mo_coeff_o_beta)
-
-      CALL dbcsr_set(G_P_munu_nosym%matrix, 0.0_dp)
-      CALL G_P_transform_alpha_beta(G_P_ia, G_P_inu, G_P_munu_nosym, mo_coeff_v, mo_coeff_o, [1.0_dp, 0.0_dp], eps_filter)
-
-      IF (alpha_beta) THEN
-         CALL G_P_transform_alpha_beta(G_P_ia_beta, G_P_inu_beta, G_P_munu_nosym, mo_coeff_v_beta, mo_coeff_o_beta, &
-                                       [0.5_dp, 0.5_dp], eps_filter)
-      ENDIF
+      CALL G_P_transform_alpha_beta(G_P_ia, G_P_inu, G_P_munu_nosym, mo_coeff_v, mo_coeff_o, eps_filter)
 
       ! symmetrize
       CALL timeset(routineN//"_symmetrize", handle)
@@ -1064,31 +934,35 @@ CONTAINS
 !> \param G_P_munu ...
 !> \param mo_coeff_v ...
 !> \param mo_coeff_o ...
-!> \param fraction_add ...
 !> \param eps_filter ...
 ! **************************************************************************************************
-   SUBROUTINE G_P_transform_alpha_beta(G_P_ia, G_P_inu, G_P_munu, mo_coeff_v, mo_coeff_o, fraction_add, eps_filter)
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: G_P_ia
-      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: G_P_inu, G_P_munu
-      TYPE(dbcsr_type), INTENT(IN)                       :: mo_coeff_v, mo_coeff_o
-      REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: fraction_add
+   SUBROUTINE G_P_transform_alpha_beta(G_P_ia, G_P_inu, G_P_munu, mo_coeff_v, mo_coeff_o, eps_filter)
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: G_P_ia
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_inu
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: G_P_munu
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_v, mo_coeff_o
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'G_P_transform_alpha_beta'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, ispin
+      REAL(KIND=dp)                                      :: factor
 
-      CALL timeset(routineN//"_back_v", handle)
-      ! first back-transformation a->nu
-      CALL dbcsr_set(G_P_inu%matrix, 0.0_dp)
-      CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, G_P_ia%matrix, &
-                          0.0_dp, G_P_inu%matrix, filter_eps=eps_filter)
-      CALL timestop(handle)
+      CALL timeset(routineN, handle)
 
-      ! second back-transformation i->mu
-      CALL timeset(routineN//"_back_o", handle)
-      CALL dbcsr_multiply("N", "T", fraction_add(1), G_P_inu%matrix, mo_coeff_o, &
-                          fraction_add(2), G_P_munu%matrix, filter_eps=eps_filter)
+      factor = 1.0_dp/REAL(SIZE(G_P_ia), dp)
+
+      CALL dbcsr_set(G_P_munu%matrix, 0.0_dp)
+
+      DO ispin = 1, SIZE(G_P_ia)
+         ! first back-transformation a->nu
+         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
+                             0.0_dp, G_P_inu(ispin)%matrix, filter_eps=eps_filter)
+
+         ! second back-transformation i->mu
+         CALL dbcsr_multiply("N", "T", factor, G_P_inu(ispin)%matrix, mo_coeff_o(ispin)%matrix, &
+                             1.0_dp, G_P_munu%matrix, filter_eps=eps_filter)
+      END DO
 
       CALL timestop(handle)
 
@@ -1103,87 +977,47 @@ CONTAINS
 !> \param mo_coeff_o ...
 !> \param Lag_nu_a_2 ...
 !> \param eps_filter ...
-!> \param matrix_P_inu_beta ...
-!> \param Lag_mu_i_1_beta ...
-!> \param G_P_ia_beta ...
-!> \param mo_coeff_o_beta ...
-!> \param Lag_nu_a_2_beta ...
 ! **************************************************************************************************
    SUBROUTINE update_lagrangian(mat_munu, matrix_P_inu, Lag_mu_i_1, &
                                 G_P_ia, mo_coeff_o, Lag_nu_a_2, &
-                                eps_filter, &
-                                matrix_P_inu_beta, Lag_mu_i_1_beta, G_P_ia_beta, mo_coeff_o_beta, Lag_nu_a_2_beta)
+                                eps_filter)
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
-      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: matrix_P_inu, Lag_mu_i_1, G_P_ia
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o
-      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: Lag_nu_a_2
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: matrix_P_inu, Lag_mu_i_1, G_P_ia
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: mo_coeff_o
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: Lag_nu_a_2
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
-      TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: matrix_P_inu_beta, Lag_mu_i_1_beta, &
-                                                            G_P_ia_beta
-      TYPE(dbcsr_type), OPTIONAL, POINTER                :: mo_coeff_o_beta
-      TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: Lag_nu_a_2_beta
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_lagrangian'
 
-      INTEGER                                            :: handle
-      LOGICAL                                            :: alpha_beta
+      INTEGER                                            :: handle, ispin
 
       ! update lagrangian
-      CALL timeset(routineN//"_Lag", handle)
+      CALL timeset(routineN, handle)
 
-      alpha_beta = PRESENT(matrix_P_inu_beta) .AND. PRESENT(Lag_mu_i_1_beta) .AND. PRESENT(G_P_ia_beta) &
-                   .AND. PRESENT(mo_coeff_o_beta) .AND. PRESENT(Lag_nu_a_2_beta)
+      DO ispin = 1, SIZE(G_P_ia)
+         ! first contract mat_munu with the half back transformed Gamma_i_nu
+         ! in order to update Lag_mu_i_1
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu(ispin)%matrix, &
+                             1.0_dp, Lag_mu_i_1(ispin)%matrix, filter_eps=eps_filter)
 
-      CALL update_lagrangian_alpha_beta(mat_munu, matrix_P_inu, Lag_mu_i_1, &
-                                        G_P_ia, mo_coeff_o, Lag_nu_a_2, eps_filter)
-      IF (alpha_beta) THEN
-         CALL update_lagrangian_alpha_beta(mat_munu, matrix_P_inu_beta, Lag_mu_i_1_beta, &
-                                           G_P_ia_beta, mo_coeff_o_beta, Lag_nu_a_2_beta, eps_filter)
-      ENDIF
+         ! transform first index of mat_munu and store the result into matrix_P_inu
+         CALL dbcsr_set(matrix_P_inu(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o(ispin)%matrix, &
+                             0.0_dp, matrix_P_inu(ispin)%matrix, filter_eps=eps_filter)
+
+         ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
+         ! in order to update Lag_nu_a_2
+         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin)%matrix, G_P_ia(ispin)%matrix, &
+                             1.0_dp, Lag_nu_a_2(ispin)%matrix, filter_eps=eps_filter)
+
+         ! release the actual gamma_P_ia
+         CALL dbcsr_release(G_P_ia(ispin)%matrix)
+         DEALLOCATE (G_P_ia(ispin)%matrix)
+      ENDDO
 
       CALL timestop(handle)
 
    END SUBROUTINE update_lagrangian
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat_munu ...
-!> \param matrix_P_inu ...
-!> \param Lag_mu_i_1 ...
-!> \param G_P_ia ...
-!> \param mo_coeff_o ...
-!> \param Lag_nu_a_2 ...
-!> \param eps_filter ...
-! **************************************************************************************************
-   SUBROUTINE update_lagrangian_alpha_beta(mat_munu, matrix_P_inu, Lag_mu_i_1, &
-                                           G_P_ia, mo_coeff_o, Lag_nu_a_2, &
-                                           eps_filter)
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
-      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: matrix_P_inu, Lag_mu_i_1, G_P_ia
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o
-      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: Lag_nu_a_2
-      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
-
-      ! first contract mat_munu with the half back transformed Gamma_i_nu
-      ! in order to update Lag_mu_i_1
-      CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu%matrix, &
-                          1.0_dp, Lag_mu_i_1%matrix, filter_eps=eps_filter)
-
-      ! transform first index of mat_munu and store the result into matrix_P_inu
-      CALL dbcsr_set(matrix_P_inu%matrix, 0.0_dp)
-      CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
-                          0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
-
-      ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
-      ! in order to update Lag_nu_a_2
-      CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu%matrix, G_P_ia%matrix, &
-                          1.0_dp, Lag_nu_a_2%matrix, filter_eps=eps_filter)
-
-      ! release the actual gamma_P_ia
-      CALL dbcsr_release(G_P_ia%matrix)
-      DEALLOCATE (G_P_ia%matrix)
-
-   END SUBROUTINE update_lagrangian_alpha_beta
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1215,21 +1049,20 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_W_P'
 
-      INTEGER :: color_exchange, comm_exchange, dummy_proc, handle, handle2, handle3, i, i_global, &
-         i_local, iiB, iii, iproc, itmp(2), j_global, j_local, jjB, max_col_size, max_row_size, &
-         my_B_virtual_end, my_B_virtual_start, mypcol, mypcol_1i, mypcol_2a, myprow, myprow_1i, &
-         myprow_2a, ncol_block, ncol_block_1i, ncol_block_2a, ncol_local, ncol_local_1i, &
-         ncol_local_2a, npcol, npcol_1i, npcol_2a, nprow, nprow_1i, nprow_2a, nrow_block, &
-         nrow_block_1i, nrow_block_2a, nrow_local, nrow_local_1i, nrow_local_2a, number_of_rec, &
-         number_of_send, proc_receive, proc_receive_static, proc_send, proc_send_ex
-      INTEGER :: proc_send_static, proc_send_sub, proc_shift, rec_col_size, rec_counter, &
-         rec_row_size, send_col_size, send_counter, send_pcol, send_prow, send_row_size, &
-         size_rec_buffer, size_send_buffer
+      INTEGER :: color_exchange, dummy_proc, handle, handle2, handle3, i, i_global, i_local, iiB, &
+         iii, iproc, ispin, itmp(2), j_global, j_local, jjB, max_col_size, max_row_size, &
+         my_B_virtual_end, my_B_virtual_start, my_spin, mypcol, myprow, ncol_block, ncol_block_1i, &
+         ncol_block_2a, ncol_local, ncol_local_1i, ncol_local_2a, npcol, npcol_1i, npcol_2a, &
+         nprow, nprow_1i, nprow_2a, nrow_block, nrow_block_1i, nrow_block_2a, nrow_local, &
+         nrow_local_1i, nrow_local_2a, number_of_rec, number_of_send, proc_receive, &
+         proc_receive_static, proc_send, proc_send_ex, proc_send_static, proc_send_sub, proc_shift
+      INTEGER :: rec_col_size, rec_counter, rec_row_size, send_col_size, send_counter, send_pcol, &
+         send_prow, send_row_size, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:) :: iii_vet, map_rec_size, map_send_size, pos_info, &
          pos_info_ex, proc_2_send_pos, proc_map_ex, req_send, sub_proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, mepos_2_grid, &
-                                                            mepos_2_grid_1i, mepos_2_grid_2a, &
-                                                            sizes, sizes_1i, sizes_2a
+      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, mepos_2_grid, my_col_indeces_info_1i, &
+         my_col_indeces_info_2a, my_row_indeces_info_1i, my_row_indeces_info_2a, sizes, sizes_1i, &
+         sizes_2a
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: col_indeces_info_1i, &
                                                             col_indeces_info_2a, &
                                                             row_indeces_info_1i, &
@@ -1249,6 +1082,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      my_spin = 1
+      IF (alpha_beta) my_spin = 2
+
       ! create the globally distributed mixed lagrangian
       NULLIFY (blacs_env)
       CALL get_qs_env(qs_env, blacs_env=blacs_env)
@@ -1262,9 +1098,7 @@ CONTAINS
 
       ! create all information array
       ALLOCATE (pos_info(0:para_env%num_pe - 1))
-      pos_info = 0
-      pos_info(para_env%mepos) = para_env_sub%mepos
-      CALL mp_sum(pos_info, para_env%group)
+      CALL mp_allgather(para_env_sub%mepos, pos_info, para_env%group)
 
       ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
       sub_proc_map = 0
@@ -1300,22 +1134,11 @@ CONTAINS
                           col_indices=col_indices_1i, &
                           nrow_block=nrow_block_1i, &
                           ncol_block=ncol_block_1i)
-      myprow_1i = L1_mu_i%matrix_struct%context%mepos(1)
-      mypcol_1i = L1_mu_i%matrix_struct%context%mepos(2)
       nprow_1i = L1_mu_i%matrix_struct%context%num_pe(1)
       npcol_1i = L1_mu_i%matrix_struct%context%num_pe(2)
 
-      ALLOCATE (mepos_2_grid_1i(0:para_env_sub%num_pe - 1, 2))
-      mepos_2_grid_1i = 0
-      mepos_2_grid_1i(para_env_sub%mepos, 1) = myprow_1i
-      mepos_2_grid_1i(para_env_sub%mepos, 2) = mypcol_1i
-      CALL mp_sum(mepos_2_grid_1i, para_env_sub%group)
-
       ALLOCATE (sizes_1i(2, 0:para_env_sub%num_pe - 1))
-      sizes_1i = 0
-      sizes_1i(1, para_env_sub%mepos) = nrow_local_1i
-      sizes_1i(2, para_env_sub%mepos) = ncol_local_1i
-      CALL mp_sum(sizes_1i, para_env_sub%group)
+      CALL mp_allgather([nrow_local_1i, ncol_local_1i], sizes_1i, para_env_sub%group)
 
       ! get matrix information for L2_nu_a
       CALL cp_fm_get_info(matrix=L2_nu_a, &
@@ -1325,22 +1148,11 @@ CONTAINS
                           col_indices=col_indices_2a, &
                           nrow_block=nrow_block_2a, &
                           ncol_block=ncol_block_2a)
-      myprow_2a = L2_nu_a%matrix_struct%context%mepos(1)
-      mypcol_2a = L2_nu_a%matrix_struct%context%mepos(2)
       nprow_2a = L2_nu_a%matrix_struct%context%num_pe(1)
       npcol_2a = L2_nu_a%matrix_struct%context%num_pe(2)
 
-      ALLOCATE (mepos_2_grid_2a(0:para_env_sub%num_pe - 1, 2))
-      mepos_2_grid_2a = 0
-      mepos_2_grid_2a(para_env_sub%mepos, 1) = myprow_2a
-      mepos_2_grid_2a(para_env_sub%mepos, 2) = mypcol_2a
-      CALL mp_sum(mepos_2_grid_2a, para_env_sub%group)
-
       ALLOCATE (sizes_2a(2, 0:para_env_sub%num_pe - 1))
-      sizes_2a = 0
-      sizes_2a(1, para_env_sub%mepos) = nrow_local_2a
-      sizes_2a(2, para_env_sub%mepos) = ncol_local_2a
-      CALL mp_sum(sizes_2a, para_env_sub%group)
+      CALL mp_allgather([nrow_local_2a, ncol_local_2a], sizes_2a, para_env_sub%group)
 
       ! Here we perform a ring communication scheme taking into account
       ! for the sub-group distribution of the source matrices.
@@ -1352,9 +1164,7 @@ CONTAINS
       ! sharing the same position in the subgroup.
       ! -1) create the exchange para_env
       color_exchange = para_env_sub%mepos
-      CALL mp_comm_split_direct(para_env%group, comm_exchange, color_exchange)
-      NULLIFY (para_env_exchange)
-      CALL cp_para_env_create(para_env_exchange, comm_exchange)
+      CALL cp_para_env_split(para_env_exchange, para_env, color_exchange)
       ! crate the proc maps exchange and info
       ALLOCATE (proc_map_ex(-para_env_exchange%num_pe:2*para_env_exchange%num_pe - 1))
       DO i = 0, para_env_exchange%num_pe - 1
@@ -1363,14 +1173,9 @@ CONTAINS
          proc_map_ex(para_env_exchange%num_pe + i) = i
       END DO
       ALLOCATE (pos_info_ex(0:para_env%num_pe - 1))
-      pos_info_ex = 0
-      pos_info_ex(para_env%mepos) = para_env_exchange%mepos
-      CALL mp_sum(pos_info_ex, para_env%group)
+      CALL mp_allgather(para_env_exchange%mepos, pos_info_ex, para_env%group)
       ALLOCATE (sizes(2, 0:para_env_exchange%num_pe - 1))
-      sizes = 0
-      sizes(1, para_env_exchange%mepos) = nrow_local
-      sizes(2, para_env_exchange%mepos) = ncol_local
-      CALL mp_sum(sizes, para_env_exchange%group)
+      CALL mp_allgather([nrow_local, ncol_local], sizes, para_env_exchange%group)
 
       ! 0) store some info about indeces of the fm matrices (subgroup)
       CALL timeset(routineN//"_inx", handle2)
@@ -1379,6 +1184,8 @@ CONTAINS
       max_col_size = MAXVAL(sizes_1i(2, :))
       ALLOCATE (row_indeces_info_1i(2, max_row_size, 0:para_env_sub%num_pe - 1))
       ALLOCATE (col_indeces_info_1i(2, max_col_size, 0:para_env_sub%num_pe - 1))
+      ALLOCATE (my_row_indeces_info_1i(2, max_row_size))
+      ALLOCATE (my_col_indeces_info_1i(2, max_col_size))
       row_indeces_info_1i = 0
       col_indeces_info_1i = 0
       dummy_proc = 0
@@ -1389,8 +1196,8 @@ CONTAINS
                                    L_mu_q%matrix_struct%first_p_pos(1), nprow)
          i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
                                  L_mu_q%matrix_struct%first_p_pos(1), nprow)
-         row_indeces_info_1i(1, iiB, para_env_sub%mepos) = send_prow
-         row_indeces_info_1i(2, iiB, para_env_sub%mepos) = i_local
+         my_row_indeces_info_1i(1, iiB) = send_prow
+         my_row_indeces_info_1i(2, iiB) = i_local
       END DO
       ! col
       DO jjB = 1, ncol_local_1i
@@ -1399,17 +1206,20 @@ CONTAINS
                                    L_mu_q%matrix_struct%first_p_pos(2), npcol)
          j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
                                  L_mu_q%matrix_struct%first_p_pos(2), npcol)
-         col_indeces_info_1i(1, jjB, para_env_sub%mepos) = send_pcol
-         col_indeces_info_1i(2, jjB, para_env_sub%mepos) = j_local
+         my_col_indeces_info_1i(1, jjB) = send_pcol
+         my_col_indeces_info_1i(2, jjB) = j_local
       END DO
-      CALL mp_sum(row_indeces_info_1i, para_env_sub%group)
-      CALL mp_sum(col_indeces_info_1i, para_env_sub%group)
+      CALL mp_allgather(my_row_indeces_info_1i, row_indeces_info_1i, para_env_sub%group)
+      CALL mp_allgather(my_col_indeces_info_1i, col_indeces_info_1i, para_env_sub%group)
+      DEALLOCATE (my_row_indeces_info_1i, my_col_indeces_info_1i)
 
       ! matrix L2_nu_a
       max_row_size = MAXVAL(sizes_2a(1, :))
       max_col_size = MAXVAL(sizes_2a(2, :))
       ALLOCATE (row_indeces_info_2a(2, max_row_size, 0:para_env_sub%num_pe - 1))
       ALLOCATE (col_indeces_info_2a(2, max_col_size, 0:para_env_sub%num_pe - 1))
+      ALLOCATE (my_row_indeces_info_2a(2, max_row_size))
+      ALLOCATE (my_col_indeces_info_2a(2, max_col_size))
       row_indeces_info_2a = 0
       col_indeces_info_2a = 0
       ! row
@@ -1419,8 +1229,8 @@ CONTAINS
                                    L_mu_q%matrix_struct%first_p_pos(1), nprow)
          i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
                                  L_mu_q%matrix_struct%first_p_pos(1), nprow)
-         row_indeces_info_2a(1, iiB, para_env_sub%mepos) = send_prow
-         row_indeces_info_2a(2, iiB, para_env_sub%mepos) = i_local
+         my_row_indeces_info_2a(1, iiB) = send_prow
+         my_row_indeces_info_2a(2, iiB) = i_local
       END DO
       ! col
       DO jjB = 1, ncol_local_2a
@@ -1429,11 +1239,12 @@ CONTAINS
                                    L_mu_q%matrix_struct%first_p_pos(2), npcol)
          j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
                                  L_mu_q%matrix_struct%first_p_pos(2), npcol)
-         col_indeces_info_2a(1, jjB, para_env_sub%mepos) = send_pcol
-         col_indeces_info_2a(2, jjB, para_env_sub%mepos) = j_local
+         my_col_indeces_info_2a(1, jjB) = send_pcol
+         my_col_indeces_info_2a(2, jjB) = j_local
       END DO
-      CALL mp_sum(row_indeces_info_2a, para_env_sub%group)
-      CALL mp_sum(col_indeces_info_2a, para_env_sub%group)
+      CALL mp_allgather(my_row_indeces_info_2a, row_indeces_info_2a, para_env_sub%group)
+      CALL mp_allgather(my_col_indeces_info_2a, col_indeces_info_2a, para_env_sub%group)
+      DEALLOCATE (my_row_indeces_info_2a, my_col_indeces_info_2a)
       CALL timestop(handle2)
 
       ! 1) define the map for sending data in the subgroup starting with L1_mu_i
@@ -1441,14 +1252,8 @@ CONTAINS
       ALLOCATE (map_send_size(0:para_env_sub%num_pe - 1))
       map_send_size = 0
       DO jjB = 1, ncol_local_1i
-         ! j_global=col_indices_1i(jjB)
-         ! send_pcol=cp_fm_indxg2p(j_global,ncol_block,dummy_proc,&
-         !                         L_mu_q%matrix_struct%first_p_pos(2),npcol)
          send_pcol = col_indeces_info_1i(1, jjB, para_env_sub%mepos)
          DO iiB = 1, nrow_local_1i
-            ! i_global=row_indices_1i(iiB)
-            ! send_prow=cp_fm_indxg2p(i_global,nrow_block,dummy_proc,&
-            !                         L_mu_q%matrix_struct%first_p_pos(1),nprow)
             send_prow = row_indeces_info_1i(1, iiB, para_env_sub%mepos)
             proc_send = grid_2_mepos(send_prow, send_pcol)
             proc_send_sub = pos_info(proc_send)
@@ -1457,14 +1262,8 @@ CONTAINS
       END DO
       ! and the same for L2_nu_a
       DO jjB = 1, ncol_local_2a
-         ! j_global=col_indices_2a(jjB)+homo
-         ! send_pcol=cp_fm_indxg2p(j_global,ncol_block,dummy_proc,&
-         !                         L_mu_q%matrix_struct%first_p_pos(2),npcol)
          send_pcol = col_indeces_info_2a(1, jjB, para_env_sub%mepos)
          DO iiB = 1, nrow_local_2a
-            ! i_global=row_indices_2a(iiB)
-            ! send_prow=cp_fm_indxg2p(i_global,nrow_block,dummy_proc,&
-            !                         L_mu_q%matrix_struct%first_p_pos(1),nprow)
             send_prow = row_indeces_info_2a(1, iiB, para_env_sub%mepos)
             proc_send = grid_2_mepos(send_prow, send_pcol)
             proc_send_sub = pos_info(proc_send)
@@ -1510,14 +1309,8 @@ CONTAINS
       ALLOCATE (iii_vet(number_of_send))
       iii_vet = 0
       DO jjB = 1, ncol_local_1i
-         ! j_global=col_indices_1i(jjB)
-         ! send_pcol=cp_fm_indxg2p(j_global,ncol_block,dummy_proc,&
-         !                         L_mu_q%matrix_struct%first_p_pos(2),npcol)
          send_pcol = col_indeces_info_1i(1, jjB, para_env_sub%mepos)
          DO iiB = 1, nrow_local_1i
-            ! i_global=row_indices_1i(iiB)
-            ! send_prow=cp_fm_indxg2p(i_global,nrow_block,dummy_proc,&
-            !                         L_mu_q%matrix_struct%first_p_pos(1),nprow)
             send_prow = row_indeces_info_1i(1, iiB, para_env_sub%mepos)
             proc_send = grid_2_mepos(send_prow, send_pcol)
             proc_send_sub = pos_info(proc_send)
@@ -1531,14 +1324,8 @@ CONTAINS
       DEALLOCATE (L1_mu_i%local_data)
       ! and the same for L2_nu_a
       DO jjB = 1, ncol_local_2a
-         ! j_global=col_indices_2a(jjB)+homo
-         ! send_pcol=cp_fm_indxg2p(j_global,ncol_block,dummy_proc,&
-         !                         L_mu_q%matrix_struct%first_p_pos(2),npcol)
          send_pcol = col_indeces_info_2a(1, jjB, para_env_sub%mepos)
          DO iiB = 1, nrow_local_2a
-            ! i_global=row_indices_2a(iiB)
-            ! send_prow=cp_fm_indxg2p(i_global,nrow_block,dummy_proc,&
-            !                         L_mu_q%matrix_struct%first_p_pos(1),nprow)
             send_prow = row_indeces_info_2a(1, iiB, para_env_sub%mepos)
             proc_send = grid_2_mepos(send_prow, send_pcol)
             proc_send_sub = pos_info(proc_send)
@@ -1630,26 +1417,14 @@ CONTAINS
             CALL timeset(routineN//"_fill", handle3)
             iii = 0
             DO jjB = 1, sizes_1i(2, proc_receive)
-               ! j_global=cp_fm_indxl2g(jjB,ncol_block_1i,mepos_2_grid_1i(proc_receive,2),&
-               !                        L1_mu_i%matrix_struct%first_p_pos(2),npcol_1i)
-               ! send_pcol=cp_fm_indxg2p(j_global,ncol_block,dummy_proc,&
-               !                         L_mu_q%matrix_struct%first_p_pos(2),npcol)
-               ! j_local=cp_fm_indxg2l(j_global,ncol_block,dummy_proc,&
-               !                       L_mu_q%matrix_struct%first_p_pos(2),npcol)
                send_pcol = col_indeces_info_1i(1, jjB, proc_receive)
                j_local = col_indeces_info_1i(2, jjB, proc_receive)
                DO iiB = 1, sizes_1i(1, proc_receive)
-                  ! i_global=cp_fm_indxl2g(iiB,nrow_block_1i,mepos_2_grid_1i(proc_receive,1),&
-                  !                        L1_mu_i%matrix_struct%first_p_pos(1),nprow_1i)
-                  ! send_prow=cp_fm_indxg2p(i_global,nrow_block,dummy_proc,&
-                  !                         L_mu_q%matrix_struct%first_p_pos(1),nprow)
                   send_prow = row_indeces_info_1i(1, iiB, proc_receive)
                   proc_send = grid_2_mepos(send_prow, send_pcol)
                   proc_send_sub = pos_info(proc_send)
                   IF (proc_send_sub /= para_env_sub%mepos) CYCLE
                   iii = iii + 1
-                  ! i_local=cp_fm_indxg2l(i_global,nrow_block,dummy_proc,&
-                  !                       L_mu_q%matrix_struct%first_p_pos(1),nprow)
                   i_local = row_indeces_info_1i(2, iiB, proc_receive)
                   proc_send_ex = pos_info_ex(proc_send)
                   buffer_cyclic(proc_send_ex)%msg(i_local, j_local) = buffer_rec(rec_counter)%msg(iii)
@@ -1657,26 +1432,14 @@ CONTAINS
             END DO
             ! and the same for L2_nu_a
             DO jjB = 1, sizes_2a(2, proc_receive)
-               ! j_global=cp_fm_indxl2g(jjB,ncol_block_2a,mepos_2_grid_2a(proc_receive,2),&
-               !                        L2_nu_a%matrix_struct%first_p_pos(2),npcol_2a)+homo
-               ! send_pcol=cp_fm_indxg2p(j_global,ncol_block,dummy_proc,&
-               !                         L_mu_q%matrix_struct%first_p_pos(2),npcol)
-               ! j_local=cp_fm_indxg2l(j_global,ncol_block,dummy_proc,&
-               !                       L_mu_q%matrix_struct%first_p_pos(2),npcol)
                send_pcol = col_indeces_info_2a(1, jjB, proc_receive)
                j_local = col_indeces_info_2a(2, jjB, proc_receive)
                DO iiB = 1, sizes_2a(1, proc_receive)
-                  ! i_global=cp_fm_indxl2g(iiB,nrow_block_2a,mepos_2_grid_2a(proc_receive,1),&
-                  !                        L2_nu_a%matrix_struct%first_p_pos(1),nprow_2a)
-                  ! send_prow=cp_fm_indxg2p(i_global,nrow_block,dummy_proc,&
-                  !                         L_mu_q%matrix_struct%first_p_pos(1),nprow)
                   send_prow = row_indeces_info_2a(1, iiB, proc_receive)
                   proc_send = grid_2_mepos(send_prow, send_pcol)
                   proc_send_sub = pos_info(proc_send)
                   IF (proc_send_sub /= para_env_sub%mepos) CYCLE
                   iii = iii + 1
-                  ! i_local=cp_fm_indxg2l(i_global,nrow_block,dummy_proc,&
-                  !                       L_mu_q%matrix_struct%first_p_pos(1),nprow)
                   i_local = row_indeces_info_2a(2, iiB, proc_receive)
                   proc_send_ex = pos_info_ex(proc_send)
                   buffer_cyclic(proc_send_ex)%msg(i_local, j_local) = buffer_rec(rec_counter)%msg(iii)
@@ -1753,8 +1516,6 @@ CONTAINS
       CALL cp_fm_release(L2_nu_a)
       DEALLOCATE (pos_info_ex)
       DEALLOCATE (grid_2_mepos)
-      DEALLOCATE (mepos_2_grid_1i)
-      DEALLOCATE (mepos_2_grid_2a)
       DEALLOCATE (sizes)
       DEALLOCATE (sizes_1i)
       DEALLOCATE (sizes_2a)
@@ -1793,6 +1554,7 @@ CONTAINS
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
                           col_indices=col_indices)
+
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
          DO iiB = 1, nrow_local
@@ -1801,125 +1563,80 @@ CONTAINS
             IF (j_global == i_global) CYCLE
             ! check if the given element is above the threshold
             IF (ABS(Eigenval(j_global) - Eigenval(i_global)) < mp2_env%ri_mp2%eps_canonical) CYCLE
-            IF (.NOT. alpha_beta) THEN
-               mp2_env%ri_grad%P_ij(i_global, j_global) = &
-                  factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
-            ELSE
-               mp2_env%ri_grad%P_ij_beta(i_global, j_global) = &
-                  factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
-            ENDIF
+            mp2_env%ri_grad%P_ij(my_spin)%array(i_global, j_global) = &
+               factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
          END DO
       END DO
       ! release fm_P_ij
       CALL cp_fm_release(fm_P_ij)
       ! mp_sum it (we can avoid mp_sum, but for now let's keep it easy)
-      IF (.NOT. alpha_beta) THEN
-         CALL mp_sum(mp2_env%ri_grad%P_ij, para_env%group)
-      ELSE
-         CALL mp_sum(mp2_env%ri_grad%P_ij_beta, para_env%group)
-      ENDIF
+      CALL mp_sum(mp2_env%ri_grad%P_ij(my_spin)%array, para_env%group)
       CALL timestop(handle2)
 
       ! Now create and fill the P matrix (MO)
       ! FOR NOW WE ASSUME P_ab AND P_ij ARE REPLICATED OVER EACH MPI RANK
-      IF (.NOT. alpha_beta) THEN
-         CALL timeset(routineN//"_PMO", handle2)
-         NULLIFY (mp2_env%ri_grad%P_mo, fm_struct_tmp)
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
-                                  nrow_global=dimen, ncol_global=dimen)
-         CALL cp_fm_create(mp2_env%ri_grad%P_mo, fm_struct_tmp, name="P_MP2_MO")
-         CALL cp_fm_set_all(mp2_env%ri_grad%P_mo, 0.0_dp)
-      ELSE
-         CALL timeset(routineN//"_PMO", handle2)
-         NULLIFY (mp2_env%ri_grad%P_mo_beta, fm_struct_tmp)
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
-                                  nrow_global=dimen, ncol_global=dimen)
-         CALL cp_fm_create(mp2_env%ri_grad%P_mo_beta, fm_struct_tmp, name="P_MP2_MO")
-         CALL cp_fm_set_all(mp2_env%ri_grad%P_mo_beta, 0.0_dp)
-      ENDIF
+      IF (.NOT. ALLOCATED(mp2_env%ri_grad%P_mo)) THEN
+         ALLOCATE (mp2_env%ri_grad%P_mo(SIZE(mp2_env%ri_grad%mo_coeff_o)))
+         DO ispin = 1, SIZE(mp2_env%ri_grad%mo_coeff_o)
+            NULLIFY (mp2_env%ri_grad%P_mo(ispin)%matrix)
+         END DO
+      END IF
+
+      CALL timeset(routineN//"_PMO", handle2)
+      NULLIFY (fm_struct_tmp)
+      CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
+                               nrow_global=dimen, ncol_global=dimen)
+      CALL cp_fm_create(mp2_env%ri_grad%P_mo(my_spin)%matrix, fm_struct_tmp, name="P_MP2_MO")
+      CALL cp_fm_set_all(mp2_env%ri_grad%P_mo(my_spin)%matrix, 0.0_dp)
 
       ! start with the (easy) occ-occ block and locally held P_ab elements
       itmp = get_limit(virtual, para_env_sub%num_pe, para_env_sub%mepos)
       my_B_virtual_start = itmp(1)
       my_B_virtual_end = itmp(2)
 
-      IF (.NOT. alpha_beta) THEN
-         CALL cp_fm_get_info(matrix=mp2_env%ri_grad%P_mo, &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices, &
-                             nrow_block=nrow_block, &
-                             ncol_block=ncol_block)
-         myprow = mp2_env%ri_grad%P_mo%matrix_struct%context%mepos(1)
-         mypcol = mp2_env%ri_grad%P_mo%matrix_struct%context%mepos(2)
-         nprow = mp2_env%ri_grad%P_mo%matrix_struct%context%num_pe(1)
-         npcol = mp2_env%ri_grad%P_mo%matrix_struct%context%num_pe(2)
-      ELSE
-         CALL cp_fm_get_info(matrix=mp2_env%ri_grad%P_mo_beta, &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices, &
-                             nrow_block=nrow_block, &
-                             ncol_block=ncol_block)
-         myprow = mp2_env%ri_grad%P_mo_beta%matrix_struct%context%mepos(1)
-         mypcol = mp2_env%ri_grad%P_mo_beta%matrix_struct%context%mepos(2)
-         nprow = mp2_env%ri_grad%P_mo_beta%matrix_struct%context%num_pe(1)
-         npcol = mp2_env%ri_grad%P_mo_beta%matrix_struct%context%num_pe(2)
-      ENDIF
+      CALL cp_fm_get_info(mp2_env%ri_grad%P_mo(my_spin)%matrix, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices, &
+                          nrow_block=nrow_block, &
+                          ncol_block=ncol_block)
+      myprow = mp2_env%ri_grad%P_mo(my_spin)%matrix%matrix_struct%context%mepos(1)
+      mypcol = mp2_env%ri_grad%P_mo(my_spin)%matrix%matrix_struct%context%mepos(2)
+      nprow = mp2_env%ri_grad%P_mo(my_spin)%matrix%matrix_struct%context%num_pe(1)
+      npcol = mp2_env%ri_grad%P_mo(my_spin)%matrix%matrix_struct%context%num_pe(2)
 
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
-            IF (.NOT. alpha_beta) THEN
-               IF (i_global <= homo .AND. j_global <= homo) THEN
-                  mp2_env%ri_grad%P_mo%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(i_global, j_global)
-               END IF
-               IF ((my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) .AND. (j_global > homo)) THEN
-                  mp2_env%ri_grad%P_mo%local_data(iiB, jjB) = &
-                     mp2_env%ri_grad%P_ab(i_global - homo - my_B_virtual_start + 1, j_global - homo)
-               END IF
-            ELSE
-               IF (i_global <= homo .AND. j_global <= homo) THEN
-                  mp2_env%ri_grad%P_mo_beta%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij_beta(i_global, j_global)
-               END IF
-               IF ((my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) .AND. (j_global > homo)) THEN
-                  mp2_env%ri_grad%P_mo_beta%local_data(iiB, jjB) = &
-                     mp2_env%ri_grad%P_ab_beta(i_global - homo - my_B_virtual_start + 1, j_global - homo)
-               END IF
-            ENDIF
+            IF (i_global <= homo .AND. j_global <= homo) THEN
+               mp2_env%ri_grad%P_mo(my_spin)%matrix%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(my_spin)%array(i_global, j_global)
+            END IF
+            IF ((my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) .AND. (j_global > homo)) THEN
+               mp2_env%ri_grad%P_mo(my_spin)%matrix%local_data(iiB, jjB) = &
+                  mp2_env%ri_grad%P_ab(my_spin)%array(i_global - homo - my_B_virtual_start + 1, j_global - homo)
+            END IF
          END DO
       END DO
       ! deallocate the local P_ij
-      IF (.NOT. alpha_beta) THEN
-         DEALLOCATE (mp2_env%ri_grad%P_ij)
-      ELSE
-         DEALLOCATE (mp2_env%ri_grad%P_ij_beta)
-      ENDIF
+      DEALLOCATE (mp2_env%ri_grad%P_ij(my_spin)%array)
 
       ! send around the sub_group the local data and check if we
       ! have to update our block with external elements
-      ALLOCATE (mepos_2_grid(0:para_env_sub%num_pe - 1, 2))
-      mepos_2_grid = 0
-      mepos_2_grid(para_env_sub%mepos, 1) = myprow
-      mepos_2_grid(para_env_sub%mepos, 2) = mypcol
-      CALL mp_sum(mepos_2_grid, para_env_sub%group)
+      ALLOCATE (mepos_2_grid(2, 0:para_env_sub%num_pe - 1))
+      CALL mp_allgather([myprow, mypcol], mepos_2_grid, para_env_sub%group)
 
       ALLOCATE (sizes(2, 0:para_env_sub%num_pe - 1))
-      sizes = 0
-      sizes(1, para_env_sub%mepos) = nrow_local
-      sizes(2, para_env_sub%mepos) = ncol_local
-      CALL mp_sum(sizes, para_env_sub%group)
+      CALL mp_allgather([nrow_local, ncol_local], sizes, para_env_sub%group)
 
       ALLOCATE (ab_rec(nrow_local, ncol_local))
       DO proc_shift = 1, para_env_sub%num_pe - 1
          proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
          proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
-         send_prow = mepos_2_grid(proc_send, 1)
-         send_pcol = mepos_2_grid(proc_send, 2)
+         send_prow = mepos_2_grid(1, proc_send)
+         send_pcol = mepos_2_grid(2, proc_send)
 
          send_row_size = sizes(1, proc_send)
          send_col_size = sizes(2, proc_send)
@@ -1930,25 +1647,16 @@ CONTAINS
          ! first loop over row since in this way we can cycle
          DO iiB = 1, send_row_size
             i_global = cp_fm_indxl2g(iiB, nrow_block, send_prow, &
-                                     mp2_env%ri_grad%P_mo%matrix_struct%first_p_pos(1), nprow)
+                                     mp2_env%ri_grad%P_mo(my_spin)%matrix%matrix_struct%first_p_pos(1), nprow)
             IF (i_global <= homo) CYCLE
             i_global = i_global - homo
             IF (.NOT. (my_B_virtual_start <= i_global .AND. i_global <= my_B_virtual_end)) CYCLE
             DO jjB = 1, send_col_size
-               IF (.NOT. alpha_beta) THEN
-                  j_global = cp_fm_indxl2g(jjB, ncol_block, send_pcol, &
-                                           mp2_env%ri_grad%P_mo%matrix_struct%first_p_pos(2), npcol)
-               ELSE
-                  j_global = cp_fm_indxl2g(jjB, ncol_block, send_pcol, &
-                                           mp2_env%ri_grad%P_mo_beta%matrix_struct%first_p_pos(2), npcol)
-               ENDIF
+               j_global = cp_fm_indxl2g(jjB, ncol_block, send_pcol, &
+                                        mp2_env%ri_grad%P_mo(my_spin)%matrix%matrix_struct%first_p_pos(2), npcol)
                IF (j_global <= homo) CYCLE
                j_global = j_global - homo
-               IF (.NOT. alpha_beta) THEN
-                  ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(i_global - my_B_virtual_start + 1, j_global)
-               ELSE
-                  ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab_beta(i_global - my_B_virtual_start + 1, j_global)
-               ENDIF
+               ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(my_spin)%array(i_global - my_B_virtual_start + 1, j_global)
             END DO
          END DO
 
@@ -1956,15 +1664,9 @@ CONTAINS
          CALL mp_sendrecv(ab_send, proc_send, &
                           ab_rec, proc_receive, &
                           para_env_sub%group)
-         IF (.NOT. alpha_beta) THEN
-            mp2_env%ri_grad%P_mo%local_data(1:nrow_local, 1:ncol_local) = &
-               mp2_env%ri_grad%P_mo%local_data(1:nrow_local, 1:ncol_local) + &
-               ab_rec(1:nrow_local, 1:ncol_local)
-         ELSE
-            mp2_env%ri_grad%P_mo_beta%local_data(1:nrow_local, 1:ncol_local) = &
-               mp2_env%ri_grad%P_mo_beta%local_data(1:nrow_local, 1:ncol_local) + &
-               ab_rec(1:nrow_local, 1:ncol_local)
-         ENDIF
+         mp2_env%ri_grad%P_mo(my_spin)%matrix%local_data(1:nrow_local, 1:ncol_local) = &
+            mp2_env%ri_grad%P_mo(my_spin)%matrix%local_data(1:nrow_local, 1:ncol_local) + &
+            ab_rec(1:nrow_local, 1:ncol_local)
 
          DEALLOCATE (ab_send)
       END DO
@@ -1972,144 +1674,86 @@ CONTAINS
       DEALLOCATE (mepos_2_grid)
       DEALLOCATE (sizes)
 
-      ! deallocate the local P_ab'
-      IF (.NOT. alpha_beta) THEN
-         DEALLOCATE (mp2_env%ri_grad%P_ab)
-      ELSE
-         DEALLOCATE (mp2_env%ri_grad%P_ab_beta)
-      ENDIF
+      ! deallocate the local P_ab
+      DEALLOCATE (mp2_env%ri_grad%P_ab(my_spin)%array)
       CALL timestop(handle2)
 
       ! create also W_MP2_MO
       CALL timeset(routineN//"_WMO", handle2)
-      IF (.NOT. alpha_beta) THEN
-         NULLIFY (mp2_env%ri_grad%W_mo)
-         CALL cp_fm_create(mp2_env%ri_grad%W_mo, fm_struct_tmp, name="W_MP2_MO")
-         CALL cp_fm_set_all(mp2_env%ri_grad%W_mo, 0.0_dp)
-         CALL cp_fm_struct_release(fm_struct_tmp)
+      IF (.NOT. ALLOCATED(mp2_env%ri_grad%W_mo)) THEN
+         ALLOCATE (mp2_env%ri_grad%W_mo(SIZE(mp2_env%ri_grad%mo_coeff_o)))
+         DO ispin = 1, SIZE(mp2_env%ri_grad%mo_coeff_o)
+            NULLIFY (mp2_env%ri_grad%W_mo(ispin)%matrix)
+         END DO
+      END IF
 
-         ! all block
-         CALL cp_gemm('T', 'N', dimen, dimen, dimen, 2.0_dp*factor, &
-                      L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
+      CALL cp_fm_create(mp2_env%ri_grad%W_mo(my_spin)%matrix, fm_struct_tmp, name="W_MP2_MO")
+      CALL cp_fm_struct_release(fm_struct_tmp)
 
-         ! occ-occ block
-         CALL cp_gemm('T', 'N', homo, homo, dimen, -2.0_dp*factor, &
-                      L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
+      ! all block
+      CALL cp_gemm('T', 'N', dimen, dimen, dimen, 2.0_dp*factor, &
+                   L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo(my_spin)%matrix, &
+                   a_first_col=1, &
+                   a_first_row=1, &
+                   b_first_col=1, &
+                   b_first_row=1, &
+                   c_first_col=1, &
+                   c_first_row=1)
 
-         ! occ-virt block
-         CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
-                      mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%W_mo, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=homo + 1, &
-                      b_first_row=1, &
-                      c_first_col=homo + 1, &
-                      c_first_row=1)
-      ELSE
-         NULLIFY (mp2_env%ri_grad%W_mo_beta)
-         CALL cp_fm_create(mp2_env%ri_grad%W_mo_beta, fm_struct_tmp, name="W_MP2_MO")
-         CALL cp_fm_set_all(mp2_env%ri_grad%W_mo_beta, 0.0_dp)
-         CALL cp_fm_struct_release(fm_struct_tmp)
+      ! occ-occ block
+      CALL cp_gemm('T', 'N', homo, homo, dimen, -2.0_dp*factor, &
+                   L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo(my_spin)%matrix, &
+                   a_first_col=1, &
+                   a_first_row=1, &
+                   b_first_col=1, &
+                   b_first_row=1, &
+                   c_first_col=1, &
+                   c_first_row=1)
 
-         ! all block
-         CALL cp_gemm('T', 'N', dimen, dimen, dimen, 2.0_dp*factor, &
-                      L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo_beta, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
-
-         ! occ-occ block
-         CALL cp_gemm('T', 'N', homo, homo, dimen, -2.0_dp*factor, &
-                      L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo_beta, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
-
-         ! occ-virt block
-         CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
-                      mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%W_mo_beta, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=homo + 1, &
-                      b_first_row=1, &
-                      c_first_col=homo + 1, &
-                      c_first_row=1)
-      ENDIF
+      ! occ-virt block
+      CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
+                   mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%W_mo(my_spin)%matrix, &
+                   a_first_col=1, &
+                   a_first_row=1, &
+                   b_first_col=homo + 1, &
+                   b_first_row=1, &
+                   c_first_col=homo + 1, &
+                   c_first_row=1)
       CALL timestop(handle2)
 
       ! Calculate occ-virt block of the lagrangian in MO
       CALL timeset(routineN//"_Ljb", handle2)
-      IF (.NOT. alpha_beta) THEN
-         NULLIFY (mp2_env%ri_grad%L_jb, fm_struct_tmp)
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
-                                  nrow_global=homo, ncol_global=virtual)
-         CALL cp_fm_create(mp2_env%ri_grad%L_jb, fm_struct_tmp, name="fm_L_jb")
-         CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(mp2_env%ri_grad%L_jb, 0.0_dp)
+      IF (.NOT. ALLOCATED(mp2_env%ri_grad%L_jb)) THEN
+         ALLOCATE (mp2_env%ri_grad%L_jb(SIZE(mp2_env%ri_grad%mo_coeff_o)))
+         DO ispin = 1, SIZE(mp2_env%ri_grad%mo_coeff_o)
+            NULLIFY (mp2_env%ri_grad%L_jb(ispin)%matrix)
+         END DO
+      END IF
 
-         ! first Virtual
-         CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
-                      L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%L_jb, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=homo + 1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
-         ! then occupied
-         CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
-                      mo_coeff, L_mu_q, 1.0_dp, mp2_env%ri_grad%L_jb, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=homo + 1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
-      ELSE
-         NULLIFY (mp2_env%ri_grad%L_jb_beta, fm_struct_tmp)
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
-                                  nrow_global=homo, ncol_global=virtual)
-         CALL cp_fm_create(mp2_env%ri_grad%L_jb_beta, fm_struct_tmp, name="fm_L_jb")
-         CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(mp2_env%ri_grad%L_jb_beta, 0.0_dp)
+      CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
+                               nrow_global=homo, ncol_global=virtual)
+      CALL cp_fm_create(mp2_env%ri_grad%L_jb(my_spin)%matrix, fm_struct_tmp, name="fm_L_jb")
+      CALL cp_fm_struct_release(fm_struct_tmp)
 
-         ! first Virtual
-         CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
-                      L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%L_jb_beta, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=homo + 1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
-         ! then occupied
-         CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
-                      mo_coeff, L_mu_q, 1.0_dp, mp2_env%ri_grad%L_jb_beta, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=homo + 1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
-      ENDIF
+      ! first Virtual
+      CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
+                   L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%L_jb(my_spin)%matrix, &
+                   a_first_col=1, &
+                   a_first_row=1, &
+                   b_first_col=homo + 1, &
+                   b_first_row=1, &
+                   c_first_col=1, &
+                   c_first_row=1)
+      ! then occupied
+      CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
+                   mo_coeff, L_mu_q, 1.0_dp, mp2_env%ri_grad%L_jb(my_spin)%matrix, &
+                   a_first_col=1, &
+                   a_first_row=1, &
+                   b_first_col=homo + 1, &
+                   b_first_row=1, &
+                   c_first_col=1, &
+                   c_first_row=1)
+
       ! finally release L_mu_q
       CALL cp_fm_release(L_mu_q)
       CALL timestop(handle2)

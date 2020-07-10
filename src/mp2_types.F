@@ -14,7 +14,7 @@
 MODULE mp2_types
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_finalize,&
                                               cp_eri_mme_param
-   USE cp_fm_types,                     ONLY: cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_p_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type
    USE hfx_types,                       ONLY: hfx_release,&
@@ -54,11 +54,28 @@ MODULE mp2_types
              pair_list_type_mp2, &
              one_dim_int_array, &
              two_dim_int_array, &
-             two_dim_real_array
+             two_dim_real_array, &
+             three_dim_real_array
 
    INTEGER, SAVE                                         :: init_TShPSC_lmax = -1
 
 ! TYPE definitions
+
+   TYPE one_dim_int_array
+      INTEGER, DIMENSION(:), ALLOCATABLE    :: array
+   END TYPE
+
+   TYPE two_dim_int_array
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: array
+   END TYPE
+
+   TYPE two_dim_real_array
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: array
+   END TYPE
+
+   TYPE three_dim_real_array
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE :: array
+   END TYPE
 
    TYPE mp2_biel_type
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: index_table
@@ -165,21 +182,17 @@ MODULE mp2_types
    END TYPE
 
    TYPE grad_util
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: P_ij, P_ab, P_ij_beta, P_ab_beta
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE :: Gamma_P_ia, Gamma_P_ia_beta
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: PQ_half, Gamma_PQ, Gamma_PQ_beta
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: G_P_ia, G_P_ia_beta
-      TYPE(dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_o_beta, &
-                                               mo_coeff_v, mo_coeff_v_beta
-      TYPE(cp_fm_type), POINTER                :: P_mo, P_mo_beta, W_mo, W_mo_beta, &
-                                                  L_jb, L_jb_beta
+      TYPE(two_dim_real_array), DIMENSION(2) :: P_ij, P_ab, Gamma_PQ
+      TYPE(three_dim_real_array), DIMENSION(2) :: Gamma_P_ia
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: PQ_half
+      TYPE(dbcsr_p_type), DIMENSION(:, :), ALLOCATABLE :: G_P_ia
+      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: mo_coeff_o, mo_coeff_v
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:) :: P_mo, W_mo, L_jb
       REAL(KIND=dp) :: cphf_eps_conv
-      INTEGER :: cphf_max_num_iter, num_sing_ij, num_sing_ij_beta
+      INTEGER :: cphf_max_num_iter
    END TYPE
 
    TYPE mp2_type
-      REAL(KIND=dp)            :: energy
-      LOGICAL                  :: compute_reference
       INTEGER                  :: method
       TYPE(mp2_laplace_type)   :: ri_laplace
       TYPE(mp2_direct_type)    :: direct_canonical
@@ -230,30 +243,6 @@ MODULE mp2_types
       TYPE(pair_list_element_type), DIMENSION(:), ALLOCATABLE :: elements
       INTEGER :: n_element
    END TYPE pair_list_type_mp2
-
-   TYPE offset_type
-      INTEGER, DIMENSION(:), POINTER :: offset_occ
-      INTEGER, DIMENSION(:), POINTER :: LLL
-   END TYPE
-
-   TYPE one_dim_int_array
-      INTEGER, DIMENSION(:), ALLOCATABLE    :: array
-   END TYPE
-
-   TYPE two_dim_int_array
-      INTEGER, DIMENSION(:, :), ALLOCATABLE :: array
-   END TYPE
-
-   TYPE two_dim_real_array
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: array
-   END TYPE
-
-   TYPE offset_row_col_from_LLL
-      INTEGER, DIMENSION(:), POINTER :: rows
-      INTEGER, DIMENSION(:), POINTER :: cols
-      INTEGER, DIMENSION(:), POINTER :: offset
-      INTEGER, DIMENSION(:), POINTER :: blocksize
-   END TYPE
 
 CONTAINS
 

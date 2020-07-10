@@ -15,6 +15,8 @@ MODULE mp2_direct_method
    USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
+   USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                              cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE hfx_energy_potential,            ONLY: coulomb4
    USE hfx_load_balance_methods,        ONLY: cost_model,&
@@ -33,10 +35,12 @@ MODULE mp2_direct_method
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_wrapper,                  ONLY: cp_libint_t
+   USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: zero
    USE message_passing,                 ONLY: mp_max,&
                                               mp_sendrecv,&
-                                              mp_sum
+                                              mp_sum,&
+                                              mp_sync
    USE mp2_ri_libint,                   ONLY: prepare_integral_calc
    USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                               mp2_biel_type,&
@@ -51,13 +55,307 @@ MODULE mp2_direct_method
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC ::  mp2_canonical_direct_single_batch
+   PUBLIC ::  mp2_direct_energy, mp2_canonical_direct_single_batch
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_direct_method'
 
 !***
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dimen ...
+!> \param occ_i ...
+!> \param occ_j ...
+!> \param mp2_biel ...
+!> \param mp2_env ...
+!> \param C_i ...
+!> \param Auto_i ...
+!> \param Emp2 ...
+!> \param Emp2_Cou ...
+!> \param Emp2_ex ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param unit_nr ...
+!> \param C_j ...
+!> \param Auto_j ...
+! **************************************************************************************************
+   SUBROUTINE mp2_direct_energy(dimen, occ_i, occ_j, mp2_biel, mp2_env, C_i, Auto_i, Emp2, Emp2_Cou, Emp2_ex, &
+                                qs_env, para_env, unit_nr, C_j, Auto_j)
+      INTEGER                                            :: dimen, occ_i, occ_j
+      TYPE(mp2_biel_type)                                :: mp2_biel
+      TYPE(mp2_type), POINTER                            :: mp2_env
+      REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_i
+      REAL(KIND=dp), DIMENSION(dimen)                    :: Auto_i
+      REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_ex
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      INTEGER                                            :: unit_nr
+      REAL(KIND=dp), DIMENSION(dimen, dimen), OPTIONAL   :: C_j
+      REAL(KIND=dp), DIMENSION(dimen), OPTIONAL          :: Auto_j
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_direct_energy', &
+         routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: zero = 0.D+00
+
+      INTEGER :: batch_number, color_sub, counter, elements_ij_proc, group_counter, handle, i, &
+         i_batch, i_batch_start, i_group_counter, j, j_batch_start, j_group_counter, last_batch, &
+         max_batch_number, max_batch_size, max_set, minimum_memory_needed, my_batch_size, &
+         my_I_batch_size, my_I_occupied_end, my_I_occupied_start, my_J_batch_size, &
+         my_J_occupied_end, my_J_occupied_start, natom, Ni_occupied, Nj_occupied, number_groups, &
+         number_i_subset, number_j_subset, one, sqrt_number_groups, total_I_size_batch_group, &
+         total_J_size_batch_group, virt_i, virt_j
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_sizes, batch_sizes_tmp, &
+                                                            vector_batch_I_size_group, &
+                                                            vector_batch_J_size_group
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_list_proc, ij_list_proc_temp, &
+                                                            ij_matrix
+      LOGICAL                                            :: alpha_beta_case
+      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+
+      CALL timeset(routineN, handle)
+
+      alpha_beta_case = .FALSE.
+      IF (PRESENT(C_j) .AND. PRESENT(Auto_j)) alpha_beta_case = .TRUE.
+
+      IF (unit_nr > 0 .AND. mp2_env%potential_parameter%potential_type == do_potential_TShPSC) THEN
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T64,F12.6,A5)') 'Truncated MP2 method, Rt=', &
+            mp2_env%potential_parameter%cutoff_radius, ' Bohr'
+      END IF
+
+      ! create the local para env
+      ! each para_env_sub corresponds to a group that is going to compute
+      ! all the integrals. To each group a batch I is assigned and the
+      ! communication takes place only inside the group
+      number_groups = para_env%num_pe/mp2_env%mp2_num_proc
+      IF (number_groups*mp2_env%mp2_num_proc /= para_env%num_pe) THEN
+         CPABORT(" The number of processors needs to be a multiple of the processors per group. ")
+      END IF
+      IF (number_groups > occ_i*occ_j) THEN
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Number of groups greater then the number of IJ pairs!'
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Consider using more processors per group for improved efficiency'
+      END IF
+
+      color_sub = para_env%mepos/mp2_env%mp2_num_proc
+      CALL cp_para_env_split(para_env_sub, para_env, color_sub)
+
+      ! calculate the maximal size of the batch, according to the maximum RS size
+      max_set = SIZE(mp2_biel%index_table, 2)
+      minimum_memory_needed = (8*(max_set**4))/1024**2
+      IF (minimum_memory_needed > mp2_env%mp2_memory) THEN
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T66,F12.6,A3)') 'Memory required below the minimum, new memory:', &
+            minimum_memory_needed, 'MiB'
+         mp2_env%mp2_memory = minimum_memory_needed
+      END IF
+
+      ! Distribute the batches over the groups in
+      ! a rectangular fashion, bigger size for J index
+      ! the sizes of the I batches should be as small as possible
+      sqrt_number_groups = INT(SQRT(REAL(number_groups, KIND=dp)))
+      DO i = 1, number_groups
+         IF (MOD(number_groups, i) == 0) THEN
+            IF (sqrt_number_groups/i <= 1) THEN
+               number_j_subset = i
+               EXIT
+            END IF
+         END IF
+      END DO
+      number_i_subset = number_groups/number_j_subset
+
+      IF (number_i_subset < number_j_subset) THEN
+         number_i_subset = number_j_subset
+         number_j_subset = number_groups/number_i_subset
+      END IF
+
+      ! Distribute the I index and the J index over groups
+      total_I_size_batch_group = occ_i/number_i_subset
+      IF (total_I_size_batch_group < 1) total_I_size_batch_group = 1
+      ALLOCATE (vector_batch_I_size_group(0:number_i_subset - 1))
+
+      vector_batch_I_size_group = 0
+      DO i = 0, number_i_subset - 1
+         vector_batch_I_size_group(i) = total_I_size_batch_group
+      END DO
+      IF (SUM(vector_batch_I_size_group) /= occ_i) THEN
+         one = 1
+         IF (SUM(vector_batch_I_size_group) > occ_i) one = -1
+         i = -1
+         DO
+            i = i + 1
+            vector_batch_I_size_group(i) = vector_batch_I_size_group(i) + one
+            IF (SUM(vector_batch_I_size_group) == occ_i) EXIT
+            IF (i == number_i_subset - 1) i = -1
+         END DO
+      END IF
+
+      total_J_size_batch_group = occ_j/number_j_subset
+      IF (total_J_size_batch_group < 1) total_J_size_batch_group = 1
+      ALLOCATE (vector_batch_J_size_group(0:number_j_subset - 1))
+
+      vector_batch_J_size_group = 0
+      DO i = 0, number_J_subset - 1
+         vector_batch_J_size_group(i) = total_J_size_batch_group
+      END DO
+      IF (SUM(vector_batch_J_size_group) /= occ_j) THEN
+         one = 1
+         IF (SUM(vector_batch_J_size_group) > occ_j) one = -1
+         i = -1
+         DO
+            i = i + 1
+            vector_batch_J_size_group(i) = vector_batch_J_size_group(i) + one
+            IF (SUM(vector_batch_J_size_group) == occ_j) EXIT
+            IF (i == number_J_subset - 1) i = -1
+         END DO
+      END IF
+
+      ! now the starting and ending I and J occupied orbitals are assigned to each group
+      group_counter = 0
+      i_group_counter = 0
+      my_I_occupied_start = 1
+      DO i = 0, number_i_subset - 1
+         my_J_occupied_start = 1
+         j_group_counter = 0
+         DO j = 0, number_j_subset - 1
+            group_counter = group_counter + 1
+            IF (color_sub == group_counter - 1) EXIT
+            my_J_occupied_start = my_J_occupied_start + vector_batch_J_size_group(j)
+            j_group_counter = j_group_counter + 1
+         END DO
+         IF (color_sub == group_counter - 1) EXIT
+         my_I_occupied_start = my_I_occupied_start + vector_batch_I_size_group(i)
+         i_group_counter = i_group_counter + 1
+      END DO
+      my_I_occupied_end = my_I_occupied_start + vector_batch_I_size_group(i_group_counter) - 1
+      my_I_batch_size = vector_batch_I_size_group(i_group_counter)
+      my_J_occupied_end = my_J_occupied_start + vector_batch_J_size_group(j_group_counter) - 1
+      my_J_batch_size = vector_batch_J_size_group(j_group_counter)
+
+      DEALLOCATE (vector_batch_I_size_group)
+      DEALLOCATE (vector_batch_J_size_group)
+
+      max_batch_size = MIN( &
+                       MAX(1, &
+                           INT(mp2_env%mp2_memory*INT(1024, KIND=int_8)**2/ &
+                               (8*(2*dimen - occ_i)*INT(dimen, KIND=int_8)*my_J_batch_size/para_env_sub%num_pe))) &
+                       , my_I_batch_size)
+      IF (max_batch_size < 1) THEN
+         max_batch_size = INT((8*(occ_i + 1)*INT(dimen, KIND=int_8)**2/para_env%num_pe)/1024**2)
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T72,I6,A3)') 'More memory required, at least:', max_batch_size, 'MiB'
+         max_batch_size = 1
+      END IF
+
+      ! create the size of the batches inside the group
+      my_batch_size = my_I_batch_size
+      ALLOCATE (batch_sizes(my_batch_size))
+
+      batch_sizes = -HUGE(0)
+      batch_number = 0
+      DO i = 1, my_batch_size
+         IF (i*max_batch_size > my_batch_size) EXIT
+         batch_number = batch_number + 1
+         batch_sizes(i) = max_batch_size
+      END DO
+      last_batch = my_batch_size - max_batch_size*batch_number
+      IF (last_batch > 0) THEN
+         batch_number = batch_number + 1
+         batch_sizes(batch_number) = last_batch
+      END IF
+
+      ALLOCATE (batch_sizes_tmp(batch_number))
+      batch_sizes_tmp(1:batch_number) = batch_sizes(1:batch_number)
+      DEALLOCATE (batch_sizes)
+      ALLOCATE (batch_sizes(batch_number))
+      batch_sizes(:) = batch_sizes_tmp
+      DEALLOCATE (batch_sizes_tmp)
+
+      max_batch_size = MAXVAL(batch_sizes)
+      CALL mp_max(max_batch_size, para_env%group)
+      max_batch_number = batch_number
+      CALL mp_max(max_batch_number, para_env%group)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A,T76,I5)') 'Maximum used batch size: ', max_batch_size
+         WRITE (unit_nr, '(T3,A,T76,I5)') 'Number of integral recomputations: ', max_batch_number
+         CALL m_flush(unit_nr)
+      END IF
+
+      ! Batches sizes exceed the occupied orbitals allocated for group
+      CPASSERT(SUM(batch_sizes) <= my_batch_size)
+
+      virt_i = dimen - occ_i
+      virt_j = dimen - occ_j
+      natom = SIZE(mp2_biel%index_table, 1)
+
+      CALL mp_sync(para_env%group)
+      Emp2 = zero
+      Emp2_Cou = zero
+      Emp2_ex = zero
+      i_batch_start = my_I_occupied_start - 1
+      j_batch_start = my_J_occupied_start - 1
+      Nj_occupied = my_J_batch_size
+      DO i_batch = 1, batch_number
+
+         Ni_occupied = batch_sizes(i_batch)
+
+         counter = -1
+         ALLOCATE (ij_matrix(Ni_occupied, Nj_occupied))
+
+         ij_matrix = 0
+         DO i = 1, Ni_occupied
+            DO j = 1, Nj_occupied
+               counter = counter + 1
+               IF (MOD(counter, para_env_sub%num_pe) == para_env_sub%mepos) THEN
+                  ij_matrix(i, j) = ij_matrix(i, j) + 1
+               END IF
+            END DO
+         END DO
+
+         ALLOCATE (ij_list_proc_temp(Ni_occupied*occ_j, 2))
+
+         elements_ij_proc = 0
+         DO i = 1, Ni_occupied
+            DO j = 1, Nj_occupied
+               IF (ij_matrix(i, j) == 0) CYCLE
+               elements_ij_proc = elements_ij_proc + 1
+               ij_list_proc_temp(elements_ij_proc, 1) = i
+               ij_list_proc_temp(elements_ij_proc, 2) = j
+            END DO
+         END DO
+         DEALLOCATE (ij_matrix)
+
+         ALLOCATE (ij_list_proc(elements_ij_proc, 2))
+         DO i = 1, elements_ij_proc
+            ij_list_proc(i, 1) = ij_list_proc_temp(i, 1)
+            ij_list_proc(i, 2) = ij_list_proc_temp(i, 2)
+         END DO
+         DEALLOCATE (ij_list_proc_temp)
+
+         IF (.NOT. alpha_beta_case) THEN
+            CALL mp2_canonical_direct_single_batch(Emp2, Emp2_Cou, Emp2_ex, mp2_env, qs_env, para_env_sub, &
+                                                   mp2_biel, dimen, C_i, Auto_i, i_batch_start, Ni_occupied, occ_i, &
+                                                   elements_ij_proc, ij_list_proc, Nj_occupied, j_batch_start)
+         ELSE
+            CALL mp2_canonical_direct_single_batch(Emp2, Emp2_Cou, Emp2_ex, mp2_env, qs_env, para_env_sub, &
+                                                   mp2_biel, dimen, C_i, Auto_i, i_batch_start, Ni_occupied, occ_i, &
+                                                   elements_ij_proc, ij_list_proc, Nj_occupied, j_batch_start, &
+                                                   occ_j, C_j, Auto_j)
+         END IF
+
+         i_batch_start = i_batch_start + Ni_occupied
+
+         DEALLOCATE (ij_list_proc)
+
+      END DO
+
+      CALL mp_sum(Emp2_Cou, para_env%group)
+      CALL mp_sum(Emp2_Ex, para_env%group)
+      CALL mp_sum(Emp2, para_env%group)
+
+      CALL cp_para_env_release(para_env_sub)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE mp2_direct_energy
 
 ! **************************************************************************************************
 !> \brief ...

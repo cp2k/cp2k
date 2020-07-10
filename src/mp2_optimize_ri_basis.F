@@ -28,18 +28,16 @@ MODULE mp2_optimize_ri_basis
                                               cp_logger_set,&
                                               cp_logger_type,&
                                               cp_rm_default_logger
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release
+   USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                              cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
-!
    USE hfx_types,                       ONLY: hfx_basis_info_type,&
                                               hfx_basis_type
    USE kinds,                           ONLY: dp
    USE libint_wrapper,                  ONLY: build_eri_size
    USE machine,                         ONLY: default_output_unit
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_comm_split_direct,&
-                                              mp_sum
+   USE message_passing,                 ONLY: mp_sum
    USE mp2_direct_method,               ONLY: mp2_canonical_direct_single_batch
    USE mp2_ri_libint,                   ONLY: libint_ri_mp2,&
                                               read_RI_basis_set,&
@@ -98,26 +96,26 @@ CONTAINS
                                      qs_env, para_env, &
                                      unit_nr, homo_beta, C_beta, Auto_beta)
 
-      REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T
-      INTEGER                                            :: dimen, natom, homo
-      TYPE(mp2_biel_type)                                :: mp2_biel
-      TYPE(mp2_type), POINTER                            :: mp2_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Auto
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: unit_nr
-      INTEGER, OPTIONAL                                  :: homo_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+      REAL(KIND=dp), INTENT(OUT)                         :: Emp2, Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T
+      INTEGER, INTENT(IN)                                :: dimen, natom, homo
+      TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
+      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: C
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Auto
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: C_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), OPTIONAL :: Auto_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Auto_beta
 
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_ri_basis_main'
 
-      INTEGER :: color_sub, comm_sub, dimen_RI, elements_ij_proc, handle, i, iiter, ikind, ipgf, &
-         iset, ishell, j, local_unit_nr, max_l_am, max_num_iter, ndof, nkind, number_groups, &
-         virtual, virtual_beta
+      INTEGER :: color_sub, dimen_RI, elements_ij_proc, handle, i, iiter, ikind, ipgf, iset, &
+         ishell, j, local_unit_nr, max_l_am, max_num_iter, ndof, nkind, number_groups, virtual, &
+         virtual_beta
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_list_proc, index_table_RI
       LOGICAL                                            :: hess_up, open_shell_case, reset_boundary
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: basis_was_assoc
@@ -234,9 +232,7 @@ CONTAINS
       ! create the para_env_sub
       number_groups = para_env%num_pe/mp2_env%mp2_num_proc
       color_sub = para_env%mepos/mp2_env%mp2_num_proc
-      CALL mp_comm_split_direct(para_env%group, comm_sub, color_sub)
-      NULLIFY (para_env_sub)
-      CALL cp_para_env_create(para_env_sub, comm_sub)
+      CALL cp_para_env_split(para_env_sub, para_env, color_sub)
 
       IF (para_env%ionode) THEN
          local_unit_nr = cp_logger_get_default_unit_nr(logger, local=.FALSE.)
@@ -354,12 +350,11 @@ CONTAINS
 
          ! check if we have to reset boundaries
          reset_boundary = .FALSE.
-         ! nreset=0
          i = 0
          DO ikind = 1, nkind
             DO iset = 1, RI_basis_parameter(ikind)%nset
                i = i + 1
-               CALL transf_val(lower_B(i), max_dev(i), pnew(i), expon)
+               expon = transf_val(lower_B(i), max_dev(i), pnew(i))
                IF (ABS(pnew(i)) > reset_edge .OR. expon < exp_limits(1, ikind) .OR. expon > exp_limits(2, ikind)) THEN
                   reset_boundary = .TRUE.
                   EXIT
@@ -490,16 +485,6 @@ CONTAINS
             hess_up = .FALSE.
          END IF
 
-         !XXXXXXXXXXXXX
-         ! DO i=1, ndof
-         !   IF(g(i)<0.0D+00) THEN
-         !     xi(i)=MAX(0.05,ABS(g(i)))
-         !   ELSE
-         !     xi(i)=-MAX(0.05,ABS(g(i)))
-         !   END IF
-         ! END DO
-         !XXXXXXXXXXXXX
-
          ! new direction
          xi(:) = -MATMUL(hessin, g)
 
@@ -596,29 +581,34 @@ CONTAINS
                                    para_env, para_env_sub, number_groups, color_sub, unit_nr, &
                                    p, lower_B, max_dev, &
                                    deriv)
-      REAL(KIND=dp)                                      :: Emp2, Emp2_AA, Emp2_BB, Emp2_AB, DI_ref
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: Integ_MP2, Integ_MP2_AA, Integ_MP2_BB, &
+      REAL(KIND=dp), INTENT(IN)                          :: Emp2
+      REAL(KIND=dp), INTENT(OUT)                         :: Emp2_AA, Emp2_BB, Emp2_AB, DI_ref
+      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: Integ_MP2, Integ_MP2_AA, Integ_MP2_BB, &
                                                             Integ_MP2_AB
-      REAL(KIND=dp)                                      :: eps
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER                                            :: nkind, natom, dimen, dimen_RI, homo, &
+      REAL(KIND=dp), INTENT(IN)                          :: eps
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      INTEGER, INTENT(IN)                                :: nkind, natom, dimen, dimen_RI, homo, &
                                                             virtual
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_table_RI
-      TYPE(mp2_biel_type)                                :: mp2_biel
-      TYPE(mp2_type), POINTER                            :: mp2_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Auto
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C
-      TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: RI_basis_parameter
-      TYPE(hfx_basis_info_type)                          :: RI_basis_info
-      TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_S0
-      LOGICAL                                            :: open_shell_case
-      INTEGER                                            :: homo_beta, virtual_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Auto_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C_beta
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
-      INTEGER                                            :: number_groups, color_sub, unit_nr
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: p, lower_B, max_dev, deriv
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: index_table_RI
+      TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
+      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Auto
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: C
+      TYPE(hfx_basis_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: RI_basis_parameter
+      TYPE(hfx_basis_info_type), INTENT(IN)              :: RI_basis_info
+      TYPE(hfx_basis_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: basis_S0
+      LOGICAL, INTENT(IN)                                :: open_shell_case
+      INTEGER, INTENT(IN)                                :: homo_beta, virtual_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Auto_beta
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: C_beta
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
+      INTEGER, INTENT(IN)                                :: number_groups, color_sub, unit_nr
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: p, lower_B, max_dev
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: deriv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_energy_func_der'
 
@@ -641,21 +631,16 @@ CONTAINS
             ideriv = ideriv + 1
             IF (MOD(ideriv, number_groups) /= color_sub) CYCLE
 
-            ! ! calculate the numerical derivative
-            ! ! The eps is the relative change of the exponent for the
-            ! ! calculation of the numerical derivative
-            ! CPPostcondition(RI_basis_parameter(ikind)%npgf(iset)==1,cp_failure_level,routineP,failure)
-            ! step=eps*RI_basis_parameter(ikind)%zet(1,iset)
-            ! temp=RI_basis_parameter(ikind)%zet(1,iset)+step
-            ! step=temp-RI_basis_parameter(ikind)%zet(1,iset)
-            ! RI_basis_parameter(ikind)%zet(1,iset)=RI_basis_parameter(ikind)%zet(1,iset)+step
+            ! calculate the numerical derivative
+            ! The eps is the relative change of the exponent for the
+            ! calculation of the numerical derivative
 
             ! in the new case eps is just the step length for calculating the numerical derivative
 
             CPASSERT(RI_basis_parameter(ikind)%npgf(iset) == 1)
             orig_basis_val = RI_basis_parameter(ikind)%zet(1, iset)
             temp = p(ideriv) + step
-            CALL transf_val(lower_B(ideriv), max_dev(ideriv), temp, new_basis_val)
+            new_basis_val = transf_val(lower_B(ideriv), max_dev(ideriv), temp)
             RI_basis_parameter(ikind)%zet(1, iset) = new_basis_val
 
             CALL calc_energy_func(Emp2, Emp2_AA, Emp2_BB, Emp2_AB, Emp2_RI, DRI, DI, &
@@ -727,28 +712,31 @@ CONTAINS
                                RI_basis_parameter, RI_basis_info, basis_S0, &
                                open_shell_case, homo_beta, virtual_beta, Auto_beta, C_beta, para_env, unit_nr, &
                                no_write)
-      REAL(KIND=dp)                                      :: Emp2, Emp2_AA, Emp2_BB, Emp2_AB, &
-                                                            Emp2_RI, DRI, DI
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: Integ_MP2, Integ_MP2_AA, Integ_MP2_BB, &
+      REAL(KIND=dp), INTENT(IN)                          :: Emp2, Emp2_AA, Emp2_BB, Emp2_AB
+      REAL(KIND=dp), INTENT(OUT)                         :: Emp2_RI, DRI, DI
+      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: Integ_MP2, Integ_MP2_AA, Integ_MP2_BB, &
                                                             Integ_MP2_AB
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER                                            :: natom, dimen, dimen_RI, homo, virtual
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_table_RI
-      TYPE(mp2_biel_type)                                :: mp2_biel
-      TYPE(mp2_type), POINTER                            :: mp2_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Auto
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C
-      TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: RI_basis_parameter
-      TYPE(hfx_basis_info_type)                          :: RI_basis_info
-      TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_S0
-      LOGICAL                                            :: open_shell_case
-      INTEGER                                            :: homo_beta, virtual_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Auto_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C_beta
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: unit_nr
-      LOGICAL                                            :: no_write
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      INTEGER, INTENT(IN)                                :: natom, dimen, dimen_RI, homo, virtual
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: index_table_RI
+      TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
+      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Auto
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: C
+      TYPE(hfx_basis_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: RI_basis_parameter
+      TYPE(hfx_basis_info_type), INTENT(IN)              :: RI_basis_info
+      TYPE(hfx_basis_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: basis_S0
+      LOGICAL, INTENT(IN)                                :: open_shell_case
+      INTEGER, INTENT(IN)                                :: homo_beta, virtual_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Auto_beta
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: C_beta
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, INTENT(IN)                                :: no_write
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_energy_func'
 
@@ -823,10 +811,12 @@ CONTAINS
 !> \param max_dev ...
 !> \param max_rel_dev ...
 ! **************************************************************************************************
-   SUBROUTINE init_transf(nkind, RI_basis_parameter, lower_B, max_dev, max_rel_dev)
-      INTEGER                                            :: nkind
-      TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: RI_basis_parameter
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: lower_B, max_dev, max_rel_dev
+   PURE SUBROUTINE init_transf(nkind, RI_basis_parameter, lower_B, max_dev, max_rel_dev)
+      INTEGER, INTENT(IN)                                :: nkind
+      TYPE(hfx_basis_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: RI_basis_parameter
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: lower_B, max_dev
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: max_rel_dev
 
       INTEGER                                            :: ikind, ipos, iset
 
@@ -850,9 +840,11 @@ CONTAINS
 !> \param p ...
 ! **************************************************************************************************
    SUBROUTINE p2basis(nkind, RI_basis_parameter, Lower_B, max_dev, p)
-      INTEGER                                            :: nkind
-      TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: RI_basis_parameter
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Lower_B, max_dev, p
+      INTEGER, INTENT(IN)                                :: nkind
+      TYPE(hfx_basis_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: RI_basis_parameter
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: Lower_B, max_dev, p
 
       INTEGER                                            :: ikind, ipos, iset
       REAL(KIND=dp)                                      :: valout
@@ -861,7 +853,7 @@ CONTAINS
       DO ikind = 1, nkind
          DO iset = 1, RI_basis_parameter(ikind)%nset
             ipos = ipos + 1
-            CALL transf_val(lower_B(ipos), max_dev(ipos), p(ipos), valout)
+            valout = transf_val(lower_B(ipos), max_dev(ipos), p(ipos))
             RI_basis_parameter(ikind)%zet(1, iset) = valout
          END DO
       END DO
@@ -882,11 +874,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE reset_basis(nkind, ndof, RI_basis_parameter, reset_edge, &
                           pnew, lower_B, max_dev, max_rel_dev, exp_limits)
-      INTEGER                                            :: nkind, ndof
-      TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: RI_basis_parameter
-      REAL(KIND=dp)                                      :: reset_edge
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pnew, Lower_B, max_dev, max_rel_dev
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: exp_limits
+      INTEGER, INTENT(IN)                                :: nkind, ndof
+      TYPE(hfx_basis_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: RI_basis_parameter
+      REAL(KIND=dp), INTENT(IN)                          :: reset_edge
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: pnew, Lower_B, max_dev, max_rel_dev
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: exp_limits
 
       INTEGER                                            :: am_max, iexpo, ikind, ipos, ipos_p, &
                                                             iset, la
@@ -956,7 +949,7 @@ CONTAINS
                ipos_p = ipos_p + 1
                IF (ABS(old_pnew(ipos_p)) >= pmax) pmax = ABS(old_pnew(ipos_p))
                ! check if any of the exponents go out of range
-               CALL transf_val(old_lower_B(ipos_p), old_max_dev(ipos_p), old_pnew(ipos_p), expo)
+               expo = transf_val(old_lower_B(ipos_p), old_max_dev(ipos_p), old_pnew(ipos_p))
                IF (expo < exp_limits(1, ikind) .OR. expo > exp_limits(2, ikind)) has_to_be_changed(la) = .TRUE.
             END DO
             IF (pmax > reset_edge) has_to_be_changed(la) = .TRUE.
@@ -1046,14 +1039,15 @@ CONTAINS
                                  fact, fact2, calc_ex, &
                                  MOenerg, MOenerg_beta, abij, &
                                  Lai, Lai_beta, para_env)
-      REAL(KIND=dp)                                      :: DI, Emp2_RI, DRI, Emp2
-      INTEGER                                            :: homo, homo_beta, virtual, virtual_beta
-      REAL(KIND=dp)                                      :: fact, fact2
-      LOGICAL                                            :: calc_ex
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: MOenerg, MOenerg_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: abij
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Lai, Lai_beta
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp), INTENT(OUT)                         :: DI, Emp2_RI, DRI
+      REAL(KIND=dp), INTENT(IN)                          :: Emp2
+      INTEGER, INTENT(IN)                                :: homo, homo_beta, virtual, virtual_beta
+      REAL(KIND=dp), INTENT(IN)                          :: fact, fact2
+      LOGICAL, INTENT(IN)                                :: calc_ex
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: MOenerg, MOenerg_beta
+      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: abij
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Lai, Lai_beta
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       INTEGER                                            :: a, b, i, ij_counter, j
       REAL(KIND=dp)                                      :: t_iajb, t_iajb_RI
@@ -1108,11 +1102,11 @@ CONTAINS
 !> \param elements_ij_proc ...
 !> \param ij_list_proc ...
 ! **************************************************************************************************
-   SUBROUTINE calc_elem_ij_proc(homo, homo_beta, para_env, elements_ij_proc, ij_list_proc)
-      INTEGER                                            :: homo, homo_beta
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: elements_ij_proc
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_list_proc
+   PURE SUBROUTINE calc_elem_ij_proc(homo, homo_beta, para_env, elements_ij_proc, ij_list_proc)
+      INTEGER, INTENT(IN)                                :: homo, homo_beta
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      INTEGER, INTENT(OUT)                               :: elements_ij_proc
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: ij_list_proc
 
       INTEGER                                            :: i, ij_counter, j
 
@@ -1147,17 +1141,18 @@ CONTAINS
 !> \param lower_B ...
 !> \param max_dev ...
 !> \param valin ...
-!> \param valout ...
+!> \return ...
 ! **************************************************************************************************
-   SUBROUTINE transf_val(lower_B, max_dev, valin, valout)
-      REAL(KIND=dp)                                      :: lower_B, max_dev, valin, valout
+   ELEMENTAL FUNCTION transf_val(lower_B, max_dev, valin) RESULT(valout)
+      REAL(KIND=dp), INTENT(IN)                          :: lower_B, max_dev, valin
+      REAL(KIND=dp)                                      :: valout
 
       REAL(KIND=dp), PARAMETER                           :: alpha = 2.633915794_dp
 
       valout = 0.0_dp
       valout = lower_B + max_dev/(1.0_dp + EXP(-alpha*valin))
 
-   END SUBROUTINE
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1168,11 +1163,12 @@ CONTAINS
 !> \param basis_was_assoc ...
 ! **************************************************************************************************
    SUBROUTINE generate_RI_init_basis(qs_env, mp2_env, nkind, max_rel_dev_output, basis_was_assoc)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp2_type), POINTER                            :: mp2_env
-      INTEGER                                            :: nkind
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: max_rel_dev_output
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: basis_was_assoc
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
+      INTEGER, INTENT(OUT)                               :: nkind
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: max_rel_dev_output
+      LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: basis_was_assoc
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_RI_init_basis'
 
@@ -1517,7 +1513,6 @@ CONTAINS
          NULLIFY (tmp_basis)
          CALL create_ri_basis(tmp_basis, RI_nset, RI_l_expo, RI_exponents)
          CALL add_basis_set_to_container(qs_kind_set(ikind)%basis_sets, tmp_basis, "RI_AUX")
-!d    CALL copy_gto_basis_set(tmp_basis,qs_kind_set(ikind)%ri_aux_basis_set)
 
          DEALLOCATE (RI_exponents)
          DEALLOCATE (RI_l_expo)
@@ -1556,9 +1551,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_ri_basis(gto_basis_set, RI_nset, RI_l_expo, RI_exponents)
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
-      INTEGER                                            :: RI_nset
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: RI_l_expo
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: RI_exponents
+      INTEGER, INTENT(IN)                                :: RI_nset
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: RI_l_expo
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: RI_exponents
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_ri_basis'
 

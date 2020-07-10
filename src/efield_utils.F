@@ -21,7 +21,7 @@ MODULE efield_utils
                                               custom_env,&
                                               gaussian_env,&
                                               ramp_env
-   USE kahan_sum,                       ONLY: accurate_sum
+   USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_sum
@@ -107,7 +107,7 @@ CONTAINS
       END DO
       efield_ener = 0.0_dp
       DO i = 1, dft_control%nspins
-         efield_ener = efield_ener + accurate_sum(v_efield_rspace%pw%cr3d*rho_r(i)%pw%cr3d)*dvol
+         efield_ener = efield_ener + accurate_dot_product(v_efield_rspace%pw%cr3d, rho_r(i)%pw%cr3d)*dvol
       END DO
       CALL mp_sum(efield_ener, para_env%group)
       energy%efield = efield_ener

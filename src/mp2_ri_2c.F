@@ -50,8 +50,8 @@ MODULE mp2_ri_2c
         cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_indxg2p, cp_fm_p_type, &
         cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                              cp_para_env_release
+   USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                              cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_release, &
@@ -74,9 +74,9 @@ MODULE mp2_ri_2c
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE libint_2c_3c,                    ONLY: libint_potential_type
-   USE message_passing,                 ONLY: mp_alltoall,&
+   USE message_passing,                 ONLY: mp_allgather,&
+                                              mp_alltoall,&
                                               mp_bcast,&
-                                              mp_comm_split_direct,&
                                               mp_sendrecv,&
                                               mp_sum
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
@@ -714,10 +714,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_2c_integrals'
 
-      INTEGER :: best_group_size, color_L, comm_exchange, comm_L, group_size, handle, handle2, i, &
-         i_global, iatom, iiB, ikind, iproc, j_global, jjB, natom, ncol_local, nkind, nrow_local, &
-         nsgf, potential_type, proc_receive, proc_receive_static, proc_send, proc_send_static, &
-         proc_shift, rec_L_end, rec_L_size, rec_L_start, strat_group_size, sub_sub_color
+      INTEGER :: best_group_size, color_L, group_size, handle, handle2, i, i_global, iatom, iiB, &
+         ikind, iproc, j_global, jjB, natom, ncol_local, nkind, nrow_local, nsgf, potential_type, &
+         proc_receive, proc_receive_static, proc_send, proc_send_static, proc_shift, rec_L_end, &
+         rec_L_size, rec_L_start, strat_group_size, sub_sub_color
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: my_do_im_time
@@ -829,9 +829,7 @@ CONTAINS
 
       ! create the L group
       color_L = para_env%mepos/best_group_size
-      CALL mp_comm_split_direct(para_env%group, comm_L, color_L)
-      NULLIFY (para_env_L)
-      CALL cp_para_env_create(para_env_L, comm_L)
+      CALL cp_para_env_split(para_env_L, para_env, color_L)
 
       ! create the blacs_L
       NULLIFY (blacs_env_L)
@@ -840,9 +838,7 @@ CONTAINS
       ! now create the exchange group (for communication only between members not belonging to the
       ! same group
       sub_sub_color = para_env_sub%mepos
-      CALL mp_comm_split_direct(para_env_L%group, comm_exchange, sub_sub_color)
-      NULLIFY (para_env_exchange)
-      CALL cp_para_env_create(para_env_exchange, comm_exchange)
+      CALL cp_para_env_split(para_env_exchange, para_env_L, sub_sub_color)
 
       ! crate the proc maps
       ALLOCATE (proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe - 1))
@@ -927,9 +923,7 @@ CONTAINS
 
       ! create the new group for the mp_sum of the local data
       sub_sub_color = para_env_L%mepos
-      CALL mp_comm_split_direct(para_env%group, comm_exchange, sub_sub_color)
-      NULLIFY (para_env_exchange)
-      CALL cp_para_env_create(para_env_exchange, comm_exchange)
+      CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
 
       CALL mp_sum(fm_matrix_L%local_data, para_env_exchange%group)
 
@@ -988,8 +982,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_root_with_svd'
 
-      INTEGER                                            :: comm_exchange, group_size_L, handle, ii, &
-                                                            needed_evals, nrow, pos_max
+      INTEGER                                            :: group_size_L, handle, ii, needed_evals, &
+                                                            nrow, pos_max(1)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_eval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       TYPE(cp_fm_type), POINTER                          :: evecs
@@ -1039,31 +1033,22 @@ CONTAINS
       ! Step 1: Get a communicator connecting processes with same id within subgroups
       ! use that group_size_L is divisible by the total number of processes (see above)
       group_size_L = para_env%num_pe/matrix%matrix_struct%para_env%num_pe
-      CALL mp_comm_split_direct(para_env%group, comm_exchange, matrix%matrix_struct%para_env%mepos)
-      NULLIFY (para_env_exchange)
-      CALL cp_para_env_create(para_env_exchange, comm_exchange)
+      CALL cp_para_env_split(para_env_exchange, para_env, matrix%matrix_struct%para_env%mepos)
 
       ALLOCATE (num_eval(0:group_size_L - 1))
-      num_eval = 0
-      num_eval(para_env_exchange%mepos) = num_small_evals
-      CALL mp_sum(num_eval, para_env_exchange%group)
+      CALL mp_allgather(num_small_evals, num_eval, para_env_exchange%group)
 
       num_small_evals = MINVAL(num_eval)
 
       IF (num_small_evals /= MAXVAL(num_eval)) THEN
          ! Step 2: Get position of maximum value
-         DO ii = 0, group_size_L - 1
-            IF (num_eval(ii) == num_small_evals) THEN
-               pos_max = ii
-               EXIT
-            END IF
-         END DO
-         num_small_evals = num_eval(pos_max)
+         pos_max = MAXLOC(num_eval)
+         num_small_evals = num_eval(pos_max(1))
          needed_evals = nrow - num_small_evals
 
          ! Step 3: Broadcast your local data to all other processes
-         CALL mp_bcast(evecs%local_data, pos_max, para_env_exchange%group)
-         CALL mp_bcast(cond_num, pos_max, para_env_exchange%group)
+         CALL mp_bcast(evecs%local_data, pos_max(1), para_env_exchange%group)
+         CALL mp_bcast(cond_num, pos_max(1), para_env_exchange%group)
       END IF
 
       DEALLOCATE (num_eval)

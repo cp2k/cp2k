@@ -60,7 +60,8 @@ MODULE qs_ks_utils
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kahan_sum,                       ONLY: accurate_sum
+   USE kahan_sum,                       ONLY: accurate_dot_product,&
+                                              accurate_sum
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -1693,7 +1694,7 @@ CONTAINS
       IF (do_zmp_read) THEN
          CALL pw_copy(qs_env%external_vxc%pw, v_rspace_new(1)%pw)
          exc = 0.0_dp
-         exc = accurate_sum(v_rspace_new(1)%pw%cr3d*rho_r(1)%pw%cr3d)* &
+         exc = accurate_dot_product(v_rspace_new(1)%pw%cr3d, rho_r(1)%pw%cr3d)* &
                v_rspace_new(1)%pw%pw_grid%dvol
       ELSE
          CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
@@ -1816,7 +1817,7 @@ CONTAINS
                v_rspace_embed(ispin)%pw%cr3d(:, :, :) - qs_env%spin_embed_pot%pw%cr3d
          ENDIF
          ! Integrate the density*potential
-         embed_corr_local = accurate_sum(v_rspace_embed(ispin)%pw%cr3d*rho_r(ispin)%pw%cr3d)* &
+         embed_corr_local = accurate_dot_product(v_rspace_embed(ispin)%pw%cr3d, rho_r(ispin)%pw%cr3d)* &
                             v_rspace_embed(ispin)%pw%pw_grid%dvol
 
          IF (v_rspace_embed(ispin)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN

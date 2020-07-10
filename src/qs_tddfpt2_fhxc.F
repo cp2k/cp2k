@@ -21,6 +21,7 @@ MODULE qs_tddfpt2_fhxc
    USE pw_types,                        ONLY: pw_p_type
    USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_kernel_types,                 ONLY: full_kernel_env_type
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get
    USE qs_tddfpt2_densities,            ONLY: tddfpt_construct_aux_fit_density
@@ -29,8 +30,7 @@ MODULE qs_tddfpt2_fhxc
    USE qs_tddfpt2_stda_types,           ONLY: stda_env_type
    USE qs_tddfpt2_stda_utils,           ONLY: stda_calculate_kernel
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
-   USE qs_tddfpt2_types,                ONLY: full_kernel_env_type,&
-                                              tddfpt_work_matrices
+   USE qs_tddfpt2_types,                ONLY: tddfpt_work_matrices
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

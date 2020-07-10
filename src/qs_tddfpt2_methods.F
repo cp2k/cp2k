@@ -41,6 +41,9 @@ MODULE qs_tddfpt2_methods
    USE machine,                         ONLY: m_flush
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kernel_methods,               ONLY: create_kernel_env
+   USE qs_kernel_types,                 ONLY: full_kernel_env_type,&
+                                              release_kernel_env
    USE qs_mo_types,                     ONLY: mo_set_p_type
    USE qs_scf_methods,                  ONLY: eigensolver
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -63,10 +66,12 @@ MODULE qs_tddfpt2_methods
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_sub_env_init,&
                                               tddfpt_sub_env_release,&
                                               tddfpt_subgroup_env_type
-   USE qs_tddfpt2_types,                ONLY: &
-        full_kernel_env_type, stda_create_work_matrices, tddfpt_create_kernel_env, &
-        tddfpt_create_work_matrices, tddfpt_ground_state_mos, tddfpt_kernel_env_type, &
-        tddfpt_release_kernel_env, tddfpt_release_work_matrices, tddfpt_work_matrices
+   USE qs_tddfpt2_types,                ONLY: kernel_env_type,&
+                                              stda_create_work_matrices,&
+                                              tddfpt_create_work_matrices,&
+                                              tddfpt_ground_state_mos,&
+                                              tddfpt_release_work_matrices,&
+                                              tddfpt_work_matrices
    USE qs_tddfpt2_utils,                ONLY: tddfpt_guess_vectors,&
                                               tddfpt_init_mos,&
                                               tddfpt_oecorr,&
@@ -121,6 +126,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(full_kernel_env_type), TARGET                 :: full_kernel_env, kernel_env_admm_aux
+      TYPE(kernel_env_type)                              :: kernel_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: tddfpt_print_section, tddfpt_section, &
@@ -129,7 +135,6 @@ CONTAINS
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
-      TYPE(tddfpt_kernel_env_type)                       :: kernel_env
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work_matrices
 
@@ -209,10 +214,10 @@ CONTAINS
 
          IF (do_admm) THEN
             ! Full kernel with ADMM
-            CALL tddfpt_create_kernel_env(kernel_env=full_kernel_env, &
-                                          rho_struct_sub=work_matrices%rho_orb_struct_sub, &
-                                          xc_section=admm_env%xc_section_primary, &
-                                          is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
+            CALL create_kernel_env(kernel_env=full_kernel_env, &
+                                   rho_struct_sub=work_matrices%rho_orb_struct_sub, &
+                                   xc_section=admm_env%xc_section_primary, &
+                                   is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
 
             CALL tddfpt_construct_aux_fit_density(rho_orb_struct=work_matrices%rho_orb_struct_sub, &
                                                   rho_aux_fit_struct=work_matrices%rho_aux_fit_struct_sub, &
@@ -221,18 +226,18 @@ CONTAINS
                                                   wfm_rho_aux_fit=work_matrices%rho_ao_aux_fit_fm_sub, &
                                                   wfm_aux_orb=work_matrices%wfm_aux_orb_sub)
 
-            CALL tddfpt_create_kernel_env(kernel_env=kernel_env_admm_aux, &
-                                          rho_struct_sub=work_matrices%rho_aux_fit_struct_sub, &
-                                          xc_section=admm_env%xc_section_aux, &
-                                          is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
+            CALL create_kernel_env(kernel_env=kernel_env_admm_aux, &
+                                   rho_struct_sub=work_matrices%rho_aux_fit_struct_sub, &
+                                   xc_section=admm_env%xc_section_aux, &
+                                   is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
             kernel_env%full_kernel => full_kernel_env
             kernel_env%admm_kernel => kernel_env_admm_aux
          ELSE
             ! Full kernel
-            CALL tddfpt_create_kernel_env(kernel_env=full_kernel_env, &
-                                          rho_struct_sub=work_matrices%rho_orb_struct_sub, &
-                                          xc_section=xc_section, &
-                                          is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
+            CALL create_kernel_env(kernel_env=full_kernel_env, &
+                                   rho_struct_sub=work_matrices%rho_orb_struct_sub, &
+                                   xc_section=xc_section, &
+                                   is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
             kernel_env%full_kernel => full_kernel_env
             NULLIFY (kernel_env%admm_kernel)
          END IF
@@ -390,8 +395,8 @@ CONTAINS
       DEALLOCATE (evects, S_evects, evals)
 
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
-         IF (do_admm) CALL tddfpt_release_kernel_env(kernel_env%admm_kernel)
-         CALL tddfpt_release_kernel_env(kernel_env%full_kernel)
+         IF (do_admm) CALL release_kernel_env(kernel_env%admm_kernel)
+         CALL release_kernel_env(kernel_env%full_kernel)
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
          CALL deallocate_stda_env(stda_kernel)
       ELSE

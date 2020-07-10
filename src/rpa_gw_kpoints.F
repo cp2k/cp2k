@@ -35,11 +35,10 @@ MODULE rpa_gw_kpoints
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_create, dbcsr_dot, dbcsr_get_block_p, dbcsr_get_num_blocks, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, dbcsr_set, &
-        dbcsr_type
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
@@ -48,14 +47,12 @@ MODULE rpa_gw_kpoints
                                               z_one,&
                                               z_zero
    USE mathlib,                         ONLY: invmat
-   USE message_passing,                 ONLY: mp_sum
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE rpa_im_time,                     ONLY: compute_transl_dm
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -95,20 +92,22 @@ CONTAINS
                                            ikp, tj, tau_tj, weights_cos_tf_w_to_t, ikp_local, &
                                            para_env, kpoints, qs_env, wkp_W, mat_SinvVSinv, do_W_and_not_V)
 
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W_tau
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_L_re, fm_mat_L_im
-      INTEGER                                            :: dimen_RI, num_integ_points, jquad, ikp
-      REAL(KIND=dp), DIMENSION(:)                        :: tj
-      REAL(KIND=dp), DIMENSION(0:num_integ_points)       :: tau_tj
-      REAL(KIND=dp), DIMENSION(:, :)                     :: weights_cos_tf_w_to_t
-      INTEGER, DIMENSION(:)                              :: ikp_local
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp_W
-      TYPE(dbcsr_p_type)                                 :: mat_SinvVSinv
-      LOGICAL                                            :: do_W_and_not_V
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: fm_mat_W_tau
+      TYPE(cp_cfm_type), INTENT(IN), POINTER             :: cfm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_L_re, fm_mat_L_im
+      INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, ikp
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tj
+      REAL(KIND=dp), DIMENSION(0:num_integ_points), &
+         INTENT(IN)                                      :: tau_tj
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: weights_cos_tf_w_to_t
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: wkp_W
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
+      LOGICAL, INTENT(IN)                                :: do_W_and_not_V
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Wc_real_space_tau_GW'
 
@@ -402,7 +401,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fm_mat_work_global_to_mat_SinvVSinv(mat_SinvVSinv, fm_mat_work_global)
 
-      TYPE(dbcsr_p_type)                                 :: mat_SinvVSinv
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
       TYPE(cp_fm_type), POINTER                          :: fm_mat_work_global
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mat_work_global_to_mat_SinvVSinv'
@@ -445,13 +444,15 @@ CONTAINS
                                    dimen_RI, num_integ_points, jquad, &
                                    ikp, tj, tau_tj, weights_cos_tf_w_to_t)
 
-      TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: cfm_mat_W_kp_tau
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_L_re, fm_mat_L_im
-      INTEGER                                            :: dimen_RI, num_integ_points, jquad, ikp
-      REAL(KIND=dp), DIMENSION(:)                        :: tj
-      REAL(KIND=dp), DIMENSION(0:num_integ_points)       :: tau_tj
-      REAL(KIND=dp), DIMENSION(:, :)                     :: weights_cos_tf_w_to_t
+      TYPE(cp_cfm_p_type), DIMENSION(:, :), INTENT(IN), &
+         POINTER                                         :: cfm_mat_W_kp_tau
+      TYPE(cp_cfm_type), INTENT(IN), POINTER             :: cfm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_L_re, fm_mat_L_im
+      INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, ikp
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tj
+      REAL(KIND=dp), DIMENSION(0:num_integ_points), &
+         INTENT(IN)                                      :: tau_tj
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: weights_cos_tf_w_to_t
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Wc_kp_tau_GW'
 
@@ -536,10 +537,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_wkp_W(wkp_W, kpoints, h_mat, h_inv, exp_kpoints, periodic)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp_W
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_mat, h_inv
-      REAL(KIND=dp)                                      :: exp_kpoints
-      INTEGER, DIMENSION(3)                              :: periodic
+      TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_mat, h_inv
+      REAL(KIND=dp), INTENT(INOUT)                       :: exp_kpoints
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: periodic
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_wkp_W'
 
@@ -729,7 +730,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE own_cfm_upper_to_full(cfm_mat_Q, cfm_mat_work)
 
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q, cfm_mat_work
+      TYPE(cp_cfm_type), INTENT(IN), POINTER             :: cfm_mat_Q, cfm_mat_work
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'own_cfm_upper_to_full'
 
@@ -762,503 +763,6 @@ CONTAINS
       CALL cp_cfm_transpose(cfm_mat_Q, 'C', cfm_mat_work)
 
       CALL cp_cfm_scale_and_add(z_one, cfm_mat_Q, z_one, cfm_mat_work)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat_contr_W_re ...
-!> \param mat_contr_W_im ...
-!> \param n_level_gw ...
-!> \param jquad ...
-!> \param gw_corr_lev_occ ...
-!> \param homo ...
-!> \param mat_contr_gf_occ_re ...
-!> \param mat_contr_gf_occ_im ...
-!> \param mat_contr_gf_virt_re ...
-!> \param mat_contr_gf_virt_im ...
-!> \param vec_Sigma_c_gw_pos_tau ...
-!> \param vec_Sigma_c_gw_neg_tau ...
-!> \param vec_Sigma_x_gw ...
-!> \param ikp ...
-!> \param cycle_R1_S2_n_level ...
-!> \param cycle_R1_plus_S2_n_level ...
-!> \param eps_filter ...
-!> \param i_cell_R1_plus_S2 ...
-!> \param i_cell_S2 ...
-!> \param start_jquad ...
-! **************************************************************************************************
-   SUBROUTINE trace_for_self_ener(mat_contr_W_re, mat_contr_W_im, n_level_gw, jquad, &
-                                  gw_corr_lev_occ, homo, &
-                                  mat_contr_gf_occ_re, mat_contr_gf_occ_im, &
-                                  mat_contr_gf_virt_re, mat_contr_gf_virt_im, &
-                                  vec_Sigma_c_gw_pos_tau, vec_Sigma_c_gw_neg_tau, &
-                                  vec_Sigma_x_gw, ikp, &
-                                  cycle_R1_S2_n_level, cycle_R1_plus_S2_n_level, &
-                                  eps_filter, i_cell_R1_plus_S2, i_cell_S2, &
-                                  start_jquad)
-
-      TYPE(dbcsr_type), POINTER                          :: mat_contr_W_re, mat_contr_W_im
-      INTEGER                                            :: n_level_gw, jquad, gw_corr_lev_occ, homo
-      TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ_re, &
-                                                            mat_contr_gf_occ_im, &
-                                                            mat_contr_gf_virt_re, &
-                                                            mat_contr_gf_virt_im
-      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: vec_Sigma_c_gw_pos_tau, &
-                                                            vec_Sigma_c_gw_neg_tau
-      REAL(KIND=dp), DIMENSION(:)                        :: vec_Sigma_x_gw
-      INTEGER                                            :: ikp
-      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :)        :: cycle_R1_S2_n_level
-      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: cycle_R1_plus_S2_n_level
-      REAL(KIND=dp)                                      :: eps_filter
-      INTEGER                                            :: i_cell_R1_plus_S2, i_cell_S2, start_jquad
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_for_self_ener'
-
-      INTEGER                                            :: handle, n_level_gw_ref
-      REAL(KIND=dp) :: trace_neg_tau_im_1, trace_neg_tau_im_2, trace_neg_tau_re_1, &
-         trace_neg_tau_re_2, trace_pos_tau_im_1, trace_pos_tau_im_2, trace_pos_tau_re_1, &
-         trace_pos_tau_re_2
-
-      CALL timeset(routineN, handle)
-
-      CALL dbcsr_dot(mat_contr_gf_occ_re, &
-                     mat_contr_W_re, &
-                     trace_neg_tau_re_1)
-
-      CALL dbcsr_dot(mat_contr_gf_occ_im, &
-                     mat_contr_W_im, &
-                     trace_neg_tau_re_2)
-
-      CALL dbcsr_dot(mat_contr_gf_occ_re, &
-                     mat_contr_W_im, &
-                     trace_neg_tau_im_1)
-
-      CALL dbcsr_dot(mat_contr_gf_occ_im, &
-                     mat_contr_W_re, &
-                     trace_neg_tau_im_2)
-
-      IF (ABS(trace_neg_tau_re_1) + ABS(trace_neg_tau_re_2) + ABS(trace_neg_tau_im_1) + &
-          ABS(trace_neg_tau_im_2) < eps_filter) THEN
-         cycle_R1_S2_n_level(i_cell_R1_plus_S2, i_cell_S2, n_level_gw, jquad) = .TRUE.
-      END IF
-
-      IF (ikp == 1 .AND. jquad == start_jquad .AND. i_cell_S2 == 1) THEN
-         cycle_R1_plus_S2_n_level(i_cell_R1_plus_S2, n_level_gw, jquad) = .TRUE.
-      END IF
-
-      IF (ABS(trace_neg_tau_re_1) + ABS(trace_neg_tau_re_2) + ABS(trace_neg_tau_im_1) + &
-          ABS(trace_neg_tau_im_2) > eps_filter) THEN
-         cycle_R1_plus_S2_n_level(i_cell_R1_plus_S2, n_level_gw, jquad) = .FALSE.
-      END IF
-
-      IF (jquad == 0) THEN
-
-         n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
-
-         vec_Sigma_x_gw(n_level_gw_ref) = vec_Sigma_x_gw(n_level_gw_ref) + trace_neg_tau_re_1 - trace_neg_tau_re_2
-
-      ELSE
-
-         vec_Sigma_c_gw_neg_tau(n_level_gw, jquad) = vec_Sigma_c_gw_neg_tau(n_level_gw, jquad) + &
-                                                     CMPLX(trace_neg_tau_re_1 - trace_neg_tau_re_2, &
-                                                           trace_neg_tau_im_1 + trace_neg_tau_im_2, dp)
-
-      END IF
-
-      CALL dbcsr_dot(mat_contr_gf_virt_re, &
-                     mat_contr_W_re, &
-                     trace_pos_tau_re_1)
-
-      CALL dbcsr_dot(mat_contr_gf_virt_im, &
-                     mat_contr_W_im, &
-                     trace_pos_tau_re_2)
-
-      CALL dbcsr_dot(mat_contr_gf_virt_re, &
-                     mat_contr_W_im, &
-                     trace_pos_tau_im_1)
-
-      CALL dbcsr_dot(mat_contr_gf_virt_im, &
-                     mat_contr_W_re, &
-                     trace_pos_tau_im_2)
-
-      IF (jquad > 0) THEN
-
-         vec_Sigma_c_gw_pos_tau(n_level_gw, jquad) = vec_Sigma_c_gw_pos_tau(n_level_gw, jquad) + &
-                                                     CMPLX(trace_pos_tau_re_1 - trace_pos_tau_re_2, &
-                                                           trace_pos_tau_im_1 + trace_pos_tau_im_2, dp)
-
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat_I_muP_occ_re ...
-!> \param mat_I_muP_virt_re ...
-!> \param mat_I_muP_occ_im ...
-!> \param mat_I_muP_virt_im ...
-!> \param mat_contr_gf_occ_re ...
-!> \param mat_contr_gf_occ_im ...
-!> \param mat_contr_gf_virt_re ...
-!> \param mat_contr_gf_virt_im ...
-!> \param index_to_cell_3c ...
-!> \param kpoints ...
-!> \param ikp ...
-!> \param x_cell_R1 ...
-!> \param y_cell_R1 ...
-!> \param z_cell_R1 ...
-! **************************************************************************************************
-   SUBROUTINE trafo_I_T_R1_plus_S2_to_M_R1_S2(mat_I_muP_occ_re, mat_I_muP_virt_re, &
-                                              mat_I_muP_occ_im, mat_I_muP_virt_im, &
-                                              mat_contr_gf_occ_re, mat_contr_gf_occ_im, &
-                                              mat_contr_gf_virt_re, mat_contr_gf_virt_im, &
-                                              index_to_cell_3c, kpoints, ikp, &
-                                              x_cell_R1, y_cell_R1, z_cell_R1)
-
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_I_muP_occ_re, mat_I_muP_virt_re, &
-                                                            mat_I_muP_occ_im, mat_I_muP_virt_im
-      TYPE(dbcsr_type), POINTER                          :: mat_contr_gf_occ_re, &
-                                                            mat_contr_gf_occ_im, &
-                                                            mat_contr_gf_virt_re, &
-                                                            mat_contr_gf_virt_im
-      INTEGER, DIMENSION(:, :)                           :: index_to_cell_3c
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER                                            :: ikp, x_cell_R1, y_cell_R1, z_cell_R1
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'trafo_I_T_R1_plus_S2_to_M_R1_S2'
-
-      INTEGER                                            :: handle, i_cell_T, num_cells_3c, xcell, &
-                                                            ycell, zcell
-      REAL(KIND=dp)                                      :: arg, coskl, sinkl
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-
-      CALL timeset(routineN, handle)
-
-      num_cells_3c = SIZE(mat_I_muP_occ_re)
-      CALL get_kpoint_info(kpoints, xkp=xkp)
-
-      CALL dbcsr_set(mat_contr_gf_occ_re, 0.0_dp)
-      CALL dbcsr_set(mat_contr_gf_occ_im, 0.0_dp)
-      CALL dbcsr_set(mat_contr_gf_virt_re, 0.0_dp)
-      CALL dbcsr_set(mat_contr_gf_virt_im, 0.0_dp)
-
-      DO i_cell_T = 1, num_cells_3c
-
-         xcell = index_to_cell_3c(1, i_cell_T) - x_cell_R1
-         ycell = index_to_cell_3c(2, i_cell_T) - y_cell_R1
-         zcell = index_to_cell_3c(3, i_cell_T) - z_cell_R1
-         arg = REAL(xcell, dp)*xkp(1, ikp) + REAL(ycell, dp)*xkp(2, ikp) + REAL(zcell, dp)*xkp(3, ikp)
-         coskl = COS(twopi*arg)
-         sinkl = SIN(twopi*arg)
-
-         CALL dbcsr_scale_and_add_local(mat_contr_gf_occ_re, mat_I_muP_occ_re(i_cell_T)%matrix, coskl)
-         CALL dbcsr_scale_and_add_local(mat_contr_gf_occ_re, mat_I_muP_occ_im(i_cell_T)%matrix, -sinkl)
-         CALL dbcsr_scale_and_add_local(mat_contr_gf_occ_im, mat_I_muP_occ_re(i_cell_T)%matrix, sinkl)
-         CALL dbcsr_scale_and_add_local(mat_contr_gf_occ_im, mat_I_muP_occ_im(i_cell_T)%matrix, coskl)
-
-         CALL dbcsr_scale_and_add_local(mat_contr_gf_virt_re, mat_I_muP_virt_re(i_cell_T)%matrix, coskl)
-         CALL dbcsr_scale_and_add_local(mat_contr_gf_virt_re, mat_I_muP_virt_im(i_cell_T)%matrix, -sinkl)
-         CALL dbcsr_scale_and_add_local(mat_contr_gf_virt_im, mat_I_muP_virt_re(i_cell_T)%matrix, sinkl)
-         CALL dbcsr_scale_and_add_local(mat_contr_gf_virt_im, mat_I_muP_virt_im(i_cell_T)%matrix, coskl)
-
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat_A ...
-!> \param mat_B ...
-!> \param beta ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_scale_and_add_local(mat_A, mat_B, beta)
-      TYPE(dbcsr_type), POINTER                          :: mat_A, mat_B
-      REAL(KIND=dp)                                      :: beta
-
-      INTEGER                                            :: col, row
-      LOGICAL                                            :: found
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_to_compute, data_block
-      TYPE(dbcsr_iterator_type)                          :: iter
-
-      CALL dbcsr_iterator_start(iter, mat_B)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-         CALL dbcsr_iterator_next_block(iter, row, col, data_block)
-
-         NULLIFY (block_to_compute)
-         CALL dbcsr_get_block_p(matrix=mat_A, &
-                                row=row, col=col, block=block_to_compute, found=found)
-
-         CPASSERT(found)
-
-         block_to_compute(:, :) = block_to_compute(:, :) + beta*data_block(:, :)
-
-      END DO
-
-      CALL dbcsr_iterator_stop(iter)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat_dm_occ_S ...
-!> \param mat_dm_virt_S ...
-!> \param qs_env ...
-!> \param num_integ_points ...
-!> \param e_fermi ...
-!> \param eps_filter ...
-!> \param tau_tj ...
-!> \param num_cells_dm ...
-!> \param index_to_cell_dm ...
-!> \param has_blocks_mat_dm_occ_S ...
-!> \param has_blocks_mat_dm_virt_S ...
-!> \param para_env ...
-! **************************************************************************************************
-   SUBROUTINE compute_G_real_space(mat_dm_occ_S, mat_dm_virt_S, qs_env, num_integ_points, &
-                                   e_fermi, eps_filter, tau_tj, num_cells_dm, index_to_cell_dm, &
-                                   has_blocks_mat_dm_occ_S, has_blocks_mat_dm_virt_S, para_env)
-
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_occ_S, mat_dm_virt_S
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER                                            :: num_integ_points
-      REAL(KIND=dp)                                      :: e_fermi, eps_filter
-      REAL(KIND=dp), DIMENSION(0:num_integ_points)       :: tau_tj
-      INTEGER                                            :: num_cells_dm
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
-      LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: has_blocks_mat_dm_occ_S, &
-                                                            has_blocks_mat_dm_virt_S
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_G_real_space'
-
-      INTEGER                                            :: handle, i_cell, ispin, jquad, nblks
-      REAL(KIND=dp)                                      :: tau
-
-      CALL timeset(routineN, handle)
-
-      ispin = 1
-
-      ! get denity matrix for exchange self-energy
-      tau = 0.0_dp
-      CALL compute_transl_dm(mat_dm_occ_S, qs_env, ispin, num_integ_points, 0, e_fermi, tau, &
-                             eps_filter, num_cells_dm, index_to_cell_dm, &
-                             remove_occ=.FALSE., remove_virt=.TRUE., first_jquad=0)
-
-      DO i_cell = 1, num_cells_dm
-
-         nblks = dbcsr_get_num_blocks(mat_dm_occ_S(0, i_cell)%matrix)
-         CALL mp_sum(nblks, para_env%group)
-         IF (nblks == 0) has_blocks_mat_dm_occ_S(0, i_cell) = .FALSE.
-         IF (nblks > 0) has_blocks_mat_dm_occ_S(0, i_cell) = .TRUE.
-
-      END DO
-
-      DO jquad = 1, num_integ_points
-
-         tau = tau_tj(jquad)
-
-         CALL compute_transl_dm(mat_dm_occ_S, qs_env, ispin, num_integ_points, jquad, e_fermi, tau, &
-                                eps_filter, num_cells_dm, index_to_cell_dm, &
-                                remove_occ=.FALSE., remove_virt=.TRUE., first_jquad=0)
-
-         CALL compute_transl_dm(mat_dm_virt_S, qs_env, ispin, num_integ_points, jquad, e_fermi, tau, &
-                                eps_filter, num_cells_dm, index_to_cell_dm, &
-                                remove_occ=.TRUE., remove_virt=.FALSE., first_jquad=1)
-
-         DO i_cell = 1, num_cells_dm
-
-            nblks = dbcsr_get_num_blocks(mat_dm_occ_S(jquad, i_cell)%matrix)
-            CALL mp_sum(nblks, para_env%group)
-            IF (nblks == 0) has_blocks_mat_dm_occ_S(jquad, i_cell) = .FALSE.
-            IF (nblks > 0) has_blocks_mat_dm_occ_S(jquad, i_cell) = .TRUE.
-
-            nblks = dbcsr_get_num_blocks(mat_dm_virt_S(jquad, i_cell)%matrix)
-            CALL mp_sum(nblks, para_env%group)
-            IF (nblks == 0) has_blocks_mat_dm_virt_S(jquad, i_cell) = .FALSE.
-            IF (nblks > 0) has_blocks_mat_dm_virt_S(jquad, i_cell) = .TRUE.
-
-         END DO
-
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param index_to_cell_R1_plus_S2 ...
-!> \param cell_to_index_3c ...
-!> \param num_cells_R1_plus_S2 ...
-!> \param kpoints ...
-!> \param unit_nr ...
-!> \param maxcell ...
-!> \param num_cells_dm ...
-! **************************************************************************************************
-   SUBROUTINE compute_cell_vec_for_R1_plus_S2_or_R1(index_to_cell_R1_plus_S2, cell_to_index_3c, &
-                                                    num_cells_R1_plus_S2, kpoints, &
-                                                    unit_nr, maxcell, num_cells_dm)
-
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_R1_plus_S2
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
-      INTEGER                                            :: num_cells_R1_plus_S2
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER                                            :: unit_nr, maxcell, num_cells_dm
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cell_vec_for_R1_plus_S2_or_R1'
-
-      INTEGER :: bound_1, bound_2, bound_3, bound_4, bound_5, bound_6, handle, i_cell_S_1, &
-         size_set, x_cell_R1_plus_S2, x_cell_R1_plus_S2_minus_S1, y_cell_R1_plus_S2, &
-         y_cell_R1_plus_S2_minus_S1, z_cell_R1_plus_S2, z_cell_R1_plus_S2_minus_S1
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_tmp
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
-      LOGICAL                                            :: already_there
-
-      CALL timeset(routineN, handle)
-
-      index_to_cell_dm => kpoints%index_to_cell
-
-      ALLOCATE (index_to_cell_R1_plus_S2(3, 1))
-      index_to_cell_R1_plus_S2 = 0
-
-      bound_1 = LBOUND(cell_to_index_3c, 1)
-      bound_2 = UBOUND(cell_to_index_3c, 1)
-      bound_3 = LBOUND(cell_to_index_3c, 2)
-      bound_4 = UBOUND(cell_to_index_3c, 2)
-      bound_5 = LBOUND(cell_to_index_3c, 3)
-      bound_6 = UBOUND(cell_to_index_3c, 3)
-
-      maxcell = 8
-
-      DO x_cell_R1_plus_S2 = -maxcell, maxcell
-         DO y_cell_R1_plus_S2 = -maxcell, maxcell
-            DO z_cell_R1_plus_S2 = -maxcell, maxcell
-
-               already_there = .FALSE.
-
-               DO i_cell_S_1 = 1, num_cells_dm
-
-                  IF (already_there) CYCLE
-
-                  x_cell_R1_plus_S2_minus_S1 = x_cell_R1_plus_S2 - index_to_cell_dm(1, i_cell_S_1)
-                  y_cell_R1_plus_S2_minus_S1 = y_cell_R1_plus_S2 - index_to_cell_dm(2, i_cell_S_1)
-                  z_cell_R1_plus_S2_minus_S1 = z_cell_R1_plus_S2 - index_to_cell_dm(3, i_cell_S_1)
-
-                  IF (x_cell_R1_plus_S2_minus_S1 .GE. bound_1 .AND. &
-                      x_cell_R1_plus_S2_minus_S1 .LE. bound_2 .AND. &
-                      y_cell_R1_plus_S2_minus_S1 .GE. bound_3 .AND. &
-                      y_cell_R1_plus_S2_minus_S1 .LE. bound_4 .AND. &
-                      z_cell_R1_plus_S2_minus_S1 .GE. bound_5 .AND. &
-                      z_cell_R1_plus_S2_minus_S1 .LE. bound_6) THEN
-
-                     size_set = SIZE(index_to_cell_R1_plus_S2, 2)
-
-                     IF (size_set == 1 .AND. &
-                         index_to_cell_R1_plus_S2(1, size_set) == 0 .AND. &
-                         index_to_cell_R1_plus_S2(2, size_set) == 0 .AND. &
-                         index_to_cell_R1_plus_S2(3, size_set) == 0) THEN
-
-                        index_to_cell_R1_plus_S2(1, size_set) = x_cell_R1_plus_S2
-                        index_to_cell_R1_plus_S2(2, size_set) = y_cell_R1_plus_S2
-                        index_to_cell_R1_plus_S2(3, size_set) = z_cell_R1_plus_S2
-
-                     ELSE
-
-                        ALLOCATE (index_to_cell_tmp(3, size_set))
-                        index_to_cell_tmp(1:3, 1:size_set) = index_to_cell_R1_plus_S2(1:3, 1:size_set)
-                        DEALLOCATE (index_to_cell_R1_plus_S2)
-                        ALLOCATE (index_to_cell_R1_plus_S2(3, size_set + 1))
-                        index_to_cell_R1_plus_S2(1:3, 1:size_set) = index_to_cell_tmp(1:3, 1:size_set)
-                        index_to_cell_R1_plus_S2(1, size_set + 1) = x_cell_R1_plus_S2
-                        index_to_cell_R1_plus_S2(2, size_set + 1) = y_cell_R1_plus_S2
-                        index_to_cell_R1_plus_S2(3, size_set + 1) = z_cell_R1_plus_S2
-                        DEALLOCATE (index_to_cell_tmp)
-                        already_there = .TRUE.
-
-                     END IF
-
-                  END IF
-
-               END DO
-
-            END DO
-         END DO
-      END DO
-
-      num_cells_R1_plus_S2 = SIZE(index_to_cell_R1_plus_S2, 2)
-
-      IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-         "GW_INFO| Number of periodic images for R_1+S_2 and R_2 sum in self-energy:", num_cells_R1_plus_S2
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param index_to_cell_R2 ...
-!> \param cell_to_index_R2 ...
-!> \param num_cells_R2 ...
-!> \param unit_nr ...
-!> \param index_to_cell_dm ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE compute_cell_vec_for_R2(index_to_cell_R2, cell_to_index_R2, num_cells_R2, unit_nr, &
-                                      index_to_cell_dm, qs_env)
-
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_R2
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_R2
-      INTEGER                                            :: num_cells_R2, unit_nr
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cell_vec_for_R2'
-
-      INTEGER                                            :: bound_1, bound_2, bound_3, bound_4, &
-                                                            bound_5, bound_6, handle, icell, &
-                                                            num_cells_dm
-      TYPE(kpoint_type), POINTER                         :: kpoints
-
-      CALL timeset(routineN, handle)
-
-      CALL get_qs_env(qs_env, kpoints=kpoints)
-
-      index_to_cell_dm => kpoints%index_to_cell
-
-      num_cells_dm = SIZE(index_to_cell_dm, 2)
-
-      ALLOCATE (index_to_cell_R2(3, num_cells_dm))
-      index_to_cell_R2(1:3, 1:num_cells_dm) = index_to_cell_dm(1:3, 1:num_cells_dm)
-
-      num_cells_R2 = SIZE(index_to_cell_R2, 2)
-
-      IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-         "GW_INFO| Number of periodic images for R_2 W-sum in self-energy:", num_cells_R2
-
-      bound_1 = MINVAL(index_to_cell_R2(1, :))
-      bound_2 = MAXVAL(index_to_cell_R2(1, :))
-      bound_3 = MINVAL(index_to_cell_R2(2, :))
-      bound_4 = MAXVAL(index_to_cell_R2(2, :))
-      bound_5 = MINVAL(index_to_cell_R2(3, :))
-      bound_6 = MAXVAL(index_to_cell_R2(3, :))
-
-      ALLOCATE (cell_to_index_R2(bound_1:bound_2, bound_3:bound_4, bound_5:bound_6))
-      cell_to_index_R2(:, :, :) = 0
-
-      DO icell = 1, SIZE(index_to_cell_R2, 2)
-
-         cell_to_index_R2(index_to_cell_R2(1, icell), &
-                          index_to_cell_R2(2, icell), &
-                          index_to_cell_R2(3, icell)) = icell
-
-      END DO
 
       CALL timestop(handle)
 

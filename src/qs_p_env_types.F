@@ -18,7 +18,6 @@ MODULE qs_p_env_types
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE hartree_local_types,             ONLY: hartree_local_release,&
                                               hartree_local_type
-   USE kinds,                           ONLY: dp
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                               preconditioner_type
    USE qs_kpp1_env_types,               ONLY: kpp1_release,&
@@ -44,13 +43,11 @@ MODULE qs_p_env_types
 !> \param orthogonal_orbitals if the orbitals are orthogonal
 !> \param id_nr identification number (unique between p_env_types)
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
-!> \param iter number of iterations
 !> \param kpp 1: the kpp1 matrix (make it temporary?)
 !> \param m_epsilon minus epsilon: -<psi0d|H_rho|psi0d>
 !> \param psi 0d: the dual basis of psi0: psi0 (psi0^T S psi0)^-1
 !> \param S_psi 0: S times psi0, cached for performance reasons
 !> \param Smo_inv inverse of the mo overlap: (psi0^T S psi0)^-1
-!> \param kpp 1_env: environment for the calculation of kpp1
 !> \param rho 1: the density rho1
 !> \param rho 1: the soft density rho1 for gapw_xc
 !> \param n_mo cached number of mo: n_mo(i)=qs_env%c(i)%nmo
@@ -61,7 +58,7 @@ MODULE qs_p_env_types
    TYPE qs_p_env_type
 
       LOGICAL :: orthogonal_orbitals
-      INTEGER :: id_nr, ref_count, iter
+      INTEGER :: id_nr, ref_count
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: kpp1, p1, w1
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: p1_admm => NULL()
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: m_epsilon, &
@@ -77,18 +74,10 @@ MODULE qs_p_env_types
 
       ! Linear Response Modules
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: PS_psi0
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: ev_h0
 
       ! preconditioner matrix should be symmetric and positive definite
       TYPE(preconditioner_type), DIMENSION(:), POINTER :: preconditioner
       LOGICAL :: new_preconditioner
-
-      !factors
-      REAL(KIND=dp)  :: delta, gnorm, gnorm_cross, gnorm_old, etotal, gradient
-      !line search
-      INTEGER :: ls_count
-      REAL(KIND=dp)  :: ls_pos(53), ls_energy(53), ls_grad(53)
-      LOGICAL :: only_energy, os_valid
 
    END TYPE qs_p_env_type
 
@@ -158,12 +147,6 @@ CONTAINS
             END IF
             IF (ASSOCIATED(p_env%PS_psi0)) THEN
                CALL cp_fm_vect_dealloc(p_env%PS_psi0)
-            END IF
-            IF (ASSOCIATED(p_env%ev_h0)) THEN
-               DO ip = 1, SIZE(p_env%ev_h0, 1)
-                  NULLIFY (p_env%ev_h0(ip)%matrix)
-               END DO
-               DEALLOCATE (p_env%ev_h0)
             END IF
             IF (ASSOCIATED(p_env%preconditioner)) THEN
                DO ip = 1, SIZE(p_env%preconditioner, 1)
