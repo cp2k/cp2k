@@ -1586,10 +1586,18 @@ CONTAINS
             name_atm_d = particle_set(lp(i))%atomic_kind%name
             l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, &
                                             id3=name_atm_c, id4=name_atm_d)
-            work_label(1, i) = name_atm_a
-            work_label(2, i) = name_atm_b
-            work_label(3, i) = name_atm_c
-            work_label(4, i) = name_atm_d
+            ! Possibly reorder names to avoid double counting of the dihedral
+            IF (name_atm_a < name_atm_d) THEN
+                work_label(1, i) = name_atm_a
+                work_label(2, i) = name_atm_b
+                work_label(3, i) = name_atm_c
+                work_label(4, i) = name_atm_d
+            ELSE
+                work_label(4, i) = name_atm_a
+                work_label(3, i) = name_atm_b
+                work_label(2, i) = name_atm_c
+                work_label(1, i) = name_atm_d
+            END IF
             ! Phase and multiplicity must be kept into account
             ! for the ordering of the torsions
             work_label(5, i) = TRIM(ADJUSTL(cp_to_string(phase(icp(i)))))
@@ -1613,7 +1621,7 @@ CONTAINS
          label_b(iphi) = work_label(2, 1)
          label_c(iphi) = work_label(3, 1)
          label_d(iphi) = work_label(4, 1)
-         k(iphi) = pk(icp(iwork(1)))*0.5_dp
+         k(iphi) = pk(icp(iwork(1)))
          m(iphi) = NINT(pn(icp(iwork(1))))
          IF (m(iphi) - pn(icp(iwork(1))) .GT. EPSILON(1.0_dp)) THEN
             ! non integer torsions not supported
@@ -1647,7 +1655,7 @@ CONTAINS
                label_b(iphi) = work_label(2, i)
                label_c(iphi) = work_label(3, i)
                label_d(iphi) = work_label(4, i)
-               k(iphi) = pk(icp(iwork(i)))*0.5_dp
+               k(iphi) = pk(icp(iwork(i)))
                m(iphi) = NINT(pn(icp(iwork(i))))
                IF (m(iphi) - pn(icp(iwork(i))) .GT. EPSILON(1.0_dp)) THEN
                   ! non integer torsions not supported
