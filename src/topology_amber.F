@@ -1588,15 +1588,15 @@ CONTAINS
                                             id3=name_atm_c, id4=name_atm_d)
             ! Possibly reorder names to avoid double counting of the dihedral
             IF (name_atm_a < name_atm_d) THEN
-                work_label(1, i) = name_atm_a
-                work_label(2, i) = name_atm_b
-                work_label(3, i) = name_atm_c
-                work_label(4, i) = name_atm_d
+               work_label(1, i) = name_atm_a
+               work_label(2, i) = name_atm_b
+               work_label(3, i) = name_atm_c
+               work_label(4, i) = name_atm_d
             ELSE
-                work_label(4, i) = name_atm_a
-                work_label(3, i) = name_atm_b
-                work_label(2, i) = name_atm_c
-                work_label(1, i) = name_atm_d
+               work_label(4, i) = name_atm_a
+               work_label(3, i) = name_atm_b
+               work_label(2, i) = name_atm_c
+               work_label(1, i) = name_atm_d
             END IF
             ! Phase and multiplicity must be kept into account
             ! for the ordering of the torsions
