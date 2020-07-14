@@ -24,5 +24,5 @@ ch2o_pbe0_rks_s_tddfpt_admm.inp                       68    1.0E-03             
 ch2o_pbe0_rks_s_tddfpt_admm2.inp                      68    1.0E-03                        3.87076
 # Compute the lowest 3 doublet excited states of a nitrogen monooxyde molecule at PBE / aug-TZV2P-GTH level of theory.
 # Reference excitation energies (in eV): 0.13, 5.44, 6.14
-no_pbe_uks_d_tddfpt.inp                               68    1.0E-02                        0.27363
+no_pbe_uks_d_tddfpt.inp                               68    1.0E-02                        0.26787
 #EOF
