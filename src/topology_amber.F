@@ -1587,7 +1587,7 @@ CONTAINS
             l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, &
                                             id3=name_atm_c, id4=name_atm_d)
             ! Possibly reorder names to avoid double counting of the dihedral
-            IF (name_atm_a < name_atm_d) THEN
+            IF (name_atm_a//name_atm_b <= name_atm_d//name_atm_c) THEN
                work_label(1, i) = name_atm_a
                work_label(2, i) = name_atm_b
                work_label(3, i) = name_atm_c
