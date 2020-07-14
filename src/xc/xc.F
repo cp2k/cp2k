@@ -2571,7 +2571,7 @@ CONTAINS
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 !$OMP         PARALLEL DO PRIVATE(k,j,i,dr1dr,idir) DEFAULT(NONE)&
-!$OMP         SHARED(bo,nspins,drhoa,drhob,drho1a,drho1b,tmp_c,fac,deriv_data)
+!$OMP         SHARED(bo,nspins,drhoa,drhob,drho1a,drho1b,tmp_c,fac,deriv_data,rho_set,gradient_cut)
             DO k = bo(1, 3), bo(2, 3)
                DO j = bo(1, 2), bo(2, 2)
                   DO i = bo(1, 1), bo(2, 1)
@@ -2581,10 +2581,13 @@ CONTAINS
                            dr1dr = dr1dr + (drhoa(idir)%array(i, j, k) + drhob(idir)%array(i, j, k))* &
                                    (drho1a(idir)%array(i, j, k) + drho1b(idir)%array(i, j, k))
                         END DO
-                        tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) + &
-                                                    deriv_data(i, j, k)*dr1dr
-                        tmp_c(2)%pw%cr3d(i, j, k) = tmp_c(2)%pw%cr3d(i, j, k) + &
-                                                    deriv_data(i, j, k)*dr1dr
+                        IF (rho_set%norm_drho(i, j, k) > gradient_cut) THEN
+                           dr1dr = dr1dr/(rho_set%norm_drho(i, j, k))**2
+                           tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) + &
+                                                       deriv_data(i, j, k)*dr1dr
+                           tmp_c(2)%pw%cr3d(i, j, k) = tmp_c(2)%pw%cr3d(i, j, k) + &
+                                                       deriv_data(i, j, k)*dr1dr
+                        END IF
                      ELSE
                         dr1dr = 0._dp
                         DO idir = 1, 3
@@ -2593,8 +2596,11 @@ CONTAINS
                                    fac*drhob(idir)%array(i, j, k)*drho1a(idir)%array(i, j, k) + &
                                    drhob(idir)%array(i, j, k)*drho1b(idir)%array(i, j, k)
                         END DO
-                        tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) + &
-                                                    deriv_data(i, j, k)*dr1dr
+                        IF (rho_set%norm_drho(i, j, k) > gradient_cut) THEN
+                           dr1dr = dr1dr/(rho_set%norm_drho(i, j, k))**2
+                           tmp_c(1)%pw%cr3d(i, j, k) = tmp_c(1)%pw%cr3d(i, j, k) + &
+                                                       deriv_data(i, j, k)*dr1dr
+                        END IF
                      END IF
                   END DO
                END DO
@@ -2838,7 +2844,7 @@ CONTAINS
                      END DO
                      v_xc(1)%pw%cr3d(i, j, k) = v_xc(1)%pw%cr3d(i, j, k) + &
                                                 deriv_data(i, j, k)*dr1dr
-                     v_drho%pw%cr3d(i, j, k) = -1._dp*deriv_data(i, j, k)*rho1(i, j, k)
+                     v_drho%pw%cr3d(i, j, k) = -deriv_data(i, j, k)*rho1(i, j, k)
                   END DO
                END DO
             END DO

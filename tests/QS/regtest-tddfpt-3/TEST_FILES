@@ -7,6 +7,6 @@
 # test of new LSD KERNEL and finite differences
 ch2o_t1.inp                                           37    5.0E-06                   0.182932E+00
 ch2o_t2.inp                                           37    5.0E-06                   0.241502E+00
-ch2o_t3.inp                                           37    5.0E-06                   0.183087E+00
+ch2o_t3.inp                                           37    5.0E-06                   0.182932E+00
 ch2o_t4.inp                                           37    5.0E-06                   0.241502E+00
 #EOF
