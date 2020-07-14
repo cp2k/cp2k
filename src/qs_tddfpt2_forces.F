@@ -770,7 +770,13 @@ CONTAINS
             CALL dbcsr_release(dbwork)
             DEALLOCATE (dbwork)
             ! derivatives Tr (Pz [A(T)H dA/dR])
+            IF (debug_forces) fodeb(1:3) = force(1)%overlap_admm(1:3, 1)
             CALL admm_projection_derivative(qs_env, admm_env, mhz, matrix_pe)
+            IF (debug_forces) THEN
+               fodeb(1:3) = force(1)%overlap_admm(1:3, 1) - fodeb(1:3)
+               CALL mp_sum(fodeb, para_env%group)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pe*hfx*S' ", fodeb
+            END IF
          END IF
 
          IF (dft_control%do_admm) THEN
@@ -779,11 +785,17 @@ CONTAINS
             matrix_pe => matrix_pe_admm
          ELSE
             CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+!deb
+            CALL dbcsr_scale(matrix_p(1, 1)%matrix, -2.0_dp)
+!deb
          END IF
          resp_only = .TRUE.
          IF (debug_forces) fodeb(1:3) = force(1)%fock_4c(1:3, 1)
          CALL derivatives_four_center(qs_env, matrix_p, matrix_pe, hfx_section, para_env, &
                                       1, use_virial, resp_only=resp_only)
+!deb
+         CALL dbcsr_scale(matrix_p(1, 1)%matrix, -0.5_dp)
+!deb
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%fock_4c(1:3, 1) - fodeb(1:3)
             CALL mp_sum(fodeb, para_env%group)
@@ -866,7 +878,7 @@ CONTAINS
       IF (ASSOCIATED(matrix_wx1)) THEN
          IF (nspins == 2) THEN
             CALL dbcsr_add(matrix_wx1(1)%matrix, matrix_wx1(2)%matrix, &
-                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+                           alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
          END IF
          NULLIFY (scrm)
          IF (debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
@@ -1400,6 +1412,7 @@ CONTAINS
                                        ispin=ispin)
          END DO
          IF (dft_control%do_admm) THEN
+            CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux, ncol_global=nao)
             ALLOCATE (dbwork)
             CALL dbcsr_create(dbwork, template=matrix_hz(1)%matrix)
             DO ispin = 1, nspins

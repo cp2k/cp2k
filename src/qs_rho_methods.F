@@ -24,6 +24,7 @@ MODULE qs_rho_methods
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&
+                                              dbcsr_scale,&
                                               dbcsr_set,&
                                               dbcsr_type,&
                                               dbcsr_type_symmetric
@@ -556,21 +557,27 @@ CONTAINS
    END SUBROUTINE qs_rho_update_rho
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Allocate a density structure and fill it with data from an input structure
+!>        SIZE(rho_input) == mspin == 1  direct copy
+!>        SIZE(rho_input) == mspin == 2  direct copy of alpha and beta spin
+!>        SIZE(rho_input) == 1 AND mspin == 2  copy rho/2 into alpha and beta spin
 !> \param rho_input ...
 !> \param rho_output ...
 !> \param auxbas_pw_pool ...
+!> \param mspin ...
 ! **************************************************************************************************
-   SUBROUTINE qs_rho_copy(rho_input, rho_output, auxbas_pw_pool)
+   SUBROUTINE qs_rho_copy(rho_input, rho_output, auxbas_pw_pool, mspin)
 
       TYPE(qs_rho_type), POINTER                         :: rho_input, rho_output
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      INTEGER, INTENT(IN)                                :: mspin
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_copy', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, nspins, rebuild_each_in
+      INTEGER                                            :: handle, i, ii, nspins, rebuild_each_in
       LOGICAL :: drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, rho_r_valid_in, soft_valid_in, &
          tau_g_valid_in, tau_r_valid_in
+      REAL(KIND=dp)                                      :: ospin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_in, tot_rho_g_out, &
                                                             tot_rho_r_in, tot_rho_r_out
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_im_in, rho_ao_in, rho_ao_out
@@ -583,6 +590,9 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(rho_input))
       CPASSERT(ASSOCIATED(rho_output))
+
+      CPASSERT(mspin == 1 .OR. mspin == 2)
+      ospin = 1._dp/REAL(mspin, KIND=dp)
 
       CALL qs_rho_clear(rho_output)
 
@@ -616,12 +626,21 @@ CONTAINS
       ! rho_ao
       IF (ASSOCIATED(rho_ao_in)) THEN
          nspins = SIZE(rho_ao_in)
-         CALL dbcsr_allocate_matrix_set(rho_ao_out, nspins)
+         CPASSERT(mspin >= nspins)
+         CALL dbcsr_allocate_matrix_set(rho_ao_out, mspin)
          CALL qs_rho_set(rho_output, rho_ao=rho_ao_out)
-         DO i = 1, nspins
-            ALLOCATE (rho_ao_out(i)%matrix)
-            CALL dbcsr_copy(rho_ao_out(i)%matrix, rho_ao_in(i)%matrix, name="RHO copy")
-         END DO
+         IF (mspin > nspins) THEN
+            DO i = 1, mspin
+               ALLOCATE (rho_ao_out(i)%matrix)
+               CALL dbcsr_copy(rho_ao_out(i)%matrix, rho_ao_in(1)%matrix, name="RHO copy")
+               CALL dbcsr_scale(rho_ao_out(i)%matrix, ospin)
+            END DO
+         ELSE
+            DO i = 1, nspins
+               ALLOCATE (rho_ao_out(i)%matrix)
+               CALL dbcsr_copy(rho_ao_out(i)%matrix, rho_ao_in(i)%matrix, name="RHO copy")
+            END DO
+         END IF
       END IF
 
       ! rho_ao_kp
@@ -638,26 +657,45 @@ CONTAINS
       ! rho_r
       IF (ASSOCIATED(rho_r_in)) THEN
          nspins = SIZE(rho_r_in)
-         ALLOCATE (rho_r_out(nspins))
+         CPASSERT(mspin >= nspins)
+         ALLOCATE (rho_r_out(mspin))
          CALL qs_rho_set(rho_output, rho_r=rho_r_out)
-         DO i = 1, nspins
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_out(i)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            rho_r_out(i)%pw%cr3d(:, :, :) = rho_r_in(i)%pw%cr3d(:, :, :)
-         END DO
+         IF (mspin > nspins) THEN
+            DO i = 1, mspin
+               CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_out(i)%pw, &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
+               rho_r_out(i)%pw%cr3d(:, :, :) = rho_r_in(1)%pw%cr3d(:, :, :)*ospin
+            END DO
+         ELSE
+            DO i = 1, nspins
+               CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_out(i)%pw, &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
+               rho_r_out(i)%pw%cr3d(:, :, :) = rho_r_in(i)%pw%cr3d(:, :, :)
+            END DO
+         END IF
       END IF
 
       ! rho_g
       IF (ASSOCIATED(rho_g_in)) THEN
          nspins = SIZE(rho_g_in)
-         ALLOCATE (rho_g_out(nspins))
+         CPASSERT(mspin >= nspins)
+         ALLOCATE (rho_g_out(mspin))
          CALL qs_rho_set(rho_output, rho_g=rho_g_out)
-         DO i = 1, nspins
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_out(i)%pw, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
-            rho_g_out(i)%pw%cc(:) = rho_g_in(i)%pw%cc(:)
-         END DO
+         IF (mspin > nspins) THEN
+            DO i = 1, mspin
+               CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_out(i)%pw, &
+                                      use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE)
+               rho_g_out(i)%pw%cc(:) = rho_g_in(1)%pw%cc(:)*ospin
+            END DO
+         ELSE
+            DO i = 1, nspins
+               CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_out(i)%pw, &
+                                      use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE)
+               rho_g_out(i)%pw%cc(:) = rho_g_in(i)%pw%cc(:)
+            END DO
+         END IF
       END IF
 
       ! SCCS
@@ -672,71 +710,125 @@ CONTAINS
       ! drho_r
       IF (ASSOCIATED(drho_r_in)) THEN
          nspins = SIZE(drho_r_in)
-         ALLOCATE (drho_r_out(3*nspins))
+         CPASSERT(mspin >= nspins)
+         ALLOCATE (drho_r_out(3*mspin))
          CALL qs_rho_set(rho_output, drho_r=drho_r_out)
-         DO i = 1, 3*nspins
-            CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            drho_r_out(i)%pw%cr3d(:, :, :) = drho_r_in(i)%pw%cr3d(:, :, :)
-         END DO
+         IF (mspin > nspins) THEN
+            DO i = 1, 3*mspin
+               ii = (i + 1)/2
+               CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i)%pw, &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
+               drho_r_out(i)%pw%cr3d(:, :, :) = drho_r_in(ii)%pw%cr3d(:, :, :)*ospin
+            END DO
+         ELSE
+            DO i = 1, 3*nspins
+               CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i)%pw, &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
+               drho_r_out(i)%pw%cr3d(:, :, :) = drho_r_in(i)%pw%cr3d(:, :, :)
+            END DO
+         END IF
       END IF
 
       ! drho_g
       IF (ASSOCIATED(drho_g_in)) THEN
          nspins = SIZE(drho_g_in)
-         ALLOCATE (drho_g_out(3*nspins))
+         CPASSERT(mspin >= nspins)
+         ALLOCATE (drho_g_out(3*mspin))
          CALL qs_rho_set(rho_output, drho_g=drho_g_out)
-         DO i = 1, 3*nspins
-            CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i)%pw, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
-            drho_g_out(i)%pw%cc(:) = drho_g_in(i)%pw%cc(:)
-         END DO
+         IF (mspin > nspins) THEN
+            DO i = 1, 3*mspin
+               ii = (i + 1)/2
+               CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i)%pw, &
+                                      use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE)
+               drho_g_out(i)%pw%cc(:) = drho_g_in(ii)%pw%cc(:)*ospin
+            END DO
+         ELSE
+            DO i = 1, 3*nspins
+               CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i)%pw, &
+                                      use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE)
+               drho_g_out(i)%pw%cc(:) = drho_g_in(i)%pw%cc(:)
+            END DO
+         END IF
       END IF
 
       ! tau_r
       IF (ASSOCIATED(tau_r_in)) THEN
          nspins = SIZE(tau_r_in)
-         ALLOCATE (tau_r_out(nspins))
+         CPASSERT(mspin >= nspins)
+         ALLOCATE (tau_r_out(mspin))
          CALL qs_rho_set(rho_output, tau_r=tau_r_out)
-         DO i = 1, nspins
-            CALL pw_pool_create_pw(auxbas_pw_pool, tau_r_out(i)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            tau_r_out(i)%pw%cr3d(:, :, :) = tau_r_in(i)%pw%cr3d(:, :, :)
-         END DO
+         IF (mspin > nspins) THEN
+            DO i = 1, mspin
+               CALL pw_pool_create_pw(auxbas_pw_pool, tau_r_out(i)%pw, &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
+               tau_r_out(i)%pw%cr3d(:, :, :) = tau_r_in(1)%pw%cr3d(:, :, :)*ospin
+            END DO
+         ELSE
+            DO i = 1, nspins
+               CALL pw_pool_create_pw(auxbas_pw_pool, tau_r_out(i)%pw, &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
+               tau_r_out(i)%pw%cr3d(:, :, :) = tau_r_in(i)%pw%cr3d(:, :, :)
+            END DO
+         END IF
       END IF
 
       ! tau_g
       IF (ASSOCIATED(tau_g_in)) THEN
          nspins = SIZE(tau_g_in)
-         ALLOCATE (tau_g_out(nspins))
+         CPASSERT(mspin >= nspins)
+         ALLOCATE (tau_g_out(mspin))
          CALL qs_rho_set(rho_output, tau_g=tau_g_out)
-         DO i = 1, nspins
-            CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i)%pw, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
-            tau_g_out(i)%pw%cc(:) = tau_g_in(i)%pw%cc(:)
-         END DO
+         IF (mspin > nspins) THEN
+            DO i = 1, mspin
+               CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i)%pw, &
+                                      use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE)
+               tau_g_out(i)%pw%cc(:) = tau_g_in(1)%pw%cc(:)*ospin
+            END DO
+         ELSE
+            DO i = 1, nspins
+               CALL pw_pool_create_pw(auxbas_pw_pool, tau_g_out(i)%pw, &
+                                      use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE)
+               tau_g_out(i)%pw%cc(:) = tau_g_in(i)%pw%cc(:)
+            END DO
+         END IF
       END IF
 
       ! tot_rho_r
       IF (ASSOCIATED(tot_rho_r_in)) THEN
          nspins = SIZE(tot_rho_r_in)
-         ALLOCATE (tot_rho_r_out(nspins))
+         CPASSERT(mspin >= nspins)
+         ALLOCATE (tot_rho_r_out(mspin))
          CALL qs_rho_set(rho_output, tot_rho_r=tot_rho_r_out)
-         DO i = 1, nspins
-            tot_rho_r_out(i) = tot_rho_r_in(i)
-         END DO
+         IF (mspin > nspins) THEN
+            DO i = 1, mspin
+               tot_rho_r_out(i) = tot_rho_r_in(1)*ospin
+            END DO
+         ELSE
+            DO i = 1, nspins
+               tot_rho_r_out(i) = tot_rho_r_in(i)
+            END DO
+         END IF
       END IF
 
       ! tot_rho_g
       IF (ASSOCIATED(tot_rho_g_in)) THEN
          nspins = SIZE(tot_rho_g_in)
-         ALLOCATE (tot_rho_g_out(nspins))
+         CPASSERT(mspin >= nspins)
+         ALLOCATE (tot_rho_g_out(mspin))
          CALL qs_rho_set(rho_output, tot_rho_g=tot_rho_g_out)
-         DO i = 1, nspins
-            tot_rho_g_out(i) = tot_rho_g_in(i)
-         END DO
+         IF (mspin > nspins) THEN
+            DO i = 1, mspin
+               tot_rho_g_out(i) = tot_rho_g_in(1)*ospin
+            END DO
+         ELSE
+            DO i = 1, nspins
+               tot_rho_g_out(i) = tot_rho_g_in(i)
+            END DO
+         END IF
       END IF
 
       CALL qs_rho_set(rho_output, &
@@ -768,7 +860,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_scale_and_add', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, ndims, nspins
+      INTEGER                                            :: handle, i, ndims, nspina, nspinb, nspins
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_a, tot_rho_g_b, tot_rho_r_a, &
                                                             tot_rho_r_b
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_a, rho_ao_b, rho_ao_im_a, &
@@ -816,7 +908,9 @@ CONTAINS
                       rho_r_sccs=rho_r_sccs_b)
       ! rho_ao
       IF (ASSOCIATED(rho_ao_a) .AND. ASSOCIATED(rho_ao_b)) THEN
-         nspins = SIZE(rho_ao_a)
+         nspina = SIZE(rho_ao_a)
+         nspinb = SIZE(rho_ao_b)
+         nspins = MIN(nspina, nspinb)
          DO i = 1, nspins
             CALL dbcsr_add(rho_ao_a(i)%matrix, rho_ao_b(i)%matrix, alpha, beta)
          END DO
@@ -829,7 +923,9 @@ CONTAINS
 
       ! rho_r
       IF (ASSOCIATED(rho_r_a) .AND. ASSOCIATED(rho_r_b)) THEN
-         nspins = SIZE(rho_r_a)
+         nspina = SIZE(rho_ao_a)
+         nspinb = SIZE(rho_ao_b)
+         nspins = MIN(nspina, nspinb)
          DO i = 1, nspins
             rho_r_a(i)%pw%cr3d(:, :, :) = alpha*rho_r_a(i)%pw%cr3d(:, :, :) + beta*rho_r_b(i)%pw%cr3d(:, :, :)
          END DO
@@ -837,7 +933,9 @@ CONTAINS
 
       ! rho_g
       IF (ASSOCIATED(rho_g_a) .AND. ASSOCIATED(rho_g_b)) THEN
-         nspins = SIZE(rho_g_a)
+         nspina = SIZE(rho_ao_a)
+         nspinb = SIZE(rho_ao_b)
+         nspins = MIN(nspina, nspinb)
          DO i = 1, nspins
             rho_g_a(i)%pw%cc(:) = alpha*rho_g_a(i)%pw%cc(:) + beta*rho_g_b(i)%pw%cc(:)
          END DO
@@ -851,6 +949,7 @@ CONTAINS
       ! drho_r
       IF (ASSOCIATED(drho_r_a) .AND. ASSOCIATED(drho_r_b)) THEN
          ndims = SIZE(drho_r_a)
+         CPASSERT(ndims == SIZE(drho_r_b)) ! not implemented
          DO i = 1, ndims
             drho_r_a(i)%pw%cr3d(:, :, :) = alpha*drho_r_a(i)%pw%cr3d(:, :, :) + beta*drho_r_b(i)%pw%cr3d(:, :, :)
          END DO
@@ -859,6 +958,7 @@ CONTAINS
       ! drho_g
       IF (ASSOCIATED(drho_g_a) .AND. ASSOCIATED(drho_g_b)) THEN
          ndims = SIZE(drho_g_a)
+         CPASSERT(ndims == SIZE(drho_r_b)) ! not implemented
          DO i = 1, ndims
             drho_g_a(i)%pw%cc(:) = alpha*drho_g_a(i)%pw%cc(:) + beta*drho_g_b(i)%pw%cc(:)
          END DO
@@ -866,7 +966,9 @@ CONTAINS
 
       ! tau_r
       IF (ASSOCIATED(tau_r_a) .AND. ASSOCIATED(tau_r_b)) THEN
-         nspins = SIZE(tau_r_a)
+         nspina = SIZE(rho_ao_a)
+         nspinb = SIZE(rho_ao_b)
+         nspins = MIN(nspina, nspinb)
          DO i = 1, nspins
             tau_r_a(i)%pw%cr3d(:, :, :) = alpha*tau_r_a(i)%pw%cr3d(:, :, :) + beta*tau_r_b(i)%pw%cr3d(:, :, :)
          END DO
@@ -874,7 +976,9 @@ CONTAINS
 
       ! tau_g
       IF (ASSOCIATED(tau_g_a) .AND. ASSOCIATED(tau_g_b)) THEN
-         nspins = SIZE(tau_g_a)
+         nspina = SIZE(rho_ao_a)
+         nspinb = SIZE(rho_ao_b)
+         nspins = MIN(nspina, nspinb)
          DO i = 1, nspins
             tau_g_a(i)%pw%cc(:) = alpha*tau_g_a(i)%pw%cc(:) + beta*tau_g_b(i)%pw%cc(:)
          END DO
@@ -882,7 +986,9 @@ CONTAINS
 
       ! tot_rho_r
       IF (ASSOCIATED(tot_rho_r_a) .AND. ASSOCIATED(tot_rho_r_b)) THEN
-         nspins = SIZE(tot_rho_r_a)
+         nspina = SIZE(rho_ao_a)
+         nspinb = SIZE(rho_ao_b)
+         nspins = MIN(nspina, nspinb)
          DO i = 1, nspins
             tot_rho_r_a(i) = alpha*tot_rho_r_a(i) + beta*tot_rho_r_b(i)
          END DO
@@ -890,7 +996,9 @@ CONTAINS
 
       ! tot_rho_g
       IF (ASSOCIATED(tot_rho_g_a) .AND. ASSOCIATED(tot_rho_g_b)) THEN
-         nspins = SIZE(tot_rho_g_a)
+         nspina = SIZE(rho_ao_a)
+         nspinb = SIZE(rho_ao_b)
+         nspins = MIN(nspina, nspinb)
          DO i = 1, nspins
             tot_rho_g_a(i) = alpha*tot_rho_g_a(i) + beta*tot_rho_g_b(i)
          END DO

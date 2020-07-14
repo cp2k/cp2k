@@ -6,6 +6,7 @@
        NSTATES      1
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
+       RKS_TRIPLETS T
     &END TDDFPT
   &END PROPERTIES
   &DFT
@@ -33,10 +34,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-8
+         EPS_SCF 1.0E-7
       &END
       MAX_SCF  10
-      EPS_SCF 1.0E-8
+      EPS_SCF 1.0E-7
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0 
@@ -51,7 +52,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 4.0 4.0 4.0
       PERIODIC NONE
     &END
     &COORD
@@ -64,7 +65,7 @@
      &END
     &END
     &KIND H
-      BASIS_SET DZV-GTH-PADE
+      BASIS_SET DZVP-GTH-PADE
       BASIS_SET AUX_FIT FIT3
       POTENTIAL GTH-PADE-q1
     &END KIND

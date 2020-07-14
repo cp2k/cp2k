@@ -6,7 +6,7 @@
        &sTDA
           FRACTION 0.50
        &END sTDA
-       NSTATES     20
+       NSTATES     4
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
        RKS_TRIPLETS F
@@ -17,7 +17,7 @@
       METHOD GPW
     &END QS
     &EXCITED_STATES T
-       STATE 20
+       STATE 4
     &END EXCITED_STATES
     &SCF
       SCF_GUESS ATOMIC 

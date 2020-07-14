@@ -2,24 +2,23 @@
   METHOD Quickstep
   &PROPERTIES
     &TDDFPT
-       KERNEL sTDA
-       &sTDA
-          FRACTION 0.25
-       &END sTDA
-       NSTATES      5
+       KERNEL FULL
+       &XC
+         &XC_FUNCTIONAL PBE
+         &END XC_FUNCTIONAL
+       &END XC
+       NSTATES      1
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
+       RKS_TRIPLETS F
     &END TDDFPT
   &END PROPERTIES
   &DFT
-    LSD
     &QS
       METHOD GPW
     &END QS
-    &EFIELD
-    &END
     &EXCITED_STATES T
-       STATE 2
+       STATE 1
     &END EXCITED_STATES
     &SCF
       SCF_GUESS ATOMIC 
@@ -29,31 +28,33 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-6
+         EPS_SCF 1.0E-7
       &END
       MAX_SCF  50
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-7
     &END SCF
     &XC
-      &XC_FUNCTIONAL PADE
+      &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &MOMENTS ON
-         PERIODIC .FALSE.
-         REFERENCE COM
-      &END
+    &MGRID
+       CUTOFF  280
+       REL_CUTOFF  60
+    &END
+    &POISSON
+       PERIODIC NONE
+       POISSON_SOLVER MT
     &END
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 4.0 4.0 4.0
       PERIODIC NONE
     &END
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+    O   0.000000    0.000000    0.000000
+    H   0.000000   -0.757136    0.580545
+    H   0.000000    0.757136    0.580545
     &END COORD
     &TOPOLOGY
      &CENTER_COORDINATES
@@ -68,9 +69,18 @@
       POTENTIAL GTH-PADE-q6
     &END KIND
   &END SUBSYS
+  &PRINT
+     &FORCES
+     &END
+  &END
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT dipole
-  RUN_TYPE ENERGY_FORCE
+  PROJECT ftest
+  RUN_TYPE GEO_OPT
 &END GLOBAL
+&MOTION
+  &GEO_OPT
+     MAX_ITER 2
+  &END
+&END

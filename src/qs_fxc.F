@@ -57,25 +57,25 @@ CONTAINS
 !> \param xc_section ...
 !> \param do_analytic ...
 !> \param do_numeric ...
+!> \param is_triplet ...
 !> \param fxc_rho ...
 !> \param fxc_tau ...
 !> \param gxc_rho ...
 !> \param gxc_tau ...
 ! **************************************************************************************************
    SUBROUTINE qs_fxc_create(ks_env, rho0_struct, rho1_struct, xc_section, do_analytic, do_numeric, &
-                            fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+                            is_triplet, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho0_struct, rho1_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
-      LOGICAL, INTENT(IN)                                :: do_analytic, do_numeric
+      LOGICAL, INTENT(IN)                                :: do_analytic, do_numeric, is_triplet
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_fxc_create', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
 
       INTEGER                                            :: handle, ispin, istep, nspins
-      LOGICAL                                            :: fail
       REAL(KIND=dp)                                      :: alpha, beta, exc, oeps1, oeps2
       REAL(KIND=dp), DIMENSION(-2:2)                     :: ak, bl
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -91,18 +91,17 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(gxc_rho))
       CPASSERT(.NOT. ASSOCIATED(gxc_tau))
 
-      fail = .TRUE.
-
-      IF (do_analytic) THEN
-         fail = .TRUE.
+      IF (do_analytic .AND. .NOT. do_numeric) THEN
+         CPABORT("TDA Kernel derivatives could not be calculated: Analytic option not implemented")
+         IF (is_triplet) THEN
+            CPABORT("TDA Kernel derivatives could not be calculated: Triplet not implemented")
+         END IF
       END IF
 
       IF (do_numeric) THEN
 
          CPASSERT(ASSOCIATED(rho0_struct))
          CPASSERT(ASSOCIATED(rho1_struct))
-
-         fail = .FALSE.
 
          ak(-2:2) = (/1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp/)/12.0_dp
          bl(-2:2) = (/-1.0_dp, 16.0_dp, -30.0_dp, 16.0_dp, -1.0_dp/)/12.0_dp
@@ -115,15 +114,24 @@ CONTAINS
 
          DO istep = -2, 2
 
-            NULLIFY (rhoin)
-            CALL qs_rho_create(rhoin)
-            CALL qs_rho_copy(rho0_struct, rhoin, auxbas_pw_pool)
             alpha = 1.0_dp
             beta = REAL(istep, KIND=dp)*epsrho
-            CALL qs_rho_scale_and_add(rhoin, rho1_struct, alpha, beta)
+            NULLIFY (rhoin)
+            CALL qs_rho_create(rhoin)
             NULLIFY (vxc00, v_tau_rspace)
-            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rhoin, xc_section=xc_section, &
-                               vxc_rho=vxc00, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
+            IF (is_triplet) THEN
+               CPASSERT(nspins == 1)
+               CALL qs_rho_copy(rho0_struct, rhoin, auxbas_pw_pool, 2)
+               CALL qs_rho_scale_and_add(rhoin, rho1_struct, alpha, 0.5_dp*beta)
+               CALL qs_vxc_create(ks_env=ks_env, rho_struct=rhoin, xc_section=xc_section, &
+                                  vxc_rho=vxc00, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
+               CALL pw_axpy(vxc00(2)%pw, vxc00(1)%pw, -1.0_dp)
+            ELSE
+               CALL qs_rho_copy(rho0_struct, rhoin, auxbas_pw_pool, nspins)
+               CALL qs_rho_scale_and_add(rhoin, rho1_struct, alpha, beta)
+               CALL qs_vxc_create(ks_env=ks_env, rho_struct=rhoin, xc_section=xc_section, &
+                                  vxc_rho=vxc00, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
+            END IF
             CALL qs_rho_release(rhoin)
             IF (.NOT. ASSOCIATED(fxc_rho)) THEN
                ALLOCATE (fxc_rho(nspins))
@@ -149,6 +157,8 @@ CONTAINS
                IF (bl(istep) /= 0.0_dp) THEN
                   CALL pw_axpy(vxc00(ispin)%pw, gxc_rho(ispin)%pw, bl(istep))
                END IF
+            END DO
+            DO ispin = 1, SIZE(vxc00)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc00(ispin)%pw)
             END DO
             DEALLOCATE (vxc00)
@@ -162,10 +172,6 @@ CONTAINS
             CALL pw_scale(gxc_rho(ispin)%pw, oeps2)
          END DO
 
-      END IF
-
-      IF (fail) THEN
-         CPABORT("TDA Kernel derivatives could not be calculated")
       END IF
 
       CALL timestop(handle)

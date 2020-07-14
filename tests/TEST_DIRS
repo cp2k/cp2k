@@ -45,6 +45,7 @@ QS/regtest-debug-2                                          libint
 QS/regtest-debug-3                                          libint
 QS/regtest-debug-4                                          libint
 QS/regtest-stda-force                                       libint
+QS/regtest-tddfpt-force                                     libint
 QS/regtest-cdft-diag
 xTB/regtest-1
 xTB/regtest-2

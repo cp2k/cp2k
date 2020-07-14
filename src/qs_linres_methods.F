@@ -247,10 +247,9 @@ CONTAINS
       INTEGER                                            :: handle, ispin, iter, maxnmo, maxnmo_o, &
                                                             nao, ncol, nmo, nspins
       LOGICAL                                            :: restart
-      REAL(dp)                                           :: norm_res, t1, t2
-      REAL(dp), DIMENSION(:), POINTER                    :: alpha, beta, tr_pAp, tr_rz0, tr_rz00, &
-                                                            tr_rz1
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: Ap, chc, mo_coeff_array, p, r, Sc, z
+      REAL(dp)                                           :: alpha, beta, norm_res, t1, t2
+      REAL(dp), DIMENSION(:), POINTER                    :: tr_pAp, tr_rz0, tr_rz00, tr_rz1
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ap, chc, mo_coeff_array, p, r, Sc, z
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -290,7 +289,7 @@ CONTAINS
       CALL check_p_env_init(p_env, linres_control, nspins)
       !
       ! allocate the vectors
-      ALLOCATE (alpha(nspins), beta(nspins), tr_pAp(nspins), tr_rz0(nspins), tr_rz00(nspins), tr_rz1(nspins), &
+      ALLOCATE (tr_pAp(nspins), tr_rz0(nspins), tr_rz00(nspins), tr_rz1(nspins), &
                 r(nspins), p(nspins), z(nspins), Ap(nspins), mo_coeff_array(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
@@ -333,8 +332,6 @@ CONTAINS
          CALL cp_fm_get_info(mo_coeff, ncol_global=ncol)
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff, Sc(ispin)%matrix, ncol)
       ENDDO
-      !
-      !
       !
       ! header
       IF (iounit > 0) THEN
@@ -401,7 +398,6 @@ CONTAINS
          linres_control%flag = "PCG"
       ENDIF
       !
-      norm_res = 0.0_dp
       DO ispin = 1, nspins
          !
          ! p_0 = z_0
@@ -409,11 +405,11 @@ CONTAINS
          !
          ! trace(r_0 * z_0)
          CALL cp_fm_trace(r(ispin)%matrix, z(ispin)%matrix, tr_rz0(ispin))
-         IF (tr_rz0(ispin) .LT. 0.0_dp) CPABORT("tr(r_j*z_j) < 0")
-         norm_res = MAX(norm_res, ABS(tr_rz0(ispin))/SQRT(REAL(nao*maxnmo_o, dp)))
       ENDDO
+      IF (SUM(tr_rz0) < 0.0_dp) CPABORT("tr(r_j*z_j) < 0")
+      norm_res = ABS(SUM(tr_rz0))/SQRT(REAL(nspins*nao*maxnmo_o, dp))
       !
-      alpha(:) = 0.0_dp
+      alpha = 0.0_dp
       restart = .FALSE.
       should_stop = .FALSE.
       iteration: DO iter = 1, linres_control%max_iter
@@ -428,7 +424,7 @@ CONTAINS
          IF (iter .EQ. 1 .OR. MOD(iter, 1) .EQ. 0 .OR. linres_control%converged .OR. restart .OR. should_stop) THEN
             IF (iounit > 0) THEN
                WRITE (iounit, "(T5,I5,T18,A3,T28,L1,T38,1E8.2,T48,F16.10,T68,F8.2)") &
-                  iter, linres_control%flag, restart, MAXVAL(alpha), norm_res, t2 - t1
+                  iter, linres_control%flag, restart, alpha, norm_res, t2 - t1
                CALL m_flush(iounit)
             ENDIF
          ENDIF
@@ -467,35 +463,18 @@ CONTAINS
             !
             ! tr(Ap_j*p_j)
             CALL cp_fm_trace(Ap(ispin)%matrix, p(ispin)%matrix, tr_pAp(ispin))
-            IF (tr_pAp(ispin) .LT. 0.0_dp) THEN
-               ! try to fix it by getting rid of the preconditioner
-               IF (iter > 1) THEN
-                  CALL cp_fm_scale_and_add(beta(ispin), p(ispin)%matrix, -1.0_dp, z(ispin)%matrix)
-                  CALL cp_fm_trace(r(ispin)%matrix, r(ispin)%matrix, tr_rz1(ispin))
-                  beta(ispin) = tr_rz1(ispin)/tr_rz00(ispin)
-                  CALL cp_fm_scale_and_add(beta(ispin), p(ispin)%matrix, 1.0_dp, r(ispin)%matrix)
-                  tr_rz0(ispin) = tr_rz1(ispin)
-               ELSE
-                  CALL cp_fm_to_fm(r(ispin)%matrix, p(ispin)%matrix)
-                  CALL cp_fm_trace(r(ispin)%matrix, r(ispin)%matrix, tr_rz0(ispin))
-               END IF
-               linres_control%flag = "CG"
-
-               CALL apply_op(qs_env, p_env, psi0_order, p, Ap, chc)
-               CALL postortho(Ap, mo_coeff_array, Sc)
-               CALL cp_fm_trace(Ap(ispin)%matrix, p(ispin)%matrix, tr_pAp(ispin))
-               CPABORT("tr(Ap_j*p_j) < 0")
-            END IF
-            !
-            ! alpha = tr(r_j*z_j) / tr(Ap_j*p_j)
-            IF (tr_pAp(ispin) .LT. 1.0e-10_dp) THEN
-               alpha(ispin) = 1.0_dp
-            ELSE
-               alpha(ispin) = tr_rz0(ispin)/tr_pAp(ispin)
-            ENDIF
+         END DO
+         !
+         ! alpha = tr(r_j*z_j) / tr(Ap_j*p_j)
+         IF (SUM(tr_pAp) < 1.0e-10_dp) THEN
+            alpha = 1.0_dp
+         ELSE
+            alpha = SUM(tr_rz0)/SUM(tr_pAp)
+         ENDIF
+         DO ispin = 1, nspins
             !
             ! x_j+1 = x_j + alpha * p_j
-            CALL cp_fm_scale_and_add(1.0_dp, psi1(ispin)%matrix, alpha(ispin), p(ispin)%matrix)
+            CALL cp_fm_scale_and_add(1.0_dp, psi1(ispin)%matrix, alpha, p(ispin)%matrix)
          ENDDO
          !
          ! need to recompute the residue
@@ -519,7 +498,7 @@ CONTAINS
             !
             ! r_j+1 = r_j - alpha * Ap_j
             DO ispin = 1, nspins
-               CALL cp_fm_scale_and_add(1.0_dp, r(ispin)%matrix, -alpha(ispin), Ap(ispin)%matrix)
+               CALL cp_fm_scale_and_add(1.0_dp, r(ispin)%matrix, -alpha, Ap(ispin)%matrix)
             ENDDO
             restart = .FALSE.
          ENDIF
@@ -543,27 +522,28 @@ CONTAINS
             linres_control%flag = "PCG"
          ENDIF
          !
-         norm_res = 0.0_dp
          DO ispin = 1, nspins
             !
             ! tr(r_j+1*z_j+1)
             CALL cp_fm_trace(r(ispin)%matrix, z(ispin)%matrix, tr_rz1(ispin))
-            IF (tr_rz1(ispin) .LT. 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
-            norm_res = MAX(norm_res, tr_rz1(ispin)/SQRT(REAL(nao*maxnmo_o, dp)))
-            !
-            ! beta = tr(r_j+1*z_j+1) / tr(r_j*z_j)
-            IF (tr_rz0(ispin) .LT. 1.0e-10_dp) THEN
-               beta(ispin) = 0.0_dp
-            ELSE
-               beta(ispin) = tr_rz1(ispin)/tr_rz0(ispin)
-            ENDIF
+         END DO
+         IF (SUM(tr_rz1) < 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
+         norm_res = SUM(tr_rz1)/SQRT(REAL(nspins*nao*maxnmo_o, dp))
+         !
+         ! beta = tr(r_j+1*z_j+1) / tr(r_j*z_j)
+         IF (SUM(tr_rz0) < 1.0e-10_dp) THEN
+            beta = 0.0_dp
+         ELSE
+            beta = SUM(tr_rz1)/SUM(tr_rz0)
+         ENDIF
+         DO ispin = 1, nspins
             !
             ! p_j+1 = z_j+1 + beta * p_j
-            CALL cp_fm_scale_and_add(beta(ispin), p(ispin)%matrix, 1.0_dp, z(ispin)%matrix)
+            CALL cp_fm_scale_and_add(beta, p(ispin)%matrix, 1.0_dp, z(ispin)%matrix)
             tr_rz00(ispin) = tr_rz0(ispin)
             tr_rz0(ispin) = tr_rz1(ispin)
          ENDDO
-
+         !
          ! Can we exit the SCF loop?
          CALL external_control(should_stop, "LINRES", target_time=qs_env%target_time, &
                                start_time=qs_env%start_time)
@@ -584,7 +564,7 @@ CONTAINS
          CALL cp_fm_release(Sc(ispin)%matrix)
          CALL cp_fm_release(chc(ispin)%matrix)
       ENDDO
-      DEALLOCATE (alpha, beta, tr_pAp, tr_rz0, tr_rz00, tr_rz1, r, p, z, Ap, Sc, chc, mo_coeff_array)
+      DEALLOCATE (tr_pAp, tr_rz0, tr_rz00, tr_rz1, r, p, z, Ap, Sc, chc, mo_coeff_array)
       !
       CALL timestop(handle)
       !

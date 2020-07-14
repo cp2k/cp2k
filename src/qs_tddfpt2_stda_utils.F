@@ -162,7 +162,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_gamma'
       REAL(KIND=dp), PARAMETER                           :: rsmooth = 1.0_dp
 
-      CHARACTER(len=20)                                  :: cstring
       INTEGER                                            :: handle, i, iatom, icol, ikind, imat, &
                                                             irow, jatom, jkind, natom, nmat
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
@@ -179,10 +178,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      cstring = "GAMMA EXCHANGE MATRIX"
+      CALL get_qs_env(qs_env=qs_env, natom=natom)
       dbcsr_dist => sub_env%dbcsr_dist
       n_list => sub_env%sab_orb
-      CALL get_qs_env(qs_env=qs_env, natom=natom)
+      CALL get_qs_env(qs_env=qs_env, dbcsr_dist=dbcsr_dist, sab_orb=n_list)
 
       IF (PRESENT(ndim)) THEN
          nmat = ndim
@@ -199,13 +198,13 @@ CONTAINS
          ALLOCATE (gamma_matrix(imat)%matrix)
       END DO
 
-      CALL dbcsr_create(gamma_matrix(1)%matrix, name=TRIM(ADJUSTL(cstring)), dist=dbcsr_dist, &
+      CALL dbcsr_create(gamma_matrix(1)%matrix, name="gamma", dist=dbcsr_dist, &
                         matrix_type=dbcsr_type_symmetric, row_blk_size=row_blk_sizes, &
-                        col_blk_size=row_blk_sizes, nze=0, mutable_work=.TRUE.)
+                        col_blk_size=row_blk_sizes, nze=0)
       DO imat = 2, nmat
-         CALL dbcsr_create(gamma_matrix(imat)%matrix, name=TRIM(ADJUSTL(cstring)), dist=dbcsr_dist, &
+         CALL dbcsr_create(gamma_matrix(imat)%matrix, name="dgamma", dist=dbcsr_dist, &
                            matrix_type=dbcsr_type_antisymmetric, row_blk_size=row_blk_sizes, &
-                           col_blk_size=row_blk_sizes, nze=0, mutable_work=.TRUE.)
+                           col_blk_size=row_blk_sizes, nze=0)
       END DO
 
       DEALLOCATE (row_blk_sizes)
@@ -684,9 +683,7 @@ CONTAINS
             xt => xtransformed(ispin)%matrix
             CALL dbcsr_set(pdens, 0.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(pdens, xt, ct, nactive(ispin), &
-                                       0.5_dp, keep_sparsity=.FALSE.)
-            CALL cp_dbcsr_plus_fm_fm_t(pdens, ct, xt, nactive(ispin), &
-                                       0.5_dp, keep_sparsity=.FALSE.)
+                                       1.0_dp, keep_sparsity=.FALSE.)
             CALL dbcsr_filter(pdens, stda_env%eps_td_filter)
             ! Apply PP*gab -> PP; gab = gamma_coulomb
             ! P(nu,mu) = P(nu,mu)*g(a of nu,b of mu)
