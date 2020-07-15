@@ -17,8 +17,7 @@ MODULE grid_collocate
                                               prepare_diadib,&
                                               prepare_diiadiib,&
                                               prepare_dijadijb
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fac
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
@@ -106,7 +105,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ga_gb_function
       REAL(KIND=dp), INTENT(IN)                          :: radius
       LOGICAL, OPTIONAL                                  :: use_subpatch
-      INTEGER(KIND=int_8), INTENT(IN), OPTIONAL          :: subpatch_pattern
+      INTEGER, INTENT(IN), OPTIONAL                      :: subpatch_pattern
 
       CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product', &
          routineP = moduleN//':'//routineN
@@ -413,7 +412,7 @@ CONTAINS
       TYPE(cube_info_type), INTENT(IN)         :: cube_info
       REAL(KIND=dp), INTENT(IN)                :: radius
       LOGICAL, OPTIONAL                        :: use_subpatch
-      INTEGER(KIND=int_8), OPTIONAL, INTENT(IN):: subpatch_pattern
+      INTEGER, OPTIONAL, INTENT(IN)            :: subpatch_pattern
       INTEGER, INTENT(IN)                      :: lp, lmax
 
       CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_part2', &

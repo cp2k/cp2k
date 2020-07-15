@@ -33,8 +33,7 @@ MODULE hirshfeld_methods
                                               radius_vdw,&
                                               shape_function_density,&
                                               shape_function_gaussian
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
@@ -417,8 +416,7 @@ CONTAINS
 
       INTEGER                                            :: atom_a, handle, iatom, iex, ikind, &
                                                             ithread, j, natom, npme, nthread, &
-                                                            numexp
-      INTEGER(KIND=int_8)                                :: subpatch_pattern
+                                                            numexp, subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       REAL(KIND=dp)                                      :: alpha, coef, eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
@@ -621,7 +619,7 @@ CONTAINS
                                           rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
                                           radius=radius, calculate_forces=do_force, &
                                           force_a=force_a, force_b=force_b, use_virial=.FALSE., &
-                                          use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+                                          use_subpatch=.TRUE., subpatch_pattern=0)
                fval(atom_a) = fval(atom_a) + hab(1, 1)*dvol*coef
                IF (do_force) THEN
                   fderiv(:, atom_a) = fderiv(:, atom_a) + force_a(:)*dvol

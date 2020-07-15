@@ -16,8 +16,7 @@ MODULE qs_rho0_ggrid
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
                                               fourpi
    USE memory_utilities,                ONLY: reallocate
@@ -224,7 +223,7 @@ CONTAINS
                l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
                ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                rs_grid, cell, cube_info(igrid), ga_gb_function=GRID_FUNC_AB, radius=rpgf0, &
-               use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+               use_subpatch=.TRUE., subpatch_pattern=0)
 
          END DO !  j
 
@@ -578,7 +577,7 @@ CONTAINS
                   calculate_forces=calculate_forces, &
                   hdab=hdab, hadb=hadb, &
                   use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
-                  a_hdab=a_hdab, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+                  a_hdab=a_hdab, use_subpatch=.TRUE., subpatch_pattern=0)
 
                ! Convert from cartesian to spherical
                DO lshell = 0, l0_ikind

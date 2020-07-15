@@ -44,8 +44,7 @@ MODULE qs_integrate_potential_single
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                               gridlevel_info_type
    USE grid_api,                        ONLY: integrate_pgf_product
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_kind_type
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_sum
@@ -256,7 +255,7 @@ CONTAINS
                                        radius=radius, &
                                        calculate_forces=.TRUE., force_a=force_a, &
                                        force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
-                                       my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+                                       my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0)
 
             force(ikind)%gth_ppl(:, iatom) = &
                force(ikind)%gth_ppl(:, iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
@@ -457,7 +456,7 @@ CONTAINS
                                           radius=radius, &
                                           calculate_forces=.TRUE., force_a=force_a, &
                                           force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
-                                          my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+                                          my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0)
 
                force(ikind)%gth_nlcc(:, iatom) = &
                   force(ikind)%gth_nlcc(:, iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
@@ -615,7 +614,7 @@ CONTAINS
                                           radius=radius, &
                                           calculate_forces=.TRUE., force_a=force_a, &
                                           force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
-                                          my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+                                          my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0)
 
                IF (ASSOCIATED(force)) THEN
                   force(ikind)%rho_core(:, iatom) = force(ikind)%rho_core(:, iatom) + force_a(:)

@@ -2597,7 +2597,7 @@ CONTAINS
 
       INTEGER :: bit_index, coord(3), curr_tasks, dest, i, icoord(3), idest, itask, ix, iy, iz, &
                  lb_coord(3), lb_domain(3), lbc(3), ub_coord(3), ub_domain(3), ubc(3)
-      INTEGER(KIND=int_8)                                :: bit_pattern
+      INTEGER                                            :: bit_pattern
       LOGICAL                                            :: dir_periodic(3)
 
       coord(1) = rs_desc%x2coord(cube_center(1))
@@ -2760,7 +2760,7 @@ CONTAINS
    FUNCTION encode_rank(rank, grid_level, n_levels) RESULT(encoded_int)
 
       INTEGER, INTENT(IN)                                :: rank, grid_level, n_levels
-      INTEGER(KIND=int_8)                                :: encoded_int
+      INTEGER                                            :: encoded_int
 
 ! ordered so can still sort by rank
 
@@ -2776,7 +2776,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION decode_rank(encoded_int, n_levels) RESULT(rank)
 
-      INTEGER(KIND=int_8), INTENT(IN)                    :: encoded_int
+      INTEGER, INTENT(IN)                                :: encoded_int
       INTEGER, INTENT(IN)                                :: n_levels
       INTEGER                                            :: rank
 
@@ -2792,15 +2792,11 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION decode_level(encoded_int, n_levels) RESULT(grid_level)
 
-      INTEGER(KIND=int_8), INTENT(IN)                    :: encoded_int
+      INTEGER, INTENT(IN)                                :: encoded_int
       INTEGER, INTENT(IN)                                :: n_levels
       INTEGER                                            :: grid_level
 
-      INTEGER(KIND=int_8)                                :: n_levels8
-
-      n_levels8 = n_levels
-
-      grid_level = INT(MODULO(encoded_int, n_levels8)) + 1
+      grid_level = INT(MODULO(encoded_int, n_levels)) + 1
 
    END FUNCTION decode_level
 

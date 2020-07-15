@@ -21,8 +21,7 @@ MODULE grid_api
         GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, GRID_FUNC_DZDZ, &
         collocate_pgf_product_legacy => collocate_pgf_product
    USE grid_integrate,                  ONLY: integrate_pgf_product
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE realspace_grid_types,            ONLY: realspace_grid_type
 #include "../base/base_uses.f90"
 
@@ -110,7 +109,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ga_gb_function
       REAL(KIND=dp), INTENT(IN)                          :: radius
       LOGICAL, OPTIONAL                                  :: use_subpatch
-      INTEGER(KIND=int_8), INTENT(IN), OPTIONAL          :: subpatch_pattern
+      INTEGER, INTENT(IN), OPTIONAL                      :: subpatch_pattern
 
       CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product', &
          routineP = moduleN//':'//routineN
@@ -173,9 +172,7 @@ CONTAINS
 
       my_subpatch_pattern = 0
       IF (PRESENT(subpatch_pattern)) THEN
-         ! TODO: why is subpatch_pattern int_8, shouldn't 4 bytes suffice?
-         CPASSERT(ABS(subpatch_pattern) <= 256)
-         my_subpatch_pattern = INT(subpatch_pattern)
+         my_subpatch_pattern = subpatch_pattern
       ENDIF
 
       IF (2.0_dp*radius < MAXVAL(ABS(rsgrid%desc%dh))) THEN

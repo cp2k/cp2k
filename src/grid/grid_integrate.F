@@ -10,8 +10,7 @@ MODULE grid_integrate
                                               return_cube_nonortho
    USE d3_poly,                         ONLY: poly_d32cp2k
    USE gauss_colloc,                    ONLY: integrateGaussFull
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fac
    USE orbital_pointers,                ONLY: coset,&
                                               current_maxl,&
@@ -118,7 +117,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL  :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, POINTER  :: a_hdab
       LOGICAL, OPTIONAL                        :: use_subpatch
-      INTEGER(KIND=int_8), INTENT(IN), OPTIONAL :: subpatch_pattern
+      INTEGER, INTENT(IN), OPTIONAL            :: subpatch_pattern
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_pgf_product_rspace', &
                                      routineP = moduleN//':'//routineN

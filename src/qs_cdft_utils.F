@@ -45,8 +45,7 @@ MODULE qs_cdft_utils
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
-                                              dp,&
-                                              int_8
+                                              dp
    USE memory_utilities,                ONLY: reallocate
    USE outer_scf_control_types,         ONLY: outer_scf_read_parameters
    USE particle_list_types,             ONLY: particle_list_type
@@ -386,7 +385,7 @@ CONTAINS
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, &
                                                 pab, 0, 0, rs_cavity, cell, pw_env%cube_info(1), &
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB, &
-                                                use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+                                                use_subpatch=.TRUE., subpatch_pattern=0)
                   ENDIF
                END DO
             END DO
