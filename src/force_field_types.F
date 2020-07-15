@@ -151,6 +151,10 @@ MODULE force_field_types
       CHARACTER(LEN=default_string_length), POINTER :: nonbond_a(:)
       REAL(KIND=dp), POINTER                        :: nonbond_eps(:)
       REAL(KIND=dp), POINTER                        :: nonbond_rmin2(:)
+      INTEGER, POINTER                               :: raw_torsion_id(:,:)
+      REAL(KIND=dp), POINTER                         :: raw_torsion_k(:)
+      REAL(KIND=dp), POINTER                         :: raw_torsion_m(:)
+      REAL(KIND=dp), POINTER                         :: raw_torsion_phi0(:)
    END TYPE amber_info_type
 
 ! **************************************************************************************************
@@ -360,6 +364,10 @@ CONTAINS
       NULLIFY (amb_info%nonbond_a)
       NULLIFY (amb_info%nonbond_eps)
       NULLIFY (amb_info%nonbond_rmin2)
+      NULLIFY (amb_info%raw_torsion_id)
+      NULLIFY (amb_info%raw_torsion_k)
+      NULLIFY (amb_info%raw_torsion_m)
+      NULLIFY (amb_info%raw_torsion_phi0)
 
    END SUBROUTINE init_amber_info
 
@@ -731,6 +739,18 @@ CONTAINS
       END IF
       IF (ASSOCIATED(amb_info%nonbond_rmin2)) THEN
          DEALLOCATE (amb_info%nonbond_rmin2)
+      END IF
+      IF (ASSOCIATED(amb_info%raw_torsion_id)) THEN
+         DEALLOCATE (amb_info%raw_torsion_id)
+      END IF
+      IF (ASSOCIATED(amb_info%raw_torsion_k)) THEN
+         DEALLOCATE (amb_info%raw_torsion_k)
+      END IF
+      IF (ASSOCIATED(amb_info%raw_torsion_m)) THEN
+         DEALLOCATE (amb_info%raw_torsion_m)
+      END IF
+      IF (ASSOCIATED(amb_info%raw_torsion_phi0)) THEN
+         DEALLOCATE (amb_info%raw_torsion_phi0)
       END IF
 
    END SUBROUTINE deallocate_amb_info
