@@ -184,43 +184,7 @@ CONTAINS
       CPASSERT(LBOUND(pab, 1) == 1)
       CPASSERT(LBOUND(pab, 2) == 1)
 
-      ! See rs_grid_create() in ./src/pw/realspace_grid_types.F.
-      CPASSERT(LBOUND(rsgrid%r, 1) == rsgrid%lb_local(1))
-      CPASSERT(UBOUND(rsgrid%r, 1) == rsgrid%ub_local(1))
-      CPASSERT(LBOUND(rsgrid%r, 2) == rsgrid%lb_local(2))
-      CPASSERT(UBOUND(rsgrid%r, 2) == rsgrid%ub_local(2))
-      CPASSERT(LBOUND(rsgrid%r, 3) == rsgrid%lb_local(3))
-      CPASSERT(UBOUND(rsgrid%r, 3) == rsgrid%ub_local(3))
-
-      ! While the rsgrid code assumes that the grid starts at rsgrid%lb,
-      ! the collocate code assumes that the grid starts at (1,1,1) in Fortran, or (0,0,0) in C.
-      ! So, a point rp(:) gets the following grid coordinates MODULO(rp(:)/dr(:),npts_global(:))
-
-      ! Number of global grid points in each direction.
-      npts_global = rsgrid%desc%ub - rsgrid%desc%lb + 1
-
-      ! Number of local grid points in each direction.
-      npts_local = rsgrid%ub_local - rsgrid%lb_local + 1
-
-      ! Number of points the local grid is shifted wrt global grid.
-      shift_local = rsgrid%lb_local - rsgrid%desc%lb
-
-      ! Check that rsgrid%desc%perd means what I think it means.
-      DO i = 1, 3
-         IF (rsgrid%desc%perd(i) == 1) THEN
-            ! Periodic meaning the grid in this direction is entriely present on every processor.
-            CPASSERT(npts_local(i) == npts_global(i))
-            CPASSERT(shift_local(i) == 0)
-         ELSE
-            ! Not periodic meaning the grid in this direction is distributed among processors.
-            CPASSERT(npts_local(i) < npts_global(i))
-            IF (my_use_subpatch) THEN
-               ! Check bounds of grid section that is owned by this processor.
-               CPASSERT(rsgrid%lb_real(i) == rsgrid%lb_local(i) + rsgrid%desc%border)
-               CPASSERT(rsgrid%ub_real(i) == rsgrid%ub_local(i) - rsgrid%desc%border)
-            ENDIF
-         ENDIF
-      ENDDO
+      CALL get_rsgrid_properties(rsgrid, npts_global=npts_global, npts_local=npts_local, shift_local=shift_local)
 
       IF (validate_collocate) THEN
          ALLOCATE (grid(SIZE(rsgrid%r, 1), SIZE(rsgrid%r, 2), SIZE(rsgrid%r, 3)))
@@ -316,5 +280,55 @@ CONTAINS
       ENDIF
 
    END SUBROUTINE collocate_pgf_product
+
+! **************************************************************************************************
+!> \brief Helper routines for getting rsgrid properties and asserting underlying assumptions.
+!> \param rsgrid ...
+!> \param npts_global ...
+!> \param npts_local ...
+!> \param shift_local ...
+! **************************************************************************************************
+   SUBROUTINE get_rsgrid_properties(rsgrid, npts_global, npts_local, shift_local)
+      TYPE(realspace_grid_type), INTENT(IN)              :: rsgrid
+      INTEGER, DIMENSION(:)                              :: npts_global, npts_local, shift_local
+
+      INTEGER                                            :: i
+
+      ! See rs_grid_create() in ./src/pw/realspace_grid_types.F.
+      CPASSERT(LBOUND(rsgrid%r, 1) == rsgrid%lb_local(1))
+      CPASSERT(UBOUND(rsgrid%r, 1) == rsgrid%ub_local(1))
+      CPASSERT(LBOUND(rsgrid%r, 2) == rsgrid%lb_local(2))
+      CPASSERT(UBOUND(rsgrid%r, 2) == rsgrid%ub_local(2))
+      CPASSERT(LBOUND(rsgrid%r, 3) == rsgrid%lb_local(3))
+      CPASSERT(UBOUND(rsgrid%r, 3) == rsgrid%ub_local(3))
+
+      ! While the rsgrid code assumes that the grid starts at rsgrid%lb,
+      ! the collocate code assumes that the grid starts at (1,1,1) in Fortran, or (0,0,0) in C.
+      ! So, a point rp(:) gets the following grid coordinates MODULO(rp(:)/dr(:),npts_global(:))
+
+      ! Number of global grid points in each direction.
+      npts_global = rsgrid%desc%ub - rsgrid%desc%lb + 1
+
+      ! Number of local grid points in each direction.
+      npts_local = rsgrid%ub_local - rsgrid%lb_local + 1
+
+      ! Number of points the local grid is shifted wrt global grid.
+      shift_local = rsgrid%lb_local - rsgrid%desc%lb
+
+      ! Check that rsgrid%desc%perd means what I think it means.
+      DO i = 1, 3
+         IF (rsgrid%desc%perd(i) == 1) THEN
+            ! Periodic meaning the grid in this direction is entriely present on every processor.
+            CPASSERT(npts_local(i) == npts_global(i))
+            CPASSERT(shift_local(i) == 0)
+         ELSE
+            ! Not periodic meaning the grid in this direction is distributed among processors.
+            CPASSERT(npts_local(i) < npts_global(i))
+            ! Check bounds of grid section that is owned by this processor.
+            CPASSERT(rsgrid%lb_real(i) == rsgrid%lb_local(i) + rsgrid%desc%border)
+            CPASSERT(rsgrid%ub_real(i) == rsgrid%ub_local(i) - rsgrid%desc%border)
+         ENDIF
+      ENDDO
+   END SUBROUTINE get_rsgrid_properties
 
 END MODULE grid_api
