@@ -1438,7 +1438,8 @@ CONTAINS
                                                             do_kp, my_compute_grad, &
                                                             my_compute_tau, my_soft, use_subpatch
       REAL(KIND=dp)                                      :: scale
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rab_inv, rb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: p_block_set
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, pab, sphi_a, sphi_b, work, &
                                                             zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pabt, workt
@@ -1657,9 +1658,9 @@ CONTAINS
 !$OMP          PRIVATE(img,img_old,iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
 !$OMP          PRIVATE(qs_kind,orb_basis_set,first_sgfa,la_max,la_min), &
 !$OMP          PRIVATE(npgfa,nseta,nsgfa,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
-!$OMP          PRIVATE(nsetb,nsgfb,sphi_b,zetb,p_block), &
+!$OMP          PRIVATE(nsetb,nsgfb,sphi_b,zetb,p_block, p_block_set), &
 !$OMP          PRIVATE(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,ra,rb), &
-!$OMP          PRIVATE(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,lb,ub,n,nw), &
+!$OMP          PRIVATE(na1,na2,nb1,nb2,scale,use_subpatch,ithread,lb,ub,n,nw), &
 !$OMP          PRIVATE(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,threadlocal_rsgrid)
 
       ithread = 0
@@ -1752,17 +1753,17 @@ CONTAINS
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
 
+               IF (ALLOCATED(p_block_set)) DEALLOCATE (p_block_set)
+               ALLOCATE (p_block_set(nsgfa(iset), nsgfb(jset)))
                IF (iatom <= jatom) THEN
-                  work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), &
-                                                       p_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1))
-                  pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgfb(jset)), &
-                                               TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1)))
+                  p_block_set(:, :) = p_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1)
                ELSE
-                  work(1:ncob, 1:nsgfa(iset)) = MATMUL(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1), &
-                                                       p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1))
-                  pab(1:ncob, 1:ncoa) = MATMUL(work(1:ncob, 1:nsgfa(iset)), &
-                                               TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1)))
-               END IF
+                  p_block_set(:, :) = TRANSPOSE(p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1))
+               ENDIF
+
+               work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), p_block_set)
+               pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgfb(jset)), &
+                                            TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1)))
 
                iset_old = iset
                jset_old = jset
@@ -1795,28 +1796,15 @@ CONTAINS
                use_subpatch = .FALSE.
             ENDIF
 
-            IF (iatom <= jatom) THEN
-               CALL collocate_pgf_product( &
-                  la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  ra, rab, scale, pab, na1 - 1, nb1 - 1, &
-                  threadlocal_rsgrid, cell, cube_info(igrid_level), &
-                  radius=tasks(itask)%radius, &
-                  ga_gb_function=ga_gb_function, &
-                  use_subpatch=use_subpatch, &
-                  subpatch_pattern=tasks(itask)%subpatch_pattern)
-            ELSE
-               rab_inv = -rab
-               CALL collocate_pgf_product( &
-                  lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
-                  threadlocal_rsgrid, cell, cube_info(igrid_level), &
-                  radius=tasks(itask)%radius, &
-                  ga_gb_function=ga_gb_function, &
-                  use_subpatch=use_subpatch, &
-                  subpatch_pattern=tasks(itask)%subpatch_pattern)
-            END IF
+            CALL collocate_pgf_product( &
+               la_max(iset), zeta(ipgf, iset), la_min(iset), &
+               lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+               ra, rab, scale, pab, na1 - 1, nb1 - 1, &
+               threadlocal_rsgrid, cell, cube_info(igrid_level), &
+               radius=tasks(itask)%radius, &
+               ga_gb_function=ga_gb_function, &
+               use_subpatch=use_subpatch, &
+               subpatch_pattern=tasks(itask)%subpatch_pattern)
          END DO loop_tasks
          END DO loop_pairs
 !$OMP END DO
