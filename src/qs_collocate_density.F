@@ -63,8 +63,7 @@ MODULE qs_collocate_density
    USE input_constants,                 ONLY: &
         orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s
    USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
-                                              int_8
+                                              dp
    USE lgrid_types,                     ONLY: lgrid_allocate_grid,&
                                               lgrid_type
    USE lri_environment_types,           ONLY: lri_kind_type
@@ -158,8 +157,7 @@ CONTAINS
 
       INTEGER                                            :: atom_a, handle, iatom, iexp_nlcc, ikind, &
                                                             ithread, j, n, natom, nc, nexp_nlcc, &
-                                                            ni, npme, nthread
-      INTEGER(KIND=int_8)                                :: subpatch_pattern
+                                                            ni, npme, nthread, subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, nct_nlcc
       LOGICAL                                            :: nlcc
       REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
@@ -342,8 +340,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, ithread, &
-                                                            j, lppl, n, natom, ni, npme, nthread
-      INTEGER(KIND=int_8)                                :: subpatch_pattern
+                                                            j, lppl, n, natom, ni, npme, nthread, &
+                                                            subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
@@ -865,8 +863,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, ithread, &
-                                                            j, natom, npme, nthread
-      INTEGER(KIND=int_8)                                :: subpatch_pattern
+                                                            j, natom, npme, nthread, &
+                                                            subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       LOGICAL                                            :: my_only_nopaw, paw_atom
       REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
@@ -998,8 +996,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_single_gaussian', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_a, handle, iatom, npme
-      INTEGER(KIND=int_8)                                :: subpatch_pattern
+      INTEGER                                            :: atom_a, handle, iatom, npme, &
+                                                            subpatch_pattern
       REAL(KIND=dp)                                      :: eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
@@ -1093,8 +1091,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_metal', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_a, handle, iatom, j, natom, npme
-      INTEGER(KIND=int_8)                                :: subpatch_pattern
+      INTEGER                                            :: atom_a, handle, iatom, j, natom, npme, &
+                                                            subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: cores
       REAL(KIND=dp)                                      :: eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
@@ -1203,8 +1201,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_resp_single', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iatom, npme
-      INTEGER(KIND=int_8)                                :: subpatch_pattern
+      INTEGER                                            :: handle, iatom, npme, subpatch_pattern
       REAL(KIND=dp)                                      :: eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
@@ -1301,8 +1298,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_resp_all', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iatom, j, npme
-      INTEGER(KIND=int_8)                                :: subpatch_pattern
+      INTEGER                                            :: handle, iatom, j, npme, subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: cores
       REAL(KIND=dp)                                      :: eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra

@@ -67,8 +67,7 @@ MODULE mixed_cdft_methods
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
-                                              dp,&
-                                              int_8
+                                              dp
    USE machine,                         ONLY: m_walltime
    USE mathlib,                         ONLY: diamat_all
    USE memory_utilities,                ONLY: reallocate
@@ -2608,7 +2607,7 @@ CONTAINS
                                                 rs_cavity, cell, mixed_cdft%pw_env%cube_info(1), &
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                                 use_subpatch=.TRUE., &
-                                                subpatch_pattern=0_int_8)
+                                                subpatch_pattern=0)
                   ENDIF
                END DO
             END DO

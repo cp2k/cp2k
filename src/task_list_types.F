@@ -22,12 +22,11 @@ MODULE task_list_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'task_list_types'
 
    TYPE task_type
-      INTEGER(kind=int_8)                           :: destination = 0
-      INTEGER(kind=int_8)                           :: source = 0
-      INTEGER(kind=int_8)                           :: dist_type = 0
-      INTEGER(kind=int_8)                           :: cost = 0
-      INTEGER(kind=int_8)                           :: subpatch_pattern = 0
-
+      INTEGER                                       :: destination = 0
+      INTEGER                                       :: source = 0
+      INTEGER                                       :: dist_type = 0
+      INTEGER                                       :: cost = 0
+      INTEGER                                       :: subpatch_pattern = 0
       INTEGER                                       :: grid_level = 0
       INTEGER                                       :: image = 0
       INTEGER                                       :: iatom = 0
@@ -194,11 +193,11 @@ CONTAINS
       INTEGER(KIND=int_8), &
          DIMENSION(task_size_in_int8), INTENT(IN)        :: serialized_task
 
-      task%destination = serialized_task(1)
-      task%source = serialized_task(2)
-      task%dist_type = serialized_task(3)
-      task%cost = serialized_task(4)
-      task%subpatch_pattern = serialized_task(5)
+      task%destination = INT(serialized_task(1))
+      task%source = INT(serialized_task(2))
+      task%dist_type = INT(serialized_task(3))
+      task%cost = INT(serialized_task(4))
+      task%subpatch_pattern = INT(serialized_task(5))
 
       task%grid_level = INT(serialized_task(6))
       task%image = INT(serialized_task(7))

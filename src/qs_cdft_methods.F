@@ -39,8 +39,7 @@ MODULE qs_cdft_methods
                                               section_vals_type
    USE kahan_sum,                       ONLY: accurate_dot_product,&
                                               accurate_sum
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -1163,8 +1162,7 @@ CONTAINS
 
       INTEGER                                            :: atom_a, handle, i, iatom, iex, igroup, &
                                                             ikind, ithread, j, natom, npme, &
-                                                            nthread, numexp
-      INTEGER(KIND=int_8)                                :: subpatch_pattern
+                                                            nthread, numexp, subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: compute_charge, is_constraint
       REAL(kind=dp)                                      :: alpha, coef, dvol, eps_rho_rspace, &

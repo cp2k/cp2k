@@ -36,8 +36,7 @@ MODULE qmmm_image_charge
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
-                                              dp,&
-                                              int_8
+                                              dp
    USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_bcast,&
@@ -434,7 +433,7 @@ CONTAINS
                                     0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                                     rs_v, cell, pw_env%cube_info(1), hab, o1=0, o2=0, &
                                     radius=radius, calculate_forces=.FALSE., &
-                                    use_subpatch=.TRUE., subpatch_pattern=0_int_8)
+                                    use_subpatch=.TRUE., subpatch_pattern=0)
 
          int_res(iatom) = hab(1, 1)
 
@@ -561,7 +560,7 @@ CONTAINS
                                     rs_v, cell, pw_env%cube_info(1), hab, pab, o1=0, o2=0, &
                                     radius=radius, calculate_forces=.TRUE., &
                                     force_a=force_a, force_b=force_b, use_subpatch=.TRUE., &
-                                    subpatch_pattern=0_int_8)
+                                    subpatch_pattern=0)
 
          force_a(:) = coeff(iatom)*force_a(:)
          forces(:, iatom) = force_a(:)
