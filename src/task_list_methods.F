@@ -2819,28 +2819,28 @@ CONTAINS
       LOGICAL                                            :: res
 
       IF (a%grid_level /= b%grid_level) THEN
-         res = a%grid_level > b%grid_level
+         res = a%grid_level < b%grid_level
 
       ELSE IF (a%image /= b%image) THEN
-         res = a%image > b%image
+         res = a%image < b%image
 
       ELSE IF (a%iatom /= b%iatom) THEN
-         res = a%iatom > b%iatom
+         res = a%iatom < b%iatom
 
       ELSE IF (a%jatom /= b%jatom) THEN
-         res = a%jatom > b%jatom
+         res = a%jatom < b%jatom
 
       ELSE IF (a%iset /= b%iset) THEN
-         res = a%iset > b%iset
+         res = a%iset < b%iset
 
       ELSE IF (a%jset /= b%jset) THEN
-         res = a%jset > b%jset
+         res = a%jset < b%jset
 
       ELSE IF (a%ipgf /= b%ipgf) THEN
-         res = a%ipgf > b%ipgf
+         res = a%ipgf < b%ipgf
 
       ELSE
-         res = a%jpgf > b%jpgf
+         res = a%jpgf < b%jpgf
 
       ENDIF
    END FUNCTION tasks_less_than
