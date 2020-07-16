@@ -1413,7 +1413,7 @@ CONTAINS
                   ! The array can be too long for linear lookup
                   ! Use binary search for first atom index
                   k_start = bsearch_leftmost_2d(amb_info%raw_torsion_id, glob_atm_id(1))
-                  k_end = SIZE(amb_info%raw_torsion_id)
+                  k_end = UBOUND(amb_info%raw_torsion_id, DIM=2)
 
                   ! If not found, skip the loop
                   IF (k_start /= 0) THEN
