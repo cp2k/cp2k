@@ -1416,24 +1416,26 @@ CONTAINS
                   k_end = SIZE(amb_info%raw_torsion_id)
 
                   ! If not found, skip the loop
-                  IF (k_start == 0) k_start = k_end + 1
+                  IF (k_start /= 0) THEN
 
-                  DO k = k_start, k_end
-                     IF (glob_atm_id(1) < amb_info%raw_torsion_id(1, k)) EXIT
-                     IF (ANY((glob_atm_id - amb_info%raw_torsion_id(1:4, k)) /= 0)) CYCLE
+                     DO k = k_start, k_end
+                        IF (glob_atm_id(1) < amb_info%raw_torsion_id(1, k)) EXIT
+                        IF (ANY((glob_atm_id - amb_info%raw_torsion_id(1:4, k)) /= 0)) CYCLE
 
-                     raw_parm_id = amb_info%raw_torsion_id(5, k)
-                     imul = torsion_list(j)%torsion_kind%nmul + 1
-                     CALL reallocate(torsion_list(j)%torsion_kind%k, 1, imul)
-                     CALL reallocate(torsion_list(j)%torsion_kind%m, 1, imul)
-                     CALL reallocate(torsion_list(j)%torsion_kind%phi0, 1, imul)
-                     torsion_list(j)%torsion_kind%id_type = do_ff_amber
-                     torsion_list(j)%torsion_kind%k(imul) = amb_info%raw_torsion_k(raw_parm_id)
-                     torsion_list(j)%torsion_kind%m(imul) = NINT(amb_info%raw_torsion_m(raw_parm_id))
-                     torsion_list(j)%torsion_kind%phi0(imul) = amb_info%raw_torsion_phi0(raw_parm_id)
-                     torsion_list(j)%torsion_kind%nmul = imul
-                     found = .TRUE.
-                  END DO
+                        raw_parm_id = amb_info%raw_torsion_id(5, k)
+                        imul = torsion_list(j)%torsion_kind%nmul + 1
+                        CALL reallocate(torsion_list(j)%torsion_kind%k, 1, imul)
+                        CALL reallocate(torsion_list(j)%torsion_kind%m, 1, imul)
+                        CALL reallocate(torsion_list(j)%torsion_kind%phi0, 1, imul)
+                        torsion_list(j)%torsion_kind%id_type = do_ff_amber
+                        torsion_list(j)%torsion_kind%k(imul) = amb_info%raw_torsion_k(raw_parm_id)
+                        torsion_list(j)%torsion_kind%m(imul) = NINT(amb_info%raw_torsion_m(raw_parm_id))
+                        torsion_list(j)%torsion_kind%phi0(imul) = amb_info%raw_torsion_phi0(raw_parm_id)
+                        torsion_list(j)%torsion_kind%nmul = imul
+                        found = .TRUE.
+                     END DO
+
+                  END IF
 
                END IF
 
