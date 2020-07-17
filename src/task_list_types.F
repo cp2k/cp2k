@@ -50,11 +50,23 @@ MODULE task_list_types
 
    TYPE task_list_type
       TYPE(task_type), DIMENSION(:), POINTER        :: tasks => Null()
-      TYPE(atom_pair_type), DIMENSION(:), POINTER   :: atom_pair_send => Null()
-      TYPE(atom_pair_type), DIMENSION(:), POINTER   :: atom_pair_recv => Null()
       INTEGER                                       :: ntasks
       INTEGER, DIMENSION(:, :), POINTER             :: taskstart, taskstop
       INTEGER, DIMENSION(:), POINTER                :: npairs
+
+      TYPE(atom_pair_type), DIMENSION(:), POINTER   :: atom_pair_send => Null()
+      INTEGER, DIMENSION(:), POINTER                :: pair_offsets_send => Null()
+      INTEGER, DIMENSION(:), POINTER                :: rank_offsets_send => Null()
+      INTEGER, DIMENSION(:), POINTER                :: rank_sizes_send => Null()
+      INTEGER                                       :: buffer_size_send = 0
+
+      TYPE(atom_pair_type), DIMENSION(:), POINTER   :: atom_pair_recv => Null()
+      INTEGER, DIMENSION(:), POINTER                :: pair_offsets_recv => Null()
+      INTEGER, DIMENSION(:), POINTER                :: rank_offsets_recv => Null()
+      INTEGER, DIMENSION(:), POINTER                :: rank_sizes_recv => Null()
+      INTEGER                                       :: buffer_size_recv = 0
+
+      REAL(KIND=dp), DIMENSION(:), POINTER          :: buffer_recv => Null()
    END TYPE task_list_type
 
    INTEGER, PARAMETER                               :: task_size_in_int8 = 17
@@ -131,12 +143,6 @@ CONTAINS
       IF (ASSOCIATED(task_list%tasks)) THEN
          DEALLOCATE (task_list%tasks)
       ENDIF
-      IF (ASSOCIATED(task_list%atom_pair_send)) THEN
-         DEALLOCATE (task_list%atom_pair_send)
-      ENDIF
-      IF (ASSOCIATED(task_list%atom_pair_recv)) THEN
-         DEALLOCATE (task_list%atom_pair_recv)
-      ENDIF
       IF (ASSOCIATED(task_list%taskstart)) THEN
          DEALLOCATE (task_list%taskstart)
       ENDIF
@@ -145,6 +151,35 @@ CONTAINS
       ENDIF
       IF (ASSOCIATED(task_list%npairs)) THEN
          DEALLOCATE (task_list%npairs)
+      ENDIF
+
+      IF (ASSOCIATED(task_list%atom_pair_send)) THEN
+         DEALLOCATE (task_list%atom_pair_send)
+      ENDIF
+      IF (ASSOCIATED(task_list%pair_offsets_send)) THEN
+         DEALLOCATE (task_list%pair_offsets_send)
+      ENDIF
+      IF (ASSOCIATED(task_list%rank_offsets_send)) THEN
+         DEALLOCATE (task_list%rank_offsets_send)
+      ENDIF
+      IF (ASSOCIATED(task_list%rank_sizes_send)) THEN
+         DEALLOCATE (task_list%rank_sizes_send)
+      ENDIF
+
+      IF (ASSOCIATED(task_list%atom_pair_recv)) THEN
+         DEALLOCATE (task_list%atom_pair_recv)
+      ENDIF
+      IF (ASSOCIATED(task_list%pair_offsets_recv)) THEN
+         DEALLOCATE (task_list%pair_offsets_recv)
+      ENDIF
+      IF (ASSOCIATED(task_list%rank_offsets_recv)) THEN
+         DEALLOCATE (task_list%rank_offsets_recv)
+      ENDIF
+      IF (ASSOCIATED(task_list%rank_sizes_recv)) THEN
+         DEALLOCATE (task_list%rank_sizes_recv)
+      ENDIF
+      IF (ASSOCIATED(task_list%buffer_recv)) THEN
+         DEALLOCATE (task_list%buffer_recv)
       ENDIF
 
       DEALLOCATE (task_list)
