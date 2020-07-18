@@ -35,7 +35,7 @@ void grid_collocate_record(const bool orthorhombic,
                            const double pab[n2][n1],
                            const double* grid);
 
-double grid_collocate_replay(const char* filename, int cycles);
+double grid_collocate_replay(const char* filename, int cycles, bool batch);
 
 #endif
 

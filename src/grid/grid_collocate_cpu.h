@@ -5,6 +5,8 @@
 #ifndef GRID_COLLOCATE_CPU_H
 #define GRID_COLLOCATE_CPU_H
 
+#include <stdbool.h>
+
 //******************************************************************************
 // \brief Collocates a single task. A task consists of a pair of atoms each
 //        with a position, Gaussian exponent, and a range of angular momentum.
@@ -36,6 +38,8 @@
 // \param pab           The atom-pair's density matrix block P_{ab}.
 //
 // \param grid          The output grid array to collocate into.
+//
+// \author Ole Schuett
 //******************************************************************************
 void grid_collocate_pgf_product_cpu(const bool orthorhombic,
                                     const bool use_subpatch,

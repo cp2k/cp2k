@@ -34,6 +34,8 @@
 #define GRID_FUNC_DYDY 802
 #define GRID_FUNC_DZDZ 803
 
+int coset(int lx, int ly, int lz);
+
 void grid_prepare_get_ldiffs(const int func,
                              int* la_min_diff,
                              int* la_max_diff,

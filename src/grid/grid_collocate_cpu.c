@@ -5,7 +5,6 @@
 
 #include <stdio.h>
 #include <math.h>
-#include <stdbool.h>
 #include <limits.h>
 #include <assert.h>
 #include <string.h>
@@ -776,6 +775,13 @@ static void grid_collocate_internal(const bool orthorhombic,
                                     const double pab[n2][n1],
                                     double* grid){
 
+    // Check if radius is too small to be mapped onto grid of given resolution.
+    double dh_max = 0.0;
+    for (int i=0; i<3; i++)
+        for (int j=0; j<3; j++)
+           dh_max = max(dh_max, fabs(dh[i][j]));
+    if (2.0 * radius < dh_max) return;
+
     const double zetp = zeta + zetb;
     const double f = zetb / zetp;
     const double rab2 = rab[0] * rab[0] + rab[1] * rab[1] + rab[2] * rab[2];
@@ -909,7 +915,7 @@ void grid_collocate_pgf_product_cpu(const bool orthorhombic,
     const bool DUMP_TASKS = false;
 
     double* grid_before = NULL;
-    const int npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
+    const size_t npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
 
     if (DUMP_TASKS) {
         const size_t sizeof_grid = sizeof(double) * npts_local_total;
@@ -973,7 +979,7 @@ void grid_collocate_pgf_product_cpu(const bool orthorhombic,
                               pab,
                               grid);
 
-        for (int i=0; i < npts_local_total; i++) {
+        for (size_t i=0; i < npts_local_total; i++) {
             grid[i] += grid_before[i];
         }
         free(grid_before);
