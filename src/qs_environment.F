@@ -381,10 +381,11 @@ CONTAINS
          CALL lri_env_basis("RI", qs_env, lri_env, qs_kind_set)
       END IF
 
-      IF (my_qmmm .AND. PRESENT(qmmm_env_qm) .AND. .NOT. dft_control%qs_control%commensurate_mgrids .AND. &
-          (qmmm_env_qm%qmmm_coupl_type == do_qmmm_gauss .OR. qmmm_env_qm%qmmm_coupl_type == do_qmmm_swave)) THEN
-         CALL cp_abort(__LOCATION__, "QM/MM with coupling GAUSS or S-WAVE requires "// &
-                       "keyword FORCE_EVAL/DFT/MGRID/COMMENSURATE to be enabled.")
+      IF (my_qmmm .AND. PRESENT(qmmm_env_qm) .AND. .NOT. dft_control%qs_control%commensurate_mgrids) THEN
+         IF (qmmm_env_qm%qmmm_coupl_type == do_qmmm_gauss .OR. qmmm_env_qm%qmmm_coupl_type == do_qmmm_swave) THEN
+            CALL cp_abort(__LOCATION__, "QM/MM with coupling GAUSS or S-WAVE requires "// &
+                          "keyword FORCE_EVAL/DFT/MGRID/COMMENSURATE to be enabled.")
+         ENDIF
       ENDIF
 
       ! more kpoint stuff
