@@ -1212,6 +1212,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ! initialize libint
+      CALL cp_libint_static_init()
+
       NULLIFY (ri_aux_basis_set, qs_kind)
 
       natom = SIZE(particle_set)
@@ -1448,6 +1451,9 @@ CONTAINS
       INTEGER                                            :: handle, i_mem, ispin, j_mem, unused
 
       CALL timeset(routineN, handle)
+
+      ! cleanup libint
+      CALL cp_libint_static_cleanup()
 
       CALL hfx_ri_write_stats(ri_data)
 
