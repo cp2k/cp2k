@@ -183,22 +183,6 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
             if b"\r\n" in content:
                 warnings += ["Text file %s contains DOS linebreaks" % shortfn]
 
-            # check for non-ascii chars
-            if re.search(b"[\x80-\xFF]", content):
-                if absfn.endswith(".py"):
-                    continue  # python files are utf8 encoded by default
-
-                if b"# -*- coding: utf-8 -*-" in content:
-                    continue
-
-                for lineno, line in enumerate(content.splitlines()):
-                    m = re.search(b"[\x80-\xFF]", line)
-                    if m:
-                        warnings += [
-                            "Found non-ascii char in %s line %d at position %d"
-                            % (shortfn, lineno + 1, m.start(0) + 1)
-                        ]
-
     return warnings
 
 
