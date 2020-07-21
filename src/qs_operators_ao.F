@@ -58,7 +58,7 @@ MODULE qs_operators_ao
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief   Calculation of the linear momentum matrix over
+!> \brief   Calculation of the linear momentum matrix <mu|∂|nu> over
 !>          Cartesian Gaussian functions.
 !> \param qs_env ...
 !> \param matrix ...
