@@ -476,7 +476,7 @@ CONTAINS
       ALLOCATE (pbasis%norm_cgf(ncgf))
       ALLOCATE (pbasis%cphi(maxco, ncgf))
       pbasis%cphi = 0.0_dp
-      ALLOCATE (pbasis%sphi(maxco, ncgf))
+      ALLOCATE (pbasis%sphi(maxco, nsgf))
       pbasis%sphi = 0.0_dp
       ALLOCATE (pbasis%scon(maxco, ncgf))
       pbasis%scon = 0.0_dp
