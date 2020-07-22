@@ -5622,18 +5622,22 @@ CONTAINS
 
       ! CONFIGURATION SECTION
       CALL section_create(subsection, __LOCATION__, name="CONFIGURATION", &
-                          description="Specify additional parameters for the combinatorial configurations.", &
+                          description="Specify additional parameters for the combinatorial configurations. "// &
+                          "Use this section to manually specify charge and multiplicity of the fragments "// &
+                          "and their combinations.", &
                           n_keywords=2, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="GLB_CONF", &
-                          description="Specifies the global configuration using 1 or 0.", &
+                          description="Specifies the global configuration using 1 or 0 for each fragment. "// &
+                          "1 specifies the respective fragment as used, 0 as unused.", &
                           usage="GLB_CONF {integer} {integer} .. {integer}", &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SUB_CONF", &
-                          description="Specifies the subconfiguration using 1 or 0 belonging to the global configuration.", &
+                          description="Specifies the subconfiguration using 1 or 0 belonging to the global configuration. "// &
+                          "1 specifies the respective fragment as real, 0 as ghost.", &
                           usage="SUB_CONF {integer} {integer} .. {integer}", &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
