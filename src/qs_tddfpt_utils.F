@@ -245,11 +245,10 @@ CONTAINS
          !-------------------!
          sorter_iterator => sorter_start
          DO i = 1, MIN(n_v, n_orbits*n_lumos)
-            CALL dcopy(n_rows*n_orbits, 0.0_dp, 0, guess, 1)
+            guess(:, :) = 0.0_dp
             CALL dcopy(n_rows, lumos(:, sorter_iterator%lumo), 1, &
                        guess(:, sorter_iterator%orbit), 1)
-            CALL cp_fm_set_submatrix(matrices(i, spin)%matrix, &
-                                     guess(:, 1:n_orbits))
+            CALL cp_fm_set_submatrix(matrices(i, spin)%matrix, guess)
             energies(i) = energies(i) + sorter_iterator%value/REAL(n_spins, dp)
             sorter_iterator => sorter_iterator%next
          END DO

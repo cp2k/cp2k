@@ -1065,7 +1065,7 @@ CONTAINS
 
       ! work size query
       lwork = -1
-      CALL dsyev('V', 'U', n, a(1, 1), n, eig(1), work(1), lwork, info)
+      CALL dsyev('V', 'U', n, a, n, eig(1), work(1), lwork, info)
       IF (info /= 0) THEN
          CPABORT("ERROR in DSYEV: Could not retrieve work array sizes")
       END IF
@@ -1075,7 +1075,7 @@ CONTAINS
       work = 0.0_dp
 
       ! get eigenvalues and eigenvectors
-      CALL dsyev('V', 'U', n, a(1, 1), n, eig(1), work(1), lwork, info)
+      CALL dsyev('V', 'U', n, a, n, eig(1), work(1), lwork, info)
 
       IF (info /= 0) THEN
          CPABORT("Matrix diagonalization failed")
@@ -1830,4 +1830,3 @@ CONTAINS
    END SUBROUTINE erfc_cutoff
 
 END MODULE mathlib
-

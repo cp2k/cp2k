@@ -301,7 +301,7 @@ CONTAINS
 #if defined(__SCALAPACK)
       MARK_USED(correct_sign)
       desca(:) = matrix_a%matrix_struct%descriptor(:)
-      CALL pdgetrf(n, n, a(1, 1), 1, 1, desca, ipivot, info)
+      CALL pdgetrf(n, n, a, 1, 1, desca, ipivot, info)
 
       ALLOCATE (diag(n))
       diag(:) = 0.0_dp
@@ -315,7 +315,7 @@ CONTAINS
       DEALLOCATE (diag)
 #else
       lda = SIZE(a, 1)
-      CALL dgetrf(n, n, a(1, 1), lda, ipivot, info)
+      CALL dgetrf(n, n, a, lda, ipivot, info)
       determinant = 1.0_dp
       IF (correct_sign) THEN
          DO i = 1, n
@@ -445,8 +445,8 @@ CONTAINS
 
       ELSEIF ((.NOT. matrix_a%use_sp) .AND. (.NOT. matrix_b%use_sp) .AND. (.NOT. matrix_c%use_sp)) THEN
 
-         CALL pdgemm(transa, transb, m, n, k, alpha, a(1, 1), i_a, j_a, desca, b(1, 1), i_b, j_b, &
-                     descb, beta, c(1, 1), i_c, j_c, descc)
+         CALL pdgemm(transa, transb, m, n, k, alpha, a, i_a, j_a, desca, b, i_b, j_b, &
+                     descb, beta, c, i_c, j_c, descc)
 
       ELSE
          CPABORT("Mixed precision gemm NYI")
@@ -1374,18 +1374,18 @@ CONTAINS
                       irow_local, icol_local, iprow, ipcol)
          IF ((ipcol == mypcol)) THEN
             IF (matrixa%use_sp) THEN
-               CALL SSCAL(n, REAL(scaling(icol_global), sp), a_sp(1, icol_local), 1)
+               CALL SSCAL(n, REAL(scaling(icol_global), sp), a_sp(:, icol_local), 1)
             ELSE
-               CALL DSCAL(n, scaling(icol_global), a(1, icol_local), 1)
+               CALL DSCAL(n, scaling(icol_global), a(:, icol_local), 1)
             ENDIF
          END IF
       ENDDO
 #else
       DO i = 1, k
          IF (matrixa%use_sp) THEN
-            CALL SSCAL(n, REAL(scaling(i), sp), a_sp(1, i), 1)
+            CALL SSCAL(n, REAL(scaling(i), sp), a_sp(:, i), 1)
          ELSE
-            CALL DSCAL(n, scaling(i), a(1, i), 1)
+            CALL DSCAL(n, scaling(i), a(:, i), 1)
          ENDIF
       ENDDO
 #endif
@@ -1515,7 +1515,7 @@ CONTAINS
          lwork = 3*n
          liwork = 3*n
          desca(:) = matrix_lu%matrix_struct%descriptor(:)
-         CALL pdgetrf(n, n, a(1, 1), 1, 1, desca, ipivot, info)
+         CALL pdgetrf(n, n, a, 1, 1, desca, ipivot, info)
 
          IF (PRESENT(det_a) .OR. PRESENT(eigval)) THEN
 
@@ -1807,15 +1807,15 @@ CONTAINS
 #if defined(__SCALAPACK)
       desca(:) = matrix_a%matrix_struct%descriptor(:)
       descb(:) = general_a%matrix_struct%descriptor(:)
-      CALL pdgetrf(n, n, a(1, 1), 1, 1, desca, ipivot, info)
-      CALL pdgetrs("N", n, n, a(1, 1), 1, 1, desca, ipivot, a_general(1, 1), &
+      CALL pdgetrf(n, n, a, 1, 1, desca, ipivot, info)
+      CALL pdgetrs("N", n, n, a, 1, 1, desca, ipivot, a_general, &
                    1, 1, descb, info)
 
 #else
       lda = SIZE(a, 1)
       ldb = SIZE(a_general, 1)
-      CALL dgetrf(n, n, a(1, 1), lda, ipivot, info)
-      CALL dgetrs("N", n, n, a(1, 1), lda, ipivot, a_general, ldb, info)
+      CALL dgetrf(n, n, a, lda, ipivot, info)
+      CALL dgetrs("N", n, n, a, lda, ipivot, a_general, ldb, info)
 
 #endif
       ! info is allowed to be zero
