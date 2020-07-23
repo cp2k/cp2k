@@ -621,37 +621,37 @@ CONTAINS
                      coc(k) = int_hard(j, i) - int_soft(j, i)
                   END DO
                END DO
-               CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, coc, nsp, C_hh_b(1, 1, 1), SIZE(C_hh_b, 1), &
-                          0.0_dp, C_int_h(1), nsp)
-               CALL DGEMM('N', 'N', nconta, ncontb, nsp, factor, C_hh_a(1, 1, 1), SIZE(C_hh_a, 1), &
-                          C_int_h(1), nsp, 0.0_dp, a_matrix(1, 1), SIZE(a_matrix, 1))
+               CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, coc, nsp, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
+                          0.0_dp, C_int_h, nsp)
+               CALL DGEMM('N', 'N', nconta, ncontb, nsp, factor, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
+                          C_int_h, nsp, 0.0_dp, a_matrix, SIZE(a_matrix, 1))
             ELSEIF (dista) THEN
-               CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, int_hard(1, 1), SIZE(int_hard, 1), &
-                          C_hh_b(1, 1, 1), SIZE(C_hh_b, 1), 0.0_dp, coc(1), nsp)
-               CALL DGEMM('N', 'T', nsp, ncontb, nsp, -1.0_dp, int_soft(1, 1), SIZE(int_soft, 1), &
-                          C_ss_b(1, 1, 1), SIZE(C_ss_b, 1), 1.0_dp, coc(1), nsp)
-               CALL DGEMM('N', 'N', nconta, ncontb, nsp, factor, C_hh_a(1, 1, 1), SIZE(C_hh_a, 1), &
-                          coc(1), nsp, 0.0_dp, a_matrix(1, 1), SIZE(a_matrix, 1))
+               CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, int_hard, SIZE(int_hard, 1), &
+                          C_hh_b(:, :, 1), SIZE(C_hh_b, 1), 0.0_dp, coc, nsp)
+               CALL DGEMM('N', 'T', nsp, ncontb, nsp, -1.0_dp, int_soft, SIZE(int_soft, 1), &
+                          C_ss_b(:, :, 1), SIZE(C_ss_b, 1), 1.0_dp, coc, nsp)
+               CALL DGEMM('N', 'N', nconta, ncontb, nsp, factor, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
+                          coc, nsp, 0.0_dp, a_matrix, SIZE(a_matrix, 1))
             ELSEIF (distb) THEN
-               CALL DGEMM('N', 'N', nconta, nsp, nsp, factor, C_hh_a(1, 1, 1), SIZE(C_hh_a, 1), &
-                          int_hard(1, 1), SIZE(int_hard, 1), 0.0_dp, coc(1), nconta)
-               CALL DGEMM('N', 'N', nconta, nsp, nsp, -factor, C_ss_a(1, 1, 1), SIZE(C_hh_a, 1), &
-                          int_soft(1, 1), SIZE(int_soft, 1), 1.0_dp, coc(1), nconta)
-               CALL DGEMM('N', 'T', nconta, ncontb, nsp, 1.0_dp, coc(1), nconta, &
-                          C_hh_b(1, 1, 1), SIZE(C_hh_b, 1), 0.0_dp, a_matrix(1, 1), SIZE(a_matrix, 1))
+               CALL DGEMM('N', 'N', nconta, nsp, nsp, factor, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
+                          int_hard, SIZE(int_hard, 1), 0.0_dp, coc, nconta)
+               CALL DGEMM('N', 'N', nconta, nsp, nsp, -factor, C_ss_a(:, :, 1), SIZE(C_hh_a, 1), &
+                          int_soft, SIZE(int_soft, 1), 1.0_dp, coc, nconta)
+               CALL DGEMM('N', 'T', nconta, ncontb, nsp, 1.0_dp, coc, nconta, &
+                          C_hh_b(:, :, 1), SIZE(C_hh_b, 1), 0.0_dp, a_matrix, SIZE(a_matrix, 1))
             ELSE
-               CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, int_hard(1, 1), SIZE(int_hard, 1), &
-                          C_hh_b(1, 1, 1), SIZE(C_hh_b, 1), &
-                          0.0_dp, C_int_h(1), nsp)
-               CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, int_soft(1, 1), SIZE(int_soft, 1), &
-                          C_ss_b(1, 1, 1), SIZE(C_ss_b, 1), &
-                          0.0_dp, C_int_s(1), nsp)
-               CALL DGEMM('N', 'N', nconta, ncontb, nsp, factor, C_hh_a(1, 1, 1), SIZE(C_hh_a, 1), &
-                          C_int_h(1), nsp, &
-                          0.0_dp, a_matrix(1, 1), SIZE(a_matrix, 1))
-               CALL DGEMM('N', 'N', nconta, ncontb, nsp, -factor, C_ss_a(1, 1, 1), SIZE(C_ss_a, 1), &
-                          C_int_s(1), nsp, &
-                          1.0_dp, a_matrix(1, 1), SIZE(a_matrix, 1))
+               CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, int_hard, SIZE(int_hard, 1), &
+                          C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
+                          0.0_dp, C_int_h, nsp)
+               CALL DGEMM('N', 'T', nsp, ncontb, nsp, 1.0_dp, int_soft, SIZE(int_soft, 1), &
+                          C_ss_b(:, :, 1), SIZE(C_ss_b, 1), &
+                          0.0_dp, C_int_s, nsp)
+               CALL DGEMM('N', 'N', nconta, ncontb, nsp, factor, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
+                          C_int_h, nsp, &
+                          0.0_dp, a_matrix, SIZE(a_matrix, 1))
+               CALL DGEMM('N', 'N', nconta, ncontb, nsp, -factor, C_ss_a(:, :, 1), SIZE(C_ss_a, 1), &
+                          C_int_s, nsp, &
+                          1.0_dp, a_matrix, SIZE(a_matrix, 1))
             END IF
             !
             CALL alist_post_align_blk(a_matrix, SIZE(a_matrix, 1), h_block, SIZE(h_block, 1), &
@@ -665,36 +665,36 @@ CONTAINS
                      coc(k) = int_hard(j, i) - int_soft(j, i)
                   END DO
                END DO
-               CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, coc, nsp, C_hh_a(1, 1, 1), SIZE(C_hh_a, 1), 0.0_dp, C_int_h(1), nsp)
-               CALL DGEMM('N', 'N', ncontb, nconta, nsp, factor, C_hh_b(1, 1, 1), SIZE(C_hh_b, 1), &
-                          C_int_h(1), nsp, 0.0_dp, a_matrix(1, 1), SIZE(a_matrix, 1))
+               CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, coc, nsp, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), 0.0_dp, C_int_h, nsp)
+               CALL DGEMM('N', 'N', ncontb, nconta, nsp, factor, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
+                          C_int_h, nsp, 0.0_dp, a_matrix, SIZE(a_matrix, 1))
             ELSEIF (dista) THEN
-               CALL DGEMM('N', 'N', ncontb, nsp, nsp, factor, C_hh_b(1, 1, 1), SIZE(C_hh_b, 1), &
-                          int_hard(1, 1), SIZE(int_hard, 1), 0.0_dp, coc, ncontb)
-               CALL DGEMM('N', 'N', ncontb, nsp, nsp, -factor, C_ss_b(1, 1, 1), SIZE(C_ss_b, 1), &
-                          int_soft(1, 1), SIZE(int_soft, 1), 1.0_dp, coc, ncontb)
+               CALL DGEMM('N', 'N', ncontb, nsp, nsp, factor, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
+                          int_hard, SIZE(int_hard, 1), 0.0_dp, coc, ncontb)
+               CALL DGEMM('N', 'N', ncontb, nsp, nsp, -factor, C_ss_b(:, :, 1), SIZE(C_ss_b, 1), &
+                          int_soft, SIZE(int_soft, 1), 1.0_dp, coc, ncontb)
                CALL DGEMM('N', 'T', ncontb, nconta, nsp, 1.0_dp, coc, ncontb, &
-                          C_hh_a(1, 1, 1), SIZE(C_hh_a, 1), 0.0_dp, a_matrix(1, 1), SIZE(a_matrix, 1))
+                          C_hh_a(:, :, 1), SIZE(C_hh_a, 1), 0.0_dp, a_matrix, SIZE(a_matrix, 1))
             ELSEIF (distb) THEN
-               CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, int_hard(1, 1), SIZE(int_hard, 1), &
-                          C_hh_a(1, 1, 1), SIZE(C_hh_a, 1), 0.0_dp, coc(1), nsp)
-               CALL DGEMM('N', 'T', nsp, nconta, nsp, -1.0_dp, int_soft(1, 1), SIZE(int_soft, 1), &
-                          C_ss_a(1, 1, 1), SIZE(C_ss_a, 1), 1.0_dp, coc(1), nsp)
-               CALL DGEMM('N', 'N', ncontb, nconta, nsp, factor, C_hh_b(1, 1, 1), SIZE(C_hh_b, 1), &
-                          coc(1), nsp, 0.0_dp, a_matrix(1, 1), SIZE(a_matrix, 1))
+               CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, int_hard, SIZE(int_hard, 1), &
+                          C_hh_a(:, :, 1), SIZE(C_hh_a, 1), 0.0_dp, coc, nsp)
+               CALL DGEMM('N', 'T', nsp, nconta, nsp, -1.0_dp, int_soft, SIZE(int_soft, 1), &
+                          C_ss_a(:, :, 1), SIZE(C_ss_a, 1), 1.0_dp, coc, nsp)
+               CALL DGEMM('N', 'N', ncontb, nconta, nsp, factor, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
+                          coc, nsp, 0.0_dp, a_matrix, SIZE(a_matrix, 1))
             ELSE
-               CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, int_hard(1, 1), SIZE(int_hard, 1), &
-                          C_hh_a(1, 1, 1), SIZE(C_hh_a, 1), &
-                          0.0_dp, C_int_h(1), nsp)
-               CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, int_soft(1, 1), SIZE(int_soft, 1), &
-                          C_ss_a(1, 1, 1), SIZE(C_ss_a, 1), &
-                          0.0_dp, C_int_s(1), nsp)
-               CALL DGEMM('N', 'N', ncontb, nconta, nsp, factor, C_hh_b(1, 1, 1), SIZE(C_hh_b, 1), &
-                          C_int_h(1), nsp, &
-                          0.0_dp, a_matrix(1, 1), SIZE(a_matrix, 1))
-               CALL DGEMM('N', 'N', ncontb, nconta, nsp, -factor, C_ss_b(1, 1, 1), SIZE(C_ss_b, 1), &
-                          C_int_s(1), nsp, &
-                          1.0_dp, a_matrix(1, 1), SIZE(a_matrix, 1))
+               CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, int_hard, SIZE(int_hard, 1), &
+                          C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
+                          0.0_dp, C_int_h, nsp)
+               CALL DGEMM('N', 'T', nsp, nconta, nsp, 1.0_dp, int_soft, SIZE(int_soft, 1), &
+                          C_ss_a(:, :, 1), SIZE(C_ss_a, 1), &
+                          0.0_dp, C_int_s, nsp)
+               CALL DGEMM('N', 'N', ncontb, nconta, nsp, factor, C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
+                          C_int_h, nsp, &
+                          0.0_dp, a_matrix, SIZE(a_matrix, 1))
+               CALL DGEMM('N', 'N', ncontb, nconta, nsp, -factor, C_ss_b(:, :, 1), SIZE(C_ss_b, 1), &
+                          C_int_s, nsp, &
+                          1.0_dp, a_matrix, SIZE(a_matrix, 1))
             END IF
             !
             CALL alist_post_align_blk(a_matrix, SIZE(a_matrix, 1), h_block, SIZE(h_block, 1), &
@@ -773,48 +773,48 @@ CONTAINS
          int_hard => int_local_h(ispin)%r_coef
          int_soft => int_local_s(ispin)%r_coef
 
-         CALL DGEMM('N', 'N', nconta, nsp, ncontb, 1.0_dp, p_matrix(1, 1), SIZE(p_matrix, 1), &
-                    C_hh_b(1, 1, 1), SIZE(C_hh_b, 1), &
-                    0.0_dp, PC_h(1, 1, ispin), SIZE(PC_h, 1))
-         CALL DGEMM('N', 'N', nconta, nsp, ncontb, 1.0_dp, p_matrix(1, 1), SIZE(p_matrix, 1), &
-                    C_ss_b(1, 1, 1), SIZE(C_ss_b, 1), &
-                    0.0_dp, PC_s(1, 1, ispin), SIZE(PC_s, 1))
+         CALL DGEMM('N', 'N', nconta, nsp, ncontb, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
+                    C_hh_b(:, :, 1), SIZE(C_hh_b, 1), &
+                    0.0_dp, PC_h(:, :, ispin), SIZE(PC_h, 1))
+         CALL DGEMM('N', 'N', nconta, nsp, ncontb, 1.0_dp, p_matrix(:, :), SIZE(p_matrix, 1), &
+                    C_ss_b(:, :, 1), SIZE(C_ss_b, 1), &
+                    0.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1))
 
          DO dir = 2, 4
-            CALL DGEMM('T', 'N', nsp, nsp, nconta, 1.0_dp, PC_h(1, 1, ispin), SIZE(PC_h, 1), &
-                       C_hh_a(1, 1, dir), SIZE(C_hh_a, 1), &
-                       0.0_dp, dCPC_h(1, 1), SIZE(dCPC_h, 1))
+            CALL DGEMM('T', 'N', nsp, nsp, nconta, 1.0_dp, PC_h(:, :, ispin), SIZE(PC_h, 1), &
+                       C_hh_a(:, :, dir), SIZE(C_hh_a, 1), &
+                       0.0_dp, dCPC_h, SIZE(dCPC_h, 1))
             trace = trace_r_AxB(dCPC_h, ldCPC, int_hard, nsp, nsp, nsp)
             force(dir - 1, 3) = force(dir - 1, 3) + ieqj*trace
             force(dir - 1, 1) = force(dir - 1, 1) - ieqj*trace
 
-            CALL DGEMM('T', 'N', nsp, nsp, nconta, 1.0_dp, PC_s(1, 1, ispin), SIZE(PC_s, 1), &
-                       C_ss_a(1, 1, dir), SIZE(C_ss_a, 1), &
-                       0.0_dp, dCPC_s(1, 1), SIZE(dCPC_s, 1))
+            CALL DGEMM('T', 'N', nsp, nsp, nconta, 1.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1), &
+                       C_ss_a(:, :, dir), SIZE(C_ss_a, 1), &
+                       0.0_dp, dCPC_s, SIZE(dCPC_s, 1))
             trace = trace_r_AxB(dCPC_s, ldCPC, int_soft, nsp, nsp, nsp)
             force(dir - 1, 3) = force(dir - 1, 3) - ieqj*trace
             force(dir - 1, 1) = force(dir - 1, 1) + ieqj*trace
          END DO
 
          ! j-k contributions
-         CALL DGEMM('T', 'N', ncontb, nsp, nconta, 1.0_dp, p_matrix(1, 1), SIZE(p_matrix, 1), &
-                    C_hh_a(1, 1, 1), SIZE(C_hh_a, 1), &
-                    0.0_dp, PC_h(1, 1, ispin), SIZE(PC_h, 1))
-         CALL DGEMM('T', 'N', ncontb, nsp, nconta, 1.0_dp, p_matrix(1, 1), SIZE(p_matrix, 1), &
-                    C_ss_a(1, 1, 1), SIZE(C_ss_a, 1), &
-                    0.0_dp, PC_s(1, 1, ispin), SIZE(PC_s, 1))
+         CALL DGEMM('T', 'N', ncontb, nsp, nconta, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
+                    C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
+                    0.0_dp, PC_h(:, :, ispin), SIZE(PC_h, 1))
+         CALL DGEMM('T', 'N', ncontb, nsp, nconta, 1.0_dp, p_matrix, SIZE(p_matrix, 1), &
+                    C_ss_a(:, :, 1), SIZE(C_ss_a, 1), &
+                    0.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1))
 
          DO dir = 2, 4
-            CALL DGEMM('T', 'N', nsp, nsp, ncontb, 1.0_dp, PC_h(1, 1, ispin), SIZE(PC_h, 1), &
-                       C_hh_b(1, 1, dir), SIZE(C_hh_b, 1), &
-                       0.0_dp, dCPC_h(1, 1), SIZE(dCPC_h, 1))
+            CALL DGEMM('T', 'N', nsp, nsp, ncontb, 1.0_dp, PC_h(:, :, ispin), SIZE(PC_h, 1), &
+                       C_hh_b(:, :, dir), SIZE(C_hh_b, 1), &
+                       0.0_dp, dCPC_h, SIZE(dCPC_h, 1))
             trace = trace_r_AxB(dCPC_h, ldCPC, int_hard, nsp, nsp, nsp)
             force(dir - 1, 3) = force(dir - 1, 3) + ieqj*trace
             force(dir - 1, 2) = force(dir - 1, 2) - ieqj*trace
 
-            CALL DGEMM('T', 'N', nsp, nsp, ncontb, 1.0_dp, PC_s(1, 1, ispin), SIZE(PC_s, 1), &
-                       C_ss_b(1, 1, dir), SIZE(C_ss_b, 1), &
-                       0.0_dp, dCPC_s(1, 1), SIZE(dCPC_s, 1))
+            CALL DGEMM('T', 'N', nsp, nsp, ncontb, 1.0_dp, PC_s(:, :, ispin), SIZE(PC_s, 1), &
+                       C_ss_b(:, :, dir), SIZE(C_ss_b, 1), &
+                       0.0_dp, dCPC_s, SIZE(dCPC_s, 1))
             trace = trace_r_AxB(dCPC_s, ldCPC, int_soft, nsp, nsp, nsp)
             force(dir - 1, 3) = force(dir - 1, 3) - ieqj*trace
             force(dir - 1, 2) = force(dir - 1, 2) + ieqj*trace

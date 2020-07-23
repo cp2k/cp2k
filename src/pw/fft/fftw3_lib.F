@@ -1071,7 +1071,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: scale
       INTEGER, INTENT(OUT)                               :: stat
 
-      COMPLEX(KIND=dp), POINTER                          :: zin_ptr, zout_ptr, zscal_ptr
       INTEGER                                            :: in_offset, my_id, num_rows, out_offset, &
                                                             scal_offset
       INTEGER(KIND=C_INTPTR_T)                           :: fftw_plan
@@ -1082,7 +1081,7 @@ CONTAINS
       num_rows = plan%m
 
 !$OMP PARALLEL DEFAULT(NONE), &
-!$OMP          PRIVATE(my_id,num_rows,zin_ptr,zout_ptr,zscal_ptr,in_offset,out_offset,scal_offset,fftw_plan), &
+!$OMP          PRIVATE(my_id,num_rows,in_offset,out_offset,scal_offset,fftw_plan), &
 !$OMP          SHARED(zin,zout), &
 !$OMP          SHARED(plan,scale,stat)
 !$    my_id = omp_get_thread_num()
@@ -1110,20 +1109,16 @@ CONTAINS
 !$          num_rows = plan%num_rows
 !$       ENDIF
 
-         zin_ptr => zin(in_offset)
-         zout_ptr => zout(out_offset)
-         zscal_ptr => zout(scal_offset)
-
 #if defined ( __FFTW3 )
 !$OMP MASTER
          stat = 1
 !$OMP END MASTER
-         CALL dfftw_execute_dft(fftw_plan, zin_ptr, zout_ptr)
+         CALL dfftw_execute_dft(fftw_plan, zin(in_offset:in_offset), zout(out_offset:out_offset))
 !$    endif
 ! all theads need to meet at this barrier
 !$OMP BARRIER
 !$    if (my_id < plan%num_threads_needed) then
-         IF (scale /= 1.0_dp) CALL zdscal(plan%n*num_rows, scale, zscal_ptr, 1)
+         IF (scale /= 1.0_dp) CALL zdscal(plan%n*num_rows, scale, zout(scal_offset:scal_offset), 1)
 !$    endif
 
 #else
@@ -1253,4 +1248,3 @@ CONTAINS
       END SUBROUTINE
 
    END MODULE
-

@@ -201,9 +201,9 @@ CONTAINS
 
       ! JVDV we should remove this, as it is up to the user to zero afterwards
       IF (matrix%use_sp) THEN
-         CALL scopy(nrow_local*ncol_local, 0.0_sp, 0, matrix%local_data_sp, 1)
+         matrix%local_data_sp(1:nrow_local, 1:ncol_local) = 0.0_sp
       ELSE
-         CALL dcopy(nrow_local*ncol_local, 0.0_dp, 0, matrix%local_data, 1)
+         matrix%local_data(1:nrow_local, 1:ncol_local) = 0.0_dp
       ENDIF
 
       IF (PRESENT(name)) THEN
@@ -370,16 +370,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_set_all', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, matrix_size, n
+      INTEGER                                            :: handle, i, n
 
       CALL timeset(routineN, handle)
 
       IF (matrix%use_sp) THEN
-         matrix_size = SIZE(matrix%local_data_sp, 1)*SIZE(matrix%local_data_sp, 2)
-         CALL scopy(matrix_size, REAL(alpha, sp), 0, matrix%local_data_sp, 1)
+         matrix%local_data_sp(:, :) = REAL(alpha, sp)
       ELSE
-         matrix_size = SIZE(matrix%local_data, 1)*SIZE(matrix%local_data, 2)
-         CALL dcopy(matrix_size, alpha, 0, matrix%local_data, 1)
+         matrix%local_data(:, :) = alpha
       ENDIF
 
       IF (PRESENT(beta)) THEN
@@ -791,7 +789,7 @@ CONTAINS
 #if defined(__SCALAPACK)
       ! zero-out whole target_m
       IF (SIZE(target_m, 1)*SIZE(target_m, 2) /= 0) THEN
-         CALL dcopy(SIZE(target_m, 1)*SIZE(target_m, 2), 0.0_dp, 0, target_m(1, 1), 1)
+         CALL dcopy(SIZE(target_m, 1)*SIZE(target_m, 2), [0.0_dp], 0, target_m, 1)
       END IF
 #endif
 
@@ -1204,7 +1202,7 @@ CONTAINS
                              "> to full matrix <"//TRIM(destination%name)// &
                              ">. The local_data blocks have different sizes.")
             CALL scopy(SIZE(source%local_data_sp, 1)*SIZE(source%local_data_sp, 2), &
-                       source%local_data_sp(1, 1), 1, destination%local_data_sp(1, 1), 1)
+                       source%local_data_sp, 1, destination%local_data_sp, 1)
          ELSEIF (source%use_sp .AND. .NOT. destination%use_sp) THEN
             IF (SIZE(source%local_data_sp, 1) /= SIZE(destination%local_data, 1) .OR. &
                 SIZE(source%local_data_sp, 2) /= SIZE(destination%local_data, 2)) &
@@ -1229,7 +1227,7 @@ CONTAINS
                              "> to full matrix <"//TRIM(destination%name)// &
                              ">. The local_data blocks have different sizes.")
             CALL dcopy(SIZE(source%local_data, 1)*SIZE(source%local_data, 2), &
-                       source%local_data(1, 1), 1, destination%local_data(1, 1), 1)
+                       source%local_data, 1, destination%local_data, 1)
          ENDIF
       ELSE
          CPABORT("")
@@ -1281,10 +1279,10 @@ CONTAINS
       desca(:) = msource%matrix_struct%descriptor(:)
       descb(:) = mtarget%matrix_struct%descriptor(:)
       DO i = 0, ncol - 1
-         CALL pdcopy(n, a(1, 1), 1, ss + i, desca, 1, b(1, 1), 1, ts + i, descb, 1)
+         CALL pdcopy(n, a, 1, ss + i, desca, 1, b, 1, ts + i, descb, 1)
       END DO
 #else
-      CALL dcopy(ncol*n, a(1, ss), 1, b(1, ts), 1)
+      CALL dcopy(ncol*n, a(:, ss), 1, b(:, ts), 1)
 #endif
 
       CALL timestop(handle)
@@ -1385,13 +1383,13 @@ CONTAINS
       DO i = 0, ncol - 1
          ss = s_firstcol + i
          ts = t_firstcol + i
-         CALL pdcopy(nrow, a(1, 1), s_firstrow, ss, desca, 1, b(1, 1), t_firstrow, ts, descb, 1)
+         CALL pdcopy(nrow, a, s_firstrow, ss, desca, 1, b, t_firstrow, ts, descb, 1)
       END DO
 #else
       DO i = 0, ncol - 1
          ss = s_firstcol + i
          ts = t_firstcol + i
-         CALL dcopy(nrow, a(s_firstrow, ss), 1, b(t_firstrow, ts), 1)
+         CALL dcopy(nrow, a(s_firstrow:, ss), 1, b(t_firstrow:, ts), 1)
       END DO
 #endif
 
@@ -2118,9 +2116,9 @@ CONTAINS
       ALLOCATE (newdat(nrow_global, MAX(1, in)))
 
       ! do the actual scalapack to cols reordering
-      CALL pdgemr2d(nrow_global, ncol_global, fm%local_data(1, 1), 1, 1, &
+      CALL pdgemr2d(nrow_global, ncol_global, fm%local_data, 1, 1, &
                     fm%matrix_struct%descriptor, &
-                    newdat(1, 1), 1, 1, desc, ictxt_loc)
+                    newdat, 1, 1, desc, ictxt_loc)
 
       ALLOCATE (vecbuf(nrow_global*max_block))
       vecbuf = HUGE(1.0_dp) ! init for valgrind
@@ -2237,9 +2235,9 @@ CONTAINS
       ALLOCATE (newdat(nrow_global, MAX(1, in)))
 
       ! do the actual scalapack to cols reordering
-      CALL pdgemr2d(nrow_global, ncol_global, fm%local_data(1, 1), 1, 1, &
+      CALL pdgemr2d(nrow_global, ncol_global, fm%local_data, 1, 1, &
                     fm%matrix_struct%descriptor, &
-                    newdat(1, 1), 1, 1, desc, ictxt_loc)
+                    newdat, 1, 1, desc, ictxt_loc)
 
       ALLOCATE (vecbuf(nrow_global*max_block))
       vecbuf = HUGE(1.0_dp) ! init for valgrind

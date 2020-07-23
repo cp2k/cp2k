@@ -464,9 +464,9 @@ CONTAINS
             pab_ss(:, :) = pab(hab_a_start:hab_a_end, hab_b_start:hab_b_end)
             ALLOCATE (pab_hs(ncoa, n_hab_b)); ALLOCATE (pab_hh(ncoa, ncob))
             CALL dgemm("N", "N", ncoa, n_hab_b, n_hab_a, 1.0_dp, &
-                       sphi_a(1, sphi_a_start), SIZE(sphi_a, 1), pab_ss, n_hab_a, 0.0_dp, pab_hs, ncoa)
+                       sphi_a(:, sphi_a_start), SIZE(sphi_a, 1), pab_ss, n_hab_a, 0.0_dp, pab_hs, ncoa)
             CALL dgemm("N", "T", ncoa, ncob, n_hab_b, 1.0_dp, &
-                       pab_hs, ncoa, sphi_b(1, sphi_b_start), SIZE(sphi_b, 1), 0.0_dp, pab_hh, ncoa)
+                       pab_hs, ncoa, sphi_b(:, sphi_b_start), SIZE(sphi_b, 1), 0.0_dp, pab_hh, ncoa)
          ENDIF
 
          DO ipgf = 1, npgfa
@@ -1192,14 +1192,14 @@ CONTAINS
             ALLOCATE (pab_hh(ncoa, ncob))
 
             CALL dgemm("N", "N", ncoa, n_habc_b*n_habc_c, n_habc_a, 1.0_dp, &
-                       sphi_a(1, sphi_a_start), SIZE(sphi_a, 1), pabc_sss, n_habc_a, 0.0_dp, pabc_hss, ncoa)
+                       sphi_a(:, sphi_a_start), SIZE(sphi_a, 1), pabc_sss, n_habc_a, 0.0_dp, pabc_hss, ncoa)
             CALL dgemm("N", "T", ncoa*n_habc_b, ncoc, n_habc_c, 1.0_dp, &
-                       pabc_hss, ncoa*n_habc_b, sphi_c(1, sphi_c_start), SIZE(sphi_c, 1), 0.0_dp, pabc_hsh, ncoa*n_habc_b)
+                       pabc_hss, ncoa*n_habc_b, sphi_c(:, sphi_c_start), SIZE(sphi_c, 1), 0.0_dp, pabc_hsh, ncoa*n_habc_b)
 
             DO icoc = 1, ncoc
                pab_hs(:, :) = pabc_hsh(:, :, icoc)
                CALL dgemm("N", "T", ncoa, ncob, n_habc_b, 1.0_dp, &
-                          pab_hs, ncoa, sphi_b(1, sphi_b_start), SIZE(sphi_b, 1), 0.0_dp, pab_hh, ncoa)
+                          pab_hs, ncoa, sphi_b(:, sphi_b_start), SIZE(sphi_b, 1), 0.0_dp, pab_hh, ncoa)
                pabc_hhh(:, :, icoc) = pab_hh(:, :)
             ENDDO
          ENDIF

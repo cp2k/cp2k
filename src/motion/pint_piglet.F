@@ -308,9 +308,9 @@ CONTAINS
                     piglet_therm%nsp1, & ! number of columns of C-matrix
                     piglet_therm%nsp1, & ! number of columns of T-matrix and number of rows of C-matrix
                     1.0D0, & ! scaling factor alpha
-                    piglet_therm%gle_t(1, 1, i), & ! T-matrix
+                    piglet_therm%gle_t(:, :, i), & ! T-matrix
                     piglet_therm%nsp1, & ! leading dimension of T-matrix as declared
-                    piglet_therm%c_mat(1, 1, i), & ! C-matrix
+                    piglet_therm%c_mat(:, :, i), & ! C-matrix
                     piglet_therm%nsp1, & ! leading dimension of C-matrix as declared
                     0.0D0, & ! scaling of tmpmatrix as additive
                     tmpmatrix, & ! result matrix: tmpmatrix
@@ -324,7 +324,7 @@ CONTAINS
                     1.0D0, & ! scaling factor alpha
                     tmpmatrix, & ! tmpmatrix
                     piglet_therm%nsp1, & ! leading dimension of tmpmatrix as declared
-                    piglet_therm%gle_t(1, 1, i), & ! T-matrix
+                    piglet_therm%gle_t(:, :, i), & ! T-matrix
                     piglet_therm%nsp1, & ! leading dimension of T-matrix as declared
                     0.0D0, & ! scaling of Mtmp as additive
                     Mtmp, & ! result matrix: Mtmp
@@ -393,10 +393,10 @@ CONTAINS
                        1.0_dp, & !scaling of Mtmp
                        Mtmp(1, 1), & ! Matrix Mtmp
                        piglet_therm%nsp1, & ! leading dimension of Mtmp
-                       piglet_therm%temp2(1, 1), & ! temp2 matrix
+                       piglet_therm%temp2, & ! temp2 matrix
                        piglet_therm%nsp1, & ! leading dimension of temp2
                        0.0_dp, & ! scaling of added matrix smalls
-                       piglet_therm%temp1(1, 1), & ! first element of result matrix
+                       piglet_therm%temp1, & ! result matrix
                        piglet_therm%nsp1) ! leading dimension of result matrix
 
             DO idim = 1, piglet_therm%ndim
@@ -478,12 +478,12 @@ CONTAINS
                     ndim, & ! Number of columns of temp2 vector
                     nsp1, & ! Number of Columns of S-Matrix
                     1.0_dp, & ! Scaling of S-Matrix
-                    piglet_therm%gle_s(1, 1, ibead), & ! First element of S-matrix
+                    piglet_therm%gle_s(:, :, ibead), & ! S-matrix
                     nsp1, & ! Leading dimension of S-matrix
-                    piglet_therm%temp2(1, 1), & ! First element of temp2 vector
+                    piglet_therm%temp2, & ! temp2 vector
                     nsp1, & ! Leading dimension of temp2
                     0.0_dp, & ! scaling factor of added smalls vector
-                    piglet_therm%smalls(1, i), & ! First element of result vector
+                    piglet_therm%smalls(:, i), & ! result vector
                     nsp1) ! Leading dimension of result vector
 
          ! Now add the product of T-matrix * old smalls vectors
@@ -494,12 +494,12 @@ CONTAINS
                     ndim, & ! Number of columns of temp1 vector
                     nsp1, & ! Number of Columns of T-Matrix
                     1.0_dp, & ! Scaling of T-Matrix
-                    piglet_therm%gle_t(1, 1, ibead), & ! First element of T-matrix
+                    piglet_therm%gle_t(:, :, ibead), & ! T-matrix
                     nsp1, & ! Leading dimension of T-matrix
-                    piglet_therm%temp1(1, 1), & ! First element of temp1 vector
+                    piglet_therm%temp1, & ! temp1 vector
                     nsp1, & ! Leading dimension of temp1
                     1.0_dp, & ! scaling factor of added smalls vector
-                    piglet_therm%smalls(1, i), & ! First element of result vector
+                    piglet_therm%smalls(:, i), & ! result vector
                     nsp1) ! Leading dimension of result vector
       END DO
 
@@ -767,8 +767,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, info, lwork
-      REAL(KIND=dp)                                      :: tmplwork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work
+      REAL(KIND=dp), DIMENSION(1)                        :: tmplwork
       REAL(KIND=dp), DIMENSION(n)                        :: eigval
       REAL(KIND=dp), DIMENSION(n, n)                     :: A, tmpmatrix
 
@@ -798,7 +798,7 @@ CONTAINS
                  -1, & ! size of temporary real work array
                  info) ! information about success
 
-      lwork = INT(tmplwork + 0.5_dp)
+      lwork = INT(tmplwork(1) + 0.5_dp)
       ALLOCATE (work(lwork))
       work(:) = 0.0_dp
 

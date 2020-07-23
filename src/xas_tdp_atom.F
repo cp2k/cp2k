@@ -1275,10 +1275,10 @@ CONTAINS
          END IF
 
          !put the so on the grid with the approriate coefficients and sum
-         CALL daxpy(n, ri_dcoeff_so(1)%array(starti + iso), so(:, :), 1, rhoa(:, :, 1), 1)
+         CALL daxpy(n, ri_dcoeff_so(1)%array(starti + iso), so, 1, rhoa(:, :, 1), 1)
 
          IF (nspins == 2) THEN
-            CALL daxpy(n, ri_dcoeff_so(2)%array(starti + iso), so(:, :), 1, rhob(:, :, 1), 1)
+            CALL daxpy(n, ri_dcoeff_so(2)%array(starti + iso), so, 1, rhob(:, :, 1), 1)
          END IF
 
          IF (do_gga) THEN
@@ -3157,7 +3157,7 @@ CONTAINS
                   DO ic = nsoset(lmin(iset2) - 1) + 1, nsoset(lmax(iset2))
                      iso1 = nsoset(lmin(iset1) - 1) + 1
                      iso2 = ngau2 + ic
-                     CALL daxpy(size1, 1.0_dp, matso(iso1, ic), 1, intso(nngau1 + 1, iso2), 1)
+                     CALL daxpy(size1, 1.0_dp, matso(iso1:, ic), 1, intso(nngau1 + 1:, iso2), 1)
                   END DO !ic
 
                END DO !ipgf2
@@ -3291,7 +3291,7 @@ CONTAINS
 
                            CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, V, na, fgr, nr, 0.0_dp, work, na)
                            CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 0.0_dp, &
-                                      intso(starti + iso, startj + jso, i), 1)
+                                      intso(starti + iso:, startj + jso, i), 1)
 
                            ! add r1*a1(j) * V * r2*a2(k)
                            fgr(1:nr, 1) = r1(1:nr, starti + iso)*r2(1:nr, startj + jso)
@@ -3299,7 +3299,7 @@ CONTAINS
 
                            CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, V, na, fgr, nr, 0.0_dp, work, na)
                            CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                      intso(starti + iso, startj + jso, i), 1)
+                                      intso(starti + iso:, startj + jso, i), 1)
 
                            ! add r2*a2(j) * V * r1*a1(k)
                            fgr(1:nr, 1) = r2(1:nr, starti + iso)*r1(1:nr, startj + jso)
@@ -3307,7 +3307,7 @@ CONTAINS
 
                            CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, V, na, fgr, nr, 0.0_dp, work, na)
                            CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                      intso(starti + iso, startj + jso, i), 1)
+                                      intso(starti + iso:, startj + jso, i), 1)
 
                            ! add the last term: r2*a2(j) * V * r2*a2(k)
                            fgr(1:nr, 1) = r2(1:nr, starti + iso)*r2(1:nr, startj + jso)
@@ -3315,7 +3315,7 @@ CONTAINS
 
                            CALL dgemm('N', 'N', na, 1, nr, 1.0_dp, V, na, fgr, nr, 0.0_dp, work, na)
                            CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                      intso(starti + iso, startj + jso, i), 1)
+                                      intso(starti + iso:, startj + jso, i), 1)
 
                         END DO !jso
                      END DO !iso
@@ -3395,8 +3395,8 @@ CONTAINS
          ALLOCATE (V(na, nr))
          V = 0.0_dp
          DO ir = 1, nr
-            CALL daxpy(na, Vr(ir)/(4.0_dp*c_light_au**2 - 2.0_dp*Vr(ir)), grid%weight(1:na, ir), 1, &
-                       V(1:na, ir), 1)
+            CALL daxpy(na, Vr(ir)/(4.0_dp*c_light_au**2 - 2.0_dp*Vr(ir)), grid%weight(:, ir), 1, &
+                       V(:, ir), 1)
          END DO
          DEALLOCATE (Vr)
 
