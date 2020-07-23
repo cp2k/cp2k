@@ -3,8 +3,8 @@
  *  Copyright (C) 2000 - 2020  CP2K developers group                         *
  *****************************************************************************/
 
-#include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "grid_collocate_replay.h"
 
@@ -15,11 +15,21 @@ int main(int argc, char *argv[]){
     }
 
     int cycles;
-    assert(sscanf(argv[1], "%i", &cycles) == 1);
-    assert(cycles > 0);
+    if (sscanf(argv[1], "%i", &cycles) != 1) {
+        fprintf(stderr, "Error: Could not parse cycles.\n");
+        return 1;
+    }
+    if (cycles <= 0) {
+        fprintf(stderr, "Error: Cycles have to be greater than zero.\n");
+        return 1;
+    }
 
     const double max_diff = grid_collocate_replay(argv[2], cycles);
-    assert(max_diff < 1e-14 * cycles);
+    if (max_diff > 1e-14 * cycles) {
+        fprintf(stderr, "Error: Maximal difference is too large.\n");
+        return 2;
+    }
+
     return 0;
 }
 

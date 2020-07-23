@@ -4,7 +4,8 @@
  *****************************************************************************/
 
 #include "grid_prepare_pab.h"
-#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 
 // *****************************************************************************
@@ -872,7 +873,8 @@ void grid_prepare_get_ldiffs(const int func,
          *lb_min_diff = -2;
          break;
       default:
-         assert(false && "Unknown ga_gb_function.");
+         fprintf(stderr, "Error: Unknown ga_gb_function.\n");
+         abort();
     }
 }
 
@@ -1024,7 +1026,8 @@ void grid_prepare_pab(const int func,
                              n1, n2, pab, n1_prep, n2_prep, pab_prep);
         break;
       default:
-        assert(false && "Unknown ga_gb_function.");
+        fprintf(stderr, "Error: Unknown ga_gb_function.\n");
+        abort();
     }
 }
 
