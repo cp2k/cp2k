@@ -7,13 +7,13 @@
 
 #include <stdio.h>
 #include <stdbool.h>
-#include <assert.h>
 #include <string.h>
 #include <math.h>
 #include <time.h>
 #include <limits.h>
 #include <float.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include "grid_collocate_replay.h"
 #include "grid_collocate_cpu.h"
@@ -114,6 +114,68 @@ void grid_collocate_record(const bool orthorhombic,
 }
 
 // *****************************************************************************
+static void read_next_line(char line[], int length, FILE *fp) {
+    if (fgets(line, length, fp) == NULL) {
+        fprintf(stderr, "Error: Could not read line.\n");
+        abort();
+    }
+}
+
+// *****************************************************************************
+static void parse_next_line(const char key[], FILE *fp, const char format[],
+                            const int nargs, ...) {
+    char line[100];
+    read_next_line(line, sizeof(line), fp);
+
+    char full_format[100];
+    strcpy(full_format, key);
+    strcat(full_format, " ");
+    strcat(full_format, format);
+
+    va_list varargs;
+    va_start(varargs, nargs);
+    if (vsscanf(line, full_format, varargs) != nargs) {
+        fprintf(stderr, "Error: Could not parse line.\n");
+        fprintf(stderr, "Line: %s\n", line);
+        fprintf(stderr, "Format: %s\n", full_format);
+        abort();
+    }
+}
+
+// *****************************************************************************
+int parse_int(const char key[], FILE *fp) {
+    int value;
+    parse_next_line(key, fp, "%i", 1, &value);
+    return value;
+}
+
+// *****************************************************************************
+void parse_int3(const char key[], FILE *fp, int vec[3]) {
+    parse_next_line(key, fp, "%i %i %i", 3, &vec[0], &vec[1], &vec[2]);
+}
+
+// *****************************************************************************
+double parse_double(const char key[], FILE *fp) {
+    double value;
+    parse_next_line(key, fp, "%le", 1, &value);
+    return value;
+}
+
+// *****************************************************************************
+void parse_double3(const char key[], FILE *fp, double vec[3]) {
+    parse_next_line(key, fp, "%le %le %le", 3, &vec[0], &vec[1], &vec[2]);
+}
+
+// *****************************************************************************
+void parse_double3x3(const char key[], FILE *fp, double mat[3][3]) {
+    char format[100];
+    for (int i=0; i<3; i++) {
+        sprintf(format, "%i %%le %%le %%le", i);
+        parse_next_line(key, fp, format, 3, &mat[i][0], &mat[i][1], &mat[i][2]);
+    }
+}
+
+// *****************************************************************************
 double grid_collocate_replay(const char* filename, const int cycles){
     FILE *fp = fopen(filename, "r");
     if (fp == NULL) {
@@ -121,172 +183,71 @@ double grid_collocate_replay(const char* filename, const int cycles){
         exit(1);
     }
 
-    char line[100], key[100];
-
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(strcmp(line, "#Grid collocate task v8\n") == 0);
-
-    int orthorhombic_i;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &orthorhombic_i) == 2);
-    assert(strcmp(key, "orthorhombic") == 0);
-    bool orthorhombic = orthorhombic_i;
-
-    int use_subpatch_i;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &use_subpatch_i) == 2);
-    assert(strcmp(key, "use_subpatch") == 0);
-    bool use_subpatch = use_subpatch_i;
-
-    int subpatch;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &subpatch) == 2);
-    assert(strcmp(key, "subpatch") == 0);
-
-    int border;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &border) == 2);
-    assert(strcmp(key, "border") == 0);
-
-    int func;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &func) == 2);
-    assert(strcmp(key, "func") == 0);
-
-    int la_max;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &la_max) == 2);
-    assert(strcmp(key, "la_max") == 0);
-
-    int la_min;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &la_min) == 2);
-    assert(strcmp(key, "la_min") == 0);
-
-    int lb_max;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &lb_max) == 2);
-    assert(strcmp(key, "lb_max") == 0);
-
-    int lb_min;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &lb_min) == 2);
-    assert(strcmp(key, "lb_min") == 0);
-
-    double zeta;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %le", key, &zeta) == 2);
-    assert(strcmp(key, "zeta") == 0);
-
-    double zetb;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %le", key, &zetb) == 2);
-    assert(strcmp(key, "zetb") == 0);
-
-    double rscale;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %le", key, &rscale) == 2);
-    assert(strcmp(key, "rscale") == 0);
-
-    double dh[3][3];
-    for (int i=0; i<3; i++) {
-        int j;
-        assert(fgets(line, sizeof(line), fp) != NULL);
-        assert(sscanf(line, "%99s %i %le %le %le", key, &j, &dh[i][0], &dh[i][1], &dh[i][2]) == 5);
-        assert(strcmp(key, "dh") == 0 && i == j);
+    char header_line[100];
+    read_next_line(header_line, sizeof(header_line), fp);
+    if (strcmp(header_line, "#Grid collocate task v8\n") != 0) {
+        fprintf(stderr, "Error: Wrong file header.\n");
+        abort();
     }
 
-    double dh_inv[3][3];
-    for (int i=0; i<3; i++) {
-        int j;
-        assert(fgets(line, sizeof(line), fp) != NULL);
-        assert(sscanf(line, "%99s %i %le %le %le", key, &j, &dh_inv[i][0], &dh_inv[i][1], &dh_inv[i][2]) == 5);
-        assert(strcmp(key, "dh_inv") == 0 && i == j);
-    }
+    const bool orthorhombic = parse_int("orthorhombic", fp);
+    const bool use_subpatch = parse_int("use_subpatch", fp);
+    const int subpatch = parse_int("subpatch", fp);
+    const int border = parse_int("border", fp);
+    const int func = parse_int("func", fp);
+    const int la_max = parse_int("la_max", fp);
+    const int la_min = parse_int("la_min", fp);
+    const int lb_max = parse_int("lb_max", fp);
+    const int lb_min = parse_int("lb_min", fp);
+    const double zeta = parse_double("zeta", fp);
+    const double zetb = parse_double("zetb", fp);
+    const double rscale = parse_double("rscale", fp);
 
-    double ra[3];
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %le %le %le", key, &ra[0], &ra[1], &ra[2]) == 4);
-    assert(strcmp(key, "ra") == 0);
+    double dh[3][3], dh_inv[3][3], ra[3], rab[3];
+    parse_double3x3("dh", fp, dh);
+    parse_double3x3("dh_inv", fp, dh_inv);
+    parse_double3("ra", fp, ra);
+    parse_double3("rab", fp, rab);
 
-    double rab[3];
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %le %le %le", key, &rab[0], &rab[1], &rab[2]) == 4);
-    assert(strcmp(key, "rab") == 0);
+    int npts_global[3], npts_local[3], shift_local[3];
+    parse_int3("npts_global", fp, npts_global);
+    parse_int3("npts_local", fp, npts_local);
+    parse_int3("shift_local", fp, shift_local);
 
-    int npts_global[3];
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i %i %i", key, &npts_global[0], &npts_global[1], &npts_global[2]) == 4);
-    assert(strcmp(key, "npts_global") == 0);
-
-    int npts_local[3];
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i %i %i", key, &npts_local[0], &npts_local[1], &npts_local[2]) == 4);
-    assert(strcmp(key, "npts_local") == 0);
-
-    int shift_local[3];
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i %i %i", key, &shift_local[0], &shift_local[1], &shift_local[2]) == 4);
-    assert(strcmp(key, "shift_local") == 0);
-
-    double radius;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %le", key, &radius) == 2);
-    assert(strcmp(key, "radius") == 0);
-
-    int o1;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &o1) == 2);
-    assert(strcmp(key, "o1") == 0);
-
-    int o2;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &o2) == 2);
-    assert(strcmp(key, "o2") == 0);
-
-    int n1;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &n1) == 2);
-    assert(strcmp(key, "n1") == 0);
-
-    int n2;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &n2) == 2);
-    assert(strcmp(key, "n2") == 0);
+    const double radius = parse_double("radius", fp);
+    const int o1 = parse_int("o1", fp);
+    const int o2 = parse_int("o2", fp);
+    const int n1 = parse_int("n1", fp);
+    const int n2 = parse_int("n2", fp);
 
     double pab[n2][n1];
+    char format[100];
     for (int i=0; i<n2; i++) {
     for (int j=0; j<n1; j++) {
-        int i2, j2;
-        double value;
-        assert(fgets(line, sizeof(line), fp) != NULL);
-        assert(sscanf(line, "%99s %i %i %le", key, &i2, &j2, &value) == 4);
-        assert(strcmp(key, "pab") == 0 && i == i2 && j==j2);
-        pab[i][j] = value;
+        sprintf(format, "%i %i %%le", i, j);
+        parse_next_line("pab", fp, format, 1, &pab[i][j]);
     }
     }
-
-    int ngrid_nonzero;
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(sscanf(line, "%99s %i", key, &ngrid_nonzero) == 2);
-    assert(strcmp(key, "ngrid_nonzero") == 0);
 
     const int npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
     const size_t sizeof_grid = sizeof(double) * npts_local_total;
     double* grid_ref = malloc(sizeof_grid);
     memset(grid_ref, 0, sizeof_grid);
 
+    const int ngrid_nonzero = parse_int("ngrid_nonzero", fp);
     for (int n=0; n < ngrid_nonzero; n++) {
         int i, j, k;
         double value;
-        assert(fgets(line, sizeof(line), fp) != NULL);
-        assert(sscanf(line, "%99s %i %i %i %le", key, &i, &j, &k, &value) == 5);
-        assert(strcmp(key, "grid") == 0);
+        parse_next_line("grid", fp, "%i %i %i %le", 4, &i, &j, &k, &value);
         grid_ref[k*npts_local[1]*npts_local[0] + j*npts_local[0] + i] = value;
     }
 
-    assert(fgets(line, sizeof(line), fp) != NULL);
-    assert(strcmp(line, "#THE_END\n") == 0);
+    char footer_line[100];
+    read_next_line(footer_line, sizeof(footer_line), fp);
+    if (strcmp(footer_line, "#THE_END\n") != 0) {
+        fprintf(stderr, "Error: Wrong footer line.\n");
+        abort();
+    }
 
     double* grid_test = malloc(sizeof_grid);
     memset(grid_test, 0, sizeof_grid);
