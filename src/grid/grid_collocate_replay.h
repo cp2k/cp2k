@@ -8,6 +8,12 @@
 
 #include <stdbool.h>
 
+#if defined(NDEBUG)
+# define GRID_COLLOCATE_ASSERT(EXPR) (void)(EXPR)
+#else
+# define GRID_COLLOCATE_ASSERT(EXPR) assert(EXPR)
+#endif
+
 void grid_collocate_record(const bool orthorhombic,
                            const bool use_subpatch,
                            const int subpatch,

@@ -12,14 +12,14 @@
 static int run_test(const char cp2k_root_dir[], const char task_file[]) {
     char filename[1024] = "";
 
-    assert(strlen(cp2k_root_dir) < 512);
-    assert(strcpy(filename, cp2k_root_dir) != NULL);
+    GRID_COLLOCATE_ASSERT(strlen(cp2k_root_dir) < 512);
+    GRID_COLLOCATE_ASSERT(strcpy(filename, cp2k_root_dir) != NULL);
     if (filename[strlen(filename) - 1] != '/') {
-        assert(strcat(filename, "/") != NULL);
+        GRID_COLLOCATE_ASSERT(strcat(filename, "/") != NULL);
     }
 
-    assert(strcat(filename, "src/grid/sample_tasks/") != NULL);
-    assert(strcat(filename, task_file) != NULL);
+    GRID_COLLOCATE_ASSERT(strcat(filename, "src/grid/sample_tasks/") != NULL);
+    GRID_COLLOCATE_ASSERT(strcat(filename, task_file) != NULL);
 
     const double max_diff = grid_collocate_replay(filename, 1);
     if (max_diff > 1e-12) {

@@ -15,11 +15,11 @@ int main(int argc, char *argv[]){
     }
 
     int cycles;
-    assert(sscanf(argv[1], "%i", &cycles) == 1);
-    assert(cycles > 0);
+    GRID_COLLOCATE_ASSERT(sscanf(argv[1], "%i", &cycles) == 1);
+    GRID_COLLOCATE_ASSERT(cycles > 0);
 
     const double max_diff = grid_collocate_replay(argv[2], cycles);
-    assert(max_diff < 1e-14 * cycles);
+    GRID_COLLOCATE_ASSERT(max_diff < 1e-14 * cycles);
     return 0;
 }
 
