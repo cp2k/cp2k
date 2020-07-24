@@ -24,14 +24,15 @@ static int run_test(const char cp2k_root_dir[], const char task_file[]) {
     strcat(filename, "src/grid/sample_tasks/");
     strcat(filename, task_file);
 
-    const double max_diff = grid_collocate_replay(filename, 1);
-    if (max_diff > 1e-12) {
-        printf("Max diff too high, test failed.\n");
-        return 1;
-    } else {
-        //printf("Max diff looks good, test passed.\n\n");
-        return 0;
+    int errors = 0;
+    for (int ibatch=0; ibatch < 2; ibatch++) {
+       const double max_diff = grid_collocate_replay(filename, 1, ibatch==1);
+       if (max_diff > 1e-12) {
+           printf("Max diff too high, test failed.\n");
+           errors++;
+       }
     }
+    return errors;
 }
 
 int main(int argc, char *argv[]){

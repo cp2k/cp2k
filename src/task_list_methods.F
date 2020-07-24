@@ -10,6 +10,8 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE task_list_methods
+   USE grid_api, ONLY: &
+      grid_create_basis_set, grid_create_task_list
    USE ao_util, ONLY: exp_radius_very_extended
    USE basis_set_types, ONLY: get_gto_basis_set, &
                               gto_basis_set_p_type, &
@@ -327,9 +329,13 @@ CONTAINS
                            buffer_size=task_list%buffer_size_recv)
       DEALLOCATE (basis_set_list, nsgf)
 
-      ! allocate buffer for receiving matrix blocks
-      IF (ASSOCIATED(task_list%buffer_recv)) DEALLOCATE (task_list%buffer_recv)
-      ALLOCATE (task_list%buffer_recv(task_list%buffer_size_recv))
+      CALL create_grid_task_list(task_list=task_list, &
+                                 qs_kind_set=qs_kind_set, &
+                                 particle_set=particle_set, &
+                                 cell=cell, &
+                                 soft=my_soft, &
+                                 basis_type=my_basis_type, &
+                                 nlevels=gridlevel_info%ngrid_levels)
 
       ! If the rank order has changed, reallocate any of the distributed rs_grids
       IF (reorder_rs_grid_ranks) THEN
@@ -499,6 +505,121 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE generate_qs_task_list
+
+! **************************************************************************************************
+!> \brief Sends the task list data to the grid API.
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE create_grid_task_list(task_list, qs_kind_set, particle_set, cell, soft, basis_type, nlevels)
+      TYPE(task_list_type), POINTER                      :: task_list
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(cell_type), POINTER                           :: cell
+      LOGICAL                                            :: soft
+      CHARACTER(LEN=default_string_length)               :: basis_type
+      INTEGER                                            :: nlevels
+
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      INTEGER                                            :: nset, natoms, nkinds, ntasks, ikind, iatom, itask, nsgf
+
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: atom_kinds, level_list, iatom_list, jatom_list, &
+                                                            iset_list, jset_list, ipgf_list, jpgf_list, &
+                                                            subpatch_list, dist_type_list, block_num_list
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: radius_list
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: rab_list, atom_positions
+      TYPE(task_type), DIMENSION(:), POINTER             :: tasks
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sphi, zet
+      INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, nsgf_set
+
+      nkinds = SIZE(qs_kind_set)
+      natoms = SIZE(particle_set)
+      ntasks = task_list%ntasks
+      tasks => task_list%tasks
+
+      IF (.NOT. ASSOCIATED(task_list%grid_basis_sets)) THEN
+         ! Basis sets do not change during simulation - only need to create them once.
+         ALLOCATE (task_list%grid_basis_sets(nkinds))
+         DO ikind = 1, nkinds
+            CALL get_qs_kind(qs_kind_set(ikind), softb=soft, basis_type=basis_type, basis_set=orb_basis_set)
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                   nset=nset, &
+                                   nsgf=nsgf, &
+                                   nsgf_set=nsgf_set, &
+                                   npgf=npgf, &
+                                   first_sgf=first_sgf, &
+                                   lmax=lmax, &
+                                   lmin=lmin, &
+                                   sphi=sphi, &
+                                   zet=zet)
+            CALL grid_create_basis_set(nset=nset, &
+                                       nsgf=nsgf, &
+                                       maxco=SIZE(sphi, 1), &
+                                       maxpgf=SIZE(zet, 1), &
+                                       lmin=lmin, &
+                                       lmax=lmax, &
+                                       npgf=npgf, &
+                                       nsgf_set=nsgf_set, &
+                                       first_sgf=first_sgf, &
+                                       sphi=sphi, &
+                                       zet=zet, &
+                                       basis_set=task_list%grid_basis_sets(ikind))
+         END DO
+      ENDIF
+
+      ! Pack task list infos
+      ALLOCATE (atom_kinds(natoms), atom_positions(3, natoms))
+      DO iatom = 1, natoms
+         atom_kinds(iatom) = particle_set(iatom)%atomic_kind%kind_number
+         atom_positions(:, iatom) = pbc(particle_set(iatom)%r, cell)
+      END DO
+
+      ALLOCATE (level_list(ntasks), iatom_list(ntasks), jatom_list(ntasks))
+      ALLOCATE (iset_list(ntasks), jset_list(ntasks), ipgf_list(ntasks), jpgf_list(ntasks))
+      ALLOCATE (subpatch_list(ntasks), block_num_list(ntasks), dist_type_list(ntasks))
+      ALLOCATE (radius_list(ntasks), rab_list(3, ntasks))
+
+      DO itask = 1, ntasks
+         level_list(itask) = tasks(itask)%grid_level
+         iatom_list(itask) = tasks(itask)%iatom
+         jatom_list(itask) = tasks(itask)%jatom
+         iset_list(itask) = tasks(itask)%iset
+         jset_list(itask) = tasks(itask)%jset
+         ipgf_list(itask) = tasks(itask)%ipgf
+         jpgf_list(itask) = tasks(itask)%jpgf
+         subpatch_list(itask) = tasks(itask)%subpatch_pattern
+         dist_type_list(itask) = tasks(itask)%dist_type
+         block_num_list(itask) = tasks(itask)%pair_index  ! change of nomenclature pair_index -> block_num
+         radius_list(itask) = tasks(itask)%radius
+         rab_list(:, itask) = tasks(itask)%rab(:)
+      END DO
+
+      CALL grid_create_task_list(ntasks=ntasks, &
+                                 nlevels=nlevels, &
+                                 natoms=natoms, &
+                                 nkinds=nkinds, &
+                                 nblocks=SIZE(task_list%pair_offsets_recv), &
+                                 buffer_size=task_list%buffer_size_recv, &
+                                 block_offsets=task_list%pair_offsets_recv, &
+                                 atom_positions=atom_positions, &
+                                 atom_kinds=atom_kinds, &
+                                 basis_sets=task_list%grid_basis_sets, &
+                                 level_list=level_list, &
+                                 iatom_list=iatom_list, &
+                                 jatom_list=jatom_list, &
+                                 iset_list=iset_list, &
+                                 jset_list=jset_list, &
+                                 ipgf_list=ipgf_list, &
+                                 jpgf_list=jpgf_list, &
+                                 subpatch_list=subpatch_list, &
+                                 dist_type_list=dist_type_list, &
+                                 block_num_list=block_num_list, &
+                                 radius_list=radius_list, &
+                                 rab_list=rab_list, &
+                                 blocks_buffer=task_list%buffer_recv, &
+                                 task_list=task_list%grid_task_list)
+
+   END SUBROUTINE create_grid_task_list
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2416,9 +2537,9 @@ CONTAINS
 !> \brief Scatters dbcsr matrix blocks and receives them into a buffer as needed for collocation.
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE rs_scatter_matrix(task_list, rs_descs, pmats)
+   SUBROUTINE rs_scatter_matrix(task_list, group, pmats)
       TYPE(task_list_type), INTENT(INOUT)                :: task_list
-      TYPE(realspace_grid_desc_p_type), DIMENSION(:), INTENT(IN)   :: rs_descs
+      INTEGER, INTENT(IN)                                :: group
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: pmats
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_scatter_matrix', &
@@ -2440,7 +2561,7 @@ CONTAINS
       ! mpi all-to-all communication, receiving directly into blocks_recv%buffer.
       CALL mp_alltoall(buffer_send, task_list%rank_sizes_send, task_list%rank_offsets_send, &
                        task_list%buffer_recv, task_list%rank_sizes_recv, task_list%rank_offsets_recv, &
-                       rs_descs(1)%rs_desc%group)
+                       group)
 
       DEALLOCATE (buffer_send)
       CALL timestop(handle)

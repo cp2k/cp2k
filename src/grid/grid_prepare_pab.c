@@ -9,6 +9,17 @@
 #include <assert.h>
 
 // *****************************************************************************
+// Returns zero based indices.
+int coset(int lx, int ly, int lz) {
+    const int l = lx + ly + lz;
+    if (l==0) {
+        return 0;
+    } else {
+        return ncoset[l-1] + ((l-lx) * (l-lx+1)) /2 + lz;
+    }
+}
+
+// *****************************************************************************
 static void grid_prepare_pab_AB(const int o1,
                                 const int o2,
                                 const int la_max,
