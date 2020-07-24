@@ -250,11 +250,10 @@ static void collocate_one_grid_level(const intl_task_list_t* task_list,
                                      const double dh_inv[3][3],
                                      double* grid) {
 
-    #pragma omp parallel default(none) \
-            shared(task_list, first_task, last_task, orthorhombic, func) \
-            shared(npts_global, npts_local, shift_local, border, distributed) \
-            shared(dh, dh_inv, ncoset, grid)
-            {
+    // Using default(shared) because with GCC 9 the behavior around const changed:
+    // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
+    #pragma omp parallel default(shared)
+    {
 
     // Allocate thread local copy of the grid.
     const size_t npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
