@@ -10,9 +10,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <omp.h>
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Internal representation of a basis set.
+// \author Ole Schuett
+//******************************************************************************
 typedef struct {
     int nset;
     int nsgf;
@@ -28,7 +30,11 @@ typedef struct {
 } intl_basis_set_t;
 
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Allocates a basis set which can be passed to grid_create_task_list.
+//        See grid_task_list.h for details.
+// \author Ole Schuett
+//******************************************************************************
 void grid_create_basis_set(const int nset,
                            const int nsgf,
                            const int maxco,
@@ -71,10 +77,12 @@ void grid_create_basis_set(const int nset,
 }
 
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Deallocates given basis set.
+// \author Ole Schuett
+//******************************************************************************
 void grid_free_basis_set(grid_basis_set_t basis_set_ext) {
-    intl_basis_set_t* basis_set = (intl_basis_set_t*) basis_set_ext.internal;
-
+    intl_basis_set_t* basis_set = basis_set_ext.internal;
     free(basis_set->lmin);
     free(basis_set->lmax);
     free(basis_set->npgf);
@@ -86,7 +94,10 @@ void grid_free_basis_set(grid_basis_set_t basis_set_ext) {
 }
 
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Internal representation of a task.
+// \author Ole Schuett
+//******************************************************************************
 typedef struct {
     int level;
     int iatom;
@@ -103,7 +114,10 @@ typedef struct {
 } intl_task_t;
 
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Internal representation of a task list
+// \author Ole Schuett
+//******************************************************************************
 typedef struct {
     int ntasks;
     int nlevels;
@@ -122,7 +136,11 @@ typedef struct {
 } intl_task_list_t;
 
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Allocates a task list which can be passed to grid_collocate_task_list.
+//        See grid_task_list.h for details.
+// \author Ole Schuett
+//******************************************************************************
 void grid_create_task_list(const int ntasks,
                            const int nlevels,
                            const int natoms,
@@ -220,10 +238,12 @@ void grid_create_task_list(const int ntasks,
 }
 
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Deallocates given task list, basis_sets have to be freed separately.
+// \author Ole Schuett
+//******************************************************************************
 void grid_free_task_list(grid_task_list_t task_list_ext) {
-    intl_task_list_t* task_list = (intl_task_list_t*) task_list_ext.internal;
-
+    intl_task_list_t* task_list = task_list_ext.internal;
     free(task_list->blocks_buffer);
     free(task_list->block_offsets);
     free(task_list->atom_positions);
@@ -235,7 +255,10 @@ void grid_free_task_list(grid_task_list_t task_list_ext) {
 }
 
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Collocate a range of tasks which are destined for the same grid level.
+// \author Ole Schuett
+//******************************************************************************
 static void collocate_one_grid_level(const intl_task_list_t* task_list,
                                      const int first_task,
                                      const int last_task,
@@ -389,7 +412,11 @@ static void collocate_one_grid_level(const intl_task_list_t* task_list,
 }
 
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Collocate all tasks of in given list onto given grids.
+//        See grid_task_list.h for details.
+// \author Ole Schuett
+//******************************************************************************
 void grid_collocate_task_list(const grid_task_list_t task_list_ext,
                               const bool orthorhombic,
                               const int func,
@@ -403,7 +430,7 @@ void grid_collocate_task_list(const grid_task_list_t task_list_ext,
                               const double dh_inv[nlevels][3][3],
                               double* grid[nlevels]) {
 
-    const intl_task_list_t* task_list = (intl_task_list_t*) task_list_ext.internal;
+    const intl_task_list_t* task_list = task_list_ext.internal;
 
     assert(task_list->nlevels == nlevels);
 

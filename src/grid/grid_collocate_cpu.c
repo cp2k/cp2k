@@ -16,7 +16,12 @@
 #include "grid_common.h"
 
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Computes the polynomial expansion coefficients:
+//        (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
+//        Results are passed to grid_prepare_coef.
+// \author Ole Schuett
+//******************************************************************************
 static void grid_prepare_alpha(const double ra[3],
                                const double rb[3],
                                const double rp[3],
@@ -34,10 +39,6 @@ static void grid_prepare_alpha(const double ra[3],
     }
     }
     }
-
-    //
-    //   compute polynomial expansion coefs -> (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
-    //
 
     for (int iaxis=0; iaxis<3; iaxis++) {
        const double drpa = rp[iaxis] - ra[iaxis];
@@ -62,7 +63,12 @@ static void grid_prepare_alpha(const double ra[3],
     }
 }
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief Compute coefficients for all combinations of angular momentum.
+//        Results are passed to grid_collocate_ortho and grid_collocate_general.
+// \author Ole Schuett
+//******************************************************************************
 static void grid_prepare_coef(const int la_max,
                       const int la_min,
                       const int lb_max,
@@ -119,7 +125,12 @@ static void grid_prepare_coef(const int la_max,
     }
 }
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief Computes mapping from cube to grid indices.
+//        Used only in the orthorhombic case.
+// \author Ole Schuett
+//******************************************************************************
 static void grid_fill_map(const int lb_cube,
                           const int ub_cube,
                           const int cubecenter,
@@ -138,7 +149,11 @@ static void grid_fill_map(const int lb_cube,
 }
 
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Computes (x-xp)**lp*exp(..) for all cube points in one dimension.
+//        Used only in the orthorhombic case.
+// \author Ole Schuett
+//******************************************************************************
 static void grid_fill_pol(const double dr,
                           const double roffset,
                           const int lb_cube,
@@ -146,14 +161,12 @@ static void grid_fill_pol(const double dr,
                           const int cmax,
                           const double zetp,
                           double pol[lp+1][2*cmax+1]) {
-//
-//   compute the values of all (x-xp)**lp*exp(..)
-//
+
 //  still requires the old trick:
 //  new trick to avoid to many exps (reuse the result from the previous gridpoint):
 //  exp( -a*(x+d)**2)=exp(-a*x**2)*exp(-2*a*x*d)*exp(-a*d**2)
 //  exp(-2*a*(x+d)*d)=exp(-2*a*x*d)*exp(-2*a*d**2)
-//
+
       const double t_exp_1 = exp(-zetp * pow(dr, 2));
       const double t_exp_2 = pow(t_exp_1, 2);
 
@@ -186,7 +199,11 @@ static void grid_fill_pol(const double dr,
       }
 }
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief  A much simpler but also slower implementation of grid_collocate_core.
+// \author Ole Schuett
+//******************************************************************************
 static void grid_collocate_core_simple(const int lp,
                                        const int cmax,
                                        const double coef_xyz[lp+1][lp+1][lp+1],
@@ -268,7 +285,13 @@ static void grid_collocate_core_simple(const int lp,
     free(cube);
 }
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief Fills the 3D cube by taking the outer product of the 1D pol arrays.
+//        The majority of cpu cycles are spend in this routine.
+//        Used only in the orthorhombic case.
+// \author Ole Schuett
+//******************************************************************************
 static void grid_collocate_core(const int lp,
                                 const int cmax,
                                 const double coef_xyz[lp+1][lp+1][lp+1],
@@ -378,7 +401,11 @@ static void grid_collocate_core(const int lp,
     }
 }
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief Collocate kernel for the orthorhombic case.
+// \author Ole Schuett
+//******************************************************************************
 static void grid_collocate_ortho(const int lp,
                                  const double zetp,
                                  const double coef_xyz[lp+1][lp+1][lp+1],
@@ -484,7 +511,10 @@ static void grid_collocate_ortho(const int lp,
 }
 
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Collocate kernel for the general case, ie. non-ortho or with subpatches.
+// \author Ole Schuett
+//******************************************************************************
 static void grid_collocate_general(const bool use_subpatch,
                                    const int subpatch,
                                    const int border,
@@ -747,7 +777,12 @@ static void grid_collocate_general(const bool use_subpatch,
     }
 }
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief Internal entry point. Runs common preparations before branching into
+//        the orthorhombic or general kernel.
+// \author Ole Schuett
+//******************************************************************************
 static void grid_collocate_internal(const bool orthorhombic,
                                     const bool use_subpatch,
                                     const int subpatch,
@@ -883,7 +918,11 @@ static void grid_collocate_internal(const bool orthorhombic,
 }
 
 
-// *****************************************************************************
+//******************************************************************************
+// \brief Public entry point. A thin wrapper with the only purpose of calling
+//        grid_collocate_record when DUMP_TASKS = true.
+// \author Ole Schuett
+//******************************************************************************
 void grid_collocate_pgf_product_cpu(const bool orthorhombic,
                                     const bool use_subpatch,
                                     const int subpatch,

@@ -21,7 +21,12 @@
 #include "grid_task_list.h"
 #include "grid_common.h"
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief Writes the given arguments into a .task file.
+//        See grid_collocate_replay.h for details.
+// \author Ole Schuett
+//******************************************************************************
 void grid_collocate_record(const bool orthorhombic,
                            const bool use_subpatch,
                            const int subpatch,
@@ -49,10 +54,14 @@ void grid_collocate_record(const bool orthorhombic,
                            const double pab[n2][n1],
                            const double* grid){
 
-    static int counter = 0;
-    counter++;
+    static int counter = 1;
+    int my_number;
+
+    #pragma omp critical
+    my_number = counter++;
+
     char filename[100];
-    snprintf(filename, sizeof(filename), "grid_collocate_%05i.task", counter);
+    snprintf(filename, sizeof(filename), "grid_collocate_%05i.task", my_number);
 
     const int D = DECIMAL_DIG;  // In C11 we could use DBL_DECIMAL_DIG.
     FILE *fp = fopen(filename, "w+");
@@ -116,7 +125,11 @@ void grid_collocate_record(const bool orthorhombic,
 
 }
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief Reads next line from given filehandle and handles errors.
+// \author Ole Schuett
+//******************************************************************************
 static void read_next_line(char line[], int length, FILE *fp) {
     if (fgets(line, length, fp) == NULL) {
         fprintf(stderr, "Error: Could not read line.\n");
@@ -124,7 +137,11 @@ static void read_next_line(char line[], int length, FILE *fp) {
     }
 }
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief Parses next line from file, expecting it to match "${key} ${format}".
+// \author Ole Schuett
+//******************************************************************************
 static void parse_next_line(const char key[], FILE *fp, const char format[],
                             const int nargs, ...) {
     char line[100];
@@ -146,30 +163,50 @@ static void parse_next_line(const char key[], FILE *fp, const char format[],
     va_end(varargs);
 }
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief Shorthand for parsing a single integer value.
+// \author Ole Schuett
+//******************************************************************************
 static int parse_int(const char key[], FILE *fp) {
     int value;
     parse_next_line(key, fp, "%i", 1, &value);
     return value;
 }
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief Shorthand for parsing a vector of three integer values.
+// \author Ole Schuett
+//******************************************************************************
 static void parse_int3(const char key[], FILE *fp, int vec[3]) {
     parse_next_line(key, fp, "%i %i %i", 3, &vec[0], &vec[1], &vec[2]);
 }
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief Shorthand for parsing a single double value.
+// \author Ole Schuett
+//******************************************************************************
 static double parse_double(const char key[], FILE *fp) {
     double value;
     parse_next_line(key, fp, "%le", 1, &value);
     return value;
 }
 
+
+//******************************************************************************
+// \brief Shorthand for parsing a vector of three double values.
+// \author Ole Schuett
 // *****************************************************************************
 static void parse_double3(const char key[], FILE *fp, double vec[3]) {
     parse_next_line(key, fp, "%le %le %le", 3, &vec[0], &vec[1], &vec[2]);
 }
 
+
+//******************************************************************************
+// \brief Shorthand for parsing a 3x3 matrix of doubles.
+// \author Ole Schuett
 // *****************************************************************************
 static void parse_double3x3(const char key[], FILE *fp, double mat[3][3]) {
     char format[100];
@@ -179,6 +216,10 @@ static void parse_double3x3(const char key[], FILE *fp, double mat[3][3]) {
     }
 }
 
+
+//******************************************************************************
+// \brief Creates mock basis set using the identity as decontraction matrix.
+// \author Ole Schuett
 // *****************************************************************************
 static void create_dummy_basis_set(const int size,
                                    const int lmin,
@@ -217,6 +258,10 @@ static void create_dummy_basis_set(const int size,
                           basis_set);
 }
 
+
+//******************************************************************************
+// \brief Creates mock task list with one task per cycle.
+// \author Ole Schuett
 // *****************************************************************************
 static void create_dummy_task_list(const bool use_subpatch,
                                    const int subpatch,
@@ -291,7 +336,12 @@ static void create_dummy_task_list(const bool use_subpatch,
     }
 }
 
-// *****************************************************************************
+
+//******************************************************************************
+// \brief Reads a .task file, collocates it, and compares results to reference.
+//        See grid_collocate_replay.h for details.
+// \author Ole Schuett
+//******************************************************************************
 double grid_collocate_replay(const char* filename, const int cycles, const bool batch){
     FILE *fp = fopen(filename, "r");
     if (fp == NULL) {

@@ -8,6 +8,11 @@
 
 #include <stdbool.h>
 
+
+//******************************************************************************
+// \brief Writes the given arguments into a .task file.
+// \author Ole Schuett
+//******************************************************************************
 void grid_collocate_record(const bool orthorhombic,
                            const bool use_subpatch,
                            const int subpatch,
@@ -35,6 +40,18 @@ void grid_collocate_record(const bool orthorhombic,
                            const double pab[n2][n1],
                            const double* grid);
 
+
+//******************************************************************************
+// \brief Reads a .task file, collocates it, and compares results to reference.
+//
+// \param filename      Name of the task file.
+// \param cycles        Number of times the task should be collocated.
+// \param batch         When false grid_collocate_pgf_product_cpu is called.
+//                      When true grid_collocate_task_list is called.
+// \returns             The maximum difference for an individual grid point.
+//
+// \author Ole Schuett
+//******************************************************************************
 double grid_collocate_replay(const char* filename, int cycles, bool batch);
 
 #endif
