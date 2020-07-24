@@ -186,9 +186,9 @@ CONTAINS
       MARK_USED(cube_info)
 
       IF (PRESENT(use_subpatch)) THEN
-         my_use_subpatch = use_subpatch
+         my_use_subpatch = LOGICAL(use_subpatch, C_BOOL)
       ELSE
-         my_use_subpatch = .FALSE.
+         my_use_subpatch = LOGICAL(.FALSE., C_BOOL)
       ENDIF
       CPASSERT(.NOT. my_use_subpatch .OR. PRESENT(subpatch_pattern))
 
@@ -197,7 +197,7 @@ CONTAINS
          my_subpatch_pattern = subpatch_pattern
       ENDIF
 
-      orthorhombic = rsgrid%desc%orthorhombic
+      orthorhombic = LOGICAL(rsgrid%desc%orthorhombic, C_BOOL)
 
       CPASSERT(LBOUND(pab, 1) == 1)
       CPASSERT(LBOUND(pab, 2) == 1)
@@ -735,7 +735,7 @@ CONTAINS
 
       nlevels = SIZE(rs_grids)
       CPASSERT(nlevels > 0)
-      orthorhombic = rs_grids(1)%rs_grid%desc%orthorhombic
+      orthorhombic = LOGICAL(rs_grids(1)%rs_grid%desc%orthorhombic, C_BOOL)
 
       ALLOCATE (grid_pointers(nlevels), border(nlevels), distributed(nlevels))
       ALLOCATE (npts_global(3, nlevels), npts_local(3, nlevels), shift_local(3, nlevels))
@@ -748,7 +748,7 @@ CONTAINS
                                     shift_local=shift_local(:, ilevel))
          CPASSERT(rsgrid%desc%orthorhombic .EQV. orthorhombic)  ! should be the same for all levels
          border(ilevel) = rsgrid%desc%border
-         distributed(ilevel) = rsgrid%desc%distributed
+         distributed(ilevel) = LOGICAL(rsgrid%desc%distributed, C_BOOL)
          dh(:, :, ilevel) = rsgrid%desc%dh(:, :)
          dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
          grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! ensure lower bounds are (1,1,1)
