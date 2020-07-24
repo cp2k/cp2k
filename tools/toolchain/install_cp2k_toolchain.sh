@@ -915,10 +915,10 @@ else
     ./scripts/install_gcc.sh
     ./scripts/setup_buildtools.sh
     ./scripts/install_cmake.sh
-    ./scripts/install_valgrind.sh
     ./scripts/install_mpich.sh
     ./scripts/install_openmpi.sh
     ./scripts/install_intelmpi.sh
+    ./scripts/install_valgrind.sh
     ./scripts/install_mathlibs.sh
     ./scripts/install_fftw.sh
     ./scripts/install_spfft.sh
