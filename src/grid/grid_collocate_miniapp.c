@@ -9,6 +9,10 @@
 
 #include "grid_collocate_replay.h"
 
+//******************************************************************************
+// \brief Stand-alone miniapp for running .task files.
+// \author Ole Schuett
+//******************************************************************************
 int main(int argc, char *argv[]){
     // Parsing of optional args.
     int iarg = 1;
