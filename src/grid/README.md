@@ -1,6 +1,6 @@
 # grid: High performance primitives to power GPW & Co
 
-This package hosts the performance critical grid operations of cp2k. The code is entirely written in C and can be build stand-alone in order to provide a good separation of concerns between computational chemists and performance engineers.
+This package hosts the performance critical grid operations of cp2k. The code is entirely written in C and can be built stand-alone in order to provide a good separation of concerns between computational chemists and performance engineers.
 
 
 Currently, this package offers the following main features:
@@ -31,14 +31,14 @@ grid 13 13 18 9.926167350636332098457e-24
 For more information see [grid_collocate_replay.c](grid_collocate_replay.c).
 
 ## MiniApp
-The `grid_collocate_miniapp.x` binary allows to run individual .task files. By default `grid_collocate_pgf_product_cpu` is called. When the `--batch` flag is set then `grid_collocate_task_list` is called instead. Beware that the batched version only performs a single decontraction regardless of the number of cycles.
+The `grid_collocate_miniapp.x` binary allows to run individual .task files. By default `grid_collocate_pgf_product_cpu` is called. When the `--batch` flag is set then `grid_collocate_task_list` is called instead.
 ```
 $ cd cp2k/src/grid
 $ make
 $ ./grid_collocate_miniapp.x
-Usage: grid_base_ref_miniapp.x [--batch] <cycles> <task-file>
+Usage: grid_base_ref_miniapp.x [--batch <cycles-per-block>] <cycles> <task-file>
 
-$ ./grid_collocate_miniapp.x --batch 100 sample_tasks/collocate_ortho_density_l2200.task 
+$ ./grid_collocate_miniapp.x --batch 10 100 sample_tasks/collocate_ortho_density_l2200.task
 Task: sample_tasks/collocate_ortho_density_l2200.task                     Batched: yes   Cycles: 1.000000e+02   Max value: 1.579830e+02   Max diff: 1.705303e-13   Time: 1.884854e-03 sec
 ```
 

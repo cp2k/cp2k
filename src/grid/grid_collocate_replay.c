@@ -279,15 +279,17 @@ static void create_dummy_task_list(const bool use_subpatch,
                                    const int lb_max,
                                    const double pab[n2][n1],
                                    const int cycles,
+                                   const int cycles_per_block,
                                    grid_task_list_t* task_list) {
 
     const int ntasks = cycles;
     const int nlevels = 1;
     const int natoms = 2;
     const int nkinds = 2;
-    const int nblocks = 1;
     const int buffer_size = n1 * n2;
-    const int block_offsets[1] = {0};
+    const int nblocks = cycles / cycles_per_block + 1;
+    int block_offsets[nblocks];
+    memset(block_offsets, 0, nblocks * sizeof(int));  // all point to same data
     const double atom_positions[2][3] = {
         {         ra[0],          ra[1],          ra[2]},
         {rab[0] + ra[0], rab[1] + ra[1], rab[2] + ra[2]}
@@ -313,7 +315,7 @@ static void create_dummy_task_list(const bool use_subpatch,
         jpgf_list[i] = jpgf;
         subpatch_list[i] = subpatch;
         dist_type_list[i] = use_subpatch ? 2 : 0;
-        block_num_list[i] = 1;
+        block_num_list[i] = i / cycles_per_block + 1;
         radius_list[i] = radius;
         rab_list[i][0] = rab[0];
         rab_list[i][1] = rab[1];
@@ -342,7 +344,21 @@ static void create_dummy_task_list(const bool use_subpatch,
 //        See grid_collocate_replay.h for details.
 // \author Ole Schuett
 //******************************************************************************
-double grid_collocate_replay(const char* filename, const int cycles, const bool batch){
+double grid_collocate_replay(const char* filename,
+                             const int cycles,
+                             const bool batch,
+                             const int cycles_per_block){
+
+    if (cycles < 1) {
+        fprintf(stderr, "Error: Cycles have to be greater than zero.\n");
+        exit(1);
+    }
+
+    if (cycles_per_block < 1 || cycles_per_block > cycles) {
+        fprintf(stderr, "Error: Cycles per block has to be between 1 and cycles.\n");
+        exit(1);
+    }
+
     FILE *fp = fopen(filename, "r");
     if (fp == NULL) {
         fprintf(stderr, "Could not open task file: %s\n", filename);
@@ -427,7 +443,7 @@ double grid_collocate_replay(const char* filename, const int cycles, const bool 
         grid_task_list_t task_list = {NULL};
         create_dummy_task_list(use_subpatch, subpatch, rscale, ra, rab, radius,
                                basisa, basisb, n1, n2, o1, o2, la_max, lb_max,
-                               pab, cycles, &task_list);
+                               pab, cycles, cycles_per_block, &task_list);
         bool distributed = true;
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
         double* grids_array[1] = {grid_test};
