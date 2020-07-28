@@ -63,34 +63,33 @@ void grid_free_basis_set(grid_basis_set_t basis_set);
 //******************************************************************************
 // \brief Allocates a task list which can be passed to grid_collocate_task_list.
 //
-// \param ntasks          Number of tasks, ie. length of the task list.
-// \param nlevels         Number of grid levels.
-// \param natoms          Number of atoms.
-// \param nkinds          Number of atomic kinds.
-// \param nblocks         Number of local matrix blocks.
-// \param buffer_size     Required buffer size to store all local matrix blocks.
-// \param block_offsets   Offset of each block within the buffer (zero based).
-// \param atom_positions  Position of the atoms.
-// \param atom_kinds      Mapping from atom to atomic kind (one based).
-// \param basis_sets      Mapping from atomic kind to basis sets.
+// \param ntasks           Number of tasks, ie. length of the task list.
+// \param nlevels          Number of grid levels.
+// \param natoms           Number of atoms.
+// \param nkinds           Number of atomic kinds.
+// \param nblocks          Number of local matrix blocks.
+// \param buffer_size      Required buffer size to store all local matrix blocks.
+// \param block_offsets    Offset of each block within the buffer (zero based).
+// \param atom_positions   Position of the atoms.
+// \param atom_kinds       Mapping from atom to atomic kind (one based).
+// \param basis_sets       Mapping from atomic kind to basis sets.
 //
 //      The following params are given for each task:
 //
-// \param level_list      Index of grid level (one based).
-// \param iatom_list      Index of first atom (one based).
-// \param jatom_list      Index of second atom (one based).
-// \param iset_list       Index of first set (one based).
-// \param jset_list       Index of second set (one based).
-// \param ipgf_list       Index of first expoenent (one based).
-// \param jpgf_list       Index of second expoenent (one based).
-// \param subpatch_list   Subpatch pattern, see rs_find_node() in task_list_methods.F.
-// \param dist_type_list  Distribution type, see rs_find_node() in task_list_methods.F.
-// \param block_num_list  Index into the block_offsets array (one based).
-// \param radius_list     Radius where Gaussian becomes smaller than threshold eps.
-// \param rab_list        Vector between atoms, encodes the virtual image.
+// \param level_list       Index of grid level (one based).
+// \param iatom_list       Index of first atom (one based).
+// \param jatom_list       Index of second atom (one based).
+// \param iset_list        Index of first set (one based).
+// \param jset_list        Index of second set (one based).
+// \param ipgf_list        Index of first expoenent (one based).
+// \param jpgf_list        Index of second expoenent (one based).
+// \param border_mask_list Bit-pattern determining which border regions to exclude.
+// \param block_num_list   Index into the block_offsets array (one based).
+// \param radius_list      Radius where Gaussian becomes smaller than threshold eps.
+// \param rab_list         Vector between atoms, encodes the virtual image.
 //
-// \param blocks_buffer   Allocate buffer ready to be filled with blocks.
-// \param task_list       Handle to the created task list.
+// \param blocks_buffer    Allocate buffer ready to be filled with blocks.
+// \param task_list        Handle to the created task list.
 //
 // \author Ole Schuett
 //******************************************************************************
@@ -111,8 +110,7 @@ void grid_create_task_list(const int ntasks,
                            const int jset_list[ntasks],
                            const int ipgf_list[ntasks],
                            const int jpgf_list[ntasks],
-                           const int subpatch_list[ntasks],
-                           const int dist_type_list[ntasks],
+                           const int border_mask_list[ntasks],
                            const int block_num_list[ntasks],
                            const double radius_list[ntasks],
                            const double rab_list[ntasks][3],
@@ -140,8 +138,7 @@ void grid_free_task_list(grid_task_list_t task_list);
 // \param npts_global     Number of global grid points in each direction.
 // \param npts_local      Number of local grid points in each direction.
 // \param shift_local     Number of points the local grid is shifted wrt global grid.
-// \param border          Width of border (halo) region in grid points.
-// \param distributed     Whether a grid level is distributed.
+// \param border_width    Width of halo region in grid points in each direction.
 // \param dh              Incremental grid matrix.
 // \param dh_inv          Inverse incremental grid matrix.
 // \param grid            The output grid array to collocate into.
@@ -155,8 +152,7 @@ void grid_collocate_task_list(const grid_task_list_t task_list,
                               const int npts_global[nlevels][3],
                               const int npts_local[nlevels][3],
                               const int shift_local[nlevels][3],
-                              const int border[nlevels],
-                              const bool distributed[nlevels],
+                              const int border_width[nlevels][3],
                               const double dh[nlevels][3][3],
                               const double dh_inv[nlevels][3][3],
                               double* grid[nlevels]);

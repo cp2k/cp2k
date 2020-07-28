@@ -136,26 +136,25 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, iw, j, k, my_pos, my_subpatch_pattern
-      INTEGER, DIMENSION(3), TARGET                      :: npts_global, npts_local, shift_local
+      INTEGER                                            :: border_mask, i, iw, j, k, my_pos
+      INTEGER, DIMENSION(3), TARGET                      :: border_width, npts_global, npts_local, &
+                                                            shift_local
       INTEGER, SAVE                                      :: counter = 0
-      LOGICAL(KIND=C_BOOL)                               :: my_use_subpatch, orthorhombic
+      LOGICAL(KIND=C_BOOL)                               :: orthorhombic
       REAL(KIND=dp)                                      :: diff, ref_value, rel_diff, tolerance
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid, grid_before
       INTERFACE
          SUBROUTINE grid_collocate_pgf_product_cpu(orthorhombic, &
-                                                   use_subpatch, subpatch, border, func, &
+                                                   border_mask, func, &
                                                    la_max, la_min, lb_max, lb_min, &
                                                    zeta, zetb, rscale, dh, dh_inv, ra, rab, &
-                                                   npts_global, npts_local, shift_local, &
+                                                   npts_global, npts_local, shift_local, border_width, &
                                                    radius, o1, o2, n1, n2, pab, &
                                                    grid) &
             BIND(C, name="grid_collocate_pgf_product_cpu")
             IMPORT :: C_PTR, C_INT, C_DOUBLE, C_BOOL
             LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
-            LOGICAL(KIND=C_BOOL), VALUE               :: use_subpatch
-            INTEGER(KIND=C_INT), VALUE                :: subpatch
-            INTEGER(KIND=C_INT), VALUE                :: border
+            INTEGER(KIND=C_INT), VALUE                :: border_mask
             INTEGER(KIND=C_INT), VALUE                :: func
             INTEGER(KIND=C_INT), VALUE                :: la_max
             INTEGER(KIND=C_INT), VALUE                :: la_min
@@ -171,6 +170,7 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: npts_global
             TYPE(C_PTR), VALUE                        :: npts_local
             TYPE(C_PTR), VALUE                        :: shift_local
+            TYPE(C_PTR), VALUE                        :: border_width
             REAL(KIND=C_DOUBLE), VALUE                :: radius
             INTEGER(KIND=C_INT), VALUE                :: o1
             INTEGER(KIND=C_INT), VALUE                :: o2
@@ -185,24 +185,23 @@ CONTAINS
       MARK_USED(cell)
       MARK_USED(cube_info)
 
+      border_mask = 0
       IF (PRESENT(use_subpatch)) THEN
-         my_use_subpatch = LOGICAL(use_subpatch, C_BOOL)
-      ELSE
-         my_use_subpatch = LOGICAL(.FALSE., C_BOOL)
-      ENDIF
-      CPASSERT(.NOT. my_use_subpatch .OR. PRESENT(subpatch_pattern))
-
-      my_subpatch_pattern = 0
-      IF (PRESENT(subpatch_pattern)) THEN
-         my_subpatch_pattern = subpatch_pattern
-      ENDIF
+         IF (use_subpatch) THEN
+            CPASSERT(PRESENT(subpatch_pattern))
+            border_mask = IAND(63, NOT(subpatch_pattern))  ! invert last 6 bits
+         END IF
+      END IF
 
       orthorhombic = LOGICAL(rsgrid%desc%orthorhombic, C_BOOL)
 
       CPASSERT(LBOUND(pab, 1) == 1)
       CPASSERT(LBOUND(pab, 2) == 1)
 
-      CALL get_rsgrid_properties(rsgrid, npts_global=npts_global, npts_local=npts_local, shift_local=shift_local)
+      CALL get_rsgrid_properties(rsgrid, npts_global=npts_global, &
+                                 npts_local=npts_local, &
+                                 shift_local=shift_local, &
+                                 border_width=border_width)
 
       IF (validate_collocate) THEN
          ALLOCATE (grid(SIZE(rsgrid%r, 1), SIZE(rsgrid%r, 2), SIZE(rsgrid%r, 3)))
@@ -222,14 +221,13 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(npts_global))
       CPASSERT(IS_CONTIGUOUS(npts_local))
       CPASSERT(IS_CONTIGUOUS(shift_local))
+      CPASSERT(IS_CONTIGUOUS(border_width))
       CPASSERT(IS_CONTIGUOUS(pab))
       CPASSERT(IS_CONTIGUOUS(grid))
 #endif
 
       CALL grid_collocate_pgf_product_cpu(orthorhombic=orthorhombic, &
-                                          use_subpatch=my_use_subpatch, &
-                                          subpatch=my_subpatch_pattern, &
-                                          border=rsgrid%desc%border, &
+                                          border_mask=border_mask, &
                                           func=ga_gb_function, &
                                           la_max=la_max, &
                                           la_min=la_min, &
@@ -245,6 +243,7 @@ CONTAINS
                                           npts_global=C_LOC(npts_global(1)), &
                                           npts_local=C_LOC(npts_local(1)), &
                                           shift_local=C_LOC(shift_local(1)), &
+                                          border_width=C_LOC(border_width(1)), &
                                           radius=radius, &
                                           o1=o1, &
                                           o2=o2, &
@@ -260,7 +259,7 @@ CONTAINS
                                            rsgrid, cell, cube_info, &
                                            ga_gb_function, radius, &
                                            use_subpatch, subpatch_pattern)
-         IF (orthorhombic .AND. .NOT. my_use_subpatch) THEN
+         IF (orthorhombic .AND. border_mask == 0) THEN
             tolerance = 6e-14
          ELSE
             tolerance = 2e-10
@@ -285,9 +284,9 @@ CONTAINS
                WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "shift_local:", shift_local
                WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "orthorhombic:", orthorhombic
                WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "ga_gb_function:", ga_gb_function
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "use_subpatch:", my_use_subpatch
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "subpatch_pattern:", my_subpatch_pattern
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "border:", rsgrid%desc%border
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "border_mask:", border_mask
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "border_width:", border_width
+               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "distributed:", rsgrid%desc%distributed
                CPABORT("Collocate validation failed.")
             END IF
          ENDDO
@@ -305,11 +304,13 @@ CONTAINS
 !> \param npts_global ...
 !> \param npts_local ...
 !> \param shift_local ...
+!> \param border_width ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE get_rsgrid_properties(rsgrid, npts_global, npts_local, shift_local)
+   SUBROUTINE get_rsgrid_properties(rsgrid, npts_global, npts_local, shift_local, border_width)
       TYPE(realspace_grid_type), INTENT(IN)              :: rsgrid
-      INTEGER, DIMENSION(:)                              :: npts_global, npts_local, shift_local
+      INTEGER, DIMENSION(:)                              :: npts_global, npts_local, shift_local, &
+                                                            border_width
 
       INTEGER                                            :: i
 
@@ -334,18 +335,22 @@ CONTAINS
       ! Number of points the local grid is shifted wrt global grid.
       shift_local = rsgrid%lb_local - rsgrid%desc%lb
 
-      ! Check that rsgrid%desc%perd means what I think it means.
+      ! Convert rsgrid%desc%border and rsgrid%desc%perd into the more convenient border_width array.
       DO i = 1, 3
          IF (rsgrid%desc%perd(i) == 1) THEN
             ! Periodic meaning the grid in this direction is entriely present on every processor.
             CPASSERT(npts_local(i) == npts_global(i))
             CPASSERT(shift_local(i) == 0)
+            ! No need for halo regions.
+            border_width(i) = 0
          ELSE
             ! Not periodic meaning the grid in this direction is distributed among processors.
-            CPASSERT(npts_local(i) < npts_global(i))
+            CPASSERT(npts_local(i) <= npts_global(i))
             ! Check bounds of grid section that is owned by this processor.
             CPASSERT(rsgrid%lb_real(i) == rsgrid%lb_local(i) + rsgrid%desc%border)
             CPASSERT(rsgrid%ub_real(i) == rsgrid%ub_local(i) - rsgrid%desc%border)
+            ! We have halo regions.
+            border_width(i) = rsgrid%desc%border
          ENDIF
       ENDDO
    END SUBROUTINE get_rsgrid_properties
@@ -507,8 +512,7 @@ CONTAINS
 !> \param jset_list ...
 !> \param ipgf_list ...
 !> \param jpgf_list ...
-!> \param subpatch_list ...
-!> \param dist_type_list ...
+!> \param border_mask_list ...
 !> \param block_num_list ...
 !> \param radius_list ...
 !> \param rab_list ...
@@ -520,7 +524,7 @@ CONTAINS
                                     block_offsets, atom_positions, atom_kinds, basis_sets, &
                                     level_list, iatom_list, jatom_list, &
                                     iset_list, jset_list, ipgf_list, jpgf_list, &
-                                    subpatch_list, dist_type_list, block_num_list, &
+                                    border_mask_list, block_num_list, &
                                     radius_list, rab_list, blocks_buffer, task_list)
 
       INTEGER, INTENT(IN)                                :: ntasks, nlevels, natoms, nkinds, &
@@ -530,8 +534,10 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), TARGET          :: atom_kinds
       TYPE(grid_basis_set_type), DIMENSION(:), &
          INTENT(IN), TARGET                              :: basis_sets
-      INTEGER, DIMENSION(:), INTENT(IN), TARGET :: level_list, iatom_list, jatom_list, iset_list, &
-         jset_list, ipgf_list, jpgf_list, subpatch_list, dist_type_list, block_num_list
+      INTEGER, DIMENSION(:), INTENT(IN), TARGET          :: level_list, iatom_list, jatom_list, &
+                                                            iset_list, jset_list, ipgf_list, &
+                                                            jpgf_list, border_mask_list, &
+                                                            block_num_list
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), TARGET    :: radius_list
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), TARGET :: rab_list
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT), POINTER  :: blocks_buffer
@@ -548,7 +554,7 @@ CONTAINS
                                             block_offsets, atom_positions, atom_kinds, basis_sets, &
                                             level_list, iatom_list, jatom_list, &
                                             iset_list, jset_list, ipgf_list, jpgf_list, &
-                                            subpatch_list, dist_type_list, block_num_list, &
+                                            border_mask_list, block_num_list, &
                                             radius_list, rab_list, blocks_buffer, task_list) &
             BIND(C, name="grid_create_task_list")
             IMPORT :: C_PTR, C_INT
@@ -569,8 +575,7 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: jset_list
             TYPE(C_PTR), VALUE                        :: ipgf_list
             TYPE(C_PTR), VALUE                        :: jpgf_list
-            TYPE(C_PTR), VALUE                        :: subpatch_list
-            TYPE(C_PTR), VALUE                        :: dist_type_list
+            TYPE(C_PTR), VALUE                        :: border_mask_list
             TYPE(C_PTR), VALUE                        :: block_num_list
             TYPE(C_PTR), VALUE                        :: radius_list
             TYPE(C_PTR), VALUE                        :: rab_list
@@ -590,8 +595,7 @@ CONTAINS
       CPASSERT(SIZE(jset_list) == ntasks)
       CPASSERT(SIZE(ipgf_list) == ntasks)
       CPASSERT(SIZE(jpgf_list) == ntasks)
-      CPASSERT(SIZE(subpatch_list) == ntasks)
-      CPASSERT(SIZE(dist_type_list) == ntasks)
+      CPASSERT(SIZE(border_mask_list) == ntasks)
       CPASSERT(SIZE(block_num_list) == ntasks)
       CPASSERT(SIZE(radius_list) == ntasks)
       CPASSERT(SIZE(rab_list, 1) == 3 .AND. SIZE(rab_list, 2) == ntasks)
@@ -613,8 +617,7 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(jset_list))
       CPASSERT(IS_CONTIGUOUS(ipgf_list))
       CPASSERT(IS_CONTIGUOUS(jpgf_list))
-      CPASSERT(IS_CONTIGUOUS(subpatch_list))
-      CPASSERT(IS_CONTIGUOUS(dist_type_list))
+      CPASSERT(IS_CONTIGUOUS(border_mask_list))
       CPASSERT(IS_CONTIGUOUS(block_num_list))
       CPASSERT(IS_CONTIGUOUS(radius_list))
       CPASSERT(IS_CONTIGUOUS(rab_list))
@@ -626,7 +629,7 @@ CONTAINS
          CALL grid_create_task_list_c(0, nlevels, 0, 0, 0, 0, C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, &
                                       C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, &
                                       C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, &
-                                      C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, &
+                                      C_NULL_PTR, C_NULL_PTR, &
                                       blocks_buffer=blocks_buffer_c, &
                                       task_list=task_list%c_ptr)
       ELSE
@@ -647,8 +650,7 @@ CONTAINS
                                       jset_list=C_LOC(jset_list(1)), &
                                       ipgf_list=C_LOC(ipgf_list(1)), &
                                       jpgf_list=C_LOC(jpgf_list(1)), &
-                                      subpatch_list=C_LOC(subpatch_list(1)), &
-                                      dist_type_list=C_LOC(dist_type_list(1)), &
+                                      border_mask_list=C_LOC(border_mask_list(1)), &
                                       block_num_list=C_LOC(block_num_list(1)), &
                                       radius_list=C_LOC(radius_list(1)), &
                                       rab_list=C_LOC(rab_list(1, 1)), &
@@ -702,11 +704,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ilevel, nlevels
-      INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: border
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: npts_global, npts_local, shift_local
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: border_width, npts_global, npts_local, &
+                                                            shift_local
       LOGICAL(KIND=C_BOOL)                               :: orthorhombic
-      LOGICAL(KIND=C_BOOL), ALLOCATABLE, DIMENSION(:), &
-         TARGET                                          :: distributed
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          TARGET                                          :: dh, dh_inv
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
@@ -715,7 +715,7 @@ CONTAINS
       INTERFACE
          SUBROUTINE grid_collocate_task_list_c(task_list, orthorhombic, func, nlevels, &
                                                npts_global, npts_local, shift_local, &
-                                               border, distributed, dh, dh_inv, grid) &
+                                               border_width, dh, dh_inv, grid) &
             BIND(C, name="grid_collocate_task_list")
             IMPORT :: C_PTR, C_INT, C_BOOL
             TYPE(C_PTR), VALUE                        :: task_list
@@ -725,8 +725,7 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: npts_global
             TYPE(C_PTR), VALUE                        :: npts_local
             TYPE(C_PTR), VALUE                        :: shift_local
-            TYPE(C_PTR), VALUE                        :: border
-            TYPE(C_PTR), VALUE                        :: distributed
+            TYPE(C_PTR), VALUE                        :: border_width
             TYPE(C_PTR), VALUE                        :: dh
             TYPE(C_PTR), VALUE                        :: dh_inv
             TYPE(C_PTR), VALUE                        :: grid
@@ -737,18 +736,18 @@ CONTAINS
       CPASSERT(nlevels > 0)
       orthorhombic = LOGICAL(rs_grids(1)%rs_grid%desc%orthorhombic, C_BOOL)
 
-      ALLOCATE (grid_pointers(nlevels), border(nlevels), distributed(nlevels))
-      ALLOCATE (npts_global(3, nlevels), npts_local(3, nlevels), shift_local(3, nlevels))
+      ALLOCATE (grid_pointers(nlevels))
+      ALLOCATE (npts_global(3, nlevels), npts_local(3, nlevels))
+      ALLOCATE (shift_local(3, nlevels), border_width(3, nlevels))
       ALLOCATE (dh(3, 3, nlevels), dh_inv(3, 3, nlevels))
       DO ilevel = 1, nlevels
          rsgrid => rs_grids(ilevel)%rs_grid
          CALL get_rsgrid_properties(rsgrid=rsgrid, &
                                     npts_global=npts_global(:, ilevel), &
                                     npts_local=npts_local(:, ilevel), &
-                                    shift_local=shift_local(:, ilevel))
+                                    shift_local=shift_local(:, ilevel), &
+                                    border_width=border_width(:, ilevel))
          CPASSERT(rsgrid%desc%orthorhombic .EQV. orthorhombic)  ! should be the same for all levels
-         border(ilevel) = rsgrid%desc%border
-         distributed(ilevel) = LOGICAL(rsgrid%desc%distributed, C_BOOL)
          dh(:, :, ilevel) = rsgrid%desc%dh(:, :)
          dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
          grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! ensure lower bounds are (1,1,1)
@@ -759,8 +758,7 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(npts_global))
       CPASSERT(IS_CONTIGUOUS(npts_local))
       CPASSERT(IS_CONTIGUOUS(shift_local))
-      CPASSERT(IS_CONTIGUOUS(border))
-      CPASSERT(IS_CONTIGUOUS(distributed))
+      CPASSERT(IS_CONTIGUOUS(border_width))
       CPASSERT(IS_CONTIGUOUS(dh))
       CPASSERT(IS_CONTIGUOUS(dh_inv))
       CPASSERT(IS_CONTIGUOUS(grid_pointers))
@@ -779,8 +777,7 @@ CONTAINS
                                       npts_global=C_LOC(npts_global(1, 1)), &
                                       npts_local=C_LOC(npts_local(1, 1)), &
                                       shift_local=C_LOC(shift_local(1, 1)), &
-                                      border=C_LOC(border(1)), &
-                                      distributed=C_LOC(distributed(1)), &
+                                      border_width=C_LOC(border_width(1, 1)), &
                                       dh=C_LOC(dh(1, 1, 1)), &
                                       dh_inv=C_LOC(dh_inv(1, 1, 1)), &
                                       grid=C_LOC(grid_pointers(1)))

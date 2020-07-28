@@ -515,9 +515,7 @@ static void grid_collocate_ortho(const int lp,
 // \brief Collocate kernel for the general case, ie. non-ortho or with subpatches.
 // \author Ole Schuett
 //******************************************************************************
-static void grid_collocate_general(const bool use_subpatch,
-                                   const int subpatch,
-                                   const int border,
+static void grid_collocate_general(const int border_mask,
                                    const int lp,
                                    const double zetp,
                                    const double coef_xyz[lp+1][lp+1][lp+1],
@@ -527,31 +525,24 @@ static void grid_collocate_general(const bool use_subpatch,
                                    const int npts_global[3],
                                    const int npts_local[3],
                                    const int shift_local[3],
+                                   const int border_width[3],
                                    const double radius,
                                    double* grid) {
 
     int mask[3][2] = {
-        {0, npts_local[0] - 1},  // Default case without subpatches.
+        {0, npts_local[0] - 1},  // Default for border_mask == 0.
         {0, npts_local[1] - 1},
         {0, npts_local[2] - 1}
     };
 
-    if (use_subpatch) {
-        for (int i=0; i<3; i++) {
-            if (npts_local[i] != npts_global[i]) {
-                mask[i][0] += border;
-                mask[i][1] -= border;
-            }
-        }
-        // See also rs_find_node() in task_list_methods.F.
-        // If the bit is set, we need to add the border in that direction.
-        if (subpatch & (1<<0)) mask[0][0] -= border;
-        if (subpatch & (1<<1)) mask[0][1] += border;
-        if (subpatch & (1<<2)) mask[1][0] -= border;
-        if (subpatch & (1<<3)) mask[1][1] += border;
-        if (subpatch & (1<<4)) mask[2][0] -= border;
-        if (subpatch & (1<<5)) mask[2][1] += border;
-    }
+    // See also rs_find_node() in task_list_methods.F.
+    // If the bit is set then we need to exclude the border in that direction.
+    if (border_mask & (1<<0)) mask[0][0] += border_width[0];
+    if (border_mask & (1<<1)) mask[0][1] -= border_width[0];
+    if (border_mask & (1<<2)) mask[1][0] += border_width[1];
+    if (border_mask & (1<<3)) mask[1][1] -= border_width[1];
+    if (border_mask & (1<<4)) mask[2][0] += border_width[2];
+    if (border_mask & (1<<5)) mask[2][1] -= border_width[2];
 
 // Translated from collocate_general_opt()
 //
@@ -784,9 +775,7 @@ static void grid_collocate_general(const bool use_subpatch,
 // \author Ole Schuett
 //******************************************************************************
 static void grid_collocate_internal(const bool orthorhombic,
-                                    const bool use_subpatch,
-                                    const int subpatch,
-                                    const int border,
+                                    const int border_mask,
                                     const int func,
                                     const int la_max,
                                     const int la_min,
@@ -802,6 +791,7 @@ static void grid_collocate_internal(const bool orthorhombic,
                                     const int npts_global[3],
                                     const int npts_local[3],
                                     const int shift_local[3],
+                                    const int border_width[3],
                                     const double radius,
                                     const int o1,
                                     const int o2,
@@ -885,7 +875,7 @@ static void grid_collocate_internal(const bool orthorhombic,
                       pab_prep,
                       coef_xyz);
 
-    if (orthorhombic && !use_subpatch) {
+    if (orthorhombic && border_mask==0) {
         // Here we ignore bounds_owned and always collocate the entire cube,
         // thereby assuming that the cube fits into the local grid.
         grid_collocate_ortho(lp,
@@ -900,9 +890,7 @@ static void grid_collocate_internal(const bool orthorhombic,
                              radius,
                              grid);
     } else {
-        grid_collocate_general(use_subpatch,
-                               subpatch,
-                               border,
+        grid_collocate_general(border_mask,
                                lp,
                                zetp,
                                coef_xyz,
@@ -912,6 +900,7 @@ static void grid_collocate_internal(const bool orthorhombic,
                                npts_global,
                                npts_local,
                                shift_local,
+                               border_width,
                                radius,
                                grid);
     }
@@ -924,9 +913,7 @@ static void grid_collocate_internal(const bool orthorhombic,
 // \author Ole Schuett
 //******************************************************************************
 void grid_collocate_pgf_product_cpu(const bool orthorhombic,
-                                    const bool use_subpatch,
-                                    const int subpatch,
-                                    const int border,
+                                    const int border_mask,
                                     const int func,
                                     const int la_max,
                                     const int la_min,
@@ -942,6 +929,7 @@ void grid_collocate_pgf_product_cpu(const bool orthorhombic,
                                     const int npts_global[3],
                                     const int npts_local[3],
                                     const int shift_local[3],
+                                    const int border_width[3],
                                     const double radius,
                                     const int o1,
                                     const int o2,
@@ -964,9 +952,7 @@ void grid_collocate_pgf_product_cpu(const bool orthorhombic,
     }
 
     grid_collocate_internal(orthorhombic,
-                            use_subpatch,
-                            subpatch,
-                            border,
+                            border_mask,
                             func,
                             la_max,
                             la_min,
@@ -982,6 +968,7 @@ void grid_collocate_pgf_product_cpu(const bool orthorhombic,
                             npts_global,
                             npts_local,
                             shift_local,
+                            border_width,
                             radius,
                             o1,
                             o2,
@@ -992,9 +979,7 @@ void grid_collocate_pgf_product_cpu(const bool orthorhombic,
 
     if (DUMP_TASKS) {
         grid_collocate_record(orthorhombic,
-                              use_subpatch,
-                              subpatch,
-                              border,
+                              border_mask,
                               func,
                               la_max,
                               la_min,
@@ -1010,6 +995,7 @@ void grid_collocate_pgf_product_cpu(const bool orthorhombic,
                               npts_global,
                               npts_local,
                               shift_local,
+                              border_width,
                               radius,
                               o1,
                               o2,

@@ -14,9 +14,7 @@
 // \author Ole Schuett
 //******************************************************************************
 void grid_collocate_record(const bool orthorhombic,
-                           const bool use_subpatch,
-                           const int subpatch,
-                           const int border,
+                           const int border_mask,
                            const int func,
                            const int la_max,
                            const int la_min,
@@ -32,6 +30,7 @@ void grid_collocate_record(const bool orthorhombic,
                            const int npts_global[3],
                            const int npts_local[3],
                            const int shift_local[3],
+                           const int border_width[3],
                            const double radius,
                            const int o1,
                            const int o2,

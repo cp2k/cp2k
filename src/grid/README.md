@@ -19,10 +19,10 @@ The files are given sequential names like `grid_collocate_00123.task`. Beware th
 
 The resulting .task files are human readable and diffable:
 ```
-#Grid collocate task v8
+#Grid collocate task v9
 orthorhombic 1
-use_subpatch 0
-subpatch 0
+border_mask 0
+func 100
 ...
 grid 13 13 18 9.926167350636332098457e-24
 #THE_END

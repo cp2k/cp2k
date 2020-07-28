@@ -13,10 +13,9 @@
 //        This function then collocates all combinations of spherical harmonics.
 //
 // \param orthorhombic  Whether simulation box is orthorhombic.
-// \param use_subpatch  Whether to apply the pattern given by subpatch argument.
-// \param subpatch      Subpatch pattern determining which border regions to include.
+// \param border_mask   Bit-pattern determining which border regions to exclude.
+//                      Zero means no masking, ie. all regions are included.
 //                      See also rs_find_node() in task_list_methods.F.
-// \param border        Width of border (halo) region in grid points.
 // \param func          Function to be collocated, see grid_prepare_pab.h
 // \param l{a,b}_max    Max angular momentum to collocate for give atom.
 // \param l{a,b}_min    Lowest angular momentum to collocate for give atom.
@@ -31,6 +30,7 @@
 // \param npts_global   Number of global grid points in each direction.
 // \param npts_local    Number of local grid points in each direction.
 // \param shift_local   Number of points the local grid is shifted wrt global grid.
+// \param border_width  Width of halo region in grid points in each direction.
 // \param lmax          Global maximum angular moment.
 // \param radius        Radius where Gaussian becomes smaller than threshold eps.
 // \param o{1,2}        Offsets. The sub-block to be collocated starts at pab[o2][o1].
@@ -42,9 +42,7 @@
 // \author Ole Schuett
 //******************************************************************************
 void grid_collocate_pgf_product_cpu(const bool orthorhombic,
-                                    const bool use_subpatch,
-                                    const int subpatch,
-                                    const int border,
+                                    const int border_mask,
                                     const int func,
                                     const int la_max,
                                     const int la_min,
@@ -60,6 +58,7 @@ void grid_collocate_pgf_product_cpu(const bool orthorhombic,
                                     const int npts_global[3],
                                     const int npts_local[3],
                                     const int shift_local[3],
+                                    const int border_width[3],
                                     const double radius,
                                     const int o1,
                                     const int o2,
