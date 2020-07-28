@@ -635,7 +635,7 @@ CONTAINS
             ELSEIF (distb) THEN
                CALL DGEMM('N', 'N', nconta, nsp, nsp, factor, C_hh_a(:, :, 1), SIZE(C_hh_a, 1), &
                           int_hard, SIZE(int_hard, 1), 0.0_dp, coc, nconta)
-               CALL DGEMM('N', 'N', nconta, nsp, nsp, -factor, C_ss_a(:, :, 1), SIZE(C_hh_a, 1), &
+               CALL DGEMM('N', 'N', nconta, nsp, nsp, -factor, C_ss_a(:, :, 1), SIZE(C_ss_a, 1), &
                           int_soft, SIZE(int_soft, 1), 1.0_dp, coc, nconta)
                CALL DGEMM('N', 'T', nconta, ncontb, nsp, 1.0_dp, coc, nconta, &
                           C_hh_b(:, :, 1), SIZE(C_hh_b, 1), 0.0_dp, a_matrix, SIZE(a_matrix, 1))
