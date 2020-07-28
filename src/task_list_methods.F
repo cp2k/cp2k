@@ -524,7 +524,7 @@ CONTAINS
 
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: atom_kinds, level_list, iatom_list, jatom_list, &
                                                             iset_list, jset_list, ipgf_list, jpgf_list, &
-                                                            subpatch_list, dist_type_list, block_num_list
+                                                            border_mask_list, block_num_list
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: radius_list
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: rab_list, atom_positions
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
@@ -576,7 +576,7 @@ CONTAINS
 
       ALLOCATE (level_list(ntasks), iatom_list(ntasks), jatom_list(ntasks))
       ALLOCATE (iset_list(ntasks), jset_list(ntasks), ipgf_list(ntasks), jpgf_list(ntasks))
-      ALLOCATE (subpatch_list(ntasks), block_num_list(ntasks), dist_type_list(ntasks))
+      ALLOCATE (border_mask_list(ntasks), block_num_list(ntasks))
       ALLOCATE (radius_list(ntasks), rab_list(3, ntasks))
 
       DO itask = 1, ntasks
@@ -587,8 +587,11 @@ CONTAINS
          jset_list(itask) = tasks(itask)%jset
          ipgf_list(itask) = tasks(itask)%ipgf
          jpgf_list(itask) = tasks(itask)%jpgf
-         subpatch_list(itask) = tasks(itask)%subpatch_pattern
-         dist_type_list(itask) = tasks(itask)%dist_type
+         IF (tasks(itask)%dist_type == 2) THEN
+            border_mask_list(itask) = IAND(63, NOT(tasks(itask)%subpatch_pattern))  ! invert last 6 bits
+         ELSE
+            border_mask_list(itask) = 0 ! no masking
+         ENDIF
          block_num_list(itask) = tasks(itask)%pair_index  ! change of nomenclature pair_index -> block_num
          radius_list(itask) = tasks(itask)%radius
          rab_list(:, itask) = tasks(itask)%rab(:)
@@ -611,8 +614,7 @@ CONTAINS
                                  jset_list=jset_list, &
                                  ipgf_list=ipgf_list, &
                                  jpgf_list=jpgf_list, &
-                                 subpatch_list=subpatch_list, &
-                                 dist_type_list=dist_type_list, &
+                                 border_mask_list=border_mask_list, &
                                  block_num_list=block_num_list, &
                                  radius_list=radius_list, &
                                  rab_list=rab_list, &

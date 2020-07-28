@@ -106,8 +106,7 @@ typedef struct {
     int jset;
     int ipgf;
     int jpgf;
-    int subpatch;
-    int dist_type;
+    int border_mask;
     int block_num;
     double radius;
     double rab[3];
@@ -158,8 +157,7 @@ void grid_create_task_list(const int ntasks,
                            const int jset_list[ntasks],
                            const int ipgf_list[ntasks],
                            const int jpgf_list[ntasks],
-                           const int subpatch_list[ntasks],
-                           const int dist_type_list[ntasks],
+                           const int border_mask_list[ntasks],
                            const int block_num_list[ntasks],
                            const double radius_list[ntasks],
                            const double rab_list[ntasks][3],
@@ -209,8 +207,7 @@ void grid_create_task_list(const int ntasks,
         task_list->tasks[i].jset = jset_list[i];
         task_list->tasks[i].ipgf = ipgf_list[i];
         task_list->tasks[i].jpgf = jpgf_list[i];
-        task_list->tasks[i].subpatch = subpatch_list[i];
-        task_list->tasks[i].dist_type = dist_type_list[i];
+        task_list->tasks[i].border_mask = border_mask_list[i];
         task_list->tasks[i].block_num = block_num_list[i];
         task_list->tasks[i].radius = radius_list[i];
         task_list->tasks[i].rab[0] = rab_list[i][0];
@@ -267,8 +264,7 @@ static void collocate_one_grid_level(const intl_task_list_t* task_list,
                                      const int npts_global[3],
                                      const int npts_local[3],
                                      const int shift_local[3],
-                                     const int border,
-                                     const bool distributed,
+                                     const int border_width[3],
                                      const double dh[3][3],
                                      const double dh_inv[3][3],
                                      double* grid) {
@@ -365,16 +361,11 @@ static void collocate_one_grid_level(const intl_task_list_t* task_list,
             }
         }  // end of block loading
 
-        // TODO: task->dist_type should be encoded in task->subpatch.
-        //       Also, do we really need distributed[level] ?
-        const bool use_subpatch = distributed && task->dist_type==2;
         const double zeta = ibasis->zet[iset * ibasis->maxpgf + ipgf];
         const double zetb = jbasis->zet[jset * jbasis->maxpgf + jpgf];
 
         grid_collocate_pgf_product_cpu(/*orthorhombic=*/orthorhombic,
-                                       /*use_subpatch=*/use_subpatch,
-                                       /*subpatch=*/task->subpatch,
-                                       /*border=*/border,
+                                       /*border_mask=*/task->border_mask,
                                        /*func=*/func,
                                        /*la_max=*/ibasis->lmax[iset],
                                        /*la_min=*/ibasis->lmin[iset],
@@ -390,6 +381,7 @@ static void collocate_one_grid_level(const intl_task_list_t* task_list,
                                        /*npts_global=*/npts_global,
                                        /*npts_local=*/npts_local,
                                        /*shift_local=*/shift_local,
+                                       /*border_width=*/border_width,
                                        /*radius=*/task->radius,
                                        /*o1=*/ipgf * ncoseta,
                                        /*o2=*/jpgf * ncosetb,
@@ -424,8 +416,7 @@ void grid_collocate_task_list(const grid_task_list_t task_list_ext,
                               const int npts_global[nlevels][3],
                               const int npts_local[nlevels][3],
                               const int shift_local[nlevels][3],
-                              const int border[nlevels],
-                              const bool distributed[nlevels],
+                              const int border_width[nlevels][3],
                               const double dh[nlevels][3][3],
                               const double dh_inv[nlevels][3][3],
                               double* grid[nlevels]) {
@@ -446,8 +437,7 @@ void grid_collocate_task_list(const grid_task_list_t task_list_ext,
                                  npts_global[level],
                                  npts_local[level],
                                  shift_local[level],
-                                 border[level],
-                                 distributed[level],
+                                 border_width[level],
                                  dh[level],
                                  dh_inv[level],
                                  grid[level]);

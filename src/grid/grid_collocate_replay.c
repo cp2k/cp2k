@@ -28,9 +28,7 @@
 // \author Ole Schuett
 //******************************************************************************
 void grid_collocate_record(const bool orthorhombic,
-                           const bool use_subpatch,
-                           const int subpatch,
-                           const int border,
+                           const int border_mask,
                            const int func,
                            const int la_max,
                            const int la_min,
@@ -46,6 +44,7 @@ void grid_collocate_record(const bool orthorhombic,
                            const int npts_global[3],
                            const int npts_local[3],
                            const int shift_local[3],
+                           const int border_width[3],
                            const double radius,
                            const int o1,
                            const int o2,
@@ -65,11 +64,9 @@ void grid_collocate_record(const bool orthorhombic,
 
     const int D = DECIMAL_DIG;  // In C11 we could use DBL_DECIMAL_DIG.
     FILE *fp = fopen(filename, "w+");
-    fprintf(fp, "#Grid collocate task v8\n");
+    fprintf(fp, "#Grid collocate task v9\n");
     fprintf(fp, "orthorhombic %i\n", orthorhombic);
-    fprintf(fp, "use_subpatch %i\n", use_subpatch);
-    fprintf(fp, "subpatch %i\n", subpatch);
-    fprintf(fp, "border %i\n", border);
+    fprintf(fp, "border_mask %i\n", border_mask);
     fprintf(fp, "func %i\n", func);
     fprintf(fp, "la_max %i\n", la_max);
     fprintf(fp, "la_min %i\n", la_min);
@@ -84,9 +81,10 @@ void grid_collocate_record(const bool orthorhombic,
         fprintf(fp, "dh_inv %i %.*e %.*e %.*e\n", i, D, dh_inv[i][0], D, dh_inv[i][1], D, dh_inv[i][2]);
     fprintf(fp, "ra %.*e %.*e %.*e\n", D, ra[0], D, ra[1], D, ra[2]);
     fprintf(fp, "rab %.*e %.*e %.*e\n", D, rab[0], D, rab[1], D, rab[2]);
-    fprintf(fp, "npts_global %i  %i %i\n", npts_global[0], npts_global[1], npts_global[2]);
-    fprintf(fp, "npts_local %i  %i %i\n", npts_local[0], npts_local[1], npts_local[2]);
-    fprintf(fp, "shift_local %i  %i %i\n", shift_local[0], shift_local[1], shift_local[2]);
+    fprintf(fp, "npts_global %i %i %i\n", npts_global[0], npts_global[1], npts_global[2]);
+    fprintf(fp, "npts_local %i %i %i\n", npts_local[0], npts_local[1], npts_local[2]);
+    fprintf(fp, "shift_local %i %i %i\n", shift_local[0], shift_local[1], shift_local[2]);
+    fprintf(fp, "border_width %i %i %i\n", border_width[0], border_width[1], border_width[2]);
     fprintf(fp, "radius %.*e\n", D, radius);
     fprintf(fp, "o1 %i\n", o1);
     fprintf(fp, "o2 %i\n", o2);
@@ -263,8 +261,7 @@ static void create_dummy_basis_set(const int size,
 // \brief Creates mock task list with one task per cycle.
 // \author Ole Schuett
 // *****************************************************************************
-static void create_dummy_task_list(const bool use_subpatch,
-                                   const int subpatch,
+static void create_dummy_task_list(const int border_mask,
                                    const double rscale,
                                    const double ra[3],
                                    const double rab[3],
@@ -303,7 +300,7 @@ static void create_dummy_task_list(const bool use_subpatch,
 
     int level_list[ntasks], iatom_list[ntasks], jatom_list[ntasks];
     int iset_list[ntasks], jset_list[ntasks], ipgf_list[ntasks], jpgf_list[ntasks];
-    int subpatch_list[ntasks], dist_type_list[ntasks], block_num_list[ntasks];
+    int border_mask_list[ntasks], block_num_list[ntasks];
     double radius_list[ntasks], rab_list[ntasks][3];
     for (int i=0; i< cycles; i++){
         level_list[i] = 1;
@@ -313,8 +310,7 @@ static void create_dummy_task_list(const bool use_subpatch,
         jset_list[i] = 1;
         ipgf_list[i] = ipgf;
         jpgf_list[i] = jpgf;
-        subpatch_list[i] = subpatch;
-        dist_type_list[i] = use_subpatch ? 2 : 0;
+        border_mask_list[i] = border_mask;
         block_num_list[i] = i / cycles_per_block + 1;
         radius_list[i] = radius;
         rab_list[i][0] = rab[0];
@@ -327,7 +323,7 @@ static void create_dummy_task_list(const bool use_subpatch,
     grid_create_task_list(ntasks, nlevels, natoms, nkinds, nblocks, buffer_size,
                           block_offsets, atom_positions, atom_kinds, basis_sets,
                           level_list, iatom_list, jatom_list, iset_list, jset_list,
-                          ipgf_list, jpgf_list, subpatch_list, dist_type_list,
+                          ipgf_list, jpgf_list, border_mask_list,
                           block_num_list, radius_list, rab_list,
                           &blocks_buffer, task_list);
 
@@ -367,15 +363,13 @@ double grid_collocate_replay(const char* filename,
 
     char header_line[100];
     read_next_line(header_line, sizeof(header_line), fp);
-    if (strcmp(header_line, "#Grid collocate task v8\n") != 0) {
+    if (strcmp(header_line, "#Grid collocate task v9\n") != 0) {
         fprintf(stderr, "Error: Wrong file header.\n");
         abort();
     }
 
     const bool orthorhombic = parse_int("orthorhombic", fp);
-    const bool use_subpatch = parse_int("use_subpatch", fp);
-    const int subpatch = parse_int("subpatch", fp);
-    const int border = parse_int("border", fp);
+    const int border_mask = parse_int("border_mask", fp);
     const int func = parse_int("func", fp);
     const int la_max = parse_int("la_max", fp);
     const int la_min = parse_int("la_min", fp);
@@ -391,10 +385,11 @@ double grid_collocate_replay(const char* filename,
     parse_double3("ra", fp, ra);
     parse_double3("rab", fp, rab);
 
-    int npts_global[3], npts_local[3], shift_local[3];
+    int npts_global[3], npts_local[3], shift_local[3], border_width[3];
     parse_int3("npts_global", fp, npts_global);
     parse_int3("npts_local", fp, npts_local);
     parse_int3("shift_local", fp, shift_local);
+    parse_int3("border_width", fp, border_width);
 
     const double radius = parse_double("radius", fp);
     const int o1 = parse_int("o1", fp);
@@ -441,10 +436,9 @@ double grid_collocate_replay(const char* filename,
         create_dummy_basis_set(n1, la_min, la_max, zeta, &basisa);
         create_dummy_basis_set(n2, lb_min, lb_max, zetb, &basisb);
         grid_task_list_t task_list = {NULL};
-        create_dummy_task_list(use_subpatch, subpatch, rscale, ra, rab, radius,
+        create_dummy_task_list(border_mask, rscale, ra, rab, radius,
                                basisa, basisb, n1, n2, o1, o2, la_max, lb_max,
                                pab, cycles, cycles_per_block, &task_list);
-        bool distributed = true;
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
         double* grids_array[1] = {grid_test};
         grid_collocate_task_list(/*task_list=*/ task_list,
@@ -454,8 +448,7 @@ double grid_collocate_replay(const char* filename,
                                  /*npts_global=*/ (int (*)[3])npts_global,
                                  /*npts_local=*/ (int (*)[3])npts_local,
                                  /*shift_local=*/ (int (*)[3])shift_local,
-                                 /*border=*/ &border,
-                                 /*distributed=*/ &distributed,
+                                 /*border_width=*/ (int (*)[3])border_width,
                                  /*dh=*/ (double (*)[3][3])dh,
                                  /*dh_inv=*/ (double (*)[3][3])dh_inv,
                                  /*grid=*/ grids_array);
@@ -469,9 +462,7 @@ double grid_collocate_replay(const char* filename,
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
         for (int i=0; i < cycles ; i++) {
             grid_collocate_pgf_product_cpu(orthorhombic,
-                                           use_subpatch,
-                                           subpatch,
-                                           border,
+                                           border_mask,
                                            func,
                                            la_max,
                                            la_min,
@@ -487,6 +478,7 @@ double grid_collocate_replay(const char* filename,
                                            npts_global,
                                            npts_local,
                                            shift_local,
+                                           border_width,
                                            radius,
                                            o1,
                                            o2,
