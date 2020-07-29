@@ -40,8 +40,11 @@ case "$with_plumed" in
 
             echo "Installing from scratch into ${pkg_install_dir}"
             cd plumed-${plumed_ver}
-            ./configure CXX="${MPICXX}" --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
-            make -j $NPROCS > make.log 2>&1
+            # disable generating debugging infos for now to work around an issue in gcc-10.2:
+            # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=96354
+            # note: some MPI wrappers carry a -g forward, thus stripping is not enough
+            ./configure CXX="${MPICXX}" CXXFLAGS="${CXXFLAGS//-g/-g0}" --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
+            make VERBOSE=1 -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi

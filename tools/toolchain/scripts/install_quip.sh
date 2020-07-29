@@ -80,9 +80,14 @@ case "$with_quip" in
                 -e "s|\(QUIPPY_FCOMPILER *=\).*|\1 ${FC}|g" \
                 -e "s|\(QUIPPY_CPP *=\).*|\1 ${FC} -E -x f95-cpp-input|g" \
                 arch/Makefile.linux_${quip_arch}_gfortran
+
+            # workaround for compilation with GCC-10, until properly fixed:
+            #   https://github.com/libAtoms/QUIP/issues/209
+            ( "${FC}" --version | grep -Eq 'GNU.+\s10\.') && compat_flag="-fallow-argument-mismatch" || compat_flag=""
+
             # enable debug symbols
-            echo "F95FLAGS       += -g" >> arch/Makefile.linux_${quip_arch}_gfortran
-            echo "F77FLAGS       += -g" >> arch/Makefile.linux_${quip_arch}_gfortran
+            echo "F95FLAGS       += -g ${compat_flag}" >> arch/Makefile.linux_${quip_arch}_gfortran
+            echo "F77FLAGS       += -g ${compat_flag}" >> arch/Makefile.linux_${quip_arch}_gfortran
             echo "CFLAGS         += -g" >> arch/Makefile.linux_${quip_arch}_gfortran
             echo "CPLUSPLUSFLAGS += -g" >> arch/Makefile.linux_${quip_arch}_gfortran
             export QUIP_ARCH=linux_${quip_arch}_gfortran
