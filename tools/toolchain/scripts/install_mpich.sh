@@ -41,7 +41,11 @@ case "$with_mpich" in
             cd mpich-${mpich_ver}
             unset F90
             unset F90FLAGS
-            ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" MPICC="" --without-x --enable-gl=no > configure.log 2>&1
+
+            # workaround for compilation with GCC-10, until properly fixed:
+            #   https://github.com/pmodels/mpich/issues/4300
+            ( "${FC}" --version | grep -Eq 'GNU.+\s10\.') && compat_flag="-fallow-argument-mismatch" || compat_flag=""
+            ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" MPICC="" FFLAGS="${FCFLAGS} ${compat_flag}" FCFLAGS="${FCFLAGS} ${compat_flag}" --without-x --enable-gl=no > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
             cd ..
