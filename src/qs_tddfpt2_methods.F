@@ -453,9 +453,6 @@ CONTAINS
             END DO
             CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
             CALL dbcsr_allocate_matrix_set(ex_env%matrix_pe, nspins)
-!deb
-            WRITE (6, *) "RRRRRRRRRRRRRR  Start tddfpt_resvec1"
-!deb
             DO ispin = 1, nspins
                ALLOCATE (ex_env%matrix_pe(ispin)%matrix)
                CALL dbcsr_create(ex_env%matrix_pe(ispin)%matrix, template=matrix_s(1)%matrix)
@@ -464,27 +461,18 @@ CONTAINS
                CALL tddfpt_resvec1(ex_env%evect(ispin)%matrix, gs_mos(ispin)%mos_occ, &
                                    matrix_s(1)%matrix, ex_env%matrix_pe(ispin)%matrix)
             END DO
-!deb
-            WRITE (6, *) "RRRRRRRRRRRRRR  End tddfpt_resvec1"
-!deb
             !
             IF (do_admm) THEN
                CALL get_qs_env(qs_env, admm_env=admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
                CALL dbcsr_allocate_matrix_set(ex_env%matrix_pe_admm, nspins)
-!deb
-               WRITE (6, *) "RRRRRRRRRRRRRR  Start tddfpt_resvec1_admm"
-!deb
                DO ispin = 1, nspins
                   ALLOCATE (ex_env%matrix_pe_admm(ispin)%matrix)
                   CALL dbcsr_create(ex_env%matrix_pe_admm(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
                   CALL dbcsr_copy(ex_env%matrix_pe_admm(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
                   CALL dbcsr_set(ex_env%matrix_pe_admm(ispin)%matrix, 0.0_dp)
-                  CALL tddfpt_resvec1_admm(ex_env%evect(ispin)%matrix, gs_mos(ispin)%mos_occ, &
+                  CALL tddfpt_resvec1_admm(ex_env%matrix_pe(ispin)%matrix, &
                                            admm_env, ex_env%matrix_pe_admm(ispin)%matrix)
                END DO
-!deb
-               WRITE (6, *) "RRRRRRRRRRRRRR  End tddfpt_resvec1_admm"
-!deb
             END IF
             !
             CALL dbcsr_allocate_matrix_set(ex_env%matrix_hz, nspins)
@@ -497,14 +485,8 @@ CONTAINS
             IF (dft_control%qs_control%xtb) THEN
                CALL tddfpt_resvec2_xtb(qs_env, ex_env%matrix_pe, gs_mos, ex_env%matrix_hz, ex_env%cpmos)
             ELSE
-!deb
-               WRITE (6, *) "RRRRRRRRRRRRRR  Start tddfpt_resvec2"
-!deb
                CALL tddfpt_resvec2(qs_env, ex_env%matrix_pe, ex_env%matrix_pe_admm, &
                                    gs_mos, ex_env%matrix_hz, ex_env%cpmos)
-!deb
-               WRITE (6, *) "RRRRRRRRRRRRRR  End tddfpt_resvec2"
-!deb
             END IF
             !
             CALL dbcsr_allocate_matrix_set(ex_env%matrix_px1, nspins)
@@ -515,21 +497,9 @@ CONTAINS
                CALL dbcsr_set(ex_env%matrix_px1(ispin)%matrix, 0.0_dp)
             END DO
             ! TDA forces
-!deb
-            WRITE (6, *) "RRRRRRRRRRRRRR  Start tddfpt_forces"
-!deb
             CALL tddfpt_forces(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices)
-!deb
-            WRITE (6, *) "RRRRRRRRRRRRRR  End tddfpt_forces"
-!deb
-!deb
-            WRITE (6, *) "RRRRRRRRRRRRRR  Start tddfpt_resvec3"
-!deb
             ! Rotate res vector cpmos into original frame of occupied orbitals
             CALL tddfpt_resvec3(qs_env, ex_env%cpmos, work_matrices)
-!deb
-            WRITE (6, *) "RRRRRRRRRRRRRR  End tddfpt_resvec3"
-!deb
          END IF
       END IF
 

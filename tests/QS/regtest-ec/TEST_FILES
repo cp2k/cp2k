@@ -56,5 +56,3 @@ N2_ec.inp                                              1      1e-10             
 #N2_ec-hfx.inp                                         1      1e-10                   0.0000000000
 #N2_ec-hfx-admm.inp                                    1      1e-10                   0.0000000000
 #EOF
-
-

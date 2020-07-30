@@ -1,0 +1,33 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+h2o_dip12.inp                                          86      1e-09             0.197550892244E+00
+h2o_dip13.inp                                          86      1e-09             0.149038318612E+00
+h2o_dip13b.inp                                         86      1e-09             0.151671831678E+00 
+h2o_dip13c.inp                                         86      1e-09             0.168627194788E+00
+h2o_dip14.inp                                          86      1e-09             0.815745822946E+00
+h2o_dip15.inp                                          86      1e-09             0.176996998582E+00
+h2o_dip15b.inp                                         86      1e-09             0.153260708546E+00
+h2o_dip16.inp                                          86      1e-09             0.157128093493E+00
+h2o_dip16b.inp                                         86      1e-09             0.131279651123E+00
+h2o_dip17.inp                                          86      1e-09             0.105779050267E+00
+h2o_dip18.inp                                          86      1e-09             0.164232838981E+00  
+h2o_dip19.inp                                          86      1e-09             0.132011222619E+00 
+h2o_dip20.inp                                          86      1e-09             0.260620397228E+00
+h2o_dip21.inp                                          86      1e-09             0.176823912039E+00
+h2o_dip22.inp                                          86      1e-09             0.135209164224E+00
+h2o_dip23.inp                                          86      1e-09             0.292668779126E+00
+h2o_dip24.inp                                          86      1e-09             0.172393582629E+00
+h2o_dip25.inp                                          86      1e-09             0.149038318612E+00
+#h2o_dip26.inp                                          86      1e-05             0.000000000000E+00    EC - PADE - PADE HARRIS Basis
+#h2o_dip27.inp                                          86      1e-05             0.000000000000E+00    *EC - PADE - PADE HARRIS Basis
+#h2o_dip28.inp                                          86      1e-05             0.000000000000E+00    *EC - PADE - PADE HARRIS Basis
+#h2o_dip29.inp                                          86      1e-05             0.000000000000E+00    *EC - PADE - PADE HARRIS Basis
+#h2o_dip30.inp                                          86      1e-05             0.000000000000E+00    *EC - PADE - PADE HARRIS Basis
+#h2o_dip31.inp                                          86      1e-05             0.000000000000E+00    *EC - PADE - PADE HARRIS Basis
+#h2o_dip32.inp                                          86      1e-05             0.000000000000E+00    *EC - PADE - PADE HARRIS Basis
+#h2o_dip33.inp                                          86      1e-05             0.000000000000E+00    *EC - PADE - PADE HARRIS Basis
+#h2o_dip34.inp                                          86      1e-05             0.000000000000E+00    *EC - PADE - PADE HARRIS Basis
+#EOF

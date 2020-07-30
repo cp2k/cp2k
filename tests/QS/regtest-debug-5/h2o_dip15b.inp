@@ -2,10 +2,11 @@
   METHOD Quickstep
   &PROPERTIES
     &TDDFPT
-       KERNEL sTDA
-       &sTDA
-          FRACTION 0.0
-       &END sTDA
+       KERNEL FULL
+       &XC
+         &XC_FUNCTIONAL PADE
+         &END XC_FUNCTIONAL
+       &END XC
        NSTATES      5
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
@@ -15,10 +16,11 @@
     &QS
       METHOD GPW
     &END QS
+    LSD
     &EFIELD
     &END
     &EXCITED_STATES T
-       STATE 2
+       STATE 1
     &END EXCITED_STATES
     &SCF
       SCF_GUESS ATOMIC 
@@ -28,13 +30,13 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-8
+         EPS_SCF 1.0E-6
       &END
       MAX_SCF  50
-      EPS_SCF 1.0E-8
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
     &PRINT
@@ -46,7 +48,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 4.0 4.0 4.0
       PERIODIC NONE
     &END
     &COORD
@@ -73,4 +75,5 @@
   PROJECT dipole
   RUN_TYPE ENERGY_FORCE
 &END GLOBAL
+
 

@@ -106,7 +106,7 @@ CONTAINS
             CALL response_equation(qs_env, p_env, ex_env%cpmos)
             !
             CALL response_force(qs_env, p_env, ex_env%vh_rspace, ex_env%vxc_rspace, ex_env%vtau_rspace, &
-                                ex_env%matrix_hz)
+                                ex_env%matrix_hz, ex_env)
             ! add TD and KS forces
             CALL get_qs_env(qs_env, force=lr_force)
             CALL sum_qs_force(ks_force, lr_force)

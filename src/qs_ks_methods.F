@@ -712,6 +712,10 @@ CONTAINS
             END IF
          END IF
 
+      ELSE
+         IF (do_hfx) THEN
+            CPWARN("KS matrix not longer correct. Check possible problems with property calculations!")
+         END IF
       END IF ! .NOT. just energy
 
       IF (dft_control%qs_control%ddapc_explicit_potential) THEN

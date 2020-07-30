@@ -13,13 +13,14 @@
     &END TDDFPT
   &END PROPERTIES
   &DFT
+    LSD
     &QS
       METHOD GPW
     &END QS
     &EFIELD
     &END
     &EXCITED_STATES T
-       STATE 2
+       STATE 1
     &END EXCITED_STATES
     &SCF
       SCF_GUESS ATOMIC 
@@ -29,10 +30,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-8
+         EPS_SCF 1.0E-6
       &END
-      MAX_SCF  50
-      EPS_SCF 1.0E-8
+      MAX_SCF  10
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
@@ -47,13 +48,12 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 4.0 4.0 4.0
       PERIODIC NONE
     &END
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+    O   0.000000    0.000000    0.000000
+    H   0.000000    0.000000    0.990000
     &END COORD
     &TOPOLOGY
      &CENTER_COORDINATES
@@ -74,4 +74,3 @@
   PROJECT dipole
   RUN_TYPE ENERGY_FORCE
 &END GLOBAL
-

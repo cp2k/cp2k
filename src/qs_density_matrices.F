@@ -398,7 +398,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculate the Wz matrix from the MO eigenvectors, MO eigenvalues,
 !>       and the MO occupation numbers. Only works if they are eigenstates
-!> \param mo_set type containing the full matrix of the MO and the eigenvalues
+!> \param c0vec ...
 !> \param hzm ...
 !> \param w_matrix sparse matrix
 !> \param focc ...
@@ -406,9 +406,9 @@ CONTAINS
 !>               adapted from calculate_w_matrix_1
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE calculate_whz_matrix(mo_set, hzm, w_matrix, focc)
+   SUBROUTINE calculate_whz_matrix(c0vec, hzm, w_matrix, focc)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(cp_fm_type), POINTER                          :: c0vec
       TYPE(dbcsr_type), POINTER                          :: hzm, w_matrix
       REAL(KIND=dp), INTENT(IN)                          :: focc
 
@@ -418,13 +418,12 @@ CONTAINS
       INTEGER                                            :: handle, nao, norb
       REAL(KIND=dp)                                      :: falpha
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_mat
-      TYPE(cp_fm_type), POINTER                          :: c0vec, chcmat, hcvec
+      TYPE(cp_fm_type), POINTER                          :: chcmat, hcvec
 
       CALL timeset(routineN, handle)
 
       falpha = focc
 
-      c0vec => mo_set%mo_coeff
       CALL cp_fm_create(hcvec, c0vec%matrix_struct, "hcvec")
       CALL cp_fm_get_info(hcvec, matrix_struct=fm_struct, nrow_global=nao, ncol_global=norb)
       CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=norb, &
