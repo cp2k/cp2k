@@ -1183,6 +1183,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="MIN_BLOCK_SIZE_MO", &
+         description="Minimum tensor block size for MOs. Adjusting this value may have minor effect on "// &
+         "performance but default should be good enough. Only relevant for GW calculations.", &
+         default_i_val=64)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, name="TEST", &
                           description="Manually set performance-critical parameters that are otherwise automatically chosen. "// &

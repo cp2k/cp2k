@@ -115,7 +115,7 @@ MODULE mp2_types
       INTEGER, DIMENSION(:), POINTER     :: kp_grid
       LOGICAL                  :: do_im_time_kpoints
       LOGICAL                  :: group_size_internal
-      INTEGER                  :: min_bsize
+      INTEGER                  :: min_bsize, min_bsize_mo
    END TYPE
 
    TYPE ri_g0w0_type
