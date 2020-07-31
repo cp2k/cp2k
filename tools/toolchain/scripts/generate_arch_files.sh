@@ -182,6 +182,15 @@ EOF
     eval "printf \"${__TMPL}\n\"" > $__filename
     # pass this to parsers to replace all of the IF_XYZ statements
     "${SCRIPTDIR}/parse_if.py" -i -f "${__filename}" $__flags
+
+    if [ "$with_gcc" != "__DONTUSE__" ] ; then
+        cat << 'EOF' >> $__filename
+# Until https://gcc.gnu.org/bugzilla/show_bug.cgi?id=96312 is fixed
+eri_mme_lattice_summation.o: eri_mme_lattice_summation.F
+	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
+	$(FC) -c $(FCFLAGS) -Wno-error=uninitialized -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)
+EOF
+    fi
     echo "Wrote ${INSTALLDIR}/arch/$__filename"
 }
 
