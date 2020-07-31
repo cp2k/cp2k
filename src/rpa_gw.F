@@ -5067,7 +5067,7 @@ CONTAINS
 
       mo_bounds_off = mo_bounds - mo_offset + 1
       vec_Sigma(mo_bounds_off(1):mo_bounds_off(2)) = &
-         vec_Sigma(mo_bounds_off(1):mo_bounds_off(2)) + vec_Sigma_prv(n_start:n_end)
+         vec_Sigma(mo_bounds_off(1):mo_bounds_off(2)) + vec_Sigma_prv
 
       CALL timestop(handle)
    END SUBROUTINE
