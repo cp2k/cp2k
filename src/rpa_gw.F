@@ -4608,10 +4608,10 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: im_unit
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: delta_corr_omega
-      INTEGER                                            :: gw_lev_end, gw_lev_start, handle, &
-                                                            handle3, iquad, jquad, mo_end, &
-                                                            mo_start, n_level_gw, n_level_gw_ref, &
-                                                            unit_nr_prv
+      INTEGER :: gw_lev_end, gw_lev_start, handle, handle3, iblk_mo, iquad, jquad, mo_end, &
+         mo_start, n_level_gw, n_level_gw_ref, nblk_mo, unit_nr_prv
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: mo_bsizes, mo_offsets
+      INTEGER, DIMENSION(2)                              :: mo_bounds
       LOGICAL                                            :: memory_info, my_do_beta
       REAL(KIND=dp)                                      :: ext_scaling, omega, omega_i, omega_sign, &
                                                             sign_occ_virt, t_i_Clenshaw, tau, &
@@ -4672,6 +4672,11 @@ CONTAINS
 
       e_fermi = 0.5_dp*(Eigenval(homo) + Eigenval(homo + 1))
 
+      nblk_mo = dbcsr_t_nblks_total(t_3c_overl_int_gw_AO, 3)
+      ALLOCATE (mo_offsets(nblk_mo))
+      ALLOCATE (mo_bsizes(nblk_mo))
+      CALL dbcsr_t_get_info(t_3c_overl_int_gw_AO, blk_offset_3=mo_offsets, blk_size_3=mo_bsizes)
+
       DO jquad = 1, num_integ_points
 
          CALL compute_Greens_function_time(mat_greens_fct_occ, mat_greens_fct_virt, &
@@ -4683,17 +4688,22 @@ CONTAINS
          CALL dbcsr_set(mat_W, 0.0_dp)
          CALL copy_fm_to_dbcsr(fm_mat_W(jquad)%matrix, mat_W, keep_sparsity=.FALSE.)
 
-         CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
-                               mat_greens_fct_occ, mat_W, [1.0_dp, -1.0_dp], &
-                               vec_Sigma_c_gw_neg_tau(:, jquad), [mo_start, mo_end], para_env, unit_nr_prv, &
-                               t_3c_ctr_RI=t_3c_ctr_RI, t_3c_ctr_in=.FALSE.)
+         ! in iteration over MO blocks skip first and last block because they correspond to the MO s
+         ! outside of the GW range of required MOs
+         DO iblk_mo = 2, nblk_mo - 1
+            mo_bounds = [mo_offsets(iblk_mo), mo_offsets(iblk_mo) + mo_bsizes(iblk_mo) - 1]
+            CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
+                                  mat_greens_fct_occ, mat_W, [1.0_dp, -1.0_dp], &
+                                  vec_Sigma_c_gw_neg_tau(:, jquad), mo_start, mo_bounds, para_env, unit_nr_prv, &
+                                  t_3c_ctr_RI=t_3c_ctr_RI, t_3c_ctr_in=.FALSE.)
 
-         CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
-                               mat_greens_fct_virt, mat_W, [1.0_dp, 1.0_dp], &
-                               vec_Sigma_c_gw_pos_tau(:, jquad), [mo_start, mo_end], para_env, unit_nr_prv, &
-                               t_3c_ctr_RI=t_3c_ctr_RI, t_3c_ctr_in=.TRUE.)
+            CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
+                                  mat_greens_fct_virt, mat_W, [1.0_dp, 1.0_dp], &
+                                  vec_Sigma_c_gw_pos_tau(:, jquad), mo_start, mo_bounds, para_env, unit_nr_prv, &
+                                  t_3c_ctr_RI=t_3c_ctr_RI, t_3c_ctr_in=.TRUE.)
 
-         CALL dbcsr_t_destroy(t_3c_ctr_RI)
+            CALL dbcsr_t_destroy(t_3c_ctr_RI)
+         ENDDO
 
          vec_Sigma_c_gw_cos_tau(:, jquad) = 0.5_dp*(vec_Sigma_c_gw_pos_tau(:, jquad) + &
                                                     vec_Sigma_c_gw_neg_tau(:, jquad))
@@ -4752,9 +4762,13 @@ CONTAINS
 
          CALL timestop(handle3)
 
-         CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
-                               mat_dm%matrix, mat_SinvVSinv%matrix, [1.0_dp, -1.0_dp], &
-                               vec_Sigma_x_gw(mo_start:mo_end, 1), [mo_start, mo_end], para_env, unit_nr_prv)
+         DO iblk_mo = 2, nblk_mo - 1
+            mo_bounds = [mo_offsets(iblk_mo), mo_offsets(iblk_mo) + mo_bsizes(iblk_mo) - 1]
+
+            CALL compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
+                                  mat_dm%matrix, mat_SinvVSinv%matrix, [1.0_dp, -1.0_dp], &
+                                  vec_Sigma_x_gw(mo_start:mo_end, 1), mo_start, mo_bounds, para_env, unit_nr_prv)
+         ENDDO
 
          IF (my_do_beta) THEN
 
@@ -4855,6 +4869,7 @@ CONTAINS
 !> \param mat_RI ...
 !> \param prefac ...
 !> \param vec_Sigma ...
+!> \param mo_offset ...
 !> \param mo_bounds ...
 !> \param para_env ...
 !> \param unit_nr ...
@@ -4863,13 +4878,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_sigma_gw(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_RI, &
                                mat_AO, mat_RI, prefac, &
-                               vec_Sigma, mo_bounds, para_env, unit_nr, &
+                               vec_Sigma, mo_offset, mo_bounds, para_env, unit_nr, &
                                t_3c_ctr_RI, t_3c_ctr_in)
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: t_3c_overl_int_gw_AO, &
                                                             t_3c_overl_int_gw_RI
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_AO, mat_RI
       REAL(dp), DIMENSION(2), INTENT(IN)                 :: prefac
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_Sigma
+      INTEGER, INTENT(IN)                                :: mo_offset
       INTEGER, DIMENSION(2), INTENT(IN)                  :: mo_bounds
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -4882,6 +4898,8 @@ CONTAINS
       INTEGER                                            :: handle
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, sizes_AO, sizes_RI
       INTEGER, DIMENSION(2)                              :: pdims_2d
+      INTEGER, DIMENSION(2, 2)                           :: ctr_bounds_mo
+      INTEGER, DIMENSION(3)                              :: bounds_3c
       LOGICAL                                            :: t_3c_ctr_in_prv
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d
       TYPE(dbcsr_t_type)                                 :: t_3c_ctr_RI_prv, t_3c_overl_int_gw_copy, &
@@ -4916,11 +4934,16 @@ CONTAINS
 
          CALL dbcsr_t_create(t_3c_overl_int_gw_RI, t_3c_overl_int_gw_copy)
 
+         CALL dbcsr_t_get_info(t_3c_overl_int_gw_RI, nfull_total=bounds_3c)
+         ctr_bounds_mo(:, 1) = [1, bounds_3c(2)]
+         ctr_bounds_mo(:, 2) = mo_bounds
+
          CALL dbcsr_t_contract(dbcsr_scalar(prefac(1)), t_RI, t_3c_overl_int_gw_RI, dbcsr_scalar(0.0_dp), &
                                t_3c_overl_int_gw_copy, &
                                contract_1=[2], notcontract_1=[1], &
                                contract_2=[1], notcontract_2=[2, 3], &
                                map_1=[1], map_2=[2, 3], &
+                               bounds_3=ctr_bounds_mo, &
                                unit_nr=unit_nr)
 
          CALL dbcsr_t_create(t_3c_overl_int_gw_AO, t_3c_ctr_RI_prv)
@@ -4941,14 +4964,20 @@ CONTAINS
       CALL dbcsr_t_destroy(t_AO_tmp)
 
       CALL dbcsr_t_create(t_3c_overl_int_gw_AO, t_3c_overl_int_gw_copy)
+
+      CALL dbcsr_t_get_info(t_3c_overl_int_gw_AO, nfull_total=bounds_3c)
+      ctr_bounds_mo(:, 1) = [1, bounds_3c(2)]
+      ctr_bounds_mo(:, 2) = mo_bounds
+
       CALL dbcsr_t_contract(dbcsr_scalar(prefac(2)), t_AO, t_3c_overl_int_gw_AO, dbcsr_scalar(0.0_dp), &
                             t_3c_overl_int_gw_copy, &
                             contract_1=[2], notcontract_1=[1], &
                             contract_2=[1], notcontract_2=[2, 3], &
                             map_1=[1], map_2=[2, 3], &
+                            bounds_3=ctr_bounds_mo, &
                             unit_nr=unit_nr)
 
-      CALL trace_sigma_gw(t_3c_ctr_RI_prv, t_3c_overl_int_gw_copy, vec_sigma, mo_bounds, para_env)
+      CALL trace_sigma_gw(t_3c_ctr_RI_prv, t_3c_overl_int_gw_copy, vec_sigma, mo_offset, mo_bounds, para_env)
       CALL dbcsr_t_destroy(t_3c_overl_int_gw_copy)
 
       IF (PRESENT(t_3c_ctr_in)) THEN
@@ -4972,12 +5001,14 @@ CONTAINS
 !> \param t3c_1 ...
 !> \param t3c_2 ...
 !> \param vec_sigma ...
+!> \param mo_offset ...
 !> \param mo_bounds ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE trace_sigma_gw(t3c_1, t3c_2, vec_sigma, mo_bounds, para_env)
+   SUBROUTINE trace_sigma_gw(t3c_1, t3c_2, vec_sigma, mo_offset, mo_bounds, para_env)
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: t3c_1, t3c_2
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_Sigma
+      INTEGER, INTENT(IN)                                :: mo_offset
       INTEGER, DIMENSION(2), INTENT(IN)                  :: mo_bounds
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
@@ -4986,12 +5017,17 @@ CONTAINS
       INTEGER                                            :: blk, handle, n, n_end, n_end_block, &
                                                             n_start, n_start_block
       INTEGER, DIMENSION(1)                              :: trace_shape
+      INTEGER, DIMENSION(2)                              :: mo_bounds_off
       INTEGER, DIMENSION(3)                              :: boff, bsize, ind
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_1, block_2
+      REAL(KIND=dp), &
+         DIMENSION(mo_bounds(2)-mo_bounds(1)+1)          :: vec_Sigma_prv
       TYPE(dbcsr_t_iterator_type)                        :: iter
 
       CALL timeset(routineN, handle)
+
+      vec_Sigma_prv = 0.0_dp
 
       CALL dbcsr_t_iterator_start(iter, t3c_1)
       DO WHILE (dbcsr_t_iterator_blocks_left(iter))
@@ -5018,8 +5054,8 @@ CONTAINS
          ENDIF
 
          trace_shape(1) = SIZE(block_1, 1)*SIZE(block_1, 2)
-         vec_Sigma(n_start:n_end) = &
-            vec_Sigma(n_start:n_end) + &
+         vec_Sigma_prv(n_start:n_end) = &
+            vec_Sigma_prv(n_start:n_end) + &
             (/(DOT_PRODUCT(RESHAPE(block_1(:, :, n), trace_shape), &
                            RESHAPE(block_2(:, :, n), trace_shape)), &
                n=n_start_block, n_end_block)/)
@@ -5027,7 +5063,11 @@ CONTAINS
       ENDDO
       CALL dbcsr_t_iterator_stop(iter)
 
-      CALL mp_sum(vec_Sigma, para_env%group)
+      CALL mp_sum(vec_Sigma_prv, para_env%group)
+
+      mo_bounds_off = mo_bounds - mo_offset + 1
+      vec_Sigma(mo_bounds_off(1):mo_bounds_off(2)) = &
+         vec_Sigma(mo_bounds_off(1):mo_bounds_off(2)) + vec_Sigma_prv(n_start:n_end)
 
       CALL timestop(handle)
    END SUBROUTINE
