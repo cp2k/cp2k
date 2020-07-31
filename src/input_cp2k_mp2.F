@@ -1186,8 +1186,10 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="MIN_BLOCK_SIZE_MO", &
-         description="Minimum tensor block size for MOs. Adjusting this value may have minor effect on "// &
-         "performance but default should be good enough. Only relevant for GW calculations.", &
+         description="Tensor block size for MOs. Only relevant for GW calculations. "// &
+         "The memory consumption of GW scales as O(MIN_BLOCK_SIZE_MO). It is recommended to "// &
+         "set this parameter to a smaller number if GW runs out of memory. "// &
+         "Otherwise the default should not be changed.", &
          default_i_val=64)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
