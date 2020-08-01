@@ -48,7 +48,7 @@ echo -e "\n========== Running ASE Tests =========="
 cd /opt/ase/
 ASE_REVISION=$(git rev-parse --short HEAD)
 
-if ase test -j 0 -c cp2k cp2k ; then
+if ase test -j 0 -c cp2k calculator/cp2k ; then
     echo "Summary: ASE commit ${ASE_REVISION} works fine."
     echo "Status: OK"
 else
