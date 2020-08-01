@@ -5,14 +5,14 @@
 # install Ubuntu packages
 apt-get update -qq
 apt-get install -qq --no-install-recommends \
-    python                                 \
-    python-pip                             \
-    python-wheel                           \
-    python-setuptools
+    python3                                 \
+    python3-pip                             \
+    python3-wheel                           \
+    python3-setuptools
 rm -rf /var/lib/apt/lists/*
 
 # install python packages
-pip install --quiet numpy
+pip3 install --quiet numpy
 
 # clone i-pi repository
 git clone --quiet --depth=1 --single-branch -b master https://github.com/i-pi/i-pi.git /opt/i-pi

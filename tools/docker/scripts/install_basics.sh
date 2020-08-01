@@ -25,7 +25,7 @@ elif grep -q "Fedora" /etc/os-release ; then
         git                             \
         less                            \
         nano                            \
-	python3                         \
+        python3                         \
         rsync                           \
         wget
     dnf -q clean all

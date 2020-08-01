@@ -21,7 +21,7 @@ fi
 echo -e "\n========== Installing i-Pi =========="
 cd /opt/i-pi
 git pull --quiet
-pip install --quiet .
+pip3 install --quiet .
 
 echo -e "\n========== Running i-Pi Tests =========="
 
