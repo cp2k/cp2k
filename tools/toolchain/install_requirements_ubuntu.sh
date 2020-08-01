@@ -6,6 +6,9 @@
 
 echo "Installing Ubuntu packages..."
 
+export DEBIAN_FRONTEND=noninteractive
+export DEBCONF_NONINTERACTIVE_SEEN=true
+
 apt-get update -qq
 
 apt-get install -qq --no-install-recommends \
@@ -20,6 +23,7 @@ apt-get install -qq --no-install-recommends \
     libtool                                 \
     make                                    \
     nano                                    \
+    patch                                   \
     pkg-config                              \
     python                                  \
     python-numpy                            \

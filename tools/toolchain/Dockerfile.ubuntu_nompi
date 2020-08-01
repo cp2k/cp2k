@@ -1,5 +1,6 @@
-FROM ubuntu:18.04
-ARG GCC_VERSION=8
+ARG BASE_IMAGE=ubuntu:20.04
+FROM ${BASE_IMAGE}
+ARG GCC_VERSION=9
 ARG LIBINT_LMAX=5
 USER root
 
@@ -8,7 +9,8 @@ USER root
 # Installs lean toolchain without MPI and relying mostly on Ubuntu packages.
 
 # Install Ubuntu packages.
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
     autoconf \
     autogen \
     automake \

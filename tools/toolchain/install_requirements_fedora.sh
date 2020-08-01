@@ -19,6 +19,7 @@ dnf -qy install                             \
     libtool                                 \
     make                                    \
     nano                                    \
+    patch                                   \
     pkg-config                              \
     python                                  \
     python-numpy                            \
