@@ -43,7 +43,7 @@ fi
 
 
 echo -e "\n========== Running Regtests =========="
-make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
+make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS} -maxtasks 8" test
 
 exit 0 # Prevent CI from overwriting do_regtest's summary message.
 
