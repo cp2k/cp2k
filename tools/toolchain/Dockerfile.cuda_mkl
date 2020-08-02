@@ -1,4 +1,4 @@
-FROM nvidia/cuda:10.1-devel-ubuntu18.04
+FROM nvidia/cuda:11.0-devel-ubuntu20.04
 ARG GPU_VERSION
 ARG LIBINT_LMAX=5
 
