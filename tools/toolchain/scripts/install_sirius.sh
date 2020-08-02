@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-sirius_ver="6.5.4"
-sirius_sha256="5f731926b882a567d117afa5e0ed33291f1db887fce52f371ba51f014209b85d"
+sirius_ver="6.5.5"
+sirius_sha256="0b23d3a8512682eea67aec57271031c65f465b61853a165015b38f7477651dd1"
 
 
 source "${SCRIPT_DIR}"/common_vars.sh
