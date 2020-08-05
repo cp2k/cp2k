@@ -827,7 +827,7 @@ if [[ ${nobuild} != "nobuild" ]]; then
       rm ${lockfile}
       exit 4
    else
-      compile_warnings=`grep "Warning" ${make_out} | wc -l`
+      compile_warnings=`grep -i "Warning" ${make_out} | wc -l`
       echo "${make} -j $((maxbuildtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
    fi
 else
