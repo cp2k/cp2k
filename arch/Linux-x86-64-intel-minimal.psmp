@@ -5,20 +5,27 @@
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.4.243 Build 20190416
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.1.1.217 Build 20200306
 #              Intel MPI, MKL
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 2020)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, August 2020)
 
 CC        = mpiicc
 FC        = mpiifort
 LD        = mpiifort
 AR        = ar -r
 
-CFLAGS    = -O2 -g -traceback -xHost
+CFLAGS    = -O2 -g -qopenmp -traceback -xHost
 
-DFLAGS    = -D__FFTW3 -D__MKL -D__MPI_VERSION=3
-DFLAGS   += -D__parallel -D__SCALAPACK
+DFLAGS    = -D__FFTW3
+DFLAGS   += -D__MKL
+DFLAGS   += -D__MPI_VERSION=3
+DFLAGS   += -D__parallel
+DFLAGS   += -D__SCALAPACK
 
 FCFLAGS   = $(CFLAGS) $(DFLAGS)
-FCFLAGS  += -fopenmp -fpp -free -funroll-loops
+FCFLAGS  += -diag-disable=8291
+FCFLAGS  += -diag-disable=8293
+FCFLAGS  += -fpp
+FCFLAGS  += -free
+FCFLAGS  += -funroll-loops
 FCFLAGS  += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw
 
 LDFLAGS   = $(FCFLAGS) -static-intel -static_mpi
