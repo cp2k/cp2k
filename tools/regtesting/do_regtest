@@ -773,17 +773,24 @@ echo "--------------------------- Preparations ---------------------------------
 # make realclean
 if [[ ${quick} != "quick" ]]; then
    cd ${dir_base}/${cp2k_dir}
-   ${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} >>${make_out} 2>&1
+   if [[ "${cp2k_version}" == "sopt" ]]; then
+      ext="sopt ssmp"
+   elif [[ "${cp2k_version}" == "popt" ]]; then
+      ext="popt psmp"
+   else
+      ext="${cp2k_version}"
+   fi
+   ${make} realclean ${ARCH_SPEC} VERSION="${ext}" >>${make_out} 2>&1
    if (( $? )); then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
       cat ${make_out} >>${error_description_file}
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-      echo "ERROR: ${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} failed ... bailing out" >>${error_description_file}
+      echo "ERROR: ${make} realclean ${ARCH_SPEC} VERSION=\"${ext}\" failed ... bailing out" >>${error_description_file}
       cat "${error_description_file}"
       rm ${lockfile}
       exit 3
    else
-      echo "${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} went fine"
+      echo "${make} realclean ${ARCH_SPEC} VERSION=\"${ext}\" went fine"
    fi
 else
    echo "Quick testing, no realclean"
