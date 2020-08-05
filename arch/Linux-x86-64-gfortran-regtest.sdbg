@@ -1,5 +1,5 @@
 # Tested with: GFortran 8.3.0, FFTW 3.3, LAPACK 3.8.0, Libint 2.6.0, Libxc 4.3.4, SPGLIB 1.12.2
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 2020)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, August 2020)
 
 CC         = gcc
 FC         = gfortran
@@ -20,17 +20,33 @@ SPGLIB_LIB = $(GNU_PATH)/spglib/1.12.2/lib
 
 CFLAGS     = -O1 -g -mtune=generic
 
-DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC -D__SPGLIB -D__CHECK_DIAG
+DFLAGS     = -D__FFTW3
+DFLAGS    += -D__LIBINT
+DFLAGS    += -D__LIBXC
+DFLAGS    += -D__SPGLIB
+DFLAGS    += -D__CHECK_DIAG
 
-WFLAGS     = -Werror=aliasing -Werror=ampersand -Werror=c-binding-type
-WFLAGS    += -Werror=conversion -Werror=intrinsic-shadow -Werror=intrinsics-std
-WFLAGS    += -Werror=line-truncation -Wrealloc-lhs -Werror=tabs
-WFLAGS    += -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable
-WFLAGS    += -Werror=unused-dummy-argument -Werror=unused-variable
+WFLAGS     = -Werror=aliasing
+WFLAGS    += -Werror=ampersand
+WFLAGS    += -Werror=c-binding-type
+WFLAGS    += -Werror=conversion
+WFLAGS    += -Werror=intrinsic-shadow
+WFLAGS    += -Werror=intrinsics-std
+WFLAGS    += -Werror=line-truncation
+#WFLAGS    += -Wrealloc-lhs
+WFLAGS    += -Werror=tabs
+WFLAGS    += -Werror=target-lifetime
+WFLAGS    += -Werror=underflow
+WFLAGS    += -Werror=unused-but-set-variable
+WFLAGS    += -Werror=unused-dummy-argument
+WFLAGS    += -Werror=unused-variable
 
 FCFLAGS    = $(CFLAGS) $(DFLAGS) $(WFLAGS)
-FCFLAGS   += -fcheck=bounds,do,recursion,pointer -ffree-form
-FCFLAGS   += -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer
+FCFLAGS   += -fcheck=bounds,do,recursion,pointer
+FCFLAGS   += -ffree-form
+FCFLAGS   += -ffree-line-length-none
+FCFLAGS   += -fimplicit-none
+FCFLAGS   += -fno-omit-frame-pointer
 FCFLAGS   += -std=f2008
 FCFLAGS   += -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC)
 
