@@ -48,9 +48,9 @@ PROFOPT_FLAGS="\$(PROFOPT)"
 # special flags for gfortran
 # https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
 # we error out for these warnings (-Werror=uninitialized -Wno-maybe-uninitialized -> error on variables that must be used uninitialized)
-WFLAGS_ERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=unused-dummy-argument -Werror=conversion -Werror=zerotrip -Werror=uninitialized -Wno-maybe-uninitialized"
+WFLAGS_ERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=unused-dummy-argument -Werror=conversion -Werror=zerotrip -Wno-maybe-uninitialized"
 # we just warn for those (that eventually might be promoted to WFLAGSERROR). It is useless to put something here with 100s of warnings.
-WFLAGS_WARN="-Wuse-without-only"
+WFLAGS_WARN="-Wuninitialized -Wuse-without-only"
 # while here we collect all other warnings, some we'll ignore
 WFLAGS_WARNALL="-pedantic -Wall -Wextra -Wsurprising -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
 
@@ -182,15 +182,6 @@ EOF
     eval "printf \"${__TMPL}\n\"" > $__filename
     # pass this to parsers to replace all of the IF_XYZ statements
     "${SCRIPTDIR}/parse_if.py" -i -f "${__filename}" $__flags
-
-    if [ "$with_gcc" != "__DONTUSE__" ] ; then
-        cat << 'EOF' >> $__filename
-# Until https://gcc.gnu.org/bugzilla/show_bug.cgi?id=96312 is fixed
-eri_mme_lattice_summation.o: eri_mme_lattice_summation.F
-	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
-	$(FC) -c $(FCFLAGS) -Wno-error=uninitialized -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)
-EOF
-    fi
     echo "Wrote ${INSTALLDIR}/arch/$__filename"
 }
 
