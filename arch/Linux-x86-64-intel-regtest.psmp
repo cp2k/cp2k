@@ -1,7 +1,4 @@
-# Tested with: Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.5.274 Build 20180823
-#              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.3.199 Build 20190206
-#              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.0.4.243 Build 20190416
-#              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.1.1.217 Build 20200306
+# Tested with: Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.1.1.217 Build 20200306
 #              Intel MPI, MKL, Libint 2.6.0, Libxc 4.3.4, libxsmm 1.15, ELPA 2019.05.001, PLUMED 2.5.2, SPGLIB 1.12.2
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, August 2020)
 
@@ -35,6 +32,7 @@ DFLAGS     += -D__FFTW3
 DFLAGS     += -D__LIBINT
 DFLAGS     += -D__LIBXC
 DFLAGS     += -D__LIBXSMM
+#DFLAGS     += -D__MAX_CONTR=4
 DFLAGS     += -D__MKL
 DFLAGS     += -D__MPI_VERSION=3
 DFLAGS     += -D__PLUMED2
@@ -47,6 +45,7 @@ FCFLAGS     = $(CFLAGS) $(DFLAGS)
 FCFLAGS    += -diag-disable=8291
 FCFLAGS    += -diag-disable=8293
 FCFLAGS    += -fpp
+#FCFLAGS    += -fp-model precise
 FCFLAGS    += -free
 FCFLAGS    += -funroll-loops
 FCFLAGS    += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw
