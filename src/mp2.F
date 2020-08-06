@@ -1416,10 +1416,10 @@ CONTAINS
 
       ! If ADMM we should make the ks matrix up-to-date
       IF (dft_control%do_admm) THEN
-      CPASSERT(ASSOCIATED(admm_env))
-      DO ispin = 1, SIZE(matrix_ks)
-         CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
-      END DO
+         CPASSERT(ASSOCIATED(admm_env))
+         DO ispin = 1, SIZE(matrix_ks)
+            CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
+         END DO
       END IF
 
       IF (do_kpoints_cubic_RPA) THEN
