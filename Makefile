@@ -126,17 +126,15 @@ $(EXE_NAMES) all toolversions extversions extclean libcp2k cp2k_shell exts $(EXT
 
 # stage 2: Store the version target in $(ONEVERSION),
 #          Call make recursively with $(ORIG_TARGET) as target.
-$(filter-out sopt, popt, $(VERSION)) :
+$(filter-out sopt, popt, $(VERSION)):
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(ORIG_TARGET) ORIG_TARGET="" VERSION="" ONEVERSION=$@
 
 sopt:
 	@+echo "Version sopt is now an alias for ssmp with OMP_NUM_THREADS=1."
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(ORIG_TARGET) ORIG_TARGET="" VERSION="" ONEVERSION="ssmp"
-	cd $(EXEDIR); ln -sf cp2k.ssmp cp2k.sopt
 popt:
 	@+echo "Version popt is now an alias for psmp with OMP_NUM_THREADS=1."
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(ORIG_TARGET) ORIG_TARGET="" VERSION="" ONEVERSION="psmp"
-	cd $(EXEDIR); ln -sf cp2k.psmp cp2k.popt
 
 else
 
@@ -223,8 +221,21 @@ $(ALL_OBJECTS): $(EXTSDEPS_MOD)
 $(ALL_EXE_OBJECTS): $(EXTSDEPS_LIB)
 
 # stage 4: Include $(OBJDIR)/all.dep, expand target all and libcp2k, and perform actual build.
+
+ifeq ("$(ONEVERSION)","psmp")
+all: $(foreach e, $(EXE_NAMES) cp2k_shell, $(EXEDIR)/$(e).$(ONEVERSION)) $(EXEDIR)/cp2k.popt
+else ifeq ("$(ONEVERSION)","ssmp")
+all: $(foreach e, $(EXE_NAMES) cp2k_shell, $(EXEDIR)/$(e).$(ONEVERSION)) $(EXEDIR)/cp2k.sopt
+else
 all: $(foreach e, $(EXE_NAMES) cp2k_shell, $(EXEDIR)/$(e).$(ONEVERSION))
+endif
 $(LIBDIR)/libcp2k$(ARCHIVE_EXT) : $(ALL_NONEXE_OBJECTS)
+
+# Create always a cp2k.[ps]opt soft link for each cp2k.[ps]smp executable
+$(EXEDIR)/cp2k.sopt: $(EXEDIR)/cp2k.ssmp
+	cd $(EXEDIR); ln -sf cp2k.ssmp cp2k.sopt
+$(EXEDIR)/cp2k.popt: $(EXEDIR)/cp2k.psmp
+	cd $(EXEDIR); ln -sf cp2k.psmp cp2k.popt
 
 $(EXEDIR)/cp2k_shell.$(ONEVERSION): $(EXEDIR)/cp2k.$(ONEVERSION)
 	cd $(EXEDIR); ln -sf cp2k.$(ONEVERSION) cp2k_shell.$(ONEVERSION)
@@ -292,8 +303,10 @@ clean:
 	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v))
 OTHER_HELP += "clean : Remove intermediate object and mod files, but not the libraries and executables, for given ARCH and VERSION"
 
+# The Intel compiler creates a corresponding .dbg file for each executable when static linking of the Intel MPI library is requested (flag -static_mpi)
+# and also potential soft links (.popt and .sopt files) have to be cleaned
 execlean:
-	rm -rf $(foreach v, $(VERSION), $(EXEDIR)/*.$(v))
+	rm -rf $(foreach v, $(VERSION), $(EXEDIR)/*.$(v) $(EXEDIR)/*.$(v).dbg) $(EXEDIR)/cp2k.[ps]opt
 OTHER_HELP += "execlean : Remove the executables, for given ARCH and VERSION"
 
 #
