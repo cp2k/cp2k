@@ -1,5 +1,6 @@
-# Tested with: GFortran 7.4.0, MPICH 3.3, LAPACK 3.8.0, ScaLAPACK 2.0.2, FFTW 3.3, Libint 2.6.0, Libxc 4.3.4, libxsmm 1.14, ELPA 2019.05.001, PLUMED 2.5.2, SPGLIB 1.12.2
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2019)
+# Tested with: GFortran 8.3.0, MPICH 3.3, LAPACK 3.8.0, ScaLAPACK 2.0.2, FFTW 3.3,
+#              Libint 2.6.0, Libxc 4.3.4, libxsmm 1.15, ELPA 2019.05.001, PLUMED 2.5.2, SPGLIB 1.12.2
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, August 2020)
 
 CC          = mpicc
 FC          = mpif90
@@ -21,22 +22,31 @@ LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
 LIBXC_INC   = $(GNU_PATH)/libxc/4.3.4/include
 LIBXC_LIB   = $(GNU_PATH)/libxc/4.3.4/lib
 
-LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.14/include
-LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.14/lib
+LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.15/include
+LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.15/lib
 
 SPGLIB_INC  = $(GNU_PATH)/spglib/1.12.2/include
 SPGLIB_LIB  = $(GNU_PATH)/spglib/1.12.2/lib
 
-CFLAGS      = -O2 -g -mtune=native
+CFLAGS      = -O2 -fopenmp -g -mtune=native
 
-DFLAGS      = -D__ELPA -D__FFTW3 -D__LIBINT -D__LIBXC -D__LIBXSMM
-DFLAGS     += -D__MPI_VERSION=3 -D__PLUMED2 -D__SPGLIB
-DFLAGS     += -D__parallel -D__SCALAPACK
+DFLAGS      = -D__ELPA
+DFLAGS     += -D__FFTW3
+DFLAGS     += -D__LIBINT
+DFLAGS     += -D__LIBXC
+DFLAGS     += -D__LIBXSMM
+DFLAGS     += -D__MPI_VERSION=3
+DFLAGS     += -D__PLUMED2
+DFLAGS     += -D__SPGLIB
+DFLAGS     += -D__parallel
+DFLAGS     += -D__SCALAPACK
 
 FCFLAGS     = $(CFLAGS) $(DFLAGS)
-FCFLAGS    += -ffree-form -ffree-line-length-none
-FCFLAGS    += -fopenmp
-FCFLAGS    += -ftree-vectorize -funroll-loops -std=f2008
+FCFLAGS    += -ffree-form
+FCFLAGS    += -ffree-line-length-none
+FCFLAGS    += -ftree-vectorize
+FCFLAGS    += -funroll-loops
+FCFLAGS    += -std=f2008
 FCFLAGS    += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
 FCFLAGS    += -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) -I$(LIBXSMM_INC)
 
