@@ -84,7 +84,7 @@ case "$with_elpa" in
                AVX512_flags=""
                FMA_flag=""
                SSE4_flag=""
-               config_flags="--disable-avx --disable-avx2 --disable-sse --disable-sse-assembly"
+               config_flags="--disable-avx --disable-avx2 --disable-avx512 --disable-sse --disable-sse-assembly"
             fi
             mkdir -p build; cd build
             ../configure  --prefix="${pkg_install_dir}" \
