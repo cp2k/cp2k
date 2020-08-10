@@ -21,6 +21,7 @@ apt-get install -qq --no-install-recommends \
     git                                     \
     less                                    \
     libtool                                 \
+    locales                                 \
     make                                    \
     nano                                    \
     patch                                   \
