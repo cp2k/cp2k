@@ -615,6 +615,12 @@ CONTAINS
 
          IF (gapw .OR. gapw_xc) THEN
             CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
+            ! test for not implemented (bug) option
+            IF (use_virial .AND. calculate_forces) THEN
+               IF (ASSOCIATED(v_tau_rspace)) THEN
+                  CPABORT("MGGA STRESS with GAPW not implemneted")
+               END IF
+            END IF
          ENDIF
 
       ENDIF

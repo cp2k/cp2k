@@ -3,4 +3,5 @@ LiH-stress-lda-uks.inp                                31    1.0E-14             
 LiH-stress-pbe-rks.inp                                31    1.0E-14                   3.105924E-01
 LiH-stress-pbe-uks.inp                                31    1.0E-14                      1.151E-01
 SiC-stress-pbe-nlcc.inp                               31    1.0E-14                  -1.846324E+01
+SiC-stress-tpss.inp                                   31    1.0E-14                   1.331451E+00
 #EOF

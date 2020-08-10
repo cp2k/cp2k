@@ -260,53 +260,115 @@ CONTAINS
                         IF (calculate_forces .AND. PRESENT(force_a)) THEN
                            IF (my_compute_tau) THEN
                               pabval = pab(o1 + ico, o2 + jco)*0.5_dp*ax*bx
-                              CALL force_update( &
-                                 force_a, force_b, rab, pabval, ftza, ftzb, MAX(ax - 1, 0), ay, az, MAX(bx - 1, 0), by, bz, vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                MAX(ax - 1, 0), ay, az, MAX(bx - 1, 0), by, bz, vab)
+                              IF (my_use_virial) THEN
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    MAX(ax - 1, 0), ay, az, MAX(bx - 1, 0), by, bz, vab)
+                              ENDIF
                               pabval = pab(o1 + ico, o2 + jco)*0.5_dp*ay*by
-                              CALL force_update( &
-                                 force_a, force_b, rab, pabval, ftza, ftzb, ax, MAX(ay - 1, 0), az, bx, MAX(by - 1, 0), bz, vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                ax, MAX(ay - 1, 0), az, bx, MAX(by - 1, 0), bz, vab)
+                              IF (my_use_virial) THEN
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    ax, MAX(ay - 1, 0), az, bx, MAX(by - 1, 0), bz, vab)
+                              ENDIF
                               pabval = pab(o1 + ico, o2 + jco)*0.5_dp*az*bz
-                              CALL force_update( &
-                                 force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, MAX(az - 1, 0), bx, by, MAX(bz - 1, 0), vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                ax, ay, MAX(az - 1, 0), bx, by, MAX(bz - 1, 0), vab)
+                              IF (my_use_virial) THEN
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    ax, ay, MAX(az - 1, 0), bx, by, MAX(bz - 1, 0), vab)
+                              ENDIF
                               pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(-ftza*bx)
-                           CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax + 1, ay, az, MAX(bx - 1, 0), by, bz, vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                ax + 1, ay, az, MAX(bx - 1, 0), by, bz, vab)
+                              IF (my_use_virial) THEN
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    ax + 1, ay, az, MAX(bx - 1, 0), by, bz, vab)
+                              ENDIF
                               pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(-ftza*by)
-                           CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay + 1, az, bx, MAX(by - 1, 0), bz, vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                ax, ay + 1, az, bx, MAX(by - 1, 0), bz, vab)
+                              IF (my_use_virial) THEN
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    ax, ay + 1, az, bx, MAX(by - 1, 0), bz, vab)
+                              ENDIF
                               pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(-ftza*bz)
-                           CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, az + 1, bx, by, MAX(bz - 1, 0), vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                ax, ay, az + 1, bx, by, MAX(bz - 1, 0), vab)
+                              IF (my_use_virial) THEN
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    ax, ay, az + 1, bx, by, MAX(bz - 1, 0), vab)
+                              ENDIF
                               pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(-ax*ftzb)
-                           CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, MAX(ax - 1, 0), ay, az, bx + 1, by, bz, vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                MAX(ax - 1, 0), ay, az, bx + 1, by, bz, vab)
+                              IF (my_use_virial) THEN
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    MAX(ax - 1, 0), ay, az, bx + 1, by, bz, vab)
+                              ENDIF
                               pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(-ay*ftzb)
-                           CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, MAX(ay - 1, 0), az, bx, by + 1, bz, vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                ax, MAX(ay - 1, 0), az, bx, by + 1, bz, vab)
+                              IF (my_use_virial) THEN
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    ax, MAX(ay - 1, 0), az, bx, by + 1, bz, vab)
+                              ENDIF
                               pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(-az*ftzb)
-                           CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, MAX(az - 1, 0), bx, by, bz + 1, vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                ax, ay, MAX(az - 1, 0), bx, by, bz + 1, vab)
+                              IF (my_use_virial) THEN
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    ax, ay, MAX(az - 1, 0), bx, by, bz + 1, vab)
+                              ENDIF
                               pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(ftza*ftzb)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax + 1, ay, az, bx + 1, by, bz, vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                ax + 1, ay, az, bx + 1, by, bz, vab)
+                              IF (my_use_virial) THEN
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    ax + 1, ay, az, bx + 1, by, bz, vab)
+                              ENDIF
                               pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(ftza*ftzb)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay + 1, az, bx, by + 1, bz, vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                ax, ay + 1, az, bx, by + 1, bz, vab)
+                              IF (my_use_virial) THEN
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    ax, ay + 1, az, bx, by + 1, bz, vab)
+                              ENDIF
                               pabval = pab(o1 + ico, o2 + jco)*0.5_dp*(ftza*ftzb)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, az + 1, bx, by, bz + 1, vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                ax, ay, az + 1, bx, by, bz + 1, vab)
+                              IF (my_use_virial) THEN
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    ax, ay, az + 1, bx, by, bz + 1, vab)
+                              ENDIF
                            ELSE
                               pabval = pab(o1 + ico, o2 + jco)
-                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, az, bx, by, bz, vab)
+                              CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, &
+                                                ax, ay, az, bx, by, bz, vab)
                               IF (my_use_virial) THEN
-                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, ax, ay, az, bx, by, bz, vab)
+                                 CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                    ax, ay, az, bx, by, bz, vab)
                               ENDIF
                            ENDIF
                         END IF
                         IF (calculate_forces .AND. PRESENT(hdab)) THEN
                            der_a(1:3) = 0.0_dp
                            der_b(1:3) = 0.0_dp
-                           CALL hab_derivatives(der_a, der_b, rab, ftza, ftzb, ax, ay, az, bx, by, bz, vab)
+                           CALL hab_derivatives(der_a, der_b, rab, ftza, ftzb, &
+                                                ax, ay, az, bx, by, bz, vab)
                            hdab(1:3, o1 + ico, o2 + jco) = der_a(1:3)
                            hadb(1:3, o1 + ico, o2 + jco) = der_b(1:3)
                            pabval = 1.0_dp
                            IF (my_use_virial .AND. PRESENT(a_hdab)) THEN
                               my_virial_a = 0.0_dp
                               my_virial_b = 0.0_dp
-                              CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, ax, ay, az, bx, by, bz, vab)
+                              CALL virial_update(my_virial_a, my_virial_b, rab, pabval, ftza, ftzb, &
+                                                 ax, ay, az, bx, by, bz, vab)
                               DO j = 1, 3
-                                 a_hdab(1:3, j, o1 + ico, o2 + jco) = a_hdab(1:3, j, o1 + ico, o2 + jco) + my_virial_a(1:3, j)
+                                 a_hdab(1:3, j, o1 + ico, o2 + jco) = &
+                                    a_hdab(1:3, j, o1 + ico, o2 + jco) + my_virial_a(1:3, j)
                               END DO
                            ENDIF
                         END IF
