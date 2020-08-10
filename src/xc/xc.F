@@ -1752,9 +1752,6 @@ CONTAINS
 
       ! tau part
       IF (has_tau) THEN
-         IF (use_virial) THEN
-            CPABORT("Stress tensor not available for Meta-functionals.")
-         END IF
          ALLOCATE (vxc_tau(nspins))
          DO ispin = 1, nspins
             NULLIFY (vxc_tau(ispin)%pw)
