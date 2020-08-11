@@ -36,8 +36,8 @@ mpiexec -np 2 /workspace/cp2k/exe/local/cp2k.pdbg "\$@"
 EndOfMessage
 chmod +x /usr/bin/cp2k
 
-mkdir -p ~/.ase
-echo '{"cp2k": "/usr/bin/cp2k_shell"}' > ~/.ase/executables.json
+mkdir -p ~/.config/ase
+echo -e "[executables]\ncp2k = /usr/bin/cp2k_shell\n" > ~/.config/ase/ase.conf
 
 echo -e "\n========== Installing ASE =========="
 cd /opt/ase/
