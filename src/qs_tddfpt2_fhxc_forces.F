@@ -529,7 +529,6 @@ CONTAINS
       xfac = 2.0_dp
       spinfac = 2.0_dp
       IF (nspins == 2) spinfac = 1.0_dp
-      spinfac = 2.0_dp*spinfac
       NULLIFY (matrix_wx1)
       CALL dbcsr_allocate_matrix_set(matrix_wx1, nspins)
       NULLIFY (matrix_plo)
@@ -687,12 +686,8 @@ CONTAINS
             DO iatom = 1, natom
                ikind = kind_of(iatom)
                atom_i = atom_of_kind(iatom)
-               ! long range
-!
-! this factor 4 could also be 2*spinfac ?
-!
                DO i = 1, 3
-                  fij(i) = 4.0_dp*gtcharge(iatom, i + 1)*tcharge(iatom)
+                  fij(i) = spinfac*spinfac*gtcharge(iatom, i + 1)*tcharge(iatom)
                END DO
                force(ikind)%rho_elec(1, atom_i) = force(ikind)%rho_elec(1, atom_i) - fij(1)
                force(ikind)%rho_elec(2, atom_i) = force(ikind)%rho_elec(2, atom_i) - fij(2)
@@ -728,15 +723,13 @@ CONTAINS
                          gs_mos(ispin)%mos_occ, 0.0_dp, ucmatrix)
             CALL cp_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, ucmatrix, uxmatrix, 1.0_dp, t0matrix)
             CALL cp_fm_schur_product(work%slambda, t0matrix, t1matrix)
-!
-! this factor 4 could also be 2*spinfac ?
-!
-            CALL cp_gemm('N', 'N', nsgf, nsgf, nsgf, 4.0_dp, work%S_eigenvectors, t1matrix, &
+            !
+            CALL cp_gemm('N', 'N', nsgf, nsgf, nsgf, spinfac, work%S_eigenvectors, t1matrix, &
                          0.0_dp, t0matrix)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=t0matrix, &
-                                       matrix_g=work%S_eigenvectors, ncol=nsgf, alpha=0.5_dp)
+                                       matrix_g=work%S_eigenvectors, ncol=nsgf, alpha=1.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=work%S_eigenvectors, &
-                                       matrix_g=t0matrix, ncol=nsgf, alpha=0.5_dp)
+                                       matrix_g=t0matrix, ncol=nsgf, alpha=1.0_dp)
             CALL fm_pool_give_back_fm(work%fm_pool_ao_mo_occ(ispin)%pool, ucmatrix)
             CALL fm_pool_give_back_fm(work%fm_pool_ao_mo_occ(ispin)%pool, uxmatrix)
             CALL cp_fm_release(t0matrix)
@@ -746,7 +739,7 @@ CONTAINS
             xt => xtransformed(ispin)%matrix
             CALL cp_fm_to_fm(xt, cvec)
             CALL cp_fm_row_scale(cvec, tv)
-            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, cpmos(ispin)%matrix, norb, spinfac, 1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, cpmos(ispin)%matrix, norb, 2.0_dp*spinfac, 1.0_dp)
             ! CV(mu,i) = TV(mu)*CT(mu,i)
             ct => work%ctransformed(ispin)%matrix
             CALL cp_fm_to_fm(ct, cvec)
@@ -762,7 +755,7 @@ CONTAINS
             CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, gs_mos(ispin)%mos_occ, vcvec, 0.0_dp, cvcmat)
             CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, X(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
-                                         nactive(ispin), alpha=-spinfac, beta=1.0_dp)
+                                         nactive(ispin), alpha=-2.0_dp*spinfac, beta=1.0_dp)
             ! wx1
             alpha = 2.0_dp
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=gs_mos(ispin)%mos_occ, &
@@ -891,7 +884,11 @@ CONTAINS
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
                                          norb, alpha=xfac, beta=1.0_dp)
             ! wx1
-            alpha = -1.0_dp
+            IF (nspins == 2) THEN
+               alpha = -2.0_dp
+            ELSE
+               alpha = -1.0_dp
+            END IF
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=gs_mos(ispin)%mos_occ, &
                                        matrix_g=vcvec, &
                                        ncol=norb, alpha=alpha)

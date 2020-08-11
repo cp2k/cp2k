@@ -36,10 +36,15 @@
        &XC_FUNCTIONAL  PBE0
        &END
     &END XC
+    &POISSON
+       PERIODIC NONE
+       POISSON_SOLVER MT
+    &END
   &END DFT
   &SUBSYS
     &CELL
-      ABC 6.0 6.0 6.0
+      ABC 4.0 4.0 4.0
+      PERIODIC NONE
     &END CELL
     &COORD
     N     0.400000     0.000000     0.500000    
@@ -62,5 +67,5 @@
    DEBUG_FORCES T
    DEBUG_STRESS_TENSOR F
    STOP_ON_MISMATCH F
-   DX 0.0001
+   DX 0.001
 &END

@@ -420,6 +420,11 @@ CONTAINS
             CALL cp_warn(__LOCATION__, "There were not enough excited states calculated.")
             CPABORT("excited state potential energy surface")
          END IF
+         !
+         IF (do_hfx .OR. do_admm) THEN
+            CALL cp_warn(__LOCATION__, "HFX or HFX/ADMM Kernel forces not implemented.")
+            CPABORT("excited state potential energy surface")
+         END IF
          ! energy
          ex_env%evalue = evals(ex_env%state)
          ! excitation vector
@@ -462,7 +467,8 @@ CONTAINS
                                    matrix_s(1)%matrix, ex_env%matrix_pe(ispin)%matrix)
             END DO
             !
-            IF (do_admm) THEN
+            ! ground state ADMM!
+            IF (dft_control%do_admm) THEN
                CALL get_qs_env(qs_env, admm_env=admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
                CALL dbcsr_allocate_matrix_set(ex_env%matrix_pe_admm, nspins)
                DO ispin = 1, nspins
@@ -584,30 +590,35 @@ CONTAINS
       tddfpt_section => section_vals_get_subs_vals(input, "PROPERTIES%TDDFPT")
       tddfpt_print_section => section_vals_get_subs_vals(tddfpt_section, "PRINT")
 
-      NULLIFY (xc_section)
-      xc_section => section_vals_get_subs_vals(tddfpt_section, "XC%XC_FUNCTIONAL")
-      CALL section_vals_get(xc_section, explicit=explicit_xc)
-      IF (explicit_xc) THEN
-         xc_section => section_vals_get_subs_vals(tddfpt_section, "XC")
-      ELSE
-         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-      END IF
-      hfx_section => section_vals_get_subs_vals(xc_section, "HF")
-
-      CALL section_vals_get(hfx_section, explicit=do_hfx)
-      IF (do_hfx) THEN
-         CALL section_vals_val_get(hfx_section, "FRACTION", r_val=C_hf)
-         do_hfx = (C_hf /= 0.0_dp)
-      END IF
-
-      do_admm = do_hfx .AND. dft_control%do_admm
-      IF (do_admm) THEN
+      IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
+         NULLIFY (xc_section)
+         xc_section => section_vals_get_subs_vals(tddfpt_section, "XC%XC_FUNCTIONAL")
+         CALL section_vals_get(xc_section, explicit=explicit_xc)
          IF (explicit_xc) THEN
-            ! 'admm_env%xc_section_primary' and 'admm_env%xc_section_aux' need to be redefined
-            CALL cp_abort(__LOCATION__, &
-                          "ADMM is not implemented for a TDDFT kernel XC-functional which is different from "// &
-                          "the one used for the ground-state calculation. A ground-state 'admm_env' cannot be reused.")
+            xc_section => section_vals_get_subs_vals(tddfpt_section, "XC")
+         ELSE
+            xc_section => section_vals_get_subs_vals(input, "DFT%XC")
          END IF
+         hfx_section => section_vals_get_subs_vals(xc_section, "HF")
+
+         CALL section_vals_get(hfx_section, explicit=do_hfx)
+         IF (do_hfx) THEN
+            CALL section_vals_val_get(hfx_section, "FRACTION", r_val=C_hf)
+            do_hfx = (C_hf /= 0.0_dp)
+         END IF
+
+         do_admm = do_hfx .AND. dft_control%do_admm
+         IF (do_admm) THEN
+            IF (explicit_xc) THEN
+               ! 'admm_env%xc_section_primary' and 'admm_env%xc_section_aux' need to be redefined
+               CALL cp_abort(__LOCATION__, &
+                             "ADMM is not implemented for a TDDFT kernel XC-functional which is different from "// &
+                             "the one used for the ground-state calculation. A ground-state 'admm_env' cannot be reused.")
+            END IF
+         END IF
+      ELSE
+         do_hfx = .FALSE.
+         do_admm = .FALSE.
       END IF
 
       ! reset rks_triplets if UKS is in use

@@ -633,7 +633,8 @@ CONTAINS
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pd, matrix_pz, matrix_wz, mpa, &
                                                             scrm
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, mhd, mhz, mpd, mpz
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, mhd, mhx, mhz, mpd, &
+                                                            mpz
       TYPE(dbcsr_type), POINTER                          :: dbwork
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
@@ -1242,18 +1243,25 @@ CONTAINS
       IF (dft_control%do_admm) THEN
          IF (dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
             ! nothing to do
+            NULLIFY (mpz, mhz, mhx)
          ELSE
             ! add ADMM xc_section_aux terms: Pz*Vxc + P0*K0[rhoz]
             CALL get_qs_env(qs_env, admm_env=admm_env, rho_aux_fit=rho_aux_fit, &
                             matrix_s_aux_fit=scrm, task_list_aux_fit=task_list_aux_fit)
             !
-            NULLIFY (mpz, mhz)
+            NULLIFY (mpz, mhz, mhx)
             CALL dbcsr_allocate_matrix_set(mhz, nspins, 1)
+            CALL dbcsr_allocate_matrix_set(mhx, nspins, 1)
             CALL dbcsr_allocate_matrix_set(mpz, nspins, 1)
             DO ispin = 1, nspins
                ALLOCATE (mhz(ispin, 1)%matrix)
                CALL dbcsr_create(mhz(ispin, 1)%matrix, template=scrm(1)%matrix)
                CALL dbcsr_copy(mhz(ispin, 1)%matrix, scrm(1)%matrix)
+               CALL dbcsr_set(mhz(ispin, 1)%matrix, 0.0_dp)
+               ALLOCATE (mhx(ispin, 1)%matrix)
+               CALL dbcsr_create(mhx(ispin, 1)%matrix, template=scrm(1)%matrix)
+               CALL dbcsr_copy(mhx(ispin, 1)%matrix, scrm(1)%matrix)
+               CALL dbcsr_set(mhx(ispin, 1)%matrix, 0.0_dp)
                ALLOCATE (mpz(ispin, 1)%matrix)
                CALL dbcsr_create(mpz(ispin, 1)%matrix, template=p_env%p1_admm(ispin)%matrix)
                CALL dbcsr_copy(mpz(ispin, 1)%matrix, p_env%p1_admm(ispin)%matrix)
@@ -1269,6 +1277,9 @@ CONTAINS
                CALL dbcsr_set(mhz(ispin, 1)%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), &
                                        hmat=mhz(ispin, 1), pmat=mpz(ispin, 1), &
+!tddft         v_rspace(ispin)%pw%cr3d = v_rspace(ispin)%pw%pw_grid%dvol*v_rspace(ispin)%pw%cr3d
+!              CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
+!tddft                                 hmat=mhx(ispin, 1), pmat=mpz(ispin, 1), &
                                        qs_env=qs_env, calculate_forces=.TRUE., &
                                        basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
@@ -1314,11 +1325,13 @@ CONTAINS
             CALL qs_rho_get(rho_aux_fit, rho_ao_kp=matrix_p)
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
             DO ispin = 1, nspins
+               CALL dbcsr_set(mhz(ispin, 1)%matrix, 0.0_dp)
                CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
                CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
                                        hmat=mhz(ispin, 1), pmat=matrix_p(ispin, 1), &
                                        calculate_forces=.TRUE., basis_type="AUX_FIT", &
                                        task_list_external=task_list_aux_fit)
+               CALL dbcsr_add(mhx(ispin, 1)%matrix, mhz(ispin, 1)%matrix, 1.0_dp, 1.0_dp)
             END DO
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
@@ -1431,6 +1444,11 @@ CONTAINS
             DEALLOCATE (dbwork)
             ! derivatives Tr (Pz [A(T)H dA/dR])
             IF (debug_forces) fodeb(1:3) = force(1)%overlap_admm(1:3, 1)
+            IF (ASSOCIATED(mhx)) THEN
+               DO ispin = 1, nspins
+                  CALL dbcsr_add(mhz(ispin, 1)%matrix, mhx(ispin, 1)%matrix, 1.0_dp, 1.0_dp)
+               END DO
+            END IF
             CALL qs_rho_get(rho, rho_ao=matrix_pd)
             CALL admm_projection_derivative(qs_env, admm_env, mhd, mhz, matrix_pd, mpa)
             IF (debug_forces) THEN
@@ -1441,6 +1459,7 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(mpz)
             CALL dbcsr_deallocate_matrix_set(mhz)
             CALL dbcsr_deallocate_matrix_set(mhd)
+            CALL dbcsr_deallocate_matrix_set(mhx)
             DEALLOCATE (mpd)
          ELSE
             ALLOCATE (mpz(nspins, 1), mhz(nspins, 1))
@@ -1461,21 +1480,20 @@ CONTAINS
          IF (debug_forces) fodeb(1:3) = force(1)%fock_4c(1:3, 1)
          IF (dft_control%do_admm) THEN
             CALL qs_rho_get(rho_aux_fit, rho_ao_kp=matrix_p)
-
-            NULLIFY (mpz)
-            CALL dbcsr_allocate_matrix_set(mpz, nspins, 1)
+            NULLIFY (matrix_pz)
+            CALL dbcsr_allocate_matrix_set(matrix_pz, nspins)
             DO ispin = 1, nspins
-               ALLOCATE (mpz(ispin, 1)%matrix)
-               CALL dbcsr_create(mpz(ispin, 1)%matrix, template=p_env%p1_admm(ispin)%matrix)
-               CALL dbcsr_copy(mpz(ispin, 1)%matrix, p_env%p1_admm(ispin)%matrix)
+               ALLOCATE (matrix_pz(ispin)%matrix)
+               CALL dbcsr_create(matrix_pz(ispin)%matrix, template=p_env%p1_admm(ispin)%matrix)
+               CALL dbcsr_copy(matrix_pz(ispin)%matrix, p_env%p1_admm(ispin)%matrix)
                IF (do_ex) THEN
-                  CALL dbcsr_add(mpz(ispin, 1)%matrix, ex_env%matrix_pe_admm(ispin)%matrix, &
+                  CALL dbcsr_add(matrix_pz(ispin)%matrix, ex_env%matrix_pe_admm(ispin)%matrix, &
                                  1.0_dp, 1.0_dp)
                END IF
             END DO
             CALL derivatives_four_center(qs_env, matrix_p, matrix_pz, hfx_section, para_env, &
                                          1, use_virial, resp_only=resp_only)
-            CALL dbcsr_deallocate_matrix_set(mpz)
+            CALL dbcsr_deallocate_matrix_set(matrix_pz)
          ELSE
             CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
             CALL derivatives_four_center(qs_env, matrix_p, mpa, hfx_section, para_env, &
@@ -1552,9 +1570,6 @@ CONTAINS
          fodeb(1:3) = ftot2(1:3, 1) - ftot1(1:3, 1)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Response Force", fodeb
-         fodeb(1:3) = ftot2(1:3, 1)
-         CALL mp_sum(fodeb, para_env%group)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Total Force ", fodeb
          DEALLOCATE (ftot1, ftot2, ftot3)
       END IF
 

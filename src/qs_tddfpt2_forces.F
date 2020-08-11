@@ -258,7 +258,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_wx1, &
                                                             matrix_wz, scrm
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
@@ -1056,27 +1055,12 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(mhz)
             DEALLOCATE (mpe)
          ELSE
-!deb
             NULLIFY (mpe, mhz)
             ALLOCATE (mpe(nspins, 1), mhz(nspins, 1))
             DO ispin = 1, nspins
                mhz(ispin, 1)%matrix => matrix_hz(ispin)%matrix
                mpe(ispin, 1)%matrix => matrix_pe(ispin)%matrix
             END DO
-!deb
-!           CALL get_qs_env(qs_env, matrix_s=msaux)
-!           NULLIFY (mpe, mhz)
-!           ALLOCATE (mpe(nspins, 1))
-!           CALL dbcsr_allocate_matrix_set(mhz, nspins, 1)
-!           DO ispin = 1, nspins
-!              ALLOCATE (mhz(ispin, 1)%matrix)
-!              CALL dbcsr_create(mhz(ispin, 1)%matrix, template=msaux(1)%matrix)
-!              CALL dbcsr_copy(mhz(ispin, 1)%matrix, msaux(1)%matrix)
-!              CALL dbcsr_set(mhz(ispin, 1)%matrix, 0.0_dp)
-!              mpe(ispin, 1)%matrix => matrix_pe(ispin)%matrix
-!           END DO
-!deb
-
             DO ispin = 1, mspin
                eh1 = 0.0
                CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpe, hfx_section, &
@@ -1095,21 +1079,6 @@ CONTAINS
          CALL cp_dbcsr_sm_fm_multiply(matrix_hz(ispin)%matrix, mos, cpmos(ispin)%matrix, &
                                       norb, alpha=focc, beta=0.0_dp)
       END DO
-
-!deb
-!     IF (do_hfx) THEN
-!        focc = 4.0_dp
-!        IF (nspins == 2) focc = 2.0_dp
-!        DO ispin = 1, nspins
-!           mos => gs_mos(ispin)%mos_occ
-!           CALL cp_fm_get_info(mos, ncol_global=norb)
-!           CALL cp_dbcsr_sm_fm_multiply(mhz(ispin,1)%matrix, mos, cpmos(ispin)%matrix, &
-!                                        norb, alpha=focc, beta=1.0_dp)
-!        END DO
-!        CALL dbcsr_deallocate_matrix_set(mhz)
-!        DEALLOCATE (mpe)
-!     END IF
-!deb
 
       CALL timestop(handle)
 

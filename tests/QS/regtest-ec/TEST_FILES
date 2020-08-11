@@ -53,6 +53,6 @@ H2O_KSH_MO_an.inp                                     31      1e-05             
 # STRESS: KS + Harris (Diag) + MO solver - Diagonal numerical
 H2O_KSH_AO_numdiag.inp                                31      1e-05             -2.41849782017E+00
 N2_ec.inp                                              1      1e-10                 -19.8023664030
-#N2_ec-hfx.inp                                         1      1e-10                   0.0000000000
-#N2_ec-hfx-admm.inp                                    1      1e-10                   0.0000000000
+N2_ec-hfx.inp                                          1      1e-10                 -19.5249834914
+N2_ec-hfx-admm.inp                                     1      1e-10                 -19.4853278530
 #EOF

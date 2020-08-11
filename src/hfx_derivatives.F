@@ -551,7 +551,7 @@ CONTAINS
 
       ! restore as full density the HF density
       ! maybe in the future
-      IF (with_resp_density) THEN
+      IF (with_resp_density .AND. .NOT. my_resp_only) THEN
          full_density_alpha(:, 1) = full_density_alpha(:, 1) - full_density_resp
          IF (nspins == 2) THEN
             full_density_beta(:, 1) = &
