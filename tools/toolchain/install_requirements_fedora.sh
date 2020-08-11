@@ -15,6 +15,7 @@ dnf -qy install                             \
     diffutils                               \
     g++                                     \
     git                                     \
+    glibc-langpack-en                       \
     less                                    \
     libtool                                 \
     make                                    \

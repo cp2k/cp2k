@@ -36,4 +36,5 @@ apt-get install -qq --no-install-recommends \
 
 rm -rf /var/lib/apt/lists/*
 
-#EOF
+# generate a unicode-enabled locale, see https://hub.docker.com/_/ubuntu?tab=description
+localedef -i C -c -f UTF-8 -A /usr/share/locale/locale.alias C.UTF-8
