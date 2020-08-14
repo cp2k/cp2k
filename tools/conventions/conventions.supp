@@ -45,28 +45,7 @@ base_hooks.F: Found WRITE statement with hardcoded unit in "cp_hint"
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn"
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio"
 bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt"
-call_collocate.f90: Routine COLLOCATE_CORE_0 called with an implicit interface.
-call_collocate.f90: Routine COLLOCATE_CORE_1 called with an implicit interface.
-call_collocate.f90: Routine COLLOCATE_CORE_2 called with an implicit interface.
-call_collocate.f90: Routine COLLOCATE_CORE_3 called with an implicit interface.
-call_collocate.f90: Routine COLLOCATE_CORE_4 called with an implicit interface.
-call_collocate.f90: Routine COLLOCATE_CORE_5 called with an implicit interface.
-call_collocate.f90: Routine COLLOCATE_CORE_6 called with an implicit interface.
-call_collocate.f90: Routine COLLOCATE_CORE_7 called with an implicit interface.
-call_collocate.f90: Routine COLLOCATE_CORE_8 called with an implicit interface.
-call_collocate.f90: Routine COLLOCATE_CORE_9 called with an implicit interface.
-call_collocate.f90: Routine COLLOCATE_CORE_DEFAULT called with an implicit interface.
 cg_test.F: Found WRITE statement with hardcoded unit in "clebsch_gordon_test"
-cp_dbcsr_cholesky.F: Routine PDCOPY called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PDPOTRF called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PDPOTRI called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PDTRMM called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PDTRSM called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PSCOPY called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PSPOTRF called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PSPOTRI called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PSTRMM called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PSTRSM called with an implicit interface.
 cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution"
@@ -103,7 +82,6 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l"
-et_coupling_proj.F: Routine INFOG2L called with an implicit interface.
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables"
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
@@ -136,7 +114,6 @@ library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test"
-library_tests.F: Routine PILAENV called with an implicit interface.
 machine.F: Found OPEN statement in procedure "m_cpuinfo"
 machine_internal.F: Found CALL m_abort in procedure "m_getcwd"
 machine_internal.F: Found CALL m_abort in procedure "m_hostnm"
@@ -156,10 +133,7 @@ message_passing.F: Found OPEN statement in procedure "mp_file_open"
 message_passing.F: Found STOP statement in procedure "mp_abort"
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig"
-mm_collocate_potential.F: Routine COLLOCATE_GF_NPBC called with an implicit interface.
-mm_collocate_potential.F: Routine INTEGRATE_GF_NPBC called with an implicit interface.
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess"
-optimize_embedding_potential.F: Found FLOAT in "init_embed_pot"
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "dump_reload_check"
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "parallel_rng_types_test"
 powell.F: Found GOTO statement in procedure "newuob"
@@ -182,17 +156,6 @@ qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag"
 qs_fb_filter_matrix_methods.F: Found WRITE statement with hardcoded unit in "fb_fltrmat_build_atomic_fltrmat"
 qs_gspace_mixing.F: Found WRITE statement with hardcoded unit in "broyden_mixing_new"
 qs_initial_guess.F: Found WRITE statement with hardcoded unit in "calculate_first_density_matrix"
-grid_integrate.F: Routine INTEGRATE_CORE_0 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_1 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_2 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_3 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_4 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_5 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_6 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_7 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_8 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_9 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_DEFAULT called with an implicit interface.
 qs_ks_methods.F: Found WRITE statement with hardcoded unit in "calculate_w_matrix_ot"
 qs_linres_atom_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_atom_rad"
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms"
@@ -200,9 +163,6 @@ qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms_new
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_resp"
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "collocate_gauge_new"
 qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc"
-qs_linres_op.F: Routine INDXL2G called with an implicit interface.
-qs_loc_utils.F: Routine PZROT called with an implicit interface.
-qs_localization_methods.F: Routine PZROT called with an implicit interface.
 qs_ot.F: Found WRITE statement with hardcoded unit in "qs_ot_generate_rotation"
 qs_rho_atom_methods.F: Found WRITE statement with hardcoded unit in "init_rho_atom"
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "aa"
@@ -210,7 +170,6 @@ se_core_matrix.F: Found WRITE statement with hardcoded unit in "makeds"
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "makes"
 se_fock_matrix_coulomb.F: Found WRITE statement with hardcoded unit in "build_fock_matrix_coulomb_lr"
 se_fock_matrix_dbg.F: Found WRITE statement with hardcoded unit in "dbg_energy_coulomb_lr"
-semi_empirical_int3_utils.F: Routine EVAL called with an implicit interface.
 semi_empirical_int_args.h: Copyright banner malformed
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcore_nucint_ana"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcorecore_ana"
@@ -221,9 +180,7 @@ semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_rotmat_der"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_value"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug"
-semi_empirical_int_debug.F: Routine CHECK_VALUE called with an implicit interface.
 semi_empirical_int_debug.h: Copyright banner malformed
-semi_empirical_int_utils.F: Routine EVAL called with an implicit interface.
 semi_empirical_mpole_methods.F: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup"
 sockets.c: Copyright banner malformed
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "cgc"
