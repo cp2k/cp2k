@@ -97,7 +97,7 @@ CONTAINS
 
       TYPE(cell_type), POINTER                           :: cell_in, cell_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cell_clone', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cell_clone'
 
       CPASSERT(ASSOCIATED(cell_in))
       CPASSERT(ASSOCIATED(cell_out))
@@ -123,7 +123,7 @@ CONTAINS
 
       TYPE(cell_type), POINTER                           :: cell_in, cell_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cell_copy', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cell_copy'
 
       CPASSERT(ASSOCIATED(cell_in))
       CPASSERT(ASSOCIATED(cell_out))
@@ -250,7 +250,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: units_angle
       INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: periodic
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_cell_param', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_cell_param'
 
       REAL(KIND=dp)                                      :: alpha, beta, gamma
 
@@ -288,7 +288,7 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: periodic
       LOGICAL, INTENT(IN)                                :: do_init_cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_cell_param', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_cell_param'
 
       REAL(KIND=dp)                                      :: cos_alpha, cos_beta, cos_gamma, eps, &
                                                             sin_gamma
@@ -339,7 +339,7 @@ CONTAINS
          OPTIONAL                                        :: hmat
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: periodic
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_cell', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_cell'
       REAL(KIND=dp), PARAMETER                           :: eps_hmat = 1.0E-14_dp
 
       INTEGER                                            :: dim
@@ -773,7 +773,7 @@ CONTAINS
          OPTIONAL                                        :: hmat
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: periodic
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cell_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cell_create'
 
       CPASSERT(.NOT. ASSOCIATED(cell))
       ALLOCATE (cell)
@@ -802,7 +802,7 @@ CONTAINS
 
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cell_retain', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cell_retain'
 
       CPASSERT(ASSOCIATED(cell))
       CPASSERT(cell%ref_count > 0)
@@ -821,7 +821,7 @@ CONTAINS
 
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cell_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cell_release'
 
       IF (ASSOCIATED(cell)) THEN
          CPASSERT(cell%ref_count > 0)

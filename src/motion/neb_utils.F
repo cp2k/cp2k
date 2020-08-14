@@ -670,7 +670,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: energies
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_tangent', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_tangent'
 
       REAL(KINd=dp)                                      :: distance0, distance1, distance2, DVmax, &
                                                             Dvmin
@@ -735,7 +735,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Mmatrix
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_neb_force', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_neb_force'
 
       INTEGER                                            :: j, my_tag, nsize_wrk
       REAL(KIND=dp)                                      :: distance1, distance2, fac, tmp

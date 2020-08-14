@@ -62,7 +62,7 @@ CONTAINS
       TYPE(admm_control_type), POINTER                   :: admm_control
       INTEGER, INTENT(IN)                                :: nspins, natoms
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_dm_create', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_dm_create'
 
       INTEGER                                            :: i, iatom, iblock, j, jatom
 

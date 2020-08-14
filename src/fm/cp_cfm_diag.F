@@ -153,7 +153,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
       TYPE(cp_cfm_type), POINTER                         :: work
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig'
 
       INTEGER                                            :: handle, nao, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals

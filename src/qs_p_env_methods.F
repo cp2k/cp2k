@@ -131,7 +131,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: orthogonal_orbitals
       TYPE(linres_control_type), OPTIONAL, POINTER       :: linres_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'p_env_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'p_env_create'
 
       INTEGER                                            :: handle, n_ao, n_mo, n_spins, natom, spin
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -596,7 +596,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: v
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout)    :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1'
 
       INTEGER                                            :: n_spins, spin
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -636,7 +636,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: spin
       TYPE(cp_fm_type), POINTER                          :: v, res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1_spin', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1_spin'
 
       INTEGER                                            :: handle, ncol
       TYPE(cp_fm_type), POINTER                          :: tmp
@@ -707,7 +707,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: res
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2'
       LOGICAL, PARAMETER                                 :: fdiff = .FALSE.
 
       INTEGER                                            :: handle, ispin, n_spins
@@ -789,7 +789,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout)    :: v
       INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: n_cols
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'p_preortho', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'p_preortho'
 
       INTEGER                                            :: cols, handle, max_cols, maxnmo, n_spins, &
                                                             nmo2, spin, v_cols, v_rows
@@ -884,7 +884,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout)    :: v
       INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: n_cols
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'p_postortho', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'p_postortho'
 
       INTEGER                                            :: cols, handle, max_cols, maxnmo, n_spins, &
                                                             nmo2, spin, v_cols, v_rows

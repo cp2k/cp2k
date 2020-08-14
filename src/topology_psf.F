@@ -563,7 +563,7 @@ CONTAINS
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: section, subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'idm_psf', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'idm_psf'
 
       INTEGER                                            :: handle, i, iend, iend1, istart, istart1, &
                                                             item, iw, j, mol_id, n_rep, natom, &

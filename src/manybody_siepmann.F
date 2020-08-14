@@ -116,7 +116,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: siep_f2
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_f2', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_f2'
 
       REAL(KIND=dp)                                      :: rcut
 
@@ -138,7 +138,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: siep_f2_d
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_f2_d', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_f2_d'
 
       REAL(KIND=dp)                                      :: B, rcut
 
@@ -180,7 +180,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp)                                      :: siep_a_ij
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_a_ij', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_a_ij'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: ilist, kparticle
@@ -242,7 +242,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rcutsq
       LOGICAL, INTENT(IN)                                :: use_virial
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_a_ij_d', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_a_ij_d'
 
       INTEGER                                            :: ilist, kparticle, nparticle
       REAL(KIND=dp)                                      :: costheta, d_expterm, dcos_thetahalf, &
@@ -333,7 +333,7 @@ CONTAINS
       INTEGER, INTENT(INOUT), OPTIONAL                   :: nr_oh, nr_h3o, nr_o
       REAL(KIND=dp)                                      :: siep_Phi_ij
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_Phi_ij', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_Phi_ij'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: count_h, iatom, index_h1, index_h2, natom
@@ -436,7 +436,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_Phi_ij_d', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_Phi_ij_d'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: count_h, iatom, index_h1, index_h2, natom

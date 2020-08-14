@@ -193,7 +193,7 @@ CONTAINS
       TYPE(pao_ioblock_type), ALLOCATABLE, DIMENSION(:)  :: xblocks
       INTEGER, DIMENSION(2), INTENT(OUT), OPTIONAL       :: ml_range
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_read_raw', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_read_raw'
 
       CHARACTER(LEN=default_string_length)               :: label, str_in
       INTEGER                                            :: i1, i2, iatom, ikind, ipot, natoms, &

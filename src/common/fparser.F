@@ -104,7 +104,7 @@ CONTAINS
       !----- -------- --------- --------- --------- --------- --------- --------- -------
       ! Finalize function parser
       !----- -------- --------- --------- --------- --------- --------- --------- -------
-      CHARACTER(len=*), PARAMETER :: routineN = 'finalizef', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'finalizef'
 
       INTEGER                                            :: i
 
@@ -158,7 +158,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(in)                       :: FuncStr
       CHARACTER(LEN=*), DIMENSION(:), INTENT(in)         :: Var
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'parsef', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'parsef'
 
       CHARACTER(LEN=LEN(FuncStr))                        :: Func
 
@@ -195,7 +195,7 @@ CONTAINS
       REAL(rn), DIMENSION(:), INTENT(in)                 :: Val
       REAL(rn)                                           :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'evalf', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'evalf'
       REAL(rn), PARAMETER                                :: zero = 0._rn
 
       INTEGER                                            :: DP, IP, ipow, SP
@@ -391,7 +391,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(in)                       :: FuncStr
       CHARACTER(LEN=*), INTENT(in), OPTIONAL             :: Msg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ParseErrMsg', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ParseErrMsg'
 
       CHARACTER(LEN=default_string_length)               :: message
 
@@ -579,7 +579,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(in)                       :: F
       CHARACTER(LEN=*), DIMENSION(:), INTENT(in)         :: Var
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'Compile', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'Compile'
 
 ! Function identifier
 ! Function string
@@ -995,7 +995,7 @@ CONTAINS
       REAL(KIND=rn), INTENT(OUT)                         :: err
       REAL(KIND=rn)                                      :: derivative
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'evalfd', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'evalfd'
       INTEGER, PARAMETER                                 :: ntab = 10
       REAL(KIND=rn), PARAMETER                           :: big_error = 1.0E30_rn, con = 1.4_rn, &
                                                             con2 = con*con, safe = 2.0_rn

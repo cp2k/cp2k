@@ -44,7 +44,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
          OPTIONAL, TARGET                                :: x
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_x2u', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_x2u'
 
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_ux, my_x
 
@@ -81,7 +81,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
          OPTIONAL, TARGET                                :: x
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_u2x', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_u2x'
 
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_ux, my_x
 
@@ -121,7 +121,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
          OPTIONAL, TARGET                                :: f
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_f2uf', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_f2uf'
 
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_f, my_uf
 

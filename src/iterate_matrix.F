@@ -80,7 +80,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: det
       REAL(KIND=dp), INTENT(IN)                          :: threshold
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'determinant', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'determinant'
 
       INTEGER                                            :: group, handle, i, max_iter_lanczos, &
                                                             nsize, order_lanczos, sign_iter, &
@@ -285,7 +285,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_lanczos
       LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Taylor', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Taylor'
 
       INTEGER                                            :: accelerator_type, handle, i, &
                                                             my_max_iter_lanczos, nrows, unit_nr

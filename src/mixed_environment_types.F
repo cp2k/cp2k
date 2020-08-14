@@ -158,7 +158,7 @@ CONTAINS
       TYPE(cp_result_type), OPTIONAL, POINTER            :: results
       TYPE(mixed_cdft_type), OPTIONAL, POINTER           :: cdft_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_mixed_env', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_mixed_env'
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
@@ -260,7 +260,7 @@ CONTAINS
          POINTER                                         :: sub_para_env
       TYPE(mixed_cdft_type), OPTIONAL, POINTER           :: cdft_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_mixed_env', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_mixed_env'
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds

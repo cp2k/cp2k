@@ -253,7 +253,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: potential
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'minimax_error', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'minimax_error'
 
       INTEGER                                            :: i_xyz
       REAL(KIND=dp)                                      :: prod_mm_k
@@ -299,7 +299,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: err_ctff, C_mm
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cutoff_error', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cutoff_error'
 
       INTEGER                                            :: i_aw, iG, iter, max_iter, nG
       REAL(KIND=dp) :: C, dG, eps_zet, err0, err1, err_c, err_ctff_curr, err_ctff_prev, err_d, G, &

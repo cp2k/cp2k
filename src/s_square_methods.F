@@ -173,7 +173,7 @@ CONTAINS
       TYPE(s2_restraint_type), POINTER                   :: s2_restraint_control
       LOGICAL                                            :: just_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 's2_restraint', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 's2_restraint'
 
       INTEGER                                            :: handle
       REAL(kind=dp)                                      :: s_square, s_square_ideal

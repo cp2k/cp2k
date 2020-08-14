@@ -96,7 +96,7 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
       LOGICAL, INTENT(IN)                                :: use_virial
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond'
 
       INTEGER :: atom_a, atom_b, ewald_type, handle, i, iend, igrp, ikind, ilist, ipair, istart, &
          j, kind_a, kind_b, nkind, npairs, shell_a, shell_b, shell_type

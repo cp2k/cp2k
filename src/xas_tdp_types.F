@@ -1005,7 +1005,7 @@ CONTAINS
 
       TYPE(donor_state_type), POINTER                    :: donor_state
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'free_ds_memory', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'free_ds_memory'
 
       INTEGER                                            :: i
 

@@ -62,7 +62,7 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(section_vals_type), POINTER                   :: section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'al_init', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'al_init'
 
       NULLIFY (al%nvt)
       NULLIFY (al%map_info)
@@ -111,7 +111,7 @@ CONTAINS
    SUBROUTINE al_dealloc(al)
       TYPE(al_system_type), POINTER                      :: al
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'al_dealloc', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'al_dealloc'
 
       IF (ASSOCIATED(al)) THEN
          CALL al_thermo_dealloc(al%nvt)

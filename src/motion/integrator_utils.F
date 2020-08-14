@@ -116,7 +116,7 @@ CONTAINS
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(npt_info_type), POINTER                       :: npt(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_old', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_old'
 
       INTEGER                                            :: idim, jdim, natoms
 
@@ -149,7 +149,7 @@ CONTAINS
    SUBROUTINE deallocate_old(old)
       TYPE(old_variables_type), POINTER                  :: old
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_old', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_old'
 
       IF (ASSOCIATED(old)) THEN
          IF (ASSOCIATED(old%v)) THEN
@@ -190,7 +190,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nparticle, nshell
       LOGICAL, INTENT(IN)                                :: shell_adiabatic
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_tmp', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_tmp'
 
       CPASSERT(.NOT. ASSOCIATED(tmp))
       ALLOCATE (tmp)
@@ -344,7 +344,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: tmpv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_s_ds', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_s_ds'
 
       INTEGER                                            :: iparticle, iparticle_kind, &
                                                             iparticle_local, nparticle_local
@@ -478,7 +478,7 @@ CONTAINS
       TYPE(npt_info_type), DIMENSION(:, :), POINTER      :: npt
       CHARACTER(LEN=*), INTENT(IN)                       :: char
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_vel', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_vel'
 
       INTEGER                                            :: idim, iparticle, iparticle_kind, &
                                                             iparticle_local, nparticle_kind, &
@@ -1143,7 +1143,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dt
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: u
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'vv_first', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'vv_first'
 
       INTEGER                                            :: iparticle, iparticle_kind, &
                                                             iparticle_local, nparticle_local, &
@@ -1349,7 +1349,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dt
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: u
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'vv_second', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'vv_second'
 
       INTEGER                                            :: iparticle, iparticle_kind, &
                                                             iparticle_local, nparticle_local, &

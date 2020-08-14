@@ -171,7 +171,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: print_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_init'
 
       INTEGER                                            :: bo(2, 3), ewald_type, gmax(3), handle, &
                                                             npts_s(3), ns_max, o_spline, &
@@ -371,7 +371,7 @@ CONTAINS
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
       TYPE(dg_type), OPTIONAL, POINTER                   :: dg
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_pw_get', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_pw_get'
 
       IF (PRESENT(poisson_env)) poisson_env => ewald_pw%poisson_env
       IF (PRESENT(pw_big_pool)) pw_big_pool => ewald_pw%pw_big_pool
@@ -402,7 +402,7 @@ CONTAINS
       TYPE(dg_type), OPTIONAL, POINTER                   :: dg
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_pw_set', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_pw_set'
 
       IF (PRESENT(pw_big_pool)) THEN
          CALL pw_pool_retain(pw_big_pool)

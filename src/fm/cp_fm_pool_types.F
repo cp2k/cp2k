@@ -86,7 +86,7 @@ CONTAINS
       TYPE(cp_fm_pool_type), POINTER                     :: pool
       TYPE(cp_fm_struct_type), POINTER                   :: el_struct
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create'
 
       ALLOCATE (pool)
       pool%el_struct => el_struct
@@ -108,7 +108,7 @@ CONTAINS
    SUBROUTINE fm_pool_retain(pool)
       TYPE(cp_fm_pool_type), POINTER                     :: pool
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_retain', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_retain'
 
       CPASSERT(ASSOCIATED(pool))
       CPASSERT(pool%ref_count > 0)
@@ -276,7 +276,7 @@ CONTAINS
    SUBROUTINE fm_pools_copy(source_pools, target_pools)
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: source_pools, target_pools
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_copy', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_copy'
 
       INTEGER                                            :: i
 

@@ -444,7 +444,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: nder
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'core_matrices', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'core_matrices'
 
       INTEGER                                            :: nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index

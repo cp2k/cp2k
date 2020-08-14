@@ -300,7 +300,7 @@ CONTAINS
    SUBROUTINE cp_result_copy(results_in, results_out)
       TYPE(cp_result_type), POINTER                      :: results_in, results_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_copy', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_copy'
 
       INTEGER                                            :: handle, i, ndim
       LOGICAL                                            :: check

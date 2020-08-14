@@ -128,7 +128,7 @@ CONTAINS
    SUBROUTINE atom2d_cleanup(atom2d)
       TYPE(local_atoms_type), DIMENSION(:)               :: atom2d
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom2d_cleanup', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom2d_cleanup'
 
       INTEGER                                            :: handle, ikind
 
@@ -176,7 +176,7 @@ CONTAINS
       LOGICAL                                            :: molecule_only
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom2d_build', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom2d_build'
 
       INTEGER                                            :: atom_a, handle, ia, iat, iatom, &
                                                             iatom_local, ikind, imol, natom, &
@@ -1525,7 +1525,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       TYPE(local_atoms_type), DIMENSION(:), INTENT(IN)   :: atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'combine_lists', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'combine_lists'
 
       INTEGER                                            :: i, ib, na, nb
       INTEGER, DIMENSION(:), POINTER                     :: lista, listb

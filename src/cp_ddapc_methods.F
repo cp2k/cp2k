@@ -118,7 +118,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: rho_tot_g
       REAL(KIND=dp), INTENT(IN)                          :: gcut
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_b_vector', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_b_vector'
 
       COMPLEX(KIND=dp)                                   :: phase
       INTEGER                                            :: e_dim, handle, idim, ig, igauss, igmax, &
@@ -197,7 +197,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: g_dot_rvec_sin, g_dot_rvec_cos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_A_matrix', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_A_matrix'
 
       INTEGER                                            :: e_dim, handle, idim1, idim2, ig, &
                                                             igauss1, igauss2, igmax, iparticle1, &
@@ -560,7 +560,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
       REAL(KIND=dp), INTENT(IN)                          :: Vol
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_eval_AmI', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_eval_AmI'
 
       INTEGER                                            :: handle, ndim
       REAL(KIND=dp)                                      :: condition_number, inv_error

@@ -329,7 +329,7 @@ CONTAINS
       TYPE(mixed_environment_type), OPTIONAL, POINTER    :: mixed_env
       TYPE(embed_env_type), OPTIONAL, POINTER            :: embed_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get'
 
       REAL(KIND=dp)                                      :: eip_kinetic_energy, eip_potential_energy
       TYPE(cp_subsys_type), POINTER                      :: subsys_tmp
@@ -628,7 +628,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: method_name_id
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: additional_potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set'
 
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(force_env%ref_count > 0)

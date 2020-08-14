@@ -159,7 +159,7 @@ CONTAINS
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_gamma', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_gamma'
       REAL(KIND=dp), PARAMETER                           :: rsmooth = 1.0_dp
 
       CHARACTER(len=20)                                  :: cstring
@@ -377,7 +377,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: xvec
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: xt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_lowdin_x', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_lowdin_x'
 
       INTEGER                                            :: handle, ispin, nactive, nspins
 

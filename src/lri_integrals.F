@@ -82,7 +82,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom, jatom, ikind, jkind
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int'
 
       IF (lri_env%use_shg_integrals) THEN
          CALL lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
@@ -118,7 +118,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: obasa, obasb, fbasa, fbasb
       INTEGER, INTENT(IN)                                :: iatom, jatom, ikind, jkind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int2', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int2'
 
       INTEGER                                            :: nba, nfa
       INTEGER, DIMENSION(:, :, :), POINTER               :: fba_index, fbb_index, oba_index, &
@@ -240,7 +240,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom, jatom, ikind, jkind
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_dint', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_dint'
 
       IF (lri_env%use_shg_integrals) THEN
          CALL lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
@@ -277,7 +277,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: obasa, obasb, fbasa, fbasb
       INTEGER, INTENT(IN)                                :: iatom, jatom, ikind, jkind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_dint2', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_dint2'
 
       INTEGER                                            :: nba, nbb, nfa, nfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: fba_index, fbb_index, oba_index, &
@@ -408,7 +408,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom, jatom, ikind
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_os', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_os'
 
       INTEGER                                            :: handle, nba, nbb, nfa, nfb
       LOGICAL                                            :: do_force
@@ -487,7 +487,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom, jatom, ikind, jkind
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_shg', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_shg'
 
       INTEGER                                            :: handle, nba, nbb, nfa, nfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: fba_index, fbb_index, oba_index, &

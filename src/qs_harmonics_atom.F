@@ -434,7 +434,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
       INTEGER, INTENT(IN)                                :: llmax, max_s_harm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_maxl_CG', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_maxl_CG'
 
       INTEGER                                            :: damax_iso_not0, dmax_iso_not0, handle, &
                                                             is1, is2, itmp, max_iso_not0, nset

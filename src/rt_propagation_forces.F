@@ -288,7 +288,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, atom_of_kind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_forces', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_forces'
 
       INTEGER                                            :: col_atom, i, ikind, kind_atom, row_atom
       LOGICAL                                            :: found
@@ -341,7 +341,7 @@ CONTAINS
    SUBROUTINE rt_admm_force(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_admm_force', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_admm_force'
 
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos, mos_admm

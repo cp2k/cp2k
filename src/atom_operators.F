@@ -64,7 +64,7 @@ CONTAINS
       TYPE(atom_potential_type), INTENT(IN), OPTIONAL    :: potential
       LOGICAL, INTENT(IN), OPTIONAL                      :: eri_coulomb, eri_exchange, all_nu
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_int_setup', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_int_setup'
 
       INTEGER                                            :: handle, i, ii, info, ipiv(1000), l, l1, &
                                                             l2, ll, lwork, m, m1, m2, mm1, mm2, n, &
@@ -647,7 +647,7 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
       TYPE(atom_potential_type), INTENT(IN)              :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'upfint_setup', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'upfint_setup'
 
       CHARACTER(len=4)                                   :: ptype
       INTEGER                                            :: i, j, k1, k2, la, lb, m, n
@@ -728,7 +728,7 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
       TYPE(atom_potential_type), INTENT(IN)              :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sgpint_setup', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'sgpint_setup'
 
       INTEGER                                            :: i, ia, j, l, m, n, na
       REAL(KIND=dp)                                      :: a, c, rc, zval
@@ -997,7 +997,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: order
       REAL(dp), DIMENSION(:, :, 0:)                      :: sp, tp, vp, pvp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dkh_integrals', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dkh_integrals'
 
       INTEGER                                            :: l, m, n
       REAL(dp), DIMENSION(:, :, :), POINTER              :: hdkh

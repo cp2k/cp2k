@@ -44,7 +44,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: nvec, theta
       REAL(KIND=dp)                                      :: dt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rotate_dimer', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rotate_dimer'
 
       INTEGER                                            :: output_unit
       LOGICAL                                            :: check
@@ -122,7 +122,7 @@ CONTAINS
       TYPE(dimer_env_type), POINTER                      :: dimer_env
       REAL(KIND=dp), INTENT(OUT)                         :: norm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_theta', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_theta'
 
       gradient = gradient - DOT_PRODUCT(gradient, dimer_env%nvec)*dimer_env%nvec
       norm = SQRT(DOT_PRODUCT(gradient, gradient))

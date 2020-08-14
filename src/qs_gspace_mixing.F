@@ -78,7 +78,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iter_count
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gspace_mixing', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'gspace_mixing'
 
       INTEGER                                            :: handle, i, iatom, ig, ispin, natom, ng, &
                                                             nimg, nspin
@@ -316,7 +316,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pulay_mixing', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pulay_mixing'
 
       COMPLEX(dp), ALLOCATABLE, DIMENSION(:)             :: cc_mix
       INTEGER                                            :: handle, i, iatom, ib, ibb, ic, ig, &
@@ -570,7 +570,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'broyden_mixing', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'broyden_mixing'
 
       COMPLEX(dp)                                        :: cc_mix
       COMPLEX(dp), ALLOCATABLE, DIMENSION(:)             :: res_rho

@@ -83,7 +83,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pwdft_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pwdft_init'
 
       INTEGER                                            :: handle, iw, natom
       LOGICAL                                            :: use_ref_cell

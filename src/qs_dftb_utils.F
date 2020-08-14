@@ -857,7 +857,7 @@ CONTAINS
       REAL(dp), INTENT(in)                               :: ya(n), xa(n), x
       REAL(dp), INTENT(out)                              :: y, dy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'polint', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'polint'
 
       INTEGER                                            :: i, m, ns
       REAL(dp)                                           :: c(n), d(n), den, dif, dift, ho, hp, w

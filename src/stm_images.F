@@ -98,7 +98,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: unoccupied_orbs
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'th_stm_image', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'th_stm_image'
 
       INTEGER                                            :: handle, irep, ispin, n_rep, ndim, nmo, &
                                                             nspin, output_unit
@@ -272,7 +272,7 @@ CONTAINS
 
       CHARACTER(LEN=*), DIMENSION(0:9), PARAMETER :: &
          torb_string = (/"  s", " px", " py", " pz", "dxy", "dyz", "dzx", "dx2", "dy2", "dz2"/)
-      CHARACTER(len=*), PARAMETER :: routineN = 'stm_cubes', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'stm_cubes'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: my_pos, oname, title

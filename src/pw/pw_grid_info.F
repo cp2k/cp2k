@@ -99,7 +99,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: n_orig(3)
       INTEGER, DIMENSION(3)                              :: n
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_find_n', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_find_n'
 
       INTEGER                                            :: idir, my_icommensurate, &
                                                             my_ncommensurate, nsubgrid, &
@@ -286,7 +286,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
       REAL(KIND=dp)                                      :: cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_find_cutoff', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_find_cutoff'
 
       REAL(KIND=dp)                                      :: gcut, gdum(3), length
 

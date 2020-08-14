@@ -1101,7 +1101,7 @@ CONTAINS
    SUBROUTINE init_cprj_ppnl(potential)
       TYPE(gth_potential_type), POINTER                  :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_cprj_ppnl', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_cprj_ppnl'
 
       INTEGER                                            :: cpx, cpy, cpz, cx, cy, cz, ico, iprj, &
                                                             iprj_ppnl, l, lp, lprj_ppnl, nprj, px, &
@@ -1184,7 +1184,7 @@ CONTAINS
    SUBROUTINE init_vprj_ppnl(potential)
       TYPE(gth_potential_type), POINTER                  :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_vprj_ppnl', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_vprj_ppnl'
 
       INTEGER                                            :: i, ico, iprj, iprj_ppnl, iso, j, jco, &
                                                             jprj, jprj_ppnl, l, nprj

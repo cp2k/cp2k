@@ -103,7 +103,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: al_section
       LOGICAL, INTENT(inout)                             :: restart
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'restart_al', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'restart_al'
 
       INTEGER                                            :: i, my_index, n_rep
       LOGICAL                                            :: explicit

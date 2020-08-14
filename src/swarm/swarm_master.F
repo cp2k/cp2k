@@ -131,7 +131,7 @@ CONTAINS
    SUBROUTINE replay_comlog(master)
       TYPE(swarm_master_type)                            :: master
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'replay_comlog', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'replay_comlog'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: command_log

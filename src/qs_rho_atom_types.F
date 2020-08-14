@@ -269,7 +269,7 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ga_Vlocal_gb_h, ga_Vlocal_gb_s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_rho_atom', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_rho_atom'
 
       IF (ASSOCIATED(rho_atom)) THEN
          IF (PRESENT(cpc_h)) cpc_h => rho_atom%cpc_h

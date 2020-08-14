@@ -238,7 +238,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: roks
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_step', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_step'
       REAL(KIND=dp), PARAMETER :: eigenvalue_threshold = 1.0E-12_dp
 
       CHARACTER(LEN=2*default_string_length)             :: message

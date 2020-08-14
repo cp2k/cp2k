@@ -266,7 +266,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: delta_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: delta_P
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'step_finalize', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'step_finalize'
 
       INTEGER                                            :: handle, i, ihist
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_old
@@ -382,7 +382,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_im
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_SinvH', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calc_SinvH'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, im, ispin, re

@@ -124,7 +124,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calc_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_entry_scf', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_entry_scf'
 
       INTEGER                                            :: handle
       TYPE(almo_scf_env_type), POINTER                   :: almo_scf_env
@@ -179,7 +179,7 @@ CONTAINS
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
       LOGICAL, INTENT(IN)                                :: calc_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_init'
 
       INTEGER                                            :: ao, handle, i, iao, idomain, ispin, &
                                                             multip, naos, natoms, ndomains, nelec, &
@@ -1276,7 +1276,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_main', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_main'
 
       INTEGER                                            :: handle, ispin, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -2123,7 +2123,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_post', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_post'
 
       INTEGER                                            :: handle, ispin
       TYPE(cp_fm_type), POINTER                          :: mo_coeff

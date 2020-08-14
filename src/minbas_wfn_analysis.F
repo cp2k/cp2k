@@ -414,7 +414,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: quambo, smao
       INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: ecount
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pm_extend', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pm_extend'
 
       INTEGER                                            :: iatom, jatom, n
       LOGICAL                                            :: found
@@ -453,7 +453,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: mao, smao, sovl
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: prmao
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'project_mao', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'project_mao'
 
       INTEGER                                            :: i, iatom, jatom, n
       LOGICAL                                            :: found

@@ -537,7 +537,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: for_file
       CHARACTER(len=default_string_length)               :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_iter_string', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_iter_string'
 
       INTEGER                                            :: add_last, c_i_level, ilevel, n_rlevel, &
                                                             s_level
@@ -596,7 +596,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: iter_nr, increment
       INTEGER, INTENT(OUT), OPTIONAL                     :: iter_nr_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterate', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterate'
 
       INTEGER                                            :: my_increment
       LOGICAL                                            :: my_last
@@ -1100,7 +1100,7 @@ CONTAINS
    SUBROUTINE cp_mpi_io_set(flag)
       LOGICAL, INTENT(IN)                                :: flag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_mpi_io_set', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_mpi_io_set'
 
       enable_mpi_io = flag
    END SUBROUTINE cp_mpi_io_set
@@ -1115,7 +1115,7 @@ CONTAINS
    FUNCTION cp_mpi_io_get() RESULT(flag)
       LOGICAL                                            :: flag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_mpi_io_get', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_mpi_io_get'
 
       flag = enable_mpi_io
    END FUNCTION cp_mpi_io_get

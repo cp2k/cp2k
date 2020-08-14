@@ -132,7 +132,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: delta
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_mini', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_mini'
 
       INTEGER                                            :: handle, ispin, k, n, nspin
       REAL(KIND=dp)                                      :: ener_nondiag, trace
@@ -355,7 +355,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_ks
       REAL(KIND=dp)                                      :: broyden_adaptive_sigma
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_init'
 
       INTEGER                                            :: handle, ispin, k, n, nspin
       LOGICAL                                            :: is_equal

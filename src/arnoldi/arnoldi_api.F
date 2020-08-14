@@ -67,7 +67,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_ev', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_ev'
 
       TYPE(arnoldi_control_type), POINTER                :: control
 

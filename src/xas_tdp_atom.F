@@ -526,7 +526,7 @@ CONTAINS
       TYPE(cp_1d_i_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: neighbor_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'find_neighbors', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'find_neighbors'
 
       INTEGER                                            :: blk, i, iat, ibase, iblk, jblk, mepos, &
                                                             natom, nb, nbase
@@ -2294,7 +2294,7 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       REAL(dp), DIMENSION(:, :), POINTER                 :: weight
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_vxc_vxg', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_vxc_vxg'
 
       INTEGER                                            :: dir, handle, i, ia, ir, ub
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dot_proda, dot_prodb, tmp

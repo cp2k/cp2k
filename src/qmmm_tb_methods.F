@@ -1262,7 +1262,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: qmmm_spherical_cutoff(2)
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles_qm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_mm_pot', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_mm_pot'
       REAL(KIND=dp), PARAMETER                           :: qsmall = 1.0e-15_dp
 
       INTEGER                                            :: handle, Imm, Imp, IndMM, Ipot
@@ -1346,7 +1346,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: qmmm_spherical_cutoff(2)
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles_qm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_mm_dpot', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_mm_dpot'
       REAL(KIND=dp), PARAMETER                           :: qsmall = 1.0e-15_dp
 
       INTEGER                                            :: handle, Imm, Imp, IndMM, Ipot

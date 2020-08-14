@@ -66,7 +66,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
                                                             b_first_row, c_first_col, c_first_row
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_gemm', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_gemm'
 
       CHARACTER(LEN=1)                                   :: my_trans
       INTEGER                                            :: handle, handle1, my_multi

@@ -176,7 +176,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: energies, distances
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dump_neb_info', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dump_neb_info'
 
       CHARACTER(LEN=20)                                  :: mytype
       CHARACTER(LEN=default_string_length)               :: line, title, unit_str

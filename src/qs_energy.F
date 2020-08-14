@@ -56,7 +56,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: consistent_energies, calc_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: my_calc_forces, run_rtp

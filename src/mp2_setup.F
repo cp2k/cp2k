@@ -348,7 +348,7 @@ CONTAINS
    SUBROUTINE check_method(method)
       INTEGER, INTENT(IN)                                :: method
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_method', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_method'
 
       INTEGER                                            :: handle
 

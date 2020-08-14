@@ -704,7 +704,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ao_charges_1', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ao_charges_1'
 
       INTEGER                                            :: blk, handle, i, iblock_col, iblock_row, &
                                                             ispin, j, nspin
@@ -767,7 +767,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ao_charges_2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ao_charges_2'
 
       INTEGER                                            :: blk, handle, i, iblock_col, iblock_row, &
                                                             ispin, j, nspin
@@ -828,7 +828,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ao_charges_kp', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ao_charges_kp'
 
       INTEGER                                            :: handle, ic, na
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charge_im

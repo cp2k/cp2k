@@ -257,7 +257,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l
       INTEGER                                            :: n
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_se_basis', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_se_basis'
 
       IF (sep%z < 0 .OR. sep%z > nelem) THEN
          CPABORT("Invalid atomic number !")
@@ -337,7 +337,7 @@ CONTAINS
       INTEGER                                            :: z
       TYPE(semi_empirical_type), POINTER                 :: sep
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calpar', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calpar'
 
       INTEGER                                            :: iod, iop, ios, j, jmax, k, l
       REAL(KIND=dp) :: ad, am, aq, d1, d2, d3, dd, df, eisol, gdd1, gp2, gp2c, gpp, gppc, gqq, &
@@ -454,7 +454,7 @@ CONTAINS
    SUBROUTINE calpar_d(sep)
       TYPE(semi_empirical_type), POINTER                 :: sep
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calpar_d', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calpar_d'
 
       REAL(KIND=dp), DIMENSION(6)                        :: amn
 
@@ -506,7 +506,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'element_has_d', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'element_has_d'
 
       res = (nqd(sep%z) > 0 .AND. sep%sto_exponents(2) > EPSILON(0.0_dp))
    END FUNCTION element_has_d
@@ -523,7 +523,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'element_has_f', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'element_has_f'
 
       res = (nqf(sep%z) > 0 .AND. sep%sto_exponents(3) > EPSILON(0.0_dp))
    END FUNCTION element_has_f
@@ -543,7 +543,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       REAL(KIND=dp), DIMENSION(6), INTENT(OUT)           :: amn
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'amn_l1', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'amn_l1'
 
       INTEGER                                            :: nd, nsp
       REAL(KIND=dp)                                      :: z1, z2, z3
@@ -592,7 +592,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       REAL(KIND=dp), DIMENSION(6, 0:2), INTENT(OUT)      :: amn
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'amn_l2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'amn_l2'
 
       INTEGER                                            :: nd, nsp
       REAL(KIND=dp)                                      :: z1, z2, z3
@@ -659,7 +659,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       REAL(KIND=dp), DIMENSION(6), INTENT(IN)            :: amn
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eval_cs_ko', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eval_cs_ko'
 
       REAL(KIND=dp)                                      :: d, fg
 
@@ -823,7 +823,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(out)                         :: r066, r266, r466, r016, r244, r036, &
                                                             r236, r155, r355, r125, r234, r246
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sc_param', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'sc_param'
 
       INTEGER                                            :: nd, ns
       REAL(KIND=dp)                                      :: ed, ep, es
@@ -879,7 +879,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: ed
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sc_param_low', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'sc_param_low'
 
       INTEGER                                            :: i, m, m1, m2, n, nab, ncd
       REAL(KIND=dp)                                      :: a2, aab, acd, ae, aea, aeb, aec, aed, c, &
@@ -947,7 +947,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       REAL(KIND=dp), INTENT(in)                          :: r016, r066, r244, r266, r466
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eisol_corr', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eisol_corr'
 
       sep%eisol = sep%eisol + ir016(sep%z)*r016 + &
                   ir066(sep%z)*r066 - &
@@ -972,7 +972,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: d, fg
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ko_ij', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ko_ij'
       INTEGER, PARAMETER                                 :: niter = 100
       REAL(KIND=dp), PARAMETER                           :: epsil = 1.0E-08_dp, g1 = 0.382_dp, &
                                                             g2 = 0.618_dp

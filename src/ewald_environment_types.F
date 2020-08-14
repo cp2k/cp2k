@@ -147,7 +147,7 @@ CONTAINS
          POINTER                                         :: interaction_cutoffs
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: cell_hmat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_get', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_get'
 
       CPASSERT(ASSOCIATED(ewald_env))
 
@@ -210,7 +210,7 @@ CONTAINS
          POINTER                                         :: interaction_cutoffs
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: cell_hmat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_set', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_set'
 
       CPASSERT(ASSOCIATED(ewald_env))
 

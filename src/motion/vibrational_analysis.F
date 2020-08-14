@@ -101,7 +101,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'vb_anal', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'vb_anal'
       CHARACTER(LEN=1), DIMENSION(3), PARAMETER          :: lab = (/"X", "Y", "Z"/)
 
       CHARACTER(LEN=default_string_length)               :: description
@@ -709,7 +709,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: full
       INTEGER, INTENT(IN)                                :: natoms
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_D_matrix', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_D_matrix'
 
       INTEGER                                            :: handle, i, ifound, iseq, j, nvib
       LOGICAL                                            :: my_full

@@ -85,7 +85,7 @@ CONTAINS
    SUBROUTINE mpools_retain(mpools)
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mpools_retain', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mpools_retain'
 
       CPASSERT(ASSOCIATED(mpools))
       CPASSERT(mpools%ref_count > 0)
@@ -102,7 +102,7 @@ CONTAINS
    SUBROUTINE mpools_release(mpools)
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mpools_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mpools_release'
 
       IF (ASSOCIATED(mpools)) THEN
          CPASSERT(mpools%ref_count > 0)
@@ -151,7 +151,7 @@ CONTAINS
                                                             maxao_maxao_fm_pool, &
                                                             maxmo_maxmo_fm_pool
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mpools_get', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mpools_get'
 
       IF (PRESENT(ao_mo_fm_pools)) ao_mo_fm_pools => mpools%ao_mo_fm_pools
       IF (PRESENT(maxao_maxmo_fm_pool)) THEN
@@ -191,7 +191,7 @@ CONTAINS
    SUBROUTINE mpools_create(mpools)
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mpools_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mpools_create'
 
       ALLOCATE (mpools)
       NULLIFY (mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &

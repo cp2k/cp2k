@@ -198,7 +198,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: MassI
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: Amatrix
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colvar', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colvar'
 
       INTEGER                                            :: handle, i, ikind, imol, n_tot, natom, &
                                                             nkind, nmol_per_kind, offset
@@ -383,7 +383,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: n_tot
       INTEGER, DIMENSION(:), POINTER                     :: map
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colv_int', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colv_int'
 
       TYPE(colvar_constraint_type), POINTER              :: colv_list(:)
       TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list
@@ -425,7 +425,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: n_tot
       INTEGER, DIMENSION(:), POINTER                     :: map
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colv_ext', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colv_ext'
 
       TYPE(colvar_constraint_type), POINTER              :: colv_list(:)
       TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list
@@ -471,7 +471,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: n_tot
       INTEGER, DIMENSION(:), POINTER                     :: map
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colv_low', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colv_low'
 
       INTEGER                                            :: iatm, iconst, ind, ival
 
@@ -522,7 +522,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nsize_xyz, nsize_int
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: cvalues, Mmatrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_clv_force', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_clv_force'
 
       INTEGER                                            :: i, j, k
       REAL(KIND=dp)                                      :: tmp

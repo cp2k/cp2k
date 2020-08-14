@@ -72,7 +72,7 @@ CONTAINS
       TYPE(normalmode_env_type), POINTER                 :: normalmode_env
       TYPE(section_vals_type), POINTER                   :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_init'
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
       INTEGER                                            :: i, j, p
@@ -160,7 +160,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(IN)         :: masses
       TYPE(qtb_therm_type), POINTER                      :: qtb_therm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_step', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_step'
 
       INTEGER                                            :: handle, i, ibead, idim
       REAL(KIND=dp)                                      :: delta_ekin
@@ -1017,7 +1017,7 @@ CONTAINS
       TYPE(fft_plan_type)                                :: plan
       COMPLEX(KIND=dp), DIMENSION(n)                     :: z_out, z_in
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_fft', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_fft'
 
       INTEGER                                            :: stat
 

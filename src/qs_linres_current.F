@@ -1767,7 +1767,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(box_type), DIMENSION(:, :, :), POINTER        :: box
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'box_atoms_new', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'box_atoms_new'
 
       INTEGER                                            :: handle, i, iatom, ibeg, ibox, iend, &
                                                             ifind, ii, imax, imin, j, jatom, jbox, &

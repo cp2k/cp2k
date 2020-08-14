@@ -152,7 +152,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mrow, ncol
       REAL(KIND=dp), INTENT(OUT)                         :: uvec(:, :), vtvec(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_sgesvd', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_sgesvd'
       CHARACTER, PARAMETER                               :: jobu = "A", jobvt = "A"
 
       INTEGER                                            :: info, lda, ldu, ldvt, lwork
@@ -187,7 +187,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mrow, ncol
       COMPLEX(KIND=dp), INTENT(OUT)                      :: uvec(:, :), vtvec(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_cgesvd', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_cgesvd'
       CHARACTER, PARAMETER                               :: jobu = "A", jobvt = "A"
 
       INTEGER                                            :: info, lda, ldu, ldvt, lwork

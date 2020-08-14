@@ -54,7 +54,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n, nq, lq
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: alpha, coef
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_sto_ng', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_sto_ng'
 
       INTEGER                                            :: m, na, nc
 

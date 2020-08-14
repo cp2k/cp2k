@@ -111,7 +111,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: elpa_kernel
       LOGICAL, INTENT(IN)                                :: elpa_qr, elpa_print, elpa_qr_unsafe
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diag_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'diag_init'
 
       fallback_applied = .FALSE.
 
@@ -143,7 +143,7 @@ CONTAINS
 !> \brief Finalize the diagonalization library
 ! **************************************************************************************************
    SUBROUTINE diag_finalize()
-      CHARACTER(len=*), PARAMETER :: routineN = 'diag_finalize', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'diag_finalize'
 #if defined (__ELPA)
       IF (diag_type == DIAG_TYPE_ELPA) &
          CALL finalize_elpa_library()
@@ -1134,7 +1134,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
       TYPE(cp_fm_type), POINTER                          :: work
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geeig', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geeig'
 
       INTEGER                                            :: handle, nao, nmo
 

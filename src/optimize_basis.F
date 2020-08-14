@@ -503,7 +503,7 @@ CONTAINS
    SUBROUTINE init_free_vars(opt_bas)
       TYPE(basis_optimization_type)                      :: opt_bas
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_free_vars', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_free_vars'
 
       INTEGER                                            :: handle, ikind, iset, ix
 

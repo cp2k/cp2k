@@ -998,7 +998,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_ot_diag', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_ot_diag'
 
       INTEGER                                            :: homo, ispin, nmo, nspin
       REAL(KIND=dp)                                      :: diis_error, eps_iter
@@ -1112,7 +1112,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: diis_step
       LOGICAL, INTENT(IN)                                :: orthogonal_basis
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_roks_diag', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_roks_diag'
 
       INTEGER                                            :: handle, homoa, homob, imo, nalpha, nao, &
                                                             nbeta, nmo

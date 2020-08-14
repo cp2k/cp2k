@@ -98,7 +98,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: rebuild_ao, rebuild_grids, admm
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_rho_rebuild', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_rho_rebuild'
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: handle, i, ic, nimg, nspins

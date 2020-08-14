@@ -81,7 +81,7 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(INOUT), OPTIONAL  :: needs
       INTEGER, INTENT(OUT), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sr_lda_info', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'sr_lda_info'
 
       CALL cite_reference(Toulouse2004)
       CALL cite_reference(Paziani2006)
@@ -126,7 +126,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: order
       TYPE(section_vals_type), POINTER                   :: sr_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sr_lda_eval', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'sr_lda_eval'
 
       INTEGER                                            :: npoints, handle, method
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -199,7 +199,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: npoints, order
       REAL(KIND=dp), INTENT(IN)                          :: sx, sc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sr_lda_calc', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'sr_lda_calc'
 
       INTEGER                                            :: handle, k
       REAL(KIND=dp)                                      :: my_rho, rs
@@ -255,7 +255,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: order
       TYPE(section_vals_type), POINTER                   :: sr_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sr_lsd_eval', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'sr_lsd_eval'
 
       INTEGER                                            :: npoints, handle, method
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -334,7 +334,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: npoints, order
       REAL(KIND=dp), INTENT(IN)                          :: sx, sc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sr_lsd_calc', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'sr_lsd_calc'
 
       INTEGER                                            :: handle, k
       REAL(KIND=dp)                                      :: my_rhoa, my_rhob, rho, rs, zeta
@@ -387,7 +387,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: excsr, vxcsr
       REAL(KIND=dp), INTENT(IN)                          :: sx, sc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ldasr', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ldasr'
 
       REAL(KIND=dp)                                      :: ec, ecd, eclr, ex, exlr, vc, vclr, vx, &
                                                             vxlr
@@ -437,7 +437,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: eclr, vclr
       REAL(KIND=dp), INTENT(IN)                          :: ec, ecd
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lda', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lda'
 
       REAL(KIND=dp) :: a1, a1rs, a2, a2rs, a3, a3rs, a4, a4rs, a5, a5rs, b0, coe2, coe2rs, coe3, &
                        coe3rs, coe4, coe4rs, coe5, coe5rs, d2anti, d2antid, d3anti, d3antid, eclrrs, x, z
@@ -560,7 +560,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: excsr, vxcsrup, vxcsrdown
       REAL(KIND=dp), INTENT(IN)                          :: sx, sc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lsdsr', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'lsdsr'
 
       REAL(KIND=dp)                                      :: ec, ecd, eclr, ecz, ex, exlr, vcdown, &
                                                             vclrdown, vclrup, vcup, vxdown, &
@@ -619,7 +619,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: eclr, vclrup, vclrdown
       REAL(KIND=dp), INTENT(IN)                          :: ec, ecd, ecz
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lsd', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lsd'
 
       REAL(KIND=dp) :: a1, a1rs, a1z, a2, a2rs, a2z, a3, a3rs, a3z, a4, a4rs, a4z, a5, a5rs, a5z, &
                        b0, coe2, coe2rs, coe2z, coe3, coe3rs, coe3z, coe4, coe4rs, coe4z, coe5, coe5rs, coe5z, &
@@ -894,7 +894,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rs, z
       REAL(KIND=dp), INTENT(OUT)                         :: ec, ecd, ecz
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ecPW_lsd', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ecPW_lsd'
 
       REAL(KIND=dp)                                      :: alfac(0:1), ec0(0:1), ec1(0:1), ff
 

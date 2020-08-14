@@ -112,7 +112,7 @@ CONTAINS
       TYPE(tmc_ana_list_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ana_list
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_tmc_worker', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_tmc_worker'
 
       CHARACTER(LEN=default_string_length)               :: c_tmp
       INTEGER                                            :: calc_stat, handle, i1, i2, ierr, itmp, &

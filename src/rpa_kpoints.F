@@ -500,7 +500,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: weights_cos_tf_w_to_t_dummy
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dummys', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dummys'
 
       INTEGER                                            :: handle
 
@@ -531,7 +531,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: weights_cos_tf_w_to_t_dummy
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_dummys', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_dummys'
 
       INTEGER                                            :: handle
 

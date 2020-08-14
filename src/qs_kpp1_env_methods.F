@@ -111,7 +111,7 @@ CONTAINS
    SUBROUTINE kpp1_create(kpp1_env)
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_create'
 
       ALLOCATE (kpp1_env)
       NULLIFY (kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r, &

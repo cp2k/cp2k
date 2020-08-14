@@ -121,7 +121,7 @@ CONTAINS
          INTENT(INOUT), OPTIONAL                         :: sdabc, sabdc
       REAL(dp), INTENT(OUT), OPTIONAL                    :: int_abc_ext
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'overlap3', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'overlap3'
 
       INTEGER :: ax, ay, az, bx, by, bz, coa, coax, coay, coaz, coc, cocx, cocy, cocz, cx, cy, cz, &
          handle, i, ipgf, j, jpgf, k, kpgf, l, la, la_max, la_min, la_start, lai, lb, lb_max, &

@@ -44,7 +44,7 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(kind=dp), DIMENSION(3)                        :: com_r
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_com_pos', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_com_pos'
 
       INTEGER                                            :: ia, ib, ic
       REAL(kind=dp)                                      :: tmass
@@ -82,7 +82,7 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(kind=dp), DIMENSION(3)                        :: cntrd_r
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_cog_pos', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_cog_pos'
 
       INTEGER                                            :: ia, ib, ic, natoms
 
@@ -220,7 +220,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: x
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_gaussian
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_levy_walk', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_levy_walk'
 
       INTEGER                                            :: ib, ic
       REAL(kind=dp)                                      :: r, tau_i, tau_i1

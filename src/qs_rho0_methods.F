@@ -355,7 +355,7 @@ CONTAINS
       TYPE(gapw_control_type), POINTER                   :: gapw_control
       LOGICAL, INTENT(in)                                :: tddft
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_rho0', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_rho0'
 
       CHARACTER(LEN=default_string_length)               :: unit_str
       INTEGER :: handle, iat, iatom, ikind, l, l_rho1_max, laddg, lmaxg, maxl, maxnset, maxso, &

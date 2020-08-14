@@ -83,7 +83,7 @@ CONTAINS
       REAL(KIND=dp), POINTER                             :: kernel(:)
       INTEGER, INTENT(in)                                :: mpi_group
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'createKernel', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'createKernel'
 
       INTEGER                                            :: m1, m2, m3, md1, md2, md3, n1, n2, n3, &
                                                             nd1, nd2, nd3, nlimd, nlimk
@@ -849,7 +849,7 @@ CONTAINS
          INTENT(out)                                     :: karray
       INTEGER, INTENT(in)                                :: mpi_group
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'Free_Kernel', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'Free_Kernel'
       INTEGER, PARAMETER                                 :: n_gauss = 89, n_points = 2**6
       REAL(KIND=dp), PARAMETER                           :: p0_ref = 1._dp
 
@@ -1110,7 +1110,7 @@ CONTAINS
          INTENT(inout)                                   :: zr
       INTEGER, INTENT(in)                                :: mpi_group
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kernelfft', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'kernelfft'
       INTEGER, PARAMETER                                 :: ncache_optimal = 8*1024
 
       INTEGER                                            :: i, i1, i3, ic1, ic2, ic3, inzee, j, j2, &

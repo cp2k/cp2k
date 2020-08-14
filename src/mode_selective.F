@@ -108,7 +108,7 @@ CONTAINS
       INTEGER                                            :: output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ms_vb_anal', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ms_vb_anal'
 
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: handle, i, ip1, j, natoms, ncoord
@@ -448,7 +448,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: nrep
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'bfgs_guess', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'bfgs_guess'
 
       CHARACTER(LEN=default_path_length)                 :: hes_filename
       INTEGER                                            :: hesunit, i, j, jj, k, natoms, ncoord, &
@@ -559,7 +559,7 @@ CONTAINS
       INTEGER                                            :: nrep
       LOGICAL                                            :: calc_intens
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rest_guess', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rest_guess'
 
       CHARACTER(LEN=default_path_length)                 :: ms_filename
       INTEGER                                            :: hesunit, i, j, mat, natoms, ncoord, &
@@ -671,7 +671,7 @@ CONTAINS
       INTEGER                                            :: ncoord, nrep
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'molden_guess', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'molden_guess'
 
       CHARACTER(LEN=2)                                   :: at_name
       CHARACTER(LEN=default_path_length)                 :: ms_filename
@@ -1017,7 +1017,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :)                     :: residuum
       REAL(KIND=dp), DIMENSION(2, nrep), OPTIONAL        :: criteria
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'select_vector', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'select_vector'
 
       INTEGER                                            :: i, j, jj, k
       REAL(KIND=dp)                                      :: my_val, norm
@@ -1148,7 +1148,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: intensities
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ms_out', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ms_out'
 
       INTEGER                                            :: i, j, msunit, stat
       REAL(KIND=dp)                                      :: crit_a, crit_b

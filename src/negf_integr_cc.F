@@ -116,7 +116,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(nnodes), INTENT(in), &
          OPTIONAL                                        :: tnodes_restart
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ccquad_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ccquad_init'
 
       INTEGER                                            :: handle, icol, ipoint, irow, ncols, &
                                                             nnodes_half, nrows
@@ -197,7 +197,7 @@ CONTAINS
    SUBROUTINE ccquad_release(cc_env)
       TYPE(ccquad_type), INTENT(inout)                   :: cc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ccquad_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ccquad_release'
 
       INTEGER                                            :: handle, ipoint
 

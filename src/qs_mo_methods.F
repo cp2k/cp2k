@@ -89,7 +89,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ncol
       TYPE(dbcsr_type), POINTER                          :: matrix_s
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sm', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sm'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: handle, n, ncol_global
@@ -925,7 +925,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
       TYPE(admm_type), OPTIONAL, POINTER                 :: admm_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'make_mo_eig', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_mo_eig'
 
       INTEGER                                            :: handle, homo, ispin, nmo, output_unit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues

@@ -89,7 +89,7 @@ CONTAINS
       REAL(dp), DIMENSION(0:2), INTENT(in), OPTIONAL     :: poly_shift
       REAL(dp), INTENT(in), OPTIONAL                     :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'collocGauss', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'collocGauss'
 
       CALL colloc_int_body(h, h_inv, grid, poly, alphai, posi, max_r2, &
                            periodic, gdim, local_bounds, local_shift, &

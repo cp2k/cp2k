@@ -150,7 +150,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: omega, r_cutoff
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operator_ab_os_low', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operator_ab_os_low'
 
       INTEGER                                            :: handle, i, iset, jset, lds, m1, m2, &
                                                             maxco, maxcoa, maxcob, maxl, maxla, &
@@ -404,7 +404,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: m
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_ra2m_ab_os', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_ra2m_ab_os'
 
       INTEGER                                            :: handle, i, iset, jset, m1, m2, maxco, &
                                                             maxcoa, maxcob, maxl, maxla, maxlb, &

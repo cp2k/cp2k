@@ -145,7 +145,7 @@ CONTAINS
       INTEGER                                            :: lb_cube(3), ub_cube(3)
       INTEGER, DIMENSION(:), POINTER                     :: sphere_bounds
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'return_cube', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'return_cube'
 
       INTEGER                                            :: imr
 
@@ -221,7 +221,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: ortho
       REAL(KIND=dp), INTENT(IN)                          :: max_radius
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_cube_info', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_cube_info'
 
       INTEGER                                            :: check_1, check_2, handle, i, igmin, imr, &
                                                             jg, jg2, jgmin, k, kg, kg2, kgmin, &

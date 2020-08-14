@@ -125,7 +125,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init'
 
       INTEGER                                            :: handle
 

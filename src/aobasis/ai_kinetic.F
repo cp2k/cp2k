@@ -67,7 +67,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: dab
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kinetic', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'kinetic'
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, ia, &
                                                             ib, idx, idy, idz, ipgf, jpgf, la, lb, &

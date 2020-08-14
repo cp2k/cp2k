@@ -158,7 +158,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xas', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xas'
 
       INTEGER :: handle, homo, i, iat, iatom, ispin, istate, my_homo(2), my_nelectron(2), my_spin, &
          nao, nexc_atoms, nexc_search, nmo, nspins, output_unit, state_to_be_excited
@@ -588,7 +588,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_init'
 
       CHARACTER(LEN=default_string_length)               :: name_sto
       INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, j, l, lfomo, my_spin, n_mo(2), n_rep, nao, &
@@ -1151,7 +1151,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom, state_to_be_excited, lfomo
       LOGICAL, INTENT(IN)                                :: length
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_write', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xas_write'
 
       CHARACTER(LEN=default_string_length)               :: mittle_ab, mittle_em, my_act, my_pos
       INTEGER                                            :: i, istate, out_sp_ab, out_sp_em
@@ -1286,7 +1286,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       INTEGER, INTENT(IN)                                :: iatom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_pdos', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xas_pdos'
 
       CHARACTER(LEN=default_string_length)               :: xas_mittle
       INTEGER                                            :: ispin

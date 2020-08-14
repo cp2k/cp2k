@@ -134,7 +134,7 @@ CONTAINS
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: interp_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_get', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_get'
 
       CPASSERT(ASSOCIATED(pw_env))
       CPASSERT(pw_env%ref_count > 0)
@@ -170,7 +170,7 @@ CONTAINS
    SUBROUTINE pw_env_retain(pw_env)
       TYPE(pw_env_type), POINTER                         :: pw_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_retain', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_retain'
 
       CPASSERT(ASSOCIATED(pw_env))
       CPASSERT(pw_env%ref_count > 0)
@@ -189,7 +189,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       LOGICAL, OPTIONAL                                  :: kg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_release'
 
       INTEGER                                            :: i, igrid_level
       LOGICAL                                            :: my_kg

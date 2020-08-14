@@ -224,7 +224,7 @@ CONTAINS
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       INTEGER, INTENT(IN)                                :: ik
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_g0', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_g0'
 
       INTEGER                                            :: ir, l, lmax, nr
       REAL(dp)                                           :: c1, prefactor, root_z_h, z_h
@@ -462,7 +462,7 @@ CONTAINS
       REAL(dp), INTENT(OUT), OPTIONAL                    :: rpgf0_h, rpgf0_s, max_rpgf0_s
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho0_s_rs, rho0_s_gs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_rho0_mpole', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_rho0_mpole'
 
       IF (ASSOCIATED(rho0_mpole)) THEN
 

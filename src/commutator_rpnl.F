@@ -77,7 +77,7 @@ CONTAINS
          POINTER                                         :: sab_orb, sap_ppnl
       REAL(KIND=dp), INTENT(IN)                          :: eps_ppnl
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_com_rpnl', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_com_rpnl'
 
       INTEGER :: handle, i, iab, iac, iatom, ibc, icol, ikind, ilist, inode, irow, iset, jatom, &
          jkind, jneighbor, kac, katom, kbc, kkind, l, lc_max, lc_min, ldai, ldsab, lppnl, maxco, &

@@ -198,7 +198,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: max_rad_local_type
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'projectors', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'projectors'
 
       REAL(dp)                                           :: eps_fit, eps_iso, eps_orb, eps_svd, &
                                                             max_rad_local

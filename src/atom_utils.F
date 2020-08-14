@@ -333,7 +333,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: maxl
       INTEGER, DIMENSION(0:lmat), INTENT(IN)             :: maxn
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_denmat', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_denmat'
 
       INTEGER                                            :: i, j, k, l, n
 
@@ -374,7 +374,7 @@ CONTAINS
       CHARACTER(LEN=*), OPTIONAL                         :: typ
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: rr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_density', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_density'
 
       CHARACTER(LEN=3)                                   :: my_typ
       INTEGER                                            :: i, j, l, n
@@ -950,7 +950,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wfn
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_wfnr0', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_wfnr0'
 
       INTEGER                                            :: i, m, n
 
@@ -981,7 +981,7 @@ CONTAINS
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nb, nv
       INTEGER, INTENT(IN)                                :: maxl
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_solve', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_solve'
 
       INTEGER                                            :: info, l, lwork, m, n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work
@@ -1818,7 +1818,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'znFn', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'znFn'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: z_exp
@@ -1856,7 +1856,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'assoc_laguerre', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'assoc_laguerre'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: f0, f1
@@ -1892,7 +1892,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: opmat, pmat
       REAL(KIND=dp)                                      :: trace
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_trace', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_trace'
 
       trace = accurate_dot_product(opmat, pmat)
 
@@ -1913,7 +1913,7 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
       INTEGER, INTENT(IN)                                :: derivatives
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'numpot_matrix', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'numpot_matrix'
 
       INTEGER                                            :: i, j, l, n
 
@@ -1976,7 +1976,7 @@ CONTAINS
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nsize
       LOGICAL, INTENT(IN), OPTIONAL                      :: all_nu
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ceri_contract', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ceri_contract'
 
       INTEGER                                            :: i1, i2, ij1, ij2, j1, j2, l1, l2, ll, &
                                                             n1, n2
@@ -2051,7 +2051,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: pmat
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nsize
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eeri_contract', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eeri_contract'
 
       INTEGER                                            :: i1, i2, ij1, ij2, j1, j2, l1, l2, lh, &
                                                             ll, n1, n2, nu
@@ -2130,7 +2130,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(IN)     :: kmat, pmat, umat, upmat
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nval, nbs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'err_matrix', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'err_matrix'
 
       INTEGER                                            :: l, m, n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tkmat, tpmat
@@ -2175,7 +2175,7 @@ CONTAINS
       TYPE(atom_state), INTENT(IN)                       :: state
       TYPE(grid_atom_type), INTENT(IN)                   :: grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'slater_density', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'slater_density'
 
       INTEGER                                            :: counter, i, l, mc, mm(0:lmat), mo, n, ns
       INTEGER, DIMENSION(lmat+1, 20)                     :: ne
@@ -2700,7 +2700,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: int
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: omat, cm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'contract2'
 
       INTEGER                                            :: handle, m, n
 
@@ -2726,7 +2726,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: int
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: omat, cm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract2add', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'contract2add'
 
       INTEGER                                            :: handle, m, n
 
@@ -2752,7 +2752,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: eri
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: omat, cm1, cm2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract4', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'contract4'
 
       INTEGER                                            :: handle, i1, i2, m1, m2, mm1, mm2, n1, &
                                                             n2, nn1, nn2

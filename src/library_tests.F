@@ -130,7 +130,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lib_test', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lib_test'
 
       INTEGER                                            :: handle, iw
       LOGICAL                                            :: explicit
@@ -249,7 +249,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'test_input', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'test_input'
 
       TYPE(section_vals_type), POINTER                   :: test_section
 
@@ -290,7 +290,7 @@ CONTAINS
       INTEGER                                            :: iw
 
       INTEGER                                            :: i, ierr, j, len, ntim, siz
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_test', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_test'
 
       REAL(KIND=dp)                                      :: perf, t, tend, tstart
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ca, cb
@@ -353,7 +353,7 @@ CONTAINS
       INTEGER                                            :: iw
 
       INTEGER                                            :: i, ierr, j, len, ntim, siz
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'matmul_test', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matmul_test'
 
       REAL(KIND=dp)                                      :: perf, t, tend, tstart, xdum
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ma, mb, mc
@@ -573,7 +573,7 @@ CONTAINS
       INTEGER                                            :: iall, ierr, it, j, len, n(3), ntim, &
                                                             radix_in, radix_out, siz, stat
       INTEGER, PARAMETER                                 :: ndate(3) = (/12, 48, 96/)
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fft_test', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fft_test'
 
       COMPLEX(KIND=dp), DIMENSION(4, 4, 4)               :: zz
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: ca, cb, cc
@@ -826,7 +826,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: pw_transfer_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pw_fft_test', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'pw_fft_test'
       REAL(KIND=dp), PARAMETER                           :: toler = 1.e-11_dp
 
       INTEGER                                            :: blocked_id, grid_span, i_layout, i_rep, &
@@ -1436,7 +1436,7 @@ CONTAINS
       INTEGER                                            :: iw
       TYPE(section_vals_type), POINTER                   :: input_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_tests', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_tests'
 
       CHARACTER, DIMENSION(3)                            :: types
       INTEGER                                            :: data_type, i_rep, k, m, n, N_loop, &

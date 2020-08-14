@@ -860,7 +860,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: fun1, fun2
       LOGICAL, INTENT(IN)                                :: divide
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hfun_scale', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hfun_scale'
       REAL(KIND=dp), PARAMETER                           :: small = 1.0e-12_dp
 
       INTEGER                                            :: i1, i2, i3, n1, n2, n3
@@ -913,7 +913,7 @@ CONTAINS
       LOGICAL                                            :: just_bounds
       INTEGER, OPTIONAL                                  :: bounds(2)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hfun_zero', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hfun_zero'
 
       INTEGER                                            :: i1, i2, i3, lb, n1, n2, n3, nzeroed, &
                                                             nzeroed_inner, ub

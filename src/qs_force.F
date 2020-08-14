@@ -130,7 +130,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_forces', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_forces'
 
       INTEGER                                            :: after, dir, handle, i, iatom, ic, ikind, &
                                                             ispin, iw, natom, nkind, nspin, &
@@ -480,7 +480,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ftype, output_unit
       TYPE(section_vals_type), POINTER                   :: print_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_forces', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_forces'
 
       CHARACTER(LEN=13)                                  :: fmtstr5
       CHARACTER(LEN=15)                                  :: fmtstr4

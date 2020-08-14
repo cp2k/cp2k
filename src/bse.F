@@ -140,7 +140,7 @@ CONTAINS
                                                             local_RI_size
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_BZ', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_BZ'
 
       INTEGER                                            :: i_Z_vector, LLL
 
@@ -196,7 +196,7 @@ CONTAINS
                                                             local_RI_size
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_AZ', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_AZ'
 
       INTEGER                                            :: a_virt, handle, i_occ, i_Z_vector, LLL
       REAL(KIND=dp)                                      :: eigen_diff

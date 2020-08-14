@@ -175,7 +175,7 @@ CONTAINS
    SUBROUTINE tmc_env_create(tmc_env)
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_env_create', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_env_create'
 
       INTEGER                                            :: handle
 

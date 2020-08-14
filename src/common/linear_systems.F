@@ -41,7 +41,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mysize
       REAL(KIND=dp), INTENT(INOUT)                       :: eigenvectors(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'solve_system', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'solve_system'
 
       INTEGER                                            :: info, lda, ldb, nrhs, ipiv(mysize)
 

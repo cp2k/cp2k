@@ -216,7 +216,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: et_proj_sec
       TYPE(et_cpl), POINTER                              :: ec
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_block_data', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_block_data'
 
       INTEGER                                            :: i, j, k, l, n, n_ao, n_atoms, n_set
       INTEGER, DIMENSION(:), POINTER                     :: atom_id, atom_nf, atom_ps, n_shell, t
@@ -386,7 +386,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: fa
       REAL(KIND=dp), OPTIONAL                            :: fb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_fermi', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_fermi'
 
 ! Routine name for debug purposes
 
@@ -929,7 +929,7 @@ CONTAINS
       TYPE(et_cpl), POINTER                              :: ec
       INTEGER                                            :: blk, n_spins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_mo_coeff', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_mo_coeff'
 
       INTEGER                                            :: j, k, l, m, n, n_ao, n_mo
       INTEGER, DIMENSION(:), POINTER                     :: list_at, list_mo
@@ -1053,7 +1053,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: mx_mo_a, mx_mo_b
       LOGICAL, OPTIONAL                                  :: fermi
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_states', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_states'
 
       INTEGER                                            :: i, mx_a, mx_b, n
       LOGICAL                                            :: prnt_fm
@@ -1612,7 +1612,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo
       INTEGER                                            :: ib, im, is
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'save_mo_cube', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'save_mo_cube'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: title
@@ -1696,7 +1696,7 @@ CONTAINS
       TYPE(et_cpl), POINTER                              :: ec
       INTEGER                                            :: n_spins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'save_el_states', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'save_el_states'
 
       INTEGER                                            :: i, j, k, l, n
       INTEGER, DIMENSION(:), POINTER                     :: list

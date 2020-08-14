@@ -58,7 +58,7 @@ CONTAINS
    SUBROUTINE cp_virial(virial_in, virial_out)
       TYPE(virial_type), POINTER                         :: virial_in, virial_out
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_virial', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_virial'
 
       virial_out%pv_total = virial_in%pv_total
       virial_out%pv_kinetic = virial_in%pv_kinetic
@@ -89,7 +89,7 @@ CONTAINS
    SUBROUTINE sym_virial(virial)
       TYPE(virial_type), POINTER                         :: virial
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'sym_virial', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'sym_virial'
 
       INTEGER                                            :: i, j
 
@@ -151,7 +151,7 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
       LOGICAL, INTENT(IN), OPTIONAL                      :: reset
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'zero_virial', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'zero_virial'
 
       LOGICAL                                            :: my_reset
 
@@ -210,7 +210,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: pv_availability, pv_calculate, pv_numer, &
                                                             pv_diagonal
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_set', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_set'
 
       IF (PRESENT(pv_total)) virial%pv_total = pv_total
       IF (PRESENT(pv_virial)) virial%pv_virial = pv_virial
@@ -240,7 +240,7 @@ CONTAINS
 
       TYPE(virial_type), POINTER                         :: virial
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_create', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_create'
 
       ALLOCATE (virial)
 
@@ -262,7 +262,7 @@ CONTAINS
    SUBROUTINE virial_release(virial)
       TYPE(virial_type), POINTER                         :: virial
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'virial_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'virial_release'
 
       IF (ASSOCIATED(virial)) THEN
          CPASSERT(virial%ref_count > 0)

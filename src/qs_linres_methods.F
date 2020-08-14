@@ -291,7 +291,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iounit
       LOGICAL, INTENT(OUT)                               :: should_stop
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_solver', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_solver'
 
       INTEGER                                            :: handle, ispin, iter, maxnmo, maxnmo_o, &
                                                             nao, ncol, nmo, nspins
@@ -655,7 +655,7 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av, chc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_op', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_op'
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(dp)                                           :: chksum
@@ -779,7 +779,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_s
       TYPE(cp_fm_type), POINTER                          :: chc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_op_1', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_op_1'
 
       INTEGER                                            :: handle, ncol, nrow
       TYPE(cp_fm_type), POINTER                          :: buf
@@ -824,7 +824,7 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2'
 
       TYPE(dft_control_type), POINTER                    :: dft_control
 
@@ -856,7 +856,7 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2_dft', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2_dft'
       REAL(KIND=dp), PARAMETER                           :: h = 0.001_dp
 
       INTEGER                                            :: handle, ikind, ispin, ncol, nkind, ns, &
@@ -1383,7 +1383,7 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2_xtb', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2_xtb'
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, is, ispin, &
                                                             na, natom, natorb, ncol, nkind, ns, &
@@ -1513,7 +1513,7 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_hfx', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_hfx'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, ncol, nspins
       LOGICAL                                            :: do_hfx
@@ -1646,7 +1646,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: hfx_sections
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_matrix', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_matrix'
 
       INTEGER                                            :: handle, irep, ispin, mspin, n_rep_hf, &
                                                             nspins
@@ -1709,7 +1709,7 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_xc_admm', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_xc_admm'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, ncol, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
@@ -2090,7 +2090,7 @@ CONTAINS
       !
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: v, psi0, S_psi0
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'preortho', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'preortho'
 
       INTEGER                                            :: handle, ispin, mp, mt, mv, np, nspins, &
                                                             nt, nv
@@ -2145,7 +2145,7 @@ CONTAINS
       !
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: v, psi0, S_psi0
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'postortho', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'postortho'
 
       INTEGER                                            :: handle, ispin, mp, mt, mv, np, nspins, &
                                                             nt, nv

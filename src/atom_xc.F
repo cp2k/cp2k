@@ -657,7 +657,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: fexc
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: xcmat
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'atom_vxc_lda', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'atom_vxc_lda'
 
       INTEGER                                            :: deriv_order, handle, l, myfun, n1, n2, &
                                                             n3, nr, nspins
@@ -811,7 +811,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: fexc
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: xcmata, xcmatb
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'atom_vxc_lsd', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'atom_vxc_lsd'
 
       INTEGER                                            :: deriv_order, handle, l, myfun, n1, n2, &
                                                             n3, nr, nspins
@@ -995,7 +995,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: dfexc
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: linxpar
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'atom_dpot_lda', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'atom_dpot_lda'
       REAL(KIND=dp), PARAMETER :: alx = 0.20_dp, blx = -0.06_dp, &
          fs = -0.75_dp*(3._dp/pi)**(1._dp/3._dp)
 
@@ -1075,7 +1075,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: rho, drho, tau, lap
       INTEGER, INTENT(IN)                                :: na
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_rho_set', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_rho_set'
       REAL(KIND=dp), PARAMETER                           :: f13 = (1.0_dp/3.0_dp)
 
       INTEGER                                            :: ia
@@ -1231,7 +1231,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: rho
       REAL(dp), DIMENSION(:), INTENT(OUT)                :: exc, vxc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lda_pade', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lda_pade'
       REAL(KIND=dp), PARAMETER :: a0 = 0.4581652932831429E+0_dp, a1 = 0.2217058676663745E+1_dp, &
          a2 = 0.7405551735357053E+0_dp, a3 = 0.1968227878617998E-1_dp, &
          b1 = 1.0000000000000000E+0_dp, b2 = 0.4504130959426697E+1_dp, &
@@ -1279,7 +1279,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: rhoa, rhob
       REAL(dp), DIMENSION(:), INTENT(OUT)                :: exc, vxca, vxcb
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lsd_pade', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lsd_pade'
       REAL(KIND=dp), PARAMETER :: a0 = 0.4581652932831429E+0_dp, a1 = 0.2217058676663745E+1_dp, &
          a2 = 0.7405551735357053E+0_dp, a3 = 0.1968227878617998E-1_dp, &
          b1 = 1.0000000000000000E+0_dp, b2 = 0.4504130959426697E+1_dp, &

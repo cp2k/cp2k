@@ -213,7 +213,7 @@ CONTAINS
       LOGICAL                                            :: open_shell, open_shell_embed
       TYPE(cp_fm_type), POINTER                          :: dm_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_full_dm', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_full_dm'
 
       INTEGER                                            :: handle, homo, nao
       REAL(KIND=dp)                                      :: coeff

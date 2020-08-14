@@ -55,7 +55,7 @@ CONTAINS
    SUBROUTINE arnoldi_iram(arnoldi_data)
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_iram', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_iram'
 
       INTEGER                                            :: handle
 
@@ -78,7 +78,7 @@ CONTAINS
    SUBROUTINE compute_evals(arnoldi_data)
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_evals', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_evals'
 
       INTEGER                                            :: handle
 
@@ -106,7 +106,7 @@ CONTAINS
       TYPE(m_x_v_vectors_type)                           :: vectors
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_init', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_init'
 
       INTEGER                                            :: handle
 
@@ -161,7 +161,7 @@ CONTAINS
       TYPE(m_x_v_vectors_type)                           :: vectors
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace'
 
       INTEGER                                            :: handle
 

@@ -1103,7 +1103,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_clv_info
       INTEGER, INTENT(INOUT)                             :: cind
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_lcolv', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_lcolv'
 
       INTEGER                                            :: ind, k, kk
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r_vals
@@ -1194,7 +1194,7 @@ CONTAINS
       TYPE(g3x3_constraint_type), DIMENSION(:), POINTER  :: g3x3_list
       INTEGER, INTENT(IN)                                :: first_atom, last_atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_lg3x3', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_lg3x3'
 
       INTEGER                                            :: kk
 
@@ -1247,7 +1247,7 @@ CONTAINS
       TYPE(g4x6_constraint_type), DIMENSION(:), POINTER  :: g4x6_list
       INTEGER, INTENT(IN)                                :: first_atom, last_atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_lg4x6', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_lg4x6'
 
       INTEGER                                            :: kk
 

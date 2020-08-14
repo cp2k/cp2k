@@ -1498,7 +1498,7 @@ CONTAINS
       TYPE(active_space_type), POINTER                   :: active_space_env
       TYPE(section_vals_type), POINTER                   :: as_input
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fcidump', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fcidump'
 
       INTEGER                                            :: i, i1, i2, i3, i4, isym, iw, nspins
       REAL(KIND=dp)                                      :: esub, mval
@@ -1832,7 +1832,7 @@ CONTAINS
    SUBROUTINE cp_fm_sqrt(amat)
       TYPE(cp_fm_type), POINTER                          :: amat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_sqrt', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_sqrt'
 
       INTEGER                                            :: i, n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigv

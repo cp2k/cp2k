@@ -60,7 +60,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: input_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_symmetry', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_symmetry'
 
       CHARACTER(LEN=2), ALLOCATABLE, DIMENSION(:)        :: element
       CHARACTER(LEN=8)                                   :: csymm, esymm

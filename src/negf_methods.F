@@ -149,7 +149,7 @@ CONTAINS
    SUBROUTINE do_negf(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_negf', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_negf'
 
       CHARACTER(len=default_string_length)               :: contact_id_str
       INTEGER                                            :: handle, icontact, ispin, log_unit, &
@@ -2756,7 +2756,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: just_contact
       REAL(kind=dp), INTENT(in), OPTIONAL                :: volume
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_print_dos', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_print_dos'
 
       CHARACTER                                          :: uks_str
       CHARACTER(len=15)                                  :: units_str

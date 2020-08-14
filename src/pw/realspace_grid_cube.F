@@ -54,7 +54,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, mpi_io
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_cube', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_cube'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER :: checksum, dest, gid, handle, i, I1, I2, I3, iat, ip, L1, L2, L3, msglen, my_rank, &
@@ -232,7 +232,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: scaling
       LOGICAL, INTENT(in)                                :: parallel_read
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cube_to_pw', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cube_to_pw'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER                                            :: extunit, gid, handle, i, ip, j, k, &

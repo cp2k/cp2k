@@ -947,7 +947,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: iterations
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'direct_mini', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'direct_mini'
       COMPLEX(KIND=dp), PARAMETER                        :: cone = (1.0_dp, 0.0_dp), &
                                                             czero = (0.0_dp, 0.0_dp)
       REAL(KIND=dp), PARAMETER                           :: gold_sec = 0.3819_dp
@@ -1939,7 +1939,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, DIMENSION(:, :)                           :: list_pair
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eberlein', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eberlein'
 
       INTEGER                                            :: i, ii, jj, npair
 
@@ -1983,7 +1983,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'zij_matrix', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'zij_matrix'
 
       INTEGER                                            :: handle, i, j, nao, nmoloc
       TYPE(cp_fm_type), POINTER                          :: opvec
@@ -2019,7 +2019,7 @@ CONTAINS
 
       TYPE(cp_fm_type), POINTER                          :: vectors
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scdm_qrfact', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'scdm_qrfact'
 
       INTEGER                                            :: handle, ncolT, nrowT
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tau

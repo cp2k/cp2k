@@ -71,7 +71,7 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'propagate_exp', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'propagate_exp'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, i, im, nmo, re
@@ -270,7 +270,7 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'propagate_bch', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'propagate_bch'
 
       INTEGER                                            :: handle, im, ispin, re
       REAL(dp)                                           :: dt

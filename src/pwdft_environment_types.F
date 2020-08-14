@@ -192,7 +192,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: stress
       TYPE(C_PTR), OPTIONAL                              :: sctx, gs_handler, ks_handler
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pwdft_env_get', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pwdft_env_get'
 
 !   ------------------------------------------------------------------------
 
@@ -254,7 +254,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: stress
       TYPE(C_PTR), OPTIONAL                              :: sctx, gs_handler, ks_handler
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pwdft_env_set', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pwdft_env_set'
 
 !   ------------------------------------------------------------------------
 

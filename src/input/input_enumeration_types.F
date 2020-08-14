@@ -68,7 +68,7 @@ CONTAINS
          OPTIONAL                                        :: desc
       LOGICAL, INTENT(in), OPTIONAL                      :: strict
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'enum_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'enum_create'
 
       INTEGER                                            :: i, j, n
 
@@ -113,7 +113,7 @@ CONTAINS
    SUBROUTINE enum_retain(enum)
       TYPE(enumeration_type), POINTER                    :: enum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'enum_retain', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'enum_retain'
 
       CPASSERT(ASSOCIATED(enum))
       CPASSERT(enum%ref_count > 0)
@@ -128,7 +128,7 @@ CONTAINS
    SUBROUTINE enum_release(enum)
       TYPE(enumeration_type), POINTER                    :: enum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'enum_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'enum_release'
 
       INTEGER                                            :: i
 
@@ -160,7 +160,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: i
       CHARACTER(len=default_string_length)               :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'enum_i2c', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'enum_i2c'
 
       INTEGER                                            :: j
       LOGICAL                                            :: found
@@ -202,7 +202,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(in)                       :: c
       INTEGER                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'enum_c2i', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'enum_c2i'
 
       CHARACTER(len=default_string_length)               :: upc
       INTEGER                                            :: iostat, j

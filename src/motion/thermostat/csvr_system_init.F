@@ -141,7 +141,7 @@ CONTAINS
       TYPE(csvr_system_type), POINTER                    :: csvr
       TYPE(section_vals_type), POINTER                   :: csvr_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'restart_csvr', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'restart_csvr'
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
       INTEGER                                            :: i, my_index, n_rep

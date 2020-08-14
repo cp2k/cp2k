@@ -111,7 +111,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: adiabatic_rescale_factor
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create'
 
       INTEGER                                            :: handle, ispin, myfun, nelec_spin(2), vdw
       LOGICAL :: compute_virial, do_adiabatic_rescaling, my_just_energy, rho_g_valid, &
@@ -642,7 +642,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_p_type), INTENT(INOUT)                     :: xc_den
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_xc_density', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_xc_density'
 
       INTEGER                                            :: handle, ispin, myfun, nspins, vdw
       LOGICAL                                            :: rho_g_valid, tau_r_valid, uf_grid, vdW_nl

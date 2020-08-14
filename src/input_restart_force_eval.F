@@ -203,7 +203,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: qmmm_section
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_qmmm', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_qmmm'
 
       LOGICAL                                            :: explicit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: work
@@ -298,7 +298,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: skip_vel_section, &
                                                             write_binary_restart_file
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys'
 
       CHARACTER(LEN=default_string_length)               :: coord_file_name, unit_str
       INTEGER                                            :: coord_file_format, handle, output_unit

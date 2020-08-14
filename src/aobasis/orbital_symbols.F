@@ -43,7 +43,7 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: lxyz
       CHARACTER(LEN=12)                                  :: symbol
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cgf_symbol', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cgf_symbol'
       CHARACTER(LEN=1), DIMENSION(3), PARAMETER          :: xyz = (/"x", "y", "z"/)
 
       INTEGER                                            :: i, ipos, l
@@ -106,7 +106,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n, l, m
       CHARACTER(LEN=6)                                   :: symbol
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sgf_symbol', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'sgf_symbol'
       CHARACTER(LEN=1), DIMENSION(-1:1), PARAMETER       :: yzx = (/"y", "z", "x"/)
 
       INTEGER                                            :: i

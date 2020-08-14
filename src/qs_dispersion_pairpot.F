@@ -2134,7 +2134,7 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: cell, ncell
       INTEGER                                            :: hash
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cellhash', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cellhash'
 
       INTEGER                                            :: ix, iy, iz, nx, ny, nz
 
@@ -2173,7 +2173,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(inout)                       :: c6, r
       LOGICAL, INTENT(inout)                             :: found
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dftd2_param', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dftd2_param'
       REAL(KIND=dp), DIMENSION(54), PARAMETER :: c6val = (/0.14_dp, 0.08_dp, 1.61_dp, 1.61_dp, &
          3.13_dp, 1.75_dp, 1.23_dp, 0.70_dp, 0.75_dp, 0.63_dp, 5.71_dp, 5.71_dp, 10.79_dp, 9.23_dp,&
          7.84_dp, 5.57_dp, 5.07_dp, 4.61_dp, 10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, &
@@ -2224,7 +2224,7 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: filename
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dftd3_c6_param', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dftd3_c6_param'
 
       INTEGER                                            :: funit, iadr, iat, jadr, jat, kk, nl, &
                                                             nlines, nn
@@ -3405,7 +3405,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atomnumber
       LOGICAL, INTENT(IN)                                :: calculate_forces, debugall
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'd3_cnumber', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'd3_cnumber'
 
       INTEGER                                            :: handle, iatom, ikind, jatom, jkind, &
                                                             mepos, natom, ni, nj, num_pe, za, zb

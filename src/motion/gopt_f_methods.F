@@ -188,7 +188,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: its
       REAL(KIND=dp)                                      :: used_time
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io_init'
 
       REAL(KIND=dp)                                      :: pres_int
 
@@ -256,7 +256,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pred, rat, step, rad
       REAL(KIND=dp)                                      :: used_time
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io'
 
       REAL(KIND=dp)                                      :: pres_diff, pres_diff_constr, pres_int, &
                                                             pres_tol
@@ -517,7 +517,7 @@ CONTAINS
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol, pres_diff_constr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_converg', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_converg'
 
       INTEGER                                            :: indf
       LOGICAL                                            :: conv_dx, conv_g, conv_p, conv_rdx, &
@@ -676,7 +676,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(OUT)                               :: conv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_rot_conv', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_rot_conv'
 
       conv = (ABS(dimer_env%rot%angle2) < dimer_env%rot%angle_tol)
       IF (output_unit > 0) THEN
@@ -780,7 +780,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: it
       REAL(KIND=dp), INTENT(IN)                          :: etot
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_geo_traj', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_geo_traj'
 
       LOGICAL                                            :: shell_adiabatic, shell_present
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
@@ -913,7 +913,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: its
       REAL(KIND=dp), INTENT(IN)                          :: opt_energy
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'geo_opt_io', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'geo_opt_io'
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set

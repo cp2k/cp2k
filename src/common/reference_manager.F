@@ -131,7 +131,7 @@ CONTAINS
       CHARACTER(LEN=*), DIMENSION(:)                     :: ISI_record
       CHARACTER(LEN=*)                                   :: DOI
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_reference', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'add_reference'
 
       CHARACTER                                          :: tmp
       CHARACTER(LEN=ISI_length)                          :: author, citation_key, year

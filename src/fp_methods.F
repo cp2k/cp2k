@@ -55,7 +55,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fp_eval', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fp_eval'
 
       CHARACTER(LEN=15)                                  :: tmpstr
       INTEGER                                            :: handle, i, icenter, iparticle, &

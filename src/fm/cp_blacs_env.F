@@ -97,7 +97,7 @@ CONTAINS
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: blacs2mpi, mpi2blacs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_blacs_info', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_blacs_info'
 
       IF (.NOT. ASSOCIATED(blacs_env)) THEN
          CPABORT("No BLACS environment")

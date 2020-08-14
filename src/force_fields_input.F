@@ -461,7 +461,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: at1, at2
       TYPE(ipbv_pot_type), POINTER                       :: ipbv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_IPBV_ff', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_IPBV_ff'
 
       IF ((at1(1:1) == 'O') .AND. (at2(1:1) == 'O')) THEN
          ipbv%rcore = 0.9_dp ! a.u.
@@ -539,7 +539,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: at1, at2
       TYPE(ft_pot_type), POINTER                         :: ft
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_BMHFT_ff', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_BMHFT_ff'
 
       ft%b = cp_unit_to_cp2k(3.1545_dp, "angstrom^-1")
       IF ((at1(1:2) == 'NA') .AND. (at2(1:2) == 'NA')) THEN
@@ -567,7 +567,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_BMHFTD_ff()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_BMHFTD_ff', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_BMHFTD_ff'
 
       CPABORT("No default parameters present for BMHFTD")
 
@@ -2067,7 +2067,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_data', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_data'
 
       INTEGER                                            :: handle, i, iw
       TYPE(cp_logger_type), POINTER                      :: logger

@@ -63,7 +63,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       CHARACTER(LEN=*), INTENT(IN)                       :: input_path
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'run_swarm', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'run_swarm'
 
       INTEGER                                            :: handle, iw, n_workers
       TYPE(cp_logger_type), POINTER                      :: logger

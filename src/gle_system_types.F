@@ -68,7 +68,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: dt, temp
       TYPE(section_vals_type), POINTER                   :: section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gle_init', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gle_init'
 
       INTEGER                                            :: i, ir, j, k, n_rep
       REAL(dp), DIMENSION(:), POINTER                    :: list
@@ -219,7 +219,7 @@ CONTAINS
    SUBROUTINE gle_dealloc(gle)
       TYPE(gle_type), POINTER                            :: gle
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gle_dealloc', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gle_dealloc'
 
       INTEGER                                            :: i
 

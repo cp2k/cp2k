@@ -117,7 +117,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: psockfd
       REAL(KIND=dp), INTENT(IN)                          :: fdata
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'writebuffer_d', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'writebuffer_d'
 
       INTEGER                                            :: handle
       REAL(KIND=C_DOUBLE), TARGET                        :: cdata
@@ -138,7 +138,7 @@ CONTAINS
    SUBROUTINE writebuffer_i(psockfd, fdata)
       INTEGER, INTENT(IN)                                :: psockfd, fdata
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'writebuffer_i', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'writebuffer_i'
 
       INTEGER                                            :: handle
       INTEGER(KIND=C_INT), TARGET                        :: cdata
@@ -162,7 +162,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: fstring
       INTEGER, INTENT(IN)                                :: plen
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'writebuffer_s', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'writebuffer_s'
 
       INTEGER                                            :: handle, i
       CHARACTER(LEN=1, KIND=C_CHAR), TARGET              :: cstring(plen)
@@ -188,7 +188,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: psockfd, plen
       REAL(KIND=dp), INTENT(IN), TARGET                  :: fdata(plen)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'writebuffer_dv', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'writebuffer_dv'
 
       INTEGER                                            :: handle
 
@@ -208,7 +208,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: psockfd
       REAL(KIND=dp), INTENT(OUT)                         :: fdata
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_d', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_d'
 
       INTEGER                                            :: handle
       REAL(KIND=C_DOUBLE), TARGET                        :: cdata
@@ -230,7 +230,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: psockfd
       INTEGER, INTENT(OUT)                               :: fdata
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_i', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_i'
 
       INTEGER                                            :: handle
       INTEGER(KIND=C_INT), TARGET                        :: cdata
@@ -254,7 +254,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(OUT)                      :: fstring
       INTEGER, INTENT(IN)                                :: plen
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_s', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_s'
 
       INTEGER                                            :: handle, i
       CHARACTER(LEN=1, KIND=C_CHAR), TARGET              :: cstring(plen)
@@ -281,7 +281,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: psockfd, plen
       REAL(KIND=dp), INTENT(OUT), TARGET                 :: fdata(plen)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_dv', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_dv'
 
       INTEGER                                            :: handle
 

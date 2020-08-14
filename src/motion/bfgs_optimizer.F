@@ -101,7 +101,7 @@ CONTAINS
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_bfgs', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_bfgs'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       CHARACTER(LEN=5)                                   :: wildcard
@@ -405,7 +405,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: g(ndf)
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rat_fun_opt', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rat_fun_opt'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp
 
       INTEGER                                            :: handle, i, indf, iref, iter, j, k, l, &
@@ -573,7 +573,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: work(ndf)
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'bfgs', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'bfgs'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, i, j, k, l, ncol_local, &
@@ -626,7 +626,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: eigval(ndf), work(ndf)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_hes_eig', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_hes_eig'
       REAL(KIND=dp), PARAMETER                           :: max_neg = -0.5_dp, max_pos = 5.0_dp, &
                                                             min_eig = 0.005_dp, one = 1.0_dp
 
@@ -747,7 +747,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: step, rad, rat, dr(ndf)
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'trust_radius', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'trust_radius'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp
 
       INTEGER                                            :: handle
@@ -793,7 +793,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: pred
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'energy_predict', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'energy_predict'
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       INTEGER                                            :: handle, i, j, k, l, ncol_local, &

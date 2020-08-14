@@ -92,7 +92,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       LOGICAL, INTENT(in)                                :: just_energy
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_ddapc', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_ddapc'
 
       INTEGER                                            :: ddapc_size, handle, i, my_id
       LOGICAL                                            :: ddapc_restraint_is_spin, &

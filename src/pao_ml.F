@@ -85,7 +85,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_ml_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_ml_init'
 
       INTEGER                                            :: i
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set

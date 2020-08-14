@@ -143,7 +143,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: Vloc
       REAL(KIND=dp), INTENT(in)                          :: alpha
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mt0din', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mt0din'
 
       INTEGER                                            :: handle, i, ii, j, jj, k, kk
       INTEGER, DIMENSION(:), POINTER                     :: glb
@@ -203,7 +203,7 @@ CONTAINS
    SUBROUTINE mt1din(screen_function)
       TYPE(pw_type), POINTER                             :: screen_function
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mt1din', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mt1din'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: dx, dy, dz, omega

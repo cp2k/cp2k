@@ -174,7 +174,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: matrix_u_fm
       LOGICAL, INTENT(in)                                :: use_jacobi
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver'
 
       INTEGER                                            :: handle, homo, nao, nmo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -484,7 +484,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: m3
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_mix', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_mix'
 
       INTEGER                                            :: blk, handle, i, iblock_col, iblock_row, j
       LOGICAL                                            :: found

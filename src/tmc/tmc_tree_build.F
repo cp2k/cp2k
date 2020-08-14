@@ -267,7 +267,7 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: job_counts
       REAL(KIND=dp), DIMENSION(4)                        :: worker_timings
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_tree_mod', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_tree_mod'
 
       INTEGER                                            :: handle, i
       TYPE(global_tree_type), POINTER                    :: global_tree
@@ -425,7 +425,7 @@ CONTAINS
       TYPE(global_tree_type), POINTER                    :: gt_tree_ptr
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_init', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_init'
 
       INTEGER                                            :: handle, i
 
@@ -990,7 +990,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: draw
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_gt_elem', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_gt_elem'
 
       INTEGER                                            :: handle
 
@@ -1050,7 +1050,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: draw
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_st_elem', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_st_elem'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: ready
@@ -1597,7 +1597,7 @@ CONTAINS
    SUBROUTINE finalize_trees(tmc_env)
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_trees', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_trees'
 
       INTEGER                                            :: i
       LOGICAL                                            :: flag

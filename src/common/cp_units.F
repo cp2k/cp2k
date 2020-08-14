@@ -165,7 +165,7 @@ CONTAINS
       TYPE(cp_unit_type), POINTER                        :: unit
       CHARACTER(len=*), INTENT(in)                       :: string
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_create'
 
       CHARACTER(default_string_length)                   :: desc
       CHARACTER(LEN=40)                                  :: formatstr
@@ -556,7 +556,7 @@ CONTAINS
    SUBROUTINE cp_unit_retain(unit)
       TYPE(cp_unit_type), POINTER                        :: unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_retain', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_retain'
 
       CPASSERT(ASSOCIATED(unit))
       CPASSERT(unit%ref_count > 0)
@@ -1084,7 +1084,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: accept_undefined
       CHARACTER(len=cp_unit_desc_length)                 :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_desc', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_desc'
 
       INTEGER                                            :: i, my_unit, pos
       LOGICAL                                            :: check, has_defaults, my_accept_undefined

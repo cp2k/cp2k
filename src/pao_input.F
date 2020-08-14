@@ -213,7 +213,7 @@ CONTAINS
       INTEGER                                            :: id
       CHARACTER(LEN=10)                                  :: s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'id2str', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'id2str'
 
       SELECT CASE (id)
       CASE (pao_gth_param)
