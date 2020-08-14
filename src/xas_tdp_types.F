@@ -32,7 +32,7 @@ MODULE xas_tdp_types
    USE input_constants,                 ONLY: &
         do_potential_coulomb, do_potential_short, do_potential_truncated, tddfpt_singlet, &
         tddfpt_spin_cons, tddfpt_spin_flip, tddfpt_triplet, xas_dip_vel, xas_tdp_by_index, &
-        xas_tdp_by_kind
+        xas_tdp_by_kind, xc_none
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -433,7 +433,7 @@ CONTAINS
 
       CHARACTER(len=default_string_length), &
          DIMENSION(:), POINTER                           :: k_list
-      INTEGER                                            :: excitation, irep, nexc, nrep
+      INTEGER                                            :: excitation, irep, nexc, nrep, xc_param
       INTEGER, DIMENSION(:), POINTER                     :: a_list, t_list
 
       NULLIFY (k_list, a_list, t_list)
@@ -546,7 +546,8 @@ CONTAINS
 
 !  Deal with the KERNEL subsection
       CALL section_vals_val_get(xas_tdp_section, "KERNEL%XC_FUNCTIONAL%_SECTION_PARAMETERS_", &
-                                l_val=xas_tdp_control%do_xc)
+                                i_val=xc_param)
+      xas_tdp_control%do_xc = xc_param .NE. xc_none
       CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%_SECTION_PARAMETERS_", &
                                 l_val=xas_tdp_control%do_hfx)
 

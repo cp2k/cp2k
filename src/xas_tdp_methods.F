@@ -124,7 +124,7 @@ MODULE xas_tdp_methods
                                               setup_xas_tdp_prob,&
                                               solve_xas_tdp_prob
    USE xc_derivatives,                  ONLY: xc_functional_get_info
-   USE xc_libxc,                        ONLY: libxc_version_info
+   USE xc_write_output,                 ONLY: xc_write
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -886,14 +886,13 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=2*default_string_length)             :: shortform
-      CHARACTER(LEN=20)                                  :: tmpStr
-      CHARACTER(LEN=20*default_string_length)            :: reference
-      INTEGER                                            :: i, il, irep, nrep
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(section_vals_type), POINTER                   :: input, libxc_fun, xc_fun, xc_functionals
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_info', routineP = moduleN//':'//routineN
 
-      NULLIFY (input, xc_functionals, libxc_fun, xc_fun, dft_control)
+      INTEGER                                            :: i
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(section_vals_type), POINTER                   :: input, kernel_section
+
+      NULLIFY (input, kernel_section, dft_control)
 
       IF (ou .LE. 0) RETURN
 
@@ -971,24 +970,11 @@ CONTAINS
          WRITE (UNIT=ou, FMT="(/,T3,A,F5.2,A)") &
             "XAS_TDP| RI Region's Radius: ", xas_tdp_control%ri_radius*angstrom, " Ang"
 
-         CALL libxc_version_info(tmpStr)
-         WRITE (UNIT=ou, FMT="(T3,A,A,/,T3,A,/)") &
-            "XAS_TDP| XC Kernel Functional(s) from LIBXC Vers. ", TRIM(tmpStr(1:5)), &
-            "         (Marques, Oliveira, Burnus, CPC 183, 2272 (2012)):"
-         xc_functionals => section_vals_get_subs_vals(input, "DFT%XAS_TDP%KERNEL%XC_FUNCTIONAL")
-         xc_fun => section_vals_get_subs_vals2(xc_functionals, i_section=1)
-         CALL section_vals_get(xc_fun, n_repetition=nrep)
-         DO irep = 1, nrep
-            NULLIFY (libxc_fun)
-            CALL section_vals_duplicate(xc_fun, libxc_fun, i_rep_start=irep, i_rep_end=irep)
-            IF (.NOT. ASSOCIATED(libxc_fun)) EXIT
-            CALL xc_functional_get_info(libxc_fun, lsd=.TRUE., reference=reference, shortform=shortform)
-            CALL section_vals_release(libxc_fun)
-            WRITE (ou, FMT="('  FUNCTIONAL| ',A,':')") TRIM(shortform)
-            DO il = 1, LEN_TRIM(reference), 67
-               WRITE (ou, FMT="('  FUNCTIONAL| ',a67)") reference(il:)
-            END DO
-         END DO
+         WRITE (UNIT=ou, FMT="(T3,A,/)") &
+            "XAS_TDP| XC Kernel Functional(s) used for the kernel:"
+
+         kernel_section => section_vals_get_subs_vals(input, "DFT%XAS_TDP%KERNEL")
+         CALL xc_write(ou, kernel_section, lsd=.TRUE.)
       END IF
 
       !HFX kernel
