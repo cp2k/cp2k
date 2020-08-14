@@ -6,6 +6,9 @@
 MODULE fast
 
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: z_one,&
+                                              z_zero,&
+                                              zero
 
    IMPLICIT NONE
 
@@ -43,16 +46,14 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: ex, ey, ez
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: scr
 
-      COMPLEX(KIND=dp)                                   :: cone
       INTEGER                                            :: n2, n3
 
-      cone = CMPLX(1._dp, KIND=dp)
       n2 = n(1)*n(2)
       n3 = n2*n(3)
-      scr(1:n2) = CMPLX(0._dp, KIND=dp)
+      scr(1:n2) = z_zero
       CALL zgeru(n(1), n(2), zb, ex, 1, ey, 1, scr, n(1))
       CALL zscal(n3, za, cmat, 1)
-      CALL zgeru(n2, n(3), cone, scr, 1, ez, 1, cmat, n2)
+      CALL zgeru(n2, n(3), z_one, scr, 1, ez, 1, cmat, n2)
 
    END SUBROUTINE rankup
 
@@ -89,7 +90,7 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: cvec(:, :, :)
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE), SHARED(cvec,rvec)
-      cvec(:, :, :) = cvec(:, :, :)*rvec(:, :, :)
+      cvec(:, :, :) = cvec(:, :, :)*CMPLX(rvec(:, :, :), KIND=dp)
 !$OMP END PARALLEL WORKSHARE
 
    END SUBROUTINE vr_x_vc
@@ -149,7 +150,7 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: z(:, :, :)
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE), SHARED(r1,z)
-      z(:, :, :) = CMPLX(r1(:, :, :), 0.0_dp, KIND=dp)
+      z(:, :, :) = CMPLX(r1(:, :, :), zero, KIND=dp)
 !$OMP END PARALLEL WORKSHARE
 
    END SUBROUTINE copy_rc
@@ -166,7 +167,7 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: z(:, :)
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE), SHARED(z)
-      z(:, :) = 0.0_dp
+      z(:, :) = z_zero
 !$OMP END PARALLEL WORKSHARE
    END SUBROUTINE zero_c2
 
@@ -182,7 +183,7 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: z(:, :, :)
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE), SHARED(z)
-      z(:, :, :) = 0.0_dp
+      z(:, :, :) = z_zero
 !$OMP END PARALLEL WORKSHARE
 
    END SUBROUTINE zero_c3

@@ -138,7 +138,7 @@ MODULE mathconstants
                                radians = one/degree ! degree  -> radians
 
    COMPLEX(KIND=dp), PARAMETER :: gaussi = (0.0_dp, 1.0_dp) ! i = SQRT(-1)
-   COMPLEX(kind=dp), PARAMETER :: z_mone = (-1.0_dp, 0.0_dp), &
+   COMPLEX(KIND=dp), PARAMETER :: z_mone = (-1.0_dp, 0.0_dp), &
                                   z_one = (1.0_dp, 0.0_dp), &
                                   z_zero = (0.0_dp, 0.0_dp)
 
