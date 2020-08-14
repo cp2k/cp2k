@@ -16,7 +16,8 @@ MODULE xc_write_output
                                               section_vals_get_subs_vals2,&
                                               section_vals_release,&
                                               section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_val_get, &
+                                              section_get_keyword_index
    USE kinds,                           ONLY: default_string_length
    USE xc_derivatives,                  ONLY: xc_functional_get_info
    USE xc_libxc,                        ONLY: libxc_version_info
@@ -55,10 +56,15 @@ CONTAINS
                                                       "XC_FUNCTIONAL")
          CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=myfun)
          IF (myfun /= xc_none) THEN
-            CALL section_vals_val_get(xc_section, "FUNCTIONAL_ROUTINE", &
-                                      c_val=tmpStr)
-            WRITE (output_unit, fmt="(' FUNCTIONAL| ROUTINE=',a)") &
-               TRIM(tmpStr)
+
+            !check if FUNCTIONAL_ROUTINE keyword present
+            IF (section_get_keyword_index(xc_section%section, "FUNCTIONAL_ROUTINE") .NE. -2) THEN
+               CALL section_vals_val_get(xc_section, "FUNCTIONAL_ROUTINE", &
+                                         c_val=tmpStr)
+               WRITE (output_unit, fmt="(' FUNCTIONAL| ROUTINE=',a)") &
+                  TRIM(tmpStr)
+            END IF
+
             CALL xc_functionals_expand(xc_fun_section, xc_section)
             ifun = 0
             DO

@@ -114,7 +114,7 @@ MODULE input_cp2k_dft
    USE input_cp2k_tb,                   ONLY: create_dftb_control_section,&
                                               create_xtb_control_section
    USE input_cp2k_transport,            ONLY: create_transport_section
-   USE input_cp2k_xc,                   ONLY: create_libxc_section,&
+   USE input_cp2k_xc,                   ONLY: create_xc_fun_section,&
                                               create_xc_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -8105,28 +8105,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
 !  The XC_FUNCTIONAL subsubsection
-      CALL section_create(subsubsection, __LOCATION__, name="XC_FUNCTIONAL", &
-                          description="The exchange correlation functional(s) to use for the xc "// &
-                          "part of the kernel. Built from any combination of LDA, GGA "// &
-                          "and HYB functional from LIBXC.", &
-                          n_keywords=0, &
-                          n_subsections=1, &
-                          repeats=.FALSE.)
-
-      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Enables the addition of xc functionals to the kernel.", &
-                          usage="&XC_FUNCTIONAL {logical}", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(subsubsection, keyword)
-      CALL keyword_release(keyword)
-
-      ! LIBXC functional
-      CALL create_libxc_section(subsubsubsection, "LIBXC", "Uses functionals from LIBXC", &
-                                "FUNCTIONAL {name}")
-      CALL section_add_subsection(subsubsection, subsubsubsection)
-      CALL section_release(subsubsubsection)
-
+      CALL create_xc_fun_section(subsubsection)
       CALL section_add_subsection(subsection, subsubsection)
       CALL section_release(subsubsection)
 
