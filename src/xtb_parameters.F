@@ -490,7 +490,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       INTEGER, INTENT(IN)                                :: ngauss
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_xtb_basis', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_xtb_basis'
 
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: symbol
       INTEGER                                            :: i, nshell
@@ -553,7 +553,7 @@ CONTAINS
       TYPE(xtb_control_type), INTENT(IN), POINTER        :: xtb_control
       REAL(KIND=dp)                                      :: kab
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_set_kab', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_set_kab'
 
       INTEGER                                            :: j, z
       LOGICAL                                            :: custom

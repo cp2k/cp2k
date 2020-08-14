@@ -73,7 +73,7 @@ CONTAINS
    SUBROUTINE eip_bazant(eip_env)
       TYPE(eip_environment_type), POINTER                :: eip_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_bazant', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_bazant'
 
       INTEGER                                            :: handle, i, iparticle, iparticle_kind, &
                                                             iparticle_local, iw, natom, &
@@ -239,7 +239,7 @@ CONTAINS
    SUBROUTINE eip_lenosky(eip_env)
       TYPE(eip_environment_type), POINTER                :: eip_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_lenosky', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_lenosky'
 
       INTEGER                                            :: handle, i, iparticle, iparticle_kind, &
                                                             iparticle_local, iw, natom, &

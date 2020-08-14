@@ -670,7 +670,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: unit_nr
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: charges
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tb_dipole', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'tb_dipole'
 
       CHARACTER(LEN=default_string_length)               :: description, dipole_type
       COMPLEX(KIND=dp)                                   :: dzeta, dzphase(3), zeta, zphase(3)
@@ -780,7 +780,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfn_mix_tb', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'wfn_mix_tb'
 
       INTEGER                                            :: iounit, ispin, nao, nmo
       REAL(dp), DIMENSION(:), POINTER                    :: mo_eigenvalues
@@ -862,7 +862,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section
       CHARACTER(LEN=*)                                   :: tb_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_mos', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_mos'
 
       INTEGER                                            :: ik, iounit
       LOGICAL                                            :: do_kpoints
@@ -949,7 +949,7 @@ CONTAINS
       INTEGER                                            :: nlumo
       INTEGER, INTENT(OUT)                               :: nlumos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo_tb', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo_tb'
 
       INTEGER                                            :: homo, iounit, ispin, n, nao, nmo
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1028,7 +1028,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rebuild_pw_env', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rebuild_pw_env'
 
       LOGICAL                                            :: skip_load_balance_distributed
       TYPE(cell_type), POINTER                           :: cell
@@ -1417,7 +1417,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: elf_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_elf', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_elf'
 
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             title
@@ -1517,7 +1517,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: cube_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_mo_cubes', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_mo_cubes'
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
       INTEGER                                            :: homo, i, ifirst, ilast, iounit, ir, &

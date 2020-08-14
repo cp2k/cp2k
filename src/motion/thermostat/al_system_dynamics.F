@@ -59,7 +59,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: group
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: vel(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'al_particles', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'al_particles'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: my_shell_adiabatic
@@ -180,7 +180,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: vel(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'al_OU_step', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'al_OU_step'
 
       INTEGER :: first_atom, i, ii, ikind, imap, imol, imol_local, ipart, iparticle_kind, &
          iparticle_local, jj, last_atom, nmol_local, nparticle, nparticle_kind, nparticle_local

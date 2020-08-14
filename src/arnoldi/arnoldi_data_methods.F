@@ -223,7 +223,7 @@ CONTAINS
    SUBROUTINE select_evals(arnoldi_data)
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'select_evals', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'select_evals'
 
       IF (has_d_real(arnoldi_data)) CALL select_evals_d(arnoldi_data)
       IF (has_s_real(arnoldi_data)) CALL select_evals_s(arnoldi_data)

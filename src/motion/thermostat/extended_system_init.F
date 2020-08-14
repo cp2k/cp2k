@@ -75,7 +75,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: work_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_npt', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_npt'
 
       INTEGER                                            :: handle, i, ind, j
       LOGICAL                                            :: explicit, restart
@@ -588,7 +588,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: binary_restart_file_name, thermostat_name
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'restart_nose', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'restart_nose'
 
       INTEGER                                            :: handle, i, ind, j
       LOGICAL                                            :: explicit

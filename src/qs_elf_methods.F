@@ -59,7 +59,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: elf_r
       REAL(kind=dp), INTENT(IN)                          :: rho_cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_elf_calc', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_elf_calc'
       REAL(KIND=dp), PARAMETER                           :: ELFCUT = 0.0001_dp, &
                                                             f18 = (1.0_dp/8.0_dp), &
                                                             f23 = (2.0_dp/3.0_dp), &

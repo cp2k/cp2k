@@ -119,7 +119,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: vac_plus
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'operator2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'operator2'
 
       INTEGER                                            :: ax, ay, az, coc, cocx, cocy, cocz, cx, &
                                                             cy, cz, i, ipgf, j, jpgf, la, lc, &
@@ -443,7 +443,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
                                                             r_cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cps_coulomb2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cps_coulomb2'
 
       INTEGER                                            :: n
       REAL(KIND=dp)                                      :: f0, t
@@ -488,7 +488,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
                                                             r_cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cps_verf2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cps_verf2'
 
       INTEGER                                            :: n
       REAL(KIND=dp)                                      :: arg, comega, f0, t
@@ -535,7 +535,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
                                                             r_cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cps_verfc2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cps_verfc2'
 
       INTEGER                                            :: n
       REAL(KIND=dp)                                      :: argerf, comega, f0, t
@@ -584,7 +584,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
                                                             r_cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cps_vgauss2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cps_vgauss2'
 
       INTEGER                                            :: j, n
       REAL(KIND=dp)                                      :: arg, dummy, eta, expT, f0, fsign, t, tau
@@ -642,7 +642,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
                                                             r_cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cps_gauss2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cps_gauss2'
 
       INTEGER                                            :: n
       REAL(KIND=dp)                                      :: dummy, expT, f0, t, tau
@@ -689,7 +689,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
                                                             r_cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cps_truncated2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cps_truncated2'
 
       INTEGER                                            :: n
       LOGICAL                                            :: use_gamma

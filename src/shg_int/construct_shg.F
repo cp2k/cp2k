@@ -148,7 +148,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:lmax, 0:lmax), &
          INTENT(INOUT)                                   :: A
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_Alm', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_Alm'
 
       INTEGER                                            :: l, m
       REAL(KIND=dp)                                      :: temp
@@ -221,7 +221,7 @@ CONTAINS
          INTENT(IN)                                      :: Rc, Rs
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: Waux_mat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_W_matrix', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_W_matrix'
 
       INTEGER                                            :: j, k, la, labmin, laj, lb, lbj, ma, &
                                                             ma_m, ma_p, mb, mb_m, mb_p, nla, nlb
@@ -326,7 +326,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(INOUT)                                   :: dWaux_mat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_dW_matrix', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_dW_matrix'
 
       INTEGER                                            :: ima, imam, imb, imbm, ipa, ipam, ipb, &
                                                             ipbm, j, jmax, la, labm, labmin, lamb, &

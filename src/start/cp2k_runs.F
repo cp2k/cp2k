@@ -173,7 +173,7 @@ CONTAINS
       CHARACTER(len=default_path_length), &
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_run', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_run'
 
       INTEGER                                            :: f_env_handle, ierr, iter_level, &
                                                             method_name_id, new_env_id, &
@@ -853,7 +853,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_xml_file()
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xml_file', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xml_file'
 
       INTEGER                                            :: i, ie, is, unit_number
       TYPE(section_type), POINTER                        :: root_section
@@ -944,7 +944,7 @@ CONTAINS
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
       INTEGER, INTENT(in), OPTIONAL                      :: mpi_comm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'run_input', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'run_input'
 
       INTEGER                                            :: unit_nr
       TYPE(cp_para_env_type), POINTER                    :: para_env

@@ -103,7 +103,7 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(global_constraint_type), POINTER              :: gci
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_nfree', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_nfree'
 
       INTEGER                                            :: natom, nconstraint_ext, nconstraint_int, &
                                                             nrestraints_int, rot_dof, &
@@ -944,7 +944,7 @@ CONTAINS
          INTENT(INOUT)                                   :: npt
       INTEGER, INTENT(IN)                                :: group
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ke_region_baro', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ke_region_baro'
 
       INTEGER                                            :: i, j, ncoef
 

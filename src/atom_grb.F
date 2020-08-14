@@ -787,7 +787,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(out)                      :: label
       INTEGER, DIMENSION(0:), INTENT(in)                 :: np, nb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'basis_label', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'basis_label'
       INTEGER                                            :: i, l, lmax
       CHARACTER(len=1), DIMENSION(0:7), PARAMETER :: &
          lq = (/"s", "p", "d", "f", "g", "h", "i", "k"/)
@@ -845,7 +845,7 @@ CONTAINS
       REAL(dp), INTENT(OUT)                              :: afun
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'grb_fit', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'grb_fit'
 
       INTEGER                                            :: do_eric, do_erie, reltyp, zval
       LOGICAL                                            :: eri_c, eri_e
@@ -953,7 +953,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iunit
       TYPE(section_vals_type), POINTER                   :: powell_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_grb', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_grb'
 
       INTEGER                                            :: i, k, l, ll, n10, nr
       REAL(KIND=dp)                                      :: al, cnum, crad, cradx, ear, fopt, rk
@@ -1116,7 +1116,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nbas, iunit
       TYPE(section_vals_type), POINTER                   :: powell_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_pol', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_pol'
 
       INTEGER                                            :: i, n10
       REAL(KIND=dp)                                      :: fopt, x(2)
@@ -1217,7 +1217,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: ener
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: orb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hydrogenic', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hydrogenic'
 
       INTEGER                                            :: info, k, lwork, n
       REAL(KIND=dp)                                      :: cf

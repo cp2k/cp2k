@@ -306,7 +306,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace, vtau_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'response_force', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'response_force'
 
       INTEGER                                            :: handle, iounit, ispin, mspin, n_rep_hf, &
                                                             nao, nao_aux, natom, nder, nimages, &

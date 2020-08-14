@@ -101,7 +101,7 @@ CONTAINS
    SUBROUTINE ec_env_release(ec_env)
       TYPE(energy_correction_type), POINTER              :: ec_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_env_release', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_env_release'
 
       INTEGER                                            :: handle, iab
 

@@ -171,7 +171,7 @@ CONTAINS
       TYPE(cp_result_type), OPTIONAL, POINTER            :: results
       REAL(KIND=dp), OPTIONAL                            :: pot_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_embed_env', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_embed_env'
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
@@ -259,7 +259,7 @@ CONTAINS
       TYPE(cp_para_env_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: sub_para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_embed_env', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_embed_env'
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds

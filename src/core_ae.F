@@ -93,7 +93,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ae', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ae'
 
       INTEGER :: atom_a, handle, iatom, icol, ikind, img, irow, iset, jatom, jkind, jset, katom, &
          kkind, ldai, ldsab, maxco, maxl, maxnset, maxsgf, mepos, na_plus, natom, nb_plus, ncoa, &
@@ -512,7 +512,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zetb
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'verfc_force', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'verfc_force'
 
       INTEGER                                            :: ic_a, ic_b, icam1, icam2, icam3, icap1, &
                                                             icap2, icap3, icax, icbm1, icbm2, &

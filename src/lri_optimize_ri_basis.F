@@ -539,7 +539,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zet, zet_init, zet_trans
       INTEGER, INTENT(IN)                                :: nvar
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'transfer_exp', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'transfer_exp'
 
       REAL(KIND=dp)                                      :: a
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zet_max, zet_min

@@ -117,7 +117,7 @@ CONTAINS
       TYPE(helium_solvent_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: helium_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart'
       CHARACTER(LEN=30), DIMENSION(2), PARAMETER :: &
          keys = (/"PRINT%RESTART_HISTORY", "PRINT%RESTART        "/)
 
@@ -409,7 +409,7 @@ CONTAINS
          OPTIONAL, POINTER                               :: helium_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: save_mem, write_binary_restart_file
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_input', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_input'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: do_respa, lcond, my_save_mem, &
@@ -510,7 +510,7 @@ CONTAINS
          OPTIONAL, POINTER                               :: helium_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: save_mem, write_binary_restart_file
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion'
 
       INTEGER                                            :: counter, handle, handle2, i, irep, isec, &
                                                             j, nhc_len, tot_nhcneed

@@ -192,7 +192,7 @@ CONTAINS
       TYPE(md_ener_type), POINTER                        :: md_ener
       INTEGER                                            :: nfree_qm
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_nfree_qm', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_nfree_qm'
 
       INTEGER                                            :: ip
       INTEGER, POINTER                                   :: cur_indices(:), cur_labels(:)
@@ -252,7 +252,7 @@ CONTAINS
       TYPE(md_ener_type), INTENT(inout)                  :: md_ener
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nve', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nve'
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(thermostat_type), POINTER                     :: thermostat_coeff, thermostat_shell
@@ -317,7 +317,7 @@ CONTAINS
       TYPE(md_ener_type), INTENT(inout)                  :: md_ener
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt'
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(thermostat_type), POINTER                     :: thermostat_coeff, thermostat_part, &
@@ -351,7 +351,7 @@ CONTAINS
       TYPE(md_ener_type), INTENT(inout)                  :: md_ener
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_npe', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_npe'
 
       INTEGER                                            :: nfree
       TYPE(cell_type), POINTER                           :: box
@@ -392,7 +392,7 @@ CONTAINS
       TYPE(md_ener_type), INTENT(inout)                  :: md_ener
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_npt', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_npt'
 
       INTEGER                                            :: nfree
       TYPE(cell_type), POINTER                           :: box
@@ -466,7 +466,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: tkind, tshell
       INTEGER, INTENT(IN)                                :: group
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_part_ke', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_part_ke'
 
       INTEGER                                            :: i, iparticle, iparticle_kind, &
                                                             iparticle_local, nparticle_kind, &

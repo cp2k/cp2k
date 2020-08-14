@@ -173,7 +173,7 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(md_ener_type), POINTER                        :: md_ener
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'md_energy', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'md_energy'
 
       INTEGER                                            :: natom
       LOGICAL                                            :: shell_adiabatic, tkind, tshell

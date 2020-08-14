@@ -3014,7 +3014,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: energy_out
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: m_eda_out, m_cta_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xalmo_analysis', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xalmo_analysis'
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(KIND=dp)                                      :: energy_ispin, spin_factor
@@ -3222,7 +3222,7 @@ CONTAINS
 
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'split_v_blk', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'split_v_blk'
 
       INTEGER                                            :: discarded_v, handle, iblock_col, &
                                                             iblock_col_size, iblock_row, &
@@ -8026,7 +8026,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN)                                :: path_num
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_hessian', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_hessian'
 
       INTEGER                                            :: dim0, handle, ispin, nspins
       REAL(KIND=dp)                                      :: penalty_prefactor_local, spin_factor

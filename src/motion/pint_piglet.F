@@ -577,7 +577,7 @@ CONTAINS
       CHARACTER(LEN=20), INTENT(IN)                      :: myunit
       CHARACTER(default_string_length), INTENT(OUT)      :: msg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'a_mat_to_cp2k', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'a_mat_to_cp2k'
 
       CHARACTER(LEN=20)                                  :: isunit
       INTEGER                                            :: i, imode, j
@@ -625,7 +625,7 @@ CONTAINS
       CHARACTER(LEN=20), INTENT(IN)                      :: myunit
       CHARACTER(default_string_length), INTENT(OUT)      :: msg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'c_mat_to_cp2k', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'c_mat_to_cp2k'
 
       CHARACTER(LEN=20)                                  :: isunit
       INTEGER                                            :: i, imode, j

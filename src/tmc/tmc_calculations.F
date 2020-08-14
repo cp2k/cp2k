@@ -312,7 +312,7 @@ CONTAINS
       TYPE(tmc_atom_type), DIMENSION(:), OPTIONAL        :: atoms
       REAL(KIND=dp), DIMENSION(:), POINTER               :: center
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'center_of_mass', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'center_of_mass'
 
       INTEGER                                            :: handle, i
       REAL(KIND=dp)                                      :: mass_sum, mass_tmp
@@ -361,7 +361,7 @@ CONTAINS
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       REAL(KIND=dp), DIMENSION(3, 2, 3)                  :: rnd_seed
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_vel', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_vel'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: kB, mass_tmp, rnd1, rnd2
@@ -398,7 +398,7 @@ CONTAINS
       TYPE(tmc_atom_type), DIMENSION(:), POINTER         :: atoms
       REAL(KIND=dp)                                      :: ekin
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_e_kin', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_e_kin'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: mass_tmp

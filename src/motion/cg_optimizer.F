@@ -70,7 +70,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
       LOGICAL, INTENT(OUT), OPTIONAL                     :: do_update
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_cg', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_cg'
 
       INTEGER                                            :: handle, output_unit
       LOGICAL                                            :: my_do_update
@@ -116,7 +116,7 @@ CONTAINS
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       LOGICAL, INTENT(OUT), OPTIONAL                     :: do_update
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cg_main', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cg_main'
 
       CHARACTER(LEN=5)                                   :: wildcard
       INTEGER                                            :: handle, iter_nr, its, max_steep_steps, &

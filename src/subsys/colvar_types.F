@@ -422,7 +422,7 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar
       INTEGER, INTENT(in)                                :: colvar_id
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_create'
 
       CPASSERT(.NOT. ASSOCIATED(colvar))
       ALLOCATE (colvar)
@@ -532,7 +532,7 @@ CONTAINS
    SUBROUTINE colvar_setup(colvar)
       TYPE(colvar_type), POINTER                         :: colvar
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_setup', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_setup'
 
       INTEGER                                            :: i, idum, iend, ii, istart, j, np, stat
       INTEGER, DIMENSION(:), POINTER                     :: list
@@ -1215,7 +1215,7 @@ CONTAINS
    RECURSIVE SUBROUTINE colvar_release(colvar)
       TYPE(colvar_type), POINTER                         :: colvar
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_release'
 
       INTEGER                                            :: i
 
@@ -1395,7 +1395,7 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar_out, colvar_in
       INTEGER, INTENT(IN), OPTIONAL                      :: i_atom_offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone'
 
       INTEGER                                            :: i, my_offset, ndim, ndim2, stat
 
@@ -2020,7 +2020,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: b
       REAL(KIND=dp)                                      :: diff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diff_colvar', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'diff_colvar'
 
       diff = colvar%ss - b
       IF (colvar%type_id == torsion_colvar_id) THEN

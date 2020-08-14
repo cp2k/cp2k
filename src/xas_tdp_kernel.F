@@ -218,7 +218,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'coulomb', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'coulomb'
 
       LOGICAL                                            :: quadrants(3)
       REAL(dp), DIMENSION(:, :), POINTER                 :: PQ
@@ -287,7 +287,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sc_os_xc', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'sc_os_xc'
 
       INTEGER                                            :: ndo_mo, ri_atom
       LOGICAL                                            :: quadrants(3)
@@ -505,7 +505,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rcs_xc', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rcs_xc'
 
       INTEGER                                            :: nsgfp, ri_atom
       LOGICAL                                            :: quadrants(3)
@@ -675,7 +675,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ondiag_ex', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ondiag_ex'
 
       INTEGER                                            :: blk, iblk, iso, jblk, jso, nblk, ndo_mo, &
                                                             ndo_so, nsgfa, nsgfp, ri_atom, source
@@ -827,7 +827,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'offdiag_ex_sc', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'offdiag_ex_sc'
 
       INTEGER                                            :: ndo_mo
       LOGICAL                                            :: do_roks, do_uks, quadrants(3)
@@ -1349,7 +1349,7 @@ CONTAINS
       REAL(dp), INTENT(IN), OPTIONAL                     :: eps_filter
       LOGICAL, INTENT(IN), OPTIONAL                      :: mo_transpose
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ri_int_product', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ri_int_product'
 
       INTEGER                                            :: blk, i, iblk, iso, j, jblk, jso, nblk, &
                                                             ndo_so

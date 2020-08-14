@@ -61,7 +61,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: admm_section
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_admm', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_admm'
 
       CHARACTER(LEN=2)                                   :: btyp
       INTEGER                                            :: i, ifun, j, l, m, maxl, mo, n, na, nb, &

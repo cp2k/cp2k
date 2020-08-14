@@ -4232,7 +4232,7 @@ CONTAINS
                                                             n_level_gw
       REAL(KIND=dp), INTENT(IN)                          :: h
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mat_N', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mat_N'
 
       COMPLEX(KIND=dp)                                   :: im_unit, re_unit
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: Lambda_tmp
@@ -4325,7 +4325,7 @@ CONTAINS
          INTENT(IN)                                      :: vec_omega_fit_gw
       INTEGER, INTENT(IN)                                :: num_poles, num_fit_points, n_level_gw
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_chi2', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_chi2'
 
       COMPLEX(KIND=dp)                                   :: func_val, im_unit
       INTEGER                                            :: handle, iii, jjj, kkk
@@ -4372,7 +4372,7 @@ CONTAINS
                                                             gw_corr_lev_tot, homo, nmo, unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_ic_corr', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_ic_corr'
 
       CHARACTER(4)                                       :: occ_virt
       INTEGER                                            :: handle, n_level_gw, n_level_gw_ref
@@ -5012,7 +5012,7 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(IN)                  :: mo_bounds
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_sigma_gw', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_sigma_gw'
 
       INTEGER                                            :: blk, handle, n, n_end, n_end_block, &
                                                             n_start, n_start_block

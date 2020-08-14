@@ -748,7 +748,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: RA, RB, RC, zeta, zetb, zetc, a_mm, lgth
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: R_bounds_3
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_3c_1d', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_3c_1d'
 
       INTEGER                                            :: l_max, m_max, n_max
       INTEGER                                            :: nR1, nR2

@@ -609,7 +609,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: r, r2, wr
       INTEGER, INTENT(IN)                                :: radial_quadrature
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'radial_grid', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'radial_grid'
 
       INTEGER                                            :: i
       REAL(dp)                                           :: cost, f, sint, sint2, t, w, x

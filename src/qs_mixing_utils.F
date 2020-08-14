@@ -515,7 +515,7 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixing_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixing_init'
 
       INTEGER                                            :: handle, iat, ib, ig, ig1, ig_count, &
                                                             iproc, ispin, n1, n2, natom, nbuffer, &

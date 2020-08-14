@@ -1020,7 +1020,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_os
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_inv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_metric', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_metric'
 
       INTEGER                                            :: blk, handle, i, iblk, jblk, nao, &
                                                             nblk_row, ndo_mo, nspins
@@ -1221,7 +1221,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'include_os_soc', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'include_os_soc'
 
       INTEGER                                            :: group, handle, homo, iex, isc, isf, nao, &
                                                             ndo_mo, ndo_so, nex, npcols, nprows, &
@@ -2068,7 +2068,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: eps_filter
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_os_amew_op', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_os_amew_op'
 
       INTEGER                                            :: dim_op, homo, i, isc, nao, ndo_mo, &
                                                             ndo_so, nex, nsc, nsf, ntot

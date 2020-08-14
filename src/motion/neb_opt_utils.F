@@ -320,7 +320,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: diis_section
       INTEGER, INTENT(IN)                                :: iw2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'neb_ls', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'neb_ls'
 
       INTEGER                                            :: i, np
       REAL(KIND=dp)                                      :: a, b, max_stepsize, xa, xb, xc_cray, ya, &

@@ -103,7 +103,7 @@ CONTAINS
          POINTER                                         :: pmat_ext
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_subset', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_subset'
 
       LOGICAL                                            :: lrigpw
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -152,7 +152,7 @@ CONTAINS
          POINTER                                         :: pmat_ext
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_embed', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_embed'
 
       INTEGER                                            :: handle, ispin, isub, natom, nspins
       LOGICAL                                            :: use_virial
@@ -659,7 +659,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
       REAL(KIND=dp), INTENT(out)                         :: ekin_mol
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_atomic', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_atomic'
 
       INTEGER                                            :: handle, ispin, nspins
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix, tnadd_matrix
@@ -710,7 +710,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho1
       TYPE(section_vals_type), POINTER                   :: xc_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_kernel', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_kernel'
 
       INTEGER                                            :: handle, ispin, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo

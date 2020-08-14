@@ -149,7 +149,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol, bname
       INTEGER, INTENT(IN)                                :: iunit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'basis_out', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'basis_out'
 
       INTEGER                                            :: ipgf, iset, ishell, ll, nset
       INTEGER, DIMENSION(0:9)                            :: lset

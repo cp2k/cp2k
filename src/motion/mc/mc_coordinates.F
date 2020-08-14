@@ -1021,7 +1021,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nchains, nunits, mol_type
       INTEGER, INTENT(INOUT)                             :: total_clus
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cluster_search', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cluster_search'
 
       INTEGER                                            :: counter, handle, imol, iunit, jmol, &
                                                             junit, nend, nstart, nunit, nunits_i, &

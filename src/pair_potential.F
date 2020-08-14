@@ -75,7 +75,7 @@ CONTAINS
       TYPE(pair_potential_pp_type), POINTER              :: potparm
       INTEGER, INTENT(IN)                                :: ntype
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_genpot', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_genpot'
 
       INTEGER                                            :: handle, i, j, k, ngp
       TYPE(pair_potential_single_type), POINTER          :: pot

@@ -280,7 +280,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(IN)                                :: ionode
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_rng', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_rng'
 
       INTEGER                                            :: i, sumi
       REAL(KIND=dp)                                      :: sum, sum3

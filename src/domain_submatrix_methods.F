@@ -180,7 +180,7 @@ CONTAINS
       TYPE(domain_submatrix_type), INTENT(INOUT)         :: copy
       LOGICAL, INTENT(IN)                                :: copy_data
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'copy_submatrix', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'copy_submatrix'
 
       INTEGER                                            :: handle, icol, irow
 
@@ -328,7 +328,7 @@ CONTAINS
       TYPE(domain_submatrix_type), INTENT(INOUT)         :: submatrix
       REAL(KIND=dp), INTENT(IN)                          :: scalar
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_submatrix', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_submatrix'
 
       INTEGER                                            :: ds1, ds2, handle, ms1, ms2
 
@@ -1650,7 +1650,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: row, col
       LOGICAL                                            :: qblk_exists
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qblk_exists', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qblk_exists'
 
       INTEGER                                            :: first, last, mid, ndomains
 

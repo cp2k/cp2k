@@ -252,7 +252,7 @@ CONTAINS
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_ref
       CHARACTER(LEN=*), INTENT(in)                       :: name
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_mo_set', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_mo_set'
 
       INTEGER                                            :: nao, nmo, nomo
 
@@ -463,7 +463,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: uniform_occupation
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kTS, mu, flexible_electron_count
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_set', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_set'
 
       IF (PRESENT(maxocc)) mo_set%maxocc = maxocc
       IF (PRESENT(homo)) mo_set%homo = homo

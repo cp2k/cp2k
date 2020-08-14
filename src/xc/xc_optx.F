@@ -45,7 +45,7 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'optx_lda_info', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'optx_lda_info'
 
       IF (PRESENT(reference)) THEN
          reference = "OPTX, Handy NC and Cohen AJ,  JCP 116, p. 5411 (2002) (LDA)"
@@ -74,7 +74,7 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'optx_lsd_info', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'optx_lsd_info'
 
       IF (PRESENT(reference)) THEN
          reference = "OPTX, Handy NC and Cohen AJ,  JCP 116, p. 5411 (2002), (LSD) "
@@ -108,7 +108,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: optx_params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'optx_lda_eval', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'optx_lda_eval'
 
       INTEGER                                            :: npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -172,7 +172,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: optx_params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'optx_lsd_eval', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'optx_lsd_eval'
 
       INTEGER                                            :: ispin, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo

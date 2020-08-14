@@ -379,7 +379,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: c0_evals
       REAL(KIND=dp)                                      :: energy_gap
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'make_full_all', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_full_all'
       REAL(KIND=dp), PARAMETER                           :: fudge_factor = 0.25_dp, &
                                                             lambda_base = 10.0_dp
 

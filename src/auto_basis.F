@@ -781,7 +781,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), INTENT(INOUT)                       :: eval
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'neb_potential', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'neb_potential'
 
       INTEGER                                            :: i
 

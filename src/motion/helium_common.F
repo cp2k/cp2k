@@ -812,7 +812,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       INTEGER, INTENT(IN)                                :: nslices
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_rotate', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_rotate'
 
       INTEGER                                            :: b, i, j, k, n
 
@@ -2487,7 +2487,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3)                        :: com
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_com', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_com'
 
       INTEGER                                            :: ia, ib
 

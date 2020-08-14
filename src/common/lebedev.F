@@ -163,7 +163,7 @@ CONTAINS
       CHARACTER(*), INTENT(IN)                           :: subsystem
       INTEGER, INTENT(IN)                                :: lgnum, np
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'load_sub_grid', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'load_sub_grid'
 
       INTEGER                                            :: i, j
       REAL(KIND=dp)                                      :: x, y, z

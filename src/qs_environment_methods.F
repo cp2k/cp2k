@@ -88,7 +88,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_setup', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_setup'
 
       INTEGER                                            :: handle, n_ao_aux_fit, nhistory, &
                                                             nvariables

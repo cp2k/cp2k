@@ -377,7 +377,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigval
       LOGICAL, INTENT(IN), OPTIONAL                      :: dac
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diamat_all', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'diamat_all'
 
       INTEGER                                            :: handle, info, liwork, lwork, n, nb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
@@ -548,7 +548,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: a(:, :)
       INTEGER, INTENT(OUT)                               :: info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'invmat', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'invmat'
 
       INTEGER                                            :: lwork, n
       INTEGER, ALLOCATABLE                               :: ipiv(:)
@@ -581,7 +581,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: a(:, :)
       CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: cholesky_triangle
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'invmat_symm', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'invmat_symm'
 
       CHARACTER(LEN=1)                                   :: my_triangle
       INTEGER                                            :: handle, i, info, n
@@ -1368,7 +1368,7 @@ CONTAINS
    FUNCTION ei(x)
       REAL(dp)                                           :: x, ei
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ei', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ei'
       INTEGER, PARAMETER                                 :: maxit = 100
       REAL(dp), PARAMETER                                :: eps = EPSILON(0.0_dp), &
                                                             fpmin = TINY(0.0_dp)
@@ -1497,7 +1497,7 @@ CONTAINS
       INTEGER                                            :: n
       REAL(dp)                                           :: x, expint
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'expint', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'expint'
       INTEGER, PARAMETER                                 :: maxit = 100
       REAL(dp), PARAMETER :: eps = 6.e-14_dp, euler = 0.5772156649015328606065120_dp, &
          fpmin = TINY(0.0_dp)
@@ -1752,7 +1752,7 @@ CONTAINS
    SUBROUTINE swap_vector(a, b)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: a, b
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'swap_vector', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'swap_vector'
 
       INTEGER                                            :: i, n
       REAL(KIND=dp)                                      :: c

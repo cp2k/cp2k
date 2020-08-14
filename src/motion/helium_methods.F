@@ -108,7 +108,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(pint_env_type), OPTIONAL, POINTER             :: solute
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_create'
 
       CHARACTER(len=default_path_length)                 :: msg_str, potential_file_name
       INTEGER                                            :: color_sub, handle, i, input_unit, isize, &
@@ -821,7 +821,7 @@ CONTAINS
    SUBROUTINE helium_release(helium_env)
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_release'
 
       INTEGER                                            :: k
 
@@ -1008,7 +1008,7 @@ CONTAINS
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_init'
 
       INTEGER                                            :: handle, k
       LOGICAL                                            :: coords_presampled, explicit, presample

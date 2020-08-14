@@ -258,7 +258,7 @@ CONTAINS
 
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: qs_force
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'zero_qs_force', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'zero_qs_force'
 
       INTEGER                                            :: ikind
 
@@ -303,7 +303,7 @@ CONTAINS
 
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: qs_force_out, qs_force_in
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sum_qs_force', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'sum_qs_force'
 
       INTEGER                                            :: ikind
 
@@ -448,7 +448,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: forcetype
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_qs_force', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'add_qs_force'
 
       INTEGER                                            :: ia, iatom, ikind, natom_kind
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -490,7 +490,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: forcetype
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'put_qs_force', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'put_qs_force'
 
       INTEGER                                            :: ia, iatom, ikind, natom_kind
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -530,7 +530,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: forcetype
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_force', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_force'
 
       INTEGER                                            :: ia, iatom, ikind, natom_kind
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -568,7 +568,7 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: qs_force
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'total_qs_force', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'total_qs_force'
 
       INTEGER                                            :: ia, iatom, ikind, natom_kind
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind

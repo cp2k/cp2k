@@ -151,7 +151,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: param_section
       CHARACTER(LEN=*), INTENT(IN)                       :: tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eval_pw_TabLR', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eval_pw_TabLR'
 
       INTEGER :: act_nx, act_ny, aint_precond, handle, i, iii, is, j, js, k, ks, Lg_loc_max, &
          Lg_loc_min, max_iter, my_i, my_j, my_k, n1, n2, n3, n_extra, NLg_loc, nxlim, nylim, &

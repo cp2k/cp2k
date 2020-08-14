@@ -205,7 +205,7 @@ CONTAINS
       TYPE(tmc_analysis_env), POINTER                    :: ana_env
       INTEGER                                            :: nr_dim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'analysis_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'analysis_init'
 
       CHARACTER(LEN=default_path_length)                 :: tmp_cell_file, tmp_dip_file, tmp_pos_file
 

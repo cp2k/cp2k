@@ -103,7 +103,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_tmc', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_tmc'
 
       INTEGER                                            :: bcast_output_unit, handle, i, ierr, &
                                                             output_unit
@@ -684,7 +684,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tmc_read_input', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'tmc_read_input'
 
       INTEGER                                            :: itmp
       LOGICAL                                            :: explicit, flag

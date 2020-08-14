@@ -65,7 +65,7 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(section_vals_type), POINTER                   :: section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_init', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_init'
 
       NULLIFY (csvr%nvt)
       NULLIFY (csvr%map_info)
@@ -135,7 +135,7 @@ CONTAINS
    SUBROUTINE csvr_dealloc(csvr)
       TYPE(csvr_system_type), POINTER                    :: csvr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_dealloc', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_dealloc'
 
       IF (ASSOCIATED(csvr)) THEN
          CALL csvr_thermo_dealloc(csvr%nvt)

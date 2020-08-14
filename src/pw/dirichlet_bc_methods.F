@@ -1090,7 +1090,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: N
       REAL(dp), DIMENSION(N)                             :: arr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'linspace', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'linspace'
 
       INTEGER                                            :: i
       REAL(dp)                                           :: dx

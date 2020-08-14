@@ -271,7 +271,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: pres_int, pres_constr
       INTEGER, INTENT(IN), OPTIONAL                      :: constraint_id
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dg_dh', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dg_dh'
 
       INTEGER                                            :: i, my_constraint_id
       LOGICAL                                            :: my_keep_angles, my_keep_symmetry

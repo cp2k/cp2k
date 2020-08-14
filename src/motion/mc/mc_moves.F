@@ -969,7 +969,7 @@ CONTAINS
       INTEGER, DIMENSION(1:3, 1:2), INTENT(INOUT)        :: discrete_array
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_volume_move', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_volume_move'
 
       CHARACTER(LEN=200)                                 :: fft_lib
       CHARACTER(LEN=40)                                  :: dat_file
@@ -1960,7 +1960,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: move_type
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_avbmc_move', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mc_avbmc_move'
 
       INTEGER                                            :: end_mol, group, handle, ipart, jbox, &
                                                             natom, nswapmoves, source, start_mol
@@ -2356,7 +2356,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: r_old
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_hmc_move', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_hmc_move'
 
       INTEGER                                            :: group, handle, iatom, source
       INTEGER, DIMENSION(:), POINTER                     :: nunits_tot

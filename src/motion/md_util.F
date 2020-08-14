@@ -53,7 +53,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: md_section, root_section
       LOGICAL, INTENT(IN)                                :: forced_io
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'md_output', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'md_output'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: do_print

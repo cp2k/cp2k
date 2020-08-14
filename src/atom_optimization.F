@@ -180,7 +180,7 @@ CONTAINS
       TYPE(atom_history_type), INTENT(INOUT)             :: history
       REAL(dp), INTENT(IN)                               :: err
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_opt_fmat', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_opt_fmat'
 
       INTEGER                                            :: i, info, j, lwork, na, nb, nlen, nm, &
                                                             nmax, nnow, rank

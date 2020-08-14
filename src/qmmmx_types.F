@@ -42,7 +42,7 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: potential_energy, kinetic_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmmx_env_get', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmmx_env_get'
 
       CPASSERT(ASSOCIATED(qmmmx_env))
       CPASSERT(qmmmx_env%ref_count > 0)

@@ -74,7 +74,7 @@ CONTAINS
       TYPE(nmr_env_type)                                 :: nmr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_init', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_init'
 
       CHARACTER(LEN=2)                                   :: label
       CHARACTER(LEN=default_path_length)                 :: nics_file_name

@@ -55,7 +55,7 @@ CONTAINS
       TYPE(normalmode_env_type), POINTER                 :: normalmode_env
       TYPE(section_vals_type), POINTER                   :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_pile_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_pile_init'
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
       INTEGER                                            :: i, j, p
@@ -137,7 +137,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(IN)         :: masses
       TYPE(pile_therm_type), POINTER                     :: pile_therm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_pile_step', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_pile_step'
 
       INTEGER                                            :: handle, ibead, idim
       REAL(KIND=dp)                                      :: delta_ekin

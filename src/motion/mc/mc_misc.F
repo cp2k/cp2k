@@ -120,7 +120,7 @@ CONTAINS
                                                             final_energy
       TYPE(mc_averages_type), POINTER                    :: averages
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'final_mc_write', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'final_mc_write'
 
       CHARACTER(LEN=5)                                   :: molecule_string, tab_string
       CHARACTER(LEN=default_string_length)               :: format_string, string1, string2, string3

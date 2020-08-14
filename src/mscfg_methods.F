@@ -425,7 +425,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       LOGICAL                                            :: do_mol_loop
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mol_loop', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mol_loop'
 
       INTEGER                                            :: almo_guess_type, frz_term_type, &
                                                             method_name_id, scf_guess_type

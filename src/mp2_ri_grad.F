@@ -1214,7 +1214,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: factor
       LOGICAL, INTENT(IN)                                :: alpha_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_W_P', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_W_P'
 
       INTEGER :: color_exchange, comm_exchange, dummy_proc, handle, handle2, handle3, i, i_global, &
          i_local, iiB, iii, iproc, itmp(2), j_global, j_local, jjB, max_col_size, max_row_size, &

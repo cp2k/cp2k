@@ -1210,7 +1210,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: bnd_type
       INTEGER, INTENT(IN)                                :: nvar1
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'find_bnd_typ', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'find_bnd_typ'
 
       INTEGER                                            :: i, ibond, j
 

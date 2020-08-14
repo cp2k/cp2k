@@ -639,7 +639,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell_muc, cell
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_cell_muc', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_cell_muc'
 
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_ref

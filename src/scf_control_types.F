@@ -156,7 +156,7 @@ CONTAINS
 
       TYPE(scf_control_type), POINTER                    :: scf_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_create', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_create'
 
       INTEGER                                            :: handle
 
@@ -278,7 +278,7 @@ CONTAINS
 
       TYPE(scf_control_type), POINTER                    :: scf_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_retain', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_retain'
 
       CPASSERT(ASSOCIATED(scf_control))
 
@@ -300,7 +300,7 @@ CONTAINS
 
       TYPE(scf_control_type), POINTER                    :: scf_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_release', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_release'
 
       IF (ASSOCIATED(scf_control)) THEN
          CPASSERT(scf_control%ref_count > 0)
@@ -504,7 +504,7 @@ CONTAINS
    SUBROUTINE init_smear(smear)
       TYPE(smear_type), POINTER                          :: smear
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_smear', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_smear'
 
       CPASSERT(.NOT. ASSOCIATED(smear))
       ALLOCATE (smear)

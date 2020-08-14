@@ -59,7 +59,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: rot, drmsd3
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rmsd3', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rmsd3'
 
       INTEGER                                            :: i, ix, j, k, natom
       LOGICAL                                            :: my_rotate

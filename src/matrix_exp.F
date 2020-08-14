@@ -581,7 +581,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: matrix
       INTEGER, INTENT(in)                                :: nsquare, npade
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_real', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_real'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, i, j, k, ldim, ndim, p, q
@@ -699,7 +699,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(2), OPTIONAL         :: mos_next
       INTEGER, INTENT(inout)                             :: narn_old
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'arnoldi', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'arnoldi'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: col_group, handle, i, icol_local, idim, &

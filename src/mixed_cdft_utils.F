@@ -1562,7 +1562,7 @@ CONTAINS
       LOGICAL                                            :: just_zero
       INTEGER, OPTIONAL                                  :: bounds(2), work
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hfun_zero', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hfun_zero'
 
       INTEGER                                            :: i1, i2, i3, lb, n1, n2, n3, nzeroed, &
                                                             nzeroed_total, ub

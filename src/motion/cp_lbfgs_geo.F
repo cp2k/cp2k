@@ -68,7 +68,7 @@ CONTAINS
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_lbfgs', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_lbfgs'
 
       INTEGER                                            :: handle, iter_nr, its, output_unit
       LOGICAL                                            :: converged, should_stop

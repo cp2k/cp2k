@@ -167,7 +167,7 @@ CONTAINS
    SUBROUTINE ls_scf_release(ls_scf_env)
       TYPE(ls_scf_env_type), POINTER                     :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_release'
 
       INTEGER                                            :: handle, ispin, istore
 

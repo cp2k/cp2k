@@ -171,7 +171,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(dbcsr_type), OPTIONAL                         :: matrix_M, matrix_G
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_exp', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_exp'
 
       COMPLEX(dp)                                        :: denom
       COMPLEX(dp), DIMENSION(:), POINTER                 :: evals
@@ -324,7 +324,7 @@ CONTAINS
       COMPLEX(dp), DIMENSION(:, :)                       :: evecs
       COMPLEX(dp), DIMENSION(:)                          :: evals
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diag_antisym', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'diag_antisym'
 
       COMPLEX(dp), DIMENSION(:, :), POINTER              :: matrix_c
       INTEGER                                            :: N
@@ -351,7 +351,7 @@ CONTAINS
       COMPLEX(dp), DIMENSION(:, :)                       :: matrix, eigenvectors
       REAL(dp), DIMENSION(:)                             :: eigenvalues
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'zheevd_wrapper', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'zheevd_wrapper'
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: work
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: A

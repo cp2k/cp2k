@@ -370,7 +370,7 @@ CONTAINS
    SUBROUTINE rescale_forces(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rescale_forces', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rescale_forces'
 
       INTEGER                                            :: handle, iparticle
       LOGICAL                                            :: explicit
@@ -502,7 +502,7 @@ CONTAINS
          OPTIONAL                                        :: grand_total_force
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_force_core_shell_atom
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_forces', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_forces'
 
       CHARACTER(LEN=23)                                  :: fmtstr3
       CHARACTER(LEN=36)                                  :: fmtstr2

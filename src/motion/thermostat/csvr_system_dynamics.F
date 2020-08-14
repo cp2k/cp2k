@@ -53,7 +53,7 @@ CONTAINS
          INTENT(INOUT)                                   :: npt
       INTEGER, INTENT(IN)                                :: group
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'csvr_barostat', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'csvr_barostat'
 
       INTEGER                                            :: handle
       TYPE(map_info_type), POINTER                       :: map_info
@@ -111,7 +111,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: vel(:, :), shell_vel(:, :), &
                                                             core_vel(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'csvr_particles', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'csvr_particles'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: my_shell_adiabatic
@@ -171,7 +171,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: vel(:, :), shell_vel(:, :), &
                                                             core_vel(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'csvr_shells', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'csvr_shells'
 
       INTEGER                                            :: handle
       TYPE(map_info_type), POINTER                       :: map_info
@@ -210,7 +210,7 @@ CONTAINS
       TYPE(csvr_system_type), POINTER                    :: csvr
       TYPE(map_info_type), POINTER                       :: map_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'do_csvr', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'do_csvr'
 
       INTEGER                                            :: i, imap, ndeg
       REAL(KIND=dp)                                      :: kin_energy, kin_target, taut

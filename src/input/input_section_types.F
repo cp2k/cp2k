@@ -158,7 +158,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: repeats
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: citations
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'section_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'section_create'
 
       INTEGER                                            :: i, my_n_keywords, my_n_subsections, n
 
@@ -214,7 +214,7 @@ CONTAINS
    SUBROUTINE section_retain(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'section_retain', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'section_retain'
 
       CPASSERT(ASSOCIATED(section))
       CPASSERT(section%ref_count > 0)

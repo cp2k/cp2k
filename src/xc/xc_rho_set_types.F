@@ -335,7 +335,7 @@ CONTAINS
          POINTER                                         :: tau, tau_a, tau_b
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: local_bounds
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_get', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_get'
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_can_return_null

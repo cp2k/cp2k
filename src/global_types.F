@@ -94,7 +94,7 @@ CONTAINS
    SUBROUTINE globenv_create(globenv)
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'globenv_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'globenv_create'
 
       CPASSERT(.NOT. ASSOCIATED(globenv))
       ALLOCATE (globenv)
@@ -120,7 +120,7 @@ CONTAINS
    SUBROUTINE globenv_retain(globenv)
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'globenv_retain', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'globenv_retain'
 
       CPASSERT(ASSOCIATED(globenv))
       CPASSERT(globenv%ref_count > 0)

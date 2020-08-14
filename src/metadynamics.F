@@ -371,7 +371,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: vel
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_forces', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_forces'
 
       INTEGER                                            :: handle, i, i_c, icolvar, ii, iwall
       LOGICAL                                            :: explicit
@@ -831,7 +831,7 @@ CONTAINS
    SUBROUTINE hills(meta_env)
       TYPE(meta_env_type), POINTER                       :: meta_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hills', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hills'
 
       INTEGER                                            :: handle, i, i_hills, ih, intermeta_steps, &
                                                             iter_nr, iw, n_colvar, n_hills_start, &

@@ -118,7 +118,7 @@ CONTAINS
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
       INTEGER, DIMENSION(2, 3), OPTIONAL                 :: local_bounds
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_create'
 
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
@@ -193,7 +193,7 @@ CONTAINS
    SUBROUTINE xc_dset_retain(deriv_set)
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_retain', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_retain'
 
       CPASSERT(ASSOCIATED(deriv_set))
       CPASSERT(deriv_set%ref_count > 0)

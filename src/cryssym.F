@@ -119,7 +119,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: delta
       INTEGER, INTENT(IN), OPTIONAL                      :: iounit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'crys_sym_gen', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'crys_sym_gen'
 
       INTEGER                                            :: handle, ierr, major, micro, minor, nat, &
                                                             nop, tra_mat(3, 3)
@@ -215,7 +215,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: shift(3)
       LOGICAL, INTENT(IN), OPTIONAL                      :: full_grid
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_gen', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_gen'
 
       INTEGER                                            :: handle, i, ik, is_shift(3), &
                                                             is_time_reversal, j, nkp, nkpts

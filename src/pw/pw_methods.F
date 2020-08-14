@@ -91,7 +91,7 @@ CONTAINS
 
       TYPE(pw_type), INTENT(INOUT)                       :: pw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_zero', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_zero'
 
       INTEGER                                            :: handle, ns
       REAL(KIND=dp)                                      :: zr
@@ -152,7 +152,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: pw1
       TYPE(pw_type), INTENT(INOUT)                       :: pw2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy'
 
       INTEGER                                            :: handle, i, j, ng, ng1, ng2, ns, out_unit
       REAL(KIND=dp)                                      :: zc
@@ -331,7 +331,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pw
       REAL(KIND=dp), INTENT(IN)                          :: a
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_scale', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_scale'
 
       INTEGER                                            :: handle, ns
       REAL(KIND=dp)                                      :: flop
@@ -396,7 +396,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pw
       REAL(KIND=dp), INTENT(IN)                          :: omega
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_gauss_damp', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_gauss_damp'
 
       INTEGER                                            :: cnt, handle, i, n_exp
       REAL(KIND=dp)                                      :: flop, omega_2
@@ -450,7 +450,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pw
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_derive', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_derive'
 
       COMPLEX(KIND=dp)                                   :: im
       INTEGER                                            :: cnt, handle, i, m
@@ -549,7 +549,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pwdr2
       INTEGER, INTENT(IN)                                :: i, j
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_dr2', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_dr2'
 
       INTEGER                                            :: cnt, handle, ig
       REAL(KIND=dp)                                      :: flop, gg, o3
@@ -613,7 +613,7 @@ CONTAINS
 
       INTEGER                                            :: cnt, handle, ig
       REAL(KIND=dp)                                      :: flop, gg, o3
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_dr2_gg', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_dr2_gg'
 
       CALL timeset(routineN, handle)
       CPASSERT(pw%ref_count > 0)
@@ -672,7 +672,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pw
       REAL(KIND=dp), INTENT(IN)                          :: ecut, sigma
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_smoothing', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_smoothing'
 
       INTEGER                                            :: cnt, handle, ig
       REAL(KIND=dp)                                      :: arg, f, flop
@@ -723,7 +723,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_transfer', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_transfer'
 
       INTEGER                                            :: handle
 
@@ -791,7 +791,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pw2
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_axpy', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_axpy'
 
       INTEGER                                            :: handle, i, j, ng, ng1, ng2, out_unit
       REAL(KIND=dp)                                      :: flop, my_alpha
@@ -1015,7 +1015,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_multiply', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_multiply'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: flop, my_alpha
@@ -1130,7 +1130,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: c
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_gather_s', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_gather_s'
 
       INTEGER                                            :: gpt, handle, l, m, n, ngpts
       INTEGER, DIMENSION(:), POINTER                     :: mapl, mapm, mapn
@@ -1198,7 +1198,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: c
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_gather_p', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_gather_p'
 
       INTEGER                                            :: gpt, handle, l, m, mn, n, ngpts
       INTEGER, DIMENSION(:), POINTER                     :: mapl, mapm, mapn
@@ -1279,7 +1279,7 @@ CONTAINS
          INTENT(INOUT)                                   :: c
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_s', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_s'
 
       INTEGER                                            :: gpt, handle, l, m, n, ngpts
       INTEGER, DIMENSION(:), POINTER                     :: mapl, mapm, mapn
@@ -1385,7 +1385,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: c
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_p', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_p'
 
       INTEGER                                            :: gpt, handle, l, m, mn, n, ngpts
       INTEGER, DIMENSION(:), POINTER                     :: mapl, mapm, mapn
@@ -1854,7 +1854,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: use1, use2, space1
       CHARACTER(LEN=9)                                   :: mode
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fftselect', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fftselect'
 
       IF (space1 == REALSPACE) THEN
          mode(1:3) = "FW_"
@@ -1906,7 +1906,7 @@ CONTAINS
       TYPE(pw_type), INTENT(in)                          :: pw
       INTEGER, INTENT(in)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_write', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_write'
 
       INTEGER                                            :: iostatus
 
@@ -1980,7 +1980,7 @@ CONTAINS
       TYPE(pw_grid_type), INTENT(IN)                     :: grida, gridb
       LOGICAL                                            :: compat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_compatible', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_compatible'
 
       compat = .FALSE.
       IF (grida%id_nr == gridb%id_nr) THEN
@@ -2008,7 +2008,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       REAL(KIND=dp)                                      :: integral_value
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_ab', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_ab'
 
       INTEGER                                            :: handle
 
@@ -2240,7 +2240,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          POINTER                                         :: values
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_set', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_set'
 
       INTEGER                                            :: handle, i, j, k
       LOGICAL                                            :: is_match

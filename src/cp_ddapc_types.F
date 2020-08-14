@@ -386,7 +386,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: hmat(3, 3), deth
       REAL(KIND=dp), DIMENSION(:), POINTER               :: LG, gx, gy, gz
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eval_lg', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eval_lg'
 
       INTEGER                                            :: i, k1, k2, k3, n_rep, ndim, nmax1, &
                                                             nmax2, nmax3

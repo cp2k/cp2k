@@ -133,7 +133,7 @@ CONTAINS
    SUBROUTINE scf_env_create(scf_env)
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_create'
 
       INTEGER                                            :: handle
 
@@ -206,7 +206,7 @@ CONTAINS
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_retain', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_retain'
 
       INTEGER                                            :: handle
 

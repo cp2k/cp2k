@@ -495,7 +495,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
                                                             b_first_row, c_first_col, c_first_row
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_gemm', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_gemm'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a, b, c
       INTEGER                                            :: handle, i_a, i_b, i_c, j_a, j_b, j_c
@@ -614,7 +614,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: alpha
       TYPE(cp_cfm_type), POINTER                         :: matrix_a
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_dscale', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_dscale'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
       INTEGER                                            :: handle
@@ -645,7 +645,7 @@ CONTAINS
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
       TYPE(cp_cfm_type), POINTER                         :: matrix_a
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_zscale', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_zscale'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
       INTEGER                                            :: handle
@@ -677,7 +677,7 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: matrix_a, general_a
       COMPLEX(kind=dp), OPTIONAL                         :: determinant
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_solve', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_solve'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a, a_general
       INTEGER                                            :: counter, handle, info, irow, nrow_global
@@ -969,7 +969,7 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: matrix_a, matrix_b
       COMPLEX(kind=dp), INTENT(out)                      :: trace
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_trace', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_trace'
 
       INTEGER                                            :: group, handle, mypcol, myprow, &
                                                             ncol_local, npcol, nprow, nrow_local
@@ -1249,7 +1249,7 @@ CONTAINS
       CHARACTER, INTENT(IN)                              :: mode
       REAL(kind=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_norm', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_norm'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: aa
       INTEGER                                            :: handle, lwork, ncols, ncols_local, &

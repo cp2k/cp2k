@@ -96,7 +96,7 @@ CONTAINS
    SUBROUTINE rt_prop_setup(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_setup', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_setup'
 
       INTEGER                                            :: aspc_order
       LOGICAL                                            :: magnetic, vel_reprs

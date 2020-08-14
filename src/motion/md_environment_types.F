@@ -103,7 +103,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'md_env_create', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'md_env_create'
 
       TYPE(section_vals_type), POINTER                   :: averages_section
 
@@ -155,7 +155,7 @@ CONTAINS
    SUBROUTINE md_env_release(md_env)
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'md_env_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'md_env_release'
 
       IF (ASSOCIATED(md_env)) THEN
          CPASSERT(md_env%ref_count > 0)
@@ -239,7 +239,7 @@ CONTAINS
       TYPE(thermal_regions_type), OPTIONAL, POINTER      :: thermal_regions
       LOGICAL, OPTIONAL                                  :: ehrenfest_md
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_md_env', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_md_env'
 
       LOGICAL                                            :: check
 
@@ -336,7 +336,7 @@ CONTAINS
       TYPE(thermal_regions_type), OPTIONAL, POINTER      :: thermal_regions
       LOGICAL, OPTIONAL                                  :: ehrenfest_md
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env'
 
       LOGICAL                                            :: check
 

@@ -542,7 +542,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: exp_kpoints
       INTEGER, DIMENSION(3)                              :: periodic
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_wkp_W', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_wkp_W'
 
       INTEGER                                            :: handle, i_dim, i_x, ikp, info, j_y, k_z, &
                                                             n_x, n_y, n_z, nkp, nsuperfine, &

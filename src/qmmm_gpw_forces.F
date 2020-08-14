@@ -107,7 +107,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: calc_force
       TYPE(cell_type), POINTER                           :: mm_cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces'
 
       INTEGER                                            :: handle, iatom, image_IndMM, Imm, IndMM, &
                                                             ispin, iw

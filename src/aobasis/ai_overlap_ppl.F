@@ -113,7 +113,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: fs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ppl_integral', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ppl_integral'
 
       INTEGER                                            :: iexp, ij, ipgf, jpgf, mmax, nexp
       REAL(KIND=dp)                                      :: rho, sab, t, zetc
@@ -383,7 +383,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cexp_ppl
       REAL(KIND=dp), INTENT(IN)                          :: zetc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ppl_aux', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ppl_aux'
 
       INTEGER                                            :: i, j, ke, kp, pmax
       REAL(KIND=dp)                                      :: a2, a3, a4, cc, f, q, q2, q4, q6, rho2, &

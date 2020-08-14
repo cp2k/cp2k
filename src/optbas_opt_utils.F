@@ -98,7 +98,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       REAL(KIND=dp)                                      :: fval, S_cond_number
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_fval', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_fval'
 
       INTEGER                                            :: ispin, nao_aux_fit, nao_orb, nmo, nspins
       REAL(KIND=dp)                                      :: trace

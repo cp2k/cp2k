@@ -475,7 +475,7 @@ CONTAINS
    SUBROUTINE pgfs_release(pgfs)
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: pgfs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pgfs_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pgfs_release'
 
       INTEGER                                            :: I
 

@@ -71,7 +71,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: itype
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_sp', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_sp'
 
       res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen, &
                         se_int_control%integral_screening, se_int_control%shortrange, &
@@ -122,7 +122,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: itype
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_sp', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_sp'
 
       REAL(KIND=dp)                                      :: dfs, srd
 
@@ -205,7 +205,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: max_multipole, itype
       REAL(KIND=dp)                                      :: eval, res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_sp_low', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_sp_low'
 
       INTEGER                                            :: ccc, l1, l1max, l1min, l2, l2max, l2min, &
                                                             lij, lkl, lmin, m
@@ -346,7 +346,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: da_i, db_i, add0, fact_screen
       REAL(KIND=dp)                                      :: charg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'charg_int_nri', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'charg_int_nri'
 
       INTEGER                                            :: l1, l2, m1, m2
       REAL(KIND=dp)                                      :: add, da, db, dxdx, dxqxz, dzdz, dzqxx, &
@@ -550,7 +550,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: da_i, db_i, add0, fact_screen
       REAL(KIND=dp)                                      :: charg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_nri', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_nri'
 
       INTEGER                                            :: l1, l2, m1, m2
       REAL(KIND=dp)                                      :: add, da, db, dxdx, dxqxz, dzdz, dzqxx, &
@@ -971,7 +971,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: itype
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_d', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_d'
 
       res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen, &
                        se_int_control%integral_screening, se_int_control%shortrange, &
@@ -1028,7 +1028,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: itype
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_d', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_d'
 
       REAL(KIND=dp)                                      :: dfs, srd
 
@@ -1116,7 +1116,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: max_multipole, itype
       REAL(KIND=dp)                                      :: eval, res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_d_low', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_d_low'
 
       INTEGER                                            :: l1, l1max, l1min, l2, l2max, l2min, lij, &
                                                             lkl, lmin, m, mm
@@ -1258,7 +1258,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: da_i, db_i, add0, fact_screen
       REAL(KIND=dp)                                      :: charg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'charg_int_ri', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'charg_int_ri'
 
       INTEGER                                            :: l1, l2
       REAL(KIND=dp)                                      :: aa, ab, add, da, db, dxdx, dxqxz, dzdz, &
@@ -1393,7 +1393,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: da_i, db_i, add0, fact_screen
       REAL(KIND=dp)                                      :: charg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_ri', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_ri'
 
       INTEGER                                            :: l1, l2
       REAL(KIND=dp)                                      :: aa, ab, add, da, db, dxdx, dxqxz, dzdz, &
@@ -1666,7 +1666,7 @@ CONTAINS
       LOGICAL, INTENT(OUT), OPTIONAL                     :: do_invert
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug_invert
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rotmat', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rotmat'
 
       INTEGER                                            :: imap(3), k, l
       LOGICAL                                            :: dbg_inv, eval

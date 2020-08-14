@@ -897,7 +897,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: pw_in, pw_out
       REAL(KIND=dp), DIMENSION(4), INTENT(in)            :: coeffs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_r', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_r'
 
       INTEGER                                            :: i, j, k
       REAL(kind=dp), DIMENSION(-1:1, -1:1, -1:1)         :: weights
@@ -943,7 +943,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(in)            :: coeffs
       INTEGER                                            :: idir
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_deriv_r', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_deriv_r'
 
       INTEGER                                            :: i, idirVal, j, k
       REAL(kind=dp), DIMENSION(-1:1, -1:1, -1:1)         :: weights
@@ -2751,7 +2751,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: max_iter
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'find_coeffs', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'find_coeffs'
 
       INTEGER                                            :: i, iiter, iter, j, k
       INTEGER, DIMENSION(2, 3)                           :: bo

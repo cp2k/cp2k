@@ -99,7 +99,7 @@ CONTAINS
    SUBROUTINE fb_env_retain(fb_env)
       TYPE(fb_env_obj), INTENT(IN)                       :: fb_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_retain', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_retain'
 
       CPASSERT(ASSOCIATED(fb_env%obj))
       CPASSERT(fb_env%obj%ref_count > 0)
@@ -115,7 +115,7 @@ CONTAINS
    SUBROUTINE fb_env_release(fb_env)
       TYPE(fb_env_obj), INTENT(INOUT)                    :: fb_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_release', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_release'
 
       IF (ASSOCIATED(fb_env%obj)) THEN
          CPASSERT(fb_env%obj%ref_count > 0)
@@ -150,7 +150,7 @@ CONTAINS
    SUBROUTINE fb_env_nullify(fb_env)
       TYPE(fb_env_obj), INTENT(INOUT)                    :: fb_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_nullify', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_nullify'
 
       NULLIFY (fb_env%obj)
    END SUBROUTINE fb_env_nullify
@@ -197,7 +197,7 @@ CONTAINS
    SUBROUTINE fb_env_create(fb_env)
       TYPE(fb_env_obj), INTENT(INOUT)                    :: fb_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_create', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_create'
 
       CPASSERT(.NOT. ASSOCIATED(fb_env%obj))
       ALLOCATE (fb_env%obj)
@@ -225,7 +225,7 @@ CONTAINS
    SUBROUTINE fb_env_init(fb_env)
       TYPE(fb_env_obj), INTENT(INOUT)                    :: fb_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_init', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_init'
 
       CPASSERT(ASSOCIATED(fb_env%obj))
       IF (ASSOCIATED(fb_env%obj%rcut)) THEN
@@ -284,7 +284,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: local_atoms
       INTEGER, INTENT(OUT), OPTIONAL                     :: nlocal_atoms
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_get', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_get'
 
       CPASSERT(ASSOCIATED(fb_env%obj))
       CPASSERT(fb_env%obj%ref_count > 0)
@@ -344,7 +344,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: local_atoms
       INTEGER, INTENT(IN), OPTIONAL                      :: nlocal_atoms
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_set', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_set'
 
       CPASSERT(ASSOCIATED(fb_env%obj))
       IF (PRESENT(rcut)) THEN

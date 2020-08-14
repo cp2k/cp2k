@@ -121,7 +121,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: file_status
       LOGICAL, INTENT(IN), OPTIONAL                      :: keep_preconnection
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'close_file', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'close_file'
 
       CHARACTER(LEN=2*default_path_length)               :: message
       CHARACTER(LEN=6)                                   :: status_string
@@ -322,7 +322,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: skip_get_unit_number
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: file_access
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'open_file', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'open_file'
 
       CHARACTER(LEN=11) :: access_string, action_string, current_action, current_form, &
          form_string, pad_string, position_string, status_string

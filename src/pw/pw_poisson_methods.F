@@ -530,7 +530,7 @@ CONTAINS
       TYPE(pw_grid_type), OPTIONAL, POINTER              :: mt_super_ref_pw_grid, dct_pw_grid
       LOGICAL, INTENT(in), OPTIONAL                      :: force_rebuild
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_set', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_set'
 
       INTEGER                                            :: handle, i
       LOGICAL                                            :: same

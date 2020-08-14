@@ -68,7 +68,7 @@ CONTAINS
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'getold', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'getold'
 
       INTEGER                                            :: first_atom, i, ikind, imol, n3x3con, &
                                                             n4x6con, nkind, nmol_per_kind
@@ -151,7 +151,7 @@ CONTAINS
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'getold_low', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'getold_low'
 
       INTEGER                                            :: iconst, index
 
@@ -208,7 +208,7 @@ CONTAINS
       TYPE(virial_type), INTENT(INOUT)                   :: virial
       INTEGER, INTENT(IN)                                :: group
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pv_constraint', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'pv_constraint'
 
       INTEGER                                            :: first_atom, i, ikind, imol, ng3x3, &
                                                             ng4x6, nkind, nmol_per_kind
@@ -487,7 +487,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: matrix, veps
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_tol', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_tol'
 
       REAL(KIND=dp)                                      :: local_tol
       REAL(KIND=dp), DIMENSION(3, 3)                     :: diff_rattle, diff_shake

@@ -142,7 +142,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: transp
       TYPE(sancho_work_matrices_type), INTENT(in)        :: work
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'do_sancho', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'do_sancho'
 
       INTEGER                                            :: handle, ncols, nrows
 

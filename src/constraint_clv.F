@@ -79,7 +79,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: imass
       REAL(KIND=dp), INTENT(INOUT)                       :: max_sigma
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_int', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_int'
 
       TYPE(colvar_constraint_type), POINTER              :: colv_list(:)
       TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list
@@ -290,7 +290,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: imass
       REAL(KIND=dp), INTENT(INOUT)                       :: max_sigma
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_ext', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_ext'
 
       TYPE(colvar_constraint_type), POINTER              :: colv_list(:)
       TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list
@@ -494,7 +494,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: imass
       REAL(KIND=dp), INTENT(INOUT)                       :: max_sigma
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_low', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_low'
 
       INTEGER                                            :: iconst
       REAL(KIND=dp)                                      :: del_lam, dtby2, dtsqby2, fdotf_sum

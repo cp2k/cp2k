@@ -1398,7 +1398,7 @@ CONTAINS
 
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'embed_energy', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'embed_energy'
 
       INTEGER                                            :: iforce_eval, iparticle, jparticle, &
                                                             my_group, natom, nforce_eval
@@ -1613,7 +1613,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energies
       LOGICAL                                            :: converged_embed
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dfet_embedding', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dfet_embedding'
 
       INTEGER                                            :: cluster_subsys_num, handle, &
                                                             i_force_eval, i_iter, i_spin, &

@@ -73,7 +73,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_syevd', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_syevd'
 
       INTEGER                                            :: handle, nfullrows_total
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -132,7 +132,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_syevx', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_syevx'
 
       INTEGER                                            :: handle, n, neig_local
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -185,7 +185,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_heevd', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_heevd'
 
       INTEGER                                            :: handle, nfullrows_total
       TYPE(cp_cfm_type), POINTER                         :: fm_eigenvectors, fm_matrix
@@ -237,7 +237,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: eigenvectors
       REAL(KIND=dp), DIMENSION(2), INTENT(OUT), OPTIONAL :: eigenvalues
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_power', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_power'
 
       INTEGER                                            :: handle, nfullrows_total
       REAL(KIND=dp), DIMENSION(2)                        :: eigenvalues_prv
