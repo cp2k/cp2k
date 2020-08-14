@@ -68,8 +68,7 @@ CONTAINS
 
       TYPE(cp_cfm_type), POINTER                         :: matrix_a, matrix_b, matrix_c
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a, b, c
       INTEGER                                            :: handle, icol_local, irow_local, mypcol, &
@@ -107,8 +106,7 @@ CONTAINS
 
       TYPE(cp_cfm_type), POINTER                         :: matrix_a, matrix_b, matrix_c
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product_cc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product_cc'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a, b, c
       INTEGER                                            :: handle, icol_local, irow_local, mypcol, &
@@ -159,8 +157,7 @@ CONTAINS
       COMPLEX(kind=dp), INTENT(in), OPTIONAL             :: beta
       TYPE(cp_cfm_type), OPTIONAL, POINTER               :: matrix_b
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_scale_and_add', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_scale_and_add'
 
       COMPLEX(kind=dp)                                   :: my_beta
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a, b
@@ -275,8 +272,7 @@ CONTAINS
       COMPLEX(kind=dp), INTENT(in)                       :: beta
       TYPE(cp_fm_type), POINTER                          :: matrix_b
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_scale_and_add_fm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_scale_and_add_fm'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
       INTEGER                                            :: handle, icol_local, irow_local, mypcol, &
@@ -383,8 +379,7 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: matrix_a
       COMPLEX(kind=dp), INTENT(out)                      :: determinant
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_decompose', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_decompose'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
       INTEGER                                            :: counter, handle, info, irow, nrow_global
@@ -571,8 +566,7 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: matrix_a
       COMPLEX(kind=dp), DIMENSION(:), INTENT(in)         :: scaling
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_column_scale', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_column_scale'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
       INTEGER                                            :: handle, icol_local, ncol_local, &
@@ -769,8 +763,7 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: matrix
       INTEGER, INTENT(out), OPTIONAL                     :: info_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_invert', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_invert'
 
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: work
       COMPLEX(kind=dp), DIMENSION(1)                     :: work1
@@ -856,8 +849,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: n
       INTEGER, INTENT(out), OPTIONAL                     :: info_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cholesky_decompose', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cholesky_decompose'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
       INTEGER                                            :: handle, info, my_n
@@ -914,8 +906,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL              :: n
       INTEGER, INTENT(out), OPTIONAL             :: info_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cholesky_invert', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cholesky_invert'
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER  :: aa
       INTEGER                                    :: info, handle
       INTEGER                                    :: my_n
@@ -1043,8 +1034,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: n_rows, n_cols
       COMPLEX(kind=dp), INTENT(in), OPTIONAL             :: alpha
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_triangular_multiply', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_triangular_multiply'
 
       CHARACTER                                          :: side_char, transa, unit_diag, uplo
       COMPLEX(kind=dp)                                   :: al
@@ -1122,8 +1112,7 @@ CONTAINS
       CHARACTER, INTENT(in), OPTIONAL          :: uplo
       INTEGER, INTENT(out), OPTIONAL           :: info_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_triangular_invert', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_triangular_invert'
 
       CHARACTER                                :: unit_diag, my_uplo
       INTEGER                                  :: handle, info, ncol_global
@@ -1173,8 +1162,7 @@ CONTAINS
       CHARACTER, INTENT(in)                              :: trans
       TYPE(cp_cfm_type), POINTER                         :: matrixt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_transpose', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_transpose'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: aa, cc
       INTEGER                                            :: handle, ncol_global, nrow_global

@@ -358,8 +358,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(distribution_1d_type), POINTER                :: local_particles
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_roll_control', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_roll_control'
 
       INTEGER :: handle, i, ikind, imol, ishake_ext, ishake_int, k, lagrange_mult, log_unit, &
          n3x3con, n4x6con, nconstraint, nkind, nmol_per_kind, nvsitecon
@@ -504,8 +503,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(distribution_1d_type), POINTER                :: local_particles
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_roll_control', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_roll_control'
 
       INTEGER :: handle, i, ikind, imol, irattle_ext, irattle_int, k, lagrange_mult, log_unit, &
          n3x3con, n4x6con, nconstraint, nkind, nmol_per_kind
@@ -625,8 +623,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: group
       CHARACTER(LEN=1), INTENT(IN)                       :: id_type
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_lagrange_mult', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_lagrange_mult'
 
       CHARACTER(LEN=default_string_length)               :: label
       INTEGER                                            :: handle, i, ikind, imol, j, my_index, &
@@ -788,8 +785,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: log_unit, i, irattle_int
       REAL(KIND=dp), INTENT(IN)                          :: max_sigma
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_int_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rattle_int_info'
 
       IF (log_unit > 0) THEN
          ! Dump info if requested
@@ -816,8 +812,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: log_unit, irattle_ext
       REAL(KIND=dp), INTENT(IN)                          :: max_sigma
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_ext_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rattle_ext_info'
 
       IF (log_unit > 0) THEN
          ! Dump info if requested
@@ -854,8 +849,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: dt
       TYPE(section_vals_type), POINTER                   :: root_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_update_targets', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_update_targets'
 
       INTEGER                                            :: handle, i, ikind, imol, nkind, &
                                                             nmol_per_kind

@@ -61,8 +61,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: slab_size
       TYPE(pw_grid_type), POINTER                        :: super_ref_pw_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'MTin_create_screen_fn', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'MTin_create_screen_fn'
 
       INTEGER                                            :: handle, ig, iz
       REAL(KIND=dp)                                      :: alpha2, g2, g3d, gxy, gz, zlength

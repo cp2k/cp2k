@@ -141,8 +141,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type)                              :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_init_scf', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ls_scf_init_scf'
 
       INTEGER                                            :: handle, ispin, nspin, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -238,8 +237,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type)                              :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_initial_guess', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_initial_guess'
       INTEGER, PARAMETER                                 :: aspc_guess = 2, atomic_guess = 1, &
                                                             restart_guess = 3
 
@@ -367,8 +365,7 @@ CONTAINS
    SUBROUTINE ls_scf_store_result(ls_scf_env)
       TYPE(ls_scf_env_type)                              :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_store_result', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_store_result'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, project_name
       INTEGER                                            :: handle, ispin, istore, unit_nr
@@ -871,8 +868,7 @@ CONTAINS
    SUBROUTINE post_scf_homo_lumo(ls_scf_env)
       TYPE(ls_scf_env_type)                              :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'post_scf_homo_lumo', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'post_scf_homo_lumo'
 
       INTEGER                                            :: handle, ispin, nspin, unit_nr
       LOGICAL                                            :: converged
@@ -943,8 +939,7 @@ CONTAINS
    SUBROUTINE post_scf_mu_scan(ls_scf_env)
       TYPE(ls_scf_env_type)                              :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'post_scf_mu_scan', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'post_scf_mu_scan'
 
       INTEGER                                            :: handle, imu, ispin, nelectron_spin_real, &
                                                             nmu, nspin, unit_nr
@@ -1010,8 +1005,7 @@ CONTAINS
    SUBROUTINE post_scf_sparsities(ls_scf_env)
       TYPE(ls_scf_env_type)                              :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'post_scf_sparsities', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'post_scf_sparsities'
 
       CHARACTER(LEN=default_string_length)               :: title
       INTEGER                                            :: handle, ispin, nspin, unit_nr
@@ -1128,8 +1122,7 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: title
       REAL(KIND=dp)                                      :: eps
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'report_matrix_sparsity', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'report_matrix_sparsity'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: eps_local, occ
@@ -1170,8 +1163,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_w
       TYPE(ls_scf_env_type)                              :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix'
 
       INTEGER                                            :: handle, ispin
       REAL(KIND=dp)                                      :: scaling
@@ -1221,8 +1213,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE post_scf_experiment()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'post_scf_experiment', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'post_scf_experiment'
 
       INTEGER                                            :: handle, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger

@@ -147,8 +147,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: distribute_fock_matrix
       INTEGER, INTENT(IN)                                :: ispin
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center'
 
       CHARACTER(len=default_string_length)               :: eps_scaling_str, eps_schwarz_min_str
       INTEGER :: act_atomic_block_offset, act_set_offset, atomic_offset_ac, atomic_offset_ad, &

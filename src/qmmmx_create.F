@@ -55,8 +55,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmmx_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qmmmx_env_create'
 
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(qmmm_env_type), POINTER                       :: dummy_qmmm_env

@@ -91,8 +91,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
       TYPE(pw_type), OPTIONAL, POINTER                   :: pw2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_pw_to_simple_volumetric', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_pw_to_simple_volumetric'
 
       IF (.NOT. PRESENT(pw2)) THEN
          CALL pw_to_simple_volumetric(pw, unit_nr, stride)

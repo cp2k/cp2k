@@ -240,8 +240,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: com_vel(:, :)
       REAL(KIND=dp), INTENT(INOUT)                       :: shell_vel(:, :), core_vel(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'shell_scale_comv', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'shell_scale_comv'
 
       INTEGER                                            :: iparticle, iparticle_kind, &
                                                             iparticle_local, nparticle_kind, &
@@ -288,8 +287,7 @@ CONTAINS
 
       TYPE(lnhc_parameters_type), POINTER                :: nhc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'multiple_step_yoshida', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'multiple_step_yoshida'
 
       INTEGER                                            :: imap, inc, inhc, iyosh, n, nx1, nx2
       REAL(KIND=dp)                                      :: scale

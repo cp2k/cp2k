@@ -52,8 +52,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_nonbond', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'density_nonbond'
 
       INTEGER                                            :: atom_a, atom_b, handle, i, i_a, i_b, &
                                                             iend, igrp, ikind, ilist, ipair, &

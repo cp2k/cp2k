@@ -49,8 +49,7 @@ CONTAINS
       TYPE(helium_solvent_type), INTENT(INOUT), POINTER  :: helium
       TYPE(pint_env_type), INTENT(INOUT), POINTER        :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_sample_worm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_sample_worm'
 
       CHARACTER(len=default_string_length)               :: stmp
       INTEGER :: ac, iatom, ibead, icrawl, iMC, imove, ncentracc, ncentratt, ncloseacc, ncloseatt, &

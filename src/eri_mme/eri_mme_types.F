@@ -180,8 +180,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: potential
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_set_params', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_set_params'
 
       INTEGER                                            :: handle, l_mm, n_grids
       LOGICAL                                            :: s_only

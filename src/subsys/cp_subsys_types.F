@@ -136,8 +136,7 @@ CONTAINS
    SUBROUTINE cp_subsys_retain(subsys)
       TYPE(cp_subsys_type), POINTER                      :: subsys
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_subsys_retain'
 
       CPASSERT(ASSOCIATED(subsys))
       CPASSERT(subsys%ref_count > 0)
@@ -154,8 +153,7 @@ CONTAINS
    SUBROUTINE cp_subsys_release(subsys)
       TYPE(cp_subsys_type), POINTER                      :: subsys
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_subsys_release'
 
       IF (ASSOCIATED(subsys)) THEN
          CPASSERT(subsys%ref_count > 0)
@@ -455,8 +453,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pack_subsys_particles', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'pack_subsys_particles'
 
       INTEGER                                            :: i, iatom, j, k, natom, nparticle, nsize, &
                                                             shell_index
@@ -610,8 +607,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'unpack_subsys_particles', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'unpack_subsys_particles'
 
       INTEGER                                            :: i, iatom, j, k, natom, nparticle, nsize, &
                                                             shell_index

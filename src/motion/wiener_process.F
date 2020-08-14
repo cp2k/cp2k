@@ -62,8 +62,7 @@ CONTAINS
 
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_wiener_process', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_wiener_process'
 
       CHARACTER(LEN=40)                                  :: name
       INTEGER                                            :: iparticle, iparticle_kind, &
@@ -166,8 +165,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: nparticle_kind
       TYPE(section_vals_type), POINTER                   :: work_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_local_particle_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_local_particle_set'
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
       INTEGER                                            :: iparticle, iparticle_kind, &
@@ -213,8 +211,7 @@ CONTAINS
 
       TYPE(meta_env_type), POINTER                       :: meta_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_wiener_process_cv', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_wiener_process_cv'
 
       CHARACTER(LEN=40)                                  :: name
       INTEGER                                            :: i_c

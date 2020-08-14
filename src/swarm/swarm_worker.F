@@ -66,8 +66,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: input_path
       INTEGER, INTENT(in)                                :: worker_id
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_worker_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'swarm_worker_init'
 
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -105,8 +104,7 @@ CONTAINS
       TYPE(swarm_message_type), INTENT(OUT)              :: report
       LOGICAL, INTENT(INOUT)                             :: should_stop
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_worker_execute', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_worker_execute'
 
       CHARACTER(LEN=default_string_length)               :: command
 
@@ -140,8 +138,7 @@ CONTAINS
    SUBROUTINE swarm_worker_finalize(worker)
       TYPE(swarm_worker_type), INTENT(INOUT)             :: worker
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_worker_finalize', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_worker_finalize'
 
       SELECT CASE (worker%behavior)
       CASE (swarm_do_glbopt)

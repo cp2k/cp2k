@@ -123,8 +123,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coulomb', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coulomb'
 
       INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, ispin, itype, jatom, jkind, natom, &
          natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, nspins
@@ -488,8 +487,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coulomb_lr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coulomb_lr'
 
       INTEGER :: atom_a, ewald_type, forces_g_size, handle, iatom, ikind, ilist, indi, indj, &
          ispin, itype, iw, jint, natoms, natorb_a, nkind, nlocal_particles, node, nparticle_local, &
@@ -853,8 +851,7 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: pv_glob
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coul_lrc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coul_lrc'
 
       INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, itype, jatom, jkind, natom, &
          natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, nspins, size1, size2
@@ -1221,8 +1218,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coul_lr_r3', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coul_lr_r3'
 
       INTEGER :: atom_a, atom_b, ewald_type, handle, iatom, ikind, inode, ispin, itype, jatom, &
          jkind, natoms, natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, nlocal_particles, nspins

@@ -45,8 +45,7 @@ CONTAINS
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       INTEGER, INTENT(IN)                                :: method_id
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_expns3_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_expns3_setup'
 
       INTEGER                                            :: i, itype, j, nkinds
       LOGICAL                                            :: check

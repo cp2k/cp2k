@@ -98,8 +98,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
       TYPE(cell_type), POINTER                           :: mm_cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_el_coupling', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qmmm_el_coupling'
 
       INTEGER                                            :: handle, iw, iw2
       LOGICAL                                            :: mpi_io
@@ -256,8 +255,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: interp_section
       TYPE(cell_type), POINTER                           :: mm_cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian'
 
       INTEGER                                            :: handle, handle2, igrid, ilevel, &
                                                             kind_interp, lb(3), ngrids, ub(3)
@@ -547,8 +545,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: qmmm_spherical_cutoff
       LOGICAL                                            :: shells
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LG', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LG'
 
       INTEGER                                            :: handle, i, ii1, ii2, ii3, ii4, ij1, ij2, &
                                                             ij3, ij4, ik1, ik2, ik3, ik4, Imm, &
@@ -773,8 +770,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: qmmm_spherical_cutoff
       LOGICAL                                            :: shells
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LR', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LR'
 
       INTEGER                                            :: handle, i, Imm, IndMM, IRadTyp, ix, j, &
                                                             k, LIndMM, my_j, my_k, myind, n1, n2, &

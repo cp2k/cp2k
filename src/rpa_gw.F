@@ -167,8 +167,7 @@ CONTAINS
       TYPE(dbcsr_t_type), OPTIONAL :: t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
          t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_matrices_gw_im_time', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_matrices_gw_im_time'
 
       INTEGER                                            :: handle, jquad
       LOGICAL                                            :: my_open_shell
@@ -333,8 +332,7 @@ CONTAINS
                                                             vec_W_gw_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_S_gw_work_beta, fm_mat_S_gw_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_matrices_gw', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_matrices_gw'
 
       INTEGER                                            :: handle, iquad, jquad
       LOGICAL                                            :: my_open_shell
@@ -522,8 +520,7 @@ CONTAINS
                                                             gw_corr_lev_occ
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_Sigma_x_minus_vxc_gw11
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_vec_sigma_x', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_vec_sigma_x'
 
       INTEGER                                            :: handle, iiB, jjB, m_global, n_global, &
                                                             ncol_local, nm_global, nrow_local
@@ -638,8 +635,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT), OPTIONAL                         :: vec_Sigma_x_gw_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_gw', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_gw'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: my_open_shell
@@ -729,8 +725,7 @@ CONTAINS
       TYPE(dbcsr_t_type), OPTIONAL :: t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
          t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_gw_im_time', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_gw_im_time'
 
       INTEGER                                            :: handle, ikp, jquad
       LOGICAL                                            :: my_open_shell
@@ -891,8 +886,7 @@ CONTAINS
          INTENT(INOUT), OPTIONAL                         :: vec_W_gw_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_S_gw_beta, fm_mat_S_gw_work_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'GW_matrix_operations', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'GW_matrix_operations'
 
       INTEGER                                            :: handle, i_global, iiB, iquad, j_global, &
                                                             jjB, ncol_local, nrow_local
@@ -1072,8 +1066,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wj
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_self_energy_gw', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_self_energy_gw'
       COMPLEX(KIND=dp), PARAMETER                        :: im_unit = (0.0_dp, 1.0_dp)
 
       INTEGER                                            :: handle, iiB, iquad, jjB, m_global, &
@@ -1312,8 +1305,7 @@ CONTAINS
       TYPE(dbcsr_t_type), OPTIONAL                       :: t_3c_overl_int_gw_RI_beta, &
                                                             t_3c_overl_int_gw_AO_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_QP_energies', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_QP_energies'
 
       INTEGER                                            :: count_ev_sc_GW_print, count_sc_GW0, &
                                                             count_sc_GW0_print, crossing_search, &
@@ -1642,8 +1634,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_extra_kpoints, do_aux_bas
       REAL(KIND=dp), INTENT(IN)                          :: frac_aux_mos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_periodic_correction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_periodic_correction'
 
       INTEGER                                            :: handle
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_head, eps_inv_head
@@ -1706,8 +1697,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: omega
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_eps_head_Berry', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_eps_head_Berry'
 
       INTEGER :: col, col_end_in_block, col_offset, col_size, handle, i_col, i_row, ikp, nkp, row, &
          row_offset, row_size, row_start_in_block
@@ -1868,8 +1858,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_aux_bas
       REAL(KIND=dp), INTENT(IN)                          :: frac_aux_mos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_berry_phase', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_berry_phase'
 
       INTEGER                                            :: col_index, handle, i_col_local, ikind, &
                                                             ikp, nao_aux, ncol_local, nkind, nkp, &
@@ -2602,8 +2591,7 @@ CONTAINS
          INTENT(IN)                                      :: eps_head
       TYPE(kpoint_type), POINTER                         :: kpoints
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_eps_inv_head', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_eps_inv_head'
 
       INTEGER                                            :: handle, ikp, nkp
 
@@ -2928,8 +2916,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikp
       LOGICAL, INTENT(IN)                                :: my_open_shell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_eigenval_for_conti', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_eigenval_for_conti'
 
       INTEGER                                            :: handle, ispin, jkp, nkp, nmo, nspin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -3012,8 +2999,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: stop_crit, fermi_level_offset
       LOGICAL, INTENT(IN)                                :: do_gw_im_time
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_and_continuation_2pole', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_and_continuation_2pole'
 
       COMPLEX(KIND=dp)                                   :: func_val, im_unit, one, re_unit, rho1, &
                                                             zero
@@ -3440,8 +3426,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, print_self_energy
       INTEGER, INTENT(IN)                                :: count_ev_sc_GW
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'continuation_pade', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'continuation_pade'
 
       CHARACTER(len=default_path_length)                 :: filename
       COMPLEX(KIND=dp)                                   :: im_unit, re_unit, sigma_c_pade
@@ -3637,8 +3622,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_fit_points, nparam
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: xpoints, coeff
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pade_parameters', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pade_parameters'
 
       COMPLEX(KIND=dp)                                   :: im_unit
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: ypoints
@@ -3701,8 +3685,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: xpoints, coeff
       COMPLEX(KIND=dp), INTENT(OUT)                      :: func_val
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_pade_function', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_pade_function'
 
       COMPLEX(KIND=dp)                                   :: im_unit, re_unit
       INTEGER                                            :: handle, iparam
@@ -3739,8 +3722,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: xpoints, coeff
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: z_value, m_value
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_z_and_m_value_pade', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_z_and_m_value_pade'
 
       COMPLEX(KIND=dp)                                   :: denominator, dev_denominator, &
                                                             dev_numerator, dev_val, func_val, &
@@ -3795,8 +3777,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_level_gw_ref
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_bisection_pade', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_bisection_pade'
 
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=64)                                  :: n_level_gw_ref_char
@@ -3867,8 +3848,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_level_gw_ref
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_newton_pade', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_newton_pade'
 
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=64)                                  :: n_level_gw_ref_char
@@ -3959,8 +3939,7 @@ CONTAINS
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_and_update_for_ev_sc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_and_update_for_ev_sc'
 
       CHARACTER(4)                                       :: occ_virt
       INTEGER                                            :: handle, n_level_gw, n_level_gw_ref
@@ -4155,8 +4134,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                                             nmo
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'shift_unshifted_levels', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'shift_unshifted_levels'
 
       INTEGER                                            :: handle, n_level_gw, n_level_gw_ref
       REAL(KIND=dp)                                      :: eigen_diff
@@ -4603,8 +4581,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_self_energy_cubic_gw', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_self_energy_cubic_gw'
 
       COMPLEX(KIND=dp)                                   :: im_unit
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: delta_corr_omega
@@ -4892,8 +4869,7 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(INOUT), OPTIONAL        :: t_3c_ctr_RI
       LOGICAL, INTENT(IN), OPTIONAL                      :: t_3c_ctr_in
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_sigma_gw', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_sigma_gw'
 
       INTEGER                                            :: handle
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, sizes_AO, sizes_RI
@@ -5102,8 +5078,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter, e_fermi, tau
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Greens_function_time', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Greens_function_time'
 
       INTEGER                                            :: handle, i_global, iiB, jjB, ncol_local, &
                                                             nrow_local

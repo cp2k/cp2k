@@ -78,8 +78,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ic_correction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ic_correction'
 
       CHARACTER(4)                                       :: occ_virt
       INTEGER                                            :: handle, mo_end, mo_start, n_level_gw, &
@@ -300,8 +299,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_homo, do_lumo
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_Neaton_value', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_Neaton_value'
 
       INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
                                                             ncol_local, nrow_local
@@ -364,8 +362,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo, gw_corr_lev_occ
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_lumo
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_coeff_homo', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_coeff_homo'
 
       INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
                                                             ncol_local, nrow_local
@@ -444,8 +441,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: gw_corr_lev_virt, homo
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_mat_M_virt', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_mat_M_virt'
 
       INTEGER :: col, col_offset, col_size, handle, i_col, i_global, i_index, i_row, iiB, imepos, &
          j_global, jjB, m_level_gw, n_level_gw, nblkrows_total, ncol_local, nfullrows_total, &
@@ -687,8 +683,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, homo
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_mat_M_occ', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fill_fm_mat_M_occ'
 
       INTEGER :: col, col_offset, col_size, handle, i_col, i_global, i_index, i_row, iiB, imepos, &
          j_global, jjB, m_level_gw, n_level_gw, nblkrows_total, ncol_local, nfullrows_total, &
@@ -951,8 +946,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: coeff
       INTEGER, INTENT(IN)                                :: homo
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_coeff_dbcsr_occ', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_coeff_dbcsr_occ'
 
       INTEGER                                            :: col, end_data_block, handle, row, &
                                                             row_offset, row_size
@@ -998,8 +992,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: coeff
       INTEGER, INTENT(IN)                                :: homo
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_coeff_dbcsr_virt', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_coeff_dbcsr_virt'
 
       INTEGER                                            :: col, handle, row, row_offset, row_size, &
                                                             start_data_block

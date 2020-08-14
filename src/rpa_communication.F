@@ -91,8 +91,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: local_size_source
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_buffer', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'initialize_buffer'
 
       INTEGER :: dummy_proc, handle, handle2, i, i_global, i_local, iiB, iii, j_global, j_local, &
          jjB, mypcol_d, mypcol_s, myprow_d, myprow_s, ncol_block_d, ncol_block_s, ncol_local_d, &
@@ -352,8 +351,7 @@ CONTAINS
       INTEGER, DIMENSION(-para_env_RPA%num_pe:2*&
          para_env_RPA%num_pe-1), INTENT(IN)              :: RPA_proc_map
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_redistribute', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_redistribute'
 
       INTEGER :: dummy_proc, handle, handle2, i_global, i_local, iiB, iii, j_global, j_local, jjB, &
          mypcol_d, mypcol_s, myprow_d, myprow_s, ncol_block_d, ncol_block_s, ncol_local_d, &
@@ -604,8 +602,7 @@ CONTAINS
                                                             my_group_L_end, my_group_L_size, &
                                                             dimen_RI
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gamma_fm_to_dbcsr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gamma_fm_to_dbcsr'
 
       INTEGER :: dimen_ia, dummy_proc, handle, i, i_global, i_local, iaia, iib, iii, itmp(2), &
          j_global, j_local, jjb, jjj, kkb, my_ia_end, my_ia_size, my_ia_start, mypcol, myprow, &
@@ -993,8 +990,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: req_array
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_indx, do_msg
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'communicate_buffer', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'communicate_buffer'
 
       INTEGER                                            :: handle, imepos, rec_counter, send_counter
       LOGICAL                                            :: my_do_indx, my_do_msg

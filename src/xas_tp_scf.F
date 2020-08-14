@@ -399,8 +399,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xas_section
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_prepare_states', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_prepare_states'
 
       INTEGER :: handle, i, ikind, isgf, ispin, istate, j, my_kind, my_spin, my_state, nao, natom, &
          nexc_search, nmo, nvirtual2, uno_iter, xas_estate

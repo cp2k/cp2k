@@ -88,8 +88,7 @@ CONTAINS
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_xtb_atom_param', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_xtb_atom_param'
 
       IF (ASSOCIATED(xtb_parameter)) &
          CALL deallocate_xtb_atom_param(xtb_parameter)
@@ -134,8 +133,7 @@ CONTAINS
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_xtb_atom_param', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_xtb_atom_param'
 
       CPASSERT(ASSOCIATED(xtb_parameter))
       DEALLOCATE (xtb_parameter)
@@ -193,8 +191,7 @@ CONTAINS
       INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: occupation
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: electronegativity, chmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_xtb_atom_param', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_xtb_atom_param'
 
       CPASSERT(ASSOCIATED(xtb_parameter))
 
@@ -279,8 +276,7 @@ CONTAINS
       INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: occupation
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: chmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_xtb_atom_param', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_xtb_atom_param'
 
       CPASSERT(ASSOCIATED(xtb_parameter))
 
@@ -324,8 +320,7 @@ CONTAINS
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xtb_atom_param', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xtb_atom_param'
 
       CHARACTER(LEN=default_string_length)               :: aname, bb
       INTEGER                                            :: i, io_unit, m, natorb, nshell

@@ -48,8 +48,7 @@ CONTAINS
    SUBROUTINE rtp_hfx_rebuild(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_hfx_rebuild', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rtp_hfx_rebuild'
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_im, matrix_ks_im, &
                                                             matrix_s, matrix_s_aux, rho_ao_im, &
@@ -111,8 +110,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER, INTENT(in)                                :: nspins
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rebuild_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rebuild_matrices'
 
       INTEGER                                            :: i
 

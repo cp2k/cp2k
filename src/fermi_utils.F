@@ -421,8 +421,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: estate
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: festate
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'FermiFixedDeriv', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'FermiFixedDeriv'
 
       INTEGER                                            :: handle, I, my_estate, Nstate
       REAL(KIND=dp)                                      :: h, mux, my_festate

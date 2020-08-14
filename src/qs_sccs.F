@@ -1157,8 +1157,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, rho_max, rho_min, &
                                                             delta_rho
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'surface_andreussi', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'surface_andreussi'
       REAL(KIND=dp), PARAMETER                           :: tol = 1.0E-12_dp
 
       INTEGER                                            :: handle, i, j, k, l
@@ -1241,8 +1240,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, beta, rho_zero, &
                                                             delta_rho
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'surface_fattebert_gygi', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'surface_fattebert_gygi'
       REAL(KIND=dp), PARAMETER                           :: tol = 1.0E-12_dp
 
       INTEGER                                            :: handle, i, j, k, l

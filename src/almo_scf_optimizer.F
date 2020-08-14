@@ -137,8 +137,7 @@ CONTAINS
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
       TYPE(optimizer_options_type), INTENT(IN)           :: optimizer
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_block_diagonal', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_block_diagonal'
 
       INTEGER                                            :: handle, iscf, ispin, nspin, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_nocc_of_domain
@@ -454,8 +453,7 @@ CONTAINS
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
       TYPE(optimizer_options_type), INTENT(IN)           :: optimizer
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_xalmo_eigensolver', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_xalmo_eigensolver'
 
       INTEGER                                            :: handle, iscf, ispin, nspin, unit_nr
       LOGICAL                                            :: converged, prepare_to_exit, should_stop
@@ -875,8 +873,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: assume_t0_q0x, perturbation_only
       INTEGER, INTENT(IN), OPTIONAL                      :: special_case
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_xalmo_pcg', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_xalmo_pcg'
 
       CHARACTER(LEN=20)                                  :: iter_type
       INTEGER :: cg_iteration, dim_op, fixed_line_search_niter, handle, idim0, ielem, ispin, &
@@ -2016,8 +2013,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: virtuals
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_construct_nlmos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_construct_nlmos'
 
       CHARACTER(LEN=30)                                  :: iter_type, print_string
       INTEGER :: cg_iteration, dim_op, handle, iatom, idim0, isgf, ispin, iteration, &
@@ -3158,8 +3154,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: m_FTsiginv_out, m_siginvTFTsiginv_out, &
                                                             m_ST_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_frequently_used_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_frequently_used_matrices'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_type)                                   :: m_tmp_no_1, m_tmp_oo_1
@@ -3291,8 +3286,7 @@ CONTAINS
 
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'harris_foulkes_correction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'harris_foulkes_correction'
       INTEGER, PARAMETER                                 :: cayley_transform = 1, dm_ls_step = 2
 
       INTEGER :: algorithm_id, handle, handle1, handle2, handle3, handle4, handle5, handle6, &
@@ -4933,8 +4927,7 @@ CONTAINS
                                                             template_vr_vr_blk, template_n_vr
       REAL(KIND=dp), INTENT(IN)                          :: spin_factor, eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'opt_k_create_preconditioner', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'opt_k_create_preconditioner'
 
       INTEGER                                            :: handle, p_nrows, q_nrows
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: p_diagonal, q_diagonal
@@ -5092,8 +5085,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       REAL(KIND=dp), INTENT(IN)                          :: spin_factor
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'opt_k_create_preconditioner_blk', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'opt_k_create_preconditioner_blk'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: eps_filter
@@ -5308,8 +5300,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: grad
       INTEGER, INTENT(IN)                                :: ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'opt_k_apply_preconditioner_blk', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'opt_k_apply_preconditioner_blk'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: eps_filter
@@ -5981,8 +5972,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: energy_coeff, localiz_coeff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_gradient', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_gradient'
 
       INTEGER                                            :: dim0, handle, idim0, nao, reim
       LOGICAL                                            :: my_penalty_local
@@ -6349,8 +6339,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       CHARACTER(len=*), INTENT(IN)                       :: filename
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_mathematica_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_mathematica_matrix'
 
       CHARACTER(LEN=20)                                  :: formatstr, Scols
       INTEGER                                            :: col, fiunit, handle, hori_offset, jj, &
@@ -6481,8 +6470,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: just_started
       REAL(KIND=dp), INTENT(IN)                          :: penalty_amplitude, eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_obj_nlmos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_obj_nlmos'
 
       INTEGER                                            :: handle, idim0, ielem, para_group, reim
       REAL(KIND=dp)                                      :: det1, fval
@@ -6609,8 +6597,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: penalty_vol_prefactor, eps_filter
       REAL(KIND=dp), INTENT(INOUT)                       :: suggested_vol_penalty
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_gradient_nlmos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_gradient_nlmos'
 
       INTEGER                                            :: dim0, handle, idim0, reim
       REAL(KIND=dp)                                      :: norm_loc, norm_vol
@@ -6819,8 +6806,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_xalmos_from_main_var', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_xalmos_from_main_var'
 
       INTEGER                                            :: handle, unit_nr
       REAL(KIND=dp)                                      :: t_norm
@@ -6998,8 +6984,7 @@ CONTAINS
          INTENT(INOUT), OPTIONAL                         :: bad_modes_projector_down_out
       LOGICAL, INTENT(IN)                                :: skip_inversion
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_preconditioner', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_preconditioner'
 
       INTEGER                                            :: handle, ndim, precond_domain_projector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: nn_diagonal
@@ -7285,8 +7270,7 @@ CONTAINS
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL                                        :: prev_minus_prec_grad
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_cg_beta', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_cg_beta'
 
       INTEGER                                            :: handle, i, nsize, unit_nr
       REAL(KIND=dp)                                      :: den, kappa, my_denom, my_numer, &
@@ -7481,8 +7465,7 @@ CONTAINS
                                                             penalty_occ_vol_pf2
       INTEGER, INTENT(IN)                                :: special_case
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'newton_grad_to_step', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'newton_grad_to_step'
 
       CHARACTER(LEN=20)                                  :: iter_type
       INTEGER                                            :: handle, ispin, iteration, max_iter, &
@@ -8341,8 +8324,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hessian_diag_apply', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hessian_diag_apply'
 
       INTEGER :: ao_hori_offset, ao_vert_offset, block_col, block_row, col, H_size, handle, ii, &
          INFO, jj, lev1_hori_offset, lev1_vert_offset, lev2_hori_offset, lev2_vert_offset, LWORK, &
@@ -9088,8 +9070,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: perturbation_only
       INTEGER, INTENT(IN), OPTIONAL                      :: special_case
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_xalmo_trustr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_xalmo_trustr'
 
       INTEGER :: handle, ispin, iteration, iteration_type_to_report, my_special_case, ndomains, &
          nspins, outer_iteration, prec_type, unit_nr
@@ -10316,8 +10297,7 @@ CONTAINS
                                                             perturbation_only, do_penalty
       INTEGER, INTENT(IN)                                :: special_case
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'main_var_to_xalmos_and_loss_func', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'main_var_to_xalmos_and_loss_func'
 
       INTEGER                                            :: handle, ispin, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nocc
@@ -10968,8 +10948,7 @@ CONTAINS
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_xalmo_in, m_quench_in
       REAL(KIND=dp), INTENT(INOUT)                       :: energy_inout
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wrap_up_xalmo_scf', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'wrap_up_xalmo_scf'
 
       INTEGER                                            :: eda_unit, handle, ispin, nspins, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger

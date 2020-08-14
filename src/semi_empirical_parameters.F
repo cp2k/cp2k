@@ -84,8 +84,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       INTEGER                                            :: z
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pcharge_default_parameter', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pcharge_default_parameter'
 
       sep%typ = do_method_pchg
       sep%name = "CLASSICAL"
@@ -106,8 +105,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       INTEGER, INTENT(IN)                                :: z, itype
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mndo_default_parameter', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mndo_default_parameter'
 
       sep%typ = itype
       sep%name = ptable(z)%name
@@ -701,8 +699,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       INTEGER, INTENT(IN)                                :: z
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pnnl_default_parameter', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pnnl_default_parameter'
       REAL(KIND=dp), PARAMETER                           :: Ang = 0.529167_dp, eV = 27.21_dp
 
       sep%typ = do_method_pnnl
@@ -778,8 +775,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       INTEGER                                            :: z
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mndod_default_parameter', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mndod_default_parameter'
 
       SELECT CASE (z)
       CASE (11)
@@ -1027,8 +1023,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       INTEGER                                            :: z
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'am1_default_parameter', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'am1_default_parameter'
 
       sep%typ = do_method_am1
       sep%name = ptable(z)%name
@@ -1509,8 +1504,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       INTEGER                                            :: z
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rm1_default_parameter', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rm1_default_parameter'
 
       sep%typ = do_method_rm1
       sep%name = ptable(z)%name
@@ -1720,8 +1714,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       INTEGER                                            :: z
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pm3_default_parameter', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pm3_default_parameter'
 
       sep%typ = do_method_pm3
       sep%name = ptable(z)%name
@@ -2514,8 +2507,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       INTEGER                                            :: z
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pm6_default_parameter', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pm6_default_parameter'
 
       sep%typ = do_method_pm6
       sep%name = ptable(z)%name
@@ -3871,8 +3863,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       INTEGER                                            :: z
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pm6fm_default_parameter', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pm6fm_default_parameter'
 
       sep%typ = do_method_pm6fm
       sep%name = ptable(z)%name
@@ -5228,8 +5219,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       INTEGER                                            :: z
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pdg_default_parameter', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pdg_default_parameter'
 
       sep%typ = do_method_pdg
       sep%name = ptable(z)%name
@@ -5594,8 +5584,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_pm6_pair_params()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_pm6_pair_params', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_pm6_pair_params'
 
       INTEGER                                            :: i, j
       INTEGER, SAVE                                      :: init = 0
@@ -7484,8 +7473,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_pm6fm_pair_params()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_pm6fm_pair_params', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_pm6fm_pair_params'
 
       INTEGER                                            :: i, j
       INTEGER, SAVE                                      :: init = 0

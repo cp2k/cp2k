@@ -37,8 +37,7 @@ CONTAINS
    SUBROUTINE create_atprop_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_atprop_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_atprop_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

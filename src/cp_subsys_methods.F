@@ -104,8 +104,7 @@ CONTAINS
          POINTER                                         :: exclusions
       LOGICAL, INTENT(IN), OPTIONAL                      :: elkind
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_subsys_create'
 
       INTEGER                                            :: stress_tensor
       INTEGER, DIMENSION(:), POINTER                     :: seed_vals
@@ -232,8 +231,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: colvar_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_read_colvar', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_read_colvar'
 
       INTEGER                                            :: ig, ncol
 
@@ -279,8 +277,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(in), OPTIONAL                      :: ignore_outside_box
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_small_subsys', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_small_subsys'
 
       CHARACTER(len=default_string_length)               :: my_element, strtmp1
       INTEGER                                            :: iat, id_, nat

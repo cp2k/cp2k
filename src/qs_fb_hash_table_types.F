@@ -109,8 +109,7 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(IN)                    :: key
       INTEGER, INTENT(IN)                                :: val
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_add', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fb_hash_table_add'
 
       INTEGER                                            :: islot
       LOGICAL                                            :: check_ok
@@ -147,8 +146,7 @@ CONTAINS
       TYPE(fb_hash_table_obj), INTENT(INOUT)             :: hash_table
       INTEGER, INTENT(IN), OPTIONAL                      :: nmax
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_create'
 
       INTEGER                                            :: my_nmax
       LOGICAL                                            :: check_ok
@@ -184,8 +182,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: val
       LOGICAL, INTENT(OUT)                               :: found
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_get', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fb_hash_table_get'
 
       INTEGER                                            :: islot
       LOGICAL                                            :: check_ok
@@ -228,8 +225,7 @@ CONTAINS
       TYPE(fb_hash_table_obj), INTENT(INOUT)             :: hash_table
       INTEGER, INTENT(IN), OPTIONAL                      :: nmax
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_init'
 
       INTEGER                                            :: ii, my_nmax, power
       LOGICAL                                            :: check_ok
@@ -285,8 +281,7 @@ CONTAINS
       TYPE(fb_hash_table_obj), INTENT(INOUT)             :: hash_table
       INTEGER, INTENT(IN), OPTIONAL                      :: nmax
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_rehash', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_rehash'
 
       INTEGER                                            :: ii, my_nmax
       TYPE(fb_hash_table_element), ALLOCATABLE, &
@@ -324,8 +319,7 @@ CONTAINS
    SUBROUTINE fb_hash_table_release(hash_table)
       TYPE(fb_hash_table_obj), INTENT(INOUT)             :: hash_table
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_release'
 
       LOGICAL                                            :: check_ok
 
@@ -356,8 +350,7 @@ CONTAINS
       TYPE(fb_hash_table_obj), INTENT(INOUT)             :: hash_table
       INTEGER(KIND=int_8), INTENT(IN)                    :: key
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_remove', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_remove'
 
       INTEGER                                            :: islot
       LOGICAL                                            :: check_ok
@@ -391,8 +384,7 @@ CONTAINS
    SUBROUTINE fb_hash_table_retain(hash_table)
       TYPE(fb_hash_table_obj), INTENT(INOUT)             :: hash_table
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_retain'
 
       LOGICAL                                            :: check_ok
 
@@ -415,8 +407,7 @@ CONTAINS
       TYPE(fb_hash_table_obj), INTENT(INOUT)             :: hash_table
       INTEGER, INTENT(OUT), OPTIONAL                     :: nelements, nmax, prime
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_status', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_status'
 
       LOGICAL                                            :: check_ok
 

@@ -61,9 +61,7 @@ CONTAINS
          POINTER                                :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: &
-         routineN = 'quip_energy_store_force_virial', &
-         routineP = moduleN//':'//routineN
-
+         routineN = 'quip_energy_store_force_virial'
 #ifdef __QUIP
       CHARACTER(len=2), ALLOCATABLE            :: elem_symbol(:)
       INTEGER                                  :: i, iat, iat_use, ikind, &
@@ -197,8 +195,7 @@ CONTAINS
       TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
       REAL(KIND=dp)                            :: force(:, :), virial(3, 3)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'quip_add_force_virial', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'quip_add_force_virial'
 
 #ifdef __QUIP
       INTEGER                                  :: iat, iat_use

@@ -56,8 +56,7 @@ CONTAINS
       INTEGER                                            :: ind
       CHARACTER(LEN=50)                                  :: filename
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dot_file_name', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_dot_file_name'
 
       filename = ""
 
@@ -83,8 +82,7 @@ CONTAINS
    SUBROUTINE init_draw_trees(tmc_params)
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_draw_trees', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_draw_trees'
 
       INTEGER                                            :: file_ptr, i
 
@@ -117,8 +115,7 @@ CONTAINS
    SUBROUTINE finalize_draw_tree(tmc_params)
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_draw_tree', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_draw_tree'
 
       INTEGER                                            :: file_ptr, i
 
@@ -262,8 +259,7 @@ CONTAINS
       TYPE(tmc_param_type), POINTER                      :: tmc_params
       INTEGER                                            :: tree
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dot_branch', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_dot_branch'
 
       INTEGER                                            :: file_ptr
 
@@ -315,8 +311,7 @@ CONTAINS
       TYPE(global_tree_type), POINTER                    :: new_element
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_global_tree_dot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_global_tree_dot'
 
       CHARACTER(len=1000)                                :: list_of_nr
       INTEGER                                            :: file_ptr, i, ref_count
@@ -395,8 +390,7 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: tree_element
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dot_color', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_dot_color'
 
       CHARACTER(len=1000)                                :: list_of_nr
       INTEGER                                            :: ref_count
@@ -439,8 +433,7 @@ CONTAINS
       TYPE(global_tree_type), POINTER                    :: gt_tree_element
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_global_tree_dot_color', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_global_tree_dot_color'
 
       CPASSERT(ASSOCIATED(gt_tree_element))
       CPASSERT(ASSOCIATED(tmc_params))

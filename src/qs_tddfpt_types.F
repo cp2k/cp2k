@@ -110,8 +110,7 @@ CONTAINS
 
       TYPE(tddfpt_env_type), INTENT(inout)               :: t_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_deallocate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_deallocate'
 
       INTEGER                                            :: i, spin
 

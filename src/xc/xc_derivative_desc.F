@@ -56,8 +56,7 @@ CONTAINS
       CHARACTER(LEN=MAX_DERIVATIVE_DESC_LENGTH), &
          INTENT(OUT)                                     :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'standardize_derivative_desc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'standardize_derivative_desc'
 
       CHARACTER(len=MAX_LABEL_LENGTH)                    :: tmp
       CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
@@ -102,8 +101,7 @@ CONTAINS
       CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
          POINTER                                         :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_split_derivative_desc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_split_derivative_desc'
 
       INTEGER                                            :: i, j, nderiv
 

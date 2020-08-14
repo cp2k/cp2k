@@ -125,8 +125,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xlda_hole_t_c_lr_lda_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xlda_hole_t_c_lr_lda_eval'
 
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -202,8 +201,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: rho, e_0, e_rho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx, R
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xlda_hole_t_c_lr_lda_calc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xlda_hole_t_c_lr_lda_calc'
 
       INTEGER                                            :: ip
       REAL(dp)                                           :: my_rho
@@ -244,8 +242,7 @@ CONTAINS
       REAL(kind=dp), INTENT(INOUT)                       :: e_0, e_rho
       REAL(KIND=dp), INTENT(IN)                          :: sx, R
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xlda_hole_t_c_lr_lda_calc_0', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xlda_hole_t_c_lr_lda_calc_0'
 
       REAL(KIND=dp)                                      :: t1, t12, t14, t15, t19, t2, t22, t23, &
                                                             t24, t25, t3, t32, t33, t36, t4, t41, &
@@ -319,8 +316,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xlda_hole_t_c_lr_lsd_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xlda_hole_t_c_lr_lsd_eval'
 
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -410,8 +406,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: rho, e_0, e_rho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx, R
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xlda_hole_t_c_lr_lsd_calc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xlda_hole_t_c_lr_lsd_calc'
 
       INTEGER                                            :: ip
       REAL(dp)                                           :: e_tmp, my_rho

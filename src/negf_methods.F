@@ -335,8 +335,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(in)                                :: log_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'guess_fermi_level', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'guess_fermi_level'
 
       CHARACTER(len=default_string_length)               :: temperature_str
       COMPLEX(kind=dp)                                   :: lbound_cpath, lbound_lpath, ubound_lpath
@@ -624,8 +623,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(in)                                :: base_contact, log_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'shift_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'shift_potential'
 
       COMPLEX(kind=dp)                                   :: lbound_cpath, ubound_cpath, ubound_lpath
       INTEGER                                            :: handle, ispin, iter_count, nao, &
@@ -888,8 +886,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: v_shift
       INTEGER, INTENT(in)                                :: base_contact, log_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'converge_density', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'converge_density'
       REAL(kind=dp), PARAMETER :: threshold = 16.0_dp*EPSILON(0.0_dp)
 
       COMPLEX(kind=dp)                                   :: lbound_cpath, ubound_cpath, ubound_lpath
@@ -1277,8 +1274,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: v_external, conv
       LOGICAL, INTENT(in)                                :: transp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'negf_surface_green_function_batch', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'negf_surface_green_function_batch'
 
       INTEGER                                            :: handle, igroup, ipoint, npoints
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -1365,8 +1361,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: transm_contact1, transm_contact2, &
                                                             just_contact
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'negf_retarded_green_function_batch', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'negf_retarded_green_function_batch'
 
       INTEGER                                            :: handle, icontact, igroup, ipoint, &
                                                             ncontacts, npoints, nrows
@@ -1898,8 +1893,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: ispin, base_contact
       INTEGER, INTENT(in), OPTIONAL                      :: just_contact
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_init_rho_equiv_residuals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_init_rho_equiv_residuals'
 
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: omega
       INTEGER                                            :: handle, icontact, ipole, ncontacts, &
@@ -2042,8 +2036,7 @@ CONTAINS
       TYPE(green_functions_cache_type), INTENT(inout)    :: g_surf_cache
       INTEGER, INTENT(in), OPTIONAL                      :: just_contact
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_add_rho_equiv_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_add_rho_equiv_low'
 
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: xnodes, zscale
       INTEGER :: handle, icontact, interval_id, ipoint, max_points, min_points, ncontacts, &
@@ -2374,8 +2367,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: matrix_s_global
       TYPE(green_functions_cache_type), INTENT(inout)    :: g_surf_cache
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_add_rho_nonequiv', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_add_rho_nonequiv'
 
       COMPLEX(kind=dp)                                   :: fermi_base, fermi_contact, &
                                                             integr_lbound, integr_ubound
@@ -2596,8 +2588,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       REAL(kind=dp)                                      :: current
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_compute_current', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_compute_current'
       REAL(kind=dp), PARAMETER :: threshold = 16.0_dp*EPSILON(0.0_dp)
 
       COMPLEX(kind=dp)                                   :: fermi_contact1, fermi_contact2, &
@@ -2913,8 +2904,7 @@ CONTAINS
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: contact_id1, contact_id2
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_print_transmission', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_print_transmission'
 
       CHARACTER                                          :: uks_str
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: xnodes

@@ -168,8 +168,7 @@ CONTAINS
       LOGICAL                                          :: valid
       REAL(KIND=dp), DIMENSION(:), POINTER             :: blockp
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'submatrix_dissection_init', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'submatrix_dissection_init'
       INTEGER :: handle
 
       CALL timeset(routineN, handle)
@@ -796,8 +795,7 @@ CONTAINS
                                                                          bufsize, bufsize_next
       TYPE(buffer_type), DIMENSION(:), ALLOCATABLE                    :: result_recvbufs
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'submatrix_communicate_results', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'submatrix_communicate_results'
       INTEGER :: handle
 
       CALL timeset(routineN, handle)

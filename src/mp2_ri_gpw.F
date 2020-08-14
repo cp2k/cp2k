@@ -90,8 +90,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
       TYPE(group_dist_d1_type), INTENT(INOUT), OPTIONAL  :: gd_B_virtual_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_en', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_en'
 
       INTEGER :: a, a_global, b, b_global, best_block_size, best_integ_group_size, block_size, &
          comm_exchange, comm_P, end_point, handle, handle2, handle3, iiB, ij_counter, &
@@ -891,8 +890,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: ranges_info_array
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_iaK_2intgroup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_iaK_2intgroup'
 
       INTEGER                                            :: comm_rep, end_point, handle, i, &
                                                             max_L_size, proc_receive, proc_send, &
@@ -1050,8 +1048,7 @@ CONTAINS
          INTENT(OUT), OPTIONAL                           :: local_ba
       INTEGER, INTENT(IN), OPTIONAL                      :: virtual_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_allocate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_ri_allocate'
 
       INTEGER                                            :: handle
 
@@ -1128,8 +1125,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: my_open_shell_SS
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_communication', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_communication'
 
       INTEGER :: assigned_blocks, first_I_block, first_J_block, handle, iiB, ij_block_counter, &
          ij_counter, jjB, last_i_block, last_J_block, num_block_per_group, total_ij_block, &
@@ -1289,8 +1285,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_rep
       INTEGER, INTENT(IN)                                :: num_integ_group
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_create_group', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_create_group'
 
       INTEGER                                            :: handle, i
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: new_sizes_array
@@ -1408,8 +1403,7 @@ CONTAINS
                                                             mem_for_rep, mem_min, mem_per_group, &
                                                             mem_real
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_get_sizes', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_ri_get_sizes'
 
       INTEGER                                            :: handle, iiB
       INTEGER(KIND=int_8)                                :: mem
@@ -1577,8 +1571,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT), OPTIONAL                         :: local_ba
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_update_P_gamma', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_update_P_gamma'
 
       INTEGER :: a, b, b_global, handle, proc_receive, proc_send, proc_shift, rec_B_size, &
          rec_B_virtual_end, rec_B_virtual_start, send_B_size, send_B_virtual_end, &
@@ -1959,8 +1952,7 @@ CONTAINS
                                                             open_shell
       INTEGER, INTENT(IN), OPTIONAL                      :: my_B_size_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
       INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, jjb, kkk, Lend_pos, lll, &
          Lstart_pos, proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, &
@@ -2391,8 +2383,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
       INTEGER, INTENT(IN), OPTIONAL                      :: my_B_virtual_end_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'quasi_degenerate_P_ij', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'quasi_degenerate_P_ij'
 
       INTEGER :: a, a_global, b, b_global, end_point, handle, handle2, ijk_counter, &
          ijk_counter_send, ijk_index, iloops, irep, Lend_pos, Lstart_pos, max_ijk, max_ijk_beta, &
@@ -2937,8 +2928,7 @@ CONTAINS
          OPTIONAL                                        :: num_ijk_beta
       INTEGER, INTENT(OUT), OPTIONAL                     :: max_ijk_beta, my_ijk_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'Find_quasi_degenerate_ij', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'Find_quasi_degenerate_ij'
 
       INTEGER                                            :: iib, ijk_counter, jjb, kkb, my_homo, &
                                                             num_sing_ij, total_ijk

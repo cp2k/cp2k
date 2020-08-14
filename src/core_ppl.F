@@ -572,8 +572,7 @@ CONTAINS
          POINTER                                         :: sac_ppl
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ppl_ri', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_core_ppl_ri'
       INTEGER, PARAMETER                                 :: nexp_max = 30
 
       INTEGER :: atom_a, handle, i, iatom, ikind, iset, katom, kkind, maxco, maxsgf, n_local, &

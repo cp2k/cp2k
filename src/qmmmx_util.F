@@ -72,8 +72,7 @@ CONTAINS
    SUBROUTINE apply_qmmmx_translate(qmmmx_env)
       TYPE(qmmmx_env_type), POINTER                      :: qmmmx_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmmx_translate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmmx_translate'
 
       INTEGER                                            :: ip
       TYPE(cell_type), POINTER                           :: cell_core, cell_extended
@@ -118,8 +117,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: qmmm_section
       LOGICAL, OPTIONAL                                  :: labels_changed
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_force_mixing_labels', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'update_force_mixing_labels'
 
       CHARACTER(LEN=default_string_length), POINTER      :: adaptive_exclude_molecules(:)
       INTEGER :: i_rep_section, i_rep_val, ip, max_n_qm, n_new, n_rep_exclude, n_rep_section, &
@@ -443,8 +441,7 @@ CONTAINS
          POINTER                                         :: molecule_set
       INTEGER, OPTIONAL, POINTER                         :: broken_bonds(:)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_layer_hysteretically', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'add_layer_hysteretically'
 
       INTEGER                                            :: i_ind, im, im_exclude, ip, ipair, &
                                                             ipairkind, j_ind, output_unit
@@ -534,8 +531,7 @@ CONTAINS
       REAL(dp)                                           :: r_max
       TYPE(fist_neighbor_type), POINTER                  :: nlist
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'make_neighbor_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_neighbor_list'
 
       CHARACTER(LEN=default_string_length)               :: kind_name
       CHARACTER(LEN=default_string_length), POINTER      :: kind_name_a(:)
@@ -600,8 +596,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: qmmm_section, qmmm_core_section, &
                                                             qmmm_extended_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_force_mixing_qmmm_sections', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_force_mixing_qmmm_sections'
 
       CHARACTER(len=default_string_length), POINTER      :: elem_mapping(:, :), elem_mapping_entry(:)
       INTEGER :: delta_charge, i_rep_section_core, i_rep_section_extended, i_rep_val_core, &
@@ -768,8 +763,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_mixing_section
       INTEGER, POINTER                                   :: indices(:), labels(:)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_force_mixing_indices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_force_mixing_indices'
 
       INTEGER                                            :: i_rep_val, n_indices, n_labels, n_reps
       INTEGER, POINTER                                   :: indices_entry(:), labels_entry(:)

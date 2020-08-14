@@ -43,8 +43,7 @@ CONTAINS
    SUBROUTINE create_status_type(status)
       TYPE(status_type), POINTER                         :: status
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_status_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_status_type'
 
       CPASSERT(.NOT. ASSOCIATED(status))
       ALLOCATE (status)
@@ -67,8 +66,7 @@ CONTAINS
    SUBROUTINE release_status_type(status)
       TYPE(status_type), POINTER                         :: status
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_status_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'release_status_type'
 
       CPASSERT(ASSOCIATED(status))
       CALL release_buffer_type(status%buffer)

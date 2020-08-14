@@ -131,8 +131,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: reflection_z_a, reflection_z_b
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp2_eri_2c_integrate', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp2_eri_2c_integrate'
 
       INTEGER :: atom_a, atom_b, atom_end, atom_start, first_set, G_count, handle, iatom, ikind, &
                  iset, jatom, jkind, jset, jset_end, jset_start, last_set, my_eri_method, my_setpair, &
@@ -389,8 +388,7 @@ CONTAINS
       INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count, R_count
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_set_2c', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_set_2c'
 
       INTEGER :: ax, ay, az, bx, by, bz, hab_a_end, hab_a_start, hab_b_end, hab_b_start, handle, &
                  i_xyz, ico, icox, icoy, icoz, ipgf, jco, jcox, jcoy, jcoz, jpgf, la, la_max_d, lb, &
@@ -639,8 +637,7 @@ CONTAINS
          DIMENSION(3, last_c - first_c + 1), INTENT(INOUT), &
          OPTIONAL                                        :: mat_dabc, mat_adbc, mat_abdc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_eri_3c_integrate', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_eri_3c_integrate'
 
       INTEGER :: atom_a, atom_b, atom_c, atom_end, atom_start, first_set, GG_count, GR_count, &
                  handle, i_xyz, iatom, ic, icol, ikind, inode, irow, iset, jatom, jkind, jset, katom, &
@@ -1103,8 +1100,7 @@ CONTAINS
          INTENT(OUT), OPTIONAL                           :: hdabc, hadbc, habdc
       INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'integrate_set_3c', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'integrate_set_3c'
 
       INTEGER :: ax, ay, az, bx, by, bz, cx, cy, cz, habc_a_end, habc_a_start, habc_b_end, &
                  habc_b_start, habc_c_end, habc_c_start, handle, i_xyz, ico, icoc, icox, icoy, icoz, ipgf, &

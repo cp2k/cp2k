@@ -100,8 +100,7 @@ CONTAINS
    SUBROUTINE reassign_allocated_mos(mo_set_new, mo_set_old)
       TYPE(mo_set_type), POINTER                         :: mo_set_new, mo_set_old
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reassign_allocated_mos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'reassign_allocated_mos'
 
       INTEGER                                            :: nmo
 
@@ -143,8 +142,7 @@ CONTAINS
    SUBROUTINE duplicate_mo_set(mo_set_new, mo_set_old)
       TYPE(mo_set_type), POINTER                         :: mo_set_new, mo_set_old
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'duplicate_mo_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'duplicate_mo_set'
 
       INTEGER                                            :: nmo
 
@@ -206,8 +204,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nao, nmo, nelectron
       REAL(KIND=dp), INTENT(IN)                          :: n_el_f, maxocc, flexible_electron_count
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_mo_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'allocate_mo_set'
 
       IF (ASSOCIATED(mo_set)) CALL deallocate_mo_set(mo_set)
 
@@ -316,8 +313,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       LOGICAL, INTENT(in), OPTIONAL                      :: convert_dbcsr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mo_set_restrict', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mo_set_restrict'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: my_convert_dbcsr
@@ -356,8 +352,7 @@ CONTAINS
 
       TYPE(mo_set_type), POINTER                         :: mo_set
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_mo_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'deallocate_mo_set'
 
       IF (ASSOCIATED(mo_set)) THEN
          IF (ASSOCIATED(mo_set%eigenvalues)) THEN

@@ -80,8 +80,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_se_core_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_se_core_matrix'
 
       INTEGER :: after, atom_a, atom_b, handle, i, iatom, icol, icor, ikind, inode, irow, itype, &
          iw, j, jatom, jkind, natom, natorb_a, nkind, nr_a, nra, nrb

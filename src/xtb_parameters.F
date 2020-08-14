@@ -186,8 +186,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: parameter_file_path, parameter_file_name
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_parameters_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_parameters_init'
 
       CHARACTER(len=2)                                   :: enam, esym
       CHARACTER(len=default_string_length)               :: aname, filename
@@ -280,8 +279,7 @@ CONTAINS
       CHARACTER(LEN=2), INTENT(IN)                       :: element_symbol
       TYPE(section_vals_type), POINTER                   :: xtb_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_parameters_read', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_parameters_read'
 
       CHARACTER(LEN=2)                                   :: label
       CHARACTER(len=20*default_string_length)            :: line_att
@@ -409,8 +407,7 @@ CONTAINS
 
       TYPE(xtb_atom_type), POINTER                       :: param
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_parameters_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_parameters_set'
 
       INTEGER                                            :: i, is, l, na
       REAL(KIND=dp), DIMENSION(5)                        :: kp

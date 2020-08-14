@@ -128,8 +128,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(nnodes), INTENT(in), &
          OPTIONAL                                        :: tnodes_restart
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'simpsonrule_init'
 
       INTEGER                                            :: handle, icol, irow, ncols, nrows
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: w_data, w_data_my
@@ -187,8 +186,7 @@ CONTAINS
    SUBROUTINE simpsonrule_release(sr_env)
       TYPE(simpsonrule_type), INTENT(inout)              :: sr_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_release'
 
       INTEGER                                            :: handle, interval
 
@@ -234,8 +232,7 @@ CONTAINS
       INTEGER, INTENT(inout)                             :: nnodes
       COMPLEX(kind=dp), DIMENSION(nnodes), INTENT(out)   :: xnodes_next
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_get_next_nodes', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_get_next_nodes'
 
       INTEGER                                            :: handle, nnodes_old
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: tnodes, tnodes_old
@@ -273,8 +270,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), INTENT(out)           :: xnodes_unity
       INTEGER, INTENT(out)                               :: nnodes
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_get_next_nodes_real', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_get_next_nodes_real'
 
       INTEGER                                            :: handle, interval, nintervals
 
@@ -316,8 +312,7 @@ CONTAINS
       TYPE(simpsonrule_type), INTENT(inout)              :: sr_env
       TYPE(cp_cfm_p_type), DIMENSION(:), INTENT(inout)   :: zdata_next
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_refine_integral', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_refine_integral'
 
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: zscale
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: error_zdata

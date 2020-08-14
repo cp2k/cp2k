@@ -87,8 +87,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calc_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_energies_init'
 
       INTEGER                                            :: img, ispin, nimg, nspin
       LOGICAL                                            :: has_unit_metric, molecule_only
@@ -154,8 +153,7 @@ CONTAINS
    SUBROUTINE qs_energies_init_kg(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_init_kg', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_init_kg'
 
       INTEGER                                            :: handle, isubset, natom
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -250,8 +248,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calc_forces
       LOGICAL                                            :: molecule_only
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_init_hamiltonians', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_init_hamiltonians'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: do_kpoints

@@ -87,8 +87,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       INTEGER, INTENT(IN)                                :: n_workers
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_master_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'swarm_master_init'
 
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -230,8 +229,7 @@ CONTAINS
       TYPE(swarm_message_type), INTENT(IN)               :: report
       TYPE(swarm_message_type), INTENT(OUT)              :: cmd
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_master_steer', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_master_steer'
 
       CHARACTER(len=default_string_length)               :: command, status
       INTEGER                                            :: handle, worker_id
@@ -324,8 +322,7 @@ CONTAINS
    SUBROUTINE swarm_master_finalize(master)
       TYPE(swarm_master_type)                            :: master
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_master_finalize', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_master_finalize'
 
       TYPE(cp_logger_type), POINTER                      :: logger
 

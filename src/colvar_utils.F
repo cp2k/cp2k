@@ -70,8 +70,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: only_intra_colvar, unique
       INTEGER                                            :: ntot
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'number_of_colvar', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'number_of_colvar'
 
       INTEGER                                            :: handle, ikind, imol
       LOGICAL                                            :: my_unique, skip_inter_colvar
@@ -133,8 +132,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: targets
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_colvars_target', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_colvars_target'
 
       INTEGER                                            :: handle, i, ikind, ind, nkind
       TYPE(cell_type), POINTER                           :: cell
@@ -576,8 +574,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_colvar', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_colvar'
 
       CHARACTER(len=3)                                   :: name_kind
       INTEGER                                            :: i, ii, j, natoms, nkinds, nr_frame, stat

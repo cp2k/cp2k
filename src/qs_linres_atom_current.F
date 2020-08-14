@@ -111,8 +111,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_d0, mat_jp, mat_jp_rii, mat_jp_riii
       INTEGER, INTENT(IN)                                :: iB, idir
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff'
 
       INTEGER :: bo(2), handle, iac, iat, iatom, ibc, idir2, ii, iii, ikind, ispin, istat, jatom, &
          jkind, kac, katom, kbc, kkind, len_CPC, len_PC1, max_gau, max_nsgf, mepos, n_cont_a, &
@@ -637,8 +636,7 @@ CONTAINS
       TYPE(current_env_type)                             :: current_env
       INTEGER, INTENT(IN)                                :: idir
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_rad', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_rad'
 
       INTEGER :: damax_iso_not0, damax_iso_not0_local, handle, i1, i2, iat, iatom, icg, ikind, &
          ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, &
@@ -1204,8 +1202,7 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: iB, idir, ispin, natm_gauge
       REAL(dp), INTENT(IN) :: ratom(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_ang', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_ang'
 
       INTEGER                                  :: ia, idir2, iiB, iiiB, ir, &
                                                   iso, max_max_iso_not0, na, nr
@@ -1413,8 +1410,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iB, idir
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom'
 
       INTEGER                                            :: iat, iatom, ikind, ispin, jatom, &
                                                             natm_gauge, natm_tot, natom, nkind, &

@@ -44,8 +44,7 @@ CONTAINS
 
       TYPE(mc_averages_type), POINTER                    :: averages
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_averages_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mc_averages_create'
 
       INTEGER                                            :: handle
 
@@ -76,8 +75,7 @@ CONTAINS
 
       TYPE(mc_averages_type), POINTER                    :: averages
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_averages_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mc_averages_release'
 
       INTEGER                                            :: handle
 
@@ -467,8 +465,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nchains
       TYPE(mc_input_file_type), POINTER                  :: mc_input_file
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_make_dat_file_new', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_make_dat_file_new'
 
       CHARACTER(60)                                      :: cell_string, mol_string
       CHARACTER(default_string_length)                   :: line_text

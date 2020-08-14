@@ -206,8 +206,7 @@ CONTAINS
    SUBROUTINE qs_env_rebuild_pw_env(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_rebuild_pw_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_rebuild_pw_env'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: nlcc

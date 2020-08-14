@@ -171,8 +171,7 @@ CONTAINS
    SUBROUTINE dg_rho0_release(dg_rho0)
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dg_rho0_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dg_rho0_release'
 
       IF (ASSOCIATED(dg_rho0)) THEN
          CPASSERT(dg_rho0%ref_count > 0)
@@ -228,8 +227,7 @@ CONTAINS
       TYPE(pw_p_type), INTENT(INOUT)                     :: dg_rho0
       REAL(KIND=dp), INTENT(IN)                          :: alpha
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_pme_gauss', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dg_rho0_pme_gauss'
       INTEGER, PARAMETER                                 :: IMPOSSIBLE = 10000
 
       INTEGER                                            :: gpt, l0, ln, lp, m0, mn, mp, n0, nn, np

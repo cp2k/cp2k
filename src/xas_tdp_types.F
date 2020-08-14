@@ -344,8 +344,7 @@ CONTAINS
 
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_control_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_control_create'
 
       CPASSERT(.NOT. ASSOCIATED(xas_tdp_control))
       ALLOCATE (xas_tdp_control)
@@ -402,8 +401,7 @@ CONTAINS
 
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_control_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_control_release'
 
       IF (ASSOCIATED(xas_tdp_control)) THEN
          IF (ASSOCIATED(xas_tdp_control%list_ex_atoms)) THEN
@@ -437,8 +435,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_xas_tdp_control', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_xas_tdp_control'
 
       CHARACTER(len=default_string_length), &
          DIMENSION(:), POINTER                           :: k_list
@@ -648,8 +645,7 @@ CONTAINS
 
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_env_create'
 
       ALLOCATE (xas_tdp_env)
 
@@ -691,8 +687,7 @@ CONTAINS
 
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xas_tdp_env_release'
 
       INTEGER                                            :: i, j
 
@@ -789,8 +784,7 @@ CONTAINS
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       INTEGER, INTENT(IN), OPTIONAL                      :: nex_atoms, nex_kinds
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_xas_tdp_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_xas_tdp_env'
 
       CPASSERT(ASSOCIATED(xas_tdp_env))
 
@@ -807,8 +801,7 @@ CONTAINS
 
       TYPE(donor_state_type), INTENT(INOUT)              :: donor_state
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'donor_state_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'donor_state_create'
 
       NULLIFY (donor_state%energy_evals)
       NULLIFY (donor_state%mo_indices)
@@ -853,8 +846,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), OPTIONAL     :: at_symbol
       INTEGER, INTENT(IN), OPTIONAL                      :: kind_index, state_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_donor_state', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_donor_state'
 
       CPASSERT(ASSOCIATED(donor_state))
 
@@ -872,8 +864,7 @@ CONTAINS
    SUBROUTINE deallocate_donor_state_set(donor_state_set)
       TYPE(donor_state_type), DIMENSION(:), POINTER      :: donor_state_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_donor_state_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_donor_state_set'
 
       INTEGER                                            :: i, j
 
@@ -1088,8 +1079,7 @@ CONTAINS
 
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_atom_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xas_atom_env_create'
 
       ALLOCATE (xas_atom_env)
 
@@ -1120,8 +1110,7 @@ CONTAINS
 
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_atom_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xas_atom_env_release'
 
       INTEGER                                            :: i, j, k
 
@@ -1258,8 +1247,7 @@ CONTAINS
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       INTEGER, INTENT(IN)                                :: atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'free_exat_memory', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'free_exat_memory'
 
       INTEGER                                            :: i
 

@@ -84,8 +84,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_old, mos_new
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse_periodic', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse_periodic'
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: eigenvalues_sqrt
       INTEGER                                            :: handle, icol, idir, irow, ispin, nao, &
@@ -318,8 +317,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_old, mos_new
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_delta_pulse'
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: eigenvalues_sqrt
       INTEGER                                            :: handle, i, nao, nmo

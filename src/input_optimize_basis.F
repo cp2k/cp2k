@@ -46,8 +46,7 @@ CONTAINS
    SUBROUTINE create_optimize_basis_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_optimize_basis_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_optimize_basis_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -160,8 +159,7 @@ CONTAINS
    SUBROUTINE create_fit_kinds_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_fit_kinds_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_fit_kinds_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -248,8 +246,7 @@ CONTAINS
    SUBROUTINE create_derived_sets_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_derived_sets_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_derived_sets_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -302,8 +299,7 @@ CONTAINS
    SUBROUTINE create_constrain_exp_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_constrain_exp_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_constrain_exp_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -344,8 +340,7 @@ CONTAINS
    SUBROUTINE create_training_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_training_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_training_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -379,8 +374,7 @@ CONTAINS
    SUBROUTINE create_powell_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_powell_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_powell_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

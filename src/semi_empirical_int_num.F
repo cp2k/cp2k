@@ -689,8 +689,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'corecore_el_num', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'corecore_el_num'
 
       REAL(dp)                                           :: rij, ssss, ssss_sr, zz
       TYPE(se_int_control_type)                          :: se_int_control_off
@@ -741,8 +740,7 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ssss_nucint_num', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ssss_nucint_num'
 
       REAL(KIND=dp)                                      :: ft
       TYPE(se_int_screen_type)                           :: se_int_screen
@@ -795,8 +793,7 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'core_nucint_num', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'core_nucint_num'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: ft
@@ -1147,8 +1144,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcorecore_el_num', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dcorecore_el_num'
 
       INTEGER                                            :: i
       REAL(dp)                                           :: enucm, enucp, od

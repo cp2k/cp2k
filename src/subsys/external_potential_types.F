@@ -310,8 +310,7 @@ CONTAINS
    SUBROUTINE allocate_all_potential(potential)
       TYPE(all_potential_type), POINTER                  :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_all_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_all_potential'
 
       IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
@@ -333,8 +332,7 @@ CONTAINS
    SUBROUTINE allocate_fist_potential(potential)
       TYPE(fist_potential_type), POINTER                 :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fist_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fist_potential'
 
       IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
@@ -361,8 +359,7 @@ CONTAINS
    SUBROUTINE allocate_local_potential(potential)
       TYPE(local_potential_type), POINTER                :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_local_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_local_potential'
 
       IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
@@ -388,8 +385,7 @@ CONTAINS
    SUBROUTINE allocate_gth_potential(potential)
       TYPE(gth_potential_type), POINTER                  :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_gth_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_gth_potential'
 
       IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
@@ -429,8 +425,7 @@ CONTAINS
    SUBROUTINE allocate_sgp_potential(potential)
       TYPE(sgp_potential_type), POINTER                  :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_sgp_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_sgp_potential'
 
       IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
@@ -486,8 +481,7 @@ CONTAINS
    SUBROUTINE deallocate_all_potential(potential)
       TYPE(all_potential_type), POINTER                  :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_all_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_all_potential'
 
       IF (ASSOCIATED(potential)) THEN
          DEALLOCATE (potential%elec_conf)
@@ -507,8 +501,7 @@ CONTAINS
    SUBROUTINE deallocate_fist_potential(potential)
       TYPE(fist_potential_type), POINTER                 :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fist_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fist_potential'
 
       IF (ASSOCIATED(potential)) THEN
          ! Nothing exciting here yet.
@@ -529,8 +522,7 @@ CONTAINS
    SUBROUTINE deallocate_local_potential(potential)
       TYPE(local_potential_type), POINTER                :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_local_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_local_potential'
 
       IF (ASSOCIATED(potential)) THEN
 
@@ -561,8 +553,7 @@ CONTAINS
    SUBROUTINE deallocate_gth_potential(potential)
       TYPE(gth_potential_type), POINTER                  :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_gth_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_gth_potential'
 
       IF (ASSOCIATED(potential)) THEN
 
@@ -615,8 +606,7 @@ CONTAINS
    SUBROUTINE deallocate_sgp_potential(potential)
       TYPE(sgp_potential_type), POINTER                  :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_sgp_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_sgp_potential'
 
       IF (ASSOCIATED(potential)) THEN
          IF (ASSOCIATED(potential%elec_conf)) THEN
@@ -686,8 +676,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff, zeff_correction
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_all_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_all_potential'
 
       IF (ASSOCIATED(potential)) THEN
 
@@ -732,8 +721,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: apol, cpol, mm_radius, qeff, &
                                                             qmmm_corr_radius, qmmm_radius
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_potential'
 
       IF (ASSOCIATED(potential)) THEN
 
@@ -775,8 +763,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cval
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: radius
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_local_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_local_potential'
 
       IF (ASSOCIATED(potential)) THEN
 
@@ -888,8 +875,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nct_nlcc
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cval_nlcc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_gth_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_gth_potential'
 
       IF (ASSOCIATED(potential)) THEN
 
@@ -1028,8 +1014,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: n_nlcc
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_nlcc, c_nlcc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_sgp_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_sgp_potential'
 
       IF (ASSOCIATED(potential)) THEN
 
@@ -1151,8 +1136,7 @@ CONTAINS
    SUBROUTINE init_gth_potential(potential)
       TYPE(gth_potential_type), POINTER                  :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_gth_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_gth_potential'
 
       IF (.NOT. ASSOCIATED(potential)) RETURN
 
@@ -1229,8 +1213,7 @@ CONTAINS
       CHARACTER(LEN=*), OPTIONAL                         :: itype
       REAL(KIND=dp), OPTIONAL                            :: zeff, zeff_correction
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_all_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_all_potential'
 
       INTEGER                                            :: dz
 
@@ -1320,8 +1303,7 @@ CONTAINS
    SUBROUTINE init_sgp_potential(potential)
       TYPE(sgp_potential_type), POINTER                  :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_sgp_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_sgp_potential'
 
       INTEGER                                            :: i1, i2, j1, j2, l, la, lb, n1, n2, nnl, &
                                                             nprj
@@ -1440,8 +1422,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: potential_section
       LOGICAL, INTENT(IN)                                :: update_input
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_all_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_all_potential'
 
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=242)                                 :: line2
@@ -1623,8 +1604,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: potential_section
       LOGICAL, INTENT(IN)                                :: update_input
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_local_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_local_potential'
       REAL(KIND=dp), PARAMETER                           :: eps_tpot = 1.e-10_dp
 
       CHARACTER(LEN=240)                                 :: line
@@ -1812,8 +1792,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: potential_section
       LOGICAL, INTENT(IN)                                :: update_input
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_gth_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_gth_potential'
 
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=242)                                 :: line2
@@ -2427,8 +2406,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: z
       REAL(KIND=dp)                                      :: zeff_correction
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_default_all_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_default_all_potential'
 
       CHARACTER(LEN=default_string_length)               :: name
       INTEGER, DIMENSION(:), POINTER                     :: elec_conf
@@ -2491,8 +2469,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: zeff, zeff_correction
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_all_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_all_potential'
 
       IF (ASSOCIATED(potential)) THEN
 
@@ -2540,8 +2517,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cval
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: radius
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_local_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_local_potential'
 
       IF (ASSOCIATED(potential)) THEN
 
@@ -2577,8 +2553,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: apol, cpol, qeff, mm_radius, &
                                                             qmmm_corr_radius, qmmm_radius
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_fist_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_fist_potential'
 
       IF (ASSOCIATED(potential)) THEN
 
@@ -2650,8 +2625,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: hprj_ppnl
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_gth_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_gth_potential'
 
       IF (ASSOCIATED(potential)) THEN
 
@@ -2769,8 +2743,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: n_nlcc
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: a_nlcc, c_nlcc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_sgp_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_sgp_potential'
 
       IF (ASSOCIATED(potential)) THEN
 
@@ -3029,8 +3002,7 @@ CONTAINS
       TYPE(all_potential_type), INTENT(IN), POINTER      :: pot_in
       TYPE(all_potential_type), INTENT(INOUT), POINTER   :: pot_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'copy_all_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'copy_all_potential'
 
       CPASSERT(ASSOCIATED(pot_in))
       CALL allocate_all_potential(pot_out)
@@ -3061,8 +3033,7 @@ CONTAINS
       TYPE(gth_potential_type), INTENT(IN), POINTER      :: pot_in
       TYPE(gth_potential_type), INTENT(INOUT), POINTER   :: pot_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'copy_gth_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'copy_gth_potential'
 
       CPASSERT(ASSOCIATED(pot_in))
       CALL allocate_gth_potential(pot_out)
@@ -3181,8 +3152,7 @@ CONTAINS
       TYPE(sgp_potential_type), INTENT(IN), POINTER      :: pot_in
       TYPE(sgp_potential_type), INTENT(INOUT), POINTER   :: pot_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'copy_sgp_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'copy_sgp_potential'
 
       CPASSERT(ASSOCIATED(pot_in))
       CALL allocate_sgp_potential(pot_out)

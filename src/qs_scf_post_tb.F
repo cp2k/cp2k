@@ -168,8 +168,7 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: tb_type
       LOGICAL, INTENT(IN)                                :: no_mos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_tb', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_tb'
 
       CHARACTER(LEN=6)                                   :: ana
       CHARACTER(LEN=default_string_length)               :: aname
@@ -1074,8 +1073,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: cube_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_e_density', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_e_density'
 
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube
       INTEGER                                            :: iounit, ispin, unit_nr
@@ -1217,8 +1215,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: cube_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: total_density, v_hartree, efield
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_density_cubes', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_density_cubes'
       CHARACTER(len=1), DIMENSION(3), PARAMETER          :: cdir = (/"x", "y", "z"/)
 
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube

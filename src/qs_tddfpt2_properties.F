@@ -159,8 +159,7 @@ CONTAINS
          INTENT(in)                                      :: gs_mos
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_dipole_operator', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_dipole_operator'
 
       INTEGER                                            :: handle, i_cos_sin, icol, ideriv, irow, &
                                                             ispin, jderiv, nao, ncols_local, &
@@ -539,8 +538,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: mult
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: dipole_op_mos_occ
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_summary', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_summary'
 
       CHARACTER(len=1)                                   :: lsd_str
       CHARACTER(len=20)                                  :: mult_str
@@ -635,8 +633,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_s
       REAL(kind=dp), INTENT(in)                          :: min_amplitude
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_excitation_analysis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_excitation_analysis'
 
       CHARACTER(len=5)                                   :: spin_label
       INTEGER :: handle, icol, iproc, irow, ispin, istate, nao, ncols_local, nrows_local, nspins, &
@@ -897,8 +894,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(section_vals_type), POINTER                   :: print_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_nto_analysis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_nto_analysis'
       INTEGER, PARAMETER                                 :: ntomax = 10
 
       CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
@@ -1247,8 +1243,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: append_cube
       TYPE(section_vals_type), POINTER                   :: print_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_nto_cubes', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_nto_cubes'
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
       INTEGER                                            :: i, iset, nmo, unit_nr

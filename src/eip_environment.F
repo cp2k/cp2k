@@ -138,8 +138,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: use_ref_cell
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_init_subsys', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_init_subsys'
 
       INTEGER                                            :: handle, natom
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set

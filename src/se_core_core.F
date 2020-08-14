@@ -79,8 +79,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(in)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'se_core_core_interaction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'se_core_core_interaction'
 
       INTEGER                                            :: atom_a, atom_b, handle, iab, iatom, &
                                                             ikind, itype, jatom, jkind, natom, &

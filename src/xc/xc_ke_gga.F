@@ -175,8 +175,7 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       INTEGER, INTENT(IN)                                :: order
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ke_gga_lda_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ke_gga_lda_eval'
 
       INTEGER                                            :: handle, m, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -316,8 +315,7 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       INTEGER, INTENT(IN), OPTIONAL                      :: order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ke_gga_lsd_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ke_gga_lsd_eval'
       CHARACTER(len=12), DIMENSION(2), PARAMETER :: &
          norm_drho_spin_name = (/"(norm_drhoa)", "(norm_drhob)"/)
       CHARACTER(len=6), DIMENSION(2), PARAMETER :: rho_spin_name = (/"(rhoa)", "(rhob)"/)

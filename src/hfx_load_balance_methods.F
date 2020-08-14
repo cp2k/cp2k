@@ -155,8 +155,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: pmax_block
       LOGICAL, INTENT(IN)                                :: use_virial
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_load_balance', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_load_balance'
 
       CHARACTER(LEN=512)                                 :: error_msg
       INTEGER :: block_size, current_block_id, data_from, dest, handle, handle_inner, &
@@ -939,8 +938,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_virial
       LOGICAL, DIMENSION(:, :), INTENT(IN), POINTER      :: atomic_pair_list
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_recursive_load_balance', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_recursive_load_balance'
 
       INTEGER :: handle, i, iatom_block, iatom_end, iatom_start, j, jatom_block, jatom_end, &
          jatom_start, katom_block, katom_end, katom_start, latom_block, latom_end, latom_start, &
@@ -1491,8 +1489,7 @@ CONTAINS
       TYPE(hfx_load_balance_type)                        :: load_balance_parameter
       INTEGER, INTENT(IN)                                :: i_thread, n_threads, eval_type
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_update_load_balance', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_update_load_balance'
 
       INTEGER :: data_from, dest, end_idx, handle, i, ibin, icpu, iprocess, j, mepos, my_bin_size, &
          my_global_start_idx, my_process_id, n_processes, nbins, ncpu, req(2), source, start_idx
@@ -1840,8 +1837,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: distribution_vector
       LOGICAL, INTENT(IN)                                :: do_randomize
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_distribution', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_distribution'
 
       INTEGER                                            :: i, itmp, j, nstep
       INTEGER(int_8), DIMENSION(:), POINTER              :: my_cost_cpu, tmp_cost, tmp_cpu_cost
@@ -2339,8 +2335,7 @@ CONTAINS
       TYPE(hfx_type), POINTER                            :: x_data
       INTEGER, INTENT(IN)                                :: iw, n_threads, i_thread, eval_type
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_load_balance_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_load_balance_info'
 
       INTEGER                                            :: i, j, k, my_rank, nbins, nranks, &
                                                             total_bins

@@ -1035,8 +1035,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xas_section
       INTEGER, INTENT(IN)                                :: iatom, istate
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_calculate_spectrum', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_calculate_spectrum'
 
       INTEGER                                            :: homo, i, lfomo, my_spin, nabs, nmo, &
                                                             nvirtual, output_unit, xas_estate
@@ -1231,8 +1230,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom
       LOGICAL, INTENT(IN)                                :: append_cube
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_print_cubes', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_print_cubes'
 
       CHARACTER(LEN=default_string_length)               :: my_mittle, my_pos
       INTEGER                                            :: homo, istate0, my_spin, nspins, nstates
@@ -1342,8 +1340,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: sp_em, sp_ab
       INTEGER, INTENT(IN)                                :: estate, nstate, my_spin
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_vel', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'spectrum_dip_vel'
 
       INTEGER                                            :: homo, i, i_abs, istate, lfomo, nao, nmo
       REAL(dp)                                           :: dip(3), ene_f, ene_i
@@ -1409,8 +1406,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: base_a, base_b
       REAL(dp), DIMENSION(:, :), POINTER                 :: matrix
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_stogto_overlap', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_stogto_overlap'
 
       INTEGER                                            :: iset, jset, ldsab, maxcoa, maxcob, maxl, &
                                                             maxla, maxlb, na, nb, nseta, nsetb, &
@@ -1495,8 +1491,7 @@ CONTAINS
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_assign_core_states', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_assign_core_states'
 
       INTEGER                                            :: chosen_state, homo, i, iat, iatom, &
                                                             ikind, isgf, istate, j, my_kind, &

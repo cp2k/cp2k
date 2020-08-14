@@ -211,8 +211,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       LOGICAL, INTENT(IN)                                :: extended_basis_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'valence_electrons', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'valence_electrons'
 
       INTEGER                                            :: natorb, z
       LOGICAL                                            :: check, use_p_orbitals
@@ -293,8 +292,7 @@ CONTAINS
    SUBROUTINE convert_param_to_cp2k(sep)
       TYPE(semi_empirical_type), POINTER                 :: sep
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'convert_param_to_cp2k', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'convert_param_to_cp2k'
 
       sep%beta = sep%beta/evolt
       sep%uss = sep%uss/evolt
@@ -712,8 +710,7 @@ CONTAINS
    SUBROUTINE eval_1c_2el_spd(sep)
       TYPE(semi_empirical_type), POINTER                 :: sep
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eval_1c_2el_spd', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eval_1c_2el_spd'
 
       REAL(KIND=dp)                                      :: r016, r036, r066, r125, r155, r234, &
                                                             r236, r244, r246, r266, r355, r466, &
@@ -1029,8 +1026,7 @@ CONTAINS
    SUBROUTINE setup_1c_2el_int(sep)
       TYPE(semi_empirical_type), POINTER                 :: sep
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_1c_2el_int', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_1c_2el_int'
 
       INTEGER                                            :: i, ij, ij0, ind, ip, ipx, ipy, ipz, &
                                                             isize, kl, natorb

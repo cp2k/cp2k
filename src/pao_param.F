@@ -153,8 +153,7 @@ CONTAINS
    SUBROUTINE pao_param_finalize(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize'
 
       INTEGER                                            :: handle
 
@@ -188,8 +187,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       INTEGER, INTENT(OUT)                               :: nparams
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_param_count'
 
       INTEGER                                            :: handle
 
@@ -219,8 +217,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initial_guess', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initial_guess'
 
       INTEGER                                            :: handle
       REAL(dp)                                           :: norm
@@ -300,8 +297,7 @@ CONTAINS
    SUBROUTINE pao_assert_unitary(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_assert_unitary', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_assert_unitary'
 
       INTEGER                                            :: acol, arow, group, handle, i, iatom, M, N
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_pao, blk_sizes_pri

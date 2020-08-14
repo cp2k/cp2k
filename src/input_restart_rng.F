@@ -44,8 +44,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nsize
       INTEGER, DIMENSION(:, :)                           :: ascii
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'section_rng_val_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'section_rng_val_set'
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
       INTEGER                                            :: ik, irk, Nlist

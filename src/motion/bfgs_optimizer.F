@@ -837,8 +837,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(INOUT)                       :: rat, rad, step, ediff
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_trust_rad', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_trust_rad'
       REAL(KIND=dp), PARAMETER                           :: max_trust = 1.0_dp, min_trust = 0.1_dp
 
       INTEGER                                            :: handle
@@ -919,8 +918,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: hess_mat
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_bfgs_hessian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_bfgs_hessian'
 
       INTEGER                                            :: handle, hesunit
 
@@ -949,8 +947,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(cp_fm_type), POINTER                          :: hess_mat
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'construct_initial_hess', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'construct_initial_hess'
 
       INTEGER                                            :: i, iat_col, iat_row, iglobal, iind, j, &
                                                             jat_row, jglobal, jind, k, natom, &

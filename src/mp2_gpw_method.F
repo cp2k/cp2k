@@ -134,8 +134,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: Emp2_AB
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_gpw_compute', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_gpw_compute'
 
       INTEGER :: a, a_group_counter, b, b_global, b_group_counter, blk, col, col_offset, col_size, &
          color_counter, comm_exchange, EX_end, EX_end_send, EX_start, EX_start_send, &
@@ -706,8 +705,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_col_row_info
       INTEGER, INTENT(IN)                                :: my_B_virtual_end, my_B_virtual_start
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_my_integrals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'grep_my_integrals'
 
       INTEGER                                            :: i_global, iiB, j_global, jjB, ncol_rec, &
                                                             nrow_rec, proc_receive, proc_send, &
@@ -819,8 +817,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: my_Cocc, my_Cvirt
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_occ_virt_wavefunc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_occ_virt_wavefunc'
 
       INTEGER                                            :: blk, col, col_offset, col_size, handle, &
                                                             i, i_global, j, j_global, row, &

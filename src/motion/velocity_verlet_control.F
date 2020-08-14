@@ -45,8 +45,7 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'velocity_verlet', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'velocity_verlet'
 
       INTEGER                                            :: handle
       TYPE(force_env_type), POINTER                      :: force_env

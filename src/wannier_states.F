@@ -75,8 +75,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ns
       INTEGER, INTENT(IN), POINTER                       :: states(:)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_wannier_states', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'construct_wannier_states'
 
       CHARACTER(default_string_length)                   :: unit_str
       INTEGER                                            :: handle, i, iproc, ncol_global, nproc, &

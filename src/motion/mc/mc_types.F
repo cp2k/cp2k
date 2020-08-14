@@ -557,8 +557,7 @@ CONTAINS
          DIMENSION(:, :), OPTIONAL, POINTER              :: atom_names
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: mass
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_molecule_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_molecule_info'
 
       IF (PRESENT(nboxes)) nboxes = mc_molecule_info%nboxes
       IF (PRESENT(nchain_total)) nchain_total = mc_molecule_info%nchain_total
@@ -846,8 +845,7 @@ CONTAINS
       TYPE(mc_simpar_type), POINTER                      :: mc_par
       INTEGER, INTENT(IN)                                :: nmol_types
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_sim_par_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mc_sim_par_create'
 
       NULLIFY (mc_par)
 
@@ -885,8 +883,7 @@ CONTAINS
 
       TYPE(mc_simpar_type), POINTER                      :: mc_par
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_sim_par_destroy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mc_sim_par_destroy'
 
       DEALLOCATE (mc_par%mc_input_file)
       DEALLOCATE (mc_par%mc_bias_file)
@@ -936,8 +933,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :)                          :: empty_coords
       LOGICAL, INTENT(IN)                                :: lhmc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_input_file_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mc_input_file_create'
 
       CHARACTER(default_string_length)                   :: cdum, line, method_name
       CHARACTER(default_string_length), &
@@ -1123,8 +1119,7 @@ CONTAINS
 
       TYPE(mc_input_file_type), POINTER                  :: mc_input_file
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_input_file_destroy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mc_input_file_destroy'
 
       DEALLOCATE (mc_input_file%mol_set_nmol_row)
       DEALLOCATE (mc_input_file%mol_set_nmol_column)
@@ -1215,8 +1210,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: input_file_name
       TYPE(section_vals_type), POINTER                   :: input_file, force_env_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_mc_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_mc_section'
 
       CHARACTER(LEN=5)                                   :: box_string, molecule_string, &
                                                             tab_box_string, tab_string, &
@@ -1795,8 +1789,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: box_number
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: coordinates_empty
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_determine_molecule_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_determine_molecule_info'
 
       CHARACTER(LEN=default_string_length)               :: name
       CHARACTER(LEN=default_string_length), &
@@ -2009,8 +2002,7 @@ CONTAINS
 
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_info_destroy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_info_destroy'
 
       DEALLOCATE (mc_molecule_info%nchains)
       DEALLOCATE (mc_molecule_info%nunits)
@@ -2042,8 +2034,7 @@ CONTAINS
 !> \author MJM
       TYPE(mc_simpar_type), POINTER                      :: mc_par
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_input_parameters_check', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mc_input_parameters_check'
 
       INTEGER                                            :: imol_type, nboxes, nchain_total, &
                                                             nmol_types

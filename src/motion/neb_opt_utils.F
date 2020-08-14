@@ -68,8 +68,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw2
       LOGICAL                                            :: accepted
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'accept_diis_step', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'accept_diis_step'
 
       CHARACTER(LEN=default_string_length)               :: line
       INTEGER                                            :: i, iend, ind, indi, indj, info, istart, &
@@ -229,8 +228,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: check_diis
       LOGICAL                                            :: accepted
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_diis_solution', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_diis_solution'
 
       REAL(KIND=dp)                                      :: costh, norm1, norm2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tmp

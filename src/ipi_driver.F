@@ -307,8 +307,7 @@ CONTAINS
       TYPE(force_env_type), POINTER            :: force_env
       TYPE(global_environment_type), POINTER   :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'run_driver', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'run_driver'
 
 #ifdef __NO_IPI_DRIVER
       INTEGER                                  :: handle

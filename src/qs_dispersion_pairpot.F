@@ -118,8 +118,7 @@ CONTAINS
       TYPE(section_vals_type), OPTIONAL, POINTER         :: pp_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_pairpot_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_pairpot_init'
 
       CHARACTER(LEN=2)                                   :: symbol
       CHARACTER(LEN=default_string_length)               :: aname, filename
@@ -358,8 +357,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(inout)                       :: scaling
       TYPE(section_vals_type), POINTER                   :: vdw_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scaling_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_scaling_init'
 
       CHARACTER(LEN=default_string_length)               :: functional
 
@@ -402,8 +400,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(inout)                       :: s6, sr6, s8
       TYPE(section_vals_type), POINTER                   :: vdw_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scaling_dftd3', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_scaling_dftd3'
 
       CHARACTER(LEN=default_string_length)               :: functional
 
@@ -778,8 +775,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(inout)                       :: s6, a1, s8, a2
       TYPE(section_vals_type), POINTER                   :: vdw_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scaling_dftd3bj', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scaling_dftd3bj'
 
       CHARACTER(LEN=default_string_length)               :: functional
 
@@ -1200,8 +1196,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: energy
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_pairpot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_pairpot'
 
       INTEGER :: atom_a, atom_b, atom_c, atom_d, handle, hashb, hashc, i, ia, iat, iatom, icx, &
          icy, icz, idmp, ikind, ilist, imol, jatom, jkind, katom, kkind, kstart, latom, lkind, &
@@ -3315,8 +3310,7 @@ CONTAINS
       TYPE(dcnum_type), DIMENSION(:)                     :: dcnum
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dcnum_distribute', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dcnum_distribute'
 
       INTEGER                                            :: group, i, ia, ipe, jn, n, natom, ntmax, &
                                                             ntot
@@ -3549,8 +3543,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: zc
       LOGICAL, INTENT(out)                               :: exclude
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'exclude_d3_kind_pair', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'exclude_d3_kind_pair'
 
       INTEGER                                            :: handle, i
 

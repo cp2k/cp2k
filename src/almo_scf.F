@@ -521,8 +521,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_initial_guess', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_initial_guess'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, project_name
       INTEGER                                            :: handle, iaspc, ispin, istore, naspc, &
@@ -774,8 +773,7 @@ CONTAINS
    SUBROUTINE almo_scf_store_extrapolation_data(almo_scf_env)
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_store_extrapolation_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_store_extrapolation_data'
 
       INTEGER                                            :: handle, ispin, istore, unit_nr
       LOGICAL :: delocalization_uses_extrapolation
@@ -923,8 +921,7 @@ CONTAINS
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_print_job_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_print_job_info'
 
       CHARACTER(len=13)                                  :: neig_string
       CHARACTER(len=33)                                  :: deloc_method_string
@@ -1210,8 +1207,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_init_ao_overlap', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_init_ao_overlap'
 
       INTEGER                                            :: handle, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1367,8 +1363,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_delocalization', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_delocalization'
 
       INTEGER                                            :: col, handle, hold, iblock_col, &
                                                             iblock_row, ispin, mynode, &
@@ -1685,8 +1680,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_nlmos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'construct_nlmos'
 
       INTEGER                                            :: ispin
 
@@ -1736,8 +1730,7 @@ CONTAINS
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
       LOGICAL, INTENT(IN)                                :: virtuals
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_nlmos_wrapper', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'construct_nlmos_wrapper'
 
       REAL(KIND=dp)                                      :: det_diff, prev_determinant
 
@@ -1800,8 +1793,7 @@ CONTAINS
 
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_virtuals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'construct_virtuals'
 
       INTEGER                                            :: ispin, n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
@@ -1936,8 +1928,7 @@ CONTAINS
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nlmo_compactification', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'nlmo_compactification'
 
       INTEGER                                            :: iblock_col, iblock_col_size, iblock_row, &
                                                             iblock_row_size, icol, irow, ispin, &
@@ -2239,8 +2230,7 @@ CONTAINS
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s0
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_env_create_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_env_create_matrices'
 
       INTEGER                                            :: handle, ispin, nspins
 
@@ -2698,8 +2688,7 @@ CONTAINS
 
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_clean_up', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'almo_scf_clean_up'
 
       INTEGER                                            :: handle, ispin, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -2896,8 +2885,7 @@ CONTAINS
    SUBROUTINE almo_post_scf_compute_properties(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_post_scf_compute_properties', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_post_scf_compute_properties'
 
       CALL qs_scf_compute_properties(qs_env)
 

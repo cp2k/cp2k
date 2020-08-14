@@ -1014,8 +1014,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_ot
       INTEGER, INTENT(IN)                                :: nelectron_total
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init_read_input_from_hfx', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init_read_input_from_hfx'
 
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=default_path_length)                 :: char_val, t_c_filename
@@ -1106,8 +1105,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr, unit_nr_dbcsr, nelectron_total
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: t_c_filename
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init_read_input', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init_read_input'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: explicit
@@ -1550,8 +1548,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       LOGICAL, INTENT(IN)                                :: do_admm
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_basis_types', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_basis_types'
 
       INTEGER :: co_counter, handle, i, ikind, ipgf, iset, j, k, la, max_am_kind, max_coeff, &
          max_nsgfl, max_pgf, max_pgf_kind, max_set, nkind, nl_count, nset, nseta, offset_a, &
@@ -1683,8 +1680,7 @@ CONTAINS
    SUBROUTINE hfx_release_basis_types(basis_parameter)
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_release_basis_types', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_release_basis_types'
 
       INTEGER                                            :: handle, i
 
@@ -1722,8 +1718,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: irep
       LOGICAL, INTENT(IN)                                :: skip_disk, skip_in_core_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'parse_memory_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'parse_memory_section'
 
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=default_path_length)                 :: char_val, filename, orig_wd
@@ -1960,8 +1955,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, INTENT(IN)                                :: i_thread
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_neighbor_cells', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_neighbor_cells'
 
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=64)                                  :: char_nshells
@@ -2418,8 +2412,7 @@ CONTAINS
       INTEGER                                            :: memory_usage
       LOGICAL                                            :: do_disk_storage
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_init_container', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_init_container'
 
       TYPE(hfx_container_node), POINTER                  :: current, next
 
@@ -2465,8 +2458,7 @@ CONTAINS
       TYPE(hfx_distribution), DIMENSION(:), POINTER      :: ptr_to_distr
       TYPE(hfx_type), POINTER                            :: x_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_set_distr_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_set_distr_energy'
 
       DEALLOCATE (x_data%distribution_energy)
 
@@ -2488,8 +2480,7 @@ CONTAINS
       TYPE(hfx_distribution), DIMENSION(:), POINTER      :: ptr_to_distr
       TYPE(hfx_type), POINTER                            :: x_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_set_distr_forces', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_set_distr_forces'
 
       DEALLOCATE (x_data%distribution_forces)
 
@@ -2789,8 +2780,7 @@ CONTAINS
       TYPE(hfx_compression_type)                         :: data
       INTEGER                                            :: memory_usage
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_containers', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_containers'
 
       INTEGER                                            :: bin, i
 
@@ -2824,8 +2814,7 @@ CONTAINS
       TYPE(hfx_compression_type)                         :: data
       INTEGER, INTENT(IN)                                :: bin_size
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'alloc_containers', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'alloc_containers'
 
       INTEGER                                            :: bin, i
 

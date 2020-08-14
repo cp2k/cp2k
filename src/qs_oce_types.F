@@ -57,8 +57,7 @@ CONTAINS
       TYPE(oce_matrix_type), POINTER                     :: oce_set
       INTEGER, INTENT(IN)                                :: nkind
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_oce_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'allocate_oce_set'
 
       INTEGER                                            :: i
 
@@ -99,8 +98,7 @@ CONTAINS
    SUBROUTINE deallocate_oce_set(oce_set)
       TYPE(oce_matrix_type), POINTER                     :: oce_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_oce_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_oce_set'
 
       IF (.NOT. ASSOCIATED(oce_set)) RETURN
 

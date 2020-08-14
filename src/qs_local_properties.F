@@ -83,8 +83,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), INTENT(INOUT)                     :: energy_density
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_local_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_local_energy'
 
       INTEGER                                            :: handle, img, iounit, ispin, nimages, &
                                                             nkind, nspins
@@ -269,8 +268,7 @@ CONTAINS
       TYPE(pw_p_type), INTENT(INOUT), OPTIONAL           :: pressure
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_local_stress', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_local_stress'
 
       INTEGER                                            :: handle, i, iounit, j, nimages, nkind, &
                                                             nspins

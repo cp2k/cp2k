@@ -440,8 +440,7 @@ CONTAINS
    SUBROUTINE deallocate_ff_type(ff_type)
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_ff_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_ff_type'
 
 !-----------------------------------------------------------------------------
 ! 1. DEALLOCATE things in ff_type%inp_info
@@ -490,8 +489,7 @@ CONTAINS
    SUBROUTINE deallocate_gromos_info(gro_info)
       TYPE(gromos_info_type), POINTER                    :: gro_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_gromos_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_gromos_info'
 
       IF (ASSOCIATED(gro_info%solvent_k)) THEN
          DEALLOCATE (gro_info%solvent_k)
@@ -557,8 +555,7 @@ CONTAINS
    SUBROUTINE deallocate_chm_info(chm_info)
       TYPE(charmm_info_type), POINTER                    :: chm_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_chm_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_chm_info'
 
       IF (ASSOCIATED(chm_info%bond_a)) THEN
          DEALLOCATE (chm_info%bond_a)
@@ -672,8 +669,7 @@ CONTAINS
    SUBROUTINE deallocate_amb_info(amb_info)
       TYPE(amber_info_type), POINTER                     :: amb_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_amb_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_amb_info'
 
       IF (ASSOCIATED(amb_info%bond_a)) THEN
          DEALLOCATE (amb_info%bond_a)
@@ -745,8 +741,7 @@ CONTAINS
    SUBROUTINE deallocate_inp_info(inp_info)
       TYPE(input_info_type), POINTER                     :: inp_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_inp_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_inp_info'
 
       INTEGER                                            :: i
 

@@ -45,8 +45,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: velocity
       REAL(KIND=dp)                                      :: conv_factor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'section_velocity_val_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'section_velocity_val_set'
 
       INTEGER                                            :: handle, ik, irk, Nlist, nloop
       LOGICAL                                            :: check

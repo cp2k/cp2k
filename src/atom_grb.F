@@ -78,8 +78,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: atom_section
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_grb_construction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_grb_construction'
 
       CHARACTER(len=default_string_length)               :: abas, basname
       CHARACTER(len=default_string_length), DIMENSION(1) :: basline
@@ -724,8 +723,7 @@ CONTAINS
          OPTIONAL                                        :: gcc
       INTEGER, INTENT(IN)                                :: iunit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'grb_print_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'grb_print_basis'
 
       INTEGER                                            :: i, j, l, lmax, lmin, nval
 

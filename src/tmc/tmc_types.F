@@ -239,8 +239,7 @@ CONTAINS
    SUBROUTINE tmc_env_release(tmc_env)
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tmc_env_release'
 
       INTEGER                                            :: handle
 
@@ -283,8 +282,7 @@ CONTAINS
    SUBROUTINE tmc_master_env_create(tmc_env)
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_master_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_master_env_create'
 
       INTEGER                                            :: handle, i
 
@@ -343,8 +341,7 @@ CONTAINS
    SUBROUTINE tmc_master_env_release(tmc_env)
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_master_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_master_env_release'
 
       INTEGER                                            :: handle
 
@@ -377,8 +374,7 @@ CONTAINS
    SUBROUTINE tmc_worker_env_create(tmc_env)
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_worker_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_worker_env_create'
 
       INTEGER                                            :: handle
 
@@ -406,8 +402,7 @@ CONTAINS
    SUBROUTINE tmc_worker_env_release(tmc_env)
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_worker_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_worker_env_release'
 
       INTEGER                                            :: handle
 
@@ -432,8 +427,7 @@ CONTAINS
       TYPE(tmc_atom_type), DIMENSION(:), POINTER         :: atoms
       INTEGER, INTENT(IN)                                :: nr_atoms
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_tmc_atom_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_tmc_atom_type'
 
       CPASSERT(.NOT. ASSOCIATED(atoms))
       CPASSERT(nr_atoms .GT. 0)
@@ -454,8 +448,7 @@ CONTAINS
    SUBROUTINE deallocate_tmc_atom_type(atoms)
       TYPE(tmc_atom_type), DIMENSION(:), POINTER         :: atoms
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_tmc_atom_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_tmc_atom_type'
 
       CPASSERT(ASSOCIATED(atoms))
 

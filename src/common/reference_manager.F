@@ -225,8 +225,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: FORMAT, unit
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: list
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_all_references', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_all_references'
 
       INTEGER                                            :: I, irecord, nref
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indx, irank, ival
@@ -320,8 +319,7 @@ CONTAINS
    SUBROUTINE print_reference(key, FORMAT, unit)
       INTEGER, INTENT(IN)                                :: key, FORMAT, unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_reference', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_reference'
 
       INTEGER                                            :: I
 
@@ -352,8 +350,7 @@ CONTAINS
    SUBROUTINE print_reference_journal(key, unit)
       INTEGER, INTENT(IN)                                :: key, unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_reference_journal', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_reference_journal'
 
       CHARACTER(LEN=4*ISI_length)                        :: journal
       CHARACTER(LEN=ISI_length)                          :: author, title

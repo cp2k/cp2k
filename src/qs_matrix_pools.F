@@ -224,8 +224,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: nmosub
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mpools_rebuild_fm_pools', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mpools_rebuild_fm_pools'
 
       INTEGER                                            :: handle, ispin, max_nmo, min_nmo, nao, &
                                                             ncg, ncol_block, nmo, nrg, nrow_block, &

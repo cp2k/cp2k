@@ -185,8 +185,7 @@ CONTAINS
    SUBROUTINE clone_core_shell_vel(part, shell_part, core_part)
       TYPE(particle_type), DIMENSION(:), POINTER         :: part, shell_part, core_part
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'clone_core_shell_vel', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'clone_core_shell_vel'
 
       INTEGER                                            :: i
       LOGICAL                                            :: is_shell
@@ -327,8 +326,7 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(simpar_type), POINTER                         :: simpar
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rescale_vel_region', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rescale_vel_region'
 
       INTEGER                                            :: ireg, nfree, nfree0, nfree_done
       REAL(KIND=dp)                                      :: ekin, temp
@@ -573,8 +571,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: write_binary_restart_file
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities'
 
       CHARACTER(LEN=default_string_length)               :: my_format
       INTEGER                                            :: handle, i, ifixd, imolecule_kind, iw, &
@@ -721,8 +718,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: is_fixed
       LOGICAL, INTENT(OUT)                               :: success
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_input_velocities', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_input_velocities'
 
       INTEGER                                            :: i, natoms, nshell, shell_index
       LOGICAL :: atomvel_explicit, atomvel_read, corevel_explicit, corevel_read, is_ok, &
@@ -906,8 +902,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: shell_particles, core_particles
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_coords_vels_vib', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_coords_vels_vib'
 
       INTEGER                                            :: dof, fixed_dof, iatom, ii, imode, &
                                                             my_dof, natoms, shell_index
@@ -1104,8 +1099,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: scale
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dr_from_vib_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dr_from_vib_data'
 
       INTEGER                                            :: imode, ind
 
@@ -1163,8 +1157,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: scale
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dv_from_vib_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dv_from_vib_data'
 
       INTEGER                                            :: imode, ind
 
@@ -1211,8 +1204,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: is_fixed
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_velocities', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_velocities'
 
       INTEGER                                            :: i, natoms
       REAL(KIND=dp)                                      :: mass
@@ -1282,8 +1274,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: is_fixed
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'soften_velocities', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'soften_velocities'
 
       INTEGER                                            :: i, k
       REAL(KIND=dp), DIMENSION(SIZE(part), 3)            :: F, F_t, N, x0
@@ -1349,8 +1340,7 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: is_fixed
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'normalize_velocities', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'normalize_velocities'
 
       REAL(KIND=dp)                                      :: ekin
       REAL(KIND=dp), DIMENSION(3)                        :: rcom, vang, vcom
@@ -1528,8 +1518,7 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_region', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_region'
 
       INTEGER                                            :: ireg, nfree, nfree_done, nregions
       REAL(KIND=dp)                                      :: ekin, ekin_old, ekin_total_new, fscale, &
@@ -1617,8 +1606,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ireg
       REAL(KIND=dp), INTENT(OUT)                         :: ekin, vcom(3)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_low'
 
       INTEGER                                            :: atom, iatom, ikind, my_ireg, natom, &
                                                             shell_index
@@ -1721,8 +1709,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: temp_expected, temp_tol
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_internal', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_internal'
 
       INTEGER                                            :: atom, iatom, ikind, natom, shell_index
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
@@ -1812,8 +1799,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: temp_expected, temp_tol
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_baro', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_baro'
 
       INTEGER                                            :: i, j, nfree
       REAL(KIND=dp)                                      :: ekin_old, scale, temp_old
@@ -1872,8 +1858,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control'
 
       INTEGER                                            :: handle, iw
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -2093,8 +2078,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: md_section, constraint_section
       LOGICAL, INTENT(IN)                                :: write_binary_restart_file
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_velocities', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'setup_velocities'
 
       INTEGER                                            :: handle, nconstraint, nconstraint_fixd
       LOGICAL                                            :: apply_cns0, shell_adiabatic, &
@@ -2241,8 +2225,7 @@ CONTAINS
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(section_vals_type), POINTER                   :: md_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_cascade', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_cascade'
 
       CHARACTER(len=2*default_string_length)             :: line
       INTEGER                                            :: handle, iatom, ifixd, imolecule_kind, &

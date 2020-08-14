@@ -207,8 +207,7 @@ CONTAINS
       TYPE(realspace_grid_input_type), INTENT(IN)        :: input_settings
       INTEGER, INTENT(IN), OPTIONAL                      :: border_points
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_create_descriptor', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_create_descriptor'
 
       INTEGER                                            :: border_size, dir, handle, i, j, k, l, &
                                                             lb(2), min_npts_real, n_slices(3), &
@@ -568,8 +567,7 @@ CONTAINS
       TYPE(realspace_grid_desc_type), POINTER            :: desc
       INTEGER, DIMENSION(:), INTENT(IN)                  :: real2virtual
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_reorder_ranks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_reorder_ranks'
 
       INTEGER                                            :: handle, i
 
@@ -837,8 +835,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: pw
       INTEGER, INTENT(IN)                                :: dir
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer_replicated', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer_replicated'
 
       INTEGER                                            :: dest, group, i, ii, im, ip, ix, iy, iz, &
                                                             j, jm, k, km, mepos, nma, nn, np, &
@@ -1021,8 +1018,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: pw
       INTEGER, INTENT(IN)                                :: dir
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer_distributed', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer_distributed'
 
       CHARACTER(LEN=200)                                 :: error_string
       INTEGER :: completed, dest_down, dest_up, i, idir, j, k, lb, my_id, my_pw_rank, my_rs_rank, &
@@ -1975,8 +1971,7 @@ CONTAINS
       TYPE(realspace_grid_type), POINTER                 :: rs1, rs2, rs3
       REAL(dp), INTENT(IN)                               :: scalar
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_mult_and_add', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_mult_and_add'
 
       INTEGER                                            :: handle, i, j, k, l(3), u(3)
 
@@ -2015,8 +2010,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(realspace_grid_type), POINTER                 :: rs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_set_box', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rs_grid_set_box'
 
       CPASSERT(ASSOCIATED(pw_grid))
       CPASSERT(ASSOCIATED(rs))
@@ -2053,8 +2047,7 @@ CONTAINS
    SUBROUTINE rs_grid_retain_descriptor(rs_desc)
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_retain_descriptor', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_retain_descriptor'
 
       CPASSERT(ASSOCIATED(rs_desc))
       CPASSERT(rs_desc%ref_count > 0)
@@ -2071,8 +2064,7 @@ CONTAINS
    SUBROUTINE rs_grid_release(rs_grid)
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rs_grid_release'
 
       IF (ASSOCIATED(rs_grid)) THEN
          CPASSERT(rs_grid%ref_count > 0)
@@ -2101,8 +2093,7 @@ CONTAINS
    SUBROUTINE rs_grid_release_descriptor(rs_desc)
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_release_descriptor', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_release_descriptor'
 
       IF (ASSOCIATED(rs_desc)) THEN
          CPASSERT(rs_desc%ref_count > 0)
@@ -2177,8 +2168,7 @@ CONTAINS
       TYPE(realspace_grid_desc_type), POINTER            :: desc
       INTEGER                                            :: max_ngpts
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_max_ngpts', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rs_grid_max_ngpts'
 
       INTEGER                                            :: handle, i
       INTEGER, DIMENSION(3)                              :: lb, ub

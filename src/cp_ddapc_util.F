@@ -548,8 +548,7 @@ CONTAINS
       TYPE(ddapc_restraint_type), INTENT(INOUT)          :: ddapc_restraint_control
       REAL(KIND=dp), INTENT(INOUT)                       :: energy_res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'restraint_functional_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'restraint_functional_potential'
 
       COMPLEX(KIND=dp)                                   :: g_corr, phase
       INTEGER                                            :: handle, idim, ig, igauss, iparticle, &
@@ -625,8 +624,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: M, AmI
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii, charges
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'modify_hartree_pot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'modify_hartree_pot'
 
       COMPLEX(KIND=dp)                                   :: g_corr, phase
       INTEGER                                            :: handle, idim, ig, igauss, iparticle
@@ -702,8 +700,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: Vol
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'debug_der_b_vector', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'debug_der_b_vector'
 
       INTEGER                                            :: handle, i, kk, ndim
       REAL(KIND=dp)                                      :: dx, rvec(3), v0
@@ -776,8 +773,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: Vol
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'debug_der_A_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'debug_der_A_matrix'
 
       INTEGER                                            :: handle, i, kk, ll, ndim
       REAL(KIND=dp)                                      :: dx, rvec(3), v0

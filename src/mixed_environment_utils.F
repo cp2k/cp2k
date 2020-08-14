@@ -71,8 +71,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: mapping_section
       LOGICAL, INTENT(IN)                                :: overwrite
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_map_forces', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mixed_map_forces'
 
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: iparticle, jparticle, natom, nres
@@ -145,8 +144,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: map_index
       LOGICAL, OPTIONAL                                  :: force_eval_embed
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_subsys_map_index', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_subsys_map_index'
 
       INTEGER                                            :: i, iatom, ival, j, jval, k, n_rep, &
                                                             n_rep_loc, n_rep_map, n_rep_sys, tmp

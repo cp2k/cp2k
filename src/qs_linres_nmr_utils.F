@@ -309,8 +309,7 @@ CONTAINS
 
       TYPE(nmr_env_type)                                 :: nmr_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_cleanup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'nmr_env_cleanup'
 
       nmr_env%ref_count = nmr_env%ref_count - 1
       IF (nmr_env%ref_count == 0) THEN

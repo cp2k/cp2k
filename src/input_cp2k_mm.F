@@ -71,8 +71,7 @@ CONTAINS
    SUBROUTINE create_mm_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_mm_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_mm_section'
 
       TYPE(section_type), POINTER                        :: subsection
 
@@ -113,8 +112,7 @@ CONTAINS
    SUBROUTINE create_print_mm_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_mm_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_mm_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key
@@ -213,8 +211,7 @@ CONTAINS
    SUBROUTINE create_forcefield_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_forcefield_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_forcefield_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -373,8 +370,7 @@ CONTAINS
    SUBROUTINE create_SPLINE_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_SPLINE_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_SPLINE_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -452,8 +448,7 @@ CONTAINS
    SUBROUTINE create_TORSION_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_TORSION_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_TORSION_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -519,8 +514,7 @@ CONTAINS
    SUBROUTINE create_IMPROPER_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_IMPROPER_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_IMPROPER_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -577,8 +571,7 @@ CONTAINS
    SUBROUTINE create_OPBEND_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_OPBEND_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_OPBEND_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -637,8 +630,7 @@ CONTAINS
    SUBROUTINE create_BEND_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_BEND_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_BEND_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -767,8 +759,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
       CHARACTER(LEN=*), INTENT(IN)                       :: label
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_BOND_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_BOND_section'
 
       CHARACTER(LEN=default_string_length)               :: tag
       TYPE(keyword_type), POINTER                        :: keyword
@@ -857,8 +848,7 @@ CONTAINS
    SUBROUTINE create_charges_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_charges_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_charges_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -886,8 +876,7 @@ CONTAINS
    SUBROUTINE create_charge_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_charge_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_charge_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -922,8 +911,7 @@ CONTAINS
    SUBROUTINE create_quadrupole_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_quadrupole_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_quadrupole_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -960,8 +948,7 @@ CONTAINS
    SUBROUTINE create_dipole_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_dipole_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_dipole_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -1001,8 +988,7 @@ CONTAINS
    SUBROUTINE create_damping_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_damping_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_damping_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1058,8 +1044,7 @@ CONTAINS
    SUBROUTINE create_shell_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_shell_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_shell_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1154,8 +1139,7 @@ CONTAINS
    SUBROUTINE create_NONBONDED14_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_NONBONDED14_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_NONBONDED14_section'
 
       TYPE(section_type), POINTER                        :: subsection
 
@@ -1192,8 +1176,7 @@ CONTAINS
    SUBROUTINE create_NONBONDED_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_NONBONDED_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_NONBONDED_section'
 
       TYPE(section_type), POINTER                        :: subsection
 
@@ -1270,8 +1253,7 @@ CONTAINS
    SUBROUTINE create_neighbor_lists_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_neighbor_lists_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_neighbor_lists_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1317,8 +1299,7 @@ CONTAINS
    SUBROUTINE create_GENPOT_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_GENPOT_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_GENPOT_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1409,8 +1390,7 @@ CONTAINS
    SUBROUTINE create_EAM_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_EAM_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_EAM_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1454,8 +1434,7 @@ CONTAINS
    SUBROUTINE create_QUIP_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_QUIP_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_QUIP_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1512,8 +1491,7 @@ CONTAINS
    SUBROUTINE create_LJ_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_LJ_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_LJ_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1578,8 +1556,7 @@ CONTAINS
    SUBROUTINE create_Williams_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_Williams_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_Williams_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1651,8 +1628,7 @@ CONTAINS
    SUBROUTINE create_Goodwin_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_Goodwin_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_Goodwin_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1737,8 +1713,7 @@ CONTAINS
    SUBROUTINE create_ipbv_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ipbv_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_ipbv_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1789,8 +1764,7 @@ CONTAINS
    SUBROUTINE create_BMHFT_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_BMHFT_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_BMHFT_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1877,8 +1851,7 @@ CONTAINS
    SUBROUTINE create_BMHFTD_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_BMHFTD_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_BMHFTD_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1981,8 +1954,7 @@ CONTAINS
    SUBROUTINE create_Buck4r_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_Buck4r_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_Buck4r_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -2096,8 +2068,7 @@ CONTAINS
    SUBROUTINE create_Buckmorse_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_Buckmorse_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_Buckmorse_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -2213,8 +2184,7 @@ CONTAINS
    SUBROUTINE create_Tersoff_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_Tersoff_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_Tersoff_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -2365,8 +2335,7 @@ CONTAINS
    SUBROUTINE create_Siepmann_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_Siepmann_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_Siepmann_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -2490,8 +2459,7 @@ CONTAINS
    SUBROUTINE create_Gal_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_Gal_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_Gal_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -2632,8 +2600,7 @@ CONTAINS
    SUBROUTINE create_GCN_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_GCN_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_GCN_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -2665,8 +2632,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: label
       INTEGER, INTENT(IN)                                :: print_level
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_dipoles_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_dipoles_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

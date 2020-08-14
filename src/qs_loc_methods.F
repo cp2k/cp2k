@@ -155,8 +155,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(section_vals_type), POINTER                   :: print_loc_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry'
 
       INTEGER                                            :: handle, max_iter, nao, nmoloc, out_each, &
                                                             output_unit, sweeps
@@ -281,8 +280,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(section_vals_type), POINTER                   :: print_loc_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek'
 
       INTEGER                                            :: handle, iatom, isgf, ldz, nao, natom, &
                                                             ncol, nmoloc, output_unit, sweeps
@@ -404,8 +402,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: print_loc_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: only_initial_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_berry', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_berry'
 
       CHARACTER(len=default_path_length)                 :: file_tmp, iter
       COMPLEX(KIND=dp)                                   :: z
@@ -511,8 +508,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(section_vals_type), POINTER                   :: print_loc_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_pipek', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_pipek'
 
       CHARACTER(len=default_path_length)                 :: file_tmp, iter
       INTEGER                                            :: iatom, istate, natom, nstate, unit_out_s
@@ -976,8 +972,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER, INTENT(IN)                                :: ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_wannier_centers', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_wannier_centers'
 
       CHARACTER(default_string_length)                   :: iter, unit_str
       CHARACTER(LEN=default_string_length)               :: my_ext, my_form
@@ -1038,8 +1033,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: init_traj
       REAL(KIND=dp), INTENT(IN)                          :: unit_conv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_wannier_traj', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_wannier_traj'
 
       CHARACTER(len=default_string_length)               :: iter, remark1, remark2, title
       INTEGER                                            :: i, iskip, natom, ntot, outformat

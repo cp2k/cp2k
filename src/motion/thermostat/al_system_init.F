@@ -60,8 +60,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: al_section
       TYPE(global_constraint_type), POINTER              :: gci
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_al_part', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_al_part'
 
       LOGICAL                                            :: restart
 
@@ -84,8 +83,7 @@ CONTAINS
    SUBROUTINE init_al_variables(al)
       TYPE(al_system_type), POINTER                      :: al
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_al_variables', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_al_variables'
 
       al%nvt(:)%mass = al%nvt(:)%nkt*al%tau_nh**2
       al%nvt(:)%chi = 0.0_dp

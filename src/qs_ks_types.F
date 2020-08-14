@@ -236,8 +236,7 @@ CONTAINS
    SUBROUTINE qs_ks_env_create(ks_env)
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_ks_env_create'
 
       IF (ASSOCIATED(ks_env)) CPABORT("ks_env already associated")
       ALLOCATE (ks_env)
@@ -923,8 +922,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, full_reset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_did_change', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ks_did_change'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: my_mstruct_chg

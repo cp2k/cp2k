@@ -82,8 +82,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kernel_coulomb_xc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'kernel_coulomb_xc'
 
       INTEGER                                            :: batch_size, bo(2), handle, i, ibatch, &
                                                             iex, lb, natom, nbatch, ndo_mo, &
@@ -414,8 +413,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ondiag_sf_os_xc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ondiag_sf_os_xc'
 
       INTEGER                                            :: ndo_mo, ri_atom
       LOGICAL                                            :: quadrants(3)
@@ -605,8 +603,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kernel_exchange', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'kernel_exchange'
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(:), POINTER                     :: blk_size
@@ -905,8 +902,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ri_atom
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'reserve_contraction_blocks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'reserve_contraction_blocks'
 
       INTEGER                                            :: blk, i, iblk, jblk, n
       LOGICAL                                            :: found
@@ -984,8 +980,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract2_AO_to_doMO', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'contract2_AO_to_doMO'
 
       INTEGER                                            :: handle, i, imo, ispin, katom, kkind, &
                                                             natom, ndo_mo, ndo_so, nsgfk, nspins
@@ -1102,8 +1097,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: mat_abIJ
       INTEGER, INTENT(IN)                                :: atom_k
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract3_RI_to_doMOs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'contract3_RI_to_doMOs'
 
       INTEGER                                            :: blk, handle, iatom, ik, ind(3), jatom, &
                                                             katom, nk, s1, s2
@@ -1181,8 +1175,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_aIb, mat_bIa
       INTEGER, INTENT(IN)                                :: atom_k
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract2_AO_to_doMO_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract2_AO_to_doMO_low'
 
       INTEGER                                            :: blk, handle, i, iatom, ind(3), j, jatom, &
                                                             katom, n, s1, s2
@@ -1265,8 +1258,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: contr_int
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: PQ
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ri_all_blocks_mm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ri_all_blocks_mm'
 
       INTEGER                                            :: blk, iblk, imo, jblk, ndo_mo, s1, s2
       LOGICAL                                            :: found
@@ -1311,8 +1303,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: new_int
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: ref_int
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'copy_ri_contr_int', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'copy_ri_contr_int'
 
       INTEGER                                            :: iso, ndo_so
 

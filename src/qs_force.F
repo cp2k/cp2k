@@ -105,8 +105,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL                                            :: calc_force, consistent_energies, linres
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_calc_energy_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_calc_energy_force'
 
       qs_env%linres_run = linres
       CALL set_qs_env(qs_env)

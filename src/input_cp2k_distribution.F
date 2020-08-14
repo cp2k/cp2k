@@ -41,8 +41,7 @@ CONTAINS
    SUBROUTINE create_distribution_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_distribution_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_distribution_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

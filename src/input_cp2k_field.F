@@ -49,8 +49,7 @@ CONTAINS
    SUBROUTINE create_per_efield_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_per_efield_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_per_efield_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -106,8 +105,7 @@ CONTAINS
    SUBROUTINE create_efield_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_efield_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_efield_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -190,8 +188,7 @@ CONTAINS
    SUBROUTINE create_constant_env_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_constant_env_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_constant_env_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -225,8 +222,7 @@ CONTAINS
    SUBROUTINE create_gaussian_env_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_gaussian_env_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_gaussian_env_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -262,8 +258,7 @@ CONTAINS
    SUBROUTINE create_ramp_env_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ramp_env_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_ramp_env_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -311,8 +306,7 @@ CONTAINS
    SUBROUTINE create_custom_env_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_custom_env_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_custom_env_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

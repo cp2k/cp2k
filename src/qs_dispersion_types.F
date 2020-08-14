@@ -127,8 +127,7 @@ CONTAINS
 
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_release'
 
       INTEGER                                            :: i
 

@@ -222,8 +222,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: wf_index
       TYPE(qs_wf_snapshot_type), POINTER                 :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_snapshot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfi_get_snapshot'
 
       NULLIFY (res)
 

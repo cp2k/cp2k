@@ -755,8 +755,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: da_i, db_i, add0, fact_screen
       REAL(KIND=dp)                                      :: charg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_nri_fs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dcharg_int_nri_fs'
 
       INTEGER                                            :: l1, l2, m1, m2
       REAL(KIND=dp)                                      :: add, da, db, dxdx, dxqxz, dzdz, dzqxx, &
@@ -1530,8 +1529,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: da_i, db_i, add0, fact_screen
       REAL(KIND=dp)                                      :: charg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_ri_fs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dcharg_int_ri_fs'
 
       INTEGER                                            :: l1, l2
       REAL(KIND=dp)                                      :: aa, ab, add, da, db, dxdx, dxqxz, dzdz, &
@@ -2090,8 +2088,7 @@ CONTAINS
       LOGICAL, DIMENSION(45, 45), INTENT(OUT), OPTIONAL  :: logv_d
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: drij
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rot_2el_2c_first', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rot_2el_2c_first'
 
       INTEGER                                            :: i, i1, ij, j1, k, k1, kl, l, l1, limkl, &
                                                             ll, mm, nd
@@ -2420,8 +2417,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: dw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'store_2el_2c_diag', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'store_2el_2c_diag'
 
       INTEGER                                            :: ij, kl, l
 

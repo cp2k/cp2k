@@ -62,8 +62,7 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'krylov_space_allocate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'krylov_space_allocate'
 
       INTEGER                                            :: handle, ik, ispin, max_nmo, nao, nblock, &
                                                             ndim, nk, nmo, nspin
@@ -181,8 +180,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_moconv_only
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_refinement', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_refinement'
       REAL(KIND=dp), PARAMETER                           :: rmone = -1.0_dp, rone = 1.0_dp, &
                                                             rzero = 0.0_dp
 
@@ -518,8 +516,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_moconv_only
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_refinement_2v', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_refinement_2v'
       REAL(KIND=dp), PARAMETER                           :: rmone = -1.0_dp, rone = 1.0_dp, &
                                                             rzero = 0.0_dp
 

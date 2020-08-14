@@ -94,8 +94,7 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tnadd_mat', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_tnadd_mat'
       INTEGER, PARAMETER                                 :: nexp_max = 10
 
       INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, icol, ikind, img, imol, inode, irow, &

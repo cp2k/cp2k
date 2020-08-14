@@ -81,8 +81,7 @@ CONTAINS
       TYPE(virial_type), INTENT(INOUT)                   :: virial
       INTEGER, INTENT(IN)                                :: igroup
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_evaluate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'virial_evaluate'
 
       INTEGER                                            :: handle, i, iparticle, iparticle_kind, &
                                                             iparticle_local, j, nparticle_kind, &
@@ -138,8 +137,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: f0
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: force, rab
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_pair_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'virial_pair_force'
 
       INTEGER                                            :: i, j
 
@@ -160,8 +158,7 @@ CONTAINS
       TYPE(virial_type), INTENT(IN)                      :: virial
       INTEGER, INTENT(IN)                                :: iounit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_stress_components', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_stress_components'
 
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv
 

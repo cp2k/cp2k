@@ -64,8 +64,7 @@ CONTAINS
       INTEGER                                            :: output_unit, nwork, pwork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coeff, step_multiplier, dh
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_jacobian_stencil', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_jacobian_stencil'
 
       CHARACTER(len=15)                                  :: fmt_code
       INTEGER                                            :: ivar
@@ -206,8 +205,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL                                            :: used_history
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_diagonal_jacobian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_diagonal_jacobian'
 
       INTEGER                                            :: i, ihistory, nvar, outer_scf_ihistory
       LOGICAL                                            :: use_md_history
@@ -287,8 +285,7 @@ CONTAINS
    SUBROUTINE restart_inverse_jacobian(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'restart_inverse_jacobian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'restart_inverse_jacobian'
 
       INTEGER                                            :: i, iwork, j, nvar
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: inv_jacobian
@@ -335,8 +332,7 @@ CONTAINS
          POINTER                                         :: inv_jacobian
       INTEGER                                            :: iter_count
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_inverse_jacobian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_inverse_jacobian'
 
       CHARACTER(len=default_path_length)                 :: project_name
       INTEGER                                            :: i, j, lp, nvar, output_unit
@@ -376,8 +372,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: output_unit
       TYPE(cp_logger_type), INTENT(OUT), POINTER         :: tmp_logger
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_tmp_logger', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_tmp_logger'
 
       INTEGER                                            :: lp
 
@@ -414,8 +409,7 @@ CONTAINS
       LOGICAL                                            :: explicit_jacobian, should_build, &
                                                             used_history
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_inverse_jacobian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_inverse_jacobian'
 
       CPASSERT(ASSOCIATED(scf_control))
       CPASSERT(ASSOCIATED(scf_env))

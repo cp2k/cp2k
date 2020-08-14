@@ -148,8 +148,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mixed_cdft_init'
 
       INTEGER                                            :: et_freq, handle, iforce_eval, iounit, &
                                                             mixing_type, nforce_eval
@@ -410,8 +409,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN), OPTIONAL                      :: iforce_eval
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_build_weight', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_build_weight'
 
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
 
@@ -450,8 +448,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_build_weight_parallel', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_build_weight_parallel'
 
       INTEGER :: handle, handle2, i, iforce_eval, ind, INDEX(6), iounit, j, lb_min, &
          my_special_work, natom, nforce_eval, recv_offset, ub_max
@@ -888,8 +885,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: iforce_eval
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_transfer_weight', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_transfer_weight'
 
       INTEGER                                            :: bounds_of(8), handle, iatom, igroup, &
                                                             jforce_eval, nforce_eval
@@ -1064,8 +1060,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_set_flags(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_set_flags', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_set_flags'
 
       INTEGER                                            :: handle, iforce_eval, nforce_eval
       LOGICAL, SAVE                                      :: first_call = .TRUE.
@@ -1132,8 +1127,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_calculate_coupling(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_calculate_coupling', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_calculate_coupling'
 
       INTEGER                                            :: handle
 
@@ -1168,8 +1162,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_interaction_matrices(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_interaction_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_interaction_matrices'
 
       INTEGER :: check_ao(2), check_mo(2), handle, iforce_eval, ipermutation, ispin, istate, ivar, &
          j, jstate, k, moeigvalunit, mounit, nao, ncol_local, nforce_eval, nmo, npermutations, &
@@ -1693,8 +1686,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_calculate_coupling_low(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_calculate_coupling_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_calculate_coupling_low'
 
       INTEGER                                            :: handle, ipermutation, istate, jstate, &
                                                             nforce_eval, npermutations, nvar
@@ -1786,8 +1778,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_configuration_interaction(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_configuration_interaction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_configuration_interaction'
 
       INTEGER                                            :: handle, info, iounit, istate, ivar, &
                                                             nforce_eval, work_array_size
@@ -1890,8 +1881,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_block_diag(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_block_diag', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_block_diag'
 
       INTEGER                                            :: handle, i, iounit, irecursion, j, n, &
                                                             nblk, nforce_eval, nrecursion
@@ -2008,8 +1998,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix_diff
       INTEGER, DIMENSION(:)                              :: ncol_mo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_calculate_metric', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_calculate_metric'
 
       INTEGER                                            :: handle, ipermutation, ispin, j, &
                                                             nforce_eval, npermutations, nspins
@@ -2063,8 +2052,7 @@ CONTAINS
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
       INTEGER, DIMENSION(:)                              :: ncol_mo, nrow_mo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_wfn_overlap_method', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_wfn_overlap_method'
 
       CHARACTER(LEN=default_path_length)                 :: file_name
       INTEGER                                            :: handle, ipermutation, ispin, istate, &
@@ -2248,8 +2236,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_becke_constraint', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_becke_constraint'
 
       INTEGER                                            :: handle
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: catom
@@ -2315,8 +2302,7 @@ CONTAINS
          INTENT(OUT)                                     :: coefficients
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(out)    :: catom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_becke_constraint_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_becke_constraint_init'
 
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER :: atom_a, bounds(2), handle, i, iatom, iex, iforce_eval, ikind, iounit, ithread, j, &
@@ -2763,8 +2749,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: my_work, my_work_size, natom
       INTEGER, DIMENSION(2, 3)                           :: bo, bo_conf
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_becke_constraint_dlb', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_becke_constraint_dlb'
       INTEGER, PARAMETER                                 :: should_deallocate = 7000, &
                                                             uninitialized = -7000
 
@@ -3544,8 +3529,7 @@ CONTAINS
          INTENT(INOUT)                                   :: coefficients
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: catom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_becke_constraint_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_becke_constraint_low'
 
       INTEGER :: handle, i, iatom, icomm, iforce_eval, index, iounit, ip, ispecial, iwork, j, &
          jatom, jcomm, k, my_special_work, my_work, natom, nbuffs, nforce_eval, np(3), &

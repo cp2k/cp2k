@@ -71,8 +71,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_com_tr_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_com_tr_matrix'
 
       INTEGER                                            :: handle, iatom, icol, ikind, ir, irow, &
                                                             iset, jatom, jkind, jset, ldsab, ltab, &

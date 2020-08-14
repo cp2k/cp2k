@@ -93,8 +93,7 @@ CONTAINS
       INTEGER                                            :: bas_id
       TYPE(section_vals_type), POINTER                   :: input_file
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'modify_input_settings', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'modify_input_settings'
 
       CHARACTER(LEN=default_string_length)               :: atom
       CHARACTER(LEN=default_string_length), &
@@ -175,8 +174,7 @@ CONTAINS
    SUBROUTINE allocate_mo_sets(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mo_sets', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'allocate_mo_sets'
 
       INTEGER                                            :: ispin
       INTEGER, DIMENSION(2)                              :: nelectron_spin
@@ -238,8 +236,7 @@ CONTAINS
    SUBROUTINE calculate_ks_matrix(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ks_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ks_matrix'
 
       INTEGER                                            :: ispin
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
@@ -278,8 +275,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: context
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_overlap_inverse', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_overlap_inverse'
 
       INTEGER                                            :: nao
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -310,8 +306,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       CHARACTER(LEN=*)                                   :: S_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_overlap', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_overlap'
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
@@ -357,8 +352,7 @@ CONTAINS
    SUBROUTINE create_opt_admm_env(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_opt_admm_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_opt_admm_env'
 
       INTEGER                                            :: natoms
       TYPE(admm_type), POINTER                           :: admm_env
@@ -392,8 +386,7 @@ CONTAINS
       INTEGER                                            :: bas_id
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_basis_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'update_basis_set'
 
       CHARACTER(default_string_length)                   :: elem
       INTEGER                                            :: ibasis, ikind, jkind
@@ -431,8 +424,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis
       TYPE(flex_basis_type)                              :: basis
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'transfer_data_to_gto', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'transfer_data_to_gto'
 
       INTEGER                                            :: ipgf, iset, ishell
 

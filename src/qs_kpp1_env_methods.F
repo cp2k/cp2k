@@ -146,8 +146,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho1
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho1_xc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'kpp1_calc_k_p_p1'
 
       INTEGER                                            :: excitations, handle, ispin, ns, nspins, &
                                                             output_unit, res_etype
@@ -509,8 +508,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho1
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: diff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1_fdiff', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1_fdiff'
 
       INTEGER                                            :: ispin, nspins
       REAL(KIND=dp)                                      :: my_diff
@@ -596,8 +594,7 @@ CONTAINS
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc'
 
       INTEGER                                            :: excitations, ispin, nspins, res_etype
       LOGICAL                                            :: explicit, lsd_singlets
@@ -704,8 +701,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: s_struct_changed, grid_changed, &
                                                             psi0_changed
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_did_change', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'kpp1_did_change'
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_psi0_changed, my_s_struct_changed
@@ -766,8 +762,7 @@ CONTAINS
       TYPE(pw_p_type), INTENT(IN)                        :: rho1_tot_gspace
       INTEGER                                            :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_densities', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_densities'
 
       REAL(KIND=dp)                                      :: total_rho_gspace
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho1_r

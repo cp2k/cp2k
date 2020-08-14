@@ -183,8 +183,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL                    :: citations
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: unit_str
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_section_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_section_create'
 
       CHARACTER(len=default_path_length)                 :: my_filename
       INTEGER                                            :: i_each, i_iter, my_add_last, &
@@ -352,8 +351,7 @@ CONTAINS
       LOGICAL, INTENT(OUT), OPTIONAL                     :: first_time
       INTEGER                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_should_output', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_should_output'
 
       INTEGER                                            :: end_str, my_control_val, to_path
       LOGICAL                                            :: flags, is_iter, is_on
@@ -440,8 +438,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: print_key
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_on', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_printkey_is_on'
 
       INTEGER                                            :: print_level
 
@@ -474,8 +471,7 @@ CONTAINS
       LOGICAL, INTENT(OUT), OPTIONAL                     :: first_time
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_iter', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_iter'
 
       INTEGER                                            :: add_last, ilevel, iter_nr, ival
       LOGICAL                                            :: first, level_passed
@@ -635,8 +631,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: level_name
       INTEGER, INTENT(OUT), OPTIONAL                     :: n_rlevel_new
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_iter_level', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_add_iter_level'
 
       INTEGER                                            :: i
       LOGICAL                                            :: found
@@ -681,8 +676,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: level_name
       INTEGER, INTENT(IN), OPTIONAL                      :: n_rlevel_att
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_rm_iter_level', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_rm_iter_level'
 
       LOGICAL                                            :: check
 
@@ -843,8 +837,7 @@ CONTAINS
          OPTIONAL                                        :: fout
       INTEGER                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_unit_nr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_unit_nr'
 
       CHARACTER(len=default_path_length)                 :: filename, filename_bak, filename_bak_1, &
                                                             filename_bak_2
@@ -1048,8 +1041,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: local, ignore_should_output, on_file, &
                                                             mpi_io
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_finished_output', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_finished_output'
 
       CHARACTER(len=default_string_length)               :: outPath
       LOGICAL                                            :: my_local, my_mpi_io, my_on_file, &

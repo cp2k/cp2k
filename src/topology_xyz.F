@@ -51,8 +51,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_xyz', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_xyz'
 
       CHARACTER(LEN=default_string_length)               :: my_default_index, strtmp
       CHARACTER(LEN=max_line_length)                     :: error_message

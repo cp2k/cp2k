@@ -66,8 +66,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: this
       INTEGER, INTENT(IN)                                :: ngroups, dimen, pos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d0', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d0'
 
       INTEGER, DIMENSION(2)                              :: itmp
 
@@ -88,8 +87,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: this
       INTEGER, INTENT(IN)                                :: ngroups, dimen
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_i1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_i1'
 
       INTEGER                                            :: iproc
       INTEGER, DIMENSION(2)                              :: itmp
@@ -119,8 +117,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: this
       INTEGER, INTENT(IN)                                :: ngroups
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_0', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_0'
 
       ALLOCATE (this%starts(0:ngroups - 1))
       this%starts = 0
@@ -144,8 +141,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: starts, ends, sizes
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_i3', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_i3'
 
       INTEGER                                            :: handle
 
@@ -181,8 +177,7 @@ CONTAINS
       TYPE(group_dist_d0_type), INTENT(IN)               :: group_dist_ext
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_gd', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_gd'
 
       INTEGER                                            :: handle
 
@@ -218,8 +213,7 @@ CONTAINS
       TYPE(group_dist_d0_type), INTENT(IN)               :: this
       INTEGER, INTENT(OUT), OPTIONAL                     :: starts, ends, sizes
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_group_dist_d0', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_group_dist_d0'
 
       IF (PRESENT(starts)) starts = this%starts
       IF (PRESENT(ends)) ends = this%ends
@@ -242,8 +236,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: starts, ends, sizes
       TYPE(group_dist_d0_type), INTENT(OUT), OPTIONAL    :: group_dist_ext
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_group_dist_d1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_group_dist_d1'
 
       IF (PRESENT(starts)) starts = this%starts(pos)
       IF (PRESENT(ends)) ends = this%ends(pos)
@@ -270,8 +263,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: group_dist_ext
       INTEGER, INTENT(IN)                                :: pos_ext
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_group_dist_gd1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_group_dist_gd1'
 
       group_dist_ext%starts(pos_ext) = this%starts(pos)
       group_dist_ext%ends(pos_ext) = this%ends(pos)
@@ -286,8 +278,7 @@ CONTAINS
    PURE SUBROUTINE release_group_dist_d1(this)
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: this
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_group_dist_d1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_group_dist_d1'
 
       DEALLOCATE (this%starts)
       DEALLOCATE (this%ends)

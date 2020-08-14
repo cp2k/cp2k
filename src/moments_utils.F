@@ -65,8 +65,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       INTEGER, INTENT(IN), OPTIONAL                      :: ifirst, ilast
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_reference_point', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_reference_point'
 
       INTEGER                                            :: akind, ia, iatom, ikind
       LOGICAL                                            :: do_molecule

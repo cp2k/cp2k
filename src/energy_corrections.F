@@ -190,8 +190,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: ec_init, calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'energy_correction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'energy_correction'
 
       INTEGER                                            :: handle, nkind, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: natom_of_kind
@@ -376,8 +375,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(energy_correction_type), POINTER              :: ec_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_core_hamiltonian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_core_hamiltonian'
 
       INTEGER                                            :: handle, iounit, nder, nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -484,8 +482,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(energy_correction_type), POINTER              :: ec_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_ks_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_ks_matrix'
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: handle, iounit, ispin, nspins
@@ -620,8 +617,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(energy_correction_type), POINTER              :: ec_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_core_hamiltonian_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_core_hamiltonian_force'
 
       INTEGER                                            :: handle, iounit, nder, nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -780,8 +776,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(energy_correction_type), POINTER              :: ec_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_ks_matrix_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_ks_matrix_force'
 
       INTEGER                                            :: handle, i, iounit, ispin, nao, natom, &
                                                             norb, nspins
@@ -1196,8 +1191,7 @@ CONTAINS
       TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, smat, pmat, wmat
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mao_create_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mao_create_matrices'
 
       INTEGER                                            :: handle, ispin, nspins
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes
@@ -1271,8 +1265,7 @@ CONTAINS
       TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, smat, pmat, wmat
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mao_release_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mao_release_matrices'
 
       INTEGER                                            :: handle, ispin, nspins
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef
@@ -1651,8 +1644,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(energy_correction_type), POINTER              :: ec_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_neighborlist', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_neighborlist'
 
       INTEGER                                            :: handle, ikind, nkind
       LOGICAL                                            :: gth_potential_present, &

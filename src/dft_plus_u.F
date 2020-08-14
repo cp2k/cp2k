@@ -1510,8 +1510,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: should_output
       INTEGER, INTENT(IN)                                :: output_unit, print_level
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken_charges', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mulliken_charges'
 
       CHARACTER(LEN=10)                                  :: spin_info
       CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:)        :: symbol

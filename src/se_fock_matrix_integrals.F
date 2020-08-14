@@ -1084,8 +1084,7 @@ CONTAINS
                                                             ptens22, ptens23, ptens31, ptens32, &
                                                             ptens33
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'se_coulomb_ij_interaction', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'se_coulomb_ij_interaction'
 
       INTEGER                                            :: a, b, c, d, e, i, j, k
       LOGICAL                                            :: do_efield0, do_efield1, do_efield2, &

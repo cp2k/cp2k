@@ -64,8 +64,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: energy
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_gcp_pairpot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_gcp_pairpot'
 
       INTEGER                                            :: atom_a, atom_b, handle, i, iatom, ikind, &
                                                             jatom, jkind, mepos, natom, nkind, &

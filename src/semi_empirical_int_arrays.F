@@ -138,8 +138,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_se_intd_array()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_se_intd_array', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_se_intd_array'
 
       CALL setup_index_array()
       CALL setup_indrot_array()
@@ -156,8 +155,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE setup_index_array()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_index_array', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_index_array'
 
       INTEGER                                            :: i, j
 
@@ -201,8 +199,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE setup_indrot_array()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_indrot_array', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_indrot_array'
 
 ! Setup indexes for integral rotations
 ! INDPP
@@ -268,8 +265,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE setup_clm_array()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_clm_array', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_clm_array'
 
       INTEGER                                            :: CLM1, CLM1m
       REAL(KIND=dp) :: ALM1, ALMs15_49, ALMs15_49m, ALMs15m, ALMs20_49, ALMs20_49m, ALMs35, &
@@ -479,8 +475,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE setup_ijkl_array()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_ijkl_array', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_ijkl_array'
 
 ! Address unique indexes (excluding those related by rotations)
 ! Indexes according:

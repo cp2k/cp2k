@@ -65,8 +65,7 @@ CONTAINS
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_connectivity_pack', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'topology_connectivity_pack'
 
       CHARACTER(LEN=default_string_length)               :: name
       INTEGER :: counter, first, handle, handle2, i, ibend, ibond, idim, iimpr, ikind, imol, &
@@ -1246,8 +1245,7 @@ CONTAINS
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_conn_multiple', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'topology_conn_multiple'
 
       INTEGER                                            :: a, fac, i, ind, j, k, m, natoms_orig, &
                                                             nbond, nbond_c, nimpr, nonfo, nphi, &

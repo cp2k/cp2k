@@ -192,8 +192,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_grid_type), POINTER                        :: mt_super_ref_pw_grid, dct_pw_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_green_create'
 
       INTEGER                                            :: dim, i, ig, iz, n, nz
       REAL(KIND=dp)                                      :: g2, g3d, gg, gxy, gz, j0g, j1g, k0g, &
@@ -446,8 +445,7 @@ CONTAINS
    SUBROUTINE pw_green_retain(gftype)
       TYPE(greens_fn_type), POINTER                      :: gftype
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_green_retain'
 
       CPASSERT(ASSOCIATED(gftype))
       CPASSERT(gftype%ref_count > 0)
@@ -467,8 +465,7 @@ CONTAINS
       TYPE(greens_fn_type), POINTER                      :: gftype
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_green_release'
 
       LOGICAL                                            :: can_give_back
 
@@ -514,8 +511,7 @@ CONTAINS
    SUBROUTINE influence_factor(gftype)
       TYPE(greens_fn_type), POINTER                      :: gftype
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'influence_factor', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'influence_factor'
 
       COMPLEX(KIND=dp)                                   :: b_m, exp_m, sum_m
       INTEGER                                            :: dim, j, k, l, n, pt
@@ -618,8 +614,7 @@ CONTAINS
 
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_create'
 
       CPASSERT(.NOT. ASSOCIATED(poisson_env))
       ALLOCATE (poisson_env)
@@ -648,8 +643,7 @@ CONTAINS
    SUBROUTINE pw_poisson_retain(poisson_env)
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_retain'
 
       CPASSERT(ASSOCIATED(poisson_env))
       CPASSERT(poisson_env%ref_count > 0)
@@ -667,8 +661,7 @@ CONTAINS
 
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_release'
 
       IF (ASSOCIATED(poisson_env)) THEN
          CPASSERT(poisson_env%ref_count > 0)

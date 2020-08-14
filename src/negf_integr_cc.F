@@ -239,8 +239,7 @@ CONTAINS
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(inout)                                   :: xnodes_next
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ccquad_double_number_of_points', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ccquad_double_number_of_points'
 
       INTEGER                                            :: handle, ipoint, nnodes_exist, &
                                                             nnodes_half, nnodes_next
@@ -322,8 +321,7 @@ CONTAINS
       TYPE(ccquad_type), INTENT(inout)                   :: cc_env
       TYPE(cp_cfm_p_type), DIMENSION(:), INTENT(inout)   :: zdata_next
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ccquad_reduce_and_append_zdata', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ccquad_reduce_and_append_zdata'
 
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: zscale
       INTEGER                                            :: handle, ipoint, nnodes_exist, &
@@ -417,8 +415,7 @@ CONTAINS
    SUBROUTINE ccquad_refine_integral(cc_env)
       TYPE(ccquad_type), INTENT(inout)                   :: cc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ccquad_refine_integral', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ccquad_refine_integral'
 
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: ztmp, ztmp_dct
       INTEGER :: handle, icol, ipoint, irow, ncols_local, nintervals, nintervals_half, &

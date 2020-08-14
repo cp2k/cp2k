@@ -51,8 +51,7 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER               :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd'
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: work
       COMPLEX(KIND=dp), DIMENSION(:, :), &
@@ -200,8 +199,7 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: work
       REAL(KIND=dp), INTENT(IN)                          :: epseig
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig_canon', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig_canon'
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
          czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
 

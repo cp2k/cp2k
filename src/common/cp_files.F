@@ -58,8 +58,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: file_name
       INTEGER, INTENT(IN)                                :: unit_number
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'assign_preconnection', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'assign_preconnection'
 
       INTEGER                                            :: ic, islot, nc
 
@@ -204,8 +203,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: file_name
       INTEGER                                            :: unit_number
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'delete_preconnection', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'delete_preconnection'
 
       INTEGER                                            :: ic, nc
 
@@ -276,8 +274,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_preconnection_list()
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_preconnection_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_preconnection_list'
 
       INTEGER                                            :: ic, nc
 
@@ -595,8 +592,7 @@ CONTAINS
    SUBROUTINE print_preconnection_list(output_unit)
       INTEGER, INTENT(IN), OPTIONAL                      :: output_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_preconnection_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_preconnection_list'
 
       INTEGER                                            :: ic, nc, unit
 

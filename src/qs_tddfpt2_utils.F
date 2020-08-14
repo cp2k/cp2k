@@ -104,8 +104,7 @@ CONTAINS
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init_mos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_init_mos'
 
       INTEGER                                            :: handle, ispin, nmo_avail, nmo_occ, &
                                                             nmo_virt, nspins
@@ -223,8 +222,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mos_virt
       REAL(kind=dp), DIMENSION(:), POINTER               :: evals_virt
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init_ground_state_mos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init_ground_state_mos'
       REAL(kind=dp), PARAMETER                           :: eps_dp = EPSILON(0.0_dp)
 
       INTEGER :: cholesky_method_inout, handle, icol_global, icol_local, imo, irow_global, &
@@ -450,8 +448,7 @@ CONTAINS
    SUBROUTINE tddfpt_release_ground_state_mos(gs_mos)
       TYPE(tddfpt_ground_state_mos), INTENT(inout)       :: gs_mos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_release_ground_state_mos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_release_ground_state_mos'
 
       INTEGER                                            :: handle
 
@@ -662,8 +659,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       REAL(KIND=dp), INTENT(IN)                          :: ev_shift, eos_shift
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ev_shift_operator', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ev_shift_operator'
 
       INTEGER                                            :: handle, ispin, n_spins, na, nb, nhomo, &
                                                             nl, nos, nrow, nu, nvirt
@@ -827,8 +823,7 @@ CONTAINS
          INTENT(in)                                      :: gs_mos
       INTEGER, INTENT(in)                                :: log_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_guess_vectors', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_guess_vectors'
 
       CHARACTER(len=5)                                   :: spin_label
       INTEGER                                            :: handle, imo_occ, imo_virt, ind, ispin, &

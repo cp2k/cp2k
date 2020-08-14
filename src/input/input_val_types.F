@@ -655,8 +655,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(OUT)                      :: string
       TYPE(cp_unit_type), OPTIONAL, POINTER              :: unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'val_write_internal', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'val_write_internal'
 
       CHARACTER(LEN=default_string_length)               :: enum_string
       INTEGER                                            :: i, ipos

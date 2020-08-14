@@ -664,8 +664,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'corecore_el_ana', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'corecore_el_ana'
 
       LOGICAL                                            :: l_denuc, l_enuc
       REAL(dp)                                           :: drij(3), dssss, dssss_sr, rij, ssss, &
@@ -720,8 +719,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(:), INTENT(INOUT), OPTIONAL    :: int1el, int2el
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'invert_integral', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'invert_integral'
 
       INTEGER                                            :: fdim, gind, gknd, i, imap, ind, j, jmap, &
                                                             jnd, k, kmap, knd, l, lmap, lnd, ndim, &
@@ -833,8 +831,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: dint1el, dint2el
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'invert_derivative', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'invert_derivative'
 
       INTEGER                                            :: i, m
       REAL(KIND=dp)                                      :: tmp
@@ -900,8 +897,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       LOGICAL, INTENT(IN)                                :: lgrad
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dssss_nucint_ana', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dssss_nucint_ana'
 
       REAL(KIND=dp)                                      :: dft, ft
       TYPE(se_int_screen_type)                           :: se_int_screen
@@ -984,8 +980,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       LOGICAL, INTENT(IN)                                :: lgrad
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcore_nucint_ana', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dcore_nucint_ana'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: dft, ft

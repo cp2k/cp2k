@@ -135,8 +135,7 @@ CONTAINS
 
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_ks_to_ks_xx', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_ks_to_ks_xx'
 
       INTEGER                                            :: handle, ispin, ndomains
       REAL(KIND=dp)                                      :: eps_multiply
@@ -481,8 +480,7 @@ CONTAINS
 
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_ks_to_ks_blk', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_ks_to_ks_blk'
 
       INTEGER                                            :: handle, ispin
       REAL(KIND=dp)                                      :: eps_multiply
@@ -767,8 +765,7 @@ CONTAINS
 
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_ks_xx_to_tv_xx', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_ks_xx_to_tv_xx'
 
       INTEGER                                            :: handle, iblock_size, idomain, info, &
                                                             ispin, lwork, ndomains
@@ -915,8 +912,7 @@ CONTAINS
 
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_ks_blk_to_tv_blk', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_ks_blk_to_tv_blk'
 
       INTEGER                                            :: handle, iblock_col, iblock_row, &
                                                             iblock_size, info, ispin, lwork, &
@@ -1111,8 +1107,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_out
       INTEGER, DIMENSION(:)                              :: nocc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pseudo_invert_diagonal_blk', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'pseudo_invert_diagonal_blk'
 
       INTEGER                                            :: handle, iblock_col, iblock_row, &
                                                             iblock_size, methodID
@@ -1179,8 +1174,7 @@ CONTAINS
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
       LOGICAL, INTENT(IN)                                :: ionic
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_p_blk_to_t_blk', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_p_blk_to_t_blk'
 
       INTEGER                                            :: handle, iblock_col, iblock_row, &
                                                             iblock_size, info, ispin, lwork, &
@@ -1338,8 +1332,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ndomains
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nocc_of_domain
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_t_rescaling', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_t_rescaling'
 
       INTEGER                                            :: handle, idomain, neigenval_used, nmo
       REAL(KIND=dp)                                      :: kTS
@@ -1521,8 +1514,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: overlap_sqrti
       LOGICAL, INTENT(IN), OPTIONAL                      :: smear
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'orthogonalize_mos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'orthogonalize_mos'
 
       INTEGER                                            :: dim0, handle
       LOGICAL                                            :: smearing
@@ -1648,8 +1640,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: max_iter_lanczos, inverse_accelerator
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: inv_eps_factor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_t_to_proj', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_t_to_proj'
 
       INTEGER                                            :: dim0, handle, my_accelerator, &
                                                             my_algorithm
@@ -1869,8 +1860,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: sig_inv_projector, sig_inv_template
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_projector', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_projector'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_type)                                   :: tmp_no, tmp_ov, tmp_ov2, tmp_sig, &
@@ -2022,8 +2012,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: U
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'generator_to_unitary', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'generator_to_unitary'
 
       INTEGER                                            :: handle, unit_nr
       LOGICAL                                            :: safe_mode
@@ -2130,8 +2119,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: matrix_trimmer
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_trimmer
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_domain_operators', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_domain_operators'
 
       INTEGER                                            :: handle, ndomains
       LOGICAL                                            :: matrix_trimmer_required, my_use_trimmer, &
@@ -2261,8 +2249,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: my_action
       LOGICAL, INTENT(IN), OPTIONAL                      :: skip_inversion
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_preconditioner', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_preconditioner'
 
       INTEGER                                            :: handle, idomain, index1_end, &
                                                             index1_start, n_domain_mos, naos, &
@@ -2492,8 +2479,7 @@ CONTAINS
       TYPE(domain_map_type), INTENT(IN)                  :: map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: node_of_domain
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_s_sqrt', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_s_sqrt'
 
       INTEGER                                            :: handle, idomain, naos, ndomains
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Ssqrt, Ssqrtinv
@@ -2565,8 +2551,7 @@ CONTAINS
       TYPE(domain_map_type), INTENT(IN)                  :: map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: node_of_domain
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_s_inv', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_s_inv'
 
       INTEGER                                            :: handle, idomain, naos, ndomains
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Sinv
@@ -2638,8 +2623,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: node_of_domain
       REAL(KIND=dp)                                      :: filter_eps
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_r_down', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_r_down'
 
       INTEGER                                            :: handle, ndomains
       TYPE(dbcsr_type)                                   :: m_tmp_no_1, m_tmp_no_2, matrix_r
@@ -2820,8 +2804,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: s_inv_half, s_half
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pseudo_invert_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pseudo_invert_matrix'
 
       INTEGER                                            :: handle, ii, INFO, jj, LWORK, range1_eiv, &
                                                             range2_eiv, range3_eiv, unit_nr
@@ -3055,8 +3038,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: range1
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: range1_thr, shift
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pseudo_matrix_power', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pseudo_matrix_power'
 
       INTEGER                                            :: handle, INFO, jj, LWORK, range1_eiv, &
                                                             range2_eiv, unit_nr
@@ -3191,8 +3173,7 @@ CONTAINS
 
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'distribute_domains', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'distribute_domains'
 
       INTEGER                                            :: handle, idomain, least_loaded, nao, &
                                                             ncpus, ndomains
@@ -3328,8 +3309,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: nocc_of_domain
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xalmo_initial_guess', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xalmo_initial_guess'
 
       INTEGER                                            :: handle, iaspc, ispin, istore, naspc, &
                                                             unit_nr

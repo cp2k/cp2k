@@ -71,8 +71,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: allocate_deriv
       TYPE(xc_derivative_type), POINTER                  :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_get_derivative', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_get_derivative'
 
       CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: std_deriv_desc
       LOGICAL                                            :: my_allocate_deriv
@@ -158,8 +157,7 @@ CONTAINS
 
       TYPE(xc_derivative_set_type), POINTER              :: derivative_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_dset_release'
 
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
@@ -208,8 +206,7 @@ CONTAINS
 
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_zero_all', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_dset_zero_all'
 
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(xc_derivative_type), POINTER                  :: deriv_att

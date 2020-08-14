@@ -275,8 +275,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'echo_all_process_host', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'echo_all_process_host'
 
       CHARACTER(LEN=default_string_length)               :: string, string_sec
       INTEGER                                            :: ipe, jpe, nr_occu
@@ -484,8 +483,8 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_global_section', &
-         routineP = moduleN//':'//routineN, start_section_label = "GLOBAL"
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_global_section', &
+         start_section_label = "GLOBAL"
 
       CHARACTER(len=13)                                  :: tracing_string
       CHARACTER(len=6)                                   :: print_level_string
@@ -853,8 +852,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_cp2k_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cp2k_section'
 
       INTEGER                                            :: output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -890,8 +888,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: global_section
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fft_setup_library', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_setup_library'
 
       COMPLEX(KIND=dp), DIMENSION(4, 4, 4)               :: zz
       INTEGER                                            :: stat
@@ -980,8 +977,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diag_setup_library', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'diag_setup_library'
 
       LOGICAL                                            :: fallback_applied
 
@@ -1039,8 +1035,7 @@ CONTAINS
    SUBROUTINE fm_diag_rules_setup(glob_section)
       TYPE(section_vals_type), POINTER                   :: glob_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_diag_rules_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_diag_rules_setup'
 
       INTEGER                                            :: a, x
       LOGICAL                                            :: elpa_force_redistribute, should_print
@@ -1070,8 +1065,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       REAL(KIND=dp), INTENT(out)                         :: walltime
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_get_walltime', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp2k_get_walltime'
 
       CHARACTER(LEN=1)                                   :: c1, c2
       CHARACTER(LEN=100)                                 :: txt

@@ -61,8 +61,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: loc_print_key
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_molecular_dipole', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_molecular_dipole'
 
       COMPLEX(KIND=dp)                                   :: zeta
       COMPLEX(KIND=dp), DIMENSION(3)                     :: ggamma, zphase

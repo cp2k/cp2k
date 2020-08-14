@@ -208,8 +208,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL :: calc_force, consistent_energies, skip_external_control, &
          eval_energy_forces, require_consistent_energy_force, linres, calc_stress_tensor
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force'
       REAL(kind=dp), PARAMETER                           :: ateps = 1.0E-6_dp
 
       INTEGER                                            :: i, ikind, j, nat, ndigits, nfixed_atoms, &
@@ -551,8 +550,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: dx
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_num_pressure', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_num_pressure'
       REAL(kind=dp), PARAMETER                           :: default_dx = 0.001_dp
 
       INTEGER                                            :: i, ip, iq, j, k, natom, ncore, ndigits, &
@@ -770,8 +768,7 @@ CONTAINS
       TYPE(mixed_environment_type), OPTIONAL, POINTER    :: mixed_env
       TYPE(embed_env_type), OPTIONAL, POINTER            :: embed_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'force_env_create'
 
       ALLOCATE (force_env)
       NULLIFY (force_env%fist_env, force_env%qs_env, &
@@ -890,8 +887,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_energy_forces', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_energy_forces'
 
       CHARACTER(LEN=default_path_length)                 :: coupling_function
       CHARACTER(LEN=default_string_length)               :: def_error, description, this_error
@@ -1230,8 +1226,7 @@ CONTAINS
       TYPE(virial_p_type), DIMENSION(:), POINTER         :: virials
       TYPE(cp_result_p_type), DIMENSION(:), POINTER      :: results
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_energy_forces', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_energy_forces'
 
       INTEGER                                            :: iforce_eval, iparticle, jparticle, &
                                                             my_group, natom, nforce_eval
@@ -1352,8 +1347,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_post_energy_forces(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_post_energy_forces', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_post_energy_forces'
 
       INTEGER                                            :: iforce_eval, nforce_eval, nvar
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -2013,8 +2007,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energies
       LOGICAL                                            :: converged_embed
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dmfet_embedding', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dmfet_embedding'
 
       INTEGER                                            :: cluster_subsys_num, handle, &
                                                             i_force_eval, i_iter, output_unit

@@ -107,8 +107,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atarray
       INTEGER, INTENT(IN)                                :: natom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atprop_array_init'
 
       IF (ASSOCIATED(atarray)) THEN
          CPASSERT(SIZE(atarray) == natom)
@@ -126,8 +125,7 @@ CONTAINS
    SUBROUTINE atprop_array_release(atarray)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atarray
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_release'
 
       IF (ASSOCIATED(atarray)) THEN
          DEALLOCATE (atarray)
@@ -143,8 +141,7 @@ CONTAINS
    SUBROUTINE atprop_array_add(array_a, array_b)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: array_a, array_b
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_add', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atprop_array_add'
 
       IF (ASSOCIATED(array_b)) THEN
          CPASSERT(ASSOCIATED(array_a))

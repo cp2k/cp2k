@@ -51,8 +51,7 @@ CONTAINS
    SUBROUTINE allocate_thermal_regions(thermal_regions)
       TYPE(thermal_regions_type), POINTER                :: thermal_regions
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_thermal_regions', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_thermal_regions'
 
       LOGICAL                                            :: check
 
@@ -75,8 +74,7 @@ CONTAINS
 
       TYPE(thermal_regions_type), POINTER                :: thermal_regions
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'retain_thermal_regions', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'retain_thermal_regions'
 
       IF (ASSOCIATED(thermal_regions)) THEN
          CPASSERT(thermal_regions%ref_count > 0)
@@ -94,8 +92,7 @@ CONTAINS
 
       TYPE(thermal_regions_type), POINTER                :: thermal_regions
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_thermal_regions', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'release_thermal_regions'
 
       INTEGER                                            :: ireg
       LOGICAL                                            :: check

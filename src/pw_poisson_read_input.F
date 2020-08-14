@@ -58,8 +58,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: poisson_section
       TYPE(pw_poisson_parameter_type), INTENT(INOUT)     :: params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_read_parameters', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_read_parameters'
 
       INTEGER                                            :: periodic
       TYPE(section_vals_type), POINTER                   :: mt_section, wavelet_section
@@ -109,8 +108,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: periodic
       TYPE(pw_poisson_parameter_type), INTENT(INOUT)     :: params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'decode_periodic_green', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'decode_periodic_green'
 
       SELECT CASE (periodic)
       CASE (use_perd_x)
@@ -147,8 +145,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: periodic
       TYPE(pw_poisson_parameter_type), INTENT(INOUT)     :: params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'decode_periodic_wavelet', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'decode_periodic_wavelet'
 
       params%wavelet_special_dimension = 0
 
@@ -184,8 +181,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: poisson_section
       TYPE(pw_poisson_parameter_type), INTENT(INOUT)     :: params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ps_implicit_read_parameters', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ps_implicit_read_parameters'
 
       LOGICAL                                            :: has_dielectric
       TYPE(section_vals_type), POINTER                   :: dbc_section, dielectric_section, &
@@ -230,8 +226,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dielectric_section
       TYPE(pw_poisson_parameter_type), INTENT(INOUT)     :: params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dielectric_read_parameters', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dielectric_read_parameters'
 
       INTEGER                                            :: i, n_aac_rep, n_xaaa_rep
       LOGICAL                                            :: aa_cuboidal_explicit, &
@@ -325,8 +320,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dbc_section
       TYPE(pw_poisson_parameter_type), INTENT(INOUT)     :: params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dirichlet_bc_read_parameters', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dirichlet_bc_read_parameters'
 
       INTEGER :: aa_cylindrical_apxtyp, aa_cylindrical_nsides, i, n_aac_rep, n_aacyl_rep, &
          n_aap_rep, n_p_rep, parallel_axis, parallel_plane

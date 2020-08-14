@@ -137,8 +137,7 @@ CONTAINS
    SUBROUTINE pw_spline2_interpolate_values_g(spline_g)
       TYPE(pw_type), POINTER                             :: spline_g
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_interpolate_values_g', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_interpolate_values_g'
 
       INTEGER                                            :: handle, i, ii, j, k
       INTEGER, DIMENSION(2, 3)                           :: gbo
@@ -212,8 +211,7 @@ CONTAINS
    SUBROUTINE pw_spline3_interpolate_values_g(spline_g)
       TYPE(pw_type), POINTER                             :: spline_g
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_interpolate_values_g', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_interpolate_values_g'
 
       INTEGER                                            :: handle, i, ii, j, k
       INTEGER, DIMENSION(2, 3)                           :: gbo
@@ -293,8 +291,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: transpose
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_scale_deriv', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_scale_deriv'
 
       INTEGER                                            :: handle, i, idir, j, k
       INTEGER, DIMENSION(2, 3)                           :: bo
@@ -384,8 +381,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: spline_g
       INTEGER, INTENT(in)                                :: idir
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_deriv_g', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_deriv_g'
       REAL(KIND=dp), PARAMETER                           :: inv9 = 1.0_dp/9.0_dp
 
       INTEGER                                            :: handle, i, ii, j, k
@@ -523,8 +519,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: spline_g
       INTEGER, INTENT(in)                                :: idir
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_deriv_g', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_deriv_g'
       REAL(KIND=dp), PARAMETER                           :: inv16 = 1.0_dp/16.0_dp
 
       INTEGER                                            :: handle, i, ii, j, k
@@ -667,8 +662,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(*), INTENT(inout)         :: out_val
       INTEGER                                            :: n_el
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_compose_stripe', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_compose_stripe'
 
       INTEGER                                            :: i
       REAL(kind=dp)                                      :: v0, v1, v2
@@ -774,8 +768,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
          2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(in)     :: in_val
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r_work', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r_work'
 
       INTEGER                                            :: i, j, jw, k, kw, myj, myk
       INTEGER, DIMENSION(2, 3)                           :: gbo
@@ -857,8 +850,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)            :: weights
       TYPE(pw_type), POINTER                             :: pw_in, pw_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_nn_compose_r'
 
       INTEGER                                            :: handle
 
@@ -1026,8 +1018,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: pbc
       LOGICAL, INTENT(in), OPTIONAL                      :: safe_computation
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_coarse2fine', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'add_coarse2fine'
 
       INTEGER :: coarse_slice_size, f_shift(3), fi, fi_lb, fi_ub, fj, fk, handle, handle2, i, ii, &
          ij, ik, ip, j, k, my_lb, my_ub, n_procs, p, p_lb, p_old, p_ub, rcv_tot_size, rest_b, &
@@ -1824,8 +1815,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: pbc
       LOGICAL, INTENT(in), OPTIONAL                      :: safe_computation
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_fine2coarse', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'add_fine2coarse'
 
       INTEGER :: coarse_slice_size, f_shift(3), fi, fj, fk, handle, handle2, i, ii, ij, ik, ip, j, &
          k, n_procs, p, p_old, rcv_tot_size, rest_b, s(3), send_tot_size, ss, x, x_att
@@ -2527,8 +2517,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pool
       LOGICAL, INTENT(in)                                :: pbc, transpose
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_create'
 
       ALLOCATE (preconditioner)
       last_precond_id = last_precond_id + 1
@@ -2556,8 +2545,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: precond_kind
       LOGICAL, INTENT(in), OPTIONAL                      :: pbc, transpose
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_set_kind', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_set_kind'
 
       LOGICAL                                            :: do_3d_coeff
       REAL(kind=dp)                                      :: s
@@ -2642,8 +2630,7 @@ CONTAINS
    SUBROUTINE pw_spline_precond_retain(preconditioner)
       TYPE(pw_spline_precond_type), POINTER              :: preconditioner
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_retain'
 
       CPASSERT(ASSOCIATED(preconditioner))
       CPASSERT(preconditioner%ref_count > 1)
@@ -2658,8 +2645,7 @@ CONTAINS
    SUBROUTINE pw_spline_precond_release(preconditioner)
       TYPE(pw_spline_precond_type), POINTER              :: preconditioner
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_release'
 
       IF (ASSOCIATED(preconditioner)) THEN
          CPASSERT(preconditioner%ref_count > 0)
@@ -2683,8 +2669,7 @@ CONTAINS
       TYPE(pw_spline_precond_type), POINTER              :: preconditioner
       TYPE(pw_type), POINTER                             :: in_v, out_v
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_do_precond', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_do_precond'
 
       CPASSERT(ASSOCIATED(preconditioner))
       CPASSERT(preconditioner%ref_count > 0)
@@ -2849,8 +2834,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: sharpen, normalize, transpose, &
                                                             smooth_boundary
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r_no_pbc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r_no_pbc'
 
       INTEGER                                            :: first_index, i, j, jw, k, kw, &
                                                             last_index, myj, myk, n_els
@@ -3237,8 +3221,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: pw
       REAL(KIND=dp)                                      :: val
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'Eval_Interp_Spl3_pbc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'Eval_Interp_Spl3_pbc'
 
       INTEGER                                            :: i, ivec(3), j, k, npts(3)
       INTEGER, DIMENSION(2, 3)                           :: bo, bo_l
@@ -3389,8 +3372,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: pw
       REAL(KIND=dp)                                      :: val(3)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'Eval_d_Interp_Spl3_pbc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'Eval_d_Interp_Spl3_pbc'
 
       INTEGER                                            :: i, ivec(3), j, k, npts(3)
       INTEGER, DIMENSION(2, 3)                           :: bo, bo_l

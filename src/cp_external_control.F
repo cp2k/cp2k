@@ -56,8 +56,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: comm, in_external_master_id
       INTEGER, INTENT(IN), OPTIONAL                      :: in_scf_energy_message_tag, in_exit_tag
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_external_comm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'set_external_comm'
 
       CPASSERT(in_external_master_id .GE. 0)
 
@@ -93,8 +92,7 @@ CONTAINS
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
       REAL(dp), OPTIONAL                                 :: target_time, start_time
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'external_control', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'external_control'
 
       CHARACTER(LEN=default_string_length)               :: exit_fname, exit_fname_level, &
                                                             exit_gname, exit_gname_level

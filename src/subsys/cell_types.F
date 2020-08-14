@@ -155,8 +155,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: h
       REAL(KIND=dp), INTENT(OUT)                         :: vol
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'parse_cell_line', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'parse_cell_line'
 
       INTEGER                                            :: i, j
 

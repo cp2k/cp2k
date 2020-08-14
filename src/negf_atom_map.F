@@ -77,8 +77,7 @@ CONTAINS
       TYPE(qs_subsys_type), POINTER                      :: subsys_device, subsys_contact
       REAL(kind=dp), INTENT(in)                          :: eps_geometry
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'negf_map_atomic_indices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'negf_map_atomic_indices'
 
       CHARACTER(len=2)                                   :: element_device
       CHARACTER(len=default_string_length)               :: atom_str
@@ -162,8 +161,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_kind_groups_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_kind_groups_create'
 
       INTEGER                                            :: handle, iatom, ikind, natoms, nkinds
 
@@ -217,8 +215,7 @@ CONTAINS
       TYPE(qs_kind_group_type), ALLOCATABLE, &
          DIMENSION(:), INTENT(inout)                     :: kind_groups
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_kind_groups_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_kind_groups_release'
 
       INTEGER                                            :: handle, ikind
 

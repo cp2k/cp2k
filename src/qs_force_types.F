@@ -77,8 +77,7 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: qs_force
       INTEGER, DIMENSION(:), INTENT(IN)                  :: natom_of_kind
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_qs_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'allocate_qs_force'
 
       INTEGER                                            :: ikind, n, nkind
 
@@ -132,8 +131,7 @@ CONTAINS
 
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: qs_force
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_qs_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_qs_force'
 
       INTEGER                                            :: ikind, nkind
 
@@ -376,8 +374,7 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: qs_force
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'replicate_qs_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'replicate_qs_force'
 
       INTEGER                                            :: ikind
 

@@ -73,8 +73,7 @@ CONTAINS
          OPTIONAL                                        :: cell_length
       INTEGER, INTENT(IN), OPTIONAL                      :: molecule_number
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_for_overlap', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'check_for_overlap'
 
       INTEGER                                            :: handle, imol, iunit, jmol, jstart, &
                                                             junit, nend, nstart, nunit, nunits_i, &
@@ -192,8 +191,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(1:3), INTENT(OUT)         :: center_of_mass
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: mass
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_center_of_mass', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_center_of_mass'
 
       INTEGER                                            :: handle, i, iatom
       REAL(KIND=dp)                                      :: total_mass
@@ -241,8 +239,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nunits
       REAL(KIND=dp), DIMENSION(1:3), INTENT(IN)          :: box_length
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_coordinate_fold', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mc_coordinate_fold'
 
       INTEGER                                            :: end_atom, handle, iatom, imolecule, &
                                                             jatom, molecule_type, natoms, &
@@ -350,8 +347,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: move_type
       INTEGER, INTENT(IN), OPTIONAL                      :: target_atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'generate_cbmc_swap_config', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'generate_cbmc_swap_config'
 
       INTEGER                                            :: atom_number, choosen, end_atom, handle, &
                                                             i, iatom, imolecule, imove, &
@@ -632,8 +628,7 @@ CONTAINS
          INTENT(INOUT)                                   :: r
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rotate_molecule', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotate_molecule'
 
       INTEGER                                            :: handle, iunit
       REAL(KIND=dp)                                      :: cosdg, dgamma, rand, rx, rxnew, ry, &
@@ -721,8 +716,7 @@ CONTAINS
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       INTEGER, INTENT(IN), OPTIONAL                      :: box, molecule_type_old
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'find_mc_test_molecule', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'find_mc_test_molecule'
 
       INTEGER                                            :: handle, ibox, imol_type, imolecule, &
                                                             jbox, molecule_number, nchains_tot, &

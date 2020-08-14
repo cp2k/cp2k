@@ -81,8 +81,7 @@ CONTAINS
       TYPE(qs_dftb_pairpot_type), DIMENSION(:, :), &
          POINTER                                         :: pairpot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_pairpot_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_pairpot_init'
 
       INTEGER                                            :: i, j
 
@@ -108,8 +107,7 @@ CONTAINS
       TYPE(qs_dftb_pairpot_type)                         :: pairpot
       INTEGER, INTENT(IN)                                :: ngrd, llm, spdim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_pairpot_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_pairpot_create'
 
       pairpot%ngrd = ngrd
       pairpot%spdim = spdim
@@ -135,8 +133,7 @@ CONTAINS
       TYPE(qs_dftb_pairpot_type), DIMENSION(:, :), &
          POINTER                                         :: pairpot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_pairpot_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_pairpot_release'
 
       INTEGER                                            :: i, j, n1, n2
 

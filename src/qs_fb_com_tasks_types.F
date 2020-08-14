@@ -157,8 +157,7 @@ CONTAINS
    SUBROUTINE fb_com_tasks_retain(com_tasks)
       TYPE(fb_com_tasks_obj), INTENT(IN)                 :: com_tasks
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_retain'
 
       CPASSERT(ASSOCIATED(com_tasks%obj))
       CPASSERT(com_tasks%obj%ref_count > 0)
@@ -174,8 +173,7 @@ CONTAINS
    SUBROUTINE fb_com_atom_pairs_retain(atom_pairs)
       TYPE(fb_com_atom_pairs_obj), INTENT(IN)            :: atom_pairs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_retain'
 
       CPASSERT(ASSOCIATED(atom_pairs%obj))
       CPASSERT(atom_pairs%obj%ref_count > 0)
@@ -192,8 +190,7 @@ CONTAINS
    SUBROUTINE fb_com_tasks_release(com_tasks)
       TYPE(fb_com_tasks_obj), INTENT(INOUT)              :: com_tasks
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_release'
 
       IF (ASSOCIATED(com_tasks%obj)) THEN
          CPASSERT(com_tasks%obj%ref_count > 0)
@@ -221,8 +218,7 @@ CONTAINS
    SUBROUTINE fb_com_atom_pairs_release(atom_pairs)
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_release'
 
       IF (ASSOCIATED(atom_pairs%obj)) THEN
          CPASSERT(atom_pairs%obj%ref_count > 0)
@@ -251,8 +247,7 @@ CONTAINS
    SUBROUTINE fb_com_tasks_nullify(com_tasks)
       TYPE(fb_com_tasks_obj), INTENT(INOUT)              :: com_tasks
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_nullify', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_nullify'
 
       NULLIFY (com_tasks%obj)
    END SUBROUTINE fb_com_tasks_nullify
@@ -268,8 +263,7 @@ CONTAINS
    SUBROUTINE fb_com_atom_pairs_nullify(atom_pairs)
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_nullify', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_nullify'
 
       NULLIFY (atom_pairs%obj)
    END SUBROUTINE fb_com_atom_pairs_nullify
@@ -284,8 +278,7 @@ CONTAINS
       TYPE(fb_com_tasks_obj), INTENT(OUT)                :: a
       TYPE(fb_com_tasks_obj), INTENT(IN)                 :: b
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_associate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_associate'
 
       a%obj => b%obj
    END SUBROUTINE fb_com_tasks_associate
@@ -300,8 +293,7 @@ CONTAINS
       TYPE(fb_com_atom_pairs_obj), INTENT(OUT)           :: a
       TYPE(fb_com_atom_pairs_obj), INTENT(IN)            :: b
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_associate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_associate'
 
       a%obj => b%obj
    END SUBROUTINE fb_com_atom_pairs_associate
@@ -317,8 +309,7 @@ CONTAINS
       TYPE(fb_com_tasks_obj), INTENT(IN)                 :: com_tasks
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_has_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_has_data'
 
       res = ASSOCIATED(com_tasks%obj)
    END FUNCTION fb_com_tasks_has_data
@@ -334,8 +325,7 @@ CONTAINS
       TYPE(fb_com_atom_pairs_obj), INTENT(IN)            :: atom_pairs
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_has_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_has_data'
 
       res = ASSOCIATED(atom_pairs%obj)
    END FUNCTION fb_com_atom_pairs_has_data
@@ -349,8 +339,7 @@ CONTAINS
    SUBROUTINE fb_com_tasks_create(com_tasks)
       TYPE(fb_com_tasks_obj), INTENT(INOUT)              :: com_tasks
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_create'
 
       CPASSERT(.NOT. ASSOCIATED(com_tasks%obj))
       ALLOCATE (com_tasks%obj)
@@ -372,8 +361,7 @@ CONTAINS
    SUBROUTINE fb_com_atom_pairs_create(atom_pairs)
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_create'
 
       CPASSERT(.NOT. ASSOCIATED(atom_pairs%obj))
       ALLOCATE (atom_pairs%obj)
@@ -394,8 +382,7 @@ CONTAINS
    SUBROUTINE fb_com_tasks_init(com_tasks)
       TYPE(fb_com_tasks_obj), INTENT(INOUT)              :: com_tasks
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fb_com_tasks_init'
 
       CPASSERT(ASSOCIATED(com_tasks%obj))
       IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
@@ -415,8 +402,7 @@ CONTAINS
    SUBROUTINE fb_com_atom_pairs_init(atom_pairs)
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_init'
 
       CPASSERT(ASSOCIATED(atom_pairs%obj))
       IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
@@ -448,8 +434,7 @@ CONTAINS
       INTEGER(KIND=int_8), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: tasks
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_get', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fb_com_tasks_get'
 
       CPASSERT(ASSOCIATED(com_tasks%obj))
       IF (PRESENT(task_dim)) task_dim = com_tasks%obj%task_dim
@@ -478,8 +463,7 @@ CONTAINS
       INTEGER(KIND=int_8), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pairs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_get', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_get'
 
       CPASSERT(ASSOCIATED(atom_pairs%obj))
       IF (PRESENT(npairs)) npairs = atom_pairs%obj%npairs
@@ -509,8 +493,7 @@ CONTAINS
       INTEGER(KIND=int_8), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: tasks
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fb_com_tasks_set'
 
       CPASSERT(ASSOCIATED(com_tasks%obj))
       IF (PRESENT(task_dim)) com_tasks%obj%task_dim = task_dim
@@ -544,8 +527,7 @@ CONTAINS
       INTEGER(KIND=int_8), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pairs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_set'
 
       CPASSERT(ASSOCIATED(atom_pairs%obj))
       IF (PRESENT(npairs)) atom_pairs%obj%npairs = npairs
@@ -583,8 +565,7 @@ CONTAINS
       TYPE(fb_com_tasks_obj), INTENT(INOUT)              :: tasks_src_is_me
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_transpose_dest_src', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_transpose_dest_src'
 
       INTEGER                                            :: handle, ii, ind, ipe, itask, jj, &
                                                             nencode, ntasks_in, ntasks_out, rank, &
@@ -752,8 +733,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: natoms_encode
       CHARACTER(len=*), INTENT(IN)                       :: send_or_recv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_build_atom_pairs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_build_atom_pairs'
 
       INTEGER                                            :: handle, iatom, ii, itask, jatom, npairs, &
                                                             ntasks, rank, rank_pos
@@ -843,8 +823,7 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(OUT)                   :: ind
       INTEGER, INTENT(IN)                                :: iatom, jatom, natoms
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_encode_pair', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_encode_pair'
 
       INTEGER(KIND=int_8)                                :: iatom8, jatom8, natoms8
 
@@ -869,8 +848,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: iatom, jatom
       INTEGER, INTENT(IN)                                :: natoms
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_decode_pair', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_decode_pair'
 
       INTEGER(KIND=int_8)                                :: iatom8, jatom8, natoms8
 
@@ -896,8 +874,7 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(OUT)                   :: ind
       INTEGER, INTENT(IN)                                :: pe, iatom, jatom, natoms
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_encode', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_encode'
 
       INTEGER(KIND=int_8)                                :: natoms8, pair
 
@@ -925,8 +902,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: pe, iatom, jatom
       INTEGER, INTENT(IN)                                :: natoms
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_decode', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_decode'
 
       INTEGER(KIND=int_8)                                :: natoms8, pair
 
@@ -986,8 +962,7 @@ CONTAINS
                                                             sendrecv_pair_disps
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: row_map, col_map
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_calc_buffer_sizes', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_calc_buffer_sizes'
 
       INTEGER                                            :: iatom, ipair, ipe, jatom, natoms_encode, &
                                                             ncols_blk, npairs, nrows_blk, pe
@@ -1060,8 +1035,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_matrix_data_obj), INTENT(INOUT)            :: matrix_storage
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_gather_blks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_gather_blks'
 
       INTEGER :: handle, iatom, ii, ind, ipair, ipe, jatom, jj, ncols_blk, ncols_blk_max, &
          npairs_recv, npairs_send, nrows_blk, nrows_blk_max, numprocs, pe, recv_encode, send_encode
@@ -1247,8 +1221,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_distribute_blks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_distribute_blks'
 
       INTEGER :: handle, iatom, ii, ind, ipair, ipe, jatom, jj, ncols_blk, npairs_recv, &
          npairs_send, nrows_blk, numprocs, pe, recv_encode, send_encode

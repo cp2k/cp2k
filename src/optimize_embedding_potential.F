@@ -1144,8 +1144,7 @@ CONTAINS
       TYPE(pw_p_type), POINTER                           :: diff_rho_r, diff_rho_spin
       TYPE(opt_embed_pot_type)                           :: opt_embed
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_embed_pot_grad', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_embed_pot_grad'
 
       INTEGER                                            :: handle
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1286,8 +1285,7 @@ CONTAINS
       LOGICAL                                            :: open_shell_embed
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_embed_pot_grad_inner', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_embed_pot_grad_inner'
 
       INTEGER                                            :: handle, iatom, ikind, l_global, LLL, &
                                                             nrow_local, nsgf, start_pos
@@ -1392,8 +1390,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), POINTER                          :: kinetic_mat
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_kinetic_mat', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_kinetic_mat'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_t
@@ -1754,8 +1751,7 @@ CONTAINS
       TYPE(opt_embed_pot_type)                           :: opt_embed
       TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_based_step', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'grid_based_step'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: my_reg_term
@@ -1800,8 +1796,7 @@ CONTAINS
       LOGICAL                                            :: add_const_pot, open_shell_embed
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: const_pot
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_embed_pot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_embed_pot'
 
       INTEGER                                            :: handle, l_global, LLL, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
@@ -2571,8 +2566,7 @@ CONTAINS
       LOGICAL                                            :: open_shell_embed
       REAL(KIND=dp)                                      :: step_len
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'Leeuwen_Baerends_potential_update', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'Leeuwen_Baerends_potential_update'
 
       INTEGER                                            :: handle, i, i_spin, j, k, nspins
       INTEGER, DIMENSION(3)                              :: lb, ub

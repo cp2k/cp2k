@@ -377,8 +377,7 @@ CONTAINS
       ${type}$                                  :: alpha, beta
       TYPE(dbcsr_type)                          :: work_row, work_col
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_colvec_multiply_low', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_colvec_multiply_low'
 
       CHARACTER                                :: matrix_type
 

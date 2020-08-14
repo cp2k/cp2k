@@ -58,8 +58,7 @@ CONTAINS
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ps_wavelet_create'
 
       INTEGER                                            :: handle, iproc, nproc, nx, ny, nz
       REAL(KIND=dp)                                      :: hx, hy, hz
@@ -113,8 +112,7 @@ CONTAINS
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'RS_z_slice_distribution', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'RS_z_slice_distribution'
 
       CHARACTER(LEN=1)                                   :: geocode
       INTEGER                                            :: handle, iproc, m1, m2, m3, md1, md2, &
@@ -168,8 +166,7 @@ CONTAINS
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_distribution_to_z_slices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_distribution_to_z_slices'
 
       INTEGER                                            :: dest, handle, i, ii, iproc, j, k, l, &
                                                             local_z_dim, loz, m, m2, md2, nproc, &
@@ -329,8 +326,7 @@ CONTAINS
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'z_slices_to_cp2k_distribution', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'z_slices_to_cp2k_distribution'
 
       INTEGER                                            :: dest, i, ii, iproc, j, k, l, &
                                                             local_z_dim, loz, m, m2, md2, nproc
@@ -456,8 +452,7 @@ CONTAINS
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_solve', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ps_wavelet_solve'
 
       CHARACTER(LEN=1)                                   :: geocode
       INTEGER                                            :: handle, iproc, nproc, nx, ny, nz

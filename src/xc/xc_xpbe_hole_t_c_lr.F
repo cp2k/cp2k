@@ -149,8 +149,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lda_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lda_eval'
 
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -244,8 +243,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: rho, norm_drho, e_0, e_rho, e_ndrho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx, R
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lda_calc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lda_calc'
 
       INTEGER                                            :: ip
       REAL(dp)                                           :: my_ndrho, my_rho
@@ -309,8 +307,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lsd_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lsd_eval'
 
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -415,8 +412,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: rho, norm_drho, e_0, e_rho, e_ndrho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx, R
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lsd_calc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lsd_calc'
 
       INTEGER                                            :: ip
       REAL(dp)                                           :: my_ndrho, my_rho

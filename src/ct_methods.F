@@ -57,8 +57,7 @@ CONTAINS
 
       TYPE(ct_step_env_type)                             :: cts_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ct_step_execute', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ct_step_execute'
 
       INTEGER                                            :: handle, n, preconditioner_type, unit_nr
       REAL(KIND=dp)                                      :: gap_estimate, safety_margin
@@ -531,8 +530,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_virt_orbs
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'assemble_ks_qp_blocks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'assemble_ks_qp_blocks'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: library_fixed
@@ -730,8 +728,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_convergence, eps_filter
       LOGICAL, INTENT(OUT)                               :: converged
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'solve_riccati_equation', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'solve_riccati_equation'
 
       INTEGER                                            :: handle, istep, iteration, nsteps, &
                                                             unit_nr, update_prec_freq
@@ -1196,8 +1193,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: pp, qq
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_preconditioner', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_preconditioner'
 
       INTEGER                                            :: col, handle, hold, iblock_col, &
                                                             iblock_row, mynode, nblkcols_tot, &
@@ -1369,8 +1365,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: minima
       INTEGER, INTENT(OUT)                               :: nmins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'analytic_line_search', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'analytic_line_search'
 
       INTEGER                                            :: i, nroots
       REAL(KIND=dp)                                      :: DD, der, p, phi, pi, q, temp1, temp2, u, &
@@ -1495,8 +1490,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(OUT)                      :: c
       TYPE(dbcsr_type), INTENT(OUT), OPTIONAL            :: e
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diagonalize_diagonal_blocks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'diagonalize_diagonal_blocks'
 
       INTEGER                                            :: handle, iblock_col, iblock_row, &
                                                             iblock_size, info, lwork, orbital
@@ -1599,8 +1593,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: u1, u2
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'matrix_forward_transform', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'matrix_forward_transform'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_type)                                   :: tmp
@@ -1635,8 +1628,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: u1, u2
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'matrix_backward_transform', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'matrix_backward_transform'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_type)                                   :: tmp

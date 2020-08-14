@@ -867,8 +867,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(out)                :: pRes
       INTEGER, INTENT(in), OPTIONAL                      :: npoly
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'poly_affine_t3t', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'poly_affine_t3t'
 
       INTEGER :: grad, i, igrad, ii, ii1, ipoly, j, k, minResSize, monoDim1, monoDim2, monoDimAtt, &
          monoDimAtt2, monoFullDim1, monoFullDim2, monoSize1, monoSize2, my_npoly, pcoeff, pIdx, &
@@ -1298,8 +1297,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(in)                 :: pRes
       INTEGER, INTENT(in), OPTIONAL                      :: npoly
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'poly_padd_uneval3', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'poly_padd_uneval3'
 
       INTEGER                                            :: grad, my_npoly, newSize, size_p
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: xi
@@ -1341,8 +1339,7 @@ CONTAINS
       REAL(dp), DIMENSION(IF_CHECK(grad+1, *)), &
          INTENT(inout)                                   :: xi
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'poly_padd_uneval3b', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'poly_padd_uneval3b'
 
       INTEGER                                            :: i, igrad, ii, ii0, inSize, ipoly, j, &
                                                             msize_p, newSize, pShift, shiftRes, &
@@ -1510,8 +1507,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(in)                 :: pRes
       INTEGER, INTENT(in), OPTIONAL                      :: npoly
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'poly_padd_uneval2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'poly_padd_uneval2'
 
       INTEGER                                            :: grad, my_npoly, newSize, size_p
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: xi
@@ -1552,8 +1548,7 @@ CONTAINS
       INTEGER                                            :: grad
       REAL(dp), DIMENSION(IF_CHECK(grad+1, *))           :: xi
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'poly_padd_uneval2b', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'poly_padd_uneval2b'
 
       INTEGER                                            :: i, igrad, ii, ii0, ij, inSize, ipoly, &
                                                             msize_p, newSize, pShift, shiftRes, &

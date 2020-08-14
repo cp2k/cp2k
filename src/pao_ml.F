@@ -143,8 +143,7 @@ CONTAINS
       TYPE(training_list_type), DIMENSION(:)             :: training_lists
       CHARACTER(LEN=default_path_length)                 :: filename
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_to_training_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'add_to_training_list'
 
       CHARACTER(LEN=default_string_length)               :: param
       INTEGER                                            :: iatom, ikind, natoms, nkinds, nparams

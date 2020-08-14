@@ -417,8 +417,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: gt1, gt2, gt3, gt4
       REAL(KIND=dp), INTENT(OUT)                         :: energy, fscalar
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_imp_torsions', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_imp_torsions'
       REAL(KIND=dp), PARAMETER                           :: f12 = 1.0_dp/2.0_dp
 
       REAL(KIND=dp)                                      :: cosphi, phi

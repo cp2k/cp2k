@@ -343,8 +343,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), POINTER              :: vxc
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: vxg
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_2nd_deriv_of_r', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xc_2nd_deriv_of_r'
 
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: lsd
@@ -428,8 +427,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_rho_set_atom_update', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_rho_set_atom_update'
 
       INTEGER                                            :: idir
 

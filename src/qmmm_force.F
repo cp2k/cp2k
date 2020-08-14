@@ -74,8 +74,7 @@ CONTAINS
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
       LOGICAL, INTENT(IN)                                :: calc_force, consistent_energies, linres
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calc_energy_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calc_energy_force'
 
       CHARACTER(LEN=default_string_length)               :: description, iter
       INTEGER                                            :: ip, j, nres, output_unit

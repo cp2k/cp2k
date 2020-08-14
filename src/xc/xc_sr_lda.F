@@ -510,8 +510,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rs, mu
       REAL(KIND=dp), INTENT(OUT)                         :: exlr, vxlr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'exchangelr_lda', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'exchangelr_lda'
 
       REAL(KIND=dp)                                      :: derrs, fx, fx1, y
 
@@ -832,8 +831,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rs, z, mu
       REAL(KIND=dp), INTENT(OUT)                         :: exlr, vxlrup, vxlrdown
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'exchangelr_lsd', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'exchangelr_lsd'
 
       REAL(KIND=dp)                                      :: derrs, derz, fx, fx1, x, y
 

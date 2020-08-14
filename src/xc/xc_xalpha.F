@@ -150,8 +150,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xa_params
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: xa_parameter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xalpha_lda_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xalpha_lda_eval'
 
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -225,8 +224,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xa_params
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: xa_parameter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xalpha_lsd_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xalpha_lsd_eval'
       CHARACTER(len=6), DIMENSION(2), PARAMETER :: rho_spin_name = (/"(rhoa)", "(rhob)"/)
 
       INTEGER                                            :: handle, i, ispin, npoints

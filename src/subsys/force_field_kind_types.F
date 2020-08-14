@@ -126,8 +126,7 @@ CONTAINS
       TYPE(bend_kind_type), DIMENSION(:), POINTER        :: bend_kind_set
       INTEGER, INTENT(IN)                                :: nkind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_bend_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_bend_kind_set'
 
       INTEGER                                            :: ikind
 
@@ -159,8 +158,7 @@ CONTAINS
       TYPE(bond_kind_type), DIMENSION(:), POINTER        :: bond_kind_set
       INTEGER, INTENT(IN)                                :: nkind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_bond_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_bond_kind_set'
 
       INTEGER                                            :: ikind
 
@@ -185,8 +183,7 @@ CONTAINS
       TYPE(torsion_kind_type), DIMENSION(:), POINTER     :: torsion_kind_set
       INTEGER, INTENT(IN)                                :: nkind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_torsion_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_torsion_kind_set'
 
       INTEGER                                            :: ikind
 
@@ -213,8 +210,7 @@ CONTAINS
       TYPE(ub_kind_type), DIMENSION(:), POINTER          :: ub_kind_set
       INTEGER, INTENT(IN)                                :: nkind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_ub_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_ub_kind_set'
 
       INTEGER                                            :: ikind
 
@@ -238,8 +234,7 @@ CONTAINS
       TYPE(impr_kind_type), DIMENSION(:), POINTER        :: impr_kind_set
       INTEGER, INTENT(IN)                                :: nkind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_impr_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_impr_kind_set'
 
       INTEGER                                            :: ikind
 
@@ -263,8 +258,7 @@ CONTAINS
       TYPE(opbend_kind_type), DIMENSION(:), POINTER      :: opbend_kind_set
       INTEGER, INTENT(IN)                                :: nkind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_opbend_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_opbend_kind_set'
 
       INTEGER                                            :: ikind
 
@@ -286,8 +280,7 @@ CONTAINS
 
       TYPE(bend_kind_type), DIMENSION(:), POINTER        :: bend_kind_set
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bend_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bend_kind_set'
 
       INTEGER                                            :: i
 
@@ -309,8 +302,7 @@ CONTAINS
 
       TYPE(bond_kind_type), DIMENSION(:), POINTER        :: bond_kind_set
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bond_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bond_kind_set'
 
       DEALLOCATE (bond_kind_set)
 
@@ -324,8 +316,7 @@ CONTAINS
 
       TYPE(torsion_kind_type), INTENT(INOUT)             :: torsion_kind
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'torsion_kind_dealloc_ref', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'torsion_kind_dealloc_ref'
 
       IF (ASSOCIATED(torsion_kind%k)) THEN
          DEALLOCATE (torsion_kind%k)
@@ -346,8 +337,7 @@ CONTAINS
    SUBROUTINE ub_kind_dealloc_ref(ub_kind_set)
       TYPE(ub_kind_type), DIMENSION(:), POINTER          :: ub_kind_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ub_kind_dealloc_ref', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ub_kind_dealloc_ref'
 
       DEALLOCATE (ub_kind_set)
 
@@ -358,8 +348,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE impr_kind_dealloc_ref()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'impr_kind_dealloc_ref', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'impr_kind_dealloc_ref'
 
 !
 ! Questa e' la migliore routine che mente umana abbia concepito! ;-)

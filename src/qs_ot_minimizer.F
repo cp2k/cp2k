@@ -288,8 +288,7 @@ CONTAINS
 
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search_gold', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search_gold'
       REAL(KIND=dp), PARAMETER                           :: gold_sec = 0.3819_dp
 
       INTEGER                                            :: count, handle
@@ -392,8 +391,7 @@ CONTAINS
 
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search_3pnt', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search_3pnt'
 
       INTEGER                                            :: count, handle
       REAL(KIND=dp)                                      :: denom, ds, fa, fb, fc, nom, pos, val, &
@@ -464,8 +462,7 @@ CONTAINS
 
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search_2pnt', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search_2pnt'
 
       INTEGER                                            :: count, handle
       REAL(KIND=dp)                                      :: a, b, c, ds, pos, val, x0, x1
@@ -538,8 +535,7 @@ CONTAINS
    SUBROUTINE ot_new_sd_direction(qs_ot_env)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_sd_direction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_sd_direction'
 
       INTEGER                                            :: handle, ispin, itmp, k, n, nener, nspin
       LOGICAL                                            :: do_ener, do_ks
@@ -656,8 +652,7 @@ CONTAINS
    SUBROUTINE ot_new_cg_direction(qs_ot_env)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_cg_direction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_cg_direction'
 
       INTEGER                                            :: handle, ispin, itmp, k, n, nener, nspin
       LOGICAL                                            :: do_ener, do_ks
@@ -1161,8 +1156,7 @@ CONTAINS
    SUBROUTINE ot_broyden_step(qs_ot_env)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ot_broyden_step', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_broyden_step'
 
       INTEGER                                            :: diis_bound, diis_m, i, ispin, itmp, j, &
                                                             k, n, nspin

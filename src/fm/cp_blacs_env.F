@@ -135,8 +135,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), &
          OPTIONAL                               :: grid_2d
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_create', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_create'
 
       INTEGER                                  :: ipcol, iprow, stat
 #if defined(__parallel)
@@ -262,8 +261,7 @@ CONTAINS
    SUBROUTINE cp_blacs_env_retain(blacs_env)
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_retain'
 
       CPASSERT(ASSOCIATED(blacs_env))
       CPASSERT(blacs_env%ref_count > 0)
@@ -280,8 +278,7 @@ CONTAINS
    SUBROUTINE cp_blacs_env_release(blacs_env)
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_release'
 
       IF (ASSOCIATED(blacs_env)) THEN
          CPASSERT(blacs_env%ref_count > 0)
@@ -310,8 +307,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       INTEGER, INTENT(in)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_write', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_write'
 
       INTEGER                                            :: iostat
 

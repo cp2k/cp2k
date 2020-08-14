@@ -85,8 +85,7 @@ CONTAINS
    SUBROUTINE al_thermo_create(al)
       TYPE(al_system_type), POINTER                      :: al
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'al_thermo_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'al_thermo_create'
 
       INTEGER                                            :: i
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: seed
@@ -129,8 +128,7 @@ CONTAINS
    SUBROUTINE al_thermo_dealloc(nvt)
       TYPE(al_thermo_type), DIMENSION(:), POINTER        :: nvt
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'al_thermo_dealloc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'al_thermo_dealloc'
 
       IF (ASSOCIATED(nvt)) THEN
          DEALLOCATE (nvt)

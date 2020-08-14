@@ -69,8 +69,7 @@ CONTAINS
          POINTER                                         :: mo_derivs
       REAL(KIND=dp), OPTIONAL                            :: strength
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_s_square', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_s_square'
 
       INTEGER                                            :: handle, i, j, na, nalpha, nb, nbeta, &
                                                             ncol_local, nrow, nrow_local

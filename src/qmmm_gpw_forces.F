@@ -414,8 +414,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
       TYPE(cell_type), POINTER                           :: mm_cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian'
 
       INTEGER                                            :: group, handle, i, igrid, j, k, &
                                                             kind_interp, me, ngrids, request, stat
@@ -808,8 +807,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: qmmm_spherical_cutoff
       LOGICAL                                            :: shells
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LG', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LG'
 
       INTEGER :: handle, i, ii1, ii2, ii3, ii4, ij1, ij2, ij3, ij4, ik1, ik2, ik3, ik4, Imm, &
          IndMM, IRadTyp, ivec(3), j, k, LIndMM, my_i, my_j, my_k, myind, npts(3)
@@ -1165,8 +1163,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: qmmm_spherical_cutoff
       LOGICAL                                            :: shells
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LR', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LR'
 
       INTEGER                                            :: handle, i, Imm, IndMM, IRadTyp, ix, j, &
                                                             k, LIndMM, my_i, my_j, my_k, myind, &
@@ -1337,8 +1334,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: interp_section
       TYPE(cell_type), POINTER                           :: mm_cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_debug_forces', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qmmm_debug_forces'
 
       INTEGER                                            :: handle, I, IndMM, iw, J, K
       REAL(KIND=dp)                                      :: Coord_save
@@ -1485,8 +1481,7 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n_rep_real
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'debug_integrate_gf_rspace_NoPBC', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'debug_integrate_gf_rspace_NoPBC'
 
       INTEGER                                            :: handle, i, igrid, k, ngrids
       INTEGER, DIMENSION(2, 3)                           :: bo2
@@ -1607,8 +1602,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: qmmm_spherical_cutoff
       LOGICAL                                            :: shells
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'debug_qmmm_forces_with_gauss_LG', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'debug_qmmm_forces_with_gauss_LG'
 
       INTEGER                                            :: handle, I, igrid, IndMM, J, K, ngrids
       REAL(KIND=dp)                                      :: Coord_save
@@ -1723,8 +1717,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: qmmm_spherical_cutoff
       LOGICAL                                            :: shells
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'debug_qmmm_forces_with_gauss_LR', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'debug_qmmm_forces_with_gauss_LR'
 
       INTEGER                                            :: handle, I, igrid, IndMM, J, K, ngrids
       REAL(KIND=dp)                                      :: Coord_save

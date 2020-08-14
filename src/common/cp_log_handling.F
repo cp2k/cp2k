@@ -173,8 +173,7 @@ CONTAINS
    FUNCTION cp_default_logger_stack_size() RESULT(res)
       INTEGER                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_default_logger_stack_size', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_default_logger_stack_size'
 
       res = stack_pointer
    END FUNCTION cp_default_logger_stack_size

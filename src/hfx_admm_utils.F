@@ -608,8 +608,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(admm_type), POINTER                           :: admm_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_admm_xc_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_admm_xc_section'
       LOGICAL, PARAMETER                                 :: debug_functional = .FALSE.
 
       CHARACTER(LEN=20)                                  :: name_x_func
@@ -1156,8 +1155,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, rho_ao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddft_hfx_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddft_hfx_matrix'
 
       INTEGER                                            :: handle, irep, ispin, mspin, n_rep_hf, &
                                                             nspins

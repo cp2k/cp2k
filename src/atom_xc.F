@@ -75,8 +75,7 @@ CONTAINS
       LOGICAL                                            :: lprint
       TYPE(opmat_type), OPTIONAL, POINTER                :: xcmat
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_zmp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_zmp'
 
       INTEGER                                            :: extunit, handle, ir, nr, z
       REAL(KIND=dp)                                      :: int1, int2
@@ -146,8 +145,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: lprint
       TYPE(opmat_type), INTENT(inout), OPTIONAL, POINTER :: xcmat
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_ext_vxc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_ext_vxc'
 
       INTEGER                                            :: extunit, handle, ir, nr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rho
@@ -197,8 +195,7 @@ CONTAINS
       TYPE(atom_type), INTENT(INOUT)                     :: atom
       TYPE(section_vals_type), POINTER                   :: xc_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_vxc_lda', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_vxc_lda'
 
       INTEGER                                            :: deriv_order, handle, i, l, myfun, n1, &
                                                             n2, n3, nr, nspins, unit_nr
@@ -406,8 +403,7 @@ CONTAINS
       TYPE(atom_type), INTENT(INOUT)                     :: atom
       TYPE(section_vals_type), POINTER                   :: xc_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_vxc_lsd', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_vxc_lsd'
 
       INTEGER                                            :: deriv_order, handle, l, myfun, n1, n2, &
                                                             n3, nr, nspins

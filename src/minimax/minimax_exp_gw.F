@@ -37,8 +37,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: E_range
       REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_exp_minimax_coeff_gw', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_exp_minimax_coeff_gw'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: E_ratio

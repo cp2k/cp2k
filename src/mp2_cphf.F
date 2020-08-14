@@ -141,8 +141,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: homo_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_eq'
 
       INTEGER :: alpha, beta, bin, dimen, handle, handle2, i, i_global, i_thread, iiB, ikind, &
          irep, ispin, j_global, jjB, my_bin_size, n_rep_hf, n_threads, ncol_local, nrow_local, &
@@ -956,8 +955,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: homo_beta, virtual_beta
       REAL(KIND=dp), OPTIONAL                            :: factor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cphf_like_update', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cphf_like_update'
 
       INTEGER                                            :: handle, i_global, iiB, irep, j_global, &
                                                             jjB, ncol_local, nrow_local, ns
@@ -1369,8 +1367,7 @@ CONTAINS
                                                             mo_coeff_o_beta, mo_coeff_v_beta, &
                                                             L_jb_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low'
 
       INTEGER :: cycle_counter, handle, i_global, iiB, iiter, j_global, jjB, max_num_iter, &
          ncol_local, ncol_local_b, nrow_local, nrow_local_b, transf_type_in, transf_type_out, &

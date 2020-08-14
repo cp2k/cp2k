@@ -365,8 +365,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: scaling
       INTEGER, INTENT(in)                                :: msglen
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cube_to_pw_parallel', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cube_to_pw_parallel'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
@@ -627,8 +626,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: zero_tails
       INTEGER, INTENT(IN)                                :: msglen
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_cube_parallel', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_cube_parallel'
       INTEGER, PARAMETER                                 :: entry_len = 13, header_len = 41, &
                                                             header_len_z = 53, num_entries_line = 6
 
@@ -816,8 +814,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
       TYPE(pw_type), OPTIONAL, POINTER                   :: pw2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_simple_volumetric', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_simple_volumetric'
 
       INTEGER                                            :: checksum, dest, gid, handle, i, I1, I2, &
                                                             I3, ip, L1, L2, L3, my_rank, &

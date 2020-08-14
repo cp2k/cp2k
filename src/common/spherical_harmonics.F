@@ -75,8 +75,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l1, m1, l2, m2
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: clm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_complex', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_complex'
 
       INTEGER                                            :: icase, ind, l, lm, lp, n
 
@@ -111,8 +110,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l1, m1, l2, m2
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: rlm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_real', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_real'
 
       INTEGER                                            :: icase1, icase2, ind, l, lm, lp, mm(2), n
       REAL(KIND=dp)                                      :: xsi
@@ -218,8 +216,7 @@ CONTAINS
 !> \brief ...
 ! **************************************************************************************************
    SUBROUTINE clebsch_gordon_deallocate()
-      CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_deallocate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_deallocate'
 
       INTEGER                                            :: handle
 
@@ -239,8 +236,7 @@ CONTAINS
    SUBROUTINE clebsch_gordon_init(l)
       INTEGER, INTENT(IN)                                :: l
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_init'
 
       INTEGER                                            :: handle, i1, i2, ix, iy, l1, l2, lp, m, &
                                                             m1, m2, ml, mp, n

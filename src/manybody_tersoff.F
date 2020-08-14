@@ -727,8 +727,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_tersoff_arrays', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_tersoff_arrays'
 
       INTEGER                                            :: handle, i, iend, igrp, ikind, ilist, &
                                                             ipair, istart, jkind, nkinds, npairs, &
@@ -829,8 +828,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_tersoff_arrays', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_tersoff_arrays'
 
       IF (ASSOCIATED(glob_loc_list)) THEN
          DEALLOCATE (glob_loc_list)

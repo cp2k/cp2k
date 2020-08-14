@@ -113,8 +113,7 @@ CONTAINS
       LOGICAL, DIMENSION(:, :), OPTIONAL, POINTER        :: full_nl
       TYPE(exclusion_type), DIMENSION(:), OPTIONAL       :: exclusions
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_fist_neighbor_lists', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_fist_neighbor_lists'
 
       CHARACTER(LEN=default_string_length)               :: kind_name, print_key_path, unit_str
       INTEGER                                            :: atom_a, handle, iatom_local, ikind, iw, &
@@ -288,8 +287,7 @@ CONTAINS
       LOGICAL, DIMENSION(:, :), POINTER                  :: full_nl
       TYPE(exclusion_type), DIMENSION(:), OPTIONAL       :: exclusions
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists'
 
       INTEGER :: a_i, a_j, a_k, atom_a, atom_b, b_i, b_j, b_k, b_pi, b_pj, b_pk, bg_i, bg_j, bg_k, &
          handle, i, i1, iatom_local, icell, icellmap, id_kind, ii, ii_start, ij, ij_start, ik, &
@@ -732,8 +730,7 @@ CONTAINS
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
       INTEGER, INTENT(IN)                                :: nkinds
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_neighbor_lists', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_neighbor_lists'
 
       INTEGER                                            :: handle, iab, id_kind, ikind, ipair, &
                                                             jkind, max_alloc_size, npairs, nscale, &

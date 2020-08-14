@@ -149,8 +149,7 @@ CONTAINS
 
       TYPE(rhoz_type), DIMENSION(:), POINTER             :: rhoz_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rhoz', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'deallocate_rhoz'
 
       INTEGER                                            :: ikind, nkind
 
@@ -201,8 +200,7 @@ CONTAINS
 
       TYPE(local_rho_type), POINTER                      :: local_rho_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_create'
 
       ALLOCATE (local_rho_set)
 
@@ -221,8 +219,7 @@ CONTAINS
 
       TYPE(local_rho_type), POINTER                      :: local_rho_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_release'
 
       IF (ASSOCIATED(local_rho_set)) THEN
          IF (ASSOCIATED(local_rho_set%rho_atom_set)) THEN

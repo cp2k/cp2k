@@ -53,8 +53,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_gromos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_gromos'
 
       CHARACTER                                          :: ctemp
       CHARACTER(LEN=default_string_length)               :: label, string
@@ -630,8 +629,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_g96', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_g96'
       INTEGER, PARAMETER                                 :: nblock = 1000
 
       CHARACTER(LEN=default_string_length)               :: label, string, strtmp, strtmp2

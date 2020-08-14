@@ -81,8 +81,7 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_type'
 
       LOGICAL                                            :: check, explicit
       TYPE(cell_type), POINTER                           :: cell
@@ -143,8 +142,7 @@ CONTAINS
    SUBROUTINE retain_barostat_type(barostat)
       TYPE(barostat_type), POINTER                       :: barostat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'retain_barostat_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'retain_barostat_type'
 
       IF (ASSOCIATED(barostat)) THEN
          CPASSERT(barostat%ref_count > 0)
@@ -162,8 +160,7 @@ CONTAINS
    SUBROUTINE release_barostat_type(barostat)
       TYPE(barostat_type), POINTER                       :: barostat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_barostat_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'release_barostat_type'
 
       LOGICAL                                            :: check
 

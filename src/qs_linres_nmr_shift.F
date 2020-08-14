@@ -515,8 +515,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: i_B, idir
       TYPE(section_vals_type), POINTER                   :: nmr_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'interpolate_shift_pwgrid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'interpolate_shift_pwgrid'
 
       INTEGER                                            :: aint_precond, handle, iat, iatom, &
                                                             max_iter, n_nics, natom, precond_kind
@@ -619,8 +618,7 @@ CONTAINS
       TYPE(pw_p_type)                                    :: shift_pw_gspace
       INTEGER, INTENT(IN)                                :: i_B, idir
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gsum_shift_pwgrid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gsum_shift_pwgrid'
 
       COMPLEX(dp)                                        :: cplx
       INTEGER                                            :: handle, iat, iatom, n_nics, natom
@@ -712,8 +710,7 @@ CONTAINS
       TYPE(current_env_type)                             :: current_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nmr_shift_print', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nmr_shift_print'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: name, title

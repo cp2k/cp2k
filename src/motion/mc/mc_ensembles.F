@@ -118,8 +118,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nboxes
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_run_ensemble', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mc_run_ensemble'
 
       CHARACTER(default_string_length), ALLOCATABLE, &
          DIMENSION(:)                                    :: atom_names_box
@@ -1175,8 +1174,7 @@ CONTAINS
       TYPE(mc_environment_p_type), DIMENSION(:), POINTER :: mc_env
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_compute_virial', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mc_compute_virial'
 
       INTEGER :: current_division, end_atom, group, ibin, idivision, iparticle, iprint, itemp, &
          iunit, ivirial, iw, nbins, nchain_total, nintegral_divisions, nmol_types, nvirial, &

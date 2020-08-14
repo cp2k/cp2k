@@ -67,8 +67,7 @@ CONTAINS
       TYPE(cp_unit_set_type), POINTER                    :: default_units
       LOGICAL, INTENT(in), OPTIONAL                      :: root_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_parse', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_parse'
 
       CHARACTER(len=max_line_length)                     :: token
       INTEGER                                            :: desc_level, handle, ik, imatch, irs, is, &
@@ -330,8 +329,7 @@ CONTAINS
       TYPE(cp_unit_set_type), POINTER                    :: default_units
       TYPE(val_type), OPTIONAL, POINTER                  :: default_value
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'val_create_parsing', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'val_create_parsing'
 
       CHARACTER(len=default_string_length)               :: c_val, info, location
       CHARACTER(len=default_string_length), &

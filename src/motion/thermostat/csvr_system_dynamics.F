@@ -241,8 +241,7 @@ CONTAINS
       TYPE(csvr_system_type), POINTER                    :: csvr
       TYPE(map_info_type), POINTER                       :: map_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'do_csvr_eval_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'do_csvr_eval_energy'
 
       INTEGER                                            :: i, imap
       REAL(KIND=dp)                                      :: kin_energy_ar, kin_energy_br

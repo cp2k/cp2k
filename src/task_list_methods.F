@@ -128,8 +128,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb_external
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_qs_task_list', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_qs_task_list'
       INTEGER, PARAMETER                                 :: max_tasks = 2000
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
@@ -676,8 +675,7 @@ CONTAINS
                                                             npgfb
       INTEGER                                            :: nseta, nsetb
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'task_list_inner_loop', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'task_list_inner_loop'
 
       INTEGER                                            :: cube_center(3), igrid_level, ipgf, iset, &
                                                             jpgf, jset, lb_cube(3), ub_cube(3)
@@ -775,8 +773,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lb_min
       REAL(KIND=dp), INTENT(IN)                          :: ra(3), rab(3), rab2, eps
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_pgf_properties', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_pgf_properties'
 
       INTEGER                                            :: extent(3)
       INTEGER, DIMENSION(:), POINTER                     :: sphere_bounds
@@ -972,8 +969,7 @@ CONTAINS
          POINTER                                         :: rs_descs
       INTEGER                                            :: grid_level, natoms
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_distributed', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_distributed'
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(:, :, :), POINTER               :: list
@@ -1010,8 +1006,7 @@ CONTAINS
    SUBROUTINE balance_global_list(list_global)
       INTEGER, DIMENSION(:, :, 0:)                       :: list_global
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'balance_global_list', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'balance_global_list'
       INTEGER, PARAMETER                                 :: Max_Iter = 100
       REAL(KIND=dp), PARAMETER                           :: Tolerance_factor = 0.005_dp
 
@@ -1163,8 +1158,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, 0:)                       :: list
       INTEGER, INTENT(IN)                                :: group, my_pos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_load_list', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_load_list'
       INTEGER, PARAMETER                                 :: rank_of_root = 0
 
       INTEGER                                            :: handle, icpu, idest, maxdest, ncpu
@@ -1246,8 +1240,7 @@ CONTAINS
       INTEGER                                            :: ntasks, natoms
       LOGICAL                                            :: create_list
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_load_list', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_load_list'
 
       INTEGER :: cost, dest, handle, i, iatom, ilevel, img, img_old, iopt, ipgf, iset, itask, &
                  itask_start, itask_stop, jatom, jpgf, jset, li, maxdest, ncpu, ndest_pair, nopt, nshort, &
@@ -1490,8 +1483,7 @@ CONTAINS
          POINTER                                         :: rs_descs
       INTEGER, INTENT(IN)                                :: grid_level
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_destination_list', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_destination_list'
 
       INTEGER                                            :: handle, i, icpu, j, maxcount, ncpu, &
                                                             ultimate_max
@@ -1561,8 +1553,7 @@ CONTAINS
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
       LOGICAL, INTENT(IN)                                :: use_reordered_ranks
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_current_loads', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_current_loads'
 
       INTEGER                                            :: handle, i, iatom, ilevel, img, ipgf, &
                                                             iset, jatom, jpgf, jset
@@ -1632,8 +1623,7 @@ CONTAINS
       INTEGER                                            :: ntasks
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_replicated', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_replicated'
 
       INTEGER                                            :: handle, i, iatom, ilevel, img, ipgf, &
                                                             iset, j, jatom, jpgf, jset, &
@@ -1795,8 +1785,7 @@ CONTAINS
       INTEGER                                            :: ntasks_recv
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks_recv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_local_tasks', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_local_tasks'
 
       INTEGER                                            :: handle, i, j, k, l, rank
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: recv_buf, send_buf
@@ -1918,8 +1907,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: symmetric, reorder_rs_grid_ranks, &
                                                             skip_load_balance_distributed
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_tasks', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_tasks'
 
       INTEGER                                            :: handle, igrid_level, irank, ntasks_recv
       INTEGER(KIND=int_8)                                :: load_gap, max_load, replicated_load
@@ -2121,8 +2109,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: send, symmetric
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), INTENT(IN) :: rs_descs
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_pair', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_pair'
 
       INTEGER                                            :: i, ilevel, iatom, jatom, npairs, virt_rank
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: indices
@@ -2209,8 +2196,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: hmats
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_distribute_matrix', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_distribute_matrix'
 
       INTEGER                                            :: acol, arow, handle, i, img, j, k, l, me, &
                                                             nblkcols_total, nblkrows_total, ncol, &
@@ -2493,8 +2479,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: pair_offsets, rank_offsets, rank_sizes
       INTEGER, INTENT(INOUT)                             :: buffer_size
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_calc_offsets', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_calc_offsets'
 
       INTEGER                                            :: acol, arow, i, block_size, total_size, k, prev_k
 
@@ -2544,8 +2529,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: group
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: pmats
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_scatter_matrix', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_scatter_matrix'
 
       INTEGER                                            :: handle
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: buffer_send
@@ -2595,8 +2579,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: pair_offsets
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: buffer
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pack_matrix', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pack_matrix'
 
       INTEGER                                            :: acol, arow, img, i, offset, block_size
       LOGICAL                                            :: found
@@ -2648,8 +2631,7 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: lb_cube, ub_cube
       INTEGER, INTENT(OUT)                               :: added_tasks
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_find_node', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_find_node'
       INTEGER, PARAMETER                                 :: add_tasks = 1000
       REAL(kind=dp), PARAMETER                           :: mult_tasks = 2.0_dp
 

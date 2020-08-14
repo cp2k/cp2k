@@ -74,8 +74,7 @@ CONTAINS
    SUBROUTINE create_global_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_global_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_global_section'
 
       INTEGER                                            :: default_i_val, i
       TYPE(keyword_type), POINTER                        :: keyword
@@ -574,8 +573,7 @@ CONTAINS
    SUBROUTINE create_fm_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_fm_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_fm_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -634,8 +632,7 @@ CONTAINS
    SUBROUTINE create_fm_diag_rules_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_fm_diag_rules_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_fm_diag_rules_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

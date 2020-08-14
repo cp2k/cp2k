@@ -288,8 +288,7 @@ CONTAINS
       TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
       REAL(KIND=dp)                            :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_r3dc1d_3d', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_r3dc1d_3d'
 
 #if ! defined (__PW_CUDA)
       MARK_USED(pw1)
@@ -339,8 +338,7 @@ CONTAINS
       TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
       REAL(KIND=dp)                            :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_c1dr3d_3d', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_c1dr3d_3d'
 
 #if ! defined (__PW_CUDA)
       MARK_USED(pw1)
@@ -392,8 +390,7 @@ CONTAINS
       TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
       REAL(KIND=dp)                            :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_r3dc1d_3d_ps', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_r3dc1d_3d_ps'
 
 #if ! defined (__PW_CUDA)
       MARK_USED(pw1)
@@ -581,8 +578,7 @@ CONTAINS
       TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
       REAL(KIND=dp)                            :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_c1dr3d_3d_ps', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_c1dr3d_3d_ps'
 
 #if ! defined (__PW_CUDA)
       MARK_USED(pw1)
@@ -773,8 +769,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          POINTER, INTENT(INOUT)                 :: pwbuf
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_cff', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_cff'
 
 #if ! defined (__PW_CUDA)
       MARK_USED(pw1)
@@ -815,8 +810,7 @@ CONTAINS
          POINTER, INTENT(IN)                    :: pwbuf
       TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_ffc', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_ffc'
 
 #if ! defined (__PW_CUDA)
       MARK_USED(pwbuf)
@@ -857,8 +851,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), &
          POINTER, INTENT(INOUT)                 :: pwbuf
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_cf', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_cf'
 
 #if ! defined (__PW_CUDA)
       MARK_USED(pw1)
@@ -899,8 +892,7 @@ CONTAINS
          POINTER, INTENT(IN)                    :: pwbuf
       TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_fc', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_fc'
 
 #if ! defined (__PW_CUDA)
       MARK_USED(pwbuf)
@@ -947,8 +939,7 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: n
       INTEGER, INTENT(IN)                      :: m
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_f', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_f'
 
 #if ! defined (__PW_CUDA)
       MARK_USED(pwbuf1)
@@ -988,8 +979,7 @@ CONTAINS
       TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
       REAL(KIND=dp), INTENT(IN)                :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_fg', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_fg'
 
 #if ! defined (__PW_CUDA)
       MARK_USED(pwbuf)
@@ -1039,8 +1029,7 @@ CONTAINS
          POINTER, INTENT(INOUT)                 :: pwbuf
       REAL(KIND=dp), INTENT(IN)                :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_sf', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_sf'
 
 #if ! defined (__PW_CUDA)
       MARK_USED(pw1)

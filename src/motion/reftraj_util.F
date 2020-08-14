@@ -82,8 +82,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: reftraj_section
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_reftraj', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_reftraj'
 
       INTEGER                                            :: natom, nline_to_skip, nskip
       LOGICAL                                            :: my_end
@@ -158,8 +157,7 @@ CONTAINS
       TYPE(reftraj_type), POINTER                        :: reftraj
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_msd_reftraj', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_msd_reftraj'
 
       CHARACTER(LEN=10)                                  :: AA
       CHARACTER(LEN=default_path_length)                 :: filename
@@ -323,8 +321,7 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_msd_reftraj', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_msd_reftraj'
 
       INTEGER :: atom, bo(2), first_atom, iatom, ikind, imol, imol_global, last_atom, mepos, &
          natom_kind, nmol_per_kind, nmolecule, nmolkind, num_pe
@@ -488,8 +485,7 @@ CONTAINS
    SUBROUTINE write_output_reftraj(md_env)
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_output_reftraj', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_output_reftraj'
 
       CHARACTER(LEN=default_string_length)               :: my_act, my_mittle, my_pos
       INTEGER                                            :: iat, ikind, nkind, out_msd

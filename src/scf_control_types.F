@@ -341,8 +341,7 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: inp_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters'
 
       INTEGER                                            :: cholesky_flag, handle, ialgo
       INTEGER, DIMENSION(:), POINTER                     :: added_mos
@@ -526,8 +525,7 @@ CONTAINS
       TYPE(smear_type), POINTER                          :: smear
       TYPE(section_vals_type), POINTER                   :: smear_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_smear_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_smear_section'
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r_vals
 
@@ -570,8 +568,7 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_write_parameters', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_write_parameters'
 
       INTEGER                                            :: handle, output_unit, roks_scheme
       LOGICAL                                            :: roks
@@ -756,8 +753,7 @@ CONTAINS
       TYPE(qs_ot_settings_type)                          :: settings
       TYPE(section_vals_type), POINTER                   :: scf_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ot_diag_read_input', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ot_diag_read_input'
 
       INTEGER                                            :: handle, output_unit
       LOGICAL                                            :: explicit

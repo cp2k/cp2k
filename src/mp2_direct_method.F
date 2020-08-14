@@ -110,8 +110,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :), INTENT(OUT), OPTIONAL    :: Integ_MP2
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_canonical_direct_single_batch', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_canonical_direct_single_batch'
 
       INTEGER :: case_index, counter_proc, elements_ij_proc_rec, elements_kl_proc, global_counter, &
          handle, i, i_list_ij, i_list_kl, i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop, &
@@ -881,8 +880,7 @@ CONTAINS
          DIMENSION(dimen, Ni_occupied, Rsize, Ssize), &
          INTENT(INOUT)                                   :: BI1
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_first', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_first'
 
       INTEGER                                            :: i, i_global, m, M_global, M_offset, &
                                                             M_start, n, N_global, N_offset, r, &
@@ -973,8 +971,7 @@ CONTAINS
          DIMENSION(dimen, dimen, elements_ij_proc), &
          INTENT(INOUT)                                   :: BIb
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_second', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_second'
 
       INTEGER :: elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, index_proc_ij, &
          index_proc_shift, j, n, proc_receive, proc_send, r, R_global, R_offset, R_offset_rec, &
@@ -1143,8 +1140,7 @@ CONTAINS
          DIMENSION(dimen, dimen, elements_ij_proc), &
          INTENT(INOUT)                                   :: BIb
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_second_big', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_second_big'
 
       INTEGER :: elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, index_proc_ij, &
          index_proc_shift, j, n, proc_receive, proc_send, r, R_global, R_offset, R_offset_rec, &
@@ -1292,8 +1288,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
       REAL(KIND=dp), INTENT(INOUT)                       :: Emp2, Emp2_Cou, Emp2_ex
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_virtual_orbitals_and_accumulate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_virtual_orbitals_and_accumulate'
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       INTEGER                                            :: a, a_global, b, b_global, handle, i, &
@@ -1390,9 +1385,7 @@ CONTAINS
          INTENT(IN)                                      :: ij_list_proc
       REAL(KIND=dp), INTENT(INOUT)                       :: Emp2, Emp2_Cou
 
-      CHARACTER(LEN=*), PARAMETER :: &
-         routineN = 'transform_virtual_orbitals_and_accumulate_ABcase', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_virtual_orbitals_and_accumulate_ABcase'
       REAL(KIND=dp), PARAMETER                           :: two = 2.D+00, zero = 0.D+00
 
       INTEGER                                            :: a, a_global, b, b_global, handle, i, &

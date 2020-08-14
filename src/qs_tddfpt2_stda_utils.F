@@ -104,8 +104,7 @@ CONTAINS
       TYPE(tddfpt_work_matrices)                         :: work
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'stda_init_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'stda_init_matrices'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: do_coulomb
@@ -268,8 +267,7 @@ CONTAINS
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_lowdin_mo_coefficients', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_lowdin_mo_coefficients'
 
       INTEGER                                            :: handle, iounit, ispin, max_iter_lanczos, &
                                                             nactive, ndep, nsgf, nspins, &
@@ -421,8 +419,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: X
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'stda_calculate_kernel', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'stda_calculate_kernel'
 
       INTEGER                                            :: blk, ewald_type, handle, ia, iatom, &
                                                             ikind, is, ispin, jatom, jkind, jspin, &

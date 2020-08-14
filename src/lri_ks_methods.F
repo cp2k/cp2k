@@ -67,8 +67,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       INTEGER, DIMENSION(:, :, :), OPTIONAL, POINTER     :: cell_to_index
 
-      CHARACTER(*), PARAMETER :: routineN = 'calculate_lri_ks_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER :: routineN = 'calculate_lri_ks_matrix'
 
       INTEGER :: atom_a, atom_b, col, handle, i, iac, iatom, ic, ikind, ilist, jatom, jkind, &
          jneighbor, mepos, natom, nba, nbb, nfa, nfb, nkind, nlist, nm, nn, nthread, row
@@ -291,8 +290,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       INTEGER, INTENT(IN)                                :: ispin
 
-      CHARACTER(*), PARAMETER :: routineN = 'calculate_ri_ks_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER :: routineN = 'calculate_ri_ks_matrix'
 
       INTEGER                                            :: atom_a, handle, i1, i2, iatom, ikind, n, &
                                                             natom, nbas

@@ -194,8 +194,7 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       INTEGER, INTENT(IN)                                :: nmolecule
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_molecule_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_molecule_set'
 
       INTEGER                                            :: imolecule
 
@@ -226,8 +225,7 @@ CONTAINS
    SUBROUTINE deallocate_molecule_set(molecule_set)
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_molecule_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_molecule_set'
 
       INTEGER                                            :: imolecule, j
 
@@ -423,8 +421,7 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: first_atom, last_atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_molecule_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_molecule_set'
 
       INTEGER                                            :: imolecule
 
@@ -475,8 +472,7 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: atom_to_mol
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'molecule_of_atom', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'molecule_of_atom'
 
       INTEGER                                            :: first_atom, iatom, imol, last_atom
       TYPE(molecule_type), POINTER                       :: molecule
@@ -513,8 +509,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL :: atom_to_mol, mol_to_first_atom, &
          mol_to_last_atom, mol_to_nelectrons, mol_to_nbasis, mol_to_charge, mol_to_multiplicity
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_set_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_set_info'
 
       INTEGER                                            :: first_atom, iatom, imol, last_atom, &
                                                             nbasis, nelec

@@ -97,8 +97,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       INTEGER, INTENT(IN)                                :: n_walkers, iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_master_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_master_init'
 
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -196,8 +195,7 @@ CONTAINS
       TYPE(swarm_message_type)                           :: report, cmd
       LOGICAL, INTENT(INOUT)                             :: should_stop
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_master_steer', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_master_steer'
 
       CALL progress_report(this, report)
 
@@ -312,8 +310,7 @@ CONTAINS
    SUBROUTINE glbopt_master_finalize(this)
       TYPE(glbopt_master_type), INTENT(INOUT)            :: this
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_master_finalize', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_master_finalize'
 
       TYPE(cp_logger_type), POINTER                      :: logger
 

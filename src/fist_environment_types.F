@@ -422,8 +422,7 @@ CONTAINS
       TYPE(fist_environment_type), POINTER               :: fist_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fist_env_create'
 
       ALLOCATE (fist_env)
       CALL init_fist_env(fist_env, para_env=para_env)
@@ -439,8 +438,7 @@ CONTAINS
    SUBROUTINE fist_env_retain(fist_env)
       TYPE(fist_environment_type), POINTER               :: fist_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fist_env_retain'
 
       CPASSERT(ASSOCIATED(fist_env))
       CPASSERT(fist_env%ref_count > 0)
@@ -457,8 +455,7 @@ CONTAINS
    SUBROUTINE fist_env_release(fist_env)
       TYPE(fist_environment_type), POINTER               :: fist_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fist_env_release'
 
       IF (ASSOCIATED(fist_env)) THEN
          CPASSERT(fist_env%ref_count > 0)

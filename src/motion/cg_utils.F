@@ -1032,8 +1032,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: Fletcher_Reeves
       REAL(KIND=dp), DIMENSION(:), POINTER               :: g, xi, h
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_conjugate_direction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_conjugate_direction'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: check

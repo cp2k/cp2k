@@ -529,8 +529,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), INTENT(IN), &
          OPTIONAL                                        :: pos, act
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_polarisability_tensor', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_polarisability_tensor'
 
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
       INTEGER                                            :: iounit

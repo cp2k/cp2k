@@ -105,8 +105,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_lri_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_lri_matrices'
 
       ! calculate the integrals needed to do the local (2-center) expansion
       ! of the (pair) densities
@@ -130,8 +129,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_integrals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_integrals'
 
       INTEGER                                            :: handle, iac, iatom, ikind, ilist, jatom, &
                                                             jkind, jneighbor, mepos, nba, nbb, &
@@ -347,8 +345,7 @@ CONTAINS
       TYPE(lri_density_type), POINTER                    :: lri_density
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atomlist
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_kg_rho_update', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lri_kg_rho_update'
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
@@ -396,8 +393,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_ppl_integrals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_ppl_integrals'
 
       INTEGER                                            :: handle, ikind, ispin, na, nb, nkind, &
                                                             nspin
@@ -487,8 +483,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_overlap_aabb', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_overlap_aabb'
 
       INTEGER                                            :: handle, iac, iatom, ikind, ilist, jatom, &
                                                             jkind, jneighbor, nba, nbb, nkind, &
@@ -580,8 +575,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_densities', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_densities'
 
       CALL calculate_avec_lri(lri_env, lri_density, pmatrix, cell_to_index)
       CALL distribute_lri_density_on_the_grid(lri_env, lri_density, qs_env, &
@@ -606,8 +600,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_avec_lri', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_avec_lri'
 
       INTEGER :: handle, i, iac, iatom, ic, ikind, ilist, ispin, jatom, jkind, jneighbor, mepos, &
          nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, nspin, nthread
@@ -819,8 +812,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_lri_density_on_the_grid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_lri_density_on_the_grid'
 
       INTEGER                                            :: atom_a, atom_b, handle, iac, iatom, &
                                                             ikind, ilist, ispin, jatom, jkind, &
@@ -981,8 +973,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sinv
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sa, sb, sab
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'inverse_lri_overlap', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'inverse_lri_overlap'
 
       INTEGER                                            :: handle, info, n, nfa, nfb, nn
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
@@ -1089,8 +1080,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: soo_list
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'output_debug_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'output_debug_info'
 
       INTEGER                                            :: handle, iac, ikind, ilist, iunit, jkind, &
                                                             jneighbor, nkind
@@ -1181,8 +1171,7 @@ CONTAINS
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'v_int_ppl_update', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'v_int_ppl_update'
 
       INTEGER                                            :: ikind, natom, nfa, nkind
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: v_int
@@ -1216,8 +1205,7 @@ CONTAINS
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       REAL(KIND=dp), INTENT(INOUT)                       :: ecore_ppl_ri
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'v_int_ppl_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'v_int_ppl_energy'
 
       INTEGER                                            :: ikind, natom, nfa, nkind
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: v_int

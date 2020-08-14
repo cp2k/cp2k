@@ -60,8 +60,7 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: paw_atom
       LOGICAL, INTENT(IN)                                :: paw_type_forced, gpw_type_forced
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_soft_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_soft_basis'
 
       CHARACTER(LEN=default_string_length)               :: bsname
       INTEGER :: ico, ipgf, ipgf_s, iset, iset_s, ishell, lshell, lshell_old, m, maxco, maxpgf, &

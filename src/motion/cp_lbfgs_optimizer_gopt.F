@@ -208,8 +208,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: master, max_f_per_iter
       REAL(kind=dp), INTENT(in), OPTIONAL                :: trust_radius
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_create'
 
       INTEGER                                            :: handle, lenwa, n
 
@@ -301,8 +300,7 @@ CONTAINS
    SUBROUTINE cp_opt_gopt_retain(optimizer)
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_retain'
 
       CPASSERT(ASSOCIATED(optimizer))
       CPASSERT(optimizer%ref_count > 0)
@@ -320,8 +318,7 @@ CONTAINS
    SUBROUTINE cp_opt_gopt_release(optimizer)
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_release'
 
       INTEGER                                            :: handle
 
@@ -419,8 +416,7 @@ CONTAINS
       LOGICAL, INTENT(out), OPTIONAL                     :: at_end, is_master
       REAL(kind=dp), INTENT(out), OPTIONAL               :: last_f, f
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_get', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_opt_gopt_get'
 
 !  call timeset(routineN,handle)
 
@@ -499,8 +495,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_step', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_opt_gopt_step'
 
       CHARACTER(LEN=5)                                   :: wildcard
       INTEGER                                            :: dataunit, handle, its
@@ -725,8 +720,7 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL                     :: n_iter
       REAL(kind=dp), INTENT(inout), OPTIONAL             :: f, last_f, projected_gradient
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_bcast_res', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_bcast_res'
 
       REAL(kind=dp), DIMENSION(4)                        :: results
 
@@ -782,8 +776,7 @@ CONTAINS
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_next', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_opt_gopt_next'
 
 !call timeset(routineN,handle)
 
@@ -810,8 +803,7 @@ CONTAINS
    SUBROUTINE cp_opt_gopt_stop(optimizer)
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_stop', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_opt_gopt_stop'
 
 !  call timeset(routineN,handle)
 

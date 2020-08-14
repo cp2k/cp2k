@@ -304,8 +304,7 @@ CONTAINS
    SUBROUTINE init_constraint(constraint_info)
       TYPE(constraint_info_type), POINTER                :: constraint_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_constraint', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_constraint'
 
 ! Bonds involving Hydrogens
 
@@ -392,8 +391,7 @@ CONTAINS
    SUBROUTINE deallocate_topology(topology)
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_topology', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_topology'
 
 !-----------------------------------------------------------------------------
 ! 1. DEALLOCATE things in topology%atom_info
@@ -551,8 +549,7 @@ CONTAINS
    SUBROUTINE deallocate_constraint(constraint_info)
       TYPE(constraint_info_type), POINTER                :: constraint_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_constraint', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_constraint'
 
       INTEGER                                            :: i
 
@@ -768,8 +765,7 @@ CONTAINS
    SUBROUTINE pre_read_topology(topology)
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pre_read_topology', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pre_read_topology'
 
       TYPE(atom_info_type), POINTER                      :: atom_info
 

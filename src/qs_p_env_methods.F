@@ -321,8 +321,7 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'p_env_check_i_alloc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'p_env_check_i_alloc'
 
       CHARACTER(len=25)                                  :: name
       INTEGER                                            :: handle, ispin, nspins
@@ -381,8 +380,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout), &
          OPTIONAL                                        :: Hrho_psi0d
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'p_env_psi0_changed', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'p_env_psi0_changed'
 
       INTEGER                                            :: handle, iounit, lfomo, n_spins, nmo, spin
       LOGICAL                                            :: was_present

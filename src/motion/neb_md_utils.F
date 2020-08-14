@@ -69,8 +69,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(neb_type), POINTER                            :: neb_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'neb_initialize_velocity', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'neb_initialize_velocity'
 
       INTEGER                                            :: iatom, ivar, natom, nparticle, nvar
       REAL(KIND=dp)                                      :: akin, mass, mass_tot, sc, temp, &
@@ -281,8 +280,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: ekin
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: factor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_temperatures', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_temperatures'
 
       INTEGER                                            :: i_rep, iatom, ivar, n_rep, natom, nvar
       REAL(KIND=dp)                                      :: akin, mass, myfactor, temploc

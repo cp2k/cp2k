@@ -708,8 +708,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: rs_pw_transfer_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pw_transfer_test', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pw_transfer_test'
 
       INTEGER                                            :: dir, halo_size, handle, i_loop, n_loop, &
                                                             ns_max
@@ -1047,8 +1046,7 @@ CONTAINS
       INTEGER                                            :: iw
       TYPE(section_vals_type), POINTER                   :: eigensolver_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eigensolver_test', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'eigensolver_test'
 
       INTEGER                                            :: diag_method, group, i, i_loop, i_rep, &
                                                             init_method, j, n, n_loop, n_rep, &
@@ -1272,8 +1270,7 @@ CONTAINS
       INTEGER                                  :: iw
       TYPE(section_vals_type), POINTER         :: cp_fm_gemm_test_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_gemm_test', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_gemm_test'
 
       CHARACTER(LEN=1)                         :: transa, transb
       INTEGER :: i_loop, i_rep, k, m, n, N_loop, n_rep, ncol_block, &

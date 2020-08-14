@@ -563,8 +563,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix_simple', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix_simple'
 
       INTEGER                                            :: handle, iatom, icol, ikind, irow, iset, &
                                                             jatom, jkind, jset, ldsab, m1, m2, n1, &
@@ -790,8 +789,7 @@ CONTAINS
          POINTER                                         :: sab_nl
       TYPE(dbcsr_type), POINTER                          :: matrix_p
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_force'
 
       INTEGER                                            :: handle, iatom, icol, ikind, irow, iset, &
                                                             jatom, jkind, jset, ldsab, n1, n2, &
@@ -994,8 +992,7 @@ CONTAINS
          POINTER                                         :: sab_nl
       LOGICAL, INTENT(IN)                                :: symmetric
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_sab_matrix_1d', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_sab_matrix_1d'
 
       CHARACTER(LEN=12)                                  :: cgfsym
       CHARACTER(LEN=32)                                  :: symmetry_string
@@ -1088,8 +1085,7 @@ CONTAINS
          POINTER                                         :: sab_nl
       LOGICAL, INTENT(IN)                                :: symmetric
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_sab_matrix_2d', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_sab_matrix_2d'
 
       CHARACTER(LEN=12)                                  :: cgfsym
       CHARACTER(LEN=32)                                  :: symmetry_string

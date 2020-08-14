@@ -90,8 +90,7 @@ CONTAINS
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_f_create_x0', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gopt_f_create_x0'
 
       INTEGER                                            :: i, idg, j, nparticle
       TYPE(cell_type), POINTER                           :: cell
@@ -346,8 +345,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: master, output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io_finalize', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io_finalize'
 
       IF (gopt_env%eval_opt_geo) THEN
          IF (.NOT. gopt_env%dimer_rotation) THEN
@@ -386,8 +384,7 @@ CONTAINS
       CHARACTER(LEN=5), OPTIONAL                         :: wildcard
       REAL(KIND=dp), INTENT(IN)                          :: used_time
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_cycle_infos'
 
       REAL(KIND=dp)                                      :: tmp_r1
 
@@ -462,8 +459,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: used_time
       CHARACTER(LEN=5), OPTIONAL                         :: wildcard
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rot_cycle_infos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rot_cycle_infos'
 
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T2,4('-'),A,I5,1X,5('-'))") &
@@ -735,8 +731,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: motion_section, root_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_final_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_final_info'
 
       REAL(KIND=dp)                                      :: etot
       TYPE(cell_type), POINTER                           :: cell
@@ -839,8 +834,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       CHARACTER(LEN=*), INTENT(IN)                       :: label
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_geo_opt_header', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_geo_opt_header'
 
       CHARACTER(LEN=default_string_length)               :: my_format, my_label
       INTEGER                                            :: ix
@@ -967,8 +961,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x
       LOGICAL, INTENT(IN)                                :: update_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_cell_change', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_cell_change'
 
       INTEGER                                            :: i, iatom, idg, j, natom, nparticle, &
                                                             shell_index

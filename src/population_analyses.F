@@ -80,8 +80,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: output_unit, print_level
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lowdin_population_analysis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lowdin_population_analysis'
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: handle, ispin, ndep, nsgf, nspin
@@ -253,8 +252,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: output_unit, print_level
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken_population_analysis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken_population_analysis'
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: blk, handle, iatom, ic, isgf, ispin, &

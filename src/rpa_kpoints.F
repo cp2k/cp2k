@@ -123,8 +123,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'RPA_postprocessing_kp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'RPA_postprocessing_kp'
 
       INTEGER                                            :: handle, ikp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tau_tj_dummy, tj_dummy, trace_Qomega
@@ -240,8 +239,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Q_kp_RPA', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Q_kp_RPA'
 
       INTEGER                                            :: handle
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_L, cfm_mat_work
@@ -305,8 +303,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mat_P_to_subgroup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mat_P_to_subgroup'
 
       INTEGER                                            :: handle, jkp
       TYPE(cp_fm_type), POINTER                          :: fm_dummy
@@ -380,8 +377,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: trace_Qomega
       INTEGER, INTENT(IN)                                :: dimen_RI
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cholesky_decomp_Q', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cholesky_decomp_Q'
 
       INTEGER                                            :: handle, i_global, iiB, info_chol, &
                                                             j_global, jjB, ncol_local, nrow_local
@@ -439,8 +435,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), INTENT(IN)                          :: freq_weight, kp_weight
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'frequency_and_kpoint_integration', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'frequency_and_kpoint_integration'
 
       INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
                                                             ncol_local, nrow_local
@@ -562,8 +557,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_integ_points, jquad, nkp
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_Wc_kp_tau_GW', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_Wc_kp_tau_GW'
 
       INTEGER                                            :: handle, iquad, jkp
 
@@ -601,8 +595,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: jquad
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_P_cell_T_from_P_gamma', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_P_cell_T_from_P_gamma'
 
       INTEGER                                            :: col, handle, i_cell, i_dim, num_cells_P, &
                                                             num_integ_points, row
@@ -725,8 +718,7 @@ CONTAINS
       REAL(kind=dp), INTENT(IN)                          :: eps_filter_im_time
       INTEGER, INTENT(IN)                                :: jquad
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_P_from_real_space_to_kpoints', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_P_from_real_space_to_kpoints'
 
       INTEGER                                            :: handle, icell, nkp, num_integ_points
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
@@ -766,8 +758,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'real_space_to_kpoint_transform_rpa', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'real_space_to_kpoint_transform_rpa'
 
       INTEGER                                            :: handle, i_cell, ik, nkp, num_cells
       INTEGER, DIMENSION(3)                              :: cell
@@ -845,8 +836,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_a, mat_b
       REAL(kind=dp), INTENT(IN)                          :: alpha, beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_add_local', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbcsr_add_local'
 
       INTEGER                                            :: col, row
       LOGICAL                                            :: found

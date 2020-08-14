@@ -248,8 +248,7 @@ CONTAINS
       REAL(dp), DIMENSION(nsgfa*ncob)                    :: cpp_buffer
       REAL(dp), DIMENSION(nsgfa*nsgfb*ncoc)              :: ccp_buffer
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'libxsmm_abc_contract', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'libxsmm_abc_contract'
 
       INTEGER                                            :: handle, i
 #if(__LIBXSMM)

@@ -263,8 +263,7 @@ CONTAINS
    SUBROUTINE mp2_env_release(mp2_env)
       TYPE(mp2_type), POINTER                            :: mp2_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_env_release'
 
       INTEGER                                            :: handle
 

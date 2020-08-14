@@ -75,8 +75,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_fc
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_fermi_contact_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_fermi_contact_matrix'
 
       INTEGER :: after, handle, iatom, icol, ikind, inode, irow, iset, iw, jatom, jkind, jset, &
          last_jatom, ldai, ldfc, maxco, maxlgto, maxsgf, natom, ncoa, ncob, nkind, nseta, nsetb, &

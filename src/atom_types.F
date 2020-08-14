@@ -375,8 +375,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: zval
       CHARACTER(LEN=2)                                   :: btyp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_atom_basis'
       INTEGER, PARAMETER                                 :: nua = 40, nup = 16
       REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp, 0.013705_dp, 0.025733_dp, &
          0.048316_dp, 0.090718_dp, 0.170333_dp, 0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp,&
@@ -706,8 +705,7 @@ CONTAINS
    SUBROUTINE init_atom_basis_default_pp(basis)
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_basis_default_pp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_basis_default_pp'
       INTEGER, PARAMETER                                 :: nua = 40, nup = 20
       REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp, 0.013705_dp, 0.025733_dp, &
          0.048316_dp, 0.090718_dp, 0.170333_dp, 0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp,&
@@ -781,8 +779,7 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(INOUT)               :: gbasis
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, rab
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_gridrep', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_gridrep'
 
       INTEGER                                            :: i, j, k, l, m, n1, n2, n3, ngp, nl, nr, &
                                                             quadtype
@@ -914,8 +911,7 @@ CONTAINS
    SUBROUTINE release_atom_basis(basis)
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_basis'
 
       IF (ASSOCIATED(basis%am)) THEN
          DEALLOCATE (basis%am)
@@ -951,8 +947,7 @@ CONTAINS
    SUBROUTINE create_atom_type(atom)
       TYPE(atom_type), POINTER                           :: atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_atom_type'
 
       CPASSERT(.NOT. ASSOCIATED(atom))
 
@@ -978,8 +973,7 @@ CONTAINS
    SUBROUTINE release_atom_type(atom)
       TYPE(atom_type), POINTER                           :: atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_atom_type'
 
       CPASSERT(ASSOCIATED(atom))
 
@@ -1071,8 +1065,7 @@ CONTAINS
       TYPE(atom_orbitals), POINTER                       :: orbs
       INTEGER, INTENT(IN)                                :: mbas, mo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_orbs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_atom_orbs'
 
       CPASSERT(.NOT. ASSOCIATED(orbs))
 
@@ -1122,8 +1115,7 @@ CONTAINS
    SUBROUTINE release_atom_orbs(orbs)
       TYPE(atom_orbitals), POINTER                       :: orbs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_orbs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_atom_orbs'
 
       CPASSERT(ASSOCIATED(orbs))
 
@@ -1195,8 +1187,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       INTEGER, INTENT(IN)                                :: extype
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_hf_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_hf_section'
 
       INTEGER                                            :: i, j, nr, nu, pot_type
       REAL(KIND=dp)                                      :: scale_coulomb, scale_longrange
@@ -1462,8 +1453,7 @@ CONTAINS
       REAL(dp), INTENT(OUT)                              :: cval, aval
       INTEGER, DIMENSION(0:lmat), INTENT(OUT)            :: ngto, ival
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'Clementi_geobas', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'Clementi_geobas'
 
       ngto = 0
       ival = 0
@@ -2431,8 +2421,7 @@ CONTAINS
       TYPE(atom_optimization_type), INTENT(INOUT)        :: optimization
       TYPE(section_vals_type), POINTER                   :: opt_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_atom_opt_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_atom_opt_section'
 
       INTEGER                                            :: miter, ndiis
       REAL(KIND=dp)                                      :: damp, eps_diis, eps_scf
@@ -2461,8 +2450,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: potential_section
       INTEGER, INTENT(IN)                                :: zval
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_potential'
 
       CHARACTER(LEN=default_string_length)               :: pseudo_fn, pseudo_name
       INTEGER                                            :: ic
@@ -2562,8 +2550,7 @@ CONTAINS
    SUBROUTINE release_atom_potential(potential)
       TYPE(atom_potential_type), INTENT(INOUT)           :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_potential'
 
       potential%confinement = .FALSE.
 
@@ -2586,8 +2573,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: pseudo_name, pseudo_file
       TYPE(section_vals_type), POINTER                   :: potential_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_gth_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_gth_potential'
 
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=242)                                 :: line2
@@ -2891,8 +2877,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: pseudo_name, pseudo_file
       TYPE(section_vals_type), POINTER                   :: potential_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_ecp_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_ecp_potential'
 
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(len=5*default_string_length)             :: line_att

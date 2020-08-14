@@ -119,8 +119,7 @@ CONTAINS
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       REAL(KIND=dp), INTENT(IN)                          :: unit_conv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_Quickstep_move', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mc_Quickstep_move'
 
       INTEGER                                            :: end_mol, group, handle, ibox, iparticle, &
                                                             iprint, itype, jbox, nmol_types, &
@@ -436,8 +435,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(1:2), INTENT(INOUT)       :: bias_energy_old, last_bias_energy
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_ge_swap_move', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mc_ge_swap_move'
 
       CHARACTER(default_string_length), ALLOCATABLE, &
          DIMENSION(:)                                    :: atom_names_insert, atom_names_remove
@@ -1139,8 +1137,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: r_old
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_ge_volume_move', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mc_ge_volume_move'
 
       CHARACTER(LEN=200)                                 :: fft_lib
       CHARACTER(LEN=40), DIMENSION(1:2)                  :: dat_file

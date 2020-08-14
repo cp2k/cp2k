@@ -51,8 +51,7 @@ CONTAINS
    SUBROUTINE admm_dm_calc_rho_aux(ks_env)
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'admm_dm_calc_rho_aux', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'admm_dm_calc_rho_aux'
 
       INTEGER                                            :: handle
       TYPE(admm_dm_type), POINTER                        :: admm_dm
@@ -88,8 +87,7 @@ CONTAINS
    SUBROUTINE admm_dm_merge_ks_matrix(ks_env)
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_dm_merge_ks_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_dm_merge_ks_matrix'
 
       INTEGER                                            :: handle
       TYPE(admm_dm_type), POINTER                        :: admm_dm
@@ -132,8 +130,7 @@ CONTAINS
    SUBROUTINE map_dm_projection(ks_env)
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'map_dm_projection', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'map_dm_projection'
 
       INTEGER                                            :: ispin
       LOGICAL                                            :: s_mstruct_changed
@@ -451,8 +448,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_merge
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'revert_purify_mcweeny', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'revert_purify_mcweeny'
 
       INTEGER                                            :: handle, ispin, nspins, unit_nr
       TYPE(admm_dm_type), POINTER                        :: admm_dm
@@ -517,8 +513,7 @@ CONTAINS
    SUBROUTINE reverse_mcweeny_step(matrix_k, matrix_s, matrix_p)
       TYPE(dbcsr_type)                                   :: matrix_k, matrix_s, matrix_p
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reverse_mcweeny_step', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'reverse_mcweeny_step'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_type)                                   :: matrix_ps, matrix_sp, matrix_sum, &

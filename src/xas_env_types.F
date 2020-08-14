@@ -344,8 +344,7 @@ CONTAINS
 
       TYPE(xas_environment_type), POINTER                :: xas_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_env_release'
 
       INTEGER                                            :: i, ik, j
 

@@ -89,8 +89,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ks_qmmm_create'
 
       INTEGER                                            :: handle, igrid
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
@@ -157,8 +156,7 @@ CONTAINS
       TYPE(pw_p_type), INTENT(IN)                        :: v_qmmm
       REAL(KIND=dp), INTENT(INOUT)                       :: qmmm_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calculate_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calculate_energy'
 
       INTEGER                                            :: handle, ispin, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -211,8 +209,7 @@ CONTAINS
       TYPE(pw_p_type), INTENT(IN)                        :: v_qmmm
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: fac

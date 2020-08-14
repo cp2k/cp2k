@@ -52,8 +52,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kind_set_external
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'prepare_gapw_den', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'prepare_gapw_den'
 
       INTEGER                                            :: handle, ikind, ispin, natom, nspins, &
                                                             output_unit

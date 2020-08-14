@@ -456,8 +456,7 @@ CONTAINS
       TYPE(molsym_type), INTENT(inout)                   :: sym
       REAL(Kind=dp), DIMENSION(:, :), INTENT(inout)      :: coord
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_symequ_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'build_symequ_list'
 
       INTEGER                                            :: i, iatom, icn, iequatom, incr, isec, &
                                                             ises, isig, isn, jatom, jcn, jsn, &
@@ -1104,8 +1103,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atype
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: weight
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'molecular_symmetry', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'molecular_symmetry'
 
       INTEGER                                            :: handle, natoms
 
@@ -1529,8 +1527,7 @@ CONTAINS
       TYPE(molsym_type), INTENT(inout)                   :: sym
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: coord
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rotate_molecule', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotate_molecule'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: length_of_a

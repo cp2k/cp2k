@@ -60,8 +60,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_energy_type), POINTER                      :: energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_dipsurf_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calc_dipsurf_potential'
 
       INTEGER                                            :: handle, i, idir_surfdip, ilayer_min, &
                                                             ilow, irho, ispin, isurf, iup, jsurf, &

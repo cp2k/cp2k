@@ -260,8 +260,7 @@ CONTAINS
    SUBROUTINE qmmm_env_mm_create(qmmm_env)
       TYPE(qmmm_env_mm_type), POINTER                    :: qmmm_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_create'
 
       CPASSERT(.NOT. ASSOCIATED(qmmm_env))
       ALLOCATE (qmmm_env)
@@ -289,8 +288,7 @@ CONTAINS
    SUBROUTINE qmmm_env_mm_retain(qmmm_env)
       TYPE(qmmm_env_mm_type), POINTER                    :: qmmm_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_retain'
 
       CPASSERT(ASSOCIATED(qmmm_env))
       CPASSERT(qmmm_env%ref_count > 0)
@@ -306,8 +304,7 @@ CONTAINS
    SUBROUTINE qmmm_env_mm_release(qmmm_env)
       TYPE(qmmm_env_mm_type), POINTER                    :: qmmm_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_release'
 
       IF (ASSOCIATED(qmmm_env)) THEN
          CPASSERT(qmmm_env%ref_count > 0)
@@ -347,8 +344,7 @@ CONTAINS
    SUBROUTINE qmmm_env_qm_create(qmmm_env)
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_create'
 
       CPASSERT(.NOT. ASSOCIATED(qmmm_env))
       ALLOCATE (qmmm_env)
@@ -395,8 +391,7 @@ CONTAINS
    SUBROUTINE qmmm_env_qm_release(qmmm_env)
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_release'
 
       IF (ASSOCIATED(qmmm_env)) THEN
          CPASSERT(qmmm_env%ref_count > 0)
@@ -503,8 +498,7 @@ CONTAINS
    SUBROUTINE qmmm_links_dealloc(qmmm_links)
       TYPE(qmmm_links_type), POINTER                     :: qmmm_links
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_links_dealloc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_links_dealloc'
 
       INTEGER                                            :: I
 
@@ -531,8 +525,7 @@ CONTAINS
    SUBROUTINE qmmm_image_charge_dealloc(image_charge_pot)
       TYPE(image_charge_type), POINTER                   :: image_charge_pot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_image_charge_dealloc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_image_charge_dealloc'
 
       IF (ASSOCIATED(image_charge_pot)) THEN
          IF (ASSOCIATED(image_charge_pot%image_mm_list)) THEN
@@ -555,8 +548,7 @@ CONTAINS
    SUBROUTINE qmmm_pot_type_dealloc(Potentials)
       TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER       :: Potentials
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pot_type_dealloc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pot_type_dealloc'
 
       INTEGER                                            :: I
 
@@ -583,8 +575,7 @@ CONTAINS
    SUBROUTINE qmmm_per_pot_type_dealloc(Per_Potentials)
       TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER   :: Per_Potentials
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_dealloc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_dealloc'
 
       INTEGER                                            :: I
 
@@ -630,8 +621,7 @@ CONTAINS
    SUBROUTINE add_set_release(added_charges)
       TYPE(add_set_type), POINTER                        :: added_charges
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_set_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'add_set_release'
 
       IF (ASSOCIATED(added_charges)) THEN
          IF (ASSOCIATED(added_charges%add_env)) THEN
@@ -677,8 +667,7 @@ CONTAINS
 
       TYPE(add_shell_type), POINTER                      :: added_shells
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_shell_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'add_shell_release'
 
       IF (ASSOCIATED(added_shells)) THEN
          IF (ASSOCIATED(added_shells%added_particles)) THEN
@@ -726,8 +715,7 @@ CONTAINS
       TYPE(add_set_type), POINTER                        :: added_charges
       INTEGER, INTENT(IN)                                :: ndim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_add_set_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_add_set_type'
 
       IF (ASSOCIATED(added_charges)) CALL add_set_release(added_charges)
       ALLOCATE (added_charges)
@@ -766,8 +754,7 @@ CONTAINS
       TYPE(add_shell_type), POINTER                      :: added_shells
       INTEGER, INTENT(IN)                                :: ndim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_add_shell_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_add_shell_type'
 
       IF (ASSOCIATED(added_shells)) CALL add_shell_release(added_shells)
       ALLOCATE (added_shells)
@@ -802,8 +789,7 @@ CONTAINS
    SUBROUTINE create_image_charge_type(image_charge_pot)
       TYPE(image_charge_type), POINTER                   :: image_charge_pot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_image_charge_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_image_charge_type'
 
       IF (ASSOCIATED(image_charge_pot)) CALL qmmm_image_charge_dealloc(image_charge_pot)
       ALLOCATE (image_charge_pot)

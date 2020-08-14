@@ -70,8 +70,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: subsys_section
       INTEGER, INTENT(IN)                                :: max_multipole
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_multipole_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_multipole_type'
 
       INTEGER                                            :: i, ind2, iparticle, j, n_rep, nparticles
       LOGICAL                                            :: explicit
@@ -163,8 +162,7 @@ CONTAINS
    SUBROUTINE release_multipole_type(multipoles)
       TYPE(multipole_type), POINTER                      :: multipoles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_multipole_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'release_multipole_type'
 
       IF (ASSOCIATED(multipoles)) THEN
          CPASSERT(multipoles%ref_count > 0)
@@ -197,8 +195,7 @@ CONTAINS
    SUBROUTINE retain_multipole_type(multipoles)
       TYPE(multipole_type), POINTER                      :: multipoles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'retain_multipole_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'retain_multipole_type'
 
       IF (ASSOCIATED(multipoles)) THEN
          CPASSERT(multipoles%ref_count > 0)

@@ -447,8 +447,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER          :: para_env
       CHARACTER(len=default_path_length), DIMENSION(:, :), INTENT(IN) :: initial_variables
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'farming_run', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'farming_run'
       INTEGER, PARAMETER                       :: slave_status_done = -3, &
                                                   slave_status_wait = -4
 

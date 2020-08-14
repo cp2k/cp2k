@@ -291,8 +291,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: molecular
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_qs_neighbor_lists', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_qs_neighbor_lists'
 
       CHARACTER(LEN=default_string_length)               :: print_key_path
       INTEGER                                            :: handle, ikind, iw, maxatom, nkind, &
@@ -984,8 +983,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: nlname
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: atomb_to_keep
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_neighbor_lists', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_neighbor_lists'
 
       TYPE local_lists
          INTEGER, DIMENSION(:), POINTER           :: list
@@ -1419,8 +1417,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: mic, symmetric, molecular
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: operator_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_neighbor_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_neighbor_list'
 
       CHARACTER(LEN=4)                                   :: otype
       INTEGER                                            :: ikind, nkind
@@ -1577,8 +1574,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: radius_a, radius_b
       REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: pair_radius
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pair_radius_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pair_radius_setup'
 
       INTEGER                                            :: i, j, nkind
 
@@ -1613,8 +1609,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: output_unit
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_neighbor_distribution', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_neighbor_distribution'
       LOGICAL, PARAMETER                                 :: full_output = .FALSE.
 
       INTEGER                                            :: group, handle, ikind, inode, ipe, jkind, &

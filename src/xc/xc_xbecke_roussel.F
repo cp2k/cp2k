@@ -86,8 +86,7 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lda_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lda_info'
 
       CALL cite_reference(BeckeRoussel1989)
       CALL cite_reference(Proynov2007)
@@ -126,8 +125,7 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lsd_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lsd_info'
 
       CALL cite_reference(BeckeRoussel1989)
       CALL cite_reference(Proynov2007)
@@ -168,8 +166,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: br_params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lda_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lda_eval'
 
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -281,8 +278,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(in)    :: tau, laplace_rho, norm_drho, rho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx, R, gamma
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lda_calc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lda_calc'
 
       INTEGER                                            :: ip
       REAL(dp)                                           :: e_diff, e_old, my_laplace_rho, my_ndrho, &
@@ -374,8 +370,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: br_params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lsd_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lsd_eval'
 
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -513,8 +508,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(in)    :: tau, laplace_rho, norm_drho, rho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx, R, gamma
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lsd_calc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lsd_calc'
 
       INTEGER                                            :: ip
       REAL(dp)                                           :: my_laplace_rho, my_ndrho, my_rho, &
@@ -597,8 +591,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: sx, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_lte_0', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'x_br_lsd_y_lte_0'
 
       REAL(KIND=dp) :: t1, t100, t101, t102, t108, t111, t113, t114, t117, t118, t120, t121, t122, &
          t129, t130, t134, t135, t138, t142, t143, t146, t147, t150, t152, t153, t157, t158, t16, &
@@ -844,8 +837,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: sx, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_gt_0', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'x_br_lsd_y_gt_0'
 
       REAL(KIND=dp) :: t1, t102, t103, t104, t106, t107, t108, t109, t110, t111, t112, t115, t117, &
          t124, t131, t134, t137, t138, t142, t143, t154, t157, t158, t159, t16, t160, t162, t165, &
@@ -1105,8 +1097,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: sx, R, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_lte_0_cutoff', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_lte_0_cutoff'
 
       REAL(KIND=dp)                                      :: brval, t1, t101, t11, t12, t18, t2, t20, &
                                                             t24, t25, t26, t3, t31, t33, t36, t38, &
@@ -1192,8 +1183,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: sx, R, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_lte_0_cutoff_R_gt_b', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_lte_0_cutoff_R_gt_b'
 
       REAL(KIND=dp) :: t1, t10, t100, t101, t102, t103, t104, t106, t108, t109, t110, t114, t117, &
          t119, t120, t123, t124, t129, t132, t134, t135, t138, t139, t141, t142, t143, t149, t150, &
@@ -1533,8 +1523,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: sx, R, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_lte_0_cutoff_R_lte_b', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_lte_0_cutoff_R_lte_b'
 
       REAL(KIND=dp) :: t1, t10, t100, t101, t102, t103, t104, t106, t108, t109, t110, t111, t113, &
          t115, t116, t118, t119, t121, t123, t128, t131, t133, t134, t137, t138, t140, t141, t143, &
@@ -1872,8 +1861,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: sx, R, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_gt_0_cutoff', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_gt_0_cutoff'
 
       REAL(KIND=dp) :: brval, t1, t10, t103, t104, t11, t111, t116, t14, t15, t2, t21, t25, t26, &
          t28, t3, t31, t33, t37, t4, t44, t45, t46, t5, t50, t56, t58, t6, t62, t65, t69, t71, &
@@ -1965,8 +1953,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: sx, R, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_gt_0_cutoff_R_gt_b', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_gt_0_cutoff_R_gt_b'
 
       REAL(KIND=dp) :: t1, t100, t101, t102, t103, t104, t105, t106, t108, t109, t110, t111, t112, &
          t114, t115, t116, t117, t118, t119, t12, t121, t123, t124, t125, t129, t13, t132, t134, &
@@ -2319,8 +2306,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: sx, R, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_gt_0_cutoff_R_lte_b', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_gt_0_cutoff_R_lte_b'
 
       REAL(KIND=dp) :: t1, t100, t101, t102, t103, t104, t105, t106, t108, t109, t110, t111, t112, &
          t114, t115, t116, t117, t118, t119, t12, t121, t123, t124, t125, t126, t128, t13, t130, &

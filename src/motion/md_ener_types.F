@@ -109,8 +109,7 @@ CONTAINS
    SUBROUTINE release_md_ener(md_ener)
       TYPE(md_ener_type), POINTER                        :: md_ener
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_md_ener', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_md_ener'
 
       IF (ASSOCIATED(md_ener)) THEN
          CPASSERT(md_ener%ref_count > 0)

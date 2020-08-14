@@ -139,8 +139,7 @@ CONTAINS
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       INTEGER, INTENT(IN), OPTIONAL                      :: order
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_lda_pw_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pade_lda_pw_eval'
 
       INTEGER                                            :: n
       LOGICAL                                            :: calc(0:4)

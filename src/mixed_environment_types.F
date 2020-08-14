@@ -334,8 +334,7 @@ CONTAINS
       TYPE(mixed_environment_type), POINTER              :: mixed_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mixed_env_create'
 
       ALLOCATE (mixed_env)
       CALL init_mixed_env(mixed_env, para_env=para_env)
@@ -349,8 +348,7 @@ CONTAINS
    SUBROUTINE mixed_env_retain(mixed_env)
       TYPE(mixed_environment_type), POINTER              :: mixed_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mixed_env_retain'
 
       CPASSERT(ASSOCIATED(mixed_env))
       CPASSERT(mixed_env%ref_count > 0)
@@ -365,8 +363,7 @@ CONTAINS
    SUBROUTINE mixed_env_release(mixed_env)
       TYPE(mixed_environment_type), POINTER              :: mixed_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mixed_env_release'
 
       INTEGER                                            :: i, ngroups
 

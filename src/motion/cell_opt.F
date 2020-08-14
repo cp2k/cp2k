@@ -115,8 +115,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, geo_section
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cell_opt_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cell_opt_low'
 
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(ASSOCIATED(globenv))

@@ -302,8 +302,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: subset_of_mol
       INTEGER, OPTIONAL                                  :: current_subset
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_build_neighborlist', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_build_neighborlist'
 
       INTEGER                                            :: handle, ikind, nkind
       LOGICAL                                            :: mic, molecule_only
@@ -438,8 +437,7 @@ CONTAINS
          INTENT(INOUT)                                   :: pairs_buffer
       INTEGER, INTENT(INOUT)                             :: n
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_remove_duplicates', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_remove_duplicates'
 
       INTEGER                                            :: handle, i, npairs
       INTEGER, DIMENSION(n)                              :: ind
@@ -554,8 +552,7 @@ CONTAINS
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_build_subsets', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_build_subsets'
 
       INTEGER                                            :: color, handle, i, iatom, imol, isub, &
                                                             jatom, jmol, nmol, npairs, npairs_local

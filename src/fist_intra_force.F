@@ -100,8 +100,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(atprop_type), POINTER                         :: atprop_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_intra_control', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_intra_control'
 
       INTEGER :: first_atom, handle, i, ibend, ibond, ikind, imol, imul, index_a, index_b, &
          index_c, index_d, iopbend, ishell, itorsion, nbends, nbonds, nimptors, nkind, &

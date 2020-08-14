@@ -69,8 +69,7 @@ CONTAINS
          DIMENSION(:, :), INTENT(IN)                     :: pairs
       TYPE(vertex_p_type), DIMENSION(:), POINTER         :: graph
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kg_create_graph', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'kg_create_graph'
 
       INTEGER                                            :: handle, i, imol, ineighbor, jmol, kmol, &
                                                             maxdegree, nneighbors, nnodes
@@ -168,8 +167,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: maxdegree
       INTEGER, INTENT(out)                               :: ncolors
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'color_graph_greedy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'color_graph_greedy'
 
       INTEGER                                            :: color, handle, i, j, newcolor, &
                                                             nneighbors, nnodes
@@ -284,8 +282,7 @@ CONTAINS
       TYPE(vertex_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: graph
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_cp_heap_fill', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_cp_heap_fill'
 
       INTEGER                                            :: i, nnodes
       INTEGER(kind=valt), ALLOCATABLE, DIMENSION(:)      :: values
@@ -508,8 +505,7 @@ CONTAINS
       TYPE(vertex_p_type), DIMENSION(:), POINTER         :: graph
       INTEGER                                            :: ncolors
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_pair_switching', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_pair_switching'
 
       INTEGER                                            :: depth, handle, i, iter, j, low_col, &
                                                             low_col_neigh, maxdepth, &
@@ -638,8 +634,7 @@ CONTAINS
       INTEGER(KIND=int_4), ALLOCATABLE, DIMENSION(:), &
          INTENT(out)                                     :: color_of_node
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_vertex_coloring', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_vertex_coloring'
 
       INTEGER                                            :: color, handle, i, nnodes, unit_nr
       LOGICAL                                            :: valid

@@ -105,8 +105,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: estate
       INTEGER, INTENT(IN)                                :: istate
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_read_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xas_read_restart'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER :: group, handle, i, ia, ie, ispin, my_spin, nao, nao_read, nelectron, nexc_atoms, &
@@ -280,8 +279,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: xas_method, iatom, istate
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_write_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xas_write_restart'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: my_middle
@@ -372,8 +370,7 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_initialize_rho', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_initialize_rho'
 
       INTEGER                                            :: handle, ispin, my_spin, nelectron
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -448,8 +445,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'find_excited_core_orbital', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'find_excited_core_orbital'
 
       INTEGER                                            :: i, ic_max, ir_max, m, my_spin, n, nao, &
                                                             nexc_search, nmo, xas_estate

@@ -238,8 +238,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(6), OPTIONAL                             :: wf_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw'
 
       INTEGER                                            :: handle, homo, ispin, min_lumos, n_rep, &
                                                             nhomo, nlumo, nlumo_stm, nlumo_tddft, &
@@ -850,8 +849,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_charges', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_charges'
 
       INTEGER                                            :: handle, print_level, unit_nr
       LOGICAL                                            :: do_kpoints, print_it
@@ -923,8 +921,7 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: homo, ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_occ_cubes', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_occ_cubes'
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
       INTEGER                                            :: handle, i, ir, ivector, n_rep, nhomo, &
@@ -1028,8 +1025,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nlumos, homo, ispin
       INTEGER, INTENT(IN), OPTIONAL                      :: lumo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_unocc_cubes', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_unocc_cubes'
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
       INTEGER                                            :: handle, ifirst, index_mo, ivector, &
@@ -1098,8 +1094,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_moments', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_moments'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: handle, maxmom, reference, unit_nr
@@ -1216,8 +1211,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_post_xray', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_post_xray'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: handle, unit_nr
@@ -1272,8 +1266,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_efg', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_scf_post_efg'
 
       INTEGER                                            :: handle
       TYPE(section_vals_type), POINTER                   :: print_key
@@ -1350,8 +1343,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_elf', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_scf_post_elf'
 
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             title
@@ -1460,8 +1452,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_molopt', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_molopt'
 
       INTEGER                                            :: handle, nao, unit_nr
       REAL(KIND=dp)                                      :: S_cond_number
@@ -1532,8 +1523,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_epr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_scf_post_epr'
 
       INTEGER                                            :: handle
       TYPE(section_vals_type), POINTER                   :: print_key
@@ -1562,8 +1552,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results'
 
       INTEGER                                            :: handle
 
@@ -1590,8 +1579,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_dependent_results', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_dependent_results'
 
       INTEGER                                            :: handle, homo, ik, ispin, nmo, output_unit
       LOGICAL                                            :: all_equal, do_kpoints
@@ -1817,8 +1805,7 @@ CONTAINS
    SUBROUTINE write_mo_free_results(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_free_results', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_free_results'
       CHARACTER(len=1), DIMENSION(3), PARAMETER          :: cdir = (/"x", "y", "z"/)
 
       CHARACTER(LEN=2)                                   :: element_symbol
@@ -2530,8 +2517,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_section
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_charges', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'hirshfeld_charges'
 
       INTEGER                                            :: i, iat, ikind, natom, nkind, nspin, &
                                                             radius_type, refc, shapef
@@ -2653,8 +2639,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a, cb, b
       INTEGER, INTENT(IN)                                :: l
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'project_function_a', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'project_function_a'
 
       INTEGER                                            :: info, n
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
@@ -2689,8 +2674,7 @@ CONTAINS
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       INTEGER, INTENT(IN)                                :: l
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'project_function_b', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'project_function_b'
 
       INTEGER                                            :: i, info, n, nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
@@ -2728,8 +2712,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_local_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_local_energy'
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube
       INTEGER                                            :: handle, io_unit, natom, unit_nr
@@ -2804,8 +2787,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_local_stress', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_local_stress'
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube
       INTEGER                                            :: handle, io_unit, natom, unit_nr
@@ -2885,8 +2867,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_ps_implicit', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_ps_implicit'
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube
       INTEGER                                            :: boundary_condition, handle, i, j, &
@@ -3089,8 +3070,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: input
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_adjacency_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_adjacency_matrix'
 
       INTEGER                                            :: adjm_size, colind, handle, iatom, ikind, &
                                                             ind, jatom, jkind, k, natom, nkind, &

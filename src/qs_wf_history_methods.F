@@ -394,8 +394,7 @@ CONTAINS
    SUBROUTINE wfi_create_for_kp(wf_history)
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_create_for_kp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfi_create_for_kp'
 
       CPASSERT(ASSOCIATED(wf_history))
       IF (wf_history%store_rho_ao) THEN
@@ -427,8 +426,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: method_nr
       CHARACTER(len=30)                                  :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_method_label', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_method_label'
 
       res = "unknown"
       SELECT CASE (method_nr)
@@ -481,8 +479,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: extrapolation_method_nr
       LOGICAL, INTENT(OUT), OPTIONAL                     :: orthogonal_wf
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfi_extrapolate'
 
       INTEGER                                            :: actual_extrapolation_method_nr, handle, &
                                                             i, img, io_unit, ispin, k, n, nmo, &
@@ -962,8 +959,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nvec
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_set_history_variables', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_set_history_variables'
 
       INTEGER                                            :: handle
 
@@ -1035,8 +1031,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: v_matrix
       INTEGER, INTENT(in), OPTIONAL                      :: n_col
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'reorthogonalize_vectors', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'reorthogonalize_vectors'
 
       INTEGER                                            :: handle, my_n_col
       LOGICAL                                            :: has_unit_metric, &
@@ -1102,8 +1097,7 @@ CONTAINS
    SUBROUTINE wfi_purge_history(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_purge_history', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfi_purge_history'
 
       INTEGER                                            :: handle, io_unit, print_level
       TYPE(cp_logger_type), POINTER                      :: logger

@@ -121,8 +121,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: shell_particle_set, core_particle_set
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'force_field_pack'
 
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: Ainfo
@@ -348,8 +347,7 @@ CONTAINS
          DIMENSION(:), POINTER                           :: array
       INTEGER, INTENT(IN)                                :: output_unit, iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_FF_missing_par', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'release_FF_missing_par'
 
       INTEGER                                            :: i
 
@@ -406,8 +404,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: mm_section
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_qeff_output', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_qeff_output'
 
       CHARACTER(LEN=default_string_length)               :: atmname, molname
       INTEGER                                            :: first, handle, iatom, imol, iw, j, jatom
@@ -499,8 +496,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(section_vals_type), POINTER                   :: mm_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'clean_intra_force_kind', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'clean_intra_force_kind'
 
       INTEGER :: atm2_a, atm2_b, atm2_c, atm_a, atm_b, atm_c, atm_d, counter, handle, i, ibend, &
          ibond, icolv, ig3x3, ig4x6, iimpr, ikind, iopbend, itorsion, iub, iw, j, k, nbend, nbond, &
@@ -1246,8 +1242,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: size_variables, i_rep_sec
       CHARACTER(LEN=*), DIMENSION(:), OPTIONAL           :: input_variables
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_generic_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_generic_info'
 
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: my_par, my_par_tmp, my_units, &

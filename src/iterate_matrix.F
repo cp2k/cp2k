@@ -472,8 +472,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_lanczos
       LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Hotelling', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Hotelling'
 
       INTEGER                                            :: accelerator_type, handle, i, &
                                                             my_max_iter_lanczos, unit_nr
@@ -678,8 +677,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_Newton_Schulz', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_Newton_Schulz'
 
       INTEGER                                            :: count, handle, i, order, unit_nr
       INTEGER(KIND=int_8)                                :: flops
@@ -1006,8 +1004,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_proot', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_proot'
 
       INTEGER                                            :: handle, order, unit_nr
       INTEGER(KIND=int_8)                                :: flop0, flop1, flop2
@@ -1102,8 +1099,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dense_matrix_sign_Newton_Schulz', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dense_matrix_sign_Newton_Schulz'
 
       INTEGER                                            :: handle, i, j, sz, unit_nr
       LOGICAL                                            :: converged
@@ -1358,8 +1354,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
       INTEGER, INTENT(IN)                                :: submatrix_sign_method
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix'
 
       INTEGER                                            :: group, handle, i, myrank, nblkcols, &
                                                             order, sm_size, unit_nr
@@ -1444,8 +1439,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN)                                :: variant
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix_mu_adjust', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix_mu_adjust'
 
       INTEGER                                            :: group, handle, i, j, k, l, myrank, nblkcols, &
                                                             sm_size, unit_nr, sm_firstcol, sm_lastcol
@@ -1659,8 +1653,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
       LOGICAL, OPTIONAL                                  :: symmetrize, converged
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_Newton_Schulz', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_Newton_Schulz'
 
       INTEGER                                            :: handle, i, unit_nr
       INTEGER(KIND=int_8)                                :: flop1, flop2, flop3, flop4, flop5
@@ -1907,8 +1900,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
       LOGICAL, OPTIONAL                                  :: symmetrize, converged
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_proot', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_proot'
 
       INTEGER                                            :: choose, handle, i, ii, j, unit_nr
       INTEGER(KIND=int_8)                                :: f, flop1, flop2, flop3, flop4, flop5
@@ -2130,8 +2122,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_exp, matrix
       REAL(KIND=dp), INTENT(IN)                          :: omega, alpha, threshold
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_exponential', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_exponential'
       REAL(dp), PARAMETER                                :: one = 1.0_dp, toll = 1.E-17_dp, &
                                                             zero = 0.0_dp
 
@@ -2238,8 +2229,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: threshold
       INTEGER                                            :: max_steps
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mcweeny_orth', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mcweeny_orth'
 
       INTEGER                                            :: handle, i, ispin, unit_nr
       REAL(KIND=dp)                                      :: frob_norm, trace
@@ -2303,8 +2293,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: threshold
       INTEGER                                            :: max_steps
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mcweeny_nonorth', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mcweeny_nonorth'
 
       INTEGER                                            :: handle, i, ispin, unit_nr
       REAL(KIND=dp)                                      :: frob_norm, trace

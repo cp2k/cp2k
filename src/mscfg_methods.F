@@ -80,8 +80,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'loop_over_molecules', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'loop_over_molecules'
 
       INTEGER                                            :: nmols
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: charge_of_frag, first_atom_of_frag, &
@@ -141,8 +140,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: first_atom_of_frag, last_atom_of_frag, &
                                                             charge_of_frag, multip_of_frag
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calcs_on_isolated_molecules', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calcs_on_isolated_molecules'
 
       CHARACTER(LEN=default_string_length)               :: name
       CHARACTER(LEN=default_string_length), &
@@ -377,8 +375,7 @@ CONTAINS
          DIMENSION(:), POINTER                           :: atom_type
       INTEGER, INTENT(IN)                                :: frag, nfrags, charge, multpl
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_frag_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_frag_info'
 
       CHARACTER(len=11)                                  :: charI
       INTEGER                                            :: i, iw

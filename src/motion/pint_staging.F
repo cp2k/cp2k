@@ -47,8 +47,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: p
       REAL(kind=dp), INTENT(in)                          :: kT
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'staging_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'staging_env_create'
 
       CPASSERT(.NOT. ASSOCIATED(staging_env))
       ALLOCATE (staging_env)
@@ -78,8 +77,7 @@ CONTAINS
    SUBROUTINE staging_release(staging_env)
       TYPE(staging_env_type), POINTER                    :: staging_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'staging_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'staging_release'
 
       IF (ASSOCIATED(staging_env)) THEN
          CPASSERT(staging_env%ref_count > 0)
@@ -128,8 +126,7 @@ CONTAINS
          OPTIONAL                                        :: mass_beads, mass_fict
       REAL(kind=dp), DIMENSION(:), INTENT(out), OPTIONAL :: Q
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'staging_init_masses', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'staging_init_masses'
 
       INTEGER                                            :: i, iat, ib, iseg
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: scal
@@ -317,8 +314,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: mass_beads, ux, uf_h
       REAL(KIND=dp), INTENT(OUT)                         :: e_h
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'staging_calc_uf_h', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'staging_calc_uf_h'
 
       INTEGER                                            :: idim, isg, ist
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii, jjj, kkk

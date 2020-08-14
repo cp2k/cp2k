@@ -146,8 +146,7 @@ CONTAINS
          INTENT(INOUT)                                   :: copy
       LOGICAL, INTENT(IN)                                :: copy_data
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'copy_submatrix_array', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'copy_submatrix_array'
 
       INTEGER                                            :: handle, idomain, ndomains, ndomainsB
 
@@ -260,8 +259,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: array
       TYPE(domain_submatrix_type), INTENT(INOUT)         :: copy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'copy_submatrix_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'copy_submatrix_data'
 
       INTEGER                                            :: ds1, ds2, handle, ms1, ms2
 
@@ -300,8 +298,7 @@ CONTAINS
          INTENT(INOUT)                                   :: submatrices
       REAL(KIND=dp), INTENT(IN)                          :: scalar
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_submatrix_array', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_submatrix_array'
 
       INTEGER                                            :: handle, idomain, ndomains
 
@@ -367,8 +364,7 @@ CONTAINS
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: subm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_submatrix_array', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'release_submatrix_array'
 
       INTEGER                                            :: handle, idomain, ndomains
 
@@ -391,8 +387,7 @@ CONTAINS
 
       TYPE(domain_submatrix_type), INTENT(INOUT)         :: subm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_submatrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_submatrix'
 
       INTEGER                                            :: handle
 
@@ -445,8 +440,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: beta
       TYPE(domain_submatrix_type), INTENT(INOUT)         :: C
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'multiply_submatrices_once', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'multiply_submatrices_once'
 
       INTEGER                                            :: cs1, cs2, handle, icol, irow, K, K1, &
                                                             LDA, LDB, LDC, M, Mblocks, N, Nblocks
@@ -575,8 +569,7 @@ CONTAINS
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: C
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'multiply_submatrices_array', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'multiply_submatrices_array'
 
       INTEGER                                            :: handle, idomain, idomainA, idomainB, &
                                                             ndomains, ndomainsB, ndomainsC
@@ -627,8 +620,7 @@ CONTAINS
       TYPE(domain_submatrix_type), INTENT(IN)            :: B
       CHARACTER, INTENT(IN)                              :: transB
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_submatrices_once', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'add_submatrices_once'
 
       INTEGER                                            :: C1, C2, handle, icol, R1, R2
       LOGICAL                                            :: NOTB
@@ -687,8 +679,7 @@ CONTAINS
          INTENT(IN)                                      :: B
       CHARACTER, INTENT(IN)                              :: transB
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_submatrices_array', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'add_submatrices_array'
 
       INTEGER                                            :: handle, idomain, idomainA, idomainB, &
                                                             ndomains, ndomainsB
@@ -732,8 +723,7 @@ CONTAINS
          INTENT(IN)                                      :: submatrices
       REAL(KIND=dp), INTENT(OUT)                         :: norm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'maxnorm_submatrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'maxnorm_submatrices'
 
       INTEGER                                            :: handle, idomain, ndomains
       REAL(KIND=dp)                                      :: curr_norm, send_norm
@@ -782,8 +772,7 @@ CONTAINS
          INTENT(IN)                                      :: A, B
       REAL(KIND=dp), INTENT(OUT)                         :: trace
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'trace_submatrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'trace_submatrices'
 
       INTEGER                                            :: domainA, domainB, handle, idomain, &
                                                             ndomainsA, ndomainsB
@@ -855,8 +844,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: node_of_domain
       INTEGER, INTENT(IN)                                :: job_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_submatrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'construct_submatrices'
 
       CHARACTER                                          :: matrix_type
       INTEGER :: block_node, block_offset, col, col_offset, col_size, dest_node, GroupID, handle, &
@@ -1347,8 +1335,7 @@ CONTAINS
          INTENT(IN)                                      :: submatrix
       TYPE(dbcsr_type), INTENT(IN)                       :: distr_pattern
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_dbcsr_from_submatrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'construct_dbcsr_from_submatrices'
 
       CHARACTER                                          :: matrix_type
       INTEGER :: block_offset, col, col_offset, colsize, dest_node, GroupID, handle, iBlock, icol, &
@@ -1605,8 +1592,7 @@ CONTAINS
          INTENT(IN)                                      :: submatrices
       INTEGER, INTENT(IN)                                :: mpgroup
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_submatrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_submatrices'
 
       CHARACTER(len=30)                                  :: colstr, formatstr
       INTEGER                                            :: handle, i, irow, n, ncols, nrows

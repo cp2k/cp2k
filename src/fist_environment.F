@@ -236,8 +236,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: prev_subsys
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fist_init_subsys', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fist_init_subsys'
 
       INTEGER                                            :: handle, max_multipole
       LOGICAL                                            :: do_multipoles

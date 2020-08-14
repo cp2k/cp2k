@@ -59,8 +59,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(smear_type), POINTER                          :: smear
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_3', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_3'
 
       INTEGER                                            :: all_nmo, handle, homo_a, homo_b, i, &
                                                             lfomo_a, lfomo_b, nmo_a, nmo_b, &
@@ -201,8 +200,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eval_deriv
       REAL(KIND=dp), OPTIONAL                            :: tot_zeff_corr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_2'
 
       INTEGER                                            :: handle, i, lumo_a, lumo_b, &
                                                             multiplicity_new, multiplicity_old, &
@@ -402,8 +400,7 @@ CONTAINS
       TYPE(xas_environment_type), OPTIONAL, POINTER      :: xas_env
       REAL(KIND=dp), OPTIONAL                            :: tot_zeff_corr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_1'
 
       INTEGER                                            :: handle, i_first, imo, ir, irmo, nmo, &
                                                             nomo, xas_estate

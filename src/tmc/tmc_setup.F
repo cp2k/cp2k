@@ -348,8 +348,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_analyze_files', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_analyze_files'
 
       INTEGER                                            :: comm, dir_ind, handle, my_mpi_world, &
                                                             nr_dim, output_unit, temp
@@ -474,8 +473,7 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: elem
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tmc_read_ana_files_input', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'tmc_read_ana_files_input'
 
       CHARACTER(len=default_string_length), &
          DIMENSION(:), POINTER                           :: directories
@@ -572,8 +570,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tmc_preread_input', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'tmc_preread_input'
 
       CHARACTER(LEN=default_path_length)                 :: c_tmp
       INTEGER                                            :: itmp
@@ -812,8 +809,7 @@ CONTAINS
       INTEGER                                            :: ana_on_the_fly
       LOGICAL                                            :: success
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tmc_redistributing_cores', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'tmc_redistributing_cores'
 
       INTEGER :: cc_group, cc_group_rank, comm_tmp, master_ana_group, master_ana_rank, &
          master_first_e_worker_g, master_first_e_worker_r, master_worker_group, &

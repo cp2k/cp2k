@@ -458,8 +458,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(in)                  :: kind_id, unit_id
       INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: power
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_create2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_unit_create2'
 
       INTEGER                                            :: i, j, max_kind, max_pos
       LOGICAL                                            :: repeat
@@ -573,8 +572,7 @@ CONTAINS
    SUBROUTINE cp_unit_release(unit)
       TYPE(cp_unit_type), POINTER                        :: unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_unit_release'
 
       IF (ASSOCIATED(unit)) THEN
          CPASSERT(unit%ref_count > 0)
@@ -594,8 +592,7 @@ CONTAINS
    SUBROUTINE cp_basic_unit_check(basic_kind, basic_unit)
       INTEGER, INTENT(in)                                :: basic_kind, basic_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_check', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_check'
 
       SELECT CASE (basic_kind)
       CASE (cp_ukind_undef)
@@ -686,8 +683,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: power
       REAL(kind=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_to_cp2k', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_to_cp2k'
 
       INTEGER                                            :: my_power
 
@@ -855,8 +851,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: accept_undefined
       CHARACTER(len=cp_unit_basic_desc_length)           :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_desc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_desc'
 
       INTEGER                                            :: a, my_power
       LOGICAL                                            :: my_accept_undefined
@@ -1137,8 +1132,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: power
       REAL(kind=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_to_cp2k1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_unit_to_cp2k1'
 
       INTEGER                                            :: i_unit, my_basic_unit, my_power
 
@@ -1178,8 +1172,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: power
       REAL(kind=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_from_cp2k1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_from_cp2k1'
 
       INTEGER                                            :: my_power
 
@@ -1210,8 +1203,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: power
       REAL(kind=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_to_cp2k', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_unit_to_cp2k'
 
       TYPE(cp_unit_type), POINTER                        :: my_unit
 
@@ -1243,8 +1235,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: power
       REAL(kind=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_from_cp2k', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_unit_from_cp2k'
 
       TYPE(cp_unit_type), POINTER                        :: my_unit
 
@@ -1270,8 +1261,7 @@ CONTAINS
       TYPE(cp_unit_type), POINTER                        :: ref_unit, unit
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_compatible', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_compatible'
 
       INTEGER                                            :: i
 
@@ -1296,8 +1286,7 @@ CONTAINS
       TYPE(cp_unit_set_type), POINTER                    :: unit_set
       CHARACTER(len=*), INTENT(in)                       :: name
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_create'
 
       CHARACTER(len=default_string_length)               :: my_name
       INTEGER                                            :: i
@@ -1373,8 +1362,7 @@ CONTAINS
    SUBROUTINE cp_unit_set_retain(unit_set)
       TYPE(cp_unit_set_type), POINTER                    :: unit_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_retain'
 
       CPASSERT(ASSOCIATED(unit_set))
       CPASSERT(unit_set%ref_count > 0)
@@ -1389,8 +1377,7 @@ CONTAINS
    SUBROUTINE cp_unit_set_release(unit_set)
       TYPE(cp_unit_set_type), POINTER                    :: unit_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_release'
 
       INTEGER                                            :: i
 
@@ -1414,8 +1401,7 @@ CONTAINS
    SUBROUTINE print_all_units(unit_nr)
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_all_units', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_all_units'
 
       CALL print_section_unit(unit_label="Undefined", description="If the default unit "// &
                               "of a keyword is explicitly undefined, all possible units of measurement can "// &
@@ -1484,8 +1470,7 @@ CONTAINS
       CHARACTER(LEN=*), DIMENSION(:), INTENT(IN)         :: units_set
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_section_unit', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_section_unit'
 
       INTEGER                                            :: i
 

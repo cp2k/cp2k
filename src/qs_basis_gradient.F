@@ -81,8 +81,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_basis_center_gradient', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_basis_center_gradient'
 
       INTEGER                                            :: handle, i, iatom, ikind, img, ispin, &
                                                             natom, nimg, nkind, nspin
@@ -231,8 +230,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_update_basis_center_pos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_update_basis_center_pos'
 
       INTEGER                                            :: handle, iatom, ikind, natom
       LOGICAL                                            :: floating
@@ -276,8 +274,7 @@ CONTAINS
    SUBROUTINE qs_basis_reinit_energy(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_basis_reinit_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_basis_reinit_energy'
 
       INTEGER                                            :: handle, ispin, nmo
       TYPE(cp_fm_type), POINTER                          :: mo_coeff

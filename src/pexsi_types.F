@@ -198,8 +198,7 @@ CONTAINS
    SUBROUTINE lib_pexsi_finalize(pexsi_env)
       TYPE(lib_pexsi_env), INTENT(INOUT)                 :: pexsi_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lib_pexsi_finalize', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'lib_pexsi_finalize'
 
       INTEGER                                            :: handle, ispin
 
@@ -234,8 +233,7 @@ CONTAINS
       TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: matrix_w
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: kTS
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'convert_nspin_cp2k_pexsi', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'convert_nspin_cp2k_pexsi'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: scaling

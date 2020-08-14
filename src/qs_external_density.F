@@ -56,8 +56,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'external_read_density', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'external_read_density'
 
       CHARACTER(LEN=default_string_length)               :: filename
       INTEGER                                            :: extunit, gid, handle, i, igrid_level, &

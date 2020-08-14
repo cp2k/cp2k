@@ -45,8 +45,7 @@ CONTAINS
    SUBROUTINE create_TMC_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -373,8 +372,7 @@ CONTAINS
    SUBROUTINE create_TMC_NMC_move_type_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_NMC_move_type_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_NMC_move_type_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -437,8 +435,7 @@ CONTAINS
    SUBROUTINE create_TMC_move_type_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_move_type_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_move_type_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -510,8 +507,7 @@ CONTAINS
    SUBROUTINE create_TMC_ana_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_ana_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_ana_section'
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="TMC_ANALYSIS", &
@@ -530,8 +526,7 @@ CONTAINS
    SUBROUTINE create_TMC_ana_files(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_ana_files', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_ana_files'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -630,8 +625,7 @@ CONTAINS
    SUBROUTINE create_TMC_ana_kinds(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_ana_kinds', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_ana_kinds'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection

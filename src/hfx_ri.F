@@ -115,8 +115,7 @@ CONTAINS
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       INTEGER, INTENT(IN)                                :: nspins
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_pre_scf_mo', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_pre_scf_mo'
 
       INTEGER                                            :: handle, handle2, ispin, n_dependent, &
                                                             unit_nr, unit_nr_dbcsr
@@ -335,8 +334,7 @@ CONTAINS
       TYPE(dbcsr_type), DIMENSION(1), INTENT(OUT)        :: t_2c_int_RI, t_2c_int_pot
       TYPE(dbcsr_t_type), DIMENSION(1, 1), INTENT(OUT)   :: t_3c_int
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_pre_scf_calc_tensors', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_pre_scf_calc_tensors'
 
       INTEGER                                            :: handle, i_mem, ibasis, mp_comm_t3c, &
                                                             n_mem, natom, nkind
@@ -541,8 +539,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_pre_scf_Pmat', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_pre_scf_Pmat'
 
       INTEGER                                            :: handle, handle2, i_mem, j_mem, &
                                                             n_dependent, unit_nr, unit_nr_dbcsr
@@ -766,8 +763,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
       REAL(KIND=dp), INTENT(IN)                          :: hf_fraction
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_update_ks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_update_ks'
 
       INTEGER                                            :: handle, handle2, ispin
       INTEGER(int_8)                                     :: nblks
@@ -919,8 +915,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: geometry_did_change
       INTEGER, INTENT(IN)                                :: nspins
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_update_ks_mo', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_update_ks_mo'
       REAL(dp), PARAMETER                                :: lb_ratio = 0.1_dp
 
       INTEGER :: bsize, bsum, comm_2d, count, handle, handle2, i_mem, iblock, iproc, ispin, &
@@ -1334,8 +1329,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: geometry_did_change
       INTEGER, INTENT(IN)                                :: nspins
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_update_ks_Pmat', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_update_ks_Pmat'
 
       INTEGER                                            :: handle, handle2, i_mem, ispin, j_mem, &
                                                             n_mem, unit_nr, unit_nr_dbcsr

@@ -661,8 +661,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_gal_arrays', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'setup_gal_arrays'
 
       INTEGER                                            :: handle, i, iend, igrp, ikind, ilist, &
                                                             ipair, istart, jkind, nkinds, npairs, &
@@ -760,8 +759,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_gal_arrays', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_gal_arrays'
 
       IF (ASSOCIATED(glob_loc_list)) THEN
          DEALLOCATE (glob_loc_list)
@@ -791,8 +789,7 @@ CONTAINS
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       LOGICAL, INTENT(IN)                                :: print_oh, print_h3o, print_o
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_nr_ions_gal', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_nr_ions_gal'
 
       INTEGER                                            :: iw
       TYPE(cp_logger_type), POINTER                      :: logger

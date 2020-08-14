@@ -73,8 +73,7 @@ CONTAINS
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: evals
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_localization_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_localization_info'
 
       INTEGER                                            :: handle, ispin, mystate, ns, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: lstates, marked_states_spin

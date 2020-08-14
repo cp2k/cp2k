@@ -90,8 +90,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_file, subsys_section
       TYPE(global_constraint_type), POINTER              :: gci
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_constraint_pack', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'topology_constraint_pack'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: molname, name
@@ -902,8 +901,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: colvar_rest
       INTEGER, INTENT(IN)                                :: first_atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_colv_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_colv_list'
 
       INTEGER                                            :: j, kdim, kk, ncolv_mol
       REAL(KIND=dp)                                      :: rmod
@@ -972,8 +970,7 @@ CONTAINS
       TYPE(constraint_info_type), POINTER                :: cons_info
       INTEGER, INTENT(OUT)                               :: ng3x3_restraint
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_g3x3_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_g3x3_list'
 
       INTEGER                                            :: j, ng3x3
 
@@ -1010,8 +1007,7 @@ CONTAINS
       TYPE(constraint_info_type), POINTER                :: cons_info
       INTEGER, INTENT(OUT)                               :: ng4x6_restraint
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_g4x6_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_g4x6_list'
 
       INTEGER                                            :: j, ng4x6
 
@@ -1052,8 +1048,7 @@ CONTAINS
       TYPE(constraint_info_type), POINTER                :: cons_info
       INTEGER, INTENT(OUT)                               :: nvsite_restraint
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_vsite_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_vsite_list'
 
       INTEGER                                            :: j, nvsite
 
@@ -1321,8 +1316,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       LOGICAL, DIMENSION(:), POINTER                     :: exclude_qm, exclude_mm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'give_constraint_array', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'give_constraint_array'
 
       CHARACTER(LEN=default_string_length)               :: myname, name
       INTEGER                                            :: handle, i, iglob, isize, k
@@ -1389,8 +1383,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: found
       CHARACTER(LEN=*), INTENT(IN)                       :: name
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_warning_molname', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_warning_molname'
 
       IF (.NOT. found) &
          CALL cp_warn(__LOCATION__, &

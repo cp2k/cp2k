@@ -96,8 +96,7 @@ CONTAINS
          POINTER                                         :: rho_atom_set_external
       TYPE(section_vals_type), OPTIONAL, POINTER         :: xc_section_external
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom'
 
       INTEGER                                            :: bo(2), handle, ia, iat, iatom, idir, &
                                                             ikind, ir, ispin, mepos, myfun, na, &
@@ -473,8 +472,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_tddft
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_triplet
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom'
 
       INTEGER                                            :: atom, excitations, handle, iatom, ikind, &
                                                             ir, na, natom, nr, nspins, res_etype
@@ -755,8 +753,7 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r_h_d, r_s_d
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho_h, drho_s
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_rho_angular', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_rho_angular'
 
       INTEGER                                            :: ia, iso, ispin, na
       REAL(KIND=dp)                                      :: rad, urad
@@ -870,8 +867,7 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: trho_h, trho_s
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: tau_h, tau_s
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_tau_angular', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_tau_angular'
 
       INTEGER                                            :: ia, iso, ispin, na
 

@@ -50,8 +50,7 @@ CONTAINS
       REAL(dp), DIMENSION(*)                             :: x
       TYPE(opt_state_type)                               :: optstate
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'powell_optimize', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'powell_optimize'
 
       INTEGER                                            :: handle, npt
 

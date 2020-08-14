@@ -113,8 +113,7 @@ CONTAINS
       TYPE(debug_variables_type), INTENT(INOUT), &
          OPTIONAL                                        :: debug
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fist_calc_energy_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fist_calc_energy_force'
 
       INTEGER :: do_ipol, ewald_type, fg_coulomb_size, handle, i, ii, ikind, iparticle_kind, &
          iparticle_local, iw, iw2, j, natoms, nlocal_particles, node, nparticle_kind, &

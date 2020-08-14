@@ -72,8 +72,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_motion_section
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: prev_subsys
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_create_force_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_create_force_env'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: myqmmm

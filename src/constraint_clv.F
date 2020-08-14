@@ -110,8 +110,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: dt
       TYPE(section_vals_type), POINTER                   :: motion_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_int', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_int'
 
       TYPE(colvar_constraint_type), POINTER              :: colv_list(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
@@ -319,8 +318,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: dt
       TYPE(section_vals_type), POINTER                   :: motion_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_ext', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_ext'
 
       TYPE(colvar_constraint_type), POINTER              :: colv_list(:)
 
@@ -560,8 +558,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: dt
       TYPE(section_vals_type), POINTER                   :: motion_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_low'
 
       INTEGER                                            :: iconst, irep, n_rep
       LOGICAL                                            :: do_update_colvar, explicit
@@ -881,8 +878,7 @@ CONTAINS
          OPTIONAL                                        :: rmat
       REAL(KIND=dp), DIMENSION(:)                        :: imass
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_con_colv', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'update_con_colv'
 
       INTEGER                                            :: iatm, ind
       LOGICAL                                            :: my_roll
@@ -928,8 +924,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: imass
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eval_Jac_colvar', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eval_Jac_colvar'
 
       INTEGER                                            :: i, iatom
       LOGICAL                                            :: my_roll
@@ -981,8 +976,7 @@ CONTAINS
          POINTER                                         :: particles
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rattle_con_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rattle_con_eval'
 
       INTEGER                                            :: iatm, ind
       LOGICAL                                            :: my_roll

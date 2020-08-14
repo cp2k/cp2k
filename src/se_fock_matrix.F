@@ -79,8 +79,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix'
 
       INTEGER                                            :: handle, ispin, natom, ncol_global, &
                                                             nspins, output_unit

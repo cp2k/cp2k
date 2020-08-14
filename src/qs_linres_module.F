@@ -111,8 +111,7 @@ CONTAINS
 
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation'
 
       INTEGER                                            :: handle
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -156,8 +155,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation_low'
 
       INTEGER                                            :: handle, iounit
       LOGICAL                                            :: epr_present, issc_present, &

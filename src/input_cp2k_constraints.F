@@ -58,8 +58,7 @@ CONTAINS
    SUBROUTINE create_constraint_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_constraint_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_constraint_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
@@ -158,8 +157,7 @@ CONTAINS
    SUBROUTINE create_clv_rest_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_clv_rest_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_clv_rest_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -189,8 +187,7 @@ CONTAINS
    SUBROUTINE create_f_a_rest_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_f_a_rest_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_f_a_rest_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -218,8 +215,7 @@ CONTAINS
    SUBROUTINE restraint_info_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'restraint_info_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'restraint_info_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -251,8 +247,7 @@ CONTAINS
    SUBROUTINE create_collective_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_collective_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_collective_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -340,8 +335,7 @@ CONTAINS
    SUBROUTINE create_fixed_atom_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_fixed_atom_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_fixed_atom_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -443,8 +437,7 @@ CONTAINS
    SUBROUTINE create_g3x3_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_g3x3_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_g3x3_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -517,8 +510,7 @@ CONTAINS
    SUBROUTINE create_hbonds_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_hbonds_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_hbonds_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -586,8 +578,7 @@ CONTAINS
    SUBROUTINE create_g4x6_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_g4x6_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_g4x6_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -660,8 +651,7 @@ CONTAINS
    SUBROUTINE create_vsite_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_vsite_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_vsite_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

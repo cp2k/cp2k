@@ -80,8 +80,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_kpoints_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_kpoints_restart'
       CHARACTER(LEN=30), DIMENSION(2), PARAMETER :: &
          keys = (/"SCF%PRINT%RESTART_HISTORY", "SCF%PRINT%RESTART        "/)
 
@@ -187,8 +186,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER                                            :: ires
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_kpoints_file_header', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_kpoints_file_header'
 
       INTEGER                                            :: handle, iatom, ikind, iset, ishell, &
                                                             lmax, lshell, nao, natom, nset, &
@@ -306,8 +304,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section
       LOGICAL, INTENT(OUT)                               :: natom_mismatch
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_kpoints_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_kpoints_restart'
 
       CHARACTER(LEN=default_path_length)                 :: file_name
       INTEGER                                            :: group, handle, restart_unit, source
@@ -377,8 +374,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: natom, rst_unit
       LOGICAL, INTENT(OUT)                               :: natom_mismatch
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_kpoints_restart_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_kpoints_restart_low'
 
       INTEGER :: group, ic, image, ispin, nao, nao_read, natom_read, ni, nimages, nset_max, &
          nshell_max, nspin, nspin_read, source, version_read

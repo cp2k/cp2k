@@ -102,8 +102,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_tensor_3c_overl_int_gw', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_tensor_3c_overl_int_gw'
 
       INTEGER                                            :: handle, icol_global, imo, irow_global, &
                                                             min_bsize, min_bsize_mo, nkind, &
@@ -384,8 +383,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: do_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reflect_mat_row', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reflect_mat_row'
 
       INTEGER :: block, block_size, col, col_rec, col_size, handle, i_atom, i_block, imepos, &
          j_atom, natom, nblkcols_total, nblkrows_total, offset, row, row_rec, row_reflected, &

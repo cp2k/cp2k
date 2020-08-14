@@ -172,8 +172,7 @@ CONTAINS
 
       TYPE(pile_therm_type), POINTER                     :: pile_therm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_pile_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_pile_release'
 
       IF (ASSOCIATED(pile_therm)) THEN
          pile_therm%ref_count = pile_therm%ref_count - 1
@@ -201,8 +200,7 @@ CONTAINS
    SUBROUTINE pint_calc_pile_energy(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_pile_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_pile_energy'
 
       IF (ASSOCIATED(pint_env%pile_therm)) THEN
          pint_env%e_pile = pint_env%pile_therm%thermostat_energy

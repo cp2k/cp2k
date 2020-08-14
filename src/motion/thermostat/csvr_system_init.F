@@ -51,8 +51,7 @@ CONTAINS
       TYPE(csvr_system_type), POINTER                    :: csvr
       TYPE(section_vals_type), POINTER                   :: csvr_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_baro', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_baro'
 
       CALL csvr_to_barostat_mapping(simpar, csvr)
       CALL restart_csvr(csvr, csvr_section)
@@ -86,8 +85,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: csvr_section
       TYPE(global_constraint_type), POINTER              :: gci
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_part', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_part'
 
       CALL csvr_to_particle_mapping(thermostat_info, simpar, local_molecules, &
                                     molecule, molecule_kind_set, csvr, para_env, gci)
@@ -122,8 +120,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: csvr_section
       TYPE(global_constraint_type), POINTER              :: gci
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_shell', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_shell'
 
       CALL csvr_to_shell_mapping(thermostat_info, simpar, local_molecules, &
                                  molecule, molecule_kind_set, csvr, para_env, gci)

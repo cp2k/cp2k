@@ -146,8 +146,7 @@ CONTAINS
          POINTER                                         :: atomic_kind_set
       TYPE(section_vals_type), OPTIONAL, POINTER         :: mm_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_evaluate', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_evaluate'
 
       INTEGER                                            :: group, handle, i, j, size1, size2
       LOGICAL                                            :: check_debug, check_efield, check_forces, &
@@ -366,8 +365,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: efield0
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: efield1, efield2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_SR', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_SR'
 
       INTEGER :: a, atom_a, atom_b, b, c, d, e, handle, i, iend, igrp, ikind, ilist, ipair, &
                  istart, itype_ij, itype_ji, jkind, k, kind_a, kind_b, kk, nkdamp_ij, nkdamp_ji, nkinds, &
@@ -543,8 +541,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERFC", damping=True, store_e
       REAL(KIND=dp), DIMENSION(:), POINTER               :: efield0
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: efield1, efield2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_bonded', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_bonded'
 
       INTEGER                                            :: a, atom_a, atom_b, b, c, d, e, handle, &
                                                             i, iend, igrp, ilist, ipair, istart, &
@@ -660,8 +657,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       REAL(KIND=dp), DIMENSION(:), POINTER               :: efield0
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: efield1, efield2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_LR', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_LR'
 
       COMPLEX(KIND=dp)                                   :: atm_factor, atm_factor_st(3), cnjg_fac, &
                                                             fac, summe_tmp
@@ -981,8 +977,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: quadrupoles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_factor', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_factor'
 
       COMPLEX(KIND=dp)                                   :: tmp
       INTEGER                                            :: i, j
@@ -1037,8 +1032,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: quadrupoles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_factor_stress', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_factor_stress'
 
       INTEGER                                            :: i
 
@@ -1099,8 +1093,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       REAL(KIND=dp), DIMENSION(:), POINTER               :: efield0
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: efield1, efield2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_self', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_self'
       REAL(KIND=dp), PARAMETER                           :: f23 = 2.0_dp/3.0_dp, &
                                                             f415 = 4.0_dp/15.0_dp
 
@@ -1247,8 +1240,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       REAL(KIND=dp), INTENT(IN)                          :: e_gspace, e_rspace, e_bonded, e_self, &
                                                             e_neut
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_print', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_print'
 
       IF (iw > 0) THEN
          WRITE (iw, '( A, A )') ' *********************************', &
@@ -1572,8 +1564,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          REAL(KIND=dp), INTENT(OUT)                         :: energy
          LOGICAL, INTENT(IN)                                :: debug_r_space
 
-         CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipole_low', &
-                                        routineP = moduleN//':'//routineN
+         CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipole_low'
 
          INTEGER                                            :: atom_a, atom_b, icell, iend, igrp, &
                                                                ikind, ilist, ipair, istart, jcell, &
@@ -1706,8 +1697,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
             POINTER                                         :: quadrupoles
 
-         CHARACTER(len=*), PARAMETER :: routineN = 'create_multi_type', &
-                                        routineP = moduleN//':'//routineN
+         CHARACTER(len=*), PARAMETER :: routineN = 'create_multi_type'
 
          INTEGER                                            :: i, isize, k, l, m
          REAL(KIND=dp)                                      :: dx, r2, rvec(3), rvec1(3), rvec2(3)
@@ -1807,8 +1797,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       SUBROUTINE release_multi_type(multipoles)
          TYPE(multi_charge_type), DIMENSION(:), POINTER     :: multipoles
 
-         CHARACTER(len=*), PARAMETER :: routineN = 'release_multi_type', &
-                                        routineP = moduleN//':'//routineN
+         CHARACTER(len=*), PARAMETER :: routineN = 'release_multi_type'
 
          INTEGER                                            :: i, j
 
@@ -1835,8 +1824,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
          TYPE(charge_mono_type), DIMENSION(:), POINTER      :: charge_typ
          INTEGER, INTENT(IN)                                :: istart, iend
 
-         CHARACTER(len=*), PARAMETER :: routineN = 'reallocate_charge_type', &
-                                        routineP = moduleN//':'//routineN
+         CHARACTER(len=*), PARAMETER :: routineN = 'reallocate_charge_type'
 
          INTEGER                                            :: i, isize, j, jsize, jsize1, jsize2
          TYPE(charge_mono_type), DIMENSION(:), POINTER      :: charge_typ_bk
@@ -1919,8 +1907,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
       TYPE(section_vals_type), POINTER                   :: mm_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles_fields', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles_fields'
 
       INTEGER                                            :: i, iparticle_kind, j, k, &
                                                             nparticle_local, nparticles
@@ -2105,8 +2092,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       LOGICAL, DIMENSION(3), INTENT(IN)                  :: task
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles_fields2', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles_fields2'
 
       INTEGER                                            :: i, ind, iparticle_kind, j, k, &
                                                             nparticle_local, nparticles

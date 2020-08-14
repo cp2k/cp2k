@@ -96,8 +96,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mp_comm_3d
       LOGICAL, INTENT(IN), OPTIONAL                      :: own_comm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_3d_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_3d_create'
 
       INTEGER                                            :: comm_2d_1, comm_2d_2, handle, nproc_1, &
                                                             nproc_2
@@ -137,8 +136,7 @@ CONTAINS
    SUBROUTINE distribution_3d_destroy(dist)
       TYPE(distribution_3d_type)                         :: dist
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_3d_destroy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_3d_destroy'
 
       INTEGER                                            :: handle
 
@@ -171,8 +169,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: mp_comm_2d
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_create'
 
       INTEGER                                            :: handle, iatom, ikind, n, natom, nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nparticle_local_col, nparticle_local_row
@@ -340,8 +337,7 @@ CONTAINS
          starts_array_block_2, ends_array_block_2, starts_array_block_3, ends_array_block_3
       CHARACTER(len=*), INTENT(IN)                       :: name
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_3c_tensor', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_3c_tensor'
 
       INTEGER                                            :: handle, imem, nbatches_1, nbatches_2, &
                                                             nbatches_3, size_1, size_2, size_3, &
@@ -433,8 +429,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: order
       CHARACTER(len=*), INTENT(IN)                       :: name
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_2c_tensor', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_2c_tensor'
 
       INTEGER                                            :: handle, size_1, size_2
       INTEGER, DIMENSION(2)                              :: order_in, pcoord, pdims
