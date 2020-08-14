@@ -557,7 +557,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atm_map1, atm_map2
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: atm_map3
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_graph'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_graph'
 
       INTEGER                                            :: i, idim, ifirst, ilast, j, nbonds, &
                                                             nelement

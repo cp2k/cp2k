@@ -79,7 +79,7 @@ CONTAINS
       TYPE(tddfpt_env_type), INTENT(out)                 :: t_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_init'
 
 !------------------!
 ! create the p_env !
@@ -137,7 +137,7 @@ CONTAINS
       TYPE(tddfpt_env_type), INTENT(inout)               :: t_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_cleanup'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_cleanup'
 
       CALL tddfpt_env_deallocate(t_env)
       CALL p_env_release(p_env)

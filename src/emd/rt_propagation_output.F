@@ -110,7 +110,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: run_type
       REAL(dp), INTENT(in), OPTIONAL                     :: delta_iter, used_time
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_output'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rt_prop_output'
 
       INTEGER                                            :: n_electrons, nspin, output_unit, spin
       REAL(dp)                                           :: orthonormality, tot_rho_r
@@ -345,7 +345,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: delta_mos
       REAL(dp), INTENT(out)                              :: delta_eps
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rt_convergence'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, i, icol, im, ispin, j, lcol, &
@@ -521,7 +521,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'make_moment'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'make_moment'
 
       INTEGER                                            :: handle, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -676,7 +676,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section
       INTEGER                                            :: spin, nspin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rt_current'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rt_current'
 
       CHARACTER(len=1)                                   :: char_spin
       CHARACTER(len=14)                                  :: ext

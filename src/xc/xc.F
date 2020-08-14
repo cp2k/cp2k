@@ -882,7 +882,7 @@ CONTAINS
          POINTER                                         :: e_0
       REAL(kind=dp), INTENT(in), OPTIONAL                :: e_0_scale_factor
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'smooth_cutoff'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'smooth_cutoff'
 
       INTEGER                                            :: i, j, k
       INTEGER, DIMENSION(2, 3)                           :: bo
@@ -1834,7 +1834,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       REAL(kind=dp)                                      :: exc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_exc_calc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_exc_calc'
 
       INTEGER                                            :: handle
       REAL(dp)                                           :: density_smooth_cut_range, rho_cutoff

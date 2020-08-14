@@ -96,7 +96,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: norm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'basis_norm_shg'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'basis_norm_shg'
 
       INTEGER                                            :: ipgf, iset, ishell, jpgf, l
       REAL(KIND=dp)                                      :: aai, aaj, cci, ccj, expa, ppl

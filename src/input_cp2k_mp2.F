@@ -221,7 +221,7 @@ CONTAINS
    SUBROUTINE create_ri_mp2(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_mp2'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ri_mp2'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -420,7 +420,7 @@ CONTAINS
    SUBROUTINE create_ri_rpa(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_rpa'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ri_rpa'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -551,7 +551,7 @@ CONTAINS
    SUBROUTINE create_ri_axk(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_axk'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ri_axk'
 
       !TYPE(section_type), POINTER                        :: subsection
 
@@ -572,7 +572,7 @@ CONTAINS
    SUBROUTINE create_ri_g0w0(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_g0w0'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ri_g0w0'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -1236,7 +1236,7 @@ CONTAINS
    SUBROUTINE create_wfc_gpw(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_wfc_gpw'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_wfc_gpw'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1309,7 +1309,7 @@ CONTAINS
    SUBROUTINE create_cphf(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_cphf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_cphf'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

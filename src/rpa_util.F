@@ -184,7 +184,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: mat_work
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'alloc_im_time'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'alloc_im_time'
 
       INTEGER                                            :: cell_grid_dm(3), first_ikp_local, &
                                                             handle, i_dim, periodic(3)
@@ -415,7 +415,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: ikp_local
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: fm_struct_sub_kp
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reorder_mat_L'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reorder_mat_L'
 
       INTEGER                                            :: handle, i_size, j_size, nblk
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
@@ -618,7 +618,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: my_num_dgemm_call
       REAL(KIND=dp), INTENT(INOUT)                       :: my_flop_rate
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mat_Q'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_mat_Q'
 
       INTEGER                                            :: handle
 

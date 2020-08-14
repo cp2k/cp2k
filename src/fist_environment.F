@@ -103,7 +103,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_motion_section
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: prev_subsys
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fist_init'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fist_init'
 
       INTEGER                                            :: handle, iw
       LOGICAL                                            :: qmmm, shell_adiabatic, shell_present

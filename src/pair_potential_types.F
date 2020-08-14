@@ -325,7 +325,7 @@ CONTAINS
       TYPE(pair_potential_single_type), POINTER          :: pot1, pot2
       LOGICAL, INTENT(OUT)                               :: compare
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compare_pot'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'compare_pot'
 
       INTEGER                                            :: i
       LOGICAL                                            :: mycompare

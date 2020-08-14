@@ -145,7 +145,7 @@ CONTAINS
       LOGICAL                                            :: linear_scaling
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_aux
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rt_prop_create'
 
       INTEGER                                            :: i, j, nao, nrow_block, nspin
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
@@ -340,7 +340,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: admm_mos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_rtp'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_rtp'
 
       CPASSERT(ASSOCIATED(rtp))
       IF (PRESENT(exp_H_old)) exp_H_old => rtp%exp_H_old

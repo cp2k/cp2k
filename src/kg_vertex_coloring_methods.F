@@ -220,7 +220,7 @@ CONTAINS
       TYPE(vertex_p_type), DIMENSION(:), POINTER         :: graph
       INTEGER, INTENT(IN)                                :: ncolors, unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_subsets'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_subsets'
 
       INTEGER                                            :: counter, handle, i, j, nnodes
 
@@ -314,7 +314,7 @@ CONTAINS
       TYPE(cp_heap_type)                                 :: heap
       TYPE(vertex), INTENT(IN), POINTER                  :: node
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_update_node'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_update_node'
 
       INTEGER                                            :: degree, dsat, id
       INTEGER(KIND=valt)                                 :: value
@@ -347,7 +347,7 @@ CONTAINS
       TYPE(vertex_p_type), DIMENSION(:), POINTER         :: graph
       INTEGER(KIND=int_4), INTENT(OUT)                   :: ncolors
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kg_dsatur'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'kg_dsatur'
 
       INTEGER                                            :: color_limit, handle, i, j, key, &
                                                             maxdegree, nneighbors, nnodes
@@ -576,7 +576,7 @@ CONTAINS
          POINTER                                         :: graph
       LOGICAL, INTENT(out)                               :: valid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_coloring'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'check_coloring'
 
       INTEGER                                            :: handle, i, j, nneighbors, nnodes
       TYPE(vertex), POINTER                              :: neighbor, node

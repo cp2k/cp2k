@@ -109,7 +109,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: group
       TYPE(distribution_1d_type), POINTER                :: local_particles
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_control'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'shake_control'
 
       INTEGER                                            :: handle, i, ikind, imol, ishake_ext, &
                                                             ishake_int, k, n3x3con, n4x6con, &
@@ -236,7 +236,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: group
       TYPE(distribution_1d_type), POINTER                :: local_particles
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_control'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rattle_control'
 
       INTEGER                                            :: handle, i, ikind, imol, irattle_ext, &
                                                             irattle_int, k, n3x3con, n4x6con, &
@@ -733,7 +733,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: log_unit, i, ishake_int
       REAL(KIND=dp), INTENT(IN)                          :: max_sigma
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_int_info'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'shake_int_info'
 
       IF (log_unit > 0) THEN
          ! Dump info if requested
@@ -760,7 +760,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: log_unit, ishake_ext
       REAL(KIND=dp), INTENT(IN)                          :: max_sigma
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_ext_info'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'shake_ext_info'
 
       IF (log_unit > 0) THEN
          ! Dump info if requested

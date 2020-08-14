@@ -489,7 +489,7 @@ CONTAINS
          OPTIONAL, POINTER                               :: pao_descriptors
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: nelec
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_kind'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_qs_kind'
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER                                            :: l
@@ -1164,7 +1164,7 @@ CONTAINS
    SUBROUTINE init_qs_kind(qs_kind)
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_qs_kind'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_qs_kind'
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, i
@@ -1319,7 +1319,7 @@ CONTAINS
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_gapw_nlcc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_gapw_nlcc'
 
       INTEGER                                            :: i, ic, ikind, n_nlcc, nc, nexp_nlcc, &
                                                             nkind, nr
@@ -1421,7 +1421,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: no_fail
       INTEGER, INTENT(IN)                                :: method_id
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_qs_kind'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_qs_kind'
       INTEGER, PARAMETER                                 :: maxbas = 20
 
       CHARACTER(LEN=2)                                   :: element_symbol
@@ -2505,7 +2505,7 @@ CONTAINS
       TYPE(dft_control_type), INTENT(IN)                 :: dft_control
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_qs_kind'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_qs_kind'
 
       LOGICAL                                            :: defined
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
@@ -2663,7 +2663,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: elec_conf
       INTEGER, INTENT(IN), OPTIONAL                      :: pao_basis_size
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_kind'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_qs_kind'
 
       IF (PRESENT(dftb_parameter)) qs_kind%dftb_parameter => dftb_parameter
       IF (PRESENT(xtb_parameter)) qs_kind%xtb_parameter => xtb_parameter
@@ -2722,7 +2722,7 @@ CONTAINS
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       INTEGER, INTENT(in)                                :: kind_number, output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_qs_kind'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'write_qs_kind'
 
       CHARACTER(LEN=3)                                   :: yon
       CHARACTER(LEN=default_string_length)               :: basis_type, bstring
@@ -3205,7 +3205,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:)                   :: qs_kind_set
       LOGICAL                                            :: nlcc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'has_nlcc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'has_nlcc'
 
       INTEGER                                            :: ikind
       LOGICAL                                            :: nlcc_present

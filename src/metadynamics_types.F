@@ -149,7 +149,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: metadyn_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'metadyn_create'
 
       INTEGER                                            :: i
       LOGICAL                                            :: do_langevin
@@ -238,7 +238,7 @@ CONTAINS
       TYPE(meta_env_type), POINTER                       :: meta_env
       REAL(KIND=dp), OPTIONAL, POINTER                   :: time
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_meta_env'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_meta_env'
 
       IF (ASSOCIATED(meta_env)) THEN
          IF (PRESENT(time)) THEN

@@ -87,7 +87,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_env_init'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'polar_env_init'
 
       INTEGER                                            :: handle, idir, iounit, ispin, m, nao, &
                                                             nmo, nspins
@@ -199,7 +199,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_polar'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'polar_polar'
 
       INTEGER                                            :: handle, i, iounit, ispin, nspins, z
       LOGICAL                                            :: do_periodic, do_raman, run_stopped
@@ -286,7 +286,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'polar_print'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'polar_print'
 
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: iounit, unit_p
@@ -377,7 +377,7 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_response'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'polar_response'
 
       INTEGER                                            :: handle, idir, iounit, ispin, nao, nmo, &
                                                             nspins

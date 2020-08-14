@@ -79,7 +79,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
       LOGICAL, INTENT(IN), OPTIONAL                      :: trans
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'contraction_ab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'contraction_ab'
 
       INTEGER                                            :: lda, ldb, ldq, lds, ldw, mal, mbl, nal, &
                                                             nbl
@@ -381,7 +381,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: na, nb, m
       LOGICAL, INTENT(IN), OPTIONAL                      :: trans
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_trace_ab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'force_trace_ab'
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_trans
@@ -429,7 +429,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ia, ib
       LOGICAL, INTENT(IN), OPTIONAL                      :: trans
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'block_add_ab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'block_add_ab'
 
       INTEGER                                            :: ja, jb
       LOGICAL                                            :: my_trans

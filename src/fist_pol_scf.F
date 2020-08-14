@@ -695,7 +695,7 @@ CONTAINS
          OPTIONAL                                        :: forces_local, forces_glob, pv_local, &
                                                             pv_glob
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eval_pol_ewald'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eval_pol_ewald'
 
       INTEGER                                            :: handle
 

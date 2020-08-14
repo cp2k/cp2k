@@ -372,7 +372,7 @@ CONTAINS
       INTEGER, POINTER                                   :: new_indices(:), new_labels(:)
       INTEGER                                            :: new_full_labels(:), max_n_qm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_new_label'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'add_new_label'
 
       INTEGER                                            :: i, old_index
 

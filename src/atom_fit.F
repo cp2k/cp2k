@@ -178,7 +178,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iunit
       TYPE(section_vals_type), POINTER                   :: powell_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_basis'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_fit_basis'
 
       INTEGER                                            :: i, j, k, l, ll, m, n, n10, nl, nr, zval
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: xtob
@@ -1175,7 +1175,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: iunit
       LOGICAL, INTENT(in)                                :: preopt_nlcc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'opt_nlcc_param'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'opt_nlcc_param'
 
       INTEGER                                            :: i, im, j, k, method
       REAL(KIND=dp)                                      :: rcov, zcore, zrc, zrch
@@ -1308,7 +1308,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: co
       REAL(dp), INTENT(OUT)                              :: aerr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'density_fit'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'density_fit'
 
       INTEGER                                            :: i, info, ip, iq, k, nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
@@ -1387,7 +1387,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
       LOGICAL, INTENT(IN)                                :: penalty
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'basis_fit'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'basis_fit'
 
       INTEGER                                            :: do_eric, do_erie, i, im, in, l, nm, nn, &
                                                             reltyp, zval
@@ -1492,7 +1492,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: wen, ten
       LOGICAL, INTENT(IN)                                :: init
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pseudo_fit'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pseudo_fit'
 
       INTEGER                                            :: i, i1, i2, j, j1, j2, k, l, n, node
       LOGICAL                                            :: converged, noguess, shift
@@ -1858,7 +1858,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: xval
       REAL(dp)                                           :: yval
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rcpro'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rcpro'
 
       REAL(dp)                                           :: x1, x2
 
@@ -1889,7 +1889,7 @@ CONTAINS
       TYPE(section_vals_type), OPTIONAL, POINTER         :: powell_section
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: results
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_kgpot'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_fit_kgpot'
       REAL(KIND=dp), PARAMETER                           :: t23 = 2._dp/3._dp
 
       INTEGER                                            :: i, ig, ip, iw, j, n10
@@ -2010,7 +2010,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: cval
       REAL(dp), INTENT(OUT)                              :: aerr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kgpot_fit'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'kgpot_fit'
 
       INTEGER                                            :: i, ig, ip, n
       REAL(KIND=dp)                                      :: pc, rc

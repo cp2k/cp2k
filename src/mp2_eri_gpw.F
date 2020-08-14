@@ -392,7 +392,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          INTENT(IN), POINTER                             :: sab_orb_sub
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_gpw'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'prepare_gpw'
 
       INTEGER                                            :: handle, i_multigrid, n_multigrid
       LOGICAL                                            :: skip_load_balance_distributed
@@ -486,7 +486,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, rho_g, pot_g, psi_L
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cleanup_gpw'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cleanup_gpw'
 
       INTEGER                                            :: handle
       TYPE(dft_control_type), POINTER                    :: dft_control

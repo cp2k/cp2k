@@ -126,7 +126,7 @@ CONTAINS
       INTEGER                                            :: operator_type
       REAL(dp)                                           :: cutoff
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lattice_sum'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lattice_sum'
 
       INTEGER :: factor, handle, i_block, i_x, i_x_inner, i_x_outer, ik, j_y, j_y_inner, &
          j_y_outer, k_z, k_z_inner, k_z_outer, nkp, x_max, x_min, y_max, y_min, z_max, z_min
@@ -623,7 +623,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_v_L_tmp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_v_kp
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_tmp'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'allocate_tmp'
 
       INTEGER                                            :: handle
 
@@ -649,7 +649,7 @@ CONTAINS
 
       TYPE(dbcsr_type), POINTER                          :: matrix_v_L_tmp
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_tmp'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'deallocate_tmp'
 
       INTEGER                                            :: handle
 

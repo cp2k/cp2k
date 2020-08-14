@@ -304,7 +304,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(IN)               :: this
       INTEGER                                            :: res
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'maxsize'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'maxsize'
 
       res = MAXVAL(this%sizes)
 

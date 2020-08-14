@@ -1014,7 +1014,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ngroup, igroup, mp_comm
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_B_L'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_B_L'
       LOGICAL, PARAMETER                                 :: debug = .FALSE.
 
       INTEGER                                            :: check_proc, handle, i, iend, ii, ioff, &
@@ -1421,7 +1421,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: my_Lrows
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_Lcols'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'grep_Lcols'
 
       INTEGER :: handle, handle2, i_global, iiB, j_global, jjB, max_row_col_local, ncol_local, &
          ncol_rec, nrow_local, nrow_rec, proc_receive, proc_receive_static, proc_send, &

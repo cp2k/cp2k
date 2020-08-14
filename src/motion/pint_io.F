@@ -422,7 +422,7 @@ CONTAINS
 
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_com'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_write_com'
 
       CHARACTER(len=default_string_length)               :: stmp1, stmp2
       INTEGER                                            :: ic, unit_nr

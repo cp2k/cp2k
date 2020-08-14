@@ -1314,7 +1314,7 @@ CONTAINS
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff_beta
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_num_int'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_num_int'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &

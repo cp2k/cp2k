@@ -80,7 +80,7 @@ CONTAINS
       TYPE(neb_type), POINTER                            :: neb_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: full_allocation
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'neb_var_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'neb_var_create'
 
       INTEGER                                            :: neb_nr_replica
       LOGICAL                                            :: allocate_all

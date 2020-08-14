@@ -104,7 +104,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: rcom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_rcom'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_rcom'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: denom, mass
@@ -144,7 +144,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: vcom
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: ecom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_vcom'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_vcom'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: denom, mass
@@ -219,7 +219,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: ireg
       REAL(KIND=dp)                                      :: ekin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_ekin'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_ekin'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: mass
@@ -269,7 +269,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: ireg, nfree
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: temp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rescale_vel'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rescale_vel'
 
       INTEGER                                            :: i, my_ireg, my_nfree
       REAL(KIND=dp)                                      :: factor, my_temp
@@ -376,7 +376,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: vcom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'subtract_vcom'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'subtract_vcom'
 
       INTEGER                                            :: i
 
@@ -420,7 +420,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rcom
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: vang
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_vang'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_vang'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: mass, proj
@@ -488,7 +488,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rcom, vang
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'subtract_vang'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'subtract_vang'
 
       INTEGER                                            :: i
       REAL(KIND=dp), DIMENSION(3)                        :: r
@@ -1390,7 +1390,7 @@ CONTAINS
       TYPE(md_ener_type), POINTER                        :: md_ener
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: vsubtract
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_vcom'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reset_vcom'
 
       INTEGER                                            :: atom, handle, iatom, ikind, natom, &
                                                             shell_index
@@ -1484,7 +1484,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: temp_expected, temp_tol
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scale_velocity'
 
       REAL(KIND=dp)                                      :: ekin_old, scale, temp_old
 
@@ -1931,7 +1931,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: md_section
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'comvel_control'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'comvel_control'
 
       INTEGER                                            :: handle, iw
       LOGICAL                                            :: explicit
@@ -1995,7 +1995,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: md_section
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'angvel_control'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'angvel_control'
 
       INTEGER                                            :: handle, ifixd, imolecule_kind, iw, natoms
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: is_fixed

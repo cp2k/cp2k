@@ -430,7 +430,7 @@ CONTAINS
       CHARACTER(LEN=1), INTENT(IN)                       :: testchar
       LOGICAL                                            :: resval
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'is_comment'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'is_comment'
 
       resval = .FALSE.
       ! We are in a private function, and parser has been tested before...

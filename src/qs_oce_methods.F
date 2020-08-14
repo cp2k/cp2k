@@ -688,7 +688,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: aout
       TYPE(qs_kind_type), INTENT(IN)                     :: atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'prj_gather'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'prj_gather'
 
       INTEGER                                            :: i, ip, j, jp, nbas
       INTEGER, DIMENSION(:), POINTER                     :: n2oindex
@@ -722,7 +722,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: aout
       TYPE(qs_kind_type), INTENT(IN)                     :: atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'prj_scatter'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'prj_scatter'
 
       INTEGER                                            :: i, ip, j, jp, nbas
       INTEGER, DIMENSION(:), POINTER                     :: n2oindex

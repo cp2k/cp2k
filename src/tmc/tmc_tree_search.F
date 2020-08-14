@@ -68,7 +68,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: n_acc
       LOGICAL, OPTIONAL                                  :: search_energy_node
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'most_prob_end'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'most_prob_end'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: check_accepted, check_rejected, keep_on, &

@@ -60,7 +60,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: noguess
       LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_atom'
 
       INTEGER                                            :: handle, method
       LOGICAL                                            :: explicit

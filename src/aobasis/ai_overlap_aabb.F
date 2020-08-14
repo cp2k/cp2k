@@ -97,7 +97,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lds
       REAL(KIND=dp), DIMENSION(lds, lds), INTENT(INOUT)  :: s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'overlap_aabb'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'overlap_aabb'
 
       INTEGER :: ax, ay, az, bx, by, bz, coa, coamx, coamy, coamz, coapx, coapy, coapz, cob, &
          cobm2x, cobm2y, cobm2z, cobmx, cobmy, cobmz, handle, i, ia, ib, ipgf, j, ja, jb, jpgf, &

@@ -75,7 +75,7 @@ CONTAINS
 
       TYPE(lri_opt_type), POINTER                        :: lri_opt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_lri_opt'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_lri_opt'
 
       ALLOCATE (lri_opt)
 

@@ -863,7 +863,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(3), INTENT(INOUT)       :: df
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'derive_fft'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fft'
 
       INTEGER                                            :: handle, i
       INTEGER, DIMENSION(3)                              :: nd

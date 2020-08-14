@@ -209,7 +209,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: init_mpi
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_cp2k'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_cp2k'
 
       INTEGER                                            :: mpi_comm_default, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -291,7 +291,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: finalize_mpi
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'finalize_cp2k'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'finalize_cp2k'
 
       INTEGER                                            :: ienv
 
@@ -335,7 +335,7 @@ CONTAINS
    RECURSIVE SUBROUTINE f_env_dealloc(f_env)
       TYPE(f_env_type), POINTER                          :: f_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'f_env_dealloc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'f_env_dealloc'
 
       INTEGER                                            :: ierr
 
@@ -370,7 +370,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=*), INTENT(in)                       :: old_dir
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'f_env_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'f_env_create'
 
       ALLOCATE (f_env)
       f_env%force_env => force_env
@@ -977,7 +977,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: env_id
       INTEGER, INTENT(OUT)                               :: n_atom, ierr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_natom'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_natom'
 
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -1002,7 +1002,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: env_id
       INTEGER, INTENT(OUT)                               :: n_particle, ierr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_nparticle'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_nparticle'
 
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -1029,7 +1029,7 @@ CONTAINS
       INTEGER, DIMENSION(3), OPTIONAL                    :: per
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_cell'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_cell'
 
       TYPE(cell_type), POINTER                           :: cell_full
       TYPE(f_env_type), POINTER                          :: f_env
@@ -1106,7 +1106,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(1:n_el)                   :: frc
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_force'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_force'
 
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -1166,7 +1166,7 @@ CONTAINS
       REAL(KIND=DP), DIMENSION(1:n_el)                   :: pos
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pos'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_pos'
 
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -1192,7 +1192,7 @@ CONTAINS
       REAL(KIND=DP), DIMENSION(1:n_el)                   :: vel
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_vel'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_vel'
 
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -1216,7 +1216,7 @@ CONTAINS
       REAL(KIND=DP), DIMENSION(3, 3)                     :: new_cell
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_cell'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'set_cell'
 
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -1250,7 +1250,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(1:n_el)                   :: new_pos
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_pos'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'set_pos'
 
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(f_env_type), POINTER                          :: f_env
@@ -1279,7 +1279,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:n_el)                   :: new_vel
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_vel'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'set_vel'
 
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(f_env_type), POINTER                          :: f_env
@@ -1335,7 +1335,7 @@ CONTAINS
       REAL(kind=dp), INTENT(out)                         :: e_pot
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_energy'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_energy'
 
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -1432,7 +1432,7 @@ CONTAINS
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_input'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'check_input'
 
       INTEGER                                            :: unit_nr
       LOGICAL                                            :: my_echo_input

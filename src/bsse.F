@@ -365,7 +365,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: bsse_section
       INTEGER, INTENT(IN)                                :: present_charge, present_multpl
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_bsse_info'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dump_bsse_info'
 
       INTEGER                                            :: i, istat, iw
       CHARACTER(len=20*SIZE(conf))                       :: conf_loc_s, conf_s

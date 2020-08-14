@@ -331,7 +331,7 @@ CONTAINS
       TYPE(tmc_move_type), POINTER                       :: move_types
       INTEGER, DIMENSION(:), POINTER                     :: mol_array
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_moves'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_moves'
 
       INTEGER                                            :: atom_j, list_i, ref_k
       LOGICAL                                            :: found
@@ -717,7 +717,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: acc, subbox
       LOGICAL, INTENT(IN)                                :: prob_opt
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'prob_update'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'prob_update'
 
       INTEGER                                            :: change_res, change_sb_type, change_type, &
                                                             conf_moved, handle, mv_type
@@ -827,7 +827,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), OPTIONAL                 :: mv_counter, acc_counter, subbox_counter, &
                                                             subbox_acc_counter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'add_mv_prob'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_mv_prob'
 
       CPASSERT(ASSOCIATED(move_types))
       CPASSERT(PRESENT(mv_counter) .OR. PRESENT(subbox_counter))

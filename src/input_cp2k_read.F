@@ -53,7 +53,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_input'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_input'
 
       INTEGER                                            :: handle
       TYPE(cp_parser_type), POINTER                      :: cpparser

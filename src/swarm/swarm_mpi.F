@@ -79,7 +79,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: worker_id
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_mpi_init'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'swarm_mpi_init'
 
       INTEGER                                            :: n_groups_created, pe_per_worker, &
                                                             subgroup, subgroup_rank, &

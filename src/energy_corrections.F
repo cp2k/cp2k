@@ -303,7 +303,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'harris_energy'
 
       REAL(KIND=dp)                                      :: exc
 
@@ -356,7 +356,7 @@ CONTAINS
       TYPE(energy_correction_type), POINTER              :: ec_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_disp'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_disp'
 
       REAL(KIND=dp)                                      :: edisp
 
@@ -1118,7 +1118,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(energy_correction_type), POINTER              :: ec_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_ks_solver'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_ks_solver'
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: handle, ispin, nspins
@@ -1321,7 +1321,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_p, matrix_w
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_diag_solver'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_diag_solver'
 
       INTEGER                                            :: handle, info, ispin, nmo(2), nsize, &
                                                             nspins
@@ -1448,7 +1448,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ls_method
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_p, matrix_w
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_ls_solver'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_ls_solver'
 
       INTEGER :: cluster_type, extrapolation_order, handle, ispin, max_iter_lanczos, nelectron, &
          nspins, s_inversion_type, s_preconditioner_type, s_sqrt_method, s_sqrt_order, &
@@ -1601,7 +1601,7 @@ CONTAINS
       TYPE(energy_correction_type)                       :: ec_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_energy'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_energy'
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(KIND=dp)                                      :: eband, trace
@@ -1784,7 +1784,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(energy_correction_type), POINTER              :: ec_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_properties'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_properties'
 
       CHARACTER(LEN=8), DIMENSION(3)                     :: rlab
       CHARACTER(LEN=default_path_length)                 :: filename

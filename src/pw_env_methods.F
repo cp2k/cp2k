@@ -119,7 +119,7 @@ CONTAINS
    SUBROUTINE pw_env_create(pw_env)
       TYPE(pw_env_type), POINTER                         :: pw_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_env_create'
 
       INTEGER                                            :: handle
 
@@ -152,7 +152,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: external_para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_rebuild'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_env_rebuild'
 
       CHARACTER(LEN=3)                                   :: string
       INTEGER :: blocked_id, blocked_id_input, boundary_condition, grid_span, handle, i, &

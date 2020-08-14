@@ -182,7 +182,7 @@ CONTAINS
    SUBROUTINE kpoint_create(kpoint)
       TYPE(kpoint_type), POINTER                         :: kpoint
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_create'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kpoint_create'
 
       CPASSERT(.NOT. ASSOCIATED(kpoint))
 
@@ -231,7 +231,7 @@ CONTAINS
    SUBROUTINE kpoint_release(kpoint)
       TYPE(kpoint_type), POINTER                         :: kpoint
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_release'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kpoint_release'
 
       INTEGER                                            :: ik
 
@@ -773,7 +773,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: mos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kpoint_env'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_kpoint_env'
 
       CPASSERT(ASSOCIATED(kpoint_env))
 

@@ -47,7 +47,7 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hcth_lda_info'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'hcth_lda_info'
 
       SELECT CASE (iparset)
       CASE (93)
@@ -118,7 +118,7 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hcth_lda_eval'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'hcth_lda_eval'
 
       INTEGER                                            :: npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -187,7 +187,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho
       INTEGER, INTENT(IN)                                :: npoints
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hcth_lda_calc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'hcth_lda_calc'
       REAL(KIND=dp), DIMENSION(4), PARAMETER :: &
          beta0 = (/7.59570_dp, 3.58760_dp, 1.63820_dp, 0.49294_dp/), &
          beta1 = (/14.11890_dp, 6.19770_dp, 3.36620_dp, 0.62517_dp/)

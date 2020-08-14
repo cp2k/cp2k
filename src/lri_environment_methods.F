@@ -1243,7 +1243,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_print_stat'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lri_print_stat'
 
       INTEGER                                            :: iunit
       REAL(KIND=dp) :: abai_mem, coef_mem, oint_mem, overlap_error, pairs_ff, pairs_sr, pairs_tt, &

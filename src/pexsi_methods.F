@@ -168,7 +168,7 @@ CONTAINS
       TYPE(lib_pexsi_env), INTENT(INOUT)                 :: pexsi_env
       TYPE(dbcsr_type), INTENT(IN)                       :: template_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pexsi_init_scf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pexsi_init_scf'
 
       INTEGER                                            :: handle, ispin, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -590,7 +590,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          OPTIONAL                                        :: matrix_w
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pexsi_to_qs'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pexsi_to_qs'
 
       INTEGER                                            :: handle, ispin, unit_nr
       REAL(KIND=dp)                                      :: kTS_total

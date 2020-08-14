@@ -127,7 +127,7 @@ CONTAINS
 
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'langevin'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'langevin'
 
       INTEGER :: iparticle, iparticle_kind, iparticle_local, iparticle_reg, ireg, nparticle, &
          nparticle_kind, nparticle_local, nshell
@@ -386,7 +386,7 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nve'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nve'
 
       INTEGER                                            :: i_iter, n_iter, nparticle, &
                                                             nparticle_kind, nshell
@@ -599,7 +599,7 @@ CONTAINS
 
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'isokin'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'isokin'
 
       INTEGER                                            :: nparticle, nparticle_kind, nshell
       INTEGER, POINTER                                   :: itimes
@@ -718,7 +718,7 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nvt_adiabatic'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nvt_adiabatic'
 
       INTEGER                                            :: ivar, nparticle, nparticle_kind, nshell
       INTEGER, POINTER                                   :: itimes
@@ -928,7 +928,7 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nvt'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nvt'
 
       INTEGER                                            :: ivar, nparticle, nparticle_kind, nshell
       INTEGER, POINTER                                   :: itimes
@@ -1170,7 +1170,7 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'npt_i'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'npt_i'
       REAL(KIND=dp), PARAMETER                           :: e2 = 1.0_dp/6.0_dp, e4 = e2/20.0_dp, &
                                                             e6 = e4/42.0_dp, e8 = e6/72.0_dp
 
@@ -1496,7 +1496,7 @@ CONTAINS
    SUBROUTINE reftraj(md_env)
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'reftraj'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'reftraj'
 
       CHARACTER(LEN=10)                                  :: AA
       INTEGER                                            :: cell_itimes, I, nparticle, Nread, &
@@ -1639,7 +1639,7 @@ CONTAINS
 
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nph_uniaxial'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nph_uniaxial'
       REAL(dp), PARAMETER                                :: e2 = 1._dp/6._dp, e4 = e2/20._dp, &
                                                             e6 = e4/42._dp, e8 = e6/72._dp
 
@@ -2138,7 +2138,7 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'npt_f'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'npt_f'
       REAL(KIND=dp), PARAMETER                           :: e2 = 1.0_dp/6.0_dp, e4 = e2/20.0_dp, &
                                                             e6 = e4/42.0_dp, e8 = e6/72.0_dp
 
@@ -2443,7 +2443,7 @@ CONTAINS
 
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nve_respa'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nve_respa'
 
       INTEGER                                            :: i_step, iparticle, iparticle_kind, &
                                                             iparticle_local, n_time_steps, &

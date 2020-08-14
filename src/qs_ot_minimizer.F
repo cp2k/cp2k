@@ -61,7 +61,7 @@ CONTAINS
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ot_mini'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_mini'
 
       INTEGER                                            :: handle, ispin, nspin
       LOGICAL                                            :: do_ener, do_ks
@@ -202,7 +202,7 @@ CONTAINS
    SUBROUTINE do_line_search(qs_ot_env)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'do_line_search'
 
       SELECT CASE (qs_ot_env(1)%settings%line_search_method)
       CASE ("GOLD")
@@ -229,7 +229,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: ds
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'take_step'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'take_step'
 
       INTEGER                                            :: handle, ispin, nspin
       LOGICAL                                            :: do_ener, do_ks
@@ -839,7 +839,7 @@ CONTAINS
    SUBROUTINE ot_diis_step(qs_ot_env)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ot_diis_step'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_diis_step'
 
       INTEGER                                            :: diis_bound, diis_m, handle, i, info, &
                                                             ispin, itmp, j, k, n, nener, nspin

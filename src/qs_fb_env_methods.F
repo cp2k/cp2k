@@ -138,7 +138,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_env_do_diag'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fb_env_do_diag'
 
       CHARACTER(len=2)                                   :: spin_string
       CHARACTER(len=default_string_length)               :: name

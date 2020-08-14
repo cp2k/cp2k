@@ -45,7 +45,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: iter_count
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'charge_mixing'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'charge_mixing'
 
       INTEGER                                            :: handle, ia, ii, imin, inow, nbuffer, ns, &
                                                             nvec
@@ -155,7 +155,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: inow, nvec, ns
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'broyden_mixing'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'broyden_mixing'
 
       INTEGER                                            :: i, ia, ii, imin, j, nbuffer, nv
       REAL(KIND=dp)                                      :: alpha, maxw, minw, omega0, rskip, wdf, &

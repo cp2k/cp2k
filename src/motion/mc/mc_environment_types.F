@@ -52,7 +52,7 @@ CONTAINS
 
       TYPE(mc_environment_type), POINTER                 :: mc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_env_create'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mc_env_create'
 
       ALLOCATE (mc_env)
 
@@ -122,7 +122,7 @@ CONTAINS
    SUBROUTINE mc_env_release(mc_env)
       TYPE(mc_environment_type), POINTER                 :: mc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_env_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mc_env_release'
 
       IF (ASSOCIATED(mc_env)) THEN
          CPASSERT(mc_env%ref_count > 0)

@@ -129,7 +129,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: result_count
       LOGICAL, OPTIONAL                                  :: wait_for_message, success
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_message'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tmc_message'
 
       INTEGER                                            :: i, message_tag, tmp_tag
       LOGICAL                                            :: act_send_recv, flag

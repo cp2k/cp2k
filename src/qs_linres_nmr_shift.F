@@ -106,7 +106,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iB
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_shift'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'nmr_shift'
 
       INTEGER                                            :: handle, idir, idir2, idir3, iiB, iiiB, &
                                                             ispin, natom, nspins
@@ -259,7 +259,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: IB, idir
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nmr_shift_gapw'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nmr_shift_gapw'
 
       INTEGER :: handle, ia, iat, iatom, idir2_1, idir3_1, ikind, ir, ira, ispin, j, jatom, mepos, &
          n_nics, na, natom, natom_local, natom_tot, nkind, nnics_local, nr, nra, nspins, num_pe, &

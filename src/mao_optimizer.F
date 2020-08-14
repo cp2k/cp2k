@@ -54,7 +54,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_grad, eps1
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_optimize'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mao_optimize'
 
       INTEGER                                            :: handle, i, ispin, iter, nspin
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, mao_sizes_a, mao_sizes_b

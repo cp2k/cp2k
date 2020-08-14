@@ -59,7 +59,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       LOGICAL, INTENT(IN), OPTIONAL                      :: eval_opt_geo, rm_restart_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_geo_opt'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_geo_opt'
 
       INTEGER                                            :: handle, step_start_val
       LOGICAL                                            :: my_rm_restart_info
@@ -117,7 +117,7 @@ CONTAINS
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       TYPE(section_vals_type), POINTER                   :: geo_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_rot_opt'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_rot_opt'
 
       INTEGER                                            :: handle, step_start_val
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -163,7 +163,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, geo_section
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_geo_opt_low'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_geo_opt_low'
 
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(ASSOCIATED(globenv))

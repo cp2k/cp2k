@@ -119,7 +119,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: p86_params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'p86_lda_eval'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'p86_lda_eval'
 
       INTEGER                                            :: handle, m, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo

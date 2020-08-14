@@ -65,7 +65,7 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cs1_lda_info'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_lda_info'
 
       IF (PRESENT(reference)) THEN
          reference = "N.C. Handy and A.J. Cohen, J. Chem. Phys., 116, 5411 (2002)"// &
@@ -96,7 +96,7 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cs1_lsd_info'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_lsd_info'
 
       IF (PRESENT(reference)) THEN
          reference = "N.C. Handy and A.J. Cohen, J. Chem. Phys., 116, 5411 (2002)"
@@ -147,7 +147,7 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       INTEGER, INTENT(in)                                :: order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cs1_lda_eval'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_lda_eval'
 
       INTEGER                                            :: handle, m, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -240,7 +240,7 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       INTEGER, INTENT(in)                                :: order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cs1_lsd_eval'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_lsd_eval'
 
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -603,7 +603,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_0
       INTEGER, INTENT(in)                                :: npoints
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cs1_ss_0'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_ss_0'
 
       INTEGER                                            :: ip
       REAL(KIND=dp)                                      :: F1a, F1b, F2a, F2b, ga, gb, oca, ocb, &
@@ -677,7 +677,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_rhoa, e_rhob, e_ndrhoa, e_ndrhob
       INTEGER, INTENT(in)                                :: npoints
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cs1_ss_1'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_ss_1'
 
       INTEGER                                            :: ip
       REAL(KIND=dp)                                      :: dF1a, dF1b, dgF2a, dgF2b, drF2a, drF2b, &

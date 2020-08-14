@@ -148,7 +148,7 @@ CONTAINS
 
       TYPE(qs_energy_type), POINTER                      :: qs_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_qs_energy'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_qs_energy'
 
       IF (ASSOCIATED(qs_energy)) THEN
          qs_energy%core = 0.0_dp

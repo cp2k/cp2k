@@ -57,7 +57,7 @@ CONTAINS
          OPTIONAL                                        :: polar
       INTEGER, INTENT(IN), OPTIONAL                      :: fixed_atoms
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_grrm'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_grrm'
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       INTEGER                                            :: i, j, natom, nc

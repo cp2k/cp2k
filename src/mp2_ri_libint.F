@@ -116,7 +116,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Lai
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'libint_ri_mp2'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'libint_ri_mp2'
 
       INTEGER                                            :: handle, nkind
 

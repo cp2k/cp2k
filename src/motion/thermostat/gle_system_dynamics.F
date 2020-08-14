@@ -84,7 +84,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: vel(:, :), shell_vel(:, :), &
                                                             core_vel(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gle_particles'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'gle_particles'
 
       INTEGER                                            :: handle, iadd, ideg, imap, ndim, num
       LOGICAL                                            :: my_shell_adiabatic, present_vel
@@ -423,7 +423,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: save_mem
       LOGICAL, INTENT(OUT)                               :: restart
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'restart_gle'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'restart_gle'
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
       INTEGER                                            :: glob_num, i, ind, j, loc_num, n_rep

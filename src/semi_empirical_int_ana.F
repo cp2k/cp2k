@@ -94,7 +94,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_ana'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotnuc_ana'
 
       INTEGER                                            :: i, idd, idp, ind1, ind2, ipp, j, &
                                                             last_orbital(2), m, n
@@ -353,7 +353,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'corecore_ana'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'corecore_ana'
 
       INTEGER                                            :: ig, nt
       LOGICAL                                            :: l_denuc, l_enuc
@@ -1094,7 +1094,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_sp_ana'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dnucint_sp_ana'
 
       INTEGER                                            :: ij, kl
       LOGICAL                                            :: l_core, l_ssss, si, sj
@@ -1175,7 +1175,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_d_ana'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dnucint_d_ana'
 
       INTEGER                                            :: ij, kl
 
@@ -1255,7 +1255,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rotint_ana'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotint_ana'
 
       INTEGER                                            :: i, i1, ii, ij, ij1, iminus, istep, &
                                                             iw_loc, j, j1, jj, k, kk, kl, l, &
@@ -1584,7 +1584,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       LOGICAL, INTENT(IN)                                :: lgrad
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dterep_ana'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dterep_ana'
 
       INTEGER                                            :: i, ij, j, k, kl, l, lasti, lastj, li, &
                                                             lj, lk, ll, numb
@@ -1691,7 +1691,7 @@ CONTAINS
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
       REAL(dp), INTENT(IN)                               :: ft, dft
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dterep_sp_ana'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dterep_sp_ana'
 
       INTEGER                                            :: i, ij, j, k, kl, l, lasti, lastj, li, &
                                                             lj, lk, ll, nold, numb
@@ -1755,7 +1755,7 @@ CONTAINS
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
       REAL(dp), INTENT(IN)                               :: ft, dft
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dterep_d_ana'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dterep_d_ana'
 
       INTEGER                                            :: i, ij, j, k, kl, l, lasti, lastj, li, &
                                                             lj, lk, ll, nold, numb

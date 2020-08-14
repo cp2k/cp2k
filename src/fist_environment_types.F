@@ -181,7 +181,7 @@ CONTAINS
          POINTER                                         :: exclusions
       TYPE(fist_efield_type), OPTIONAL, POINTER          :: efield
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_get'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fist_env_get'
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
@@ -317,7 +317,7 @@ CONTAINS
          POINTER                                         :: exclusions
       TYPE(fist_efield_type), OPTIONAL, POINTER          :: efield
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_set'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fist_env_set'
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds

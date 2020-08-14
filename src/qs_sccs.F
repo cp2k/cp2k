@@ -128,7 +128,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h_stress
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'sccs'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'sccs'
       REAL(KIND=dp), PARAMETER                           :: tol = 1.0E-12_dp
 
       CHARACTER(LEN=4*default_string_length)             :: message
@@ -898,7 +898,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: rho_elec, eps_elec, deps_elec
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, rho_max, rho_min
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'andreussi'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'andreussi'
       REAL(KIND=dp), PARAMETER                           :: tol = 1.0E-12_dp
 
       INTEGER                                            :: handle, i, j, k
@@ -976,7 +976,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: rho_elec, eps_elec, deps_elec
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, beta, rho_zero
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fattebert_gygi'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fattebert_gygi'
       REAL(KIND=dp), PARAMETER                           :: tol = 1.0E-12_dp
 
       INTEGER                                            :: handle, i, j, k
@@ -1043,7 +1043,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'derive'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive'
 
       INTEGER                                            :: border_points, handle, i
       INTEGER, DIMENSION(3)                              :: lb, n, ub

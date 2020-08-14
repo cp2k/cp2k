@@ -92,7 +92,7 @@ CONTAINS
       TYPE(lnhc_parameters_type), POINTER                :: lnhc
       TYPE(section_vals_type), POINTER                   :: section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lnhc_init'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lnhc_init'
 
       NULLIFY (lnhc%dt_yosh)
       NULLIFY (lnhc%nvt)
@@ -172,7 +172,7 @@ CONTAINS
    SUBROUTINE lnhc_dealloc(lnhc)
       TYPE(lnhc_parameters_type), POINTER                :: lnhc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lnhc_dealloc'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lnhc_dealloc'
 
       IF (ASSOCIATED(lnhc)) THEN
          IF (ASSOCIATED(lnhc%dt_yosh)) THEN

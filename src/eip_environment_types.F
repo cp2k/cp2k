@@ -126,7 +126,7 @@ CONTAINS
 
       TYPE(eip_environment_type), POINTER                :: eip_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_env_retain'
 
 !   ------------------------------------------------------------------------
 
@@ -244,7 +244,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: eip_kinetic_energy, eip_potential_energy
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_get'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_env_get'
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
@@ -354,7 +354,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_ref_cell
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eip_kinetic_energy, eip_potential_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_set'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_env_set'
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
@@ -435,7 +435,7 @@ CONTAINS
 
       TYPE(eip_environment_type), POINTER                :: eip_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_clear'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_env_clear'
 
 !   ------------------------------------------------------------------------
 
@@ -477,7 +477,7 @@ CONTAINS
 
       TYPE(eip_environment_type), POINTER                :: eip_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_env_create'
 
       ALLOCATE (eip_env)
 

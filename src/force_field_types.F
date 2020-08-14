@@ -223,7 +223,7 @@ CONTAINS
    SUBROUTINE init_ff_type(ff_type)
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_ff_type'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_ff_type'
 
 !-----------------------------------------------------------------------------
 ! 1. Initialize

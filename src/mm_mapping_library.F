@@ -47,7 +47,7 @@ CONTAINS
    SUBROUTINE create_ff_map(ff_type)
       CHARACTER(LEN=*), INTENT(IN)                       :: ff_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ff_map'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ff_map'
       INTEGER, PARAMETER                                 :: amb_imax = 66, chm_imax = 108, &
                                                             grm_imax = 22
 
@@ -137,7 +137,7 @@ CONTAINS
    SUBROUTINE destroy_ff_map(ff_type)
       CHARACTER(LEN=*), INTENT(IN)                       :: ff_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'destroy_ff_map'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'destroy_ff_map'
 
       SELECT CASE (ff_type)
       CASE ("AMBER")

@@ -392,7 +392,7 @@ CONTAINS
 
       TYPE(lri_environment_type), POINTER                :: lri_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_env_create'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lri_env_create'
 
       ALLOCATE (lri_env)
 

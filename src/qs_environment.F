@@ -253,7 +253,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_init'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_init'
 
       INTEGER                                            :: ikind, method_id, nelectron_total, nkind
       LOGICAL                                            :: do_admm_rpa, do_et, do_exx, do_hfx, &
@@ -508,7 +508,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: subsys_section
       LOGICAL, INTENT(in), OPTIONAL                      :: silent
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_init_subsys'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_init_subsys'
 
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER :: handle, ikind, ispin, iw, lmax_sphere, maxl, maxlgto, maxlgto_lri, maxlppl, &

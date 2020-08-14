@@ -1033,7 +1033,7 @@ CONTAINS
                                                             exchange_integral_type
       TYPE(opmat_type), OPTIONAL, POINTER                :: fmat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_atom'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_atom'
 
       CPASSERT(ASSOCIATED(atom))
 
@@ -1366,7 +1366,7 @@ CONTAINS
       INTEGER, DIMENSION(0:lmat), INTENT(IN)             :: n
       INTEGER, INTENT(IN), OPTIONAL                      :: lmax
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_opmat'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_opmat'
 
       INTEGER                                            :: lm, m
 
@@ -1394,7 +1394,7 @@ CONTAINS
    SUBROUTINE release_opmat(opmat)
       TYPE(opmat_type), POINTER                          :: opmat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_opmat'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_opmat'
 
       CPASSERT(ASSOCIATED(opmat))
 
@@ -1414,7 +1414,7 @@ CONTAINS
       TYPE(opgrid_type), POINTER                         :: opgrid
       TYPE(grid_atom_type), POINTER                      :: grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_opgrid'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_opgrid'
 
       INTEGER                                            :: nr
 
@@ -1438,7 +1438,7 @@ CONTAINS
    SUBROUTINE release_opgrid(opgrid)
       TYPE(opgrid_type), POINTER                         :: opgrid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_opgrid'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_opgrid'
 
       CPASSERT(ASSOCIATED(opgrid))
 
@@ -2225,7 +2225,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_set_name, basis_set_file
       TYPE(section_vals_type), POINTER                   :: basis_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_basis_set'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_basis_set'
       INTEGER, PARAMETER                                 :: maxpri = 40, maxset = 20
 
       CHARACTER(len=20*default_string_length)            :: line_att

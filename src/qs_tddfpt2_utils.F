@@ -492,7 +492,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_oep
       LOGICAL, INTENT(IN)                                :: do_hfx
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_oecorr'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_oecorr'
 
       INTEGER                                            :: handle, iounit, ispin, nao, nmo_occ, &
                                                             nspins

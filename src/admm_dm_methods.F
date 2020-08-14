@@ -362,7 +362,7 @@ CONTAINS
    SUBROUTINE purify_mcweeny(ks_env)
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mcweeny'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'purify_mcweeny'
 
       INTEGER                                            :: handle, ispin, istep, nspins, unit_nr
       REAL(KIND=dp)                                      :: frob_norm

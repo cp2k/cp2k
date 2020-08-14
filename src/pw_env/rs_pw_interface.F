@@ -71,7 +71,7 @@ CONTAINS
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho, rho_gspace
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_rs2pw'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'density_rs2pw'
 
       INTEGER                                            :: handle, igrid_level, interp_kind
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info

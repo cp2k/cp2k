@@ -771,7 +771,7 @@ CONTAINS
    SUBROUTINE qs_ks_release(ks_env)
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ks_release'
 
       IF (ASSOCIATED(ks_env)) THEN
          CPASSERT(ks_env%ref_count > 0)
@@ -894,7 +894,7 @@ CONTAINS
    SUBROUTINE qs_ks_retain(ks_env)
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ks_retain'
 
       CPASSERT(ASSOCIATED(ks_env))
       CPASSERT(ks_env%ref_count > 0)

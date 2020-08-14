@@ -178,7 +178,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rho
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: rs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_rs_array'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_rs_array'
 
       INTEGER                                            :: k
 
@@ -318,7 +318,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fx
       INTEGER, INTENT(IN)                                :: m
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_fx_array'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_fx_array'
 
       INTEGER                                            :: ip
       REAL(KIND=dp)                                      :: rhoab, x

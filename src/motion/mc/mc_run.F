@@ -104,7 +104,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(LEN=*)                                   :: input_file_name
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mon_car'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_mon_car'
 
       CHARACTER(LEN=20)                                  :: ensemble
       CHARACTER(LEN=40)                                  :: box2_file, dat_file

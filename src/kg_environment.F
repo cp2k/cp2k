@@ -98,7 +98,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'kg_env_create'
 
       ALLOCATE (kg_env)
       CALL init_kg_env(qs_env, kg_env, qs_kind_set, input)
@@ -121,7 +121,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_kg_env'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_kg_env'
 
       CHARACTER(LEN=10)                                  :: intgrid
       INTEGER                                            :: handle, i, iatom, ib, ikind, iunit, n, &
@@ -494,7 +494,7 @@ CONTAINS
          DIMENSION(:, :), INTENT(IN)                     :: pairs
       INTEGER, INTENT(IN)                                :: nnodes
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_to_file'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_to_file'
 
       INTEGER                                            :: handle, i, imol, jmol, npairs, unit_nr
       INTEGER(KIND=int_4), ALLOCATABLE, DIMENSION(:, :)  :: sorted_pairs

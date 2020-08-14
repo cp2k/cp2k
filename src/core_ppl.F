@@ -100,7 +100,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ppl'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_core_ppl'
       INTEGER, PARAMETER                                 :: nexp_max = 30
 
       INTEGER :: atom_a, handle, i, iatom, icol, ikind, img, irow, iset, jatom, jkind, jset, &

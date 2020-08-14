@@ -62,7 +62,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: s
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 's_overlap_ab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 's_overlap_ab'
 
       INTEGER                                            :: ids, ipgfa, jpgfb, ndev
       REAL(KIND=dp)                                      :: a, b, rab2, xhi, zet
@@ -125,7 +125,7 @@ CONTAINS
          INTENT(INOUT)                                   :: s
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 's_overlap_abb'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 's_overlap_abb'
 
       INTEGER                                            :: i, ids, il, ipgfa, j, jpgfb, kpgfb, &
                                                             lbb_max, lmax, n, ndev, nds, nfac, nl
@@ -357,7 +357,7 @@ CONTAINS
          INTENT(INOUT)                                   :: s
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 's_ra2m_ab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 's_ra2m_ab'
 
       INTEGER                                            :: i, ids, il, ipgfa, j, jpgfb, n, ndev, &
                                                             nds, nfac
@@ -603,7 +603,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 's_coulomb_ab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 's_coulomb_ab'
 
       INTEGER                                            :: ids, ipgfa, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, b, dummy, prefac, rab2, T, xhi, zet
@@ -665,7 +665,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 's_verf_ab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 's_verf_ab'
 
       INTEGER                                            :: ids, ipgfa, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, Arg, b, comega, prefac, rab2, T, xhi, &
@@ -729,7 +729,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 's_verfc_ab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 's_verfc_ab'
 
       INTEGER                                            :: ids, ipgfa, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, b, comega, comegaT, prefac, rab2, T, &
@@ -794,7 +794,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 's_vgauss_ab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 's_vgauss_ab'
 
       INTEGER                                            :: ids, ipgfa, j, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, b, eta, etaT, expT, oeta, prefac, &
@@ -865,7 +865,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 's_gauss_ab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 's_gauss_ab'
 
       INTEGER                                            :: ids, ipgfa, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, b, eta, expT, oeta, prefac, rab2, T, &

@@ -223,7 +223,7 @@ CONTAINS
       TYPE(cp_result_type), OPTIONAL, POINTER            :: results
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_set'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_subsys_set'
 
       CPASSERT(ASSOCIATED(subsys))
       CPASSERT(subsys%ref_count > 0)
@@ -374,7 +374,7 @@ CONTAINS
       TYPE(cp_result_type), OPTIONAL, POINTER            :: results
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_subsys_get'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_subsys_get'
 
       INTEGER                                            :: n_atom, n_core, n_shell
 

@@ -206,7 +206,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: qmat, smat, binv
       LOGICAL, INTENT(IN)                                :: reuse
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_function'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mao_function'
 
       REAL(KIND=dp)                                      :: convergence, threshold
       TYPE(dbcsr_type)                                   :: bmat, scmat, tmat
@@ -724,7 +724,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_build_q'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mao_build_q'
 
       INTEGER                                            :: im, ispin, nim, nocc, norb, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index

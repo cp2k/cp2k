@@ -72,7 +72,7 @@ CONTAINS
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fhxc_kernel'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fhxc_kernel'
 
       INTEGER                                            :: handle, ispin, ivect, nao, nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nactive
@@ -244,7 +244,7 @@ CONTAINS
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'stda_kernel'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'stda_kernel'
 
       INTEGER                                            :: handle, ivect, nvects
 

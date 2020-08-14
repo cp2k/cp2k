@@ -64,7 +64,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_init'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mixed_init'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: use_ref_cell

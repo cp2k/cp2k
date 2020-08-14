@@ -51,7 +51,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ij, kl, li, lj, lk, ll, ic, itype
       REAL(KIND=dp)                                      :: eval, res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_low_3'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ijkl_low_3'
 
       INTEGER                                            :: l1, l2, lij, lkl
       REAL(KIND=dp)                                      :: add, ccc, chrg, pij, pkl, sum
@@ -125,7 +125,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: add
       REAL(KIND=dp)                                      :: charg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'charg_int_3'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'charg_int_3'
 
 ! Computing only residual Integral Values
 
@@ -158,7 +158,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: add
       REAL(KIND=dp)                                      :: coeff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'coeff_int_3'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'coeff_int_3'
 
 ! Computing only residual Integral Values
 
@@ -194,7 +194,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: add
       REAL(KIND=dp)                                      :: charg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_3'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dcharg_int_3'
 
 ! Computing only residual Integral Derivatives
 

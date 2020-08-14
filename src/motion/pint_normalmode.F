@@ -266,7 +266,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: x
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_x2u'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'normalmode_x2u'
 
       CPASSERT(ASSOCIATED(normalmode_env))
       CPASSERT(normalmode_env%ref_count > 0)
@@ -289,7 +289,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: x
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_u2x'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'normalmode_u2x'
 
       CPASSERT(ASSOCIATED(normalmode_env))
       CPASSERT(normalmode_env%ref_count > 0)

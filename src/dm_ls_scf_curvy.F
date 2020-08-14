@@ -218,7 +218,7 @@ CONTAINS
    SUBROUTINE line_search_2d(energies, step_size)
       REAL(KIND=dp)                                      :: energies(6), step_size(2)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'line_search_2d'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'line_search_2d'
 
       INTEGER                                            :: info, unit_nr
       REAL(KIND=dp)                                      :: e_pred, param(6), s1, s1sq, s2, s2sq, &
@@ -633,7 +633,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: threshold, step_size(2)
       INTEGER                                            :: BCH_saved(2), n_bch_hist
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_p_exp'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_p_exp'
 
       INTEGER                                            :: handle, i, ispin, nsave, nspin, unit_nr
       LOGICAL                                            :: save_BCH
@@ -826,7 +826,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_s
       INTEGER                                            :: nspins
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_curvy'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_curvy'
 
       INTEGER                                            :: ispin, j
 

@@ -42,7 +42,7 @@ CONTAINS
       TYPE(taper_type), POINTER                          :: taper
       REAL(KIND=dp), INTENT(IN)                          :: rc, range
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'taper_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'taper_create'
 
       CPASSERT(.NOT. ASSOCIATED(taper))
       ALLOCATE (taper)
@@ -64,7 +64,7 @@ CONTAINS
    SUBROUTINE taper_release(taper)
       TYPE(taper_type), POINTER                          :: taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'taper_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'taper_release'
 
       IF (ASSOCIATED(taper)) THEN
          DEALLOCATE (taper)
@@ -82,7 +82,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rij
       REAL(KIND=dp)                                      :: ft
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'taper_eval'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'taper_eval'
 
       REAL(KIND=dp)                                      :: dr
 
@@ -104,7 +104,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rij
       REAL(KIND=dp)                                      :: dft
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dtaper_eval'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dtaper_eval'
 
       REAL(KIND=dp)                                      :: dr
 

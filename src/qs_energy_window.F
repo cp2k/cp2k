@@ -83,7 +83,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'energy_windows'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'energy_windows'
       LOGICAL, PARAMETER                                 :: debug = .FALSE.
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 

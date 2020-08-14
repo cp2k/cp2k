@@ -65,7 +65,7 @@ CONTAINS
 
       TYPE(qs_gcp_type), POINTER                         :: gcp_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_gcp_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_gcp_release'
 
       IF (ASSOCIATED(gcp_env)) THEN
 

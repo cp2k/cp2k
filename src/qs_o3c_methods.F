@@ -314,7 +314,7 @@ CONTAINS
       TYPE(o3c_container_type), POINTER                  :: o3c
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract12_o3c'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract12_o3c'
 
       INTEGER                                            :: handle, iatom, icol, ik, irow, ispin, &
                                                             jatom, mepos, nk, nspin, nthread
@@ -397,7 +397,7 @@ CONTAINS
       TYPE(o3c_vec_type), DIMENSION(:), POINTER          :: vec
       TYPE(dbcsr_type), POINTER                          :: matrix
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract3_o3c'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract3_o3c'
 
       INTEGER                                            :: handle, iatom, icol, ik, irow, jatom, &
                                                             katom, mepos, nk, nthread, s1, s2

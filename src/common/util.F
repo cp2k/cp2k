@@ -60,7 +60,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: x
       INTEGER                                            :: x_index
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'locate'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'locate'
 
       INTEGER                                            :: jl, jm, ju, n
 
@@ -93,7 +93,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: arr
       LOGICAL, INTENT(OUT)                               :: unique
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_unique1'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'sort_unique1'
 
       INTEGER                                            :: i, n
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: wrk
@@ -123,7 +123,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(INOUT)                    :: arr(1:n)
       INTEGER, INTENT(OUT)                               :: INDEX(1:n)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_cv'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'sort_cv'
 
       INTEGER                                            :: i, j, max_length
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: entries
@@ -209,7 +209,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: m, n, me
       INTEGER                                            :: nlim(2)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_limit'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_limit'
 
       INTEGER                                            :: nl, nu
       REAL(KIND=dp)                                      :: part
@@ -239,7 +239,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: first, last
       INTEGER, INTENT(IN)                                :: search
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'find_boundary1'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'find_boundary1'
 
       INTEGER                                            :: i
       LOGICAL                                            :: found
@@ -286,7 +286,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: first, last
       INTEGER, INTENT(IN)                                :: search1, search2
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'find_boundary2'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'find_boundary2'
 
       INTEGER                                            :: i, tfirst, tlast
       LOGICAL                                            :: found

@@ -111,7 +111,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: elpa_kernel
       LOGICAL, INTENT(IN)                                :: elpa_qr, elpa_print, elpa_qr_unsafe
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diag_init'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'diag_init'
 
       fallback_applied = .FALSE.
 
@@ -1134,7 +1134,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
       TYPE(cp_fm_type), POINTER                          :: work
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geeig'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig'
 
       INTEGER                                            :: handle, nao, nmo
 

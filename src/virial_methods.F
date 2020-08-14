@@ -46,7 +46,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_update'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'virial_update'
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(distribution_1d_type), POINTER                :: local_particles

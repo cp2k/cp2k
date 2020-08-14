@@ -64,7 +64,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sg_overlap'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sg_overlap'
 
       INTEGER                                            :: ip, iq, m, n
       REAL(KIND=dp)                                      :: el, spi
@@ -103,7 +103,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sg_kinetic'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sg_kinetic'
 
       INTEGER                                            :: ip, iq, m, n
       REAL(KIND=dp)                                      :: spi
@@ -140,7 +140,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sg_nuclear'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sg_nuclear'
 
       INTEGER                                            :: ip, iq, m, n
       REAL(KIND=dp)                                      :: tld
@@ -177,7 +177,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sg_kinnuc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sg_kinnuc'
 
       INTEGER                                            :: ip, iq, m, n
       REAL(KIND=dp)                                      :: ppq, pq, tld
@@ -239,7 +239,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: a
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sg_erf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sg_erf'
 
       INTEGER                                            :: handle, ip, iq, m, n
       REAL(KIND=dp)                                      :: a2, fpol, pq, tld, z, z2
@@ -348,7 +348,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: rc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sg_proj_ol'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sg_proj_ol'
 
       REAL(KIND=dp)                                      :: orc, pf
 
@@ -386,7 +386,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sg_gpot'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sg_gpot'
 
       INTEGER                                            :: ip, iq, m, n
       REAL(KIND=dp)                                      :: tld
@@ -428,7 +428,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: k, l
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sg_conf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sg_conf'
 
       INTEGER                                            :: ip, iq, m, n
       REAL(KIND=dp)                                      :: tld
@@ -534,7 +534,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pb
       INTEGER, INTENT(IN)                                :: lbd
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sg_exchange'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sg_exchange'
 
       INTEGER                                            :: handle, ia, ib, ic, id, jac, jbd, na, nb
       REAL(KIND=dp)                                      :: cc1, cc2, cc3, cc4, ee, p, q, r, s, &
@@ -608,7 +608,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: a
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pa, pb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sg_erfc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sg_erfc'
 
       INTEGER                                            :: ip, iq, m, n
       REAL(KIND=dp)                                      :: tld
@@ -689,7 +689,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sto_overlap'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sto_overlap'
 
       INTEGER                                            :: ip, iq, m, n
       REAL(KIND=dp)                                      :: vp, vpq, vq
@@ -735,7 +735,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sto_kinetic'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sto_kinetic'
 
       INTEGER                                            :: ip, iq, m, n
       REAL(KIND=dp)                                      :: vp, vpq, vpq1, vpq2, vq, wp, wq
@@ -782,7 +782,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sto_nuclear'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sto_nuclear'
 
       INTEGER                                            :: ip, iq, m, n
       REAL(KIND=dp)                                      :: vp, vpq1, vq
@@ -829,7 +829,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sto_conf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sto_conf'
 
       INTEGER                                            :: ip, iq, m, n
 
@@ -899,7 +899,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'num_overlap'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'num_overlap'
 
       INTEGER                                            :: ip, iq, m, n
 
@@ -939,7 +939,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, dra, rb, drb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, wr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'num_kinetic'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'num_kinetic'
 
       INTEGER                                            :: ip, iq, m, n
 
@@ -976,7 +976,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, wr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'num_nuclear'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'num_nuclear'
 
       INTEGER                                            :: ip, iq, m, n
 
@@ -1016,7 +1016,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, dra, rb, drb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, wr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'num_kinnuc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'num_kinnuc'
 
       INTEGER                                            :: ip, iq, m, n
 
@@ -1055,7 +1055,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, wr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'num_erf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'num_erf'
 
       INTEGER                                            :: ip, iq, k, m, n
 
@@ -1104,7 +1104,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rc
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, wr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'num_proj_ol'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'num_proj_ol'
 
       INTEGER                                            :: ip, n
       REAL(KIND=dp)                                      :: pf
@@ -1153,7 +1153,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, wr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'num_gpot'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'num_gpot'
 
       INTEGER                                            :: ip, iq, m, n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: op
@@ -1201,7 +1201,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, wr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'num_conf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'num_conf'
 
       INTEGER                                            :: ip, iq, m, n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: op

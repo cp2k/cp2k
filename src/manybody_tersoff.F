@@ -59,7 +59,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v
       REAL(KIND=dp)                                      :: drij
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tersoff_energy'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tersoff_energy'
 
       REAL(KIND=dp)                                      :: b_ij, f_A, f_C, f_R
 
@@ -84,7 +84,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: ter_f_C
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_f_C'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_f_C'
 
       REAL(KIND=dp)                                      :: bigD, bigR, RmD, RpD
 
@@ -112,7 +112,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: ter_f_C_d
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_f_C_d'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_f_C_d'
 
       REAL(KIND=dp)                                      :: bigD, bigR, RmD, RpD
 
@@ -141,7 +141,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: ter_f_R
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_f_R'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_f_R'
 
       REAL(KIND=dp)                                      :: A, lambda1
 
@@ -164,7 +164,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: ter_f_R_d
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_f_R_d'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_f_R_d'
 
       REAL(KIND=dp)                                      :: A, f_R, lambda1
 
@@ -188,7 +188,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: ter_f_A
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_f_A'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_f_A'
 
       REAL(KIND=dp)                                      :: B, lambda2
 
@@ -211,7 +211,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: ter_f_A_d
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_f_A_d'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_f_A_d'
 
       REAL(KIND=dp)                                      :: B, lambda2
 
@@ -232,7 +232,7 @@ CONTAINS
       TYPE(tersoff_pot_type), POINTER                    :: tersoff
       REAL(KIND=dp)                                      :: ter_a_ij
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_a_ij'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_a_ij'
 
       REAL(KIND=dp)                                      :: alpha, n
 
@@ -270,7 +270,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rcutsq
       REAL(KIND=dp)                                      :: ter_b_ij
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_b_ij'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_b_ij'
 
       REAL(KIND=dp)                                      :: beta, n, zeta_ij
 
@@ -308,7 +308,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rcutsq
       REAL(KIND=dp)                                      :: ter_b_ij_d
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_b_ij_d'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_b_ij_d'
 
       REAL(KIND=dp)                                      :: beta, beta_n, n, zeta_ij, zeta_ij_n, &
                                                             zeta_ij_nm1
@@ -355,7 +355,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rcutsq
       REAL(KIND=dp)                                      :: ter_zeta_ij
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_zeta_ij'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_zeta_ij'
 
       INTEGER                                            :: ilist, kparticle
       REAL(KIND=dp)                                      :: cell_v_2(3), costheta, drij, drik, &
@@ -421,7 +421,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rcutsq
       LOGICAL, INTENT(IN)                                :: use_virial
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_zeta_ij_d'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_zeta_ij_d'
 
       INTEGER                                            :: ilist, kparticle, nparticle
       REAL(KIND=dp)                                      :: costheta, drij, drik, expterm, &
@@ -517,7 +517,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: costheta
       REAL(KIND=dp)                                      :: ter_g
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_g'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_g'
 
       REAL(KIND=dp)                                      :: c, c2, d, d2, h
 
@@ -543,7 +543,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: costheta
       REAL(KIND=dp)                                      :: ter_g_d
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_g_d'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_g_d'
 
       REAL(KIND=dp)                                      :: c, c2, d, d2, h, hc, sintheta
 
@@ -593,7 +593,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_virial
       REAL(KIND=dp), INTENT(IN)                          :: rcutsq
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tersoff_forces'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tersoff_forces'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: b_ij, b_ij_d, drij, f_A, f_A1, f_A2, &

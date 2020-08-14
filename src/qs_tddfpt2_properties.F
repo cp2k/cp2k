@@ -1155,7 +1155,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mos_occ
       TYPE(dbcsr_type), POINTER                          :: matrix_s
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'project_vector'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'project_vector'
 
       INTEGER                                            :: handle, nao, nmo
       REAL(KIND=dp)                                      :: norm(1)
@@ -1203,7 +1203,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: va, vb
       REAL(KIND=dp), INTENT(OUT)                         :: res
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'vec_product'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vec_product'
 
       INTEGER                                            :: blk, group, handle, icol, irow
       LOGICAL                                            :: found

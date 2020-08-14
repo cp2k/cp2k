@@ -121,7 +121,7 @@ CONTAINS
       TYPE(lib_pexsi_env), INTENT(INOUT)                 :: pexsi_env
       INTEGER, INTENT(IN)                                :: mp_group, nspin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lib_pexsi_init'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'lib_pexsi_init'
 
       INTEGER                                            :: handle, ispin, mynode, npSymbFact, &
                                                             numnodes, unit_nr

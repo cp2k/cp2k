@@ -98,7 +98,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_h, matrix_w
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'plus_u'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'plus_u'
 
       INTEGER                                            :: handle, output_unit, print_level
       LOGICAL                                            :: orthonormal_basis, should_output
@@ -205,7 +205,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: should_output
       INTEGER, INTENT(IN)                                :: output_unit, print_level
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lowdin'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lowdin'
 
       CHARACTER(LEN=10)                                  :: spin_info
       CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:)        :: symbol
@@ -856,7 +856,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: should_output
       INTEGER, INTENT(IN)                                :: output_unit, print_level
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mulliken'
 
       CHARACTER(LEN=10)                                  :: spin_info
       CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:)        :: symbol

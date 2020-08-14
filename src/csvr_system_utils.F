@@ -125,7 +125,7 @@ CONTAINS
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       REAL(KIND=dp)                                      :: sum_gauss
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sumnoises'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sumnoises'
 
       INTEGER                                            :: i
 

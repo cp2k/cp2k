@@ -161,7 +161,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_matching'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'force_matching'
 
       CHARACTER(len=default_path_length)                 :: input_path, output_path
       CHARACTER(len=default_string_length), &
@@ -616,7 +616,7 @@ CONTAINS
       TYPE(oi_env_type)                                  :: oi_env
       TYPE(section_vals_type), POINTER                   :: root_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'parse_input'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'parse_input'
 
       INTEGER                                            :: handle, ivar, n_var
       LOGICAL                                            :: explicit

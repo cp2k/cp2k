@@ -614,7 +614,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_rebuild_S'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_rebuild_S'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -640,7 +640,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_dm_trs4'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_dm_trs4'
 
       CHARACTER(LEN=default_path_length)                 :: project_name
       INTEGER                                            :: handle, ispin, nelectron_spin_real, nspin
@@ -915,7 +915,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_check_grad'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_check_grad'
 
       INTEGER                                            :: handle, i, iatom, j, natoms
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_col, blk_sizes_row
@@ -1013,7 +1013,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(dp)                                           :: energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eval_point'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eval_point'
 
       REAL(dp)                                           :: old_Xij
 

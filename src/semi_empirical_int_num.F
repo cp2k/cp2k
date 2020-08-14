@@ -79,7 +79,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rotint_num'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotint_num'
 
       INTEGER                                            :: i, i1, ii, ij, ij1, iminus, istep, &
                                                             iw_loc, j, j1, jj, k, kk, kl, l, &
@@ -230,7 +230,7 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'terep_num'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'terep_num'
 
       REAL(KIND=dp)                                      :: ft
       TYPE(se_int_screen_type)                           :: se_int_screen
@@ -276,7 +276,7 @@ CONTAINS
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
       REAL(dp), INTENT(IN)                               :: ft
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'terep_sp_num'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'terep_sp_num'
 
       INTEGER                                            :: i, ij, j, k, kl, l, lasti, lastj, li, &
                                                             lj, lk, ll, nold, numb
@@ -339,7 +339,7 @@ CONTAINS
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
       REAL(dp), INTENT(IN)                               :: ft
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'terep_d_num'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'terep_d_num'
 
       INTEGER                                            :: i, ij, j, k, kl, l, lasti, lastj, li, &
                                                             lj, lk, ll, nold, numb
@@ -405,7 +405,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_num'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotnuc_num'
 
       INTEGER                                            :: i, idd, idp, ind1, ind2, ipp, j, &
                                                             last_orbital(2), m, n
@@ -513,7 +513,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'corecore_num'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'corecore_num'
 
       INTEGER                                            :: ig, nt
       REAL(dp)                                           :: aab, alpi, alpj, apdg, ax, dai, daj, &
@@ -865,7 +865,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nucint_sp_num'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nucint_sp_num'
 
       INTEGER                                            :: ij, kl
       LOGICAL                                            :: l_core, l_ssss, si, sj
@@ -946,7 +946,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nucint_d_num'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nucint_d_num'
 
       INTEGER                                            :: ij, kl
 
@@ -1016,7 +1016,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'drotint_num'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'drotint_num'
 
       INTEGER                                            :: i, j, nsize
       REAL(dp)                                           :: od
@@ -1059,7 +1059,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'drotnuc_num'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'drotnuc_num'
 
       INTEGER                                            :: i, j
       LOGICAL                                            :: l_de1b, l_de2a
@@ -1110,7 +1110,7 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcorecore_num'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dcorecore_num'
 
       INTEGER                                            :: i
       REAL(dp)                                           :: enucm, enucp, od

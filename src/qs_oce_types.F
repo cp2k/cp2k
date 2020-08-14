@@ -79,7 +79,7 @@ CONTAINS
 
       TYPE(oce_matrix_type), POINTER                     :: oce_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_oce_set'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_oce_set'
 
       IF (ASSOCIATED(oce_set)) CALL deallocate_oce_set(oce_set)
 

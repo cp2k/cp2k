@@ -3709,7 +3709,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: job
       INTEGER, INTENT(out)                               :: info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dtrsl'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dtrsl'
 
       INTEGER                                            :: CASE, j, jj
       REAL(KIND=dp)                                      :: ddot, temp

@@ -440,7 +440,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iatom
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_operators'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'issc_operators'
 
       INTEGER                                            :: handle, idir, ispin, nmo, nspins, &
                                                             output_unit

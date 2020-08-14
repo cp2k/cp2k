@@ -592,7 +592,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: vo
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: ptr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ri_matvec'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ri_matvec'
 
       CHARACTER                                          :: matrix_type
       INTEGER                                            :: group, handle, iatom, jatom, m1, m2, mb, &

@@ -190,7 +190,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: deprecation_notice
       LOGICAL, INTENT(in), OPTIONAL                      :: removed
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'keyword_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'keyword_create'
 
       INTEGER                                            :: i, n
       LOGICAL                                            :: check
@@ -411,7 +411,7 @@ CONTAINS
    SUBROUTINE keyword_retain(keyword)
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'keyword_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'keyword_retain'
 
       CPASSERT(ASSOCIATED(keyword))
       CPASSERT(keyword%ref_count > 0)
@@ -475,7 +475,7 @@ CONTAINS
       TYPE(enumeration_type), OPTIONAL, POINTER          :: enum
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: citations
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'keyword_get'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'keyword_get'
 
       CPASSERT(ASSOCIATED(keyword))
       CPASSERT(keyword%ref_count > 0)

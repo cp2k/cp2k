@@ -62,7 +62,7 @@ CONTAINS
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cg_linmin'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cg_linmin'
 
       INTEGER                                            :: handle
 
@@ -145,7 +145,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_only_grad
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'linmin_2pnt'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'linmin_2pnt'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: my_use_only_grad, &
@@ -245,7 +245,7 @@ CONTAINS
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tslmin_2pnt'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'tslmin_2pnt'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: dx, dx_min, dx_min_acc, dx_min_save, &
@@ -326,7 +326,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0, theta
       REAL(KIND=dp), INTENT(INOUT)                       :: opt_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rotmin_2pnt'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotmin_2pnt'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: a0, a1, angle, b1, curvature0, &
@@ -408,7 +408,7 @@ CONTAINS
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'linmin_fit'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'linmin_fit'
 
       INTEGER                                            :: handle, loc_iter, odim
       LOGICAL                                            :: should_stop
@@ -499,7 +499,7 @@ CONTAINS
       INTEGER                                            :: output_unit
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'linmin_gold'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'linmin_gold'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: ax, bx, xmin, xx
@@ -561,7 +561,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: histpoint
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cg_mnbrak'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cg_mnbrak'
 
       INTEGER                                            :: handle, loc_iter, odim
       LOGICAL                                            :: hist, should_stop
@@ -750,7 +750,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       REAL(KIND=dp)                                      :: dbrent
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cg_dbrent'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cg_dbrent'
       REAL(KIND=dp), PARAMETER                           :: zeps = 1.0E-8_dp
 
       INTEGER                                            :: handle, iter, loc_iter
@@ -889,7 +889,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pcom, xicom
       REAL(KIND=dp)                                      :: my_val
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cg_eval1d'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cg_eval1d'
 
       INTEGER                                            :: handle
       REAL(KIND=dp), DIMENSION(:), POINTER               :: xvec
@@ -925,7 +925,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pcom, xicom
       REAL(KIND=dp)                                      :: fval, my_val
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cg_deval1d'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cg_deval1d'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: energy
@@ -960,7 +960,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:)                        :: x, y, dy
       REAL(kind=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'FindMin'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'FindMin'
 
       INTEGER                                            :: i, info, iwork(8*3), lwork, min_pos, np
       REAL(kind=dp)                                      :: diag(3), res1(3), res2(3), res3(3), &

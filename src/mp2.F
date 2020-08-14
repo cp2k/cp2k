@@ -149,7 +149,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calc_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp2_main'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mp2_main'
 
       INTEGER :: bin, cholesky_method, dimen, handle, handle2, i, i_thread, iatom, ikind, irep, &
          ispin, max_nset, my_bin_size, n_rep_hf, n_threads, nao, natom, ncol_block, ndep, &
@@ -1155,7 +1155,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_gw, do_admm
       REAL(KIND=dp), INTENT(IN)                          :: E_ex_from_GW, t3
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_exx'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_exx'
 
       INTEGER                                            :: handle, i, irep, n_rep_hf, ns
       REAL(KIND=dp)                                      :: eh1, ehfx, t1, t2

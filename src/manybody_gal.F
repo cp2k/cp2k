@@ -67,7 +67,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: mm_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gal_energy'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gal_energy'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: index_outfile
@@ -211,7 +211,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp)                                      :: normale(3)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'normale'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'normale'
 
       CHARACTER(LEN=2)                                   :: element_symbol_k
       INTEGER                                            :: kparticle, natom
@@ -256,7 +256,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp)                                      :: somme
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'somme'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'somme'
 
       CHARACTER(LEN=2)                                   :: element_symbol_k
       INTEGER                                            :: kparticle, natom
@@ -305,7 +305,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: mm_section
       REAL(KIND=dp)                                      :: angular
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'angular'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'angular'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: count_h, iatom, index_h1, index_h2, &
@@ -386,7 +386,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gal_forces'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gal_forces'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       REAL(KIND=dp) :: anglepart, cosalpha, dGauss(3), drji, drjicosalpha(3), drjisinalpha(3), &
@@ -528,7 +528,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), INTENT(IN)                          :: anglepart, sum_weight
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'somme_d'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'somme_d'
 
       CHARACTER(LEN=2)                                   :: element_symbol_k
       INTEGER                                            :: kparticle, natom
@@ -582,7 +582,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(3)                        :: nvec
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'angular_d'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'angular_d'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: count_h, iatom, index_h1, index_h2, natom

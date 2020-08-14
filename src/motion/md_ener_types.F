@@ -65,7 +65,7 @@ CONTAINS
    SUBROUTINE create_md_ener(md_ener)
       TYPE(md_ener_type), POINTER                        :: md_ener
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_md_ener'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_md_ener'
 
       CPASSERT(.NOT. ASSOCIATED(md_ener))
       ALLOCATE (md_ener)
@@ -92,7 +92,7 @@ CONTAINS
    SUBROUTINE retain_md_ener(md_ener)
       TYPE(md_ener_type), POINTER                        :: md_ener
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'retain_md_ener'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'retain_md_ener'
 
       CPASSERT(ASSOCIATED(md_ener))
       CPASSERT(md_ener%ref_count > 0)

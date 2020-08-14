@@ -302,7 +302,7 @@ CONTAINS
    SUBROUTINE reset_ch_pulay(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'reset_ch_pulay'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'reset_ch_pulay'
 
       INTEGER                                            :: handle, ind
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force

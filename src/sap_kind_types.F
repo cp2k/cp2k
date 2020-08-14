@@ -131,7 +131,7 @@ CONTAINS
       TYPE(alist_type), INTENT(OUT), POINTER             :: alist
       INTEGER, INTENT(IN)                                :: atom
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_alist'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_alist'
 
       INTEGER                                            :: i
 
@@ -237,7 +237,7 @@ CONTAINS
    SUBROUTINE sap_sort(sap_int)
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'sap_sort'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'sap_sort'
 
       INTEGER                                            :: iac, na
 
@@ -283,7 +283,7 @@ CONTAINS
          OPTIONAL, POINTER                               :: particle_set
       TYPE(cell_type), INTENT(IN), OPTIONAL, POINTER     :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_sap_ints'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_sap_ints'
 
       INTEGER :: first_col, handle, i, iac, iatom, ikind, ilist, iset, j, jneighbor, katom, kkind, &
          l, lc_max, lc_min, ldai, ldsab, lppnl, maxco, maxder, maxl, maxlgto, maxlppnl, maxppnl, &

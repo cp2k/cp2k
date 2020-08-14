@@ -604,7 +604,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: myspin
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: ext_mo_coeff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_driver'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_driver'
 
       CHARACTER(LEN=default_string_length)               :: my_pos
       INTEGER                                            :: dim_op, handle, i, imo, imoloc, ir, &
@@ -859,7 +859,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: state0
       CHARACTER(LEN=default_string_length), OPTIONAL     :: file_position
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_print_cubes'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_print_cubes'
       CHARACTER, DIMENSION(3), PARAMETER                 :: labels = (/'x', 'y', 'z'/)
 
       CHARACTER                                          :: label

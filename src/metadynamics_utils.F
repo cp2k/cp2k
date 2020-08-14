@@ -86,7 +86,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: fe_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_read'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'metadyn_read'
 
       CHARACTER(LEN=default_path_length)                 :: walkers_file_name
       INTEGER                                            :: handle, i, id_method, n_colvar, n_rep, &
@@ -435,7 +435,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: icol
       TYPE(section_vals_type), OPTIONAL, POINTER         :: metavar_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'metavar_read'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'metavar_read'
 
       INTEGER                                            :: handle, i, n_walls
       TYPE(section_vals_type), POINTER                   :: wall_section, work_section
@@ -741,7 +741,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: metadyn_section
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: invdt_history
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'restart_hills'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'restart_hills'
 
       INTEGER                                            :: handle, i, j, ndum
       LOGICAL                                            :: explicit, wtcontrol
@@ -887,7 +887,7 @@ CONTAINS
    SUBROUTINE meta_walls(meta_env)
       TYPE(meta_env_type), POINTER                       :: meta_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'meta_walls'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'meta_walls'
 
       INTEGER                                            :: ih, iwall
       REAL(dp)                                           :: ddp, delta_s, dfunc, diff_ss, dp2, &

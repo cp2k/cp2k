@@ -701,7 +701,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: is_complex
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rs_sign
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rskp_transform'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rskp_transform'
 
       INTEGER                                            :: handle, iatom, ic, icol, irow, jatom
       INTEGER, DIMENSION(3)                              :: cell
@@ -1198,7 +1198,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
       REAL(KIND=dp), INTENT(IN)                          :: wkp
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_dmat'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'transform_dmat'
 
       INTEGER                                            :: handle, iatom, icell, icol, irow, jatom
       INTEGER, DIMENSION(3)                              :: cell
@@ -1269,7 +1269,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: f0
       LOGICAL, INTENT(IN), OPTIONAL                      :: symmetric, antisymmetric
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'symtrans'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'symtrans'
 
       INTEGER                                            :: handle, iatom, icol, ip, irow, jcol, jp, &
                                                             jrow, natom, numnodes

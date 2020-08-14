@@ -136,7 +136,7 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: input_file_name
       CHARACTER(LEN=*), OPTIONAL                         :: wdir
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_init'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp2k_init'
 
       CHARACTER(LEN=10*default_string_length)            :: cp_flags
       CHARACTER(LEN=default_string_length)               :: dev_flag
@@ -232,7 +232,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'echo_all_hosts'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'echo_all_hosts'
 
       CHARACTER(LEN=default_string_length)               :: string
       INTEGER                                            :: ipe
@@ -340,7 +340,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_read'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp2k_read'
 
       CHARACTER(len=default_string_length)               :: c_val
       INTEGER                                            :: iw
@@ -397,7 +397,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_setup'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp2k_setup'
 
       INTEGER                                            :: iw, maxl
       INTEGER, DIMENSION(:), POINTER                     :: seed_vals
@@ -1009,7 +1009,7 @@ CONTAINS
    SUBROUTINE fm_setup(glob_section)
       TYPE(section_vals_type), POINTER                   :: glob_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_setup'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_setup'
 
       INTEGER                                            :: multiplication_type, ncb, nrb
       LOGICAL                                            :: force_me
@@ -1118,7 +1118,7 @@ CONTAINS
       CHARACTER(LEN=*), OPTIONAL                         :: wdir
       LOGICAL, INTENT(IN), OPTIONAL                      :: q_finalize
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_finalize'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp2k_finalize'
 
       CHARACTER(LEN=default_path_length)                 :: cg_filename
       CHARACTER(LEN=default_string_length)               :: dev_flag

@@ -172,7 +172,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: tc_section, vc_section
       INTEGER, INTENT(IN)                                :: output_unit, istep
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'control_vels_a'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'control_vels_a'
 
       INTEGER                                            :: i, temp_tol_steps
       LOGICAL                                            :: explicit
@@ -231,7 +231,7 @@ CONTAINS
       TYPE(neb_var_type), POINTER                        :: vels, forces
       TYPE(section_vals_type), POINTER                   :: vc_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'control_vels_b'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'control_vels_b'
 
       INTEGER                                            :: i
       LOGICAL                                            :: explicit, lval

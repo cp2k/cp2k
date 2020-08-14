@@ -172,7 +172,7 @@ CONTAINS
    SUBROUTINE cp_cfm_retain(matrix)
       TYPE(cp_cfm_type), POINTER                         :: matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_retain'
 
       CPASSERT(ASSOCIATED(matrix))
       CPASSERT(matrix%ref_count > 0)
@@ -186,7 +186,7 @@ CONTAINS
    SUBROUTINE cp_cfm_release(matrix)
       TYPE(cp_cfm_type), POINTER                         :: matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_release'
 
       IF (ASSOCIATED(matrix)) THEN
          CPASSERT(matrix%ref_count > 0)
@@ -888,7 +888,7 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: msource
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mtargetr, mtargeti
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_to_fm'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_to_fm'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: zmat
       INTEGER                                            :: handle
@@ -939,7 +939,7 @@ CONTAINS
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: msourcer, msourcei
       TYPE(cp_cfm_type), POINTER                         :: mtarget
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_to_cfm'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_to_cfm'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: zmat
       INTEGER                                            :: handle, mode
