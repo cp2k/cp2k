@@ -15,7 +15,8 @@ source "${INSTALLDIR}"/toolchain.env
 ELPA_CFLAGS=''
 ELPA_LDFLAGS=''
 ELPA_LIBS=''
-ELPA_MAKEOPTS=''
+# ELPA 2019.05.001 has a parallel build issue, restricting to -j1
+ELPA_MAKEOPTS='-j1'
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
