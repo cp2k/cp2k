@@ -158,7 +158,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
       LOGICAL, INTENT(in), OPTIONAL                      :: use_sp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_create'
 
       INTEGER                                            :: handle, ncol_local, npcol, nprow, &
                                                             nrow_local
@@ -226,7 +226,7 @@ CONTAINS
    SUBROUTINE cp_fm_retain(matrix)
       TYPE(cp_fm_type), POINTER                          :: matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_retain'
 
       CPASSERT(ASSOCIATED(matrix))
       CPASSERT(matrix%ref_count > 0)
@@ -244,7 +244,7 @@ CONTAINS
    SUBROUTINE cp_fm_release(matrix)
       TYPE(cp_fm_type), POINTER                          :: matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_release'
 
       INTEGER                                            :: handle
 
@@ -368,7 +368,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: beta
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_set_all'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_set_all'
 
       INTEGER                                            :: handle, i, n
 
@@ -876,7 +876,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: matrix_struct
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_get_info'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_get_info'
 
       IF (PRESENT(name)) name = matrix%name
       IF (PRESENT(context)) context => matrix%matrix_struct%context

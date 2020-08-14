@@ -94,7 +94,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: vac_plus
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'coulomb2'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'coulomb2'
 
       INTEGER                                            :: ax, ay, az, coc, cocx, cocy, cocz, cx, &
                                                             cy, cz, i, ipgf, j, jpgf, la, lc, &
@@ -451,7 +451,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: vac_plus
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'coulomb2_new'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'coulomb2_new'
 
       INTEGER                                            :: ax, ay, az, coc, cocx, cocy, cocz, cx, &
                                                             cy, cz, i, ipgf, j, jpgf, la, lc, &
@@ -816,7 +816,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: vabc_plus
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'coulomb3'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'coulomb3'
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, coc, cocx, cocy, &
                                                             cocz, cx, cy, cz, i, ipgf, j, jpgf, k, &

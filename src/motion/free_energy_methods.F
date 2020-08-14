@@ -207,7 +207,7 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: trend_free
       INTEGER, INTENT(IN)                                :: nr_points, output_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ui_check_trend'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ui_check_trend'
 
       INTEGER                                            :: handle, i, ii, j, k, my_reject, ncolvar, &
                                                             ng_points, rejected_points
@@ -807,7 +807,7 @@ CONTAINS
       INTEGER, POINTER                                   :: istep
       REAL(KIND=dp), INTENT(IN)                          :: beta
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dump_ac_info'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dump_ac_info'
 
       CHARACTER(LEN=default_path_length)                 :: coupling_function
       CHARACTER(LEN=default_string_length)               :: def_error, par, this_error

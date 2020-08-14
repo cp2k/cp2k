@@ -117,7 +117,7 @@ CONTAINS
    SUBROUTINE wfs_create(snapshot)
       TYPE(qs_wf_snapshot_type), POINTER                 :: snapshot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfs_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfs_create'
 
       ALLOCATE (snapshot)
       last_wfs_id = last_wfs_id + 1
@@ -146,7 +146,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: dt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfs_update'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfs_update'
 
       INTEGER                                            :: handle, img, ispin, nimg, nspins
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_pools
@@ -312,7 +312,7 @@ CONTAINS
                                                             extrapolation_order
       LOGICAL, INTENT(IN)                                :: has_unit_metric
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfi_create'
 
       INTEGER                                            :: handle, i
 
@@ -1004,7 +1004,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(in)                          :: dt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_update'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfi_update'
 
       CPASSERT(ASSOCIATED(wf_history))
       CPASSERT(wf_history%ref_count > 0)

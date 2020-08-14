@@ -832,7 +832,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_rho_atom'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_rho_atom'
 
       INTEGER :: handle, ikind, il, iso, iso1, iso2, l1, l1l2, l2, la, lc1, lc2, lcleb, ll, llmax, &
          lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, maxl, maxlgto, maxs, mm, mp, na, nat, &

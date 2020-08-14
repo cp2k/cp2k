@@ -60,7 +60,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: description
       REAL(KIND=dp), DIMENSION(:)                        :: values
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'put_result_r1'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'put_result_r1'
 
       INTEGER                                            :: isize, jsize
       LOGICAL                                            :: check
@@ -96,7 +96,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: description
       REAL(KIND=dp), DIMENSION(:, :)                     :: values
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'put_result_r2'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'put_result_r2'
 
       INTEGER                                            :: isize, jsize
       LOGICAL                                            :: check
@@ -168,7 +168,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: values
       INTEGER, OPTIONAL                                  :: nval, n_rep, n_entries
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_result_r1'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_result_r1'
 
       INTEGER                                            :: i, k, nlist, nrep, size_res, size_values
 
@@ -242,7 +242,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :)                     :: values
       INTEGER, OPTIONAL                                  :: nval, n_rep, n_entries
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_result_r2'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_result_r2'
 
       INTEGER                                            :: i, k, nlist, nrep, size_res, size_values
 
@@ -314,7 +314,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER, OPTIONAL                                  :: n_rep, n_entries, type_in_use
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_nreps'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_nreps'
 
       INTEGER                                            :: I, nlist
 

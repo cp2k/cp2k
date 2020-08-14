@@ -85,7 +85,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: rot_dof
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: inertia(3)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rot_ana'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rot_ana'
 
       INTEGER                                            :: handle, i, iparticle, iseq, iw, j, k, &
                                                             lrot(3)

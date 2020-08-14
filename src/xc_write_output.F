@@ -43,7 +43,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       LOGICAL, INTENT(IN)                                :: lsd
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_write'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_write'
 
       CHARACTER(LEN=2*default_string_length)             :: shortform
       CHARACTER(LEN=20)                                  :: tmpStr

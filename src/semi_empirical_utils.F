@@ -223,7 +223,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       INTEGER, INTENT(IN)                                :: ngauss
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_se_param'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_se_param'
 
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: symbol
       INTEGER                                            :: l, nshell
@@ -349,7 +349,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: se_method
       INTEGER                                            :: se_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_se_type'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_se_type'
 
       SELECT CASE (se_method)
       CASE DEFAULT

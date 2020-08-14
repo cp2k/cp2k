@@ -232,7 +232,7 @@ CONTAINS
       TYPE(replica_env_type), POINTER                    :: rep_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(inout)      :: vals
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_sync'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rep_env_sync'
 
       INTEGER                                            :: handle, irep
 

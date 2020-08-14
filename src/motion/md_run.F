@@ -128,7 +128,7 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: hmc_e_initial, hmc_e_final
       TYPE(mdctrl_type), OPTIONAL, POINTER               :: mdctrl
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_mol_dyn'
 
       LOGICAL                                            :: my_rm_restart_info
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -181,7 +181,7 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: hmc_e_initial, hmc_e_final
       TYPE(mdctrl_type), OPTIONAL, POINTER               :: mdctrl
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_mol_dyn_low'
 
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
       INTEGER                                            :: handle, i, istep, md_stride, run_type_id

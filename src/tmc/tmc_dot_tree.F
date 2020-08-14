@@ -147,7 +147,7 @@ CONTAINS
    SUBROUTINE write_legend(file_ptr)
       INTEGER, INTENT(IN)                                :: file_ptr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_legend'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_legend'
 
       CPASSERT(file_ptr .GT. 0)
 
@@ -197,7 +197,7 @@ CONTAINS
       INTEGER                                            :: node_nr, stat
       CHARACTER(LEN=50)                                  :: filename
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_color'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_color'
 
       CHARACTER(len=11)                                  :: label
       INTEGER                                            :: file_ptr
@@ -292,7 +292,7 @@ CONTAINS
       INTEGER                                            :: conf
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dot'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_dot'
 
       CPASSERT(ASSOCIATED(new_element))
       CPASSERT(conf .GT. 0)

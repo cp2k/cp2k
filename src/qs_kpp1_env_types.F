@@ -90,7 +90,7 @@ CONTAINS
    SUBROUTINE kpp1_release(kpp1_env)
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'kpp1_release'
 
       INTEGER                                            :: ispin
 
@@ -156,7 +156,7 @@ CONTAINS
    SUBROUTINE kpp1_retain(kpp1_env)
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'kpp1_retain'
 
       CPASSERT(ASSOCIATED(kpp1_env))
       CPASSERT(kpp1_env%ref_count > 0)

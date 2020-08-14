@@ -575,7 +575,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       LOGICAL, INTENT(IN)                                :: geometry_did_change, blocked
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_mo_coeffs'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fit_mo_coeffs'
 
       INTEGER                                            :: blk, handle, iatom, jatom, nao_aux_fit, &
                                                             nao_orb, nspins
@@ -724,7 +724,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mo_diag'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'purify_mo_diag'
 
       INTEGER                                            :: handle, i, ispin, nao_aux_fit, nao_orb, &
                                                             nmo, nspins
@@ -789,7 +789,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mo_none'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'purify_mo_none'
 
       INTEGER                                            :: handle, ispin, nao_aux_fit, nao_orb, &
                                                             nmo, nmo_mos, nspins
@@ -1790,7 +1790,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_orb
       LOGICAL, INTENT(IN)                                :: scale_back
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_dm'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scale_dm'
 
       INTEGER                                            :: handle, img, ispin
       TYPE(admm_type), POINTER                           :: admm_env

@@ -98,7 +98,7 @@ CONTAINS
       INTEGER                                            :: nrep, prep
       LOGICAL, INTENT(in), OPTIONAL                      :: sync_v, keep_wf_history, row_force
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rep_env_create'
 
       CHARACTER(len=default_path_length)                 :: input_file_path, output_file_path
       INTEGER :: comm_cart, comm_f, comm_inter_rep, forcedim, i, i0, ierr, ip, ir, irep, lp, &

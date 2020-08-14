@@ -91,7 +91,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: neumann_directions
       TYPE(dct_type), INTENT(INOUT)                      :: dct_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dct_type_init'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dct_type_init'
 
       INTEGER                                            :: handle, maxn_sendrecv
 
@@ -530,7 +530,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN), POINTER                 :: pw_in
       TYPE(pw_type), INTENT(INOUT), POINTER              :: pw_expanded
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pw_expand'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_expand'
 
       INTEGER :: group_size, handle, i, ind, lb1, lb1_loc, lb1_new, lb2, lb2_loc, lb2_new, lb3, &
          lb3_loc, lb3_new, loc, maxn_sendrecv, rs_group, rs_mpo, ub1, ub1_loc, ub1_new, ub2, &
@@ -715,7 +715,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN), POINTER                 :: pw_in
       TYPE(pw_type), INTENT(INOUT), POINTER              :: pw_shrinked
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pw_shrink'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_shrink'
 
       COMPLEX(dp), DIMENSION(:, :, :), POINTER           :: cc3d
       INTEGER :: group_size, handle, i, in_space, in_use, lb1_orig, lb1_xpnd, lb2_orig, lb2_xpnd, &
@@ -835,7 +835,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), INTENT(OUT), POINTER :: cr3d_out
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'flipud'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'flipud'
 
       INTEGER :: handle, i, lb1, lb1_glbl, lb1_new, lb2, lb2_glbl, lb2_new, lb3, lb3_glbl, &
          lb3_new, ub1, ub1_glbl, ub1_new, ub2, ub2_glbl, ub2_new, ub3, ub3_glbl, ub3_new
@@ -889,7 +889,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), INTENT(OUT), POINTER :: cr3d_out
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fliplr'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fliplr'
 
       INTEGER :: handle, i, lb1, lb1_glbl, lb1_new, lb2, lb2_glbl, lb2_new, lb3, lb3_glbl, &
          lb3_new, ub1, ub1_glbl, ub1_new, ub2, ub2_glbl, ub2_new, ub3, ub3_glbl, ub3_new
@@ -943,7 +943,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), INTENT(OUT), POINTER :: cr3d_out
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'flipbf'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'flipbf'
 
       INTEGER :: handle, i, lb1, lb1_glbl, lb1_new, lb2, lb2_glbl, lb2_new, lb3, lb3_glbl, &
          lb3_new, ub1, ub1_glbl, ub1_new, ub2, ub2_glbl, ub2_new, ub3, ub3_glbl, ub3_new
@@ -997,7 +997,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), INTENT(OUT), POINTER :: cr3d_out
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rot180'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rot180'
 
       INTEGER :: handle, i, lb1, lb1_glbl, lb1_new, lb2, lb2_glbl, lb2_new, lb3, lb3_glbl, &
          lb3_new, ub1, ub1_glbl, ub1_new, ub2, ub2_glbl, ub2_new, ub3, ub3_glbl, ub3_new

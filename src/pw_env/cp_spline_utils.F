@@ -57,7 +57,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: coarse_pool
       TYPE(section_vals_type), POINTER                   :: param_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_restrict_s3'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_restrict_s3'
 
       INTEGER                                            :: aint_precond, handle, interp_kind, &
                                                             max_iter, precond_kind

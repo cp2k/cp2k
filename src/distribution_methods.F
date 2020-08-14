@@ -1299,7 +1299,7 @@ CONTAINS
       INTEGER                                            :: seed
       REAL(KIND=dp)                                      :: tot_var
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kmeans'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'kmeans'
 
       INTEGER                                            :: handle, i, ind, itn, j, nat, oldc
       LOGICAL                                            :: changed

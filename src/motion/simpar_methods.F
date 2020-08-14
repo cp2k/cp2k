@@ -267,7 +267,7 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(section_vals_type), POINTER                   :: motion_section, md_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_md_low'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_md_low'
 
       LOGICAL                                            :: explicit
       TYPE(section_vals_type), POINTER                   :: tmp_section

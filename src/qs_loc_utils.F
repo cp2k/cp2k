@@ -113,7 +113,7 @@ CONTAINS
 
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_loc_history, mo_loc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'retain_history'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'retain_history'
 
       INTEGER                                            :: handle, i, ncol_hist, ncol_loc
 
@@ -1257,7 +1257,7 @@ CONTAINS
       TYPE(cp_1d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: evals
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_init'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_init'
 
       INTEGER                                            :: handle, homo, i, ilast_intocc, ilow, &
                                                             ispin, iup, n_mo(2), n_mos(2), nao, &

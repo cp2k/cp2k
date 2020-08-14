@@ -74,7 +74,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_env_type), INTENT(INOUT)               :: t_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eigensolver'
 
       INTEGER                                            :: handle, n_ev, nspins, output_unit, &
                                                             restarts
@@ -542,7 +542,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: do_kernel
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_op'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_op'
 
       INTEGER                                            :: handle, nspins, spin
       INTEGER, SAVE                                      :: counter = 0

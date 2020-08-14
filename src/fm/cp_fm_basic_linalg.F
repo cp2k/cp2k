@@ -1128,7 +1128,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(cp_fm_type), POINTER                          :: matrix_a
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_scale'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_scale'
 
       INTEGER                                            :: handle, size_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a

@@ -611,7 +611,7 @@ CONTAINS
       TYPE(atom_type), POINTER                           :: atom
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_write_upf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_write_upf'
 
       CHARACTER(LEN=default_string_length)               :: string
       INTEGER                                            :: i, ibeta, j, k, l, lmax, nbeta, nr, &

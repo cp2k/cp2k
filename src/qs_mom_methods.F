@@ -243,7 +243,7 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'do_mom_guess'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'do_mom_guess'
 
       CHARACTER(len=10)                                  :: str_iter
       INTEGER                                            :: handle, ispin, scf_iter
@@ -380,7 +380,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'do_mom_diag'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'do_mom_diag'
 
       INTEGER                                            :: handle, homo, iproj, ispin, lfomo, nao, &
                                                             nmo, nspins

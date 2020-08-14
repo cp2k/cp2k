@@ -82,7 +82,7 @@ CONTAINS
    SUBROUTINE cp_ddapc_init(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_init'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_ddapc_init'
 
       INTEGER                                            :: handle, i, iw, iw2, n_rep_val, num_gauss
       LOGICAL                                            :: allocate_ddapc_env, unimplemented
@@ -218,7 +218,7 @@ CONTAINS
       CHARACTER(LEN=*), OPTIONAL                         :: Itype_of_density
       INTEGER, INTENT(IN), OPTIONAL                      :: iwc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_ddapc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_ddapc'
 
       CHARACTER(LEN=default_string_length)               :: type_of_density
       INTEGER                                            :: handle, handle2, handle3, i, ii, &
@@ -856,7 +856,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: rho_tot_g
       CHARACTER(LEN=*)                                   :: type_of_density
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'debug_charge'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'debug_charge'
 
       INTEGER                                            :: handle, i, iparticle, kk, ndim
       REAL(KIND=dp)                                      :: dx, rvec(3)

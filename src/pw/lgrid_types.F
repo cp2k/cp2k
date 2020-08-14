@@ -52,7 +52,7 @@ CONTAINS
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'lgrid_create'
 
       INTEGER                                            :: i, ngpts
 
@@ -78,7 +78,7 @@ CONTAINS
    SUBROUTINE lgrid_release(lgrid)
       TYPE(lgrid_type), POINTER                          :: lgrid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'lgrid_release'
 
       IF (ASSOCIATED(lgrid)) THEN
          CPASSERT(lgrid%ref_count > 0)

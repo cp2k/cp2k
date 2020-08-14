@@ -50,7 +50,7 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: potential_energy, kinetic_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_get'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qmmm_env_get'
 
       TYPE(fist_energy_type), POINTER                    :: thermo
       TYPE(qs_energy_type), POINTER                      :: qs_energy

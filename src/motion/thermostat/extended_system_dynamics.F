@@ -61,7 +61,7 @@ CONTAINS
          INTENT(INOUT)                                   :: npt
       INTEGER, INTENT(IN)                                :: group
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_barostat'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'lnhc_barostat'
 
       INTEGER                                            :: handle
       TYPE(map_info_type), POINTER                       :: map_info
@@ -115,7 +115,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: vel(:, :), shell_vel(:, :), &
                                                             core_vel(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_particles'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'lnhc_particles'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: my_shell_adiabatic
@@ -170,7 +170,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: vel(:, :), shell_vel(:, :), &
                                                             core_vel(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_shells'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'lnhc_shells'
 
       INTEGER                                            :: handle
       TYPE(map_info_type), POINTER                       :: map_info
@@ -202,7 +202,7 @@ CONTAINS
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       TYPE(map_info_type), POINTER                       :: map_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'do_nhc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'do_nhc'
 
       INTEGER                                            :: imap, n
 

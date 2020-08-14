@@ -123,7 +123,7 @@ CONTAINS
       TYPE(molsym_type), POINTER                         :: sym
       INTEGER, INTENT(IN)                                :: natoms
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_molsym'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_molsym'
 
       IF (ASSOCIATED(sym)) CALL release_molsym(sym)
 
@@ -142,7 +142,7 @@ CONTAINS
    SUBROUTINE release_molsym(sym)
       TYPE(molsym_type), POINTER                         :: sym
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_molsym'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_molsym'
 
       CPASSERT(ASSOCIATED(sym))
 
@@ -189,7 +189,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: a
       TYPE(molsym_type), INTENT(inout)                   :: sym
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'addsec'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'addsec'
 
       INTEGER                                            :: isec
       REAL(dp)                                           :: length_of_a, scapro
@@ -228,7 +228,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: a
       TYPE(molsym_type), INTENT(inout)                   :: sym
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'addses'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'addses'
 
       INTEGER                                            :: ises
       REAL(dp)                                           :: length_of_a, scapro
@@ -265,7 +265,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: a
       TYPE(molsym_type), INTENT(inout)                   :: sym
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'addsig'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'addsig'
 
       INTEGER                                            :: isig
       REAL(dp)                                           :: length_of_a, scapro
@@ -297,7 +297,7 @@ CONTAINS
    SUBROUTINE atomsym(sym)
       TYPE(molsym_type), INTENT(inout)                   :: sym
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atomsym'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atomsym'
 
 ! Set point group symbol
 
@@ -323,7 +323,7 @@ CONTAINS
       REAL(Kind=dp), DIMENSION(:, :), INTENT(inout)      :: coord
       TYPE(molsym_type), INTENT(inout)                   :: sym
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'axsym'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'axsym'
 
       INTEGER                                            :: iatom, isig, jatom, m, n, natoms, nx, &
                                                             ny, nz
@@ -959,7 +959,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atype
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: weight
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_symmetry'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_symmetry'
 
       INTEGER                                            :: i, iatom, natoms
 
@@ -1061,7 +1061,7 @@ CONTAINS
       TYPE(molsym_type), INTENT(inout)                   :: sym
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: coord
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lowsym'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'lowsym'
 
       REAL(KIND=dp)                                      :: phi
       REAL(KIND=dp), DIMENSION(3)                        :: d
@@ -1151,7 +1151,7 @@ CONTAINS
       TYPE(molsym_type), INTENT(inout)                   :: sym
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: coord
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'moleculesym'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'moleculesym'
 
       INTEGER                                            :: icn, isec, isn
       LOGICAL                                            :: failed
@@ -1420,7 +1420,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: weight
       INTEGER, INTENT(IN)                                :: iw, plevel
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_symmetry'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_symmetry'
 
       CHARACTER(3)                                       :: string
       INTEGER                                            :: i, icn, iequatom, isec, ises, isig, isn, &
@@ -1668,7 +1668,7 @@ CONTAINS
       TYPE(molsym_type), INTENT(inout)                   :: sym
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: coord
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tensor'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'tensor'
 
       INTEGER                                            :: natoms
       REAL(KIND=dp)                                      :: tt

@@ -969,7 +969,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: tag_section
       LOGICAL                                            :: do_restart
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_restart'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'check_restart'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: explicit1, explicit2

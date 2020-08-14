@@ -614,7 +614,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: alpha
       TYPE(cp_cfm_type), POINTER                         :: matrix_a
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_dscale'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_dscale'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
       INTEGER                                            :: handle
@@ -645,7 +645,7 @@ CONTAINS
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
       TYPE(cp_cfm_type), POINTER                         :: matrix_a
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_zscale'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_zscale'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
       INTEGER                                            :: handle
@@ -969,7 +969,7 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: matrix_a, matrix_b
       COMPLEX(kind=dp), INTENT(out)                      :: trace
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_trace'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_trace'
 
       INTEGER                                            :: group, handle, mypcol, myprow, &
                                                             ncol_local, npcol, nprow, nrow_local

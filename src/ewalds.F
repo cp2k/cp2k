@@ -89,7 +89,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: pv_coulomb
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_evaluate'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ewald_evaluate'
 
       COMPLEX(KIND=dp)                                   :: snode
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: summe
@@ -307,7 +307,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: e_self, e_neut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_self'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ewald_self'
 
       INTEGER                                            :: ewald_type, group, iparticle_kind, &
                                                             nparticle_kind, nparticle_local
@@ -453,7 +453,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: pot_nonbond, e_gspace, e_self, e_neut, &
                                                             e_bonded
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_print'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ewald_print'
 
       IF (iw > 0) THEN
          WRITE (iw, '( A, A )') ' *********************************', &

@@ -211,7 +211,7 @@ CONTAINS
    SUBROUTINE pao_finalize(pao)
       TYPE(pao_env_type)                                 :: pao
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_finalize'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_finalize'
 
       INTEGER                                            :: handle
 

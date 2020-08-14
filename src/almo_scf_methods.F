@@ -1432,7 +1432,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_filter
       LOGICAL, INTENT(IN), OPTIONAL                      :: smear
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_overlap'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_overlap'
 
       INTEGER                                            :: dim0, handle
       LOGICAL                                            :: local_retain_sparsity, smearing
@@ -2695,7 +2695,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Asqrt, Asqrtinv
       INTEGER, INTENT(IN)                                :: N
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'matrix_sqrt'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_sqrt'
 
       INTEGER                                            :: handle, INFO, jj, LWORK, unit_nr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, WORK
@@ -3249,7 +3249,7 @@ CONTAINS
       TYPE(domain_map_type), INTENT(IN)                  :: map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: node_of_domain
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_test'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'construct_test'
 
       INTEGER                                            :: GroupID, handle, ndomains
       TYPE(dbcsr_type)                                   :: copy1

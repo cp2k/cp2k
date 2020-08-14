@@ -293,7 +293,7 @@ CONTAINS
    SUBROUTINE mp2_env_create(mp2_env)
       TYPE(mp2_type), POINTER                            :: mp2_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_env_create'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_env_create'
 
       INTEGER                                            :: handle
 

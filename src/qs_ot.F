@@ -235,7 +235,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: C_OLD, C_TMP, C_NEW, P, SC
       LOGICAL, INTENT(IN)                                :: update
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_chol'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ot_ref_chol'
 
       INTEGER                                            :: handle, k, n
 
@@ -276,7 +276,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: C_OLD, C_TMP, C_NEW, P, SC
       LOGICAL, INTENT(IN)                                :: update
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_lwdn'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ot_ref_lwdn'
 
       INTEGER                                            :: handle, i, k, n
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: eig, fun
@@ -339,7 +339,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: norm_in
       LOGICAL, INTENT(IN)                                :: update
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_poly'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ot_ref_poly'
 
       INTEGER                                            :: handle, irefine, k, n
       LOGICAL                                            :: quick_exit
@@ -621,7 +621,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: irac_degree
       REAL(dp), INTENT(in)                               :: eps_irac_filter_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_refine'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ot_refine'
 
       INTEGER                                            :: handle, k
       REAL(dp)                                           :: occ_in, occ_out, r
@@ -758,7 +758,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_x, matrix_sx
       TYPE(qs_ot_type)                                   :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_p'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ot_get_p'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: handle, k, max_iter, n
@@ -1417,7 +1417,7 @@ CONTAINS
 
       TYPE(qs_ot_type)                                   :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_p2m_diag'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ot_p2m_diag'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: blk, col, col_offset, col_size, handle, &
@@ -1529,7 +1529,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: xa, ya
       REAL(KIND=dp)                                      :: qs_ot_sincf
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_sincf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ot_sincf'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: a, b, rs, sf, x, xs, y, ybx, ybxs

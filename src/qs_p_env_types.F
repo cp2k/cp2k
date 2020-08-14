@@ -113,7 +113,7 @@ CONTAINS
    SUBROUTINE p_env_retain(p_env)
       TYPE(qs_p_env_type), POINTER                       :: p_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'p_env_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'p_env_retain'
 
       CPASSERT(ASSOCIATED(p_env))
       CPASSERT(p_env%ref_count > 0)
@@ -131,7 +131,7 @@ CONTAINS
 
       TYPE(qs_p_env_type), POINTER                       :: p_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'p_env_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'p_env_release'
 
       INTEGER                                            :: ip
 

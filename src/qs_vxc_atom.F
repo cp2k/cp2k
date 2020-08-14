@@ -933,7 +933,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: drho_nlcc
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho_h, drho_s
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_rho_nlcc'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_rho_nlcc'
 
       INTEGER                                            :: ia, ispin, na
       REAL(KIND=dp)                                      :: drho, dx, dy, dz, rad, rho, urad, xsp
@@ -1007,7 +1007,7 @@ CONTAINS
       TYPE(rho_atom_type), POINTER                       :: rho_atom
       INTEGER, INTENT(IN)                                :: nspins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gaVxcgb_noGC'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'gaVxcgb_noGC'
 
       INTEGER :: handle, ia, ic, icg, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso2, ispin, l, &
          ld, lmax12, lmax_expansion, lmin12, m1, m2, max_iso_not0, max_iso_not0_local, max_s_harm, &
@@ -1180,7 +1180,7 @@ CONTAINS
       TYPE(rho_atom_type), POINTER                       :: rho_atom
       INTEGER, INTENT(IN)                                :: nspins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gaVxcgb_GC'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'gaVxcgb_GC'
 
       INTEGER :: dmax_iso_not0, dmax_iso_not0_local, handle, ia, ic, icg, ipgf1, ipgf2, ir, iset1, &
          iset2, iso, iso1, iso2, ispin, l, lmax12, lmax_expansion, lmin12, m1, m2, max_iso_not0, &
@@ -1442,7 +1442,7 @@ CONTAINS
       TYPE(rho_atom_type), POINTER                       :: rho_atom
       INTEGER, INTENT(IN)                                :: nspins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dgaVtaudgb'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dgaVtaudgb'
 
       INTEGER :: dmax_iso_not0_local, handle, ic, icg, ipgf1, ipgf2, iset1, iset2, iso, iso1, &
          iso2, isom1, isom2, ispin, l1, l2, lmax12, lmax_expansion, lmin12, m1, m2, max_iso_not0, &

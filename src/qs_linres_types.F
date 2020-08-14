@@ -354,7 +354,7 @@ CONTAINS
 
       TYPE(nmr_env_type)                                 :: nmr_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nmr_env_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nmr_env_create'
 
       CPASSERT(nmr_env%ref_count == 0)
       nmr_env%ref_count = 1
@@ -406,7 +406,7 @@ CONTAINS
 
       TYPE(epr_env_type)                                 :: epr_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'epr_env_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'epr_env_create'
 
       CPASSERT(epr_env%ref_count == 0)
       epr_env%ref_count = 1
@@ -558,7 +558,7 @@ CONTAINS
       REAL(dp), INTENT(OUT), OPTIONAL                    :: shift_gapw_radius
       LOGICAL, INTENT(OUT), OPTIONAL                     :: do_nics, interpolate_shift
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_nmr_env'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_nmr_env'
 
       CPASSERT(nmr_env%ref_count > 0)
 
@@ -627,7 +627,7 @@ CONTAINS
          POINTER                                         :: matrix_efg, matrix_pso, matrix_dso, &
                                                             matrix_fc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_issc_env'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_issc_env'
 
       CPASSERT(issc_env%ref_count > 0)
 
@@ -719,7 +719,7 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: bind_atom_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_epr_env'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_epr_env'
 
       CPASSERT(epr_env%ref_count > 0)
 
@@ -758,7 +758,7 @@ CONTAINS
       TYPE(nablavks_atom_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: nablavks_atom_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_epr_env'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_epr_env'
 
       INTEGER                                            :: idir, ispin
 
@@ -1192,7 +1192,7 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: jrho_vec_rad_h, jrho_vec_rad_s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_jrho_atom'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_jrho_atom'
 
       CPASSERT(ASSOCIATED(jrho1_atom_set))
 
@@ -1431,7 +1431,7 @@ CONTAINS
          POINTER                                         :: psi1_dBerry
       LOGICAL, OPTIONAL                                  :: run_stopped
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_polar_env'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_polar_env'
 
       CPASSERT(polar_env%ref_count > 0)
 
@@ -1466,7 +1466,7 @@ CONTAINS
          POINTER                                         :: psi1_dBerry
       LOGICAL, OPTIONAL                                  :: run_stopped
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_polar_env'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_polar_env'
 
       CPASSERT(polar_env%ref_count > 0)
 

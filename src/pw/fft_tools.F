@@ -199,7 +199,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
       INTEGER, INTENT(IN)                                :: plan_style
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_fft'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_fft'
 
       use_fftsg_sizes = fftsg_sizes
       alltoall_sgl = alltoall
@@ -228,7 +228,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'finalize_fft'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'finalize_fft'
 
 ! release the FFT scratch pool
 
@@ -350,7 +350,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: scale
       INTEGER, INTENT(out)                               :: stat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fft_fw1d'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_fw1d'
 
       INTEGER                                            :: handle
       TYPE(fft_plan_type)                                :: fft_plan
@@ -395,7 +395,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fft3d_s'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft3d_s'
 
       COMPLEX(KIND=dp), DIMENSION(1, 1, 1), TARGET       :: zdum
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: zoptr
@@ -525,7 +525,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fft3d_ps'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft3d_ps'
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
@@ -970,7 +970,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fft3d_pb'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft3d_pb'
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: abuf, bbuf
       INTEGER                                            :: handle, lg(2), lz(3), mcx2, mcy3, mcz1, &
@@ -1397,7 +1397,7 @@ CONTAINS
          INTENT(INOUT)                                   :: tb
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_to_yz'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'x_to_yz'
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: rr
       COMPLEX(KIND=sp), DIMENSION(:, :), POINTER         :: ss, tt
@@ -1505,7 +1505,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: sb
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'yz_to_x'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'yz_to_x'
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: rr
       COMPLEX(KIND=sp), DIMENSION(:, :), POINTER         :: ss, tt
@@ -1617,7 +1617,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: tb
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'yz_to_xz'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'yz_to_xz'
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: xzbuf, yzbuf
       COMPLEX(KIND=sp), DIMENSION(:), POINTER            :: xzbuf_sgl, yzbuf_sgl
@@ -1825,7 +1825,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: tb
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xz_to_yz'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xz_to_yz'
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: xzbuf, yzbuf
       COMPLEX(KIND=sp), DIMENSION(:), POINTER            :: xzbuf_sgl, yzbuf_sgl

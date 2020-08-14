@@ -93,7 +93,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'neb'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'neb'
 
       INTEGER                                            :: handle, ierr, iw, iw2, nrep, &
                                                             output_unit, prep, proc_dist_type
@@ -231,7 +231,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'neb_md'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'neb_md'
 
       INTEGER                                            :: handle, iatom, ic, is, istep, iw, &
                                                             max_steps, natom, shell_index
@@ -371,7 +371,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'neb_diis'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'neb_diis'
 
       INTEGER                                            :: handle, istep, iw, iw2, max_sd_steps, &
                                                             max_steps, n_diis

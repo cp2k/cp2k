@@ -586,7 +586,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: energy_only
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'vdW_energy'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vdW_energy'
 
       COMPLEX(KIND=dp)                                   :: uu
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: theta
@@ -750,7 +750,7 @@ CONTAINS
       REAL(dp), INTENT(IN), OPTIONAL                     :: dvol
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_potential'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_potential'
 
       INTEGER                                            :: handle, i_grid, l, m, nl_type, nqs, P_i, &
                                                             q, q_hi, q_low

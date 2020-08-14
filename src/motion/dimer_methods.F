@@ -66,7 +66,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: gradient
       LOGICAL, INTENT(IN)                                :: calc_force
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at_ts'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_eval_at_ts'
 
       INTEGER                                            :: handle, iw
       LOGICAL                                            :: eval_analytical

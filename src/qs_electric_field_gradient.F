@@ -89,7 +89,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efg_calc'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_efg_calc'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: aint_precond, handle, i, iat, iatom, ij, &
@@ -428,7 +428,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_list
       INTEGER, INTENT(IN)                                :: natom, nspins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'vlimit_atom'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'vlimit_atom'
 
       INTEGER :: i, i1, i2, iat, iatom, icg, ipgf1, ipgf2, iset1, iset2, iso, iso1, iso1_first, &
          iso1_last, iso2, iso2_first, iso2_last, l, l_iso, llmax, m1s, m2s, m_iso, max_iso_not0, &

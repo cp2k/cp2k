@@ -102,7 +102,7 @@ CONTAINS
       TYPE(epr_env_type)                                 :: epr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_print'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'epr_g_print'
 
       CHARACTER(LEN=default_string_length)               :: title
       INTEGER                                            :: idir1, idir2, output_unit, unit_nr
@@ -226,7 +226,7 @@ CONTAINS
       TYPE(epr_env_type)                                 :: epr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_zke'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'epr_g_zke'
 
       INTEGER                                            :: i1, ispin, output_unit
       REAL(KIND=dp)                                      :: epr_g_zke_temp(2)
@@ -287,7 +287,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iB
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_so'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'epr_g_so'
 
       INTEGER                                            :: aint_precond, ia, iat, iatom, idir1, &
                                                             idir2, idir3, ikind, ir, ispin, &
@@ -556,7 +556,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iB
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_soo'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'epr_g_soo'
 
       INTEGER                                            :: aint_precond, ia, iat, iatom, idir1, &
                                                             ikind, ir, iso, ispin, max_iter, &

@@ -928,7 +928,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: scf_section
       TYPE(scf_control_type), POINTER                    :: scf_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_run'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_scf_run'
 
       INTEGER                                            :: after, handle, ikind, iw, nao, ndep, &
                                                             output_unit

@@ -235,7 +235,7 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(IN)                  :: mo_bounds
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_ic_gw'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'trace_ic_gw'
 
       INTEGER                                            :: blk, handle, n, n_end, n_end_block, &
                                                             n_start, n_start_block

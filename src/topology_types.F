@@ -202,7 +202,7 @@ CONTAINS
    SUBROUTINE init_topology(topology)
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_topology'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_topology'
 
 !-----------------------------------------------------------------------------
 ! 1. Nullify and allocate things in topology

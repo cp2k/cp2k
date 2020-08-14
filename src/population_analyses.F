@@ -450,7 +450,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(IN)                                :: print_orbital_contributions
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_orbpop'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_orbpop'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: sgf_symbol

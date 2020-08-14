@@ -130,7 +130,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: group, ndims
       LOGICAL, INTENT(in), OPTIONAL                      :: owns_group
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cart_create'
 
       CPASSERT(.NOT. ASSOCIATED(cart))
       ALLOCATE (cart)
@@ -158,7 +158,7 @@ CONTAINS
    SUBROUTINE cp_cart_update(cart)
       TYPE(cp_para_cart_type), POINTER                   :: cart
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_update'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cart_update'
 
       CPASSERT(ASSOCIATED(cart))
       CPASSERT(cart%ref_count > 0)

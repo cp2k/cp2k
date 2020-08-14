@@ -158,7 +158,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_dbc_cube
       TYPE(pw_pool_type), INTENT(IN), OPTIONAL, POINTER  :: pw_pool
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbc_release'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbc_release'
 
       INTEGER                                            :: handle, i, n_contacts
 

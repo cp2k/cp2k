@@ -98,7 +98,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
       LOGICAL, INTENT(IN)                                :: alpha_case
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'complete_gamma'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'complete_gamma'
 
       INTEGER :: dimen_ia, handle, i, ia_global, iiB, jjB, my_ia_end, my_ia_size, my_ia_start, &
          my_P_end, my_P_size, my_P_start, ncol_local, nrow_local, pos_group, pos_sub, &
@@ -440,7 +440,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_mat
       INTEGER, INTENT(IN), OPTIONAL                      :: integ_group_size, color_group
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'array2fm'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'array2fm'
 
       INTEGER :: dummy_proc, end_col_block, end_row_block, handle, handle2, i_global, i_local, &
          i_sub, iiB, iii, itmp(2), j_global, j_local, j_sub, jjB, my_num_col_blocks, &
@@ -854,7 +854,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ngroup_row, ngroup_col
       TYPE(cp_fm_type), POINTER                          :: fm_mat
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm2array'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm2array'
 
       INTEGER :: dummy_proc, handle, handle2, i_global, iiB, iii, itmp(2), j_global, jjB, mypcol, &
          myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, num_rec_rows, &

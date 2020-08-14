@@ -50,7 +50,7 @@ CONTAINS
    SUBROUTINE atom_basis_opt(atom_section)
       TYPE(section_vals_type), POINTER                   :: atom_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_opt'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_basis_opt'
 
       CHARACTER(LEN=2)                                   :: elem
       CHARACTER(LEN=default_string_length), &

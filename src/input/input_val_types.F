@@ -123,7 +123,7 @@ CONTAINS
          DIMENSION(:), OPTIONAL, POINTER                 :: lc_vals_ptr
       TYPE(enumeration_type), OPTIONAL, POINTER          :: enum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'val_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'val_create'
 
       INTEGER                                            :: i, len_c, narg, nVal
 
@@ -277,7 +277,7 @@ CONTAINS
    SUBROUTINE val_release(val)
       TYPE(val_type), POINTER                            :: val
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'val_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'val_release'
 
       IF (ASSOCIATED(val)) THEN
          CPASSERT(val%ref_count > 0)
@@ -311,7 +311,7 @@ CONTAINS
    SUBROUTINE val_retain(val)
       TYPE(val_type), POINTER                            :: val
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'val_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'val_retain'
 
       CPASSERT(ASSOCIATED(val))
       CPASSERT(val%ref_count > 0)
@@ -359,7 +359,7 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL                     :: len_c, type_of_var
       TYPE(enumeration_type), OPTIONAL, POINTER          :: enum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'val_get'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'val_get'
 
       INTEGER                                            :: i, l_in, l_out
 
@@ -495,7 +495,7 @@ CONTAINS
       TYPE(cp_unit_type), OPTIONAL, POINTER              :: unit
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: unit_str, fmt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'val_write'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'val_write'
 
       CHARACTER(len=default_string_length)               :: c_string, myfmt, rcval
       INTEGER                                            :: i, iend, item, j, l
@@ -743,7 +743,7 @@ CONTAINS
    SUBROUTINE val_duplicate(val_in, val_out)
       TYPE(val_type), POINTER                            :: val_in, val_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'val_duplicate'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'val_duplicate'
 
       CPASSERT(ASSOCIATED(val_in))
       CPASSERT(.NOT. ASSOCIATED(val_out))

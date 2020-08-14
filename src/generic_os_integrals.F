@@ -404,7 +404,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: m
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_ra2m_ab_os'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'int_ra2m_ab_os'
 
       INTEGER                                            :: handle, i, iset, jset, m1, m2, maxco, &
                                                             maxcoa, maxcob, maxl, maxla, maxlb, &

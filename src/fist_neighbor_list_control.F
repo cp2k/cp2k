@@ -89,7 +89,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: force_update
       TYPE(exclusion_type), DIMENSION(:), OPTIONAL       :: exclusions
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'list_control'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'list_control'
 
       INTEGER :: counter, handle, ikind, iparticle, iparticle_kind, iparticle_local, ishell, &
          jkind, last_update, nparticle, nparticle_kind, nparticle_local, nshell, num_update, &

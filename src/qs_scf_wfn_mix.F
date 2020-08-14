@@ -71,7 +71,7 @@ CONTAINS
       INTEGER                                            :: output_unit
       INTEGER, DIMENSION(:, :, :), OPTIONAL, POINTER     :: marked_states
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfn_mix'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfn_mix'
 
       INTEGER :: handle, i_rep, ispin, mark_ind, mark_number, n_rep, orig_mo_index, &
          orig_spin_index, result_mo_index, result_spin_index

@@ -628,7 +628,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: op_pos
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'alloc_block_3c'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'alloc_block_3c'
 
       INTEGER :: blk_cnt, handle, i, i_img, iatom, iblk, ikind, iproc, j_img, jatom, jcell, jkind, &
          katom, kcell, kkind, natom, nimg, op_ij, op_jk, op_pos_prv

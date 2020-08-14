@@ -42,7 +42,7 @@ CONTAINS
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_muc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'topology_muc'
 
       CHARACTER(LEN=default_string_length)               :: unit_str
       INTEGER                                            :: handle, i, ind, j, k, m, n, natoms, nrep

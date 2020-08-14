@@ -452,7 +452,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: mepos
       INTEGER                                            :: istat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nl_sub_iterate'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nl_sub_iterate'
 
       INTEGER                                            :: me
       TYPE(neighbor_list_iterator_type), POINTER         :: iterator

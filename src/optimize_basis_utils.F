@@ -132,7 +132,7 @@ CONTAINS
    SUBROUTINE print_opt_info(opt_bas)
       TYPE(basis_optimization_type)                      :: opt_bas
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_opt_info'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_opt_info'
 
       INTEGER                                            :: icomb, ikind, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -488,7 +488,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: element
       INTEGER                                            :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_basis'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'write_basis'
 
       INTEGER                                            :: iexp, iset
 
@@ -842,7 +842,7 @@ CONTAINS
       LOGICAL                                            :: is_bound, is_varlim
       INTEGER                                            :: irep
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_constraint'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_constraint'
 
       REAL(KIND=dp)                                      :: r_val
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r_vals
@@ -1077,7 +1077,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: element, basis_name
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'parse_basis'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'parse_basis'
 
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=242)                                 :: line2
@@ -1139,7 +1139,7 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       TYPE(subset_type)                                  :: subset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'parse_subset'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'parse_subset'
 
       CHARACTER(len=20*default_string_length)            :: line_att
       INTEGER                                            :: icon1, icon2, il, ipgf, ishell, istart

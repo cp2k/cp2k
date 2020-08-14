@@ -192,7 +192,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: nelectron_total
       INTEGER, DIMENSION(2), OPTIONAL                    :: nelectron_spin
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_subsys_get'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_subsys_get'
 
       CALL cp_subsys_get(subsys%cp_subsys, &
                          atomic_kinds=atomic_kinds, &
@@ -263,7 +263,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: nelectron_total
       INTEGER, DIMENSION(2), OPTIONAL                    :: nelectron_spin
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_subsys_set'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_subsys_set'
 
       IF (PRESENT(cp_subsys)) THEN
          CALL cp_subsys_retain(cp_subsys)

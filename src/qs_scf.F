@@ -190,7 +190,7 @@ CONTAINS
    SUBROUTINE scf(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'scf'
 
       INTEGER                                            :: ihistory, max_scf_tmp
       LOGICAL                                            :: converged, outer_scf_loop, should_stop
@@ -318,7 +318,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(OUT)                               :: converged, should_stop
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scf_env_do_scf'
 
       CHARACTER(LEN=default_string_length)               :: description, name
       INTEGER :: ext_master_id, external_comm, handle, handle2, i_tmp, ic, ispin, iter_count, &
@@ -611,7 +611,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: scf_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_loop'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_scf_loop'
 
       INTEGER                                            :: handle, ispin, nmo, number_of_OT_envs
       LOGICAL                                            :: do_rotation, has_unit_metric, is_full_all
@@ -936,7 +936,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(OUT)                               :: should_stop
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_scf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cdft_scf'
 
       INTEGER                                            :: handle, iatom, ispin, ivar, nmo, nvar, &
                                                             output_unit

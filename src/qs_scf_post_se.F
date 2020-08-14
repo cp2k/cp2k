@@ -397,7 +397,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: mom
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atomic_moments'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atomic_moments'
 
       INTEGER                                            :: i, iset, jset, ncoa, ncob, nm, nset, &
                                                             sgfa, sgfb

@@ -376,7 +376,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rdparm_amber_8'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rdparm_amber_8'
 
       CHARACTER(LEN=default_string_length)               :: input_format, section
       CHARACTER(LEN=default_string_length), &

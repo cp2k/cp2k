@@ -288,7 +288,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: fout
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: fun1, fun2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hfun_scale'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'hfun_scale'
       REAL(KIND=dp), PARAMETER                           :: small = 1.0e-12_dp
 
       INTEGER                                            :: i1, i2, i3, n1, n2, n3

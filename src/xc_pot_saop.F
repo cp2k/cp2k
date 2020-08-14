@@ -128,7 +128,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: oe_corr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'add_saop_pot'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_saop_pot'
 
       INTEGER                                            :: dft_method_id, homo, i, ispin, j, k, &
                                                             nspins, orb, xc_deriv_method_id, &

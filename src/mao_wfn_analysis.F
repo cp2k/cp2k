@@ -89,7 +89,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_section
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_analysis'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mao_analysis'
 
       CHARACTER(len=2)                                   :: element_symbol, esa, esb, esc
       INTEGER :: fall, handle, ia, iab, iabc, iatom, ib, ic, icol, ikind, irow, ispin, jatom, &

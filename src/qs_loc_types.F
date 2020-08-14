@@ -411,7 +411,7 @@ CONTAINS
       REAL(dp), DIMENSION(6), OPTIONAL                   :: weights
       INTEGER, OPTIONAL                                  :: dim_op
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_loc_env'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_qs_loc_env'
 
       CPASSERT(ASSOCIATED(qs_loc_env))
 
@@ -468,7 +468,7 @@ CONTAINS
       REAL(dp), DIMENSION(6), OPTIONAL                   :: weights
       INTEGER, OPTIONAL                                  :: dim_op
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_loc_env'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_qs_loc_env'
 
       INTEGER                                            :: i
 

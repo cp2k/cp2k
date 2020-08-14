@@ -156,7 +156,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(average_quantities_type), OPTIONAL, POINTER   :: averages
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_tamc'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_tamc'
 
       CHARACTER(LEN=20)                                  :: ensemble
       INTEGER                                            :: handle, i, initialStep, iprint, isos, &
@@ -759,7 +759,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       REAL(KIND=dp), INTENT(inout), OPTIONAL             :: zpot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tamc_force'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'tamc_force'
 
       INTEGER                                            :: handle, i, i_c, icolvar, ii
       LOGICAL                                            :: explicit
@@ -882,7 +882,7 @@ CONTAINS
       TYPE(mc_averages_type), INTENT(INOUT), POINTER     :: averages
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: zbuff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'langevinVEC'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'langevinVEC'
 
       INTEGER                                            :: iprint, ivar, nparticle, nparticle_kind, &
                                                             nstep, output_unit
@@ -1139,7 +1139,7 @@ CONTAINS
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: zbuff
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_hmc_move'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mc_hmc_move'
 
       INTEGER                                            :: group, handle, iatom, j, nAtoms, source
       LOGICAL                                            :: ionode, localise

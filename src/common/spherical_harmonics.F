@@ -303,7 +303,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l1, m1, l2, m2, lp, mp
       REAL(KIND=dp)                                      :: cgc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cgc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cgc'
 
       INTEGER                                            :: la, lb, ll, ma, mb, s, t, tmax, tmin, &
                                                             z1, z2, z3, z4, z5
@@ -423,7 +423,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: y
       INTEGER, INTENT(IN)                                :: l, m
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rvy_lm'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rvy_lm'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: cp, lmm, lpm, pf, plm, rxy, sp, t, z
@@ -556,7 +556,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: y
       INTEGER, INTENT(IN)                                :: l, m
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rry_lm'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rry_lm'
 
       REAL(KIND=dp)                                      :: cp, lmm, lpm, pf, plm, rxy, sp, t, z
 
@@ -685,7 +685,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(OUT)        :: y
       INTEGER, INTENT(IN)                                :: l, m
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cvy_lm'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cvy_lm'
 
       INTEGER                                            :: i, n
       REAL(KIND=dp)                                      :: cp, lmm, lpm, pf, plm, rxy, sp, t, ym, &
@@ -867,7 +867,7 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(OUT)                      :: y
       INTEGER, INTENT(IN)                                :: l, m
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ccy_lm'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ccy_lm'
 
       REAL(KIND=dp)                                      :: cp, lmm, lpm, pf, plm, rxy, sp, t, ym, &
                                                             yp, z
@@ -1029,7 +1029,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2), INTENT(OUT)           :: dy
       INTEGER, INTENT(IN)                                :: l, m
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dry_lm'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dry_lm'
 
       REAL(KIND=dp)                                      :: cp, ct, dplm, lmm, lpm, p, pf, rxy, sp, &
                                                             st, t, tt, y, z
@@ -1184,7 +1184,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(2), INTENT(OUT)        :: dy
       INTEGER, INTENT(IN)                                :: l, m
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dcy_lm'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dcy_lm'
 
       REAL(KIND=dp), DIMENSION(2)                        :: dd
 
@@ -1208,7 +1208,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l, m
       REAL(KIND=dp)                                      :: plm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'legendre'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'legendre'
 
       INTEGER                                            :: il, im, mm
       REAL(KIND=dp)                                      :: fact, pll, pmm, pmmp1, somx2
@@ -1353,7 +1353,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l, m
       REAL(KIND=dp)                                      :: dplm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dlegendre'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dlegendre'
 
       INTEGER                                            :: mm
 
@@ -1493,7 +1493,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp)                                      :: dPof1
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dPof1'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dPof1'
 
       IF (ABS(x) - 1.0_dp > EPSILON(1.0_dp)) THEN
          CPABORT("|x| is not 1")

@@ -132,7 +132,7 @@ CONTAINS
    SUBROUTINE kg_env_release(kg_env)
       TYPE(kg_environment_type), POINTER                 :: kg_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_env_release'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_env_release'
 
       INTEGER                                            :: handle, isub
 

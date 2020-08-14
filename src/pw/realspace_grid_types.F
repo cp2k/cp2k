@@ -489,7 +489,7 @@ CONTAINS
       TYPE(realspace_grid_type), POINTER                 :: rs
       TYPE(realspace_grid_desc_type), POINTER            :: desc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_create'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rs_grid_create'
 
       INTEGER                                            :: handle
 
@@ -601,7 +601,7 @@ CONTAINS
       TYPE(realspace_grid_type), POINTER                 :: rs
       INTEGER, INTENT(in)                                :: iounit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_print'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rs_grid_print'
 
       INTEGER                                            :: dir, i, nn
       REAL(KIND=dp)                                      :: pp(3)
@@ -685,7 +685,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: pw
       INTEGER, INTENT(IN)                                :: dir
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rs_pw_transfer'
 
       CHARACTER(LEN=5)                                   :: dirname
       INTEGER                                            :: handle, handle2, i, im, j, jm, k, km
@@ -1938,7 +1938,7 @@ CONTAINS
 
       TYPE(realspace_grid_type), POINTER                 :: rs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_zero'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rs_grid_zero'
 
       INTEGER                                            :: handle, i, j, k, l(3), u(3)
 
@@ -2036,7 +2036,7 @@ CONTAINS
    SUBROUTINE rs_grid_retain(rs_grid)
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rs_grid_retain'
 
       CPASSERT(ASSOCIATED(rs_grid))
       CPASSERT(rs_grid%ref_count > 0)
@@ -2152,7 +2152,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dir, disp
       INTEGER, INTENT(OUT)                               :: source, dest
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cart_shift'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cart_shift'
 
       INTEGER, DIMENSION(3)                              :: shift_coords
 

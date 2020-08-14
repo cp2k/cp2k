@@ -609,7 +609,7 @@ CONTAINS
       TYPE(tmc_env_type), POINTER                        :: tmc_env
       LOGICAL                                            :: check_done, result_acc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_elements'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_elements'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: act_ready, tmp_ready
@@ -718,7 +718,7 @@ CONTAINS
       TYPE(tmc_env_type), POINTER                        :: tmc_env
       LOGICAL                                            :: result_acc, something_updated
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tree_update'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tree_update'
 
       INTEGER                                            :: handle, itmp
       LOGICAL                                            :: found

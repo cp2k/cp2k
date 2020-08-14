@@ -361,7 +361,7 @@ CONTAINS
       REAL(kind=dp), INTENT(IN)                          :: factor
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atrace
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_trace'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_trace'
 
       INTEGER                                            :: blk, iblock_col, iblock_row, nblock
       LOGICAL                                            :: found

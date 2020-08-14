@@ -427,7 +427,7 @@ CONTAINS
    SUBROUTINE ls_scf_init_qs(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_init_qs'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ls_scf_init_qs'
 
       INTEGER                                            :: handle, ispin, nspin, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger

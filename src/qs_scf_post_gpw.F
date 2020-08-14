@@ -752,7 +752,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nlumo
       INTEGER, INTENT(OUT)                               :: nlumos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo_gpw'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'make_lumo_gpw'
 
       INTEGER                                            :: handle, homo, ispin, n, nao, nmo, &
                                                             output_unit
@@ -1302,7 +1302,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_et'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_scf_post_et'
 
       INTEGER                                            :: handle, ispin
       LOGICAL                                            :: do_et

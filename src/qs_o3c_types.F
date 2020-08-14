@@ -254,7 +254,7 @@ CONTAINS
 
       TYPE(o3c_pair_type), DIMENSION(:)                  :: ijpair
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_ijpair'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'release_ijpair'
 
       INTEGER                                            :: i
 
@@ -282,7 +282,7 @@ CONTAINS
 
       TYPE(o3c_int_type), DIMENSION(:)                   :: ijk
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_ijk'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'release_ijk'
 
       INTEGER                                            :: i
 
@@ -494,7 +494,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: mepos
       INTEGER                                            :: istat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'o3c_iterate'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'o3c_iterate'
 
       INTEGER                                            :: ij, ijpair, klist, me
       TYPE(o3c_container_type), POINTER                  :: o3c
@@ -617,7 +617,7 @@ CONTAINS
       TYPE(o3c_vec_type), DIMENSION(:)                   :: o3c_vec
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nsize
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'o3c_vec_create'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'o3c_vec_create'
 
       INTEGER                                            :: i, m, n
 
@@ -666,7 +666,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: vec
       INTEGER, OPTIONAL                                  :: n
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_o3c_vec'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_o3c_vec'
 
       CPASSERT(i > 0 .AND. i <= SIZE(o3c_vec))
 

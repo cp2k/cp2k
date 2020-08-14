@@ -50,7 +50,7 @@ CONTAINS
    SUBROUTINE atprop_create(atprop_env)
       TYPE(atprop_type), POINTER                         :: atprop_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atprop_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atprop_create'
 
       CALL atprop_release(atprop_env)
       ALLOCATE (atprop_env)
@@ -71,7 +71,7 @@ CONTAINS
       TYPE(atprop_type), POINTER                         :: atprop_env
       INTEGER, INTENT(IN)                                :: natom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atprop_init'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atprop_init'
 
       CPASSERT(ASSOCIATED(atprop_env))
 
@@ -161,7 +161,7 @@ CONTAINS
    SUBROUTINE atprop_release(atprop_env)
       TYPE(atprop_type), POINTER                         :: atprop_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atprop_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atprop_release'
 
       IF (ASSOCIATED(atprop_env)) THEN
          ! energy

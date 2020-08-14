@@ -1167,7 +1167,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: sc
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lda_calc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'libxc_lda_calc'
 
       INTEGER                                            :: func_id, ii
       LOGICAL                                            :: no_exc
@@ -1616,7 +1616,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: sc
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lsd_calc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'libxc_lsd_calc'
 
       INTEGER                                            :: func_id, ii
       LOGICAL                                            :: no_exc

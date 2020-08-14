@@ -46,7 +46,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, mpi_io
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_pw_to_cube'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_pw_to_cube'
 
       INTEGER                                            :: i, n
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: particles_z
@@ -115,7 +115,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(in)                       :: filename
       REAL(kind=dp), INTENT(in)                          :: scaling
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cube_to_pw'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cube_to_pw'
 
       LOGICAL                                            :: parallel_read
 

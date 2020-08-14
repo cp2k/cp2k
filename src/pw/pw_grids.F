@@ -112,7 +112,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: pe_group
       LOGICAL, INTENT(IN), OPTIONAL                      :: local
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_create'
 
       LOGICAL                                            :: my_local
 
@@ -333,7 +333,7 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(in), OPTIONAL        :: rs_dims
       INTEGER, INTENT(in), OPTIONAL                      :: iounit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_setup'
 
       INTEGER                                            :: handle, my_icommensurate, &
                                                             my_ncommensurate
@@ -685,7 +685,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       INTEGER, INTENT(IN)                                :: info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_print'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_print'
 
       INTEGER                                            :: i
       INTEGER(KIND=int_8)                                :: n(3)
@@ -1276,7 +1276,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: yz_mask
       INTEGER, DIMENSION(:, :), INTENT(OUT)              :: yz_index
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'order_mask'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'order_mask'
 
       INTEGER                                            :: i1, i2, ic, icount, ii, im, jc, jj
 
@@ -1409,7 +1409,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       INTEGER, DIMENSION(:, :), INTENT(OUT)              :: yz_mask
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_count'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_count'
 
       INTEGER                                            :: l, m, mm, n, n_upperlimit, nlim(2), nn
       INTEGER(KIND=int_8)                                :: gpt
@@ -1485,7 +1485,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_assign'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_assign'
 
       INTEGER                                            :: gpt, handle, i, ip, l, lby, lbz, ll, m, &
                                                             mm, n, n_upperlimit, nn
@@ -1799,7 +1799,7 @@ CONTAINS
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
       TYPE(pw_grid_type), INTENT(IN), OPTIONAL           :: ref_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_sort'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_sort'
 
       INTEGER                                            :: handle, i, ig, ih, ip, is, it, ng, ngr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx
@@ -1979,7 +1979,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: g_hat
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: idx
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sort_shells'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sort_shells'
       REAL(KIND=dp), PARAMETER                           :: small = 5.e-16_dp
 
       INTEGER                                            :: handle, ig, ng, s1, s2
@@ -2025,7 +2025,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: idx
       INTEGER, INTENT(IN)                                :: s1, s2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'redist'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'redist'
 
       INTEGER                                            :: i, ii, n1, n2, n3, ns
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indl
@@ -2070,7 +2070,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       INTEGER, DIMENSION(:, :), INTENT(OUT)              :: yz
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_remap'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_remap'
 
       INTEGER                                            :: gpt, handle, i, ip, is, j, m, n, ny, nz
       INTEGER, DIMENSION(:), POINTER                     :: mapm, mapn
@@ -2142,7 +2142,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_change'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_change'
 
       INTEGER                                            :: gpt
       REAL(KIND=dp)                                      :: cell_deth, l, m, n
@@ -2191,7 +2191,7 @@ CONTAINS
    SUBROUTINE pw_grid_retain(pw_grid)
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_retain'
 
       CPASSERT(ASSOCIATED(pw_grid))
       CPASSERT(pw_grid%ref_count > 0)

@@ -100,7 +100,7 @@ CONTAINS
    SUBROUTINE staging_retain(staging_env)
       TYPE(staging_env_type), POINTER                    :: staging_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'staging_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'staging_retain'
 
       CPASSERT(ASSOCIATED(staging_env))
       CPASSERT(staging_env%ref_count > 0)
@@ -185,7 +185,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: x
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'staging_x2u'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'staging_x2u'
 
       INTEGER                                            :: k, s
 
@@ -216,7 +216,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: x
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'staging_u2x'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'staging_u2x'
 
       INTEGER                                            :: i, ist, j
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii, jjj
@@ -263,7 +263,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: uf
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: f
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'staging_f2uf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'staging_f2uf'
 
       INTEGER                                            :: i, idim, ij, ist, k
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii, jjj, kkk

@@ -78,7 +78,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_for_ref
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_cell'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell'
 
       INTEGER                                            :: my_per
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
@@ -373,7 +373,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_cell_cif'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell_cif'
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(3)                              :: periodic
@@ -459,7 +459,7 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       REAL(KIND=dp), INTENT(OUT)                         :: r
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cif_get_real'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cif_get_real'
 
       CHARACTER(LEN=default_string_length)               :: s_tag
       INTEGER                                            :: iln
@@ -489,7 +489,7 @@ CONTAINS
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell_ref
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: label
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_cell'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'write_cell'
 
       CHARACTER(LEN=default_string_length)               :: my_label, unit_str
       INTEGER                                            :: output_unit

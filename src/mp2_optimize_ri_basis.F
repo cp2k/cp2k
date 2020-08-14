@@ -889,7 +889,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pnew, Lower_B, max_dev, max_rel_dev
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: exp_limits
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_basis'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reset_basis'
 
       INTEGER                                            :: am_max, iexpo, ikind, ipos, ipos_p, &
                                                             iset, la

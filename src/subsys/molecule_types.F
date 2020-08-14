@@ -307,7 +307,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: first_atom, last_atom, first_shell, &
                                                             last_shell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_molecule'
 
       IF (ASSOCIATED(molecule)) THEN
 
@@ -374,7 +374,7 @@ CONTAINS
       TYPE(local_g4x6_constraint_type), OPTIONAL, &
          POINTER                                         :: lg4x6(:)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_molecule'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_molecule'
 
       IF (ASSOCIATED(molecule)) THEN
 

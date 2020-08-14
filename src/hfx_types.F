@@ -588,7 +588,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: do_exx, do_ot
       INTEGER, OPTIONAL                                  :: nelectron_total
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_create'
 
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=default_path_length)                 :: char_val
@@ -1195,7 +1195,7 @@ CONTAINS
       TYPE(cp_para_env_type)                             :: para_env
       INTEGER, INTENT(IN)                                :: basis_cntrl
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_init'
 
       INTEGER                                            :: handle, i_mem, ikind, iproc, j_mem, &
                                                             MO_dim, mp_comm_3d, natom, nkind, nproc
@@ -1446,7 +1446,7 @@ CONTAINS
    SUBROUTINE hfx_ri_release(ri_data)
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_release'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_release'
 
       INTEGER                                            :: handle, i_mem, ispin, j_mem, unused
 
@@ -1811,7 +1811,7 @@ CONTAINS
    SUBROUTINE hfx_release(x_data)
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_release'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_release'
 
       INTEGER                                            :: i, i_thread, irep, n_rep_hf, n_threads
       TYPE(cp_logger_type), POINTER                      :: logger

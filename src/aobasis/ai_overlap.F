@@ -86,7 +86,7 @@ CONTAINS
          OPTIONAL                                        :: pab
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: force_a
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'overlap'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'overlap'
 
       INTEGER :: ax, ay, az, bx, by, bz, cda, cdax, cday, cdaz, coa, coamx, coamy, coamz, coapx, &
          coapy, coapz, cob, cobm2x, cobm2y, cobm2z, cobmx, cobmy, cobmz, da, da_max, dax, day, &
@@ -687,7 +687,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: dab, ddab
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'overlap_ab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'overlap_ab'
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, ia, &
                                                             ib, ipgf, jpgf, la, lb, ldrr, lma, &
@@ -982,7 +982,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(INOUT), OPTIONAL                         :: daba
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'overlap_aab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'overlap_aab'
 
       INTEGER :: ax, ax1, ax2, ay, ay1, ay2, az, az1, az2, bx, by, bz, coa1, coa2, cob, i1pgf, &
          i2pgf, ia1, ia2, ib, jpgf, la1, la2, lb, ldrr, lma, lmb, ma1, ma2, mb, na1, na2, nb, &
@@ -1197,7 +1197,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(INOUT), OPTIONAL                         :: dabb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'overlap_abb'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'overlap_abb'
 
       INTEGER :: ax, ay, az, bx, bx1, bx2, by, by1, by2, bz, bz1, bz2, coa, cob1, cob2, ia, ib1, &
          ib2, ipgf, j1pgf, j2pgf, la, lb1, lb2, ldrr, lma, lmb, ma, mb1, mb2, na, nb1, nb2, ofa, &
@@ -1386,7 +1386,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :, :), &
          INTENT(INOUT), OPTIONAL                         :: daaab
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'overlap_aaab'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'overlap_aaab'
 
       INTEGER :: ax, ax1, ax2, ax3, ay, ay1, ay2, ay3, az, az1, az2, az3, bx, by, bz, coa1, coa2, &
          coa3, cob, i1pgf, i2pgf, i3pgf, ia1, ia2, ia3, ib, jpgf, la1, la2, la3, lb, ldrr, lma, &
@@ -1592,7 +1592,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :, :), &
          INTENT(INOUT), OPTIONAL                         :: daabb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'overlap_aabb'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'overlap_aabb'
 
       INTEGER :: ax, ax1, ax2, ay, ay1, ay2, az, az1, az2, bx, bx1, bx2, by, by1, by2, bz, bz1, &
          bz2, coa1, coa2, cob1, cob2, i1pgf, i2pgf, ia1, ia2, ib1, ib2, j1pgf, j2pgf, la1, la2, &
@@ -1802,7 +1802,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :, :), &
          INTENT(INOUT), OPTIONAL                         :: dabbb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'overlap_abbb'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'overlap_abbb'
 
       INTEGER :: ax, ay, az, bx, bx1, bx2, bx3, by, by1, by2, by3, bz, bz1, bz2, bz3, coa, cob1, &
          cob2, cob3, ia, ib1, ib2, ib3, ipgf, j1pgf, j2pgf, j3pgf, la, lb1, lb2, lb3, ldrr, lma, &
@@ -1981,7 +1981,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sab
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'overlap_ab_s'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'overlap_ab_s'
       REAL(KIND=dp), PARAMETER                           :: huge4 = HUGE(1._dp)/4._dp
 
       INTEGER                                            :: nca, ncb, nsa, nsb
@@ -2029,7 +2029,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetb, alat
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sab
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'overlap_ab_sp'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'overlap_ab_sp'
 
       COMPLEX(KIND=dp)                                   :: zfg
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: fun, gun

@@ -75,7 +75,7 @@ CONTAINS
 
       TYPE(rel_control_type), POINTER                    :: rel_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_create'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rel_c_create'
 
       ALLOCATE (rel_control)
 
@@ -103,7 +103,7 @@ CONTAINS
 
       TYPE(rel_control_type), POINTER                    :: rel_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_retain'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rel_c_retain'
 
       CPASSERT(ASSOCIATED(rel_control))
 
@@ -126,7 +126,7 @@ CONTAINS
 
       TYPE(rel_control_type), POINTER                    :: rel_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_release'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rel_c_release'
 
       IF (ASSOCIATED(rel_control)) THEN
          CPASSERT(rel_control%ref_count > 0)

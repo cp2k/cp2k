@@ -86,7 +86,7 @@ CONTAINS
       TYPE(free_energy_type), POINTER                    :: fe_env
       TYPE(section_vals_type), POINTER                   :: fe_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fe_env_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fe_env_create'
 
       INTEGER                                            :: i, id_method
       LOGICAL                                            :: explicit
@@ -155,7 +155,7 @@ CONTAINS
    SUBROUTINE fe_env_release(fe_env)
       TYPE(free_energy_type), POINTER                    :: fe_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fe_env_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fe_env_release'
 
       INTEGER                                            :: i
 

@@ -110,7 +110,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       INTEGER, OPTIONAL                                  :: max_cache
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pool_create'
 
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -144,7 +144,7 @@ CONTAINS
    SUBROUTINE pw_pool_retain(pool)
       TYPE(pw_pool_type), POINTER                        :: pool
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pool_retain'
 
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -701,7 +701,7 @@ CONTAINS
    SUBROUTINE pw_pools_copy(source_pools, target_pools)
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: source_pools, target_pools
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_copy'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pools_copy'
 
       INTEGER                                            :: i
 

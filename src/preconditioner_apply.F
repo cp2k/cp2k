@@ -162,7 +162,7 @@ CONTAINS
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_single'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_single'
 
       INTEGER                                            :: handle
 
@@ -221,7 +221,7 @@ CONTAINS
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_fm_type), POINTER                          :: matrix_in, matrix_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_full_all'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_full_all'
 
       INTEGER                                            :: handle, i, j, k, n, ncol_local, &
                                                             nrow_local
@@ -272,7 +272,7 @@ CONTAINS
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_all'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_all'
 
       INTEGER                                            :: col, col_offset, col_size, handle, i, j, &
                                                             row, row_offset, row_size

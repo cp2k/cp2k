@@ -1564,7 +1564,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'opt_embed_step'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'opt_embed_step'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.000001_dp
 
       INTEGER                                            :: handle, l_global, LLL, nrow_local
@@ -2268,7 +2268,7 @@ CONTAINS
    SUBROUTINE step_control(opt_embed)
       TYPE(opt_embed_pot_type)                           :: opt_embed
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'step_control'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'step_control'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: actual_ener_change, ener_ratio, &
@@ -2343,7 +2343,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_type), POINTER                          :: diag_step
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'level_shift'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'level_shift'
       INTEGER, PARAMETER                                 :: max_iter = 25
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.00001_dp
 
@@ -2763,7 +2763,7 @@ CONTAINS
       LOGICAL                                            :: open_shell_embed
       REAL(KIND=dp)                                      :: vw_cutoff, vw_smooth_cutoff_range
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'FAB_update'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'FAB_update'
 
       INTEGER                                            :: handle, i_spin, nspins
       TYPE(pw_env_type), POINTER                         :: pw_env

@@ -108,7 +108,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
       TYPE(atprop_type), POINTER                         :: atprop
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pme_evaluate'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pme_evaluate'
 
       INTEGER                                            :: group, handle, i, ig, ipart, j, nd(3), &
                                                             npart, nshell, p1, p2
@@ -512,7 +512,7 @@ CONTAINS
          POINTER                                         :: core_particle_set
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_patch'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_patch'
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: ex1, ex2, ey1, ey2, ez1, ez2
       INTEGER, DIMENSION(:), POINTER                     :: center1, center2

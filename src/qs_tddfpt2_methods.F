@@ -101,7 +101,7 @@ CONTAINS
    SUBROUTINE tddfpt(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt'
 
       CHARACTER(len=20)                                  :: nstates_str
       INTEGER                                            :: energy_unit, handle, ispin, istate, &
@@ -432,7 +432,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: do_hfx, do_admm
       TYPE(section_vals_type), POINTER                   :: xc_section, tddfpt_print_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_input'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_input'
 
       CHARACTER(len=20)                                  :: nstates_str
       LOGICAL                                            :: explicit_xc

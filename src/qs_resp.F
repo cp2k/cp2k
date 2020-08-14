@@ -139,7 +139,7 @@ CONTAINS
    SUBROUTINE resp_fit(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'resp_fit'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'resp_fit'
 
       INTEGER                                            :: handle, info, my_per, natom, nvar, &
                                                             output_unit
@@ -300,7 +300,7 @@ CONTAINS
       TYPE(resp_type), POINTER                           :: resp_env
       INTEGER, INTENT(IN)                                :: natom, nvar
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'resp_allocate'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'resp_allocate'
 
       IF (.NOT. ASSOCIATED(resp_env%matrix)) THEN
          ALLOCATE (resp_env%matrix(nvar, nvar))
@@ -326,7 +326,7 @@ CONTAINS
       TYPE(resp_type), POINTER                           :: resp_env
       TYPE(resp_p_type), DIMENSION(:), POINTER           :: rep_sys
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'resp_dealloc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'resp_dealloc'
 
       INTEGER                                            :: i
 
@@ -382,7 +382,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: resp_section, cons_section, rest_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_resp'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_resp'
 
       INTEGER                                            :: handle, i, nrep
       INTEGER, DIMENSION(:), POINTER                     :: atom_list_cons, my_stride
@@ -1197,7 +1197,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: rhs
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vpot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rhs'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_rhs'
 
       INTEGER                                            :: handle, ip, jx, jy, jz
       REAL(KIND=dp)                                      :: dvol

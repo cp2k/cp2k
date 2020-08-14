@@ -179,7 +179,7 @@ CONTAINS
       TYPE(elem_list_type), POINTER                      :: list
       INTEGER, OPTIONAL                                  :: temp_ind, nr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'add_to_list'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_to_list'
 
       TYPE(elem_list_type), POINTER                      :: last, list_elem_tmp
 
@@ -222,7 +222,7 @@ CONTAINS
    SUBROUTINE clean_list(list)
       TYPE(elem_list_type), POINTER                      :: list
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'clean_list'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'clean_list'
 
       TYPE(elem_list_type), POINTER                      :: list_elem_tmp
 

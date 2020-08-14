@@ -100,7 +100,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: homo_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rse_energy'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rse_energy'
 
       INTEGER                                            :: dimen, handle, i_global, iiB, ispin, &
                                                             j_global, jjB, n_rep_hf, ncol_local, &
@@ -609,7 +609,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: Eigenval_beta
       INTEGER, OPTIONAL                                  :: homo_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'non_diag_rse'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'non_diag_rse'
 
       INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
                                                             ncol_local, nrow_local, virtual, &

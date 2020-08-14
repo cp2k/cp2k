@@ -64,7 +64,7 @@ CONTAINS
    SUBROUTINE fp_env_create(fp_env)
       TYPE(fp_type), POINTER                             :: fp_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fp_env_create'
 
       INTEGER                                            :: handle
 
@@ -89,7 +89,7 @@ CONTAINS
    SUBROUTINE fp_env_release(fp_env)
       TYPE(fp_type), POINTER                             :: fp_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fp_env_release'
 
       INTEGER                                            :: handle
 
@@ -117,7 +117,7 @@ CONTAINS
    SUBROUTINE fp_env_retain(fp_env)
       TYPE(fp_type), POINTER                             :: fp_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_retain'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fp_env_retain'
 
       CPASSERT(ASSOCIATED(fp_env))
       fp_env%ref_count = fp_env%ref_count + 1
@@ -135,7 +135,7 @@ CONTAINS
       TYPE(fp_type), POINTER                             :: fp_env
       TYPE(section_vals_type), POINTER                   :: fp_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_read'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fp_env_read'
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
@@ -179,7 +179,7 @@ CONTAINS
       TYPE(fp_type), POINTER                             :: fp_env
       TYPE(section_vals_type), POINTER                   :: fp_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_write'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fp_env_write'
 
       INTEGER                                            :: handle, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger

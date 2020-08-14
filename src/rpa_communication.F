@@ -545,7 +545,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: local_size_source
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_buffer'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'release_buffer'
 
       INTEGER                                            :: handle, rec_counter, send_counter
 

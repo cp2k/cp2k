@@ -96,7 +96,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       INTEGER, INTENT(IN)                                :: ikind, jkind, itype
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_c3_coeff'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_c3_coeff'
 
       INTEGER                                            :: i, ij, j, kl, kr, li, lk
       REAL(KIND=dp)                                      :: core_core, e1b(9), e2a(9), r, zi, zj

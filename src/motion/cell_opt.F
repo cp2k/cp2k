@@ -55,7 +55,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cell_opt'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cell_opt'
 
       INTEGER                                            :: handle, step_start_val
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0

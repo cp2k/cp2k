@@ -371,7 +371,7 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       REAL(KIND=dp), INTENT(OUT)                         :: r
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cif_get_real'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cif_get_real'
 
       CHARACTER(LEN=default_string_length)               :: s_tag
       INTEGER                                            :: iln

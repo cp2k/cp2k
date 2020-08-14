@@ -173,7 +173,7 @@ CONTAINS
       CHARACTER(len=default_path_length), &
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_run'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp2k_run'
 
       INTEGER                                            :: f_env_handle, ierr, iter_level, &
                                                             method_name_id, new_env_id, &
@@ -944,7 +944,7 @@ CONTAINS
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
       INTEGER, INTENT(in), OPTIONAL                      :: mpi_comm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'run_input'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'run_input'
 
       INTEGER                                            :: unit_nr
       TYPE(cp_para_env_type), POINTER                    :: para_env
