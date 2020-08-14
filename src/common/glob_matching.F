@@ -14,7 +14,7 @@ MODULE glob_matching
 
    IMPLICIT NONE
 
-   CHARACTER(len=1), PARAMETER, PRIVATE :: backslash = '\\'
+   CHARACTER(len=1), PARAMETER, PRIVATE :: backslash = '\'
    CHARACTER(len=1), PARAMETER, PRIVATE :: star = '*'
    CHARACTER(len=1), PARAMETER, PRIVATE :: question = '?'
 
